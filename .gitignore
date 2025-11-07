@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Env & secrets
+.env
+*.env
+*.key
+*.pem
+
+# Databases / state
+*.db
+instance/
+var/
+
+# Local tools / executables
+cloudflared.exe
+
+# Media (use storage or Git LFS instead)
+static/**/*.mp4
+static/**/*.mkv
+static/**/*.webm
+static/**/*.mp3
+static/**/*.aac
+static/**/*.wav
+
+# Office/binaries, big PDFs (keep code repo lean)
+*.docx
+*.xlsx
+*.pptx
+*.pdf

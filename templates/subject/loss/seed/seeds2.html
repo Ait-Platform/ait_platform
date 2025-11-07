@@ -1,0 +1,84 @@
+{% extends "layout.html" %}
+{% from "admin/loss/_seed_tile.html" import seed_tile %}
+{% set tab = tab|default('questions') %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto py-6">
+  <h1 class="text-xl font-semibold mb-4">Seed Hub</h1>
+  <p class="text-slate-600 mb-6">Download a CSV, edit offline, then upload to update the database.</p>
+
+  <div class="grid md:grid-cols-2 gap-6">
+
+    {{ seed_tile(
+      title="Questions",
+      preview_url = url_for('admin_bp.seed_preview',          seed='questions'),
+      download_url= url_for('admin_bp.seed_download',         seed='questions'),
+      upload_url  = url_for('admin_bp.seed_upload',           seed='questions'),
+      import_url  = url_for('admin_bp.seed_import_project',   seed='questions'),
+      note        = "Looks for seeds/questions.csv",
+      active      = (tab == 'questions')
+    ) }}
+
+    {{ seed_tile(
+      title="Phase Items",
+      preview_url = url_for('admin_bp.seed_preview',          seed='phase_items'),
+      download_url= url_for('admin_bp.seed_download',         seed='phase_items'),
+      upload_url  = url_for('admin_bp.seed_upload',           seed='phase_items'),
+      import_url  = url_for('admin_bp.seed_import_project',   seed='phase_items'),
+      note        = "Looks for seeds/phase_items.csv",
+      active      = (tab == 'phase_items')
+    ) }}
+
+    {{ seed_tile(
+      title="Progress Items",
+      preview_url = url_for('admin_bp.seed_preview',          seed='progress_items'),
+      download_url= url_for('admin_bp.seed_download',         seed='progress_items'),
+      upload_url  = url_for('admin_bp.seed_upload',           seed='progress_items'),
+      import_url  = url_for('admin_bp.seed_import_project',   seed='progress_items'),
+      note        = "Looks for seeds/progress_items.csv",
+      active      = (tab == 'progress_items')
+    ) }}
+
+    {{ seed_tile(
+      title="Overall Items",
+      preview_url = url_for('admin_bp.seed_preview',          seed='overall_items'),
+      download_url= url_for('admin_bp.seed_download',         seed='overall_items'),
+      upload_url  = url_for('admin_bp.seed_upload',           seed='overall_items'),
+      import_url  = url_for('admin_bp.seed_import_project',   seed='overall_items'),
+      note        = "Looks for seeds/overall_items.csv",
+      active      = (tab == 'overall_items')
+    ) }}
+
+    {{ seed_tile(
+      title="Instruction Cards",
+      preview_url = url_for('admin_bp.seed_preview',          seed='instruction'),
+      download_url= url_for('admin_bp.seed_download',         seed='instruction'),
+      upload_url  = url_for('admin_bp.seed_upload',           seed='instruction'),
+      import_url  = url_for('admin_bp.seed_import_project',   seed='instruction'),
+      note        = "Looks for seeds/instruction.csv",
+      active      = (tab == 'instruction')
+    ) }}
+
+    {{ seed_tile(
+      title="Explain Cards",
+      preview_url = url_for('admin_bp.seed_preview',          seed='explain'),
+      download_url= url_for('admin_bp.seed_download',         seed='explain'),
+      upload_url  = url_for('admin_bp.seed_upload',           seed='explain'),
+      import_url  = url_for('admin_bp.seed_import_project',   seed='explain'),
+      note        = "Looks for seeds/explain.csv",
+      active      = (tab == 'explain')
+    ) }}
+
+    {{ seed_tile(
+      title="Pause Cards",
+      preview_url = url_for('admin_bp.seed_preview',          seed='pause'),
+      download_url= url_for('admin_bp.seed_download',         seed='pause'),
+      upload_url  = url_for('admin_bp.seed_upload',           seed='pause'),
+      import_url  = url_for('admin_bp.seed_import_project',   seed='pause'),
+      note        = "Looks for seeds/pause.csv",
+      active      = (tab == 'pause')
+    ) }}
+
+  </div>
+</div>
+{% endblock %}

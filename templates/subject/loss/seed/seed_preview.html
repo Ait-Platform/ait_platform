@@ -1,0 +1,42 @@
+{% extends "layout.html" %}
+{% block content %}
+
+<a href="{{ url_for('admin_bp.seed_hub', tab=seed) }}"
+   class="text-sm inline-block mb-3 underline">← Back to {{ seed|capitalize }}</a>
+<h2 class="text-xl font-semibold mb-2">{{ seed|capitalize }} Preview</h2>
+
+<h2 class="mb-3">{{ title }} ({{ seed }})</h2>
+
+<div class="mb-3 flex items-center gap-2">
+  <a class="px-3 py-1 rounded border hover:bg-slate-100"
+     href="{{ url_for('admin_bp.seed_export_csv', seed=seed) }}">Download CSV</a>
+  <!--a class="px-3 py-1 rounded border hover:bg-slate-100"
+     href="{{ url_for('admin_bp.seed_hub') }}">Back to Seed Hub</a-->
+</div>
+
+<div class="overflow-auto">
+  <table class="min-w-full text-sm border">
+    <thead>
+      <tr>
+        {% for c in columns %}
+          <th class="text-left p-2 border-b font-semibold">{{ c }}</th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+        <tr class="border-b">
+          {% for c in columns %}
+            {# guard None and keep it short for long text columns #}
+            {% set val = row.get(c) %}
+            <td class="p-2">{{ (val if val is not none else '') }}</td>
+            {# or: {{ (val if val is not none else '')|truncate(120) }} #}
+          {% endfor %}
+        </tr>
+      {% else %}
+        <tr><td class="p-3 text-slate-500" colspan="{{ columns|length }}">No rows yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

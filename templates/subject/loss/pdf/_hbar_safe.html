@@ -1,0 +1,23 @@
+{# templates/subject/loss/pdf/_hbar_safe.html #}
+{# Inputs: pct (0–100), blk.phase, palette (emerald/amber/rose/blue/mint) #}
+{% set pct = (pct | int) %}
+{% set n = (pct | float) | round(0, 'floor') | int %}
+
+<div class="hbar-wrap">
+  <div class="hbar-scale">
+    <span>1</span><span>50</span><span>100</span>
+  </div>
+
+  <div class="hbar">
+    <div class="hbar-track">
+      {# filled = n% -> solid fill via currentColor #}
+      {% for _ in range(n) %}<div class="hseg hseg--filled hseg--{{ palette }}"></div>{% endfor %}
+      {# remaining #}
+      {% for _ in range(100 - n) %}<div class="hseg"></div>{% endfor %}
+    </div>
+    <div class="hbar-meta">
+      <span class="hbar-label">Phase {{ blk.phase }}</span>
+      <span class="hbar-pct">{{ n }}%</span>
+    </div>
+  </div>
+</div>

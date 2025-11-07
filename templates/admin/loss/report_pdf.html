@@ -1,0 +1,352 @@
+{% extends "layout.html" %}
+{% block title %}Loss Results | AIT{% endblock %}
+
+{% block content %}
+
+{# =================== SHARED HELPERS =================== #}
+
+{# clamp percent #}
+{% macro safe_pct(v) -%}
+  {%- set s=(v if v is not none else 0)|float -%}
+  {{ 0 if s<0 else (100 if s>100 else s|round(0,'floor')) }}
+{%- endmacro %}
+
+{# bar color by phase/band #}
+{% macro bar_bg(phase, band) -%}
+  {% if phase in [1,2,3] %}
+    {{ '#10b981' if band==1 else ('#f59e0b' if band==2 else '#ef4444') }}  {# green/orange/red #}
+  {% else %}
+    {{ '#3b82f6' if band==1 else ('#86efac' if band==2 else '#10b981') }}  {# blue/light-green/green #}
+  {% endif %}
+{%- endmacro %}
+
+{# optional: chip colors for Range #}
+{% macro chip_style_for_range(phase, band) -%}
+  {% if phase in [1,2,3] %}
+    {% if band==1 %}background:#ecfdf5;color:#047857;border-color:#a7f3d0;
+    {% elif band==2 %}background:#fffbeb;color:#b45309;border-color:#fde68a;
+    {% else %}background:#fff1f2;color:#be123c;border-color:#fecdd3;{% endif %}
+  {% else %}
+    {% if band==1 %}background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe;
+    {% elif band==2 %}background:#ecfdf5;color:#059669;border-color:#a7f3d0;
+    {% else %}background:#ecfdf5;color:#059669;border-color:#a7f3d0;{% endif %}
+  {% endif %}
+{%- endmacro %}
+
+{# optional: chip colors for Adaptation Vector #}
+{% macro chip_style_for_av(coping_txt) -%}
+  {% if coping_txt == 'Coping' %}
+    background:#ecfdf5;color:#047857;border-color:#a7f3d0;
+  {% elif coping_txt == 'Slightly Coping' %}
+    background:#fffbeb;color:#b45309;border-color:#fde68a;
+  {% else %}
+    background:#fff1f2;color:#be123c;border-color:#fecdd3;
+  {% endif %}
+{%- endmacro %}
+
+
+{# Phase titles #}
+{% set phase_labels = {1:'Impact', 2:'Hopelessness', 3:'Helplessness', 4:'Re-Engagement'} %}
+
+<!--
+{# AV (Adaptation Vector) chip color by status #}
+{% set av_chip_map = {
+  'Coping':'bg-emerald-50 text-emerald-700 border-emerald-200',
+  'Slightly Coping':'bg-amber-50 text-amber-700 border-amber-200',
+  'Not Coping':'bg-rose-50 text-rose-700 border-rose-200'
+} %}
+-->
+
+{# Safe % (0..100 int) #}
+{% macro safe_pct(v) -%}
+  {%- set s=(v if v is not none else 0)|float -%}
+  {{ 0 if s<0 else (100 if s>100 else s|round(0,'floor')) }}
+{%- endmacro %}
+
+{# Fallback chip class if backend didn’t provide one #}
+{% macro chip_class_for(phase, band) -%}
+  {# band: 1=low 2=mid 3=high ; phases 1-3 high=red, 4 high=green #}
+  {% if phase in [1,2,3] %}
+    {{ 'bg-emerald-50 text-emerald-700 border-emerald-200' if band==1 else ('bg-amber-50 text-amber-700 border-amber-200' if band==2 else 'bg-rose-50 text-rose-700 border-rose-200') }}
+  {% else %}
+    {{ 'bg-blue-50 text-blue-700 border-blue-200' if band==1 else ('bg-emerald-50 text-emerald-700 border-emerald-200' if band==2 else 'bg-emerald-50 text-emerald-700 border-emerald-200') }}
+  {% endif %}
+{%- endmacro %}
+
+{# Progress bar (width via data-attr; color class passed from backend as blk.bar_class) #}
+{% macro progress(width_pct, bar_class) -%}
+  {% set w = safe_pct(width_pct) %}
+  <div class="mt-2">
+    <div class="relative w-full h-3 md:h-4 rounded-full bg-slate-200 overflow-hidden">
+      <div class="absolute left-0 top-0 h-full rounded-full js-bar {{ bar_class }}"
+           data-width="{{ w }}"></div>
+    </div>
+    <div class="flex justify-between text-[11px] md:text-xs text-slate-500 mt-1">
+      <!--span>0</span><span>50</span><span>100</span-->
+    </div>
+  </div>
+{%- endmacro %}
+
+{# =================== PRINT/PDF POLISH =================== #}
+{% set viewer_is_admin = viewer_is_admin | default(false) %}
+{% if pdf_mode %}
+<style>
+  /* Hide skip links / site chrome in PDF */
+  a.skip-link,
+  .skip-link,
+  #skip,
+  #skipnav,
+  #skip-to-content,
+  #skip_content,
+  #skip-content,
+  a[href="#content"],
+  a[href="#main"],
+  a[href="#main-content"],
+  a[href^="#skip"],
+  [aria-label="Skip to content"],
+  [aria-label="Skip To Content"],
+  .sr-only.skip-link {
+    display: none !important;
+  }
+
+  /* Keep colors in print */
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  /* Page margins & header/footer (WeasyPrint) */
+  @page {
+    margin: 25mm 16mm 18mm 16mm;
+    @top-center   { content: element(pdf-running-header); }
+    @bottom-center{
+      content: "Page " counter(page) " of " counter(pages);
+      font-size: 10pt;
+      color: #475569;
+    }
+  }
+
+  /* Inline page number shown right under each phase (PDF only) */
+  .pdf-inline-page {
+    display: block;
+    margin-top: 10pt;
+    text-align: right;
+    font-size: 10pt;
+    color: #475569;
+  }
+  .pdf-inline-page::before {
+    content: "Page " counter(page) " of " counter(pages);
+  }
+
+  html, body { background:#ffffff; color:#111827; font-size:12pt; }
+
+  /* Simplify visuals for print */
+  .print\:hidden { display:none !important; }
+  .shadow, .shadow-md, .shadow-lg { box-shadow:none !important; }
+  .rounded-2xl, .rounded-xl { border-radius:0 !important; }
+
+  /* Keep phase blocks intact on a page */
+  .phase-card { break-inside: avoid; page-break-inside: avoid; }
+
+  /* Running header element hook */
+  .pdf-running-header { position: running(pdf-running-header); }
+  /* (You aren't using a running footer element here, so this class is optional) */
+  .pdf-running-footer { position: running(pdf-running-footer); }
+
+  .pdf-small { font-size: 10pt; color: #475569; }
+</style>
+
+
+
+{# Running header content #}
+<div class="pdf-running-header">
+  <div style="display:flex; justify-content:space-between; align-items:flex-end; border-bottom:1px solid #e5e7eb; padding-bottom:6px; margin-bottom:8px;">
+    <div style="font-weight:700; color:#0f172a;">Loss Assessment Report</div>
+    <div class="pdf-small">
+      Run {{ run_id }}{% if created_at_label %} • {{ created_at_label }}{% endif %}
+      {% if user and user.name %} • {{ user.name }}{% endif %}
+    </div>
+  </div>
+</div>
+
+{# Running footer content (page numbers) #}
+<div class="pdf-running-footer">
+  <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid #e5e7eb; padding-top:6px; margin-top:8px;">
+    <div class="pdf-small">AIT Platform</div>
+    <div class="pdf-small">Page <span class="pageNumber"></span> of <span class="totalPages"></span></div>
+  </div>
+</div>
+{% endif %}
+
+{# =================== PAGE HEADER + CONTROLS =================== #}
+<div class="mx-auto w-full max-w-6xl px-4 md:px-6 py-8">
+  <div class="bg-white rounded-2xl shadow p-6 md:p-8 leading-relaxed">
+    <div class="flex items-start justify-between gap-3 mb-4">
+      <div>
+        <h2 class="text-xl md:text-2xl font-bold text-slate-800">Assessment Results</h2>
+        <p class="text-xs md:text-sm text-slate-500">
+          Run {{ run_id }}{% if created_at_label %} • {{ created_at_label }}{% endif %}
+          {% if user and user.name %} • {{ user.name }}{% if user.email %} ({{ user.email }}){% endif %}{% endif %}
+        </p>
+      </div>
+
+      <div class="flex items-center gap-2 print:hidden">
+        {% if adaptive_vector %}
+          {% set av_chip = av_chip_map.get(adaptive_vector, 'bg-slate-50 text-slate-700 border-slate-200') %}
+          <span class="px-2 py-1 text-xs rounded-full border {{ av_chip }}">{{ adaptive_vector }}</span>
+        {% endif %}
+
+        {% set pdf_url  = url_for('loss_bp.learner_report_pdf', run_id=run_id, user_id=user_id, to=(user.email if user else None)) %}
+        {% set exit_url = url_for('public_bp.welcome') %}
+
+        <a class="text-xs px-2 py-1 rounded border bg-slate-100 hover:bg-slate-200"
+          href="{{ exit_url }}"
+          onclick="window.open('{{ pdf_url|e }}','_blank','noopener');">
+          Download &amp; Email my report
+        </a>
+
+
+
+
+      </div>
+    </div>
+
+
+
+    {# =================== PHASE CARDS =================== #}
+    {% set blocks = phase_blocks | default([], true) %}
+    {% if blocks|length == 0 %}
+      <div class="mt-4 rounded-xl border border-amber-200 p-4 bg-amber-50 text-amber-800">
+        No phase data available for this run.
+      </div>
+    {% else %}
+      <div class="space-y-5">
+        {% for blk in blocks %}
+          {# Safe fallbacks #}
+          {% set pct_i  = (blk.pct if blk.pct is defined else (blk.width_pct if blk.width_pct is defined else 0)) | int %}
+          {% set band_i = blk.band if blk.band is defined else (3 if pct_i>=70 else (2 if pct_i>=40 else 1)) %}
+          {% set range_label = blk.level if blk.level is defined else ('High' if band_i==3 else ('Medium' if band_i==2 else 'Low')) %}
+          {% set coping_txt = blk.coping if blk.coping is defined else
+              ('Not Coping' if (blk.phase in [1,2,3] and pct_i>=70) or (blk.phase==4 and pct_i<40)
+               else ('Slightly Coping' if (pct_i>=40 and pct_i<70) else 'Coping')) %}
+          {% set range_chip = blk.badge_class if blk.badge_class is defined else chip_class_for(blk.phase, band_i) %}
+          {% set av_chip = av_chip_map.get(coping_txt, 'bg-slate-50 text-slate-700 border-slate-200') %}
+
+          <section class="phase-card rounded-2xl border border-slate-200 p-5">
+            <header class="mb-1">
+              <h3 class="text-base md:text-lg font-semibold text-slate-800 flex flex-wrap items-center gap-x-2 gap-y-1">
+                <span>Phase {{ blk.phase }}: {{ phase_labels.get(blk.phase, 'Phase ' ~ blk.phase) }}:</span>
+
+                <span class="font-normal">Range:</span>
+                <span class="px-2 py-0.5 text-[11px] md:text-xs rounded-full border {{ range_chip }}">{{ range_label }}</span>
+
+                <span class="font-normal ml-2">Adaptation Vector:</span>
+                <span class="px-2 py-0.5 text-[11px] md:text-xs rounded-full border {{ av_chip }}">{{ coping_txt }}</span>
+              </h3>
+              <p class="text-xs md:text-sm text-slate-500 mt-1">
+                You are experiencing these feelings {{ pct_i }}% of the time in this phase.
+              </p>
+            </header>
+
+            {{ progress(pct_i, blk.bar_class if blk.bar_class is defined else 'bg-slate-400') }}
+
+            <div class="mt-4 space-y-6">
+              {% if blk.comments_list %}
+                <section>
+                  <div class="text-sm font-medium text-slate-700 mb-2">Comments</div>
+                  <ul class="list-disc list-outside pl-6 text-slate-800 text-[15px] leading-7 space-y-2">
+                    {% for line in blk.comments_list %}<li class="italic">{{ line }}</li>{% endfor %}
+                  </ul>
+                  
+                </section>
+
+
+              {% endif %}
+
+              {% set prog = (blk.progress if blk.progress is defined else none) %}
+              {% if prog and prog.notes %}
+                <section>
+                  <div class="flex items-center gap-2 mb-2">
+                    <div class="text-sm font-medium text-slate-700">Progress</div>
+                    <span class="px-2 py-0.5 text-[11px] rounded-full border {{ prog.chip_class }}">{{ prog.band|capitalize }}</span>
+                    {% if prog.tone %}
+                      {% set tone_lbl = 'Positive' if prog.tone=='positive' else ('Slightly Positive' if prog.tone=='slightly_positive' else 'Negative') %}
+                      <span class="px-2 py-0.5 text-[11px] rounded-full border bg-slate-50 text-slate-700 border-slate-200">{{ tone_lbl }}</span>
+                    {% endif %}
+                  </div>
+                  <ul class="list-disc pl-6 text-sm text-slate-700 space-y-1">
+                    {% for line in prog.notes %}<li>{{ line }}</li>{% endfor %}
+                  </ul>
+                </section>
+              {% endif %}
+            </div>
+          </section>
+            <!--div class="pdf-inline-page"></div-->
+        {% endfor %}
+      </div>
+
+      {# =================== PHASE SUMMARY =================== #}
+      <section class="mt-6 rounded-2xl border border-slate-200 p-5 bg-slate-50">
+        <div class="text-sm font-medium text-slate-700 mb-2">Phase Summary</div>
+        <p class="text-sm text-slate-600">
+          You are experiencing these feelings as shown under Comments in these phases
+        </p>
+        <ul class="list-disc pl-5 text-sm text-slate-700 space-y-1 mt-2">
+          {% for blk in blocks %}
+            {% set pct = (blk.pct if blk.pct is defined else (blk.width_pct if blk.width_pct is defined else 0)) | int %}
+            <li>Phase {{ blk.phase }}: {{ phase_labels.get(blk.phase, 'Phase ' ~ blk.phase) }}: {{ pct }}% of the time.</li>
+          {% endfor %}
+        </ul>
+      </section>
+    {% endif %}
+
+
+
+    {# =================== OVERALL ASSESSMENT (PHASE 1 ONLY) =================== #}
+    {% set oa = overall_assessment | default(None) %}
+    {% if oa %}
+      <section class="mb-5 rounded-2xl border border-slate-200 p-5 bg-slate-50">
+        <div class="flex items-center justify-between gap-3">
+          <h3 class="text-base md:text-lg font-semibold text-slate-800">Overall Assessment</h3>
+          <span class="px-2 py-0.5 text-[11px] md:text-xs rounded-full border {{ oa.chip_class }}">{{ oa.label }}</span>
+        </div>
+        <p class="mt-2 text-slate-700">{{ oa.summary }}</p>
+
+        {% if oa.bullets and oa.bullets|length > 0 %}
+          <div class="mt-2">
+            <div class="text-sm font-medium text-slate-700 mb-1">What helps right now</div>
+            <ul class="list-disc pl-6 text-slate-800 text-[15px] leading-7 space-y-2">
+              {% for b in oa.bullets %}<li>{{ b }}</li>{% endfor %}
+            </ul>
+          </div>
+        {% endif %}
+
+        {% if oa.key_need %}
+          <p class="mt-3 text-sm"><span class="font-semibold">Key need:</span> {{ oa.key_need }}.</p>
+        {% endif %}
+      </section>
+    {% endif %}
+
+    {# =================== DISCLAIMER =================== #}
+    <section class="mt-8 rounded-2xl border border-slate-200 p-5 bg-slate-50">
+      <h4 class="text-sm font-medium text-slate-700 mb-1">Disclaimer</h4>
+      <p class="text-xs md:text-sm text-slate-600 leading-relaxed">
+        {{ disclaimer_text or
+           "This report is an informational summary to support reflection and planning. It is not a diagnosis or a substitute for professional care. If you are in distress or worried about safety, please contact a health professional or local emergency services." }}
+      </p>
+    </section>
+
+  </div>
+</div>
+
+{# Apply widths from data-width #}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  document.querySelectorAll('.js-bar').forEach(function (el) {
+    var n = parseInt(el.getAttribute('data-width') || '0', 10);
+    if (isNaN(n)) n = 0;
+    n = Math.min(100, Math.max(0, n));
+    el.style.width = n + '%';
+    el.setAttribute('aria-valuenow', String(n));
+  });
+});
+</script>
+
+{% endblock %}

@@ -1,0 +1,52 @@
+{% extends "layout.html" %}
+{% block title %}Tenant SOA · {{ tenant.name }}{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-5xl py-8">
+  <h1 class="text-2xl font-semibold mb-2">Statement of Account</h1>
+  <div class="text-sm text-slate-600 mb-4">
+    <strong>Tenant:</strong> {{ tenant.name }}{% if tenant.unit_label %} — Unit {{ tenant.unit_label }}{% endif %}
+    {% if start or end %}&nbsp;|&nbsp;<strong>Range:</strong> {{ start or '…' }} → {{ end or '…' }}{% endif %}
+  </div>
+
+  <div class="rounded border bg-white overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead class="bg-slate-50">
+        <tr>
+          <th class="p-2 border">Date</th>
+          <th class="p-2 border">Month</th>
+          <th class="p-2 border">Description</th>
+          <th class="p-2 border">Kind</th>
+          <th class="p-2 border text-right">Amount</th>
+          <th class="p-2 border text-right">Balance</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          <td class="p-2 border">{{ r.date }}</td>
+          <td class="p-2 border">{{ r.month or '' }}</td>
+          <td class="p-2 border">{{ r.description }}</td>
+          <td class="p-2 border">{{ r.kind }}</td>
+          <td class="p-2 border text-right">{{ '%.2f'|format(r.amount) }}</td>
+          <td class="p-2 border text-right">{{ '%.2f'|format(r.balance) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Back to Page 1 -->
+  <a href="{{ url_for('admin_bp.metsoa_page1', tenant_id=tenant.id, month=month) }}"
+    class="inline-flex items-center gap-2 rounded border px-3 py-1.5 hover:bg-slate-50">← Back</a>
+
+  <!-- View Ledger -->
+  <a href="{{ url_for('admin_bp.tenant_ledger', tenant_id=tenant.id, month=month) }}"
+    class="inline-flex items-center gap-2 rounded border px-3 py-1.5 hover:bg-slate-50">View Ledger</a>
+
+  <div class="mt-4 print:hidden">
+    <button type="button" onclick="window.print()" class="inline-flex items-center gap-2 rounded border px-3 py-1.5 hover:bg-slate-50">Print</button>
+  </div>
+</div>
+{% endblock %}
+
+

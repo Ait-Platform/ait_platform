@@ -1,0 +1,42 @@
+{# Vertical Phase Graph (4 bars) — PDF-safe, no inline styles #}
+{# Expects P1..P4 in context; falls back to result.phase_* if needed #}
+
+{% set P1 = (P1 if P1 is defined else (result.phase_1 if result is defined and result else 0)) | int %}
+{% set P2 = (P2 if P2 is defined else (result.phase_2 if result is defined and result else 0)) | int %}
+{% set P3 = (P3 if P3 is defined else (result.phase_3 if result is defined and result else 0)) | int %}
+{% set P4 = (P4 if P4 is defined else (result.phase_4 if result is defined and result else 0)) | int %}
+
+{% set bars = [
+  (1, 'Impact',        P1, 'p1'),
+  (2, 'Hopelessness',  P2, 'p2'),
+  (3, 'Helplessness',  P3, 'p3'),
+  (4, 'Re-Engagement', P4, 'p4'),
+] %}
+
+<section class="vbar-wrap">
+  <div class="vbar-scale"><span>0%</span><span>33%</span><span>66%</span><span>85%</span><span>100%</span></div>
+
+  <div class="vbar-area">
+    <!-- gridlines -->
+    <div class="vgrid vgrid33"><span class="vgrid-tag">Low (33%)</span></div>
+    <div class="vgrid vgrid66"><span class="vgrid-tag">Mid (66%)</span></div>
+    <div class="vgrid vgrid85"><span class="vgrid-tag">High (85%)</span></div>
+
+    {% for phase, label, pct, key in bars %}
+      {% set n = (pct | float) | round(0, 'floor') | int %}
+      <div class="vcol vcol--{{ key }}">
+        <div class="vstack">
+          {# filled stack n% -> solid using currentColor #}
+          {% for _ in range(n) %}<div class="vseg vseg--filled"></div>{% endfor %}
+          {# remaining #}
+          {% for _ in range(100 - n) %}<div class="vseg"></div>{% endfor %}
+        </div>
+        <div class="vcol-pct">{{ n }}%</div>
+        <div class="vcol-label">
+          <div class="vcol-phase">{{ phase }}</div>
+          <div class="vcol-name">{{ label }}</div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+</section>

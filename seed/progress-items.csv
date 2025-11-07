@@ -1,0 +1,13 @@
+int,int,str,str,int,text,bool
+1,1,negative,negative,1,"Clinging to the past is hampering your independence. You are unable to adjust to the loss. You may need to seek professional help, e.g., a Psychologist.",True
+1,1,positive,positive,1,You can talk about the loss with some comfort. You show confidence in some of your daily tasks.,True
+1,1,slightly_positive,slightly_positive,1,You are not comfortable adapting to changes around you. Other issues not shown in this exercise may also be troubling you.,True
+1,1,negative,negative,1,You are feeling overwhelmed and unable to deal with issues worrying you.,True
+1,1,positive,positive,1,You are able to stay calm in situations. You have a good understanding of your capabilities.,True
+1,1,slightly_positive,slightly_positive,1,You have put a pause on things that frustrate you. There may be other issues holding you back.,True
+1,1,negative,negative,1,You show very little mixed feelings. You are able to deal with issues of importance.,True
+1,1,positive,positive,1,You blame yourself for the situation you are in. You can tackle other challenges with a great deal of positivity.,True
+1,1,slightly_positive,slightly_positive,1,Conflicting feelings are holding you back. You have the ability to overcome some negative emotions.,True
+1,1,positive,positive,1,You have come to realise your experiences with this loss will make you stronger. You have a good understanding of your capabilities.,True
+1,1,slightly_positive,slightly_positive,1,"Anger and pain have died down, and you’re left in a more calm and relaxed state. You show confidence in handling your daily activities.",True
+1,1,slightly_positive,slightly_positive,1,You begin to put pieces of your life back together and move forward positively. You show confidence in some of your daily tasks.,True

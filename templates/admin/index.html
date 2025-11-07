@@ -1,0 +1,19 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container mx-auto py-10">
+  <h1 class="text-2xl font-semibold mb-8">General Admin Dashboard</h1>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    {% for s in subjects %}
+      <a href="{{ url_for('admin_bp.subject_home', slug=s.slug) }}"
+         class="block rounded-xl border p-6 hover:bg-slate-50">
+        <h2 class="font-medium">{{ s.name }}</h2>
+        <p class="text-sm text-slate-500">
+          {{ s.description or "Manage resources, lessons, and settings." }}
+        </p>
+      </a>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
+

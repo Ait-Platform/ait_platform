@@ -1,0 +1,30 @@
+{% extends "layout.html" %}
+{% block content %}
+  <h1 class="text-2xl font-bold text-blue-800 mb-4">Loss Continuum Assessment (LCA)</h1>
+
+  <p class="mb-4">
+    You are about to begin a short diagnostic test. The purpose of this test is to assess your present position
+    on the continuum of emotional responses following the loss of a loved one.
+  </p>
+
+  <p class="mb-4">
+    You are required to answer each item truthfully and without hesitation. There are no right or wrong answers.
+    The results will be used to provide feedback regarding your current grief stage.
+  </p>
+
+  <p class="mb-4">
+    You will be presented with a series of statements. Please respond to each with a clear Yes or No.
+    The test is designed to be completed in one sitting. Do not pause unless instructed.
+  </p>
+
+  <p class="text-gray-600 mt-6 italic">Press <strong>Next</strong> to begin.</p>
+{% endblock %}
+
+{% block button %}
+  <form method="GET" action="{{ url_for('counselling_bp.loss_instructions_ready') }}">
+    <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">
+      Next
+    </button>
+  </form>
+{% endblock %}
+

@@ -1,0 +1,32 @@
+{% if kind == 'pause' %}
+  <div id="pauseBox" class="text-center mb-6" data-seconds="{{ pause_seconds|default(0, true) }}">
+    <p class="text-gray-600">
+      Resuming in <span id="count">{{ pause_seconds|default(0, true) }}</span> seconds…
+    </p>
+  </div>
+
+  <script>
+    (function () {
+      var box = document.getElementById('pauseBox');
+      if (!box) return;
+      var seconds = parseInt(box.getAttribute('data-seconds'), 10) || 0;
+      if (!(seconds > 0)) return;
+
+      var el = document.getElementById('count');
+      var form = document.getElementById('seqForm');
+
+      var t = setInterval(function () {
+        seconds -= 1;
+        if (el) el.textContent = seconds;
+        if (seconds <= 0) {
+          clearInterval(t);
+          if (form) {
+            document.getElementById('actionInput').value = 'next';
+            form.submit();
+          }
+        }
+      }, 1000);
+    })();
+  </script>
+{% endif %}
+

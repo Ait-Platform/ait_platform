@@ -1,0 +1,79 @@
+{% extends "layout.html" %}
+{% block content %}
+
+<!--a href="{{ back_url }}" class="inline-block rounded border px-3 py-1 text-sm">← Back</a-->
+<a href="{{ url_for('admin_bp.loss_index', user_id=user_id, run_id=run_id) }}"
+    class="inline-block rounded border px-3 py-1 text-sm">← Back</a>  
+<form id="seedForm" class="mb-4">
+  <label class="text-sm mr-2">Table</label>
+  <select name="seed" id="seedSelect" class="rounded border px-2 py-1">
+    {% for s in seeds %}
+      <option value="{{ s }}" {{ 'selected' if s == seed else '' }}>{{ s|title }}</option>
+    {% endfor %}
+  </select>
+</form>
+
+<!-- … your table markup (unchanged) … -->
+
+  {% if mode == 'save' %}
+    <div class="mt-4 flex items-center gap-3">
+      <form action="{{ import_url }}" method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else csrf_token_value }}">
+        <button class="rounded border px-3 py-1 text-sm bg-blue-600 text-white">Write CSV to DB</button>
+      </form>
+      {% if csv_path %}
+        <span class="text-xs text-slate-500">CSV: {{ csv_path }}</span>
+      {% endif %}
+    </div>
+  {% endif %}
+
+
+{% if mode == 'view' %}
+<script>
+(function () {
+  const seedSelectEl = document.getElementById('seedSelect');
+  function openDownload(seed) {
+    const base = "{{ download_base }}"; // no seed param baked in
+    const u = new URL(base, window.location.origin);
+    u.searchParams.set("seed", seed);
+    const a = document.createElement('a');
+    a.href = u.toString(); a.target = '_blank'; a.rel = 'noopener';
+    document.body.appendChild(a); a.click(); a.remove();
+  }
+  if (seedSelectEl) {
+    seedSelectEl.addEventListener('change', (e) => {
+      const seed = e.target.value;
+      // kick off download for the NEW selection
+      openDownload(seed);
+      // then navigate to view the NEW selection
+      const v = new URL("{{ url_for('admin_bp.tables_view') }}", window.location.origin);
+      v.searchParams.set("seed", seed);
+      // preserve back if present
+      const back = new URLSearchParams(window.location.search).get("back");
+      if (back) v.searchParams.set("back", back);
+      window.location = v.toString();
+    });
+  }
+  // auto-download for current selection (fresh export)
+  openDownload("{{ seed }}");
+})();
+</script>
+{% endif %}
+
+{% if mode == 'save' %}
+<script>
+(function () {
+  const seedSelectEl = document.getElementById('seedSelect');
+  if (!seedSelectEl) return;
+  seedSelectEl.addEventListener('change', (e) => {
+    const u = new URL("{{ url_for('admin_bp.tables_save') }}", window.location.origin);
+    u.searchParams.set("seed", e.target.value);
+    const back = new URLSearchParams(window.location.search).get("back");
+    if (back) u.searchParams.set("back", back);
+    window.location = u.toString();
+  });
+})();
+</script>
+{% endif %}
+
+{% endblock %}

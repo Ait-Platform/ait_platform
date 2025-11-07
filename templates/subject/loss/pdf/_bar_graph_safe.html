@@ -1,0 +1,29 @@
+{# templates/subject/loss/pdf/_bar_graph_safe.html #}
+{# Inputs expected: blk.phase, pct (int 0–100), palette (emerald/amber/rose/blue/mint) #}
+{% set pct = (pct | int) %}
+{% set n = (pct | float) | round(0, 'floor') | int %}
+
+<div class="loss-graph-wrap">
+  <div class="loss-graph-scale">
+    <span>0%</span><span>33%</span><span>66%</span><span>85%</span><span>100%</span>
+  </div>
+
+  <div class="loss-graph-area">
+    <!-- gridlines -->
+    <div class="loss-gridline loss-gl33"><span class="loss-gl-tag">Low (33%)</span></div>
+    <div class="loss-gridline loss-gl66"><span class="loss-gl-tag">Mid (66%)</span></div>
+    <div class="loss-gridline loss-gl85"><span class="loss-gl-tag">High (85%)</span></div>
+
+    <!-- one bar; segment stack = solid fill (no gaps, no borders) -->
+    <div class="loss-bar loss-bar--seg loss-bar--{{ palette }}">
+      <div class="loss-bar-col">
+        {# filled portion: n segments -> looks solid #}
+        {% for _ in range(n) %}<div class="loss-seg loss-seg--filled"></div>{% endfor %}
+        {# unfilled portion: 100-n segments -> transparent #}
+        {% for _ in range(100 - n) %}<div class="loss-seg"></div>{% endfor %}
+      </div>
+      <div class="loss-bar-pct">{{ n }}%</div>
+      <div class="loss-bar-label">Phase {{ blk.phase }}</div>
+    </div>
+  </div>
+</div>

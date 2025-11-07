@@ -1,0 +1,80 @@
+{% extends "layout.html" %}
+{% block content %}
+
+<div class="flex items-center justify-between mb-4">
+  <h1 class="text-xl font-semibold">{{ meta.title }}</h1>
+  <a class="text-sm underline" href="{{ url_for('admin_bp.seed_hub') }}">← Back to Seeds</a>
+</div>
+
+<form method="post" action="{{ url_for('admin_bp.seed_save_simple', seed=seed) }}">
+  {{ csrf_token() }}
+
+  <div class="overflow-x-auto rounded-2xl border border-slate-200">
+    <table class="min-w-full text-sm">
+      <thead class="bg-slate-50">
+        <tr>
+          <th class="p-2 text-left">Delete</th>
+          {% for col, typ in meta.columns %}
+            <th class="p-2 text-left">{{ col }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+
+      <tbody>
+        {# Existing rows #}
+        {% for r in rows %}
+          <tr class="border-t">
+            <td class="p-2">
+              <input type="checkbox" name="del-{{ r.id }}">
+            </td>
+            {% for col, typ in meta.columns %}
+              <td class="p-2 align-top">
+                {% set val = getattr(r, col) %}
+                {% if col == meta.pk %}
+                  <input class="w-24 border rounded px-2 py-1 bg-slate-100" type="text" value="{{ val }}" readonly>
+                {% elif typ == "bool" %}
+                  <input type="checkbox" name="row-{{ r.id }}-{{ col }}" {% if val %}checked{% endif %}>
+                {% elif typ == "int" %}
+                  <input class="w-28 border rounded px-2 py-1" type="number" name="row-{{ r.id }}-{{ col }}" value="{{ val }}">
+                {% elif typ == "text" %}
+                  <textarea class="w-96 h-24 border rounded px-2 py-1" name="row-{{ r.id }}-{{ col }}">{{ val or "" }}</textarea>
+                {% else %}
+                  <input class="w-96 border rounded px-2 py-1" type="text" name="row-{{ r.id }}-{{ col }}" value="{{ val or "" }}">
+                {% endif %}
+              </td>
+            {% endfor %}
+          </tr>
+        {% endfor %}
+
+        {# New rows (3) #}
+        {% for n in range(1,4) %}
+          <tr class="border-t bg-slate-50/40">
+            <td class="p-2 text-slate-400">new</td>
+            {% for col, typ in meta.columns %}
+              <td class="p-2 align-top">
+                {% if col == meta.pk %}
+                  <input class="w-24 border rounded px-2 py-1 bg-slate-100" type="text" value="" placeholder="(auto)">
+                {% elif typ == "bool" %}
+                  <input type="checkbox" name="new-{{ n }}-{{ col }}">
+                {% elif typ == "int" %}
+                  <input class="w-28 border rounded px-2 py-1" type="number" name="new-{{ n }}-{{ col }}">
+                {% elif typ == "text" %}
+                  <textarea class="w-96 h-24 border rounded px-2 py-1" name="new-{{ n }}-{{ col }}"></textarea>
+                {% else %}
+                  <input class="w-96 border rounded px-2 py-1" type="text" name="new-{{ n }}-{{ col }}">
+                {% endif %}
+              </td>
+            {% endfor %}
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="mt-4 flex gap-2">
+    <button class="px-4 py-2 rounded bg-blue-600 text-white">Save changes</button>
+    <a class="px-4 py-2 rounded border" href="{{ url_for('admin_bp.seed_hub') }}">Cancel</a>
+  </div>
+</form>
+
+{% endblock %}

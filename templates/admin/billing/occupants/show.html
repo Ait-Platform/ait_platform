@@ -1,0 +1,155 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container mx-auto max-w-5xl py-8">
+  <!-- Top bar -->
+  <div class="mb-4 flex items-center justify-between">
+    <a href="{{ url_for('admin_bp.billing_occupants_index') }}"
+       class="inline-block rounded-lg border px-3 py-1 text-sm hover:bg-slate-50">← Back</a>
+
+    <div class="flex items-center gap-2">
+      <a href="{{ url_for('admin_bp.billing_tenant_edit', tenant_id=tenant.id) }}"
+         class="rounded-lg border px-3 py-1 text-sm hover:bg-slate-50">Edit</a>
+
+      {% if tenant and (tenant.sectional_unit and tenant.sectional_unit.id) %}
+        <a href="{{ url_for('admin_bp.sectional_unit_view', unit_id=tenant.sectional_unit.id) }}"
+           class="rounded-lg border px-3 py-1 text-sm hover:bg-slate-50">Go to unit</a>
+      {% endif %}
+
+      <!-- Optional: go straight to capture reading for this tenant/unit -->
+      <a href="{{ url_for('admin_bp.meter_reading_new', tenant_id=tenant.id) }}"
+         class="rounded-lg border px-3 py-1 text-sm hover:bg-slate-50">Add reading</a>
+
+      <a href="{{ url_for('admin_bp.lease_new', tenant_id=tenant.id) }}"
+         class="rounded-lg border px-3 py-1 text-sm hover:bg-slate-50">Add lease</a>
+    </div>
+  </div>
+
+  <!-- Heading -->
+  <h1 class="text-2xl font-semibold mb-4 flex items-center gap-3">
+    {{ tenant.name or '—' }}
+    {% if tenant.rent_includes_metro %}
+      <span class="text-xs rounded-full border px-2 py-0.5 text-emerald-700 border-emerald-200 bg-emerald-50">RIM</span>
+    {% endif %}
+  </h1>
+
+  <!-- Top cards -->
+  <div class="grid md:grid-cols-3 gap-6">
+    <!-- Unit -->
+    <div class="rounded-xl border p-4">
+      <h2 class="font-medium mb-2">Unit</h2>
+      <div>
+        {% if tenant.sectional_unit %}
+          {{ tenant.sectional_unit.name }}
+        {% else %}
+          —
+        {% endif %}
+      </div>
+      <div class="text-sm text-slate-500 mt-2">
+        Metro: {{ tenant.metro_account_no or '—' }}
+      </div>
+      <div class="text-sm text-slate-500">
+        Rent includes metro: {{ 'Yes' if tenant.rent_includes_metro else 'No' }}
+      </div>
+    </div>
+
+    <!-- Contact -->
+    <div class="rounded-xl border p-4">
+      <h2 class="font-medium mb-2">Contact</h2>
+      <div>Email: {{ tenant.email or '—' }}</div>
+      <div>Phone: {{ tenant.phone or '—' }}</div>
+    </div>
+
+    <!-- Meters -->
+    <div class="rounded-xl border p-4">
+      <h2 class="font-medium mb-2">Meters (unit)</h2>
+      {% if meters and meters|length %}
+        <ul class="list-disc ml-5">
+          {% for m in meters %}
+            <li class="flex items-center justify-between">
+              <span>{{ (m.utility_type or 'Utility') ~ ' — ' ~ (m.meter_number or '—') }}</span>
+              <a href="{{ url_for('admin_bp.meter_view', meter_id=m.id) }}"
+                 class="text-xs underline text-slate-600 hover:text-slate-900">View</a>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <div class="text-slate-500">No meters linked.</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Bottom rows -->
+  <div class="mt-8 grid md:grid-cols-2 gap-6">
+    <!-- Lease history -->
+    <div class="rounded-xl border p-4">
+      <div class="mb-2 flex items-center justify-between">
+        <h2 class="font-medium">Lease history</h2>
+        <a href="{{ url_for('admin_bp.lease_new', tenant_id=tenant.id) }}"
+           class="text-xs underline text-slate-600 hover:text-slate-900">Add</a>
+      </div>
+      
+        {% if leases and leases|length %}
+          <ul class="space-y-1 text-sm">
+            {% for l in leases %}
+              {% set s = (l.start_date.strftime('%Y-%m-%d') if l.start_date and l.start_date.strftime is defined else (l.start_date or None)) %}
+              {% set e = (l.end_date.strftime('%Y-%m-%d')   if l.end_date   and l.end_date.strftime   is defined else (l.end_date   or None)) %}
+              <li>
+                {{ s or '—' }} → {{ e or 'Present' }}
+                {% if l.sectional_unit_id %} (Unit: {{ l.sectional_unit_id }}){% endif %}
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div class="text-slate-500">No leases found.</div>
+        {% endif %}
+
+
+
+
+    <!-- Recent readings -->
+    <div class="rounded-xl border p-4">
+      <div class="mb-2 flex items-center justify-between">
+        <h2 class="font-medium">Recent readings</h2>
+        <a href="{{ url_for('admin_bp.meter_reading_new', tenant_id=tenant.id) }}"
+           class="text-xs underline text-slate-600 hover:text-slate-900">Add</a>
+      </div>
+
+      {% if readings and readings|length %}
+        <table class="w-full text-sm">
+          
+          <thead>
+            <tr><th class="text-left">Date</th><th class="text-left">Meter</th><th class="text-right">Reading</th></tr>
+          </thead>
+          <tbody>
+          {% for r in readings %}
+            <tr>
+              <td class="py-1">
+                {% if r.reading_date and r.reading_date.strftime is defined %}
+                  {{ r.reading_date.strftime('%Y-%m-%d') }}
+                {% else %}
+                  {{ r.reading_date or '—' }}
+                {% endif %}
+              </td>
+              <td class="py-1">
+                {% if r.meter %}
+                  {{ r.meter.meter_number or '—' }}
+                {% else %}
+                  —
+                {% endif %}
+              </td>
+              <td class="py-1 text-right">{{ r.reading_value if r.reading_value is not none else '—' }}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+
+        </table>
+      {% else %}
+        <div class="text-slate-500">No recent readings.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+
+

@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% block content %}
+  <h2 class="text-xl font-bold mb-4">Upload Meter Reading – {{ property_name }}</h2>
+  <form method="POST">
+    {{ form.hidden_tag() }}
+    <div class="mb-4">
+      {{ form.meter_id.label }}<br>
+      {{ form.meter_id(class="form-control") }}
+    </div>
+    <div class="mb-4">
+      {{ form.reading_date.label }}<br>
+      {{ form.reading_date(class="form-control") }}
+    </div>
+    <div class="mb-4">
+      {{ form.reading_value.label }}<br>
+      {{ form.reading_value(class="form-control") }}
+    </div>
+    <button type="submit" class="btn btn-success">Save Reading</button>
+    <a href="{{ url_for('billing_bp.admin_dashboard') }}" class="btn btn-secondary ml-2">Cancel</a>
+  </form>
+{% endblock %}

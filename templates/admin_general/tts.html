@@ -1,0 +1,222 @@
+{% extends "layout.html" %}
+{% block title %}Text to Speech · AIT{% endblock %}
+
+{% block head %}
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <script>
+    // Page-local Tailwind (safe if already present)
+    (function () {
+      if (!document.querySelector('#tailwind-cdn')) {
+        var s = document.createElement('script'); s.id='tailwind-cdn'; s.src='https://cdn.tailwindcss.com';
+        document.head.appendChild(s);
+      }
+    })();
+  </script>
+{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-3xl py-8">
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <h1 class="text-2xl font-semibold text-slate-800">Text to Speech</h1>
+      <p class="text-slate-500 text-sm">Type/paste text and generate an MP3 preview.</p>
+    </div>
+    <a href="{{ url_for('general_bp.index') }}"
+       class="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">
+      ← Back to Admin Hub
+    </a>
+  </div>
+
+  <div class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+    <div class="h-1.5 bg-pink-600"></div>
+    <div class="p-5">
+      <button id="openTts"
+              class="inline-flex items-center rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700">
+        Open TTS Input
+      </button>
+
+      <div id="errBox" class="hidden mt-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded-md p-2"></div>
+
+      <div id="ttsPane" class="hidden mt-4 space-y-4">
+        <!-- Text -->
+        <div>
+          <label for="ttsText" class="block text-sm font-medium text-slate-700">Narration text</label>
+          <textarea id="ttsText" rows="6"
+                    class="mt-1 w-full rounded-md border border-slate-300 p-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                    placeholder="Paste or type your script…"></textarea>
+        </div>
+
+        <!-- Controls (single set) -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label for="ttsVoice" class="block text-sm font-medium text-slate-700">Voice</label>
+            <select id="ttsVoice"
+                    class="mt-1 w-full rounded-md border border-slate-300 p-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500">
+              <option>en-US-AriaNeural</option>
+              <option>en-US-GuyNeural</option>
+              <option>en-GB-SoniaNeural</option>
+              <option>en-GB-RyanNeural</option>
+            </select>
+          </div>
+          <div>
+            <label for="ttsRate" class="block text-sm font-medium text-slate-700">Rate</label>
+            <select id="ttsRate"
+                    class="mt-1 w-full rounded-md border border-slate-300 p-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500">
+              <option>+0%</option>
+              <option>-10%</option>
+              <option>-5%</option>
+              <option>+5%</option>
+              <option>+10%</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="flex flex-wrap items-center gap-2 pt-1">
+          <button id="ttsConvert"
+                  class="inline-flex items-center rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700">
+            Convert to Audio
+          </button>
+
+          <a id="ttsDownload"
+             class="hidden inline-flex items-center rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
+             href="#" download="tts_preview.mp3">Download MP3</a>
+
+          <button id="ttsSave"
+                  class="inline-flex items-center rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700">
+            Save as MP3
+          </button>
+        </div>
+
+        <!-- Preview (single player) -->
+        <div>
+          <label class="block text-sm font-medium text-slate-700">Preview</label>
+          <audio id="ttsPlayer" controls class="mt-1 w-full"></audio>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ------- DOM -------
+  const $ = id => document.getElementById(id);
+  const openBtn    = $('openTts');
+  const pane       = $('ttsPane');
+  const textEl     = $('ttsText');
+  const voiceEl    = $('ttsVoice');
+  const rateEl     = $('ttsRate');
+  const convertBtn = $('ttsConvert');
+  const saveBtn    = $('ttsSave');
+  const player     = $('ttsPlayer');
+  const dlLink     = $('ttsDownload');
+  const errBox     = $('errBox');
+
+  // ------- helpers -------
+  function showErr(m){ errBox.textContent = m; errBox.classList.remove('hidden'); }
+  function hideErr(){ errBox.classList.add('hidden'); }
+  function getCookie(name){ return document.cookie.split('; ').find(r => r.startsWith(name+'='))?.split('=')[1] || ''; }
+  function getCsrf(){ return (document.querySelector('meta[name="csrf-token"]')?.content || getCookie('csrf_token') || '').trim(); }
+
+  async function postTTS(text, voice, rate) {
+    const res = await fetch('{{ url_for("general_bp.tts_api") }}', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCsrf(),
+        'X-CSRF-Token': getCsrf()
+      },
+      body: JSON.stringify({ text, voice, rate, volume: '+0%' })
+    });
+    if (!res.ok) {
+      let msg = 'TTS failed';
+      try { msg = (await res.json()).error || msg; } catch {}
+      throw new Error(msg);
+    }
+    return await res.blob(); // audio/mpeg
+  }
+
+  async function saveWithPicker(blob, suggested='narration.mp3') {
+    if (!window.showSaveFilePicker) return false;
+    const handle = await showSaveFilePicker({
+      suggestedName: suggested,
+      types: [{ description: 'MP3 Audio', accept: { 'audio/mpeg': ['.mp3'] } }]
+    });
+    const writable = await handle.createWritable();
+    await writable.write(blob);
+    await writable.close();
+    return true;
+  }
+
+  // ------- UI wiring -------
+  openBtn.addEventListener('click', () => {
+    pane.classList.toggle('hidden');
+    if (!pane.classList.contains('hidden')) pane.scrollIntoView({behavior:'smooth', block:'start'});
+  });
+
+  convertBtn.addEventListener('click', async () => {
+    hideErr();
+    const text = (textEl.value || '').trim();
+    if (!text) { showErr('Please enter some text.'); return; }
+
+    convertBtn.disabled = true;
+    const original = convertBtn.textContent;
+    convertBtn.textContent = 'Converting…';
+    dlLink.classList.add('hidden');
+    player.removeAttribute('src');
+
+    try {
+      const blob = await postTTS(text, voiceEl.value, rateEl.value);
+      const url  = URL.createObjectURL(blob);
+      player.src = url;
+      dlLink.href = url;
+      dlLink.classList.remove('hidden');
+      player.play().catch(()=>{});
+    } catch (e) {
+      showErr(e.message || 'TTS failed');
+    } finally {
+      convertBtn.disabled = false;
+      convertBtn.textContent = original;
+    }
+  });
+
+
+  // ...keep everything above as-is
+
+  saveBtn.addEventListener('click', async () => {
+    hideErr();
+    const text = (textEl.value || '').trim();
+    if (!text) { showErr('Please enter some text.'); return; }
+
+    saveBtn.disabled = true;
+    const original = saveBtn.textContent;
+    saveBtn.textContent = 'Rendering…';
+
+    try {
+      const blob = await postTTS(text, voiceEl.value, rateEl.value);
+      const url  = URL.createObjectURL(blob);
+
+      // Update preview but DO NOT autoplay
+      player.pause();
+      player.src = url;
+      player.currentTime = 0;
+
+      // Keep the download link in sync
+      dlLink.href = url;
+      dlLink.classList.remove('hidden');
+
+      // Open native Save dialog; fallback to browser download
+      const picked = await saveWithPicker(blob, 'narration.mp3');
+      if (!picked) dlLink.click();
+    } catch (e) {
+      showErr(e.message || 'Save failed');
+    } finally {
+      saveBtn.disabled = false;
+      saveBtn.textContent = original;
+    }
+  });
+
+
+
+</script>
+{% endblock %}

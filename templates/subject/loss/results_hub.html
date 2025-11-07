@@ -1,0 +1,40 @@
+{% extends "layout.html" %}
+{% block title %}LOSS – Results Hub{% endblock %}
+
+{% block content %}
+<div class="mx-auto w-full max-w-3xl px-6 py-8">
+  <div class="rounded-2xl border bg-white shadow-sm overflow-hidden">
+    <!-- color strip -->
+    <div style="height:6px; background:linear-gradient(90deg,#0ea5e9,#6366f1,#22c55e);"></div>
+
+    <div class="p-6">
+      <div class="flex items-start justify-between gap-4">
+        <div>
+          <h1 class="text-xl font-semibold text-slate-800">Assessment Results Ready</h1>
+          <p class="mt-1 text-slate-600 text-sm">Continue to your report.</p>
+        </div>
+        <div class="text-right text-xs text-slate-500">Run #{{ run_id }}</div>
+      </div>
+
+      <div class="mt-6 flex items-center justify-end">
+        <a href="{{ url_for('loss_bp.report', run_id=run_id, user_id=user_id) }}"
+           class="inline-flex items-center justify-center rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
+          View Report
+        </a>
+      </div>
+
+      {# Treat ?src=admin as admin view; default viewer_is_admin to false if absent #}
+      {% set admin_view = viewer_is_admin|default(false) or (request.args.get('src') == 'admin') %}
+
+      <div class="mt-6 text-xs text-slate-500">
+        {{ 'Viewer: Admin' if admin_view else 'Viewer: Learner' }}
+        {% if admin_view %}
+          • <a class="underline hover:no-underline" href="{{ url_for('admin_bp.loss_index') }}">Back to LOSS Admin</a>
+        {% endif %}
+      </div>
+
+    </div>
+  </div>
+</div>
+
+{% endblock %}

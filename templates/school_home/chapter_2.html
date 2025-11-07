@@ -1,0 +1,34 @@
+<!-- Chapter 2 Content Page -->
+{% extends "base.html" %}
+{% block title %}Chapter 2 — Millipede | HOME™{% endblock %}
+{% block content %}
+
+<div class="max-w-3xl mx-auto bg-white shadow p-6 rounded-xl mt-6">
+  <h1 class="text-2xl font-bold text-blue-700 mb-4">🐛 Chapter 2: Millipede</h1>
+
+  {% if session.get('enrolled_program') == 'HOME™ Part 1' %}
+    <p class="text-gray-700 leading-relaxed mb-4">
+      In this chapter, you'll meet a long-legged creature called the millipede! It helps us think about <strong>length</strong> and introduces the millimeter.
+      You’ll use measuring tools, observe small units, and relate real-world sizes.
+    </p>
+
+    <div class="mt-6 p-4 bg-yellow-50 text-yellow-900 border border-yellow-300 rounded">
+      🔍 <strong>Activity Tip:</strong> Use a ruler or tape to measure the legs of your toy millipede—or draw your own!
+    </div>
+
+    <form action="{{ url_for('advance_chapter', chapter_id=2) }}" method="POST" class="mt-6">
+      <button class="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 font-semibold">
+        ▶ Continue to Chapter 3
+      </button>
+    </form>
+
+  {% else %}
+    <div class="p-4 bg-yellow-100 text-yellow-800 border border-yellow-300 rounded">
+      ⚠️ This content is restricted.<br>
+      You must be enrolled in <strong>HOME™</strong> to begin learning.<br>
+      <a href="{{ url_for('school_page', name='math') }}" class="underline text-blue-600 hover:text-blue-800">Visit the School of Mathematics</a> to enroll.
+    </div>
+  {% endif %}
+</div>
+
+{% endblock %}

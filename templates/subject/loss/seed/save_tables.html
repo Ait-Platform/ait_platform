@@ -1,0 +1,37 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="max-w-6xl mx-auto py-6">
+  <a href="{{ url_for('admin_bp.loss_home') }}" class="text-sm text-slate-600">&larr; Back</a>
+
+  <h1 class="text-xl font-semibold mt-2 mb-4">Save Tables</h1>
+
+  <form method="get" action="{{ url_for('admin_bp.tables_save') }}" class="mb-4">
+    <label class="text-sm mr-2">Table</label>
+    <select name="seed" class="border rounded px-2 py-1" onchange="this.form.submit()">
+      {% for k in seeds %}
+        <option value="{{k}}" {% if k==seed %}selected{% endif %}>{{k.replace('_',' ')|title}}</option>
+      {% endfor %}
+    </select>
+  </form>
+
+  <div class="rounded-2xl border border-slate-200 p-4 bg-white">
+    <div class="text-sm text-slate-500 mb-3">{{ title }}</div>
+
+    <div class="flex flex-wrap items-center gap-4">
+      <a class="px-3 py-2 rounded border hover:bg-slate-100"
+         href="{{ export_url }}">
+        Download CSV (also saves to disk)
+      </a>
+      <form method="post" action="{{ import_url }}" enctype="multipart/form-data" class="flex items-center gap-2">
+        {{ csrf_token() if csrf_token is defined }}
+        <input type="file" name="file" accept=".csv" class="text-sm">
+        <button class="px-3 py-2 rounded border hover:bg-slate-100" type="submit">Upload CSV</button>
+      </form>
+    </div>
+
+    <div class="text-xs text-slate-500 mt-2">
+      {{ file_hint }} &nbsp;&middot;&nbsp; Saved under: {{ saved_under }}
+    </div>
+  </div>
+</div>
+{% endblock %}

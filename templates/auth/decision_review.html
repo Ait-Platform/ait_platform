@@ -1,0 +1,43 @@
+{% extends "layout.html" %}
+{% block title %}Registration | AIT{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto mt-8">
+  <div class="rounded-2xl border border-slate-200 shadow-sm bg-white">
+    <div class="h-1.5 w-full rounded-t-2xl bg-blue-600"></div>
+
+    <div class="p-6">
+      <h2 class="text-xl font-semibold text-slate-800">Your registration summary</h2>
+      <p class="mt-1 text-slate-600">For <span class="font-medium">{{ email }}</span>.</p>
+
+      <div class="mt-5 space-y-4">
+        {% for s in summaries %}
+          <div class="rounded-xl border border-slate-200 p-4">
+            <div class="flex items-center justify-between">
+              <div class="text-sm text-slate-700">
+                <span class="font-semibold">Subject:</span> {{ s.label }}
+              </div>
+              {% if s.active_ids|length >= 1 %}
+                <span class="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded px-2 py-1">
+                  1 active account
+                </span>
+              {% else %}
+                <span class="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+                  Not active yet
+                </span>
+              {% endif %}
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+
+      <div class="mt-6 flex justify-end">
+        <a class="inline-flex items-center rounded-lg bg-blue-600 text-white px-4 py-2 hover:bg-blue-700"
+           href="{{ next_link }}">
+          {{ next_label }}
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

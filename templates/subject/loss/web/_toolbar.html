@@ -1,0 +1,10 @@
+<div class="flex items-center justify-between">
+  <h1 class="text-xl font-semibold text-slate-800">Loss Assessment Report</h1>
+  <div class="flex gap-2">
+    <a href="{{ pdf_url }}" class="rounded-lg border px-3 py-1.5 text-sm hover:bg-slate-50">Download PDF</a>
+    <form method="POST" action="{{ email_url }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="rounded-lg border px-3 py-1.5 text-sm hover:bg-slate-50" type="submit">Email PDF</button>
+    </form>
+  </div>
+</div>

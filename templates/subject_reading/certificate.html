@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Certificate of Completion – Reading Programme</title>
+
+  <style>
+    :root {
+      --ait-blue: #0033a1;
+      --text-dark: #0f172a;
+      --text-mid: #475569;
+      --border-gray: #cbd5e1;
+    }
+
+    body {
+      font-family: system-ui, sans-serif;
+      color: var(--text-dark);
+      padding: 3rem;
+      border: 4px solid var(--ait-blue);
+    }
+
+    .heading {
+      text-align: center;
+      font-size: 1.5rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      margin-bottom: 1rem;
+      color: var(--ait-blue);
+    }
+
+    .subheading {
+      text-align: center;
+      font-size: 0.9rem;
+      color: var(--text-mid);
+      margin-bottom: 2.5rem;
+    }
+
+    .name-line {
+      text-align: center;
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-bottom: 1.5rem;
+      color: var(--text-dark);
+    }
+
+    .statement {
+      font-size: 0.95rem;
+      line-height: 1.5rem;
+      text-align: center;
+      color: var(--text-dark);
+      max-width: 480px;
+      margin: 0 auto 2rem auto;
+    }
+
+    .meta-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.8rem;
+      color: var(--text-mid);
+      margin-top: 2rem;
+      border-top: 1px solid var(--border-gray);
+      padding-top: 1rem;
+    }
+
+    .sig-block {
+      text-align: right;
+      font-size: 0.8rem;
+      line-height: 1.2rem;
+      color: var(--text-dark);
+    }
+
+    .label {
+      font-weight: 600;
+      color: var(--text-dark);
+    }
+
+    .disclaimer-block {
+      margin-top: 2rem;
+      font-size: 0.7rem;
+      line-height: 1.3rem;
+      color: var(--text-mid);
+    }
+
+    .disclaimer-heading {
+      font-weight: 600;
+      color: var(--text-dark);
+      margin-bottom: 0.25rem;
+    }
+  </style>
+</head>
+
+<body>
+
+  {# global AIT header with logo + institute name #}
+  {% include "_ait_header.html" %}
+
+  <div class="heading">
+    Certificate of Completion
+  </div>
+
+  <div class="subheading">
+    AIT Reading Programme
+  </div>
+
+  <div class="name-line">
+    This certifies that <span class="label">{{ learner_name }}</span>
+  </div>
+
+  <div class="statement">
+    has successfully completed the AIT Reading Programme,
+    demonstrating focus and persistence across 18 guided sessions.
+  </div>
+
+  <div class="meta-row">
+    <div>
+      <div class="label">Issued:</div>
+      <div>{{ completed_date }}</div>
+    </div>
+
+    <div>
+      <div class="label">Certificate ID:</div>
+      <div>{{ certificate_id }}</div>
+    </div>
+
+    <div class="sig-block">
+      <div class="label">Authorised</div>
+      <div>Programme Lead</div>
+      <div>AIT Platform</div>
+    </div>
+  </div>
+
+  <div class="disclaimer-block">
+    <div class="disclaimer-heading">Disclaimer</div>
+    <div>
+      This certificate recognises participation in the AIT Reading Programme.
+      It is not an academic qualification or formal literacy credential.
+      For verification or further support, contact AIT Platform — www.mathwithhands.com.
+    </div>
+  </div>
+
+</body>
+</html>

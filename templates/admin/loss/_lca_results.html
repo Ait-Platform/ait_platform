@@ -1,0 +1,33 @@
+{% extends "layout.html" %}
+{% block title %}LCA Admin Results | AIT{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto mt-10 p-6 bg-white rounded shadow">
+  <h1 class="text-2xl font-bold text-blue-800 mb-6">Completed LCA Assessments</h1>
+
+  {% if results %}
+  <table class="w-full table-auto border text-left text-sm">
+    <thead class="bg-gray-100">
+      <tr>
+        <th class="px-4 py-2">User ID</th>
+        <th class="px-4 py-2">Score</th>
+        <th class="px-4 py-2">Diagnosis</th>
+        <th class="px-4 py-2">Completed At</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in results %}
+      <tr class="border-b">
+        <td class="px-4 py-2">{{ r.user_id }}</td>
+        <td class="px-4 py-2">{{ r.score }}</td>
+        <td class="px-4 py-2">{{ r.diagnosis }}</td>
+        <td class="px-4 py-2">{{ r.completed_at.strftime('%Y-%m-%d %H:%M') }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+    <p class="text-gray-600">No LCA assessments have been completed yet.</p>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,38 @@
+{% macro seed_tile(title, cols, preview_url, download_url, upload_url, import_url, sample_filename) %}
+<div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+  <div class="flex items-center justify-between">
+    <div>
+      <div class="text-base font-semibold text-slate-800">{{ title }}</div>
+      <div class="text-xs text-slate-500 mt-1">Columns: {{ cols }}</div>
+    </div>
+    {% if preview_url %}
+      <a href="{{ preview_url }}" class="text-sm text-blue-600 hover:underline">Preview</a>
+    {% endif %}
+  </div>
+
+  <div class="mt-4 grid gap-3 sm:grid-cols-3">
+    <a class="inline-flex items-center justify-center rounded-lg border px-3 py-2 text-sm hover:bg-slate-50"
+       href="{{ download_url }}">Download CSV</a>
+
+    <form action="{{ upload_url }}" method="post" enctype="multipart/form-data"
+          class="flex items-center gap-2 rounded-lg border px-3 py-2">
+      {{ csrf_field() if csrf_field is defined }}
+      <input type="file" name="file" accept=".csv"
+             class="text-sm"
+             onchange="this.form.submit()">
+      <span class="text-xs text-slate-400">Choose file → auto upload</span>
+    </form>
+
+    {% if import_url %}
+      <a class="inline-flex items-center justify-center rounded-lg border px-3 py-2 text-sm hover:bg-slate-50"
+         href="{{ import_url }}">Import from Project CSV</a>
+    {% endif %}
+  </div>
+
+  {% if sample_filename %}
+    <div class="mt-2 text-xs text-slate-400">
+      Looks for <code>seeds/{{ sample_filename }}</code>
+    </div>
+  {% endif %}
+</div>
+{% endmacro %}

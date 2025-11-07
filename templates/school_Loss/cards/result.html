@@ -1,0 +1,23 @@
+{% extends "shared/card.html" %}
+{% block title %}Your Results{% endblock %}
+
+{% block content %}
+<div class="bg-white p-8 rounded-2xl shadow-lg max-w-3xl mx-auto mt-24 text-center">
+  <h2 class="text-3xl font-bold text-gray-800 mb-6">Assessment Complete</h2>
+
+  <p class="text-gray-700 text-lg leading-relaxed mb-6">
+    Thank you for completing the LOSS Continuum Assessment.
+  </p>
+
+  <p class="text-gray-600 mb-8">
+    Your results have been recorded. You may now view your grief profile or return to the dashboard.
+  </p>
+
+  <form method="POST">
+    <button type="submit"
+            class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg shadow">
+      Return to Dashboard
+    </button>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2 class="text-xl font-bold mb-4">Metro Statement of Account</h2>
+
+<table class="table-auto w-full border border-gray-300 mb-6">
+  <thead>
+    <tr class="bg-gray-200">
+      <th class="p-2 text-left">Utility</th>
+      <th class="p-2 text-right">Usage</th>
+      <th class="p-2 text-right">Rate</th>
+      <th class="p-2 text-right">Amount (R)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <!-- Water -->
+    {% for i in range(5) %}
+    {% if statement.water_breakdown[i] > 0 %}
+    <tr>
+      <td class="p-2">Water Block {{ i + 1 }}</td>
+      <td class="p-2 text-right">{{ statement.water_breakdown[i] }} kl</td>
+      <td class="p-2 text-right">R {{ statement.rates_used.water_rates[i] }}</td>
+      <td class="p-2 text-right">
+        R {{ (statement.water_breakdown[i] * statement.rates_used.water_rates[i]) | round(2) }}
+      </td>
+    </tr>
+    {% endif %}
+    {% endfor %}
+
+    <!-- Sewer -->
+    <tr>
+      <td class="p-2">Sewer & Drainage</td>
+      <td class="p-2 text-right">Fixed</td>
+      <td class="p-2 text-right">R {{ statement.sewer_charge }}</td>
+      <td class="p-2 text-right">R {{ statement.sewer_charge }}</td>
+    </tr>
+
+    <!-- Levies -->
+    <tr>
+      <td class="p-2">Water Loss Levy</td>
+      <td class="p-2 text-right">Fixed</td>
+      <td class="p-2 text-right">R {{ statement.levy }}</td>
+      <td class="p-2 text-right">R {{ statement.levy }}</td>
+    </tr>
+
+    <tr>
+      <td class="p-2">Refuse Bin Fee</td>
+      <td class="p-2 text-right">Fixed</td>
+      <td class="p-2 text-right">R {{ statement.refuse }}</td>
+      <td class="p-2 text-right">R {{ statement.refuse }}</td>
+    </tr>
+
+    <!-- Electricity -->
+    <tr>
+      <td class="p-2">Electricity</td>
+      <td class="p-2 text-right">{{ statement.ele_units }} units</td>
+      <td class="p-2 text-right">R {{ statement.rates_used.ele_rate }}</td>
+      <td class="p-2 text-right">R {{ statement.ele_charge }}</td>
+    </tr>
+
+    <!-- Total -->
+    <tr class="bg-gray-100 font-bold">
+      <td class="p-2" colspan="3">Total Amount Due</td>
+      <td class="p-2 text-right">R {{ statement.total_due }}</td>
+    </tr>
+  </tbody>
+</table>
+
+<a href="#" class="bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700">Download PDF</a>
+{% endblock %}

@@ -1,0 +1,53 @@
+<div class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+  <div class="h-1.5 bg-indigo-600"></div>
+  <div class="p-5">
+    <div class="flex items-center justify-between mb-3">
+      <div>
+        <h2 class="font-medium text-slate-900">Text to Speech</h2>
+        <p class="text-xs text-slate-500">Local (Edge/Web Speech) — no server.</p>
+      </div>
+      <button id="openTts" type="button"
+              class="inline-flex items-center rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700">
+        Open TTS
+      </button>
+    </div>
+
+    <div id="ttsPane" class="space-y-3 hidden">
+      <div>
+        <label for="ttsText" class="block text-sm font-medium text-slate-700">Narration text</label>
+        <textarea id="ttsText" rows="6"
+                  class="mt-1 w-full rounded-md border border-slate-300 p-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                  placeholder="Paste or type your script…"></textarea>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label for="ttsVoice" class="block text-sm font-medium text-slate-700">Voice</label>
+          <select id="ttsVoice"
+                  class="mt-1 w-full rounded-md border border-slate-300 p-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500">
+            <option>Default</option>
+          </select>
+        </div>
+        <div>
+          <label for="ttsRate" class="block text-sm font-medium text-slate-700">Rate</label>
+          <select id="ttsRate"
+                  class="mt-1 w-full rounded-md border border-slate-300 p-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500">
+            <option>+0%</option><option>-10%</option><option>-5%</option><option>+5%</option><option>+10%</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2 pt-1">
+        <button id="ttsConvert" type="button"
+                class="inline-flex items-center rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700">
+          Convert to Audio
+        </button>
+        <a id="ttsDownload" class="hidden inline-flex items-center rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
+           href="#" download="tts_preview.mp3">Download MP3</a>
+      </div>
+
+      <div id="errBox" class="hidden text-sm text-red-600 bg-red-50 p-2 rounded-lg"></div>
+      <audio id="ttsPlayer" controls class="hidden w-full mt-1"></audio>
+    </div>
+  </div>
+</div>

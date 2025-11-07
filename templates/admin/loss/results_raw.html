@@ -1,0 +1,54 @@
+{% extends "layout.html" %}
+{% block content %}
+<a href="{{ url_for('admin_bp.loss_responses', run_id=run_id) }}" class="text-sm text-slate-500">← Back to Responses</a>
+
+{# Decide the strip color: green if total > 0, else red #}
+{% set total_val = (result.total if result else 0) | int %}
+{% set strip = '#22c55e' if total_val > 0 else '#ef4444' %}
+
+<div class="mx-auto max-w-4xl mt-3 rounded-xl border shadow-sm bg-white">
+  <!-- top color strip >
+  <div style="height:6px; background: {{ strip }};"></div-->
+
+    <div class="p-5">
+    <div class="flex items-center justify-between">
+      <h2 class="text-lg font-semibold">LOSS — Raw Phase Scores (Run {{ run_id }})</h2>
+
+      <a class="px-3 py-1 rounded bg-slate-100"
+         href="{{ url_for('loss_bp.results_hub', run_id=run_id, user_id=user_id, src='admin') }}">
+        Result Hub
+      </a>
+    </div>
+
+   
+    {% if result %}
+      <div class="mt-2 text-sm text-slate-600">
+        <b>Subject:</b> {{ result.subject or 'LOSS' }}
+        {% if result.taken_at %} • <b>Taken:</b> {{ result.taken_at }}{% endif %}
+        {% if user_id %} • <b>User:</b> {{ user_id }}{% endif %}
+      </div>
+
+      <div class="mt-4 grid grid-cols-1 md:grid-cols-5 gap-3 text-sm">
+        {% macro pill(label, val, maxv, pct) -%}
+          <div class="rounded border p-3">
+            <div class="text-slate-500">{{ label }}</div>
+            <div class="font-semibold">
+              {{ val or 0 }} / {{ maxv or 0 }}{% if pct is not none %} ({{ pct }}%){% endif %}
+            </div>
+          </div>
+        {%- endmacro %}
+
+        {{ pill('Phase 1', result.phase_1, result.max_phase_1, result_pct.p1 if result_pct else None) }}
+        {{ pill('Phase 2', result.phase_2, result.max_phase_2, result_pct.p2 if result_pct else None) }}
+        {{ pill('Phase 3', result.phase_3, result.max_phase_3, result_pct.p3 if result_pct else None) }}
+        {{ pill('Phase 4', result.phase_4, result.max_phase_4, result_pct.p4 if result_pct else None) }}
+        {{ pill('Total',   result.total,   result.max_total,   result_pct.total if result_pct else None) }}
+      </div>
+    {% else %}
+      <div class="mt-4 rounded border border-amber-200 bg-amber-50 p-3 text-amber-800">
+        No result row found for this run.
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

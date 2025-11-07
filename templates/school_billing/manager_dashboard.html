@@ -1,0 +1,61 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container py-5">
+    <h1 class="text-3xl font-bold text-blue-700">Manager Dashboard</h1>
+    <p class="mt-2 text-muted">Welcome {{ current_user.name }} — here’s how to get started.</p>
+
+    {% if not data %}
+        <div class="alert alert-info mt-4">
+            <strong>First time here?</strong> Follow these steps to set up your billing system:
+        </div>
+
+        <ol class="mb-4">
+            <li>Click <strong>+ Add Property</strong> to register your first property.</li>
+            <li>After adding a property, create <strong>Sectional Units</strong> within it.</li>
+            <li>Add <strong>Meter(s)</strong> to each unit for utilities like electricity or water.</li>
+            <li>Record consumption data to view bills and generate Statements of Account (SOA).</li>
+        </ol>
+
+        <div class="d-flex flex-wrap gap-3">
+            <a href="{{ url_for('billing_bp.manager_dashboard') }}#add-property" class="btn btn-primary">+ Add Property</a>
+            <button class="btn btn-secondary" disabled title="Add a property first">Add Sectional Unit</button>
+            <button class="btn btn-secondary" disabled title="Add a property and unit first">Add Meter</button>
+            <button class="btn btn-secondary" disabled title="Add meter and readings first">View Consumption</button>
+            <button class="btn btn-secondary" disabled title="Requires consumption data">Generate Metro SOA</button>
+            <button class="btn btn-secondary" disabled title="Requires consumption data">Generate SOA</button>
+        </div>
+    {% else %}
+        <!-- Normal populated dashboard table -->
+        <table class="table table-bordered mt-4">
+            <thead class="table-dark">
+                <tr>
+                    <th>Property</th>
+                    <th>Unit</th>
+                    <th>Meters</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for row in data %}
+                <tr>
+                    <td>{{ row.property_name }}</td>
+                    <td>{{ row.unit_number }}</td>
+                    <td>
+                        {% if row.meter_number %}
+                            {{ row.meter_number }} ({{ row.utility_type }})
+                        {% else %}
+                            <a href="{{ url_for('billing_bp.add_meter', unit_id=row.unit_id) }}" class="btn btn-sm btn-success">+ Add Meter</a>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{{ url_for('billing_bp.view_consumption', unit_id=row.unit_id) }}" class="btn btn-sm btn-primary">View Consumption</a>
+                        <a href="{{ url_for('billing_bp.generate_met_soa', unit_id=row.unit_id) }}" class="btn btn-sm btn-warning">Metro SOA</a>
+                        <a href="{{ url_for('billing_bp.generate_soa', unit_id=row.unit_id) }}" class="btn btn-sm btn-info">SOA</a>
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
+</div>
+{% endblock %}

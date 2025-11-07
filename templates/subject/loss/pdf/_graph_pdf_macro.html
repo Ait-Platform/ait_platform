@@ -1,0 +1,64 @@
+{% macro _graph(P1, P2, P3, P4) %}
+  {% set P1 = (P1 or 0) | int %}
+  {% set P2 = (P2 or 0) | int %}
+  {% set P3 = (P3 or 0) | int %}
+  {% set P4 = (P4 or 0) | int %}
+
+  {% set P1 = 0 if P1 < 0 else (100 if P1 > 100 else P1) %}
+  {% set P2 = 0 if P2 < 0 else (100 if P2 > 100 else P2) %}
+  {% set P3 = 0 if P3 < 0 else (100 if P3 > 100 else P3) %}
+  {% set P4 = 0 if P4 < 0 else (100 if P4 > 100 else P4) %}
+
+  {% set total = P1 + P2 + P3 + P4 %}
+
+  <table border="0" cellpadding="6" cellspacing="0" width="100%" style="margin-top:6px;">
+    <tr><td><b>Phase Graph</b></td></tr>
+  </table>
+
+  {% if total == 0 %}
+    <table border="0" cellpadding="0" cellspacing="0" width="100%">
+      <tr><td><font size="2">No graph data.</font></td></tr>
+    </table>
+  {% else %}
+    {% set H1 = ((P1 + 5) // 10) %}{% set H2 = ((P2 + 5) // 10) %}
+    {% set H3 = ((P3 + 5) // 10) %}{% set H4 = ((P4 + 5) // 10) %}
+    {% set H1 = 0 if H1 < 0 else (10 if H1 > 10 else H1) %}
+    {% set H2 = 0 if H2 < 0 else (10 if H2 > 10 else H2) %}
+    {% set H3 = 0 if H3 < 0 else (10 if H3 > 10 else H3) %}
+    {% set H4 = 0 if H4 < 0 else (10 if H4 > 10 else H4) %}
+
+    {% set C1 = '#3b82f6' %}{% set C2 = '#22c55e' %}{% set C3 = '#f59e0b' %}{% set C4 = '#ef4444' %}
+    {% set CBG = '#e5e7eb' %}
+
+    <table border="0" cellpadding="0" cellspacing="2" align="left">
+      {% for level in range(10, 0, -1) %}
+        <tr>
+          <td width="48" height="12" bgcolor="{{ C1 if H1 >= level else CBG }}"></td>
+          <td width="48" height="12" bgcolor="{{ C2 if H2 >= level else CBG }}"></td>
+          <td width="48" height="12" bgcolor="{{ C3 if H3 >= level else CBG }}"></td>
+          <td width="48" height="12" bgcolor="{{ C4 if H4 >= level else CBG }}"></td>
+        </tr>
+      {% endfor %}
+      <tr>
+        <td align="center"><font size="2">1</font></td>
+        <td align="center"><font size="2">2</font></td>
+        <td align="center"><font size="2">3</font></td>
+        <td align="center"><font size="2">4</font></td>
+      </tr>
+      <tr>
+        <td align="center"><font size="2">{{ P1 }}%</font></td>
+        <td align="center"><font size="2">{{ P2 }}%</font></td>
+        <td align="center"><font size="2">{{ P3 }}%</font></td>
+        <td align="center"><font size="2">{{ P4 }}%</font></td>
+      </tr>
+      <tr>
+        <td align="center"><font size="1">Impact</font></td>
+        <td align="center"><font size="1">Hopeless</font></td>
+        <td align="center"><font size="1">Helpless</font></td>
+        <td align="center"><font size="1">Re-Engage</font></td>
+      </tr>
+    </table>
+  {% endif %}
+{% endmacro %}
+
+{{ _graph(S.P1, S.P2, S.P3, S.P4) }}

@@ -1,0 +1,36 @@
+{% extends "layout.html" %}
+{% block title %}Choose Program | AIT{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto py-10">
+  <h1 class="text-2xl font-bold text-blue-700 mb-6">Select a Program</h1>
+
+  <p class="text-gray-600 mb-4">
+    You are enrolled in more than one program. Please choose one to continue:
+  </p>
+
+  <ul class="space-y-4">
+    {% for enrollment in enrollments %}
+      <li>
+        {% if "LOSS" in enrollment.program %}
+          <a href="{{ url_for('counselling_bp.loss_dashboard') }}" class="block bg-blue-100 hover:bg-blue-200 text-blue-800 font-semibold p-4 rounded shadow">
+            School Counselling: LOSS Continuum
+          </a>
+        {% elif "HOME" in enrollment.program %}
+          <a href="{{ url_for('math_bp.math_dashboard') }}" class="block bg-green-100 hover:bg-green-200 text-green-800 font-semibold p-4 rounded shadow">
+            Mathematics: HOME™ Curriculum
+          </a>
+        {% elif "LITERACY" in enrollment.program %}
+          <a href="{{ url_for('literacy_bp.reading_start') }}" class="block bg-yellow-100 hover:bg-yellow-200 text-yellow-800 font-semibold p-4 rounded shadow">
+            Literacy Program
+          </a>
+        {% else %}
+          <div class="bg-gray-100 text-gray-600 p-4 rounded shadow">
+            Unknown program: {{ enrollment.program }}
+          </div>
+        {% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endblock %}

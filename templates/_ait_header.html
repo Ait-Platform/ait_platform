@@ -1,0 +1,26 @@
+{# templates/_ait_header.html #}
+<div style="
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:12px;
+  margin-bottom:1.5rem;
+  text-align:center;
+">
+  {% if logo_path %}
+    <img
+      src="{{ logo_path }}"
+      alt="AIT Logo"
+      style="height:60px; object-fit:contain;"
+    >
+  {% endif %}
+
+  <div style="
+    font-size:1.5rem;
+    font-weight:700;
+    text-transform:uppercase;
+    color:#0033a1;
+  ">
+    Archoney Institute of Technology
+  </div>
+</div>

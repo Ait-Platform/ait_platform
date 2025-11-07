@@ -1,0 +1,40 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Phase Graph • Run {{ run_id }}</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; color:#0f172a; }
+    .wrap { max-width: 720px; margin: 32px auto; padding: 0 16px; }
+    h1 { font-size: 22px; margin: 0 0 8px; }
+    .muted { color:#64748b; font-size: 12px; margin-bottom: 16px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 12px 0 20px; }
+    .card { border:1px solid #e2e8f0; border-radius: 12px; padding: 12px 14px; }
+    .k { color:#475569; }
+    .v { font-weight:600; }
+    .imgbox { border:1px solid #e2e8f0; border-radius: 12px; padding: 10px; text-align: center; }
+    img { max-width: 100%; height: auto; display: inline-block; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Phase Graph</h1>
+    <div class="muted">Run {{ run_id }}</div>
+
+    <div class="grid card">
+      <div><span class="k">Impact (P1):</span> <span class="v">{{ scores.P1 }}%</span></div>
+      <div><span class="k">Hopelessness (P2):</span> <span class="v">{{ scores.P2 }}%</span></div>
+      <div><span class="k">Helplessness (P3):</span> <span class="v">{{ scores.P3 }}%</span></div>
+      <div><span class="k">Re-Engagement (P4):</span> <span class="v">{{ scores.P4 }}%</span></div>
+    </div>
+
+    <div class="imgbox">
+      {% if chart_src %}
+        <img src="{{ chart_src }}" alt="Phase graph">
+      {% else %}
+        <div class="muted">No graph data for this run.</div>
+      {% endif %}
+    </div>
+  </div>
+</body>
+</html>

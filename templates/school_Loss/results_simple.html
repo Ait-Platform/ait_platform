@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Loss of a Loved One — Assessment Results</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-slate-50 text-slate-900">
+  <main class="max-w-3xl mx-auto px-4 py-8">
+    <div class="text-slate-600 text-sm">{{ user_name }}</div>
+    <h1 class="text-3xl font-semibold tracking-tight">Loss of a Loved One</h1>
+    <div class="text-slate-500 text-sm mt-1">Assessment Results • Completed on {{ res.created_at }}</div>
+
+    <section class="mt-6 space-y-8">
+      {% for r in rows %}
+      <article class="space-y-3">
+        <!-- compact table -->
+        <div class="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+          <table class="min-w-full text-sm">
+            <thead class="bg-slate-100 text-slate-700">
+              <tr>
+                <th class="px-3 py-2 text-left w-28">Phase</th>
+                <th class="px-3 py-2 text-left w-56">Phase Name</th>
+                <th class="px-3 py-2 text-left w-28">Impact %</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="border-t border-slate-200">
+                <td class="px-3 py-2">Phase {{ r.phase }}</td>
+                <td class="px-3 py-2">{{ r.name }}</td>
+                <td class="px-3 py-2">{{ r.percent }}%</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- horizontal bar with 0–50–100 markers -->
+        <div>
+          <div class="h-3 w-full max-w-3xl bg-slate-200 rounded-full overflow-hidden">
+            <div class="h-3 {{ r.bar_class }}" data-w="{{ r.percent }}" style="width:0%"></div>
+          </div>
+          <div class="flex justify-between text-xs text-slate-500 mt-1 max-w-3xl">
+            <span>0%</span><span>50%</span><span>100%</span>
+          </div>
+        </div>
+
+        <!-- long per-phase comment -->
+        <p class="text-sm leading-relaxed text-slate-700 bg-white rounded-lg border border-slate-200 p-3">
+          {{ r.comment }}
+        </p>
+      </article>
+      {% endfor %}
+    </section>
+
+    <!-- Assessment Progress -->
+    <section class="mt-8">
+      <div class="bg-slate-100 text-slate-800 rounded-xl px-4 py-3 border border-slate-200">
+        <span class="font-semibold">Assessment Progress:</span>
+        <span class="ml-1">{{ overall_percent }}%</span>
+        <span class="mx-1">—</span>
+        <span>{{ overall_comment }}</span>
+      </div>
+    </section>
+
+    <footer class="mt-6">
+      <a class="text-sky-600 hover:underline" href="{{ url_for('loss_bp.assessment_results_pdf') }}">
+        Download PDF
+      </a>
+    </footer>
+  </main>
+
+  <script>
+    // Restore bar widths from data-w (keeps validators happy)
+    document.querySelectorAll('[data-w]').forEach(function(el){
+      var v = parseFloat(el.getAttribute('data-w') || '0');
+      if (!isNaN(v)) el.style.width = Math.max(0, Math.min(v, 100)) + '%';
+    });
+  </script>
+</body>
+</html>

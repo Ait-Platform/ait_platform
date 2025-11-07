@@ -1,0 +1,28 @@
+{% extends "layout.html" %}
+{% block title %}Welcome | AIT Platform{% endblock %}
+
+{% block content %}
+
+<div class="text-center mt-8 mb-8">
+  <h1 class="text-xl font-semibold text-slate-900">Archoney Institute of Technology</h1>
+  <p class="text-slate-600 text-sm mt-2">
+    Explore powerful programs tailored to different needs
+  </p>
+</div>
+
+{# templates/public/welcome.html #}
+{% if request.args.get('sent') == '1' %}
+  <div class="mx-auto max-w-3xl mt-4 rounded-lg bg-emerald-50 text-emerald-800 px-4 py-2 border border-emerald-200">
+    Report emailed successfully.
+  </div>
+{% elif request.args.get('sent') == '0' %}
+  <div class="mx-auto max-w-3xl mt-4 rounded-lg bg-red-50 text-red-800 px-4 py-2 border border-red-200">
+    We couldn’t complete your request ({{ request.args.get('err') }}). Please try again or contact support.
+  </div>
+{% endif %}
+
+{# bring in the subject cards #}
+{% import "_subject_cards.html" as cards %}
+{{ cards.render_subject_cards() }}
+
+{% endblock %}

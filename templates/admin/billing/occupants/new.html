@@ -1,0 +1,80 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container mx-auto max-w-3xl py-8">
+
+  <div class="mb-4">
+    <a href="{{ url_for('admin_bp.billing_occupants_index') }}" class="inline-block rounded-lg border px-3 py-1 text-sm hover:bg-slate-50">← Back</a>
+  </div>
+
+  <h1 class="text-2xl font-semibold mb-4">Add New Occupant</h1>
+
+  <form method="post" class="space-y-4 rounded-2xl border p-6">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div>
+      <label class="block text-sm mb-1">Full name <span class="text-red-600">*</span></label>
+      <input name="name" required value="{{ request.form.get('name','') }}" class="w-full rounded-lg border px-3 py-2" />
+    </div>
+
+    <div>
+      <label class="block text-sm mb-1">Sectional unit <span class="text-red-600">*</span></label>
+      {% set selected_id = (request.form.get('sectional_unit_id') or '') | string %}
+      <select name="sectional_unit_id" required class="w-full rounded-lg border px-3 py-2">
+        <option value="" disabled {{ 'selected' if not selected_id }}>Select a unit…</option>
+        {% for u in (units or []) %}
+          <option value="{{ u.id }}" {{ 'selected' if selected_id == (u.id|string) else '' }}>
+            {{ u.name }}
+          </option>
+        {% endfor %}
+      </select>
+      {% if not units %}
+        <p class="text-sm text-amber-700 mt-2">No units available.</p>
+      {% endif %}
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <label class="block text-sm mb-1">Email</label>
+        <input name="email" type="email" value="{{ request.form.get('email','') }}" class="w-full rounded-lg border px-3 py-2" />
+      </div>
+      <div>
+        <label class="block text-sm mb-1">Phone</label>
+        <input name="phone" value="{{ request.form.get('phone','') }}" class="w-full rounded-lg border px-3 py-2" />
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <label class="block text-sm mb-1">Metro account #</label>
+        <input name="metro_account_no" value="{{ request.form.get('metro_account_no','') }}" class="w-full rounded-lg border px-3 py-2" />
+      </div>
+      <div class="flex items-center gap-2 mt-6 md:mt-0">
+        {% set rim_checked = 'checked' if request.form.get('rent_includes_metro') else '' %}
+        <input id="rim" type="checkbox" name="rent_includes_metro" {{ rim_checked }}>
+        <label for="rim" class="text-sm">Rent includes metro</label>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <label class="block text-sm mb-1">Lease start</label>
+        <input name="lease_start" type="date" value="{{ request.form.get('lease_start','') }}" class="w-full rounded-lg border px-3 py-2" />
+      </div>
+      <div>
+        <label class="block text-sm mb-1">Lease end</label>
+        <input name="lease_end" type="date" value="{{ request.form.get('lease_end','') }}" class="w-full rounded-lg border px-3 py-2" />
+      </div>
+    </div>
+
+    <div>
+      <label class="block text-sm mb-1">Notes</label>
+      <textarea name="notes" rows="4" class="w-full rounded-lg border px-3 py-2">{{ request.form.get('notes','') }}</textarea>
+    </div>
+
+    <div class="pt-2 flex gap-3">
+      <button class="rounded-lg border px-4 py-2 hover:bg-slate-50">Create occupant</button>
+      <a href="{{ url_for('admin_bp.billing_occupants_index') }}" class="rounded-lg border px-4 py-2 hover:bg-slate-50">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

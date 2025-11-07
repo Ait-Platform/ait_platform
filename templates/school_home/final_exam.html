@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Final Exam | HOME™{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto mt-10 p-6 bg-white shadow-lg rounded-2xl">
+
+  <h1 class="text-2xl font-bold text-red-700 mb-4">🎯 Final Exam — HOME™ Curriculum</h1>
+  <p class="text-gray-700 mb-6">This is a simulated final exam. In the live version, learners will complete a real assessment here.</p>
+
+  <form method="POST">
+    <!-- Mock question -->
+    <div class="mb-4">
+      <label class="block mb-1 font-medium">1. What shape has 4 equal sides?</label>
+      <input type="text" name="q1" class="w-full border px-3 py-2 rounded" required>
+    </div>
+
+    <!-- Submit -->
+    <button class="mt-6 w-full bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-xl font-semibold">
+      Submit Final Exam
+    </button>
+  </form>
+</div>
+{% endblock %}

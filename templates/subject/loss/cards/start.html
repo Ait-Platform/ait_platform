@@ -1,0 +1,36 @@
+{% extends "layout.html" %}
+{% from "shared/card_macros.html" import loss_card %}
+
+{% block content %}
+  {# expects: item (row from lca_start), next_url (where Next goes) #}
+
+  {% set updated_item = (item.copy() if item else {}) %}
+  {% set _ = updated_item.update({
+    "title": "Setup",
+    "caption": "Preparation — Part 2"
+  }) %}
+
+  {% set extra_html %}
+    <div class="space-y-4 text-sm leading-relaxed">
+      <p class="text-slate-900 font-semibold">Before you begin, set up your space:</p>
+      <ul class="text-slate-700 space-y-2 list-disc list-inside">
+        <li>Find a quiet place with no interruptions.</li>
+        <li>Keep your phone on silent and close any distractions.</li>
+        
+      </ul>
+      <p class="text-slate-600">When you press <strong>Next</strong> below, the assessment will begin.</p>
+
+      <div>
+        <a href="{{ url_for('auth_bp.learner_subject_dashboard', subject='loss') }}"
+           class="text-slate-600 hover:text-slate-800 text-xs underline">← Back</a>
+      </div>
+    </div>
+  {% endset %}
+
+  {% set _ = updated_item.update({"content": extra_html}) %}
+
+  {{ loss_card(
+      item=updated_item,
+      buttons=[{"label": "Next", "href": next_url, "kind": "primary"}]
+  ) }}
+{% endblock %}

@@ -1,0 +1,11 @@
+{% extends "layout.html" %}
+{% block title %}Payment Success · AIT{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-xl mt-8 rounded-2xl border p-6 bg-white">
+  <h1 class="text-xl font-semibold text-emerald-700">Payment successful</h1>
+  <p class="mt-2 text-slate-700">Thank you. Your payment was processed.</p>
+  <div class="mt-4">
+    <a href="{{ url_for('index') }}" class="rounded-lg border px-3 py-1 text-sm hover:bg-slate-50">Home</a>
+  </div>
+</div>
+{% endblock %}

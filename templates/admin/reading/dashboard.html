@@ -1,0 +1,29 @@
+{% extends "layout.html" %}
+{% block title %}Reading — Admin{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto px-4 py-10">
+  <div class="flex items-center justify-between mb-6">
+    <h1 class="text-2xl font-semibold">Reading — Admin</h1>
+    <div class="flex gap-2">
+      <a href="{{ url_for('admin_bp.index') }}" class="rounded-xl border px-3 py-2 text-sm hover:bg-slate-50">← Admin Home</a>
+      <a href="{{ url_for('reading_bp.learner_dashboard') }}" target="_blank"
+         class="rounded-xl bg-sky-600 text-white px-3 py-2 text-sm hover:bg-sky-700">View as learner</a>
+    </div>
+  </div>
+
+  <p class="text-slate-600 mb-6">Manage lessons, order, and blocks.</p>
+
+  <div class="grid gap-3 sm:grid-cols-2">
+    <a href="{{ url_for('admin_bp.lessons', subject='reading') }}" class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm hover:bg-slate-50">
+      <div class="font-medium">Lessons</div>
+      <div class="text-sm text-slate-600">Edit titles, captions, media.</div>
+    </a>
+    <a href="{{ url_for('admin_bp.reorder', subject='reading') }}" class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm hover:bg-slate-50">
+      <div class="font-medium">Reorder</div>
+      <div class="text-sm text-slate-600">Drag-and-drop order.</div>
+    </a>
+  </div>
+</div>
+{% endblock %}
+

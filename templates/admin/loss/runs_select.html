@@ -1,0 +1,16 @@
+<form method="get" action="{{ url_for('admin_bp.loss_dashboard') }}" class="flex items-center gap-3 my-3">
+  <label class="text-sm text-slate-700 whitespace-nowrap">Run selector:</label>
+  <select name="run_id" class="rounded border px-2 py-1">
+    {% if not runs or runs|length == 0 %}
+      <option value="">— no runs found —</option>
+    {% else %}
+      <option value="">— choose a run —</option>
+      {% for r in runs %}
+        <option value="{{ r.run_id }}" {{ 'selected' if run_id == r.run_id else '' }}>
+          Run {{ r.run_id }}{% if r.last_at %} • {{ r.last_at }}{% endif %}{% if r.rows_count is not none %} • {{ r.rows_count }} rows{% endif %}
+        </option>
+      {% endfor %}
+    {% endif %}
+  </select>
+  <button type="submit" class="rounded border px-3 py-1 text-sm hover:bg-slate-50">Open</button>
+</form>

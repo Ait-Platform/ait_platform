@@ -1,0 +1,39 @@
+{# Simple, print-safe horizontal bar.
+   expects: pct (0–100), band_i (1..3), blk.phase (1..4) #}
+
+{% set p = (pct or 0) | int %}
+{% set p = 0 if p < 0 else (100 if p > 100 else p) %}
+{% set rest = 100 - p %}
+
+{# colors (match your current scheme) #}
+{% if blk.phase in [1,2,3] %}
+  {% set fill = '#10b981' if band_i==1 else ('#f59e0b' if band_i==2 else '#ef4444') %}
+{% else %}
+  {% set fill = '#3b82f6' if band_i==1 else ('#34d399' if band_i==2 else '#10b981') %}
+{% endif %}
+{% set bg = '#e2e8f0' %}
+
+<table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-top:6px;">
+  <tr>
+    <td>
+      <table border="0" cellpadding="0" cellspacing="0" width="100%">
+        <tr>
+          <td width="{{ p }}%"   height="10" bgcolor="{{ fill }}"></td>
+          <td width="{{ rest }}%" height="10" bgcolor="{{ bg }}"></td>
+        </tr>
+      </table>
+    </td>
+    <td width="42" align="right"><font size="2">{{ p }}%</font></td>
+  </tr>
+  <tr>
+    <td colspan="2">
+      <table border="0" cellpadding="0" cellspacing="0" width="100%">
+        <tr>
+          <td align="left"><font size="1">0</font></td>
+          <td align="center"><font size="1">50</font></td>
+          <td align="right"><font size="1">100</font></td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>

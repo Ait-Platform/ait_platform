@@ -1,0 +1,5 @@
+question_id,answer_type,phase_1,phase_2,phase_3,phase_4
+1,single,1,0,0,0
+2,single,0,1,0,0
+3,single,0,0,1,0
+4,single,0,0,0,1

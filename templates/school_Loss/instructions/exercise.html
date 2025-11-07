@@ -1,0 +1,21 @@
+﻿{% extends "layout.html" %}
+{% block content %}
+  <div class="bg-white rounded-xl shadow p-6 max-w-xl mx-auto border border-gray-400">
+    <h1 class="text-2xl font-bold text-blue-800 mb-4 text-center">Pre-Assessment Exercise</h1>
+
+    <p class="mb-4 text-gray-800">
+      Before beginning the test, take a moment to reflect. Think about the person you've lost, the emotions you’ve experienced,
+      and how your life has changed since then.
+    </p>
+
+    <p class="mb-4 text-gray-800">
+      This quiet moment of thought can help you respond more honestly and openly in the questions ahead.
+    </p>
+
+    <div class="flex justify-end">
+      <a href="{{ url_for('counselling_bp.loss_instructions_instruction') }}" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+        Next
+      </a>
+    </div>
+  </div>
+{% endblock %}

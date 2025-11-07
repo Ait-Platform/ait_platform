@@ -1,0 +1,21 @@
+{# Reusable action bar for lessons #}
+{# expects: back_url, complete_url, (optional) complete_label #}
+
+<div class="mb-6 flex items-center justify-between">
+  <a
+    {% if back_url %} href="{{ back_url }}" {% endif %}
+    class="inline-flex items-center rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50"
+  >
+    ← Back to dashboard
+  </a>
+
+  <form method="post" action="{{ complete_url }}">
+    {% if csrf_token is defined %}
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% endif %}
+    <button type="submit"
+      class="inline-flex items-center rounded-xl bg-emerald-600 text-white px-5 py-2.5 text-sm font-medium shadow-sm hover:bg-emerald-700">
+      {{ complete_label or "Mark complete" }}
+    </button>
+  </form>
+</div>

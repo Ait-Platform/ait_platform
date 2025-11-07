@@ -1,0 +1,134 @@
+{% extends "layout.html" %}
+{% block title %}Loss Results | AIT{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto mt-10 p-6 bg-white rounded-2xl shadow leading-relaxed">
+
+  <div class="flex items-center justify-between mb-2">
+    <h2 class="text-2xl font-bold text-blue-800">Assessment Results</h2>
+    <div class="text-xs text-slate-500">Page {{ page_number or 1 }} of {{ page_count or 1 }}</div>
+  </div>
+
+  <p class="text-sm text-slate-500 mb-8">
+    {{ user.name or '' }}
+    {% if user.name and user.email %} • {% endif %}
+    {{ user.email or '' }}
+    {% if created_at_label %} • {{ created_at_label }}{% endif %}
+  </p>
+
+  <div class="space-y-6">
+    {% for ph in phase_blocks %}
+      <section class="p-4 rounded-xl border">
+        <div class="flex items-baseline justify-between mb-2">
+          <h3 class="text-lg font-semibold">Phase {{ ph.number }} — {{ ph.name }}</h3>
+          <div class="text-sm text-slate-600">
+            {% if ph.percent_label_i is not none %}{{ ph.percent_label_i }}%{% else %}–{% endif %}
+          </div>
+        </div>
+
+        <div class="mt-1">
+          <div class="w-full h-3 rounded bg-gray-200 overflow-visible relative">
+            <div class="absolute inset-y-0 left-1/2 w-px bg-white"></div>
+            <div
+              class="h-3 bg-blue-600 js-bar"
+              role="progressbar"
+              aria-valuemin="0"
+              aria-valuemax="100"
+              aria-valuenow="{{ (ph.percent_label_i or 0)|int }}"
+              style="width: 0%"
+              data-width="{{ (ph.percent_label_i or 0)|int }}">
+            </div>
+          </div>
+          <div class="flex justify-between text-xs text-slate-500 mt-1">
+            <span>0</span><span>50</span><span>100</span>
+          </div>
+        </div>
+
+        <div class="mt-4">
+          <div class="font-semibold mb-1">Comment on Phase {{ ph.number }}: {{ ph.name }}</div>
+          {% if ph.percent_label_i is not none %}
+            <p class="text-slate-600 italic">
+              {{ ph.percent_label_i }}% of the time you are experiencing these in this phase.
+            </p>
+          {% endif %}
+
+          {% if ph.comments_shown and ph.comments_shown|length %}
+            <ul class="list-disc pl-5 space-y-1 text-sm">
+              {% for line in ph.comments_shown %}
+                <li>{{ line }}</li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <p class="text-slate-600 italic">No notable markers in this phase.</p>
+          {% endif %}
+        </div>
+      </section>
+    {% endfor %}
+  </div>
+
+  <section class="mt-8 p-4 rounded-xl border">
+    <div class="mb-2 flex items-start justify-between gap-3">
+      <h3 class="text-lg font-semibold">Progress</h3>
+
+      <div class="rounded-2xl border px-3 py-1">
+        <div class="text-xs text-slate-500">Adaptive Vector</div>
+        {% set av = adaptive_vector|default('Not Coping', true) %}
+        <div class="text-sm font-semibold
+            {% if av == 'Coping' %}text-emerald-700{% elif av == 'Slightly Coping' %}text-amber-700{% else %}text-rose-700{% endif %}">
+          {{ av }}
+        </div>
+      </div>
+    </div>
+
+    {% if progress_block is defined and progress_block.lines %}
+      <ul class="list-disc pl-5 space-y-1 text-sm">
+        {% for ln in progress_block.lines %}
+          <li>{{ ln }}</li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="text-slate-600 italic text-sm">
+        This section will summarize movement across phases and your Adaptive Vector.
+      </p>
+    {% endif %}
+  </section>
+
+  {# ACTIONS HIDDEN FOR NOW #}
+  {% if show_actions %}
+  <form method="post" action="{{ url_for('loss_bp.result_finalize') }}" class="mt-8 text-center">
+    {% if csrf_token is defined %}
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% elif csrf_field is defined %}
+      {{ csrf_field() }}
+    {% endif %}
+    <button
+      id="emailDownloadBtn"
+      class="btn btn-primary"
+      data-run-id="{{ run_id|int }}"
+      data-email-url="{{ url_for('admin_bp.loss_report_email') }}"
+      data-pdf-url="{{ url_for('admin_bp.loss_report_pdf', run_id=run_id) }}"
+      data-exit-url="{{ url_for('admin_bp.loss_report_pdf', run_id=run_id) }}">
+      Email &amp; Download PDF
+    </button>
+    <p class="text-xs text-slate-500 mt-2">
+      This will email your report, download a PDF copy, and close your LOSS session.
+    </p>
+  </form>
+  {% endif %}
+</div>
+
+<script>
+  (function () {
+    var bars = document.querySelectorAll('.js-bar');
+    for (var i = 0; i < bars.length; i++) {
+      var el = bars[i];
+      var raw = (el.getAttribute('data-width') || '0').toString().replace(',', '.').trim();
+      var n = parseFloat(raw);
+      if (!isFinite(n)) n = 0;
+      n = Math.max(0, Math.min(100, n));
+      el.style.width = n + '%';
+      el.setAttribute('aria-valuenow', String(n));
+    }
+  })();
+</script>
+{% endblock %}

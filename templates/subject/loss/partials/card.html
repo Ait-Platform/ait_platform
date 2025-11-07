@@ -1,0 +1,24 @@
+{% macro loss_card(title='', caption='', content='', buttons=[]) -%}
+<div class="max-w-3xl mx-auto mt-8 p-6 bg-white rounded-2xl shadow border">
+  <h1 class="text-2xl font-bold text-slate-800">{{ title or 'Untitled' }}</h1>
+  {% if caption %}
+    <p class="mt-1 text-slate-500">{{ caption }}</p>
+  {% endif %}
+
+  <div class="mt-4 leading-relaxed whitespace-pre-line text-slate-800">
+    {{ content or '—' }}
+  </div>
+
+  <div class="mt-6 flex items-center justify-end gap-2">
+    {# buttons = [{label, href, kind}] kind: 'primary'|'secondary' #}
+    {% for b in buttons %}
+      {% set base = "rounded-lg px-4 py-2 text-sm" %}
+      {% if b.kind == 'primary' %}
+        <a href="{{ b.href }}" class="{{ base }} bg-blue-600 text-white hover:bg-blue-700">{{ b.label }}</a>
+      {% else %}
+        <a href="{{ b.href }}" class="{{ base }} border bg-white hover:bg-slate-50">{{ b.label }}</a>
+      {% endif %}
+    {% endfor %}
+  </div>
+</div>
+{%- endmacro %}

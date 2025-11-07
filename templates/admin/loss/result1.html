@@ -1,0 +1,22 @@
+{# Back (admin only) #}
+{% if back_url %}
+  <div class="mb-4">
+    <a href="{{ back_url }}" class="inline-block rounded-lg border px-3 py-1 text-sm hover:bg-slate-50">← Back</a>
+  </div>
+{% endif %}
+
+<h1 class="text-xl font-semibold mb-2">LOSS – Result (Run {{ run_id }})</h1>
+
+{# ... existing report body stays the same ... #}
+
+{# Actions (learner only) #}
+{% if show_actions %}
+  <div class="mt-4 flex gap-2">
+    {% if email_url %}
+      <a href="{{ email_url }}" class="rounded border px-3 py-1 text-sm hover:bg-slate-50">Email</a>
+    {% endif %}
+    {% if pdf_url %}
+      <a href="{{ pdf_url }}" class="rounded border px-3 py-1 text-sm hover:bg-slate-50">Print</a>
+    {% endif %}
+  </div>
+{% endif %}

@@ -1,0 +1,23 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container mx-auto py-8">
+  <h1 class="text-xl font-semibold mb-4">Readings — Print View</h1>
+  <button onclick="window.print()" class="mb-4 px-4 py-2 rounded bg-black text-white">Print</button>
+  <table class="w-full border print:border-collapse">
+    <thead><tr>
+      <th class="p-2 border">Meter</th>
+      <th class="p-2 border">Date</th>
+      <th class="p-2 border">Value</th>
+    </tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr>
+        <td class="p-2 border">{{ r.meter.display_name or ('Meter #' ~ r.meter_id) }}</td>
+        <td class="p-2 border">{{ r.reading_date }}</td>
+        <td class="p-2 border">{{ '%.3f'|format(r.reading_value) }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

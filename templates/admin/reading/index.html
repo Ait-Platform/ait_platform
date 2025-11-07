@@ -1,0 +1,20 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container mx-auto py-10">
+  <h1 class="text-2xl font-semibold mb-8">Reading — Admin</h1>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <a href="{{ url_for('admin_bp.reading_lessons') }}"
+       class="block rounded-xl border p-6 hover:bg-slate-50">
+      <h2 class="font-medium">Lessons</h2>
+      <p class="text-sm text-slate-500">Edit titles, captions, publish, sequence.</p>
+    </a>
+
+    <a href="{{ url_for('admin_bp.reading_preview') }}"
+       class="block rounded-xl border p-6 hover:bg-slate-50">
+      <h2 class="font-medium">Preview</h2>
+      <p class="text-sm text-slate-500">See learner-facing list & status.</p>
+    </a>
+  </div>
+</div>
+{% endblock %}

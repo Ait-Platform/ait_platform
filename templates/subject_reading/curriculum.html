@@ -1,0 +1,21 @@
+{% extends "layout.html" %}
+{% block title %}Reading Curriculum{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto mt-10 bg-white shadow border border-slate-200 rounded-2xl p-6">
+  <h1 class="text-xl font-semibold text-slate-900 mb-3">Reading Curriculum</h1>
+
+  <ol class="list-decimal pl-5 text-slate-700 space-y-1 mb-6">
+    {% for l in lessons %}
+    <li>{{ l.title }} — <span class="text-slate-500 text-sm">{{ l.caption }}</span></li>
+    {% endfor %}
+  </ol>
+
+  <form method="GET" action="{{ url_for('reading_bp.view_lesson', lesson_id=first_incomplete) }}">
+    <button
+      class="w-full inline-flex justify-center items-center py-3 rounded-lg bg-indigo-600 text-white font-medium hover:bg-indigo-700">
+      Start / Continue Course →
+    </button>
+  </form>
+</div>
+{% endblock %}

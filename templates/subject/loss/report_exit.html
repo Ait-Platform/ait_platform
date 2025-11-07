@@ -1,0 +1,50 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="max-w-md mx-auto mt-12 bg-white p-6 rounded-xl shadow">
+  <h1 class="text-xl font-semibold mb-3 text-center">Email Your Report</h1>
+  <p class="text-slate-600 mb-4 text-center">
+    Please confirm your email to receive your Loss Assessment report.
+  </p>
+
+  {% if error %}
+    <div class="mb-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2">
+      {{ error }}
+    </div>
+  {% endif %}
+
+  <form method="post" action="{{ url_for('loss_bp.finish_report') }}" class="space-y-4">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="run_id"  value="{{ run_id }}">
+    <input type="hidden" name="user_id" value="{{ user_id }}">
+
+    <label class="block text-sm font-medium text-slate-700">Email address</label>
+    <input
+      type="email"
+      name="email"
+      value="{{ default_email }}"
+      required
+      class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring focus:ring-blue-100"
+    />
+
+    <button type="submit"
+            class="w-full bg-blue-600 text-white rounded-lg py-2 font-semibold hover:bg-blue-700 transition">
+      Email & Finish
+    </button>
+
+
+
+  </form>
+
+
+  <p class="text-xs text-slate-500 text-center mt-4">
+    Once you press “Email & Finish”, your report will be sent and your session will end automatically.
+  </p>
+
+      {% if status == 'ok' %}
+        <div class="text-green-700 text-sm mb-4">Report sent successfully.</div>
+      {% elif status == 'fail' %}
+        <div class="text-red-700 text-sm mb-4">We couldn't send your report automatically.</div>
+      {% endif %}
+</div>
+{% endblock %}

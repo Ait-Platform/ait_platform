@@ -1,0 +1,30 @@
+{% extends "layout.html" %}
+{% from "subject/loss/seed/_tile.html" import seed_tile %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto py-6">
+  {% include "subject/loss/seed/_flash.html" %}
+  <h1 class="text-xl font-semibold mb-2">Seed Hub</h1>
+  <p class="text-slate-600 mb-4 text-sm">
+    Download a CSV (export from the database). Edit in VS Code if you want a backup.
+  </p>
+
+  {# one slim tab bar, built from SEED_CFG passed in by the route #}
+  <div class="flex gap-4 border-b mb-4">
+    {% for key in seed_keys %}
+      <a class="pb-2 {{ 'border-b-2 border-blue-600 font-medium' if key == tab else 'text-slate-600 hover:text-black' }}"
+         href="{{ url_for('admin_bp.seed_hub', tab=key) }}">
+        {{ seeds_meta[key].title }}
+      </a>
+    {% endfor %}
+  </div>
+
+  {{ seed_tile(
+      title=seeds_meta[tab].title,
+      seed_key=tab,
+      cols_text=seeds_meta[tab].cols_text,
+      note=seeds_meta[tab].note
+  ) }}
+
+</div>
+{% endblock %}

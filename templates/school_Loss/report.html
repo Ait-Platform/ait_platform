@@ -1,0 +1,23 @@
+{% extends "layout.html" %}
+{% block title %}LCA Report | AIT{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto mt-10 p-6 bg-white rounded shadow leading-relaxed text-center">
+
+  <h2 class="text-2xl font-bold text-blue-800 mb-4">Assessment Complete</h2>
+
+  <p class="text-xl font-semibold text-gray-800 mb-6">Total “Yes” Responses: {{ score }} out of 50</p>
+
+  <p class="text-gray-700 mb-6">{{ message }}</p>
+
+  <p class="text-sm text-gray-500">
+    Thank you for completing the Loss Continuum Assessment. Your responses have been recorded.
+  </p>
+
+  <a href="{{ url_for('counselling_bp.loss_report') }}"
+   class="mt-6 inline-block bg-gray-700 text-white px-6 py-2 rounded hover:bg-gray-800">
+  Download Report
+  </a>
+
+</div>
+{% endblock %}

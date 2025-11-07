@@ -1,0 +1,3 @@
+match_id,amount,left_date,left_desc,right_date,right_desc
+1,1250.0,2025-07-31,Our payment batch REF123,2025-08-01,Muni receipt #456
+2,980.55,2025-07-28,SOA charge July water,2025-07-30,Muni statement line 112

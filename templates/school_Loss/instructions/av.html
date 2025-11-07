@@ -1,0 +1,24 @@
+﻿{% extends "layout.html" %}
+{% block content %}
+  <div class="bg-white rounded-xl shadow p-6 max-w-xl mx-auto border border-gray-400">
+    <h1 class="text-2xl font-bold text-blue-800 mb-4 text-center">Audio-Visual Introduction</h1>
+
+    <p class="mb-4 text-gray-800">
+      If you prefer, you may watch a short video introduction to the LOSS program. This can help you understand
+      the structure and purpose of the questions you'll be asked.
+    </p>
+
+    <div class="mb-4">
+      <!-- Placeholder for video or future embed -->
+      <div class="aspect-w-16 aspect-h-9 bg-gray-100 text-center py-12 text-gray-500 rounded">
+        Video player will appear here
+      </div>
+    </div>
+
+    <div class="flex justify-end">
+      <a href="{{ url_for('counselling_bp.instructions_exercise') }}" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+        Next
+      </a>
+    </div>
+  </div>
+{% endblock %}

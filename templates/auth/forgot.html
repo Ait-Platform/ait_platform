@@ -1,0 +1,13 @@
+{% extends "layout.html" %}
+{% block title %}Forgot password{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-md py-10">
+  <h1 class="text-xl font-semibold mb-4">Forgot password</h1>
+  <form method="post">
+    <label class="block text-sm mb-1">Email</label>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input name="email" type="email" required class="w-full border rounded px-3 py-2 mb-4">
+    <button class="rounded bg-blue-600 text-white px-4 py-2">Send reset link</button>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,42 @@
+<script>
+(function () {
+  function getCookie(name){
+    return document.cookie.split('; ').find(r => r.startsWith(name+'='))?.split('=')[1] || '';
+  }
+  function getToken(){
+    return (document.querySelector('meta[name="csrf-token"]')?.content || getCookie('csrf_token') || '').trim();
+  }
+  function sameOrigin(u){ try { return new URL(u, location.href).origin === location.origin; } catch { return true; } }
+
+  const TOKEN = getToken(); if (TOKEN) window.__CSRF_TOKEN__ = TOKEN;
+
+  // fetch
+  const _fetch = window.fetch;
+  window.fetch = function(input, init){
+    const url = (typeof input === 'string') ? input : (input && input.url) || '';
+    const method = (init && (init.method || 'GET')).toUpperCase();
+    if (TOKEN && sameOrigin(url) && /POST|PUT|PATCH|DELETE/.test(method)) {
+      init = init || {};
+      const h = new Headers(init.headers || {});
+      if (!h.has('X-CSRFToken'))  h.set('X-CSRFToken', TOKEN);
+      if (!h.has('X-CSRF-Token')) h.set('X-CSRF-Token', TOKEN);
+      init.headers = h;
+    }
+    return _fetch.apply(this, arguments);
+  };
+
+  // XHR
+  const _open = XMLHttpRequest.prototype.open;
+  const _send = XMLHttpRequest.prototype.send;
+  XMLHttpRequest.prototype.open = function(m,u){ this.___url=u; this.___method=(m||'GET').toUpperCase(); return _open.apply(this, arguments); };
+  XMLHttpRequest.prototype.send = function(b){
+    try{
+      if (TOKEN && sameOrigin(this.___url) && /POST|PUT|PATCH|DELETE/.test(this.___method)) {
+        this.setRequestHeader('X-CSRFToken', TOKEN);
+        this.setRequestHeader('X-CSRF-Token', TOKEN);
+      }
+    }catch{}
+    return _send.apply(this, arguments);
+  };
+})();
+</script>

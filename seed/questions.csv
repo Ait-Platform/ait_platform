@@ -1,0 +1,51 @@
+int,int,str,text,text,str
+1,1,yes;no,Have you been struggling to accept the loss?,Have you been struggling to accept the loss?,yes;no
+2,2,yes;no,Do you often feel overwhelmed with grief?,Do you often feel overwhelmed with grief?,yes;no
+3,3,yes;no,Is it hard to talk about the deceased?,Is it hard to talk about the deceased?,yes;no
+4,4,yes;no,Do you find yourself avoiding reminders of the deceased?,Do you find yourself avoiding reminders of the deceased?,yes;no
+5,5,yes;no,Do you feel angry about the circumstances of the loss?,Do you feel angry about the circumstances of the loss?,yes;no
+6,6,yes;no,Do you feel others don't understand your pain?,Do you feel others don't understand your pain?,yes;no
+7,7,yes;no,Have you blamed yourself for the loss?,Have you blamed yourself for the loss?,yes;no
+8,8,yes;no,"Do you bargain mentally (e.g., ""If only I had ... "") about the loss?","Do you bargain mentally (e.g., ""If only I had ... "") about the loss?",yes;no
+9,9,yes;no,Do you replay events leading up to the loss frequently?,Do you replay events leading up to the loss frequently?,yes;no
+10,10,yes;no,Do you experience prolonged sadness that affects daily life?,Do you experience prolonged sadness that affects daily life?,yes;no
+11,11,yes;no,Have you lost interest in things you used to enjoy?,Have you lost interest in things you used to enjoy?,yes;no
+12,12,yes;no,Do you struggle caring for yourself?,Do you struggle caring for yourself?,yes;no
+13,13,yes;no,Do you feel a persistent emptiness since the loss?,Do you feel a persistent emptiness since the loss?,yes;no
+14,14,yes;no,Have you withdrawn from social activities?,Have you withdrawn from social activities?,yes;no
+15,15,yes;no,Do you find yourself searching for signs from the deceased?,Do you find yourself searching for signs from the deceased?,yes;no
+16,16,yes;no,Do you often feel hopeless about the future?,Do you often feel hopeless about the future?,yes;no
+17,17,yes;no,Do you have trouble sleeping?,Do you have trouble sleeping?,yes;no
+18,18,yes;no,Do you avoid events associated with the deceased?,Do you avoid events associated with the deceased?,yes;no
+19,19,yes;no,Do you still expect the deceased to walk through the door sometimes?,Do you still expect the deceased to walk through the door sometimes?,yes;no
+20,20,yes;no,Have you found new ways to remember the deceased?,Have you found new ways to remember the deceased?,yes;no
+21,21,yes;no,Can you talk about the deceased without becoming sad?,Can you talk about the deceased without becoming sad?,yes;no
+22,22,yes;no,Have you begun to form new goals or plans for your life?,Have you begun to form new goals or plans for your life?,yes;no
+23,23,yes;no,Do you find it hard to feel joy even in happy moments?,Do you find it hard to feel joy even in happy moments?,yes;no
+24,24,yes;no,Do you avoid speaking the deceased's name in conversations?,Do you avoid speaking the deceased's name in conversations?,yes;no
+25,25,yes;no,Have you felt guilty for things left undone?,Have you felt guilty for things left undone?,yes;no
+26,26,yes;no,Do you imagine how life would be if the deceased were still here?,Do you imagine how life would be if the deceased were still here?,yes;no
+27,27,yes;no,Do you feel disconnected from others?,Do you feel disconnected from others?,yes;no
+28,28,yes;no,"Do you believe you should be ""over it"" by now?","Do you believe you should be ""over it"" by now?",yes;no
+29,29,yes;no,Have others told you to move on before you felt ready to do so?,Have others told you to move on before you felt ready to do so?,yes;no
+30,30,yes;no,Do you sometimes feel anger toward the deceased for leaving?,Do you sometimes feel anger toward the deceased for leaving?,yes;no
+31,31,yes;no,"Do you revisit memories, hoping to change the outcome?","Do you revisit memories, hoping to change the outcome?",yes;no
+32,32,yes;no,Have you created new rituals to remember the deceased?,Have you created new rituals to remember the deceased?,yes;no
+33,33,yes;no,Do you find comfort in visiting places the deceased loved?,Do you find comfort in visiting places the deceased loved?,yes;no
+34,34,yes;no,Do you struggle with trusting others since the loss?,Do you struggle with trusting others since the loss?,yes;no
+35,35,yes;no,Do you feel the world has lost its meaning?,Do you feel the world has lost its meaning?,yes;no
+36,36,yes;no,Do you pretend everything is fine?,Do you pretend everything is fine?,yes;no
+37,37,yes;no,Have you been short-tempered without reason?,Have you been short-tempered without reason?,yes;no
+38,38,yes;no,"Do you find yourself bargaining through ""what if"" thoughts?","Do you find yourself bargaining through ""what if"" thoughts?",yes;no
+39,39,yes;no,Do you still expect the deceased to walk through the door?,Do you still expect the deceased to walk through the door?,yes;no
+40,40,yes;no,Have you found ways to honour the deceased's memory?,Have you found ways to honour the deceased's memory?,yes;no
+41,41,yes;no,Do anniversaries and birthdays intensify your grief?,Do anniversaries and birthdays intensify your grief?,yes;no
+42,42,yes;no,Do you think others misunderstand your grief?,Do you think others misunderstand your grief?,yes;no
+43,43,yes;no,Do you sometimes talk to the deceased as if the deceased is still here?,Do you sometimes talk to the deceased as if the deceased is still here?,yes;no
+44,44,yes;no,Have you avoided making major life decisions since the loss?,Have you avoided making major life decisions since the loss?,yes;no
+45,45,yes;no,"Do you feel others want you to ""move on"" too soon?","Do you feel others want you to ""move on"" too soon?",yes;no
+46,46,yes;no,Have you picked up any habits you didn't have before?,Have you picked up any habits you didn't have before?,yes;no
+47,47,yes;no,Do you still keep the deceased's belongings untouched?,Do you still keep the deceased's belongings untouched?,yes;no
+48,48,yes;no,Have you found purpose in helping others after your loss?,Have you found purpose in helping others after your loss?,yes;no
+49,49,yes;no,Do you fear forgetting the deceased's laughter?,Do you fear forgetting the deceased's laughter?,yes;no
+50,50,yes;no,Do you feel you've grown emotionally through this loss?,Do you feel you've grown emotionally through this loss?,yes;no

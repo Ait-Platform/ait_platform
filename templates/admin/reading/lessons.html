@@ -1,0 +1,59 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container mx-auto py-10">
+  <!-- Header + Top buttons -->
+  <div class="flex items-center justify-between mb-6">
+    <h1 class="text-xl font-semibold">Manage Lessons</h1>
+    <div class="flex space-x-4">
+      <a href="{{ url_for('auth_bp.bridge_dashboard') }}" 
+         class="btn btn-outline-secondary">
+         ← Back
+      </a>
+      <a href="{{ url_for('admin_bp.new_lesson', subject='reading') }}" 
+         class="btn btn-primary">
+         + New Lesson
+      </a>
+      <a href="{{ url_for('admin_bp.reorder_lessons_page') }}" 
+         class="btn btn-outline-primary">
+         ⇅ Reorder
+      </a>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="rounded-xl border bg-white overflow-hidden shadow-sm">
+    <table class="min-w-full text-sm align-middle">
+      <thead class="bg-slate-50">
+        <tr>
+          <th class="px-4 py-3 text-left w-10">#</th>
+          <th class="px-4 py-3 text-left">Title</th>
+          <th class="px-4 py-3 text-left">Media</th>
+          <th class="px-4 py-3 text-right">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for l in lessons %}
+        <tr class="border-t hover:bg-slate-50">
+          <td class="px-4 py-3">{{ loop.index }}</td>
+          <td class="px-4 py-3">
+            <div class="font-medium">{{ l.title }}</div>
+            <div class="text-xs text-slate-500">{{ l.caption }}</div>
+          </td>
+          <td class="px-4 py-3">{{ l.video_filename or '-' }}</td>
+          <td class="px-4 py-3 text-right space-x-2">
+            <a class="btn btn-sm btn-outline-primary me-3"
+               href="{{ url_for('admin_bp.edit_lesson', subject='reading', lesson_id=l.id) }}">
+               Edit
+            </a>
+            <a class="btn btn-sm btn-outline-secondary"
+               href="{{ url_for('admin_bp.preview_lesson', lesson_id=l.id) }}">
+               Preview
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

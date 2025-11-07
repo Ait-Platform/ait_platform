@@ -1,0 +1,5 @@
+{% extends "layout.html" %}
+{% from "subject/loss/partials/card.html" import loss_card %}
+{% block content %}
+{{ loss_card(item.title, item.caption, item.content, buttons) }}
+{% endblock %}

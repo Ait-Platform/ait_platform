@@ -1,0 +1,59 @@
+{% extends "layout.html" %}
+{% block content %}
+{# at the top of templates/admin/loss/responses.html #}
+    <div class="mb-4 flex items-center justify-between">
+        <a href="{{ url_for('admin_bp.loss_index', user_id=user_id, run_id=run_id) }}"
+          class="rounded border px-3 py-1.5 text-sm hover:bg-slate-50">← Back</a>
+
+      <div class="flex flex-wrap gap-2">
+          <a class="rounded border px-3 py-1.5 text-sm hover:bg-slate-50"
+            href="{{ url_for('admin_bp.loss_result_raw', run_id=run_id) }}">
+            Raw Phase Scores
+          </a>
+
+
+
+        
+          <!--a href="{{ hub_url }}" class="rounded-lg border px-3 py-1 text-sm hover:bg-slate-50">Result Hub</a-->
+          <a href="{{ hub_url ~ ('&' if '?' in hub_url else '?') ~ 'src=admin' }}"
+            class="rounded-lg border px-3 py-1 text-sm hover:bg-slate-50">
+            Result Hub
+          </a>
+
+
+      </div>
+    </div>
+
+  {# Status line so you can *see* what’s selected #}
+  <p class="mt-1 text-sm text-slate-500">
+    Run {{ run_id }} • User {{ user_id }}{% if subject %} • Subject: {{ subject }}{% endif %}
+  </p>
+
+  {% if retake_flag %}
+    <div class="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-amber-800 text-sm">
+      ⚠️ Retake too soon: {{ retake_flag.days }} days since last run ({{ retake_flag.prev_run }}). Logged for admin.
+    </div>
+  {% endif %}
+
+<table class="table-auto w-full mt-4">
+  <thead>
+    <tr>
+      <th>#</th><th>Question</th><th>Answer</th><th>P1</th><th>P2</th><th>P3</th><th>P4</th><th>When</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for r in rows %}
+    <tr>
+      <td>{{ r.qnum }}</td>
+      <td>{{ r.question }}</td>
+      <td>{{ r.answer }}</td>
+      <td>{{ r.p1 }}</td>
+      <td>{{ r.p2 }}</td>
+      <td>{{ r.p3 }}</td>
+      <td>{{ r.p4 }}</td>
+      <td>{{ r.when_ts or '—' }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

@@ -1,0 +1,103 @@
+{% extends "layout.html" %}
+{% block title %}Results | Post-Test Dashboard{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto mt-10 p-6 bg-white rounded-2xl shadow leading-relaxed">
+
+  <!-- Header -->
+  <div class="flex items-center justify-between mb-2">
+    <h2 class="text-2xl font-bold text-blue-800">Assessment Results</h2>
+  </div>
+  <p class="text-sm text-slate-500 mb-6">
+    {{ user.name or user_name or '' }}
+    {% if (user.name or user_name) and (user.email or user_email) %} • {% endif %}
+    {{ user.email or user_email or '' }}
+    {% if created_at_label %} • {{ created_at_label }}{% endif %}
+  </p>
+
+  <!-- Actions -->
+  <div class="flex flex-wrap gap-3 mb-6">
+    <a class="inline-flex items-center rounded-2xl border px-4 py-2 hover:bg-gray-50"
+       href="{{ url_for('admin_bp.loss_report', run_id=run_id) }}">
+      View Full Report
+    </a>
+
+    <a class="inline-flex items-center rounded-2xl border px-4 py-2 hover:bg-gray-50"
+       href="{{ url_for('admin_bp.loss_report_pdf', run_id=run_id) }}" target="_blank" rel="noopener">
+      Download PDF
+    </a>
+
+    {# Email paused for now; keep placeholder if you like
+    <button class="inline-flex items-center rounded-2xl border px-4 py-2 opacity-50 cursor-not-allowed" disabled>
+      Email Report (coming soon)
+    </button>
+    #}
+
+    {% if current_user.is_admin %}
+      <a class="inline-flex items-center rounded-2xl border px-4 py-2 hover:bg-gray-50"
+         href="{{ url_for('admin_bp.loss_index') }}">
+        Go to Admin Dashboard
+      </a>
+    {% endif %}
+
+    <a class="ml-auto inline-flex items-center rounded-2xl border px-4 py-2 hover:bg-gray-50"
+       href="{{ url_for('admin_bp.loss_thanks') }}">
+      Exit
+    </a>
+  </div>
+
+  <!-- Quick highlights (per-phase mini view) -->
+  <div class="grid grid-cols-1 gap-4 mb-6">
+    {% for ph in phase_blocks %}
+      <section class="p-4 rounded-xl border">
+        <div class="flex items-baseline justify-between mb-1">
+          <h3 class="text-base font-semibold">Phase {{ ph.number }}{% if ph.name %} — {{ ph.name }}{% endif %}</h3>
+          <div class="text-sm text-slate-600">{{ ph.percent_label_i }}%</div>
+        </div>
+        {% if ph.comment_text %}
+          <p class="text-slate-600 italic">{{ ph.comment_text }}</p>
+        {% else %}
+          <p class="text-slate-600 italic">{{ ph.percent_label_i }}% of the time you are experiencing these in this phase.</p>
+        {% endif %}
+      </section>
+    {% endfor %}
+  </div>
+
+  <!-- Progress (roll-up summary with AV) -->
+  <section class="p-4 rounded-xl border">
+    <div class="mb-2 flex items-start justify-between gap-3">
+      <h3 class="text-lg font-semibold">Progress</h3>
+      <div class="rounded-2xl border px-3 py-1">
+        <div class="text-xs text-slate-500">Adaptive Vector</div>
+        {% set av = adaptive_vector|default('Slightly Coping', true) %}
+        <div class="text-sm font-semibold
+          {% if av == 'Coping' %}text-emerald-700
+          {% elif av == 'Slightly Coping' %}text-amber-700
+          {% else %}text-rose-700{% endif %}">
+          {{ av }}
+        </div>
+      </div>
+    </div>
+    {% if progress_block and progress_block.lines %}
+      <ul class="list-disc pl-5 space-y-1 text-sm">
+        {% for ln in progress_block.lines %}
+          <li>{{ ln }}</li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="text-slate-600 italic text-sm">This section summarizes movement across phases and your Adaptive Vector.</p>
+    {% endif %}
+  </section>
+
+  <!-- Disclaimer + Footer -->
+  <section class="mt-6 text-xs text-slate-500 leading-relaxed">
+    <p><span class="font-semibold">Disclaimer:</span> This report is an informational aid based on your responses. It is not a
+    diagnosis, treatment, or clinical advice. If you have concerns about your wellbeing, please speak with a qualified
+    professional. If you are in immediate danger or experiencing a crisis, contact local emergency services or your nearest crisis line.</p>
+  </section>
+
+  <footer class="mt-4 text-center text-xs text-slate-400">
+    © 2025 AIT Platform -Archoney Institute of Technology. Empowering learners worldwide.
+  </footer>
+</div>
+{% endblock %}

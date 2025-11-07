@@ -1,0 +1,29 @@
+{# templates/subject/loss/report.html #}
+{% extends "layout.html" %}
+{% import "subject/loss/pdf/_macros.html" as M %}
+
+{% block title %}Loss Results | AIT{% endblock %}
+
+{% block content %}
+{% if pdf_mode %}
+  {% include "subject/loss/pdf/_styles.html" %}
+{% endif %}
+
+{% set phase_labels = {1:'Impact', 2:'Hopelessness', 3:'Helplessness', 4:'Re-Engagement'} %}
+{% set blocks = phase_blocks | default([], true) %}
+{% set oa = overall_assessment | default(None) %}
+{% set viewer_is_admin = viewer_is_admin | default(false) %}
+
+
+
+  {# ---------- Phase Summary ---------- #}
+
+  
+  {% include "subject/loss/pdf/_summary_graph.html" %}
+  
+  
+  
+  {% include "subject/loss/pdf/_overall_assessment.html" %}
+  {% include "subject/loss/pdf/_disclaimer.html" %}
+</div>
+{% endblock %}

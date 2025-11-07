@@ -1,0 +1,13 @@
+{% extends "layout.html" %}
+{% block content %}
+<h2 class="text-lg font-semibold">Visitors (since {{ start }})</h2>
+<p>Total hits: <b>{{ total }}</b> • Unique IPs: <b>{{ unique }}</b></p>
+<table class="table-auto mt-3">
+  <thead><tr><th class="text-left">Path</th><th class="text-left">Hits</th></tr></thead>
+  <tbody>
+    {% for p,n in by_path %}
+    <tr><td>{{ p }}</td><td>{{ n }}</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

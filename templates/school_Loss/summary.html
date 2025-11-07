@@ -1,0 +1,23 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container mx-auto max-w-3xl py-10">
+  <div class="bg-white rounded-2xl border p-6">
+    <h2 class="text-xl font-semibold mb-2">LOSS – Summary</h2>
+    <p class="text-slate-600 mb-4">You’ve completed {{ percent_complete }}% of the questions.</p>
+
+    <div class="space-y-2 mb-6">
+      {% for row in phase_rows %}
+        <div class="flex justify-between border rounded-lg p-2">
+          <span class="font-medium">{{ row.phase|capitalize }}</span>
+          <span>{{ row.score }}</span>
+        </div>
+      {% endfor %}
+    </div>
+
+    <div class="flex gap-2">
+      <a href="{{ pdf_url }}" class="rounded-xl border px-3 py-1.5 hover:bg-slate-50">Download PDF</a>
+      <a href="{{ restart_url }}" class="rounded-xl border px-3 py-1.5 hover:bg-slate-50">Restart / Review</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

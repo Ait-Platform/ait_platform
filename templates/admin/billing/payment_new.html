@@ -1,0 +1,51 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container mx-auto max-w-md py-8">
+  <h1 class="text-xl font-semibold mb-4">Add Payment — {{ month }}</h1>
+
+  <form method="post" class="space-y-4">
+    {% if csrf_token is defined %}
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% elif request and request.cookies.get('csrf_token') %}
+      <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_token') }}">
+    {% endif %}
+
+    <input type="hidden" name="tenant_id" value="{{ tenant_id }}">
+    <input type="hidden" name="month" value="{{ month }}">
+
+    <div>
+      <label class="block text-sm mb-1">Date</label>
+      <input type="date" name="txn_date" value="{{ today }}" class="w-full border rounded-lg px-3 py-2" required>
+    </div>
+
+    <div>
+      <label class="block text-sm mb-1">Kind</label>
+      <select name="kind" class="w-full border rounded-lg px-3 py-2">
+        <option value="payment" selected>Payment (credit)</option>
+        <option value="charge">Charge (debit)</option>
+      </select>
+    </div>
+
+    <div>
+      <label class="block text-sm mb-1">Description</label>
+      <input type="text" name="description" value="Tenant Payment" class="w-full border rounded-lg px-3 py-2" required>
+    </div>
+
+    <div>
+      <label class="block text-sm mb-1">Amount</label>
+      <input type="number" step="0.01" name="amount" placeholder="0.00" class="w-full border rounded-lg px-3 py-2" required>
+      <p class="text-xs text-slate-500 mt-1">Payments are saved as negative amounts.</p>
+    </div>
+
+    <div>
+      <label class="block text-sm mb-1">Reference (optional)</label>
+      <input type="text" name="ref" class="w-full border rounded-lg px-3 py-2">
+    </div>
+
+    <div class="flex gap-2">
+      <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded-lg">Save Payment</button>
+      <a href="{{ url_for('admin_bp.tenant_ledger', tenant_id=tenant_id, month=month) }}" class="px-4 py-2 rounded-lg border">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

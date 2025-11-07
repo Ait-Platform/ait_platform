@@ -1,0 +1,59 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Loss Phase Summary</title>
+    <style>
+      body { font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; color:#0f172a; }
+      .wrap { max-width: 720px; margin: 28px auto; padding: 0 12px; }
+      h1 { font-size: 22px; margin: 0 0 8px; text-align:center; }
+      .muted { color:#64748b; font-size: 12px; text-align:center; margin-bottom: 18px; }
+      h2 { font-size: 18px; margin: 20px 0 10px; }
+      ul { margin: 6px 0 14px 18px; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1>Loss Assessment Report</h1>
+      <div class="muted">debug: P1={{P1}} P2={{P2}} P3={{P3}} P4={{P4}} • run {{ rid }}</div>
+
+      <h2>Phase Summary</h2>
+      <ul>
+        <li>Phase 1: Impact: {{ P1 }}% of the time.</li>
+        <li>Phase 2: Hopelessness: {{ P2 }}% of the time.</li>
+        <li>Phase 3: Helplessness: {{ P3 }}% of the time.</li>
+        <li>Phase 4: Re-Engagement: {{ P4 }}% of the time.</li>
+      </ul>
+
+        {% include "subject/loss/pdf/_summary.html" %}
+
+      <h2>Phase Graph (%)</h2>
+      <!-- 100px tall stack; each bar is two stacked cells: colored height=P*, grey height=100-P* -->
+      {% set H = 100 %}
+      <table border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:680px;">
+        <tr>
+          {% for pct in [P1, P2, P3, P4] %}
+            <td align="center" valign="bottom" width="25%">
+              <table border="0" cellpadding="0" cellspacing="0" width="48" height="{{ H }}">
+                <tr><td height="{{ pct }}" bgcolor="#3b82f6"></td></tr>
+                <tr><td height="{{ H - pct }}" bgcolor="#e5e7eb"></td></tr>
+              </table>
+            </td>
+          {% endfor %}
+        </tr>
+        <tr>
+          <td align="center"><font size="2">Impact</font></td>
+          <td align="center"><font size="2">Hopeless</font></td>
+          <td align="center"><font size="2">Helpless</font></td>
+          <td align="center"><font size="2">Re-Engage</font></td>
+        </tr>
+        <tr>
+          <td align="center"><font size="2">{{ P1 }}%</font></td>
+          <td align="center"><font size="2">{{ P2 }}%</font></td>
+          <td align="center"><font size="2">{{ P3 }}%</font></td>
+          <td align="center"><font size="2">{{ P4 }}%</font></td>
+        </tr>
+      </table>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Electricity Charges Summary</h2>
+    <hr>
+
+    {% if electricity_summary %}
+    <table class="table table-bordered table-striped mt-3">
+        <thead class="table-dark">
+            <tr>
+                <th>Meter No</th>
+                <th>Last Read</th>
+                <th>Last Date</th>
+                <th>New Read</th>
+                <th>New Date</th>
+                <th>Days</th>
+                <th>Consumption</th>
+                <th>Rate</th>
+                <th>Due</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in electricity_summary %}
+            <tr>
+                <td>{{ row.meter_number }}</td>
+                <td>{{ row.last_read }}</td>
+                <td>{{ row.last_date }}</td>
+                <td>{{ row.new_read }}</td>
+                <td>{{ row.new_date }}</td>
+                <td>{{ row.days }}</td>
+                <td>{{ row.consumption }}</td>
+                <td>{{ row.rate }}</td>
+                <td>R {{ "%.2f"|format(row.amount) }}</td>
+            </tr>
+            {% endfor %}
+            <tr class="table-secondary fw-bold">
+                <td colspan="8" class="text-end">Electricity Total</td>
+                <td>R {{ "%.2f"|format(elec_total) }}</td>
+            </tr>
+        </tbody>
+    </table>
+    {% else %}
+    <p>No electricity data available for this tenant and month.</p>
+    {% endif %}
+
+    <a href="{{ url_for('billing_bp.admin_dashboard') }}" class="btn btn-secondary mt-3">Back to Dashboard</a>
+{% endblock %}

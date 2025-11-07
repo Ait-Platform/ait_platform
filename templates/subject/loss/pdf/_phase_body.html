@@ -1,0 +1,28 @@
+{# Just the body: comments only (progress handled elsewhere) #}
+
+{# Determine the phase percent robustly #}
+{% set p = (
+    (pct if pct is defined else
+      (blk.pct if blk.pct is defined else (blk.width_pct if blk.width_pct is defined else 0))
+    ) | int
+) %}
+
+<div class="mt-4 space-y-6">
+  <section class="pdf-comments-block">
+    <strong class="pdf-section-label">Comments:</strong>
+
+    {% if p < 11 %}
+      <p class="text-slate-700">You have control in this phase.</p>
+
+    {% elif blk.comments_list and blk.comments_list|length %}
+      <ul class="pdf-comment-list">
+        {% for line in blk.comments_list %}
+          <li class="italic">{{ line }}</li>
+        {% endfor %}
+      </ul>
+
+    {#% else %#}
+      <!--p class="text-slate-700">No specific concerns noted in this phase.</p-->
+    {% endif %}
+  </section>
+</div>

@@ -1,0 +1,51 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container py-5">
+    <h1 class="text-3xl font-bold text-blue-700">Welcome, {{ current_user.name }}!</h1>
+    <p class="mt-4">Let’s get you set up with your first property, unit, and meter.</p>
+
+    <form method="POST" action="{{ url_for('billing_bp.manager_onboarding') }}">
+        
+        <!-- Property Info -->
+        <h4 class="mt-4">🏢 Property Details</h4>
+        <div class="mb-3">
+            <label class="form-label">Property Name</label>
+            <input type="text" name="property_name" class="form-control" placeholder="e.g. Greenview Apartments" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Property Address</label>
+            <input type="text" name="address" class="form-control" placeholder="Street, City, ZIP Code" required>
+        </div>
+
+        <!-- Unit Info -->
+        <h4 class="mt-4">🏠 Sectional Unit Details</h4>
+        <div class="mb-3">
+            <label class="form-label">Sectional Unit Label</label>
+            <input type="text" name="unit_number" class="form-control" placeholder="e.g. Unit A1, Flat 3B" required>
+            <small class="form-text text-muted">
+                This is the label or number of the unit (for multi-unit properties, you’ll add more later).
+            </small>
+        </div>
+
+        <!-- Meter Info -->
+        <h4 class="mt-4">⚡ Utility Meter Details</h4>
+        <div class="mb-3">
+            <label class="form-label">Meter Name</label>
+            <input type="text" name="meter_name" class="form-control" placeholder="e.g. Main Water Meter, Kitchen Electricity Meter" required>
+            <small class="form-text text-muted">
+                Use a descriptive name if you plan to add multiple meters for this property.
+            </small>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Utility Type</label>
+            <select name="utility_type" class="form-select" required>
+                <option value="">-- Select Utility --</option>
+                <option value="Electricity">Electricity</option>
+                <option value="Water">Water</option>
+            </select>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Save & Continue</button>
+    </form>
+</div>
+{% endblock %}

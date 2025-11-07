@@ -1,0 +1,17 @@
+<form method="POST" action="{{ url_for('billing_bp.generate_soa') }}">
+  <div>
+    <label for="month">Billing Month:</label>
+    <input type="month" id="month" name="month" required>
+  </div>
+
+  <div>
+    <label for="tenant_id">Select Tenant:</label>
+    <select name="tenant_id" required>
+      {% for tenant in tenants %}
+        <option value="{{ tenant.id }}">{{ tenant.name }} – Unit {{ tenant.unit_name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <button type="submit">📄 Generate SOA PDF</button>
+</form>

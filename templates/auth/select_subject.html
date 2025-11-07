@@ -1,0 +1,18 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container py-5">
+    <h2 class="mb-4">Select Subject Area</h2>
+    <form method="POST">
+        <div class="mb-3">
+            <label for="subject" class="form-label">Choose a subject to work in:</label>
+            <select id="subject" name="subject" class="form-control" required>
+                <option value="">-- Select --</option>
+                {% for value, label in subjects %}
+                    <option value="{{ value }}">{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <button type="submit" class="btn btn-primary">Go to Dashboard</button>
+    </form>
+</div>
+{% endblock %}

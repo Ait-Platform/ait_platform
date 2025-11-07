@@ -1,0 +1,5 @@
+<p>Hi {{ (user.name or user.email.split('@')[0]).title() }},</p>
+<p>We received a request to reset your password for AIT Platform.</p>
+<p><a href="{{ reset_url }}">Click here to reset your password</a> (valid for 60 minutes).</p>
+<p>If you didn’t request this, you can ignore this email.</p>
+<p>— Archoney Institute of Technology</p>

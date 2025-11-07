@@ -1,0 +1,42 @@
+<div class="flex items-center gap-2 print:hidden my-3">
+  <!-- View (same page) -->
+  <a
+    class="rounded-lg border px-3 py-1.5 text-sm hover:bg-slate-50"
+    href="{{ url_for('loss_bp.report', run_id=run_id, user_id=user_id) }}">
+    View report
+  </a>
+
+  <!-- Print / Save as PDF (browser) -->
+  <button
+    type="button"
+    class="rounded-lg bg-blue-600 text-white px-3 py-1.5 text-sm"
+    onclick="window.print()">
+    Print / Save PDF
+  </button>
+
+  <!--a
+    class="rounded-lg bg-blue-600 text-white px-3 py-1.5 text-sm"
+    href="{{ url_for('loss_bp.report', run_id=run_id, user_id=user_id) }}?print=1"
+    target="_blank" rel="noopener"
+  >
+    Print / Save PDF
+  </a-->
+
+  <!-- Copy share link (optional) -->
+<button
+  type="button"
+  class="rounded-lg border px-3 py-1.5 text-sm hover:bg-slate-50"
+  data-report-url="{{ url_for('loss_bp.report', run_id=run_id, user_id=user_id, _external=True) }}"
+  onclick="navigator.clipboard.writeText(this.dataset.reportUrl)">
+  Copy share link
+</button>
+
+<a
+  href="#"
+  class="rounded-lg border px-3 py-1.5 text-sm hover:bg-slate-50"
+  data-report-url="{{ url_for('loss_bp.report', run_id=run_id, user_id=user_id, _external=True) }}"
+  onclick="window.location='mailto:?subject='+encodeURIComponent('Your Loss Report')+'&body='+encodeURIComponent(this.dataset.reportUrl); return false;">
+  Email link
+</a>
+
+</div>

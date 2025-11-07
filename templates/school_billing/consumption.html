@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-2">Tenant: <strong>{{ tenant.name }}</strong></h2>
+    <h5 class="text-muted mb-4">Month: {{ selected_month }}</h5>
+
+    <form method="POST" action="{{ url_for('billing_bp.save_consumption_copy') }}">
+        <input type="hidden" name="tenant_id" value="{{ tenant.id }}">
+        <input type="hidden" name="month" value="{{ selected_month }}">
+        <input type="hidden" name="row_count" value="{{ records|length }}">
+
+        <div class="table-responsive">
+            <table class="table table-bordered table-striped table-hover align-middle">
+                <thead class="table-dark text-center">
+                    <tr>
+                        <th>Meter Number</th>
+                        <th>Month</th>
+                        <th>Last Date</th>
+                        <th>Last Read</th>
+                        <th>New Date</th>
+                        <th>New Read</th>
+                        <th>Days</th>
+                        <th>Consumption</th>
+                    </tr>
+                </thead>
+                    <tbody>
+                        {% for row in records %}
+                            {% set i = loop.index0 %}
+                            <tr>
+                                <td>{{ row.meter_number }}</td>
+                                <td>{{ row.month }}</td>
+                                <td>{{ row.last_date }}</td>
+                                <td>{{ row.last_read }}</td>
+                                <td>{{ row.new_date }}</td>
+                                <td>{{ row.new_read }}</td>
+                                <td>{{ row.days }}</td>
+                                <td>{{ row.consumption }}</td>
+
+                                <!-- Hidden inputs -->
+                                <input type="hidden" name="meter_number_{{ i }}" value="{{ row.meter_number }}">
+                                <input type="hidden" name="last_date_{{ i }}" value="{{ row.last_date }}">
+                                <input type="hidden" name="last_read_{{ i }}" value="{{ row.last_read }}">
+                                <input type="hidden" name="new_read_{{ i }}" value="{{ row.new_read }}">
+                                <input type="hidden" name="days_{{ i }}" value="{{ row.days }}">
+                                <input type="hidden" name="consumption_{{ i }}" value="{{ row.consumption }}">
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+
+            </table>
+        </div>
+
+        <div class="d-flex justify-content-end mt-3">
+            <button type="submit" class="btn btn-warning">
+                ⚡ Save Consumption & View Charges
+            </button>
+        </div>
+    </form>
+
+    <div class="mt-4">
+        <a href="{{ url_for('billing_bp.admin_dashboard') }}" class="btn btn-outline-secondary">
+            ← Back to Admin Dashboard
+        </a>
+    </div>
+</div>
+{% endblock %}

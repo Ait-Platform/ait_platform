@@ -1,0 +1,52 @@
+{% extends "layout.html" %}
+{% from "shared/card_macros.html" import loss_card as card %}
+{% block title %}Reading • Get started{% endblock %}
+
+{% block content %}
+  <div class="max-w-3xl mx-auto mt-8">
+    <div class="h-1.5 w-full rounded-t-2xl bg-indigo-600"></div>
+
+    {# Build footer like before #}
+    {% set footer %}
+      <div class="mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+
+        <!-- Left: Learner -->
+        <form method="POST" action="{{ url_for('reading_bp.enrol_reading') }}" class="sm:order-1">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="role" value="learner">
+          <button type="submit"
+            class="inline-flex items-center justify-center whitespace-nowrap
+                   px-6 py-3 rounded-lg font-medium
+                   bg-indigo-600 text-white shadow-sm
+                   hover:bg-indigo-700 focus:outline-none
+                   focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+            Enroll as learner
+          </button>
+        </form>
+
+      <p class="mt-3 text-xs text-slate-500">You can change your role later in Settings.</p>
+    {% endset %}
+
+    {# Build main body content for the card by stitching the partials #}
+    {% set body %}
+      <div class="text-sm text-slate-700 leading-relaxed space-y-6">
+
+        {% include "subject_reading/_how_it_works.html" %}
+        {% include "subject_reading/_language_support.html" %}
+
+      </div>
+    {% endset %}
+
+
+    {% include "subject_reading/_audio_selector.html" %}
+
+
+    {{ card(
+      title = "Get started with Reading",
+      caption = "Choose the option that fits how you’ll use this course.",
+      content = body,
+      footer_html = footer
+    ) }}
+
+  </div>
+{% endblock %}

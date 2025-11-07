@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+
+  <meta charset="UTF-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+  />
+  <meta name="color-scheme" content="light dark" />
+  <title>{% block title %}AIT Platform{% endblock %}</title>
+ 
+  <!-- Tailwind (swap for compiled CSS in prod) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+
+
+  {% block head %}{% endblock %}
+</head>
+
+
+  
+<!--body class="min-h-screen bg-gray-100 text-gray-800 antialiased"-->
+<body class="min-h-screen bg-gray-100 text-gray-800 antialiased pb-16">
+
+  <!-- Skip link (a11y) -->
+  <a href="#main" class="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 z-50 bg-white border rounded px-3 py-1.5 shadow">
+    Skip to content
+  </a>
+
+  <!-- Header / Navbar (hidden on print) -->
+  <header class="print:hidden">
+    {% include "partials/navbar.html" %}
+
+    {# Breadcrumbs / Back — remove this whole <section> if you don't want it #}
+    {% if breadcrumbs or nav_back_url %}
+    <section class="bg-white/80 backdrop-blur border-b">
+      <div class="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
+        <div class="flex items-center gap-4 py-2 text-sm text-slate-600">
+          {% if breadcrumbs %}
+            <nav aria-label="Breadcrumb" class="flex items-center flex-wrap gap-1 md:gap-2">
+              {% for label, url in breadcrumbs %}
+                {% if url %}
+                  <a href="{{ url }}" class="hover:underline">{{ label }}</a>
+                {% else %}
+                  <span class="text-slate-900" aria-current="page">{{ label }}</span>
+                {% endif %}
+                {% if not loop.last %}<span class="mx-1.5 select-none">/</span>{% endif %}
+              {% endfor %}
+            </nav>
+          {% endif %}
+          <div class="ml-auto">
+            {% if nav_back_url %}
+              <a href="{{ nav_back_url }}"
+                 class="inline-flex items-center gap-2 rounded border px-3 py-1.5 hover:bg-slate-50"
+                 aria-label="Go back">
+                <span aria-hidden="true">←</span><span>Back</span>
+              </a>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </section>
+    {% endif %}
+  </header>
+
+  <!-- Page container -->
+  <div class="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
+    {% block page_header %}{% endblock %}
+
+    {# Flash messages (inline basic renderer; replace with your partial if you prefer) #}
+    
+    {# layout.html #}
+    {% with msgs = get_flashed_messages(with_categories=true) %}
+      {% if msgs %}
+        <div class="mx-auto max-w-4xl mt-4 space-y-2">
+          {% for cat, msg in msgs %}
+            <div class="rounded-md border px-3 py-2 text-sm
+                        {% if cat == 'success' %}border-emerald-300 bg-emerald-50 text-emerald-800
+                        {% elif cat == 'warning' %}border-amber-300 bg-amber-50 text-amber-800
+                        {% elif cat == 'danger' %}border-rose-300 bg-rose-50 text-rose-800
+                        {% else %}border-slate-200 bg-slate-50 text-slate-700{% endif %}">
+              {{ msg }}
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+
+    <!-- Main content -->
+    <main id="app-main"
+          class="{% block page_wrap_classes %}mx-auto w-full max-w-3xl px-4 py-8{% endblock %}">
+      {% block content %}{% endblock %}
+    </main>
+
+
+  </div>
+
+  <!-- Footer (hidden on print) -->
+  <!-- Footer (hidden on print) -->
+  <footer class="fixed inset-x-0 bottom-0 border-t bg-white/90 backdrop-blur print:hidden z-40">
+  <!--footer class="mt-16 border-t bg-white/70 backdrop-blur print:hidden"-->
+  <!-- Footer (hidden on print) >
+  <footer class="mt-16 border-t bg-white/70 backdrop-blur print:hidden"-->
+    <div class="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8 py-6 text-center text-sm text-gray-600">
+      <div class="space-x-3">
+        <a href="/privacy-policy" class="hover:underline">Privacy Policy</a>
+        <span aria-hidden="true">•</span>
+        <a href="/terms" class="hover:underline">Terms</a>
+        <span aria-hidden="true">•</span>
+        <a href="mailto:info@mathwithhands.com" class="hover:underline">info@mathwithhands.com</a>
+      </div>
+      <small class="block mt-2">&copy; {{ now().year }} AIT Platform. Empowering learners worldwide.</small>
+    </div>
+  </footer>
+
+  <style>
+    @media print {
+      .print\:hidden { display: none !important; }
+      nav, header, footer { display: none !important; }
+      .container, .mx-auto, .max-w-6xl { max-width: none !important; padding: 0 !important; }
+      body { color: #000; }
+    }
+  </style>
+
+
+  {% block scripts %}{% endblock %}
+</body>
+</html>
+
+
+

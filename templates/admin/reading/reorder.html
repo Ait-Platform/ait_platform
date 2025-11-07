@@ -1,0 +1,132 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container mx-auto py-10">
+  <div class="flex items-center justify-between mb-6">
+    <h1 class="text-xl font-semibold">Reorder Lessons</h1>
+    <a href="{{ url_for('admin_bp.reading_lessons') }}" class="btn btn-light">Back</a>
+  </div>
+
+  <p class="text-sm text-slate-600 mb-4">
+    Drag rows to change order. Click <strong>Save Order</strong> to apply.
+  </p>
+
+  <ul id="reorder-list" class="rounded-xl border bg-white divide-y select-none">
+    {% for l in lessons %}
+    <li class="px-4 py-3 flex items-center gap-3 cursor-move" draggable="true" data-id="{{ l.id }}" aria-grabbed="false">
+      <span class="text-slate-400" aria-hidden="true">☰</span>
+      <div class="grow">
+        <div class="font-medium">{{ l.title }}</div>
+        <div class="text-xs text-slate-500 truncate">{{ l.caption }}</div>
+      </div>
+      <span class="text-xs text-slate-400">ID: {{ l.id }}</span>
+    </li>
+    {% endfor %}
+  </ul>
+
+  <div class="mt-4 flex justify-end gap-2">
+    <a href="{{ url_for('admin_bp.reading_lessons') }}" class="btn btn-light" id="cancel-btn">Cancel</a>
+    <button id="save-btn" type="button" class="btn btn-primary">Save Order</button>
+  </div>
+</div>
+
+{# expose URLs + csrf to JS #}
+<script>
+  window.__REORDER__ = {
+    apiUrl: "{{ url_for('admin_bp.api_reorder_lessons', subject='reading') }}",
+    returnUrl: "{{ url_for('admin_bp.reading_lessons') }}",
+    csrf: "{{ csrf_token() }}"
+  };
+</script>
+
+{# keep JS inside raw so Jinja never parses it #}
+{% raw %}
+<script>
+(() => {
+  const list = document.getElementById('reorder-list');
+  const saveBtn = document.getElementById('save-btn');
+  const cfg = window.__REORDER__;
+
+  let dragSrc = null;
+
+  function onDragStart(e) {
+    dragSrc = this;
+    this.setAttribute('aria-grabbed', 'true');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', this.dataset.id);
+    this.classList.add('opacity-50');
+  }
+
+  function onDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  }
+
+  function onDragEnter() {
+    this.classList.add('bg-slate-50');
+  }
+
+  function onDragLeave() {
+    this.classList.remove('bg-slate-50');
+  }
+
+  function onDrop(e) {
+    e.preventDefault();
+    this.classList.remove('bg-slate-50');
+    if (!dragSrc || dragSrc === this) return;
+
+    const items = Array.from(list.children);
+    const dropIndex = items.indexOf(this);
+    list.insertBefore(dragSrc, dropIndex > -1 ? items[dropIndex] : null);
+  }
+
+  function onDragEnd() {
+    this.classList.remove('opacity-50');
+    this.setAttribute('aria-grabbed', 'false');
+  }
+
+  function wire(li) {
+    li.addEventListener('dragstart', onDragStart);
+    li.addEventListener('dragover', onDragOver);
+    li.addEventListener('dragenter', onDragEnter);
+    li.addEventListener('dragleave', onDragLeave);
+    li.addEventListener('drop', onDrop);
+    li.addEventListener('dragend', onDragEnd);
+  }
+
+  document.querySelectorAll('#reorder-list > li').forEach(wire);
+
+  async function save() {
+    // Disable to prevent double submits
+    saveBtn.disabled = true;
+    try {
+      const ids = Array.from(document.querySelectorAll('#reorder-list > li'))
+        .map(li => parseInt(li.dataset.id, 10))
+        .filter(Number.isInteger);
+
+      const res = await fetch(cfg.apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': cfg.csrf
+        },
+        body: JSON.stringify({ ids })
+      });
+
+      if (!res.ok) {
+        const txt = await res.text();
+        alert('Save failed:\n' + txt);
+        saveBtn.disabled = false;
+        return;
+      }
+      window.location = cfg.returnUrl;
+    } catch (err) {
+      alert('Network error while saving order.');
+      saveBtn.disabled = false;
+    }
+  }
+
+  saveBtn.addEventListener('click', save);
+})();
+</script>
+{% endraw %}
+{% endblock %}

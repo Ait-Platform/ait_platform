@@ -1,0 +1,36 @@
+{% extends "layout.html" %}
+{% block title %}Payment · AIT{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-xl mt-8 rounded-2xl border p-6 bg-white">
+  <h1 class="text-xl font-semibold text-blue-800">Complete Payment</h1>
+
+  <div class="mt-4">
+    <h3 class="text-lg font-medium">{{ name or 'Payment' }}</h3>
+    {% if subtitle %}
+      <p class="text-sm text-slate-600 mt-0.5">{{ subtitle }}</p>
+    {% endif %}
+    {% if amount %}
+      <p class="mt-2 text-sm">Amount: {{ amount }} {{ currency or 'ZAR' }}</p>
+    {% elif price_id %}
+      <p class="mt-2 text-sm">Price: {{ price_id }}</p>
+    {% endif %}
+    {% if purpose %}
+      <p class="text-xs text-slate-500">Purpose: {{ purpose }}</p>
+    {% endif %}
+  </div>
+
+<form method="post" action="{{ url_for('checkout_bp.start') }}">
+  <input type="hidden" name="price_id" value="{{ price_id or '' }}">
+  <input type="hidden" name="amount"   value="{{ amount or '' }}">
+  <input type="hidden" name="quantity" value="{{ quantity or 1 }}">
+  <input type="hidden" name="currency" value="{{ currency }}">
+  <input type="hidden" name="subject"  value="{{ request.args.get('subject', session.get('subject','')) }}">
+  <input type="hidden" name="role"     value="{{ request.args.get('role',    session.get('role','user')) }}">
+  <input type="hidden" name="next"     value="{{ next_url }}">
+
+  <button type="submit" class="btn btn-primary">Pay now</button>
+</form>
+
+</div>
+{% endblock %}

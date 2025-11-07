@@ -1,0 +1,66 @@
+{% extends "layout.html" %}
+{% block title %}{{ learner.learner_name }} | School Fee Detail{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto mt-8">
+  <h1 class="text-xl font-semibold text-slate-900 mb-2">{{ learner.learner_name }} ({{ learner.class_name }})</h1>
+
+  <section class="mt-4">
+    <h2 class="text-sm font-medium text-slate-700 mb-2">Accounts by Year</h2>
+    <div class="rounded-2xl border border-slate-200 shadow-sm bg-white">
+      <table class="w-full text-sm text-left border-collapse">
+        <thead class="bg-slate-800 text-white">
+          <tr>
+            <th class="px-3 py-2">Year</th>
+            <th class="px-3 py-2">Annual Fee</th>
+            <th class="px-3 py-2">Total Paid</th>
+            <th class="px-3 py-2">Balance</th>
+            <th class="px-3 py-2 text-center">Statement</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for acc in accounts %}
+          <tr class="border-b hover:bg-slate-50">
+            <td class="px-3 py-2">{{ acc.school_year }}</td>
+            <td class="px-3 py-2">R{{ (acc.annual_fee_cents // 100) }}.{{ "%02d"|format(acc.annual_fee_cents % 100) }}</td>
+            <td class="px-3 py-2">R{{ (acc.total_paid_cents // 100) }}.{{ "%02d"|format(acc.total_paid_cents % 100) }}</td>
+            <td class="px-3 py-2 font-semibold {% if acc.balance_cents > 0 %}text-red-600{% else %}text-emerald-600{% endif %}">
+              R{{ (acc.balance_cents // 100) }}.{{ "%02d"|format(acc.balance_cents % 100) }}
+            </td>
+            <td class="px-3 py-2 text-center">
+              <a href="{{ url_for('sfm_bp.sfm_statement', account_id=acc.account_id) }}" class="text-blue-600 hover:underline">
+                Statement
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="mt-6">
+    <h2 class="text-sm font-medium text-slate-700 mb-2">Recent Payments (latest year)</h2>
+    <div class="rounded-2xl border border-slate-200 shadow-sm bg-white">
+      <table class="w-full text-sm text-left border-collapse">
+        <thead class="bg-slate-800 text-white">
+          <tr>
+            <th class="px-3 py-2">Amount</th>
+            <th class="px-3 py-2">When</th>
+            <th class="px-3 py-2">Method</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in payments %}
+          <tr class="border-b hover:bg-slate-50">
+            <td class="px-3 py-2">R{{ (p.paid_cents // 100) }}.{{ "%02d"|format(p.paid_cents % 100) }}</td>
+            <td class="px-3 py-2">{{ p.paid_at }}</td>
+            <td class="px-3 py-2">{{ p.method or '-' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+{% endblock %}

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Assessment Results</title>
+</head>
+<body>
+  <h1>Assessment Results</h1>
+  <p>Completed on {{ res.created_at }}</p>
+
+  <table border="1" cellpadding="6" cellspacing="0">
+    <thead>
+      <tr>
+        <th>Phase</th>
+        <th>Score</th>
+        <th>Max Possible</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Phase 1</td>
+        <td>{{ res.phase_1 }}</td>
+        <td>{{ maxes.p1 }}</td>
+      </tr>
+      <tr>
+        <td>Phase 2</td>
+        <td>{{ res.phase_2 }}</td>
+        <td>{{ maxes.p2 }}</td>
+      </tr>
+      <tr>
+        <td>Phase 3</td>
+        <td>{{ res.phase_3 }}</td>
+        <td>{{ maxes.p3 }}</td>
+      </tr>
+      <tr>
+        <td>Phase 4</td>
+        <td>{{ res.phase_4 }}</td>
+        <td>{{ maxes.p4 }}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p><a href="{{ url_for('loss_bp.dashboard') }}">Back to dashboard</a></p>
+</body>
+</html>

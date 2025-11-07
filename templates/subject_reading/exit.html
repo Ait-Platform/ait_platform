@@ -1,0 +1,57 @@
+{% extends "layout.html" %}
+{% block content %}
+
+<div class="max-w-xl mx-auto mt-10 mb-16">
+  {% with msgs = get_flashed_messages(with_categories=true) %}
+    {% if msgs %}
+      {% for cat, msg in msgs %}
+        <div class="mb-4 rounded-md border border-emerald-300 bg-emerald-50 text-emerald-800 px-3 py-2 text-sm">
+          {{ msg }}
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  <div class="bg-white border rounded-xl shadow-sm p-6 text-center">
+    <div class="text-xl font-semibold mb-2">
+      🎉 Congratulations!
+    </div>
+    <div class="text-slate-700 text-sm mb-6">
+      You’ve completed the Reading Programme.
+    </div>
+
+    <div class="grid gap-3 text-sm text-left">
+
+      <a href="{{ url_for('reading_bp.get_certificate') }}"
+         class="w-full inline-flex items-center justify-between rounded-lg border border-slate-300 bg-white px-4 py-2 hover:bg-slate-50">
+        <span>📄 Get Certificate (PDF / Email)</span>
+        <span class="text-xs text-slate-500">Download / resend</span>
+      </a>
+
+      <a href="{{ url_for('auth_bp.bridge_dashboard') }}"
+         class="w-full inline-flex items-center justify-between rounded-lg border border-slate-300 bg-white px-4 py-2 hover:bg-slate-50">
+        <span>📚 Go to dashboard</span>
+        <span class="text-xs text-slate-500">Open available courses</span>
+      </a>
+
+      <a href="{{ url_for('public_bp.welcome') }}"
+         class="w-full inline-flex items-center justify-between rounded-lg border border-slate-300 bg-white px-4 py-2 hover:bg-slate-50">
+        <span>🧭 Explore programmes</span>
+        <span class="text-xs text-slate-500">See what's next</span>
+      </a>
+
+      <a href="{{ url_for('auth_bp.logout') }}"
+         class="w-full inline-flex items-center justify-between rounded-lg border border-slate-300 bg-white px-4 py-2 hover:bg-slate-50">
+        <span>🔒 Sign out</span>
+        <span class="text-xs text-slate-500">End session</span>
+      </a>
+
+    </div>
+
+    <div class="text-slate-500 text-[11px] leading-relaxed mt-5">
+      Keep this certificate for your records. You can request a copy any time.
+    </div>
+  </div>
+</div>
+
+{% endblock %}

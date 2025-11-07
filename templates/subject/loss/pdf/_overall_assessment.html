@@ -1,0 +1,69 @@
+{# templates/subject/loss/pdf/_overall_assessment.html #}
+{% if M is not defined %}{% import "subject/loss/pdf/_macros.html" as M %}{% endif %}
+
+{# Render if we have either table-driven rows (oa_rows/oa.rows) or legacy oa #}
+{% if oa_rows or (oa and oa.rows) or oa %}
+
+  {# Phase-1 % -> High/Low (no Mid) #}
+  {% set p1 = (P1|int if P1 is defined else (
+      (blocks|selectattr('phase','equalto',1)|map(attribute='pct')|list|first)
+      if blocks is defined and blocks else None)) %}
+  {% if p1 is none and blocks is defined and blocks %}
+    {% set p1 = (blocks|selectattr('phase','equalto',1)|map(attribute='width_pct')|list|first) %}
+  {% endif %}
+  {% set p1 = (p1|int) if p1 is not none else 0 %}
+  {% set band_key    = 'high' if p1 >= 50 else 'low' %}
+  {% set range_label = 'High' if band_key == 'high' else 'Low' %}
+  {% set av_label    = 'Not Coping' if band_key == 'high' else 'Coping' %}
+
+  {# Chips #}
+  {% set range_chip = 'chip-rose' if range_label == 'High' else 'chip-emerald' %}
+  {% set av_chip    = 'chip-av-notcoping' if av_label == 'Not Coping' else 'chip-av-coping' %}
+
+  {# Table rows source: prefer oa_rows, else oa.rows, else [] #}
+  {% set rows = (oa_rows if oa_rows is defined and oa_rows else (oa.rows if oa is defined and oa.rows is defined else [])) %}
+  {% set row  = (rows|selectattr('band','equalto',band_key)|list|first) %}
+
+  {# Resolve text from the chosen row; fallback to legacy oa.* if needed #}
+  {% set body_txt    = row.body    if row and row.body    else (oa.summary  if oa and oa.summary  else '') %}
+  {% set key_need    = row.key_need if row and row.key_need else (oa.key_need if oa and oa.key_need else '') %}
+  {% set bullets_line = row.bullets if row and row.bullets is defined else '' %}
+  {# If you stored bullets as one line with " | " separators, you can split: #}
+  {% set bullets_list = bullets_line.split(' | ') if bullets_line else [] %}
+
+  <section class="pdf-card">
+    <div class="flex items-center justify-between gap-3">
+      <h3 class="text-base md:text-lg font-semibold text-slate-800">Overall Assessment</h3>
+      <div class="text-[13px] leading-6 flex items-center gap-2">
+        <span class="font-semibold">Range:</span>
+        <span class="chip {{ range_chip }}">{{ range_label }}</span>
+        <span class="ml-3 font-semibold">Adaptation Vector:</span>
+        <span class="chip {{ av_chip }}">{{ av_label }}</span>
+      </div>
+    </div>
+
+    {% if body_txt %}
+      <p class="mt-3 text-slate-700" style="white-space: pre-line;">{{ body_txt }}</p>
+
+    {% endif %}
+
+    {% if key_need %}
+      <p class="mt-3 text-sm">
+        <span class="font-semibold">Key need:</span> {{ key_need }}.
+      </p>
+    {% endif %}
+
+    {# Optional: render the one-line bullets if present. If you prefer a single line, keep the <p>. If you want a list, use the <ul>. #}
+    {% if bullets_list and bullets_list|length > 0 %}
+      <ul class="list-disc pl-6 text-slate-800 text-[15px] leading-7 space-y-2 mt-3">
+        {% for b in bullets_list %}
+          {% if b.strip() %}<li>{{ b.strip() }}</li>{% endif %}
+        {% endfor %}
+      </ul>
+      {# Or, if you truly want one line shown, replace the <ul> above with:
+      <p class="mt-3 text-slate-700">{{ bullets_line }}</p>
+      #}
+    {% endif %}
+  </section>
+{% endif %}
+

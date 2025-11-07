@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Certificate | HOME™{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto mt-10 p-6 bg-white border-2 border-gray-300 shadow-lg rounded-xl text-center">
+
+  <h1 class="text-3xl font-bold text-green-700 mb-4">🎉 Certificate of Completion</h1>
+
+  <p class="text-lg text-gray-800 mb-6">
+    This certifies that <span class="font-semibold text-black">{{ learner_name|title }}</span> has successfully completed the<br>
+    <span class="italic text-blue-800">Hands On Math Education (HOME™)</span> curriculum.
+  </p>
+
+  <p class="text-gray-600 mb-6">Issued on: {{ now().strftime('%B %d, %Y') }}</p>
+
+  <div class="mt-4">
+    <a href="#" class="text-blue-600 hover:underline">📄 Download PDF (Coming Soon)</a>
+  </div>
+
+</div>
+{% endblock %}

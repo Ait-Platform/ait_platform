@@ -1,0 +1,65 @@
+{% extends "layout.html" %}
+{% block title %}Reading · Start{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto mt-10 px-4">
+
+  <!-- outer card -->
+  <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+
+    <!-- header strip -->
+    <div class="bg-green-600 text-white px-6 py-4">
+      <h1 class="text-xl font-bold">Reading</h1>
+      <p class="text-sm text-green-100 mt-1">
+        This course teaches you to read with the Litre Method.
+      </p>
+    </div>
+
+    <!-- body -->
+    <div class="px-6 py-6 text-slate-800 text-sm leading-relaxed bg-white">
+      <p class="mb-4">
+        When you press <strong>Start</strong>, your Reading session begins.
+        You’ll get a focused window to work through the lessons.  
+        You can rewatch any video, and your progress will be tracked.
+      </p>
+
+      <ul class="list-disc pl-5 space-y-1 mb-6 text-slate-700 text-sm">
+        <li>Your timer only starts when you press Start (not at payment).</li>
+        <li>You’ll see all lessons in order — nothing is locked after Start.</li>
+        <li>We track which lessons you’ve watched and how many times.</li>
+        <li>You’ll later get a progress summary and proof of completion.</li>
+      </ul>
+
+      <!-- action row -->
+      <div class="flex flex-col sm:flex-row sm:items-center gap-4">
+
+        <!-- START FORM -->
+        <form method="POST" action="{{ url_for('reading_bp.begin_reading_post') }}">
+
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button
+            type="submit"
+            class="inline-flex items-center justify-center whitespace-nowrap
+                   px-5 py-2.5 rounded-lg font-medium
+                   bg-green-600 text-white shadow-sm
+                   hover:bg-green-700 focus:outline-none
+                   focus:ring-2 focus:ring-green-500 focus:ring-offset-2 text-sm">
+            Start
+          </button>
+        </form>
+
+        <!-- Back link -->
+        <a href="{{ url_for('auth_bp.bridge_dashboard') }}"
+           class="text-slate-600 text-sm hover:underline">
+          ← Back to Dashboard
+        </a>
+      </div>
+
+      <p class="text-[11px] text-slate-500 mt-4">
+        Tip: You can pause and come back, and you can replay any video for practice.
+      </p>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

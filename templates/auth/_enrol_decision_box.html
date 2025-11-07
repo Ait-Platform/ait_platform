@@ -1,0 +1,113 @@
+{# =======================
+  Enrol Decision Box (SAFE)
+  Expects:
+    - decision (dict-like): case, subject_name, subject_slug, completed_at
+    - decision_urls (dict): resume, reenrol, enrol, pay, dashboard
+    - decision_methods (dict, optional): e.g. {'reenrol': 'POST'}
+    - role (string, optional)
+    - values (dict, optional)
+  Notes:
+    * No url_for used here to avoid BuildError.
+    * If decision_methods['reenrol'] == 'POST', we render a POST form (CSRF-aware).
+======================= #}
+
+{% set _d = decision or {} %}
+{% set case = _d.case if _d is mapping else (_d.case if _d is defined else None) %}
+{% set subject_name = _d.subject_name if _d is mapping else (_d.subject_name if _d is defined else 'this subject') %}
+{% set subject_slug = _d.subject_slug if _d is mapping else (_d.subject_slug if _d is defined else '') %}
+
+{% set urls = decision_urls or {} %}
+{% set methods = decision_methods or {} %}
+
+{% set resume_url    = urls.get('resume') %}
+{% set reenrol_url   = urls.get('reenrol') %}
+{% set enrol_url     = urls.get('enrol') %}
+{% set pay_url       = urls.get('pay') %}
+{% set dashboard_url = urls.get('dashboard', '/') %}
+
+{% set reenrol_method = (methods.get('reenrol') or 'GET') | upper %}
+
+{% macro btn_primary_green() -%}
+class="inline-flex items-center rounded-md px-3 py-1.5 text-sm text-white bg-emerald-600 hover:bg-emerald-700"
+{%- endmacro %}
+{% macro btn_outline_emerald() -%}
+class="inline-flex items-center rounded-md px-3 py-1.5 text-sm border border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+{%- endmacro %}
+{% macro btn_primary_blue() -%}
+class="inline-flex items-center rounded-md px-3 py-1.5 text-sm text-white bg-blue-600 hover:bg-blue-700"
+{%- endmacro %}
+{% macro btn_outline_blue() -%}
+class="inline-flex items-center rounded-md px-3 py-1.5 text-sm border border-blue-300 text-blue-700 hover:bg-blue-50"
+{%- endmacro %}
+
+{# ---------- CLOSED (completed) ---------- #}
+{% if case == 'closed' %}
+  <div class="rounded-lg bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200 px-4 py-3 text-sm">
+    You completed {{ subject_name }}{% if _d.completed_at %} on {{ _d.completed_at }}{% endif %}. Re-enrol?
+    <div class="mt-2 flex gap-2 items-center">
+      {% if reenrol_url %}
+        {% if reenrol_method == 'POST' %}
+          <form method="POST" action="{{ reenrol_url }}">
+            {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endif %}
+            <button {{ btn_primary_green() }}>Re-enrol</button>
+          </form>
+        {% else %}
+          <a href="{{ reenrol_url }}" {{ btn_primary_green() }}>Re-enrol</a>
+        {% endif %}
+      {% endif %}
+
+      <a href="{{ dashboard_url }}" {{ btn_outline_emerald() }}>Go to welcome</a>
+    </div>
+  </div>
+
+{# ---------- ALREADY ACTIVE ---------- #}
+{% elif case == 'already_active' %}
+  <div class="rounded-lg bg-blue-50 text-blue-800 ring-1 ring-blue-200 px-4 py-3 text-sm">
+    You’re already enrolled in {{ subject_name }}.
+    <div class="mt-2 flex gap-2 items-center">
+      {% if resume_url %}
+        <a href="{{ resume_url }}" {{ btn_primary_blue() }}>Continue</a>
+      {% endif %}
+
+      {% if reenrol_url %}
+        {% if reenrol_method == 'POST' %}
+          <form method="POST" action="{{ reenrol_url }}">
+            {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endif %}
+            <button {{ btn_outline_blue() }}>Start over</button>
+          </form>
+        {% else %}
+          <a href="{{ reenrol_url }}" {{ btn_outline_blue() }}>Start over</a>
+        {% endif %}
+      {% endif %}
+    </div>
+  </div>
+
+{# ---------- OTHER SUBJECTS ---------- #}
+{% elif case == 'other_subjects' %}
+  <div class="rounded-lg bg-amber-50 text-amber-800 ring-1 ring-amber-200 px-4 py-3 text-sm">
+    You already have an account. Enrol in {{ subject_name }} as well?
+    <div class="mt-2 flex gap-2 items-center">
+      {% if enrol_url %}
+        <a href="{{ enrol_url }}" class="inline-flex items-center rounded-md px-3 py-1.5 text-sm text-white bg-amber-600 hover:bg-amber-700">
+          Enrol in {{ subject_name }}
+        </a>
+      {% endif %}
+      <a href="{{ dashboard_url }}" class="inline-flex items-center rounded-md px-3 py-1.5 text-sm border border-amber-300 text-amber-700 hover:bg-amber-50">
+        Go to welcome
+      </a>
+    </div>
+  </div>
+
+{# ---------- PAYMENT PENDING ---------- #}
+{% elif case == 'payment_pending' %}
+  <div class="rounded-lg bg-amber-50 text-amber-800 ring-1 ring-amber-200 px-4 py-3 text-sm">
+    Payment is pending for {{ subject_name }}.
+    {% if pay_url %}
+      <div class="mt-2">
+        <a href="{{ pay_url }}" class="inline-flex items-center rounded-md px-3 py-1.5 text-sm text-white bg-amber-600 hover:bg-amber-700">
+          Pay now
+        </a>
+      </div>
+    {% endif %}
+  </div>
+{% endif %}

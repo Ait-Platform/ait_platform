@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>LOSS Assessment Report</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f9f9f9;
+      padding: 20px;
+      color: #333;
+    }
+    .container {
+      background: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      max-width: 600px;
+      margin: auto;
+      box-shadow: 0 0 10px rgba(0,0,0,0.05);
+    }
+    h1 {
+      color: #1e3a8a;
+    }
+    .section {
+      margin-bottom: 20px;
+    }
+    .score {
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>LOSS Continuum Report</h1>
+    <p>Dear {{ user_name }},</p>
+
+    <div class="section">
+      <p>Thank you for completing the LOSS Assessment. Below are your results:</p>
+      <ul>
+        {% for category, score in category_scores.items() %}
+        <li><span class="score">{{ category }}:</span> {{ score }} / {{ max_score }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <div class="section">
+      <p><strong>Stage Interpretation:</strong> {{ interpretation }}</p>
+    </div>
+
+    <p>If you have any questions or wish to retake the assessment after 6 months, please contact the admin.</p>
+
+    <p>Regards,<br><strong>School Counselling Team</strong></p>
+  </div>
+</body>
+</html>

@@ -1,0 +1,71 @@
+{# templates/subject/loss/cards/question.html #}
+{% extends "layout.html" %}
+{% block title %}Question {{ question.number or display_idx }} · LOSS{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto mt-10 bg-white p-6 rounded-2xl shadow border">
+  {# top meta (progress) #}
+  {% if progress %}
+    <div class="text-sm text-slate-500 mb-1">{{ progress }}</div>
+  {% endif %}
+
+  {# We’ll treat the actual question text as the main body; title often holds "yes;no" #}
+  <h1 class="text-2xl font-bold text-slate-800 mb-1">
+    {{ question.title or ("Question " ~ (display_idx or question.number or "")) }}
+  </h1>
+
+  <span class="text-sm text-slate-500">{{ display_idx }} / {{ display_total }}</span>
+
+  {# De-dupe: if caption == text (ignoring tags/whitespace), show only once #}
+  {% set cap_norm  = (question.caption or '')|striptags|trim %}
+  {% set body_norm = (question.text or '')|striptags|trim %}
+  {% set show_caption = cap_norm and (cap_norm != body_norm) %}
+
+  {% if show_caption %}
+    <p class="text-slate-600 mt-3">{{ question.caption }}</p>
+  {% endif %}
+
+  <h2 class="mt-4 mb-6 text-slate-900 font-semibold text-lg md:text-xl leading-snug">
+    {{ (question.text or question.prompt)|safe }}
+  </h2>
+
+
+
+  {% if error %}
+    <div class="mb-4 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+      {{ error }}
+    </div>
+  {% endif %}
+
+
+
+  <form method="post" action="{{ url_for('loss_bp.assessment_question_flow') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="question_id" value="{{ question.id }}">
+
+      <div class="flex items-center justify-between">
+        <button
+          type="submit"
+          name="answer"
+          value="yes"
+          class="rounded-lg border px-4 py-2 text-sm font-semibold
+                bg-sky-100 text-sky-800 border-sky-200
+                hover:bg-sky-200 transition"
+        >Yes</button>
+
+        <button
+          type="submit"
+          name="answer"
+          value="no"
+          class="rounded-lg border px-4 py-2 text-sm font-semibold
+                bg-violet-100 text-violet-800 border-violet-200
+                hover:bg-violet-200 transition"
+        >No</button>
+      </div>
+
+
+  </form>
+
+
+</div>
+{% endblock %}

@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mx-auto p-6">
+  <h2 class="text-xl font-bold mb-4 text-blue-800">Electricity Charges Summary</h2>
+  
+  <table class="table-auto w-full border-collapse border border-gray-300">
+    <thead class="bg-gray-200">
+      <tr>
+        <th class="border px-4 py-2">Meter Number</th>
+        <th class="border px-4 py-2">Old Date</th>
+        <th class="border px-4 py-2">New Date</th>
+        <th class="border px-4 py-2">Old Read</th>
+        <th class="border px-4 py-2">New Read</th>
+        <th class="border px-4 py-2">Days</th>
+        <th class="border px-4 py-2">Consumption</th>
+        <th class="border px-4 py-2">Rate</th>
+        <th class="border px-4 py-2">Amount Due</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in results %}
+      <tr>
+        <td class="border px-4 py-2">{{ row.meter_number }}</td>
+        <td class="border px-4 py-2">{{ row.old_date }}</td>
+        <td class="border px-4 py-2">{{ row.new_date }}</td>
+        <td class="border px-4 py-2">{{ row.old_read }}</td>
+        <td class="border px-4 py-2">{{ row.new_read }}</td>
+        <td class="border px-4 py-2">{{ row.days }}</td>
+        <td class="border px-4 py-2">{{ row.consumption }}</td>
+        <td class="border px-4 py-2">{{ row.rate }}</td>
+        <td class="border px-4 py-2 font-semibold text-right">R {{ row.amount_due }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

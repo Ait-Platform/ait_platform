@@ -1,0 +1,58 @@
+{% extends "layout.html" %}
+{% block title %}
+  {% if subject.slug|lower in ('loss','lolo') %}Mental Preparation · Preparation — Part 1{% else %}{{ subject.name }} · Dashboard{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="rounded-xl border bg-white shadow-sm hover:shadow transition overflow-hidden max-w-3xl mx-auto">
+  <div class="h-2 {{ color_bar }}"></div>
+
+  <div class="py-10 px-6">
+    {% if subject.slug|lower in ('loss','lolo') %}
+      <h1 class="text-2xl font-semibold mb-2 text-center">Mental Preparation</h1>
+      <p class="text-slate-600 mb-6 text-center">Getting ready · Preparation — Part 1</p>
+
+      {% if just_paid %}
+        <div class="mb-4 rounded-md border border-emerald-300 bg-emerald-50 text-emerald-800 px-3 py-2 text-sm text-center">
+          Payment successful. Welcome aboard!
+        </div>
+      {% endif %}
+
+      <div class="rounded-xl border bg-white p-6 shadow-sm">
+        <p class="text-sm text-slate-900 font-semibold mb-3">Before you begin</p>
+        <ul class="text-sm text-slate-700 space-y-2 list-disc list-inside mb-4">
+          <li>Stay calm and settle in.</li>
+          <li>Some Yes/No choices may not fit perfectly — choose the option closest to your experience.</li>
+        </ul>
+
+        <div class="flex items-center justify-between">
+          <a href="{{ url_for('auth_bp.bridge_dashboard') }}"
+             class="text-sm text-slate-600 hover:text-slate-800">← Back to dashboard</a>
+
+          <a href="{{ start_url }}"
+             class="inline-flex items-center rounded-lg px-4 py-2 text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white">
+            Next
+          </a>
+        </div>
+      </div>
+    {% else %}
+      {# default for other subjects stays unchanged #}
+      <h1 class="text-2xl font-semibold mb-2 text-center">{{ subject.name }} Dashboard</h1>
+      <p class="text-slate-600 mb-6 text-center">Welcome back.</p>
+
+      <div class="rounded-xl border bg-white p-6 shadow-sm">
+        <p class="text-sm text-slate-600 mb-4">Press <strong>Next</strong> to begin {{ subject.name }}.</p>
+        <div class="flex items-center justify-between">
+          <a href="{{ url_for('auth_bp.bridge_dashboard') }}"
+             class="text-sm text-slate-600 hover:text-slate-800">← Back to dashboard</a>
+
+          <a href="{{ start_url }}"
+             class="inline-flex items-center rounded-lg px-4 py-2 text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white">
+            Next
+          </a>
+        </div>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,76 @@
+{% macro render_subject_cards() %}
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto px-4">
+
+  <!-- Reading -->
+  <div class="bg-green-600 text-white rounded-2xl p-6 shadow hover:shadow-lg transition">
+    <h3 class="text-xl font-bold mb-2">Reading</h3>
+    <p class="text-sm mb-4">
+      Learn to read from scratch with the Litre Method.
+    </p>
+    <a
+      href="{{ url_for('reading_bp.about_reading') }}"
+      class="inline-block bg-white text-green-600 font-semibold text-sm py-1.5 px-4 rounded hover:bg-green-100"
+    >
+      Explore
+    </a>
+  </div>
+
+  <!-- LOSS -->
+  <div class="bg-purple-700 text-white rounded-2xl p-6 shadow hover:shadow-lg transition">
+    <h3 class="text-xl font-bold mb-2">Loss of a Loved One (LOLO)</h3>
+    <p class="text-sm mb-4">
+      Get support, assess your needs, and begin healing.
+    </p>
+    <a
+      href="{{ url_for('loss_bp.about_loss') }}"
+      class="inline-block bg-white text-purple-700 font-semibold text-sm py-1.5 px-4 rounded hover:bg-purple-100"
+    >
+      Explore
+    </a>
+  </div>
+
+  <!-- School Fee Management -->
+  <div class="bg-teal-600 text-white rounded-2xl p-6 shadow hover:shadow-lg transition">
+    <h3 class="text-xl font-bold mb-2">School Fee Management</h3>
+    <p class="text-sm mb-4">
+      Track learners, fees, payments, and outstanding balances.
+      Generate statements for parents. Admin-only.
+    </p>
+    <a
+      href="{{ url_for('sfm_bp.about_sfm') }}"
+      class="inline-block bg-white text-teal-700 font-semibold text-sm py-1.5 px-4 rounded hover:bg-teal-100"
+    >
+      Explore
+    </a>
+  </div>
+
+  <!-- Billing -->
+  <div class="bg-orange-500 text-white rounded-2xl p-6 shadow hover:shadow-lg transition">
+    <h3 class="text-xl font-bold mb-2">Metro Billing</h3>
+    <p class="text-sm mb-4">
+      Track utilities, manage tenants, and simplify statements.
+    </p>
+    <a
+      href="{{ url_for('billing_bp.billing_about') }}"
+      class="inline-block bg-white text-orange-500 font-semibold text-sm py-1.5 px-4 rounded hover:bg-orange-100"
+    >
+      Explore
+    </a>
+  </div>
+
+  <!-- HOME (Math) -->
+  <div class="bg-blue-600 text-white rounded-2xl p-6 shadow hover:shadow-lg transition">
+    <h3 class="text-xl font-bold mb-2">HOME (Math)</h3>
+    <p class="text-sm mb-4">
+      Master math through hands-on learning and visual tools.
+    </p>
+    <a
+      href="{{ url_for('home_bp.home_about') }}"
+      class="inline-block bg-white text-blue-600 font-semibold text-sm py-1.5 px-4 rounded hover:bg-blue-100"
+    >
+      Explore
+    </a>
+  </div>
+
+</div>
+{% endmacro %}

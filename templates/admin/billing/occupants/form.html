@@ -1,0 +1,82 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container mx-auto max-w-3xl py-8">
+  <div class="mb-4 flex items-center justify-between">
+    <a href="{{ url_for('admin_bp.billing_occupants_index') }}"
+       class="inline-block rounded-lg border px-3 py-1 text-sm hover:bg-slate-50">← Back</a>
+    <h1 class="text-xl font-semibold">{{ 'Edit Tenant' if tenant else 'New Tenant' }}</h1>
+  </div>
+
+  <form method="post" class="space-y-6 rounded-2xl border p-6 bg-white">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div>
+      <h2 class="text-sm font-medium mb-2">Identity</h2>
+      <label class="block text-sm mb-1">Full name <span class="text-red-600">*</span></label>
+      <input name="name" required maxlength="200" placeholder="e.g., Graham Scott"
+             value="{{ tenant.name if tenant else '' }}" class="w-full rounded-lg border px-3 py-2" />
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <h2 class="text-sm font-medium mb-2">Unit</h2>
+        <label class="block text-sm mb-1">Sectional Unit <span class="text-red-600">*</span></label>
+
+        {% set selected_id = (request.form.get('sectional_unit_id') or (tenant.sectional_unit_id if tenant else '')) | string %}
+        <select name="sectional_unit_id" required class="w-full rounded-lg border px-3 py-2">
+          <option value="" disabled {{ 'selected' if not selected_id }}>Select a unit…</option>
+          {% for u in (units or []) %}
+            {% set is_taken = (occupied_ids is defined and u.id in occupied_ids) %}
+            <option value="{{ u.id }}"
+                    {{ 'selected' if selected_id == (u.id|string) else '' }}
+                    {% if is_taken %}disabled class="text-slate-400"{% endif %}>
+              {{ u.name }}{% if is_taken %} (occupied){% endif %}
+            </option>
+          {% endfor %}
+        </select>
+
+        {% if not units %}
+          <p class="text-sm text-amber-700 mt-2">No units exist yet. Create a unit first.</p>
+        {% endif %}
+      </div>
+
+      <div>
+        <h2 class="text-sm font-medium mb-2">Utilities</h2>
+        <label class="block text-sm mb-1">Metro account number</label>
+        <input name="metro_account_no" value="{{ tenant.metro_account_no if tenant else '' }}"
+               class="w-full rounded-lg border px-3 py-2" />
+        <div class="flex items-center gap-2 mt-2">
+          <input id="rim" type="checkbox" name="rent_includes_metro"
+                 {% if tenant %}{{ 'checked' if tenant.rent_includes_metro==1 else '' }}{% else %}checked{% endif %}>
+          <label for="rim" class="text-sm">Rent includes metro</label>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <h2 class="text-sm font-medium mb-2">Contact</h2>
+        <label class="block text-sm mb-1">Email</label>
+        <input name="email" type="email" placeholder="name@example.com"
+               value="{{ tenant.email if tenant else '' }}" class="w-full rounded-lg border px-3 py-2" />
+      </div>
+      <div>
+        <label class="block text-sm mb-1 mt-7 md:mt-8">Phone</label>
+        <input name="phone" placeholder="+27 82 123 4567"
+               value="{{ tenant.phone if tenant else '' }}" class="w-full rounded-lg border px-3 py-2" />
+      </div>
+    </div>
+
+    <div>
+      <label class="block text-sm mb-1">Notes</label>
+      <textarea name="notes" rows="4" class="w-full rounded-lg border px-3 py-2">{{ tenant.notes if tenant else '' }}</textarea>
+    </div>
+
+    <div class="pt-2">
+      <button class="rounded-lg border px-4 py-2 hover:bg-slate-50">
+        {{ 'Save changes' if tenant else 'Create tenant' }}
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}

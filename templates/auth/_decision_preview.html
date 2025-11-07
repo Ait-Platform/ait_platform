@@ -1,0 +1,163 @@
+{% extends "layout.html" %}
+{% block title %}Review enrollment | AIT{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto mt-8">
+  <div class="rounded-2xl border border-slate-200 shadow-sm bg-white">
+    <div class="h-1.5 w-full rounded-t-2xl bg-blue-600"></div>
+    <div class="p-5">
+      <h2 class="text-lg font-semibold text-slate-900">Review & Confirm</h2>
+      <p class="text-slate-600 text-sm mt-1">We found the following accounts and enrollments for <strong>{{ review.full_name or review.email }}</strong>.</p>
+        
+        <div id="decision-preview"
+            class="mb-4 w-full max-w-full overflow-hidden break-words text-sm"></div>
+
+      {# Primary (email match) #}
+      {% if review.primary %}
+        <div class="mt-5">
+          <h3 class="text-sm font-semibold text-slate-800">Email match</h3>
+          <div class="mt-2 rounded-xl border p-3">
+            <div class="flex items-center justify-between">
+              <div>
+                <div class="font-medium">{{ review.primary.name }} <span class="text-slate-500">({{ review.primary.email }})</span></div>
+                <div class="text-xs {% if review.primary.active %}text-emerald-700{% else %}text-red-600{% endif %}">Active: {{ 1 if review.primary.active else 0 }}</div>
+              </div>
+              <form method="POST" action="{{ url_for('auth_bp.register_confirm') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="action" value="use_account">
+                <input type="hidden" name="user_id" value="{{ review.primary.id }}">
+                <input type="hidden" name="subject" value="{{ subject }}">
+                <input type="hidden" name="role" value="{{ role }}">
+                <input type="hidden" name="next" value="{{ next_url }}">
+                <input type="hidden" name="email" value="{{ review.email }}">
+                <input type="hidden" name="full_name" value="{{ review.full_name }}">
+                <input type="hidden" name="password" value="{{ password }}">
+                <button class="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-sm">Use this account</button>
+              </form>
+            </div>
+
+            {% if review.primary_enrollments and review.primary_enrollments|length > 0 %}
+              <div class="mt-3">
+                <div class="text-xs font-medium text-slate-700 mb-1">Enrollments</div>
+                <ul class="text-sm space-y-1">
+                  {% for e in review.primary_enrollments %}
+                    <li class="flex items-center justify-between bg-slate-50 rounded-lg px-2 py-1">
+                      <span>{{ e.subject }}</span>
+                      <span class="text-xs">status: {{ e.status }}{% if e.payment_pending %} • pay-pending{% endif %}{% if e.completed %} • completed{% endif %}</span>
+                    </li>
+                  {% endfor %}
+                </ul>
+              </div>
+            {% else %}
+              <div class="text-xs text-slate-500 mt-2">No enrollments yet.</div>
+            {% endif %}
+
+            <div class="mt-3">
+              <form method="POST" action="{{ url_for('auth_bp.register_confirm') }}" class="inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="action" value="re_enrol">
+                <input type="hidden" name="user_id" value="{{ review.primary.id }}">
+                <input type="hidden" name="subject" value="{{ subject }}">
+                <input type="hidden" name="role" value="{{ role }}">
+                <input type="hidden" name="next" value="{{ next_url }}">
+                <button class="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-sm">Re-enrol {{ subject|upper }}</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      {% else %}
+        <div class="mt-5">
+          <div class="rounded-xl border p-3 bg-amber-50 text-amber-800 text-sm">
+            No existing account with <strong>{{ review.email }}</strong>.
+          </div>
+        </div>
+      {% endif %}
+
+      {# Others (same name) #}
+      {% if review.others and review.others|length > 0 %}
+        <div class="mt-6">
+          <h3 class="text-sm font-semibold text-slate-800">Other accounts for “{{ review.full_name }}”</h3>
+          <div class="mt-2 space-y-3">
+          {% for o in review.others %}
+            <div class="rounded-xl border p-3">
+              <div class="flex items-center justify-between">
+                <div>
+                  <div class="font-medium">{{ o.name }} <span class="text-slate-500">({{ o.email }})</span></div>
+                  <div class="text-xs {% if o.active %}text-emerald-700{% else %}text-red-600{% endif %}">Active: {{ 1 if o.active else 0 }}</div>
+                </div>
+                <form method="POST" action="{{ url_for('auth_bp.register_confirm') }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input type="hidden" name="action" value="use_account">
+                  <input type="hidden" name="user_id" value="{{ o.id }}">
+                  <input type="hidden" name="subject" value="{{ subject }}">
+                  <input type="hidden" name="role" value="{{ role }}">
+                  <input type="hidden" name="next" value="{{ next_url }}">
+                  <input type="hidden" name="email" value="{{ review.email }}">
+                  <input type="hidden" name="full_name" value="{{ review.full_name }}">
+                  <input type="hidden" name="password" value="{{ password }}">
+                  <button class="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-sm">Use this account</button>
+                </form>
+              </div>
+
+              {% if o.enrollments and o.enrollments|length > 0 %}
+                <div class="mt-3">
+                  <div class="text-xs font-medium text-slate-700 mb-1">Enrollments</div>
+                  <ul class="text-sm space-y-1">
+                    {% for e in o.enrollments %}
+                      <li class="flex items-center justify-between bg-slate-50 rounded-lg px-2 py-1">
+                        <span>{{ e.subject }}</span>
+                        <span class="text-xs">status: {{ e.status }}{% if e.payment_pending %} • pay-pending{% endif %}{% if e.completed %} • completed{% endif %}</span>
+                      </li>
+                    {% endfor %}
+                  </ul>
+                </div>
+              {% else %}
+                <div class="text-xs text-slate-500 mt-2">No enrollments yet.</div>
+              {% endif %}
+
+              <div class="mt-3">
+                <form method="POST" action="{{ url_for('auth_bp.register_confirm') }}" class="inline">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input type="hidden" name="action" value="re_enrol">
+                  <input type="hidden" name="user_id" value="{{ o.id }}">
+                  <input type="hidden" name="subject" value="{{ subject }}">
+                  <input type="hidden" name="role" value="{{ role }}">
+                  <input type="hidden" name="next" value="{{ next_url }}">
+                  <button class="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-sm">Re-enrol {{ subject|upper }}</button>
+                </form>
+              </div>
+            </div>
+          {% endfor %}
+          </div>
+        </div>
+      {% endif %}
+
+      <div class="mt-6 flex items-center gap-3">
+        <form method="POST" action="{{ url_for('auth_bp.register_confirm') }}" class="inline">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="action" value="create_new">
+          <input type="hidden" name="email" value="{{ review.email }}">
+          <input type="hidden" name="full_name" value="{{ review.full_name }}">
+          <input type="hidden" name="password" value="{{ password }}">
+          <input type="hidden" name="subject" value="{{ subject }}">
+          <input type="hidden" name="role" value="{{ role }}">
+          <input type="hidden" name="next" value="{{ next_url }}">
+          <button class="px-4 py-2 rounded-lg bg-slate-700 text-white text-sm">Create new account</button>
+        </form>
+
+        <form method="POST" action="{{ url_for('auth_bp.register_confirm') }}" class="inline">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="action" value="cancel">
+          <button class="px-4 py-2 rounded-lg border text-slate-700 text-sm">Cancel</button>
+        </form>
+      </div>
+
+      <p class="text-xs text-slate-500 mt-4">
+        If you had a previous enrollment, we’ll archive it and create a fresh one automatically.
+      </p>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+

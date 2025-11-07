@@ -1,0 +1,53 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Ledger — {{ account.account_number }}</title>
+  <style>
+    @media print {
+      .no-print { display:none; }
+      table { page-break-inside:auto; }
+      tr { page-break-inside:avoid; page-break-after:auto; }
+    }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; margin: 24px; }
+    h1 { margin: 0 0 8px; }
+    h2 { margin: 24px 0 8px; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th, td { border-top: 1px solid #ddd; padding: 6px 8px; text-align: left; }
+    th { background: #f6f6f6; }
+  </style>
+</head>
+<body>
+  <div class="no-print" style="margin-bottom:12px">
+    <a href="javascript:window.print()">Print</a> ·
+    <a href="{{ url_for('admin_bp.muni_exports_hub') }}">Back</a>
+  </div>
+
+  <h1>Municipal Ledger</h1>
+  <div><strong>Account:</strong> {{ account.account_number }} · <strong>Owner:</strong> {{ account.owner_name or '—' }}</div>
+
+  <h2>Captured Ledger</h2>
+  <table>
+    <thead><tr><th>Period</th><th>Balance</th><th>Due</th><th>Paid</th><th>Arrears</th></tr></thead>
+    <tbody>
+      {% for r in rows %}
+      <tr><td>{{ r.period }}</td><td>{{ '%.2f'|format(r.balance) }}</td><td>{{ '%.2f'|format(r.due) }}</td><td>{{ '%.2f'|format(r.paid) }}</td><td>{{ '%.2f'|format(r.arrears) }}</td></tr>
+      {% else %}
+      <tr><td colspan="5">No data.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <h2>Recon — Your Due vs METSOA</h2>
+  <table>
+    <thead><tr><th>Period</th><th>Your Due</th><th>METSOA</th><th>Diff</th></tr></thead>
+    <tbody>
+      {% for r in recon %}
+      <tr><td>{{ r.period }}</td><td>{{ '%.2f'|format(r.system_due or 0) }}</td><td>{{ '%.2f'|format(r.metro_due or 0) }}</td><td>{{ '%.2f'|format(r.diff or 0) }}</td></tr>
+      {% else %}
+      <tr><td colspan="4">No recon.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</body>
+</html>

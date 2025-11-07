@@ -1,0 +1,45 @@
+{% extends "layout.html" %}
+{% block content %}
+<h2 class="mb-3">Seed Hub</h2>
+<p class="text-muted">Download a CSV, edit offline, then upload to update the database.</p>
+
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+  {% for s in seeds %}
+  <div class="p-4 border rounded-lg">
+    <div class="flex items-center justify-between">
+      <h3 class="text-lg font-semibold">{{ s.title }}</h3>
+      <a class="text-sm underline" href="{{ s.preview_url }}">Preview</a>
+    </div>
+    <p class="text-xs text-slate-500 mt-1">Columns: {{ s.columns|join(", ") }}</p>
+
+    <div class="mt-3 flex items-center gap-3">
+      <a class="px-3 py-1 rounded border hover:bg-slate-100"
+         href="{{ s.export_url }}">Download CSV</a>
+
+      <form action="{{ s.import_url }}" method="post" enctype="multipart/form-data" class="flex items-center gap-2">
+        <input type="file" name="file" accept=".csv" required class="text-sm">
+        <button class="px-3 py-1 rounded border hover:bg-slate-100" type="submit">Upload CSV</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="mt-3 flex items-center gap-3">
+  <a class="px-3 py-1 rounded border hover:bg-slate-100"
+     href="{{ s.export_url }}">Download CSV</a>
+
+  <form action="{{ s.import_url }}" method="post" enctype="multipart/form-data" class="flex items-center gap-2">
+    <input type="file" name="file" accept=".csv" required class="text-sm">{# ensure NO 'directory' attribute #}
+    <button class="px-3 py-1 rounded border hover:bg-slate-100" type="submit">Upload CSV</button>
+  </form>
+
+  <form action="{{ url_for('admin_bp.seed_import_from_repo', seed=s.key) }}" method="post">
+    <button class="px-3 py-1 rounded border hover:bg-slate-100" type="submit">
+      Import from Project CSV
+    </button>
+  </form>
+</div>
+<p class="text-xs text-slate-500 mt-1">Looks for <code>{{ config.SEED_REPO_DIR or 'seeds' }}/{{ s.key }}.csv</code></p>
+
+  {% endfor %}
+</div>
+{% endblock %}

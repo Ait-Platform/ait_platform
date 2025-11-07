@@ -1,0 +1,26 @@
+{% extends "layout.html" %}
+{% block title %}Record Payment{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-md py-8">
+  <h1 class="text-xl font-semibold mb-3">Record Payment</h1>
+  <form method="post" class="space-y-3">
+    <input type="hidden" name="tenant_id" value="{{ tenant_id }}">
+    <div>
+      <label class="block text-sm mb-1">Date</label>
+      <input name="date" type="date" class="w-full border rounded px-2 py-1" required>
+    </div>
+    <div>
+      <label class="block text-sm mb-1">Amount</label>
+      <input name="amount" type="number" step="0.01" class="w-full border rounded px-2 py-1" required>
+    </div>
+    <div>
+      <label class="block text-sm mb-1">Reference (optional)</label>
+      <input name="reference" type="text" class="w-full border rounded px-2 py-1">
+    </div>
+    <div class="mt-2">
+      <button type="submit" class="rounded border px-3 py-1.5 hover:bg-slate-50">Save</button>
+      <a href="{{ url_for('admin_bp.tenant_ledger', tenant_id=tenant_id) }}" class="ml-2">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

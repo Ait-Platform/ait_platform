@@ -1,0 +1,44 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="container py-10">
+  <h1 class="text-3xl font-bold text-blue-800 mb-6 text-center">📘 About the School of Mathematics</h1>
+
+  <p class="text-lg text-center mb-4">
+    The School of Mathematics at Archoney Institute of Technology is home to our flagship program,
+    <strong>HOME™ — Hands-On Math Education</strong>. This innovative course is designed for learners of all ages,
+    with an emphasis on practical, tactile, and story-based learning.
+  </p>
+
+  <p class="text-center mb-6">
+    The curriculum is structured into progressive sections, each ending with a test and culminating in a final exam and certification.
+    Learn at your own pace or follow our guided schedule.
+  </p>
+
+  <div class="row mt-4">
+    <div class="col-md-6 mb-4">
+      <div class="card shadow">
+        <div class="card-body text-center">
+          <h4 class="font-semibold">Join as a Learner</h4>
+          <p>Master numbers, logic, and real-life problem-solving.</p>
+          <a href="{{ url_for('auth_bp.start_registration', role='learner', subject='home') }}" class="btn btn-primary">
+            Enroll as Learner
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-6 mb-4">
+      <div class="card shadow">
+        <div class="card-body text-center">
+          <h4 class="font-semibold">Join as a Tutor</h4>
+          <p>Teach math using our unique, story-based HOME™ method.</p>
+          <a href="{{ url_for('auth_bp.start_registration', role='tutor', subject='home') }}" class="btn btn-success">
+            Enroll as Tutor
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

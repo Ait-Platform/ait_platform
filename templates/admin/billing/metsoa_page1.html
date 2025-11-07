@@ -1,0 +1,116 @@
+{% extends "layout.html" %}
+{% macro money(v) -%}{{ '{:,.2f}'.format((v|default(0)|float)) }}{%- endmacro %}
+{% block content %}
+<div class="container mx-auto py-8">
+  <h1 class="text-2xl font-semibold mb-2">Metro SOA — Page 1 (Summary)</h1>
+  <div class="text-sm text-slate-600 mb-4">
+    <strong>Tenant:</strong> {{ tenant.name or tenant.display_name or ('#'+tenant.id|string) }}
+    {% if tenant.unit_name %} — <strong>Unit</strong> {{ tenant.unit_name }}{% endif %}
+    • <strong>Month:</strong> {{ month }}
+  </div>
+
+  <style>
+  @media print {
+    .no-print { display: none !important; }
+    .container { width: 100% !important; max-width: none !important; }
+  }
+  </style>
+
+  <div class="container mx-auto py-8">
+    <div class="no-print mb-3 flex gap-2">
+      <a href="{{ url_for('admin_bp.readings_consumption', tenant_id=tenant.id, month=month) }}"
+        class="inline-block rounded-lg border px-3 py-1 text-sm hover:bg-slate-50">
+        ← Back to Page 1
+      </a>
+
+      <button type="button" class="rounded border px-3 py-1 text-sm hover:bg-slate-50"
+      onclick="window.print()">🖨 Print</button>
+
+      <a href="{{ url_for('admin_bp.metsoa_page2', tenant_id=tenant.id, month=month) }}"
+        class="rounded border px-3 py-1 text-sm hover:bg-slate-50">Page 2 →</a>
+
+    </div>
+  </div>
+  <!-- ELECTRICITY -->
+  <h2 class="font-semibold mb-2">Electricity</h2>
+  <table class="w-full text-sm border mb-8">
+    <thead class="bg-slate-100">
+      <tr>
+        <th class="p-2 text-left">Meter</th>
+        <th class="p-2 text-left">Prev Date</th>
+        <th class="p-2 text-right">Prev Reading</th>
+        <th class="p-2 text-left">Current Date</th>
+        <th class="p-2 text-right">Current Reading</th>
+        <th class="p-2 text-right">Days</th>
+        <th class="p-2 text-right">Consumption</th>
+        <th class="p-2 text-right">Rate</th>
+        <th class="p-2 text-right">Due</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in elec_rows %}
+      <tr class="border-t">
+        <td class="p-2">{{ r.meter }}</td>
+        <td class="p-2">{{ r.prev_date }}</td>
+        <td class="p-2 text-right">{{ r.prev_read }}</td>
+        <td class="p-2">{{ r.curr_date }}</td>
+        <td class="p-2 text-right">{{ r.curr_read }}</td>
+        <td class="p-2 text-right">{{ r.days }}</td>
+        <td class="p-2 text-right">{{ r.cons }}</td>
+        <td class="p-2 text-right">{{ money(r.rate) }}</td>
+        <td class="p-2 text-right">{{ money(r.due) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr class="border-t bg-slate-50 font-semibold">
+        <td class="p-2" colspan="8">Total Due (Electricity)</td>
+        <td class="p-2 text-right">{{ money(elec_total) }}</td>
+      </tr>
+    </tfoot>
+  </table>
+
+  <!-- WATER -->
+<h2 class="font-semibold mb-1">Water</h2>
+<p class="text-xs text-slate-500 mb-2">
+  See Page 2 for the tier and fixed-charge breakdown per meter.
+</p>
+
+  <table class="w-full text-sm border">
+    <thead class="bg-slate-100">
+      <tr>
+        <th class="p-2 text-left">Meter / Line</th>
+        <th class="p-2 text-left">Prev Date</th>
+        <th class="p-2 text-right">Prev Reading</th>
+        <th class="p-2 text-left">Current Date</th>
+        <th class="p-2 text-right">Current Reading</th>
+        <th class="p-2 text-right">Days</th>
+        <th class="p-2 text-right">Consumption</th>
+        <th class="p-2 text-right">Rate</th>
+        <th class="p-2 text-right">Due</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in water_rows %}
+      <tr class="border-t">
+        <td class="p-2">{{ r.meter }}</td>
+        <td class="p-2">{{ r.prev_date }}</td>
+        <td class="p-2 text-right">{{ r.prev_read }}</td>
+        <td class="p-2">{{ r.curr_date }}</td>
+        <td class="p-2 text-right">{{ r.curr_read }}</td>
+        <td class="p-2 text-right">{{ r.days }}</td>
+        <td class="p-2 text-right">{{ r.cons }}</td>
+        <td class="p-2 text-right">—</td>  {# tiered pricing shown on Page 2 #}
+        <td class="p-2 text-right">{{ money(r.due) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr class="border-t bg-slate-50 font-semibold">
+        <td class="p-2" colspan="8">DUE TO METRO:</td>
+        <td class="p-2 text-right">{{ money(due_to_metro) }}</td>
+      </tr>
+    </tfoot>
+  </table>
+</div>
+{% endblock %}

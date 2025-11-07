@@ -1,0 +1,22 @@
+﻿services:
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file: .env
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8000/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    volumes:
+      # named volume: persistent SQLite data
+      - app_data:/data
+      # bind mount: your seed files from the host
+      - ./app/school_loss/seed:/app/app/school_loss/seed:ro
+
+volumes:
+  app_data: {}
+
+

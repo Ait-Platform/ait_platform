@@ -1,0 +1,40 @@
+{# templates/admin/reading/edit_lesson.html #}
+{% extends "layout.html" %}
+{% block content %}
+<div class="container mx-auto py-10 max-w-2xl">
+  <div class="flex items-center justify-between mb-6">
+    <h1 class="text-xl font-semibold">Edit Lesson</h1>
+    <a href="{{ url_for('admin_bp.reading_lessons') }}" class="btn btn-light">Back</a>
+  </div>
+
+  <form method="POST" action="{{ url_for('admin_bp.edit_lesson', subject='reading', lesson_id=lesson.id) }}" class="space-y-4">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+    <div>
+      <label class="block text-sm font-medium mb-1">Title</label>
+      <input name="title" class="input w-full" value="{{ lesson.title }}" required>
+    </div>
+
+    <div>
+      <label class="block text-sm font-medium mb-1">Caption</label>
+      <input name="caption" class="input w-full" value="{{ lesson.caption or '' }}">
+    </div>
+
+    <div>
+      <label class="block text-sm font-medium mb-1">Content</label>
+      <textarea name="content" class="textarea w-full" rows="6">{{ lesson.content or '' }}</textarea>
+    </div>
+
+    <div>
+      <label class="block text-sm font-medium mb-1">Media filename (optional)</label>
+      <input name="video_filename" class="input w-full" value="{{ lesson.video_filename or '' }}" placeholder="e.g. lesson1.mp4">
+      <p class="text-xs text-slate-500 mt-1">Allowed: mp4, webm, ogg, png, jpg, jpeg, gif, webp, svg, pdf</p>
+    </div>
+
+    <div class="flex justify-end gap-2">
+      <a href="{{ url_for('admin_bp.reading_lessons') }}" class="btn btn-light">Cancel</a>
+      <button type="submit" class="btn btn-primary">Save</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

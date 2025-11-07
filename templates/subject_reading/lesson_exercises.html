@@ -1,0 +1,27 @@
+{% extends "layout.html" %}
+{% block content %}
+<h2>🖐 Part 2: Palm-Based Exercises</h2>
+<p>Please complete each activity by following the instructions on the screen using your hand and a blank A4 page.</p>
+
+<div class="exercise">
+  <h3>Exercise 1: Draw My Palm</h3>
+  <img src="{{ url_for('static', filename='exercises/Ex1.png') }}" alt="Exercise 1" class="exercise-img">
+</div>
+
+<div class="exercise">
+  <h3>Exercise 2: Enter the Vowel for Each Station</h3>
+  <img src="{{ url_for('static', filename='exercises/Ex2.png') }}" alt="Exercise 2" class="exercise-img">
+</div>
+
+<div class="exercise">
+  <h3>Exercise 3: Draw the Home Area</h3>
+  <img src="{{ url_for('static', filename='exercises/Ex3.png') }}" alt="Exercise 3" class="exercise-img">
+</div>
+
+<div class="exercise">
+  <h3>Exercise 4: Draw the Blending Area</h3>
+  <img src="{{ url_for('static', filename='exercises/Ex4.png') }}" alt="Exercise 4" class="exercise-img">
+</div>
+
+<a href="{{ url_for('reading.learner_dashboard') }}" class="btn btn-primary mt-4">Back to Dashboard</a>
+{% endblock %}

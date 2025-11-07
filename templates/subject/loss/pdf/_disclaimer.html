@@ -1,0 +1,16 @@
+<section class="pdf-card">
+  <h3 class="font-semibold">Disclaimer</h3>
+  <p class="small muted lh-relaxed">
+    <p style="font-size:12.5pt; line-height:1.6; color:#475569; margin-top:6px;"></p>
+      {{ disclaimer_text | default(
+        "This report is an informational summary to support reflection and planning. " ~
+        "It is not a diagnosis or a substitute for professional care. " ~
+        "If you are in distress or worried about safety, please contact a health " ~
+        "professional or local emergency services.",
+        true
+      ) }}
+  </p>
+</section>
+
+
+

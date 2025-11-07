@@ -1,0 +1,58 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container mx-auto py-10">
+  <h1 class="text-2xl font-semibold mb-6">Muni Ledger — {{ account_number }}</h1>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+    <div class="rounded-xl border p-5">
+      <h2 class="font-medium mb-3">Ledger (Captured)</h2>
+      <table class="w-full text-sm">
+        <thead class="text-left">
+          <tr><th>Period</th><th>Balance</th><th>Due</th><th>Paid</th><th>Arrears</th></tr>
+        </thead>
+        <tbody>
+          {% for r in rows %}
+          <tr class="border-t">
+            <td>{{ r.period }}</td>
+            <td>{{ "%.2f"|format(r.balance) }}</td>
+            <td>{{ "%.2f"|format(r.due) }}</td>
+            <td>{{ "%.2f"|format(r.paid) }}</td>
+            <td>{{ "%.2f"|format(r.arrears) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="rounded-xl border p-5">
+      <h2 class="font-medium mb-3">Recon — Due vs METSOA</h2>
+      <table class="w-full text-sm">
+        <thead class="text-left">
+          <tr><th>Period</th><th>Your Due</th><th>METSOA Due</th><th>Diff</th></tr>
+        </thead>
+        <tbody>
+          {% for r in recon %}
+          <tr class="border-t">
+            <td>{{ r.period }}</td>
+            <td>{{ "%.2f"|format(r.system_due) }}</td>
+            <td>{{ "%.2f"|format(r.metro_due) }}</td>
+            <td class="{{ 'text-red-600' if r.diff != 0 else 'text-green-600' }}">
+              {{ "%.2f"|format(r.diff) }}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="mt-6">
+    
+    <a href="{{ url_for('admin_bp.muni_capture', account_number=account_number) }}"
+      class="text-sm underline">Back to Capture</a>
+
+
+  </div>
+</div>
+{% endblock %}
+

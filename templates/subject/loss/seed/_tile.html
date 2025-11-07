@@ -1,0 +1,21 @@
+{% macro seed_tile(title, seed_key, cols_text, note) -%}
+<div class="rounded-xl border p-4 bg-white">
+  <div class="flex items-start justify-between">
+    <div>
+      <div class="font-semibold">{{ title }}</div>
+      <div class="text-xs text-slate-500">Columns: {{ cols_text }}</div>
+    </div>
+    <a class="text-sm text-blue-600 hover:underline"
+       href="{{ url_for('admin_bp.seed_preview', seed=seed_key) }}">Preview</a>
+  </div>
+
+  <div class="mt-4 flex items-center gap-4">
+    <a class="px-3 py-2 rounded border bg-slate-50 hover:bg-slate-100"
+       href="{{ url_for('admin_bp.seed_export_csv', seed=seed_key) }}">
+      Download CSV (also saves to disk)
+    </a>
+    <span class="text-xs text-slate-500">{{ note }}</span>
+    <span class="text-xs text-slate-400">Saved under: instance/seeds/loss/</span>
+  </div>
+</div>
+{%- endmacro %}

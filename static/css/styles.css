@@ -1,0 +1,61 @@
+body {
+  background-color: #f9f9f9;
+  font-family: 'Segoe UI', sans-serif;
+}
+
+a {
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+.tiles {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin: 2rem auto;
+  gap: 2rem;
+  max-width: 1000px;
+}
+
+.tile {
+  background-color: #fff;
+  border: 1px solid #ddd;
+  padding: 1.5rem;
+  border-radius: 8px;
+  width: 220px;
+  text-align: center;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+
+.tile h2 {
+  font-size: 1.2rem;
+  margin-bottom: 1rem;
+}
+
+.tile button {
+  background-color: #007bff;
+  color: #fff;
+  border: none;
+  padding: 0.5rem 1.2rem;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.tile button:hover {
+  background-color: #0056b3;
+}
+
+.loss-card.instruction {
+  background-color: #f0f8ff; /* light blue */
+}
+
+.loss-card.pause {
+  background-color: #fffbea; /* soft yellow */
+}
+
+/* static CSS (no Jinja here) */
+.bar{ position:relative; height:0.75rem; border-radius:0.25rem; background:#e5e7eb; }
+.bar::before{ content:""; position:absolute; inset:0; width:var(--fill); border-radius:0.25rem; background:#0284c7; }

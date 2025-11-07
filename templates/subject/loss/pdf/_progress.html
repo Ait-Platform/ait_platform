@@ -1,0 +1,53 @@
+{# Progress block for a phase, PDF version. Expects the parent to have:
+   - range_label  (e.g., 'Low' | 'Mid' | 'High')
+   - range_chip   (chip class for range)
+   - av_txt       ('Coping' | 'Slightly Coping' | 'Not Coping')
+   - av_chip      (chip class for AV)
+   - blk.progress.notes (list of bullet strings) #}
+
+{% set _range_label = range_label if range_label is defined else (blk.band_label if blk.band_label is defined else '') %}
+{% set _range_chip  = range_chip  if range_chip  is defined else 'chip-amber' %}
+{% set _av_txt      = av_txt      if av_txt      is defined else '' %}
+{% set _av_chip     = av_chip     if av_chip     is defined else 'chip-av-slightlycoping' %}
+
+{% if M is not defined %}{% import "subject/loss/pdf/_macros.html" as M %}{% endif %}
+
+{% if blk.progress and blk.progress.notes %}
+{# ---- derive pct/band/range/AV locally so we never show blanks ---- #}
+{% set pct  = (blk.pct if blk.pct is defined else (blk.width_pct if blk.width_pct is defined else 0)) | int %}
+{% set band = blk.band if blk.band is defined else (3 if pct>=70 else (2 if pct>=40 else 1)) %}
+{% set range_label = 'Low' if band==1 else ('Mid' if band==2 else 'High') %}
+
+{# AV rules: phases 1–3 high = Not Coping; phase 4 high = Coping #}
+{% if blk.phase in [1,2,3] %}
+  {% set av_txt = 'Not Coping' if band==3 else ('Slightly Coping' if band==2 else 'Coping') %}
+{% else %}
+  {% set av_txt = 'Coping' if band==3 else ('Slightly Coping' if band==2 else 'Not Coping') %}
+{% endif %}
+
+{# chip styles #}
+{% set band_chip = 'chip-emerald' if band==1 else ('chip-amber' if band==2 else 'chip-rose') %}
+{% set av_chip = 'chip-av-coping' if av_txt=='Coping'
+                 else ('chip-av-slightlycoping' if av_txt=='Slightly Coping' else 'chip-av-notcoping') %}
+
+<section class="pdf-progress-block">
+  <p class="pdf-progress-line">
+    <strong>Progress:</strong>
+    &nbsp;&nbsp;
+    <strong>Range:</strong>
+    <span class="chip {{ band_chip }}">{{ range_label }}</span>
+    &nbsp;&nbsp;
+    <strong>Adaptation Vector:</strong>
+    <span class="chip {{ av_chip }}">{{ av_txt }}</span>
+  </p>
+
+
+  <ul class="pdf-progress-list">
+    {% for line in blk.progress.notes %}
+      <li>{{ line }}</li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+

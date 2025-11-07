@@ -1,0 +1,31 @@
+{# templates/admin/loss/_runs_select.html  (PARTIAL) #}
+<div class="mb-4 rounded-lg border bg-white p-4">
+  <h2 class="text-lg font-medium mb-2">LOSS — Known Runs (from lca_result)</h2>
+
+  <form method="get" action="{{ url_for('admin_bp.loss_dashboard') }}" class="flex items-center gap-2">
+    <label class="text-sm text-slate-600">Run:</label>
+    <select name="run_id" class="rounded border px-2 py-1">
+      {% if runs and runs|length %}
+        {% for r in runs %}
+          {# r.last_at may be text or datetime; just render it raw to avoid strftime issues #}
+          <option value="{{ r.run_id }}"
+                  {% if selected_run_id == r.run_id %}selected{% endif %}>
+            Run {{ r.run_id }}
+            {% if r.last_at %} • {{ r.last_at }}{% endif %}
+            {% if r.rows_count is not none %} • {{ r.rows_count }} rows{% endif %}
+          </option>
+        {% endfor %}
+      {% else %}
+        <option value="">— no runs found —</option>
+      {% endif %}
+    </select>
+
+    <button type="submit" class="rounded border px-3 py-1 text-sm hover:bg-slate-50">
+      Load
+    </button>
+  </form>
+
+  <p class="mt-2 text-xs text-slate-500">
+    This selector is sourced from <code>lca_result</code>.
+  </p>
+</div>

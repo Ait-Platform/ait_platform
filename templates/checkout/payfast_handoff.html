@@ -1,0 +1,16 @@
+<!doctype html>
+<html>
+  <head><meta charset="utf-8"><title>Redirecting…</title></head>
+  <body>
+    <form id="pf" method="post" action="{{ url_for('payfast_bp.create_payment') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+ 
+      <input type="hidden" name="amount" value="{{ amount }}">
+      <input type="hidden" name="item_name" value="{{ item_name }}">
+      <input type="hidden" name="email" value="{{ buyer_email }}">
+      <input type="hidden" name="m_payment_id" value="{{ m_payment_id }}">
+      <noscript><button type="submit">Continue to PayFast</button></noscript>
+    </form>
+    <script>try{document.getElementById('pf').submit()}catch(e){}</script>
+  </body>
+</html>

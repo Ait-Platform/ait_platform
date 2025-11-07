@@ -1,0 +1,26 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container mx-auto py-10">
+  <h1 class="text-2xl font-semibold mb-6">LOSS — Admin Dashboard</h1>
+
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <a href="{{ url_for('admin_bp.loss_assessment') }}"
+       class="block rounded-xl border p-6 hover:bg-slate-50">
+      <h2 class="font-medium">Preview Assessment</h2>
+      <p class="text-sm text-slate-500">Run through the 50-question flow as an admin.</p>
+    </a>
+
+    <a href="{{ url_for('admin_bp.loss_results') }}"
+       class="block rounded-xl border p-6 hover:bg-slate-50">
+      <h2 class="font-medium">View Results</h2>
+      <p class="text-sm text-slate-500">Browse and export user submissions.</p>
+    </a>
+
+    <a href="{{ url_for('admin_bp.loss_home') }}"
+       class="block rounded-xl border p-6 hover:bg-slate-50">
+      <h2 class="font-medium">User Flow</h2>
+      <p class="text-sm text-slate-500">Jump into the public counselling experience.</p>
+    </a>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,54 @@
+{# Header row #}
+<div class="flex items-center justify-between mb-4">
+  <h1 class="text-2xl font-semibold">LOSS • Admin Dashboard</h1>
+
+  <form method="get" id="runForm" class="flex items-center gap-2">
+    <label for="runSelect" class="text-sm text-slate-600">Run:</label>
+    <select name="run_id" id="runSelect"
+            class="rounded border px-2 py-1 text-sm"
+            onchange="this.form.submit()">
+      {% for r in runs %}
+        <option value="{{ r.id }}" {{ 'selected' if selected and r.id == selected.id else '' }}>
+          #{{ r.id }} • U{{ r.user_id }} • {{ (r.started_at or '')[:16] }} • {{ r.status }} • Σ={{ r.total }}
+        </option>
+      {% endfor %}
+    </select>
+  </form>
+</div>
+
+{# Action buttons (use the selected run_id) #}
+{% set rid = selected.id if selected else None %}
+
+<div class="flex flex-wrap items-center gap-2">
+  <a href="{{ url_for('admin_bp.loss_responses', run_id=rid) }}"
+     class="rounded border px-3 py-1 text-sm hover:bg-slate-50">Responses</a>
+
+  <a href="{{ url_for('admin_bp.loss_result', run_id=rid) }}"
+     class="rounded border px-3 py-1 text-sm hover:bg-slate-50">Result</a>
+
+  <a href="{{ url_for('admin_bp.loss_report', run_id=rid) }}"
+     class="rounded bg-blue-600 text-white px-3 py-1 text-sm hover:bg-blue-700">View Report</a>
+
+  <a href="{{ url_for('admin_bp.loss_report', run_id=rid, send=1) }}"
+     class="rounded bg-emerald-600 text-white px-3 py-1 text-sm hover:bg-emerald-700">Send Report (Email + PDF)</a>
+
+  <div class="ml-auto flex items-center gap-3">
+    <a href="{{ url_for('loss_bp.course_start') }}"
+       class="rounded border px-3 py-1 text-sm hover:bg-slate-50">Start Test</a>
+    <a href="{{ url_for('auth_bp.bridge_dashboard') }}"
+       class="text-sm text-slate-500 hover:underline">Back to Bridge</a>
+  </div>
+</div>
+
+{# Optional: a small info card about the selected run #}
+{% if selected %}
+  <div class="mt-4 rounded-2xl border bg-white p-4">
+    <div class="text-sm text-slate-700">
+      <div><b>Run:</b> #{{ selected.id }} • <b>User:</b> {{ selected.user_id }}</div>
+      <div><b>Started:</b> {{ (selected.started_at or '')[:19] }} •
+           <b>Finished:</b> {{ (selected.finished_at or '-')[:19] }} •
+           <b>Status:</b> {{ selected.status }} •
+           <b>Total:</b> {{ selected.total }}</div>
+    </div>
+  </div>
+{% endif %}

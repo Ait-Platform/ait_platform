@@ -1,0 +1,69 @@
+<!-- templates/admin/loss/result_pdf.html -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>LOSS – Results (Run {{ run_id }})</title></head>
+<body>
+  <div class="row" style="margin-bottom:6mm;">
+    <div>
+      <h1>LOSS – Results</h1>
+      <div class="muted">Run #{{ run_id }}</div>
+    </div>
+    <div class="badge">
+      <div class="muted" style="margin-bottom:1mm;">Adaptive Vector</div>
+      <div style="font-weight:700;">{{ adaptive_vector }}</div>
+    </div>
+  </div>
+
+  <!-- Summary -->
+  <h2 style="margin:0 0 2mm 0;">Summary</h2>
+  <div class="row" style="gap:6mm; align-items:flex-start; margin-bottom:6mm;">
+    <div style="flex:1;">
+      <div class="pill pos">Positives</div>
+      <ul class="ul">
+        {% for ph, lab, txt in summary.positives[:6] %}
+          <li><strong>{{ ph }} – {{ lab }}:</strong> {{ txt }}</li>
+        {% else %}<li>None recorded.</li>{% endfor %}
+      </ul>
+    </div>
+    <div style="flex:1;">
+      <div class="pill sli">Slightly Positive</div>
+      <ul class="ul">
+        {% for ph, lab, txt in summary.slightly[:6] %}
+          <li><strong>{{ ph }} – {{ lab }}:</strong> {{ txt }}</li>
+        {% else %}<li>None recorded.</li>{% endfor %}
+      </ul>
+    </div>
+    <div style="flex:1;">
+      <div class="pill neg">Negatives</div>
+      <ul class="ul">
+        {% for ph, lab, txt in summary.negatives[:6] %}
+          <li><strong>{{ ph }} – {{ lab }}:</strong> {{ txt }}</li>
+        {% else %}<li>None recorded.</li>{% endfor %}
+      </ul>
+    </div>
+  </div>
+
+  <!-- Per-phase items -->
+  <div class="grid">
+    {% for p in phases %}
+      <div class="card">
+        <div class="row" style="margin-bottom:2mm;">
+          <h2>{{ p.name }}</h2>
+          <div class="muted">{{ p.headline }}</div>
+        </div>
+        <div class="parts">
+          <ul class="ul">
+            {% for it in p.items %}
+              <li>
+                <strong>{{ it.label }}</strong> — 
+                {% if it.sentiment == 'positive' %}Positive{% elif it.sentiment == 'slightly' %}Slightly Positive{% else %}Negative{% endif %}
+                <br>{{ it.text }}
+              </li>
+            {% endfor %}
+          </ul>   
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+</body>
+</html>

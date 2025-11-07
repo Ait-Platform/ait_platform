@@ -1,0 +1,5 @@
+id,order_index,name,max_points,points_per_item,high_is_positive,neutral_line,active
+1,1,Impact,9,1,false,"No notable markers in this phase.",true
+2,2,Hopelessness,9,1,false,"No notable markers in this phase.",true
+3,3,Helplessness,16,2,true,"No notable markers in this phase.",true
+4,4,Re-Engagement,16,2,true,"No notable markers in this phase.",true

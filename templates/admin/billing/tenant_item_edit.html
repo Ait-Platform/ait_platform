@@ -1,0 +1,55 @@
+{% extends "layout.html" %}
+{% block title %}Edit Ledger Entry{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-lg py-8">
+  <h1 class="text-xl font-semibold mb-4">Edit Ledger Entry</h1>
+
+  <form method="post" class="space-y-3">
+    {% if csrf_token is defined %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endif %}
+    <input type="hidden" name="month" value="{{ month }}">
+
+    <div>
+      <label class="block text-xs text-slate-500">Date</label>
+      <input name="txn_date" type="date" value="{{ row.txn_date }}" class="border rounded px-2 py-1 w-full">
+    </div>
+
+    <div>
+      <label class="block text-xs text-slate-500">Description</label>
+      <input name="description" value="{{ row.description }}" class="border rounded px-2 py-1 w-full" required>
+    </div>
+
+    <div class="grid grid-cols-2 gap-2">
+      <div>
+        <label class="block text-xs text-slate-500">Kind</label>
+        <select name="kind" class="border rounded px-2 py-1 w-full">
+          <option value="charge"     {{ 'selected' if row.kind=='charge'     else '' }}>charge</option>
+          <option value="payment"    {{ 'selected' if row.kind=='payment'    else '' }}>payment</option>
+          <option value="credit"     {{ 'selected' if row.kind=='credit'     else '' }}>credit</option>
+          <option value="adjustment" {{ 'selected' if row.kind=='adjustment' else '' }}>adjustment</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs text-slate-500">Amount</label>
+        <input name="amount" type="number" step="0.01" value="{{ amount }}" class="border rounded px-2 py-1 w-full" required>
+      </div>
+    </div>
+
+    <div>
+      <label class="block text-xs text-slate-500">Ref</label>
+      <input name="ref" value="{{ row.ref or '' }}" class="border rounded px-2 py-1 w-full">
+    </div>
+
+    <div class="flex gap-2">
+      <button class="rounded border px-3 py-1.5 hover:bg-slate-50">Save</button>
+      <a
+        href="{{ url_for('admin_bp.tenant_ledger', tenant_id=tenant_id, month=month) }}"
+        class="px-4 py-2 rounded-lg border"
+      >Cancel</a>
+
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+

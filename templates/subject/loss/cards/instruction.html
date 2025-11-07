@@ -1,0 +1,6 @@
+{% extends "layout.html" %}
+{% from "shared/card_macros.html" import loss_card %}
+
+{% block content %}
+  {{ loss_card(item=item, buttons=buttons) }}
+{% endblock %}

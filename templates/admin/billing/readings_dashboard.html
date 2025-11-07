@@ -1,0 +1,122 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container mx-auto py-10">
+  <h1 class="text-2xl font-semibold mb-8">Meter Readings</h1>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+    <!-- Step 1: Enter -->
+    <div class="rounded-xl border p-6">
+      <h2 class="font-medium mb-4">1) Enter Readings</h2>
+      <form method="POST" action="{{ url_for('admin_bp.readings_create') }}" class="space-y-3">
+        <div>
+          <label class="text-sm">Meter</label>
+          <select name="meter_id" class="w-full border rounded p-2" required>
+            {% for m in meters %}
+              <option value="{{ m.id }}">{{ m.display_name or ('Meter #' ~ m.id) }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="text-sm">Reading Date</label>
+          <input type="date" name="reading_date" class="w-full border rounded p-2" required>
+        </div>
+        <div>
+          <label class="text-sm">Reading Value</label>
+          <input type="number" step="0.001" name="reading_value" class="w-full border rounded p-2" required>
+        </div>
+        <button class="px-4 py-2 rounded bg-black text-white">Save Reading</button>
+      </form>
+    </div>
+
+    <!-- Step 2: View -->
+    <div class="rounded-xl border p-6">
+      <h2 class="font-medium mb-4">2) View Readings</h2>
+      <form method="GET" action="{{ url_for('admin_bp.readings_view') }}" class="space-y-3">
+        <div>
+          <label class="text-sm">Meter (optional)</label>
+          <select name="meter_id" class="w-full border rounded p-2">
+            <option value="">All</option>
+            {% for m in meters %}
+              <option value="{{ m.id }}">{{ m.display_name or ('Meter #' ~ m.id) }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-sm">From</label>
+            <input type="date" name="from_date" class="w-full border rounded p-2">
+          </div>
+          <div>
+            <label class="text-sm">To</label>
+            <input type="date" name="to_date" class="w-full border rounded p-2">
+          </div>
+        </div>
+        <button class="px-4 py-2 rounded bg-black text-white">View</button>
+      </form>
+    </div>
+
+    <!-- Step 3: Compute Consumption -->
+    <div class="rounded-xl border p-6">
+      <h2 class="font-medium mb-4">3) Compute Consumption</h2>
+      <form method="GET" action="{{ url_for('admin_bp.readings_consumption') }}" class="space-y-3">
+        <div>
+          <label class="text-sm">Meter</label>
+          <select name="meter_id" class="w-full border rounded p-2" required>
+            {% for m in meters %}
+              <option value="{{ m.id }}">{{ m.display_name or ('Meter #' ~ m.id) }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-sm">From</label>
+            <input type="date" name="from_date" class="w-full border rounded p-2" required>
+          </div>
+          <div>
+            <label class="text-sm">To</label>
+            <input type="date" name="to_date" class="w-full border rounded p-2" required>
+          </div>
+        </div>
+        <button class="px-4 py-2 rounded bg-black text-white">Compute</button>
+      </form>
+    </div>
+
+    <!-- Step 4: Export/Print -->
+    <div class="rounded-xl border p-6">
+      <h2 class="font-medium mb-4">4) Export / Print</h2>
+      <form method="GET" action="{{ url_for('admin_bp.readings_export') }}" class="space-y-3">
+        <div>
+          <label class="text-sm">Meter (optional)</label>
+          <select name="meter_id" class="w-full border rounded p-2">
+            <option value="">All</option>
+            {% for m in meters %}
+              <option value="{{ m.id }}">{{ m.display_name or ('Meter #' ~ m.id) }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-sm">From</label>
+            <input type="date" name="from_date" class="w-full border rounded p-2">
+          </div>
+          <div>
+            <label class="text-sm">To</label>
+            <input type="date" name="to_date" class="w-full border rounded p-2">
+          </div>
+        </div>
+        <div class="flex items-center gap-3">
+          <label class="text-sm flex items-center gap-2">
+            <input type="checkbox" name="format" value="csv"> CSV
+          </label>
+          <label class="text-sm flex items-center gap-2">
+            <input type="checkbox" name="format" value="print"> Print View
+          </label>
+        </div>
+        <button class="px-4 py-2 rounded bg-black text-white">Export</button>
+      </form>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

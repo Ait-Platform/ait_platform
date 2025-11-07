@@ -1,0 +1,35 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="max-w-6xl mx-auto py-6">
+  <div class="mb-4">
+    <a class="text-sm underline" href="{{ url_for('admin_bp.seed_hub', tab=seed) }}">← Back to Seed Hub</a>
+  </div>
+
+  <h1 class="text-xl font-semibold mb-3">{{ title }} — Preview</h1>
+
+  <div class="overflow-x-auto border rounded">
+    <table class="min-w-full text-sm">
+      <thead class="bg-slate-100">
+        <tr>
+          {% for c in cols %}
+            <th class="px-3 py-2 text-left font-medium text-slate-700">{{ c }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+          <tr class="border-t">
+            {% for c in cols %}
+              <td class="px-3 py-2 align-top">{{ r[c] }}</td>
+            {% endfor %}
+          </tr>
+        {% else %}
+          <tr>
+            <td class="px-3 py-4 text-slate-500" colspan="{{ cols|length }}">No rows.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,113 @@
+{% extends "layout.html" %}
+
+{% block content %}
+{% macro money(x) -%}
+  {{ '%.2f' % x if x is not none else '—' }}
+{%- endmacro %}
+
+<div class="container mx-auto py-8">
+  <!-- Header -->
+  <div class="mb-6 flex items-center justify-between">
+    <div>
+      <h1 class="text-2xl font-semibold">
+        Tenant Ledger — {{ tenant.name }} ({{ tenant.unit_label }}) — {{ month }}
+      </h1>
+      <p class="text-sm text-slate-500">Today: {{ today }}</p>
+    </div>
+    <div>
+      <a class="px-3 py-2 rounded-lg border"
+         href="{{ url_for('admin_bp.metsoa_page1', tenant_id=tenant.id, month=month) }}">
+        ← View METSOA
+      </a>
+    </div>
+  </div>
+
+  <!-- Ledger table -->
+  <div class="overflow-x-auto bg-white border border-slate-200 rounded-xl">
+    <table class="min-w-full text-sm">
+      <thead class="bg-slate-50">
+        <tr>
+          <th class="px-3 py-2 border-b text-left">Date</th>
+          <th class="px-3 py-2 border-b text-left">Description</th>
+          <th class="px-3 py-2 border-b text-left">Kind</th>
+          <th class="px-3 py-2 border-b text-right">Charge</th>
+          <th class="px-3 py-2 border-b text-right">Payment</th>
+          <th class="px-3 py-2 border-b text-right">Balance</th>
+          <th class="px-3 py-2 border-b text-right">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for it in items %}
+        <tr class="hover:bg-slate-50">
+          <td class="px-3 py-2 border-b whitespace-nowrap">{{ it.txn_date }}</td>
+          <td class="px-3 py-2 border-b">{{ it.description }}</td>
+          <td class="px-3 py-2 border-b">{{ it.kind }}</td>
+          <td class="px-3 py-2 border-b text-right">{{ money(it.charge) }}</td>
+          <td class="px-3 py-2 border-b text-right">{{ money(it.payment) }}</td>
+          <td class="px-3 py-2 border-b text-right">{{ money(it.balance) }}</td>
+
+          <td class="px-3 py-2 border-b text-right">
+            {% if it.auto %}
+              <span class="text-gray-400 italic">auto</span>
+            {% else %}
+              <a class="text-blue-600 underline"
+                href="{{ url_for('admin_bp.tenant_ledger_item_edit',
+                                  item_id=it.id, tenant_id=tenant.id, month=month) }}">Edit</a>
+              |
+              <form method="post"
+                    action="{{ url_for('admin_bp.tenant_ledger_item_delete', item_id=it.id) }}"
+                    style="display:inline" onsubmit="return confirm('Delete this item?');">
+                {% if csrf_token is defined %}
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                {% elif request and request.cookies.get('csrf_token') %}
+                  <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_token') }}">
+                {% endif %}
+                <input type="hidden" name="tenant_id" value="{{ tenant.id }}">
+                <input type="hidden" name="month" value="{{ month }}">
+                <button type="submit" class="text-red-600 underline bg-transparent border-0 p-0 cursor-pointer">Delete</button>
+              </form>
+            {% endif %}
+          </td>
+
+
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr class="bg-slate-50 font-medium">
+          <td colspan="5" class="px-3 py-2 text-right border-t">Closing Balance</td>
+          <td class="px-3 py-2 text-right border-t">{{ money(balance) }}</td>
+          <td class="px-3 py-2 border-t"></td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+
+  <!-- Bottom bar: single line menu -->
+  <div class="mt-6 flex flex-wrap gap-2">
+    <a class="px-3 py-2 rounded-lg border"
+       href="{{ url_for('admin_bp.payment_new', tenant_id=tenant.id, month=month) }}">
+      Add Payment
+    </a>
+
+    <a class="px-3 py-2 rounded-lg border"
+       href="{{ url_for('admin_bp.recurring_index', tenant_id=tenant.id, month=month) }}">
+      Recurring
+    </a>
+
+    <form method="post"
+          action="{{ url_for('admin_bp.metsoa_commit', tenant_id=tenant.id, month=month) }}">
+      {% if csrf_token is defined %}
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      {% elif request and request.cookies.get('csrf_token') %}
+        <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_token') }}">
+      {% endif %}
+      <button class="px-3 py-2 rounded-lg border">Post to Ledger</button>
+    </form>
+
+    <button class="px-3 py-2 rounded-lg border" onclick="window.print()">Print</button>
+  </div>
+</div>
+{% endblock %}
+
+

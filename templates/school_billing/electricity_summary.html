@@ -1,0 +1,40 @@
+<!-- templates/school_billing/electricity_summary.html -->
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Electricity Summary</title>
+</head>
+<body>
+  <h2>Electricity Charges Summary</h2>
+  <table border="1">
+    <tr>
+      <th>Meter</th>
+      <th>Old Date</th>
+      <th>New Date</th>
+      <th>Old Read</th>
+      <th>New Read</th>
+      <th>Days</th>
+      <th>Consumption</th>
+      <th>Rate</th>
+      <th>Amount</th>
+    </tr>
+    {% for row in results %}
+    <tr>
+      <td>{{ row.meter }}</td>
+      <td>{{ row.old_date }}</td>
+      <td>{{ row.new_date }}</td>
+      <td>{{ row.old_read }}</td>
+      <td>{{ row.new_read }}</td>
+      <td>{{ row.days }}</td>
+      <td>{{ row.consumption }}</td>
+      <td>{{ row.rate }}</td>
+      <td>{{ row.amount }}</td>
+    </tr>
+    {% endfor %}
+    <tr>
+      <td colspan="8" align="right"><strong>Total</strong></td>
+      <td><strong>{{ total }}</strong></td>
+    </tr>
+  </table>
+</body>
+</html>

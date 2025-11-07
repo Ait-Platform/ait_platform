@@ -1,0 +1,91 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container mx-auto py-10 max-w-6xl">
+  <h1 class="text-2xl font-semibold mb-6">Compute Consumption</h1>
+    <div class="mb-4 print:hidden">
+      <a href="{{ url_for('admin_bp.readings_dashboard') }}"
+        class="inline-flex items-center gap-2 rounded border px-3 py-1.5 hover:bg-slate-50">
+        <span aria-hidden="true">←</span><span>Back</span>
+      </a>
+    </div>
+
+  <!-- Filters -->
+  <form method="GET" action="{{ url_for('admin_bp.readings_consumption') }}" class="grid md:grid-cols-4 gap-4 mb-6 items-end">
+    <div class="md:col-span-2">
+      <label class="block text-sm mb-1">Tenant</label>
+      <select name="tenant_id" class="w-full border rounded p-2" required>
+        <option value="">Select a tenant…</option>
+        {% for t in tenants %}
+          <option value="{{ t.id }}" {{ selected_tenant_id==t.id and 'selected' or '' }}>
+            {{ t.name }}{% if t.unit_label %} — Unit {{ t.unit_label }}{% endif %}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div>
+      <label class="block text-sm mb-1">Month</label>
+      <select name="month" class="w-full border rounded p-2" required>
+        <option value="">YYYY-MM</option>
+        {% for m in months %}
+          <option value="{{ m }}" {{ selected_month==m and 'selected' or '' }}>{{ m }}</option>
+        {% endfor %}
+      </select>
+    </div>
+      {% if rows and selected_tenant_id and selected_month %}
+        <a href="{{ url_for('admin_bp.metsoa_page1', tenant_id=selected_tenant_id, month=selected_month) }}"
+          class="px-4 py-2 rounded bg-indigo-600 text-white hover:bg-indigo-700">
+          Metsoa
+        </a>
+      {% endif %}
+
+    <div class="flex gap-3">
+      <button class="px-4 py-2 rounded bg-black text-white">View</button>
+      {% if rows %}
+        <button type="button" onclick="window.print()" class="px-4 py-2 rounded border">Print</button>
+      {% endif %}
+    </div>
+  </form>
+
+  {% if tenant and selected_month and not rows %}
+    <p class="text-sm text-slate-600 mb-4">No readings found for {{ tenant.name }} in {{ selected_month }}.</p>
+  {% endif %}
+
+  {% if rows %}
+    <div class="mb-3 text-sm text-slate-700">
+      <strong>Tenant:</strong> {{ tenant.name }}
+      {% if tenant.unit_label %} — <strong>Unit:</strong> {{ tenant.unit_label }}{% endif %}
+      &nbsp; | &nbsp; <strong>Month:</strong> {{ selected_month }}
+    </div>
+
+    <table class="w-full border">
+      <thead>
+        <tr>
+          <th class="p-2 border text-right">Meter</th>
+          <th class="p-2 border text-left">Prev Date</th>
+          <th class="p-2 border text-right">Prev Reading</th>
+          <th class="p-2 border text-left">Current Date</th>
+          <th class="p-2 border text-right">Current Reading</th>
+          <th class="p-2 border text-right">Days</th>
+          <th class="p-2 border text-right">Consumption</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+          <tr>
+            <td class="p-2 border text-right">{{ r.meter_label }}</td>
+            <td class="p-2 border">{{ r.prev_date or '—' }}</td>
+            <td class="p-2 border text-right">{{ r.prev_value if r.prev_value is not none else '—' }}</td>
+            <td class="p-2 border">{{ r.curr_date or '—' }}</td>
+            <td class="p-2 border text-right">{{ r.curr_value if r.curr_value is not none else '—' }}</td>
+            <td class="p-2 border text-right">{{ r.days if r.days is not none else '—' }}</td>
+            <td class="p-2 border text-right">{{ r.consumption if r.consumption is not none else '—' }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+</div>
+{% endblock %}
+
+

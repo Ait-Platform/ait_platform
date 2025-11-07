@@ -1,0 +1,115 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container mx-auto max-w-3xl py-8">
+  <a href="{{ url_for('admin_bp.loss_responses', run_id=run_id, user_id=user_id) }}"
+     class="rounded border px-3 py-1.5 text-sm hover:bg-slate-50">← Back</a>
+
+
+  <h1 class="text-xl font-semibold mt-3">LOSS – Result (Run {{ run_id }})</h1>
+    {# result.html / report.html — action bar #}
+    {% set rid = run_id or request.args.get('run_id')|int %}
+    {% set uid = user_id or request.args.get('user_id')|int %}
+
+      {# result.html (same idea in report.html) #}
+      {% set rid = run_id or request.args.get('run_id')|int %}
+      {% set uid = user_id or request.args.get('user_id')|int %}
+
+      {% if not rid %}
+        <div class="text-sm text-slate-600 p-3 rounded bg-slate-50 border">
+          No run selected. Go back to the
+          <a class="underline" href="{{ url_for('admin_bp.loss_index') }}">LOSS Admin</a>.
+        </div>
+        {% set _stop = true %}
+      {% endif %}
+
+      {% if not _stop %}
+        {# … your existing page (title, action bar, content) … #}
+      {% endif %}
+
+    <div class="mb-4 flex flex-wrap gap-2 text-sm">
+      <span class="px-2 py-1 rounded bg-slate-100 text-slate-700">
+        Run {{ rid }}{% if uid %} • User {{ uid }}{% endif %}
+      </span>
+
+      <a class="rounded border px-3 py-1 hover:bg-slate-50"
+        href="{{ url_for('admin_bp.loss_responses', run_id=rid) }}">Responses</a>
+
+      <!--a class="rounded border px-3 py-1 hover:bg-slate-50"
+        href="{{ url_for('admin_bp.loss_result', run_id=rid, **({'user_id': uid} if uid else {})) }}">Result</a-->
+
+      <a class="rounded border px-3 py-1 hover:bg-slate-50"
+        href="{{ url_for('admin_bp.loss_report', run_id=rid, **({'user_id': uid} if uid else {})) }}">View Report</a>
+
+      <a href="{{ url_for('admin_bp.loss_email_pdf', run_id=run_id, user_id=user_id) }}"
+        class="rounded border px-3 py-1.5 text-sm hover:bg-slate-50">Email Report</a>
+
+      <a href="{{ url_for('admin_bp.loss_report_pdf', run_id=run_id, user_id=user_id) }}"
+        class="rounded border px-3 py-1.5 text-sm hover:bg-slate-50">Download PDF</a>
+    
+      </div>
+
+  
+  <h2 class="text-lg font-semibold">LOSS – Result (Run {{ run_id }})</h2>
+
+    {% if row %}
+      <div class="mt-4 grid gap-2">
+        <div>Phase 1: <strong>{{ row.phase_1 }}</strong></div>
+        <div>Phase 2: <strong>{{ row.phase_2 }}</strong></div>
+        <div>Phase 3: <strong>{{ row.phase_3 }}</strong></div>
+        <div>Phase 4: <strong>{{ row.phase_4 }}</strong></div>
+        <div>Total:   <strong>{{ row.total }}</strong></div>
+        <div class="text-slate-500 text-sm">Subject: {{ row.subject }} • User {{ row.user_id }}</div>
+      </div>
+    {% else %}
+      <p class="mt-4">No result found for run <strong>{{ run_id }}</strong>.</p>
+      {% if has_responses %}
+        <p class="text-sm text-slate-500">Responses exist, but this run hasn’t been computed yet.</p>
+      {% else %}
+        <p class="text-sm text-slate-500">No responses recorded for this run.</p>
+      {% endif %}
+    {% endif %}
+
+    {% if result %}
+      <div class="mt-4 grid grid-cols-2 gap-4">
+        <div class="rounded-xl border p-4">
+          <div class="text-sm text-slate-500 mb-1">Phase 1</div>
+          <div class="text-2xl font-semibold">{{ result.phase_1 }}</div>
+        </div>
+        <div class="rounded-xl border p-4">
+          <div class="text-sm text-slate-500 mb-1">Phase 2</div>
+          <div class="text-2xl font-semibold">{{ result.phase_2 }}</div>
+        </div>
+        <div class="rounded-xl border p-4">
+          <div class="text-sm text-slate-500 mb-1">Phase 3</div>
+          <div class="text-2xl font-semibold">{{ result.phase_3 }}</div>
+        </div>
+        <div class="rounded-xl border p-4">
+          <div class="text-sm text-slate-500 mb-1">Phase 4</div>
+          <div class="text-2xl font-semibold">{{ result.phase_4 }}</div>
+        </div>
+      </div>
+
+      <div class="mt-4 rounded-xl border p-4 bg-slate-50">
+        <div class="text-sm text-slate-500 mb-1">Total</div>
+        <div class="text-3xl font-bold">{{ result.total }}</div>
+      </div>
+
+      <div class="mt-4 text-xs text-slate-500">
+        Computed at: {{ result.created_at }}
+      </div>
+
+    <!--div class="mt-4">
+      <a class="rounded border px-3 py-1 text-sm hover:bg-slate-50"
+         href="{{ url_for('admin_bp.loss_result', run_id=run_id, recompute=1) }}">Recompute</a>
+    </div>
+  {% else %}
+    <p class="mt-4">No result found for this run yet.</p>
+    <div class="mt-3">
+      <a class="rounded border px-3 py-1 text-sm hover:bg-slate-50"
+         href="{{ url_for('admin_bp.loss_result', run_id=run_id, recompute=1) }}">
+        Compute now
+      </a>
+    </div-->
+  {% endif %}
+</div>
+{% endblock %}

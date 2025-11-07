@@ -1,0 +1,20 @@
+{% set tabs = [
+  {'key':'questions',     'label':'Questions'},
+  {'key':'phase_items',   'label':'Phase Items'},
+  {'key':'progress_items','label':'Progress Items'},
+  {'key':'overall_items', 'label':'Overall Items'},
+  {'key':'instruction',   'label':'Introduction Cards'},
+  {'key':'explain',       'label':'Explain Cards'},
+  {'key':'pause',         'label':'Pause Cards'},
+] %}
+
+<div class="border-b mb-6">
+  <nav class="flex gap-2">
+    {% for t in tabs %}
+      <a href="{{ url_for('admin_bp.seed_hub', tab=t.key) }}"
+         class="px-3 py-2 text-sm rounded-t-md {{ 'bg-white border-x border-t text-slate-900' if tab==t.key else 'text-slate-500 hover:text-slate-800' }}">
+        {{ t.label }}
+      </a>
+    {% endfor %}
+  </nav>
+</div>

@@ -1,0 +1,13 @@
+{# templates/admin/loss/phase_scores.html #}
+{% extends "layout.html" %}
+{% block content %}
+<a href="{{ url_for('admin_bp.loss_responses', run_id=run_id) }}" class="text-sm text-slate-500">← Back</a>
+<h2 class="text-lg font-semibold mt-2">LOSS — Phase Scores (Run {{ run_id }})</h2>
+
+<ul class="mt-3 text-sm">
+  <li>P1: {{ per_phase.P1 }}</li>
+  <li>P2: {{ per_phase.P2 }}</li>
+  <li>P3: {{ per_phase.P3 }}</li>
+  <li>P4: {{ per_phase.P4 }}</li>
+</ul>
+{% endblock %}

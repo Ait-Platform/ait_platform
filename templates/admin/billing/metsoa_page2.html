@@ -1,0 +1,107 @@
+{# templates/admin/billing/metsoa_page2.html #}
+{% extends "layout.html" %}
+{% block content %}
+{% macro money(v) %}{{ '{:,.2f}'.format(v or 0) }}{% endmacro %}
+
+<div class="container mx-auto py-8">
+  <h1 class="text-2xl font-semibold mb-6">Statement of Account — Page 2 (Water &amp; Sewer)</h1>
+<style>
+@media print {
+  .no-print { display: none !important; }
+  .container { width: 100% !important; max-width: none !important; }
+}
+</style>
+
+<div class="no-print mb-4 flex gap-2">
+  <a href="{{ url_for('admin_bp.metsoa_page1', tenant_id=tenant.id, month=month) }}"
+     class="inline-block rounded-lg border px-3 py-1 text-sm hover:bg-slate-50">
+    ← Back to Page 1
+  </a>
+
+  <button type="button"
+          class="rounded-lg border px-3 py-1 text-sm hover:bg-slate-50"
+          onclick="window.print()">
+    🖨 Print
+  </button>
+</div>
+
+  {% for s in sections %}
+    <div class="mb-10 rounded-xl border shadow bg-white">
+      <!-- Base row -->
+      <div class="px-5 pt-4 pb-2 text-sm text-slate-700">
+        <strong>{{ s.meter }}</strong> •
+        Prev: {{ s.prev_date }} @ {{ s.prev_value }} •
+        Curr: {{ s.curr_date }} @ {{ s.curr_value }} •
+        Days: {{ s.days }} •
+        Cons: {{ s.cons }} kL
+      </div>
+
+      <div class="px-5 pb-3 grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Water Services -->
+        <div>
+          <div class="flex items-center gap-2 font-medium mb-2"><span>💧 Water Services</span></div>
+          <table class="w-full text-sm border">
+            <thead class="bg-slate-100">
+              <tr>
+                <th class="px-2 py-1 text-left">Description</th>
+                <th class="px-2 py-1 text-right">Qty</th>
+                <th class="px-2 py-1 text-right">Rate</th>
+                <th class="px-2 py-1 text-right">Due</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for ln in s.ws_lines %}
+              <tr class="border-t">
+                <td class="px-2 py-1">{{ ln.desc }}</td>
+                <td class="px-2 py-1 text-right">{% if ln.qty is not none %}{{ ln.qty }}{% endif %}</td>
+                <td class="px-2 py-1 text-right">{% if ln.rate is not none %}{{ ln.rate }}{% endif %}</td>
+                <td class="px-2 py-1 text-right">{{ money(ln.due) }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Sewer Disposal -->
+        <div>
+          <div class="flex items-center gap-2 font-medium mb-2"><span>🚰 Sewer Disposal</span></div>
+          <table class="w-full text-sm border">
+            <thead class="bg-slate-100">
+              <tr>
+                <th class="px-2 py-1 text-left">Description</th>
+                <th class="px-2 py-1 text-right">Qty</th>
+                <th class="px-2 py-1 text-right">Rate</th>
+                <th class="px-2 py-1 text-right">Due</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for ln in s.sd_lines %}
+              <tr class="border-t">
+                <td class="px-2 py-1">{{ ln.desc }}</td>
+                <td class="px-2 py-1 text-right">{% if ln.qty is not none %}{{ ln.qty }}{% endif %}</td>
+                <td class="px-2 py-1 text-right">{% if ln.rate is not none %}{{ ln.rate }}{% endif %}</td>
+                <td class="px-2 py-1 text-right">{{ money(ln.due) }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {# NEW: a subtle per-meter totals line (WS, SD, Cost of Water) #}
+      <div class="px-5 pb-4 text-right text-sm text-slate-600">
+        <span class="mr-4">WS: <strong>{{ money(s.ws_total) }}</strong></span>
+        <span class="mr-4">SD: <strong>{{ money(s.sd_total) }}</strong></span>
+        <span>Cost of Water: <strong>{{ money(s.water_cost) }}</strong></span>
+      </div>
+    </div>
+  {% endfor %}
+
+  {# NEW: grand totals across all meters #}
+  <div class="mt-6 flex flex-col items-end gap-1">
+    <div class="text-base">WS Sub-Total (all meters): <strong>{{ money(page_ws_total) }}</strong></div>
+    <div class="text-base">SD Sub-Total (all meters): <strong>{{ money(page_sd_total) }}</strong></div>
+    <div class="text-lg font-semibold">Cost of Water (WS + SD): {{ money(water_total) }}</div>
+  </div>
+</div>
+{% endblock %}

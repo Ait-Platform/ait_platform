@@ -1,0 +1,17 @@
+{% extends "layout.html" %}
+{% block title %}Payment Successful · AIT{% endblock %}
+
+{% block content %}
+<div class="container mx-auto max-w-2xl py-16">
+  <div class="rounded-2xl border bg-white p-10 text-center">
+    <div class="text-3xl mb-2">✅</div>
+    <h1 class="text-xl font-semibold mb-2">Payment successful</h1>
+    <p class="text-slate-600 mb-6">You're all set. Head to your dashboard to begin.</p>
+
+    <a href="{{ dashboard_url or url_for('auth_bp.bridge_dashboard') }}"
+       class="inline-block rounded-xl bg-blue-600 text-white px-4 py-2">
+      Go to dashboard
+    </a>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,124 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container mx-auto py-10 space-y-6">
+
+  <h1 class="text-2xl font-semibold">Municipal — Exports & Prints</h1>
+
+  <!-- All accounts ZIP -->
+  <div class="rounded-xl border p-5 flex items-center justify-between">
+    <div>
+      <div class="font-medium">All accounts — ZIP bundle</div>
+      <div class="text-sm text-slate-600">
+        Accounts registry, monthly totals, METSOA, ledger view, recon view
+      </div>
+    </div>
+    <a href="{{ url_for('admin_bp.muni_export_all') }}"
+       class="px-4 py-2 rounded-lg bg-black text-white">
+      Download ZIP
+    </a>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+    <!-- Per-account ZIP / Print / PDF -->
+    <div class="rounded-xl border p-5 space-y-3">
+      <div class="font-medium">Per-account</div>
+
+      <div class="flex flex-col sm:flex-row gap-3 sm:items-end">
+        <label class="text-sm">
+          Account number
+          <input id="accInput" list="accs"
+                 class="mt-1 border rounded-lg p-2 w-72"
+                 placeholder="e.g. 83327938998" required>
+        </label>
+
+        <div class="flex gap-3">
+          <button id="accZipBtn"
+                  class="px-3 py-2 rounded-lg border"
+                  type="button"
+                  data-url="{{ url_for('admin_bp.muni_export_account', account_number='__ACC__') }}">
+            ZIP
+          </button>
+
+          <button id="accPrintBtn"
+                  class="px-3 py-2 rounded-lg border"
+                  type="button"
+                  data-url="{{ url_for('admin_bp.muni_print_ledger', account_number='__ACC__') }}">
+            Print
+          </button>
+
+          <button id="accPdfBtn"
+                  class="px-3 py-2 rounded-lg bg-black text-white"
+                  type="button"
+                  data-url="{{ url_for('admin_bp.muni_export_ledger_pdf', account_number='__ACC__') }}">
+            PDF
+          </button>
+        </div>
+      </div>
+
+      <datalist id="accs">
+        {% for a in accounts %}
+          <option value="{{ a }}"></option>
+        {% endfor %}
+      </datalist>
+    </div>
+
+    <!-- Date-range ZIP -->
+    <div class="rounded-xl border p-5 space-y-3">
+      <div class="font-medium">Date range (YYYY-MM → YYYY-MM)</div>
+      <form method="get" action="{{ url_for('admin_bp.muni_export_range') }}"
+            class="flex flex-col sm:flex-row gap-3 sm:items-end">
+        <label class="text-sm">
+          Start
+          <input name="start" class="mt-1 border rounded-lg p-2 w-32"
+                 placeholder="2025-06" pattern="^\d{4}-(0[1-9]|1[0-2])$" required>
+        </label>
+        <label class="text-sm">
+          End
+          <input name="end" class="mt-1 border rounded-lg p-2 w-32"
+                 placeholder="2025-08" pattern="^\d{4}-(0[1-9]|1[0-2])$" required>
+        </label>
+        <button class="px-4 py-2 rounded-lg bg-black text-white">Download ZIP</button>
+      </form>
+      <p class="text-xs text-slate-500">Tip: ranges use ledger/recon views; ensure your periods are like <code>YYYY-MM</code>.</p>
+    </div>
+
+  </div>
+
+  <div>
+
+     <a href="{{ url_for('admin_bp.muni_accounts') }}"
+        class="text-sm underline">Back to Capture</a>
+
+  </div>
+</div>
+
+<!-- JS with no Jinja inside -->
+<script>
+(function () {
+  const accInput   = document.getElementById('accInput');
+  const zipBtn     = document.getElementById('accZipBtn');
+  const printBtn   = document.getElementById('accPrintBtn');
+  const pdfBtn     = document.getElementById('accPdfBtn');
+
+  function getAcc() {
+    return (accInput && accInput.value ? accInput.value.trim() : '');
+  }
+
+  function goFrom(btn) {
+    if (!btn) return;
+    const acc = getAcc();
+    if (!acc) { alert('Enter an account number'); return; }
+    const tpl = btn.getAttribute('data-url') || '';
+    if (!tpl) { alert('Missing URL template'); return; }
+    const url = tpl.replace('__ACC__', encodeURIComponent(acc));
+    window.location = url;
+  }
+
+  if (zipBtn)   zipBtn.addEventListener('click',   function (e) { e.preventDefault(); goFrom(zipBtn); });
+  if (printBtn) printBtn.addEventListener('click', function (e) { e.preventDefault(); goFrom(printBtn); });
+  if (pdfBtn)   pdfBtn.addEventListener('click',   function (e) { e.preventDefault(); goFrom(pdfBtn); });
+})();
+</script>
+{% endblock %}
+

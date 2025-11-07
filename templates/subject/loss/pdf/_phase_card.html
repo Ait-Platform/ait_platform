@@ -1,0 +1,69 @@
+{# subject/loss/pdf/_phase_card.html #}
+{# expects: blk, phase_labels, M #}
+
+{# derive values safely #}
+{% set pct = (blk.pct if blk.pct is defined else (blk.width_pct if blk.width_pct is defined else 0)) | int %}
+{% set band_i = blk.band if blk.band is defined else (3 if pct>=70 else (2 if pct>=40 else 1)) %}
+{% set range_label = blk.level if blk.level is defined else ('High' if band_i==3 else ('Medium' if band_i==2 else 'Low')) %}
+{% set av_txt = blk.coping if blk.coping is defined else M.av_text(blk.phase, band_i) %}
+{% set range_chip = blk.badge_class if blk.badge_class is defined else M.range_chip_class(blk.phase, band_i) %}
+{% set av_chip = M.av_chip_class(av_txt) %}
+
+<section class="phase-card rounded-2xl border border-slate-200 p-5">
+  {# ---------- PHASE HEADING ---------- #}
+  <header class="mb-1">
+    <h3 class="text-base md:text-lg font-semibold text-slate-800 flex flex-wrap items-center gap-x-2 gap-y-1">
+      <span>Phase {{ blk.phase }}: {{ phase_labels.get(blk.phase, 'Phase ' ~ blk.phase) }}:</span>
+
+      <span class="font-normal">Range:</span>
+      <span class="chip {{ range_chip }}">{{ range_label }}</span>
+
+      <span class="font-normal ml-2">Adaptation Vector:</span>
+      <span class="chip {{ av_chip }}">{{ av_txt }}</span>
+    </h3>
+
+    <p class="phase-note">
+      You are experiencing these feelings {{ pct }}% of the time in this phase.
+    </p>
+  </header>
+
+  {# ---------- BAR GRAPH (with 0/50/100 scale) ---------- #}
+  
+  {% set bar_color = M.bar_class(blk.phase, band_i) %}
+  {% set w_class   = M.width_class(pct) %}
+  <div class="bar">
+    <div class="fill {{ bar_color }} {{ w_class }}"></div>
+  </div>
+  <div class="bar-scale"><span>0</span><span>50</span><span>100</span></div>
+
+  
+  {# ---------- COMMENTS ---------- #}
+  <div class="mt-4 space-y-6">
+    {% if blk.comments_list %}
+      <section>
+        <div class="text-sm font-medium text-slate-700 mb-2">Comments</div>
+        <ul class="list-disc list-outside pl-6 text-slate-800 text-[15px] leading-7 space-y-2">
+          {% for line in blk.comments_list %}<li class="italic">{{ line }}</li>{% endfor %}
+        </ul>
+      </section>
+    {% endif %}
+
+    {# (optional) Progress block remains as you had it #}
+    {% set prog = (blk.progress if blk.progress is defined else none) %}
+    {% if prog and prog.notes %}
+      <section>
+        <div class="flex items-center gap-2 mb-2">
+          <div class="text-sm font-medium text-slate-700">Progress</div>
+          <span class="px-2 py-0.5 text-[11px] rounded-full border {{ prog.chip_class }}">{{ prog.band|capitalize }}</span>
+          {% if prog.tone %}
+            {% set tone_lbl = 'Positive' if prog.tone=='positive' else ('Slightly Positive' if prog.tone=='slightly_positive' else 'Negative') %}
+            <span class="px-2 py-0.5 text-[11px] rounded-full border bg-slate-50 text-slate-700 border-slate-200">{{ tone_lbl }}</span>
+          {% endif %}
+        </div>
+        <ul class="list-disc pl-6 text-sm text-slate-700 space-y-1">
+          {% for line in prog.notes %}<li>{{ line }}</li>{% endfor %}
+        </ul>
+      </section>
+    {% endif %}
+  </div>
+</section>

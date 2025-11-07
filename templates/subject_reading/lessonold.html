@@ -1,0 +1,90 @@
+{% extends "layout.html" %}
+{% block title %}{{ lesson.title or ('Lesson ' ~ lesson_id) }} — Reading{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-10">
+  <div class="mb-6">
+    <h1 class="text-3xl md:text-4xl font-semibold tracking-tight">
+      {{ lesson.title or ('Lesson ' ~ lesson_id) }}
+    </h1>
+    {% if lesson.caption %}
+      <p class="mt-2 text-lg md:text-xl text-slate-700">
+        {{ lesson.caption }}
+      </p>
+    {% endif %}
+  </div>
+
+  {# ---- TOP ACTIONS (include) ---- #}
+  {% set back_url = url_for('reading_bp.learner_dashboard') %}
+  {% set complete_url = url_for('reading_bp.complete_lesson', lesson_id=lesson_id) %}
+  {% set complete_label = 'Mark complete' %}
+  {% include 'subject_reading/_lesson_actions.html' %}
+
+  {# ------- MEDIA BLOCK (video OR image OR pdf) ------- #}
+  {% set url  = (lesson.video_url or '') %}
+  {% set file = (lesson.video_filename or '') %}
+  {% set ext  = (file.split('.')[-1] if file else '').lower() %}
+
+  {% if url %}
+    {% set is_youtube = 'youtube.com' in url or 'youtu.be' in url %}
+    {% set is_vimeo   = 'vimeo.com' in url %}
+    {% if is_youtube %}
+      {% if 'youtu.be' in url %}
+        {% set vid = (url.split('/')[-1]).split('?')[0] %}
+        {% set embed = 'https://www.youtube.com/embed/' ~ vid %}
+      {% else %}
+        {% set embed = (url | replace('watch?v=', 'embed/')) | split('&') | first %}
+      {% endif %}
+      <div class="aspect-video w-full overflow-hidden rounded-2xl shadow-sm border border-slate-200">
+        <iframe class="w-full h-full" src="{{ embed }}" title="Lesson video"
+                frameborder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowfullscreen></iframe>
+      </div>
+    {% elif is_vimeo %}
+      {% set parts = url.split('/') %}
+      {% set vid = parts[-1] %}
+      <div class="aspect-video w-full overflow-hidden rounded-2xl shadow-sm border border-slate-200">
+        <iframe class="w-full h-full" src="https://player.vimeo.com/video/{{ vid }}" title="Lesson video"
+                frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>
+      </div>
+    {% elif url.endswith('.mp4') or url.endswith('.webm') or url.endswith('.ogg') %}
+      <video controls class="w-full rounded-2xl shadow-sm border border-slate-200">
+        <source src="{{ url }}">
+        Your browser does not support the video tag.
+      </video>
+    {% else %}
+      <div class="rounded-xl border border-amber-200 bg-amber-50 text-amber-800 p-4">
+        Unknown URL format. Use YouTube/Vimeo or a direct .mp4/.webm link.
+      </div>
+    {% endif %}
+
+  {% elif file %}
+    {% if ext in ['mp4','webm','ogg'] %}
+      <video controls class="w-full rounded-2xl shadow-sm border border-slate-200">
+        <source src="{{ media_url(file) }}">
+        Your browser does not support the video tag.
+      </video>
+    {% elif ext in ['png','jpg','jpeg','gif','webp','svg'] %}
+      <img src="{{ media_url(file) }}"
+           alt="{{ lesson.title or 'Lesson image' }}"
+           class="w-full rounded-2xl shadow-sm border border-slate-200">
+    {% elif ext == 'pdf' %}
+      <iframe src="{{ media_url(file) }}"
+              class="w-full min-h-[70vh] rounded-2xl border border-slate-200 shadow-sm"
+              title="Lesson PDF"></iframe>
+    {% else %}
+      <div class="rounded-xl border border-amber-200 bg-amber-50 text-amber-800 p-4">
+        Unsupported file type: {{ ext or 'unknown' }}.
+      </div>
+    {% endif %}
+  {% else %}
+    <div class="rounded-xl border border-slate-200 bg-white p-6 text-slate-700">
+      No media attached for this lesson.
+    </div>
+  {% endif %}
+
+  {# ---- BOTTOM ACTIONS (include again) ---- #}
+  {% include 'subject_reading/_lesson_actions.html' %}
+</div>
+{% endblock %}

@@ -1,0 +1,126 @@
+{% extends "layout.html" %}
+{% block title %}{{ lesson["order"] }}. {{ lesson["title"] }}{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto mt-8 px-4">
+  <!-- heading -->
+  <h1 class="text-xl font-semibold text-slate-900">
+    {{ lesson["order"] }}. {{ lesson["title"] }}
+  </h1>
+  <p class="text-slate-600 text-sm mb-4">{{ lesson["caption"] }}</p>
+
+  <!-- card -->
+  <div class="bg-white rounded-xl border border-slate-200 shadow p-4">
+    <!-- video -->
+      <style>
+        video#lessonPlayer {
+          width: 100%;
+          max-height: 480px;
+          background-color: #000;
+          object-fit: contain;
+        }
+        </style>
+
+    <div class="rounded-lg overflow-hidden border border-slate-300 bg-black">
+      <video id="lessonPlayer"
+             class="w-full h-auto bg-black"
+             src="{{ video_src }}"
+             preload="metadata"
+             style="max-height:480px; width:100%; background-color:#000;">
+      </video>
+    </div>
+
+    <!-- controls row -->
+
+      <div class="mt-4 flex flex-col items-center">
+        <div class="flex flex-wrap items-center justify-center gap-3 text-sm">
+
+          {% if prev_id %}
+          <a class="inline-flex items-center rounded-md border border-slate-300 bg-white px-3 py-2 font-medium text-slate-700 hover:bg-slate-50"
+            href="{{ url_for('reading_bp.view_lesson', lesson_id=prev_id) }}">
+            {{ t("previous", ui_lang) }}
+          </a>
+          {% else %}
+          <button class="inline-flex items-center rounded-md border border-slate-200 bg-slate-100 px-3 py-2 font-medium text-slate-400 cursor-not-allowed"
+                  disabled>
+            {{ t("previous", ui_lang) }}
+          </button>
+          {% endif %}
+
+          <button id="btnBack10"
+                  class="inline-flex items-center rounded-md border border-slate-300 bg-white px-3 py-2 font-medium text-slate-700 hover:bg-slate-50">
+            ⏪ 10s
+          </button>
+
+          <button id="btnPlayPause"
+                  class="inline-flex items-center rounded-md border border-slate-300 bg-white px-3 py-2 font-medium text-slate-700 hover:bg-slate-50">
+            ▶ {{ t("replay", ui_lang) }}
+          </button>
+
+          <button id="btnFwd10"
+                  class="inline-flex items-center rounded-md border border-slate-300 bg-white px-3 py-2 font-medium text-slate-700 hover:bg-slate-50">
+            10s ⏩
+          </button>
+
+          {% if not last_one %}
+          <a class="inline-flex items-center rounded-md bg-indigo-600 px-4 py-2 font-semibold text-white shadow hover:bg-indigo-700"
+            href="{{ url_for('reading_bp.view_lesson', lesson_id=next_id) }}">
+            {{ t("next", ui_lang) }}
+          </a>
+          {% else %}
+          <form method="POST"
+                action="{{ url_for('reading_bp.finish_course') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit"
+                    class="inline-flex items-center rounded-md bg-emerald-600 px-4 py-2 font-semibold text-white shadow hover:bg-emerald-700">
+              {{ t("finish_course", ui_lang) }}
+            </button>
+          </form>
+          {% endif %}
+
+        </div>
+
+        <div class="text-[11px] text-slate-500 mt-3">
+          {{ t("back_to_dashboard", ui_lang) }}
+        </div>
+      </div>
+
+
+  </div>
+</div>
+
+<!-- lightweight player controller -->
+<script>
+(function(){
+  const vid = document.getElementById('lessonPlayer');
+  const btnPlay = document.getElementById('btnPlayPause');
+  const btnBack = document.getElementById('btnBack10');
+  const btnFwd  = document.getElementById('btnFwd10');
+
+  if (!vid) return;
+
+  // disable native controls & download
+  vid.setAttribute('controlsList','nodownload noremoteplayback');
+  vid.setAttribute('disablePictureInPicture','true');
+  vid.controls = false;
+
+  btnPlay?.addEventListener('click', () => {
+    if (vid.paused) {
+      vid.play();
+      btnPlay.textContent = '❚❚ Pause';
+    } else {
+      vid.pause();
+      btnPlay.textContent = '▶ Play';
+    }
+  });
+
+  btnBack?.addEventListener('click', () => {
+    vid.currentTime = Math.max(vid.currentTime - 10, 0);
+  });
+
+  btnFwd?.addEventListener('click', () => {
+    vid.currentTime = Math.min(vid.currentTime + 10, vid.duration || vid.currentTime + 10);
+  });
+})();
+</script>
+{% endblock %}

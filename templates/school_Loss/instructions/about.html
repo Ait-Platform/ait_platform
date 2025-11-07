@@ -1,0 +1,18 @@
+﻿{% extends "layout.html" %}
+{% block content %}
+  <div class="bg-white rounded-xl shadow p-6 max-w-xl mx-auto border border-gray-400">
+    <h1 class="text-2xl font-bold text-blue-800 mb-4 text-center">About</h1>
+
+    <p class="mb-4 text-gray-800">
+      This program helps you assess your current position on the grief continuum after the loss of a loved one.
+      It is a guided tool to help you reflect on where you are and how you're coping emotionally.
+    </p>
+
+    <div class="flex justify-end">
+      <a href="{{ url_for('loss_bp.instructions_av') }}" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+        Next
+      </a>
+    </div>
+  </div>
+{% endblock %}
+

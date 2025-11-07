@@ -1,0 +1,258 @@
+# app/payments/payfast.py
+from flask import Blueprint, current_app, request, render_template_string, abort
+from flask import redirect
+from urllib.parse import urlencode
+import os, hmac, hashlib, ipaddress, requests
+from urllib.parse import urlencode, quote_plus
+import hashlib
+
+payfast_bp = Blueprint("payfast_bp", __name__)
+
+#PAYFAST_PROCESS_URL = "https://www.payfast.co.za/eng/process"
+#PAYFAST_VALIDATE_URL = "https://www.payfast.co.za/eng/query/validate"  # server-to-server
+
+# app/payments/payfast.py
+PAYFAST_PROCESS_URL  = "https://sandbox.payfast.co.za/eng/process"
+PAYFAST_VALIDATE_URL = "https://sandbox.payfast.co.za/eng/query/validate"
+
+
+# PayFast publishes source IPs; keep this list current occasionally.
+PAYFAST_SOURCE_NETS = [
+    "154.66.197.0/24",    # payfast range
+    "154.72.56.0/21",
+    "196.7.0.0/16",
+]
+
+def cfg(key, default=""):
+    return os.getenv(key, default)
+'''
+def pf_signature(params: dict, passphrase: str) -> str:
+    """Create PayFast signature from ALL fields (sorted by key, urlencode),
+       with passphrase appended."""
+    # Exclude empty values and 'signature' key itself
+    filtered = {k: v for k, v in params.items() if v not in (None, "") and k != "signature"}
+    qs = urlencode(sorted(filtered.items()), doseq=True)
+    if passphrase:
+        qs = f"{qs}&passphrase={passphrase}"
+    return hashlib.md5(qs.encode("utf-8")).hexdigest()
+'''
+def ip_in_trusted_range(ip: str) -> bool:
+    try:
+        ip_obj = ipaddress.ip_address(ip)
+        for net in PAYFAST_SOURCE_NETS:
+            if ip_obj in ipaddress.ip_network(net):
+                return True
+    except Exception:
+        pass
+    return False
+'''
+@payfast_bp.post("/ipn")
+def ipn():
+    # 1) Basic CSRF-bypass by design: this endpoint is called by PayFast
+    # 2) Verify source IP (best-effort)
+    src_ip = request.headers.get("X-Forwarded-For", request.remote_addr or "")
+    if not ip_in_trusted_range(src_ip):
+        current_app.logger.warning(f"PayFast IP not in allowlist: {src_ip}")
+        return "bad ip", 400
+
+    # 3) Verify signature
+    data = request.form.to_dict(flat=True)
+    expected_sig = pf_signature(data, cfg("PAYFAST_PASSPHRASE"))
+    if data.get("signature", "") != expected_sig:
+        current_app.logger.warning("PayFast signature mismatch")
+        return "bad sig", 400
+
+    # 4) Validate with PayFast (server-to-server)
+    try:
+        resp = requests.post(PAYFAST_VALIDATE_URL, data=data, timeout=10)
+        valid = resp.text.strip() == "VALID"
+    except Exception as e:
+        current_app.logger.exception("PayFast validate POST failed")
+        return "validate error", 500
+
+    if not valid:
+        current_app.logger.warning(f"PayFast validate said INVALID: {resp.text[:200]}")
+        return "invalid", 400
+
+    # 5) Your business logic: confirm amount & mark order paid when payment_status == 'COMPLETE'
+    payment_status = data.get("payment_status")
+    m_payment_id   = data.get("m_payment_id")   # your internal ID
+    amount_gross   = data.get("amount_gross")
+
+    # TODO: look up m_payment_id in DB, compare expected amount, currency, etc.
+    # Example (pseudo):
+    # order = Order.get(m_payment_id)
+    # if Decimal(amount_gross) != order.amount: return "bad amount", 400
+    # if payment_status == "COMPLETE": order.mark_paid(...)
+
+    current_app.logger.info(f"PayFast IPN OK: {m_payment_id} status={payment_status} amount={amount_gross}")
+    return "ok", 200
+
+@payfast_bp.post("/ipn")
+def ipn():
+    # 1) Source IP check: enforce ONLY in live
+    mode = os.getenv("PAYFAST_MODE", "sandbox").lower()
+    src_ip = request.headers.get("X-Forwarded-For", request.remote_addr or "")
+    if mode == "live":
+        if not ip_in_trusted_range(src_ip):
+            current_app.logger.warning(f"PayFast IP not in allowlist: {src_ip}")
+            return "bad ip", 400
+    else:
+        current_app.logger.info(f"[sandbox] skipping IP allowlist check (src={src_ip})")
+
+    # 2) Verify signature
+    data = request.form.to_dict(flat=True)
+    expected_sig = pf_signature(data, cfg("PAYFAST_PASSPHRASE"))
+    if data.get("signature", "") != expected_sig:
+        current_app.logger.warning("PayFast signature mismatch")
+        return "bad sig", 400
+
+    # 3) Validate with PayFast (server-to-server)
+    try:
+        resp = requests.post(PAYFAST_VALIDATE_URL, data=data, timeout=10)
+        valid = resp.text.strip().upper() == "VALID"
+    except Exception:
+        current_app.logger.exception("PayFast validate POST failed")
+        return "validate error", 500
+    if not valid:
+        current_app.logger.warning(f"PayFast validate said INVALID: {resp.text[:200]}")
+        return "invalid", 400
+
+    # 4) Your business logic
+    payment_status = data.get("payment_status")
+    m_payment_id   = data.get("m_payment_id")
+    amount_gross   = data.get("amount_gross")
+    current_app.logger.info(f"PayFast IPN OK: {m_payment_id} status={payment_status} amount={amount_gross}")
+
+    if payment_status and payment_status.upper() == "COMPLETE":
+        # mark paid -> email -> report
+        pass
+
+    return "ok", 200
+'''
+# app/payments/payfast.py
+
+
+def pf_md5(s: str) -> str:
+    return hashlib.md5(s.encode("utf-8")).hexdigest()
+
+@payfast_bp.post("/ipn")
+def ipn():
+    # 1) Read the raw POST exactly as PayFast sent it
+    raw = request.get_data(as_text=True)  # e.g. "m_payment_id=...&pf_payment_id=...&...&signature=abcd"
+
+    # 2) Drop the signature pair from the raw string (do NOT re-order anything)
+    parts = [p for p in raw.split("&") if not p.startswith("signature=")]
+    signed_str = "&" .join(parts)
+
+    # 3) Append your passphrase
+    passphrase = cfg("PAYFAST_PASSPHRASE")
+    if passphrase:
+        signed_str = f"{signed_str}&passphrase={passphrase}"
+
+    # 4) Compute and compare
+    expected = pf_md5(signed_str)
+    got = request.form.get("signature", "")
+    if got != expected:
+        current_app.logger.warning(f"PayFast signature mismatch: got={got} expected={expected}")
+        return "bad sig", 400
+
+    # 5) (optional but recommended) server-to-server validate
+    try:
+        resp = requests.post(PAYFAST_VALIDATE_URL, data=request.form, timeout=10)
+        if resp.text.strip() != "VALID":
+            current_app.logger.warning(f"PayFast validate said INVALID: {resp.text[:200]}")
+            return "invalid", 400
+    except Exception:
+        current_app.logger.exception("PayFast validate POST failed")
+        return "validate error", 500
+
+    # 6) Your business logic
+    status = request.form.get("payment_status")
+    m_payment_id = request.form.get("m_payment_id")
+    amount_gross = request.form.get("amount_gross")
+
+    # TODO: load your order/enrollment by m_payment_id, compare expected amount/currency, etc.
+    # if Decimal(amount_gross) != order.amount: return "bad amount", 400
+    # if status == "COMPLETE": order.mark_paid(...)
+
+    current_app.logger.info(f"PayFast IPN OK: {m_payment_id} status={status} amount={amount_gross}")
+    return "ok", 200
+
+
+@payfast_bp.post("/create")
+def create_payment():
+    """Create a PayFast payment and auto-submit to PayFast."""
+    # In a real flow, you’ll POST amount & item details from your checkout form
+    amount = request.form.get("amount", "50.00")
+    item_name = request.form.get("item_name", "AIT Subject")
+    buyer_email = request.form.get("email", "payer@example.com")
+    m_payment_id = request.form.get("m_payment_id", "AIT-" + hashlib.md5(os.urandom(8)).hexdigest()[:8])
+
+    params = {
+        "merchant_id":  cfg("PAYFAST_MERCHANT_ID"),
+        "merchant_key": cfg("PAYFAST_MERCHANT_KEY"),
+        "return_url":   cfg("PAYFAST_RETURN_URL"),
+        "cancel_url":   cfg("PAYFAST_CANCEL_URL"),
+        "notify_url":   cfg("PAYFAST_NOTIFY_URL"),
+
+        "m_payment_id": m_payment_id,        # your internal reference
+        "amount":       amount,              # string with 2 decimals
+        "item_name":    item_name,
+        "email_address": buyer_email,
+    }
+
+    params["signature"] = pf_signature(params, cfg("PAYFAST_PASSPHRASE"))
+
+    # Minimal auto-post page (keeps you on best-practice server-signed pattern)
+    html = """
+    <html><body onload="document.forms[0].submit()">
+      <p>Redirecting to PayFast…</p>
+      <form method="post" action="{{ process_url }}">
+        {% for k, v in params.items() %}
+          <input type="hidden" name="{{ k|e }}" value="{{ v|e }}">
+        {% endfor %}
+        <noscript><button type="submit">Continue</button></noscript>
+      </form>
+    </body></html>
+    """
+    return render_template_string(html, params=params, process_url=PAYFAST_PROCESS_URL)
+
+@payfast_bp.get("/test-button")
+def test_button():
+    # Simple page with a single Pay button for quick manual tests
+    html = """
+    <!doctype html><html><body style="font-family:system-ui;padding:2rem">
+      <h1>Pay R50.00</h1>
+      <form method="post" action="{{ url_for('payfast_bp.create_payment') }}">
+        <input type="hidden" name="amount" value="50.00">
+        <input type="hidden" name="item_name" value="AIT Subject: Reading">
+        <input type="email" name="email" value="payer@example.com" required>
+        <button type="submit">Pay with PayFast</button>
+      </form>
+    </body></html>
+    """
+    return render_template_string(html)
+
+@payfast_bp.get("/ping")
+def ping():
+    return "payfast ok", 200
+
+
+def pf_signature(params: dict, passphrase: str) -> str:
+    filtered = {k: v for k, v in params.items() if v not in (None, "") and k != "signature"}
+    qs = urlencode(sorted(filtered.items()), doseq=True)
+    if passphrase:
+        qs = f"{qs}&passphrase={quote_plus(passphrase)}"  # <-- encode
+    return hashlib.md5(qs.encode("utf-8")).hexdigest()
+
+@payfast_bp.get("/success")
+def success(): return "Payment success ✔", 200
+
+@payfast_bp.get("/cancel")
+def cancel():  return "Payment cancelled", 200
+
+# temporary debug helper
+@payfast_bp.get("/ipn")
+def ipn_get_debug():
+    return "ipn-get-ok", 200

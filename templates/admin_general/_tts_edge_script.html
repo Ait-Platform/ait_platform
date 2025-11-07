@@ -1,0 +1,64 @@
+<script>
+(function () {
+  // Kill any legacy POSTs to /admin/general/tts (if a global script still calls it)
+  (function(){
+    var BLOCK='/admin/general/tts';
+    var _fetch=window.fetch;
+    window.fetch=function(i,n){var u=(typeof i==='string')?i:(i&&i.url)||''; if(u.includes(BLOCK)) return Promise.resolve(new Response('client-blocked',{status:410})); return _fetch.apply(this,arguments);};
+    var _open=XMLHttpRequest.prototype.open; XMLHttpRequest.prototype.open=function(m,u){ if(typeof u==='string'&&u.includes(BLOCK)){ this.send=function(){}; return; } return _open.apply(this,arguments); };
+  })();
+
+  const openBtn=document.getElementById('openTts');
+  const pane=document.getElementById('ttsPane');
+  const textEl=document.getElementById('ttsText');
+  const voiceEl=document.getElementById('ttsVoice');
+  const rateEl=document.getElementById('ttsRate');
+  const convertEl=document.getElementById('ttsConvert');
+  const player=document.getElementById('ttsPlayer');
+  const dlLink=document.getElementById('ttsDownload');
+  const errBox=document.getElementById('errBox');
+
+  const showError=(m)=>{errBox.textContent=m; errBox.classList.remove('hidden');};
+  const hideError=()=>{errBox.classList.add('hidden');};
+
+  openBtn?.addEventListener('click',()=>{ pane.classList.toggle('hidden'); if(!pane.classList.contains('hidden')) pane.scrollIntoView({behavior:'smooth',block:'start'}); });
+
+  let voices=[];
+  function loadVoices(){
+    voices=window.speechSynthesis?window.speechSynthesis.getVoices():[];
+    if(!voiceEl || voiceEl.dataset.filled==='1' || !voices.length) return;
+    voiceEl.innerHTML='';
+    voices.forEach(v=>{ const o=document.createElement('option'); o.value=v.name; o.textContent=v.name+(v.lang?` (${v.lang})`:'' ); voiceEl.appendChild(o); });
+    const preferred=voices.find(v=>/Microsoft (Aria|Guy) Online/i.test(v.name))||voices[0];
+    if(preferred) voiceEl.value=preferred.name;
+    voiceEl.dataset.filled='1';
+  }
+  if('speechSynthesis' in window){ loadVoices(); window.speechSynthesis.onvoiceschanged=loadVoices; }
+
+  convertEl?.addEventListener('click',()=>{
+    hideError();
+    if(!('speechSynthesis' in window)) { showError('Use Microsoft Edge (Web Speech).'); return; }
+    const text=(textEl?.value||'').trim(); if(!text){ showError('Please enter text.'); return; }
+
+    try{
+      const utter=new SpeechSynthesisUtterance(text);
+      const chosen=voices.find(v=>v.name===(voiceEl?.value||''))||voices.find(v=>/Microsoft (Aria|Guy) Online/i.test(v.name))||voices[0];
+      if(chosen) utter.voice=chosen;
+
+      let pct=0, raw=(rateEl?.value||'+0%').replace('%',''); const m=/^([+-]?\d+)$/.exec(raw); if(m) pct=parseInt(m[1],10);
+      utter.rate=Math.max(0.5, Math.min(1.5, 1 + pct/100));
+      utter.pitch=1.0; utter.volume=1.0;
+
+      const original=convertEl.textContent; convertEl.disabled=true; convertEl.textContent='Speaking…';
+      utter.onend=()=>{convertEl.disabled=false; convertEl.textContent=original;};
+      utter.onerror=(e)=>{convertEl.disabled=false; convertEl.textContent=original; showError('TTS error: '+(e.error||'Web Speech error'));};
+
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(utter);
+
+      player?.classList.add('hidden');
+      dlLink?.classList.add('hidden');
+    }catch(e){ showError('TTS error: '+e.message); }
+  });
+})();
+</script>

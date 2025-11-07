@@ -1,0 +1,105 @@
+{% extends "layout.html" %}
+{% block title %}Loss Results | AIT{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto mt-10 p-6 bg-white rounded-2xl shadow leading-relaxed">
+
+  <div class="flex items-center justify-between mb-2">
+    <h2 class="text-2xl font-bold text-blue-800">Assessment Results</h2>
+    <div class="text-xs text-slate-500">Page {{ page_number or 1 }} of {{ page_count or 1 }}</div>
+  </div>
+
+  <p class="text-sm text-slate-500 mb-8">
+    {{ user.name }} • {{ user.email }} • {{ (res_created_at or now()).strftime('%Y-%m-%d %H:%M') }}
+  </p>
+
+  <div class="space-y-6">
+    {% for ph in phase_blocks %}
+      <section class="p-4 rounded-xl border">
+        <div class="flex items-baseline justify-between mb-2">
+          <h3 class="text-lg font-semibold">Phase {{ ph.number }} — {{ ph.name }}</h3>
+          <div class="text-sm text-slate-600">{{ ph.percent_label_i }}%</div>
+        </div>
+
+        {# Raw 0|50|100 bar — width uses raw %; style attribute only added when value exists #}
+        {# --- 0 | 50 | 100 bar (raw %, no inline style) --- #}
+        <div class="mt-1">
+          <div class="w-full h-3 rounded bg-gray-200 overflow-visible relative">
+            <div class="absolute inset-y-0 left-1/2 w-px bg-white"></div>
+            {# store the raw percent as a data attribute; can be >100 for debugging #}
+            <div class="h-3 bg-blue-600 js-bar" data-width="{{ (ph.percent_label_i or 0)|int }}"></div>
+
+          </div>
+          <div class="flex justify-between text-xs text-slate-500 mt-1">
+            <span>0</span><span>50</span><span>100</span>
+          </div>
+        </div>
+
+
+
+        <div class="mt-4">
+          <div class="font-semibold mb-1">Comment on Phase {{ ph.number }}: {{ ph.name }}</div>
+              <p class="text-slate-600 italic">x % of the time you are experiencing  these in this phase </p>
+          {% if ph.comments_shown and ph.comments_shown|length %}
+            <ul class="list-disc pl-5 space-y-1 text-sm">
+              {% for line in ph.comments_shown %}
+                <li>{{ line }}</li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <p class="text-slate-600 italic">No notable markers in this phase.</p>
+          {% endif %}
+        </div>
+      </section>
+    {% endfor %}
+  </div>
+
+  {# Progress section at the end #}
+  <section class="mt-8 p-4 rounded-xl border">
+    <h3 class="text-lg font-semibold mb-2">Progress</h3>
+    {% if progress_block is defined and progress_block.lines %}
+      <ul class="list-disc pl-5 space-y-1 text-sm">
+        {% for ln in progress_block.lines %}
+          <li>{{ ln }}</li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="text-slate-600 italic text-sm">
+        This section will summarize movement across phases and your Adaptation Vector.
+      </p>
+    {% endif %}
+  </section>
+
+  {# Single action: Email + Download PDF + Close; CSRF only if available #}
+  <form method="post" action="{{ url_for('loss_bp.result_finalize') }}" class="mt-8 text-center">
+    {% if csrf_token is defined %}
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% elif csrf_field is defined %}
+      {{ csrf_field() }}
+    {% endif %}
+    <button class="inline-flex items-center justify-center rounded-2xl border px-6 py-2 hover:bg-gray-50">
+      Email &amp; Download PDF
+    </button>
+    <p class="text-xs text-slate-500 mt-2">
+      This will email your report, download a PDF copy, and close your LOSS session.
+    </p>
+  </form>
+</div>  
+  <script>
+  (function () {
+    var bars = document.querySelectorAll('.js-bar');
+    for (var i = 0; i < bars.length; i++) {
+      var el = bars[i];
+      var raw = (el.getAttribute('data-width') || '0').toString().replace(',', '.').trim();
+      var n = parseFloat(raw); if (!isFinite(n)) n = 0;
+      el.style.width = n + '%';
+    }
+  })();
+  </script>
+
+
+
+
+
+{% endblock %}
+

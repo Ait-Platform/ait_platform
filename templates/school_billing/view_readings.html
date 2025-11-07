@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h2 class="text-xl font-bold mb-4">Meter Readings – {{ property_name }}</h2>
+
+{% if readings %}
+<table class="table-auto w-full border text-left">
+  
+<thead class="bg-gray-100 text-sm text-gray-700 uppercase">
+  <tr>
+    <th class="px-4 py-2 border">Meter Number</th>
+    <th class="px-4 py-2 border">Type</th>
+    <th class="px-4 py-2 border">Reading Date</th>
+    <th class="px-4 py-2 border">Reading Value</th>
+    <th class="px-4 py-2 border text-center">Actions</th>
+  </tr>
+</thead>
+<tbody>
+  {% for r in readings %}
+  <tr class="hover:bg-gray-50">
+    <td class="px-4 py-2 border">{{ r.meter_number }}</td>
+    <td class="px-4 py-2 border">{{ r.meter_type }}</td>
+    <td class="px-4 py-2 border">{{ r.reading_date.strftime('%Y-%m-%d') }}</td>
+    <td class="px-4 py-2 border">{{ r.reading_value }}</td>
+    <td class="px-4 py-2 border text-center space-x-2">
+      <a href="{{ url_for('billing_bp.edit_meter_reading', reading_id=r.id) }}"
+         class="inline-block px-3 py-1 text-white bg-blue-600 hover:bg-blue-700 rounded text-sm">
+        Edit
+      </a>
+      <a href="{{ url_for('billing_bp.delete_meter_reading', reading_id=r.id) }}"
+         class="inline-block px-3 py-1 text-white bg-red-600 hover:bg-red-700 rounded text-sm"
+         onclick="return confirm('Are you sure you want to delete this reading?');">
+        Delete
+      </a>
+    </td>
+  </tr>
+  {% endfor %}
+</tbody>
+
+</table>
+{% else %}
+  <p>No readings found for this property.</p>
+{% endif %}
+
+<a href="{{ url_for('billing_bp.admin_dashboard') }}" class="btn btn-secondary mt-4">Back to Dashboard</a>
+{% endblock %}

@@ -1,0 +1,37 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto py-10">
+  <h1 class="text-3xl font-bold text-blue-800 mb-6 text-center">📘 About the Billing System</h1>
+
+  <p class="text-center text-lg mb-4">
+    This platform allows tenants, landlords, and property managers to manage utility billing, meter readings,
+    and payments in a transparent and structured way.
+  </p>
+
+  <p class="text-center mb-8 text-gray-600">
+    View and download billing statements. Track payments and balances. 
+    View meter readings and utility usage.
+  </p>
+
+  <div class="row">
+    <div class="col-md-6 mb-4">
+      <div class="card shadow text-center p-4">
+        <h3 class="text-xl font-semibold mb-2">Tenant</h3>
+        <p class="mb-3">Access your monthly statements and monitor your usage.</p>
+        <a href="{{ url_for('auth_bp.start_registration', role='tenant', subject='billing') }}"
+           class="btn btn-success">Enroll</a>
+      </div>
+    </div>
+
+    <div class="col-md-6 mb-4">
+      <div class="card shadow text-center p-4">
+        <h3 class="text-xl font-semibold mb-2">Manager</h3>
+        <p class="mb-3">Manage billing for your properties and tenants.</p>
+        <a href="{{ url_for('auth_bp.start_registration', role='manager', subject='billing') }}"
+           class="btn btn-primary">Enroll</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

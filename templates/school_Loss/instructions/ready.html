@@ -1,0 +1,18 @@
+{% extends "layout.html" %}
+{% block content %}
+  <div class="bg-white rounded-xl shadow p-6 max-w-xl mx-auto border border-gray-400">
+    <h1 class="text-2xl font-bold text-blue-800 mb-4 text-center">You're Ready</h1>
+
+    <p class="mb-4 text-gray-800">
+      You’ve completed the preparation steps. The next screen will begin your diagnostic assessment.
+      Please answer honestly, and take your time.
+    </p>
+
+    <div class="flex justify-end">
+      <a href="{{ url_for('counselling_bp.loss_question', num=1) }}" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+        Start
+      </a>
+
+    </div>
+  </div>
+{% endblock %}

@@ -1,0 +1,103 @@
+{% extends "layout.html" %}
+{% block title %}Admin Hub · AIT{% endblock %}
+
+{# Head: guarantee CSRF token + page-scoped Tailwind #}
+{% block head %}
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <script>
+    (function () {
+      if (!document.querySelector('#tailwind-cdn')) {
+        var s = document.createElement('script'); s.id='tailwind-cdn'; s.src='https://cdn.tailwindcss.com';
+        document.head.appendChild(s);
+      }
+    })();
+  </script>
+{% endblock %}
+
+{% block content %}
+{# Body fallback (in case head blocks aren’t rendered by layout) #}
+<meta name="csrf-token" content="{{ csrf_token() }}">
+
+<div class="mx-auto max-w-5xl py-8">
+  <!-- Top bar: title + back -->
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <h1 class="text-2xl font-semibold text-slate-800">Admin Hub</h1>
+      <p class="text-slate-500 text-sm">Central tools for site operations & campaigns.</p>
+    </div>
+
+    <a href="{{ url_for('auth_bp.bridge_dashboard') }}"
+       class="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">
+      ← Back to Dashboard
+    </a>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+
+    <!-- Traffic & Visitors (placeholder) -->
+    <div class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+      <div class="h-1.5 bg-blue-600"></div>
+      <div class="p-5">
+        <h2 class="font-medium text-slate-900">Traffic & Visitors</h2>
+        <p class="text-xs text-slate-500 mb-3">Daily hits, signups, funnel conversion.</p>
+        <button type="button" class="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-400" disabled>Open</button>
+      </div>
+    </div>
+
+    <!-- Payments Reconciliation (placeholder) -->
+    <div class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+      <div class="h-1.5 bg-orange-600"></div>
+      <div class="p-5">
+        <h2 class="font-medium text-slate-900">Payments Reconciliation</h2>
+        <p class="text-xs text-slate-500 mb-3">Peach/provider payouts vs. orders.</p>
+        <button type="button" class="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-400" disabled>Open</button>
+      </div>
+    </div>
+
+    <!-- Users & Registrations (placeholder) -->
+    <div class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+      <div class="h-1.5 bg-emerald-600"></div>
+      <div class="p-5">
+        <h2 class="font-medium text-slate-900">Users & Registrations</h2>
+        <p class="text-xs text-slate-500 mb-3">Active learners, enrollments, status.</p>
+        <button type="button" class="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-400" disabled>Open</button>
+      </div>
+    </div>
+
+
+    <!-- Ad Builder (placeholder) -->
+    <div class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+      <div class="h-1.5 bg-purple-600"></div>
+      <div class="p-5">
+        <h2 class="font-medium text-slate-900">Ad Builder (Video & Assets)</h2>
+        <p class="text-xs text-slate-500 mb-3">Assemble voice, music, images; export for YouTube.</p>
+        <button type="button" class="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-400" disabled>Open</button>
+      </div>
+    </div>
+
+        <!-- Text to Speech -->
+    <div class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+      <div class="h-1.5 bg-pink-600"></div>
+      <div class="p-5">
+        <h2 class="font-medium text-slate-900">Text to Speech</h2>
+        <p class="text-xs text-slate-500 mb-3">Type/paste text and generate MP3.</p>
+        <a href="{{ url_for('general_bp.tts_ui') }}"
+          class="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50">
+          Open
+        </a>
+      </div>
+    </div>
+
+
+  </div>
+</div>
+
+{# No network calls. Tiny console sanity only. #}
+<script>
+  (function () {
+    var t = (document.querySelector('meta[name="csrf-token"]')||{}).content || '';
+    if (!t) console.warn('CSRF meta missing on Admin Hub (index).');
+  })();
+</script>
+{% endblock %}

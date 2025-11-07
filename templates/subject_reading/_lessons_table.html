@@ -1,0 +1,88 @@
+{# learner_dashboard.html top section #}
+{% set show_cta = true %}
+
+<div class="mb-6 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+  <div>
+    <div class="text-sm text-slate-800 font-medium">
+      👋 {{ t("hello", ui_lang) }}, {{ learner_name }}!
+    </div>
+    <div class="text-xs text-slate-500">
+      {{ t("your_lessons", ui_lang) }}
+    </div>
+  </div>
+
+  <div class="flex flex-wrap items-center gap-3 text-xs text-slate-600">
+    {# Language selection form #}
+    <form method="POST"
+          action="{{ url_for('reading_bp.set_lang') }}"
+          class="flex items-center gap-2">
+      <label for="lang" class="font-medium">
+        {{ t("language_label", ui_lang) }}
+      </label>
+        <select id="lang" name="lang"
+                class="border border-slate-300 rounded px-2 py-1 text-slate-800">
+          {% for code, label in [
+                ('en','English'),
+                ('zu','Zulu'),
+                ('xh','Xhosa'),
+                ('hi','Hindi'),
+                ('af','Afrikaans')
+            ] %}
+            <option value="{{ code }}" {{ 'selected' if ui_lang == code else '' }}>
+              {{ label }}
+            </option>
+          {% endfor %}
+        </select>
+
+
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit"
+              class="rounded bg-slate-800 text-white px-2 py-1 font-semibold hover:bg-slate-900">
+        {{ t("apply", ui_lang) }}
+      </button>
+    </form>
+
+    {# Start / Continue button #}
+    {% if show_cta %}
+    <form method="POST"
+          <form method="POST"
+            action="{{ url_for('reading_bp.begin_course') }}">
+
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit"
+              class="inline-flex items-center rounded-md bg-indigo-600 px-4 py-2 font-semibold text-white shadow hover:bg-indigo-700 text-xs">
+        {{ t("start_continue", ui_lang) }}
+      </button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+
+{# Lessons table #}
+<div class="overflow-hidden rounded-lg border border-slate-200 bg-white text-sm shadow">
+  <table class="w-full border-collapse">
+    <thead class="bg-slate-100 text-slate-700">
+      <tr class="text-left">
+        <th class="px-4 py-2 align-top w-1/3">
+          {{ t("title_col", ui_lang) }}
+        </th>
+        <th class="px-4 py-2 align-top">
+          {{ t("caption_col", ui_lang) }}
+        </th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-slate-200 text-slate-800">
+      {% for row in items %}
+      <tr class="hover:bg-slate-50">
+        <td class="px-4 py-3 align-top font-medium text-slate-900">
+          {{ loop.index }}. {{ row.title }}
+        </td>
+        <td class="px-4 py-3 align-top text-slate-700">
+          <div>{{ row.caption }}</div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

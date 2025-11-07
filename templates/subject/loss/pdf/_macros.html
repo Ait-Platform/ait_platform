@@ -1,0 +1,43 @@
+{# Safe % (0..100 int) #}
+{% macro safe_pct(v) -%}
+  {%- set s=(v if v is not none else 0)|float -%}
+  {{ 0 if s<0 else (100 if s>100 else s|round(0,'floor')) }}
+{%- endmacro %}
+
+{# Map phase/band -> range chip class #}
+{% macro range_chip_class(phase, band) -%}
+  {% if phase in [1,2,3] %}
+    {{ 'chip chip-emerald' if band==1 else ('chip chip-amber' if band==2 else 'chip chip-rose') }}
+  {% else %}
+    {{ 'chip chip-blue' if band==1 else ('chip chip-lightemerald' if band==2 else 'chip chip-emerald') }}
+  {% endif %}
+{%- endmacro %}
+
+{# Map phase/band -> bar color class #}
+{% macro bar_color_class(phase, band) -%}
+  {% if phase in [1,2,3] %}
+    {{ 'bar-emerald' if band==1 else ('bar-amber' if band==2 else 'bar-rose') }}
+  {% else %}
+    {{ 'bar-blue' if band==1 else ('bar-mint' if band==2 else 'bar-emerald') }}
+  {% endif %}
+{%- endmacro %}
+
+{# Bucket width to nearest 5 and return width class #}
+{% macro width_class(pct_value) -%}
+  {# clamp then bucket #}
+  {% set w = (pct_value if pct_value is not none else 0)|float %}
+  {% if w < 0 %}{% set w = 0 %}{% endif %}
+  {% if w > 100 %}{% set w = 100 %}{% endif %}
+  {% set w5 = ((w + 2.5) // 5 * 5) | int %}
+  {{ 'w-' ~ w5 }}
+{%- endmacro %}
+
+{# templates/subject/loss/pdf/_macros.html #}
+{% macro av_chip_class(label) -%}
+  {%- set v = (label or '')|lower -%}
+  {%- if 'not coping' in v -%}chip-av-notcoping
+  {%- elif 'slightly' in v -%}chip-av-slightlycoping
+  {%- else -%}chip-av-coping
+  {%- endif -%}
+{%- endmacro %}
+

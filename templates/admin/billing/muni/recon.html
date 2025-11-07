@@ -1,0 +1,117 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container mx-auto py-8 max-w-6xl">
+  <div class="mb-6 flex items-center justify-between">
+    <h1 class="text-2xl font-semibold">Muni Reconciliation — {{ label }}</h1>
+    <div class="flex gap-2">
+      <form method="post" action="{{ url_for('admin_bp.muni_recon_auto') }}">
+        {% if csrf_token is defined %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endif %}
+        <input type="hidden" name="month" value="{{ label }}">
+        <button class="px-3 py-2 rounded-lg border">Auto-match</button>
+      </form>
+      <a class="px-3 py-2 rounded-lg border"
+         href="{{ url_for('admin_bp.muni_recon_export', month=label) }}">Export CSV</a>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-2 gap-4">
+    <div class="bg-white border rounded-xl overflow-hidden">
+      <div class="px-3 py-2 border-b font-medium bg-slate-50">Left (Bank)</div>
+      <table class="min-w-full text-sm">
+        <thead class="bg-slate-50">
+          <tr>
+            <th class="px-3 py-2 text-left">Pick</th>
+            <th class="px-3 py-2 text-left">Date</th>
+            <th class="px-3 py-2 text-left">Description</th>
+            <th class="px-3 py-2 text-right">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in left %}
+          <tr class="hover:bg-slate-50">
+            <td class="px-3 py-2"><input type="radio" name="left_pick" value="{{ r.id }}" form="manualForm"></td>
+            <td class="px-3 py-2">{{ r.txn_date }}</td>
+            <td class="px-3 py-2">{{ r.description }}</td>
+            <td class="px-3 py-2 text-right">{{ '%.2f' % r.amount }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="bg-white border rounded-xl overflow-hidden">
+      <div class="px-3 py-2 border-b font-medium bg-slate-50">Right (Receipts)</div>
+      <table class="min-w-full text-sm">
+        <thead class="bg-slate-50">
+          <tr>
+            <th class="px-3 py-2 text-left">Pick</th>
+            <th class="px-3 py-2 text-left">Date</th>
+            <th class="px-3 py-2 text-left">Description</th>
+            <th class="px-3 py-2 text-right">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in right %}
+          <tr class="hover:bg-slate-50">
+            <td class="px-3 py-2"><input type="radio" name="right_pick" value="{{ r.id }}" form="manualForm"></td>
+            <td class="px-3 py-2">{{ r.txn_date }}</td>
+            <td class="px-3 py-2">{{ r.description }}</td>
+            <td class="px-3 py-2 text-right">{{ '%.2f' % r.amount }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <form id="manualForm" method="post" action="{{ url_for('admin_bp.muni_recon_match') }}" class="mt-4 flex gap-2">
+    {% if csrf_token is defined %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endif %}
+    <input type="hidden" name="month" value="{{ label }}">
+    <input type="hidden" name="left_id"  value="">
+    <input type="hidden" name="right_id" value="">
+    <button class="px-3 py-2 rounded-lg border">Match Selected</button>
+  </form>
+
+  <script>
+    // keep hidden inputs in sync with picked radios
+    document.addEventListener('change', (e) => {
+      if (e.target.name === 'left_pick')  document.querySelector('input[name="left_id"]').value  = e.target.value;
+      if (e.target.name === 'right_pick') document.querySelector('input[name="right_id"]').value = e.target.value;
+    });
+  </script>
+
+  {% if matches and matches|length %}
+  <div class="mt-8 bg-white border rounded-xl overflow-hidden">
+    <div class="px-3 py-2 border-b font-medium bg-slate-50">Current Matches</div>
+    <table class="min-w-full text-sm">
+      <thead class="bg-slate-50">
+        <tr>
+          <th class="px-3 py-2 text-left">Left</th>
+          <th class="px-3 py-2 text-left">Right</th>
+          <th class="px-3 py-2 text-right">Amount</th>
+          <th class="px-3 py-2 text-left">Rule</th>
+          <th class="px-3 py-2 text-right">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in matches %}
+        <tr class="hover:bg-slate-50">
+          <td class="px-3 py-2"><div class="text-xs text-slate-500">{{ m.l_date }}</div>{{ m.l_desc }}</td>
+          <td class="px-3 py-2"><div class="text-xs text-slate-500">{{ m.r_date }}</div>{{ m.r_desc }}</td>
+          <td class="px-3 py-2 text-right">{{ '%.2f' % m.amount }}</td>
+          <td class="px-3 py-2">{{ m.rule }}</td>
+          <td class="px-3 py-2 text-right">
+            <form method="post" action="{{ url_for('admin_bp.muni_recon_unmatch', mid=m.id) }}" style="display:inline">
+              {% if csrf_token is defined %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endif %}
+              <input type="hidden" name="month" value="{{ label }}">
+              <button class="text-red-600 underline bg-transparent border-0 p-0 cursor-pointer">Unmatch</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

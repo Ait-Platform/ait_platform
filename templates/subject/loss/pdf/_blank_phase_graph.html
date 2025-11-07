@@ -1,0 +1,23 @@
+{# templates/subject/loss/pdf/_blank_phase_graph.html #}
+<section class="rounded-2xl border border-slate-200 p-5 bg-white mt-3">
+  <h4 class="text-sm font-semibold text-slate-800 mb-2">Blank Phase Graph Template</h4>
+
+  <div class="loss-graph-wrap">
+    <div class="loss-graph-scale">
+      <span>0%</span><span>33%</span><span>66%</span><span>85%</span><span>100%</span>
+    </div>
+
+    <div class="loss-graph-area">
+      <div class="loss-gridline loss-gl33"><span class="loss-gl-tag">Low (33%)</span></div>
+      <div class="loss-gridline loss-gl66"><span class="loss-gl-tag">Mid (66%)</span></div>
+      <div class="loss-gridline loss-gl85"><span class="loss-gl-tag">High (85%)</span></div>
+
+      {% for n in [1,2,3,4] %}
+        <div class="loss-bar loss-bar--template">
+          <div class="loss-bar-box"></div>
+          <div class="loss-bar-label">Phase {{ n }}</div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>

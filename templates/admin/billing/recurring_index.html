@@ -1,0 +1,82 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container mx-auto max-w-4xl py-8">
+  <h1 class="text-xl font-semibold mb-4">Recurring Items</h1>
+
+  <div class="mb-3">
+    <a class="px-3 py-2 rounded-lg border"
+       href="{{ url_for('admin_bp.recurring_new', tenant_id=tenant_id, month=month) }}">
+      + Add Recurring
+    </a>
+  </div>
+
+  <div class="overflow-x-auto bg-white border border-slate-200 rounded-xl">
+    <table class="min-w-full text-sm">
+      <thead class="bg-slate-50">
+        <tr>
+          <th class="px-3 py-2 border-b text-left">Description</th>
+          <th class="px-3 py-2 border-b text-left">Kind</th>
+          <th class="px-3 py-2 border-b text-right">Amount</th>
+          <th class="px-3 py-2 border-b text-center">Day</th>
+          <th class="px-3 py-2 border-b text-center">Start</th>
+          <th class="px-3 py-2 border-b text-center">End</th>
+          <th class="px-3 py-2 border-b text-right">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr class="hover:bg-slate-50">
+          <td class="px-3 py-2 border-b">{{ r.description }}</td>
+          <td class="px-3 py-2 border-b">{{ r.kind }}</td>
+          <td class="px-3 py-2 border-b text-right">{{ '%.2f' % r.amount }}</td>
+          <td class="px-3 py-2 border-b text-center">{{ r.day_of_month }}</td>
+          <td class="px-3 py-2 border-b text-center">{{ r.start_month }}</td>
+          <td class="px-3 py-2 border-b text-center">{{ r.end_month }}</td>
+          <td class="px-3 py-2 border-b text-right">
+            <a class="text-blue-600 underline"
+               href="{{ url_for('admin_bp.recurring_edit', rec_id=r.id, tenant_id=tenant_id, month=month) }}">
+              Edit
+            </a>
+            |
+
+            <form method="post" action="{{ url_for('admin_bp.recurring_apply') }}" style="display:inline">
+              {% if csrf_token is defined %}
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              {% elif request and request.cookies.get('csrf_token') %}
+                <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_token') }}">
+              {% endif %}
+              <input type="hidden" name="tenant_id" value="{{ tenant_id }}">
+              <input type="hidden" name="month" value="{{ month }}">
+              <button class="px-3 py-2 rounded-lg border">Apply to {{ month }}</button>
+            </form>
+
+
+            |
+            <form method="post"
+                  action="{{ url_for('admin_bp.recurring_delete', rec_id=r.id) }}"
+                  style="display:inline"
+                  onsubmit="return confirm('Delete this recurring item?');">
+              {% if csrf_token is defined %}
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              {% elif request and request.cookies.get('csrf_token') %}
+                <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_token') }}">
+              {% endif %}
+              <input type="hidden" name="tenant_id" value="{{ tenant_id }}">
+              <input type="hidden" name="month" value="{{ month or '' }}">
+              <button class="text-red-600 underline bg-transparent border-0 p-0 cursor-pointer">Delete</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="mt-4">
+    <a class="px-3 py-2 rounded-lg border"
+       href="{{ url_for('admin_bp.tenant_ledger', tenant_id=tenant_id, month=month or '') }}">
+      ← Back to Ledger
+    </a>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,39 @@
+{% extends "layout.html" %}
+{% block title %}{{ lesson.title }}{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto mt-10 bg-white border border-slate-200 shadow rounded-2xl p-6">
+  <h1 class="text-xl font-semibold text-slate-900 mb-1">{{ lesson.id }}. {{ lesson.title }}</h1>
+  <p class="text-slate-600 text-sm mb-4">{{ lesson.caption }}</p>
+
+  {% if lesson.video_path %}
+  <video id="player" controls class="w-full rounded-lg mb-6">
+    <source src="{{ url_for('static', filename=lesson.video_path) }}" type="video/mp4">
+  </video>
+  {% else %}
+  <p class="text-slate-500 italic mb-6">(No video available for this lesson yet.)</p>
+  {% endif %}
+
+  <div class="flex flex-wrap justify-between items-center gap-3">
+    <a href="{{ request.path }}" class="text-sm text-slate-500 hover:underline">↻ Replay</a>
+
+    {% if next_id %}
+    <form method="POST" action="{{ url_for('reading_bp.advance_from_lesson', lesson_id=lesson.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button
+        class="inline-flex items-center bg-indigo-600 text-white font-medium px-4 py-2 rounded-lg hover:bg-indigo-700">
+        Next →
+      </button>
+    </form>
+    {% else %}
+    <form method="POST" action="{{ url_for('reading_bp.finish_course') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button
+        class="inline-flex items-center bg-green-600 text-white font-medium px-4 py-2 rounded-lg hover:bg-green-700">
+        Finish Course
+      </button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

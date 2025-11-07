@@ -1,0 +1,70 @@
+{# templates/shared/card_macros.html #}
+{% macro loss_card(item=None, title='', caption='', content='', buttons=[], footer_html='') -%}
+  {# Resolve fields from args → item.* #}
+  {% set _title   = title   or (item.title   if item and item.title   is defined else (item.label if item and item.label is defined else 'Untitled')) %}
+  {% set _caption = caption or (item.caption if item and item.caption is defined else (item.key_need if item and item.key_need is defined else '')) %}
+  {% set _content = content or (item.content if item and item.content is defined else (item.body if item and item.body is defined else '')) %}
+
+  {# Detect HTML-ish body #}
+  {% set looks_html = ('<' in (_content|string)) and ('>' in (_content|string)) %}
+
+  {# Buttons normalization #}
+  {% set btns = buttons or (item.buttons if item and item.buttons is defined else []) %}
+  {% set split_two = (btns|length == 2) %}
+
+  {# --- Dedupe caption/content if they’re effectively the same --- #}
+  {% set cap_norm  = (_caption or '')|striptags|trim %}
+  {% set body_norm = (_content or '')|striptags|trim %}
+  {% set hide_content = (cap_norm and body_norm and cap_norm == body_norm) %}
+
+  <div class="h-full max-w-3xl mx-auto p-6 bg-white rounded-2xl shadow border flex flex-col">
+    <div>
+      <h1 class="text-2xl font-bold text-slate-800">{{ _title }}</h1>
+      {% if _caption %}
+        <p class="mt-1 text-slate-500">{{ _caption }}</p>
+      {% endif %}
+    </div>
+
+
+
+      <div class="mt-4 flex-1 text-slate-800">
+        {% if not hide_content %}
+          {% if looks_html %}
+            <div class="prose prose-sm max-w-none">
+              <div class="font-semibold leading-relaxed">
+                {{ _content|safe }}
+              </div>
+            </div>
+          {% else %}
+            <div class="leading-relaxed whitespace-pre-line font-semibold">
+              {{ _content }}
+            </div>
+          {% endif %}
+        {% endif %}
+      </div>
+
+
+
+
+    {% if footer_html %}
+      <div class="mt-6 w-full">{{ footer_html|safe }}</div>
+    {% elif btns|length > 0 %}
+      <div class="mt-6 flex items-center {{ 'justify-between' if split_two else 'justify-end' }} gap-2 w-full">
+        {% if split_two %}
+          <a href="{{ btns[0].href }}" class="rounded-lg px-4 py-2 text-sm border bg-white hover:bg-slate-50">{{ btns[0].label }}</a>
+          <a href="{{ btns[1].href }}" class="rounded-lg px-4 py-2 text-sm bg-blue-600 text-white hover:bg-blue-700">{{ btns[1].label }}</a>
+        {% else %}
+          {% for b in btns %}
+            {% set base = "rounded-lg px-4 py-2 text-sm font-semibold" %}
+
+            {% if (b.kind or '') == 'primary' %}
+              <a href="{{ b.href }}" class="{{ base }} bg-blue-600 text-white hover:bg-blue-700">{{ b.label }}</a>
+            {% else %}
+              <a href="{{ b.href }}" class="{{ base }} border bg-white hover:bg-slate-50">{{ b.label }}</a>
+            {% endif %}
+          {% endfor %}
+        {% endif %}
+      </div>
+    {% endif %}
+  </div>
+{%- endmacro %}

@@ -1,0 +1,41 @@
+{% extends "layout.html" %}
+{% block title %}{{ title }} • Admin{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto mt-10 p-6 bg-white rounded-2xl shadow">
+
+  <div class="flex items-center justify-between mb-2">
+    <h2 class="text-xl font-bold text-blue-800">{{ title }}</h2>
+    <a href="{{ url_for('loss_bp.admin_dashboard') }}"
+       class="text-sm text-slate-600 hover:underline">Back</a>
+  </div>
+
+  <div class="border rounded-xl p-6">
+    <p class="text-slate-700">
+      Placeholder for: <span class="font-medium">{{ title }}</span>.
+    </p>
+    <p class="text-slate-500 text-sm mt-2">
+      This page will host the admin tool for “{{ title }}”.
+    </p>
+
+    <div class="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div class="p-4 rounded-lg bg-slate-50 border">
+        <div class="text-sm font-semibold">Action</div>
+        <div class="text-xs text-slate-500 mt-1">Coming soon</div>
+      </div>
+      <div class="p-4 rounded-lg bg-slate-50 border">
+        <div class="text-sm font-semibold">Preview</div>
+        <div class="text-xs text-slate-500 mt-1">Coming soon</div>
+      </div>
+    </div>
+
+    <div class="mt-6">
+      <a href="{{ url_for('loss_bp.admin_dashboard') }}"
+         class="inline-flex items-center justify-center rounded-xl border px-4 py-2 hover:bg-gray-50">
+        Back to Admin Dashboard
+      </a>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

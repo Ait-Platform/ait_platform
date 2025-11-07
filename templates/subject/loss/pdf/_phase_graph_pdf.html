@@ -1,0 +1,9 @@
+{# The ONLY graph in the PDF — vertical bars under the summary #}
+<table border="0" cellpadding="8" cellspacing="0" width="100%" style="margin-top:8px;">
+  <tr><td><b>Phase Graph (%)</b></td></tr>
+</table>
+
+<img
+  src="{{ url_for('loss_bp.phase_graph_png', P1=P1, P2=P2, P3=P3, P4=P4, _external=True) }}"
+  alt="Phase graph"
+  style="width:100%; max-width:720px;">

@@ -1,0 +1,25 @@
+﻿{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Build TTS (edge-tts)",
+      "type": "shell",
+      "command": "python",
+      "args": ["${workspaceFolder}\\tts_bridge.py"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Build AIT Ad (Blender)",
+      "type": "shell",
+      "command": "C:\\Program Files\\Blender Foundation\\Blender 4.5\\blender.exe",
+      "args": ["--background", "--python", "D:\\Users\\yeshk\\Documents\\ait_platform\\build_ait_ad.py"],
+      "problemMatcher": []
+    },
+    {
+      "label": "Run: TTS → Blender (sequence)",
+      "dependsOrder": "sequence",
+      "dependsOn": ["Build TTS (edge-tts)", "Build AIT Ad (Blender)"]
+    }
+  ]
+}

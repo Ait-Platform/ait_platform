@@ -1,0 +1,38 @@
+{% extends "layout.html" %}
+{% block title %}Contact Us · AIT{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-2xl py-10">
+  <h1 class="text-2xl font-semibold mb-1">Contact Us</h1>
+  <p class="text-slate-600 mb-6">We’ll reply to you at the email you provide.</p>
+
+  <form method="post" class="rounded-xl border bg-white p-6 shadow-sm space-y-4">
+    {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endif %}
+
+    <div>
+      <label class="block text-sm font-medium mb-1" for="name">Your name</label>
+      <input id="name" name="name" required class="w-full rounded-lg border px-3 py-2" />
+    </div>
+
+    <div>
+      <label class="block text-sm font-medium mb-1" for="email">Your email</label>
+      <input id="email" type="email" name="email" required class="w-full rounded-lg border px-3 py-2" />
+    </div>
+
+    <div>
+      <label class="block text-sm font-medium mb-1" for="subject">Subject (optional)</label>
+      <input id="subject" name="subject" class="w-full rounded-lg border px-3 py-2" />
+    </div>
+
+    <div>
+      <label class="block text-sm font-medium mb-1" for="message">Message</label>
+      <textarea id="message" name="message" rows="6" required class="w-full rounded-lg border px-3 py-2"></textarea>
+    </div>
+
+    <div class="flex items-center gap-3 pt-2">
+      <button class="rounded-lg bg-blue-600 text-white px-4 py-2 hover:bg-blue-700">Send</button>
+      <a href="{{ url_for('public_bp.welcome') }}" class="text-slate-600 hover:text-slate-800">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

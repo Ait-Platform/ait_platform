@@ -5,10 +5,15 @@
   <h1>PayFast Handoff (Debug)</h1>
   <p>This is exactly what will be posted to PayFast:</p>
   <pre>{{ pf_data | tojson(indent=2) }}</pre>
-  <form method="post" action="{{ payfast_url }}">
+<!-- templates/payfast_handoff.html -->
+  <form id="pf" method="post" action="{{ payfast_url }}">
     {% for k, v in pf_data.items() %}
       <input type="hidden" name="{{ k }}" value="{{ v }}">
     {% endfor %}
-    <button>Post to PayFast now</button>
+    <noscript><button type="submit">Continue</button></noscript>
   </form>
+  <script>document.getElementById('pf').submit();</script>
 </body>
+
+
+

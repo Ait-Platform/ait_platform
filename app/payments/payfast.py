@@ -7,6 +7,11 @@ from urllib.parse import urlencode, quote_plus
 import hashlib
 import re
 from app.models.auth import AuthSubject
+from decimal import Decimal, ROUND_HALF_UP
+# add these
+from app.models.auth import AuthSubject     # gives you the SQLAlchemy session
+from sqlalchemy import text                # enables raw SQL text() queries
+from app.extensions import db
 
 payfast_bp = Blueprint("payfast_bp", __name__)
 
@@ -213,8 +218,6 @@ def _pf_host(cfg) -> str:
     return "https://www.payfast.co.za/eng/process" if mode == "live" \
            else "https://sandbox.payfast.co.za/eng/process"
 
-def _fmt_amount(value) -> str:
-    return f'{Decimal(str(value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP):.2f}'
 
 def _ref_part(s: str) -> str:
     return re.sub(r"[^A-Za-z0-9._-]", "-", s)[:60]
@@ -241,49 +244,75 @@ def _ref(s: str) -> str:
     # safe, short token for m_payment_id
     return re.sub(r"[^A-Za-z0-9._-]", "-", s)[:40]
 
+# requires:
+# from app.models import db, AuthSubject
+# from sqlalchemy import text
+# from decimal import Decimal, ROUND_HALF_UP
+# from uuid import uuid4
+# import re, hashlib
+# (and your existing: _pf_host, _pf_sig, _ref helpers if not already defined)
+
 @payfast_bp.get("/hand-off")
 def handoff():
     cfg = current_app.config
 
     email = (request.args.get("email") or "").strip().lower()
     slug  = (request.args.get("subject") or "").strip()
-    debug = request.args.get("debug") == "1"
+    debug = (request.args.get("debug") == "1")
     if not email or not slug:
         abort(400, "Missing email or subject")
 
+    # ensure env present
     required = [
-        "PAYFAST_MERCHANT_ID","PAYFAST_MERCHANT_KEY",
-        "PAYFAST_RETURN_URL","PAYFAST_CANCEL_URL","PAYFAST_NOTIFY_URL"
+        "PAYFAST_MERCHANT_ID", "PAYFAST_MERCHANT_KEY",
+        "PAYFAST_RETURN_URL", "PAYFAST_CANCEL_URL", "PAYFAST_NOTIFY_URL"
     ]
     missing = [k for k in required if not cfg.get(k)]
     if missing:
         return render_template("payfast_misconfig.html", missing=missing), 500
 
-    # --- REAL PRICE/NAME FROM DB (no placeholders) ---
+    # subject (id + name)
     subject = AuthSubject.query.filter_by(slug=slug).first()
-    if not subject or subject.price is None:
-        abort(400, "Subject/price not configured")
+    if not subject:
+        abort(400, "Subject not found")
+    subject_id   = getattr(subject, "id", None)
+    subject_name = getattr(subject, "name", slug)
 
-    amount = _fmt_amount(subject.price)             # "50.00"
-    item_name = (f"{subject.name} enrollment")[:100]  # PayFast max 100 chars
+    # price from pricing table (amount_cents)
+    row = db.session.execute(text("""
+        SELECT amount_cents
+        FROM pricing
+        WHERE subject_id = :sid
+          AND role = 'learner'
+          AND plan = 'enrollment'
+          AND currency = 'ZAR'
+          AND (is_active = 1 OR is_active = TRUE)
+        ORDER BY COALESCE(active_from, created_at) DESC, id DESC
+        LIMIT 1
+    """), {"sid": subject_id}).first()
 
-    # Unique safe ref (no DB write needed)
-    ref = f"{_ref(slug)}-{uuid4().hex[:10]}"
+    if not row or row.amount_cents is None:
+        abort(400, "Active price not configured for this subject")
 
-    # --- CRITICAL: sandbox must have NO passphrase in signature ---
-    # If merchant_id is the sandbox one, force empty passphrase even if env set
+    amount_dec = (Decimal(int(row.amount_cents)) / Decimal(100)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    if amount_dec <= 0:
+        abort(400, "Amount must be > 0")
+    amount_str = f"{amount_dec:.2f}"
+
+    # enforce https URLs (PayFast requirement)
+    for k in ("PAYFAST_RETURN_URL", "PAYFAST_CANCEL_URL", "PAYFAST_NOTIFY_URL"):
+        if not str(cfg.get(k)).startswith("https://"):
+            abort(500, f"{k} must be https")
+
+    # sandbox must NOT include passphrase in signature
     merchant_id  = cfg.get("PAYFAST_MERCHANT_ID")
     merchant_key = cfg.get("PAYFAST_MERCHANT_KEY")
-    passphrase   = cfg.get("PAYFAST_PASSPHRASE") or ""
-    if merchant_id == "10000100":  # PayFast sandbox merchant
-        passphrase = ""  # must be empty for sandbox, or signature will fail
+    passphrase   = (cfg.get("PAYFAST_PASSPHRASE") or "")
+    if merchant_id == "10000100":  # sandbox merchant
+        passphrase = ""
 
-    # Basic field validations PayFast is picky about
-    if Decimal(amount) <= 0:
-        abort(400, "Amount must be > 0")
-    for url_key in ("PAYFAST_RETURN_URL","PAYFAST_CANCEL_URL","PAYFAST_NOTIFY_URL"):
-        if not str(cfg.get(url_key)).startswith("https://"):
-            abort(500, f"{url_key} must be https")
+    # unique ref, no DB writes
+    mref = f"{_ref(slug)}-{uuid4().hex[:10]}"
 
     pf_data = {
         "merchant_id":   merchant_id,
@@ -291,22 +320,48 @@ def handoff():
         "return_url":    cfg.get("PAYFAST_RETURN_URL"),
         "cancel_url":    cfg.get("PAYFAST_CANCEL_URL"),
         "notify_url":    cfg.get("PAYFAST_NOTIFY_URL"),
-        "m_payment_id":  ref,
-        "amount":        amount,
-        "item_name":     item_name,
-        "item_description": f"AIT • {slug}"[:255],  # PF allows up to 255
+        "m_payment_id":  mref,
+        "amount":        amount_str,
+        "item_name":     f"{subject_name} enrollment"[:100],
+        "item_description": f"AIT • {slug}"[:255],
         "email_address": email,
     }
     pf_data["signature"] = _pf_sig(pf_data, passphrase)
 
-    # Helpful one-line log (signature excluded)
     current_app.logger.info("PF handoff host=%s data=%s",
         _pf_host(cfg), {k: v for k, v in pf_data.items() if k != "signature"})
 
-    # Debug view: shows exactly what will be posted to PayFast
     if debug:
         return render_template("payfast_handoff_debug.html",
                                payfast_url=_pf_host(cfg), pf_data=pf_data)
 
     return render_template("payfast_handoff.html",
                            payfast_url=_pf_host(cfg), pf_data=pf_data)
+
+
+
+def _fmt_amount(value) -> str:
+    return f'{Decimal(str(value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP):.2f}'
+
+def _subject_amount(subject, req_amount: str | None):
+    """
+    Return Decimal price from the subject model or request override.
+    Supports major-unit fields and *_cents fields.
+    """
+    # Likely major-unit candidates
+    for f in ("price", "amount", "fee", "price_zar"):
+        v = getattr(subject, f, None)
+        if v is not None:
+            return Decimal(str(v))
+
+    # Likely cents-based fields
+    for f in ("price_cents", "amount_cents", "fee_cents"):
+        v = getattr(subject, f, None)
+        if v is not None:
+            return (Decimal(int(v)) / Decimal(100))
+
+    # Request override (e.g., /hand-off?...&amount=50.00)
+    if req_amount:
+        return Decimal(str(req_amount))
+
+    return None

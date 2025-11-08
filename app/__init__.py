@@ -279,7 +279,7 @@ def create_app():
     app.register_blueprint(sfm_bp)
     app.register_blueprint(general_bp, url_prefix="/admin/general")
     app.register_blueprint(tts_bp,      url_prefix="/admin/general")
-    app.register_blueprint(payfast_bp, url_prefix="/payment")
+    app.register_blueprint(payfast_bp, url_prefix="/payments")
     
     csrf.exempt(checkout_bp)  # keeps webhook/start happy
 

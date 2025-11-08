@@ -39,6 +39,7 @@ from app.utils.pricing import get_subject_plan
 import secrets
 from decimal import Decimal, InvalidOperation
 
+checkout_bp = Blueprint("checkout_bp", __name__)
 
    
 
@@ -536,7 +537,7 @@ def checkout():
 
 
 
-checkout_bp = Blueprint("checkout_bp", __name__)
+
 
 def _to_two_decimals(value: Decimal | float | str) -> str:
     """
@@ -628,56 +629,10 @@ def start():
         buyer_email=buyer_email,
         m_payment_id=m_payment_id,
     ), code=303)
-'''
-@checkout_bp.get("/payfast-handoff", endpoint="payfast_handoff")
-@login_required
-def payfast_handoff():
-    """
-    Renders a minimal auto-post form to your PayFast creator route.
-    No hardcoding of amount or names — all values come from the querystring
-    set by `start()`. Your PayFast server route reads RETURN/CANCEL/NOTIFY
-    from env and signs the payload before redirecting to PayFast.
-    """
-    amount       = request.args.get("amount", "0.00")
-    item_name    = request.args.get("item_name", "AIT Course")
-    buyer_email  = request.args.get("buyer_email", (current_user.email or "test@example.com").lower())
-    m_payment_id = request.args.get("m_payment_id") or f"AIT-{secrets.token_hex(6)}"
 
-    # Minimal inline template keeps this self-contained
-    html = """
-    <!doctype html>
-    <html>
-      <head><meta charset="utf-8"><title>Redirecting…</title></head>
-      <body>
-        <form id="pf" method="post" action="{{ url_for('payfast_bp.create_payment') }}">
-          <input type="hidden" name="amount" value="{{ amount }}">
-          <input type="hidden" name="item_name" value="{{ item_name }}">
-          <input type="hidden" name="email" value="{{ buyer_email }}">
-          <input type="hidden" name="m_payment_id" value="{{ m_payment_id }}">
-          <noscript>
-            <p>Click continue to proceed to PayFast.</p>
-            <button type="submit">Continue to PayFast</button>
-          </noscript>
-        </form>
-        <script>try{document.getElementById('pf').submit()}catch(e){}</script>
-      </body>
-    </html>
-    """
-    return render_template_string(
-        html,
-        amount=amount,
-        item_name=item_name,
-        buyer_email=buyer_email,
-        m_payment_id=m_payment_id
-    )
-'''
 # app/checkout/routes.py
-import secrets
-from flask import render_template_string, request, url_for
-from flask_login import login_required, current_user
 
-# IMPORTANT: import the blueprint object created in app/checkout/__init__.py
-from app.checkout import checkout_bp
+
 
 @checkout_bp.get("/payfast-handoff", endpoint="payfast_handoff")
 @login_required

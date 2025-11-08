@@ -163,17 +163,6 @@ def ipn_get_debug():
 def pf_notify_probe():
     return "OK", 200
 
-# --- POST handlers (real IPN)
-@payfast_bp.post("/notify")
-def pf_notify_ipn():
-    # TODO: your existing IPN validation + processing
-    return "OK", 200
-
-# --- GET probe: MUST always return 200 for PayFast checks
-@payfast_bp.get("/notify")
-def pf_notify_probe():
-    return "OK", 200
-
 # --- POST: keep your real IPN logic, but never 500; log instead
 @payfast_bp.post("/notify")
 def pf_notify_ipn():

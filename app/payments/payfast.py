@@ -152,12 +152,6 @@ def pf_signature(params: dict, passphrase: str) -> str:
         qs = f"{qs}&passphrase={quote_plus(passphrase)}"  # <-- encode
     return hashlib.md5(qs.encode("utf-8")).hexdigest()
 
-@payfast_bp.get("/success")
-def success(): return "Payment success ✔", 200
-
-@payfast_bp.get("/cancel")
-def cancel():  return "Payment cancelled", 200
-
 # temporary debug helper
 @payfast_bp.get("/ipn")
 def ipn_get_debug():
@@ -169,17 +163,33 @@ def ipn_get_debug():
 def pf_notify_probe():
     return "OK", 200
 
-@payfast_bp.get("/ipn")
-def pf_ipn_probe():
-    return "OK", 200
-
 # --- POST handlers (real IPN)
 @payfast_bp.post("/notify")
 def pf_notify_ipn():
     # TODO: your existing IPN validation + processing
     return "OK", 200
 
-@payfast_bp.post("/ipn")
-def pf_ipn_alias():
-    # Reuse the same logic
-    return pf_notify_ipn()
+# --- GET probe: MUST always return 200 for PayFast checks
+@payfast_bp.get("/notify")
+def pf_notify_probe():
+    return "OK", 200
+
+# --- POST: keep your real IPN logic, but never 500; log instead
+@payfast_bp.post("/notify")
+def pf_notify_ipn():
+    try:
+        # TODO: your existing IPN validate & process
+        return "OK", 200
+    except Exception:
+        current_app.logger.exception("PayFast IPN handler error")
+        # PayFast expects 200 even if you reject later
+        return "OK", 200
+
+# Optional: success/cancel placeholders so they don’t 500
+@payfast_bp.get("/success")
+def pf_success():
+    return "OK", 200
+
+@payfast_bp.get("/cancel")
+def pf_cancel():
+    return "OK", 200

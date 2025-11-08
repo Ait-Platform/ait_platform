@@ -266,10 +266,9 @@ def create_app():
     from app.payments.payfast import payfast_bp
     
 
-
+    app.logger.warning("registered checkout_bp at /checkout")
 
     app.register_blueprint(checkout_bp)
-    app.logger.warning("registered checkout_bp at /checkout")
     app.register_blueprint(public_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(reading_bp)

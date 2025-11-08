@@ -1,9 +1,12 @@
 # app/payments/payfast.py
+from uuid import uuid4
 from flask import Blueprint, current_app, request, render_template_string, abort,render_template, redirect
 from urllib.parse import urlencode
 import os, hmac, hashlib, ipaddress, requests
 from urllib.parse import urlencode, quote_plus
 import hashlib
+import re
+from app.models.auth import AuthSubject
 
 payfast_bp = Blueprint("payfast_bp", __name__)
 
@@ -223,58 +226,6 @@ def _pf_sig(data: dict, passphrase: str | None) -> str:
         qs = f"{qs}&passphrase={passphrase}"
     return hashlib.md5(qs.encode("utf-8")).hexdigest()
 
-@payfast_bp.get("/hand-off")
-def handoff():
-    cfg = current_app.config
-
-    # 1) Basic args
-    email = (request.args.get("email") or "").strip().lower()
-    subject = (request.args.get("subject") or "").strip()
-    if not email or not subject:
-        abort(400, "Missing email or subject")
-
-    # 2) Show exactly what’s missing (instead of a generic 500)
-    required = [
-        "PAYFAST_MERCHANT_ID",
-        "PAYFAST_MERCHANT_KEY",
-        "PAYFAST_RETURN_URL",
-        "PAYFAST_CANCEL_URL",
-        "PAYFAST_NOTIFY_URL",
-    ]
-    missing = [k for k in required if not cfg.get(k)]
-    if missing:
-        log.error("PayFast misconfig: missing %s", missing)
-        return render_template("payfast_misconfig.html", missing=missing), 500
-
-    # 3) Amount (replace with DB lookup when you wire it)
-    amount = _fmt_amount(request.args.get("amount") or "50.00")
-
-    # 4) Build payload
-    m_payment_id = f"{_ref_part(subject)}:{_ref_part(email)}"
-    pf_data = {
-        "merchant_id":   cfg.get("PAYFAST_MERCHANT_ID"),
-        "merchant_key":  cfg.get("PAYFAST_MERCHANT_KEY"),
-        "return_url":    cfg.get("PAYFAST_RETURN_URL"),
-        "cancel_url":    cfg.get("PAYFAST_CANCEL_URL"),
-        "notify_url":    cfg.get("PAYFAST_NOTIFY_URL"),
-        "m_payment_id":  m_payment_id,
-        "amount":        amount,
-        "item_name":     f"{subject} enrollment",
-        "item_description": f"AIT • {subject}",
-        "email_address": email,
-    }
-    pf_data["signature"] = _pf_sig(pf_data, cfg.get("PAYFAST_PASSPHRASE"))
-
-    # 5) Log once (safe fields only)
-    log.info("PayFast handoff → %s  m_payment_id=%s amount=%s email=%s",
-             _pf_host(cfg), m_payment_id, amount, email)
-
-    return render_template(
-        "payfast_handoff.html",
-        payfast_url=_pf_host(cfg),
-        pf_data=pf_data
-    )
-
 # payments/payfast_debug.py (optional)
 @payfast_bp.get("/_pf-config-ok")
 def _pf_config_ok():
@@ -285,3 +236,77 @@ def _pf_config_ok():
         k: bool(cfg.get(k)) if k != "PAYFAST_MODE" else cfg.get(k)
         for k in keys
     }, 200
+
+def _ref(s: str) -> str:
+    # safe, short token for m_payment_id
+    return re.sub(r"[^A-Za-z0-9._-]", "-", s)[:40]
+
+@payfast_bp.get("/hand-off")
+def handoff():
+    cfg = current_app.config
+
+    email = (request.args.get("email") or "").strip().lower()
+    slug  = (request.args.get("subject") or "").strip()
+    debug = request.args.get("debug") == "1"
+    if not email or not slug:
+        abort(400, "Missing email or subject")
+
+    required = [
+        "PAYFAST_MERCHANT_ID","PAYFAST_MERCHANT_KEY",
+        "PAYFAST_RETURN_URL","PAYFAST_CANCEL_URL","PAYFAST_NOTIFY_URL"
+    ]
+    missing = [k for k in required if not cfg.get(k)]
+    if missing:
+        return render_template("payfast_misconfig.html", missing=missing), 500
+
+    # --- REAL PRICE/NAME FROM DB (no placeholders) ---
+    subject = AuthSubject.query.filter_by(slug=slug).first()
+    if not subject or subject.price is None:
+        abort(400, "Subject/price not configured")
+
+    amount = _fmt_amount(subject.price)             # "50.00"
+    item_name = (f"{subject.name} enrollment")[:100]  # PayFast max 100 chars
+
+    # Unique safe ref (no DB write needed)
+    ref = f"{_ref(slug)}-{uuid4().hex[:10]}"
+
+    # --- CRITICAL: sandbox must have NO passphrase in signature ---
+    # If merchant_id is the sandbox one, force empty passphrase even if env set
+    merchant_id  = cfg.get("PAYFAST_MERCHANT_ID")
+    merchant_key = cfg.get("PAYFAST_MERCHANT_KEY")
+    passphrase   = cfg.get("PAYFAST_PASSPHRASE") or ""
+    if merchant_id == "10000100":  # PayFast sandbox merchant
+        passphrase = ""  # must be empty for sandbox, or signature will fail
+
+    # Basic field validations PayFast is picky about
+    if Decimal(amount) <= 0:
+        abort(400, "Amount must be > 0")
+    for url_key in ("PAYFAST_RETURN_URL","PAYFAST_CANCEL_URL","PAYFAST_NOTIFY_URL"):
+        if not str(cfg.get(url_key)).startswith("https://"):
+            abort(500, f"{url_key} must be https")
+
+    pf_data = {
+        "merchant_id":   merchant_id,
+        "merchant_key":  merchant_key,
+        "return_url":    cfg.get("PAYFAST_RETURN_URL"),
+        "cancel_url":    cfg.get("PAYFAST_CANCEL_URL"),
+        "notify_url":    cfg.get("PAYFAST_NOTIFY_URL"),
+        "m_payment_id":  ref,
+        "amount":        amount,
+        "item_name":     item_name,
+        "item_description": f"AIT • {slug}"[:255],  # PF allows up to 255
+        "email_address": email,
+    }
+    pf_data["signature"] = _pf_sig(pf_data, passphrase)
+
+    # Helpful one-line log (signature excluded)
+    current_app.logger.info("PF handoff host=%s data=%s",
+        _pf_host(cfg), {k: v for k, v in pf_data.items() if k != "signature"})
+
+    # Debug view: shows exactly what will be posted to PayFast
+    if debug:
+        return render_template("payfast_handoff_debug.html",
+                               payfast_url=_pf_host(cfg), pf_data=pf_data)
+
+    return render_template("payfast_handoff.html",
+                           payfast_url=_pf_host(cfg), pf_data=pf_data)

@@ -25,17 +25,7 @@ PAYFAST_SOURCE_NETS = [
 
 def cfg(key, default=""):
     return os.getenv(key, default)
-'''
-def pf_signature(params: dict, passphrase: str) -> str:
-    """Create PayFast signature from ALL fields (sorted by key, urlencode),
-       with passphrase appended."""
-    # Exclude empty values and 'signature' key itself
-    filtered = {k: v for k, v in params.items() if v not in (None, "") and k != "signature"}
-    qs = urlencode(sorted(filtered.items()), doseq=True)
-    if passphrase:
-        qs = f"{qs}&passphrase={passphrase}"
-    return hashlib.md5(qs.encode("utf-8")).hexdigest()
-'''
+
 def ip_in_trusted_range(ip: str) -> bool:
     try:
         ip_obj = ipaddress.ip_address(ip)
@@ -45,91 +35,7 @@ def ip_in_trusted_range(ip: str) -> bool:
     except Exception:
         pass
     return False
-'''
-@payfast_bp.post("/ipn")
-def ipn():
-    # 1) Basic CSRF-bypass by design: this endpoint is called by PayFast
-    # 2) Verify source IP (best-effort)
-    src_ip = request.headers.get("X-Forwarded-For", request.remote_addr or "")
-    if not ip_in_trusted_range(src_ip):
-        current_app.logger.warning(f"PayFast IP not in allowlist: {src_ip}")
-        return "bad ip", 400
 
-    # 3) Verify signature
-    data = request.form.to_dict(flat=True)
-    expected_sig = pf_signature(data, cfg("PAYFAST_PASSPHRASE"))
-    if data.get("signature", "") != expected_sig:
-        current_app.logger.warning("PayFast signature mismatch")
-        return "bad sig", 400
-
-    # 4) Validate with PayFast (server-to-server)
-    try:
-        resp = requests.post(PAYFAST_VALIDATE_URL, data=data, timeout=10)
-        valid = resp.text.strip() == "VALID"
-    except Exception as e:
-        current_app.logger.exception("PayFast validate POST failed")
-        return "validate error", 500
-
-    if not valid:
-        current_app.logger.warning(f"PayFast validate said INVALID: {resp.text[:200]}")
-        return "invalid", 400
-
-    # 5) Your business logic: confirm amount & mark order paid when payment_status == 'COMPLETE'
-    payment_status = data.get("payment_status")
-    m_payment_id   = data.get("m_payment_id")   # your internal ID
-    amount_gross   = data.get("amount_gross")
-
-    # TODO: look up m_payment_id in DB, compare expected amount, currency, etc.
-    # Example (pseudo):
-    # order = Order.get(m_payment_id)
-    # if Decimal(amount_gross) != order.amount: return "bad amount", 400
-    # if payment_status == "COMPLETE": order.mark_paid(...)
-
-    current_app.logger.info(f"PayFast IPN OK: {m_payment_id} status={payment_status} amount={amount_gross}")
-    return "ok", 200
-
-@payfast_bp.post("/ipn")
-def ipn():
-    # 1) Source IP check: enforce ONLY in live
-    mode = os.getenv("PAYFAST_MODE", "sandbox").lower()
-    src_ip = request.headers.get("X-Forwarded-For", request.remote_addr or "")
-    if mode == "live":
-        if not ip_in_trusted_range(src_ip):
-            current_app.logger.warning(f"PayFast IP not in allowlist: {src_ip}")
-            return "bad ip", 400
-    else:
-        current_app.logger.info(f"[sandbox] skipping IP allowlist check (src={src_ip})")
-
-    # 2) Verify signature
-    data = request.form.to_dict(flat=True)
-    expected_sig = pf_signature(data, cfg("PAYFAST_PASSPHRASE"))
-    if data.get("signature", "") != expected_sig:
-        current_app.logger.warning("PayFast signature mismatch")
-        return "bad sig", 400
-
-    # 3) Validate with PayFast (server-to-server)
-    try:
-        resp = requests.post(PAYFAST_VALIDATE_URL, data=data, timeout=10)
-        valid = resp.text.strip().upper() == "VALID"
-    except Exception:
-        current_app.logger.exception("PayFast validate POST failed")
-        return "validate error", 500
-    if not valid:
-        current_app.logger.warning(f"PayFast validate said INVALID: {resp.text[:200]}")
-        return "invalid", 400
-
-    # 4) Your business logic
-    payment_status = data.get("payment_status")
-    m_payment_id   = data.get("m_payment_id")
-    amount_gross   = data.get("amount_gross")
-    current_app.logger.info(f"PayFast IPN OK: {m_payment_id} status={payment_status} amount={amount_gross}")
-
-    if payment_status and payment_status.upper() == "COMPLETE":
-        # mark paid -> email -> report
-        pass
-
-    return "ok", 200
-'''
 # app/payments/payfast.py
 
 
@@ -256,3 +162,24 @@ def cancel():  return "Payment cancelled", 200
 @payfast_bp.get("/ipn")
 def ipn_get_debug():
     return "ipn-get-ok", 200
+
+# in your payments blueprint
+# --- GET probes (PayFast / browser checks)
+@payfast_bp.get("/notify")
+def pf_notify_probe():
+    return "OK", 200
+
+@payfast_bp.get("/ipn")
+def pf_ipn_probe():
+    return "OK", 200
+
+# --- POST handlers (real IPN)
+@payfast_bp.post("/notify")
+def pf_notify_ipn():
+    # TODO: your existing IPN validation + processing
+    return "OK", 200
+
+@payfast_bp.post("/ipn")
+def pf_ipn_alias():
+    # Reuse the same logic
+    return pf_notify_ipn()

@@ -24,7 +24,7 @@ from app.extensions import mail
 from app.extensions import db, login_manager, mail  # <-- use the one from extensions
 from app.models.loss import LcaRun, LcaResult
 from app.models.auth import User
-from config import DEFAULT_LOGIN_EMAIL
+from config import DEFAULT_LOGIN_EMAIL, Config
 from os import getenv
 import click
 from hashlib import sha256
@@ -33,7 +33,8 @@ from app.models.visit import VisitLog
 from app.models.payment import Payment, Subscription
 import os, sqlite3
 from werkzeug.middleware.proxy_fix import ProxyFix
-
+from dotenv import load_dotenv, find_dotenv
+load_dotenv(find_dotenv(), override=False)  # picks up your .env locally
 
 
 csrf = CSRFProtect()
@@ -135,6 +136,17 @@ def create_app():
         SMTP_PASSWORD=os.getenv("SMTP_PASSWORD"),
         CONTACT_TO_EMAIL=os.getenv("CONTACT_TO_EMAIL", os.getenv("SMTP_USERNAME")),
     )
+
+    # (optional) ensure keys are present – maps OS envs directly if Config missed any
+    import os
+    for k in (
+        "PAYFAST_MODE","PAYFAST_MERCHANT_ID","PAYFAST_MERCHANT_KEY",
+        "PAYFAST_PASSPHRASE","PAYFAST_RETURN_URL","PAYFAST_CANCEL_URL",
+        "PAYFAST_NOTIFY_URL"
+    ):
+        if k not in app.config or not app.config[k]:
+            v = os.environ.get(k)
+            if v: app.config[k] = v
 
     @app.context_processor
     def inject_now():
@@ -278,7 +290,7 @@ def create_app():
     app.register_blueprint(admin_bp)
     app.register_blueprint(sfm_bp)
     app.register_blueprint(general_bp, url_prefix="/admin/general")
-    app.register_blueprint(tts_bp,      url_prefix="/admin/general")
+    app.register_blueprint(tts_bp, url_prefix="/admin/general")
     app.register_blueprint(payfast_bp, url_prefix="/payments")
     
     csrf.exempt(checkout_bp)  # keeps webhook/start happy
@@ -364,6 +376,10 @@ def create_app():
                 db.session.add(u)
                 db.session.commit()
     return app
+
+
+
+
 
 
 

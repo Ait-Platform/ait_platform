@@ -1,6 +1,5 @@
 # app/payments/payfast.py
-from flask import Blueprint, current_app, request, render_template_string, abort
-from flask import redirect
+from flask import Blueprint, current_app, request, render_template_string, abort,render_template, redirect
 from urllib.parse import urlencode
 import os, hmac, hashlib, ipaddress, requests
 from urllib.parse import urlencode, quote_plus
@@ -182,3 +181,107 @@ def pf_success():
 @payfast_bp.get("/cancel")
 def pf_cancel():
     return "OK", 200
+
+
+
+from decimal import Decimal, ROUND_HALF_UP
+import re
+
+
+def _cfg(name: str) -> str:
+    val = current_app.config.get(name)
+    if not val:
+        abort(500, f"PayFast misconfiguration: {name} not set")
+    return val
+
+
+
+
+
+
+
+import hashlib, re, logging
+
+log = logging.getLogger(__name__)
+
+
+def _pf_host(cfg) -> str:
+    mode = (cfg.get("PAYFAST_MODE") or "sandbox").lower()
+    return "https://www.payfast.co.za/eng/process" if mode == "live" \
+           else "https://sandbox.payfast.co.za/eng/process"
+
+def _fmt_amount(value) -> str:
+    return f'{Decimal(str(value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP):.2f}'
+
+def _ref_part(s: str) -> str:
+    return re.sub(r"[^A-Za-z0-9._-]", "-", s)[:60]
+
+def _pf_sig(data: dict, passphrase: str | None) -> str:
+    clean = {k: v for k, v in data.items() if v not in (None, "",) and k != "signature"}
+    qs = urlencode(sorted(clean.items()))
+    if passphrase:
+        qs = f"{qs}&passphrase={passphrase}"
+    return hashlib.md5(qs.encode("utf-8")).hexdigest()
+
+@payfast_bp.get("/hand-off")
+def handoff():
+    cfg = current_app.config
+
+    # 1) Basic args
+    email = (request.args.get("email") or "").strip().lower()
+    subject = (request.args.get("subject") or "").strip()
+    if not email or not subject:
+        abort(400, "Missing email or subject")
+
+    # 2) Show exactly what’s missing (instead of a generic 500)
+    required = [
+        "PAYFAST_MERCHANT_ID",
+        "PAYFAST_MERCHANT_KEY",
+        "PAYFAST_RETURN_URL",
+        "PAYFAST_CANCEL_URL",
+        "PAYFAST_NOTIFY_URL",
+    ]
+    missing = [k for k in required if not cfg.get(k)]
+    if missing:
+        log.error("PayFast misconfig: missing %s", missing)
+        return render_template("payfast_misconfig.html", missing=missing), 500
+
+    # 3) Amount (replace with DB lookup when you wire it)
+    amount = _fmt_amount(request.args.get("amount") or "50.00")
+
+    # 4) Build payload
+    m_payment_id = f"{_ref_part(subject)}:{_ref_part(email)}"
+    pf_data = {
+        "merchant_id":   cfg.get("PAYFAST_MERCHANT_ID"),
+        "merchant_key":  cfg.get("PAYFAST_MERCHANT_KEY"),
+        "return_url":    cfg.get("PAYFAST_RETURN_URL"),
+        "cancel_url":    cfg.get("PAYFAST_CANCEL_URL"),
+        "notify_url":    cfg.get("PAYFAST_NOTIFY_URL"),
+        "m_payment_id":  m_payment_id,
+        "amount":        amount,
+        "item_name":     f"{subject} enrollment",
+        "item_description": f"AIT • {subject}",
+        "email_address": email,
+    }
+    pf_data["signature"] = _pf_sig(pf_data, cfg.get("PAYFAST_PASSPHRASE"))
+
+    # 5) Log once (safe fields only)
+    log.info("PayFast handoff → %s  m_payment_id=%s amount=%s email=%s",
+             _pf_host(cfg), m_payment_id, amount, email)
+
+    return render_template(
+        "payfast_handoff.html",
+        payfast_url=_pf_host(cfg),
+        pf_data=pf_data
+    )
+
+# payments/payfast_debug.py (optional)
+@payfast_bp.get("/_pf-config-ok")
+def _pf_config_ok():
+    cfg = current_app.config
+    keys = ["PAYFAST_MODE","PAYFAST_MERCHANT_ID","PAYFAST_MERCHANT_KEY",
+            "PAYFAST_PASSPHRASE","PAYFAST_RETURN_URL","PAYFAST_CANCEL_URL","PAYFAST_NOTIFY_URL"]
+    return {
+        k: bool(cfg.get(k)) if k != "PAYFAST_MODE" else cfg.get(k)
+        for k in keys
+    }, 200

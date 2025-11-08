@@ -1,0 +1,11 @@
+<!-- templates/payfast_misconfig.html -->
+<!doctype html>
+<title>PayFast configuration missing</title>
+<div style="max-width:620px;margin:4rem auto;font-family:system-ui">
+  <h1>PayFast configuration missing</h1>
+  <p>The following settings are required but not set:</p>
+  <ul>
+    {% for k in missing %}<li><code>{{ k }}</code></li>{% endfor %}
+  </ul>
+  <p>Set them in your environment (render/OS) or Config class and retry.</p>
+</div>

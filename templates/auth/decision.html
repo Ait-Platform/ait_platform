@@ -17,10 +17,19 @@
 
     <div class="sm:text-right">
       {% if cta_url %}
-        <a class="inline-flex items-center rounded-lg bg-blue-600 text-white px-4 py-2 text-sm font-medium hover:bg-blue-700"
+        <!--a class="inline-flex items-center rounded-lg bg-blue-600 text-white px-4 py-2 text-sm font-medium hover:bg-blue-700"
            href="{{ cta_url }}">
+          {#{ cta_label }#}
+        </a-->
+
+        {# decision.html — inside the sm:text-right block #}
+        <a class="inline-flex items-center rounded-lg bg-blue-600 text-white px-4 py-2 text-sm font-medium hover:bg-blue-700"
+          href="{{ url_for('payfast_bp.handoff', email=email, subject=subject_slug) }}">
           {{ cta_label }}
         </a>
+
+
+
       {% else %}
         <form method="POST" action="{{ url_for('auth_bp.register_decision') }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

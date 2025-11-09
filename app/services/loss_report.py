@@ -1,5 +1,5 @@
 from sqlalchemy import select, func
-from app import db
+from app.extensions import db
 from app.models.loss import LcaRun, LcaResult
 
 def build_report_ctx(run_id: int) -> dict:

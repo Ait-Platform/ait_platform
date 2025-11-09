@@ -2553,7 +2553,7 @@ def loss_phase_scores():
 
 from flask import request, abort, render_template, redirect, url_for
 from sqlalchemy import text
-from app.extensions import db
+
 from app.admin import admin_bp
 '''
 @admin_bp.route("/loss/result", methods=["GET"], endpoint="loss_result")
@@ -2629,18 +2629,6 @@ def _comment_units(pct, step):
     # Each 11.1% (P1/P2) or 12.5% (P3/P4) gives you one comment.
     # Ensure at least 1 when there’s any signal (>0%).
     return int(max(0 if pct <= 0 else 1, pct // step))
-
-# app/admin/loss/routes.py
-
-from flask import request, abort, render_template, redirect, url_for
-from sqlalchemy import text
-from app.extensions import db
-from app.admin import admin_bp
-# app/admin/loss/routes.py
-from sqlalchemy import text
-from flask import request, render_template, abort
-from app.extensions import db
-from app.admin import admin_bp
 
 @admin_bp.route("/loss/result-raw", methods=["GET"], endpoint="loss_result_raw")
 def loss_results_raw():
@@ -2826,8 +2814,6 @@ def _build_report_ctx(run_id: int, user_id: int | None):
         "page_count": 1,
     }
 
-
-
 PHASE_ITEM_STEP = {
     1: Decimal("11.1"),
     2: Decimal("11.1"),
@@ -2888,8 +2874,6 @@ def email_loss_report():
     # mail.send(msg)
     return ("Email queued", 200)
 
-
-
 ARCHIVE_DIR = os.environ.get("LOSS_REPORT_ARCHIVE_DIR", os.path.join(os.getcwd(), "var", "loss_reports"))
 os.makedirs(ARCHIVE_DIR, exist_ok=True)
 
@@ -2900,13 +2884,6 @@ def _archive_pdf(pdf_bytes: bytes, rid: int, uid: int | None) -> str:
     with open(fpath, "wb") as fh:
         fh.write(pdf_bytes)
     return fpath
-
-
-
-
-
-
-
 
 REPORT_DIR = os.environ.get("LOSS_REPORT_DIR", os.path.join(os.getcwd(), "var", "loss_reports"))
 ARCHIVE_DIR = os.environ.get("LOSS_REPORT_ARCHIVE_DIR", os.path.join(os.getcwd(), "var", "loss_reports_archive"))
@@ -2990,39 +2967,6 @@ def _maybe_housekeep_archive():
                 shutil.move(src, dst)
             except Exception:
                 pass
-'''
-@admin_bp.route("/loss/report/mycopy")
-def loss_report_mycopy():
-    rid = _get_int_arg("run_id")
-    if not rid:
-        return ("Missing run_id", 400)
-
-    # get current user's email (adapt to your auth)
-    to_email = None
-    try:
-        from flask_login import current_user
-        to_email = getattr(current_user, "email", None)
-        uid = getattr(current_user, "id", None)
-    except Exception:
-        uid = None
-
-    ctx = build_context(rid, uid, pdf_mode=False)
-    if not ctx:
-        return (f"No result for run_id={rid}", 404)
-
-    pdf_bytes = _render_pdf_bytes(ctx)
-    _save_pdf(pdf_bytes, rid, uid)
-    _maybe_housekeep_archive()
-
-    if to_email:
-        # _send_email(to_email, rid, pdf_bytes)
-        pass
-
-    return send_file(BytesIO(pdf_bytes), mimetype="application/pdf",
-                     as_attachment=True, download_name=f"loss-report-run{rid}.pdf")
-'''
-
-
 
 def _phase_scores_from_blocks(ctx):
     # your template shows a `blocks` list; each item has: phase, pct (or width_pct)
@@ -3042,39 +2986,7 @@ def _phase_scores_from_blocks(ctx):
     # ensure 4 values in order 1..4
     return [by_phase.get(i, 0) for i in (1, 2, 3, 4)]
 
-
 TEMPLATE_DIR = "subject/loss"      # ← change to "admin/loss" if that’s where the files are
-'''
-@admin_bp.route("/loss/report", methods=["GET"])
-def loss_report():
-    rid = _get_int_arg("run_id")
-    uid = _get_int_arg("user_id", required=False)
-    if not rid:
-        return ("Missing run_id", 400)
-
-    ctx = build_context(rid, uid, pdf_mode=True)
-    if not ctx:
-        return (f"No result for run_id={rid}", 404)
-
-    scores = _phase_scores_from_blocks(ctx)
-    ctx["phase_scores_pct"] = scores  # (optional) keep for debugging
-    data_uri, png_bytes = phase_scores_bar(scores)  # see updated helper below
-    ctx["phase_scores_chart_src"] = data_uri
-    # Get the four phase % scores from your context.
-    # Adapt this to your real context keys:
-
-
-    ctx["viewer_is_admin"] = True
-    return render_template(f"{TEMPLATE_DIR}/report.html", **ctx)
-'''
-
-
-
-
-
-
-
-
 
 def render_loss_template(name, **ctx):
     for path in (f"subject/loss/{name}", f"admin/loss/{name}", f"school_loss/{name}"):
@@ -3083,48 +2995,6 @@ def render_loss_template(name, **ctx):
         except TemplateNotFound:
             continue
     raise
-'''
-# app/admin/loss/routes.py (admin) — same body as above, reuse the same template
-@admin_bp.route("/loss/report.pdf")
-def loss_report_pdf():
-    rid = _get_int_arg("run_id")
-    
-    if not rid: return ("Missing run_id", 400)
-    uid = _get_int_arg("user_id", required=False)
-
-    ctx = build_context(rid, uid, pdf_mode=False)
-    if not ctx: return (f"No result for run_id={rid}", 404)
-
-    scores = _phase_scores_from_blocks(ctx)
-    ctx["phase_scores_pct"] = scores  # (optional) keep for debugging
-    data_uri, png_bytes = phase_scores_bar(scores)  # see updated helper below
-    ctx["phase_scores_chart_src"] = data_uri
-    # Get the four phase % scores from your context.
-    # Adapt this to your real context keys:
-
-    ctx["pdf_mode"] = True
-    html = render_template(f"{TEMPLATE_DIR}/report_pdf.html", **ctx)
-
-    
-    pdf_io = BytesIO()
-    HTML(string=html, base_url=request.host_url).write_pdf(pdf_io)
-    pdf_bytes = pdf_io.getvalue()
-
-    to_email = request.args.get("to")
-    if to_email:
-        send_pdf_email(to_email, rid, pdf_bytes)
-
-    # in loss_report_pdf route
-    return send_file(
-        BytesIO(pdf_bytes),
-        mimetype="application/pdf",
-        as_attachment=True,
-        download_name=f"loss-report-run{rid}.pdf",
-    )
-'''
-
-# ⬇️ import your actual models (rename if needed)
-
 
 SEED_REGISTRY = {
     "questions":       LcaQuestion,
@@ -3147,11 +3017,6 @@ def _get_seed_model(seed: str):
 @admin_bp.get("/admin/loss/seeds/<seed>/export.csv", endpoint="seed_export_csv_alt")
 def seed_export_csv_alt(seed):
     ...
-
-
-
-
-
 
 @admin_bp.route("/loss/seeds/<seed>/import-from-repo", methods=["POST", "GET"])
 def seed_import_from_repo(seed: str):
@@ -3179,28 +3044,12 @@ def seed_import_from_repo(seed: str):
         flash(f"Import failed: {ex}", "danger")
     return redirect(url_for("admin_bp.seed_preview", seed=seed))
 
-# --- CSV upload -> save to seeds/<seed>.csv, then reuse existing importer ---
-
-
-
-
-
 def seeds_dir(subject: str = "loss") -> Path:
     # Use instance/seeds/<subject>  (e.g., instance/seeds/loss)
     d = Path(current_app.instance_path) / "seeds" / subject
     d.mkdir(parents=True, exist_ok=True)
     return d
 
-
-# ... your other imports ...
-
-    # ... your other seed routes (preview / upload / import / hub) ...
-
-admin_bp._loss_seed_routes_registered = True
-
-
-
-# Guard so this file being imported twice can't re-register routes
 if not getattr(admin_bp, "_loss_seed_routes_registered", False):
     
     @admin_bp.get("/admin/loss/seeds/<seed>")
@@ -3289,11 +3138,6 @@ def seed_upload(seed: str):
     flash(f"Imported {count} rows into {seed}.", "success")
     return redirect(url_for("admin_bp.seed_preview", seed=seed))
 
-# ---- Seed hub config ----
-
-
-
-
 @admin_bp.post("/admin/loss/seeds/<seed>/import", endpoint="seed_import_csv")
 def seed_import_csv(seed: str):
     meta = SEED_CFG.get(seed) or abort(404)
@@ -3318,8 +3162,6 @@ def seed_import_csv(seed: str):
 
     flash(f"Imported {meta['title']} from {path.name}", "success")
     return redirect(url_for("admin_bp.seed_hub", tab=seed))
-
-
 
 @admin_bp.get("/loss/seeds")
 def seed_hub():
@@ -3360,7 +3202,6 @@ def seed_preview(seed):
         rows=rows,
     )
 
-
 @admin_bp.get("/loss/seeds/<seed>/export.csv", endpoint="seed_export_csv")
 def seed_export_csv(seed: str):
     meta = SEED_CFG.get(seed) or abort(404)
@@ -3377,8 +3218,6 @@ def seed_export_csv(seed: str):
     from flask import send_file
     return send_file(str(path), mimetype="text/csv",
                      as_attachment=True, download_name=meta.get("filename", f"{seed}.csv"))
-
-
 
 @admin_bp.route("/admin/loss/tables/save", methods=["GET", "POST"], endpoint="tables_save")
 def tables_save():
@@ -3464,8 +3303,6 @@ def tables_download():
     csv_path = write_csv(seed, headers, dict_rows)
     return send_file(csv_path, as_attachment=True, download_name=f"{seed}.csv", mimetype="text/csv", max_age=0)
 
-
-
 @admin_bp.get("/admin/loss/tables/view", endpoint="tables_view")
 def tables_view():
     raw_seed = request.args.get("seed", "questions")
@@ -3493,35 +3330,3 @@ def tables_view():
         download_base=url_for("admin_bp.tables_download"),
         csrf_token_value=generate_csrf(),             # pass token in case you add forms later
     )
-
-# in app/admin/loss/routes.py
-
-
-
-
-'''
-@admin_bp.route("/loss/report/email")
-def loss_report_email():
-    rid = int(request.args.get("run_id") or request.args.get("rid") or 0)
-    uid = getattr(getattr(request, "user", None), "id", None)
-
-    # Build context in PDF mode, render HTML
-    ctx = build_context(rid, uid, pdf_mode=True)
-    html = render_template("subject/loss/report_pdf.html", **ctx)
-
-    # Render to PDF bytes
-    pdf = HTML(string=html, base_url=current_app.root_path).write_pdf()
-
-    # Choose recipient: use the run owner, or fallback to a test address
-    to_addr = request.args.get("to") or current_app.config.get("MAIL_DEFAULT_SENDER", ("", "no-reply@localhost"))[1]
-
-    msg = Message(
-        subject=f"Loss report (Run {rid})",
-        recipients=[to_addr],
-    )
-    msg.body = "Attached: Loss Assessment Report PDF."
-    msg.attach(f"loss_report_run_{rid}.pdf", "application/pdf", pdf)
-
-    mail.send(msg)
-    return make_response(("Email queued", 200))
-'''

@@ -4,7 +4,7 @@ import csv, os
 from pathlib import Path
 from flask import current_app
 from sqlalchemy import text
-from app import db
+from app.extensions import db
 
 SEED_DIR = Path(__file__).resolve().parent / "seed"
 PHASES_CSV        = SEED_DIR / "lca_phase.csv"

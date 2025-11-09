@@ -2,17 +2,8 @@ from flask import current_app
 from sqlalchemy import text
 from datetime import datetime
 from app.extensions import db
-
-# app/utils/post_assessment.py
 from datetime import datetime
 from flask import current_app, url_for
-from sqlalchemy import text
-from app import db
-
-from datetime import datetime
-from flask import current_app, url_for
-from sqlalchemy import text
-from app import db
 
 def handle_exit_actions(user_id: int, subject_slug: str, run_id: int | None = None, email: str | None = None):
     """

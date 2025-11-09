@@ -52,7 +52,6 @@ from app.diagnostics import trace_route
 from flask import current_app
 from app.diagnostics import trace_route
 from flask import abort, request, redirect, url_for, render_template
-from app import db
 from app.diagnostics import trace_route
 import traceback
 from flask import (
@@ -586,7 +585,7 @@ def result_run(run_id: int):
     uid = request.args.get("user_id", type=int)
     if uid is None:
         from sqlalchemy import text
-        from app import db
+        
         row = db.session.execute(
             text("SELECT user_id FROM lca_result WHERE run_id=:rid LIMIT 1"),
             {"rid": run_id},

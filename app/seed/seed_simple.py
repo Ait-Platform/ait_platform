@@ -119,7 +119,7 @@ def _order_query(query, meta: SeedMeta):
 
 def fetch_rows(seed: str):
     """Read all rows for a seed."""
-    from app import db  # import inside to avoid circular imports
+    from app.extensions import db  # import inside to avoid circular imports
     meta = SEEDS[seed]
     return _order_query(meta.model.query, meta).all()
 
@@ -131,7 +131,7 @@ def save_from_form(seed: str, form) -> dict:
       - delete flags:   del-<id>=on
       - new rows:       new-<n>-<col>  (n = 1..N)
     """
-    from app import db  # late import prevents circulars
+    from app.extensions  import db  # late import prevents circulars
     meta = SEEDS[seed]
     Model = meta.model
 

@@ -111,9 +111,6 @@ class LcaPrompt(db.Model):
     text = db.Column(db.Text, nullable=False)
     buttons = db.Column(db.Text, default='yes;no')
 
-# models.py (or your models module)
-#from app import db
-
 class LcaPhase(db.Model):
     __tablename__ = "lca_phase"
     id = db.Column(db.Integer, primary_key=True)              # 1..4
@@ -154,7 +151,6 @@ class LcaScoringMap(db.Model):
     phase_3 = db.Column(db.Integer, nullable=False, default=0)
     phase_4 = db.Column(db.Integer, nullable=False, default=0)
 
-
 class LcaRun(db.Model):
     __tablename__ = "lca_run"
 
@@ -185,12 +181,6 @@ class LcaResult(db.Model):
     run_id     = db.Column(db.Integer, db.ForeignKey("lca_run.id"), index=True)
     subject    = db.Column(db.String)
 
-
-
-# ---------- Cards ----------
-
-# ---------- Items ----------
-
 class LcaProgressItem(db.Model):
     __tablename__ = "lca_progress_item"
     id       = db.Column(db.Integer, primary_key=True)
@@ -207,8 +197,6 @@ class LcaPause(db.Model):
     title   = db.Column(db.String, nullable=False)
     caption = db.Column(db.String)
     content = db.Column(db.Text, nullable=False)
-
-
 
 class LcaOverallItem(db.Model):
     __tablename__ = "lca_overall_item"

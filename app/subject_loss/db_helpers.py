@@ -1,6 +1,6 @@
 from datetime import datetime
 from sqlalchemy import text
-from app import db
+from app.extensions import db
 
 def loss_create_run(user_id:int, subject:str="LOSS")->int:
     row = db.session.execute(text("""

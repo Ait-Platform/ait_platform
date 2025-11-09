@@ -90,8 +90,6 @@ class Payment(db.Model):
         return obj
 
 
-# ---- Subscription ----------------------------------------------------------
-
 class Subscription(db.Model):
     """
     Stripe subscriptions. Same reflection/fallback pattern.
@@ -159,10 +157,6 @@ class Subscription(db.Model):
         obj = cls(**filtered)
         db.session.add(obj)
         return obj
-
-# app/models/auth_pricing.py
-from datetime import datetime
-from app.extensions import db
 
 class AuthPricing(db.Model):
     __tablename__ = "auth_pricing"

@@ -1,7 +1,7 @@
 # UPSERT a single electricity meter/month row into bil_metsoa_meter_month
 from datetime import datetime
 from sqlalchemy import text
-from app import db
+from app.extensions import db
 
 def upsert_electricity_line(
     *, tenant_id: int, meter_id: int, month: str,

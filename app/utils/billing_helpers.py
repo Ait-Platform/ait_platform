@@ -935,11 +935,6 @@ def build_metsoa_page2_breakdown(tenant_id, month_str):
 
 
 # NOTE: add your own imports at the top of the file, e.g.:
-# from app.extensions import db
-# from app.models.billing import BilTenant, BilMeter, BilConsumption, BilTariff
-# from app.models.billing import BilMeterChargeMap  # your per-meter charge map model
-# from sqlalchemy import and_, or_
-# from datetime import datetime
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -2475,7 +2470,7 @@ def build_metsoa_page2_sections(tenant_id: int, month_str: str):
 from decimal import Decimal, ROUND_HALF_UP, getcontext
 from sqlalchemy import text
 from flask import current_app as app
-from app import db
+
 
 # Money-safe context
 getcontext().prec = 28

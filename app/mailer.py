@@ -1,6 +1,10 @@
 # app/mail_utils.py
 from flask_mail import Message
 from . import mail
+from typing import Iterable, Optional, Sequence, Tuple, Union
+from flask import current_app, render_template
+from flask_mail import Message
+from app.extensions import mail  # Mail() lives here
 
 def send_pdf_email(to_email: str, rid: int, pdf_bytes: bytes) -> None:
     msg = Message(
@@ -16,10 +20,7 @@ def send_pdf_email(to_email: str, rid: int, pdf_bytes: bytes) -> None:
     mail.send(msg)
 
 # app/utils/mailer.py
-from typing import Iterable, Optional, Sequence, Tuple, Union
-from flask import current_app, render_template
-from flask_mail import Message
-from app.extensions import mail  # Mail() lives here
+
 
 Attachment = Tuple[str, str, bytes]  # (filename, mimetype, raw_bytes)
 

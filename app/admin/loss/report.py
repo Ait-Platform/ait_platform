@@ -2,7 +2,7 @@
 from flask import request, render_template, abort
 from sqlalchemy import text
 from datetime import datetime
-from app import db
+from app.extensions import db
 
 def _phase_maxima():
     # If you have lca_phase_maxima(phase, max_score), use it.

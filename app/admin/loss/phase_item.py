@@ -130,7 +130,7 @@ def _width_pct(pct) -> int:
 from decimal import Decimal, ROUND_FLOOR
 from typing import Dict, List, Tuple
 from sqlalchemy import text
-from app import db
+
 
 # -------- Banding & orientation --------
 # Band thresholds shared by phases and progress:
@@ -398,7 +398,7 @@ def overall_assessment_from_p1(p1_pct) -> dict:
     }
 '''
 from app.models import LcaOverallItem
-from app import db
+
 
 def overall_assessment_from_p1(p1_pct) -> dict:
     """

@@ -24,18 +24,11 @@ import matplotlib
 matplotlib.use('Agg')  # ✅ prevents Tkinter errors
 from matplotlib import pyplot as plt
 from flask_login import  current_user
-
 import sqlite3
-
 from flask import current_app
-
 from flask import request, redirect, url_for, render_template
-from app import db
-
 from app.models.loss import LcaInstruction, LcaExplain, LcaPause  # adjust import path
-
 from jinja2 import TemplateNotFound
-
 from app.models.auth import User  
 try:
     from app.utils.assessment_helpers import get_user_display_name
@@ -44,12 +37,9 @@ except Exception:
 from typing import Any, Dict, List, Optional
 from types import SimpleNamespace
 import csv, click
-
 from decimal import Decimal, ROUND_HALF_UP
-
 from flask import session
 from sqlalchemy import text
-
 from math import ceil
 import csv, os
 from flask import session, g, abort
@@ -71,12 +61,10 @@ from werkzeug.exceptions import BadRequest
 from io import BytesIO
 from email.message import EmailMessage
 import smtplib
-
 from pathlib import Path
 from functools import lru_cache
 import csv, logging
 from flask_wtf.csrf import generate_csrf
-
 from app.models.loss import LcaInstruction, LcaExplain, LcaPause  # adjust path
 from urllib.parse import urlparse
 
@@ -94,7 +82,6 @@ def _choose_tpl(ctype: str) -> str:
         if t in available:
             return t
     return f"school_loss/cards/{ctype}.html"
-
 
 # Database connection function
 def get_db():
@@ -1472,13 +1459,6 @@ def _html_to_pdf(html: str) -> bytes:
     from weasyprint import HTML
     return HTML(string=html, base_url=request.host_url).write_pdf()
 
-
-
-
-
-
-
-
 def _infer_user_id_for_run(run_id: int):
     row = db.session.execute(
         text("SELECT user_id FROM lca_result WHERE run_id=:rid LIMIT 1"),
@@ -1488,61 +1468,3 @@ def _infer_user_id_for_run(run_id: int):
         {"rid": run_id}
     ).mappings().first()
     return row["user_id"] if row else None
-
-# to  be sorted later
-
-'''
-# app/subject_loss/loss_helpers.py
-from __future__ import annotations
-from typing import Optional
-from flask import session, g, redirect, url_for
-from flask_login import current_user
-
-# You must import or inject this from wherever it lives:
-# from app.subject_loss.loss_helpers_runs import start_new_run_for
-# or pass it in when needed.
-
-def _current_user_id() -> int:
-    """
-    Resolve the current user id in a safe, unified way.
-    Prefers Flask-Login's current_user, falls back to session['user_id'],
-    then to g.user_id, and finally to 1 for dev/local (adjust if needed).
-    """
-    if getattr(current_user, "is_authenticated", False):
-        try:
-            return int(current_user.id)
-        except Exception:
-            pass
-
-    uid: Optional[int] = session.get("user_id") or getattr(g, "user_id", None)
-    if uid is not None:
-        return int(uid)
-
-    # FINAL fallback – change to abort(401) in prod if you don’t want a default
-    return 1
-
-
-def _current_run_id(start_new_run_for) -> int:
-    """
-    Return the current active run_id for Loss from the session.
-    If missing, start a new run for the current user via start_new_run_for(uid),
-    store it in session['loss_run_id'], and return it.
-    """
-    rid = session.get("loss_run_id")
-    if rid:
-        return int(rid)
-
-    uid = _current_user_id()
-    new_rid = int(start_new_run_for(uid))
-    session["loss_run_id"] = new_rid
-    return new_rid
-
-
-def reset_sequence_cursor_and_redirect() -> "flask.wrappers.Response":
-    """
-    Reset the in-session sequence cursor and redirect to step 1.
-    Keep route logic out of helpers, but this tiny redirect is convenient.
-    """
-    session["q_seq_pos"] = 1
-    return redirect(url_for("loss_bp.sequence_step", pos=1))
-'''

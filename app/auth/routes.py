@@ -2400,25 +2400,6 @@ from flask import render_template, request, redirect, url_for, session
 from sqlalchemy import text as sa_text
 from werkzeug.security import generate_password_hash
 
-# expects:
-# - auth_bp: Blueprint
-# - db: SQLAlchemy session
-# - EMAIL_CANON_SQL: SQL expression that canonicalizes emails
-# - _canon_email_py(email: str) -> str  (Python version of the same)
-# - User ORM mapped to: id, name, email, password_hash, country, role, is_active, subject_id
-'''
-def _save_reg_ctx(role, subject, email, full_name, next_url, keep_email=None):
-    """Remember minimal registration context so /register/decision can render safely."""
-    session['reg_ctx'] = {
-        'role': (role or 'user').strip().lower(),
-        'subject': (subject or 'loss').strip().lower(),
-        'email': email or '',
-        'full_name': full_name or '',
-        'next_url': next_url or '/',
-        'keep_email': keep_email or None,
-    }
-'''
-
 @auth_bp.route("/start-payment", methods=["GET", "POST"])
 def start_payment():
     """
@@ -2428,7 +2409,7 @@ def start_payment():
     from flask import session as flask_session, request, redirect, url_for, flash, current_app
     from werkzeug.security import generate_password_hash
     from sqlalchemy import text as sa_text
-    from app import db
+   
     from decimal import Decimal, InvalidOperation
     import secrets
 

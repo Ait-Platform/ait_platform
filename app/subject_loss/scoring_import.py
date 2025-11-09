@@ -2,7 +2,7 @@ import os, csv
 from pathlib import Path
 from flask import current_app
 from sqlalchemy import text
-from app import db
+from app.extensions import db
 
 DEFAULT_CSV = Path(__file__).resolve().parent / "seed" / "lca_scoring_map.csv"
 REQUIRED = {"question_id","answer_type","phase_1","phase_2","phase_3","phase_4"}

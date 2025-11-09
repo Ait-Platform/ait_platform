@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, abort
-from app import db
+from app.extensions import db
 from flask import current_app
 from datetime import datetime, timedelta
 # Models (clean and complete)

@@ -56,7 +56,7 @@ def invalidate_role_cache() -> None:
     _ROLE_CACHE.pop("roles", None)
 
 from sqlalchemy import text
-from app.extensions import db
+
 
 def normalize_subject_slug(subject_in: str | None) -> str | None:
     s = (subject_in or "").strip().lower()

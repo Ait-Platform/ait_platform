@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from sqlalchemy import text
-from app import db
+from app.extensions import db
 
 def mark_enrollment_paid(*, user_id: int, subject_id: int, program: str | None = None) -> None:
     """

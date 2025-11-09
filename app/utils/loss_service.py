@@ -1,7 +1,7 @@
 # app/utils/loss_service.py
 from sqlalchemy import text
 from flask import session
-from app import db
+from app.extensions import db
 
 # ---------- Runs ----------
 def create_run(user_id: int) -> int:

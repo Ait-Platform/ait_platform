@@ -1,6 +1,6 @@
 # app/jobs/loss_archive.py
 from sqlalchemy import text
-from app import db  # adjust if your app factory exposes db elsewhere
+from app.extensions import db  # adjust if your app factory exposes db elsewhere
 
 def ensure_archive_tables():
     with db.engine.begin() as conn:

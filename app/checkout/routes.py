@@ -11,7 +11,7 @@ from flask import Blueprint, request, redirect, session, url_for, current_app, j
 from flask_login import login_required, current_user, login_user
 from sqlalchemy import text as sa_text
 from sqlalchemy import text
-from app import db, csrf
+from app.extensions import db, csrf
 from app.auth.decisions import get_canonical_user_id, upsert_active_enrollment
 from app.auth.helpers import subject_id_from_slug
 from app.checkout.stripe_client import fetch_subject_price
@@ -398,15 +398,6 @@ def cancel():
         db.session.rollback()
     # Land back on bridge
     return redirect(url_for("auth_bp.bridge_dashboard"), code=303)
-
-# --- keep in auth/routes.py ---
-
-
-
-
-# models/helpers you already have
-# from app.models import db, AuthSubject
-# from app.utils.pricing import get_subject_price
 
 def _subject_by_slug(slug: str):
     if not slug:

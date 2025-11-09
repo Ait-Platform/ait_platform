@@ -4,7 +4,7 @@ from flask import (
     jsonify, flash, session)
 from app.utils import reading_utils
 #from app.utils.role_utils import is_admin  # reuse your helper
-from app import db
+from app.extensions import db
 from app.models.reading import RdpLesson,RdpLearnerProgress
 from app.utils.roles import is_admin
 from .. import admin_bp

@@ -17,7 +17,7 @@ from decimal import Decimal
 from sqlalchemy import text
 from app.models.auth import User, AuthSubject, UserEnrollment # adjust to your names
 from app.extensions import csrf
-#from app.models.payment import Payment  
+import hashlib, re, logging
 
 payfast_bp = Blueprint("payfast_bp", __name__)
 
@@ -48,9 +48,6 @@ def ip_in_trusted_range(ip: str) -> bool:
     except Exception:
         pass
     return False
-
-# app/payments/payfast.py
-
 
 def pf_md5(s: str) -> str:
     return hashlib.md5(s.encode("utf-8")).hexdigest()
@@ -97,7 +94,6 @@ def ipn():
 
     current_app.logger.info(f"PayFast IPN OK: {m_payment_id} status={status} amount={amount_gross}")
     return "ok", 200
-
 
 @payfast_bp.post("/create")
 def create_payment():
@@ -157,7 +153,6 @@ def test_button():
 def ping():
     return "payfast ok", 200
 
-
 def pf_signature(params: dict, passphrase: str) -> str:
     filtered = {k: v for k, v in params.items() if v not in (None, "") and k != "signature"}
     qs = urlencode(sorted(filtered.items()), doseq=True)
@@ -196,41 +191,21 @@ def pf_success():
 def pf_cancel():
     return "OK", 200
 
-
-
-from decimal import Decimal, ROUND_HALF_UP
-import re
-
-
 def _cfg(name: str) -> str:
     val = current_app.config.get(name)
     if not val:
         abort(500, f"PayFast misconfiguration: {name} not set")
     return val
 
-
-
-
-
-
-
-import hashlib, re, logging
-
 log = logging.getLogger(__name__)
-
 
 def _pf_host(cfg) -> str:
     mode = (cfg.get("PAYFAST_MODE") or "sandbox").lower()
     return "https://www.payfast.co.za/eng/process" if mode == "live" \
            else "https://sandbox.payfast.co.za/eng/process"
 
-
 def _ref_part(s: str) -> str:
     return re.sub(r"[^A-Za-z0-9._-]", "-", s)[:60]
-
-# at top
-from urllib.parse import quote
-import hashlib
 
 def _pf_sig(data: dict, passphrase: str | None) -> str:
     clean = {k: str(v).strip() for k, v in data.items() if v not in (None, "",) and k != "signature"}
@@ -242,9 +217,6 @@ def _pf_sig(data: dict, passphrase: str | None) -> str:
     current_app.logger.info("PF sigbase=%s md5=%s", sig_base, sig)
     return sig
 
-from urllib.parse import quote_plus
-import hashlib, requests
-
 def _pf_sig_verify(payload: dict, passphrase: str) -> bool:
     data = {k: v for k, v in payload.items() if k != "signature" and v not in (None, "")}
     parts = [f"{k}={quote_plus(str(data[k]))}" for k in sorted(data)]
@@ -253,8 +225,6 @@ def _pf_sig_verify(payload: dict, passphrase: str) -> bool:
     base = "&".join(parts)
     return hashlib.md5(base.encode("utf-8")).hexdigest() == payload.get("signature", "")
 
-
-# payments/payfast_debug.py (optional)
 @payfast_bp.get("/_pf-config-ok")
 def _pf_config_ok():
     cfg = current_app.config
@@ -268,14 +238,6 @@ def _pf_config_ok():
 def _ref(s: str) -> str:
     # safe, short token for m_payment_id
     return re.sub(r"[^A-Za-z0-9._-]", "-", s)[:40]
-
-# requires:
-# from app.models import db, AuthSubject
-# from sqlalchemy import text
-# from decimal import Decimal, ROUND_HALF_UP
-# from uuid import uuid4
-# import re, hashlib
-# (and your existing: _pf_host, _pf_sig, _ref helpers if not already defined)
 
 @payfast_bp.get("/hand-off")
 def handoff():
@@ -378,9 +340,6 @@ def handoff():
     return render_template("payfast_handoff.html",
                            payfast_url=payfast_host, pf_data=pf_data)
 
-
-
-
 @payfast_bp.get("/_sanity")
 def pf_sanity():
     # Must be HTTPS and reachable publicly
@@ -403,14 +362,6 @@ def pf_sanity():
     return render_template("payfast_handoff.html",
                            payfast_url="https://sandbox.payfast.co.za/eng/process",
                            pf_data=pf_data)
-
-
-
-
-
-
-
-
 
 def _fmt_amount(value) -> str:
     return f'{Decimal(str(value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP):.2f}'
@@ -438,7 +389,6 @@ def _subject_amount(subject, req_amount: str | None):
 
     return None
 
-
 @payfast_bp.get("/success")
 def success():
     # Non-authoritative — IPN will flip DB state.
@@ -447,15 +397,6 @@ def success():
 @payfast_bp.get("/cancel")
 def cancel():
     return render_template("payment_cancelled.html")
-
-
-
-# app/payments/payfast.py
-from app.extensions import csrf
-from app.models import db, User, AuthSubject  # adjust imports to your project
-from sqlalchemy import text
-from decimal import Decimal
-import requests
 
 @payfast_bp.post("/notify")
 @csrf.exempt

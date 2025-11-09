@@ -1,5 +1,5 @@
 # app/models/stripe_payment.py
-from app import db
+from app.extensions import db
 from sqlalchemy import func
 
 class StripePayment(db.Model):

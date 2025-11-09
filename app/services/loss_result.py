@@ -2,7 +2,7 @@
 from sqlalchemy import text
 from datetime import datetime
 from flask import current_app as app
-from app import db  # adjust import to your project
+from app.extensions import db  # adjust import to your project
 
 def compute_and_upsert_loss_result(run_id: int) -> dict | None:
     """

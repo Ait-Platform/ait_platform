@@ -1,5 +1,5 @@
 from flask_login import current_user
-from app import db
+from app.extensions import db
 from app.models.billing import BilProperty, BilSectionalUnit, BilTenant, BilMeter
 from app.models.auth import User
 

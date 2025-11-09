@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, session
 from sqlalchemy import text
-from app import db
+from app.extensions import db
 from app.models.reading import RdpLearnerProgress, RdpLesson  # assumes db is created in app/__init__.py
 
 SEQ_SESSION_KEY = 'reading_seq_idx'

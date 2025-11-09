@@ -21,7 +21,7 @@ try:
     app = create_app()
 except Exception:
     # Fallback: if your app initializes db at import-time
-    from app import db  # type: ignore
+    from app.extensions import db  # type: ignore
     from flask import Flask
     app = Flask(__name__)
 

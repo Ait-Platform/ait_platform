@@ -236,6 +236,16 @@ def _pf_sig(data: dict, passphrase: str | None) -> str:
     current_app.logger.info("PF sigbase=%s md5=%s", sig_base, sig)
     return sig
 
+from urllib.parse import quote_plus
+import hashlib, requests
+
+def _pf_sig_verify(payload: dict, passphrase: str) -> bool:
+    data = {k: v for k, v in payload.items() if k != "signature" and v not in (None, "")}
+    parts = [f"{k}={quote_plus(str(data[k]))}" for k in sorted(data)]
+    if passphrase:
+        parts.append(f"passphrase={quote_plus(passphrase)}")
+    base = "&".join(parts)
+    return hashlib.md5(base.encode("utf-8")).hexdigest() == payload.get("signature", "")
 
 
 # payments/payfast_debug.py (optional)
@@ -421,3 +431,108 @@ def _subject_amount(subject, req_amount: str | None):
         return Decimal(str(req_amount))
 
     return None
+
+
+@payfast_bp.get("/success")
+def success():
+    # Non-authoritative — IPN will flip DB state.
+    return render_template("payment_success.html")  # “Thanks! Processing…” then link to dashboard
+
+@payfast_bp.get("/cancel")
+def cancel():
+    return render_template("payment_cancelled.html")
+
+from flask_wtf.csrf import csrf_exempt
+from decimal import Decimal
+from sqlalchemy import text
+from app.models import db, User, AuthSubject, UserEnrollment, Payment  # adjust to your names
+
+@payfast_bp.post("/notify")
+@csrf_exempt
+def notify():
+    cfg   = current_app.config
+    mode  = (cfg.get("PAYFAST_MODE") or "sandbox").lower()
+    form  = request.form.to_dict(flat=True)
+
+    # 1) Merchant & passphrase based on mode
+    expected_mid = "10000100" if mode == "sandbox" else cfg.get("PAYFAST_MERCHANT_ID")
+    passphrase   = "" if mode == "sandbox" else (cfg.get("PAYFAST_PASSPHRASE") or "")
+
+    # 2) Quick checks
+    if form.get("merchant_id") != expected_mid:
+        current_app.logger.error("IPN: merchant mismatch: %s", form.get("merchant_id"))
+        return ("", 400)
+    if passphrase and not _pf_sig_verify(form, passphrase):
+        current_app.logger.error("IPN: signature verify failed")
+        return ("", 400)
+
+    # 3) Validate with PayFast (server-to-server)
+    validate_host = "https://sandbox.payfast.co.za/eng/query/validate" if mode == "sandbox" \
+                    else "https://www.payfast.co.za/eng/query/validate"
+    try:
+        r = requests.post(validate_host, data=form, timeout=8)
+        if r.text.strip().lower() != "valid":
+            current_app.logger.error("IPN: remote validate failed: %s", r.text)
+            return ("", 400)
+    except Exception as e:
+        current_app.logger.exception("IPN: validate error")
+        return ("", 400)
+
+    # 4) Amount/subject/email reconciliation
+    mref   = form.get("m_payment_id", "")
+    amount = Decimal(form.get("amount", "0")).quantize(Decimal("0.01"))
+    email  = (form.get("email_address") or "").strip().lower()
+    slug   = mref.split("-")[0] if "-" in mref else None
+
+    subj = AuthSubject.query.filter_by(slug=slug).first() if slug else None
+    if not subj:
+        current_app.logger.error("IPN: subject missing for ref=%s", mref)
+        return ("", 400)
+
+    row = db.session.execute(text("""
+      SELECT amount_cents FROM auth_pricing
+      WHERE subject_id = :sid
+        AND (role='learner' OR role IS NULL)
+        AND plan='enrollment' AND currency='ZAR'
+        AND (is_active = 1 OR is_active = TRUE)
+        AND (active_to IS NULL OR active_to > CURRENT_TIMESTAMP)
+      ORDER BY COALESCE(updated_at, created_at) DESC,
+               COALESCE(active_from, created_at) DESC,
+               id DESC
+      LIMIT 1
+    """), {"sid": subj.id}).first()
+    expected = (Decimal(int(row.amount_cents))/Decimal(100)).quantize(Decimal("0.01")) if row else None
+    if not expected or amount != expected:
+        current_app.logger.error("IPN: amount mismatch amt=%s expected=%s", amount, expected)
+        return ("", 400)
+
+    # 5) Status
+    status = (form.get("payment_status") or "").upper()  # COMPLETE / FAILED / PENDING
+    if status != "COMPLETE":
+        current_app.logger.info("IPN: non-complete status: %s", status)
+        return ("", 200)
+
+    # 6) Upsert user/enrollment/payment (minimal, idempotent)
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        user = User(email=email); db.session.add(user); db.session.flush()
+
+    enr = UserEnrollment.query.filter_by(user_id=user.id, subject_id=subj.id).first()
+    if not enr:
+        enr = UserEnrollment(user_id=user.id, subject_id=subj.id, status="active")
+        db.session.add(enr)
+    else:
+        enr.status = "active"
+
+    pay = Payment.query.filter_by(reference=mref).first()
+    if not pay:
+        pay = Payment(reference=mref, user_id=user.id, subject_id=subj.id,
+                      provider="payfast", status="paid",
+                      amount_cents=int(expected * 100))
+        db.session.add(pay)
+    else:
+        pay.status = "paid"
+
+    db.session.commit()
+    current_app.logger.info("IPN: marked paid ref=%s user=%s subject=%s", mref, email, slug)
+    return ("", 200)

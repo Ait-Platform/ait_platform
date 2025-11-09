@@ -2508,8 +2508,7 @@ def loss_result():
     return render_template("admin/loss/result.html", run_id=rid, user_id=uid, row=row)
 
 
-# app/loss/routes.py
-# app/loss/routes.py
+
 @admin_bp.route("/loss/phase-scores")
 def loss_phase_scores():
     rid = request.args.get("run_id", type=int)
@@ -3004,26 +3003,7 @@ if not getattr(admin_bp, "_loss_seed_routes_registered", False):
             seed=seed, title=title, rows=rows, cols=cols
         )
     
-    @admin_bp.post("/seed/upload-json")
-    def seed_upload(seed):
-        seed = canon_seed(seed)
-        meta = SEED_TABLES.get(seed)
-        if not meta:
-            abort(404)
 
-        f = request.files.get("file")
-        if not f or not f.filename.lower().endswith(".csv"):
-            flash("Please upload a .csv file.", "warning")
-            return redirect(url_for("admin_bp.seed_preview", seed=seed))
-
-        try:
-            count = import_csv_stream(seed, f.stream)
-            flash(f"Imported {count} rows into {seed}.", "success")
-        except Exception as e:
-            db.session.rollback()
-            flash(f"Import failed: {e}", "danger")
-
-        return redirect(url_for("admin_bp.seed_preview", seed=seed))
 
     @admin_bp.route("/loss/seeds/<seed>/import-from-repo", methods=["GET", "POST"])
     def seed_import_from_repo_route(seed):
@@ -3067,14 +3047,34 @@ def seed_save_simple(seed):
 
 @admin_bp.post("/loss/seeds/<seed>/upload", endpoint="seed_upload")
 def seed_upload(seed: str):
-    # form file field name MUST match your template (e.g., 'file')
     f = request.files.get("file")
     if not f or not f.filename.lower().endswith(".csv"):
         flash("Please upload a .csv file.", "warning")
         return redirect(url_for("admin_bp.seed_hub", tab=seed))
-    count = import_csv_stream(seed, f)      # from your helper
+    count = import_csv_stream(seed, f)
     flash(f"Imported {count} rows into {seed}.", "success")
     return redirect(url_for("admin_bp.seed_preview", seed=seed))
+
+
+@admin_bp.post("/loss/seeds/<seed>/upload-json", endpoint="seed_upload_json")
+def seed_upload_json(seed: str):
+    seed = canon_seed(seed)
+    meta = SEED_TABLES.get(seed) or abort(404)
+
+    f = request.files.get("file")
+    if not f or not f.filename.lower().endswith(".csv"):
+        flash("Please upload a .csv file.", "warning")
+        return redirect(url_for("admin_bp.seed_preview", seed=seed))
+
+    try:
+        count = import_csv_stream(seed, f.stream)
+        flash(f"Imported {count} rows into {seed}.", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Import failed: {e}", "danger")
+
+    return redirect(url_for("admin_bp.seed_preview", seed=seed))
+
 
 @admin_bp.post("/loss/seeds/<seed>/import", endpoint="seed_import_csv")
 def seed_import_csv(seed: str):
@@ -3085,14 +3085,12 @@ def seed_import_csv(seed: str):
     path = seed_csv_path(seed)
     f.save(path)
 
-    # Import: truncate then insert (simple and predictable)
     cols = meta["cols"]
     with db.session.begin():
         db.session.execute(text(f"DELETE FROM {meta['table']}"))
         with open(path, encoding="utf-8-sig", newline="") as fh:
             reader = csv.DictReader(fh)
             for row in reader:
-                # if id is AUTOINCREMENT and left blank, omit it
                 insert_cols = [c for c in cols if not (c == "id" and (row.get("id") in (None, "", "NULL")))]
                 placeholders = ", ".join([f":{c}" for c in insert_cols])
                 sql = text(f"INSERT INTO {meta['table']} ({', '.join(insert_cols)}) VALUES ({placeholders})")

@@ -9,7 +9,7 @@ from flask import current_app, Response
 from sqlalchemy.exc import SQLAlchemyError
 from io import StringIO
 from sqlalchemy import text, inspect
-from app.extensions import db  
+from app.extensions import db   # <-- not `from app import db`
 
 # --- Canonical registry of seeds -------------------------------------------
 from pathlib import Path
@@ -74,26 +74,7 @@ def import_from_repo(seed_key: str) -> int:
 
     with csv_path.open("r", encoding="utf-8-sig", newline="") as f:
         return import_csv_stream(seed_key, f)
-'''
-# Where to look for seed CSVs in the repo (first match wins).
-#  - ./seeds/loss/*.csv              ← new preferred location
-#  - ./app/school_loss/seed/*.csv    ← backward-compat (old location)
-_REPO_SEED_DIRS = [
-    Path(__file__).resolve().parents[2] / "seeds" / "loss",
-    Path(__file__).resolve().parents[1] / "school_loss" / "seed",
-]
 
-# Default CSV filenames per seed key (fallback: "<seed>.csv")
-_DEFAULT_SEED_FILES = {
-    "questions":        "questions.csv",
-    "phase-items":      "phase_items.csv",
-    "progress-items":   "progress_items.csv",
-    "overall-items":    "overall_items.csv",
-    "instruction":      "instruction.csv",
-    "explain":          "explain.csv",
-    "pause":            "pause.csv",   # if you add pause cards
-}
-'''
 SEED_TABLES = {
     # existing seeds...
     "questions": {
@@ -155,11 +136,7 @@ SEED_ALIASES = {
     "explain": "explain_cards",
     "pause": "pause_cards",
 }
-'''
-def canon_seed(seed: str) -> str:
-    s = (seed or "").strip().lower()
-    return SEED_ALIASES.get(s, s)
-'''
+
 
 def db_has_table(name: str) -> bool:
     return inspect(db.engine).has_table(name)
@@ -476,31 +453,3 @@ def registry_meta(reg: dict[str, dict]) -> List[dict]:
             "note": meta.get("note", ""),
         })
     return out
-'''
-def import_from_repo(seed_key: str) -> int:
-    """
-    Load a CSV for `seed_key` from the repository and import it.
-    Search paths: _REPO_SEED_DIRS.
-    Returns the number of imported rows.
-    Raises FileNotFoundError if no CSV is found.
-    """
-    seed_key = canon_seed(seed_key)  # reuse your normalizer
-    filename = _DEFAULT_SEED_FILES.get(seed_key, f"{seed_key}.csv")
-
-    # find first existing file
-    csv_path = None
-    for base in _REPO_SEED_DIRS:
-        candidate = base / filename
-        if candidate.exists():
-            csv_path = candidate
-            break
-
-    if not csv_path:
-        # Be explicit about where we looked
-        tried = [str(p / filename) for p in _REPO_SEED_DIRS]
-        raise FileNotFoundError(f"No seed CSV found for '{seed_key}'. Tried: {tried}")
-
-    # stream to the existing importer (which does header validation & DB upsert)
-    with csv_path.open("r", encoding="utf-8-sig", newline="") as f:
-        return import_csv_stream(seed_key, f)
-'''

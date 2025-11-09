@@ -183,9 +183,10 @@ def pf_notify_ipn():
         return "OK", 200
 
 # Optional: success/cancel placeholders so they don’t 500
-@payfast_bp.get("/success")
-def pf_success():
-    return "OK", 200
+@payfast_bp.get("/success", endpoint="payfast_success")
+def success():
+    return render_template("payment_success.html"), 200
+
 
 @payfast_bp.get("/cancel")
 def pf_cancel():

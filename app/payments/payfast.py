@@ -262,11 +262,9 @@ def handoff():
     if not email or not slug:
         abort(400, "Missing email or subject")
 
-    # ensure env present
-    required = [
-        "PAYFAST_MERCHANT_ID", "PAYFAST_MERCHANT_KEY",
-        "PAYFAST_RETURN_URL", "PAYFAST_CANCEL_URL", "PAYFAST_NOTIFY_URL"
-    ]
+    # required env
+    required = ["PAYFAST_MERCHANT_ID","PAYFAST_MERCHANT_KEY",
+                "PAYFAST_RETURN_URL","PAYFAST_CANCEL_URL","PAYFAST_NOTIFY_URL"]
     missing = [k for k in required if not cfg.get(k)]
     if missing:
         return render_template("payfast_misconfig.html", missing=missing), 500
@@ -275,68 +273,111 @@ def handoff():
     subject = AuthSubject.query.filter_by(slug=slug).first()
     if not subject:
         abort(400, "Subject not found")
-    subject_id   = getattr(subject, "id", None)
+    subject_id   = subject.id
     subject_name = getattr(subject, "name", slug)
 
-    # price from pricing table (amount_cents)
+    # price from auth_pricing.amount_cents (active, most recent)
     row = db.session.execute(text("""
         SELECT amount_cents
-        FROM pricing
+        FROM auth_pricing
         WHERE subject_id = :sid
-          AND role = 'learner'
+          AND (role = 'learner' OR role IS NULL)
           AND plan = 'enrollment'
           AND currency = 'ZAR'
           AND (is_active = 1 OR is_active = TRUE)
-        ORDER BY COALESCE(active_from, created_at) DESC, id DESC
+          AND (active_to IS NULL OR active_to > CURRENT_TIMESTAMP)
+        ORDER BY COALESCE(updated_at, created_at) DESC,
+                 COALESCE(active_from, created_at) DESC,
+                 id DESC
         LIMIT 1
     """), {"sid": subject_id}).first()
 
     if not row or row.amount_cents is None:
-        abort(400, "Active price not configured for this subject")
+        # allow emergency override: /hand-off?...&amount=50.00
+        override = request.args.get("amount")
+        if not override:
+            abort(400, "Active price not configured for this subject")
+        amount_str = _fmt_amount(override)
+    else:
+        amount_dec = (Decimal(int(row.amount_cents)) / Decimal(100)).quantize(Decimal("0.01"))
+        if amount_dec <= 0:
+            abort(400, "Amount must be > 0")
+        amount_str = f"{amount_dec:.2f}"
 
-    amount_dec = (Decimal(int(row.amount_cents)) / Decimal(100)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-    if amount_dec <= 0:
-        abort(400, "Amount must be > 0")
-    amount_str = f"{amount_dec:.2f}"
-
-    # enforce https URLs (PayFast requirement)
-    for k in ("PAYFAST_RETURN_URL", "PAYFAST_CANCEL_URL", "PAYFAST_NOTIFY_URL"):
+    # https requirement for PayFast
+    for k in ("PAYFAST_RETURN_URL","PAYFAST_CANCEL_URL","PAYFAST_NOTIFY_URL"):
         if not str(cfg.get(k)).startswith("https://"):
             abort(500, f"{k} must be https")
 
-    # sandbox must NOT include passphrase in signature
-    merchant_id  = cfg.get("PAYFAST_MERCHANT_ID")
-    merchant_key = cfg.get("PAYFAST_MERCHANT_KEY")
-    passphrase   = (cfg.get("PAYFAST_PASSPHRASE") or "")
-    if merchant_id == "10000100":  # sandbox merchant
-        passphrase = ""
+    # sandbox must NOT include passphrase
+    mode = (cfg.get("PAYFAST_MODE") or "sandbox").lower()
+
+    if mode == "sandbox":
+        # Force official sandbox merchant + no passphrase
+        merchant_id  = "10000100"
+        merchant_key = "46f0cd694581a"
+        passphrase   = ""
+        payfast_host = "https://sandbox.payfast.co.za/eng/process"
+    else:
+        merchant_id  = cfg.get("PAYFAST_MERCHANT_ID")
+        merchant_key = cfg.get("PAYFAST_MERCHANT_KEY")
+        passphrase   = (cfg.get("PAYFAST_PASSPHRASE") or "")
+        payfast_host = "https://www.payfast.co.za/eng/process"
+
+    if mode == "sandbox" and cfg.get("PAYFAST_MERCHANT_ID") not in (None, "", "10000100"):
+        current_app.logger.warning("Ignoring live merchant in sandbox; forcing 10000100.")
+
+    # (optional) enforce https for PF return/cancel/notify
+    for k in ("PAYFAST_RETURN_URL","PAYFAST_CANCEL_URL","PAYFAST_NOTIFY_URL"):
+        if not str(cfg.get(k)).startswith("https://"):
+            abort(500, f"{k} must be https")
 
     # unique ref, no DB writes
     mref = f"{_ref(slug)}-{uuid4().hex[:10]}"
 
+    # Minimal, ASCII-only, sandbox-safe payload
+    # helpers (once, near top of file)
+    def _ascii(s: str) -> str:
+        return (s or "").encode("ascii", "ignore").decode("ascii")
+
+    # --- build minimal, sandbox-safe payload ---
+    item_name_clean = _ascii(f"{subject_name} enrollment")[:100]
+    email_clean     = _ascii(email)
+    mref_clean      = _ascii(mref)
+
     pf_data = {
-        "merchant_id":   merchant_id,
-        "merchant_key":  merchant_key,
+        "merchant_id":   merchant_id,           # 10000100 in sandbox
+        "merchant_key":  merchant_key,          # 46f0cd694581a in sandbox
         "return_url":    cfg.get("PAYFAST_RETURN_URL"),
         "cancel_url":    cfg.get("PAYFAST_CANCEL_URL"),
         "notify_url":    cfg.get("PAYFAST_NOTIFY_URL"),
-        "m_payment_id":  mref,
-        "amount":        amount_str,
-        "item_name":     f"{subject_name} enrollment"[:100],
-        "item_description": f"AIT • {slug}"[:255],
-        "email_address": email,
+        "m_payment_id":  mref_clean,            # stable ref if you locked it
+        "amount":        amount_str,            # "50.00"
+        "item_name":     item_name_clean,       # ASCII only
+        "email_address": email_clean,
     }
+    # passphrase MUST be "" in sandbox, your code already sets it
     pf_data["signature"] = _pf_sig(pf_data, passphrase)
 
-    current_app.logger.info("PF handoff host=%s data=%s",
-        _pf_host(cfg), {k: v for k, v in pf_data.items() if k != "signature"})
-
     if debug:
-        return render_template("payfast_handoff_debug.html",
-                               payfast_url=_pf_host(cfg), pf_data=pf_data)
+        return render_template(
+            "payfast_handoff_debug.html",
+            payfast_url=payfast_host,   # use the forced host here too
+            pf_data=pf_data
+        )
 
-    return render_template("payfast_handoff.html",
-                           payfast_url=_pf_host(cfg), pf_data=pf_data)
+    return render_template(
+        "payfast_handoff.html",
+        payfast_url=payfast_host,       # forced host (sandbox or live)
+        pf_data=pf_data
+    )
+
+
+
+
+
+
+
 
 
 

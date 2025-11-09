@@ -17,7 +17,7 @@ from decimal import Decimal
 from sqlalchemy import text
 from app.models.auth import User, AuthSubject, UserEnrollment # adjust to your names
 from app.extensions import csrf
-from app.models.payment import Payment  
+#from app.models.payment import Payment  
 
 payfast_bp = Blueprint("payfast_bp", __name__)
 

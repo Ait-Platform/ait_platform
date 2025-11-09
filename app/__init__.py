@@ -33,11 +33,11 @@ import os, sqlite3
 from werkzeug.middleware.proxy_fix import ProxyFix
 from dotenv import load_dotenv, find_dotenv
 load_dotenv(find_dotenv(), override=False)  # picks up your .env locally
-from flask_wtf import CSRFProtect
+#from flask_wtf import CSRFProtect
 from flask_wtf.csrf import generate_csrf
+from app.extensions import csrf
 
-
-csrf = CSRFProtect()
+#csrf = CSRFProtect()
 
 BASE_DIR = Path(__file__).resolve().parent
 TEMPLATES_DIR = BASE_DIR / "templates"
@@ -294,7 +294,8 @@ def create_app():
     app.register_blueprint(payfast_bp, url_prefix="/payments")
     
     csrf.exempt(checkout_bp)  # keeps webhook/start happy
-
+    # Exempt ONLY the PayFast IPN route (or the whole blueprint if you prefer)
+    csrf.exempt(payfast_bp)  # or: add @csrf.exempt on the /notify function
 
     # Log admin routes only in debug
     if app.debug:

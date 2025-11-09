@@ -222,12 +222,22 @@ def _pf_host(cfg) -> str:
 def _ref_part(s: str) -> str:
     return re.sub(r"[^A-Za-z0-9._-]", "-", s)[:60]
 
+# at top
+from urllib.parse import quote
+import hashlib
+
 def _pf_sig(data: dict, passphrase: str | None) -> str:
-    clean = {k: v for k, v in data.items() if v not in (None, "",) and k != "signature"}
-    qs = urlencode(sorted(clean.items()))
+    """
+    PayFast signature: rawurlencode (space -> %20), keys sorted ASCII,
+    exclude empty values and 'signature' itself, append passphrase if present.
+    """
+    cleaned = {k: str(v) for k, v in data.items() if v not in (None, "",) and k != "signature"}
+    parts = [f"{k}={quote(cleaned[k], safe='')}" for k in sorted(cleaned.keys())]
     if passphrase:
-        qs = f"{qs}&passphrase={passphrase}"
-    return hashlib.md5(qs.encode("utf-8")).hexdigest()
+        parts.append(f"passphrase={quote(passphrase, safe='')}")
+    query = "&".join(parts)
+    return hashlib.md5(query.encode("utf-8")).hexdigest()
+
 
 # payments/payfast_debug.py (optional)
 @payfast_bp.get("/_pf-config-ok")

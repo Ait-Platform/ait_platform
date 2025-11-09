@@ -1,7 +1,8 @@
 # app/payments/payfast.py
 from uuid import uuid4
-from flask import Blueprint, current_app, request, render_template_string, abort,render_template, redirect
+from flask import Blueprint, current_app, request, render_template_string, abort,render_template, redirect, url_for
 from urllib.parse import urlencode
+from flask_login import current_user, login_user
 import os, hmac, hashlib, ipaddress, requests
 from urllib.parse import urlencode, quote_plus
 import hashlib
@@ -357,19 +358,24 @@ def handoff():
 
     # ASCII-clean minimal payload
     def _ascii(s: str) -> str: return (s or "").encode("ascii","ignore").decode("ascii")
+    # after you compute mref and amount_str
+    return_url = f"{current_app.config['PAYFAST_RETURN_URL']}?ref={mref}&email={email}"
+    
+    item_name_clean = (f"{subject_name} enrollment")[:100]
+    email_clean = email
+
     pf_data = {
         "merchant_id":   merchant_id,
         "merchant_key":  merchant_key,
-        "return_url":    cfg["PAYFAST_RETURN_URL"].strip(),
-        "cancel_url":    cfg["PAYFAST_CANCEL_URL"].strip(),
-        "notify_url":    cfg["PAYFAST_NOTIFY_URL"].strip(),
-        "m_payment_id":  _ascii(mref),
-        "amount":        amount_str,                                  # "50.00"
-        "item_name":     _ascii(f"{subject_name} enrollment")[:100],  # ASCII, ≤100
-        "email_address": _ascii(email),
-        # optional but fine:
-        # "payment_method": "cc",
+        "return_url":    return_url,   # <— use this instead of the plain config value
+        "cancel_url":    current_app.config["PAYFAST_CANCEL_URL"],
+        "notify_url":    current_app.config["PAYFAST_NOTIFY_URL"],
+        "m_payment_id":  mref,
+        "amount":        amount_str,
+        "item_name":     item_name_clean,
+        "email_address": email_clean,
     }
+
 
     # In sandbox, do NOT include signature at all
     if merchant_id == "10000100":
@@ -439,10 +445,20 @@ def _subject_amount(subject, req_amount: str | None):
 
     return None
 
-@payfast_bp.get("/success")
+@payfast_bp.get("/success", endpoint="payfast_success")
 def success():
-    # Non-authoritative — IPN will flip DB state.
-    return render_template("payment_success.html")  # “Thanks! Processing…” then link to dashboard
+    if not current_user.is_authenticated:
+        email = (request.args.get("email") or "").strip().lower()
+        if email:
+            u = User.query.filter_by(email=email).first()
+            if not u:
+                u = User(email=email)
+                db.session.add(u)
+                db.session.commit()
+            login_user(u, remember=True)
+            return redirect(url_for("auth_bp.bridge_dashboard"))
+
+    return render_template("payment_success.html"), 200
 
 @payfast_bp.get("/cancel")
 def cancel():

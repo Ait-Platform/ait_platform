@@ -12,7 +12,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from app.models.auth import AuthSubject     # gives you the SQLAlchemy session
 from sqlalchemy import text                # enables raw SQL text() queries
 from app.extensions import db
-from flask_wtf.csrf import csrf_exempt
+#from flask_wtf.csrf import csrf_exempt
 from decimal import Decimal
 from sqlalchemy import text
 from app.models.auth import User, AuthSubject, UserEnrollment # adjust to your names

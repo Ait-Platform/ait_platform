@@ -2955,31 +2955,27 @@ def _get_seed_model(seed: str):
 def seed_export_csv_alt(seed):
     ...
 
-@admin_bp.route("/loss/seeds/<seed>/import-from-repo", methods=["POST", "GET"])
-def seed_import_from_repo(seed: str):
+@admin_bp.route("/loss/seeds/<seed>/import-from-repo", methods=["GET","POST"], endpoint="seed_import_from_repo")
+def seed_import_from_repo(seed):
     if not session.get("is_admin"):
         abort(403)
-    model = _get_seed_model(seed)
+    seed = canon_seed(seed)
 
-    repo_dir = current_app.config.get("SEED_REPO_DIR")
-    if not repo_dir:
-        # default to <project>/seeds or <app_root>/loss/seeds
-        repo_dir = os.path.join(current_app.root_path, "..", "seeds")
-        if not os.path.isdir(repo_dir):
-            repo_dir = os.path.join(current_app.root_path, "admin", "loss", "seeds")
-    path = os.path.abspath(os.path.join(repo_dir, f"{seed}.csv"))
-    if not os.path.exists(path):
-        flash(f"No CSV found at {path}", "warning")
-        return redirect(url_for("admin_bp.seed_preview", seed=seed))
+    if request.method == "GET":
+        return render_template("subject/loss/seed/import_from_repo.html", seed=seed)
 
     try:
-        added, updated, skipped = seed_import_csv_path(model, path)
-        flash(f"Imported from repo: {added} new, {updated} updated.", "success")
-    except Exception as ex:
-        current_app.logger.exception("Repo import failed")
+        count = import_from_repo(seed)
+        flash(f"Imported {count} rows for {seed} from repo.", "success")
+    except FileNotFoundError:
+        flash("No seed CSV found in repo for this item.", "warning")
+    except Exception as e:
         db.session.rollback()
-        flash(f"Import failed: {ex}", "danger")
+        flash(f"Import failed: {e}", "danger")
+
     return redirect(url_for("admin_bp.seed_preview", seed=seed))
+
+
 
 def seeds_dir(subject: str = "loss") -> Path:
     # Use instance/seeds/<subject>  (e.g., instance/seeds/loss)
@@ -3103,22 +3099,7 @@ def seed_preview(seed):
     )
 
 
-@admin_bp.route("/loss/seeds/<seed>/import-from-repo", methods=["GET", "POST"], endpoint="seed_import_from_repo")
-def seed_import_from_repo(seed):
-    seed = canon_seed(seed)
-    if request.method == "GET":
-        return render_template("subject/loss/seed/import_from_repo.html", seed=seed)
 
-    try:
-        count = import_from_repo(seed)
-        flash(f"Imported {count} rows for {seed} from repo.", "success")
-    except FileNotFoundError:
-        flash("No seed CSV found in repo for this item.", "warning")
-    except Exception as e:
-        db.session.rollback()
-        flash(f"Import failed: {e}", "danger")
-
-    return redirect(url_for("admin_bp.seed_preview", seed=seed))
 
 
 @admin_bp.get("/loss/seeds/<seed>/export.csv", endpoint="seed_export_csv")

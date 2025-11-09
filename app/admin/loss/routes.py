@@ -2987,43 +2987,7 @@ def seeds_dir(subject: str = "loss") -> Path:
     d.mkdir(parents=True, exist_ok=True)
     return d
 
-if not getattr(admin_bp, "_loss_seed_routes_registered", False):
-    
-    @admin_bp.get("/loss/seeds/<seed>")
-    def seed_preview(seed):
-        seed = canon_seed(seed)
-        meta = SEED_TABLES.get(seed)
-        if not meta:
-            abort(404)
-        rows = preview_rows(seed)
-        cols = meta["columns"]
-        title = meta.get("title", seed.title())
-        return render_template(
-            "subject/loss/seed/preview.html",
-            seed=seed, title=title, rows=rows, cols=cols
-        )
-    
 
-
-    @admin_bp.route("/loss/seeds/<seed>/import-from-repo", methods=["GET", "POST"])
-    def seed_import_from_repo_route(seed):
-        seed = canon_seed(seed)
-        if request.method == "GET":
-            return render_template("subject/loss/seed/import_from_repo.html", seed=seed)
-
-        # POST
-        try:
-            count = import_from_repo(seed)
-            flash(f"Imported {count} rows for {seed} from repo.", "success")
-        except FileNotFoundError:
-            flash("No seed CSV found in repo for this item.", "warning")
-        except Exception as e:
-            db.session.rollback()
-            flash(f"Import failed: {e}", "danger")
-
-        return redirect(url_for("admin_bp.seed_preview", seed=seed))
-
-    admin_bp._loss_seed_routes_registered = True
 # ========================================================================
 
 
@@ -3122,21 +3086,40 @@ def seed_hub():
 
 @admin_bp.get("/loss/seeds/<seed>", endpoint="seed_preview")
 def seed_preview(seed):
-    meta = SEEDS.get(seed) or abort(404)
-    rows = fetch_rows(seed)
+    seed = canon_seed(seed)
+    meta = SEED_TABLES.get(seed) or abort(404)
 
-    if isinstance(meta.cols, str):
-        cols = [c.strip() for c in meta.cols.split(",")]
-    else:
-        cols = list(meta.cols)
+    rows = preview_rows(seed)
+
+    cols = meta.get("columns") or meta.get("cols") or []
+    if isinstance(cols, str):
+        cols = [c.strip() for c in cols.split(",")]
+
+    title = meta.get("title") or seed.title()
 
     return render_template(
         "subject/loss/seed/preview.html",
-        seed=seed,
-        title=meta.title,
-        cols=cols,
-        rows=rows,
+        seed=seed, title=title, rows=rows, cols=cols
     )
+
+
+@admin_bp.route("/loss/seeds/<seed>/import-from-repo", methods=["GET", "POST"], endpoint="seed_import_from_repo")
+def seed_import_from_repo(seed):
+    seed = canon_seed(seed)
+    if request.method == "GET":
+        return render_template("subject/loss/seed/import_from_repo.html", seed=seed)
+
+    try:
+        count = import_from_repo(seed)
+        flash(f"Imported {count} rows for {seed} from repo.", "success")
+    except FileNotFoundError:
+        flash("No seed CSV found in repo for this item.", "warning")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Import failed: {e}", "danger")
+
+    return redirect(url_for("admin_bp.seed_preview", seed=seed))
+
 
 @admin_bp.get("/loss/seeds/<seed>/export.csv", endpoint="seed_export_csv")
 def seed_export_csv(seed: str):

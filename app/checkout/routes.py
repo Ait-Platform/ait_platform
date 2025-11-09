@@ -1,4 +1,6 @@
 # app/checkout/routes.py
+''' 
+
 from __future__ import annotations
 
 import os
@@ -43,7 +45,7 @@ checkout_bp = Blueprint("checkout_bp", __name__)
 
    
 
-''' 
+
 @checkout_bp.route("/ping")
 def ping():
     return "checkout ok", 200
@@ -521,7 +523,7 @@ def checkout():
         ap=q.get("ap"),
         currency=currency,
     )
-'''
+
 
 
 
@@ -656,3 +658,4 @@ def payfast_handoff():
         buyer_email=buyer_email,
         m_payment_id=m_payment_id,
     )
+'''

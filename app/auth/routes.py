@@ -11,7 +11,7 @@ from flask import (
     session, abort
     )
 import stripe
-from app.checkout.stripe_client import fetch_subject_price, record_stripe_payment
+#from app.checkout.stripe_client import fetch_subject_price, record_stripe_payment
 from app.extensions import db
 from werkzeug.security import check_password_hash
 from flask_login import login_user, logout_user, login_required, current_user
@@ -2962,3 +2962,34 @@ def _compute_subject_start_url(slug: str) -> str:
 
     # final safe fallback
     return url_for("auth_bp.bridge_dashboard")
+
+def fetch_subject_price(subject_slug: str, role: str = "user"):
+    """
+    Returns (amount_cents:int|None, currency:str|None) for the subject+role
+    from auth_pricing. Role can be NULL (means any role).
+    Picks the best row: exact role first, else NULL role; newest active_from wins.
+    """
+    slug = (subject_slug or "").strip().lower()
+    r    = (role or "user").strip().lower()
+
+    row = db.session.execute(sa_text("""
+        SELECT p.amount_cents, p.currency
+        FROM auth_pricing p
+        JOIN auth_subject s ON s.id = p.subject_id
+        WHERE lower(s.slug) = :slug
+          AND p.plan = 'enrollment'
+          AND COALESCE(p.is_active, 1) = 1
+          AND (p.role IS NULL OR lower(p.role) = :role)
+          AND (p.active_to IS NULL OR p.active_to > CURRENT_TIMESTAMP)
+        ORDER BY
+          CASE WHEN p.role IS NULL THEN 1 ELSE 0 END,   -- exact role first
+          p.active_from DESC
+        LIMIT 1
+    """), {"slug": slug, "role": r}).first()
+
+    if not row:
+        return None, None
+
+    amt = int(row[0]) if row[0] is not None else None
+    cur = (row[1] or "ZAR").upper()
+    return amt, cur

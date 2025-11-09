@@ -18,7 +18,7 @@ from flask_login import login_user, logout_user, login_required, current_user
 #from app.auth.decisions import (
 #    _canon_email_py, _subject_id_from_slug_fallback, 
 #    _work_key, find_user_active_first_by_email, get_reg_context)
-from app.checkout.routes import _create_checkout_session, _get_stripe_api_key
+# app.checkout.routes import _create_checkout_session, _get_stripe_api_key
 from app.models import subject
 from app.utils.country_list import COUNTRIES, resolve_country, search_countries  # adjust path if needed
 from app.utils.mailer import send_email

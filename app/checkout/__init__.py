@@ -4,5 +4,5 @@ from flask import Blueprint
 checkout_bp = Blueprint("checkout_bp", __name__, url_prefix="/checkout")
 
 # 2) Now import routes so decorators attach to THIS checkout_bp
-from . import routes  # noqa: E402
+#from . import routes  # noqa: E402
 

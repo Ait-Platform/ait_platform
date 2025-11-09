@@ -1,4 +1,6 @@
 # app/checkout/stripe_client.py
+'''
+
 import stripe
 from flask import current_app
 from app.extensions import db
@@ -147,3 +149,4 @@ def fetch_subject_price(subject_slug: str, role: str = "user"):
     amt = int(row[0]) if row[0] is not None else None
     cur = (row[1] or "ZAR").upper()
     return amt, cur
+'''

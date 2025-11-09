@@ -226,12 +226,6 @@ def _ref_part(s: str) -> str:
 from urllib.parse import quote
 import hashlib
 
-from urllib.parse import quote_plus
-import hashlib
-
-from urllib.parse import quote_plus
-import hashlib
-
 def _pf_sig(data: dict, passphrase: str | None) -> str:
     clean = {k: str(v).strip() for k, v in data.items() if v not in (None, "",) and k != "signature"}
     parts = [f"{k}={quote_plus(clean[k])}" for k in sorted(clean)]
@@ -359,6 +353,9 @@ def handoff():
     # force sandbox creds/host if mode == "sandbox" (you already added this)
     # merchant_id = "10000100"; merchant_key = "46f0cd694581a"; passphrase = ""; payfast_host = "https://sandbox.payfast.co.za/eng/process"
 
+    # force sandbox creds/host if mode == "sandbox" (you already added this)
+    # merchant_id = "10000100"; merchant_key = "46f0cd694581a"; passphrase = ""; payfast_host = "https://sandbox.payfast.co.za/eng/process"
+
     def _ascii(s: str) -> str:
         return (s or "").encode("ascii", "ignore").decode("ascii")
 
@@ -389,6 +386,24 @@ def handoff():
 
 
 
+
+@payfast_bp.get("/_sanity")
+def pf_sanity():
+    payfast_host = "https://sandbox.payfast.co.za/eng/process"
+    pf_data = {
+        "merchant_id": "10000100",
+        "merchant_key":"46f0cd694581a",
+        "return_url":  current_app.config["PAYFAST_RETURN_URL"],
+        "cancel_url":  current_app.config["PAYFAST_CANCEL_URL"],
+        "notify_url":  current_app.config["PAYFAST_NOTIFY_URL"],
+        "m_payment_id":"sanity-12345",
+        "amount":      "50.00",
+        "item_name":   "sanity enrollment",
+        "email_address":"test@example.com",
+    }
+    pf_data["signature"] = _pf_sig(pf_data, "")  # sandbox: empty passphrase
+    return render_template("payfast_handoff.html",
+                           payfast_url=payfast_host, pf_data=pf_data)
 
 
 

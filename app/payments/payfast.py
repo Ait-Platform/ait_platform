@@ -51,7 +51,7 @@ def ip_in_trusted_range(ip: str) -> bool:
 
 def pf_md5(s: str) -> str:
     return hashlib.md5(s.encode("utf-8")).hexdigest()
-
+'''
 @payfast_bp.post("/ipn")
 def ipn():
     # 1) Read the raw POST exactly as PayFast sent it
@@ -94,7 +94,7 @@ def ipn():
 
     current_app.logger.info(f"PayFast IPN OK: {m_payment_id} status={status} amount={amount_gross}")
     return "ok", 200
-
+'''
 @payfast_bp.post("/create")
 def create_payment():
     """Create a PayFast payment and auto-submit to PayFast."""
@@ -167,30 +167,79 @@ def ipn_get_debug():
 
 # in your payments blueprint
 # --- GET probes (PayFast / browser checks)
-@payfast_bp.get("/notify")
+# GET probe (health)
+@payfast_bp.get("/notify", endpoint="payfast_notify_probe")
 def pf_notify_probe():
     return "OK", 200
 
-# --- POST: keep your real IPN logic, but never 500; log instead
-@payfast_bp.post("/notify")
+
+# POST IPN (authoritative) — always 200, never raise
+@payfast_bp.post("/notify", endpoint="payfast_notify")
+@csrf.exempt
 def pf_notify_ipn():
     try:
-        # TODO: your existing IPN validate & process
+        cfg  = current_app.config
+        mode = (cfg.get("PAYFAST_MODE") or "sandbox").lower()
+
+        # 1) Signature (only if passphrase set; sandbox is usually empty)
+        passphrase = "" if mode == "sandbox" else (cfg.get("PAYFAST_PASSPHRASE") or "")
+        if passphrase:
+            data = request.form.to_dict(flat=True)
+            expected = _pf_sig(data, passphrase)  # same helper used for handoff
+            got = data.get("signature", "")
+            if got != expected:
+                current_app.logger.warning("PF IPN: bad signature (got=%s expected=%s)", got, expected)
+                return "OK", 200  # still 200 to stop retries
+
+        # 2) Remote validation with PayFast
+        validate_url = (
+            "https://sandbox.payfast.co.za/eng/query/validate"
+            if mode == "sandbox" else
+            "https://www.payfast.co.za/eng/query/validate"
+        )
+        r = requests.post(validate_url, data=request.form, timeout=8)
+        if r.text.strip().lower() != "valid":
+            current_app.logger.warning("PF IPN: validate failed → %s", r.text)
+            return "OK", 200
+
+        # 3) Business logic (minimal + idempotent)
+        status = (request.form.get("payment_status") or "").upper()
+        mref   = (request.form.get("m_payment_id") or "").strip()
+        email  = (request.form.get("email_address") or "").strip().lower()
+
+        # log row (append-only)
+        db.session.execute(
+            text("""INSERT INTO auth_payment_log (user_id, program, amount, timestamp)
+                    VALUES ((SELECT id FROM "user" WHERE lower(email)=:em LIMIT 1),
+                            :prog, :amt, CURRENT_TIMESTAMP)"""),
+            {"em": email, "prog": mref or "payfast", "amt": request.form.get("amount","")}
+        )
+
+        # activate access on COMPLETE (subject inferred from ref prefix)
+        if status == "COMPLETE" and "-" in mref:
+            slug = mref.split("-", 1)[0]
+            subj = AuthSubject.query.filter_by(slug=slug).first()
+            if subj:
+                db.session.execute(
+                    text("""INSERT INTO user_enrollment (user_id, subject_id, status, started_at)
+                            SELECT id, :sid, 'active', CURRENT_TIMESTAMP FROM "user"
+                            WHERE lower(email)=:em
+                            ON CONFLICT(user_id, subject_id)
+                            DO UPDATE SET status='active', updated_at=CURRENT_TIMESTAMP"""),
+                    {"sid": subj.id, "em": email}
+                )
+
+        db.session.commit()
+        current_app.logger.info("PF IPN ok: ref=%s status=%s email=%s", mref, status, email)
         return "OK", 200
+
     except Exception:
-        current_app.logger.exception("PayFast IPN handler error")
-        # PayFast expects 200 even if you reject later
+        current_app.logger.exception("PF IPN handler error")
+        db.session.rollback()
         return "OK", 200
+
 
 # Optional: success/cancel placeholders so they don’t 500
-@payfast_bp.get("/success", endpoint="payfast_success")
-def success():
-    return render_template("payment_success.html"), 200
-
-
-@payfast_bp.get("/cancel")
-def pf_cancel():
-    return "OK", 200
 
 def _cfg(name: str) -> str:
     val = current_app.config.get(name)

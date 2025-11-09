@@ -226,17 +226,28 @@ def _ref_part(s: str) -> str:
 from urllib.parse import quote
 import hashlib
 
+from urllib.parse import quote_plus
+import hashlib
+
 def _pf_sig(data: dict, passphrase: str | None) -> str:
     """
-    PayFast signature: rawurlencode (space -> %20), keys sorted ASCII,
-    exclude empty values and 'signature' itself, append passphrase if present.
+    PayFast signature:
+    - include ALL non-empty fields you POST (except 'signature')
+    - sort by key (ASCII)
+    - PHP urlencode semantics (space -> '+') via quote_plus
+    - append &passphrase=... ONLY if non-empty
+    - md5 over the final string
     """
     cleaned = {k: str(v) for k, v in data.items() if v not in (None, "",) and k != "signature"}
-    parts = [f"{k}={quote(cleaned[k], safe='')}" for k in sorted(cleaned.keys())]
+    parts = [f"{k}={quote_plus(cleaned[k])}" for k in sorted(cleaned.keys())]
     if passphrase:
-        parts.append(f"passphrase={quote(passphrase, safe='')}")
-    query = "&".join(parts)
-    return hashlib.md5(query.encode("utf-8")).hexdigest()
+        parts.append(f"passphrase={quote_plus(passphrase)}")
+    sig_base = "&".join(parts)
+    sig = hashlib.md5(sig_base.encode("utf-8")).hexdigest()
+    # one-line log to verify exactly what we signed
+    current_app.logger.info("PF sigbase=%s md5=%s", sig_base, sig)
+    return sig
+
 
 
 # payments/payfast_debug.py (optional)
@@ -351,36 +362,30 @@ def handoff():
         return (s or "").encode("ascii", "ignore").decode("ascii")
 
     # --- build minimal, sandbox-safe payload ---
-    item_name_clean = _ascii(f"{subject_name} enrollment")[:100]
-    email_clean     = _ascii(email)
-    mref_clean      = _ascii(mref)
+    item_name_clean = (f"{subject_name} enrollment").encode("ascii","ignore").decode("ascii")[:100]
+    email_clean     = email.encode("ascii","ignore").decode("ascii")
+    mref_clean      = mref.encode("ascii","ignore").decode("ascii")
 
     pf_data = {
-        "merchant_id":   merchant_id,           # 10000100 in sandbox
-        "merchant_key":  merchant_key,          # 46f0cd694581a in sandbox
-        "return_url":    cfg.get("PAYFAST_RETURN_URL"),
-        "cancel_url":    cfg.get("PAYFAST_CANCEL_URL"),
-        "notify_url":    cfg.get("PAYFAST_NOTIFY_URL"),
-        "m_payment_id":  mref_clean,            # stable ref if you locked it
-        "amount":        amount_str,            # "50.00"
-        "item_name":     item_name_clean,       # ASCII only
+        "merchant_id":   merchant_id,            # 10000100 in sandbox (forced)
+        "merchant_key":  merchant_key,           # 46f0cd694581a in sandbox (forced)
+        "return_url":    cfg["PAYFAST_RETURN_URL"],
+        "cancel_url":    cfg["PAYFAST_CANCEL_URL"],
+        "notify_url":    cfg["PAYFAST_NOTIFY_URL"],
+        "m_payment_id":  mref_clean,
+        "amount":        amount_str,             # "50.00"
+        "item_name":     item_name_clean,
         "email_address": email_clean,
     }
-    # passphrase MUST be "" in sandbox, your code already sets it
-    pf_data["signature"] = _pf_sig(pf_data, passphrase)
+    pf_data["signature"] = _pf_sig(pf_data, passphrase)  # passphrase="" in sandbox
+
 
     if debug:
-        return render_template(
-            "payfast_handoff_debug.html",
-            payfast_url=payfast_host,   # use the forced host here too
-            pf_data=pf_data
-        )
+        return render_template("payfast_handoff_debug.html",
+                            payfast_url=payfast_host, pf_data=pf_data)
+    return render_template("payfast_handoff.html",
+                        payfast_url=payfast_host, pf_data=pf_data)
 
-    return render_template(
-        "payfast_handoff.html",
-        payfast_url=payfast_host,       # forced host (sandbox or live)
-        pf_data=pf_data
-    )
 
 
 

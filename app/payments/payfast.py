@@ -12,6 +12,12 @@ from decimal import Decimal, ROUND_HALF_UP
 from app.models.auth import AuthSubject     # gives you the SQLAlchemy session
 from sqlalchemy import text                # enables raw SQL text() queries
 from app.extensions import db
+from flask_wtf.csrf import csrf_exempt
+from decimal import Decimal
+from sqlalchemy import text
+from app.models.auth import User, AuthSubject, UserEnrollment # adjust to your names
+from app.extensions import csrf
+from app.models.payment import Payment  
 
 payfast_bp = Blueprint("payfast_bp", __name__)
 
@@ -442,97 +448,75 @@ def success():
 def cancel():
     return render_template("payment_cancelled.html")
 
-from flask_wtf.csrf import csrf_exempt
-from decimal import Decimal
+
+
+# app/payments/payfast.py
+from app.extensions import csrf
+from app.models import db, User, AuthSubject  # adjust imports to your project
 from sqlalchemy import text
-from app.models import db, User, AuthSubject, UserEnrollment, Payment  # adjust to your names
+from decimal import Decimal
+import requests
 
 @payfast_bp.post("/notify")
-@csrf_exempt
+@csrf.exempt
 def notify():
     cfg   = current_app.config
     mode  = (cfg.get("PAYFAST_MODE") or "sandbox").lower()
     form  = request.form.to_dict(flat=True)
 
-    # 1) Merchant & passphrase based on mode
-    expected_mid = "10000100" if mode == "sandbox" else cfg.get("PAYFAST_MERCHANT_ID")
-    passphrase   = "" if mode == "sandbox" else (cfg.get("PAYFAST_PASSPHRASE") or "")
-
-    # 2) Quick checks
-    if form.get("merchant_id") != expected_mid:
-        current_app.logger.error("IPN: merchant mismatch: %s", form.get("merchant_id"))
-        return ("", 400)
-    if passphrase and not _pf_sig_verify(form, passphrase):
-        current_app.logger.error("IPN: signature verify failed")
-        return ("", 400)
-
-    # 3) Validate with PayFast (server-to-server)
-    validate_host = "https://sandbox.payfast.co.za/eng/query/validate" if mode == "sandbox" \
-                    else "https://www.payfast.co.za/eng/query/validate"
+    # --- validate with PayFast (authoritative) ---
+    validate_url = (
+        "https://sandbox.payfast.co.za/eng/query/validate"
+        if mode == "sandbox" else
+        "https://www.payfast.co.za/eng/query/validate"
+    )
     try:
-        r = requests.post(validate_host, data=form, timeout=8)
+        r = requests.post(validate_url, data=form, timeout=8)
         if r.text.strip().lower() != "valid":
-            current_app.logger.error("IPN: remote validate failed: %s", r.text)
+            current_app.logger.error("IPN validate failed: %s", r.text)
             return ("", 400)
-    except Exception as e:
-        current_app.logger.exception("IPN: validate error")
+    except Exception:
+        current_app.logger.exception("IPN validate error")
         return ("", 400)
 
-    # 4) Amount/subject/email reconciliation
-    mref   = form.get("m_payment_id", "")
-    amount = Decimal(form.get("amount", "0")).quantize(Decimal("0.01"))
-    email  = (form.get("email_address") or "").strip().lower()
-    slug   = mref.split("-")[0] if "-" in mref else None
+    # --- extract fields we care about ---
+    email   = (form.get("email_address") or "").strip().lower()
+    amount  = (form.get("amount") or "").strip()          # string like "50.00"
+    mref    = (form.get("m_payment_id") or "").strip()    # we set as "<slug>-<rand>"
+    status  = (form.get("payment_status") or "").upper()  # COMPLETE / PENDING / FAILED
 
-    subj = AuthSubject.query.filter_by(slug=slug).first() if slug else None
-    if not subj:
-        current_app.logger.error("IPN: subject missing for ref=%s", mref)
-        return ("", 400)
-
-    row = db.session.execute(text("""
-      SELECT amount_cents FROM auth_pricing
-      WHERE subject_id = :sid
-        AND (role='learner' OR role IS NULL)
-        AND plan='enrollment' AND currency='ZAR'
-        AND (is_active = 1 OR is_active = TRUE)
-        AND (active_to IS NULL OR active_to > CURRENT_TIMESTAMP)
-      ORDER BY COALESCE(updated_at, created_at) DESC,
-               COALESCE(active_from, created_at) DESC,
-               id DESC
-      LIMIT 1
-    """), {"sid": subj.id}).first()
-    expected = (Decimal(int(row.amount_cents))/Decimal(100)).quantize(Decimal("0.01")) if row else None
-    if not expected or amount != expected:
-        current_app.logger.error("IPN: amount mismatch amt=%s expected=%s", amount, expected)
-        return ("", 400)
-
-    # 5) Status
-    status = (form.get("payment_status") or "").upper()  # COMPLETE / FAILED / PENDING
-    if status != "COMPLETE":
-        current_app.logger.info("IPN: non-complete status: %s", status)
-        return ("", 200)
-
-    # 6) Upsert user/enrollment/payment (minimal, idempotent)
+    # find/create user (minimal)
     user = User.query.filter_by(email=email).first()
     if not user:
-        user = User(email=email); db.session.add(user); db.session.flush()
+        user = User(email=email)
+        db.session.add(user)
+        db.session.flush()   # get user.id
 
-    enr = UserEnrollment.query.filter_by(user_id=user.id, subject_id=subj.id).first()
-    if not enr:
-        enr = UserEnrollment(user_id=user.id, subject_id=subj.id, status="active")
-        db.session.add(enr)
-    else:
-        enr.status = "active"
+    # --- log every IPN in auth_payment_log (simple, append-only) ---
+    db.session.execute(
+        text("""
+            INSERT INTO auth_payment_log (user_id, program, amount, timestamp)
+            VALUES (:uid, :program, :amount, CURRENT_TIMESTAMP)
+        """),
+        {"uid": user.id, "program": mref or "payfast", "amount": amount or "0.00"}
+    )
 
-    pay = Payment.query.filter_by(reference=mref).first()
-    if not pay:
-        pay = Payment(reference=mref, user_id=user.id, subject_id=subj.id,
-                      provider="payfast", status="paid",
-                      amount_cents=int(expected * 100))
-        db.session.add(pay)
-    else:
-        pay.status = "paid"
+    # --- on COMPLETE, (optionally) activate the enrollment for the subject slug ---
+    if status == "COMPLETE":
+        slug = mref.split("-")[0] if "-" in mref else None
+        subj = AuthSubject.query.filter_by(slug=slug).first() if slug else None
+        if subj:
+            # upsert into user_enrollment; assumes PK (user_id, subject_id)
+            db.session.execute(
+                text("""
+                    INSERT INTO user_enrollment (user_id, subject_id, status, started_at)
+                    VALUES (:uid, :sid, 'active', CURRENT_TIMESTAMP)
+                    ON CONFLICT(user_id, subject_id)
+                    DO UPDATE SET status='active', updated_at=CURRENT_TIMESTAMP
+                """),
+                {"uid": user.id, "sid": subj.id}
+            )
 
     db.session.commit()
-    current_app.logger.info("IPN: marked paid ref=%s user=%s subject=%s", mref, email, slug)
+    current_app.logger.info("PF IPN ok: email=%s amount=%s status=%s ref=%s", email, amount, status, mref)
     return ("", 200)

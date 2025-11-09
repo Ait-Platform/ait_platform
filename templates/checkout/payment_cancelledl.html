@@ -1,0 +1,18 @@
+{# templates/payment_cancelled.html #}
+{% extends "layout.html" %}
+{% block title %}Payment cancelled · AIT{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-xl mt-8 rounded-2xl border p-6 bg-white">
+  <h1 class="text-xl font-semibold text-amber-700">Payment cancelled</h1>
+  <p class="mt-2 text-slate-700">No charge was made. You can try again from your dashboard.</p>
+
+  <div class="mt-6 flex items-center gap-3">
+    <a href="{{ url_for('auth_bp.bridge_dashboard') }}"
+       class="inline-flex items-center rounded-lg border px-3 py-1 text-sm hover:bg-slate-50">
+      Back to Dashboard
+    </a>
+    {# Optional: if you have a retry route/link, include it here #}
+    {# <a href="{{ url_for('auth_bp.start_checkout', subject='loss', email=current_user.email) }}" class="text-sm underline">Try again</a> #}
+  </div>
+</div>
+{% endblock %}

@@ -12,8 +12,6 @@ import logging, uuid
 import matplotlib
 matplotlib.use("Agg")
 from flask import Flask, g, request, current_app
-from flask_wtf import CSRFProtect
-from flask_wtf.csrf import generate_csrf
 from flask_login import LoginManager
 from sqlalchemy import text, event
 from sqlalchemy.engine import Engine
@@ -35,6 +33,8 @@ import os, sqlite3
 from werkzeug.middleware.proxy_fix import ProxyFix
 from dotenv import load_dotenv, find_dotenv
 load_dotenv(find_dotenv(), override=False)  # picks up your .env locally
+from flask_wtf import CSRFProtect
+from flask_wtf.csrf import generate_csrf
 
 
 csrf = CSRFProtect()

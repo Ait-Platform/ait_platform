@@ -43,7 +43,7 @@ checkout_bp = Blueprint("checkout_bp", __name__)
 
    
 
-
+''' 
 @checkout_bp.route("/ping")
 def ping():
     return "checkout ok", 200
@@ -81,7 +81,7 @@ def _get_stripe_api_key() -> str:
 # ------------------------------
 # app/checkout/routes.py
 
-    
+   
 @checkout_bp.get("/success", endpoint="success")
 def success():
 
@@ -381,6 +381,7 @@ def webhook():
 
     return "ok", 200
 
+
 @checkout_bp.get("/cancel", endpoint="cancel")
 @login_required
 def cancel():
@@ -398,6 +399,7 @@ def cancel():
         db.session.rollback()
     # Land back on bridge
     return redirect(url_for("auth_bp.bridge_dashboard"), code=303)
+
 
 def _subject_by_slug(slug: str):
     if not slug:
@@ -519,7 +521,7 @@ def checkout():
         ap=q.get("ap"),
         currency=currency,
     )
-
+'''
 
 
 

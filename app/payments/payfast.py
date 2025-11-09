@@ -360,7 +360,7 @@ def handoff():
     def _ascii(s: str) -> str: return (s or "").encode("ascii","ignore").decode("ascii")
     # after you compute mref and amount_str
     return_url = f"{current_app.config['PAYFAST_RETURN_URL']}?ref={mref}&email={email}"
-    
+
     item_name_clean = (f"{subject_name} enrollment")[:100]
     email_clean = email
 
@@ -447,18 +447,24 @@ def _subject_amount(subject, req_amount: str | None):
 
 @payfast_bp.get("/success", endpoint="payfast_success")
 def success():
-    if not current_user.is_authenticated:
-        email = (request.args.get("email") or "").strip().lower()
-        if email:
-            u = User.query.filter_by(email=email).first()
-            if not u:
-                u = User(email=email)
-                db.session.add(u)
-                db.session.commit()
-            login_user(u, remember=True)
-            return redirect(url_for("auth_bp.bridge_dashboard"))
+    # If already signed in, go straight to Bridge
+    if current_user.is_authenticated:
+        return redirect(url_for("auth_bp.bridge_dashboard"))
 
+    # Auto-login by email from the return_url
+    email = (request.args.get("email") or "").strip().lower()
+    if email:
+        u = User.query.filter_by(email=email).first()
+        if not u:
+            u = User(email=email)
+            db.session.add(u)
+            db.session.commit()
+        login_user(u, remember=True)
+        return redirect(url_for("auth_bp.bridge_dashboard"))
+
+    # Fallback: show the page (rare: missing email)
     return render_template("payment_success.html"), 200
+
 
 @payfast_bp.get("/cancel")
 def cancel():

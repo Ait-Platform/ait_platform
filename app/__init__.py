@@ -151,6 +151,11 @@ def create_app():
     @app.context_processor
     def inject_now():
         return {"now": datetime.utcnow}
+    
+    # make {{ csrf_token() }} available
+    @app.context_processor
+    def inject_csrf():
+        return {"csrf_token": generate_csrf}
 
     @login_manager.user_loader
     def load_user(user_id: str):

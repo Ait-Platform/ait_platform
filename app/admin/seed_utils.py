@@ -9,7 +9,7 @@ from flask import current_app, Response
 from sqlalchemy.exc import SQLAlchemyError
 from io import StringIO
 from sqlalchemy import text, inspect
-from app.extensions import db   # <-- not `from app import db`
+from app.extensions import db  
 
 # --- Canonical registry of seeds -------------------------------------------
 from pathlib import Path

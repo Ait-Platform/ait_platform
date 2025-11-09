@@ -931,10 +931,6 @@ def upsert_result_from_scorecard(run_id: int) -> bool:
     db.session.commit()
     return True
 
-# loss/admin_routes.py (or wherever your admin routes live)
-
-
-
 @admin_bp.route("/loss/run/rebuild")
 def loss_run_rebuild():
     run_id = request.args.get("run_id", type=int)
@@ -953,7 +949,7 @@ def loss_run_rebuild():
 
 # ---------------------------
 # Route: recompute then go to report
-# URL: /admin/loss/rebuild?run_id=42
+# URL: /loss/rebuild?run_id=42
 # ---------------------------
 # in admin_bp routes.py
 @admin_bp.route("/loss/rebuild")
@@ -1672,7 +1668,7 @@ def loss_after():
     session["last_loss_run_id"] = run_id
     return render_template("admin/loss/after.html", **with_run_id_in_ctx(ctx, run_id))
 
-# app/admin/routes.py
+# app/routes.py
 
 
 ALLOWED_ADMIN_ROLES = {"admin", "superadmin"}
@@ -1740,7 +1736,7 @@ def list_recent_runs_all(limit: int = 50):
     with db.engine.begin() as conn:
         return conn.execute(text(sql), {"lim": limit}).mappings().all()
 
-# app/admin/loss/routes.py
+# app/loss/routes.py
 
 
 def latest_run_id_any():
@@ -1844,7 +1840,7 @@ def _result_meta(run_id: int):
     ).where(LcaResult.run_id == run_id)
     first_at, last_at, rows = db.session.execute(stmt).one()
     return {"first_at": first_at, "last_at": last_at, "rows": rows}
-# app/admin/loss/routes.py
+# app/loss/routes.py
 
 
 def _reports_dir():
@@ -2339,7 +2335,7 @@ def _result_for_run(run_id: int, user_id: int | None = None):
     sql += " ORDER BY id DESC LIMIT 1"
     return db.session.execute(text(sql), params).mappings().first()
 
-@admin_bp.route("/admin/loss/", methods=["GET"], endpoint="loss_index")
+@admin_bp.route("/loss/", methods=["GET"], endpoint="loss_index")
 def loss_index():
     # Read filters from query
     uid = _coerce_int(request.args.get("user_id"))
@@ -2512,9 +2508,9 @@ def loss_result():
     return render_template("admin/loss/result.html", run_id=rid, user_id=uid, row=row)
 
 
-# app/admin/loss/routes.py
-# app/admin/loss/routes.py
-@admin_bp.route("/admin/loss/phase-scores")
+# app/loss/routes.py
+# app/loss/routes.py
+@admin_bp.route("/loss/phase-scores")
 def loss_phase_scores():
     rid = request.args.get("run_id", type=int)
     uid = request.args.get("user_id", type=int)  # optional
@@ -2553,66 +2549,8 @@ def loss_phase_scores():
 
 from flask import request, abort, render_template, redirect, url_for
 from sqlalchemy import text
-
 from app.admin import admin_bp
-'''
-@admin_bp.route("/loss/result", methods=["GET"], endpoint="loss_result")
-def loss_result():
-    """Show the single lca_result row for a run (admin view)."""
-    rid = request.args.get("run_id", type=int)
-    if not rid:
-        abort(400, "Missing run_id")
 
-    row = db.session.execute(text("""
-        SELECT
-          id, user_id, phase_1, phase_2, phase_3, phase_4, total, created_at,
-          run_id, subject, max_phase_1, max_phase_2, max_phase_3, max_phase_4,
-          max_total, archived
-        FROM lca_result
-        WHERE run_id = :rid
-        ORDER BY id DESC
-        LIMIT 1
-    """), {"rid": rid}).mappings().first()
-
-    if not row:
-        # Optionally compute on-demand
-        try:
-            from app.services.loss_result import compute_and_upsert_loss_result
-            compute_and_upsert_loss_result(rid)
-            row = db.session.execute(text("""
-                SELECT
-                  id, user_id, phase_1, phase_2, phase_3, phase_4, total, created_at,
-                  run_id, subject, max_phase_1, max_phase_2, max_phase_3, max_phase_4,
-                  max_total, archived
-                FROM lca_result
-                WHERE run_id = :rid
-                ORDER BY id DESC
-                LIMIT 1
-            """), {"rid": rid}).mappings().first()
-        except Exception:
-            row = None
-
-    if not row:
-        abort(404, f"No result row for run_id={rid}")
-
-    return render_template(
-        "admin/loss/result.html",
-        row=row,
-        run_id=row["run_id"],
-        user_id=row["user_id"],
-        subject=row.get("subject", "LOSS"),
-    )
-
-@admin_bp.route("/loss/result/recompute", methods=["POST", "GET"], endpoint="loss_result_recompute")
-def loss_result_recompute():
-    """Recompute the result and redirect back to the result view."""
-    rid = request.values.get("run_id", type=int)
-    if not rid:
-        abort(400, "Missing run_id")
-    from app.services.loss_result import compute_and_upsert_loss_result
-    compute_and_upsert_loss_result(rid)
-    return redirect(url_for("admin_bp.loss_result", run_id=rid))
-'''
 def _max_or_default(row, key, default_val):
     v = (row.get(key) if row else None) or 0
     return v if v > 0 else default_val
@@ -3014,7 +2952,7 @@ def _get_seed_model(seed: str):
 
 
 # If there’s another variant somewhere else, rename its endpoint:
-@admin_bp.get("/admin/loss/seeds/<seed>/export.csv", endpoint="seed_export_csv_alt")
+@admin_bp.get("/loss/seeds/<seed>/export.csv", endpoint="seed_export_csv_alt")
 def seed_export_csv_alt(seed):
     ...
 
@@ -3026,7 +2964,7 @@ def seed_import_from_repo(seed: str):
 
     repo_dir = current_app.config.get("SEED_REPO_DIR")
     if not repo_dir:
-        # default to <project>/seeds or <app_root>/admin/loss/seeds
+        # default to <project>/seeds or <app_root>/loss/seeds
         repo_dir = os.path.join(current_app.root_path, "..", "seeds")
         if not os.path.isdir(repo_dir):
             repo_dir = os.path.join(current_app.root_path, "admin", "loss", "seeds")
@@ -3052,7 +2990,7 @@ def seeds_dir(subject: str = "loss") -> Path:
 
 if not getattr(admin_bp, "_loss_seed_routes_registered", False):
     
-    @admin_bp.get("/admin/loss/seeds/<seed>")
+    @admin_bp.get("/loss/seeds/<seed>")
     def seed_preview(seed):
         seed = canon_seed(seed)
         meta = SEED_TABLES.get(seed)
@@ -3065,8 +3003,8 @@ if not getattr(admin_bp, "_loss_seed_routes_registered", False):
             "subject/loss/seed/preview.html",
             seed=seed, title=title, rows=rows, cols=cols
         )
-
-    @admin_bp.post("/admin/loss/seeds/<seed>/upload")
+    
+    @admin_bp.post("/seed/upload-json")
     def seed_upload(seed):
         seed = canon_seed(seed)
         meta = SEED_TABLES.get(seed)
@@ -3087,7 +3025,7 @@ if not getattr(admin_bp, "_loss_seed_routes_registered", False):
 
         return redirect(url_for("admin_bp.seed_preview", seed=seed))
 
-    @admin_bp.route("/admin/loss/seeds/<seed>/import-from-repo", methods=["GET", "POST"])
+    @admin_bp.route("/loss/seeds/<seed>/import-from-repo", methods=["GET", "POST"])
     def seed_import_from_repo_route(seed):
         seed = canon_seed(seed)
         if request.method == "GET":
@@ -3109,7 +3047,7 @@ if not getattr(admin_bp, "_loss_seed_routes_registered", False):
 # ========================================================================
 
 
-@admin_bp.get("/admin/loss/seeds/<seed>/edit", endpoint="seed_edit_simple")
+@admin_bp.get("/loss/seeds/<seed>/edit", endpoint="seed_edit_simple")
 def seed_edit_simple(seed):
     if seed not in SEEDS:
         return ("Unknown seed", 404)
@@ -3117,7 +3055,7 @@ def seed_edit_simple(seed):
     meta = SEEDS[seed]
     return render_template("subject/loss/seed/editor.html", seed=seed, meta=meta, rows=rows)
 
-@admin_bp.post("/admin/loss/seeds/<seed>/edit", endpoint="seed_save_simple")
+@admin_bp.post("/loss/seeds/<seed>/edit", endpoint="seed_save_simple")
 def seed_save_simple(seed):
     if seed not in SEEDS:
         return ("Unknown seed", 404)
@@ -3127,7 +3065,7 @@ def seed_save_simple(seed):
 
 # ---- Canonical seed endpoints (one of each) ----
 
-@admin_bp.post("/admin/loss/seeds/<seed>/upload", endpoint="seed_upload")
+@admin_bp.post("/loss/seeds/<seed>/upload", endpoint="seed_upload")
 def seed_upload(seed: str):
     # form file field name MUST match your template (e.g., 'file')
     f = request.files.get("file")
@@ -3138,7 +3076,7 @@ def seed_upload(seed: str):
     flash(f"Imported {count} rows into {seed}.", "success")
     return redirect(url_for("admin_bp.seed_preview", seed=seed))
 
-@admin_bp.post("/admin/loss/seeds/<seed>/import", endpoint="seed_import_csv")
+@admin_bp.post("/loss/seeds/<seed>/import", endpoint="seed_import_csv")
 def seed_import_csv(seed: str):
     meta = SEED_CFG.get(seed) or abort(404)
     f = request.files.get("file")
@@ -3184,7 +3122,7 @@ def seed_hub():
         seed_keys=list(SEED_CFG.keys()),
     )
 
-@admin_bp.get("/admin/loss/seeds/<seed>", endpoint="seed_preview")
+@admin_bp.get("/loss/seeds/<seed>", endpoint="seed_preview")
 def seed_preview(seed):
     meta = SEEDS.get(seed) or abort(404)
     rows = fetch_rows(seed)
@@ -3219,7 +3157,7 @@ def seed_export_csv(seed: str):
     return send_file(str(path), mimetype="text/csv",
                      as_attachment=True, download_name=meta.get("filename", f"{seed}.csv"))
 
-@admin_bp.route("/admin/loss/tables/save", methods=["GET", "POST"], endpoint="tables_save")
+@admin_bp.route("/loss/tables/save", methods=["GET", "POST"], endpoint="tables_save")
 def tables_save():
     raw_seed = request.args.get("seed", "questions")
     seed = resolve_seed_key(raw_seed)
@@ -3286,12 +3224,12 @@ def tables_save():
         csrf_token_value=generate_csrf(),             # <-- provide token to template
     )
 
-@admin_bp.get("/admin/loss", endpoint="loss_admin_home")
+@admin_bp.get("/loss", endpoint="loss_admin_home")
 def loss_admin_home():
     # send users to the main admin home (adjust endpoint if yours differs)
     return redirect(url_for("admin_bp.admin_home"))
 
-@admin_bp.get("/admin/loss/tables/download", endpoint="tables_download")
+@admin_bp.get("/loss/tables/download", endpoint="tables_download")
 def tables_download():
     seed = request.args.get("seed", "questions")
     meta = SEEDS.get(seed) or abort(404)
@@ -3303,7 +3241,7 @@ def tables_download():
     csv_path = write_csv(seed, headers, dict_rows)
     return send_file(csv_path, as_attachment=True, download_name=f"{seed}.csv", mimetype="text/csv", max_age=0)
 
-@admin_bp.get("/admin/loss/tables/view", endpoint="tables_view")
+@admin_bp.get("/loss/tables/view", endpoint="tables_view")
 def tables_view():
     raw_seed = request.args.get("seed", "questions")
     seed = resolve_seed_key(raw_seed)

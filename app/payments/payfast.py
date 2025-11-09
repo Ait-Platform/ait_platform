@@ -229,22 +229,16 @@ import hashlib
 from urllib.parse import quote_plus
 import hashlib
 
+from urllib.parse import quote_plus
+import hashlib
+
 def _pf_sig(data: dict, passphrase: str | None) -> str:
-    """
-    PayFast signature:
-    - include ALL non-empty fields you POST (except 'signature')
-    - sort by key (ASCII)
-    - PHP urlencode semantics (space -> '+') via quote_plus
-    - append &passphrase=... ONLY if non-empty
-    - md5 over the final string
-    """
-    cleaned = {k: str(v) for k, v in data.items() if v not in (None, "",) and k != "signature"}
-    parts = [f"{k}={quote_plus(cleaned[k])}" for k in sorted(cleaned.keys())]
+    clean = {k: str(v).strip() for k, v in data.items() if v not in (None, "",) and k != "signature"}
+    parts = [f"{k}={quote_plus(clean[k])}" for k in sorted(clean)]
     if passphrase:
         parts.append(f"passphrase={quote_plus(passphrase)}")
     sig_base = "&".join(parts)
     sig = hashlib.md5(sig_base.encode("utf-8")).hexdigest()
-    # one-line log to verify exactly what we signed
     current_app.logger.info("PF sigbase=%s md5=%s", sig_base, sig)
     return sig
 
@@ -362,29 +356,37 @@ def handoff():
         return (s or "").encode("ascii", "ignore").decode("ascii")
 
     # --- build minimal, sandbox-safe payload ---
-    item_name_clean = (f"{subject_name} enrollment").encode("ascii","ignore").decode("ascii")[:100]
-    email_clean     = email.encode("ascii","ignore").decode("ascii")
-    mref_clean      = mref.encode("ascii","ignore").decode("ascii")
+    # force sandbox creds/host if mode == "sandbox" (you already added this)
+    # merchant_id = "10000100"; merchant_key = "46f0cd694581a"; passphrase = ""; payfast_host = "https://sandbox.payfast.co.za/eng/process"
+
+    def _ascii(s: str) -> str:
+        return (s or "").encode("ascii", "ignore").decode("ascii")
+
+    item_name_clean = _ascii(f"{subject_name} enrollment")[:100]
+    email_clean     = _ascii(email)
+    mref_clean      = _ascii(mref)  # your stable/redirect-locked ref
 
     pf_data = {
-        "merchant_id":   merchant_id,            # 10000100 in sandbox (forced)
-        "merchant_key":  merchant_key,           # 46f0cd694581a in sandbox (forced)
-        "return_url":    cfg["PAYFAST_RETURN_URL"],
-        "cancel_url":    cfg["PAYFAST_CANCEL_URL"],
-        "notify_url":    cfg["PAYFAST_NOTIFY_URL"],
+        "merchant_id":   merchant_id,
+        "merchant_key":  merchant_key,
+        "return_url":    cfg["PAYFAST_RETURN_URL"].strip(),
+        "cancel_url":    cfg["PAYFAST_CANCEL_URL"].strip(),
+        "notify_url":    cfg["PAYFAST_NOTIFY_URL"].strip(),
         "m_payment_id":  mref_clean,
-        "amount":        amount_str,             # "50.00"
-        "item_name":     item_name_clean,
+        "amount":        amount_str,           # "50.00"
+        "item_name":     item_name_clean,      # ASCII only
         "email_address": email_clean,
+        "payment_method":"cc",                 # optional, but harmless
     }
-    pf_data["signature"] = _pf_sig(pf_data, passphrase)  # passphrase="" in sandbox
-
+    pf_data["signature"] = _pf_sig(pf_data, passphrase)
 
     if debug:
         return render_template("payfast_handoff_debug.html",
                             payfast_url=payfast_host, pf_data=pf_data)
+
     return render_template("payfast_handoff.html",
                         payfast_url=payfast_host, pf_data=pf_data)
+
 
 
 

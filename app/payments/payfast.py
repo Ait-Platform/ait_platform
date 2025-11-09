@@ -343,8 +343,14 @@ def handoff():
         # "payment_method": "cc",
     }
 
+    # In sandbox, do NOT include signature at all
+    if merchant_id == "10000100":
+        pf_data.pop("signature", None)
+    else:
+        pf_data["signature"] = _pf_sig(pf_data, passphrase)
+
     # signature (sandbox → passphrase "", so no passphrase param appended)
-    pf_data["signature"] = _pf_sig(pf_data, passphrase)
+    #pf_data["signature"] = _pf_sig(pf_data, passphrase)
 
     current_app.logger.info("PF handoff host=%s data=%s",
         payfast_host, {k: v for k, v in pf_data.items() if k != "signature"})
@@ -361,21 +367,26 @@ def handoff():
 
 @payfast_bp.get("/_sanity")
 def pf_sanity():
-    payfast_host = "https://sandbox.payfast.co.za/eng/process"
+    # Must be HTTPS and reachable publicly
+    ret = current_app.config["PAYFAST_RETURN_URL"]
+    can = current_app.config["PAYFAST_CANCEL_URL"]
+    noti = current_app.config["PAYFAST_NOTIFY_URL"]
+
+    # Minimal ASCII payload; NO signature in sandbox
     pf_data = {
-        "merchant_id": "10000100",
-        "merchant_key":"46f0cd694581a",
-        "return_url":  current_app.config["PAYFAST_RETURN_URL"],
-        "cancel_url":  current_app.config["PAYFAST_CANCEL_URL"],
-        "notify_url":  current_app.config["PAYFAST_NOTIFY_URL"],
-        "m_payment_id":"sanity-12345",
-        "amount":      "50.00",
-        "item_name":   "sanity enrollment",
-        "email_address":"test@example.com",
+        "merchant_id":   "10000100",
+        "merchant_key":  "46f0cd694581a",
+        "return_url":    ret.strip(),
+        "cancel_url":    can.strip(),
+        "notify_url":    noti.strip(),
+        "m_payment_id":  "sanity-12345",
+        "amount":        "50.00",
+        "item_name":     "sanity enrollment",
+        "email_address": "test@example.com",
     }
-    pf_data["signature"] = _pf_sig(pf_data, "")  # sandbox: empty passphrase
     return render_template("payfast_handoff.html",
-                           payfast_url=payfast_host, pf_data=pf_data)
+                           payfast_url="https://sandbox.payfast.co.za/eng/process",
+                           pf_data=pf_data)
 
 
 

@@ -541,6 +541,7 @@ def notify():
 
 @payfast_bp.get("/success", endpoint="payfast_success")
 def success():
+    current_app.logger.info("PF SUCCESS hit: ref=%s email=%s subject=%s", ref, email, subject)
     ref     = (request.args.get("ref")     or "").strip()
     email   = (request.args.get("email")   or session.get("pending_email") or "").strip().lower()
     subject = (request.args.get("subject") or session.get("pending_subject") or session.get("reg_ctx", {}).get("subject") or "loss").strip().lower()
@@ -569,6 +570,8 @@ def success():
     if not sid:
         return render_template("payment_success.html", subject=subject, ref=ref), 200
     sid = int(sid)
+
+    current_app.logger.info("PF SUCCESS sid=%s for subject=%s", sid, subject)
 
     # -- enrollment: force ACTIVE
     rowcount = 0
@@ -601,6 +604,8 @@ def success():
                 VALUES (:uid, :sid, 'active')
             """), {"uid": int(u.id), "sid": sid})
 
+    current_app.logger.info("PF SUCCESS flipped rows=%s", rowcount)
+    
     db.session.commit()
 
     # login + bridge focus

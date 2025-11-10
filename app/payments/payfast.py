@@ -376,11 +376,12 @@ def handoff():
 
     # upsert pending enrollment (idempotent)
     db.session.execute(text("""
-        INSERT INTO user_enrollment (user_id, subject_id, status, started_at)
-        VALUES (:uid, :sid, 'pending', CURRENT_TIMESTAMP)
-        ON CONFLICT(user_id, subject_id) DO UPDATE
-        SET status='pending'
+        INSERT INTO user_enrollment (user_id, subject_id, status)
+        VALUES (:uid, :sid, 'pending')
+        ON CONFLICT(user_id, subject_id)
+        DO UPDATE SET status='pending'
     """), {"uid": u.id, "sid": subj.id})
+
 
     db.session.commit()
 
@@ -505,13 +506,13 @@ def notify():
         db.session.flush()   # get user.id
 
     # --- log every IPN in auth_payment_log (simple, append-only) ---
-    db.session.execute(
-        text("""
-            INSERT INTO auth_payment_log (user_id, program, amount, timestamp)
-            VALUES (:uid, :program, :amount, CURRENT_TIMESTAMP)
-        """),
-        {"uid": user.id, "program": mref or "payfast", "amount": amount or "0.00"}
-    )
+    db.session.execute(text("""
+        INSERT INTO user_enrollment (user_id, subject_id, status)
+        VALUES (:uid, :sid, 'active')
+        ON CONFLICT(user_id, subject_id)
+        DO UPDATE SET status='active'
+    """), {"uid": user.id, "sid": subj.id})
+
 
     # --- on COMPLETE, (optionally) activate the enrollment for the subject slug ---
     if status == "COMPLETE":

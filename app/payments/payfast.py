@@ -470,7 +470,10 @@ def _subject_amount(subject, req_amount: str | None):
 
 @payfast_bp.get("/cancel")
 def cancel():
-    return render_template("payment_cancelled.html")
+    flash("Payment canceled. You can retry anytime.", "info")
+    return redirect(url_for("auth_bp.register_decision",
+                            email=request.args.get("email",""),
+                            subject=request.args.get("subject","loss")))
 
 @payfast_bp.post("/notify")
 @csrf.exempt
@@ -536,59 +539,49 @@ def notify():
     current_app.logger.info("PF IPN ok: email=%s amount=%s status=%s ref=%s", email, amount, status, mref)
     return ("", 200)
 
-@payfast_bp.get("/success", endpoint="payfast_success")
+@payfast_bp.get("/success")
 def success():
-    # Make sure we actually hit this route
-    current_app.logger.info("[PF] success hit args=%r session_keys=%r",
-                            dict(request.args), list(session.keys()))
+    email   = (request.args.get("email")   or "").strip().lower()
+    subject = (request.args.get("subject") or "loss").strip().lower()
 
-    # If the user just returned from PayFast, ensure we have the reg context
-    # (email + subject were sent in the return_url query; reuse them to
-    #  hydrate reg_ctx if it got lost on the external hop)
-    email_q  = (request.args.get("email") or "").strip().lower()
-    subject_q = (request.args.get("subject") or session.get("pending_subject") or "loss").strip().lower()
+    if not email:
+        return render_template("payment_success.html"), 200
 
-    reg_ctx = session.get("reg_ctx") or {}
-    if email_q and not reg_ctx.get("email"):
-        reg_ctx.update({
-            "email": email_q,
-            "email_lower": email_q,
-            "subject": subject_q or reg_ctx.get("subject") or "loss",
-            "next_url": reg_ctx.get("next_url") or "/",
-        })
-        session["reg_ctx"] = reg_ctx
+    # ensure user + password_hash (from staged reg_ctx)
+    u = User.query.filter_by(email=email).first()
+    staged = (session.get("reg_ctx") or {}).get("password_hash")
+    if not u:
+        u = User(email=email, is_active=1)
+        u.name = email.split("@", 1)[0].replace(".", " ").replace("_", " ").title()
+        if staged and not getattr(u, "password_hash", None):
+            u.password_hash = staged
+        db.session.add(u)
+        db.session.flush()
+    else:
+        if (not u.name) or (not u.name.strip()):
+            u.name = email.split("@", 1)[0].replace(".", " ").replace("_", " ").title()
+        if staged and not getattr(u, "password_hash", None):
+            u.password_hash = staged
+        db.session.flush()
 
-    # Finalize account + enrollment (uses staged password_hash from /register POST)
-    try:
-        from app.auth.routes import _finalize_user_after_payment
-        _finalize_user_after_payment()
-    except Exception as e:
-        current_app.logger.error("[PF] finalize error: %r", e)
+    # activate enrollment
+    sid = db.session.execute(
+        sa_text("SELECT id FROM auth_subject WHERE lower(slug)=:s OR lower(name)=:s LIMIT 1"),
+        {"s": subject},
+    ).scalar()
+    if sid:
+        db.session.execute(sa_text("""
+            INSERT INTO user_enrollment (user_id, subject_id, status)
+            VALUES (:uid, :sid, 'active')
+            ON CONFLICT(user_id, subject_id) DO UPDATE SET status='active'
+        """), {"uid": int(u.id), "sid": int(sid)})
 
-        # Fallback: if user already exists, at least log them in and mark enrollment active
-        try:
-            email = (reg_ctx.get("email") or email_q)
-            if email:
-                u = User.query.filter_by(email=email).first()
-                if u:
-                    # mark enrollment active if subject known
-                    sid = db.session.execute(
-                        sa_text("SELECT id FROM auth_subject WHERE lower(slug)=:s OR lower(name)=:s LIMIT 1"),
-                        {"s": subject_q or "loss"}
-                    ).scalar()
-                    if sid:
-                        db.session.execute(
-                            sa_text("""
-                                INSERT INTO user_enrollment (user_id, subject_id, status)
-                                VALUES (:uid, :sid, 'active')
-                                ON CONFLICT(user_id, subject_id) DO UPDATE SET status='active'
-                            """),
-                            {"uid": int(u.id), "sid": int(sid)}
-                        )
-                        db.session.commit()
-                    login_user(u, remember=True, fresh=True)
-        except Exception as e2:
-            current_app.logger.error("[PF] fallback activate/login failed: %r", e2)
+    db.session.commit()
 
-    # Always land on Bridge after success
+    # log in + bridge
+    login_user(u, remember=True, fresh=True)
+    session["just_paid"] = True
+    if sid: session["just_paid_subject_id"] = int(sid)
+    session["payment_banner"] = f"Payment confirmed for {subject.title()}. You’re enrolled."
+
     return redirect(url_for("auth_bp.bridge_dashboard"))

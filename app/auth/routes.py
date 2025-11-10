@@ -49,7 +49,7 @@ from app.utils.enrollment import is_enrolled
 from werkzeug.routing import BuildError
 from app.utils.password_reset import make_reset_token, load_reset_token
 from flask_wtf.csrf import generate_csrf
-from app.auth.registeruser import decide_registration_flow
+#from app.auth.registeruser import decide_registration_flow
 from sqlalchemy import func as SA_FUNC, text as SA_TEXT
 from sqlalchemy.exc import IntegrityError
 from flask import render_template, render_template_string

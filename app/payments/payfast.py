@@ -544,54 +544,11 @@ def notify():
 
 @payfast_bp.get("/success", endpoint="payfast_success")
 def success():
-    # 1) Pull staged context (with safe fallbacks)
-    ctx       = session.get("reg_ctx") or {}
-    email     = (ctx.get("email") or request.args.get("email") or session.get("pending_email") or "").strip().lower()
-    subject   = (ctx.get("subject") or request.args.get("subject") or session.get("pending_subject") or "loss").strip().lower()
-    full_name = (ctx.get("full_name") or (email.split("@",1)[0].title() if email else ""))
+    from app.auth.routes import _finalize_user_after_payment
 
-    if not email:
-        flash("Payment succeeded but we couldn't identify your account. Please sign in.", "danger")
-        return redirect(url_for("auth_bp.login"))
-
-    # 2) Create/resolve user (use staged password_hash if present)
-    user = User.query.filter_by(email=email).first()
-    if not user:
-        user = User(email=email, name=full_name, is_active=1)
-        user.password_hash = (ctx.get("password_hash") or generate_password_hash("PLEASE_RESET_PASSWORD"))
-        try:
-            setattr(user, "password", None)
-        except Exception:
-            pass
-        db.session.add(user)
-        db.session.flush()
-
-    # 3) Upsert ACTIVE enrollment (no non-existent columns)
-    sid = db.session.execute(
-        sa_text("SELECT id FROM auth_subject WHERE lower(slug)=:s OR lower(name)=:s LIMIT 1"),
-        {"s": subject}
-    ).scalar()
-    if sid:
-        db.session.execute(
-            sa_text("""
-                INSERT INTO user_enrollment (user_id, subject_id, status)
-                VALUES (:uid, :sid, 'active')
-                ON CONFLICT(user_id, subject_id) DO UPDATE SET status='active'
-            """),
-            {"uid": int(user.id), "sid": int(sid)}
-        )
-
-    db.session.commit()
-
-    # 4) Log in + land on Bridge
-    login_user(user, remember=True, fresh=True)
-    session["email"] = email
-    session["user_id"] = int(user.id)
-    session["user_name"] = user.name or email.split("@",1)[0]
-    session["role"] = "user"
-    session["payment_banner"] = "Thanks — payment received. You're all set."
-
-    
-    _finalize_user_after_payment()
+    try:
+        _finalize_user_after_payment()
+    except Exception as e:
+        current_app.logger.error(f"PayFast finalize error: {e!r}")
 
     return redirect(url_for("auth_bp.bridge_dashboard"))

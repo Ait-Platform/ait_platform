@@ -298,26 +298,23 @@ def handoff():
     cfg = current_app.config
 
     email = (request.args.get("email") or "").strip().lower()
-    slug  = (request.args.get("subject") or "").strip()
+    slug  = (request.args.get("subject") or "").strip().lower()
     debug = (request.args.get("debug") == "1")
     if not email or not slug:
         abort(400, "Missing email or subject")
 
-    # required env
     required = ["PAYFAST_MERCHANT_ID","PAYFAST_MERCHANT_KEY",
                 "PAYFAST_RETURN_URL","PAYFAST_CANCEL_URL","PAYFAST_NOTIFY_URL"]
     missing = [k for k in required if not cfg.get(k)]
     if missing:
         return render_template("payfast_misconfig.html", missing=missing), 500
 
-    # subject (id + name)
     subject = AuthSubject.query.filter_by(slug=slug).first()
     if not subject:
         abort(400, "Subject not found")
     subject_id   = subject.id
     subject_name = getattr(subject, "name", slug)
 
-    # price from auth_pricing.amount_cents (active, most recent)
     row = db.session.execute(text("""
         SELECT amount_cents
         FROM auth_pricing
@@ -336,17 +333,15 @@ def handoff():
         abort(400, "Active price not configured for this subject")
     amount_str = f"{(Decimal(int(row.amount_cents))/Decimal(100)).quantize(Decimal('0.01')):.2f}"
 
-    # enforce https URLs
     for k in ("PAYFAST_RETURN_URL","PAYFAST_CANCEL_URL","PAYFAST_NOTIFY_URL"):
         if not str(cfg.get(k)).startswith("https://"):
             abort(500, f"{k} must be https")
 
-    # mode → creds/host
     mode = (cfg.get("PAYFAST_MODE") or "sandbox").lower()
     if mode == "sandbox":
         merchant_id  = "10000100"
         merchant_key = "46f0cd694581a"
-        passphrase   = ""  # sandbox: no passphrase
+        passphrase   = ""
         payfast_host = "https://sandbox.payfast.co.za/eng/process"
         if cfg.get("PAYFAST_MERCHANT_ID") not in (None, "", "10000100"):
             current_app.logger.warning("Ignoring live merchant in sandbox; forcing 10000100.")
@@ -356,64 +351,63 @@ def handoff():
         passphrase   = (cfg.get("PAYFAST_PASSPHRASE") or "")
         payfast_host = "https://www.payfast.co.za/eng/process"
 
-    # unique ref, no DB writes
     mref = f"{_ref(slug)}-{uuid4().hex[:10]}"
 
-    # ASCII-clean minimal payload
-    def _ascii(s: str) -> str: return (s or "").encode("ascii","ignore").decode("ascii")
-    # after you compute mref and amount_str
-    return_url = f"{current_app.config['PAYFAST_RETURN_URL']}?ref={mref}&email={email}"
+    # include subject so /payments/success can finalize correctly
+    return_url = f"{cfg['PAYFAST_RETURN_URL']}?ref={mref}&email={email}&subject={slug}"
 
     item_name_clean = (f"{subject_name} enrollment")[:100]
     email_clean = email
 
-    # ensure user exists
-    # ensure user exists + has a display name
+    # ensure user exists + set name + (NEW) set password_hash if staged
     u = User.query.filter_by(email=email).first()
     if not u:
         u = User(email=email, is_active=1)
-        # sensible default name from email
         u.name = email.split("@", 1)[0].replace(".", " ").replace("_", " ").title()
+        # pull staged password hash from registration (if present)
+        reg_ctx = session.get("reg_ctx") or {}
+        staged = reg_ctx.get("password_hash")
+        if staged and not getattr(u, "password_hash", None):
+            u.password_hash = staged
         db.session.add(u)
+        db.session.flush()  # ensure u.id before upsert
     else:
-        if not u.name or u.name.strip() == "":
+        if not u.name or not u.name.strip():
             u.name = email.split("@", 1)[0].replace(".", " ").replace("_", " ").title()
+        # backfill password_hash if missing and staged exists
+        if not getattr(u, "password_hash", None):
+            reg_ctx = session.get("reg_ctx") or {}
+            staged = reg_ctx.get("password_hash")
+            if staged:
+                u.password_hash = staged
+        db.session.flush()
 
-    # ensure subject exists
-    subj = AuthSubject.query.filter_by(slug=slug).first() or abort(400, "Subject not found")
-
-    # upsert pending enrollment — only columns that exist
+    # ensure pending enrollment
     db.session.execute(text("""
         INSERT INTO user_enrollment (user_id, subject_id, status)
         VALUES (:uid, :sid, 'pending')
         ON CONFLICT(user_id, subject_id)
         DO UPDATE SET status='pending'
-    """), {"uid": u.id, "sid": subj.id})
+    """), {"uid": u.id, "sid": subject.id})
 
     db.session.commit()
-
 
     pf_data = {
         "merchant_id":   merchant_id,
         "merchant_key":  merchant_key,
-        "return_url":    return_url,   # <— use this instead of the plain config value
-        "cancel_url":    current_app.config["PAYFAST_CANCEL_URL"],
-        "notify_url":    current_app.config["PAYFAST_NOTIFY_URL"],
+        "return_url":    return_url,  # <<< includes ref/email/subject
+        "cancel_url":    cfg["PAYFAST_CANCEL_URL"],
+        "notify_url":    cfg["PAYFAST_NOTIFY_URL"],
         "m_payment_id":  mref,
         "amount":        amount_str,
         "item_name":     item_name_clean,
         "email_address": email_clean,
     }
 
-
-    # In sandbox, do NOT include signature at all
-    if merchant_id == "10000100":
-        pf_data.pop("signature", None)
-    else:
+    if merchant_id != "10000100":
         pf_data["signature"] = _pf_sig(pf_data, passphrase)
-
-    # signature (sandbox → passphrase "", so no passphrase param appended)
-    #pf_data["signature"] = _pf_sig(pf_data, passphrase)
+    else:
+        pf_data.pop("signature", None)
 
     current_app.logger.info("PF handoff host=%s data=%s",
         payfast_host, {k: v for k, v in pf_data.items() if k != "signature"})

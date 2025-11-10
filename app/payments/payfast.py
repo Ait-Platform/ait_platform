@@ -21,6 +21,7 @@ from app.extensions import csrf
 import hashlib, re, logging
 from sqlalchemy import text as sa_text
 from werkzeug.security import generate_password_hash
+from app.auth.routes import _finalize_user_after_payment
 
 payfast_bp = Blueprint("payfast_bp", __name__)
 
@@ -589,5 +590,8 @@ def success():
     session["user_name"] = user.name or email.split("@",1)[0]
     session["role"] = "user"
     session["payment_banner"] = "Thanks — payment received. You're all set."
+
+    
+    _finalize_user_after_payment()
 
     return redirect(url_for("auth_bp.bridge_dashboard"))

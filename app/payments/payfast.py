@@ -565,18 +565,27 @@ def success():
         db.session.flush()
 
     # activate enrollment
+    # --- activate enrollment (UPDATE first, INSERT if missing) ---
     sid = db.session.execute(
         sa_text("SELECT id FROM auth_subject WHERE lower(slug)=:s OR lower(name)=:s LIMIT 1"),
-        {"s": subject},
+        {"s": subject}
     ).scalar()
+
     if sid:
-        db.session.execute(sa_text("""
-            INSERT INTO user_enrollment (user_id, subject_id, status)
-            VALUES (:uid, :sid, 'active')
-            ON CONFLICT(user_id, subject_id) DO UPDATE SET status='active'
+        upd = db.session.execute(sa_text("""
+            UPDATE user_enrollment
+            SET status='active'
+            WHERE user_id=:uid AND subject_id=:sid
         """), {"uid": int(u.id), "sid": int(sid)})
 
+        if (getattr(upd, "rowcount", 0) or 0) == 0:
+            db.session.execute(sa_text("""
+                INSERT INTO user_enrollment (user_id, subject_id, status)
+                VALUES (:uid, :sid, 'active')
+            """), {"uid": int(u.id), "sid": int(sid)})
+
     db.session.commit()
+
 
     # log in + bridge
     login_user(u, remember=True, fresh=True)

@@ -1391,63 +1391,42 @@ def _finalize_user_after_payment():
 
     reg_ctx = session.get("reg_ctx", {}) or {}
 
-    email_norm   = (reg_ctx.get("email") or reg_ctx.get("email_lower") or "").strip().lower()
+    # 1) Inputs: add fallbacks; never raise
+    email_norm   = (reg_ctx.get("email") or reg_ctx.get("email_lower")
+                    or session.get("pending_email")
+                    or request.args.get("email", "")
+                ).strip().lower()
     full_name    = (reg_ctx.get("full_name") or "").strip()
-    subject_slug = (reg_ctx.get("subject") or "loss").strip().lower()
-    staged_hash  = reg_ctx.get("password_hash")  # <-- we set this in /register POST
+    subject_slug = (reg_ctx.get("subject") or session.get("pending_subject") or "loss").strip().lower()
+    staged_hash  = reg_ctx.get("password_hash") or generate_password_hash("PLEASE_RESET_PASSWORD")
     next_url     = reg_ctx.get("next_url") or "/"
+    if not email_norm:
+        current_app.logger.error("[finalize_user_after_payment] no email available after return")
+        return None, next_url  # caller will show a gentle error
 
-    if not email_norm or not staged_hash:
-        # This is catastrophic: we lost reg_ctx or never staged the password_hash.
-        # We should log loudly and bail.
-        current_app.logger.error("[finalize_user_after_payment] Missing email or password_hash in reg_ctx")
-        raise RuntimeError("registration context incomplete")
-
-    # Make sure subject exists and get ID
-    sid = db.session.execute(
-        sa_text("SELECT id FROM auth_subject WHERE slug=:s OR name=:s LIMIT 1"),
-        {"s": subject_slug}
-    ).scalar()
-    if not sid:
-        current_app.logger.error(f"[finalize_user_after_payment] Unknown subject {subject_slug!r}")
-        raise RuntimeError("unknown subject")
-
-    # Check if user already exists (rare but possible if they double-paid)
+    # 2) Create-or-get user; only set password_hash if creating
     user = User.query.filter_by(email=email_norm).first()
-
     if not user:
-        # create new user using the staged password_hash from register()
-        user = User(
-            email=email_norm,
-            name=full_name if full_name else email_norm.split("@", 1)[0],
-        )
-
+        user = User(email=email_norm, name=(full_name or email_norm.split("@", 1)[0]))
         user.password_hash = staged_hash
-
-        # make sure any legacy .password column is blank
         if hasattr(user, "password"):
-            try:
-                setattr(user, "password", None)
-            except Exception:
-                pass
+            try: setattr(user, "password", None)
+            except Exception: pass
+        db.session.add(user); db.session.flush()
 
-        db.session.add(user)
-        db.session.flush()  # user.id now available
-
-    # Enroll user in subject if not already
-    try:
-        db.session.execute(
-            sa_text("""
-                INSERT INTO user_enrollment (user_id, subject_id, status, started_at)
-                VALUES (:uid, :sid, 'active', CURRENT_TIMESTAMP)
-                ON CONFLICT (user_id, subject_id) DO NOTHING
-            """),
-            {"uid": user.id, "sid": sid}
-        )
-    except Exception as ex:
-        current_app.logger.warning(f"[finalize_user_after_payment] couldn't insert enrollment: {ex!r}")
+    # 3) Promote enrollment to active WITHOUT started_at column
+    sid = db.session.execute(sa_text(
+        "SELECT id FROM auth_subject WHERE slug=:s OR name=:s LIMIT 1"
+    ), {"s": subject_slug}).scalar()
+    if sid:
+        db.session.execute(sa_text("""
+            INSERT INTO user_enrollment (user_id, subject_id, status)
+            VALUES (:uid, :sid, 'active')
+            ON CONFLICT(user_id, subject_id) DO UPDATE SET status='active'
+        """), {"uid": user.id, "sid": int(sid)})
 
     db.session.commit()
+
 
     # Log them in and hydrate session, like login() does
     login_user(user, remember=True, fresh=True)

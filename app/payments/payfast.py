@@ -382,6 +382,9 @@ def handoff():
                 u.password_hash = staged
         db.session.flush()
 
+    db.session.add(u)
+    db.session.flush()  # ← ensure u.id is available before using it
+
     # ensure pending enrollment
     db.session.execute(text("""
         INSERT INTO user_enrollment (user_id, subject_id, status)
@@ -538,7 +541,7 @@ def notify():
 
 @payfast_bp.get("/success", endpoint="payfast_success")
 def success():
-    # 1) Resolve identity/context (args first, then session)
+    # 1) Resolve context
     ref     = (request.args.get("ref")     or "").strip()
     email   = (request.args.get("email")   or session.get("pending_email") or "").strip().lower()
     subject = (request.args.get("subject") or session.get("pending_subject") or session.get("reg_ctx", {}).get("subject") or "loss").strip().lower()
@@ -547,7 +550,7 @@ def success():
         flash("Payment completed. Please sign in to continue.", "info")
         return render_template("payment_success.html", subject=subject, ref=ref), 200
 
-    # 2) User: create (or fetch) + apply staged password hash if we staged one at /register
+    # 2) Ensure user (apply staged password hash if available)
     u = User.query.filter_by(email=email).first()
     if not u:
         staged = (session.get("reg_ctx", {}) or {}).get("password_hash")
@@ -556,7 +559,7 @@ def success():
         if staged:
             u.password_hash = staged
         db.session.add(u)
-        db.session.flush()  # get u.id
+        db.session.flush()  # ensure u.id is available
 
     # 3) Subject → id
     sid = db.session.execute(text("""
@@ -565,27 +568,44 @@ def success():
         LIMIT 1
     """), {"s": subject}).scalar()
     if not sid:
-        # Show success page anyway; user can proceed from Bridge later
         return render_template("payment_success.html", subject=subject, ref=ref), 200
 
-    # 4) Enrollment: set ACTIVE (defensive, only columns that always exist)
-    db.session.execute(text("""
-        INSERT INTO user_enrollment (user_id, subject_id, status)
-        VALUES (:uid, :sid, 'active')
-        ON CONFLICT(user_id, subject_id) DO UPDATE SET status='active'
-    """), {"uid": int(u.id), "sid": int(sid)})
+    # 4) Enrollment → ACTIVE (defensive: UPDATE then INSERT; handle schemas with/without payment_pending)
+    try:
+        upd = db.session.execute(text("""
+            UPDATE user_enrollment
+            SET status='active', payment_pending=0
+            WHERE user_id=:uid AND subject_id=:sid
+        """), {"uid": int(u.id), "sid": int(sid)})
+    except Exception:
+        upd = db.session.execute(text("""
+            UPDATE user_enrollment
+            SET status='active'
+            WHERE user_id=:uid AND subject_id=:sid
+        """), {"uid": int(u.id), "sid": int(sid)})
+
+    if (getattr(upd, "rowcount", 0) or 0) == 0:
+        # no row existed → insert ACTIVE
+        try:
+            db.session.execute(text("""
+                INSERT INTO user_enrollment (user_id, subject_id, status, payment_pending)
+                VALUES (:uid, :sid, 'active', 0)
+            """), {"uid": int(u.id), "sid": int(sid)})
+        except Exception:
+            db.session.execute(text("""
+                INSERT INTO user_enrollment (user_id, subject_id, status)
+                VALUES (:uid, :sid, 'active')
+            """), {"uid": int(u.id), "sid": int(sid)})
 
     db.session.commit()
 
-    # 5) Log them in + set a banner + focus that subject on Bridge
+    # 5) Log in + banner + focus subject in Bridge
     try:
         login_user(u, remember=True, fresh=True)
     except Exception:
         pass
-
     session["payment_banner"] = f"Payment successful for {subject.title()}. You're all set!"
     session["just_paid_subject_id"] = int(sid)
 
-    # 6) Render success page (no auto-redirect)
-    # Your template can show a primary button: href="{{ url_for('auth_bp.bridge_dashboard') }}"
+    # 6) Render success page (CTA should link to Bridge)
     return render_template("payment_success.html", subject=subject, ref=ref), 200

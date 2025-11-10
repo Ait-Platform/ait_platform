@@ -19,6 +19,8 @@ from sqlalchemy import text
 from app.models.auth import User, AuthSubject, UserEnrollment # adjust to your names
 from app.extensions import csrf
 import hashlib, re, logging
+from sqlalchemy import text as sa_text
+from werkzeug.security import generate_password_hash
 
 payfast_bp = Blueprint("payfast_bp", __name__)
 
@@ -541,56 +543,51 @@ def notify():
 
 @payfast_bp.get("/success", endpoint="payfast_success")
 def success():
-    from app.auth.routes import _finalize_user_after_payment
-    from app.utils.enrollment import settle_user_enrollment_paid
-
-    # --- Case 1: already authenticated → go straight to dashboard
-    if current_user.is_authenticated:
-        return redirect(url_for("auth_bp.bridge_dashboard"))
-
-    # --- Case 2: recover from PayFast return (no active session)
-    email = (request.args.get("email") or "").strip().lower()
-    if not email:
-        email = (session.get("pending_email") or "").strip().lower()
+    # 1) Pull staged context (with safe fallbacks)
+    ctx       = session.get("reg_ctx") or {}
+    email     = (ctx.get("email") or request.args.get("email") or session.get("pending_email") or "").strip().lower()
+    subject   = (ctx.get("subject") or request.args.get("subject") or session.get("pending_subject") or "loss").strip().lower()
+    full_name = (ctx.get("full_name") or (email.split("@",1)[0].title() if email else ""))
 
     if not email:
-        flash("Payment succeeded but session expired. Please log in.", "warning")
+        flash("Payment succeeded but we couldn't identify your account. Please sign in.", "danger")
         return redirect(url_for("auth_bp.login"))
 
-    # --- Ensure user exists
-    u = User.query.filter_by(email=email).first()
-    if not u:
-        u = User(email=email, is_active=1)
-        u.name = email.split("@", 1)[0].replace(".", " ").replace("_", " ").title()
-        db.session.add(u)
-        db.session.commit()
+    # 2) Create/resolve user (use staged password_hash if present)
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        user = User(email=email, name=full_name, is_active=1)
+        user.password_hash = (ctx.get("password_hash") or generate_password_hash("PLEASE_RESET_PASSWORD"))
+        try:
+            setattr(user, "password", None)
+        except Exception:
+            pass
+        db.session.add(user)
+        db.session.flush()
 
-    # --- Finalize registration and enrollment
-    try:
-        user, next_url = _finalize_user_after_payment()
-
-        from sqlalchemy.sql import text as sa_text
-        sid = db.session.execute(
-            sa_text("SELECT id FROM auth_subject WHERE lower(slug)=:s LIMIT 1"),
-            {"s": session.get("pending_subject")}
-        ).scalar()
-
-        settle_user_enrollment_paid(
-            user_id=user.id,
-            subject_slug=session.get("pending_subject"),
-            program=session.get("pending_subject")
+    # 3) Upsert ACTIVE enrollment (no non-existent columns)
+    sid = db.session.execute(
+        sa_text("SELECT id FROM auth_subject WHERE lower(slug)=:s OR lower(name)=:s LIMIT 1"),
+        {"s": subject}
+    ).scalar()
+    if sid:
+        db.session.execute(
+            sa_text("""
+                INSERT INTO user_enrollment (user_id, subject_id, status)
+                VALUES (:uid, :sid, 'active')
+                ON CONFLICT(user_id, subject_id) DO UPDATE SET status='active'
+            """),
+            {"uid": int(user.id), "sid": int(sid)}
         )
 
-        session["payment_banner"] = "Payment received — enrollment active!"
-        session["just_paid"] = True
-        session["just_paid_subject_id"] = sid
-        db.session.commit()
+    db.session.commit()
 
-    except Exception as ex:
-        current_app.logger.error(f"[PayFast success] finalize failed: {ex}")
-        flash("Payment succeeded but enrollment could not be finalized. Please contact support.", "danger")
-        return redirect(url_for("auth_bp.login"))
+    # 4) Log in + land on Bridge
+    login_user(user, remember=True, fresh=True)
+    session["email"] = email
+    session["user_id"] = int(user.id)
+    session["user_name"] = user.name or email.split("@",1)[0]
+    session["role"] = "user"
+    session["payment_banner"] = "Thanks — payment received. You're all set."
 
-    # --- Authenticate & redirect
-    login_user(u, remember=True)
     return redirect(url_for("auth_bp.bridge_dashboard"))

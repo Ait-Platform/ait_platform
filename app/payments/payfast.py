@@ -544,11 +544,57 @@ def notify():
 
 @payfast_bp.get("/success", endpoint="payfast_success")
 def success():
-    from app.auth.routes import _finalize_user_after_payment
+    # Make sure we actually hit this route
+    current_app.logger.info("[PF] success hit args=%r session_keys=%r",
+                            dict(request.args), list(session.keys()))
 
+    # If the user just returned from PayFast, ensure we have the reg context
+    # (email + subject were sent in the return_url query; reuse them to
+    #  hydrate reg_ctx if it got lost on the external hop)
+    email_q  = (request.args.get("email") or "").strip().lower()
+    subject_q = (request.args.get("subject") or session.get("pending_subject") or "loss").strip().lower()
+
+    reg_ctx = session.get("reg_ctx") or {}
+    if email_q and not reg_ctx.get("email"):
+        reg_ctx.update({
+            "email": email_q,
+            "email_lower": email_q,
+            "subject": subject_q or reg_ctx.get("subject") or "loss",
+            "next_url": reg_ctx.get("next_url") or "/",
+        })
+        session["reg_ctx"] = reg_ctx
+
+    # Finalize account + enrollment (uses staged password_hash from /register POST)
     try:
+        from app.auth.routes import _finalize_user_after_payment
         _finalize_user_after_payment()
     except Exception as e:
-        current_app.logger.error(f"PayFast finalize error: {e!r}")
+        current_app.logger.error("[PF] finalize error: %r", e)
 
+        # Fallback: if user already exists, at least log them in and mark enrollment active
+        try:
+            email = (reg_ctx.get("email") or email_q)
+            if email:
+                u = User.query.filter_by(email=email).first()
+                if u:
+                    # mark enrollment active if subject known
+                    sid = db.session.execute(
+                        sa_text("SELECT id FROM auth_subject WHERE lower(slug)=:s OR lower(name)=:s LIMIT 1"),
+                        {"s": subject_q or "loss"}
+                    ).scalar()
+                    if sid:
+                        db.session.execute(
+                            sa_text("""
+                                INSERT INTO user_enrollment (user_id, subject_id, status)
+                                VALUES (:uid, :sid, 'active')
+                                ON CONFLICT(user_id, subject_id) DO UPDATE SET status='active'
+                            """),
+                            {"uid": int(u.id), "sid": int(sid)}
+                        )
+                        db.session.commit()
+                    login_user(u, remember=True, fresh=True)
+        except Exception as e2:
+            current_app.logger.error("[PF] fallback activate/login failed: %r", e2)
+
+    # Always land on Bridge after success
     return redirect(url_for("auth_bp.bridge_dashboard"))

@@ -364,6 +364,26 @@ def handoff():
     item_name_clean = (f"{subject_name} enrollment")[:100]
     email_clean = email
 
+    # ensure user exists
+    u = User.query.filter_by(email=email).first()
+    if not u:
+        u = User(email=email)            # your model accepts email-only
+        db.session.add(u)
+        db.session.flush()               # get u.id now
+
+    # ensure subject exists
+    subj = AuthSubject.query.filter_by(slug=slug).first() or abort(400, "Subject not found")
+
+    # upsert pending enrollment (idempotent)
+    db.session.execute(text("""
+        INSERT INTO user_enrollment (user_id, subject_id, status, started_at)
+        VALUES (:uid, :sid, 'pending', CURRENT_TIMESTAMP)
+        ON CONFLICT(user_id, subject_id) DO UPDATE
+        SET status='pending'
+    """), {"uid": u.id, "sid": subj.id})
+
+    db.session.commit()
+
     pf_data = {
         "merchant_id":   merchant_id,
         "merchant_key":  merchant_key,
@@ -445,27 +465,6 @@ def _subject_amount(subject, req_amount: str | None):
 
     return None
 
-@payfast_bp.get("/success", endpoint="payfast_success")
-def success():
-    # If already signed in, go straight to Bridge
-    if current_user.is_authenticated:
-        return redirect(url_for("auth_bp.bridge_dashboard"))
-
-    # Auto-login by email from the return_url
-    email = (request.args.get("email") or "").strip().lower()
-    if email:
-        u = User.query.filter_by(email=email).first()
-        if not u:
-            u = User(email=email)
-            db.session.add(u)
-            db.session.commit()
-        login_user(u, remember=True)
-        return redirect(url_for("auth_bp.bridge_dashboard"))
-
-    # Fallback: show the page (rare: missing email)
-    return render_template("payment_success.html"), 200
-
-
 @payfast_bp.get("/cancel")
 def cancel():
     return render_template("payment_cancelled.html")
@@ -533,3 +532,20 @@ def notify():
     db.session.commit()
     current_app.logger.info("PF IPN ok: email=%s amount=%s status=%s ref=%s", email, amount, status, mref)
     return ("", 200)
+
+@payfast_bp.get("/success", endpoint="payfast_success")
+def success():
+    if current_user.is_authenticated:
+        return redirect(url_for("auth_bp.bridge_dashboard"))
+
+    email = (request.args.get("email") or "").strip().lower()
+    if email:
+        u = User.query.filter_by(email=email).first()
+        if not u:
+            u = User(email=email)
+            db.session.add(u)
+            db.session.commit()
+        login_user(u, remember=True)
+        return redirect(url_for("auth_bp.bridge_dashboard"))
+
+    return render_template("payment_success.html"), 200

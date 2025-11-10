@@ -11,9 +11,6 @@ def _slug_from_id(subject_id: int) -> str | None:
     ).fetchone()
     return (row[0] if row else None)
 
-# -----------------------------
-# Canonical helpers (slug-based)
-# -----------------------------
 def create_pending_user_enrollment(*, user_id: int, subject_slug: str, program: str | None):
     """Idempotent: ensure a pending enrollment (payment_pending=1) in user_enrollment for the subject."""
     subject_slug = (subject_slug or "").lower().strip()
@@ -34,7 +31,6 @@ def create_pending_user_enrollment(*, user_id: int, subject_slug: str, program: 
     """)
     db.session.execute(sql, {"uid": user_id, "sid": sid, "program": (program or subject_slug)})
     db.session.commit()
-
 
 def settle_user_enrollment_paid(*, user_id: int, subject_slug: str, program: str | None):
     """Idempotent: mark enrollment as paid (payment_pending=0, status=active) in user_enrollment."""
@@ -57,9 +53,6 @@ def settle_user_enrollment_paid(*, user_id: int, subject_slug: str, program: str
     db.session.execute(sql, {"uid": user_id, "sid": sid, "program": (program or subject_slug)})
     db.session.commit()
 
-# -----------------------------------
-# Back-compat wrappers (id/legacy API)
-# -----------------------------------
 def ensure_pending_enrollment(user_id: int, subject_id: int, program: str | None = None):
     """
     Back-compat wrapper:
@@ -71,7 +64,6 @@ def ensure_pending_enrollment(user_id: int, subject_id: int, program: str | None
         current_app.logger.warning("ensure_pending_enrollment: subject_id not found '%s'", subject_id)
         return
     create_pending_user_enrollment(user_id=user_id, subject_slug=slug, program=program or slug)
-
 
 def mark_payment_settled(user_id: int, subject_id: int):
     """
@@ -85,7 +77,6 @@ def mark_payment_settled(user_id: int, subject_id: int):
         return
     settle_user_enrollment_paid(user_id=user_id, subject_slug=slug, program=slug)
 
-
 def ensure_enrollment(user_id: int, subject_slug: str, role: str):
     """
     Back-compat wrapper:
@@ -94,7 +85,6 @@ def ensure_enrollment(user_id: int, subject_slug: str, role: str):
     """
     slug = (subject_slug or "").strip().lower()
     create_pending_user_enrollment(user_id=user_id, subject_slug=slug, program=slug)
-
 
 ENROLLED_STATI = ("active", "paid")
 

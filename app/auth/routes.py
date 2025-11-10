@@ -8,7 +8,7 @@ import uuid
 from flask import (
     Blueprint, current_app, make_response, render_template,
     redirect, url_for, request, flash,
-    session, abort
+    session, jsonify, abort
     )
 import stripe
 #from app.checkout.stripe_client import fetch_subject_price, record_stripe_payment
@@ -60,7 +60,17 @@ from sqlalchemy import select, func, update as sa_update
 
 from sqlalchemy.exc import IntegrityError
 
+
+from werkzeug.security import generate_password_hash
+
 auth_bp = Blueprint('auth_bp', __name__, url_prefix='/', template_folder='templates')
+
+@auth_bp.app_context_processor
+def inject_has_endpoint():
+    from flask import current_app
+    def has_endpoint(ep: str) -> bool:
+        return ep in current_app.view_functions
+    return {"has_endpoint": has_endpoint}
 
 @auth_bp.get("/start_registration", endpoint="start_registration")
 def start_registration():
@@ -76,7 +86,252 @@ def start_registration():
     # 2) hand off to the real register endpoint with ALL original query params
     return redirect(url_for("auth_bp.register", **request.args))
 
+@auth_bp.route("/register", methods=["GET", "POST"])
+def register():
+    # ---------- GET ----------
+    if request.method == "GET":
+        role     = (request.args.get("role") or "user").strip().lower()
+        subject  = (request.args.get("subject") or "loss").strip().lower()
+        next_url = (request.args.get("next") or "/").strip()
 
+        _save_reg_ctx(role, subject, "", "", next_url)
+
+        return render_template(
+            "auth/register.html",
+            role=role,
+            subject=subject,
+            next_url=next_url,
+            values={}
+        )
+
+    # ---------- POST ----------
+    role       = (request.form.get("role") or "user").strip().lower()
+    subject    = (request.form.get("subject") or "loss").strip().lower()
+    next_url   = (request.form.get("next")
+                  or session.get("reg_ctx", {}).get("next_url")
+                  or "/").strip()
+    email_in   = (request.form.get("email") or "").strip()
+    full_name  = (request.form.get("full_name") or "").strip()
+    password   = (request.form.get("password") or "").strip()
+
+    values = {
+        "email": email_in,
+        "full_name": full_name,
+    }
+
+    # basic validation
+    if not email_in or not password:
+        flash("Please provide an email and password.", "danger")
+        return render_template(
+            "auth/register.html",
+            role=role,
+            subject=subject,
+            next_url=next_url,
+            values=values
+        )
+
+    if len(password) < 8:
+        flash("Password must be at least 8 characters long.", "danger")
+        return render_template(
+            "auth/register.html",
+            role=role,
+            subject=subject,
+            next_url=next_url,
+            values=values
+        )
+
+    # confirm subject exists and get subject_id
+    sid = db.session.execute(
+        sa_text("SELECT id FROM auth_subject WHERE slug=:s OR name=:s LIMIT 1"),
+        {"s": subject}
+    ).scalar()
+    if not sid:
+        flash("Unknown subject.", "danger")
+        return render_template(
+            "auth/register.html",
+            role=role,
+            subject=subject,
+            next_url=next_url,
+            values=values
+        )
+
+    # normalize email
+    email_norm = email_in.lower()
+
+    # check if this email is already a real user in DB
+    # we are *not* creating a user yet, but we must block duplicates now
+    existing = db.session.execute(
+        sa_text("SELECT id FROM \"user\" WHERE lower(email)=lower(:e) LIMIT 1"),
+        {"e": email_norm}
+    ).scalar()
+    if existing:
+        flash("That email is already registered. Please sign in.", "danger")
+        return render_template(
+            "auth/register.html",
+            role=role,
+            subject=subject,
+            next_url=next_url,
+            values=values
+        )
+
+    # --- CRITICAL PART ---
+    # Instead of creating + logging in the user now,
+    # we stage their info (including a secure hash of their chosen password)
+    # into session["reg_ctx"]. Payment step will finish the account.
+    #
+    # We store password_hash, NOT the raw password.
+    staged_password_hash = generate_password_hash(password)
+
+    _save_reg_ctx(
+        role=role,
+        subject=subject,
+        email=email_norm,
+        full_name=full_name,
+        next_url=next_url,
+    )
+
+    # extend reg_ctx with security fields we need for finalization
+    # (this survives redirect to decision -> payment -> final create)
+    session["reg_ctx"]["email_lower"] = email_norm
+    session["reg_ctx"]["password_hash"] = staged_password_hash
+
+    # you were already doing this:
+    session.pop("just_paid_subject_id", None)
+
+    # now go to decision screen (pay / choose plan / etc.)
+    return redirect(url_for(
+        "auth_bp.register_decision",
+        email=email_in,
+        subject=subject
+    ))
+
+@auth_bp.route("/register/decision", methods=["GET", "POST"])
+def register_decision():
+    """
+    One-subject decision (single source of truth = user_enrollment):
+      - active   -> Start course (POST)
+      - pending  -> Proceed to payment (GET link)
+      - none     -> Proceed to payment (GET link)
+    """
+    ctx = session.get("reg_ctx") or {}
+
+    # -------- identity --------
+    email = (
+        (request.args.get("email") or request.form.get("email")
+         or session.get("pending_email") or ctx.get("email") or "")
+        .strip().lower()
+    )
+    if not email:
+        flash("Please complete registration first.", "warning")
+        return redirect(url_for("auth_bp.register"))
+
+    # -------- chosen subject (slug or name) --------
+    chosen_subject = (
+        request.args.get("subject") or request.form.get("subject")
+        or (ctx.get("subject") or "")
+    ).strip().lower()
+    if not chosen_subject:
+        flash("Please choose a subject.", "warning")
+        return redirect(url_for("auth_bp.register"))
+
+    # -------- resolve subject (must be active) --------
+    subj = db.session.execute(sa_text("""
+        SELECT id, slug, name
+        FROM auth_subject
+        WHERE is_active = 1
+          AND (lower(slug)=:s OR lower(name)=:s)
+        LIMIT 1
+    """), {"s": chosen_subject}).mappings().first()
+    if not subj:
+        flash("Unknown or inactive subject.", "warning")
+        return redirect(url_for("auth_bp.register"))
+
+    sid           = int(subj["id"])
+    subject_slug  = (subj["slug"] or "").lower()
+    subject_name  = subj["name"]
+
+    # -------- current enrollment state for THIS subject --------
+    row = db.session.execute(sa_text("""
+        SELECT ue.status
+        FROM user_enrollment ue
+        JOIN "user" u       ON u.id = ue.user_id
+        JOIN auth_subject s ON s.id = ue.subject_id
+        WHERE lower(u.email)=lower(:e)
+          AND lower(s.slug)=:slug
+        LIMIT 1
+    """), {"e": email, "slug": subject_slug}).first()
+
+    status      = (row[0] if row else None)  # 'active' | 'pending' | None
+    is_active   = (status == "active")
+    is_pending  = (status == "pending")
+
+    # -------- CTA wiring --------
+    # If ACTIVE: we render a POST button (no href). If not, we render a link to /start-payment.
+    cta_post   = bool(is_active)  # template: render <form method=POST> when True
+    cta_label  = "Start course" if is_active else "Proceed to payment"
+    cta_url    = None if is_active else url_for(
+        "auth_bp.start_payment",
+        email=email,
+        subject=subject_slug,
+        role=(ctx.get("role") or "user")
+    )
+
+    # Card only for this subject
+    subjects = [{
+        "id": sid,
+        "name": subject_name,
+        "enrolled": 1 if is_active else 0,
+        "pending":  1 if is_pending else 0,
+    }]
+
+    # -------- POST: Start course only when ACTIVE --------
+    if request.method == "POST":
+        if not is_active:
+            # Safety: if someone posts when not active, send them to payment.
+            return redirect(cta_url or url_for("auth_bp.register"))
+
+        # Login + bounce to Bridge
+        uid = db.session.execute(sa_text(
+            'SELECT MIN(id) FROM "user" WHERE lower(email)=lower(:e)'
+        ), {"e": email}).scalar()
+
+        if uid:
+            try:
+                from flask_login import login_user
+                u = db.session.get(User, int(uid))
+                if u:
+                    login_user(u, remember=True, fresh=True)
+                    session.update({
+                        "user_id": int(u.id),
+                        "user_name": u.name or (u.email.split("@", 1)[0] if u.email else ""),
+                        "role": "user",
+                        "subject": subject_slug,
+                        "email": (u.email or "").lower(),
+                    })
+                    session.permanent = True
+            except Exception:
+                session.update({
+                    "user_id": int(uid),
+                    "user_name": email.split("@", 1)[0],
+                    "role": "user",
+                    "subject": subject_slug,
+                    "email": email,
+                })
+                session.permanent = True
+
+        return redirect(url_for("auth_bp.bridge_dashboard", role="user"))
+
+    # -------- GET: render --------
+    return render_template(
+        "auth/decision.html",
+        email=email,
+        subjects=subjects,
+        subject_slug=subject_slug,
+        subject_display=subject_name,
+        cta_url=cta_url,        # used only when not active
+        cta_label=cta_label,
+        cta_post=cta_post,      # used when active
+    )
 
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login():
@@ -312,7 +567,6 @@ def logout():
     flash("Logged out.", "info")
     return resp
 
-
 @auth_bp.route("/admin/select_subject", methods=["GET", "POST"])
 @login_required
 def select_subject():
@@ -347,12 +601,6 @@ def select_subject():
     return render_template("auth/select_subject.html", subjects=available_subjects)
 
 # add this near the top of the file after auth_bp = Blueprint(...)
-@auth_bp.app_context_processor
-def inject_has_endpoint():
-    from flask import current_app
-    def has_endpoint(ep: str) -> bool:
-        return ep in current_app.view_functions
-    return {"has_endpoint": has_endpoint}
 
 @auth_bp.route("/dev-login/reading/admin")
 def dev_login_reading_admin():
@@ -468,7 +716,6 @@ def learner_subject_dashboard(subject):
         just_paid=just_paid,
         color_bar="bg-indigo-600",
     )
-
 
 @auth_bp.route("/dashboard/info/<subject>", methods=["GET"])
 def dashboard_info(subject: str):
@@ -611,14 +858,11 @@ def redirect_to_first(*endpoints):
     current_app.logger.warning("No admin dashboard endpoint found; falling back to public welcome")
     return redirect(url_for("public_bp.welcome"))
 
-def _norm(s): return s.strip() if s else ""
-
 def _is_valid_password(pw: str) -> bool:
     return bool(pw and len(pw) >= 3)
 
 def _safe_next():
     return request.args.get("next") or request.referrer or "/"
-
 
 @auth_bp.route("/forgot", methods=["GET", "POST"], endpoint="forgot")
 def forgot():
@@ -788,14 +1032,6 @@ def restart_enrollment(subject_id):
     # Send them back to register (or subject’s about) to begin fresh
     return redirect(url_for("auth_bp.register", subject=slug, role="user"))
 
-# routes.py
-
-
-
-
-
-
-
 EMAIL_RX = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 def normalize_email(s: str) -> str:
@@ -850,8 +1086,6 @@ def register_decision_preview():
     # Important: return HTML (200), not 204
     return render_template("auth/_decision_preview.html", ctx=ctx, subject=subject, role=role), 200
 
-from collections import defaultdict
-
 @auth_bp.post("/register/confirm")
 def register_confirm():
     action = (request.form.get("action") or "").strip()
@@ -881,22 +1115,10 @@ def register_confirm():
     flash(f"Consolidated duplicates for role '{role}'.", "success")
     return redirect(url_for("auth_bp.register_decision", just_archived=1), code=303)
 
-
-# app/auth/routes.py — Silent duplicate cleanup + Decision page (no archive UI)
-
-
-# ---------- Helpers -----------------------------------------------------------
-
-# in app/auth/routes.py (or your API blueprint)
-from flask import jsonify, request
-#from utils.country_list import search_countries, resolve_country
-
 @auth_bp.get("/api/countries")
 def api_countries():
     q = (request.args.get("q") or "").strip()
     return jsonify(search_countries(q, limit=20))
-
-from sqlalchemy import text
 
 def consolidate_duplicates_silently(cemail: str):
     """Keep lowest-id per role for this canonical email. Move UE rows, deactivate losers."""
@@ -975,15 +1197,6 @@ def consolidate_duplicates_silently(cemail: str):
 
     db.session.commit()
 
-# ---- imports (top of file) ----
-from collections import defaultdict
-from sqlalchemy import text as sa_text
-
-# Canonical email SQL (keep yours as-is)
-
-# --------------- REGISTER (GET/POST) ---------------
-from werkzeug.security import check_password_hash, generate_password_hash
-
 def hash_password(password):
     return generate_password_hash(password)
 
@@ -1007,12 +1220,6 @@ CASE
 END
 """
 
-# routes.py (snippet) — polished /register only
-
-from flask import render_template, request, redirect, url_for, session
-from sqlalchemy import text as sa_text
-from werkzeug.security import generate_password_hash
-
 @auth_bp.route("/start-payment", methods=["GET", "POST"])
 def start_payment():
     """
@@ -1021,7 +1228,7 @@ def start_payment():
     """
     from flask import session as flask_session, request, redirect, url_for, flash, current_app
     from werkzeug.security import generate_password_hash
-    from sqlalchemy import text as sa_text
+
    
     from decimal import Decimal, InvalidOperation
     import secrets
@@ -1160,135 +1367,6 @@ def start_payment():
         quantity=str(qty),
     ), code=303)
 
-@auth_bp.route("/register/decision", methods=["GET", "POST"])
-def register_decision():
-    """
-    One-subject decision (single source of truth = user_enrollment):
-      - active   -> Start course (POST)
-      - pending  -> Proceed to payment (GET link)
-      - none     -> Proceed to payment (GET link)
-    """
-    ctx = session.get("reg_ctx") or {}
-
-    # -------- identity --------
-    email = (
-        (request.args.get("email") or request.form.get("email")
-         or session.get("pending_email") or ctx.get("email") or "")
-        .strip().lower()
-    )
-    if not email:
-        flash("Please complete registration first.", "warning")
-        return redirect(url_for("auth_bp.register"))
-
-    # -------- chosen subject (slug or name) --------
-    chosen_subject = (
-        request.args.get("subject") or request.form.get("subject")
-        or (ctx.get("subject") or "")
-    ).strip().lower()
-    if not chosen_subject:
-        flash("Please choose a subject.", "warning")
-        return redirect(url_for("auth_bp.register"))
-
-    # -------- resolve subject (must be active) --------
-    subj = db.session.execute(sa_text("""
-        SELECT id, slug, name
-        FROM auth_subject
-        WHERE is_active = 1
-          AND (lower(slug)=:s OR lower(name)=:s)
-        LIMIT 1
-    """), {"s": chosen_subject}).mappings().first()
-    if not subj:
-        flash("Unknown or inactive subject.", "warning")
-        return redirect(url_for("auth_bp.register"))
-
-    sid           = int(subj["id"])
-    subject_slug  = (subj["slug"] or "").lower()
-    subject_name  = subj["name"]
-
-    # -------- current enrollment state for THIS subject --------
-    row = db.session.execute(sa_text("""
-        SELECT ue.status
-        FROM user_enrollment ue
-        JOIN "user" u       ON u.id = ue.user_id
-        JOIN auth_subject s ON s.id = ue.subject_id
-        WHERE lower(u.email)=lower(:e)
-          AND lower(s.slug)=:slug
-        LIMIT 1
-    """), {"e": email, "slug": subject_slug}).first()
-
-    status      = (row[0] if row else None)  # 'active' | 'pending' | None
-    is_active   = (status == "active")
-    is_pending  = (status == "pending")
-
-    # -------- CTA wiring --------
-    # If ACTIVE: we render a POST button (no href). If not, we render a link to /start-payment.
-    cta_post   = bool(is_active)  # template: render <form method=POST> when True
-    cta_label  = "Start course" if is_active else "Proceed to payment"
-    cta_url    = None if is_active else url_for(
-        "auth_bp.start_payment",
-        email=email,
-        subject=subject_slug,
-        role=(ctx.get("role") or "user")
-    )
-
-    # Card only for this subject
-    subjects = [{
-        "id": sid,
-        "name": subject_name,
-        "enrolled": 1 if is_active else 0,
-        "pending":  1 if is_pending else 0,
-    }]
-
-    # -------- POST: Start course only when ACTIVE --------
-    if request.method == "POST":
-        if not is_active:
-            # Safety: if someone posts when not active, send them to payment.
-            return redirect(cta_url or url_for("auth_bp.register"))
-
-        # Login + bounce to Bridge
-        uid = db.session.execute(sa_text(
-            'SELECT MIN(id) FROM "user" WHERE lower(email)=lower(:e)'
-        ), {"e": email}).scalar()
-
-        if uid:
-            try:
-                from flask_login import login_user
-                u = db.session.get(User, int(uid))
-                if u:
-                    login_user(u, remember=True, fresh=True)
-                    session.update({
-                        "user_id": int(u.id),
-                        "user_name": u.name or (u.email.split("@", 1)[0] if u.email else ""),
-                        "role": "user",
-                        "subject": subject_slug,
-                        "email": (u.email or "").lower(),
-                    })
-                    session.permanent = True
-            except Exception:
-                session.update({
-                    "user_id": int(uid),
-                    "user_name": email.split("@", 1)[0],
-                    "role": "user",
-                    "subject": subject_slug,
-                    "email": email,
-                })
-                session.permanent = True
-
-        return redirect(url_for("auth_bp.bridge_dashboard", role="user"))
-
-    # -------- GET: render --------
-    return render_template(
-        "auth/decision.html",
-        email=email,
-        subjects=subjects,
-        subject_slug=subject_slug,
-        subject_display=subject_name,
-        cta_url=cta_url,        # used only when not active
-        cta_label=cta_label,
-        cta_post=cta_post,      # used when active
-    )
-
-
 
 def _save_reg_ctx(role, subject, email, full_name, next_url):
     """
@@ -1303,126 +1381,6 @@ def _save_reg_ctx(role, subject, email, full_name, next_url):
         "full_name": full_name,
         "next_url": next_url,
     }
-
-
-@auth_bp.route("/register", methods=["GET", "POST"])
-def register():
-    # ---------- GET ----------
-    if request.method == "GET":
-        role     = (request.args.get("role") or "user").strip().lower()
-        subject  = (request.args.get("subject") or "loss").strip().lower()
-        next_url = (request.args.get("next") or "/").strip()
-
-        _save_reg_ctx(role, subject, "", "", next_url)
-
-        return render_template(
-            "auth/register.html",
-            role=role,
-            subject=subject,
-            next_url=next_url,
-            values={}
-        )
-
-    # ---------- POST ----------
-    role       = (request.form.get("role") or "user").strip().lower()
-    subject    = (request.form.get("subject") or "loss").strip().lower()
-    next_url   = (request.form.get("next")
-                  or session.get("reg_ctx", {}).get("next_url")
-                  or "/").strip()
-    email_in   = (request.form.get("email") or "").strip()
-    full_name  = (request.form.get("full_name") or "").strip()
-    password   = (request.form.get("password") or "").strip()
-
-    values = {
-        "email": email_in,
-        "full_name": full_name,
-    }
-
-    # basic validation
-    if not email_in or not password:
-        flash("Please provide an email and password.", "danger")
-        return render_template(
-            "auth/register.html",
-            role=role,
-            subject=subject,
-            next_url=next_url,
-            values=values
-        )
-
-    if len(password) < 8:
-        flash("Password must be at least 8 characters long.", "danger")
-        return render_template(
-            "auth/register.html",
-            role=role,
-            subject=subject,
-            next_url=next_url,
-            values=values
-        )
-
-    # confirm subject exists and get subject_id
-    sid = db.session.execute(
-        sa_text("SELECT id FROM auth_subject WHERE slug=:s OR name=:s LIMIT 1"),
-        {"s": subject}
-    ).scalar()
-    if not sid:
-        flash("Unknown subject.", "danger")
-        return render_template(
-            "auth/register.html",
-            role=role,
-            subject=subject,
-            next_url=next_url,
-            values=values
-        )
-
-    # normalize email
-    email_norm = email_in.lower()
-
-    # check if this email is already a real user in DB
-    # we are *not* creating a user yet, but we must block duplicates now
-    existing = db.session.execute(
-        sa_text("SELECT id FROM \"user\" WHERE lower(email)=lower(:e) LIMIT 1"),
-        {"e": email_norm}
-    ).scalar()
-    if existing:
-        flash("That email is already registered. Please sign in.", "danger")
-        return render_template(
-            "auth/register.html",
-            role=role,
-            subject=subject,
-            next_url=next_url,
-            values=values
-        )
-
-    # --- CRITICAL PART ---
-    # Instead of creating + logging in the user now,
-    # we stage their info (including a secure hash of their chosen password)
-    # into session["reg_ctx"]. Payment step will finish the account.
-    #
-    # We store password_hash, NOT the raw password.
-    staged_password_hash = generate_password_hash(password)
-
-    _save_reg_ctx(
-        role=role,
-        subject=subject,
-        email=email_norm,
-        full_name=full_name,
-        next_url=next_url,
-    )
-
-    # extend reg_ctx with security fields we need for finalization
-    # (this survives redirect to decision -> payment -> final create)
-    session["reg_ctx"]["email_lower"] = email_norm
-    session["reg_ctx"]["password_hash"] = staged_password_hash
-
-    # you were already doing this:
-    session.pop("just_paid_subject_id", None)
-
-    # now go to decision screen (pay / choose plan / etc.)
-    return redirect(url_for(
-        "auth_bp.register_decision",
-        email=email_in,
-        subject=subject
-    ))
 
 
 def _finalize_user_after_payment():
@@ -1521,8 +1479,6 @@ def _finalize_user_after_payment():
     session["role"] = "user"
 
     return user, next_url
-
-
 
 def _compute_subject_start_url(slug: str) -> str:
     """

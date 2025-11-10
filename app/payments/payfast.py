@@ -1,6 +1,6 @@
 # app/payments/payfast.py
 from uuid import uuid4
-from flask import Blueprint, current_app, request, render_template_string, abort,render_template, redirect, url_for
+from flask import Blueprint, current_app, flash, request, render_template_string, abort,render_template, redirect, session, url_for
 from urllib.parse import urlencode
 from flask_login import current_user, login_user
 import os, hmac, hashlib, ipaddress, requests
@@ -541,18 +541,56 @@ def notify():
 
 @payfast_bp.get("/success", endpoint="payfast_success")
 def success():
+    from app.auth.routes import _finalize_user_after_payment
+    from app.utils.enrollment import settle_user_enrollment_paid
+
+    # --- Case 1: already authenticated → go straight to dashboard
     if current_user.is_authenticated:
         return redirect(url_for("auth_bp.bridge_dashboard"))
 
+    # --- Case 2: recover from PayFast return (no active session)
     email = (request.args.get("email") or "").strip().lower()
-    if email:
-        u = User.query.filter_by(email=email).first()
-        if not u:
-            # extreme edge: create if missing, match the same defaults
-            u = User(email=email, is_active=1)
-            u.name = email.split("@", 1)[0].replace(".", " ").replace("_", " ").title()
-            db.session.add(u); db.session.commit()
-        login_user(u, remember=True)
-        return redirect(url_for("auth_bp.bridge_dashboard"))
+    if not email:
+        email = (session.get("pending_email") or "").strip().lower()
 
-    return render_template("payment_success.html"), 200
+    if not email:
+        flash("Payment succeeded but session expired. Please log in.", "warning")
+        return redirect(url_for("auth_bp.login"))
+
+    # --- Ensure user exists
+    u = User.query.filter_by(email=email).first()
+    if not u:
+        u = User(email=email, is_active=1)
+        u.name = email.split("@", 1)[0].replace(".", " ").replace("_", " ").title()
+        db.session.add(u)
+        db.session.commit()
+
+    # --- Finalize registration and enrollment
+    try:
+        user, next_url = _finalize_user_after_payment()
+
+        from sqlalchemy.sql import text as sa_text
+        sid = db.session.execute(
+            sa_text("SELECT id FROM auth_subject WHERE lower(slug)=:s LIMIT 1"),
+            {"s": session.get("pending_subject")}
+        ).scalar()
+
+        settle_user_enrollment_paid(
+            user_id=user.id,
+            subject_slug=session.get("pending_subject"),
+            program=session.get("pending_subject")
+        )
+
+        session["payment_banner"] = "Payment received — enrollment active!"
+        session["just_paid"] = True
+        session["just_paid_subject_id"] = sid
+        db.session.commit()
+
+    except Exception as ex:
+        current_app.logger.error(f"[PayFast success] finalize failed: {ex}")
+        flash("Payment succeeded but enrollment could not be finalized. Please contact support.", "danger")
+        return redirect(url_for("auth_bp.login"))
+
+    # --- Authenticate & redirect
+    login_user(u, remember=True)
+    return redirect(url_for("auth_bp.bridge_dashboard"))

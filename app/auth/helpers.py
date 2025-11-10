@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TypedDict, Optional, Dict, Tuple, Any,    Union
 from flask import request, session, url_for, current_app
 from flask_login import current_user
-from sqlalchemy import text
+from sqlalchemy import text, text as sa_text
 from app.utils.strings import _lower
 import time
 from app.extensions import db
@@ -12,8 +12,6 @@ try:
     from app.models.auth import User
 except Exception:
     from app.models.auth import User  # fallback
-
-
 
 def _dashboard_endpoint_for_role(role: str | None) -> str:
     r = (role or "").lower().strip()
@@ -32,8 +30,6 @@ def _norm_role(r: str) -> str:
     aliases = {"student": "learner", "mgr": "manager", "pm": "manager"}
     return aliases.get(r, r)
 
-# register subject call
-
 class SubjectCtx(TypedDict, total=False):
     action: str  # "redirect_welcome" | "redirect_bridge" | "resume_checkout" | "show_register_form"
     message: str
@@ -47,10 +43,8 @@ class SubjectCtx(TypedDict, total=False):
     name: Optional[str]  # product name
     bridge_url: Optional[str]
 
-
 def _norm(s: Optional[str]) -> str:
     return (s or "").strip()
-
 
 def subject_id_from_slug(slug: str | None) -> int | None:
     """Return subject.id for a given slug (case-insensitive), or None."""
@@ -61,7 +55,6 @@ def subject_id_from_slug(slug: str | None) -> int | None:
         {"s": slug.lower().strip()},
     ).fetchone()
     return int(row[0]) if row else None
-
 
 def _enrollment_row(user_id: int, subject_id: int):
     return db.session.execute(
@@ -74,10 +67,6 @@ def _enrollment_row(user_id: int, subject_id: int):
         {"uid": user_id, "sid": subject_id},
     ).fetchone()
 
-
-
-
-# --- Safe, lazy imports of models no matter where you placed them ----------------
 def _import_models():
     """
     Import models from whichever module layout you're using.
@@ -124,8 +113,6 @@ def _import_models():
 
     return User, AuthEnrollment, AuthSubject, AuthPaymentLog
 
-
-# --- Small utilities -------------------------------------------------------------
 def _coerce_user_id(user_or_id: Union[int, Any]) -> int:
     """Accept a User model or an int and return a concrete user_id (int)."""
     uid = getattr(user_or_id, "id", user_or_id)
@@ -133,7 +120,6 @@ def _coerce_user_id(user_or_id: Union[int, Any]) -> int:
         return int(uid)
     except (TypeError, ValueError):  # pragma: no cover
         raise ValueError("resolve_enrollment_decision(): invalid user/user_id")
-
 
 def _subject_lookup_by_slug_or_name(AuthSubject, token: str):
     """
@@ -165,7 +151,6 @@ def _subject_lookup_by_slug_or_name(AuthSubject, token: str):
         pass
 
     return None
-
 
 def _extract_subject_id_from_request() -> Tuple[Optional[int], Optional[Any]]:
     """
@@ -199,14 +184,12 @@ def _extract_subject_id_from_request() -> Tuple[Optional[int], Optional[Any]]:
 
     return None, None
 
-
 def _has_attr(model_obj, attr_name: str) -> bool:
     try:
         getattr(model_obj, attr_name)
         return True
     except Exception:
         return False
-
 
 def _row_has_column(table_name: str, col_name: str) -> bool:
     """
@@ -222,8 +205,6 @@ def _row_has_column(table_name: str, col_name: str) -> bool:
     except Exception:
         return True  # don't block behavior if PRAGMA not available
 
-
-# --- Main helpers used by routes -------------------------------------------------
 def resolve_enrollment_decision(user_or_id: Union[int, Any], subject_id: Optional[int]) -> Dict[str, Any]:
     """
     Compute the *next action* for /register based on user's enrollment status.
@@ -329,10 +310,6 @@ def resolve_enrollment_decision(user_or_id: Union[int, Any], subject_id: Optiona
         "role": "learner",
     }
 
-
-# ---- User lookup (active-first) ----------------------------------------------
-
-
 def _norm_email(raw: Optional[str]) -> Optional[str]:
     if not raw:
         return None
@@ -359,8 +336,6 @@ def get_user_by_email(email: str) -> Optional[User]:
         .order_by(User.is_active.desc(), User.id.asc())  # active first
         .first()
     )
-
-from flask_login import current_user
 
 def require_subject_and_enrollment_context() -> dict:
     """
@@ -403,8 +378,6 @@ def require_subject_and_enrollment_context() -> dict:
     ctx.setdefault("role", getattr(user_obj, "role", "learner") or "learner")
 
     return ctx
-
-from sqlalchemy import text as sa_text
 
 def _get_or_create_user_by_email(email: str):
     email = (email or "").strip().lower()

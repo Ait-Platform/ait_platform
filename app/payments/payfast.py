@@ -468,12 +468,9 @@ def _subject_amount(subject, req_amount: str | None):
 
     return None
 
-@payfast_bp.get("/cancel")
+@payfast_bp.get("/cancel", endpoint="payfast_cancel")
 def cancel():
-    flash("Payment canceled. You can retry anytime.", "info")
-    return redirect(url_for("auth_bp.register_decision",
-                            email=request.args.get("email",""),
-                            subject=request.args.get("subject","loss")))
+    return render_template("payment_cancelled.html"), 200
 
 @payfast_bp.post("/notify")
 @csrf.exempt
@@ -539,58 +536,56 @@ def notify():
     current_app.logger.info("PF IPN ok: email=%s amount=%s status=%s ref=%s", email, amount, status, mref)
     return ("", 200)
 
-@payfast_bp.get("/success")
+@payfast_bp.get("/success", endpoint="payfast_success")
 def success():
-    email   = (request.args.get("email")   or "").strip().lower()
-    subject = (request.args.get("subject") or "loss").strip().lower()
+    # 1) Resolve identity/context (args first, then session)
+    ref     = (request.args.get("ref")     or "").strip()
+    email   = (request.args.get("email")   or session.get("pending_email") or "").strip().lower()
+    subject = (request.args.get("subject") or session.get("pending_subject") or session.get("reg_ctx", {}).get("subject") or "loss").strip().lower()
 
     if not email:
-        return render_template("payment_success.html"), 200
+        flash("Payment completed. Please sign in to continue.", "info")
+        return render_template("payment_success.html", subject=subject, ref=ref), 200
 
-    # ensure user + password_hash (from staged reg_ctx)
+    # 2) User: create (or fetch) + apply staged password hash if we staged one at /register
     u = User.query.filter_by(email=email).first()
-    staged = (session.get("reg_ctx") or {}).get("password_hash")
     if not u:
-        u = User(email=email, is_active=1)
-        u.name = email.split("@", 1)[0].replace(".", " ").replace("_", " ").title()
-        if staged and not getattr(u, "password_hash", None):
+        staged = (session.get("reg_ctx", {}) or {}).get("password_hash")
+        display = (session.get("reg_ctx", {}) or {}).get("full_name") or email.split("@", 1)[0].replace(".", " ").replace("_", " ").title()
+        u = User(email=email, name=display, is_active=1)
+        if staged:
             u.password_hash = staged
         db.session.add(u)
-        db.session.flush()
-    else:
-        if (not u.name) or (not u.name.strip()):
-            u.name = email.split("@", 1)[0].replace(".", " ").replace("_", " ").title()
-        if staged and not getattr(u, "password_hash", None):
-            u.password_hash = staged
-        db.session.flush()
+        db.session.flush()  # get u.id
 
-    # activate enrollment
-    # --- activate enrollment (UPDATE first, INSERT if missing) ---
-    sid = db.session.execute(
-        sa_text("SELECT id FROM auth_subject WHERE lower(slug)=:s OR lower(name)=:s LIMIT 1"),
-        {"s": subject}
-    ).scalar()
+    # 3) Subject → id
+    sid = db.session.execute(text("""
+        SELECT id FROM auth_subject
+        WHERE lower(slug)=:s OR lower(name)=:s
+        LIMIT 1
+    """), {"s": subject}).scalar()
+    if not sid:
+        # Show success page anyway; user can proceed from Bridge later
+        return render_template("payment_success.html", subject=subject, ref=ref), 200
 
-    if sid:
-        upd = db.session.execute(sa_text("""
-            UPDATE user_enrollment
-            SET status='active'
-            WHERE user_id=:uid AND subject_id=:sid
-        """), {"uid": int(u.id), "sid": int(sid)})
-
-        if (getattr(upd, "rowcount", 0) or 0) == 0:
-            db.session.execute(sa_text("""
-                INSERT INTO user_enrollment (user_id, subject_id, status)
-                VALUES (:uid, :sid, 'active')
-            """), {"uid": int(u.id), "sid": int(sid)})
+    # 4) Enrollment: set ACTIVE (defensive, only columns that always exist)
+    db.session.execute(text("""
+        INSERT INTO user_enrollment (user_id, subject_id, status)
+        VALUES (:uid, :sid, 'active')
+        ON CONFLICT(user_id, subject_id) DO UPDATE SET status='active'
+    """), {"uid": int(u.id), "sid": int(sid)})
 
     db.session.commit()
 
+    # 5) Log them in + set a banner + focus that subject on Bridge
+    try:
+        login_user(u, remember=True, fresh=True)
+    except Exception:
+        pass
 
-    # log in + bridge
-    login_user(u, remember=True, fresh=True)
-    session["just_paid"] = True
-    if sid: session["just_paid_subject_id"] = int(sid)
-    session["payment_banner"] = f"Payment confirmed for {subject.title()}. You’re enrolled."
+    session["payment_banner"] = f"Payment successful for {subject.title()}. You're all set!"
+    session["just_paid_subject_id"] = int(sid)
 
-    return redirect(url_for("auth_bp.bridge_dashboard"))
+    # 6) Render success page (no auto-redirect)
+    # Your template can show a primary button: href="{{ url_for('auth_bp.bridge_dashboard') }}"
+    return render_template("payment_success.html", subject=subject, ref=ref), 200

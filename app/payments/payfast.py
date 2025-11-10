@@ -365,16 +365,21 @@ def handoff():
     email_clean = email
 
     # ensure user exists
+    # ensure user exists + has a display name
     u = User.query.filter_by(email=email).first()
     if not u:
-        u = User(email=email)            # your model accepts email-only
+        u = User(email=email, is_active=1)
+        # sensible default name from email
+        u.name = email.split("@", 1)[0].replace(".", " ").replace("_", " ").title()
         db.session.add(u)
-        db.session.flush()               # get u.id now
+    else:
+        if not u.name or u.name.strip() == "":
+            u.name = email.split("@", 1)[0].replace(".", " ").replace("_", " ").title()
 
     # ensure subject exists
     subj = AuthSubject.query.filter_by(slug=slug).first() or abort(400, "Subject not found")
 
-    # upsert pending enrollment (idempotent)
+    # upsert pending enrollment — only columns that exist
     db.session.execute(text("""
         INSERT INTO user_enrollment (user_id, subject_id, status)
         VALUES (:uid, :sid, 'pending')
@@ -382,8 +387,8 @@ def handoff():
         DO UPDATE SET status='pending'
     """), {"uid": u.id, "sid": subj.id})
 
-
     db.session.commit()
+
 
     pf_data = {
         "merchant_id":   merchant_id,
@@ -543,9 +548,10 @@ def success():
     if email:
         u = User.query.filter_by(email=email).first()
         if not u:
-            u = User(email=email)
-            db.session.add(u)
-            db.session.commit()
+            # extreme edge: create if missing, match the same defaults
+            u = User(email=email, is_active=1)
+            u.name = email.split("@", 1)[0].replace(".", " ").replace("_", " ").title()
+            db.session.add(u); db.session.commit()
         login_user(u, remember=True)
         return redirect(url_for("auth_bp.bridge_dashboard"))
 

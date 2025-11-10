@@ -541,7 +541,6 @@ def notify():
 
 @payfast_bp.get("/success", endpoint="payfast_success")
 def success():
-    # 1) Resolve context
     ref     = (request.args.get("ref")     or "").strip()
     email   = (request.args.get("email")   or session.get("pending_email") or "").strip().lower()
     subject = (request.args.get("subject") or session.get("pending_subject") or session.get("reg_ctx", {}).get("subject") or "loss").strip().lower()
@@ -550,18 +549,18 @@ def success():
         flash("Payment completed. Please sign in to continue.", "info")
         return render_template("payment_success.html", subject=subject, ref=ref), 200
 
-    # 2) Ensure user (apply staged password hash if available)
+    # -- user (apply staged password hash if we have it)
     u = User.query.filter_by(email=email).first()
     if not u:
         staged = (session.get("reg_ctx", {}) or {}).get("password_hash")
-        display = (session.get("reg_ctx", {}) or {}).get("full_name") or email.split("@", 1)[0].replace(".", " ").replace("_", " ").title()
+        display = (session.get("reg_ctx", {}) or {}).get("full_name") or email.split("@",1)[0].replace("."," ").replace("_"," ").title()
         u = User(email=email, name=display, is_active=1)
         if staged:
             u.password_hash = staged
         db.session.add(u)
-        db.session.flush()  # ensure u.id is available
+        db.session.commit()  # ensure u.id is real in this transaction
 
-    # 3) Subject → id
+    # -- subject id
     sid = db.session.execute(text("""
         SELECT id FROM auth_subject
         WHERE lower(slug)=:s OR lower(name)=:s
@@ -569,43 +568,47 @@ def success():
     """), {"s": subject}).scalar()
     if not sid:
         return render_template("payment_success.html", subject=subject, ref=ref), 200
+    sid = int(sid)
 
-    # 4) Enrollment → ACTIVE (defensive: UPDATE then INSERT; handle schemas with/without payment_pending)
+    # -- enrollment: force ACTIVE
+    rowcount = 0
     try:
-        upd = db.session.execute(text("""
+        res = db.session.execute(text("""
             UPDATE user_enrollment
             SET status='active', payment_pending=0
             WHERE user_id=:uid AND subject_id=:sid
-        """), {"uid": int(u.id), "sid": int(sid)})
+        """), {"uid": int(u.id), "sid": sid})
+        rowcount = getattr(res, "rowcount", 0) or 0
     except Exception:
-        upd = db.session.execute(text("""
+        # table has no payment_pending → update status only
+        res = db.session.execute(text("""
             UPDATE user_enrollment
             SET status='active'
             WHERE user_id=:uid AND subject_id=:sid
-        """), {"uid": int(u.id), "sid": int(sid)})
+        """), {"uid": int(u.id), "sid": sid})
+        rowcount = getattr(res, "rowcount", 0) or 0
 
-    if (getattr(upd, "rowcount", 0) or 0) == 0:
-        # no row existed → insert ACTIVE
+    if rowcount == 0:
+        # no row existed → insert ACTIVE (try with payment_pending then without)
         try:
             db.session.execute(text("""
                 INSERT INTO user_enrollment (user_id, subject_id, status, payment_pending)
                 VALUES (:uid, :sid, 'active', 0)
-            """), {"uid": int(u.id), "sid": int(sid)})
+            """), {"uid": int(u.id), "sid": sid})
         except Exception:
             db.session.execute(text("""
                 INSERT INTO user_enrollment (user_id, subject_id, status)
                 VALUES (:uid, :sid, 'active')
-            """), {"uid": int(u.id), "sid": int(sid)})
+            """), {"uid": int(u.id), "sid": sid})
 
     db.session.commit()
 
-    # 5) Log in + banner + focus subject in Bridge
+    # login + bridge focus
     try:
         login_user(u, remember=True, fresh=True)
     except Exception:
         pass
     session["payment_banner"] = f"Payment successful for {subject.title()}. You're all set!"
-    session["just_paid_subject_id"] = int(sid)
+    session["just_paid_subject_id"] = sid
 
-    # 6) Render success page (CTA should link to Bridge)
     return render_template("payment_success.html", subject=subject, ref=ref), 200

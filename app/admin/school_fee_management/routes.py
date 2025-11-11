@@ -9,9 +9,8 @@ sfm_bp = Blueprint(
     url_prefix="/sfm",
 )
 
-
-@sfm_bp.route("/about", methods=["GET"], endpoint="about_sfm")
-def about_sfm():
+@sfm_bp.route('/about', methods=['GET'])
+def sfm_about():
     return render_template("admin/school_fee_management/about.html")
 
 def _require_admin():

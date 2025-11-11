@@ -158,20 +158,3 @@ class Subscription(db.Model):
         db.session.add(obj)
         return obj
 
-class AuthPricing(db.Model):
-    __tablename__ = "auth_pricing"
-
-    id = db.Column(db.Integer, primary_key=True)
-    subject_id = db.Column(db.Integer, db.ForeignKey("auth_subject.id", ondelete="CASCADE"), nullable=False)
-    role = db.Column(db.String, nullable=True)             # None = any role
-    plan = db.Column(db.String, nullable=False, default="enrollment")
-    currency = db.Column(db.String, nullable=False, default="ZAR")
-    amount_cents = db.Column(db.Integer, nullable=False, default=0)
-    is_active = db.Column(db.Integer, nullable=False, default=1)  # 1/0
-    active_from = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    active_to = db.Column(db.DateTime, nullable=True)
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-
-    # optional:
-    # subject = db.relationship("AuthSubject", backref=db.backref("pricing", cascade="all, delete-orphan"))

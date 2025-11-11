@@ -74,3 +74,17 @@ class AuthSubject(db.Model):
         cascade="all, delete-orphan",
     )
 
+class AuthPricing(db.Model):
+    __tablename__ = "auth_pricing"
+    id = db.Column(db.Integer, primary_key=True)
+    subject_id = db.Column(db.Integer, db.ForeignKey("auth_subject.id", ondelete="CASCADE"), nullable=False)
+    role = db.Column(db.Text)                               # NULL = any role
+    plan = db.Column(db.Text, nullable=False, server_default="enrollment")
+    currency = db.Column(db.Text, nullable=False, server_default="ZAR")
+    amount_cents = db.Column(db.Integer, nullable=False, server_default="0")  # cents
+    is_active = db.Column(db.Integer, nullable=False, server_default="1")     # 1/0
+    active_from = db.Column(db.DateTime, nullable=False, server_default=db.func.current_timestamp())
+    active_to = db.Column(db.DateTime)                      # NULL = open-ended
+    created_at = db.Column(db.DateTime, nullable=False, server_default=db.func.current_timestamp())
+    updated_at = db.Column(db.DateTime, nullable=False, server_default=db.func.current_timestamp())
+    stripe_price_id = db.Column(db.Text)

@@ -36,20 +36,29 @@
     When you're ready, begin your assessment or return home.
   </p>
 
-  <div class="mt-6 flex items-center justify-between">
-    <a href="{{ url_for('public_bp.welcome') }}"
-       class="rounded border px-4 py-2 text-sm hover:bg-slate-50">
-      ← Back
-    </a>
+    <div class="mt-6 flex items-center justify-between">
+      <a href="{{ url_for('public_bp.welcome') }}"
+        class="rounded border px-4 py-2 text-sm hover:bg-slate-50">
+        ← Back
+      </a>
 
-    <a href="{{ url_for('auth_bp.start_registration', role='user', subject='loss') }}"
-      class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded">
-      Register for LOLO
-    </a>
+        {% set can_enroll = subject and subject.is_active %}
+        {% if can_enroll %}
+          <a href="{{ url_for('auth_bp.start_registration', subject='loss', role='user') }}"
+            class="inline-flex items-center rounded bg-blue-600 px-4 py-2 text-white font-semibold hover:bg-blue-700">
+            Register for LOLO
+          </a>
+        {% else %}
+          <button type="button"
+                  class="inline-flex items-center rounded bg-slate-200 px-4 py-2 text-slate-600 cursor-not-allowed opacity-60"
+                  aria-disabled="true" disabled>
+            Enrollment currently unavailable.
+          </button>
+        {% endif %}
 
-  </div>
-  
 
-
+    </div>
 </div>
 {% endblock %}
+
+

@@ -1,13 +1,16 @@
 {# templates/_components/price_box.html #}
-{% if price %}
-  {% set cents  = price.amount_cents | int %}
-  {% set amount = cents / 100.0 %}
+{% set cents = price_cents_for('loss') %}
+{% if cents and cents|int > 0 %}
+  {% set amount = (cents|int) / 100.0 %}
   <div class="mx-auto mt-6 max-w-md">
     <div class="rounded-lg border border-slate-200 bg-white shadow-sm">
       <div class="p-4 text-center">
         <div class="text-xs font-semibold tracking-wider text-slate-500">PRICE</div>
         <div class="mt-1 text-2xl font-semibold text-slate-800">
-          {{ '%.2f' % amount }} <span class="text-sm font-normal">({{ number_to_words(amount|int) }})</span>
+          {{ '%.2f' % amount }}
+          {% if number_to_words is defined %}
+            <span class="text-sm font-normal">({{ number_to_words(amount|int) }})</span>
+          {% endif %}
         </div>
         <div class="mt-1 text-sm text-slate-500">
           Value-Based Parity Pricing in your currency • excl. VAT

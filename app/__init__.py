@@ -1,6 +1,6 @@
 # app/__init__.py
 import os as _os
-from app.payments.pricing import number_to_words
+from app.payments.pricing import number_to_words, price_cents_for
 try:
     from dotenv import load_dotenv
     load_dotenv()
@@ -36,6 +36,9 @@ load_dotenv(find_dotenv(), override=False)  # picks up your .env locally
 #from flask_wtf import CSRFProtect
 from flask_wtf.csrf import generate_csrf
 from app.extensions import csrf
+
+from flask import Flask, render_template_string
+
 
 #csrf = CSRFProtect()
 
@@ -156,6 +159,14 @@ def create_app():
     @app.context_processor
     def inject_csrf():
         return {"csrf_token": generate_csrf}
+    
+    @app.before_request
+    def _inject_country():
+        g.country_iso2 = (request.headers.get('cf-ipcountry') or 'ZA').upper()
+
+    @app.context_processor
+    def _inject_helpers():
+        return dict(price_cents_for=price_cents_for)
 
     @login_manager.user_loader
     def load_user(user_id: str):
@@ -267,6 +278,16 @@ def create_app():
         if resp.status_code in (301,302,303,307,308) and loc and "/welcome" in loc:
             app.logger.warning("[%s] ⚠ redirect to /welcome detected (auth/role guard?)", getattr(g, "reqid", "????"))
         return resp
+
+    if os.getenv("MAINTENANCE_MODE") == "1":
+        @app.before_request
+        def show_maintenance():
+            return render_template_string("""
+            <html style="text-align:center;padding-top:20vh;font-family:sans-serif">
+            <h1>We'll be right back</h1>
+            <p>Archoney Institute of Technology is undergoing scheduled maintenance.</p>
+            </html>
+            """), 503
 
     # 5) Blueprints
     from app.public.routes import public_bp

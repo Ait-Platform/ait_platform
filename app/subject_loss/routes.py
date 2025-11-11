@@ -7,13 +7,14 @@ from flask import (
 from flask import request, render_template, send_file, url_for, redirect, current_app
 import pdfkit
 from app.admin.loss.routes import _render_report_html
+from app.models.auth import AuthSubject
 from app.models.loss import (
     LcaRun,  LcaQuestion,
     )
 from app.extensions import db
 from sqlalchemy import select, text, inspect, func, and_
 from flask import send_file
-from app.payments.pricing import get_subject_price
+from app.payments.pricing import get_subject_price, price_cents_for
 from app.school_loss.routes import (
     SUBJECT, _came_from_admin, _coerce_dt, _current_user_id, _extract_phase_scores_from_ctx,
     _finalize_and_send_pdf, _get_int_arg, _get_user_id_for_run, _infer_user_id_for_run, 
@@ -49,10 +50,6 @@ from app.utils.assessment_helpers import (
 )
 import sqlite3
 from app.diagnostics import trace_route
-from flask import current_app
-from app.diagnostics import trace_route
-from flask import abort, request, redirect, url_for, render_template
-from app.diagnostics import trace_route
 import traceback
 from flask import (
     Blueprint, request, render_template, send_file, redirect, url_for, current_app
@@ -72,7 +69,7 @@ from flask import session
 from sqlalchemy import text
 from math import ceil
 import csv, os
-from flask import session, g, abort
+
 try:
     from flask_login import current_user
 except Exception:
@@ -105,14 +102,24 @@ from flask_login import login_required, current_user, logout_user
 loss_bp = Blueprint("loss_bp", __name__, url_prefix="/loss")
 
 
-log = logging.getLogger(__name__)
 
+
+loss_bp = Blueprint("loss_bp", __name__, url_prefix="/loss")
+
+@loss_bp.route("/about", methods=["GET"])
+def about_loss():
+    subject = AuthSubject.query.filter_by(slug="loss").first()
+    cents = price_cents_for("loss") or 0
+    price = {"amount_cents": int(cents)} if cents > 0 else None
+    return render_template("subject/loss/about.html", subject=subject, price=price)
+
+'''
 # ——— INSTRUCTION FLOW ———, url_prefix='/school_loss'
 @loss_bp.route('/about', methods=["GET"], endpoint='about_loss')
 def about_loss():
     price = get_subject_price("loss")  # slug→id happens inside the helper
     return render_template("subject/loss/about.html", price=price)
-'''
+
 @loss_bp.get("/loss/about")
 def loss_about():
     return "Loss About OK", 200

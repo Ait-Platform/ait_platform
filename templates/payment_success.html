@@ -30,9 +30,12 @@
       </script>
     {% else %}
       <p class="mt-2 text-slate-700">Please sign in to view your course.</p>
-        <a class="btn" href="{{ url_for('auth_bp.bridge_dashboard') }}">Continue to Dashboard →</a>
-
+      <a class="inline-flex items-center rounded-lg border px-3 py-1 text-sm hover:bg-slate-50"
+        href="{{ url_for('auth_bp.login', next=url_for('auth_bp.bridge_dashboard')) }}">
+        Sign in to Continue →
+      </a>
     {% endif %}
+
   </div>
 
 

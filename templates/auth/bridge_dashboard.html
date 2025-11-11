@@ -18,7 +18,7 @@
 
     {% if banner %}
       <div class="mt-4 rounded-lg border border-emerald-300 bg-emerald-50 p-3 text-emerald-800">
-        <div class="font-semibold">{{ banner.title }}</div>
+        <div class="font-semibold">{{ banner }}</div>
         <div class="text-sm">
           {{ banner.detail }}
           {% if banner.amount %} • {{ (banner.amount | int) / 100 }} {{ banner.currency }}{% endif %}

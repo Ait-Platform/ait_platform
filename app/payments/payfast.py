@@ -333,9 +333,14 @@ def handoff():
         abort(400, "Active price not configured for this subject")
     amount_str = f"{(Decimal(int(row.amount_cents))/Decimal(100)).quantize(Decimal('0.01')):.2f}"
 
-    for k in ("PAYFAST_RETURN_URL","PAYFAST_CANCEL_URL","PAYFAST_NOTIFY_URL"):
-        if not str(cfg.get(k)).startswith("https://"):
-            abort(500, f"{k} must be https")
+    for k in ("PAYFAST_RETURN_URL", "PAYFAST_CANCEL_URL", "PAYFAST_NOTIFY_URL"):
+        val = str(current_app.config.get(k) or "").strip()
+        if not val:
+            abort(500, f"{k} missing")
+        if val.startswith("http://") and ("localhost" not in val and "127.0.0.1" not in val):
+            abort(500, f"{k} must be https outside localhost")
+
+
 
     mode = (cfg.get("PAYFAST_MODE") or "sandbox").lower()
     if mode == "sandbox":
@@ -541,79 +546,53 @@ def notify():
 
 @payfast_bp.get("/success", endpoint="payfast_success")
 def success():
-    current_app.logger.info("PF SUCCESS hit: ref=%s email=%s subject=%s", ref, email, subject)
+    # 1) Read query params FIRST (then log)
     ref     = (request.args.get("ref")     or "").strip()
     email   = (request.args.get("email")   or session.get("pending_email") or "").strip().lower()
     subject = (request.args.get("subject") or session.get("pending_subject") or session.get("reg_ctx", {}).get("subject") or "loss").strip().lower()
 
+    current_app.logger.info("PF SUCCESS hit: ref=%s email=%s subject=%s", ref, email, subject)
+
+    # No email? show success page but ask to sign in
     if not email:
         flash("Payment completed. Please sign in to continue.", "info")
         return render_template("payment_success.html", subject=subject, ref=ref), 200
 
-    # -- user (apply staged password hash if we have it)
+    # 2) Ensure user exists; apply staged password hash if we staged one at /register
     u = User.query.filter_by(email=email).first()
     if not u:
         staged = (session.get("reg_ctx", {}) or {}).get("password_hash")
-        display = (session.get("reg_ctx", {}) or {}).get("full_name") or email.split("@",1)[0].replace("."," ").replace("_"," ").title()
+        display = (session.get("reg_ctx", {}) or {}).get("full_name") or email.split("@", 1)[0].replace(".", " ").replace("_", " ").title()
         u = User(email=email, name=display, is_active=1)
         if staged:
             u.password_hash = staged
         db.session.add(u)
-        db.session.commit()  # ensure u.id is real in this transaction
+        db.session.flush()  # get u.id
 
-    # -- subject id
+    # 3) Resolve subject id (safe if missing)
     sid = db.session.execute(text("""
         SELECT id FROM auth_subject
         WHERE lower(slug)=:s OR lower(name)=:s
         LIMIT 1
     """), {"s": subject}).scalar()
-    if not sid:
-        return render_template("payment_success.html", subject=subject, ref=ref), 200
-    sid = int(sid)
 
-    current_app.logger.info("PF SUCCESS sid=%s for subject=%s", sid, subject)
+    # 4) Flip enrollment to ACTIVE when we have a subject id
+    if sid:
+        db.session.execute(text("""
+            INSERT INTO user_enrollment (user_id, subject_id, status)
+            VALUES (:uid, :sid, 'active')
+            ON CONFLICT(user_id, subject_id) DO UPDATE SET status='active'
+        """), {"uid": int(u.id), "sid": int(sid)})
+        session["just_paid_subject_id"] = int(sid)
 
-    # -- enrollment: force ACTIVE
-    rowcount = 0
-    try:
-        res = db.session.execute(text("""
-            UPDATE user_enrollment
-            SET status='active', payment_pending=0
-            WHERE user_id=:uid AND subject_id=:sid
-        """), {"uid": int(u.id), "sid": sid})
-        rowcount = getattr(res, "rowcount", 0) or 0
-    except Exception:
-        # table has no payment_pending → update status only
-        res = db.session.execute(text("""
-            UPDATE user_enrollment
-            SET status='active'
-            WHERE user_id=:uid AND subject_id=:sid
-        """), {"uid": int(u.id), "sid": sid})
-        rowcount = getattr(res, "rowcount", 0) or 0
-
-    if rowcount == 0:
-        # no row existed → insert ACTIVE (try with payment_pending then without)
-        try:
-            db.session.execute(text("""
-                INSERT INTO user_enrollment (user_id, subject_id, status, payment_pending)
-                VALUES (:uid, :sid, 'active', 0)
-            """), {"uid": int(u.id), "sid": sid})
-        except Exception:
-            db.session.execute(text("""
-                INSERT INTO user_enrollment (user_id, subject_id, status)
-                VALUES (:uid, :sid, 'active')
-            """), {"uid": int(u.id), "sid": sid})
-
-    current_app.logger.info("PF SUCCESS flipped rows=%s", rowcount)
-    
     db.session.commit()
 
-    # login + bridge focus
+    # 5) Log in and show confirmation page (button → Bridge)
     try:
         login_user(u, remember=True, fresh=True)
     except Exception:
         pass
-    session["payment_banner"] = f"Payment successful for {subject.title()}. You're all set!"
-    session["just_paid_subject_id"] = sid
+
+    session["payment_banner"] = f"Payment successful for {subject.title() if subject else 'your course'}. You're all set!"
 
     return render_template("payment_success.html", subject=subject, ref=ref), 200

@@ -1,4 +1,3 @@
-{# templates/_components/price_box.html #}
 {% set cents = price_cents_for('loss') %}
 {% if cents and cents|int > 0 %}
   {% set amount = (cents|int) / 100.0 %}

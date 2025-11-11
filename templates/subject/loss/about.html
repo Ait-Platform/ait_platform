@@ -42,17 +42,17 @@
         ← Back
       </a>
 
-{% set can_enroll = subject and subject.is_active %}
-{% if can_enroll %}
-  <a href="{{ url_for('auth_bp.start_registration', subject='loss', role='user') }}"
-     class="inline-flex items-center rounded bg-blue-600 px-4 py-2 text-white font-semibold hover:bg-blue-700">
-    Register for LOLO
-  </a>
-{% else %}
-  <button class="inline-flex items-center rounded bg-slate-200 px-4 py-2 text-slate-600 cursor-not-allowed opacity-60" disabled>
-    Enrollment currently unavailable.
-  </button>
-{% endif %}
+        {% set can_enroll = subject and subject.is_active %}
+        {% if can_enroll %}
+          <a href="{{ url_for('auth_bp.start_registration', subject='loss', role='user') }}"
+            class="inline-flex items-center rounded bg-blue-600 px-4 py-2 text-white font-semibold hover:bg-blue-700">
+            Register for LOLO
+          </a>
+        {% else %}
+          <button class="inline-flex items-center rounded bg-slate-200 px-4 py-2 text-slate-600 cursor-not-allowed opacity-60" disabled>
+            Enrollment currently unavailable.
+          </button>
+        {% endif %}
 
 
 

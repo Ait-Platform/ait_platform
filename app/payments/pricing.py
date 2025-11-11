@@ -84,40 +84,20 @@ def number_to_words(n: int) -> str:
     s = " ".join(words)
     return s[:1].upper() + s[1:]
 
-FALLBACK_PRICE_CENTS = 5000
+FALLBACK_PRICE_CENTS = 5000  # display only; real charge logic can differ
 
-def _client_iso2():
-    return (request.args.get("cc") or request.headers.get("cf-ipcountry") or "ZA").upper()
-
-def _currency_for_iso2(iso2: str):
-    row = db.session.execute(db.text(
-        "SELECT currency FROM country_currency WHERE iso2=:iso2"), {"iso2": iso2}
-    ).first()
-    return row[0] if row else None
-
-def price_cents_for(subject_slug: str, iso2: str|None=None, role: str|None="user", plan: str="enrollment") -> int:
-    subj = AuthSubject.query.filter_by(slug=subject_slug).first()
-    if not subj:
-        return FALLBACK_PRICE_CENTS
-    iso2 = (iso2 or _client_iso2()).upper()
-    wanted = _currency_for_iso2(iso2)
-
+def price_cents_for_slug(slug: str, plan: str = "enrollment") -> int:
     now = datetime.now(timezone.utc)
-
-    def _q(currency: str|None):
-        q = (AuthPricing.query
-             .filter(AuthPricing.subject_id==subj.id,
-                     AuthPricing.plan==plan,
-                     AuthPricing.is_active==1,
-                     AuthPricing.active_from<=now,
-                     (AuthPricing.active_to.is_(None)) | (AuthPricing.active_to>now))
-             .order_by(AuthPricing.active_from.desc()))
-        if currency:
-            q = q.filter(AuthPricing.currency==currency)
-        rec = q.filter((AuthPricing.role==role) | (AuthPricing.role.is_(None))).first()
-        return int(rec.amount_cents) if rec and rec.amount_cents else None
-
-    amt = _q(wanted) if wanted else None
-    if amt: return amt
-    any_amt = _q(None)
-    return any_amt if any_amt else FALLBACK_PRICE_CENTS
+    row = db.session.execute(db.text("""
+        SELECT p.amount_cents
+        FROM auth_pricing p
+        JOIN auth_subject s ON s.id = p.subject_id
+        WHERE s.slug = :slug
+          AND p.plan = :plan
+          AND p.is_active = 1
+          AND p.active_from <= :now
+          AND (p.active_to IS NULL OR p.active_to > :now)
+        ORDER BY p.active_from DESC
+        LIMIT 1
+    """), {"slug": slug, "plan": plan, "now": now}).first()
+    return int(row[0]) if row and row[0] is not None else FALLBACK_PRICE_CENTS

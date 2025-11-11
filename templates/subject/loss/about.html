@@ -30,7 +30,7 @@
     Your answers create a snapshot of your emotional progression — no judgment, just awareness.
   </p>
 
-  {% include "_components/price_box.html" with context %}
+ 
   
   <p class="italic text-sm text-gray-600 text-center">
     When you're ready, begin your assessment or return home.
@@ -42,7 +42,10 @@
         ← Back
       </a>
 
-        {% set can_enroll = subject and subject.is_active %}
+        {# loss/about.html #}
+
+        {% include "_components/price_box.html" %}
+
         {% if can_enroll %}
           <a href="{{ url_for('auth_bp.start_registration', subject='loss', role='user') }}"
             class="inline-flex items-center rounded bg-blue-600 px-4 py-2 text-white font-semibold hover:bg-blue-700">
@@ -53,6 +56,7 @@
             Enrollment currently unavailable.
           </button>
         {% endif %}
+
 
 
 

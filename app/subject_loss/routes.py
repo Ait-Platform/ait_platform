@@ -14,7 +14,7 @@ from app.models.loss import (
 from app.extensions import db
 from sqlalchemy import select, text, inspect, func, and_
 from flask import send_file
-from app.payments.pricing import get_subject_price, price_cents_for
+from app.payments.pricing import get_subject_price, price_cents_for, price_cents_for_slug
 from app.school_loss.routes import (
     SUBJECT, _came_from_admin, _coerce_dt, _current_user_id, _extract_phase_scores_from_ctx,
     _finalize_and_send_pdf, _get_int_arg, _get_user_id_for_run, _infer_user_id_for_run, 
@@ -102,16 +102,13 @@ from flask_login import login_required, current_user, logout_user
 loss_bp = Blueprint("loss_bp", __name__, url_prefix="/loss")
 
 
-
-
-loss_bp = Blueprint("loss_bp", __name__, url_prefix="/loss")
-
 @loss_bp.route("/about", methods=["GET"])
 def about_loss():
-    subject = AuthSubject.query.filter_by(slug="loss").first()
-    cents = price_cents_for("loss") or 0
-    price = {"amount_cents": int(cents)} if cents > 0 else None
-    return render_template("subject/loss/about.html", subject=subject, price=price)
+    cents = price_cents_for_slug("loss")
+    price = {"amount_cents": cents}  # always present so the partial never shows “unavailable”
+    can_enroll = True                # about page never blocks; user_enrollment enforces in the flow
+    return render_template("loss/about.html", price=price, can_enroll=can_enroll)
+
 
 '''
 # ——— INSTRUCTION FLOW ———, url_prefix='/school_loss'

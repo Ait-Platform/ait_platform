@@ -20,6 +20,7 @@ from flask_login import login_user, logout_user, login_required, current_user
 #    _work_key, find_user_active_first_by_email, get_reg_context)
 # app.checkout.routes import _create_checkout_session, _get_stripe_api_key
 from app.models import subject
+from app.payments.payfast import _resolve_subject_from_request
 from app.payments.pricing import price_for_country
 from app.services.enrollment import _ensure_enrollment_row
 from app.utils.country_list import COUNTRIES, resolve_country, search_countries  # adjust path if needed
@@ -74,20 +75,39 @@ def inject_has_endpoint():
         return ep in current_app.view_functions
     return {"has_endpoint": has_endpoint}
 
-@auth_bp.get("/start_registration", endpoint="start_registration")
+@auth_bp.get("/start_registration")
 def start_registration():
-    # Preserve old links: /start_registration?subject=...&role=...&next=...
-    # 1) stash into session for downstream reads (optional but nice)
-    role = (request.args.get("role") or "").strip()
-    subject = (request.args.get("subject") or "").strip().lower()
-    if role:
-        session["role"] = role
-    if subject:
-        session["subject"] = subject
+    # ✔ Resolve subject properly
+    subject_id, subject_slug = _resolve_subject_from_request()
+
+    # ✔ Store subject in session
+    ctx = session.setdefault("reg_ctx", {})
+    ctx["subject"] = subject_slug
+
+    # ✔ Build next URL cleanly, using the CORRECT variable names
+    next_url = (
+        request.args.get("next")
+        or url_for(
+            "payfast_bp.checkout_review",
+            subject_id=subject_id,
+            subject=subject_slug
+        )
+    )
+
+    # ✔ Role default
+    role = request.args.get("role") or "user"
+
+    # ✔ Go to register page
+    return redirect(
+        url_for(
+            "auth_bp.register",
+            role=role,
+            subject=subject_slug,
+            next=next_url
+        )
+    )
 
 
-    # 2) hand off to the real register endpoint with ALL original query params
-    return redirect(url_for("auth_bp.register", **request.args))
 
 @auth_bp.route("/register", methods=["GET", "POST"])
 def register():

@@ -72,8 +72,8 @@ def create_app():
 
     # 4) Last-resort fallback if nothing set
     # Stripe config
-    app.config["STRIPE_SECRET_KEY"] = _os.getenv("STRIPE_SECRET_KEY")  # sk_test_...
-    app.config["STRIPE_CURRENCY"]   = (_os.getenv("STRIPE_CURRENCY") or "zar").lower()
+    #app.config["STRIPE_SECRET_KEY"] = _os.getenv("STRIPE_SECRET_KEY")  # sk_test_...
+    #app.config["STRIPE_CURRENCY"]   = (_os.getenv("STRIPE_CURRENCY") or "zar").lower()
 
     # Database URI bootstrap (your existing logic, but with _os)
     if not app.config.get("SQLALCHEMY_DATABASE_URI"):
@@ -449,8 +449,8 @@ def create_app():
         # Optional: only run if explicitly enabled
         #if os.getenv("LOSS_IMPORT_ON_BOOT", "0") == "1":
             #scoring_import.maybe_import_on_boot()
-    app.logger.warning("Jinja autoescape reset to select_autoescape(['html','htm','xml']).")
-    app.logger.warning("registered payments_bp at /payments")    
+    #app.logger.warning("Jinja autoescape reset to select_autoescape(['html','htm','xml']).")
+    #app.logger.warning("registered payfast_bp at /payments")    
     #app.logger.info(f"[DB] Using {db.engine.url}")
         # --- temporary diagnostics (keep while debugging) ---
     try:

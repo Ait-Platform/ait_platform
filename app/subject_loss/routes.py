@@ -100,8 +100,10 @@ def about_loss():
     q = None
     reg_ctx = session.get("reg_ctx") or {}
     if isinstance(reg_ctx.get("quote"), dict):
-        q = {"currency": reg_ctx["quote"].get("currency"),
-             "amount_cents": reg_ctx["quote"].get("amount_cents")}
+        q = {
+            "currency": reg_ctx["quote"].get("currency"),
+            "amount_cents": reg_ctx["quote"].get("amount_cents"),
+        }
 
     # 2) If logged in and no session quote, try the latest enrollment quote
     if not q and getattr(current_user, "is_authenticated", False) and sid:
@@ -128,14 +130,17 @@ def about_loss():
     # 4) Build object expected by your partial
     price = {"currency": q["currency"], "amount_cents": q["amount_cents"]} if q else None
 
-    # 5) Build countries for the select (code + name) from your utils list
+    # 5) Build countries for the select (if you still need them here)
     countries = [{"name": nm, "code": (cd or "").upper()} for (nm, cd) in _name_code_iter(COUNTRIES)]
 
-    return render_template("subject/loss/about.html",
-                           price=price,
-                           subject_id=sid or 0,
-                           countries=countries,
-                           can_enroll=True)
+    return render_template(
+        "subject/loss/about.html",
+        price=price,
+        subject_id=sid or 0,
+        subject_slug="loss",      # 🔹 add this
+        countries=countries,
+        can_enroll=True,
+    )
 
 
 

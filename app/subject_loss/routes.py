@@ -4,7 +4,7 @@ import io
 from flask import (
     Blueprint, ctx, current_app, render_template, redirect, url_for, 
     session, request, flash, abort, make_response, send_file)
-from flask import request, render_template, send_file, url_for, redirect, current_app
+from flask import request, render_template, send_file, url_for, redirect, current_app 
 import pdfkit
 from app.admin.loss.routes import _render_report_html
 from app.models.auth import AuthSubject
@@ -14,7 +14,8 @@ from app.models.loss import (
 from app.extensions import db
 from sqlalchemy import select, text, inspect, func, and_
 from flask import send_file
-from app.payments.pricing import get_subject_price, price_cents_for, price_cents_for_slug
+from app.utils.country_list import COUNTRIES, _name_code_iter
+from app.utils.mailer import send_loss_report_email as _send_mail  # <— use the shared mailer
 from app.school_loss.routes import (
     SUBJECT, _came_from_admin, _coerce_dt, _current_user_id, _extract_phase_scores_from_ctx,
     _finalize_and_send_pdf, _get_int_arg, _get_user_id_for_run, _infer_user_id_for_run, 
@@ -27,9 +28,9 @@ from app.subject_loss.report_context import render_report_html
 from app.subject_loss.report_context_adapter import build_learner_report_ctx
 from app.utils.mailer import send_pdf_email
 from xhtml2pdf import pisa
-#from weasyprint import HTML
+
 from datetime import datetime
-from flask import Response
+
 import matplotlib.dates as mdates
 from flask import render_template_string
 import base64
@@ -42,40 +43,23 @@ import matplotlib
 matplotlib.use('Agg')  # ✅ prevents Tkinter errors
 from matplotlib import pyplot as plt
 from flask_login import login_required, current_user
-from app.utils.assessment_helpers import (
-    get_instruction_card,     get_question_card,
-    get_explain_card,    get_pause_card,
-    store_response,    get_user_display_name,
-    compute_phase_totals_for_user
-)
-import sqlite3
 from app.diagnostics import trace_route
 import traceback
-from flask import (
-    Blueprint, request, render_template, send_file, redirect, url_for, current_app
-)
-from jinja2 import TemplateNotFound
 try:
     from app.utils.assessment_helpers import get_user_display_name
 except Exception:
     get_user_display_name = None
-from typing import Any, Dict, List, Optional
-from types import SimpleNamespace
-import csv, click
-# routes.py (in your loss_bp blueprint)
 from decimal import Decimal, ROUND_HALF_UP
 from app.admin.loss.utils import get_run_id, with_run_id_in_ctx
 from flask import session
 from sqlalchemy import text
 from math import ceil
 import csv, os
-
 try:
     from flask_login import current_user
 except Exception:
     current_user = None
 from flask import current_app as cap
-
 try:
     from weasyprint import HTML
     WEASYPRINT_AVAILABLE = True
@@ -88,39 +72,75 @@ from flask import (
 from flask_login import current_user
 from werkzeug.exceptions import BadRequest
 from io import BytesIO
-from email.message import EmailMessage
-import smtplib
 from pathlib import Path
 from functools import lru_cache
-import csv, logging
+import csv
 from flask_wtf.csrf import generate_csrf
 from flask_mail import Message
 from app.extensions import db, mail  # adjust if your Mail instance is named differently
 from flask_login import login_required, current_user, logout_user
-
+from app.utils.post_assessment import handle_exit_actions  # where your helper lives
+from threading import Thread
+from sqlalchemy import func as SA_FUNC, text as SA_TEXT
 
 loss_bp = Blueprint("loss_bp", __name__, url_prefix="/loss")
 
+# app/subject_loss/routes.py
+from flask import session, render_template, request
+from flask_login import current_user
 
-@loss_bp.route("/about", methods=["GET"])
+from app.payments.pricing import price_for_country, subject_id_for  # table-driven helper
+
+@loss_bp.get("/about")
 def about_loss():
-    cents = price_cents_for_slug("loss")
-    price = {"amount_cents": cents}  # always present so the partial never shows “unavailable”
-    can_enroll = True                # about page never blocks; user_enrollment enforces in the flow
-    return render_template("loss/about.html", price=price, can_enroll=can_enroll)
+    # 0) Resolve subject id once
+    sid = subject_id_for("loss")
+
+    # 1) Prefer a locked quote from session (set by /payments/pricing/lock)
+    q = None
+    reg_ctx = session.get("reg_ctx") or {}
+    if isinstance(reg_ctx.get("quote"), dict):
+        q = {"currency": reg_ctx["quote"].get("currency"),
+             "amount_cents": reg_ctx["quote"].get("amount_cents")}
+
+    # 2) If logged in and no session quote, try the latest enrollment quote
+    if not q and getattr(current_user, "is_authenticated", False) and sid:
+        row = db.session.execute(
+            db.text("""
+                SELECT ue.quoted_currency, ue.quoted_amount_cents
+                FROM user_enrollment ue
+                WHERE ue.user_id = :uid AND ue.subject_id = :sid
+                ORDER BY ue.started_at DESC
+                LIMIT 1
+            """),
+            {"uid": current_user.id, "sid": sid},
+        ).first()
+        if row and row[1] is not None:
+            q = {"currency": row[0], "amount_cents": int(row[1])}
+
+    # 3) Still nothing? Compute a provisional price based on country
+    if not q:
+        cc = (request.headers.get("CF-IPCountry") or "ZA").strip().upper()
+        cur, amt, _ = price_for_country(sid or "loss", cc)
+        if amt is not None:
+            q = {"currency": cur, "amount_cents": int(amt)}
+
+    # 4) Build object expected by your partial
+    price = {"currency": q["currency"], "amount_cents": q["amount_cents"]} if q else None
+
+    # 5) Build countries for the select (code + name) from your utils list
+    countries = [{"name": nm, "code": (cd or "").upper()} for (nm, cd) in _name_code_iter(COUNTRIES)]
+
+    return render_template("subject/loss/about.html",
+                           price=price,
+                           subject_id=sid or 0,
+                           countries=countries,
+                           can_enroll=True)
 
 
-'''
-# ——— INSTRUCTION FLOW ———, url_prefix='/school_loss'
-@loss_bp.route('/about', methods=["GET"], endpoint='about_loss')
-def about_loss():
-    price = get_subject_price("loss")  # slug→id happens inside the helper
-    return render_template("subject/loss/about.html", price=price)
 
-@loss_bp.get("/loss/about")
-def loss_about():
-    return "Loss About OK", 200
-'''
+
+
 # ----- entry from Bridge (non-admins jump straight into course) -----Step 1
 # ====================================================
 @loss_bp.get("/subject/home")
@@ -759,9 +779,6 @@ def report():
 
     return render_template(f"{TEMPLATE_DIR_LEARNER}/report.html", **ctx)
 
-# app/school_loss/routes.py (or your loss_bp routes module)
-
-from flask import Blueprint, render_template, request, url_for, flash
 
 @loss_bp.route("/loss/report/actions")
 def report_actions():
@@ -1136,11 +1153,6 @@ def email_report():  # endpoint: loss_bp.email_report
     return redirect(url_for("loss_bp.report_exit", run_id=run_id, user_id=user_id))
 
 
-import threading
-
-
-from app.utils.post_assessment import handle_exit_actions  # where your helper lives
-
 @loss_bp.post("/report/finish", endpoint="finish_report")
 @login_required
 def finish_report():
@@ -1320,7 +1332,7 @@ def _build_pdf_bytes(run_id: int, user_id: int) -> bytes | None:
         return None
 
 
-from threading import Thread
+
 
 # ---------------------------
 # Utilities
@@ -1435,7 +1447,7 @@ def _send_loss_report_email_async(to_email: str, run_id: int, user_id: int, pdf_
 
 
 
-from app.utils.mailer import send_loss_report_email as _send_mail  # <— use the shared mailer
+
 
 def _send_loss_report_email_async(to_email: str, run_id: int, user_id: int, pdf_url: str, learner_name: str | None = None) -> None:
     """Background email with proper Flask app context so nothing crashes."""
@@ -1488,3 +1500,5 @@ def _complete_loss_enrollment_sql(user_id: int) -> None:
     except Exception as e:
         db.session.rollback()
         current_app.logger.exception("complete_loss_enrollment_sql failed: %s", e)
+
+

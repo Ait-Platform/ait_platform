@@ -36,26 +36,16 @@
     When you're ready, begin your assessment or return home.
   </p>
 
-    <div class="mt-6 flex items-center justify-between">
-      <a href="{{ url_for('public_bp.welcome') }}"
-        class="rounded border px-4 py-2 text-sm hover:bg-slate-50">
-        ← Back
-      </a>
+  <div class="mt-6 flex items-center justify-between">
+    <a href="{{ url_for('public_bp.welcome') }}" class="rounded border px-4 py-2 text-sm hover:bg-slate-50">
+      ← Back
+    </a>
 
-        {# loss/about.html #}
-
-        {% include "_components/price_box.html" %}
-
-        {% if can_enroll %}
-          <a href="{{ url_for('auth_bp.start_registration', subject='loss', role='user') }}"
-            class="inline-flex items-center rounded bg-blue-600 px-4 py-2 text-white font-semibold hover:bg-blue-700">
-            Register for LOLO
-          </a>
-        {% else %}
-          <button class="inline-flex items-center rounded bg-slate-200 px-4 py-2 text-slate-600 cursor-not-allowed opacity-60" disabled>
-            Enrollment currently unavailable.
-          </button>
-        {% endif %}
+    <a href="{{ url_for('payfast_bp.pricing_get', subject_id=subject_id) }}"
+      class="rounded bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
+      Price
+    </a>
+  </div>
 
 
 
@@ -64,5 +54,4 @@
     </div>
 </div>
 {% endblock %}
-
 

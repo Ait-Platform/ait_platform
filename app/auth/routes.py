@@ -20,6 +20,8 @@ from flask_login import login_user, logout_user, login_required, current_user
 #    _work_key, find_user_active_first_by_email, get_reg_context)
 # app.checkout.routes import _create_checkout_session, _get_stripe_api_key
 from app.models import subject
+from app.payments.pricing import price_for_country
+from app.services.enrollment import _ensure_enrollment_row
 from app.utils.country_list import COUNTRIES, resolve_country, search_countries  # adjust path if needed
 from app.utils.mailer import send_email
 from app.utils.nav import resolve_next
@@ -57,7 +59,7 @@ from jinja2 import TemplateNotFound
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import select, func, update as sa_update
-
+from app.services.users import _ensure_or_create_user_from_session
 from sqlalchemy.exc import IntegrityError
 
 
@@ -82,6 +84,7 @@ def start_registration():
         session["role"] = role
     if subject:
         session["subject"] = subject
+
 
     # 2) hand off to the real register endpoint with ALL original query params
     return redirect(url_for("auth_bp.register", **request.args))
@@ -114,224 +117,139 @@ def register():
     full_name  = (request.form.get("full_name") or "").strip()
     password   = (request.form.get("password") or "").strip()
 
-    values = {
-        "email": email_in,
-        "full_name": full_name,
-    }
+    values = {"email": email_in, "full_name": full_name}
 
     # basic validation
     if not email_in or not password:
         flash("Please provide an email and password.", "danger")
-        return render_template(
-            "auth/register.html",
-            role=role,
-            subject=subject,
-            next_url=next_url,
-            values=values
-        )
+        return render_template("auth/register.html", role=role, subject=subject, next_url=next_url, values=values)
 
     if len(password) < 8:
         flash("Password must be at least 8 characters long.", "danger")
-        return render_template(
-            "auth/register.html",
-            role=role,
-            subject=subject,
-            next_url=next_url,
-            values=values
-        )
+        return render_template("auth/register.html", role=role, subject=subject, next_url=next_url, values=values)
 
-    # confirm subject exists and get subject_id
+    # confirm subject exists -> sid
     sid = db.session.execute(
         sa_text("SELECT id FROM auth_subject WHERE slug=:s OR name=:s LIMIT 1"),
         {"s": subject}
     ).scalar()
     if not sid:
         flash("Unknown subject.", "danger")
-        return render_template(
-            "auth/register.html",
-            role=role,
-            subject=subject,
-            next_url=next_url,
-            values=values
-        )
+        return render_template("auth/register.html", role=role, subject=subject, next_url=next_url, values=values)
 
-    # normalize email
+    # normalize email & block duplicates
     email_norm = email_in.lower()
-
-    # check if this email is already a real user in DB
-    # we are *not* creating a user yet, but we must block duplicates now
     existing = db.session.execute(
-        sa_text("SELECT id FROM \"user\" WHERE lower(email)=lower(:e) LIMIT 1"),
+        sa_text('SELECT id FROM "user" WHERE lower(email)=lower(:e) LIMIT 1'),
         {"e": email_norm}
     ).scalar()
     if existing:
         flash("That email is already registered. Please sign in.", "danger")
-        return render_template(
-            "auth/register.html",
-            role=role,
-            subject=subject,
-            next_url=next_url,
-            values=values
-        )
+        return render_template("auth/register.html", role=role, subject=subject, next_url=next_url, values=values)
 
-    # --- CRITICAL PART ---
-    # Instead of creating + logging in the user now,
-    # we stage their info (including a secure hash of their chosen password)
-    # into session["reg_ctx"]. Payment step will finish the account.
-    #
-    # We store password_hash, NOT the raw password.
+    # stage user in session (no user row yet)
     staged_password_hash = generate_password_hash(password)
 
-    _save_reg_ctx(
-        role=role,
-        subject=subject,
-        email=email_norm,
-        full_name=full_name,
-        next_url=next_url,
-    )
-
-    # extend reg_ctx with security fields we need for finalization
-    # (this survives redirect to decision -> payment -> final create)
-    session["reg_ctx"]["email_lower"] = email_norm
+    _save_reg_ctx(role=role, subject=subject, email=email_norm, full_name=full_name, next_url=next_url)
+    session["reg_ctx"]["email_lower"]   = email_norm
     session["reg_ctx"]["password_hash"] = staged_password_hash
 
-    # you were already doing this:
+    # ---------- NEW: lock a DB-driven parity quote into session ----------
+    # country: Cloudflare header → form fallback → ZA
+    cc = (request.headers.get("CF-IPCountry") or request.form.get("country") or "ZA").strip().upper()
+    cur, amt, ver = price_for_country(subject, cc)
+    # store exactly what we will charge later (no recompute)
+    session["reg_ctx"]["quote"] = {
+        "country_code": cc,
+        "currency": cur,
+        "amount_cents": amt if amt is not None else 5000,  # safe fallback if pricing row missing
+        "version": ver,
+    }
+    session.modified = True
+    # ------------------------------------------------------------
+
     session.pop("just_paid_subject_id", None)
 
-    # now go to decision screen (pay / choose plan / etc.)
-    return redirect(url_for(
-        "auth_bp.register_decision",
-        email=email_in,
-        subject=subject
-    ))
+    # go to decision screen
+    return redirect(url_for("auth_bp.register_decision", email=email_in, subject=subject))
 
 @auth_bp.route("/register/decision", methods=["GET", "POST"])
 def register_decision():
-    """
-    One-subject decision (single source of truth = user_enrollment):
-      - active   -> Start course (POST)
-      - pending  -> Proceed to payment (GET link)
-      - none     -> Proceed to payment (GET link)
-    """
-    ctx = session.get("reg_ctx") or {}
+    # 0) Resolve subject (no hardcoding)
+    subject = (request.values.get("subject") or "").strip().lower()
+    if not subject:
+        ctx = session.get("reg_ctx") or {}
+        subject = (ctx.get("subject") or "").strip().lower() or "loss"  # final fallback
 
-    # -------- identity --------
-    email = (
-        (request.args.get("email") or request.form.get("email")
-         or session.get("pending_email") or ctx.get("email") or "")
-        .strip().lower()
-    )
-    if not email:
-        flash("Please complete registration first.", "warning")
-        return redirect(url_for("auth_bp.register"))
+    # 1) Ensure/create the user from staged session data
+    ctx = session.setdefault("reg_ctx", {})
+    try:
+        user_id = _ensure_or_create_user_from_session(ctx)
+    except ValueError:
+        flash("Your session expired. Please re-enter your details.", "warning")
+        return redirect(url_for("auth_bp.register", subject=subject))
 
-    # -------- chosen subject (slug or name) --------
-    chosen_subject = (
-        request.args.get("subject") or request.form.get("subject")
-        or (ctx.get("subject") or "")
-    ).strip().lower()
-    if not chosen_subject:
-        flash("Please choose a subject.", "warning")
-        return redirect(url_for("auth_bp.register"))
+    # 2) Ensure an enrollment row
+    enrollment = _ensure_enrollment_row(user_id=user_id, subject_slug=subject)
 
-    # -------- resolve subject (must be active) --------
-    subj = db.session.execute(sa_text("""
-        SELECT id, slug, name
-        FROM auth_subject
-        WHERE is_active = 1
-          AND (lower(slug)=:s OR lower(name)=:s)
-        LIMIT 1
-    """), {"s": chosen_subject}).mappings().first()
-    if not subj:
-        flash("Unknown or inactive subject.", "warning")
-        return redirect(url_for("auth_bp.register"))
+    # 3) Persist a locked quote (prefer reg_ctx.quote; else derive from parity session)
+    q = ctx.get("quote")
+    if not q:
+        amt = float(session.get("pp_value") or 0.0)
+        cur = session.get("pp_currency")
+        cc  = session.get("pp_country")
+        if amt > 0 and cur:
+            q = {
+                "country_code": cc or None,
+                "currency": cur,
+                "amount_cents": int(round(amt * 100)),
+                "version": "2025-11",
+            }
 
-    sid           = int(subj["id"])
-    subject_slug  = (subj["slug"] or "").lower()
-    subject_name  = subj["name"]
+    if q:
+        db.session.execute(
+            db.text("""
+                UPDATE user_enrollment
+                   SET country_code        = :cc,
+                       quoted_currency     = :cur,
+                       quoted_amount_cents = :amt,
+                       price_version       = :ver,
+                       price_locked_at     = CURRENT_TIMESTAMP
+                 WHERE id = :eid
+            """),
+            {
+                "cc":  q.get("country_code"),
+                "cur": q.get("currency"),
+                "amt": int(q.get("amount_cents") or 0),
+                "ver": q.get("version") or "2025-11",
+                "eid": enrollment.id,
+            },
+        )
+        db.session.commit()
 
-    # -------- current enrollment state for THIS subject --------
-    row = db.session.execute(sa_text("""
-        SELECT ue.status
-        FROM user_enrollment ue
-        JOIN "user" u       ON u.id = ue.user_id
-        JOIN auth_subject s ON s.id = ue.subject_id
-        WHERE lower(u.email)=lower(:e)
-          AND lower(s.slug)=:slug
-        LIMIT 1
-    """), {"e": email, "slug": subject_slug}).first()
+    # 4) Read back persisted quote (single source of truth)
+    row = db.session.execute(
+        db.text("""
+            SELECT quoted_currency, quoted_amount_cents
+              FROM user_enrollment
+             WHERE id = :eid
+        """),
+        {"eid": enrollment.id},
+    ).first()
 
-    status      = (row[0] if row else None)  # 'active' | 'pending' | None
-    is_active   = (status == "active")
-    is_pending  = (status == "pending")
+    quoted_currency = (row[0] if row else "ZAR")
+    quoted_amount_cents = int((row[1] or 0))
+    amount = f"{quoted_amount_cents/100:.2f}"
 
-    # -------- CTA wiring --------
-    # If ACTIVE: we render a POST button (no href). If not, we render a link to /start-payment.
-    cta_post   = bool(is_active)  # template: render <form method=POST> when True
-    cta_label  = "Start course" if is_active else "Proceed to payment"
-    cta_url    = None if is_active else url_for(
-        "auth_bp.start_payment",
-        email=email,
-        subject=subject_slug,
-        role=(ctx.get("role") or "user")
-    )
+    # 5) Hand-off payload (keep your existing keys; adjust template path)
+    pf_data = {
+        # ... include your existing PayFast fields here ...
+        "amount": amount,
+        "m_payment_id": str(enrollment.id),
+        # tip: add subject & email if your handoff template expects them
+    }
 
-    # Card only for this subject
-    subjects = [{
-        "id": sid,
-        "name": subject_name,
-        "enrolled": 1 if is_active else 0,
-        "pending":  1 if is_pending else 0,
-    }]
-
-    # -------- POST: Start course only when ACTIVE --------
-    if request.method == "POST":
-        if not is_active:
-            # Safety: if someone posts when not active, send them to payment.
-            return redirect(cta_url or url_for("auth_bp.register"))
-
-        # Login + bounce to Bridge
-        uid = db.session.execute(sa_text(
-            'SELECT MIN(id) FROM "user" WHERE lower(email)=lower(:e)'
-        ), {"e": email}).scalar()
-
-        if uid:
-            try:
-                from flask_login import login_user
-                u = db.session.get(User, int(uid))
-                if u:
-                    login_user(u, remember=True, fresh=True)
-                    session.update({
-                        "user_id": int(u.id),
-                        "user_name": u.name or (u.email.split("@", 1)[0] if u.email else ""),
-                        "role": "user",
-                        "subject": subject_slug,
-                        "email": (u.email or "").lower(),
-                    })
-                    session.permanent = True
-            except Exception:
-                session.update({
-                    "user_id": int(uid),
-                    "user_name": email.split("@", 1)[0],
-                    "role": "user",
-                    "subject": subject_slug,
-                    "email": email,
-                })
-                session.permanent = True
-
-        return redirect(url_for("auth_bp.bridge_dashboard", role="user"))
-
-    # -------- GET: render --------
-    return render_template(
-        "auth/decision.html",
-        email=email,
-        subjects=subjects,
-        subject_slug=subject_slug,
-        subject_display=subject_name,
-        cta_url=cta_url,        # used only when not active
-        cta_label=cta_label,
-        cta_post=cta_post,      # used when active
-    )
+    return render_template("payments/payfast_handoff.html", pf_data=pf_data)
 
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login():
@@ -1219,153 +1137,6 @@ CASE
   ELSE lower(trim(u.email))
 END
 """
-
-@auth_bp.route("/start-payment", methods=["GET", "POST"])
-def start_payment():
-    """
-    Create/ensure user + pending enrollment, resolve price (form or DB),
-    then hand off to PayFast (via checkout_bp.payfast_handoff).
-    """
-    from flask import session as flask_session, request, redirect, url_for, flash, current_app
-    from werkzeug.security import generate_password_hash
-
-   
-    from decimal import Decimal, InvalidOperation
-    import secrets
-
-    v = request.values
-
-    # ---------- Inputs ----------
-    email_in = (v.get("email") or "").strip().lower()
-    if email_in:
-        email = email_in
-        flask_session["email"] = email
-    else:
-        email = (flask_session.get("email") or "").strip().lower()
-
-    subject_slug = (v.get("subject") or flask_session.get("subject") or "").strip().lower()
-    role         = (v.get("role") or flask_session.get("role") or "user").strip().lower()
-    next_url     = (v.get("next")  or flask_session.get("next_url") or "/").strip()
-
-    current_app.logger.info("start_payment[PF]: email=%r subject=%r role=%r", email, subject_slug, role)
-
-    if not email or not subject_slug:
-        flash("Missing email or subject.", "warning")
-        return redirect(url_for("checkout_bp.checkout", subject=subject_slug or "", role=role))
-
-    # ---------- Payment data (form overrides) ----------
-    price_id     = v.get("price_id")
-    currency_cfg = (v.get("currency") or current_app.config.get("STRIPE_CURRENCY") or "ZAR").upper()
-    try:
-        qty = max(1, int(v.get("quantity", "1") or 1))
-    except Exception:
-        qty = 1
-
-    amount_raw = (v.get("amount") or "").strip()
-    amount_cents = int(amount_raw) if (amount_raw and amount_raw.isdigit()) else None
-
-    # ---------- Get or create user ----------
-    uid = db.session.execute(
-        sa_text('SELECT id FROM "user" WHERE lower(email)=:e LIMIT 1'),
-        {"e": email},
-    ).scalar()
-
-    if not uid:
-        fallback_name = email.split("@")[0] if "@" in email else email
-        # Try staged password hash from registration flow; fall back to reset-required sentinel
-        reg_ctx = flask_session.get("reg_ctx", {}) or session.get("reg_ctx", {}) or {}
-        staged_hash = reg_ctx.get("password_hash") or generate_password_hash("PLEASE_RESET_PASSWORD")
-
-        db.session.execute(
-            sa_text("""
-                INSERT INTO "user" (name, email, password_hash, is_active)
-                SELECT :n, :e, :p, 1
-                WHERE NOT EXISTS (
-                    SELECT 1 FROM "user" u
-                    WHERE lower(u.email) = lower(:e)
-                )
-            """),
-            {"n": fallback_name, "e": email, "p": staged_hash},
-        )
-        db.session.commit()
-
-        uid = db.session.execute(
-            sa_text('SELECT id FROM "user" WHERE lower(email)=:e LIMIT 1'),
-            {"e": email},
-        ).scalar()
-
-    uid = int(uid)
-
-    # ---------- Resolve subject ----------
-    sid = db.session.execute(
-        sa_text("""
-            SELECT id FROM auth_subject
-            WHERE lower(slug)=:s OR lower(name)=:s
-            LIMIT 1
-        """),
-        {"s": subject_slug},
-    ).scalar()
-    if not sid:
-        flash("Unknown subject.", "warning")
-        return redirect(url_for("checkout_bp.checkout", subject=subject_slug, role=role))
-    sid = int(sid)
-
-    # ---------- Ensure pending enrollment ----------
-    db.session.execute(
-        sa_text("""
-            INSERT INTO user_enrollment (user_id, subject_id, status)
-            VALUES (:uid, :sid, 'pending')
-            ON CONFLICT(user_id, subject_id)
-            DO UPDATE SET status='pending'
-        """),
-        {"uid": uid, "sid": sid},
-    )
-    db.session.commit()
-
-    # ---------- Resolve pricing (form wins; else DB) ----------
-    if not price_id and (not isinstance(amount_cents, int) or amount_cents <= 0):
-        # Import here to avoid circulars if needed
-        #from app.auth.pricing import fetch_subject_price
-        amt_cents, db_cur = fetch_subject_price(subject_slug, role)
-        if amt_cents:
-            amount_cents = int(amt_cents)
-            currency_cfg = (db_cur or currency_cfg or "ZAR").upper()
-
-    if not isinstance(amount_cents, int) or amount_cents <= 0:
-        flash("Payment configuration missing.", "warning")
-        return redirect(url_for("checkout_bp.checkout", subject=subject_slug, role=role))
-
-    # Multiply by quantity; convert cents -> rands with 2 decimals
-    try:
-        total_cents = amount_cents * qty
-        amount_rands = f"{(Decimal(total_cents) / Decimal(100)).quantize(Decimal('0.01'))}"
-    except (InvalidOperation, Exception):
-        flash("Invalid amount.", "warning")
-        return redirect(url_for("checkout_bp.checkout", subject=subject_slug, role=role))
-
-    # ---------- Build PayFast payload (handoff) ----------
-    item_name    = f"{subject_slug.title()} enrollment"
-    buyer_email  = email
-    m_payment_id = f"AIT-{secrets.token_hex(6)}"  # your internal reference
-
-    # Stash context if you need to use it after return_url
-    flask_session["pending_email"]   = email
-    flask_session["pending_subject"] = subject_slug
-    flask_session["next_url"]        = next_url
-    flask_session["pending_amount"]  = str(amount_cents)
-    flask_session["pending_qty"]     = str(qty)
-
-    # Hand off to PayFast handoff page (auto-posts to payfast_bp.create_payment)
-
-    return redirect(url_for(
-        "checkout_bp.payfast_handoff",   # <-- use THIS endpoint name
-        amount=amount_rands,             # or your existing amount string
-        item_name=f"{subject_slug.title()} enrollment",
-        buyer_email=email,
-        m_payment_id=f"AIT-{secrets.token_hex(6)}",
-        currency=currency_cfg,
-        quantity=str(qty),
-    ), code=303)
 
 
 def _save_reg_ctx(role, subject, email, full_name, next_url):

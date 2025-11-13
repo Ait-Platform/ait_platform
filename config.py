@@ -1,7 +1,7 @@
 # config.py
 import os
 from pathlib import Path
-
+import re
 from flask import current_app
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -41,9 +41,7 @@ def _sqlite_uri_from(path: Path) -> str:
     return "sqlite:///" + path.as_posix()
 
 # config.py
-import os
-import re
-from pathlib import Path
+
 
 # ---- tiny helpers -----------------------------------------------------------
 def _to_bool(value: str | None, default: bool = False) -> bool:
@@ -186,3 +184,4 @@ class Config:
     PREFERRED_URL_SCHEME     = "http"
     # IMPORTANT for dev: do NOT set SERVER_NAME or SESSION_COOKIE_DOMAIN
     # SECRET_KEY must be a fixed, non-random value (don’t rotate between requests)
+

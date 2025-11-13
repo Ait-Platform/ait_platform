@@ -7,8 +7,8 @@ from typing import Optional, Union
 from datetime import datetime
 from sqlalchemy import and_, or_, func
 
-from app.models.auth import AuthSubject
-from app.models.payment import AuthPricing
+from app.models.auth import AuthSubject, AuthPricing
+
 
 
 DEFAULT_CURRENCY = "ZAR"

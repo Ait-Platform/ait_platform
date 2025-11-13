@@ -22,6 +22,8 @@ import hashlib, re, logging
 from sqlalchemy import text as sa_text
 from werkzeug.security import generate_password_hash
 from app.auth.routes import _finalize_user_after_payment
+from app.payments.pricing import apply_percentage_discount, countries_from_ref, countries_from_ref_with_names, currency_for_country_code, get_parity_anchor_cents, lock_country_and_price, price_for_country, subject_id_for
+from app.utils.country_list import COUNTRIES, _name_code_iter
 
 payfast_bp = Blueprint("payfast_bp", __name__)
 
@@ -55,50 +57,7 @@ def ip_in_trusted_range(ip: str) -> bool:
 
 def pf_md5(s: str) -> str:
     return hashlib.md5(s.encode("utf-8")).hexdigest()
-'''
-@payfast_bp.post("/ipn")
-def ipn():
-    # 1) Read the raw POST exactly as PayFast sent it
-    raw = request.get_data(as_text=True)  # e.g. "m_payment_id=...&pf_payment_id=...&...&signature=abcd"
 
-    # 2) Drop the signature pair from the raw string (do NOT re-order anything)
-    parts = [p for p in raw.split("&") if not p.startswith("signature=")]
-    signed_str = "&" .join(parts)
-
-    # 3) Append your passphrase
-    passphrase = cfg("PAYFAST_PASSPHRASE")
-    if passphrase:
-        signed_str = f"{signed_str}&passphrase={passphrase}"
-
-    # 4) Compute and compare
-    expected = pf_md5(signed_str)
-    got = request.form.get("signature", "")
-    if got != expected:
-        current_app.logger.warning(f"PayFast signature mismatch: got={got} expected={expected}")
-        return "bad sig", 400
-
-    # 5) (optional but recommended) server-to-server validate
-    try:
-        resp = requests.post(PAYFAST_VALIDATE_URL, data=request.form, timeout=10)
-        if resp.text.strip() != "VALID":
-            current_app.logger.warning(f"PayFast validate said INVALID: {resp.text[:200]}")
-            return "invalid", 400
-    except Exception:
-        current_app.logger.exception("PayFast validate POST failed")
-        return "validate error", 500
-
-    # 6) Your business logic
-    status = request.form.get("payment_status")
-    m_payment_id = request.form.get("m_payment_id")
-    amount_gross = request.form.get("amount_gross")
-
-    # TODO: load your order/enrollment by m_payment_id, compare expected amount/currency, etc.
-    # if Decimal(amount_gross) != order.amount: return "bad amount", 400
-    # if status == "COMPLETE": order.mark_paid(...)
-
-    current_app.logger.info(f"PayFast IPN OK: {m_payment_id} status={status} amount={amount_gross}")
-    return "ok", 200
-'''
 @payfast_bp.post("/create")
 def create_payment():
     """Create a PayFast payment and auto-submit to PayFast."""
@@ -293,55 +252,82 @@ def _ref(s: str) -> str:
     # safe, short token for m_payment_id
     return re.sub(r"[^A-Za-z0-9._-]", "-", s)[:40]
 
-@payfast_bp.get("/hand-off")
+@payfast_bp.post("/handoff")
 def handoff():
     cfg = current_app.config
 
-    email = (request.args.get("email") or "").strip().lower()
-    slug  = (request.args.get("subject") or "").strip().lower()
-    debug = (request.args.get("debug") == "1")
+    # Inputs (POST first, then GET fallback)
+    email = (request.form.get("email") or request.args.get("email") or "").strip().lower()
+    slug  = (request.form.get("subject") or request.args.get("subject") or "").strip().lower()
+    debug = (request.form.get("debug") or request.args.get("debug")) == "1"
     if not email or not slug:
         abort(400, "Missing email or subject")
 
-    required = ["PAYFAST_MERCHANT_ID","PAYFAST_MERCHANT_KEY",
-                "PAYFAST_RETURN_URL","PAYFAST_CANCEL_URL","PAYFAST_NOTIFY_URL"]
+    # Config sanity
+    required = ["PAYFAST_MERCHANT_ID","PAYFAST_MERCHANT_KEY","PAYFAST_RETURN_URL","PAYFAST_CANCEL_URL","PAYFAST_NOTIFY_URL"]
     missing = [k for k in required if not cfg.get(k)]
     if missing:
         return render_template("payfast_misconfig.html", missing=missing), 500
 
+    # Subject
     subject = AuthSubject.query.filter_by(slug=slug).first()
     if not subject:
         abort(400, "Subject not found")
     subject_id   = subject.id
     subject_name = getattr(subject, "name", slug)
 
-    row = db.session.execute(text("""
-        SELECT amount_cents
-        FROM auth_pricing
-        WHERE subject_id = :sid
-          AND (role = 'learner' OR role IS NULL)
-          AND plan = 'enrollment'
-          AND currency = 'ZAR'
-          AND (is_active = 1 OR is_active = TRUE)
-          AND (active_to IS NULL OR active_to > CURRENT_TIMESTAMP)
-        ORDER BY COALESCE(updated_at, created_at) DESC,
-                 COALESCE(active_from, created_at) DESC,
-                 id DESC
-        LIMIT 1
-    """), {"sid": subject_id}).first()
-    if not row or row.amount_cents is None:
-        abort(400, "Active price not configured for this subject")
-    amount_str = f"{(Decimal(int(row.amount_cents))/Decimal(100)).quantize(Decimal('0.01')):.2f}"
+    # --- Amount (ZAR) --------------------------------------------------------
+    # Prefer session parity lock (pp_value). Fallback to auth_pricing ZAR.
+    amt_str = None
+    if session.get("pp_value"):
+        try:
+            amt_str = f"{float(session['pp_value']):.2f}"
+        except Exception:
+            amt_str = None
 
+    if not amt_str:
+        row = db.session.execute(
+            db.text("""
+                SELECT amount_cents
+                FROM auth_pricing
+                WHERE subject_id = :sid
+                  AND (role = 'learner' OR role IS NULL)
+                  AND plan = 'enrollment'
+                  AND currency = 'ZAR'
+                  AND (is_active = 1 OR is_active = TRUE)
+                  AND (active_to IS NULL OR active_to > CURRENT_TIMESTAMP)
+                ORDER BY COALESCE(updated_at, created_at) DESC,
+                         COALESCE(active_from, created_at) DESC,
+                         id DESC
+                LIMIT 1
+            """),
+            {"sid": subject_id},
+        ).first()
+        if not row or row.amount_cents is None:
+            abort(400, "Active price not configured for this subject")
+        amt_str = f"{(Decimal(int(row.amount_cents)) / Decimal(100)).quantize(Decimal('0.01')):.2f}"
+        # also hydrate session so downstream UI shows the same number
+        try:
+            session["pp_value"] = float(amt_str)
+        except Exception:
+            pass
+
+    # Ensure display fields exist (currency/country) for logging/audit
+    if not session.get("pp_currency") or not session.get("pp_country"):
+        cc = (request.headers.get("CF-IPCountry") or "ZA").strip().upper()
+        cur, cents, _ = price_for_country(subject_id, cc)
+        session.setdefault("pp_currency", cur)
+        session.setdefault("pp_country", cc)
+
+    # URL policy checks (HTTPS outside localhost)
     for k in ("PAYFAST_RETURN_URL", "PAYFAST_CANCEL_URL", "PAYFAST_NOTIFY_URL"):
-        val = str(current_app.config.get(k) or "").strip()
+        val = str(cfg.get(k) or "").strip()
         if not val:
             abort(500, f"{k} missing")
         if val.startswith("http://") and ("localhost" not in val and "127.0.0.1" not in val):
             abort(500, f"{k} must be https outside localhost")
 
-
-
+    # Mode / credentials
     mode = (cfg.get("PAYFAST_MODE") or "sandbox").lower()
     if mode == "sandbox":
         merchant_id  = "10000100"
@@ -356,62 +342,50 @@ def handoff():
         passphrase   = (cfg.get("PAYFAST_PASSPHRASE") or "")
         payfast_host = "https://www.payfast.co.za/eng/process"
 
+    # Ref + return URL (include subject/email so /payments/success can finalize)
     mref = f"{_ref(slug)}-{uuid4().hex[:10]}"
-
-    # include subject so /payments/success can finalize correctly
     return_url = f"{cfg['PAYFAST_RETURN_URL']}?ref={mref}&email={email}&subject={slug}"
 
-    item_name_clean = (f"{subject_name} enrollment")[:100]
-    email_clean = email
-
-    # ensure user exists + set name + (NEW) set password_hash if staged
+    # Ensure user exists + name + staged password hash if present
     u = User.query.filter_by(email=email).first()
     if not u:
         u = User(email=email, is_active=1)
+    if not (u.name or "").strip():
         u.name = email.split("@", 1)[0].replace(".", " ").replace("_", " ").title()
-        # pull staged password hash from registration (if present)
-        reg_ctx = session.get("reg_ctx") or {}
-        staged = reg_ctx.get("password_hash")
-        if staged and not getattr(u, "password_hash", None):
-            u.password_hash = staged
-        db.session.add(u)
-        db.session.flush()  # ensure u.id before upsert
-    else:
-        if not u.name or not u.name.strip():
-            u.name = email.split("@", 1)[0].replace(".", " ").replace("_", " ").title()
-        # backfill password_hash if missing and staged exists
-        if not getattr(u, "password_hash", None):
-            reg_ctx = session.get("reg_ctx") or {}
-            staged = reg_ctx.get("password_hash")
-            if staged:
-                u.password_hash = staged
-        db.session.flush()
-
+    reg_ctx = session.get("reg_ctx") or {}
+    staged = reg_ctx.get("password_hash")
+    if staged and not getattr(u, "password_hash", None):
+        u.password_hash = staged
     db.session.add(u)
-    db.session.flush()  # ← ensure u.id is available before using it
+    db.session.flush()  # ensure u.id
 
-    # ensure pending enrollment
-    db.session.execute(text("""
-        INSERT INTO user_enrollment (user_id, subject_id, status)
-        VALUES (:uid, :sid, 'pending')
-        ON CONFLICT(user_id, subject_id)
-        DO UPDATE SET status='pending'
-    """), {"uid": u.id, "sid": subject.id})
-
+    # Ensure pending enrollment (upsert)
+    db.session.execute(
+        db.text("""
+            INSERT INTO user_enrollment (user_id, subject_id, status)
+            VALUES (:uid, :sid, 'pending')
+            ON CONFLICT(user_id, subject_id)
+            DO UPDATE SET status='pending'
+        """),
+        {"uid": u.id, "sid": subject.id},
+    )
     db.session.commit()
 
+    # PayFast payload (amount in ZAR, description carries parity UI context)
     pf_data = {
         "merchant_id":   merchant_id,
         "merchant_key":  merchant_key,
-        "return_url":    return_url,  # <<< includes ref/email/subject
+        "return_url":    return_url,
         "cancel_url":    cfg["PAYFAST_CANCEL_URL"],
         "notify_url":    cfg["PAYFAST_NOTIFY_URL"],
         "m_payment_id":  mref,
-        "amount":        amount_str,
-        "item_name":     item_name_clean,
-        "email_address": email_clean,
+        "amount":        amt_str,
+        "item_name":     (f"{subject_name} enrollment")[:100],
+        "item_description": f"Parity UI {session.get('pp_value')} {session.get('pp_currency')} ({session.get('pp_country')})",
+        "email_address": email,
     }
 
+    # Signature (not required in sandbox merchant_id 10000100)
     if merchant_id != "10000100":
         pf_data["signature"] = _pf_sig(pf_data, passphrase)
     else:
@@ -421,11 +395,9 @@ def handoff():
         payfast_host, {k: v for k, v in pf_data.items() if k != "signature"})
 
     if debug:
-        return render_template("payfast_handoff_debug.html",
-                               payfast_url=payfast_host, pf_data=pf_data)
+        return render_template("payments/payfast_handoff_debug.html", payfast_url=payfast_host, pf_data=pf_data)
 
-    return render_template("payfast_handoff.html",
-                           payfast_url=payfast_host, pf_data=pf_data)
+    return render_template("payments/payfast_handoff.html", payfast_url=payfast_host, pf_data=pf_data)
 
 @payfast_bp.get("/_sanity")
 def pf_sanity():
@@ -446,7 +418,7 @@ def pf_sanity():
         "item_name":     "sanity enrollment",
         "email_address": "test@example.com",
     }
-    return render_template("payfast_handoff.html",
+    return render_template("payments/payfast_handoff.html",
                            payfast_url="https://sandbox.payfast.co.za/eng/process",
                            pf_data=pf_data)
 
@@ -478,7 +450,7 @@ def _subject_amount(subject, req_amount: str | None):
 
 @payfast_bp.get("/cancel", endpoint="payfast_cancel")
 def cancel():
-    return render_template("payment_cancelled.html"), 200
+    return render_template("payments/cancelled.html"), 200
 
 @payfast_bp.post("/notify")
 @csrf.exempt
@@ -556,7 +528,7 @@ def success():
     # No email? show success page but ask to sign in
     if not email:
         flash("Payment completed. Please sign in to continue.", "info")
-        return render_template("payment_success.html", subject=subject, ref=ref), 200
+        return render_template("payments/success.html", subject=subject, ref=ref), 200
 
     # 2) Ensure user exists; apply staged password hash if we staged one at /register
     u = User.query.filter_by(email=email).first()
@@ -595,4 +567,123 @@ def success():
 
     session["payment_banner"] = f"Payment successful for {subject.title() if subject else 'your course'}. You're all set!"
 
-    return render_template("payment_success.html", subject=subject, ref=ref), 200
+    return render_template("payments/success.html", subject=subject, ref=ref), 200
+
+@payfast_bp.post("/ipn")
+def ipn():
+    # ... your validation/signature checks ...
+
+    eid = int(request.form.get("m_payment_id") or 0)
+    amount_gross = request.form.get("amount_gross")  # e.g., "50.00"
+    cents = int(round(float(amount_gross)*100)) if amount_gross else None
+
+    if eid and cents is not None:
+        db.session.execute(sa_text("""
+            UPDATE user_enrollment
+            SET charged_currency = 'ZAR',
+                charged_amount_cents = :amt,
+                gateway_country = NULL,
+                country_mismatch = 0
+            WHERE id = :eid
+        """), {"amt": cents, "eid": eid})
+        db.session.commit()
+
+    return ("OK", 200)
+
+# offering discount and locking price and currency
+
+@payfast_bp.get("/checkout/review")
+def checkout_review():
+    # subject_id optional; try query arg then fallback to "loss"
+    sid = request.args.get("subject_id", type=int) or subject_id_for("loss")
+    if not session.get("pp_value"):
+        # force user to lock country/price first
+        return redirect(url_for("loss_bp.about_loss"))
+    return render_template("payments/review.html", subject_id=sid)
+
+
+@payfast_bp.route("/checkout/cancel", methods=["POST", "GET"])
+def checkout_cancel():
+    # Optional discount
+    if (request.values.get("reason") or "") == "price_too_high":
+        try:
+            apply_percentage_discount(session, 10.0)
+            flash("Discount applied: 10% off.", "info")
+        except Exception:
+            pass
+
+    # Figure out where to return
+    sid = request.values.get("subject_id", type=int)
+    if not sid:
+        try:
+            sid, _ = _resolve_subject_from_request()
+        except Exception:
+            sid = None
+
+    if sid:
+        return redirect(url_for("payfast_bp.payments/pricing_get", subject_id=sid))
+    return redirect(url_for("loss_bp.about_loss"))
+
+@payfast_bp.get("/handoff")     # legacy GET
+def handoff_get_legacy():
+    # Minimal shim: show a message or redirect to review
+    return redirect(url_for('payfast_bp.payments/review'))
+
+@payfast_bp.get("/pricing")
+def pricing_get():
+    subject_id, _ = _resolve_subject_from_request()
+    countries = countries_from_ref_with_names()
+
+    if not session.get("pp_value") or not session.get("pp_currency"):
+        cents = get_parity_anchor_cents(subject_id)
+        if countries:
+            session["pp_country"]  = countries[0]["code"]
+            session["pp_currency"] = countries[0]["currency"]
+        session["pp_value"]    = round((cents or 0) / 100.0, 2)
+        session["pp_discount"] = False
+        session["pp_vat_note"] = "excl. VAT"
+
+    return render_template("payments/pricing.html",
+                           subject_id=subject_id,
+                           countries=countries)
+
+
+@payfast_bp.post("/pricing/lock")
+def pricing_lock():
+    subject_id, _ = _resolve_subject_from_request()
+    code = (request.form.get("country") or "").upper()
+
+    ccy = currency_for_country_code(code)
+    if not ccy:
+        flash("That country isn’t listed. Please choose any country that uses your currency.", "warning")
+        return redirect(url_for("payfast_bp.pricing_get", subject_id=subject_id))
+
+    cents = get_parity_anchor_cents(subject_id)
+    session.update({
+        "pp_country":  code,
+        "pp_currency": ccy,
+        "pp_value":    round((cents or 0) / 100.0, 2),
+        "pp_discount": False,
+        "pp_vat_note": "excl. VAT",
+    })
+    return redirect(url_for("payfast_bp.pricing_get", subject_id=subject_id))
+
+def _resolve_subject_from_request() -> tuple[int, str]:
+    sid  = request.args.get("subject_id", type=int) or request.form.get("subject_id", type=int)
+    slug = (request.args.get("subject") or request.form.get("subject") or "").strip().lower()
+
+    if sid and not slug:
+        row = db.session.execute(db.text("SELECT slug FROM auth_subject WHERE id = :sid"), {"sid": sid}).first()
+        if not row: abort(400, "Unknown subject id")
+        slug = row.slug
+
+    if slug and not sid:
+        row = db.session.execute(db.text("SELECT id FROM auth_subject WHERE slug = :s"), {"s": slug}).first()
+        if not row: abort(400, "Unknown subject slug")
+        sid = int(row.id)
+
+    if not sid or not slug:
+        abort(400, "Missing subject")
+
+    return sid, slug
+

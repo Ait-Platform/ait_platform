@@ -1,6 +1,8 @@
 # app/__init__.py
 import os as _os
+
 from app.payments.pricing import number_to_words, price_cents_for
+
 try:
     from dotenv import load_dotenv
     load_dotenv()
@@ -36,6 +38,8 @@ load_dotenv(find_dotenv(), override=False)  # picks up your .env locally
 #from flask_wtf import CSRFProtect
 from flask_wtf.csrf import generate_csrf
 from app.extensions import csrf
+
+from datetime import date
 
 from flask import Flask, render_template_string
 
@@ -192,13 +196,31 @@ def create_app():
         mail.send(msg)
         print(f"Sent test email to {to} via {current_app.config.get('MAIL_SERVER')}:{current_app.config.get('MAIL_PORT')}")
 
+    # Register a simple CLI to create/seed ref_country_currency (SQLite-safe)
+    @app.cli.command("seed-currencies")
+    def seed_currencies():
+        sql_create = """
+        CREATE TABLE IF NOT EXISTS ref_country_currency (
+        alpha2     TEXT PRIMARY KEY,
+        currency   TEXT NOT NULL,
+        updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+        """
+        sql_seed = """
+        INSERT INTO ref_country_currency (alpha2, currency) VALUES
+        ('ZA','ZAR'),('US','USD'),('GB','GBP'),('IN','INR'),('IE','EUR')
+        ON CONFLICT(alpha2) DO UPDATE SET currency = excluded.currency;
+        """
+        from sqlalchemy import text
+        db.session.execute(text(sql_create))
+        db.session.execute(text(sql_seed))
+        db.session.commit()
+        print("ref_country_currency: created/seeded")
+
     @app.route("/healthz")
     def healthz():
         return "ok", 200
-
-    # app/__init__.py  (after app = Flask(__name__) and db.init_app(app))
     
-
     @app.cli.command("create-stripe-tables")
     def create_stripe_tables():
         """Create fallback 'stripe_payment' / 'stripe_subscription' tables if missing."""
@@ -217,19 +239,69 @@ def create_app():
         else:
             print("Nothing to create; tables already exist.")
 
+    @app.cli.command("seed-all-currencies")
+    def seed_all_currencies():
+        # Lazy import so app can start even if Babel isn't installed
+        try:
+            from babel.numbers import get_territory_currency
+        except Exception as e:
+            print("Babel is required for this command. Install with: pip install Babel")
+            raise
 
+        # Ensure table
+        db.session.execute(text("""
+        CREATE TABLE IF NOT EXISTS ref_country_currency (
+            alpha2     TEXT PRIMARY KEY,
+            currency   TEXT NOT NULL,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+        """))
 
-    # Verbose logs
-    logging.basicConfig(level=logging.DEBUG)
-    app.logger.setLevel(logging.DEBUG)
-    
-    # --- debug: list routes in logs ---
-    try:
-        for r in app.url_map.iter_rules():
-            app.logger.info("ROUTE %-28s %s", r.endpoint, r.rule)
-    except Exception as e:
-        app.logger.warning("Could not list routes: %s", e)
-    # ----------------------------------
+        # Gather ISO alpha-2 from your utils list
+        try:
+            from app.utils.country_list import _name_code_iter, COUNTRIES
+        except ImportError:
+            from utils.country_list import _name_code_iter, COUNTRIES
+
+        from datetime import date
+        today = date.today()
+        seen = set()
+        codes = []
+        for nm, cd in _name_code_iter(COUNTRIES):
+            cd = (cd or "").strip().upper()
+            if len(cd) == 2 and cd.isalpha() and cd not in seen:
+                seen.add(cd); codes.append(cd)
+
+        overrides = {"AQ": "USD", "XK": "EUR"}  # edge cases
+        inserted = 0; missing = []
+
+        for code in codes:
+            ccy = overrides.get(code)
+            if not ccy:
+                try:
+                    ccy = get_territory_currency(code, date=today)
+                except Exception:
+                    ccy = None
+
+            if not ccy:
+                missing.append(code); continue
+
+            db.session.execute(
+                text("""
+                INSERT INTO ref_country_currency (alpha2, currency)
+                VALUES (:a, :c)
+                ON CONFLICT(alpha2)
+                DO UPDATE SET currency = excluded.currency,
+                                updated_at = CURRENT_TIMESTAMP
+                """),
+                {"a": code, "c": ccy}
+            )
+            inserted += 1
+
+        db.session.commit()
+        print(f"ref_country_currency: upserted {inserted} rows.")
+        if missing:
+            print("No currency found for:", ", ".join(sorted(missing)))
 
     @app.before_request
     def _trace_in():
@@ -253,8 +325,6 @@ def create_app():
         else:
             app.logger.info("[%s] ← %s", rid, resp.status)
         return resp
-
-
 
     @app.before_request
     def _log_visit():
@@ -297,16 +367,16 @@ def create_app():
     from app.subject_loss.routes import loss_bp
     from app.school_billing.routes import billing_bp
     from app.admin import admin_bp
-    from app.checkout import checkout_bp
+    #from app.checkout import checkout_bp
     from app.admin.school_fee_management.routes import sfm_bp
     from app.admin_general.routes import general_bp      # GET /admin/general/
     from app.admin_general.admin_tts import tts_bp       # POST /admin/general/tts
     from app.payments.payfast import payfast_bp
     
 
-    app.logger.warning("registered checkout_bp at /checkout")
+    #app.logger.warning("registered checkout_bp at /checkout")
 
-    app.register_blueprint(checkout_bp)
+    #app.register_blueprint(checkout_bp)
     app.register_blueprint(public_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(reading_bp)
@@ -319,7 +389,7 @@ def create_app():
     app.register_blueprint(tts_bp, url_prefix="/admin/general")
     app.register_blueprint(payfast_bp, url_prefix="/payments")
     
-    csrf.exempt(checkout_bp)  # keeps webhook/start happy
+    #csrf.exempt(checkout_bp)  # keeps webhook/start happy
     # Exempt ONLY the PayFast IPN route (or the whole blueprint if you prefer)
     csrf.exempt(payfast_bp)  # or: add @csrf.exempt on the /notify function
 

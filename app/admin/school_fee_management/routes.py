@@ -9,9 +9,11 @@ sfm_bp = Blueprint(
     url_prefix="/sfm",
 )
 
-@sfm_bp.route('/about', methods=['GET'])
+@sfm_bp.get("/about", endpoint="about_sfm")
 def sfm_about():
-    return render_template("admin/school_fee_management/about.html")
+    return render_template("school_fee_management/about.html")
+
+
 
 def _require_admin():
     """Abort 403 unless current session is admin."""

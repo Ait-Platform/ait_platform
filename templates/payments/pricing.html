@@ -1,0 +1,82 @@
+{% extends "layout.html" %}
+{% block title %}Price · AIT{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-xl mt-10 bg-white p-6 rounded shadow">  {# was max-w-lg #}
+
+  <!-- Top bar -->
+  <div class="flex items-center justify-between">
+    <a href="{{ url_for('loss_bp.about_loss') }}"
+       class="rounded border px-3 py-1.5 text-sm hover:bg-slate-50">← Back to About</a>
+    <div class="text-slate-500 text-sm">Parity pricing</div>
+  </div>
+
+  <!-- Country (DB-driven) -->
+  <form id="country-form" method="post" action="{{ url_for('payfast_bp.pricing_lock') }}" class="mt-6 space-y-2">
+    <input type="hidden" name="subject_id" value="{{ subject_id }}">
+    <label class="block text-sm font-medium">Country</label>
+    <select name="country"
+            class="w-full rounded border px-3 py-2 text-sm"
+            onchange="document.getElementById('country-form').submit()">
+      {% for c in countries %}
+        <option value="{{ c.code }}" {% if session.get('pp_country') == c.code %}selected{% endif %}>
+          {{ c.name }}
+        </option>
+      {% endfor %}
+    </select>
+    <p class="text-xs text-slate-500">
+      Don’t see your country? Choose any country that uses your currency.
+    </p>
+  </form>
+
+  <!-- Price -->
+  <div class="mt-4">
+    <label class="block text-sm font-medium">Price (your currency)</label>
+    <div class="flex gap-2">
+      <input type="text" readonly
+             class="w-full rounded border px-3 py-2 text-sm bg-slate-50"
+             value="{{ '%.2f' % ((session.get('pp_value') or 0) | float) }}">
+      <span class="inline-flex items-center rounded border px-3 text-sm">
+        {{ session.get('pp_currency') or 'ZAR' }}
+      </span>
+    </div>
+  </div>
+
+  <!-- Notes -->
+  <div class="mt-4 rounded border border-slate-200 bg-slate-50 p-3 text-sm leading-6 text-slate-700">
+    <div class="font-semibold mb-1">About our value-based pricing</div>
+    <ul class="list-disc pl-5 space-y-1">
+      <li>You’ll see a locked price in your country’s currency for clarity.</li>
+      <li>Payment is processed in ZAR via PayFast. The ZAR charge reflects the same value as your displayed price.</li>
+      <li>Prices are exclusive of VAT unless stated otherwise; any applicable taxes are shown before you pay.</li>
+      <li>Refunds are issued in ZAR for the ZAR amount charged; your bank’s exchange rate may differ from the display currency.</li>
+      <li>By continuing, you agree to this pricing method and our Terms and Refund Policy.</li>
+      <li>If your country isn’t listed, choose any country that uses your currency.</li>
+    </ul>
+  </div>
+
+  <!-- Actions -->
+  <div class="mt-4 flex items-center justify-between">
+    <a href="{{ url_for('auth_bp.start_registration',
+                        role='user',
+                        subject='loss',
+                        next=url_for('payfast_bp.checkout_review', subject_id=subject_id)) }}"
+       class="inline-flex items-center rounded bg-blue-600 px-4 py-2 text-white font-semibold hover:bg-blue-700">
+      Enrol
+    </a>
+
+    <form method="post" action="{{ url_for('payfast_bp.checkout_cancel') }}">
+      <input type="hidden" name="subject_id" value="{{ subject_id }}">
+      <input type="hidden" name="reason" value="price_too_high">
+      <button class="rounded border px-4 py-2 text-sm hover:bg-slate-50">Cancel</button>
+    </form>
+  </div>
+
+  {% if session.get('pp_currency') != 'ZAR' %}
+    <div class="mt-3 text-xs text-slate-500 text-center">
+      Charged in ZAR at the parity amount shown • {{ session.get('pp_vat_note') or 'excl. VAT' }}
+    </div>
+  {% endif %}
+
+</div>
+{% endblock %}

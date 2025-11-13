@@ -158,3 +158,9 @@ class Subscription(db.Model):
         db.session.add(obj)
         return obj
 
+class RefCountryCurrency(db.Model):
+    __tablename__ = "ref_country_currency"
+    alpha2 = db.Column(db.String(2), primary_key=True)
+    currency = db.Column(db.String(3), nullable=False)
+    updated_at = db.Column(db.DateTime, nullable=False, server_default=db.func.current_timestamp())
+

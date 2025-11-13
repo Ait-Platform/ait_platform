@@ -1,0 +1,26 @@
+{% extends "layout.html" %}
+{% block title %}Review · Checkout{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-md mt-10">
+  {% include "_components/price_box.html" with context %}
+
+  <form method="post" action="{{ url_for('payfast_bp.handoff') }}" class="mt-6 text-center">
+    <input type="hidden" name="subject_id" value="{{ subject_id }}">
+    <button class="rounded bg-blue-600 px-5 py-2.5 font-semibold text-white hover:bg-blue-700">
+      Proceed to Pay
+    </button>
+  </form>
+
+  <form method="post" action="{{ url_for('payfast_bp.checkout_cancel') }}" class="mt-3 text-center">
+    <input type="hidden" name="subject_id" value="{{ subject_id }}">
+    <input type="hidden" name="reason" value="price_too_high">
+    <button class="text-sm underline">Cancel — price too high</button>
+  </form>
+
+  {% if session.get('pp_currency') != 'ZAR' %}
+    <div class="mt-2 text-xs text-slate-500 text-center">
+      Charged in ZAR at the parity amount shown • {{ session.get('pp_vat_note') or 'excl. VAT' }}
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

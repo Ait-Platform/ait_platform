@@ -1322,10 +1322,6 @@ def fetch_subject_price(subject_slug: str, role: str = "user"):
     return amt, cur
 
 def _resolve_subject_from_request() -> tuple[int, str]:
-    """
-    Resolve (subject_id, subject_slug) from request/session.
-    Works even if only ?subject=loss is sent.
-    """
     reg_ctx = session.get("reg_ctx") or {}
 
     slug = (
@@ -1333,29 +1329,26 @@ def _resolve_subject_from_request() -> tuple[int, str]:
         (reg_ctx.get("subject") or "")
     ).strip().lower()
 
-    if not slug:
-        slug = "loss"  # safe default for now
-
     sid = request.values.get("subject_id", type=int) or request.args.get("subject_id", type=int)
 
-    # if we don't have an id, look it up from auth_subject
-    if not sid:
+    if slug and not sid:
         row = db.session.execute(
             sa_text("SELECT id FROM auth_subject WHERE slug = :s"),
             {"s": slug},
         ).first()
-
         if row:
             sid = int(row.id)
-        else:
-            # final fallback to 'loss', if present
-            fallback = db.session.execute(
-                sa_text("SELECT id FROM auth_subject WHERE slug = 'loss'")
-            ).first()
-            if not fallback:
-                abort(400, "Missing subject")
-            sid = int(fallback.id)
-            slug = "loss"
+
+    if sid and not slug:
+        row = db.session.execute(
+            sa_text("SELECT slug FROM auth_subject WHERE id = :sid"),
+            {"sid": sid},
+        ).first()
+        if row:
+            slug = row.slug
+
+    if not sid or not slug:
+        abort(400, "Missing subject")
 
     return sid, slug
 

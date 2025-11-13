@@ -93,20 +93,24 @@ from app.payments.pricing import price_for_country, subject_id_for  # table-driv
 
 @loss_bp.get("/about")
 def about_loss():
-    # 0) Resolve subject id once
-    sid = subject_id_for("loss")
+    # Subject slug/id (no magic 0)
+    slug = (request.args.get("subject") or "loss").strip().lower()
+    sid = subject_id_for(slug)  # your existing helper; returns int or raises
+
+    # Keep subject in reg_ctx so pricing/registration can see it
+    reg_ctx = session.setdefault("reg_ctx", {})
+    reg_ctx["subject"] = slug
 
     # 1) Prefer a locked quote from session (set by /payments/pricing/lock)
     q = None
-    reg_ctx = session.get("reg_ctx") or {}
     if isinstance(reg_ctx.get("quote"), dict):
         q = {
             "currency": reg_ctx["quote"].get("currency"),
             "amount_cents": reg_ctx["quote"].get("amount_cents"),
         }
 
-    # 2) If logged in and no session quote, try the latest enrollment quote
-    if not q and getattr(current_user, "is_authenticated", False) and sid:
+    # 2) If logged in and no session quote, use last enrollment quote
+    if not q and getattr(current_user, "is_authenticated", False):
         row = db.session.execute(
             db.text("""
                 SELECT ue.quoted_currency, ue.quoted_amount_cents
@@ -120,32 +124,30 @@ def about_loss():
         if row and row[1] is not None:
             q = {"currency": row[0], "amount_cents": int(row[1])}
 
-    # 3) Still nothing? Compute a provisional price based on country
+    # 3) Still nothing? Provisional price based on country
     if not q:
         cc = (request.headers.get("CF-IPCountry") or "ZA").strip().upper()
-        cur, amt, _ = price_for_country(sid or "loss", cc)
+        cur, amt, _ = price_for_country(sid, cc)
         if amt is not None:
             q = {"currency": cur, "amount_cents": int(amt)}
 
-    # 4) Build object expected by your partial
+    # 4) Build price object (or None)
     price = {"currency": q["currency"], "amount_cents": q["amount_cents"]} if q else None
 
-    # 5) Build countries for the select (if you still need them here)
-    countries = [{"name": nm, "code": (cd or "").upper()} for (nm, cd) in _name_code_iter(COUNTRIES)]
+    # 5) Countries list ONLY if your template still needs it; otherwise drop it
+    countries = [
+        {"name": nm, "code": (cd or "").upper()}
+        for (nm, cd) in _name_code_iter(COUNTRIES)
+    ]
 
     return render_template(
         "subject/loss/about.html",
         price=price,
-        subject_id=sid,          # 👈 no fallback to 0
-        subject_slug="loss",     # 👈 add this
-        countries=countries,
+        subject_id=sid,
+        subject_slug=slug,
+        countries=countries,   # remove this line if the template doesn't use it
         can_enroll=True,
     )
-
-
-
-
-
 
 # ----- entry from Bridge (non-admins jump straight into course) -----Step 1
 # ====================================================
@@ -175,8 +177,6 @@ def enrol_loss():
         role="user",  # LOSS has a single role
         next=url_for("loss_bp.about_loss")  # where to land after payment
     ))
-
-
 
 
 # ====================================================

@@ -7,6 +7,7 @@ import os, hmac, hashlib, ipaddress, requests
 from urllib.parse import urlencode, quote_plus
 import hashlib
 import re
+from app.auth.routes import _resolve_subject_from_request
 from app.models.auth import AuthSubject
 from decimal import Decimal, ROUND_HALF_UP
 # add these
@@ -643,28 +644,6 @@ def pricing_lock():
         "pp_vat_note": "excl. VAT",
     })
     return redirect(url_for("payfast_bp.pricing_get", subject_id=subject_id))
-
-# 🔥 ADD THIS RIGHT HERE — JUST BELOW IMPORTS, ABOVE ANY ROUTE
-def _resolve_subject_from_request() -> tuple[int, str]:
-    sid  = request.values.get("subject_id", type=int) or request.args.get("subject_id", type=int)
-    slug = (request.values.get("subject") or request.args.get("subject") or "").strip().lower()
-
-    if sid and not slug:
-        row = db.session.execute(text("SELECT slug FROM auth_subject WHERE id=:sid"), {"sid": sid}).first()
-        if not row:
-            abort(400, "Unknown subject id")
-        slug = row.slug
-
-    if slug and not sid:
-        row = db.session.execute(text("SELECT id FROM auth_subject WHERE slug=:s"), {"s": slug}).first()
-        if not row:
-            abort(400, "Unknown subject slug")
-        sid = int(row.id)
-
-    if not sid or not slug:
-        abort(400, "Missing subject")
-
-    return sid, slug
 
 @payfast_bp.get("/pricing")
 def pricing_get():

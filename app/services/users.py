@@ -3,7 +3,12 @@ from sqlalchemy import text as sa_text
 from app.extensions import db
 
 
+
 def _ensure_or_create_user_from_session(ctx: dict) -> int:
+    """
+    Make sure there's a user row for the staged registration context.
+    Returns the user_id.
+    """
     email = (ctx.get("email") or "").strip().lower()
     if not email:
         raise ValueError("Missing email in registration context")
@@ -38,4 +43,5 @@ def _ensure_or_create_user_from_session(ctx: dict) -> int:
         sa_text('SELECT id FROM "user" WHERE email = :e'),
         {"e": email},
     ).scalar()
+
     return int(new_id)

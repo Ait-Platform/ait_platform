@@ -20,7 +20,6 @@ from flask_login import login_user, logout_user, login_required, current_user
 #    _work_key, find_user_active_first_by_email, get_reg_context)
 # app.checkout.routes import _create_checkout_session, _get_stripe_api_key
 from app.models import subject
-from app.payments.payfast import _resolve_subject_from_request
 from app.payments.pricing import price_for_country
 from app.services.enrollment import _ensure_enrollment_row
 from app.utils.country_list import COUNTRIES, resolve_country, search_countries  # adjust path if needed
@@ -77,37 +76,30 @@ def inject_has_endpoint():
 
 @auth_bp.get("/start_registration")
 def start_registration():
-    # ✔ Resolve subject properly
     subject_id, subject_slug = _resolve_subject_from_request()
 
-    # ✔ Store subject in session
     ctx = session.setdefault("reg_ctx", {})
     ctx["subject"] = subject_slug
 
-    # ✔ Build next URL cleanly, using the CORRECT variable names
     next_url = (
         request.args.get("next")
         or url_for(
             "payfast_bp.checkout_review",
             subject_id=subject_id,
-            subject=subject_slug
+            subject=subject_slug,
         )
     )
 
-    # ✔ Role default
     role = request.args.get("role") or "user"
 
-    # ✔ Go to register page
     return redirect(
         url_for(
             "auth_bp.register",
             role=role,
             subject=subject_slug,
-            next=next_url
+            next=next_url,
         )
     )
-
-
 
 @auth_bp.route("/register", methods=["GET", "POST"])
 def register():
@@ -1332,3 +1324,37 @@ def fetch_subject_price(subject_slug: str, role: str = "user"):
     amt = int(row[0]) if row[0] is not None else None
     cur = (row[1] or "ZAR").upper()
     return amt, cur
+
+from flask import request, abort
+from app import db
+from sqlalchemy import text as sa_text
+from app.models import subject_id_for   # you already use this in loss code
+
+def _resolve_subject_from_request() -> tuple[int, str]:
+    """
+    Resolve (subject_id, subject_slug) from request or session.
+    - Prefer explicit subject_id / subject in the URL
+    - Fallback to reg_ctx['subject']
+    - Fallback to 'loss' (your current live subject)
+    """
+    reg_ctx = (session.get("reg_ctx") or {})
+
+    slug = (
+        (request.values.get("subject") or request.args.get("subject") or "") or
+        (reg_ctx.get("subject") or "")
+    ).strip().lower()
+
+    sid = request.values.get("subject_id", type=int) or request.args.get("subject_id", type=int)
+
+    # if we have no slug at all, default safely to 'loss' for now
+    if not slug:
+        slug = "loss"
+
+    # derive id from slug if missing
+    if not sid:
+        sid = subject_id_for(slug)
+
+    if not sid:
+        abort(400, "Missing subject")
+
+    return sid, slug

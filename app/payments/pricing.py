@@ -231,12 +231,40 @@ def price_for_country(subject_slug_or_id, country_code: str) -> tuple[str, int |
     ccy   = currency_for_country_code(country_code)      # from ref_country_currency
     return (ccy, (cents if cents else None), "parity")
 
-def apply_percentage_discount(session, percent: float = 10.0):
-    val = float(session.get("pp_value") or 0)
+def apply_percentage_discount(sess, pct: float) -> None:
+    """
+    Apply a one-time percentage discount to pp_value.
+    - Only applies once (pp_discount flag)
+    - Clamps to a minimum of 0.05
+    """
+    # already discounted? bail
+    if sess.get("pp_discount"):
+        return
+
+    try:
+        val = float(sess.get("pp_value") or 0.0)
+    except (TypeError, ValueError):
+        return
+
     if val <= 0:
         return
-    session["pp_value"] = round(val * (1 - percent / 100.0), 2)
-    session["pp_discount"] = True
+
+    try:
+        pct = float(pct or 0.0)
+    except (TypeError, ValueError):
+        pct = 0.0
+
+    if pct <= 0:
+        return
+
+    new_val = round(val * (1.0 - pct / 100.0), 2)
+
+    # clamp to minimum 0.05
+    if new_val < 0.05:
+        new_val = 0.05
+
+    sess["pp_value"] = new_val
+    sess["pp_discount"] = True
 
 # payments/pricing.py
 

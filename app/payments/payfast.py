@@ -23,7 +23,12 @@ import hashlib, re, logging
 from sqlalchemy import text as sa_text
 from werkzeug.security import generate_password_hash
 #from app.auth.routes import _finalize_user_after_payment
-from app.payments.pricing import apply_percentage_discount, countries_from_ref, countries_from_ref_with_names, currency_for_country_code, get_parity_anchor_cents, lock_country_and_price, price_for_country, subject_id_for
+from app.payments.pricing import (
+    apply_percentage_discount, countries_from_ref, 
+    countries_from_ref_with_names, currency_for_country_code, 
+    get_parity_anchor_cents, lock_country_and_price, 
+    price_for_country, subject_id_for
+    )
 from app.utils.country_list import COUNTRIES, _name_code_iter
 
 payfast_bp = Blueprint("payfast_bp", __name__)
@@ -591,8 +596,6 @@ def ipn():
 
     return ("OK", 200)
 
-# offering discount and locking price and currency
-
 @payfast_bp.get("/checkout/review")
 def checkout_review():
     # subject_id optional; try query arg then fallback to "loss"
@@ -602,21 +605,26 @@ def checkout_review():
         return redirect(url_for("loss_bp.about_loss"))
     return render_template("payments/review.html", subject_id=sid)
 
-
-@payfast_bp.route("/checkout/cancel", methods=["POST","GET"])
+@payfast_bp.route("/checkout/cancel", methods=["POST", "GET"])
 def checkout_cancel():
-    if (request.values.get("reason") or "") == "price_too_high":
+    reason = (request.values.get("reason") or "").strip()
+
+    if reason == "price_too_high":
         try:
             apply_percentage_discount(session, 10.0)
-            flash("Discount applied: 10% off.", "info")
+            if not session.get("pp_discount_flash_shown"):
+                flash("We’ve applied a 10% discount for you.", "info")
+                session["pp_discount_flash_shown"] = True
         except Exception:
             pass
+
     sid = request.values.get("subject_id", type=int)
     if not sid:
         try:
             sid, _ = _resolve_subject_from_request()
         except Exception:
             sid = None
+
     return redirect(url_for("payfast_bp.pricing_get", subject_id=sid)) if sid \
            else redirect(url_for("loss_bp.about_loss"))
 
@@ -653,14 +661,13 @@ def pricing_get():
 
     if not session.get("pp_value") or not session.get("pp_currency"):
         cents = get_parity_anchor_cents(subject_id)
-
         if countries:
             session["pp_country"]  = countries[0]["code"]
             session["pp_currency"] = countries[0]["currency"]
-
-        session["pp_value"]    = round((cents or 0)/100.0, 2)
-        session["pp_discount"] = False
+        session["pp_value"]    = round((cents or 0) / 100.0, 2)
+        session["pp_discount"] = False          # ✅ reset here
         session["pp_vat_note"] = "excl. VAT"
+
 
     return render_template(
         "payments/pricing.html",

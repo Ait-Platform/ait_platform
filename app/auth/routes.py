@@ -83,22 +83,18 @@ def start_registration():
 
     next_url = (
         request.args.get("next")
-        or url_for(
-            "payfast_bp.checkout_review",
-            subject_id=subject_id,
-            subject=subject_slug,
-        )
+        or url_for("payfast_bp.checkout_review",
+                   subject_id=subject_id,
+                   subject=subject_slug)
     )
 
     role = request.args.get("role") or "user"
 
     return redirect(
-        url_for(
-            "auth_bp.register",
-            role=role,
-            subject=subject_slug,
-            next=next_url,
-        )
+        url_for("auth_bp.register",
+                role=role,
+                subject=subject_slug,
+                next=next_url)
     )
 
 @auth_bp.route("/register", methods=["GET", "POST"])
@@ -1325,36 +1321,42 @@ def fetch_subject_price(subject_slug: str, role: str = "user"):
     cur = (row[1] or "ZAR").upper()
     return amt, cur
 
-from flask import request, abort
-from app import db
-from sqlalchemy import text as sa_text
-from app.models import subject_id_for   # you already use this in loss code
-
 def _resolve_subject_from_request() -> tuple[int, str]:
     """
     Resolve (subject_id, subject_slug) from request or session.
-    - Prefer explicit subject_id / subject in the URL
-    - Fallback to reg_ctx['subject']
-    - Fallback to 'loss' (your current live subject)
+    - subject: from query/form or reg_ctx['subject'], default 'loss'
+    - subject_id: from query/form or looked up via auth_subject
     """
-    reg_ctx = (session.get("reg_ctx") or {})
+    reg_ctx = session.get("reg_ctx") or {}
 
     slug = (
         (request.values.get("subject") or request.args.get("subject") or "") or
         (reg_ctx.get("subject") or "")
     ).strip().lower()
 
+    if not slug:
+        slug = "loss"   # safe default
+
     sid = request.values.get("subject_id", type=int) or request.args.get("subject_id", type=int)
 
-    # if we have no slug at all, default safely to 'loss' for now
-    if not slug:
-        slug = "loss"
-
-    # derive id from slug if missing
+    # if we don't have an id, look it up by slug
     if not sid:
-        sid = subject_id_for(slug)
+        row = db.session.execute(
+            sa_text("SELECT id FROM auth_subject WHERE slug = :s"),
+            {"s": slug},
+        ).first()
 
-    if not sid:
-        abort(400, "Missing subject")
+        if row:
+            sid = int(row.id)
+        else:
+            # final fallback to 'loss'
+            fallback = db.session.execute(
+                sa_text("SELECT id FROM auth_subject WHERE slug = 'loss'")
+            ).first()
+            if not fallback:
+                abort(400, "Missing subject")
+            sid = int(fallback.id)
+            slug = "loss"
 
     return sid, slug
+

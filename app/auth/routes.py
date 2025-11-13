@@ -1323,9 +1323,8 @@ def fetch_subject_price(subject_slug: str, role: str = "user"):
 
 def _resolve_subject_from_request() -> tuple[int, str]:
     """
-    Resolve (subject_id, subject_slug) from request or session.
-    - subject: from query/form or reg_ctx['subject'], default 'loss'
-    - subject_id: from query/form or looked up via auth_subject
+    Resolve (subject_id, subject_slug) from request/session.
+    Works even if only ?subject=loss is sent.
     """
     reg_ctx = session.get("reg_ctx") or {}
 
@@ -1335,11 +1334,11 @@ def _resolve_subject_from_request() -> tuple[int, str]:
     ).strip().lower()
 
     if not slug:
-        slug = "loss"   # safe default
+        slug = "loss"  # safe default for now
 
     sid = request.values.get("subject_id", type=int) or request.args.get("subject_id", type=int)
 
-    # if we don't have an id, look it up by slug
+    # if we don't have an id, look it up from auth_subject
     if not sid:
         row = db.session.execute(
             sa_text("SELECT id FROM auth_subject WHERE slug = :s"),
@@ -1349,7 +1348,7 @@ def _resolve_subject_from_request() -> tuple[int, str]:
         if row:
             sid = int(row.id)
         else:
-            # final fallback to 'loss'
+            # final fallback to 'loss', if present
             fallback = db.session.execute(
                 sa_text("SELECT id FROM auth_subject WHERE slug = 'loss'")
             ).first()

@@ -136,11 +136,12 @@ def about_loss():
     return render_template(
         "subject/loss/about.html",
         price=price,
-        subject_id=sid or 0,
-        subject_slug="loss",      # 🔹 add this
+        subject_id=sid,          # 👈 no fallback to 0
+        subject_slug="loss",     # 👈 add this
         countries=countries,
         can_enroll=True,
     )
+
 
 
 

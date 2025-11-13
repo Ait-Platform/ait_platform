@@ -659,20 +659,25 @@ def pricing_get():
 
     countries = countries_from_ref_with_names()
 
+    # first-time setup of price in session
     if not session.get("pp_value") or not session.get("pp_currency"):
-        cents = get_parity_anchor_cents(subject_id)
+        cents = get_parity_anchor_cents(subject_id)  # ZAR anchor from auth_pricing
+
         if countries:
             session["pp_country"]  = countries[0]["code"]
             session["pp_currency"] = countries[0]["currency"]
-        session["pp_value"]    = round((cents or 0) / 100.0, 2)
-        session["pp_discount"] = False          # ✅ reset here
-        session["pp_vat_note"] = "excl. VAT"
+        else:
+            session.setdefault("pp_country", "ZA")
+            session.setdefault("pp_currency", "ZAR")
 
+        session["pp_value"]    = round((cents or 0) / 100.0, 2)
+        session["pp_discount"] = False
+        session["pp_vat_note"] = "excl. VAT"
 
     return render_template(
         "payments/pricing.html",
         subject_id=subject_id,
-        subject_slug=subject_slug,   # 🔥 THIS WAS MISSING
-        countries=countries
+        subject_slug=subject_slug,
+        countries=countries,
     )
 

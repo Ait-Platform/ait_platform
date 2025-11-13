@@ -1321,7 +1321,14 @@ def fetch_subject_price(subject_slug: str, role: str = "user"):
     cur = (row[1] or "ZAR").upper()
     return amt, cur
 
+
 def _resolve_subject_from_request() -> tuple[int, str]:
+    """
+    Resolve (subject_id, subject_slug) from:
+    - ?subject / form["subject"]
+    - ?subject_id / form["subject_id"]
+    - reg_ctx["subject"]
+    """
     reg_ctx = session.get("reg_ctx") or {}
 
     slug = (
@@ -1331,6 +1338,7 @@ def _resolve_subject_from_request() -> tuple[int, str]:
 
     sid = request.values.get("subject_id", type=int) or request.args.get("subject_id", type=int)
 
+    # slug only → look up id
     if slug and not sid:
         row = db.session.execute(
             sa_text("SELECT id FROM auth_subject WHERE slug = :s"),
@@ -1339,6 +1347,7 @@ def _resolve_subject_from_request() -> tuple[int, str]:
         if row:
             sid = int(row.id)
 
+    # id only → look up slug
     if sid and not slug:
         row = db.session.execute(
             sa_text("SELECT slug FROM auth_subject WHERE id = :sid"),
@@ -1349,6 +1358,10 @@ def _resolve_subject_from_request() -> tuple[int, str]:
 
     if not sid or not slug:
         abort(400, "Missing subject")
+
+    # keep it in reg_ctx for later steps
+    reg_ctx["subject"] = slug
+    session["reg_ctx"] = reg_ctx
 
     return sid, slug
 

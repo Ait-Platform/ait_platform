@@ -434,8 +434,8 @@ def create_app():
             CREATE OR REPLACE VIEW approved_admins AS
             SELECT
                 email,
-                ''::text AS subject,       -- placeholder because the table has no subject column
-                COALESCE(active, 1) AS active
+                ''::text AS subject,
+                1::integer AS active
             FROM auth_approved_admin;
         """))
         db.session.commit()

@@ -82,14 +82,12 @@ from flask_login import login_required, current_user, logout_user
 from app.utils.post_assessment import handle_exit_actions  # where your helper lives
 from threading import Thread
 from sqlalchemy import func as SA_FUNC, text as SA_TEXT
+from app.payments.pricing import price_for_country, subject_id_for  # table-driven helper
 
 loss_bp = Blueprint("loss_bp", __name__, url_prefix="/loss")
 
-# app/subject_loss/routes.py
-from flask import session, render_template, request
-from flask_login import current_user
 
-from app.payments.pricing import price_for_country, subject_id_for  # table-driven helper
+
 
 @loss_bp.get("/about")
 def about_loss():
@@ -145,7 +143,6 @@ def about_loss():
         price=price,
         subject_id=sid,
         subject_slug=slug,
-        countries=countries,   # remove this line if the template doesn't use it
         can_enroll=True,
     )
 

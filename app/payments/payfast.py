@@ -653,35 +653,15 @@ def pricing_lock():
     })
     return redirect(url_for("payfast_bp.pricing_get", subject_id=subject_id))
 
-from sqlalchemy import text as sa_text
-
 @payfast_bp.get("/pricing")
 def pricing_get():
-    reg_ctx = session.get("reg_ctx") or {}
+    subject_id, subject_slug = _resolve_subject_from_request()
 
-    # 1) Get slug from URL or session; fallback to 'loss' for now
-    slug = (
-        (request.args.get("subject") or request.values.get("subject") or "") or
-        (reg_ctx.get("subject") or "loss")
-    ).strip().lower()
-
-    # 2) Look up subject_id if possible, but DO NOT abort if missing
-    row = db.session.execute(
-        sa_text("SELECT id FROM auth_subject WHERE slug = :s"),
-        {"s": slug},
-    ).first()
-    subject_id = int(row.id) if row else None
-
-    # keep slug in reg_ctx for later steps
-    reg_ctx["subject"] = slug
-    session["reg_ctx"] = reg_ctx
-
-    # 3) Load countries for the select
     countries = countries_from_ref_with_names()
 
-    # 4) Initialise pricing session ONLY if not already set
+    # first-time setup of price in session
     if not session.get("pp_value") or not session.get("pp_currency"):
-        cents = get_parity_anchor_cents(subject_id) if subject_id else 0
+        cents = get_parity_anchor_cents(subject_id)  # ZAR anchor from auth_pricing
 
         if countries:
             session["pp_country"]  = countries[0]["code"]
@@ -696,8 +676,8 @@ def pricing_get():
 
     return render_template(
         "payments/pricing.html",
-        subject_id=subject_id or 0,
-        subject_slug=slug,
+        subject_id=subject_id,
+        subject_slug=subject_slug,
         countries=countries,
     )
 

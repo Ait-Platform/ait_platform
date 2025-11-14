@@ -12,7 +12,7 @@ from flask import (
     )
 import stripe
 #from app.checkout.stripe_client import fetch_subject_price, record_stripe_payment
-from app.extensions import db
+from app.extensions import db, csrf
 from werkzeug.security import check_password_hash
 from flask_login import login_user, logout_user, login_required, current_user
 #from app.auth.decisions import (
@@ -182,6 +182,7 @@ def register():
     return redirect(url_for("auth_bp.register_decision", email=email_in, subject=subject))
 
 @auth_bp.route("/register/decision", methods=["GET", "POST"])
+@csrf.exempt
 def register_decision():
     # 0) Resolve subject (no hardcoding)
     subject = (request.values.get("subject") or "").strip().lower()

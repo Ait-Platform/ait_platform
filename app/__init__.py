@@ -429,14 +429,15 @@ def create_app():
     # 7) Create tables + helper view
     with app.app_context():
         db.create_all()
+        # Create Postgres-safe view (no missing columns)
         db.session.execute(sa_text("""
             CREATE OR REPLACE VIEW approved_admins AS
-            SELECT email,
-                COALESCE(subject,'') AS subject,
-                COALESCE(active,1)   AS active
-            FROM auth_approved_admin
+            SELECT
+                email,
+                ''::text AS subject,       -- placeholder because the table has no subject column
+                COALESCE(active, 1) AS active
+            FROM auth_approved_admin;
         """))
-
         db.session.commit()
 
     @app.route("/__routes")

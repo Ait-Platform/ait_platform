@@ -16,6 +16,7 @@ matplotlib.use("Agg")
 from flask import Flask, g, request, current_app
 from flask_login import LoginManager
 from sqlalchemy import text, event
+from sqlalchemy import text as sa_text
 from sqlalchemy.engine import Engine
 from sqlalchemy.pool import NullPool
 from jinja2 import select_autoescape
@@ -428,13 +429,14 @@ def create_app():
     # 7) Create tables + helper view
     with app.app_context():
         db.create_all()
-        db.session.execute(text("""
-            CREATE VIEW IF NOT EXISTS approved_admins AS
+        db.session.execute(sa_text("""
+            CREATE OR REPLACE VIEW approved_admins AS
             SELECT email,
-                   COALESCE(subject,'') AS subject,
-                   COALESCE(active,1)   AS active
+                COALESCE(subject,'') AS subject,
+                COALESCE(active,1)   AS active
             FROM auth_approved_admin
         """))
+
         db.session.commit()
 
     @app.route("/__routes")

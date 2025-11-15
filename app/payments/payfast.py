@@ -696,8 +696,9 @@ def handoff_get():
     return render_template(
         "payments/payfast_handoff.html",
         payfast_url=payfast_url,
-        payfast_fields=fields,
+        pf_data=fields,     # ← rename payfast_fields → pf_data
     )
+
 
 @payfast_bp.post("/pricing/lock")
 def pricing_lock():

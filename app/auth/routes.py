@@ -48,7 +48,7 @@ from app.utils.enrollment import is_enrolled
 from werkzeug.routing import BuildError
 from app.utils.password_reset import make_reset_token, load_reset_token
 from flask_wtf.csrf import generate_csrf
-#from app.auth.registeruser import decide_registration_flow
+from email import message
 from sqlalchemy import func as SA_FUNC, text as SA_TEXT
 from sqlalchemy.exc import IntegrityError
 from flask import render_template, render_template_string
@@ -306,16 +306,19 @@ def register_decision():
     amount = f"{quoted_amount_cents/100:.2f}"
 
     # 5) Build PayFast hand-off payload
-    #    Tip: include subject + email if your template or IPN logic expects them.
-    from flask import redirect, url_for  # make sure this is imported at top
+    # after you’ve built ctx, subject, etc.
 
-    # inside register_decision, at the very end:
+    ctx = session.get("reg_ctx") or {}
+    user_email = (ctx.get("email") or request.args.get("email") or "").strip().lower()
+
+    # ... any other logic ...
+
     return redirect(url_for(
         "payfast_bp.handoff",
-        email=email,          # the email you just registered with
-        subject=subject,      # e.g. "loss"
-        # debug=1 if you want the debug screen, otherwise omit
+        email=user_email,
+        subject=subject,
     ))
+
 
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login():

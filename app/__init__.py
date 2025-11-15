@@ -75,8 +75,17 @@ def create_app():
     # Stripe config
     #app.config["STRIPE_SECRET_KEY"] = _os.getenv("STRIPE_SECRET_KEY")  # sk_test_...
     #app.config["STRIPE_CURRENCY"]   = (_os.getenv("STRIPE_CURRENCY") or "zar").lower()
-
     # Database URI bootstrap (your existing logic, but with _os)
+
+    # ⭐ NEW: prefer DATABASE_URL (Render/Postgres) if present
+    db_url = _os.getenv("DATABASE_URL")
+    if db_url:
+        # Render sometimes gives postgres://; SQLAlchemy wants postgresql+psycopg2://
+        if db_url.startswith("postgres://"):
+            db_url = db_url.replace("postgres://", "postgresql+psycopg2://", 1)
+        app.config["SQLALCHEMY_DATABASE_URI"] = db_url
+
+    # If still nothing, fall back to local SQLite in instance_data
     if not app.config.get("SQLALCHEMY_DATABASE_URI"):
         data_dir = _os.getenv("AIT_DATA_DIR") or _os.path.join(_os.getcwd(), "instance_data")
         _os.makedirs(data_dir, exist_ok=True)
@@ -90,7 +99,7 @@ def create_app():
     from sqlalchemy.engine import Engine
     from sqlalchemy.pool import NullPool
 
-    # Default DB location if none provided
+    # (this second fallback is now harmless redundancy; condition prevents overwrite)
     if not app.config.get("SQLALCHEMY_DATABASE_URI"):
         data_dir = os.getenv("AIT_DATA_DIR") or os.path.join(os.getcwd(), "instance_data")
         os.makedirs(data_dir, exist_ok=True)
@@ -103,11 +112,9 @@ def create_app():
         opts = app.config.setdefault("SQLALCHEMY_ENGINE_OPTIONS", {})
         opts["poolclass"] = NullPool
         connect_args = opts.setdefault("connect_args", {})
-        connect_args.setdefault("timeout", 5)                     # fail fast
-        connect_args.setdefault("isolation_level", "IMMEDIATE")   # grab lock up-front
-        # connect_args.setdefault("check_same_thread", False)  # only if needed
+        connect_args.setdefault("timeout", 5)
+        connect_args.setdefault("isolation_level", "IMMEDIATE")
 
-        # Install PRAGMAs only once; do NOT open a connection here
         if not app.config.get("_SQLITE_PRAGMAS_INSTALLED"):
             @event.listens_for(Engine, "connect")
             def _set_sqlite_pragmas(dbapi_connection, connection_record):
@@ -462,6 +469,7 @@ def create_app():
 
         db.session.execute(sa_text(sql))
         db.session.commit()
+
 
 
     @app.route("/__routes")

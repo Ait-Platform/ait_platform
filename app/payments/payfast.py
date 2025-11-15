@@ -283,7 +283,7 @@ def handoff():
     ]
     missing = [k for k in required if not cfg.get(k)]
     if missing:
-        return render_template("payfast_misconfig.html", missing=missing), 500
+        return render_template("payments/payfast_misconfig.html", missing=missing), 500
 
     # Subject
     subject = AuthSubject.query.filter_by(slug=slug).first()

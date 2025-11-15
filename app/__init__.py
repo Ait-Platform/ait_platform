@@ -137,7 +137,7 @@ def create_app():
     login_manager.init_app(app)
     login_manager.login_view = "auth_bp.login"
 
-    db.init_app(app)
+    
     migrate.init_app(app, db)  # if you’re already using this
 
     # ⬇ add this near the end of create_app, before `return app`

@@ -323,15 +323,12 @@ def register_decision():
         flash("We couldn't confirm your email address. Please register again.", "warning")
         return redirect(url_for("auth_bp.register", subject=subject))
 
-    return redirect(
-        url_for(
-            "payfast_bp.handoff",
-            email=user_email,
-            subject=subject,
-        )
-    )
-
-
+    return redirect(url_for(
+        "payfast_bp.handoff",
+        email=user_email,
+        subject=subject,
+        debug=1,          # 👈 force debug mode for now
+    ))
 
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login():

@@ -261,19 +261,26 @@ def _ref(s: str) -> str:
     # safe, short token for m_payment_id
     return re.sub(r"[^A-Za-z0-9._-]", "-", s)[:40]
 
-@payfast_bp.post("/handoff")
+@payfast_bp.route("/handoff", methods=["GET", "POST"])
 def handoff():
     cfg = current_app.config
 
     # Inputs (POST first, then GET fallback)
     email = (request.form.get("email") or request.args.get("email") or "").strip().lower()
     slug  = (request.form.get("subject") or request.args.get("subject") or "").strip().lower()
-    debug = (request.form.get("debug") or request.args.get("debug")) == "1"
+    debug = str(request.values.get("debug") or "0") == "1"
+
     if not email or not slug:
         abort(400, "Missing email or subject")
 
     # Config sanity
-    required = ["PAYFAST_MERCHANT_ID","PAYFAST_MERCHANT_KEY","PAYFAST_RETURN_URL","PAYFAST_CANCEL_URL","PAYFAST_NOTIFY_URL"]
+    required = [
+        "PAYFAST_MERCHANT_ID",
+        "PAYFAST_MERCHANT_KEY",
+        "PAYFAST_RETURN_URL",
+        "PAYFAST_CANCEL_URL",
+        "PAYFAST_NOTIFY_URL",
+    ]
     missing = [k for k in required if not cfg.get(k)]
     if missing:
         return render_template("payfast_misconfig.html", missing=missing), 500
@@ -374,7 +381,7 @@ def handoff():
             INSERT INTO user_enrollment (user_id, subject_id, status)
             VALUES (:uid, :sid, 'pending')
             ON CONFLICT(user_id, subject_id)
-            DO UPDATE SET status='pending'
+            DO UPDATE SET status = 'pending'
         """),
         {"uid": u.id, "sid": subject.id},
     )
@@ -382,16 +389,16 @@ def handoff():
 
     # PayFast payload (amount in ZAR, description carries parity UI context)
     pf_data = {
-        "merchant_id":   merchant_id,
-        "merchant_key":  merchant_key,
-        "return_url":    return_url,
-        "cancel_url":    cfg["PAYFAST_CANCEL_URL"],
-        "notify_url":    cfg["PAYFAST_NOTIFY_URL"],
-        "m_payment_id":  mref,
-        "amount":        amt_str,
-        "item_name":     (f"{subject_name} enrollment")[:100],
+        "merchant_id":      merchant_id,
+        "merchant_key":     merchant_key,
+        "return_url":       return_url,
+        "cancel_url":       cfg["PAYFAST_CANCEL_URL"],
+        "notify_url":       cfg["PAYFAST_NOTIFY_URL"],
+        "m_payment_id":     mref,
+        "amount":           amt_str,
+        "item_name":        (f"{subject_name} enrollment")[:100],
         "item_description": f"Parity UI {session.get('pp_value')} {session.get('pp_currency')} ({session.get('pp_country')})",
-        "email_address": email,
+        "email_address":    email,
     }
 
     # Signature (not required in sandbox merchant_id 10000100)
@@ -406,13 +413,20 @@ def handoff():
         {k: v for k, v in pf_data.items() if k != "signature"},
     )
 
-    # Always use the real hand-off page (auto-posts to PayFast)
+    # --- DEBUG MODE: show JSON instead of auto-posting to PayFast ---
+    if debug:
+        return render_template(
+            "payments/payfast_handoff_debug.html",
+            payfast_url=payfast_host,
+            pf_data=pf_data,
+        )
+
+    # Normal mode: auto-post form → PayFast
     return render_template(
         "payments/payfast_handoff.html",
         payfast_url=payfast_host,
         pf_data=pf_data,
     )
-
 
 @payfast_bp.get("/_sanity")
 def pf_sanity():

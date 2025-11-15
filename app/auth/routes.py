@@ -229,7 +229,9 @@ def register_decision():
         return redirect(url_for("auth_bp.register", subject=subject))
 
     # 2) Ensure an enrollment row
-    enrollment = _ensure_enrollment_row(user_id=user_id, subject_slug=subject)
+    # 2) Ensure an enrollment row (returns primary key id)
+    enrollment_id = _ensure_enrollment_row(user_id=user_id, subject_slug=subject)
+
 
     # 3) Persist a locked quote
     #    Prefer reg_ctx["quote"]; if absent, derive a fresh parity price here.
@@ -275,7 +277,8 @@ def register_decision():
             "cur": q.get("currency") or "ZAR",
             "amt": int(q.get("amount_cents") or 0),
             "ver": q.get("version") or "2025-11",
-            "eid": enrollment.id,
+            "eid": enrollment_id,
+
         },
     )
     db.session.commit()
@@ -303,7 +306,8 @@ def register_decision():
     #    Tip: include subject + email if your template or IPN logic expects them.
     pf_data = {
         "amount": amount,
-        "m_payment_id": str(enrollment.id),
+        "m_payment_id": str(enrollment_id),
+
         "item_name": f"AIT – {subject.capitalize()} course",
         "email_address": ctx.get("email"),  # or current_user.email if logged in
         # add any other required PayFast fields (merchant_id, return_url, etc.) in the template

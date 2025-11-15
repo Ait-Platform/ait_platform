@@ -3,47 +3,48 @@ from types import SimpleNamespace
 from sqlalchemy import text as sa_text
 from app.extensions import db
 
+def _ensure_enrollment_row(user_id: int, subject_slug: str) -> int:
+    """
+    Return user_enrollment.id for this (user, subject).
+    Creates it if missing. Works on Postgres + SQLite.
+    """
+    slug = (subject_slug or "").strip().lower()
 
-def _ensure_enrollment_row(*, user_id: int, subject_slug: str):
-    """
-    Ensure there is a user_enrollment row for (user_id, subject_slug),
-    and return an object with .id, .user_id, .subject_id.
-    Works on both SQLite and Postgres (no last_insert_rowid).
-    """
-    # 1) Resolve subject_id from slug
+    # 1) Check if existing
     row = db.session.execute(
-        sa_text("SELECT id FROM auth_subject WHERE slug = :slug"),
-        {"slug": subject_slug},
+        sa_text("""
+            SELECT ue.id
+            FROM user_enrollment ue
+            JOIN auth_subject s ON s.id = ue.subject_id
+            WHERE ue.user_id = :uid AND lower(s.slug) = :slug
+            LIMIT 1
+        """),
+        {"uid": user_id, "slug": slug},
     ).first()
-    if not row:
-        raise ValueError(f"Unknown subject slug: {subject_slug!r}")
-    subject_id = int(row.id)
 
-    # 2) Insert if missing; keep existing otherwise
-    db.session.execute(
+    if row:
+        return int(row.id)
+
+    # 2) Get subject id
+    srow = db.session.execute(
+        sa_text("SELECT id FROM auth_subject WHERE lower(slug)=:slug"),
+        {"slug": slug},
+    ).first()
+    if not srow:
+        raise ValueError(f"Unknown subject slug {subject_slug}")
+
+    sid = int(srow.id)
+
+    # 3) Insert & return ID (Postgres compatible)
+    res = db.session.execute(
         sa_text("""
             INSERT INTO user_enrollment (user_id, subject_id, status, started_at)
             VALUES (:uid, :sid, 'active', CURRENT_TIMESTAMP)
-            ON CONFLICT (user_id, subject_id) DO NOTHING
+            RETURNING id
         """),
-        {"uid": user_id, "sid": subject_id},
+        {"uid": user_id, "sid": sid},
     )
+    eid = res.scalar_one()
+
     db.session.commit()
-
-    # 3) Read back the id in a DB-agnostic way
-    row = db.session.execute(
-        sa_text("""
-            SELECT id
-            FROM user_enrollment
-            WHERE user_id = :uid AND subject_id = :sid
-        """),
-        {"uid": user_id, "sid": subject_id},
-    ).first()
-    if not row:
-        raise RuntimeError("Failed to upsert user_enrollment row.")
-
-    return SimpleNamespace(
-        id=int(row.id),
-        user_id=int(user_id),
-        subject_id=int(subject_id),
-    )
+    return int(eid)

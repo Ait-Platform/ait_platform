@@ -1,10 +1,8 @@
 # app/__init__.py
 import os as _os
-
 from flask_migrate import migrate
-
 from app.payments.pricing import number_to_words, price_cents_for
-
+from app.bootstrap.subjects import ensure_core_subjects
 try:
     from dotenv import load_dotenv
     load_dotenv()
@@ -41,20 +39,12 @@ load_dotenv(find_dotenv(), override=False)  # picks up your .env locally
 #from flask_wtf import CSRFProtect
 from flask_wtf.csrf import generate_csrf
 from app.extensions import csrf
-
 from datetime import date
-
 from flask import Flask, render_template_string
-
-
-#csrf = CSRFProtect()
 
 BASE_DIR = Path(__file__).resolve().parent
 TEMPLATES_DIR = BASE_DIR / "templates"
 STATIC_DIR = BASE_DIR / "static"
-
-#BASE_DIR = Path(__file__).resolve().parent
-#TEMPLATES_DIR = BASE_DIR / "templates"
 
 def create_app():
     app = Flask(__name__, instance_relative_config=True, 
@@ -128,7 +118,6 @@ def create_app():
                     cur.execute("PRAGMA foreign_keys=ON;")
                     cur.close()
             app.config["_SQLITE_PRAGMAS_INSTALLED"] = True
-
                 
     # 3) Init extensions AFTER config
     db.init_app(app)
@@ -136,9 +125,6 @@ def create_app():
     mail.init_app(app)
     login_manager.init_app(app)
     login_manager.login_view = "auth_bp.login"
-
-    
-    
 
     # ⬇ add this near the end of create_app, before `return app`
     with app.app_context():
@@ -150,7 +136,6 @@ def create_app():
     app.jinja_env.globals['number_to_words'] = number_to_words
     
     app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
-
 
     app.config.from_mapping(
         SMTP_HOST=os.getenv("SMTP_HOST", "smtp.zoho.com"),
@@ -416,7 +401,6 @@ def create_app():
                 if r.endpoint.startswith("admin_bp."):
                     print("ADMIN ROUTE:", r.endpoint, "->", r.rule)
 
-    
     # app/filters.py
     def _to_number_0_100(value):
         # Accepts 75, "75", "75%", None -> returns 0..100
@@ -444,6 +428,10 @@ def create_app():
     # 7) Create tables + helper view
     with app.app_context():
         db.create_all()
+        # Create Postgres-safe view (no missing columns)
+        # ensure core subjects exist in auth_subject (SQLite + Postgres)
+        ensure_core_subjects()
+
         # Create Postgres-safe view (no missing columns)
         engine_name = db.engine.name  # 'sqlite', 'postgresql', etc.
 
@@ -477,8 +465,6 @@ def create_app():
 
         db.session.execute(sa_text(sql))
         db.session.commit()
-
-
 
     @app.route("/__routes")
     def __routes():

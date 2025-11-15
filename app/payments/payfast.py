@@ -692,4 +692,3 @@ def pricing_get():
         countries=countries,
     )
 
-

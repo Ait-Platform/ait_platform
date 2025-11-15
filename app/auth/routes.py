@@ -51,13 +51,10 @@ from sqlalchemy import func as SA_FUNC, text as SA_TEXT
 from sqlalchemy.exc import IntegrityError
 from flask import render_template, render_template_string
 from jinja2 import TemplateNotFound
-
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import select, func, update as sa_update
 from app.services.users import _ensure_or_create_user_from_session
 from sqlalchemy.exc import IntegrityError
-
-
 from werkzeug.security import generate_password_hash
 
 auth_bp = Blueprint('auth_bp', __name__, url_prefix='/', template_folder='templates')
@@ -69,22 +66,60 @@ def inject_has_endpoint():
         return ep in current_app.view_functions
     return {"has_endpoint": has_endpoint}
 
+
+
 @auth_bp.get("/start_registration")
 def start_registration():
-    subject_id, subject_slug = _resolve_subject_from_request()
+    """
+    Entry point from pricing/enrol button.
 
-    ctx = session.setdefault("reg_ctx", {})
-    ctx["subject"] = subject_slug
+    Example:
+      /start_registration?role=user&subject=loss&next=/payments/checkout/review?subject%3Dloss
 
-    next_url = (
-        request.args.get("next")
-        or url_for("payfast_bp.checkout_review",
-                   subject_id=subject_id,
-                   subject=subject_slug)
+    This must land on the registration form – not 400 – for normal flows.
+    """
+
+    # 1) Get subject slug from query (?subject=loss) or reg_ctx, fallback 'loss'
+    reg_ctx = session.get("reg_ctx") or {}
+    subject_slug = (
+        (request.args.get("subject") or "").strip().lower()
+        or (reg_ctx.get("subject") or "").strip().lower()
+        or "loss"
     )
 
-    role = request.args.get("role") or "user"
+    # 2) Look up subject row in auth_subject
+    subject = AuthSubject.query.filter_by(slug=subject_slug).first()
+    if not subject:
+        flash("Enrollment for this course is not available right now.", "warning")
+        return redirect(url_for("public_bp.home"))
 
+    subject_id = subject.id
+
+    # 3) Store subject info in reg_ctx
+    ctx = session.setdefault("reg_ctx", {})
+    ctx["subject"] = subject_slug
+    ctx["subject_id"] = subject_id
+    session.modified = True
+
+    # 4) Work out the 'next' URL, but keep it internal-only
+    raw_next = request.args.get("next") or ""
+    next_url = ""
+    if raw_next:
+        p = urlparse(raw_next)
+        if not p.scheme and not p.netloc:  # only internal
+            next_url = p.path
+            if p.query:
+                next_url = f"{next_url}?{p.query}"
+
+    if not next_url:
+        next_url = url_for("payfast_bp.checkout_review",
+                           subject_id=subject_id,
+                           subject=subject_slug)
+
+    # 5) Role (default "user")
+    role = (request.args.get("role") or "user").strip().lower()
+
+    # 6) Redirect to the real registration form
     return redirect(
         url_for("auth_bp.register",
                 role=role,

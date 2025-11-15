@@ -9,7 +9,7 @@
   </p>
 
   <form id="payfastForm" action="{{ payfast_url }}" method="post">
-    {% for name, value in payfast_fields.items() %}
+    {% for name, value in pf_data.items() %}
       <input type="hidden" name="{{ name }}" value="{{ value }}">
     {% endfor %}
     <noscript>
@@ -20,7 +20,9 @@
     </noscript>
   </form>
 
-  <p class="text-xs text-slate-400 mt-6">If nothing happens, please check your pop-up blocker.</p>
+  <p class="text-xs text-slate-400 mt-6">
+    If nothing happens, please check your pop-up blocker.
+  </p>
 </div>
 
 <script>

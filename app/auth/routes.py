@@ -1,6 +1,7 @@
 # app/auth/routes.py
 from datetime import datetime, timezone
 import datetime as dt
+import email
 from flask import g, session as flask_session
 import re
 import json
@@ -306,17 +307,15 @@ def register_decision():
 
     # 5) Build PayFast hand-off payload
     #    Tip: include subject + email if your template or IPN logic expects them.
-    pf_data = {
-        "amount": amount,
-        "m_payment_id": str(enrollment_id),
+    from flask import redirect, url_for  # make sure this is imported at top
 
-        "item_name": f"AIT – {subject.capitalize()} course",
-        "email_address": ctx.get("email"),  # or current_user.email if logged in
-        # add any other required PayFast fields (merchant_id, return_url, etc.) in the template
-    }
-
-    # 6) Directly render the hand-off page that posts to PayFast
-    return render_template("payments/payfast_handoff.html", pf_data=pf_data)
+    # inside register_decision, at the very end:
+    return redirect(url_for(
+        "payfast_bp.handoff",
+        email=email,          # the email you just registered with
+        subject=subject,      # e.g. "loss"
+        # debug=1 if you want the debug screen, otherwise omit
+    ))
 
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login():

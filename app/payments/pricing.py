@@ -299,3 +299,4 @@ def countries_from_ref_with_names() -> list[dict]:
     return [{"code": r.alpha2.upper(),
              "name": code_to_name.get(r.alpha2.upper(), r.alpha2.upper()),
              "currency": r.currency} for r in rows]
+

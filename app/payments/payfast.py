@@ -1,6 +1,9 @@
 # app/payments/payfast.py
 from uuid import uuid4
-from flask import Blueprint, current_app, flash, request, render_template_string, abort,render_template, redirect, session, url_for
+from flask import (
+    Blueprint, current_app, flash, request, render_template_string, 
+    abort,render_template, redirect, session, url_for, jsonify, g
+    )
 from urllib.parse import urlencode
 from flask_login import current_user, login_user
 import os, hmac, hashlib, ipaddress, requests
@@ -26,7 +29,7 @@ from werkzeug.security import generate_password_hash
 from app.payments.pricing import (
     apply_percentage_discount, countries_from_ref, 
     countries_from_ref_with_names, currency_for_country_code, 
-    get_parity_anchor_cents, lock_country_and_price, 
+    get_parity_anchor_cents, lock_country_and_price, price_cents_for, 
     price_for_country, subject_id_for
     )
 from app.utils.country_list import COUNTRIES, _name_code_iter
@@ -681,3 +684,38 @@ def pricing_get():
         countries=countries,
     )
 
+
+@payfast_bp.route("/pricing", methods=["GET"])
+def pricing_api():
+    """
+    Simple GET endpoint:
+    /payments/pricing?subject=loss[&country=ZA]
+
+    Returns JSON with amount_cents, never 400 for the normal browser flow.
+    """
+    # subject is required
+    subject_slug = (request.args.get("subject") or "").strip().lower()
+    if not subject_slug:
+        return jsonify({"error": "subject is required"}), 400
+
+    # country: from query, or fallback to g.country_iso2, or ZA
+    country = request.args.get("country")
+    if not country:
+        country = getattr(g, "country_iso2", "ZA")
+    country = (country or "ZA").upper()
+
+    # Use your helper to compute price in cents
+    amount_cents = price_cents_for(subject_slug, country)
+    if amount_cents is None:
+        # Pricing not configured for this subject/country
+        return jsonify({
+            "error": "pricing_not_configured",
+            "subject": subject_slug,
+            "country": country
+        }), 404
+
+    return jsonify({
+        "subject": subject_slug,
+        "country": country,
+        "amount_cents": amount_cents
+    }), 200

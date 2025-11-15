@@ -430,15 +430,39 @@ def create_app():
     with app.app_context():
         db.create_all()
         # Create Postgres-safe view (no missing columns)
-        db.session.execute(sa_text("""
-            CREATE OR REPLACE VIEW approved_admins AS
-            SELECT
-                email,
-                ''::text AS subject,
-                1::integer AS active
-            FROM auth_approved_admin;
-        """))
+        engine_name = db.engine.name  # 'sqlite', 'postgresql', etc.
+
+        if engine_name == "postgresql":
+            sql = """
+                CREATE OR REPLACE VIEW approved_admins AS
+                SELECT
+                    email,
+                    ''::text   AS subject,
+                    1::integer AS active
+                FROM auth_approved_admin;
+            """
+        elif engine_name == "sqlite":
+            sql = """
+                CREATE VIEW IF NOT EXISTS approved_admins AS
+                SELECT
+                    email,
+                    '' AS subject,
+                    1  AS active
+                FROM auth_approved_admin;
+            """
+        else:
+            sql = """
+                CREATE VIEW approved_admins AS
+                SELECT
+                    email,
+                    '' AS subject,
+                    1  AS active
+                FROM auth_approved_admin;
+            """
+
+        db.session.execute(sa_text(sql))
         db.session.commit()
+
 
     @app.route("/__routes")
     def __routes():

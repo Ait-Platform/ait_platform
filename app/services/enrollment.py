@@ -1,51 +1,49 @@
 # app/services/enrollment.py (or wherever _ensure_enrollment_row lives)
-
-from datetime import datetime
-from flask import session
-from app import db
+from types import SimpleNamespace
 from sqlalchemy import text as sa_text
+from app.extensions import db
 
-def _ensure_enrollment_row(user_id: int, subject_slug: str):
-    # 1) find subject id
-    sid = db.session.execute(sa_text(
-        "SELECT id FROM auth_subject WHERE slug=:s LIMIT 1"
-    ), {"s": subject_slug}).scalar()
 
-    # 2) try to find existing enrollment
-    row = db.session.execute(sa_text("""
-        SELECT id FROM user_enrollment
-        WHERE user_id=:uid AND subject_id=:sid
-        LIMIT 1
-    """), {"uid": user_id, "sid": sid}).first()
+def _ensure_enrollment_row(*, user_id: int, subject_slug: str):
+    """
+    Ensure there is a user_enrollment row for (user_id, subject_slug),
+    and return an object with .id, .user_id, .subject_id.
+    Works on both SQLite and Postgres (no last_insert_rowid).
+    """
+    # 1) Resolve subject_id from slug
+    row = db.session.execute(
+        sa_text("SELECT id FROM auth_subject WHERE slug = :slug"),
+        {"slug": subject_slug},
+    ).first()
+    if not row:
+        raise ValueError(f"Unknown subject slug: {subject_slug!r}")
+    subject_id = int(row.id)
 
-    if row:
-        return type("Obj", (), {"id": row[0]})  # mimic simple object with .id
-
-    # 3) create new enrollment (status 'active' or your default)
-    db.session.execute(sa_text("""
-        INSERT INTO user_enrollment (user_id, subject_id, status, started_at)
-        VALUES (:uid, :sid, 'active', CURRENT_TIMESTAMP)
-    """), {"uid": user_id, "sid": sid})
-    eid = db.session.execute(sa_text("SELECT last_insert_rowid()")).scalar()
-
-    # 4) COPY LOCKED QUOTE FROM SESSION (only on first creation)
-    q = (session.get("reg_ctx") or {}).get("quote")
-    if q:
-        db.session.execute(sa_text("""
-            UPDATE user_enrollment
-            SET country_code        = :cc,
-                quoted_currency     = :cur,
-                quoted_amount_cents = :amt,
-                price_version       = :ver,
-                price_locked_at     = CURRENT_TIMESTAMP
-            WHERE id = :eid
-        """), {
-            "cc":  q.get("country_code"),
-            "cur": q.get("currency"),
-            "amt": q.get("amount_cents"),
-            "ver": q.get("version") or "2025-11",
-            "eid": eid
-        })
+    # 2) Insert if missing; keep existing otherwise
+    db.session.execute(
+        sa_text("""
+            INSERT INTO user_enrollment (user_id, subject_id, status, started_at)
+            VALUES (:uid, :sid, 'active', CURRENT_TIMESTAMP)
+            ON CONFLICT (user_id, subject_id) DO NOTHING
+        """),
+        {"uid": user_id, "sid": subject_id},
+    )
     db.session.commit()
 
-    return type("Obj", (), {"id": eid})
+    # 3) Read back the id in a DB-agnostic way
+    row = db.session.execute(
+        sa_text("""
+            SELECT id
+            FROM user_enrollment
+            WHERE user_id = :uid AND subject_id = :sid
+        """),
+        {"uid": user_id, "sid": subject_id},
+    ).first()
+    if not row:
+        raise RuntimeError("Failed to upsert user_enrollment row.")
+
+    return SimpleNamespace(
+        id=int(row.id),
+        user_id=int(user_id),
+        subject_id=int(subject_id),
+    )

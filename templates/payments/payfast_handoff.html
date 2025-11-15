@@ -1,21 +1,29 @@
-<!doctype html>
-<meta charset="utf-8">
-<title>PayFast Handoff • Debug</title>
-<body style="font-family:system-ui;max-width:760px;margin:2rem auto">
-  <h1>PayFast Handoff (Debug)</h1>
-  <p>This is exactly what will be posted to PayFast:</p>
-  <pre>{{ pf_data | tojson(indent=2) }}</pre>
-  <!-- templates/payfast_handoff.html -->
-  <form id="pf" method="post" action="{{ payfast_url }}">
-    {% for k, v in pf_data|dictsort %}
-      <input type="hidden" name="{{ k }}" value="{{ v }}">
+{% extends "layout.html" %}
+{% block title %}Redirecting to PayFast…{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-md py-12 text-center">
+  <h1 class="text-xl font-semibold mb-4">Redirecting to PayFast…</h1>
+  <p class="text-slate-600 mb-6">
+    You’re being redirected to our secure payment partner to complete your payment.
+  </p>
+
+  <form id="payfastForm" action="{{ payfast_url }}" method="post">
+    {% for name, value in payfast_fields.items() %}
+      <input type="hidden" name="{{ name }}" value="{{ value }}">
     {% endfor %}
-    <noscript><button type="submit">Continue</button></noscript>
+    <noscript>
+      <p class="mb-4 text-sm text-slate-600">
+        JavaScript is disabled. Please click the button below to continue.
+      </p>
+      <button type="submit" class="btn btn-primary">Continue to PayFast</button>
+    </noscript>
   </form>
-  <script>document.getElementById('pf').submit();</script>
 
+  <p class="text-xs text-slate-400 mt-6">If nothing happens, please check your pop-up blocker.</p>
+</div>
 
-</body>
-
-
-
+<script>
+  document.getElementById("payfastForm").submit();
+</script>
+{% endblock %}

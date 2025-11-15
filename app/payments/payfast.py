@@ -400,13 +400,19 @@ def handoff():
     else:
         pf_data.pop("signature", None)
 
-    current_app.logger.info("PF handoff host=%s data=%s",
-        payfast_host, {k: v for k, v in pf_data.items() if k != "signature"})
+    current_app.logger.info(
+        "PF handoff host=%s data=%s",
+        payfast_host,
+        {k: v for k, v in pf_data.items() if k != "signature"},
+    )
 
-    if debug:
-        return render_template("payments/payfast_handoff_debug.html", payfast_url=payfast_host, pf_data=pf_data)
+    # Always use the real hand-off page (auto-posts to PayFast)
+    return render_template(
+        "payments/payfast_handoff.html",
+        payfast_url=payfast_host,
+        pf_data=pf_data,
+    )
 
-    return render_template("payments/payfast_handoff.html", payfast_url=payfast_host, pf_data=pf_data)
 
 @payfast_bp.get("/_sanity")
 def pf_sanity():
@@ -601,12 +607,12 @@ def ipn():
 
 @payfast_bp.get("/checkout/review")
 def checkout_review():
-    # subject_id optional; try query arg then fallback to "loss"
     sid = request.args.get("subject_id", type=int) or subject_id_for("loss")
     if not session.get("pp_value"):
         # force user to lock country/price first
         return redirect(url_for("loss_bp.about_loss"))
     return render_template("payments/review.html", subject_id=sid)
+
 
 @payfast_bp.route("/checkout/cancel", methods=["POST", "GET"])
 def checkout_cancel():
@@ -631,10 +637,67 @@ def checkout_cancel():
     return redirect(url_for("payfast_bp.pricing_get", subject_id=sid)) if sid \
            else redirect(url_for("loss_bp.about_loss"))
 
-@payfast_bp.get("/handoff")     # legacy GET
-def handoff_get_legacy():
-    # Minimal shim: show a message or redirect to review
-    return redirect(url_for('payfast_bp.payments/review'))
+@payfast_bp.get("/handoff")
+def handoff_get():
+    """
+    Build the PayFast form from the session + subject and render a hand-off
+    page that auto-posts to PayFast (sandbox or live depending on PAYFAST_MODE).
+    """
+    cfg   = current_app.config
+    mode  = (cfg.get("PAYFAST_MODE") or "sandbox").lower()
+
+    # Decide which PayFast URL to hit
+    payfast_url = (
+        "https://sandbox.payfast.co.za/eng/process"
+        if mode == "sandbox" else
+        "https://www.payfast.co.za/eng/process"
+    )
+
+    # Subject + user context
+    subject_slug = (request.args.get("subject") or "loss").lower()
+    email        = (session.get("pending_email") or "").strip().lower()
+
+    subj = AuthSubject.query.filter_by(slug=subject_slug).first()
+    if not subj:
+        flash("Could not resolve subject for payment.", "error")
+        return redirect(url_for("loss_bp.about_loss"))
+
+    # Price / country from parity-pricing session
+    country  = session.get("pp_country")  or "ZA"
+    currency = session.get("pp_currency") or "ZAR"
+    value    = session.get("pp_value")    or 0.00  # e.g. 150.00
+
+    # Basic PayFast fields
+    fields = {
+        "merchant_id":   cfg["PAYFAST_MERCHANT_ID"],
+        "merchant_key":  cfg["PAYFAST_MERCHANT_KEY"],
+        "return_url":    url_for("payfast_bp.payfast_success", _external=True),
+        "cancel_url":    url_for("payfast_bp.checkout_cancel", _external=True),
+        "notify_url":    url_for("payfast_bp.notify", _external=True),
+        "amount":        f"{value:.2f}",
+        "item_name":     f"AIT – {subj.name} course",
+        "m_payment_id":  str(session.get("just_enrolled_id") or ""),
+        "email_address": email,
+        # optional meta / description
+        "custom_str1":   subject_slug,
+        "custom_str2":   country,
+        "custom_str3":   currency,
+    }
+
+    # Add signature (same rule PayFast docs use)
+    passphrase = (cfg.get("PAYFAST_PASSPHRASE") or "").strip()
+    pairs = [f"{k}={fields[k]}" for k in sorted(fields.keys()) if fields[k] not in (None, "")]
+    query = "&".join(pairs)
+    if passphrase:
+        query = f"{query}&passphrase={passphrase}"
+    sig = hashlib.md5(query.encode("utf-8")).hexdigest()
+    fields["signature"] = sig
+
+    return render_template(
+        "payments/payfast_handoff.html",
+        payfast_url=payfast_url,
+        payfast_fields=fields,
+    )
 
 @payfast_bp.post("/pricing/lock")
 def pricing_lock():

@@ -1,7 +1,7 @@
 # app/auth/routes.py
 from datetime import datetime, timezone
 import datetime as dt
-from flask import session as flask_session
+from flask import g, session as flask_session
 import re
 import json
 import uuid
@@ -11,16 +11,11 @@ from flask import (
     session, jsonify, abort
     )
 import stripe
-#from app.checkout.stripe_client import fetch_subject_price, record_stripe_payment
 from app.extensions import db, csrf
 from werkzeug.security import check_password_hash
 from flask_login import login_user, logout_user, login_required, current_user
-#from app.auth.decisions import (
-#    _canon_email_py, _subject_id_from_slug_fallback, 
-#    _work_key, find_user_active_first_by_email, get_reg_context)
-# app.checkout.routes import _create_checkout_session, _get_stripe_api_key
 from app.models import subject
-from app.payments.pricing import price_for_country
+from app.payments.pricing import price_cents_for, price_for_country
 from app.services.enrollment import _ensure_enrollment_row
 from app.utils.country_list import COUNTRIES, resolve_country, search_countries  # adjust path if needed
 from app.utils.mailer import send_email
@@ -201,40 +196,54 @@ def register_decision():
     # 2) Ensure an enrollment row
     enrollment = _ensure_enrollment_row(user_id=user_id, subject_slug=subject)
 
-    # 3) Persist a locked quote (prefer reg_ctx.quote; else derive from parity session)
+    # 3) Persist a locked quote
+    #    Prefer reg_ctx["quote"]; if absent, derive a fresh parity price here.
     q = ctx.get("quote")
+
     if not q:
-        amt = float(session.get("pp_value") or 0.0)
-        cur = session.get("pp_currency")
-        cc  = session.get("pp_country")
-        if amt > 0 and cur:
+        # Determine country: use reg_ctx, then cf-ipcountry (g.country_iso2), then ZA
+        country = (ctx.get("country_code") or getattr(g, "country_iso2", "ZA") or "ZA").upper()
+
+        # Derive amount in cents using your parity helper
+        try:
+            amount_cents = price_cents_for(subject, country)
+        except Exception as e:
+            current_app.logger.exception("pricing failed for subject=%s country=%s", subject, country)
+            amount_cents = None
+
+        if amount_cents and amount_cents > 0:
             q = {
-                "country_code": cc or None,
-                "currency": cur,
-                "amount_cents": int(round(amt * 100)),
+                "country_code": country,
+                "currency": ctx.get("quoted_currency") or None,  # helper can also return currency if you prefer
+                "amount_cents": int(amount_cents),
                 "version": "2025-11",
             }
 
-    if q:
-        db.session.execute(
-            db.text("""
-                UPDATE user_enrollment
-                   SET country_code        = :cc,
-                       quoted_currency     = :cur,
-                       quoted_amount_cents = :amt,
-                       price_version       = :ver,
-                       price_locked_at     = CURRENT_TIMESTAMP
-                 WHERE id = :eid
-            """),
-            {
-                "cc":  q.get("country_code"),
-                "cur": q.get("currency"),
-                "amt": int(q.get("amount_cents") or 0),
-                "ver": q.get("version") or "2025-11",
-                "eid": enrollment.id,
-            },
-        )
-        db.session.commit()
+    # If we still have no quote or 0 amount, bail out gracefully
+    if not q or not int(q.get("amount_cents") or 0):
+        flash("Pricing is not configured for this course yet. Please contact us.", "danger")
+        return redirect(url_for("public_bp.home"))
+
+    # 3b) Write quote to user_enrollment
+    db.session.execute(
+        db.text("""
+            UPDATE user_enrollment
+               SET country_code        = :cc,
+                   quoted_currency     = :cur,
+                   quoted_amount_cents = :amt,
+                   price_version       = :ver,
+                   price_locked_at     = CURRENT_TIMESTAMP
+             WHERE id = :eid
+        """),
+        {
+            "cc":  q.get("country_code"),
+            "cur": q.get("currency") or "ZAR",
+            "amt": int(q.get("amount_cents") or 0),
+            "ver": q.get("version") or "2025-11",
+            "eid": enrollment.id,
+        },
+    )
+    db.session.commit()
 
     # 4) Read back persisted quote (single source of truth)
     row = db.session.execute(
@@ -246,18 +255,26 @@ def register_decision():
         {"eid": enrollment.id},
     ).first()
 
-    quoted_currency = (row[0] if row else "ZAR")
+    quoted_currency = (row[0] if row and row[0] else "ZAR")
     quoted_amount_cents = int((row[1] or 0))
+
+    if quoted_amount_cents <= 0:
+        flash("Pricing could not be determined. Please try again or contact us.", "danger")
+        return redirect(url_for("public_bp.home"))
+
     amount = f"{quoted_amount_cents/100:.2f}"
 
-    # 5) Hand-off payload (keep your existing keys; adjust template path)
+    # 5) Build PayFast hand-off payload
+    #    Tip: include subject + email if your template or IPN logic expects them.
     pf_data = {
-        # ... include your existing PayFast fields here ...
         "amount": amount,
         "m_payment_id": str(enrollment.id),
-        # tip: add subject & email if your handoff template expects them
+        "item_name": f"AIT – {subject.capitalize()} course",
+        "email_address": ctx.get("email"),  # or current_user.email if logged in
+        # add any other required PayFast fields (merchant_id, return_url, etc.) in the template
     }
 
+    # 6) Directly render the hand-off page that posts to PayFast
     return render_template("payments/payfast_handoff.html", pf_data=pf_data)
 
 @auth_bp.route("/login", methods=["GET", "POST"])

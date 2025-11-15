@@ -1,6 +1,8 @@
 # app/__init__.py
 import os as _os
 
+from flask_migrate import migrate
+
 from app.payments.pricing import number_to_words, price_cents_for
 
 try:
@@ -135,6 +137,12 @@ def create_app():
     login_manager.init_app(app)
     login_manager.login_view = "auth_bp.login"
 
+    db.init_app(app)
+    migrate.init_app(app, db)  # if you’re already using this
+
+    # ⬇ add this near the end of create_app, before `return app`
+    with app.app_context():
+        db.create_all()
 
     # 4) Template helpers
     app.jinja_env.globals.update(csrf_token=generate_csrf)

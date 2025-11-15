@@ -278,7 +278,8 @@ def register_decision():
             "cur": q.get("currency") or "ZAR",
             "amt": int(q.get("amount_cents") or 0),
             "ver": q.get("version") or "2025-11",
-            "eid": enrollment_id,          # ✅ use the id we actually have
+            "eid": enrollment_id,    # ✅ use the id we just created/resolved
+
 
         },
     )
@@ -291,7 +292,7 @@ def register_decision():
               FROM user_enrollment
              WHERE id = :eid
         """),
-        {"eid": enrollment.id},
+        {"eid": enrollment_id},
     ).first()
 
     quoted_currency = (row[0] if row and row[0] else "ZAR")

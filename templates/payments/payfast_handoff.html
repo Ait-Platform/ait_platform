@@ -1,31 +1,34 @@
 {% extends "layout.html" %}
-{% block title %}Redirecting to PayFast…{% endblock %}
+{% block title %}Redirecting to PayFast… · AIT{% endblock %}
 
 {% block content %}
-<div class="mx-auto max-w-md py-12 text-center">
-  <h1 class="text-xl font-semibold mb-4">Redirecting to PayFast…</h1>
+<div class="mx-auto max-w-xl py-10">
+  <h1 class="text-2xl font-semibold mb-4">Redirecting to PayFast…</h1>
   <p class="text-slate-600 mb-6">
-    You’re being redirected to our secure payment partner to complete your payment.
+    Please wait while we securely hand you off to PayFast to complete your payment.
   </p>
 
-  <form id="payfastForm" action="{{ payfast_url }}" method="post">
-    {% for name, value in pf_data.items() %}
+  {# accept either pf_data (new) or payfast_fields (old) #}
+  {% set fields = pf_data if pf_data is defined else payfast_fields %}
+
+  <form id="pf-form" action="{{ payfast_url }}" method="post">
+    {% for name, value in fields.items() %}
       <input type="hidden" name="{{ name }}" value="{{ value }}">
     {% endfor %}
-    <noscript>
-      <p class="mb-4 text-sm text-slate-600">
-        JavaScript is disabled. Please click the button below to continue.
-      </p>
-      <button type="submit" class="btn btn-primary">Continue to PayFast</button>
-    </noscript>
+
+    <button
+      type="submit"
+      class="inline-flex items-center rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+    >
+      Continue to PayFast
+    </button>
   </form>
 
-  <p class="text-xs text-slate-400 mt-6">
-    If nothing happens, please check your pop-up blocker.
-  </p>
+  <script>
+    // auto-submit after a short delay
+    setTimeout(function () {
+      document.getElementById('pf-form').submit();
+    }, 800);
+  </script>
 </div>
-
-<script>
-  document.getElementById("payfastForm").submit();
-</script>
 {% endblock %}

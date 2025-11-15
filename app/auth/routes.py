@@ -306,18 +306,32 @@ def register_decision():
     amount = f"{quoted_amount_cents/100:.2f}"
 
     # 5) Build PayFast hand-off payload
-    # after you’ve built ctx, subject, etc.
-
+    # -----------------------------------------------------------
+    # Final step: send the user to the PayFast handoff
+    # -----------------------------------------------------------
+    # -----------------------------------------------------------
+    # Final step: send the user to the PayFast handoff
+    # -----------------------------------------------------------
     ctx = session.get("reg_ctx") or {}
-    user_email = (ctx.get("email") or request.args.get("email") or "").strip().lower()
 
-    # ... any other logic ...
+    user_email = (
+        request.args.get("email")
+        or ctx.get("email")
+        or ""
+    ).strip().lower()
+
+    subject = (
+        request.args.get("subject")
+        or ctx.get("subject")
+        or "loss"
+    ).strip().lower()
 
     return redirect(url_for(
         "payfast_bp.handoff",
         email=user_email,
         subject=subject,
     ))
+
 
 
 @auth_bp.route("/login", methods=["GET", "POST"])

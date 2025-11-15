@@ -217,43 +217,48 @@ def register():
 @csrf.exempt
 def register_decision():
     # 0) Resolve subject (no hardcoding)
-    subject = (request.values.get("subject") or "").strip().lower()
-    if not subject:
-        ctx = session.get("reg_ctx") or {}
-        subject = (ctx.get("subject") or "").strip().lower() or "loss"  # final fallback
+    ctx = session.setdefault("reg_ctx", {})
+    subject = (
+        (request.values.get("subject") or "").strip().lower()
+        or (ctx.get("subject") or "").strip().lower()
+        or "loss"
+    )
 
     # 1) Ensure/create the user from staged session data
-    ctx = session.setdefault("reg_ctx", {})
     try:
         user_id = _ensure_or_create_user_from_session(ctx)
     except ValueError:
         flash("Your session expired. Please re-enter your details.", "warning")
         return redirect(url_for("auth_bp.register", subject=subject))
 
-    # 2) Ensure an enrollment row
     # 2) Ensure an enrollment row (returns primary key id)
     enrollment_id = _ensure_enrollment_row(user_id=user_id, subject_slug=subject)
-
 
     # 3) Persist a locked quote
     #    Prefer reg_ctx["quote"]; if absent, derive a fresh parity price here.
     q = ctx.get("quote")
 
     if not q:
-        # Determine country: use reg_ctx, then cf-ipcountry (g.country_iso2), then ZA
-        country = (ctx.get("country_code") or getattr(g, "country_iso2", "ZA") or "ZA").upper()
+        # Determine country: use reg_ctx, then g.country_iso2, then ZA
+        country = (
+            (ctx.get("country_code") or "").strip().upper()
+            or getattr(g, "country_iso2", "ZA")
+            or "ZA"
+        )
 
-        # Derive amount in cents using your parity helper
         try:
             amount_cents = price_cents_for(subject, country)
-        except Exception as e:
-            current_app.logger.exception("pricing failed for subject=%s country=%s", subject, country)
+        except Exception:
+            current_app.logger.exception(
+                "pricing failed for subject=%s country=%s", subject, country
+            )
             amount_cents = None
 
         if amount_cents and amount_cents > 0:
             q = {
                 "country_code": country,
-                "currency": ctx.get("quoted_currency") or None,  # helper can also return currency if you prefer
+                # helper could also return currency; for now default to ZAR below
+                "currency": ctx.get("quoted_currency"),
                 "amount_cents": int(amount_cents),
                 "version": "2025-11",
             }
@@ -265,7 +270,8 @@ def register_decision():
 
     # 3b) Write quote to user_enrollment
     db.session.execute(
-        db.text("""
+        db.text(
+            """
             UPDATE user_enrollment
                SET country_code        = :cc,
                    quoted_currency     = :cur,
@@ -273,64 +279,57 @@ def register_decision():
                    price_version       = :ver,
                    price_locked_at     = CURRENT_TIMESTAMP
              WHERE id = :eid
-        """),
+            """
+        ),
         {
             "cc":  q.get("country_code"),
             "cur": q.get("currency") or "ZAR",
             "amt": int(q.get("amount_cents") or 0),
             "ver": q.get("version") or "2025-11",
-            "eid": enrollment_id,    # ✅ use the id we just created/resolved
-
-
+            "eid": enrollment_id,
         },
     )
     db.session.commit()
 
     # 4) Read back persisted quote (single source of truth)
     row = db.session.execute(
-        db.text("""
+        db.text(
+            """
             SELECT quoted_currency, quoted_amount_cents
               FROM user_enrollment
              WHERE id = :eid
-        """),
+            """
+        ),
         {"eid": enrollment_id},
     ).first()
 
     quoted_currency = (row[0] if row and row[0] else "ZAR")
-    quoted_amount_cents = int((row[1] or 0))
+    quoted_amount_cents = int(row[1] or 0) if row else 0
 
     if quoted_amount_cents <= 0:
         flash("Pricing could not be determined. Please try again or contact us.", "danger")
         return redirect(url_for("public_bp.home"))
 
-    amount = f"{quoted_amount_cents/100:.2f}"
+    amount = f"{quoted_amount_cents / 100:.2f}"  # currently unused but kept for clarity/logging
 
-    # 5) Build PayFast hand-off payload
-    # -----------------------------------------------------------
-    # Final step: send the user to the PayFast handoff
-    # -----------------------------------------------------------
-    # -----------------------------------------------------------
-    # Final step: send the user to the PayFast handoff
-    # -----------------------------------------------------------
-    ctx = session.get("reg_ctx") or {}
-
+    # 5) Final step: send the user to the PayFast handoff
     user_email = (
-        request.args.get("email")
-        or ctx.get("email")
-        or ""
-    ).strip().lower()
+        (request.values.get("email") or "").strip().lower()
+        or (ctx.get("email") or "").strip().lower()
+    )
 
-    subject = (
-        request.args.get("subject")
-        or ctx.get("subject")
-        or "loss"
-    ).strip().lower()
+    if not user_email:
+        # extremely defensive: if somehow we lost email, send them back to register
+        flash("We couldn't confirm your email address. Please register again.", "warning")
+        return redirect(url_for("auth_bp.register", subject=subject))
 
-    return redirect(url_for(
-        "payfast_bp.handoff",
-        email=user_email,
-        subject=subject,
-    ))
+    return redirect(
+        url_for(
+            "payfast_bp.handoff",
+            email=user_email,
+            subject=subject,
+        )
+    )
 
 
 

@@ -16,6 +16,7 @@ from werkzeug.security import check_password_hash
 from flask_login import login_user, logout_user, login_required, current_user
 from app.models import subject
 from app.payments.pricing import price_cents_for, price_for_country
+from app.services import enrollment
 from app.services.enrollment import _ensure_enrollment_row
 from app.utils.country_list import COUNTRIES, resolve_country, search_countries  # adjust path if needed
 from app.utils.mailer import send_email
@@ -277,7 +278,7 @@ def register_decision():
             "cur": q.get("currency") or "ZAR",
             "amt": int(q.get("amount_cents") or 0),
             "ver": q.get("version") or "2025-11",
-            "eid": enrollment_id,
+            "eid": enrollment_id,          # ✅ use the id we actually have
 
         },
     )

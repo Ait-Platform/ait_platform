@@ -32,11 +32,12 @@ def _ensure_or_create_user_from_session(ctx: dict) -> int:
     # ✅ INSERT into `name`, not `full_name`
     db.session.execute(
         sa_text("""
-            INSERT INTO "user" (email, name, password_hash, is_active, created_at)
-            VALUES (:email, :name, :pw_hash, 1, CURRENT_TIMESTAMP)
+            INSERT INTO "user" (email, name, password_hash, is_active)
+            VALUES (:email, :name, :pw_hash, 1)
         """),
         {"email": email, "name": name, "pw_hash": pw_hash},
     )
+
     db.session.flush()
 
     new_id = db.session.execute(

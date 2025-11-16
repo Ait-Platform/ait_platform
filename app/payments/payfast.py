@@ -153,84 +153,165 @@ def pf_notify_ipn():
         cfg  = current_app.config
         mode = (cfg.get("PAYFAST_MODE") or "sandbox").lower()
 
-        # 1) Signature (only if passphrase set; sandbox is usually empty)
-        passphrase = "" if mode == "sandbox" else (cfg.get("PAYFAST_PASSPHRASE") or "")
+        # 1) Signature check (if passphrase configured)
+        passphrase = (cfg.get("PAYFAST_PASSPHRASE") or "")
         if passphrase:
             data = request.form.to_dict(flat=True)
-            expected = _pf_sig(data, passphrase)  # same helper used for handoff
+            expected = _pf_sig(data, passphrase)
             got = data.get("signature", "")
             if got != expected:
-                current_app.logger.warning("PF IPN: bad signature (got=%s expected=%s)", got, expected)
-                return "OK", 200  # still 200 to stop retries
+                current_app.logger.warning(
+                    "PF IPN: bad signature (got=%s expected=%s)", got, expected
+                )
+                # Still 200 so PayFast doesn't keep retrying
+                return "OK", 200
 
         # 2) Remote validation with PayFast
         validate_url = (
             "https://sandbox.payfast.co.za/eng/query/validate"
-            if mode == "sandbox" else
-            "https://www.payfast.co.za/eng/query/validate"
+            if mode == "sandbox"
+            else "https://www.payfast.co.za/eng/query/validate"
         )
         r = requests.post(validate_url, data=request.form, timeout=8)
         if r.text.strip().lower() != "valid":
             current_app.logger.warning("PF IPN: validate failed → %s", r.text)
             return "OK", 200
 
-        # 3) Business logic (minimal + idempotent)
+        # 3) Core fields
         status = (request.form.get("payment_status") or "").upper()
         mref   = (request.form.get("m_payment_id") or "").strip()
-        email  = (request.form.get("email_address") or "").strip().lower()
 
-        # log row (append-only)
-        db.session.execute(
-            text("""INSERT INTO auth_payment_log (user_id, program, amount, timestamp)
-                    VALUES ((SELECT id FROM "user" WHERE lower(email)=:em LIMIT 1),
-                            :prog, :amt, CURRENT_TIMESTAMP)"""),
-            {"em": email, "prog": mref or "payfast", "amt": request.form.get("amount","")}
+        # Prefer PayFast buyer email
+        buyer_email = (
+            (request.form.get("email_address") or request.form.get("email") or "")
+            .strip()
+            .lower()
         )
 
-        # activate access on COMPLETE (subject inferred from ref prefix)
-        # activate access on COMPLETE (subject inferred from ref prefix)
+        # Amount as text (for log) and cents (for enrollment parity fields)
+        raw_amount = (
+            (request.form.get("amount_gross") or request.form.get("amount") or "")
+            .strip()
+        )
+        try:
+            amount_cents = int(round(float(raw_amount) * 100))
+        except Exception:
+            amount_cents = None
+
+        charged_currency = "ZAR"  # PayFast std sandbox/live for now
+
+        # 4) Log row (append-only)
+        db.session.execute(
+            text(
+                """
+                INSERT INTO auth_payment_log (user_id, program, amount, timestamp)
+                VALUES (
+                    (SELECT id FROM "user" WHERE lower(email) = :em LIMIT 1),
+                    :prog,
+                    :amt,
+                    CURRENT_TIMESTAMP
+                )
+                """
+            ),
+            {
+                "em": buyer_email,
+                "prog": mref or "payfast",
+                "amt": raw_amount,
+            },
+        )
+
+        # 5) Activate access on COMPLETE (subject inferred from ref prefix)
         if status == "COMPLETE" and "-" in mref:
             slug = mref.split("-", 1)[0]
             subj = AuthSubject.query.filter_by(slug=slug).first()
-            if subj:
-                # 1) Ensure the user exists
+
+            if subj and buyer_email:
+                # Find the user
                 user_id = db.session.execute(
                     text('SELECT id FROM "user" WHERE lower(email) = :em'),
-                    {"em": email.lower()}
+                    {"em": buyer_email},
                 ).scalar()
 
                 if not user_id:
-                    current_app.logger.warning("PF IPN: no user found for email=%s", email)
-                    return "OK"
+                    current_app.logger.warning(
+                        "PF IPN: no user found for email=%s (mref=%s)",
+                        buyer_email,
+                        mref,
+                    )
+                    db.session.commit()
+                    return "OK", 200
 
-                # 2) First try to update an existing enrollment
+                # 5a) Update existing enrollment if present
                 db.session.execute(
-                    text("""
+                    text(
+                        """
                         UPDATE user_enrollment
-                        SET status    = 'active',
-                            started_at = COALESCE(started_at, CURRENT_TIMESTAMP)
+                        SET status               = 'active',
+                            started_at           = COALESCE(started_at, CURRENT_TIMESTAMP),
+                            price_locked_at      = COALESCE(price_locked_at, CURRENT_TIMESTAMP),
+                            charged_currency     = COALESCE(charged_currency, :ccy),
+                            charged_amount_cents = COALESCE(charged_amount_cents, :amt)
                         WHERE user_id   = :uid
                           AND subject_id = :sid
-                    """),
-                    {"uid": user_id, "sid": subj.id}
+                        """
+                    ),
+                    {
+                        "uid": user_id,
+                        "sid": subj.id,
+                        "ccy": charged_currency,
+                        "amt": amount_cents,
+                    },
                 )
 
-                # 3) If nothing was updated, insert a new row
+                # 5b) If still no row, insert one
                 db.session.execute(
-                    text("""
-                        INSERT INTO user_enrollment (user_id, subject_id, status, started_at)
-                        SELECT :uid, :sid, 'active', CURRENT_TIMESTAMP
+                    text(
+                        """
+                        INSERT INTO user_enrollment (
+                            user_id,
+                            subject_id,
+                            status,
+                            started_at,
+                            price_locked_at,
+                            charged_currency,
+                            charged_amount_cents
+                        )
+                        SELECT
+                            :uid,
+                            :sid,
+                            'active',
+                            CURRENT_TIMESTAMP,
+                            CURRENT_TIMESTAMP,
+                            :ccy,
+                            :amt
                         WHERE NOT EXISTS (
-                            SELECT 1 FROM user_enrollment ue
+                            SELECT 1
+                            FROM user_enrollment ue
                             WHERE ue.user_id   = :uid
                               AND ue.subject_id = :sid
                         )
-                    """),
-                    {"uid": user_id, "sid": subj.id}
+                        """
+                    ),
+                    {
+                        "uid": user_id,
+                        "sid": subj.id,
+                        "ccy": charged_currency,
+                        "amt": amount_cents,
+                    },
+                )
+
+                current_app.logger.info(
+                    "PF IPN: activated enrollment for user_id=%s subject_id=%s (email=%s, mref=%s)",
+                    user_id,
+                    subj.id,
+                    buyer_email,
+                    mref,
                 )
 
         db.session.commit()
-        current_app.logger.info("PF IPN ok: ref=%s status=%s email=%s", mref, status, email)
+        current_app.logger.info(
+            "PF IPN ok: ref=%s status=%s email=%s", mref, status, buyer_email
+        )
         return "OK", 200
 
     except Exception:
@@ -372,27 +453,25 @@ def handoff():
             abort(500, f"{k} must be https outside localhost")
 
     # Mode / credentials
+    cfg  = current_app.config
     mode = (cfg.get("PAYFAST_MODE") or "sandbox").lower()
 
+    # Always take IDs/keys from config/env
+    merchant_id  = cfg.get("PAYFAST_MERCHANT_ID")
+    merchant_key = cfg.get("PAYFAST_MERCHANT_KEY")
+    passphrase   = (cfg.get("PAYFAST_PASSPHRASE") or "")
+
     if mode == "sandbox":
-        # Use your sandbox credentials from env/config,
-        # fall back to the generic test merchant only if nothing is set.
-        merchant_id  = cfg.get("PAYFAST_MERCHANT_ID")  or "10000100"
-        merchant_key = cfg.get("PAYFAST_MERCHANT_KEY") or "46f0cd694581a"
-        passphrase   = (cfg.get("PAYFAST_PASSPHRASE") or "")
         payfast_host = "https://sandbox.payfast.co.za/eng/process"
-
-        current_app.logger.info(
-            "PayFast sandbox mode: using merchant_id=%s, merchant_key=%s",
-            merchant_id,
-            merchant_key,
-        )
-
     else:
-        merchant_id  = cfg.get("PAYFAST_MERCHANT_ID")
-        merchant_key = cfg.get("PAYFAST_MERCHANT_KEY")
-        passphrase   = (cfg.get("PAYFAST_PASSPHRASE") or "")
         payfast_host = "https://www.payfast.co.za/eng/process"
+
+    current_app.logger.info(
+        "PayFast %s mode: merchant_id=%s",
+        mode,
+        merchant_id,
+    )
+
 
 
     # Ref + return URL (include subject/email so /payments/success can finalize)

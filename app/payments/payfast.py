@@ -376,16 +376,40 @@ def handoff():
     db.session.flush()  # ensure u.id
 
     # Ensure pending enrollment (upsert)
-    db.session.execute(
+    # Ensure pending enrollment (manual upsert; PG table uses id PK, not (user_id, subject_id))
+    existing = db.session.execute(
         db.text("""
-            INSERT INTO user_enrollment (user_id, subject_id, status)
-            VALUES (:uid, :sid, 'pending')
-            ON CONFLICT(user_id, subject_id)
-            DO UPDATE SET status = 'pending'
+            SELECT id, status
+              FROM user_enrollment
+             WHERE user_id = :uid
+               AND subject_id = :sid
+             LIMIT 1
         """),
         {"uid": u.id, "sid": subject.id},
-    )
+    ).first()
+
+    if existing:
+        # Just mark as pending
+        db.session.execute(
+            db.text("""
+                UPDATE user_enrollment
+                   SET status = 'pending'
+                 WHERE id = :eid
+            """),
+            {"eid": existing.id},
+        )
+    else:
+        # Insert a fresh row
+        db.session.execute(
+            db.text("""
+                INSERT INTO user_enrollment (user_id, subject_id, status)
+                VALUES (:uid, :sid, 'pending')
+            """),
+            {"uid": u.id, "sid": subject.id},
+        )
+
     db.session.commit()
+
 
     # PayFast payload (amount in ZAR, description carries parity UI context)
     pf_data = {

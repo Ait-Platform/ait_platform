@@ -373,18 +373,27 @@ def handoff():
 
     # Mode / credentials
     mode = (cfg.get("PAYFAST_MODE") or "sandbox").lower()
+
     if mode == "sandbox":
-        merchant_id  = "10000100"
-        merchant_key = "46f0cd694581a"
-        passphrase   = ""
+        # Use your sandbox credentials from env/config,
+        # fall back to the generic test merchant only if nothing is set.
+        merchant_id  = cfg.get("PAYFAST_MERCHANT_ID")  or "10000100"
+        merchant_key = cfg.get("PAYFAST_MERCHANT_KEY") or "46f0cd694581a"
+        passphrase   = (cfg.get("PAYFAST_PASSPHRASE") or "")
         payfast_host = "https://sandbox.payfast.co.za/eng/process"
-        if cfg.get("PAYFAST_MERCHANT_ID") not in (None, "", "10000100"):
-            current_app.logger.warning("Ignoring live merchant in sandbox; forcing 10000100.")
+
+        current_app.logger.info(
+            "PayFast sandbox mode: using merchant_id=%s, merchant_key=%s",
+            merchant_id,
+            merchant_key,
+        )
+
     else:
         merchant_id  = cfg.get("PAYFAST_MERCHANT_ID")
         merchant_key = cfg.get("PAYFAST_MERCHANT_KEY")
         passphrase   = (cfg.get("PAYFAST_PASSPHRASE") or "")
         payfast_host = "https://www.payfast.co.za/eng/process"
+
 
     # Ref + return URL (include subject/email so /payments/success can finalize)
     mref = f"{_ref(slug)}-{uuid4().hex[:10]}"

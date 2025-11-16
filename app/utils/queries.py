@@ -1,7 +1,8 @@
 BRIDGE_QUERY = """
 WITH globals AS (
   SELECT CASE WHEN EXISTS (
-    SELECT 1 FROM auth_approved_admin aa
+    SELECT 1
+    FROM auth_approved_admin aa
     WHERE lower(aa.email) = lower(:email)
   ) THEN 1 ELSE 0 END AS is_admin_global
 )
@@ -12,42 +13,29 @@ SELECT
   CASE
     WHEN (SELECT is_admin_global FROM globals) = 1 THEN 'admin'
     WHEN EXISTS (
-      SELECT 1 FROM auth_subject_admin sa
-      WHERE sa.subject_id = s.id
-        AND lower(sa.email) = lower(:email)
-    ) THEN 'admin'
-    WHEN EXISTS (
       SELECT 1
       FROM user_enrollment ue
-      WHERE ue.subject_id = s.id
-        AND ue.status     = 'active'
-        AND ue.user_id IN (
-          SELECT id FROM "user"
-          WHERE lower(email) = lower(:email)
-        )
+      JOIN "user" u ON u.id = ue.user_id
+      WHERE ue.subject_id  = s.id
+        AND ue.status      = 'active'
+        AND lower(u.email) = lower(:email)
     ) THEN 'enrolled'
     ELSE 'locked'
   END AS access_level
 FROM auth_subject s
 WHERE
   (
+    -- global admin sees all subjects
     (SELECT is_admin_global FROM globals) = 1
-    OR EXISTS (
-        SELECT 1
-        FROM auth_subject_admin sa
-        WHERE sa.subject_id = s.id
-          AND lower(sa.email) = lower(:email)
-    )
+    -- or user is actively enrolled in the subject
     OR EXISTS (
         SELECT 1
         FROM user_enrollment ue
-        WHERE ue.subject_id = s.id
-          AND ue.status     = 'active'
-          AND ue.user_id IN (
-            SELECT id FROM "user"
-            WHERE lower(email) = lower(:email)
-          )
+        JOIN "user" u ON u.id = ue.user_id
+        WHERE ue.subject_id  = s.id
+          AND ue.status      = 'active'
+          AND lower(u.email) = lower(:email)
     )
   )
-ORDER BY s.name;
+ORDER BY s.name
 """

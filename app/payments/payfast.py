@@ -188,17 +188,45 @@ def pf_notify_ipn():
         )
 
         # activate access on COMPLETE (subject inferred from ref prefix)
+        # activate access on COMPLETE (subject inferred from ref prefix)
         if status == "COMPLETE" and "-" in mref:
             slug = mref.split("-", 1)[0]
             subj = AuthSubject.query.filter_by(slug=slug).first()
             if subj:
+                # 1) Ensure the user exists
+                user_id = db.session.execute(
+                    text('SELECT id FROM "user" WHERE lower(email) = :em'),
+                    {"em": email.lower()}
+                ).scalar()
+
+                if not user_id:
+                    current_app.logger.warning("PF IPN: no user found for email=%s", email)
+                    return "OK"
+
+                # 2) First try to update an existing enrollment
                 db.session.execute(
-                    text("""INSERT INTO user_enrollment (user_id, subject_id, status, started_at)
-                            SELECT id, :sid, 'active', CURRENT_TIMESTAMP FROM "user"
-                            WHERE lower(email)=:em
-                            ON CONFLICT(user_id, subject_id)
-                            DO UPDATE SET status='active', updated_at=CURRENT_TIMESTAMP"""),
-                    {"sid": subj.id, "em": email}
+                    text("""
+                        UPDATE user_enrollment
+                        SET status    = 'active',
+                            started_at = COALESCE(started_at, CURRENT_TIMESTAMP)
+                        WHERE user_id   = :uid
+                          AND subject_id = :sid
+                    """),
+                    {"uid": user_id, "sid": subj.id}
+                )
+
+                # 3) If nothing was updated, insert a new row
+                db.session.execute(
+                    text("""
+                        INSERT INTO user_enrollment (user_id, subject_id, status, started_at)
+                        SELECT :uid, :sid, 'active', CURRENT_TIMESTAMP
+                        WHERE NOT EXISTS (
+                            SELECT 1 FROM user_enrollment ue
+                            WHERE ue.user_id   = :uid
+                              AND ue.subject_id = :sid
+                        )
+                    """),
+                    {"uid": user_id, "sid": subj.id}
                 )
 
         db.session.commit()

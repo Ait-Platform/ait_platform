@@ -331,7 +331,8 @@ def handoff():
 
     if not amt_str:
         row = db.session.execute(
-            db.text("""
+            db.text(
+                """
                 SELECT amount_cents
                 FROM auth_pricing
                 WHERE subject_id = :sid
@@ -344,12 +345,15 @@ def handoff():
                          COALESCE(active_from, created_at) DESC,
                          id DESC
                 LIMIT 1
-            """),
+                """
+            ),
             {"sid": subject_id},
         ).first()
         if not row or row.amount_cents is None:
             abort(400, "Active price not configured for this subject")
+
         amt_str = f"{(Decimal(int(row.amount_cents)) / Decimal(100)).quantize(Decimal('0.01')):.2f}"
+
         # also hydrate session so downstream UI shows the same number
         try:
             session["pp_value"] = float(amt_str)
@@ -363,42 +367,26 @@ def handoff():
             session.setdefault("pp_currency", cur)
             session.setdefault("pp_country", cc)
 
-        # URL policy checks (HTTPS outside localhost)
-        for k in ("PAYFAST_RETURN_URL", "PAYFAST_CANCEL_URL", "PAYFAST_NOTIFY_URL"):
-            val = str(cfg.get(k) or "").strip()
-            if not val:
-                abort(500, f"{k} missing")
-            if val.startswith("http://") and ("localhost" not in val and "127.0.0.1" not in val):
-                abort(500, f"{k} must be https outside localhost")
+    # --- URL policy checks (always, not only when pricing falls back) -------
+    for k in ("PAYFAST_RETURN_URL", "PAYFAST_CANCEL_URL", "PAYFAST_NOTIFY_URL"):
+        val = str(cfg.get(k) or "").strip()
+        if not val:
+            abort(500, f"{k} missing")
+        if val.startswith("http://") and ("localhost" not in val and "127.0.0.1" not in val):
+            abort(500, f"{k} must be https outside localhost")
 
-        # Mode / credentials
-        cfg  = current_app.config
-        mode = (cfg.get("PAYFAST_MODE") or "sandbox").lower()
+    # Mode / credentials (always available)
+    mode = (cfg.get("PAYFAST_MODE") or "sandbox").lower()
+    merchant_id  = cfg.get("PAYFAST_MERCHANT_ID")
+    merchant_key = cfg.get("PAYFAST_MERCHANT_KEY")
+    passphrase   = cfg.get("PAYFAST_PASSPHRASE") or ""
 
-        # Always take merchant values from env/config
-        merchant_id  = cfg.get("PAYFAST_MERCHANT_ID")
-        merchant_key = cfg.get("PAYFAST_MERCHANT_KEY")
-        passphrase   = cfg.get("PAYFAST_PASSPHRASE") or ""
+    if mode == "sandbox":
+        payfast_url = "https://sandbox.payfast.co.za/eng/process"
+    else:
+        payfast_url = "https://www.payfast.co.za/eng/process"
 
-        # Host depends only on mode
-        if mode == "sandbox":
-            payfast_host = "https://sandbox.payfast.co.za/eng/process"
-        else:
-            payfast_host = "https://www.payfast.co.za/eng/process"
-
-
-        # Host depends on mode
-        if mode == "sandbox":
-            payfast_host = "https://sandbox.payfast.co.za/eng/process"
-        else:
-            payfast_host = "https://www.payfast.co.za/eng/process"
-
-
-        current_app.logger.info(
-            "PayFast %s mode: merchant_id=%s",
-            mode,
-            merchant_id,
-        )
+    current_app.logger.info("PayFast %s mode: merchant_id=%s", mode, merchant_id)
 
     # Ref + return URL (include subject/email so /payments/success can finalize)
     mref = f"{_ref(slug)}-{uuid4().hex[:10]}"
@@ -409,49 +397,60 @@ def handoff():
     if not u:
         u = User(email=email, is_active=1)
     if not (u.name or "").strip():
-        u.name = email.split("@", 1)[0].replace(".", " ").replace("_", " ").title()
+        u.name = (
+            email.split("@", 1)[0]
+            .replace(".", " ")
+            .replace("_", " ")
+            .title()
+        )
+
     reg_ctx = session.get("reg_ctx") or {}
     staged = reg_ctx.get("password_hash")
     if staged and not getattr(u, "password_hash", None):
         u.password_hash = staged
+
     db.session.add(u)
     db.session.flush()  # ensure u.id
 
-    # Ensure pending enrollment (upsert)
     # Ensure pending enrollment (manual upsert; PG table uses id PK, not (user_id, subject_id))
     existing = db.session.execute(
-        db.text("""
+        db.text(
+            """
             SELECT id, status
-              FROM user_enrollment
-             WHERE user_id = :uid
-               AND subject_id = :sid
-             LIMIT 1
-        """),
+            FROM user_enrollment
+            WHERE user_id = :uid
+              AND subject_id = :sid
+            LIMIT 1
+            """
+        ),
         {"uid": u.id, "sid": subject.id},
     ).first()
 
     if existing:
         # Just mark as pending
         db.session.execute(
-            db.text("""
+            db.text(
+                """
                 UPDATE user_enrollment
-                   SET status = 'pending'
-                 WHERE id = :eid
-            """),
+                SET status = 'pending'
+                WHERE id = :eid
+                """
+            ),
             {"eid": existing.id},
         )
     else:
         # Insert a fresh row
         db.session.execute(
-            db.text("""
+            db.text(
+                """
                 INSERT INTO user_enrollment (user_id, subject_id, status)
                 VALUES (:uid, :sid, 'pending')
-            """),
+                """
+            ),
             {"uid": u.id, "sid": subject.id},
         )
 
     db.session.commit()
-
 
     # PayFast payload (amount in ZAR, description carries parity UI context)
     pf_data = {
@@ -467,15 +466,17 @@ def handoff():
         "email_address":    email,
     }
 
-    # Signature (not required in sandbox merchant_id 10000100)
+    # Signature:
+    # - generic test merchant (10000100): signature optional → skip
+    # - your own sandbox/live merchant: compute if passphrase configured
     if merchant_id != "10000100":
         pf_data["signature"] = _pf_sig(pf_data, passphrase)
     else:
         pf_data.pop("signature", None)
 
     current_app.logger.info(
-        "PF handoff host=%s data=%s",
-        payfast_host,
+        "PF handoff url=%s data=%s",
+        payfast_url,
         {k: v for k, v in pf_data.items() if k != "signature"},
     )
 
@@ -483,14 +484,14 @@ def handoff():
     if debug:
         return render_template(
             "payments/payfast_handoff_debug.html",
-            payfast_url=payfast_host,
+            payfast_url=payfast_url,
             pf_data=pf_data,
         )
 
     # Normal mode: auto-post form → PayFast
     return render_template(
         "payments/payfast_handoff.html",
-        payfast_url=payfast_host,
+        payfast_url=payfast_url,
         pf_data=pf_data,
     )
 

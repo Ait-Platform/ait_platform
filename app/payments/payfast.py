@@ -529,8 +529,8 @@ def notify():
 
     # --- extract fields we care about ---
     email   = (form.get("email_address") or "").strip().lower()
-    amount  = (form.get("amount") or "").strip()          # string like "50.00"
-    mref    = (form.get("m_payment_id") or "").strip()    # we set as "<slug>-<rand>"
+    amount  = (form.get("amount") or "").strip()          # "50.00"
+    mref    = (form.get("m_payment_id") or "").strip()    # "<slug>-<rand>"
     status  = (form.get("payment_status") or "").upper()  # COMPLETE / PENDING / FAILED
 
     # find/create user (minimal)
@@ -540,33 +540,47 @@ def notify():
         db.session.add(user)
         db.session.flush()   # get user.id
 
-    # --- log every IPN in auth_payment_log (simple, append-only) ---
-    db.session.execute(text("""
-        INSERT INTO user_enrollment (user_id, subject_id, status)
-        VALUES (:uid, :sid, 'active')
-        ON CONFLICT(user_id, subject_id)
-        DO UPDATE SET status='active'
-    """), {"uid": user.id, "sid": subj.id})
-
-
-    # --- on COMPLETE, (optionally) activate the enrollment for the subject slug ---
+    # --- on COMPLETE, activate the enrollment for the subject slug ---
     if status == "COMPLETE":
         slug = mref.split("-")[0] if "-" in mref else None
         subj = AuthSubject.query.filter_by(slug=slug).first() if slug else None
+
         if subj:
-            # upsert into user_enrollment; assumes PK (user_id, subject_id)
-            db.session.execute(
+            # Manual upsert into user_enrollment (no ON CONFLICT)
+            existing = db.session.execute(
                 text("""
-                    INSERT INTO user_enrollment (user_id, subject_id, status, started_at)
-                    VALUES (:uid, :sid, 'active', CURRENT_TIMESTAMP)
-                    ON CONFLICT(user_id, subject_id)
-                    DO UPDATE SET status='active', updated_at=CURRENT_TIMESTAMP
+                    SELECT id, status
+                      FROM user_enrollment
+                     WHERE user_id   = :uid
+                       AND subject_id = :sid
+                     LIMIT 1
                 """),
-                {"uid": user.id, "sid": subj.id}
-            )
+                {"uid": user.id, "sid": subj.id},
+            ).first()
+
+            if existing:
+                db.session.execute(
+                    text("""
+                        UPDATE user_enrollment
+                           SET status = 'active'
+                         WHERE id = :eid
+                    """),
+                    {"eid": existing.id},
+                )
+            else:
+                db.session.execute(
+                    text("""
+                        INSERT INTO user_enrollment (user_id, subject_id, status, started_at)
+                        VALUES (:uid, :sid, 'active', CURRENT_TIMESTAMP)
+                    """),
+                    {"uid": user.id, "sid": subj.id},
+                )
 
     db.session.commit()
-    current_app.logger.info("PF IPN ok: email=%s amount=%s status=%s ref=%s", email, amount, status, mref)
+    current_app.logger.info(
+        "PF IPN ok: email=%s amount=%s status=%s ref=%s",
+        email, amount, status, mref
+    )
     return ("", 200)
 
 @payfast_bp.get("/success", endpoint="payfast_success")
@@ -602,13 +616,39 @@ def success():
     """), {"s": subject}).scalar()
 
     # 4) Flip enrollment to ACTIVE when we have a subject id
+    # 4) Flip enrollment to ACTIVE when we have a subject id
     if sid:
-        db.session.execute(text("""
-            INSERT INTO user_enrollment (user_id, subject_id, status)
-            VALUES (:uid, :sid, 'active')
-            ON CONFLICT(user_id, subject_id) DO UPDATE SET status='active'
-        """), {"uid": int(u.id), "sid": int(sid)})
+        existing = db.session.execute(
+            text("""
+                SELECT id, status
+                  FROM user_enrollment
+                 WHERE user_id   = :uid
+                   AND subject_id = :sid
+                 LIMIT 1
+            """),
+            {"uid": int(u.id), "sid": int(sid)},
+        ).first()
+
+        if existing:
+            db.session.execute(
+                text("""
+                    UPDATE user_enrollment
+                       SET status = 'active'
+                     WHERE id = :eid
+                """),
+                {"eid": existing.id},
+            )
+        else:
+            db.session.execute(
+                text("""
+                    INSERT INTO user_enrollment (user_id, subject_id, status)
+                    VALUES (:uid, :sid, 'active')
+                """),
+                {"uid": int(u.id), "sid": int(sid)},
+            )
+
         session["just_paid_subject_id"] = int(sid)
+
 
     db.session.commit()
 

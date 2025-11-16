@@ -469,7 +469,7 @@ def handoff():
     # Signature:
     # - generic test merchant (10000100): signature optional → skip
     # - your own sandbox/live merchant: compute if passphrase configured
-    if merchant_id != "10000100":
+    if merchant_id != "10043395":
         pf_data["signature"] = _pf_sig(pf_data, passphrase)
     else:
         pf_data.pop("signature", None)

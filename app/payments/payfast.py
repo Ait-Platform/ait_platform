@@ -371,20 +371,27 @@ def handoff():
             if val.startswith("http://") and ("localhost" not in val and "127.0.0.1" not in val):
                 abort(500, f"{k} must be https outside localhost")
 
-            # Mode / credentials
-            cfg  = current_app.config
-            mode = (cfg.get("PAYFAST_MODE") or "sandbox").lower()
+        # Mode / credentials
+        cfg  = current_app.config
+        mode = (cfg.get("PAYFAST_MODE") or "sandbox").lower()
 
-            # Take values from env/config
-            merchant_id  = cfg.get("PAYFAST_MERCHANT_ID")
-            merchant_key = cfg.get("PAYFAST_MERCHANT_KEY")
-            passphrase   = cfg.get("PAYFAST_PASSPHRASE") or ""
+        # Always take merchant values from env/config
+        merchant_id  = cfg.get("PAYFAST_MERCHANT_ID")
+        merchant_key = cfg.get("PAYFAST_MERCHANT_KEY")
+        passphrase   = cfg.get("PAYFAST_PASSPHRASE") or ""
 
-            # Host depends on mode
-            if mode == "sandbox":
-                payfast_host = "https://sandbox.payfast.co.za/eng/process"
-            else:
-                payfast_host = "https://www.payfast.co.za/eng/process"
+        # Host depends only on mode
+        if mode == "sandbox":
+            payfast_host = "https://sandbox.payfast.co.za/eng/process"
+        else:
+            payfast_host = "https://www.payfast.co.za/eng/process"
+
+
+        # Host depends on mode
+        if mode == "sandbox":
+            payfast_host = "https://sandbox.payfast.co.za/eng/process"
+        else:
+            payfast_host = "https://www.payfast.co.za/eng/process"
 
 
         current_app.logger.info(

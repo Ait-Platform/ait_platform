@@ -356,35 +356,41 @@ def handoff():
         except Exception:
             pass
 
-    # Ensure display fields exist (currency/country) for logging/audit
-    if not session.get("pp_currency") or not session.get("pp_country"):
-        cc = (request.headers.get("CF-IPCountry") or "ZA").strip().upper()
-        cur, cents, _ = price_for_country(subject_id, cc)
-        session.setdefault("pp_currency", cur)
-        session.setdefault("pp_country", cc)
+        # Ensure display fields exist (currency/country) for logging/audit
+        if not session.get("pp_currency") or not session.get("pp_country"):
+            cc = (request.headers.get("CF-IPCountry") or "ZA").strip().upper()
+            cur, cents, _ = price_for_country(subject_id, cc)
+            session.setdefault("pp_currency", cur)
+            session.setdefault("pp_country", cc)
 
-    # URL policy checks (HTTPS outside localhost)
-    for k in ("PAYFAST_RETURN_URL", "PAYFAST_CANCEL_URL", "PAYFAST_NOTIFY_URL"):
-        val = str(cfg.get(k) or "").strip()
-        if not val:
-            abort(500, f"{k} missing")
-        if val.startswith("http://") and ("localhost" not in val and "127.0.0.1" not in val):
-            abort(500, f"{k} must be https outside localhost")
+        # URL policy checks (HTTPS outside localhost)
+        for k in ("PAYFAST_RETURN_URL", "PAYFAST_CANCEL_URL", "PAYFAST_NOTIFY_URL"):
+            val = str(cfg.get(k) or "").strip()
+            if not val:
+                abort(500, f"{k} missing")
+            if val.startswith("http://") and ("localhost" not in val and "127.0.0.1" not in val):
+                abort(500, f"{k} must be https outside localhost")
 
-    # Mode / credentials
-    mode = (cfg.get("PAYFAST_MODE") or "sandbox").lower()
-    if mode == "sandbox":
-        merchant_id  = "10043395"
-        merchant_key = "9xpy66p7csvra"
-        passphrase   = ""
-        payfast_host = "https://sandbox.payfast.co.za/eng/process"
-        if cfg.get("PAYFAST_MERCHANT_ID") not in (None, "", "10000100"):
-            current_app.logger.warning("Ignoring live merchant in sandbox; forcing 10000100.")
-    else:
+            # Mode / credentials
+        cfg  = current_app.config
+        mode = (cfg.get("PAYFAST_MODE") or "sandbox").lower()
+
+        # Always take merchant values from env/config
         merchant_id  = cfg.get("PAYFAST_MERCHANT_ID")
         merchant_key = cfg.get("PAYFAST_MERCHANT_KEY")
-        passphrase   = (cfg.get("PAYFAST_PASSPHRASE") or "")
-        payfast_host = "https://www.payfast.co.za/eng/process"
+        passphrase   = cfg.get("PAYFAST_PASSPHRASE") or ""
+
+        # Host depends only on mode
+        if mode == "sandbox":
+            payfast_host = "https://sandbox.payfast.co.za/eng/process"
+        else:
+            payfast_host = "https://www.payfast.co.za/eng/process"
+
+        current_app.logger.info(
+            "PayFast %s mode: merchant_id=%s",
+            mode,
+            merchant_id,
+        )
 
     # Ref + return URL (include subject/email so /payments/success can finalize)
     mref = f"{_ref(slug)}-{uuid4().hex[:10]}"

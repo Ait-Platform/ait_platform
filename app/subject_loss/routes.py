@@ -125,7 +125,9 @@ def about_loss():
     # 3) Still nothing? Provisional price based on country
     if not q:
         cc = (request.headers.get("CF-IPCountry") or "ZA").strip().upper()
-        cur, amt, _ = price_for_country(sid, cc)
+        #cur, amt, _ = price_for_country(sid, cc)
+        cur, amt, _status, _fx = price_for_country(sid, cc)
+
         if amt is not None:
             q = {"currency": cur, "amount_cents": int(amt)}
 

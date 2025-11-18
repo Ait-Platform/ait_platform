@@ -1,13 +1,13 @@
 # payments/AuthPricing.py
-from sqlalchemy import select, and_, or_, func
+from sqlalchemy import select, and_, or_, func, text
 from app.extensions import db
-from flask import g, redirect, request, url_for
+from flask import current_app, g, redirect, request, url_for
 from datetime import datetime, timezone
 from app.models.auth import AuthSubject, AuthPricing
 from app.models.payment import RefCountryCurrency
 from app.subject_reading.routes import _ensure_enrollment_row
 import sqlalchemy as sa
-from sqlalchemy import text
+from sqlalchemy.exc import OperationalError
 
 VAT_RATE = 0.15  # SA VAT
 
@@ -223,13 +223,7 @@ def subject_id_for(slug: str) -> int | None:
     return int(row.id) if row else None
 
 # Table-driven parity price for a country (returns currency, amount_cents, source)
-def price_for_country(subject_slug_or_id, country_code: str) -> tuple[str, int | None, str]:
-    sid = subject_slug_or_id if isinstance(subject_slug_or_id, int) else subject_id_for(subject_slug_or_id)
-    if not sid:
-        return ("ZAR", None, "no-subject")
-    cents = get_parity_anchor_cents(sid)                 # from auth_pricing
-    ccy   = currency_for_country_code(country_code)      # from ref_country_currency
-    return (ccy, (cents if cents else None), "parity")
+
 
 def apply_percentage_discount(sess, pct: float) -> None:
     """
@@ -275,15 +269,6 @@ def countries_from_ref() -> list[dict]:
     # If you don't want names, show codes; totally DB-driven
     return [{"code": r.alpha2, "label": r.alpha2, "currency": r.currency} for r in rows]
 
-def currency_for_country_code(code: str) -> str | None:
-    if not code: 
-        return None
-    row = db.session.execute(
-        db.text("SELECT currency FROM ref_country_currency WHERE alpha2 = :c LIMIT 1"),
-        {"c": code.upper()},
-    ).first()
-    return row.currency if row and row.currency else None
-
 def countries_from_ref_with_names() -> list[dict]:
     rows = db.session.execute(
         db.text("SELECT alpha2, currency FROM ref_country_currency ORDER BY alpha2")
@@ -300,3 +285,69 @@ def countries_from_ref_with_names() -> list[dict]:
              "name": code_to_name.get(r.alpha2.upper(), r.alpha2.upper()),
              "currency": r.currency} for r in rows]
 
+
+def currency_for_country_code(code: str) -> str | None:
+    """
+    Returns 3-letter currency code for a 2-letter country code, e.g. 'AU' -> 'AUD'.
+    """
+    row = db.session.execute(
+        text("SELECT currency FROM ref_country_currency WHERE alpha2 = :c"),
+        {"c": code},
+    ).fetchone()
+    return row[0] if row else None
+
+
+def fx_rate_local_to_zar(code: str) -> float:
+    """
+    FX so that: 1 unit of local currency * fx = 1 ZAR.
+
+    In Postgres this comes from ref_country_currency.fx_to_zar.
+    In dev on SQLite (if fx_to_zar doesn't exist) we fall back to 1.0
+    so the page still works.
+    """
+    try:
+        row = db.session.execute(
+            text("SELECT fx_to_zar FROM ref_country_currency WHERE alpha2 = :c"),
+            {"c": code},
+        ).fetchone()
+    except OperationalError:
+        # SQLite dev DB may not have this column yet – don't crash in dev.
+        current_app.logger.warning(
+            "ref_country_currency.fx_to_zar missing; defaulting fx=1.0"
+        )
+        return 1.0
+    except Exception:
+        current_app.logger.exception("FX lookup failed; defaulting fx=1.0")
+        return 1.0
+
+    if not row or row[0] is None:
+        return 1.0
+
+    try:
+        return float(row[0])
+    except (TypeError, ValueError):
+        return 1.0
+
+
+def price_for_country(subject_id: int, country_code: str):
+    """
+    Parity pricing:
+
+    - auth_pricing.amount_cents = parity number (e.g. 7500 = 75.00)
+    - Local price (your currency): parity number
+    - Estimated PayFast charge (ZAR): parity number * fx_to_zar
+
+    Returns:
+        local_currency, local_cents, est_zar_cents, fx
+    """
+    parity_cents = get_parity_anchor_cents(subject_id)
+    if not parity_cents:
+        return ("ZAR", None, None, 1.0)
+
+    cur = currency_for_country_code(country_code) or "ZAR"
+    fx  = fx_rate_local_to_zar(country_code) or 1.0
+
+    local_cents   = parity_cents
+    est_zar_cents = int(round(parity_cents * fx))
+
+    return (cur, local_cents, est_zar_cents, fx)

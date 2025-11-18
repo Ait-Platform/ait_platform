@@ -327,7 +327,7 @@ def register_decision():
         "payfast_bp.handoff",
         email=user_email,
         subject=subject,
-        debug=1,          # 👈 force debug mode for now
+        debug=0,          # 👈 force debug mode for now
     ))
 
 @auth_bp.route("/login", methods=["GET", "POST"])

@@ -32,6 +32,7 @@ from app.payments.pricing import (
     get_parity_anchor_cents, lock_country_and_price, price_cents_for, 
     price_for_country, subject_id_for
     )
+from app.payments.quote import fx_for_country_code
 from app.utils.country_list import COUNTRIES, _name_code_iter
 
 payfast_bp = Blueprint("payfast_bp", __name__)
@@ -734,19 +735,17 @@ def checkout_review():
         return redirect(url_for("loss_bp.about_loss"))
     return render_template("payments/review.html", subject_id=sid)
 
-
 @payfast_bp.route("/checkout/cancel", methods=["POST", "GET"])
 def checkout_cancel():
     reason = (request.values.get("reason") or "").strip()
 
     if reason == "price_too_high":
+        # Apply a once-off 10% discount to the current pp_value
         try:
             apply_percentage_discount(session, 10.0)
-            if not session.get("pp_discount_flash_shown"):
-                flash("We’ve applied a 10% discount for you.", "info")
-                session["pp_discount_flash_shown"] = True
         except Exception:
-            pass
+            current_app.logger.exception("Failed to apply discount")
+
 
     sid = request.values.get("subject_id", type=int)
     if not sid:
@@ -755,8 +754,12 @@ def checkout_cancel():
         except Exception:
             sid = None
 
-    return redirect(url_for("payfast_bp.pricing_get", subject_id=sid)) if sid \
-           else redirect(url_for("loss_bp.about_loss"))
+    # If we still can't resolve a subject, send them home
+    if not sid:
+        return redirect(url_for("public_bp.welcome"))
+
+    # Go back to pricing with the discount page
+    return redirect(url_for("payfast_bp.pricing_get", subject_id=sid, discount=1))
 
 @payfast_bp.get("/handoff")
 def handoff_get():
@@ -820,60 +823,92 @@ def handoff_get():
         pf_data=fields,     # ← rename payfast_fields → pf_data
     )
 
+@payfast_bp.get("/pricing")
+def pricing_get():
+    # Are we on the discount version (after cancel)?
+    discount_flag = request.args.get("discount", type=int) == 1
+
+    # Resolve subject
+    subj_slug_arg = (request.args.get("subject") or "").strip().lower()
+    if subj_slug_arg:
+        subject_slug = subj_slug_arg
+        subject_id = subject_id_for(subject_slug)
+    else:
+        subject_id, subject_slug = _resolve_subject_from_request()
+
+    # Fresh visit from About with ?subject=loss and NOT discount:
+    # wipe any old quote so the form starts blank.
+    if (not discount_flag) and ("subject" in request.args):
+        for key in (
+            "pp_country",
+            "pp_currency",
+            "pp_value",
+            "pp_est_zar",
+            "pp_fx_rate",
+            "pp_discount",
+            
+        ):
+            session.pop(key, None)
+
+    countries = countries_from_ref_with_names()
+
+    has_quote = bool(
+        session.get("pp_country")
+        and session.get("pp_currency")
+        and (session.get("pp_value") is not None)
+    )
+
+    price_ctx = {
+        "local_amount":   session.get("pp_value"),
+        "local_currency": session.get("pp_currency"),
+        "estimated_zar":  session.get("pp_est_zar"),
+        "fx_rate":        session.get("pp_fx_rate"),
+        "country_code":   session.get("pp_country"),
+        "has_quote":      has_quote,
+        "is_discount":    bool(session.get("pp_discount") or discount_flag),
+    }
+
+    # Decide which template to show
+    template = (
+        "payments/pricing_discount.html"
+        if price_ctx["is_discount"] else
+        "payments/pricing.html"
+    )
+
+    return render_template(
+        template,
+        subject_id=subject_id,
+        subject_slug=subject_slug,
+        countries=countries,
+        price=price_ctx,
+    )
 
 @payfast_bp.post("/pricing/lock")
 def pricing_lock():
     subject_id, subject_slug = _resolve_subject_from_request()
-    code = (request.form.get("country") or "").upper()
+    code = (request.form.get("country") or "").strip().upper()
 
-    ccy = currency_for_country_code(code)
-    if not ccy:
-        flash("That country isn’t listed. Please choose any country that uses your currency.", "warning")
+    if not code:
+        flash("Please choose your country first.", "warning")
         return redirect(url_for("payfast_bp.pricing_get", subject_id=subject_id))
 
-    cents = get_parity_anchor_cents(subject_id)
+    # Parity engine: local price + ZAR estimate
+    cur, local_cents, est_zar_cents, fx = price_for_country(subject_id, code)
+
+    safe_local_cents = local_cents or 0
+    local_value = round(safe_local_cents / 100.0, 2)
+
+    est_base_cents = est_zar_cents if est_zar_cents is not None else safe_local_cents
+    est_zar_value = round(est_base_cents / 100.0, 2)
+
     session.update({
-        "pp_country":  code,
-        "pp_currency": ccy,
-        "pp_value":    round((cents or 0) / 100.0, 2),
-        "pp_discount": False,
-        "pp_vat_note": "excl. VAT",
+        "pp_country":   code,
+        "pp_currency":  cur,
+        "pp_value":     local_value,     # what user sees as "Price (your currency)"
+        "pp_est_zar":   est_zar_value,   # what user sees as "Estimated PayFast charge (in ZAR)"
+        "pp_fx_rate":   float(fx),       # 1 local = fx ZAR
+        "pp_vat_note":  "excl. VAT",
+        # pp_discount is left alone (handled by checkout_cancel)
     })
+
     return redirect(url_for("payfast_bp.pricing_get", subject_id=subject_id))
-
-@payfast_bp.get("/pricing")
-def pricing_get():
-    # First, try ?subject=loss from the About page
-    subj_slug_arg = (request.args.get("subject") or "").strip().lower()
-    if subj_slug_arg:
-        subject_slug = subj_slug_arg
-        # subject_id_for already used elsewhere in this file
-        subject_id = subject_id_for(subject_slug)
-    else:
-        # Fallback to the old helper for other flows (subject_id / form etc.)
-        subject_id, subject_slug = _resolve_subject_from_request()
-
-    countries = countries_from_ref_with_names()
-
-    # first-time setup of price in session
-    if not session.get("pp_value") or not session.get("pp_currency"):
-        cents = get_parity_anchor_cents(subject_id)  # ZAR anchor from auth_pricing
-
-        if countries:
-            session["pp_country"]  = countries[0]["code"]
-            session["pp_currency"] = countries[0]["currency"]
-        else:
-            session.setdefault("pp_country", "ZA")
-            session.setdefault("pp_currency", "ZAR")
-
-        session["pp_value"]    = round((cents or 0) / 100.0, 2)
-        session["pp_discount"] = False
-        session["pp_vat_note"] = "excl. VAT"
-
-    return render_template(
-        "payments/pricing.html",
-        subject_id=subject_id,
-        subject_slug=subject_slug,
-        countries=countries,
-    )
-

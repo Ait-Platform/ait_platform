@@ -1,4 +1,5 @@
 # routes
+from __future__ import annotations
 import os
 from flask import (
     Blueprint, current_app, g, render_template,redirect, 
@@ -15,9 +16,9 @@ from email.message import EmailMessage
 
 reading_bp = Blueprint("reading_bp", __name__, url_prefix="/reading")
 
+
 READING_SUBJECT_ID = 1  # <-- set this to the actual id for 'Reading' in subject table
 
-# app/school_reading/routes.py
 @reading_bp.route("/about", methods=["GET"], endpoint="about_reading")
 def about_reading():
     return render_template("subject_reading/about.html")  # ← change this line
@@ -112,18 +113,6 @@ def subject_home():
 
 
 
-# ─────────────────────────────────
-# 0. before_request: set context
-# ─────────────────────────────────
-
-@reading_bp.before_request
-@login_required
-def _reading_before_request():
-    # who is the learner
-    g.user_id = current_user.id
-
-    # UI language for headings/buttons
-    g.ui_lang = session.get("ui_lang", "en")
 
 
 # ─────────────────────────────────

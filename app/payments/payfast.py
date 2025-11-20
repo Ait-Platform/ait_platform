@@ -400,16 +400,28 @@ def checkout_cancel():
     # Go back to pricing with the discount page
     return redirect(url_for("payfast_bp.pricing_get", subject_id=sid, discount=1))
 
-@payfast_bp.route("/handoff", methods=["GET"], endpoint="handoff")
+@payfast_bp.get("/handoff", endpoint="handoff")
 def handoff():
     """
     Build the PayFast form from the locked parity-pricing quote in session
     and render a hand-off page that auto-posts to PayFast.
     """
-    cfg  = current_app.config
-    mode = (cfg.get("PAYFAST_MODE") or "sandbox").lower()
+    cfg = current_app.config
 
-    # Decide which PayFast URL to hit
+    # --- sanity check required config so we don't KeyError() ---
+    required = [
+        "PAYFAST_MERCHANT_ID",
+        "PAYFAST_MERCHANT_KEY",
+        "PAYFAST_RETURN_URL",
+        "PAYFAST_CANCEL_URL",
+        "PAYFAST_NOTIFY_URL",
+    ]
+    missing = [k for k in required if not cfg.get(k)]
+    if missing:
+        # Friendly "config missing" page instead of a 500
+        return render_template("payments/payfast_misconfig.html", missing=missing), 500
+
+    mode = (cfg.get("PAYFAST_MODE") or "sandbox").lower()
     payfast_url = (
         "https://sandbox.payfast.co.za/eng/process"
         if mode == "sandbox" else
@@ -418,14 +430,14 @@ def handoff():
 
     # Subject + user context
     subject_slug = (request.args.get("subject") or "loss").strip().lower()
-    email        = (session.get("pending_email") or "").strip().lower()
+    email = (session.get("pending_email") or "").strip().lower()
 
     subj = AuthSubject.query.filter_by(slug=subject_slug).first()
     if not subj:
         flash("Could not resolve subject for payment.", "error")
         return redirect(url_for("loss_bp.about_loss"))
 
-    # Price / country from parity-pricing session (must have been locked)
+    # Price / country from parity-pricing session (must be locked already)
     country  = (session.get("pp_country")  or "ZA").strip().upper()
     currency = (session.get("pp_currency") or "ZAR").strip().upper()
     value    = session.get("pp_value")

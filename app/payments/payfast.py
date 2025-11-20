@@ -418,8 +418,13 @@ def handoff():
     ]
     missing = [k for k in required if not cfg.get(k)]
     if missing:
-        # Friendly "config missing" page instead of a 500
-        return render_template("payments/payfast_misconfig.html", missing=missing), 500
+        # Simple text response instead of missing-template 500
+        current_app.logger.error("PayFast config missing: %s", missing)
+        return (
+            "PayFast configuration is incomplete. Missing: "
+            + ", ".join(missing),
+            500,
+        )
 
     mode = (cfg.get("PAYFAST_MODE") or "sandbox").lower()
     payfast_url = (
@@ -430,57 +435,7 @@ def handoff():
 
     # Subject + user context
     subject_slug = (request.args.get("subject") or "loss").strip().lower()
-    email = (session.get("pending_email") or "").strip().lower()
-
-    subj = AuthSubject.query.filter_by(slug=subject_slug).first()
-    if not subj:
-        flash("Could not resolve subject for payment.", "error")
-        return redirect(url_for("loss_bp.about_loss"))
-
-    # Price / country from parity-pricing session (must be locked already)
-    country  = (session.get("pp_country")  or "ZA").strip().upper()
-    currency = (session.get("pp_currency") or "ZAR").strip().upper()
-    value    = session.get("pp_value")
-
-    if value is None:
-        flash("Please confirm your price first.", "warning")
-        return redirect(url_for("payfast_bp.pricing_get", subject=subject_slug))
-
-    # Basic PayFast fields
-    fields = {
-        "merchant_id":   cfg["PAYFAST_MERCHANT_ID"],
-        "merchant_key":  cfg["PAYFAST_MERCHANT_KEY"],
-        "return_url":    url_for("payfast_bp.payfast_success", _external=True),
-        "cancel_url":    url_for("payfast_bp.payfast_cancel", _external=True),
-        "notify_url":    url_for("payfast_bp.notify", _external=True),
-        "amount":        f"{float(value):.2f}",
-        "item_name":     f"AIT – {subj.name} course",
-        "m_payment_id":  f"{subject_slug}-{session.get('just_paid_subject_id') or ''}",
-        "email_address": email,
-        # optional meta / description
-        "custom_str1":   subject_slug,
-        "custom_str2":   country,
-        "custom_str3":   currency,
-    }
-
-    # Signature (PayFast rule)
-    passphrase = (cfg.get("PAYFAST_PASSPHRASE") or "").strip()
-    pairs = [
-        f"{k}={fields[k]}"
-        for k in sorted(fields.keys())
-        if fields[k] not in (None, "")
-    ]
-    query = "&".join(pairs)
-    if passphrase:
-        query = f"{query}&passphrase={passphrase}"
-    sig = hashlib.md5(query.encode("utf-8")).hexdigest()
-    fields["signature"] = sig
-
-    return render_template(
-        "payments/payfast_handoff.html",
-        payfast_url=payfast_url,
-        pf_data=fields,
-    )
+    email       
 
 @payfast_bp.post("/notify")
 @csrf.exempt

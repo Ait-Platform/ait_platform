@@ -203,25 +203,30 @@ def register():
     # country: form first → fallback ZA (no more Cloudflare header)
     # ---------- NEW: lock a DB-driven parity quote into session ----------
     # country: form first → default ZA
+    # ---------- NEW: lock a DB-driven parity quote into session ----------
+    # country: form first → default ZA
     cc = (request.form.get("country") or "ZA").strip().upper()
 
     # subject is a slug here ("loss", "reading", etc) → convert to numeric id
     subj_id = subject_id_for(subject)
     if not subj_id:
         current_app.logger.error("register: no subject_id for slug %r", subject)
-        # safe fallback: no quote, we’ll handle later
-        cur, amt, ver = ("ZAR", None, None)
+        cur = "ZAR"
+        amt = None
     else:
-        cur, amt, ver = price_for_country(subj_id, cc)
+        # price_for_country returns: (currency, local_cents, est_zar_cents, fx)
+        cur, local_cents, est_zar_cents, fx = price_for_country(subj_id, cc)
+        amt = local_cents
 
     # store exactly what we will charge later (no recompute)
     session["reg_ctx"]["quote"] = {
         "country_code": cc,
         "currency": cur,
         "amount_cents": amt if amt is not None else 5000,  # safe fallback if pricing row missing
-        "version": ver,
+        "version": "2025-11",  # fixed version tag; we’re not pulling this from price_for_country
     }
     session.modified = True
+
 
     # ------------------------------------------------------------
     # ------------------------------------------------------------

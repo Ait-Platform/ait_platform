@@ -546,6 +546,166 @@ def _subject_amount(subject, req_amount: str | None):
 
     return None
 
+@payfast_bp.get("/cancel", endpoint="payfast_cancel")
+def cancel():
+    return render_template("payments/cancelled.html"), 200
+
+@payfast_bp.post("/notify")
+@csrf.exempt
+def notify():
+    cfg   = current_app.config
+    mode  = (cfg.get("PAYFAST_MODE") or "sandbox").lower()
+    form  = request.form.to_dict(flat=True)
+
+    # --- validate with PayFast (authoritative) ---
+    validate_url = (
+        "https://sandbox.payfast.co.za/eng/query/validate"
+        if mode == "sandbox" else
+        "https://www.payfast.co.za/eng/query/validate"
+    )
+    try:
+        r = requests.post(validate_url, data=form, timeout=8)
+        if r.text.strip().lower() != "valid":
+            current_app.logger.error("IPN validate failed: %s", r.text)
+            return ("", 400)
+    except Exception:
+        current_app.logger.exception("IPN validate error")
+        return ("", 400)
+
+    # --- extract fields we care about ---
+    email   = (form.get("email_address") or "").strip().lower()
+    amount  = (form.get("amount") or "").strip()          # "50.00"
+    mref    = (form.get("m_payment_id") or "").strip()    # "<slug>-<rand>"
+    status  = (form.get("payment_status") or "").upper()  # COMPLETE / PENDING / FAILED
+
+    # find/create user (minimal)
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        user = User(email=email)
+        db.session.add(user)
+        db.session.flush()   # get user.id
+
+    # --- on COMPLETE, activate the enrollment for the subject slug ---
+    if status == "COMPLETE":
+        slug = mref.split("-")[0] if "-" in mref else None
+        subj = AuthSubject.query.filter_by(slug=slug).first() if slug else None
+
+        if subj:
+            # Manual upsert into user_enrollment (no ON CONFLICT)
+            existing = db.session.execute(
+                text("""
+                    SELECT id, status
+                      FROM user_enrollment
+                     WHERE user_id   = :uid
+                       AND subject_id = :sid
+                     LIMIT 1
+                """),
+                {"uid": user.id, "sid": subj.id},
+            ).first()
+
+            if existing:
+                db.session.execute(
+                    text("""
+                        UPDATE user_enrollment
+                           SET status = 'active'
+                         WHERE id = :eid
+                    """),
+                    {"eid": existing.id},
+                )
+            else:
+                db.session.execute(
+                    text("""
+                        INSERT INTO user_enrollment (user_id, subject_id, status, started_at)
+                        VALUES (:uid, :sid, 'active', CURRENT_TIMESTAMP)
+                    """),
+                    {"uid": user.id, "sid": subj.id},
+                )
+
+    db.session.commit()
+    current_app.logger.info(
+        "PF IPN ok: email=%s amount=%s status=%s ref=%s",
+        email, amount, status, mref
+    )
+    return ("", 200)
+
+@payfast_bp.get("/success", endpoint="payfast_success")
+def success():
+    # 1) Read query params FIRST (then log)
+    ref     = (request.args.get("ref")     or "").strip()
+    email   = (request.args.get("email")   or session.get("pending_email") or "").strip().lower()
+    subject = (request.args.get("subject") or session.get("pending_subject") or session.get("reg_ctx", {}).get("subject") or "loss").strip().lower()
+
+    current_app.logger.info("PF SUCCESS hit: ref=%s email=%s subject=%s", ref, email, subject)
+
+    # No email? show success page but ask to sign in
+    if not email:
+        flash("Payment completed. Please sign in to continue.", "info")
+        return render_template("payments/success.html", subject=subject, ref=ref), 200
+
+    # 2) Ensure user exists; apply staged password hash if we staged one at /register
+    u = User.query.filter_by(email=email).first()
+    if not u:
+        staged = (session.get("reg_ctx", {}) or {}).get("password_hash")
+        display = (session.get("reg_ctx", {}) or {}).get("full_name") or email.split("@", 1)[0].replace(".", " ").replace("_", " ").title()
+        u = User(email=email, name=display, is_active=1)
+        if staged:
+            u.password_hash = staged
+        db.session.add(u)
+        db.session.flush()  # get u.id
+
+    # 3) Resolve subject id (safe if missing)
+    sid = db.session.execute(text("""
+        SELECT id FROM auth_subject
+        WHERE lower(slug)=:s OR lower(name)=:s
+        LIMIT 1
+    """), {"s": subject}).scalar()
+
+    # 4) Flip enrollment to ACTIVE when we have a subject id
+    # 4) Flip enrollment to ACTIVE when we have a subject id
+    if sid:
+        existing = db.session.execute(
+            text("""
+                SELECT id, status
+                  FROM user_enrollment
+                 WHERE user_id   = :uid
+                   AND subject_id = :sid
+                 LIMIT 1
+            """),
+            {"uid": int(u.id), "sid": int(sid)},
+        ).first()
+
+        if existing:
+            db.session.execute(
+                text("""
+                    UPDATE user_enrollment
+                       SET status = 'active'
+                     WHERE id = :eid
+                """),
+                {"eid": existing.id},
+            )
+        else:
+            db.session.execute(
+                text("""
+                    INSERT INTO user_enrollment (user_id, subject_id, status)
+                    VALUES (:uid, :sid, 'active')
+                """),
+                {"uid": int(u.id), "sid": int(sid)},
+            )
+
+        session["just_paid_subject_id"] = int(sid)
+
+
+    db.session.commit()
+
+    # 5) Log in and show confirmation page (button → Bridge)
+    try:
+        login_user(u, remember=True, fresh=True)
+    except Exception:
+        pass
+
+    session["payment_banner"] = f"Payment successful for {subject.title() if subject else 'your course'}. You're all set!"
+
+    return render_template("payments/success.html", subject=subject, ref=ref), 200
 
 @payfast_bp.post("/ipn")
 def ipn():
@@ -602,16 +762,71 @@ def checkout_cancel():
     # Go back to pricing with the discount page
     return redirect(url_for("payfast_bp.pricing_get", subject_id=sid, discount=1))
 
-# app/payments/payfast.py
+@payfast_bp.get("/handoff")
+def handoff_get():
+    """
+    Build the PayFast form from the session + subject and render a hand-off
+    page that auto-posts to PayFast (sandbox or live depending on PAYFAST_MODE).
+    """
+    cfg   = current_app.config
+    mode  = (cfg.get("PAYFAST_MODE") or "sandbox").lower()
 
+    # Decide which PayFast URL to hit
+    payfast_url = (
+        "https://sandbox.payfast.co.za/eng/process"
+        if mode == "sandbox" else
+        "https://www.payfast.co.za/eng/process"
+    )
 
-# ─────────────────────────────────────────────
-# Pricing screen (GET)
-# ─────────────────────────────────────────────
+    # Subject + user context
+    subject_slug = (request.args.get("subject") or "loss").lower()
+    email        = (session.get("pending_email") or "").strip().lower()
+
+    subj = AuthSubject.query.filter_by(slug=subject_slug).first()
+    if not subj:
+        flash("Could not resolve subject for payment.", "error")
+        return redirect(url_for("loss_bp.about_loss"))
+
+    # Price / country from parity-pricing session
+    country  = session.get("pp_country")  or "ZA"
+    currency = session.get("pp_currency") or "ZAR"
+    value    = session.get("pp_value")    or 0.00  # e.g. 150.00
+
+    # Basic PayFast fields
+    fields = {
+        "merchant_id":   cfg["PAYFAST_MERCHANT_ID"],
+        "merchant_key":  cfg["PAYFAST_MERCHANT_KEY"],
+        "return_url":    url_for("payfast_bp.payfast_success", _external=True),
+        "cancel_url":    url_for("payfast_bp.checkout_cancel", _external=True),
+        "notify_url":    url_for("payfast_bp.notify", _external=True),
+        "amount":        f"{value:.2f}",
+        "item_name":     f"AIT – {subj.name} course",
+        "m_payment_id":  str(session.get("just_enrolled_id") or ""),
+        "email_address": email,
+        # optional meta / description
+        "custom_str1":   subject_slug,
+        "custom_str2":   country,
+        "custom_str3":   currency,
+    }
+
+    # Add signature (same rule PayFast docs use)
+    passphrase = (cfg.get("PAYFAST_PASSPHRASE") or "").strip()
+    pairs = [f"{k}={fields[k]}" for k in sorted(fields.keys()) if fields[k] not in (None, "")]
+    query = "&".join(pairs)
+    if passphrase:
+        query = f"{query}&passphrase={passphrase}"
+    sig = hashlib.md5(query.encode("utf-8")).hexdigest()
+    fields["signature"] = sig
+
+    return render_template(
+        "payments/payfast_handoff.html",
+        payfast_url=payfast_url,
+        pf_data=fields,     # ← rename payfast_fields → pf_data
+    )
 
 @payfast_bp.get("/pricing")
 def pricing_get():
-    # Discount version (after cancel)?
+    # Are we on the discount version (after cancel)?
     discount_flag = request.args.get("discount", type=int) == 1
 
     # Resolve subject
@@ -632,6 +847,7 @@ def pricing_get():
             "pp_est_zar",
             "pp_fx_rate",
             "pp_discount",
+            
         ):
             session.pop(key, None)
 
@@ -668,11 +884,6 @@ def pricing_get():
         price=price_ctx,
     )
 
-
-# ─────────────────────────────────────────────
-# Pricing lock (POST – user picks country)
-# ─────────────────────────────────────────────
-
 @payfast_bp.post("/pricing/lock")
 def pricing_lock():
     subject_id, subject_slug = _resolve_subject_from_request()
@@ -680,7 +891,7 @@ def pricing_lock():
 
     if not code:
         flash("Please choose your country first.", "warning")
-        return redirect(url_for("payfast_bp.pricing_get", subject=subject_slug))
+        return redirect(url_for("payfast_bp.pricing_get", subject_id=subject_id))
 
     # Parity engine: local price + ZAR estimate
     cur, local_cents, est_zar_cents, fx = price_for_country(subject_id, code)
@@ -688,280 +899,24 @@ def pricing_lock():
     safe_local_cents = local_cents or 0
     local_value = round(safe_local_cents / 100.0, 2)
 
+    safe_local_cents = local_cents or 0
+    local_value = round(safe_local_cents / 100.0, 2)
+
     if est_zar_cents is not None and fx is not None:
         est_zar_value = round(est_zar_cents / 100.0, 2)
-        fx_rate = float(fx)
     else:
         est_zar_value = None
-        fx_rate = None
+
 
     session.update({
         "pp_country":   code,
         "pp_currency":  cur,
         "pp_value":     local_value,     # what user sees as "Price (your currency)"
-        "pp_est_zar":   est_zar_value,   # may be None if no FX
-        "pp_fx_rate":   fx_rate,         # may be None if no FX
+        "pp_est_zar":   est_zar_value,   # None if we couldn't compute an estimate
+        "pp_fx_rate":   float(fx) if fx is not None else None,
         "pp_vat_note":  "excl. VAT",
-        # pp_discount is left alone (handled by checkout_cancel / cancel flow)
     })
 
-    return redirect(url_for("payfast_bp.pricing_get", subject=subject_slug))
 
+    return redirect(url_for("payfast_bp.pricing_get", subject_id=subject_id))
 
-# ─────────────────────────────────────────────
-# PayFast hand-off (GET – builds auto-post form)
-# ─────────────────────────────────────────────
-
-@payfast_bp.get("/handoff")
-def handoff_get():
-    """
-    Build the PayFast form from the session + subject and render a hand-off
-    page that auto-posts to PayFast (sandbox or live depending on PAYFAST_MODE).
-    """
-    cfg   = current_app.config
-    mode  = (cfg.get("PAYFAST_MODE") or "sandbox").lower()
-
-    # Decide which PayFast URL to hit
-    payfast_url = (
-        "https://sandbox.payfast.co.za/eng/process"
-        if mode == "sandbox" else
-        "https://www.payfast.co.za/eng/process"
-    )
-
-    # Subject + user context
-    subject_slug = (request.args.get("subject") or "loss").lower()
-    email        = (session.get("pending_email") or "").strip().lower()
-
-    subj = AuthSubject.query.filter_by(slug=subject_slug).first()
-    if not subj:
-        flash("Could not resolve subject for payment.", "error")
-        return redirect(url_for("loss_bp.about_loss"))
-
-    # Price / country from parity-pricing session
-    country  = session.get("pp_country")  or "ZA"
-    currency = session.get("pp_currency") or "ZAR"
-    value    = session.get("pp_value")    or 0.00  # e.g. 150.00
-
-    # Guard: merchant config and amount must be sane
-    if not cfg.get("PAYFAST_MERCHANT_ID") or not cfg.get("PAYFAST_MERCHANT_KEY"):
-        current_app.logger.error("PayFast config missing merchant id/key")
-        flash("Payment configuration error. Please try again later.", "error")
-        return redirect(url_for("payfast_bp.pricing_get", subject=subject_slug))
-
-    if value <= 0:
-        flash("Please confirm your price before proceeding to payment.", "warning")
-        return redirect(url_for("payfast_bp.pricing_get", subject=subject_slug))
-
-    # Basic PayFast fields
-    fields = {
-        "merchant_id":   cfg["PAYFAST_MERCHANT_ID"],
-        "merchant_key":  cfg["PAYFAST_MERCHANT_KEY"],
-        "return_url":    url_for("payfast_bp.payfast_success", _external=True),
-        "cancel_url":    url_for("payfast_bp.payfast_cancel", _external=True),
-        "notify_url":    url_for("payfast_bp.notify", _external=True),
-        "amount":        f"{value:.2f}",
-        "item_name":     f"AIT – {subj.name} course",
-        "m_payment_id":  str(session.get("just_enrolled_id") or ""),
-        "email_address": email,
-        # optional meta / description
-        "custom_str1":   subject_slug,
-        "custom_str2":   country,
-        "custom_str3":   currency,
-    }
-
-    # Add signature (same rule PayFast docs use)
-    passphrase = (cfg.get("PAYFAST_PASSPHRASE") or "").strip()
-    pairs = [f"{k}={fields[k]}" for k in sorted(fields.keys()) if fields[k] not in (None, "")]
-    query = "&".join(pairs)
-    if passphrase:
-        query = f"{query}&passphrase={passphrase}"
-    sig = hashlib.md5(query.encode("utf-8")).hexdigest()
-    fields["signature"] = sig
-
-    return render_template(
-        "payments/payfast_handoff.html",
-        payfast_url=payfast_url,
-        pf_data=fields,
-    )
-
-
-# ─────────────────────────────────────────────
-# Cancel page (GET)
-# ─────────────────────────────────────────────
-
-@payfast_bp.get("/cancel", endpoint="payfast_cancel")
-def cancel():
-    return render_template("payments/cancelled.html"), 200
-
-
-# ─────────────────────────────────────────────
-# IPN notify (POST – PayFast server-to-server)
-# ─────────────────────────────────────────────
-
-@payfast_bp.post("/notify")
-@csrf.exempt  # also exempted at blueprint level in create_app; safe duplication
-def notify():
-    cfg   = current_app.config
-    mode  = (cfg.get("PAYFAST_MODE") or "sandbox").lower()
-    form  = request.form.to_dict(flat=True)
-
-    # Validate with PayFast (authoritative)
-    validate_url = (
-        "https://sandbox.payfast.co.za/eng/query/validate"
-        if mode == "sandbox" else
-        "https://www.payfast.co.za/eng/query/validate"
-    )
-    try:
-        r = requests.post(validate_url, data=form, timeout=8)
-        if r.text.strip().lower() != "valid":
-            current_app.logger.error("IPN validate failed: %s", r.text)
-            return ("", 400)
-    except Exception:
-        current_app.logger.exception("IPN validate error")
-        return ("", 400)
-
-    # Extract fields we care about
-    email   = (form.get("email_address") or "").strip().lower()
-    amount  = (form.get("amount") or "").strip()          # "50.00"
-    mref    = (form.get("m_payment_id") or "").strip()    # "<slug>-<rand>"
-    status  = (form.get("payment_status") or "").upper()  # COMPLETE / PENDING / FAILED
-
-    # find/create user (minimal)
-    user = User.query.filter_by(email=email).first()
-    if not user:
-        user = User(email=email)
-        db.session.add(user)
-        db.session.flush()   # get user.id
-
-    # On COMPLETE, activate the enrollment for the subject slug
-    if status == "COMPLETE":
-        slug = mref.split("-")[0] if "-" in mref else None
-        subj = AuthSubject.query.filter_by(slug=slug).first() if slug else None
-
-        if subj:
-            existing = db.session.execute(
-                text("""
-                    SELECT id, status
-                      FROM user_enrollment
-                     WHERE user_id   = :uid
-                       AND subject_id = :sid
-                     LIMIT 1
-                """),
-                {"uid": user.id, "sid": subj.id},
-            ).first()
-
-            if existing:
-                db.session.execute(
-                    text("""
-                        UPDATE user_enrollment
-                           SET status = 'active'
-                         WHERE id = :eid
-                    """),
-                    {"eid": existing.id},
-                )
-            else:
-                db.session.execute(
-                    text("""
-                        INSERT INTO user_enrollment (user_id, subject_id, status, started_at)
-                        VALUES (:uid, :sid, 'active', CURRENT_TIMESTAMP)
-                    """),
-                    {"uid": user.id, "sid": subj.id},
-                )
-
-    db.session.commit()
-    current_app.logger.info(
-        "PF IPN ok: email=%s amount=%s status=%s ref=%s",
-        email, amount, status, mref
-    )
-    return ("", 200)
-
-
-# ─────────────────────────────────────────────
-# Success return URL (GET)
-# ─────────────────────────────────────────────
-
-@payfast_bp.get("/success", endpoint="payfast_success")
-def success():
-    # 1) Read query params first (then log)
-    ref     = (request.args.get("ref")     or "").strip()
-    email   = (request.args.get("email")   or session.get("pending_email") or "").strip().lower()
-    subject = (
-        (request.args.get("subject") or "") or
-        session.get("pending_subject") or
-        session.get("reg_ctx", {}).get("subject") or
-        "loss"
-    )
-    subject = subject.strip().lower()
-
-    current_app.logger.info("PF SUCCESS hit: ref=%s email=%s subject=%s", ref, email, subject)
-
-    # No email? show success page but ask to sign in
-    if not email:
-        flash("Payment completed. Please sign in to continue.", "info")
-        return render_template("payments/success.html", subject=subject, ref=ref), 200
-
-    # 2) Ensure user exists; apply staged password hash if we staged one at /register
-    u = User.query.filter_by(email=email).first()
-    if not u:
-        reg_ctx = session.get("reg_ctx") or {}
-        staged = reg_ctx.get("password_hash")
-        display = reg_ctx.get("full_name") or email.split("@", 1)[0].replace(".", " ").replace("_", " ").title()
-        u = User(email=email, name=display, is_active=1)
-        if staged:
-            u.password_hash = staged
-        db.session.add(u)
-        db.session.flush()  # get u.id
-
-    # 3) Resolve subject id (safe if missing)
-    sid = db.session.execute(text("""
-        SELECT id FROM auth_subject
-        WHERE lower(slug)=:s OR lower(name)=:s
-        LIMIT 1
-    """), {"s": subject}).scalar()
-
-    # 4) Flip enrollment to ACTIVE when we have a subject id
-    if sid:
-        existing = db.session.execute(
-            text("""
-                SELECT id, status
-                  FROM user_enrollment
-                 WHERE user_id   = :uid
-                   AND subject_id = :sid
-                 LIMIT 1
-            """),
-            {"uid": int(u.id), "sid": int(sid)},
-        ).first()
-
-        if existing:
-            db.session.execute(
-                text("""
-                    UPDATE user_enrollment
-                       SET status = 'active'
-                     WHERE id = :eid
-                """),
-                {"eid": existing.id},
-            )
-        else:
-            db.session.execute(
-                text("""
-                    INSERT INTO user_enrollment (user_id, subject_id, status)
-                    VALUES (:uid, :sid, 'active')
-                """),
-                {"uid": int(u.id), "sid": int(sid)},
-            )
-
-        session["just_paid_subject_id"] = int(sid)
-
-    db.session.commit()
-
-    # 5) Log in and show confirmation page (button → Bridge)
-    try:
-        login_user(u, remember=True, fresh=True)
-    except Exception:
-        pass
-
-    session["payment_banner"] = (
-        f"Payment successful for {subject.title() if subject else 'your course'}. You're all set!"
-    )
-
-    return render_template("payments/success.html", subject=subject, ref=ref), 200

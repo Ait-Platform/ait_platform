@@ -1,3 +1,4 @@
+{# templates/payments/pricing.html #}
 {% extends "layout.html" %}
 {% block title %}Price · AIT{% endblock %}
 
@@ -5,192 +6,99 @@
 <div class="mx-auto max-w-xl mt-10 bg-white p-6 rounded shadow">
 
   <!-- Top bar -->
-  <!-- Top bar -->
-  <!-- Heading: parity price -->
   <div class="flex items-center justify-between mb-4">
-    <h2 class="text-base font-semibold text-slate-800">
-      Parity price
-    </h2>
+    <a href="{{ url_for('loss_bp.about_loss', subject=subject_slug) }}"
+       class="rounded border px-3 py-1.5 text-sm hover:bg-slate-50">
+      ← Back
+    </a>
     <div class="text-xs text-slate-500">
       Value-based parity pricing
     </div>
   </div>
 
+  <h1 class="text-lg font-semibold mb-4">Parity price</h1>
 
+  {# SINGLE form: country + lock button #}
+  <form method="POST"
+        action="{{ url_for('payfast_bp.pricing_lock', subject=subject_slug) }}"
+        class="space-y-4">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-  <!-- Header text (only for discount screen) -->
-  {% if price.is_discount %}
-    <div class="mt-4">
-      <h2 class="text-base font-semibold text-slate-800">Almost there</h2>
-      <p class="mt-1 text-sm text-slate-600">
-        Sorry to see you go. As a thank you for exploring the Loss course, we’ve unlocked a
-        <span class="font-semibold">10% discount</span> on your enrollment.
-      </p>
+    <!-- Country -->
+    <div>
+      <label class="block text-sm font-medium">
+        Country
+        <span class="text-xs text-slate-400">(please select your country)</span>
+      </label>
+      <select name="country"
+              class="mt-1 block w-full rounded border px-3 py-2 text-sm bg-white">
+        <option value="">Select your country</option>
+        {% for c in countries %}
+          <option value="{{ c.code }}"
+                  {% if price.country_code == c.code %}selected{% endif %}>
+            {{ c.name }}
+          </option>
+        {% endfor %}
+      </select>
     </div>
-  {% endif %}
 
-  <!-- Country -->
-  <div class="mt-6 space-y-2">
-    <label class="block text-sm font-medium">
-      Country
-      <span class="text-xs font-normal text-slate-400">
-        {% if price.is_discount %}
-          (locked for this quote)
-        {% else %}
-          (please select your country)
-        {% endif %}
-      </span>
-    </label>
-
-    {% if price.is_discount %}
-      <!-- Locked country display on discount page -->
-      <div class="flex items-center gap-2 rounded border bg-slate-50 px-3 py-2 text-sm text-slate-700">
-        <div class="flex-1">
-          {{ price.country_code or session.get('pp_country') or '—' }}
-        </div>
-        <span class="rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-500">
-          {{ price.country_code or session.get('pp_country') or '—' }}
+    <!-- Price (local) -->
+    <div>
+      <label class="block text-sm font-medium">Price (your currency)</label>
+      <div class="flex gap-2">
+        <input type="text" readonly
+               class="w-full rounded border px-3 py-2 text-sm bg-slate-50 text-right"
+               value="{% if price.has_quote and price.local_amount is not none %}{{ '%.2f' % price.local_amount }}{% endif %}">
+        <span class="inline-flex items-center rounded border px-3 text-sm">
+          {{ price.local_currency or '—' }}
         </span>
       </div>
-      <p class="text-xs text-slate-500">
-        This country was selected on the pricing page. Changing country would require starting a new quote.
+    </div>
+
+    <!-- Estimated ZAR charge -->
+    <div>
+      <label class="block text-sm font-medium">Estimated PayFast charge (in ZAR)</label>
+      <div class="flex gap-2">
+        <input type="text" readonly
+               class="w-full rounded border px-3 py-2 text-sm bg-slate-50 text-right"
+               value="{% if price.has_quote and price.estimated_zar is not none %}{{ '%.2f' % price.estimated_zar }}{% endif %}">
+        <span class="inline-flex items-center rounded border px-3 text-sm">ZAR</span>
+      </div>
+      <p class="mt-1 text-xs text-slate-500">
+        {% if price.has_quote and price.fx_rate %}
+          Based on an estimated rate of
+          1 {{ price.local_currency or 'ZAR' }} ≈ {{ '%.4f' % price.fx_rate }} ZAR.
+          Your bank’s final rate may differ slightly.
+        {% else %}
+          The exact ZAR amount will be shown once your country is selected.
+        {% endif %}
       </p>
-    {% else %}
-
-      <!-- Select country for first quote -->
-      <form method="POST"
-            action="{{ url_for('payfast_bp.pricing_lock', subject=subject_slug) }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-        <!-- Country selector -->
-        <label class="block text-sm font-medium">Country
-          <span class="text-xs text-slate-400">(please select your country)</span>
-        </label>
-
-        <select name="country"
-                class="mt-1 block w-full rounded border px-3 py-2 text-sm bg-white">
-          <option value="">Select your country</option>
-          {% for c in countries %}
-            <option value="{{ c.code }}"
-                    {% if price.country_code == c.code %}selected{% endif %}>
-              {{ c.name }}
-            </option>
-          {% endfor %}
-        </select>
-
-        <!-- Lock price button -->
-        <div class="mt-4">
-          <button type="submit"
-                  class="inline-flex items-center justify-center rounded-lg
-                        px-4 py-2 text-sm font-medium bg-emerald-600 text-white
-                        hover:bg-emerald-700">
-            Lock my price
-          </button>
-        </div>
-      </form>
-
-
-    {% endif %}
-  </div>
-
-  <!-- Price (local) -->
-  <div class="mt-4">
-    <label class="block text-sm font-medium">
-      {% if price.is_discount %}
-        Discounted price (your currency)
-      {% else %}
-        Price (your currency)
-      {% endif %}
-    </label>
-    <div class="flex gap-2">
-      <input type="text" readonly
-             class="w-full rounded border px-3 py-2 text-sm bg-slate-50 text-right"
-             value="{% if price.has_quote and price.local_amount is not none %}{{ '%.2f' % price.local_amount }}{% endif %}">
-      <span class="inline-flex items-center rounded border px-3 text-sm">
-        {{ price.local_currency or '—' }}
-      </span>
     </div>
 
-    {% if price.is_discount %}
-      <p class="mt-1 text-xs text-emerald-600">
-        10% discount already applied to the standard course price.
-      </p>
-    {% endif %}
-  </div>
+    <!-- Buttons -->
+    <div class="mt-4 flex items-center justify-between">
+      <a href="{{ url_for('loss_bp.about_loss', subject=subject_slug) }}"
+         class="rounded border px-4 py-2 text-sm hover:bg-slate-50">
+        ← Back
+      </a>
 
-  <!-- Estimated ZAR charge -->
-  <div class="mt-3">
-    <label class="block text-sm font-medium">Estimated PayFast charge (in ZAR)</label>
-    <div class="flex gap-2">
-      <input type="text" readonly
-            class="w-full rounded border px-3 py-2 text-sm bg-white text-right"
-            value="{% if price.has_quote and price.estimated_zar is not none %}{{ '%.2f' % price.estimated_zar }}{% endif %}">
-      <span class="inline-flex items-center rounded border px-3 text-sm">ZAR</span>
-    </div>
-
-    <p class="mt-1 text-xs text-slate-500">
-      {% if not price.has_quote %}
-        The exact ZAR amount will be shown once your country is selected.
-      {% elif price.estimated_zar is not none and price.fx_rate is not none %}
-        Based on an estimated rate of
-        1 {{ price.local_currency or 'ZAR' }} ≈ {{ '%.4f' % price.fx_rate }} ZAR.
-        Your bank’s final rate may differ slightly.
-      {% else %}
-        We couldn’t fetch a reliable exchange rate right now.
-        You’ll be charged the fixed course price in ZAR via PayFast;
-        your bank will convert this to your currency.
-      {% endif %}
-    </p>
-  </div>
-
-
-  <!-- Notes (only on first pricing page) -->
-  {% if not price.is_discount %}
-    <div class="mt-4 rounded border border-slate-200 bg-slate-50 p-3 text-sm leading-6 text-slate-700">
-      <div class="font-semibold mb-1">About our value-based pricing</div>
-      <ul class="list-disc pl-5 space-y-1">
-        <li>You’ll see a locked price in your country’s currency for clarity.</li>
-        <li>Payment is processed in ZAR via PayFast. The ZAR amount above is our best estimate based on reference rates.</li>
-        <li>Prices are exclusive of VAT unless stated otherwise; any applicable taxes are shown before you pay.</li>
-        <li>Refunds are issued in ZAR for the ZAR amount charged; your bank’s exchange rate may differ from the display currency.</li>
-        <li>By continuing, you agree to this pricing method and our Terms and Refund Policy.</li>
-      </ul>
-    </div>
-  {% endif %}
-
-  <!-- Actions -->
-  {% set has_quote = price.has_quote %}
-  {% set disabled_attr  = '' if has_quote else 'disabled' %}
-  {% set disabled_class = '' if has_quote else 'opacity-50 cursor-not-allowed pointer-events-none' %}
-
-  <div class="mt-4 flex items-center justify-between">
-    <!-- Cancel left -->
-    <form method="post" action="{{ url_for('payfast_bp.checkout_cancel') }}">
-      <input type="hidden" name="subject_id" value="{{ subject_id }}">
-      <input type="hidden" name="reason" value="price_too_high">
-      <button {{ disabled_attr }}
-              class="rounded border px-4 py-2 text-sm hover:bg-slate-50 {{ disabled_class }}">
-        Cancel
+      <button type="submit"
+              class="rounded bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
+        Lock my price
       </button>
-    </form>
-
-    <!-- Enrol right -->
-    <a href="{% if has_quote %}{{ url_for('auth_bp.start_registration',
-                        role='user',
-                        subject=subject_slug,
-                        subject_id=subject_id,
-                        next=url_for('payfast_bp.checkout_review',
-                                     subject_id=subject_id, subject=subject_slug)) }}{% else %}#{% endif %}"
-       class="inline-flex items-center rounded bg-blue-600 px-4 py-2 text-white font-semibold hover:bg-blue-700 {{ disabled_class }}">
-      {% if price.is_discount %}Enrol with 10% off{% else %}Enrol{% endif %}
-    </a>
-  </div>
-
-  {% if price.has_quote and price.local_currency != 'ZAR' %}
-    <div class="mt-3 text-xs text-slate-500 text-center">
-      Charged in ZAR via PayFast • {{ session.get('pp_vat_note') or 'excl. VAT' }}
     </div>
-  {% endif %}
+  </form>
+
+  <!-- Note box -->
+  <div class="mt-6 rounded-lg border bg-slate-50 px-4 py-3 text-sm text-slate-700">
+    <p class="font-semibold mb-1">About our value-based pricing</p>
+    <ul class="list-disc list-inside space-y-1">
+      <li>You’ll see a locked price in your country’s currency for clarity.</li>
+      <li>Payment is processed in ZAR via PayFast. The ZAR amount above is our best estimate based on reference rates.</li>
+      <li>Prices are exclusive of VAT unless stated otherwise; any applicable taxes are shown before you pay.</li>
+      <li>Refunds are issued in ZAR for the ZAR amount charged; your bank’s exchange rate may differ.</li>
+    </ul>
+  </div>
 
 </div>
 {% endblock %}

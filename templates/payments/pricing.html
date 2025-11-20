@@ -56,24 +56,40 @@
         This country was selected on the pricing page. Changing country would require starting a new quote.
       </p>
     {% else %}
+
       <!-- Select country for first quote -->
-      <form id="country-form" method="post" action="{{ url_for('payfast_bp.pricing_lock') }}" class="space-y-2">
-        <input type="hidden" name="subject_id" value="{{ subject_id }}">
+      <form method="POST"
+            action="{{ url_for('payfast_bp.pricing_lock', subject=subject_slug) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <!-- Country selector -->
+        <label class="block text-sm font-medium">Country
+          <span class="text-xs text-slate-400">(please select your country)</span>
+        </label>
+
         <select name="country"
-                class="w-full rounded border px-3 py-2 text-sm"
-                onchange="document.getElementById('country-form').submit()">
-          <option value="" {% if not price.has_quote %}selected{% endif %} disabled>Select your country</option>
+                class="mt-1 block w-full rounded border px-3 py-2 text-sm bg-white">
+          <option value="">Select your country</option>
           {% for c in countries %}
             <option value="{{ c.code }}"
-                    {% if price.has_quote and price.country_code == c.code %}selected{% endif %}>
+                    {% if price.country_code == c.code %}selected{% endif %}>
               {{ c.name }}
             </option>
           {% endfor %}
         </select>
-        <p class="text-xs text-slate-500">
-          Don’t see your country? Choose any country that uses your currency.
-        </p>
+
+        <!-- Lock price button -->
+        <div class="mt-4">
+          <button type="submit"
+                  class="inline-flex items-center justify-center rounded-lg
+                        px-4 py-2 text-sm font-medium bg-emerald-600 text-white
+                        hover:bg-emerald-700">
+            Lock my price
+          </button>
+        </div>
       </form>
+
+
     {% endif %}
   </div>
 

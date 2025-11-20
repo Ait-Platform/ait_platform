@@ -201,10 +201,18 @@ def register():
     # country: form first → header fallback → ZA
     # ---------- NEW: lock a DB-driven parity quote into session ----------
     # country: form first → fallback ZA (no more Cloudflare header)
+    # ---------- NEW: lock a DB-driven parity quote into session ----------
+    # country: form first → default ZA
     cc = (request.form.get("country") or "ZA").strip().upper()
 
-    # IMPORTANT: use numeric subject id, not slug
-    cur, amt, ver = price_for_country(int(sid), cc)
+    # subject is a slug here ("loss", "reading", etc) → convert to numeric id
+    subj_id = subject_id_for(subject)
+    if not subj_id:
+        current_app.logger.error("register: no subject_id for slug %r", subject)
+        # safe fallback: no quote, we’ll handle later
+        cur, amt, ver = ("ZAR", None, None)
+    else:
+        cur, amt, ver = price_for_country(subj_id, cc)
 
     # store exactly what we will charge later (no recompute)
     session["reg_ctx"]["quote"] = {

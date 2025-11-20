@@ -2,7 +2,7 @@
 import requests
 from sqlalchemy import select, and_, or_, func, text
 from app.extensions import db
-from flask import current_app, g, redirect, request, url_for
+from flask import current_app, g, redirect, request, session, url_for
 from datetime import datetime, timezone
 from app.models.auth import AuthSubject, AuthPricing
 from app.models.payment import RefCountryCurrency
@@ -410,3 +410,24 @@ def price_for_country(subject_id: int, country_code: str):
         est_zar_cents = int(round(parity_cents * fx))
 
     return (cur, local_cents, est_zar_cents, fx)
+
+# ─────────────────────────────────────────────
+# Helpers
+# ─────────────────────────────────────────────
+
+def _resolve_subject_from_request() -> tuple[int, str]:
+    """
+    Decide which subject we're pricing for, based on:
+      - explicit ?subject=... in the URL, or
+      - reg_ctx["subject"] in the session, or
+      - default 'loss'
+    Returns: (subject_id, subject_slug)
+    """
+    slug = (request.args.get("subject") or "").strip().lower()
+    if not slug:
+        reg_ctx = session.get("reg_ctx") or {}
+        slug = (reg_ctx.get("subject") or "loss").strip().lower()
+
+    sid = subject_id_for(slug)
+    return sid, slug
+

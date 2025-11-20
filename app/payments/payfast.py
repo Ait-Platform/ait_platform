@@ -291,211 +291,6 @@ def _ref(s: str) -> str:
     # safe, short token for m_payment_id
     return re.sub(r"[^A-Za-z0-9._-]", "-", s)[:40]
 
-@payfast_bp.route("/handoff", methods=["GET", "POST"])
-def handoff():
-    cfg = current_app.config
-
-    # Inputs (POST first, then GET fallback)
-    email = (request.form.get("email") or request.args.get("email") or "").strip().lower()
-    slug  = (request.form.get("subject") or request.args.get("subject") or "").strip().lower()
-    debug = str(request.values.get("debug") or "0") == "1"
-
-    if not email or not slug:
-        abort(400, "Missing email or subject")
-
-    # Config sanity
-    required = [
-        "PAYFAST_MERCHANT_ID",
-        "PAYFAST_MERCHANT_KEY",
-        "PAYFAST_RETURN_URL",
-        "PAYFAST_CANCEL_URL",
-        "PAYFAST_NOTIFY_URL",
-    ]
-    missing = [k for k in required if not cfg.get(k)]
-    if missing:
-        return render_template("payments/payfast_misconfig.html", missing=missing), 500
-
-    # Subject
-    subject = AuthSubject.query.filter_by(slug=slug).first()
-    if not subject:
-        abort(400, "Subject not found")
-    subject_id   = subject.id
-    subject_name = getattr(subject, "name", slug)
-
-    # --- Amount (ZAR) --------------------------------------------------------
-    # Prefer session parity lock (pp_value). Fallback to auth_pricing ZAR.
-    amt_str = None
-    if session.get("pp_value"):
-        try:
-            amt_str = f"{float(session['pp_value']):.2f}"
-        except Exception:
-            amt_str = None
-
-    if not amt_str:
-        row = db.session.execute(
-            db.text(
-                """
-                SELECT amount_cents
-                FROM auth_pricing
-                WHERE subject_id = :sid
-                  AND (role = 'learner' OR role IS NULL)
-                  AND plan = 'enrollment'
-                  AND currency = 'ZAR'
-                  AND (is_active = 1 OR is_active = TRUE)
-                  AND (active_to IS NULL OR active_to > CURRENT_TIMESTAMP)
-                ORDER BY COALESCE(updated_at, created_at) DESC,
-                         COALESCE(active_from, created_at) DESC,
-                         id DESC
-                LIMIT 1
-                """
-            ),
-            {"sid": subject_id},
-        ).first()
-        if not row or row.amount_cents is None:
-            abort(400, "Active price not configured for this subject")
-
-        amt_str = f"{(Decimal(int(row.amount_cents)) / Decimal(100)).quantize(Decimal('0.01')):.2f}"
-
-        # also hydrate session so downstream UI shows the same number
-        try:
-            session["pp_value"] = float(amt_str)
-        except Exception:
-            pass
-
-        # Ensure display fields exist (currency/country) for logging/audit
-        if not session.get("pp_currency") or not session.get("pp_country"):
-            cc = (request.headers.get("CF-IPCountry") or "ZA").strip().upper()
-            cur, cents, _ = price_for_country(subject_id, cc)
-            session.setdefault("pp_currency", cur)
-            session.setdefault("pp_country", cc)
-
-    # --- URL policy checks (always, not only when pricing falls back) -------
-    for k in ("PAYFAST_RETURN_URL", "PAYFAST_CANCEL_URL", "PAYFAST_NOTIFY_URL"):
-        val = str(cfg.get(k) or "").strip()
-        if not val:
-            abort(500, f"{k} missing")
-        if val.startswith("http://") and ("localhost" not in val and "127.0.0.1" not in val):
-            abort(500, f"{k} must be https outside localhost")
-
-    # Mode / credentials (always available)
-    mode = (cfg.get("PAYFAST_MODE") or "sandbox").lower()
-    merchant_id  = cfg.get("PAYFAST_MERCHANT_ID")
-    merchant_key = cfg.get("PAYFAST_MERCHANT_KEY")
-    passphrase   = cfg.get("PAYFAST_PASSPHRASE") or ""
-
-    if mode == "sandbox":
-        payfast_url = "https://sandbox.payfast.co.za/eng/process"
-    else:
-        payfast_url = "https://www.payfast.co.za/eng/process"
-
-    current_app.logger.info("PayFast %s mode: merchant_id=%s", mode, merchant_id)
-
-    # Ref + return URL (include subject/email so /payments/success can finalize)
-    mref = f"{_ref(slug)}-{uuid4().hex[:10]}"
-    return_url = f"{cfg['PAYFAST_RETURN_URL']}?ref={mref}&email={email}&subject={slug}"
-
-    # Ensure user exists + name + staged password hash if present
-    u = User.query.filter_by(email=email).first()
-    if not u:
-        u = User(email=email, is_active=1)
-    if not (u.name or "").strip():
-        u.name = (
-            email.split("@", 1)[0]
-            .replace(".", " ")
-            .replace("_", " ")
-            .title()
-        )
-
-    reg_ctx = session.get("reg_ctx") or {}
-    staged = reg_ctx.get("password_hash")
-    if staged and not getattr(u, "password_hash", None):
-        u.password_hash = staged
-
-    db.session.add(u)
-    db.session.flush()  # ensure u.id
-
-    # Ensure pending enrollment (manual upsert; PG table uses id PK, not (user_id, subject_id))
-    existing = db.session.execute(
-        db.text(
-            """
-            SELECT id, status
-            FROM user_enrollment
-            WHERE user_id = :uid
-              AND subject_id = :sid
-            LIMIT 1
-            """
-        ),
-        {"uid": u.id, "sid": subject.id},
-    ).first()
-
-    if existing:
-        # Just mark as pending
-        db.session.execute(
-            db.text(
-                """
-                UPDATE user_enrollment
-                SET status = 'pending'
-                WHERE id = :eid
-                """
-            ),
-            {"eid": existing.id},
-        )
-    else:
-        # Insert a fresh row
-        db.session.execute(
-            db.text(
-                """
-                INSERT INTO user_enrollment (user_id, subject_id, status)
-                VALUES (:uid, :sid, 'pending')
-                """
-            ),
-            {"uid": u.id, "sid": subject.id},
-        )
-
-    db.session.commit()
-
-    # PayFast payload (amount in ZAR, description carries parity UI context)
-    pf_data = {
-        "merchant_id":      merchant_id,
-        "merchant_key":     merchant_key,
-        "return_url":       return_url,
-        "cancel_url":       cfg["PAYFAST_CANCEL_URL"],
-        "notify_url":       cfg["PAYFAST_NOTIFY_URL"],
-        "m_payment_id":     mref,
-        "amount":           amt_str,
-        "item_name":        (f"{subject_name} enrollment")[:100],
-        "item_description": f"Parity UI {session.get('pp_value')} {session.get('pp_currency')} ({session.get('pp_country')})",
-        "email_address":    email,
-    }
-
-    # Signature:
-    # - generic test merchant (10000100): signature optional → skip
-    # - your own sandbox/live merchant: compute if passphrase configured
-    if merchant_id != "10043395":
-        pf_data["signature"] = _pf_sig(pf_data, passphrase)
-    else:
-        pf_data.pop("signature", None)
-
-    current_app.logger.info(
-        "PF handoff url=%s data=%s",
-        payfast_url,
-        {k: v for k, v in pf_data.items() if k != "signature"},
-    )
-
-    # --- DEBUG MODE: show JSON instead of auto-posting to PayFast ---
-    if debug:
-        return render_template(
-            "payments/payfast_handoff_debug.html",
-            payfast_url=payfast_url,
-            pf_data=pf_data,
-        )
-
-    # Normal mode: auto-post form → PayFast
-    return render_template(
-        "payments/payfast_handoff.html",
-        payfast_url=payfast_url,
-        pf_data=pf_data,
-    )
 
 @payfast_bp.get("/_sanity")
 def pf_sanity():
@@ -549,6 +344,131 @@ def _subject_amount(subject, req_amount: str | None):
 @payfast_bp.get("/cancel", endpoint="payfast_cancel")
 def cancel():
     return render_template("payments/cancelled.html"), 200
+
+@payfast_bp.post("/ipn")
+def ipn():
+    # ... your validation/signature checks ...
+
+    eid = int(request.form.get("m_payment_id") or 0)
+    amount_gross = request.form.get("amount_gross")  # e.g., "50.00"
+    cents = int(round(float(amount_gross)*100)) if amount_gross else None
+
+    if eid and cents is not None:
+        db.session.execute(sa_text("""
+            UPDATE user_enrollment
+            SET charged_currency = 'ZAR',
+                charged_amount_cents = :amt,
+                gateway_country = NULL,
+                country_mismatch = 0
+            WHERE id = :eid
+        """), {"amt": cents, "eid": eid})
+        db.session.commit()
+
+    return ("OK", 200)
+
+@payfast_bp.get("/checkout/review")
+def checkout_review():
+    sid = request.args.get("subject_id", type=int) or subject_id_for("loss")
+    if not session.get("pp_value"):
+        # force user to lock country/price first
+        return redirect(url_for("loss_bp.about_loss"))
+    return render_template("payments/review.html", subject_id=sid)
+
+@payfast_bp.route("/checkout/cancel", methods=["POST", "GET"])
+def checkout_cancel():
+    reason = (request.values.get("reason") or "").strip()
+
+    if reason == "price_too_high":
+        # Apply a once-off 10% discount to the current pp_value
+        try:
+            apply_percentage_discount(session, 10.0)
+        except Exception:
+            current_app.logger.exception("Failed to apply discount")
+
+
+    sid = request.values.get("subject_id", type=int)
+    if not sid:
+        try:
+            sid, _ = _resolve_subject_from_request()
+        except Exception:
+            sid = None
+
+    # If we still can't resolve a subject, send them home
+    if not sid:
+        return redirect(url_for("public_bp.welcome"))
+
+    # Go back to pricing with the discount page
+    return redirect(url_for("payfast_bp.pricing_get", subject_id=sid, discount=1))
+
+@payfast_bp.route("/handoff", methods=["GET"], endpoint="handoff")
+def handoff():
+    """
+    Build the PayFast form from the locked parity-pricing quote in session
+    and render a hand-off page that auto-posts to PayFast.
+    """
+    cfg  = current_app.config
+    mode = (cfg.get("PAYFAST_MODE") or "sandbox").lower()
+
+    # Decide which PayFast URL to hit
+    payfast_url = (
+        "https://sandbox.payfast.co.za/eng/process"
+        if mode == "sandbox" else
+        "https://www.payfast.co.za/eng/process"
+    )
+
+    # Subject + user context
+    subject_slug = (request.args.get("subject") or "loss").strip().lower()
+    email        = (session.get("pending_email") or "").strip().lower()
+
+    subj = AuthSubject.query.filter_by(slug=subject_slug).first()
+    if not subj:
+        flash("Could not resolve subject for payment.", "error")
+        return redirect(url_for("loss_bp.about_loss"))
+
+    # Price / country from parity-pricing session (must have been locked)
+    country  = (session.get("pp_country")  or "ZA").strip().upper()
+    currency = (session.get("pp_currency") or "ZAR").strip().upper()
+    value    = session.get("pp_value")
+
+    if value is None:
+        flash("Please confirm your price first.", "warning")
+        return redirect(url_for("payfast_bp.pricing_get", subject=subject_slug))
+
+    # Basic PayFast fields
+    fields = {
+        "merchant_id":   cfg["PAYFAST_MERCHANT_ID"],
+        "merchant_key":  cfg["PAYFAST_MERCHANT_KEY"],
+        "return_url":    url_for("payfast_bp.payfast_success", _external=True),
+        "cancel_url":    url_for("payfast_bp.payfast_cancel", _external=True),
+        "notify_url":    url_for("payfast_bp.notify", _external=True),
+        "amount":        f"{float(value):.2f}",
+        "item_name":     f"AIT – {subj.name} course",
+        "m_payment_id":  f"{subject_slug}-{session.get('just_paid_subject_id') or ''}",
+        "email_address": email,
+        # optional meta / description
+        "custom_str1":   subject_slug,
+        "custom_str2":   country,
+        "custom_str3":   currency,
+    }
+
+    # Signature (PayFast rule)
+    passphrase = (cfg.get("PAYFAST_PASSPHRASE") or "").strip()
+    pairs = [
+        f"{k}={fields[k]}"
+        for k in sorted(fields.keys())
+        if fields[k] not in (None, "")
+    ]
+    query = "&".join(pairs)
+    if passphrase:
+        query = f"{query}&passphrase={passphrase}"
+    sig = hashlib.md5(query.encode("utf-8")).hexdigest()
+    fields["signature"] = sig
+
+    return render_template(
+        "payments/payfast_handoff.html",
+        payfast_url=payfast_url,
+        pf_data=fields,
+    )
 
 @payfast_bp.post("/notify")
 @csrf.exempt
@@ -707,123 +627,6 @@ def success():
 
     return render_template("payments/success.html", subject=subject, ref=ref), 200
 
-@payfast_bp.post("/ipn")
-def ipn():
-    # ... your validation/signature checks ...
-
-    eid = int(request.form.get("m_payment_id") or 0)
-    amount_gross = request.form.get("amount_gross")  # e.g., "50.00"
-    cents = int(round(float(amount_gross)*100)) if amount_gross else None
-
-    if eid and cents is not None:
-        db.session.execute(sa_text("""
-            UPDATE user_enrollment
-            SET charged_currency = 'ZAR',
-                charged_amount_cents = :amt,
-                gateway_country = NULL,
-                country_mismatch = 0
-            WHERE id = :eid
-        """), {"amt": cents, "eid": eid})
-        db.session.commit()
-
-    return ("OK", 200)
-
-@payfast_bp.get("/checkout/review")
-def checkout_review():
-    sid = request.args.get("subject_id", type=int) or subject_id_for("loss")
-    if not session.get("pp_value"):
-        # force user to lock country/price first
-        return redirect(url_for("loss_bp.about_loss"))
-    return render_template("payments/review.html", subject_id=sid)
-
-@payfast_bp.route("/checkout/cancel", methods=["POST", "GET"])
-def checkout_cancel():
-    reason = (request.values.get("reason") or "").strip()
-
-    if reason == "price_too_high":
-        # Apply a once-off 10% discount to the current pp_value
-        try:
-            apply_percentage_discount(session, 10.0)
-        except Exception:
-            current_app.logger.exception("Failed to apply discount")
-
-
-    sid = request.values.get("subject_id", type=int)
-    if not sid:
-        try:
-            sid, _ = _resolve_subject_from_request()
-        except Exception:
-            sid = None
-
-    # If we still can't resolve a subject, send them home
-    if not sid:
-        return redirect(url_for("public_bp.welcome"))
-
-    # Go back to pricing with the discount page
-    return redirect(url_for("payfast_bp.pricing_get", subject_id=sid, discount=1))
-
-@payfast_bp.get("/handoff")
-def handoff_get():
-    """
-    Build the PayFast form from the session + subject and render a hand-off
-    page that auto-posts to PayFast (sandbox or live depending on PAYFAST_MODE).
-    """
-    cfg   = current_app.config
-    mode  = (cfg.get("PAYFAST_MODE") or "sandbox").lower()
-
-    # Decide which PayFast URL to hit
-    payfast_url = (
-        "https://sandbox.payfast.co.za/eng/process"
-        if mode == "sandbox" else
-        "https://www.payfast.co.za/eng/process"
-    )
-
-    # Subject + user context
-    subject_slug = (request.args.get("subject") or "loss").lower()
-    email        = (session.get("pending_email") or "").strip().lower()
-
-    subj = AuthSubject.query.filter_by(slug=subject_slug).first()
-    if not subj:
-        flash("Could not resolve subject for payment.", "error")
-        return redirect(url_for("loss_bp.about_loss"))
-
-    # Price / country from parity-pricing session
-    country  = session.get("pp_country")  or "ZA"
-    currency = session.get("pp_currency") or "ZAR"
-    value    = session.get("pp_value")    or 0.00  # e.g. 150.00
-
-    # Basic PayFast fields
-    fields = {
-        "merchant_id":   cfg["PAYFAST_MERCHANT_ID"],
-        "merchant_key":  cfg["PAYFAST_MERCHANT_KEY"],
-        "return_url":    url_for("payfast_bp.payfast_success", _external=True),
-        "cancel_url":    url_for("payfast_bp.checkout_cancel", _external=True),
-        "notify_url":    url_for("payfast_bp.notify", _external=True),
-        "amount":        f"{value:.2f}",
-        "item_name":     f"AIT – {subj.name} course",
-        "m_payment_id":  str(session.get("just_enrolled_id") or ""),
-        "email_address": email,
-        # optional meta / description
-        "custom_str1":   subject_slug,
-        "custom_str2":   country,
-        "custom_str3":   currency,
-    }
-
-    # Add signature (same rule PayFast docs use)
-    passphrase = (cfg.get("PAYFAST_PASSPHRASE") or "").strip()
-    pairs = [f"{k}={fields[k]}" for k in sorted(fields.keys()) if fields[k] not in (None, "")]
-    query = "&".join(pairs)
-    if passphrase:
-        query = f"{query}&passphrase={passphrase}"
-    sig = hashlib.md5(query.encode("utf-8")).hexdigest()
-    fields["signature"] = sig
-
-    return render_template(
-        "payments/payfast_handoff.html",
-        payfast_url=payfast_url,
-        pf_data=fields,     # ← rename payfast_fields → pf_data
-    )
-
 @payfast_bp.get("/pricing")
 def pricing_get():
     # Are we on the discount version (after cancel)?
@@ -895,9 +698,6 @@ def pricing_lock():
 
     # Parity engine: local price + ZAR estimate
     cur, local_cents, est_zar_cents, fx = price_for_country(subject_id, code)
-
-    safe_local_cents = local_cents or 0
-    local_value = round(safe_local_cents / 100.0, 2)
 
     safe_local_cents = local_cents or 0
     local_value = round(safe_local_cents / 100.0, 2)

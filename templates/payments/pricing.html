@@ -107,20 +107,26 @@
     <label class="block text-sm font-medium">Estimated PayFast charge (in ZAR)</label>
     <div class="flex gap-2">
       <input type="text" readonly
-             class="w-full rounded border px-3 py-2 text-sm bg-white text-right"
-             value="{% if price.has_quote and price.estimated_zar is not none %}{{ '%.2f' % price.estimated_zar }}{% endif %}">
+            class="w-full rounded border px-3 py-2 text-sm bg-white text-right"
+            value="{% if price.has_quote and price.estimated_zar is not none %}{{ '%.2f' % price.estimated_zar }}{% endif %}">
       <span class="inline-flex items-center rounded border px-3 text-sm">ZAR</span>
     </div>
+
     <p class="mt-1 text-xs text-slate-500">
-      {% if price.has_quote %}
+      {% if not price.has_quote %}
+        The exact ZAR amount will be shown once your country is selected.
+      {% elif price.estimated_zar is not none and price.fx_rate is not none %}
         Based on an estimated rate of
-        1 {{ price.local_currency or 'ZAR' }} ≈ {{ '%.2f' % (price.fx_rate or 1.0) }} ZAR.
+        1 {{ price.local_currency or 'ZAR' }} ≈ {{ '%.4f' % price.fx_rate }} ZAR.
         Your bank’s final rate may differ slightly.
       {% else %}
-        The exact ZAR amount will be shown once your country is selected.
+        We couldn’t fetch a reliable exchange rate right now.
+        You’ll be charged the fixed course price in ZAR via PayFast;
+        your bank will convert this to your currency.
       {% endif %}
     </p>
   </div>
+
 
   <!-- Notes (only on first pricing page) -->
   {% if not price.is_discount %}

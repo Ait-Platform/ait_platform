@@ -898,17 +898,23 @@ def pricing_lock():
     safe_local_cents = local_cents or 0
     local_value = round(safe_local_cents / 100.0, 2)
 
-    est_base_cents = est_zar_cents if est_zar_cents is not None else safe_local_cents
-    est_zar_value = round(est_base_cents / 100.0, 2)
+    safe_local_cents = local_cents or 0
+    local_value = round(safe_local_cents / 100.0, 2)
+
+    if est_zar_cents is not None and fx is not None:
+        est_zar_value = round(est_zar_cents / 100.0, 2)
+    else:
+        est_zar_value = None
+
 
     session.update({
         "pp_country":   code,
         "pp_currency":  cur,
         "pp_value":     local_value,     # what user sees as "Price (your currency)"
-        "pp_est_zar":   est_zar_value,   # what user sees as "Estimated PayFast charge (in ZAR)"
-        "pp_fx_rate":   float(fx),       # 1 local = fx ZAR
+        "pp_est_zar":   est_zar_value,   # None if we couldn't compute an estimate
+        "pp_fx_rate":   float(fx) if fx is not None else None,
         "pp_vat_note":  "excl. VAT",
-        # pp_discount is left alone (handled by checkout_cancel)
     })
+
 
     return redirect(url_for("payfast_bp.pricing_get", subject_id=subject_id))

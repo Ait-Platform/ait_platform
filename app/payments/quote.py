@@ -1,5 +1,7 @@
 # app/payments/quote.py
 from datetime import datetime
+
+from flask import current_app
 from app.extensions import db
 from app.models.auth import UserEnrollment
 from app.payments.pricing import price_cents_for
@@ -28,10 +30,6 @@ def lock_enrollment_quote(enrollment_id: int, subject_slug: str, request, price_
     ue.price_version = price_version
     ue.price_locked_at = datetime.utcnow()
     db.session.commit()
-
-from decimal import Decimal
-from flask import current_app
-from sqlalchemy import text
 
 def fx_for_country_code(code: str) -> Decimal:
     """

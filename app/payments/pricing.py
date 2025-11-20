@@ -1,4 +1,5 @@
 # payments/AuthPricing.py
+import requests
 from sqlalchemy import select, and_, or_, func, text
 from app.extensions import db
 from flask import current_app, g, redirect, request, url_for
@@ -285,7 +286,6 @@ def countries_from_ref_with_names() -> list[dict]:
              "name": code_to_name.get(r.alpha2.upper(), r.alpha2.upper()),
              "currency": r.currency} for r in rows]
 
-
 def currency_for_country_code(code: str) -> str | None:
     """
     Returns 3-letter currency code for a 2-letter country code, e.g. 'AU' -> 'AUD'.
@@ -296,38 +296,91 @@ def currency_for_country_code(code: str) -> str | None:
     ).fetchone()
     return row[0] if row else None
 
+# Make sure this module imports: datetime, requests, text from sqlalchemy
 
-def fx_rate_local_to_zar(code: str) -> float:
+FX_MAX_AGE_HOURS = 24
+
+def fx_rate_local_to_zar(country_code: str) -> float | None:
     """
-    FX so that: 1 unit of local currency * fx = 1 ZAR.
-
-    In Postgres this comes from ref_country_currency.fx_to_zar.
-    In dev on SQLite (if fx_to_zar doesn't exist) we fall back to 1.0
-    so the page still works.
+    Returns fx such that: 1 unit of local currency * fx = N ZAR.
+    Uses ref_country_currency.fx_to_zar as a cache.
+    Falls back to live API if missing/stale.
+    Returns None if we cannot get any rate at all.
     """
+    # 1) Get currency for country (e.g. 'AE' -> 'AED')
+    cur = currency_for_country_code(country_code) or "ZAR"
+    if cur.upper() == "ZAR":
+        return 1.0
+
+    # 2) Try cached value
+    row = db.session.execute(
+        text("""
+            SELECT fx_to_zar, updated_at
+            FROM ref_country_currency
+            WHERE alpha2 = :c
+            LIMIT 1
+        """),
+        {"c": country_code},
+    ).mappings().first()
+
+    now = datetime.utcnow()
+
+    def _age_hours(ts) -> float | None:
+        if not ts:
+            return None
+        try:
+            # Postgres gives datetime, SQLite gives string
+            if isinstance(ts, str):
+                ts = datetime.fromisoformat(ts)
+            return (now - ts).total_seconds() / 3600.0
+        except Exception:
+            return None
+
+    if row and row["fx_to_zar"] is not None:
+        age = _age_hours(row["updated_at"])
+        if age is not None and age <= FX_MAX_AGE_HOURS:
+            # Fresh enough
+            try:
+                return float(row["fx_to_zar"])
+            except (TypeError, ValueError):
+                pass  # fall through to live fetch
+
+    # 3) Live fetch via ExchangeRate API
     try:
-        row = db.session.execute(
-            text("SELECT fx_to_zar FROM ref_country_currency WHERE alpha2 = :c"),
-            {"c": code},
-        ).fetchone()
-    except OperationalError:
-        # SQLite dev DB may not have this column yet – don't crash in dev.
-        current_app.logger.warning(
-            "ref_country_currency.fx_to_zar missing; defaulting fx=1.0"
-        )
-        return 1.0
-    except Exception:
-        current_app.logger.exception("FX lookup failed; defaulting fx=1.0")
-        return 1.0
+        url = f"https://api.exchangerate-api.com/v4/latest/{cur}"
+        resp = requests.get(url, timeout=5)
+        if resp.status_code == 200:
+            data = resp.json() or {}
+            rates = data.get("rates") or {}
+            fx = rates.get("ZAR")
+            if fx:
+                fx_val = float(fx)
 
-    if not row or row[0] is None:
-        return 1.0
+                # upsert cache
+                db.session.execute(
+                    text("""
+                        INSERT INTO ref_country_currency (alpha2, currency, fx_to_zar, updated_at)
+                        VALUES (:a2, :ccy, :fx, CURRENT_TIMESTAMP)
+                        ON CONFLICT(alpha2) DO UPDATE SET
+                            fx_to_zar = excluded.fx_to_zar,
+                            updated_at = CURRENT_TIMESTAMP
+                    """),
+                    {"a2": country_code, "ccy": cur.upper(), "fx": fx_val},
+                )
+                db.session.commit()
+                return fx_val
+    except Exception as exc:
+        current_app.logger.warning(f"Live FX fetch failed for {country_code}/{cur}: {exc}")
 
-    try:
-        return float(row[0])
-    except (TypeError, ValueError):
-        return 1.0
+    # 4) Live failed; if we had *any* cached value, use that as a last resort
+    if row and row["fx_to_zar"] is not None:
+        try:
+            return float(row["fx_to_zar"])
+        except (TypeError, ValueError):
+            pass
 
+    # 5) No rate at all
+    return None
 
 def price_for_country(subject_id: int, country_code: str):
     """
@@ -339,15 +392,21 @@ def price_for_country(subject_id: int, country_code: str):
 
     Returns:
         local_currency, local_cents, est_zar_cents, fx
+        - est_zar_cents / fx can be None if we cannot get any FX.
     """
     parity_cents = get_parity_anchor_cents(subject_id)
     if not parity_cents:
-        return ("ZAR", None, None, 1.0)
+        return ("ZAR", None, None, None)
 
     cur = currency_for_country_code(country_code) or "ZAR"
-    fx  = fx_rate_local_to_zar(country_code) or 1.0
+    fx  = fx_rate_local_to_zar(country_code)
 
-    local_cents   = parity_cents
-    est_zar_cents = int(round(parity_cents * fx))
+    local_cents = parity_cents
+
+    if fx is None:
+        # We have no usable rate: no estimate
+        est_zar_cents = None
+    else:
+        est_zar_cents = int(round(parity_cents * fx))
 
     return (cur, local_cents, est_zar_cents, fx)

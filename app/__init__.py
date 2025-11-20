@@ -222,24 +222,6 @@ def create_app():
     def healthz():
         return "ok", 200
     
-    @app.cli.command("create-stripe-tables")
-    def create_stripe_tables():
-        """Create fallback 'stripe_payment' / 'stripe_subscription' tables if missing."""
-        from sqlalchemy import inspect
-        insp = inspect(db.engine)
-        to_create = []
-        if "stripe_payment" not in insp.get_table_names():
-            to_create.append(Payment.__table__)
-        if "stripe_subscription" not in insp.get_table_names():
-            to_create.append(Subscription.__table__)
-        if to_create:
-            with app.app_context():
-                for t in to_create:
-                    t.create(bind=db.engine, checkfirst=True)
-            print("OK: created", [t.name for t in to_create])
-        else:
-            print("Nothing to create; tables already exist.")
-
     @app.cli.command("seed-all-currencies")
     def seed_all_currencies():
         # Lazy import so app can start even if Babel isn't installed
@@ -303,6 +285,17 @@ def create_app():
         print(f"ref_country_currency: upserted {inserted} rows.")
         if missing:
             print("No currency found for:", ", ".join(sorted(missing)))
+
+    @app.cli.command("fix-fx-schema")
+    def fix_fx_schema():
+        from sqlalchemy import text
+        db.session.execute(text("""
+            ALTER TABLE ref_country_currency
+            ADD COLUMN IF NOT EXISTS fx_to_zar NUMERIC
+        """))
+        db.session.commit()
+        print("OK: fx_to_zar column ensured on ref_country_currency")
+
 
     @app.before_request
     def _trace_in():

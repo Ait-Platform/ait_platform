@@ -195,40 +195,45 @@ def register():
     session["reg_ctx"]["email_lower"]   = email_norm
     session["reg_ctx"]["password_hash"] = staged_password_hash
 
-    # ---------- NEW: lock a DB-driven parity quote into session ----------
-    # country: Cloudflare header → form fallback → ZA
-    # ---------- NEW: lock a DB-driven parity quote into session ----------
-    # country: form first → header fallback → ZA
-    # ---------- NEW: lock a DB-driven parity quote into session ----------
-    # country: form first → fallback ZA (no more Cloudflare header)
-    # ---------- NEW: lock a DB-driven parity quote into session ----------
-    # country: form first → default ZA
-    # ---------- NEW: lock a DB-driven parity quote into session ----------
+    # ---------- lock a DB-driven *ZAR* quote into session ----------
     # country: form first → default ZA
     cc = (request.form.get("country") or "ZA").strip().upper()
 
     # subject is a slug here ("loss", "reading", etc) → convert to numeric id
     subj_id = subject_id_for(subject)
+    bill_cents = None          # what we will actually charge (ZAR cents)
+    local_cur = "ZAR"
+    local_cents = None
+
     if not subj_id:
         current_app.logger.error("register: no subject_id for slug %r", subject)
-        cur = "ZAR"
-        amt = None
     else:
         # price_for_country returns: (currency, local_cents, est_zar_cents, fx)
-        cur, local_cents, est_zar_cents, fx = price_for_country(subj_id, cc)
-        amt = local_cents
+        local_cur, local_cents, est_zar_cents, fx = price_for_country(subj_id, cc)
 
-    # store exactly what we will charge later (no recompute)
+        # PayFast MUST be in ZAR → use estimated ZAR cents if available
+        if est_zar_cents is not None and est_zar_cents > 0:
+            bill_cents = int(est_zar_cents)
+        else:
+            # fallback: if we have local cents + fx, approximate ZAR
+            if local_cents is not None and fx:
+                bill_cents = int(round(local_cents * float(fx)))
+
+    if bill_cents is None or bill_cents <= 0:
+        # last-resort safe fallback so flow doesn't explode
+        bill_cents = 5000  # 50.00 ZAR
+
+    # store exactly what we will charge later (ZAR)
     session["reg_ctx"]["quote"] = {
-        "country_code": cc,
-        "currency": cur,
-        "amount_cents": amt if amt is not None else 5000,  # safe fallback if pricing row missing
-        "version": "2025-11",  # fixed version tag; we’re not pulling this from price_for_country
+        "country_code":        cc,
+        "currency":            "ZAR",            # <- billing currency
+        "amount_cents":        int(bill_cents),  # <- billing amount in ZAR cents
+        # optional extras for audit / display later:
+        "local_currency":      local_cur,
+        "local_amount_cents":  int(local_cents or 0),
+        "version":             "2025-11",
     }
     session.modified = True
-
-
-    # ------------------------------------------------------------
     # ------------------------------------------------------------
 
     session.pop("just_paid_subject_id", None)

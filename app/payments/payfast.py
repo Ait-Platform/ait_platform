@@ -451,22 +451,30 @@ def handoff():
     subject_id = subject_row.id
     subject_name = getattr(subject_row, "name", slug)
 
-    # 4) Amount in ZAR
+    # 4) Determine the amount in ZAR
     #
     # Strategy:
-    #   a) If register_decision stored a locked quote in reg_ctx, use that.
-    #   b) Else, fall back to auth_pricing ZAR price.
-    #
-
-    amt_str = None
+    #   a) Use reg_ctx["quote"].country_code if present.
+    #   b) Compute ZAR via price_for_country(subject_id, country).
+    #   c) If that fails, fall back to auth_pricing ZAR price.
     reg_ctx = session.get("reg_ctx") or {}
-    q = reg_ctx.get("quote") or {}
+    quote = reg_ctx.get("quote") or {}
 
-    if q and int(q.get("amount_cents") or 0) > 0:
-        # quote already locked (parity logic)
-        amount_cents = int(q["amount_cents"])
-        amt_str = f"{Decimal(amount_cents) / Decimal(100):.2f}"
-    else:
+    country_code = (quote.get("country_code") or "ZA").strip().upper()
+
+    zar_cents = None
+    try:
+        # price_for_country: (currency, local_cents, est_zar_cents, fx)
+        _, _, est_zar_cents, _ = price_for_country(subject_id, country_code)
+        if est_zar_cents is not None and est_zar_cents > 0:
+            zar_cents = int(est_zar_cents)
+    except Exception:
+        current_app.logger.exception(
+            "price_for_country failed for subject_id=%s country=%s",
+            subject_id, country_code,
+        )
+
+    if zar_cents is None:
         # Fallback: direct ZAR pricing from auth_pricing
         row = db.session.execute(
             sa_text(
@@ -494,18 +502,20 @@ def handoff():
                 missing=["auth_pricing row for this subject"],
             ), 500
 
-        amount_cents = int(row.amount_cents)
-        amt_str = f"{Decimal(amount_cents) / Decimal(100):.2f}"
+        zar_cents = int(row.amount_cents)
 
-        # Hydrate a minimal quote into reg_ctx so later UI can show it consistently
-        reg_ctx.setdefault("quote", {
-            "country_code": (q.get("country_code") or "ZA"),
-            "currency": (q.get("currency") or "ZAR"),
-            "amount_cents": amount_cents,
-            "version": q.get("version") or "2025-11",
-        })
-        session["reg_ctx"] = reg_ctx
-        session.modified = True
+    amt_str = f"{Decimal(zar_cents) / Decimal(100):.2f}"
+
+    # Keep a consistent quote in reg_ctx (now clearly ZAR-based)
+    updated_quote = {
+        "country_code": country_code,
+        "currency": quote.get("currency") or "ZAR",
+        "amount_cents": zar_cents,
+        "version": quote.get("version") or "2025-11",
+    }
+    reg_ctx["quote"] = updated_quote
+    session["reg_ctx"] = reg_ctx
+    session.modified = True
 
     # 5) Basic URL policy checks
     for k in ("PAYFAST_RETURN_URL", "PAYFAST_CANCEL_URL", "PAYFAST_NOTIFY_URL"):
@@ -598,12 +608,12 @@ def handoff():
     mref = f"{_ref(slug)}-{uuid4().hex[:10]}"
     return_url = f"{cfg['PAYFAST_RETURN_URL']}?ref={mref}&email={email}&subject={slug}"
 
-    # Describe parity context (if present)
     quote = reg_ctx.get("quote") or {}
+    display_amount_cents = int(quote.get("amount_cents") or zar_cents)
+    display_currency = quote.get("currency") or "ZAR"
     parity_descr = (
-        f"Parity UI {quote.get('amount_cents', 0) / 100:.2f} "
-        f"{quote.get('currency') or 'ZAR'} ({quote.get('country_code') or 'ZA'})"
-        if quote.get("amount_cents") else ""
+        f"Locked parity price {display_amount_cents / 100:.2f} "
+        f"{display_currency} ({quote.get('country_code') or 'ZA'})"
     )
 
     pf_data = {
@@ -613,14 +623,14 @@ def handoff():
         "cancel_url":       cfg["PAYFAST_CANCEL_URL"],
         "notify_url":       cfg["PAYFAST_NOTIFY_URL"],
         "m_payment_id":     mref,
-        "amount":           amt_str,
+        "amount":           amt_str,  # ZAR amount PayFast will charge
         "item_name":        (f"{subject_name} enrollment")[:100],
         "item_description": parity_descr[:255],
         "email_address":    email,
     }
 
     # Signature (skip for generic test merchant if needed)
-    if merchant_id != "10043395":   # replace with your real test id if different
+    if merchant_id != "10043395":  # keep your sandbox/live IDs here
         pf_data["signature"] = _pf_sig(pf_data, passphrase)
     else:
         pf_data.pop("signature", None)
@@ -716,6 +726,22 @@ def notify():
                     """),
                     {"uid": user.id, "sid": subj.id},
                 )
+
+        # --- log payment in auth_payment_log (ZAR amount as string) ---
+        try:
+            db.session.execute(
+                text("""
+                    INSERT INTO auth_payment_log (user_id, program, amount, timestamp)
+                    VALUES (:uid, :prog, :amt, CURRENT_TIMESTAMP)
+                """),
+                {
+                    "uid": user.id,
+                    "prog": mref,      # e.g. "loss-a32a506794"
+                    "amt": amount,     # "75.00" (ZAR)
+                },
+            )
+        except Exception:
+            current_app.logger.exception("Failed to insert row into auth_payment_log")
 
     db.session.commit()
     current_app.logger.info(

@@ -16,7 +16,7 @@ from app.extensions import db, csrf
 from werkzeug.security import check_password_hash
 from flask_login import login_user, logout_user, login_required, current_user
 from app.models import subject
-from app.payments.pricing import price_cents_for, price_for_country
+from app.payments.pricing import price_cents_for, price_for_country, subject_id_for
 from app.services import enrollment
 from app.services.enrollment import _ensure_enrollment_row
 from app.utils.country_list import COUNTRIES, resolve_country, search_countries  # adjust path if needed
@@ -58,6 +58,7 @@ from sqlalchemy import select, func, update as sa_update
 from app.services.users import _ensure_or_create_user_from_session
 from sqlalchemy.exc import IntegrityError
 from werkzeug.security import generate_password_hash
+
 
 auth_bp = Blueprint('auth_bp', __name__, url_prefix='/', template_folder='templates')
 
@@ -196,16 +197,29 @@ def register():
 
     # ---------- NEW: lock a DB-driven parity quote into session ----------
     # country: Cloudflare header → form fallback → ZA
-    cc = (request.headers.get("CF-IPCountry") or request.form.get("country") or "ZA").strip().upper()
-    cur, amt, ver = price_for_country(subject, cc)
+    # ---------- NEW: lock a DB-driven parity quote into session ----------
+    # country: form first → header fallback → ZA
+    cc = (request.form.get("country") or request.headers.get("CF-IPCountry") or "ZA").strip().upper()
+
+    # convert slug → subject_id for pricing
+    sid = subject_id_for(subject)   # <-- comes from app.payments.pricing import subject_id_for
+    if sid:
+        cur, amt, ver = price_for_country(sid, cc)
+    else:
+        current_app.logger.error("register(): no subject_id for slug %s", subject)
+        cur, amt, ver = ("ZAR", None, None)
+
+    amount_cents = amt if amt is not None else 5000  # safe fallback if pricing row missing
+
     # store exactly what we will charge later (no recompute)
     session["reg_ctx"]["quote"] = {
         "country_code": cc,
         "currency": cur,
-        "amount_cents": amt if amt is not None else 5000,  # safe fallback if pricing row missing
-        "version": ver,
+        "amount_cents": amount_cents,
+        "version": ver or "2025-11",
     }
     session.modified = True
+    # ------------------------------------------------------------
     # ------------------------------------------------------------
 
     session.pop("just_paid_subject_id", None)

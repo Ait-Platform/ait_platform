@@ -1,4 +1,5 @@
 # app/payments/payfast.py
+import email
 from uuid import uuid4
 from flask import (
     Blueprint, current_app, flash, request, render_template_string, 

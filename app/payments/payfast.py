@@ -401,15 +401,32 @@ def checkout_cancel():
     # Go back to pricing with the discount page
     return redirect(url_for("payfast_bp.pricing_get", subject_id=sid, discount=1))
 
-@payfast_bp.get("/handoff", endpoint="handoff")
+
+@payfast_bp.route("/handoff", methods=["GET", "POST"])
 def handoff():
     """
-    Build the PayFast form from the locked parity-pricing quote in session
-    and render a hand-off page that auto-posts to PayFast.
+    Final step before redirecting to PayFast.
+
+    Called from /register/decision:
+
+        /payments/handoff?email=...&subject=loss&debug=0
     """
     cfg = current_app.config
 
-    # --- sanity check required config so we don't KeyError() ---
+    # 1) Inputs (POST first, then GET fallback)
+    email = (request.form.get("email")
+             or request.args.get("email")
+             or "").strip().lower()
+    slug = (request.form.get("subject")
+            or request.args.get("subject")
+            or "").strip().lower()
+    debug = str(request.values.get("debug") or "0") == "1"
+
+    if not email or not slug:
+        flash("Missing email or subject for payment.", "danger")
+        return redirect(url_for("public_bp.welcome"))
+
+    # 2) Config sanity – MUST return a response on failure
     required = [
         "PAYFAST_MERCHANT_ID",
         "PAYFAST_MERCHANT_KEY",
@@ -419,24 +436,215 @@ def handoff():
     ]
     missing = [k for k in required if not cfg.get(k)]
     if missing:
-        # Simple text response instead of missing-template 500
-        current_app.logger.error("PayFast config missing: %s", missing)
-        return (
-            "PayFast configuration is incomplete. Missing: "
-            + ", ".join(missing),
-            500,
+        current_app.logger.error("PayFast misconfig: missing %s", missing)
+        return render_template(
+            "payments/payfast_misconfig.html",
+            missing=missing,
+        ), 500
+
+    # 3) Subject lookup
+    subject_row = AuthSubject.query.filter_by(slug=slug).first()
+    if not subject_row:
+        flash("Enrollment for this course is not available right now.", "warning")
+        return redirect(url_for("public_bp.welcome"))
+
+    subject_id = subject_row.id
+    subject_name = getattr(subject_row, "name", slug)
+
+    # 4) Amount in ZAR
+    #
+    # Strategy:
+    #   a) If register_decision stored a locked quote in reg_ctx, use that.
+    #   b) Else, fall back to auth_pricing ZAR price.
+    #
+
+    amt_str = None
+    reg_ctx = session.get("reg_ctx") or {}
+    q = reg_ctx.get("quote") or {}
+
+    if q and int(q.get("amount_cents") or 0) > 0:
+        # quote already locked (parity logic)
+        amount_cents = int(q["amount_cents"])
+        amt_str = f"{Decimal(amount_cents) / Decimal(100):.2f}"
+    else:
+        # Fallback: direct ZAR pricing from auth_pricing
+        row = db.session.execute(
+            sa_text(
+                """
+                SELECT amount_cents
+                FROM auth_pricing
+                WHERE subject_id = :sid
+                  AND plan = 'enrollment'
+                  AND COALESCE(is_active, 1) = 1
+                  AND (active_to IS NULL OR active_to > CURRENT_TIMESTAMP)
+                ORDER BY
+                  COALESCE(active_from, created_at) DESC,
+                  COALESCE(updated_at, created_at) DESC,
+                  id DESC
+                LIMIT 1
+                """
+            ),
+            {"sid": subject_id},
+        ).first()
+
+        if not row or row.amount_cents is None:
+            current_app.logger.error("No active price for subject_id=%s", subject_id)
+            return render_template(
+                "payments/payfast_misconfig.html",
+                missing=["auth_pricing row for this subject"],
+            ), 500
+
+        amount_cents = int(row.amount_cents)
+        amt_str = f"{Decimal(amount_cents) / Decimal(100):.2f}"
+
+        # Hydrate a minimal quote into reg_ctx so later UI can show it consistently
+        reg_ctx.setdefault("quote", {
+            "country_code": (q.get("country_code") or "ZA"),
+            "currency": (q.get("currency") or "ZAR"),
+            "amount_cents": amount_cents,
+            "version": q.get("version") or "2025-11",
+        })
+        session["reg_ctx"] = reg_ctx
+        session.modified = True
+
+    # 5) Basic URL policy checks
+    for k in ("PAYFAST_RETURN_URL", "PAYFAST_CANCEL_URL", "PAYFAST_NOTIFY_URL"):
+        val = str(cfg.get(k) or "").strip()
+        if not val:
+            current_app.logger.error("%s missing", k)
+            return render_template(
+                "payments/payfast_misconfig.html",
+                missing=[k],
+            ), 500
+        if val.startswith("http://") and ("localhost" not in val and "127.0.0.1" not in val):
+            current_app.logger.error("%s must be https (value=%r)", k, val)
+            return render_template(
+                "payments/payfast_misconfig.html",
+                missing=[k + " must be https"],
+            ), 500
+
+    # 6) Mode / credentials
+    mode = (cfg.get("PAYFAST_MODE") or "sandbox").lower()
+    merchant_id = cfg.get("PAYFAST_MERCHANT_ID")
+    merchant_key = cfg.get("PAYFAST_MERCHANT_KEY")
+    passphrase = cfg.get("PAYFAST_PASSPHRASE") or ""
+
+    if mode == "sandbox":
+        payfast_url = "https://sandbox.payfast.co.za/eng/process"
+    else:
+        payfast_url = "https://www.payfast.co.za/eng/process"
+
+    current_app.logger.info("PayFast %s mode: merchant_id=%s", mode, merchant_id)
+
+    # 7) Ensure user exists / staged hash (from reg_ctx)
+    u = User.query.filter_by(email=email).first()
+    if not u:
+        u = User(email=email, is_active=1)
+
+    if not (u.name or "").strip():
+        u.name = (
+            email.split("@", 1)[0]
+            .replace(".", " ")
+            .replace("_", " ")
+            .title()
         )
 
-    mode = (cfg.get("PAYFAST_MODE") or "sandbox").lower()
-    payfast_url = (
-        "https://sandbox.payfast.co.za/eng/process"
-        if mode == "sandbox" else
-        "https://www.payfast.co.za/eng/process"
+    staged = reg_ctx.get("password_hash")
+    if staged and not getattr(u, "password_hash", None):
+        u.password_hash = staged
+
+    db.session.add(u)
+    db.session.flush()
+
+    # 8) Ensure a pending enrollment row
+    existing = db.session.execute(
+        sa_text(
+            """
+            SELECT id, status
+            FROM user_enrollment
+            WHERE user_id = :uid
+              AND subject_id = :sid
+            LIMIT 1
+            """
+        ),
+        {"uid": u.id, "sid": subject_id},
+    ).first()
+
+    if existing:
+        db.session.execute(
+            sa_text(
+                """
+                UPDATE user_enrollment
+                SET status = 'pending'
+                WHERE id = :eid
+                """
+            ),
+            {"eid": existing.id},
+        )
+    else:
+        db.session.execute(
+            sa_text(
+                """
+                INSERT INTO user_enrollment (user_id, subject_id, status)
+                VALUES (:uid, :sid, 'pending')
+                """
+            ),
+            {"uid": u.id, "sid": subject_id},
+        )
+
+    db.session.commit()
+
+    # 9) Build PayFast payload
+    mref = f"{_ref(slug)}-{uuid4().hex[:10]}"
+    return_url = f"{cfg['PAYFAST_RETURN_URL']}?ref={mref}&email={email}&subject={slug}"
+
+    # Describe parity context (if present)
+    quote = reg_ctx.get("quote") or {}
+    parity_descr = (
+        f"Parity UI {quote.get('amount_cents', 0) / 100:.2f} "
+        f"{quote.get('currency') or 'ZAR'} ({quote.get('country_code') or 'ZA'})"
+        if quote.get("amount_cents") else ""
     )
 
-    # Subject + user context
-    subject_slug = (request.args.get("subject") or "loss").strip().lower()
-    email       
+    pf_data = {
+        "merchant_id":      merchant_id,
+        "merchant_key":     merchant_key,
+        "return_url":       return_url,
+        "cancel_url":       cfg["PAYFAST_CANCEL_URL"],
+        "notify_url":       cfg["PAYFAST_NOTIFY_URL"],
+        "m_payment_id":     mref,
+        "amount":           amt_str,
+        "item_name":        (f"{subject_name} enrollment")[:100],
+        "item_description": parity_descr[:255],
+        "email_address":    email,
+    }
+
+    # Signature (skip for generic test merchant if needed)
+    if merchant_id != "10043395":   # replace with your real test id if different
+        pf_data["signature"] = _pf_sig(pf_data, passphrase)
+    else:
+        pf_data.pop("signature", None)
+
+    current_app.logger.info(
+        "PF handoff url=%s data=%s",
+        payfast_url,
+        {k: v for k, v in pf_data.items() if k != "signature"},
+    )
+
+    # 10) Debug mode → show debug template instead of auto-post
+    if debug:
+        return render_template(
+            "payments/payfast_handoff_debug.html",
+            payfast_url=payfast_url,
+            pf_data=pf_data,
+        )
+
+    # 11) Normal auto-post template
+    return render_template(
+        "payments/payfast_handoff.html",
+        payfast_url=payfast_url,
+        pf_data=pf_data,
+    )
 
 @payfast_bp.post("/notify")
 @csrf.exempt

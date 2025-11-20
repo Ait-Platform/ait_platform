@@ -224,16 +224,34 @@ def register():
         bill_cents = 5000  # 50.00 ZAR
 
     # store exactly what we will charge later (ZAR)
+    # ---------- lock a DB-driven parity quote into session ----------
+    # country: form first → default ZA
+    cc = (request.form.get("country") or "ZA").strip().upper()
+
+    # subject is a slug here ("loss", "reading", etc) → convert to numeric id
+    subj_id = subject_id_for(subject)
+    cur = "ZAR"
+    local_cents = None
+    est_zar_cents = None
+
+    if not subj_id:
+        current_app.logger.error("register: no subject_id for slug %r", subject)
+    else:
+        # price_for_country returns: (currency, local_cents, est_zar_cents, fx)
+        cur, local_cents, est_zar_cents, _ = price_for_country(subj_id, cc)
+
+    # store BOTH:
+    # - amount_cents     → local parity price (what user typed / saw, e.g. 75 AOA)
+    # - est_zar_cents    → estimated ZAR (what PayFast must actually charge)
     session["reg_ctx"]["quote"] = {
-        "country_code":        cc,
-        "currency":            "ZAR",            # <- billing currency
-        "amount_cents":        int(bill_cents),  # <- billing amount in ZAR cents
-        # optional extras for audit / display later:
-        "local_currency":      local_cur,
-        "local_amount_cents":  int(local_cents or 0),
-        "version":             "2025-11",
+        "country_code":   cc,
+        "currency":       cur,                          # e.g. "AOA"
+        "amount_cents":   int(local_cents or 0),        # local parity price
+        "est_zar_cents":  int(est_zar_cents or 0),      # ZAR equivalent
+        "version":        "2025-11",
     }
     session.modified = True
+
     # ------------------------------------------------------------
 
     session.pop("just_paid_subject_id", None)

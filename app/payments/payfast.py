@@ -457,28 +457,25 @@ def handoff():
     #   a) Use reg_ctx["quote"].country_code if present.
     #   b) Compute ZAR via price_for_country(subject_id, country).
     #   c) If that fails, fall back to auth_pricing ZAR price.
+    # 4) Determine the amount in ZAR (what PayFast actually charges)
+    #
+    # Strategy:
+    #   a) Use reg_ctx["quote"].est_zar_cents if present.
+    #   b) If missing/zero, fall back to auth_pricing ZAR row.
     reg_ctx = session.get("reg_ctx") or {}
-    quote = reg_ctx.get("quote") or {}
+    quote   = reg_ctx.get("quote") or {}
 
-    country_code = (quote.get("country_code") or "ZA").strip().upper()
+    country_code   = (quote.get("country_code") or "ZA").strip().upper()
+    est_zar_cents  = int(quote.get("est_zar_cents") or 0)
 
     zar_cents = None
-    try:
-        # price_for_country: (currency, local_cents, est_zar_cents, fx)
-        _, _, est_zar_cents, _ = price_for_country(subject_id, country_code)
-        if est_zar_cents is not None and est_zar_cents > 0:
-            zar_cents = int(est_zar_cents)
-    except Exception:
-        current_app.logger.exception(
-            "price_for_country failed for subject_id=%s country=%s",
-            subject_id, country_code,
-        )
+    if est_zar_cents > 0:
+        zar_cents = est_zar_cents
 
-    if zar_cents is None:
+    if zar_cents is None or zar_cents <= 0:
         # Fallback: direct ZAR pricing from auth_pricing
         row = db.session.execute(
-            sa_text(
-                """
+            sa_text("""
                 SELECT amount_cents
                 FROM auth_pricing
                 WHERE subject_id = :sid
@@ -490,8 +487,7 @@ def handoff():
                   COALESCE(updated_at, created_at) DESC,
                   id DESC
                 LIMIT 1
-                """
-            ),
+            """),
             {"sid": subject_id},
         ).first()
 
@@ -504,18 +500,18 @@ def handoff():
 
         zar_cents = int(row.amount_cents)
 
+    # final ZAR amount for PayFast
     amt_str = f"{Decimal(zar_cents) / Decimal(100):.2f}"
 
-    # Keep a consistent quote in reg_ctx (now clearly ZAR-based)
-    updated_quote = {
-        "country_code": country_code,
-        "currency": quote.get("currency") or "ZAR",
-        "amount_cents": zar_cents,
-        "version": quote.get("version") or "2025-11",
-    }
-    reg_ctx["quote"] = updated_quote
+    # refresh quote in session so we always know what we charged in ZAR
+    quote.update({
+        "est_zar_cents": zar_cents,
+        "country_code":  country_code,
+    })
+    reg_ctx["quote"] = quote
     session["reg_ctx"] = reg_ctx
     session.modified = True
+
 
     # 5) Basic URL policy checks
     for k in ("PAYFAST_RETURN_URL", "PAYFAST_CANCEL_URL", "PAYFAST_NOTIFY_URL"):

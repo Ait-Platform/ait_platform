@@ -466,6 +466,10 @@ def handoff():
     #
     # First, trust the amount locked in the pricing flow (pf_amount_zar).
     # If that is missing/bad, fall back to auth_pricing.
+    # 4) Determine the amount in ZAR (what PayFast actually charges)
+    #
+    # First, trust the amount locked in the pricing flow (pf_amount_zar).
+    # If that is missing/bad, fall back to auth_pricing.
     reg_ctx = session.get("reg_ctx") or {}
     quote   = reg_ctx.get("quote") or {}
 
@@ -476,8 +480,8 @@ def handoff():
 
     if pf_amount_zar:
         try:
-            # pf_amount_zar is a string like "123.45"
-            amt_dec = Decimal(pf_amount_zar).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            # pf_amount_zar is a string like "6190.00"
+            amt_dec = Decimal(pf_amount_zar)
             zar_cents = int(amt_dec * 100)
         except Exception:
             current_app.logger.warning("Bad pf_amount_zar in session: %r", pf_amount_zar)
@@ -514,7 +518,7 @@ def handoff():
         zar_cents = int(row.amount_cents)
         pf_amount_zar = f"{Decimal(zar_cents) / Decimal(100):.2f}"
 
-    # final ZAR amount for PayFast (string like "123.45")
+    # final ZAR amount for PayFast (string like "6190.00" or discounted "5571.00")
     amt_str = pf_amount_zar
 
     # refresh quote in session so we always know what we charged in ZAR
@@ -525,6 +529,7 @@ def handoff():
     reg_ctx["quote"] = quote
     session["reg_ctx"] = reg_ctx
     session.modified = True
+
 
     # 5) Basic URL policy checks
     for k in ("PAYFAST_RETURN_URL", "PAYFAST_CANCEL_URL", "PAYFAST_NOTIFY_URL"):
@@ -698,8 +703,22 @@ def notify():
     if not user:
         user = User(email=email)
         db.session.add(user)
-        db.session.flush()   # get user.id
+        db.session.flush()   
 
+    # currency less
+    amount_gross_str = (request.form.get("amount_gross")
+                        or request.form.get("amount")
+                        or "0.00").strip()
+
+    try:
+        amt_dec = Decimal(amount_gross_str).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        amount_zar_cents = int(amt_dec * 100)
+    except Exception:
+        current_app.logger.warning("Bad amount_gross in IPN: %r", amount_gross_str)
+        amount_zar_cents = 0
+        
+    
+    
     # --- on COMPLETE, activate the enrollment for the subject slug ---
     if status == "COMPLETE":
         slug = mref.split("-")[0] if "-" in mref else None
@@ -736,7 +755,7 @@ def notify():
                     {"uid": user.id, "sid": subj.id},
                 )
 
-        # --- log payment in auth_payment_log (ZAR amount as string) ---
+        # --- log payment in auth_payment_log (one clean row) ---
         try:
             db.session.execute(
                 text("""
@@ -744,15 +763,16 @@ def notify():
                     VALUES (:uid, :prog, :amt, CURRENT_TIMESTAMP)
                 """),
                 {
-                    "uid": user.id,
-                    "prog": mref,      # e.g. "loss-a32a506794"
-                    "amt": amount,     # "75.00" (ZAR)
+                    "uid":  user.id,
+                    "prog": mref,               # e.g. "loss-a32a506794"
+                    "amt":  amount_gross_str,   # PayFast ZAR amount like "75.00"
                 },
             )
         except Exception:
             current_app.logger.exception("Failed to insert row into auth_payment_log")
 
     db.session.commit()
+
     current_app.logger.info(
         "PF IPN ok: email=%s amount=%s status=%s ref=%s",
         email, amount, status, mref
@@ -837,7 +857,7 @@ def success():
     session["payment_banner"] = f"Payment successful for {subject.title() if subject else 'your course'}. You're all set!"
 
     return render_template("payments/success.html", subject=subject, ref=ref), 200
-
+'''
 @payfast_bp.get("/pricing")
 def pricing_get():
     # Are we on the discount version (after cancel)?
@@ -995,4 +1015,145 @@ def pricing_lock():
         session.pop("pf_amount_zar", None)
 
     return redirect(url_for("payfast_bp.pricing_get", subject_id=subject_id))
+'''
+@payfast_bp.post("/pricing/lock")
+def pricing_lock():
+    subject_id, subject_slug = _resolve_subject_from_request()
+    code = (request.form.get("country") or "").strip().upper()
 
+    if not code:
+        flash("Please choose your country first.", "warning")
+        return redirect(url_for("payfast_bp.pricing_get", subject_id=subject_id))
+
+    # Parity engine: local parity price + ZAR via FX
+    # local_cents = parity (currency-less = 75 → 75 local)
+    # est_zar_cents = that 75 local converted to ZAR via fx (ONE FX use)
+    cur, local_cents, est_zar_cents, fx = price_for_country(subject_id, code)
+
+    safe_local_cents = local_cents or 0
+    local_value = round(safe_local_cents / 100.0, 2)
+
+    if est_zar_cents is not None:
+        est_zar_value = round(est_zar_cents / 100.0, 2)
+    else:
+        est_zar_value = None
+
+    # Store base (non-discount) values
+    session.update({
+        "pp_country":       code,
+        "pp_currency":      cur,
+        "pp_value":         local_value,      # current local shown to user (75 local)
+        "pp_value_base":    local_value,      # base local for possible future use
+        "pp_est_zar":       est_zar_value,    # current ZAR (from FX once)
+        "pp_est_zar_base":  est_zar_value,    # base ZAR for discount math
+        "pp_fx_rate":       float(fx) if fx is not None else None,
+        "pp_vat_note":      "excl. VAT",
+        "pp_discount":      False,            # no discount yet
+    })
+
+    # This is the amount PayFast will charge in ZAR (before discount)
+    if est_zar_value is not None:
+        session["pf_amount_zar"] = f"{est_zar_value:.2f}"
+    else:
+        session.pop("pf_amount_zar", None)
+
+    return redirect(url_for("payfast_bp.pricing_get", subject_id=subject_id))
+
+@payfast_bp.get("/pricing")
+def pricing_get():
+    # Are we on the discount version (after cancel)?
+    discount_flag = request.args.get("discount", type=int) == 1
+
+    # Resolve subject
+    subj_slug_arg = (request.args.get("subject") or "").strip().lower()
+    if subj_slug_arg:
+        subject_slug = subj_slug_arg
+        subject_id = subject_id_for(subject_slug)
+    else:
+        subject_id, subject_slug = _resolve_subject_from_request()
+
+    # Fresh visit from About with ?subject=... and NOT discount:
+    # wipe any old quote so the form starts blank.
+    if (not discount_flag) and ("subject" in request.args):
+        for key in (
+            "pp_country",
+            "pp_currency",
+            "pp_value",
+            "pp_value_base",
+            "pp_est_zar",
+            "pp_est_zar_base",
+            "pp_fx_rate",
+            "pp_discount",
+        ):
+            session.pop(key, None)
+        session.pop("pf_amount_zar", None)
+
+    countries = countries_from_ref_with_names()
+
+    has_quote = bool(
+        session.get("pp_country")
+        and session.get("pp_currency")
+        and (session.get("pp_value") is not None)
+    )
+
+    # Base values from session
+    base_local = session.get("pp_value_base")
+    base_zar   = session.get("pp_est_zar_base")
+
+    # Decide discount state
+    is_discount = bool(session.get("pp_discount") or discount_flag)
+
+    final_local = base_local
+    final_zar   = base_zar
+
+    # Apply 10% discount ONLY on ZAR (and mirror on local by same factor)
+    if is_discount and (base_zar is not None):
+        final_zar = round(float(base_zar) * 0.9, 2)
+        if base_local is not None:
+            final_local = round(float(base_local) * 0.9, 2)
+
+        # Persist updated (discounted) values
+        session.update({
+            "pp_value":    final_local,
+            "pp_est_zar":  final_zar,
+            "pp_discount": True,
+        })
+
+        # PayFast amount is now the discounted ZAR
+        session["pf_amount_zar"] = f"{final_zar:.2f}"
+    else:
+        # Non-discount view (or no base yet)
+        if base_local is not None:
+            session["pp_value"] = base_local
+        if base_zar is not None:
+            session["pp_est_zar"] = base_zar
+            session["pf_amount_zar"] = f"{base_zar:.2f}"
+        else:
+            session.pop("pf_amount_zar", None)
+
+        session["pp_discount"] = False
+
+    price_ctx = {
+        "local_amount":   session.get("pp_value"),
+        "local_currency": session.get("pp_currency"),
+        "estimated_zar":  session.get("pp_est_zar"),
+        "fx_rate":        session.get("pp_fx_rate"),
+        "country_code":   session.get("pp_country"),
+        "has_quote":      has_quote,
+        "is_discount":    bool(session.get("pp_discount")),
+    }
+
+    # Decide which template to show
+    template = (
+        "payments/pricing_discount.html"
+        if price_ctx["is_discount"] else
+        "payments/pricing.html"
+    )
+
+    return render_template(
+        template,
+        subject_id=subject_id,
+        subject_slug=subject_slug,
+        countries=countries,
+        price=price_ctx,
+    )

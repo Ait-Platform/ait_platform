@@ -846,11 +846,13 @@ def pricing_get():
             "pp_currency",
             "pp_value",
             "pp_est_zar",
+            "pp_est_zar_base",  # NEW: keep original (non-discount) ZAR
             "pp_fx_rate",
             "pp_discount",
-            
         ):
             session.pop(key, None)
+        # also clear any previous PayFast amount
+        session.pop("pf_amount_zar", None)
 
     countries = countries_from_ref_with_names()
 
@@ -860,6 +862,7 @@ def pricing_get():
         and (session.get("pp_value") is not None)
     )
 
+    # Base context from session (non-discounted view of what we have)
     price_ctx = {
         "local_amount":   session.get("pp_value"),
         "local_currency": session.get("pp_currency"),
@@ -867,10 +870,58 @@ def pricing_get():
         "fx_rate":        session.get("pp_fx_rate"),
         "country_code":   session.get("pp_country"),
         "has_quote":      has_quote,
-        "is_discount":    bool(session.get("pp_discount") or discount_flag),
+        # we'll overwrite is_discount below after we apply logic
+        "is_discount":    False,
     }
 
-    # Decide which template to show
+    # Decide if this visit should be treated as discount
+    is_discount = bool(session.get("pp_discount") or discount_flag)
+
+    # Always work from the base (non-discount) ZAR estimate so we don't double-discount
+    base_est_zar = session.get("pp_est_zar_base")
+    if base_est_zar is None:
+        base_est_zar = price_ctx["estimated_zar"]
+
+    final_est_zar = base_est_zar
+    final_local = price_ctx["local_amount"]
+
+    if base_est_zar is not None:
+        # Apply 10% discount ON THE ZAR VALUE if this is the discount page
+        if is_discount:
+            final_est_zar = round(float(base_est_zar) * 0.90, 2)
+        else:
+            final_est_zar = float(base_est_zar)
+
+        # If we have an FX rate, recompute local in a clean way from ZAR
+        fx_rate = price_ctx["fx_rate"]
+        if fx_rate is not None:
+            final_local = round(final_est_zar * float(fx_rate), 2)
+        else:
+            # fall back to whatever we already had in local_amount
+            final_local = price_ctx["local_amount"]
+
+        # Update context with final values
+        price_ctx["estimated_zar"] = final_est_zar
+        price_ctx["local_amount"] = final_local
+
+        # Persist back to session for consistency + PayFast
+        session.update({
+            "pp_value":       final_local,
+            "pp_est_zar":     final_est_zar,
+            "pp_est_zar_base": base_est_zar,
+            "pp_discount":    is_discount,
+            # This is what PayFast must charge in ZAR (string "123.45")
+            "pf_amount_zar":  f"{final_est_zar:.2f}",
+        })
+    else:
+        # No ZAR estimate; we can still record discount flag
+        session["pp_discount"] = is_discount
+        # and ensure there is no stale PayFast amount
+        session.pop("pf_amount_zar", None)
+
+    price_ctx["is_discount"] = is_discount
+
+    # Choose template
     template = (
         "payments/pricing_discount.html"
         if price_ctx["is_discount"] else
@@ -885,6 +936,7 @@ def pricing_get():
         price=price_ctx,
     )
 
+
 @payfast_bp.post("/pricing/lock")
 def pricing_lock():
     subject_id, subject_slug = _resolve_subject_from_request()
@@ -895,26 +947,39 @@ def pricing_lock():
         return redirect(url_for("payfast_bp.pricing_get", subject_id=subject_id))
 
     # Parity engine: local price + ZAR estimate
+    # cur: currency code ("ZAR"/"USD"/...)
+    # local_cents: parity price in local cents
+    # est_zar_cents: underlying ZAR anchor in cents
+    # fx: multiplier used (local per ZAR), may be None
     cur, local_cents, est_zar_cents, fx = price_for_country(subject_id, code)
 
     safe_local_cents = local_cents or 0
     local_value = round(safe_local_cents / 100.0, 2)
 
-    if est_zar_cents is not None and fx is not None:
+    if est_zar_cents is not None:
         est_zar_value = round(est_zar_cents / 100.0, 2)
     else:
         est_zar_value = None
 
+    fx_value = float(fx) if fx is not None else None
 
+    # Store both the *base* ZAR estimate and the current one (same at this point)
     session.update({
-        "pp_country":   code,
-        "pp_currency":  cur,
-        "pp_value":     local_value,     # what user sees as "Price (your currency)"
-        "pp_est_zar":   est_zar_value,   # None if we couldn't compute an estimate
-        "pp_fx_rate":   float(fx) if fx is not None else None,
-        "pp_vat_note":  "excl. VAT",
+        "pp_country":      code,
+        "pp_currency":     cur,
+        "pp_value":        local_value,      # what user sees as "Price (your currency)"
+        "pp_est_zar":      est_zar_value,    # current ZAR estimate
+        "pp_est_zar_base": est_zar_value,    # base ZAR (used for discount math)
+        "pp_fx_rate":      fx_value,         # for recomputing local from ZAR
+        "pp_vat_note":     "excl. VAT",
+        "pp_discount":     False,            # start with no discount
     })
 
+    # Also set the non-discount PayFast ZAR amount now
+    if est_zar_value is not None:
+        session["pf_amount_zar"] = f"{est_zar_value:.2f}"
+    else:
+        session.pop("pf_amount_zar", None)
 
     return redirect(url_for("payfast_bp.pricing_get", subject_id=subject_id))
 

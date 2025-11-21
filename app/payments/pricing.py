@@ -384,34 +384,63 @@ def fx_rate_local_to_zar(country_code: str) -> float | None:
 
 def price_for_country(subject_id: int, country_code: str):
     """
-    Parity pricing (currency-less):
+    Lookup-based parity pricing (no FX):
 
-    - auth_pricing.amount_cents = parity number (e.g. 7500 = 75.00)
-    - Local price (your currency): parity number (75 local)
-    - Estimated PayFast charge (ZAR): parity number * fx_to_zar
+    - subject_country_price.local_amount_cents = what user sees (local)
+    - subject_country_price.zar_amount_cents   = what PayFast charges (ZAR)
 
     Returns:
-        local_currency, local_cents, est_zar_cents, fx
-        - est_zar_cents / fx can be None if we cannot get any FX.
+        local_currency, local_cents, zar_cents, fx (always None here)
     """
-    parity_cents = get_parity_anchor_cents(subject_id)
-    if not parity_cents:
-        return ("ZAR", None, None, None)
+    code = (country_code or "ZA").strip().upper()
 
-    cur = currency_for_country_code(country_code) or "ZAR"
-    fx  = fx_rate_local_to_zar(country_code)
+    # Currency from ref_country_currency (we still use this mapping)
+    cur = currency_for_country_code(code) or "ZAR"
 
-    # 75 local (currency-less)
-    local_cents = parity_cents
+    row = db.session.execute(
+        text("""
+            SELECT local_amount_cents, zar_amount_cents
+              FROM subject_country_price
+             WHERE subject_id   = :sid
+               AND UPPER(country_code) = :cc
+               AND COALESCE(is_active, 1) = 1
+             ORDER BY created_at DESC
+             LIMIT 1
+        """),
+        {"sid": subject_id, "cc": code},
+    ).mappings().first()
 
-    if fx is None:
-        # We have no usable rate: no estimate
-        est_zar_cents = None
+    if row:
+        local_cents = int(row["local_amount_cents"])
+        zar_cents   = int(row["zar_amount_cents"])
     else:
-        # ONE FX use: 75 local → ZAR
-        est_zar_cents = int(round(parity_cents * fx))
+        # Fallback: use auth_pricing ZAR anchor as BOTH local + ZAR
+        fallback = db.session.execute(
+            text("""
+                SELECT amount_cents
+                  FROM auth_pricing
+                 WHERE subject_id = :sid
+                   AND plan = 'enrollment'
+                   AND COALESCE(is_active, 1) = 1
+                   AND (active_to IS NULL OR active_to > CURRENT_TIMESTAMP)
+                 ORDER BY
+                   COALESCE(active_from, created_at) DESC,
+                   COALESCE(updated_at, created_at) DESC,
+                   id DESC
+                 LIMIT 1
+            """),
+            {"sid": subject_id},
+        ).first()
 
-    return (cur, local_cents, est_zar_cents, fx)
+        if not fallback or fallback.amount_cents is None:
+            # No price at all
+            return (cur, None, None, None)
+
+        local_cents = int(fallback.amount_cents)
+        zar_cents   = int(fallback.amount_cents)
+
+    # fx is None because we’re not using FX at runtime anymore
+    return (cur, local_cents, zar_cents, None)
 
 # ─────────────────────────────────────────────
 # Helpers

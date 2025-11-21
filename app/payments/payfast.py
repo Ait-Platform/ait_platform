@@ -462,20 +462,32 @@ def handoff():
     # Strategy:
     #   a) Use reg_ctx["quote"].est_zar_cents if present.
     #   b) If missing/zero, fall back to auth_pricing ZAR row.
+    # 4) Determine the amount in ZAR (what PayFast actually charges)
+    #
+    # First, trust the amount locked in the pricing flow (pf_amount_zar).
+    # If that is missing/bad, fall back to auth_pricing.
     reg_ctx = session.get("reg_ctx") or {}
     quote   = reg_ctx.get("quote") or {}
 
-    country_code   = (quote.get("country_code") or "ZA").strip().upper()
-    est_zar_cents  = int(quote.get("est_zar_cents") or 0)
+    country_code = (quote.get("country_code") or "ZA").strip().upper()
 
+    pf_amount_zar = (session.get("pf_amount_zar") or "").strip()
     zar_cents = None
-    if est_zar_cents > 0:
-        zar_cents = est_zar_cents
+
+    if pf_amount_zar:
+        try:
+            # pf_amount_zar is a string like "123.45"
+            amt_dec = Decimal(pf_amount_zar).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            zar_cents = int(amt_dec * 100)
+        except Exception:
+            current_app.logger.warning("Bad pf_amount_zar in session: %r", pf_amount_zar)
+            zar_cents = None
 
     if zar_cents is None or zar_cents <= 0:
         # Fallback: direct ZAR pricing from auth_pricing
         row = db.session.execute(
-            sa_text("""
+            sa_text(
+                """
                 SELECT amount_cents
                 FROM auth_pricing
                 WHERE subject_id = :sid
@@ -487,7 +499,8 @@ def handoff():
                   COALESCE(updated_at, created_at) DESC,
                   id DESC
                 LIMIT 1
-            """),
+                """
+            ),
             {"sid": subject_id},
         ).first()
 
@@ -499,9 +512,10 @@ def handoff():
             ), 500
 
         zar_cents = int(row.amount_cents)
+        pf_amount_zar = f"{Decimal(zar_cents) / Decimal(100):.2f}"
 
-    # final ZAR amount for PayFast
-    amt_str = f"{Decimal(zar_cents) / Decimal(100):.2f}"
+    # final ZAR amount for PayFast (string like "123.45")
+    amt_str = pf_amount_zar
 
     # refresh quote in session so we always know what we charged in ZAR
     quote.update({
@@ -511,7 +525,6 @@ def handoff():
     reg_ctx["quote"] = quote
     session["reg_ctx"] = reg_ctx
     session.modified = True
-
 
     # 5) Basic URL policy checks
     for k in ("PAYFAST_RETURN_URL", "PAYFAST_CANCEL_URL", "PAYFAST_NOTIFY_URL"):

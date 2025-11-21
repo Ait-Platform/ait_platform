@@ -668,12 +668,15 @@ def bridge_dashboard():
 
     # Resolve email once
     email = (session.get("email") or "").lower()
+    user_obj = None
+
     if not email and getattr(current_user, "is_authenticated", False):
         try:
             u = User.query.get(int(getattr(current_user, "id", 0)))
             if u and u.email:
                 email = u.email.lower()
                 session["email"] = email
+            user_obj = u
         except Exception:
             pass
     if not email:
@@ -683,6 +686,23 @@ def bridge_dashboard():
             session["email"] = email
     if not email:
         return redirect(url_for("auth_bp.login"))
+
+    # If we didn't get user_obj above, resolve it by email
+    if user_obj is None:
+        user_obj = User.query.filter_by(email=email).first()
+
+    # 🔹 NEW: build enrollment map for this user from user_enrollment
+    enroll_map = {}
+    if user_obj:
+        rows_en = db.session.execute(
+            text("""
+                SELECT subject_id, status
+                  FROM user_enrollment
+                 WHERE user_id = :uid
+            """),
+            {"uid": user_obj.id},
+        ).mappings().all()
+        enroll_map = {r["subject_id"]: r["status"] for r in rows_en}
 
     # One-time focus from Stripe success
     open_sid = session.pop("just_paid_subject_id", None)
@@ -711,8 +731,6 @@ def bridge_dashboard():
         params["open_sid"] = int(open_sid)
         rows = db.session.execute(sql, params).fetchall()
 
-
-
         # Fallback to full list if the filter returns nothing
         if not rows:
             rows = db.session.execute(sa_text(base_sql), {"email": email}).fetchall()
@@ -720,7 +738,12 @@ def bridge_dashboard():
         rows = db.session.execute(sa_text(base_sql), params).fetchall()
 
     banner = session.pop("payment_banner", None)
-    return render_template("auth/bridge_dashboard.html", subjects=rows, banner=banner)
+    return render_template(
+        "auth/bridge_dashboard.html",
+        subjects=rows,
+        banner=banner,
+        enroll_map=enroll_map,   # 🔹 pass enrollment info into template
+    )
 
 @login_required
 @auth_bp.route("/dashboard/learn/<subject>", methods=["GET"])

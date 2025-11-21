@@ -384,32 +384,28 @@ def fx_rate_local_to_zar(country_code: str) -> float | None:
 
 def price_for_country(subject_id: int, country_code: str):
     """
-    Parity pricing:
+    Currency-less parity model.
 
-    - auth_pricing.amount_cents = parity number (e.g. 7500 = 75.00)
-    - Local price (your currency): parity number
-    - Estimated PayFast charge (ZAR): parity number * fx_to_zar
+    - auth_pricing.amount_cents = parity number (e.g., 7500 = 75.00)
+    - Local price (display): parity number (75 local)
+    - PayFast ZAR amount: SAME parity number (75 ZAR)
 
     Returns:
-        local_currency, local_cents, est_zar_cents, fx
-        - est_zar_cents / fx can be None if we cannot get any FX.
+        local_currency, local_cents, base_zar_cents, None
     """
     parity_cents = get_parity_anchor_cents(subject_id)
     if not parity_cents:
         return ("ZAR", None, None, None)
 
     cur = currency_for_country_code(country_code) or "ZAR"
-    fx  = fx_rate_local_to_zar(country_code)
 
+    # Local shown to user = 75 local money
     local_cents = parity_cents
 
-    if fx is None:
-        # We have no usable rate: no estimate
-        est_zar_cents = None
-    else:
-        est_zar_cents = int(round(parity_cents * fx))
+    # Base ZAR for PayFast = always 75 ZAR
+    base_zar_cents = parity_cents
 
-    return (cur, local_cents, est_zar_cents, fx)
+    return (cur, local_cents, base_zar_cents, None)
 
 # ─────────────────────────────────────────────
 # Helpers

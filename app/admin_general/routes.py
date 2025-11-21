@@ -1,5 +1,7 @@
 # app/admin_general/routes.py
 from flask import render_template, jsonify
+
+from app.models.auth import AuthPricing, AuthSubject
 from . import general_bp
 from flask import render_template, request, send_file, jsonify
 import io, asyncio, time
@@ -52,3 +54,25 @@ def tts_api():
 @general_bp.get("/tts-ui")
 def tts_ui():
     return render_template("admin_general/tts.html")
+
+@general_bp.route("/pricing")
+def pricing_index():
+    subject_slug = request.args.get("subject", "loss")
+
+    # 1) Current subject
+    subject = AuthSubject.query.filter_by(slug=subject_slug).first_or_404()
+
+    # 2) All subjects for the dropdown
+    all_subjects = AuthSubject.query.order_by(AuthSubject.name).all()
+
+    # 3) Tiers only for this subject
+    tiers = AuthPricing.query.filter_by(subject_id=subject.id) \
+                             .order_by(AuthPricing.min_anchor_cents.asc()) \
+                             .all()
+
+    return render_template(
+        "admin/pricing_index.html",
+        subject=subject,
+        all_subjects=all_subjects,
+        tiers=tiers,
+    )

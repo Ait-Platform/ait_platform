@@ -34,6 +34,37 @@
 
   <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 
+    <!-- Pricing & Offers -->
+    <!-- Country Pricing (tiers) -->
+    <div class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+      <div class="h-1.5 bg-amber-500"></div>
+      <div class="p-5">
+        <h2 class="font-medium text-slate-900">Country Pricing (Tiers)</h2>
+        <p class="text-xs text-slate-500 mb-3">
+          Per-country parity prices for each subject.
+        </p>
+        <a href="{{ url_for('general_bp.pricing_index') }}"
+           class="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50">
+          Open
+        </a>
+      </div>
+    </div>
+
+    <!-- Base Pricing (auth_pricing) -->
+    <div class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+      <div class="h-1.5 bg-yellow-500"></div>
+      <div class="p-5">
+        <h2 class="font-medium text-slate-900">Base Pricing</h2>
+        <p class="text-xs text-slate-500 mb-3">
+          Core subject prices from auth_pricing.
+        </p>
+        <a href="{{ url_for('general_bp.pricing_base') }}"
+           class="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50">
+          Open
+        </a>
+      </div>
+    </div>
+
 
     <!-- Traffic & Visitors (placeholder) -->
     <div class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">

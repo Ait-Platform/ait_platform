@@ -1,7 +1,9 @@
 # app/admin_general/routes.py
 from flask import render_template, jsonify
+from sqlalchemy import text
 
 from app.models.auth import AuthPricing, AuthSubject
+from app.extensions import db
 from . import general_bp
 from flask import render_template, request, send_file, jsonify
 import io, asyncio, time
@@ -59,20 +61,58 @@ def tts_ui():
 def pricing_index():
     subject_slug = request.args.get("subject", "loss")
 
-    # 1) Current subject
     subject = AuthSubject.query.filter_by(slug=subject_slug).first_or_404()
-
-    # 2) All subjects for the dropdown
     all_subjects = AuthSubject.query.order_by(AuthSubject.name).all()
 
-    # 3) Tiers only for this subject
-    tiers = AuthPricing.query.filter_by(subject_id=subject.id) \
-                             .order_by(AuthPricing.min_anchor_cents.asc()) \
-                             .all()
+    rows = db.session.execute(
+        text("""
+            SELECT
+                country_code,
+                local_amount_cents,
+                zar_amount_cents,
+                COALESCE(is_active, 1) AS is_active
+            FROM subject_country_price
+            WHERE subject_id = :sid
+            ORDER BY country_code ASC
+        """),
+        {"sid": subject.id},
+    ).mappings().all()
 
     return render_template(
-        "admin/pricing_index.html",
+        "admin_general/pricing_index.html",
         subject=subject,
         all_subjects=all_subjects,
-        tiers=tiers,
+        tiers=rows,
+    )
+
+@general_bp.route("/pricing/base")
+def pricing_base():
+    subject_slug = request.args.get("subject", "loss")
+
+    subject = AuthSubject.query.filter_by(slug=subject_slug).first_or_404()
+    all_subjects = AuthSubject.query.order_by(AuthSubject.name).all()
+
+    rows = db.session.execute(
+        text("""
+            SELECT
+                currency,
+                amount_cents,
+                plan,
+                COALESCE(is_active, 1) AS is_active
+            FROM auth_pricing
+            WHERE subject_id = :sid
+            ORDER BY
+                COALESCE(active_from, created_at) DESC,
+                COALESCE(updated_at, created_at) DESC,
+                id DESC
+        """),
+        {"sid": subject.id},
+    ).mappings().all()
+
+
+    return render_template(
+        "admin_general/pricing_base.html",
+        subject=subject,
+        all_subjects=all_subjects,
+        prices=rows,
     )

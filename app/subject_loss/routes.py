@@ -376,25 +376,32 @@ def sequence_step(pos: int):
 EXPLAIN_COUNT = 8  # or whatever you use
 
 def get_sequence():
-    seq = []
+    """
+    LOSS course sequence:
+      - intro cards
+      - questions 1–25
+      - pause card
+      - questions 26–50
+      - explain cards / result intro
+    """
+    return [
+        # --- your intro/instruction cards ---
+        ("instruction", 1),
+        ("instruction", 2),   # keep/add as many as you actually use
 
-    # 1) Instructions (IDs 1..6 in lca_instruction)
-    seq += [("instruction", i) for i in range(1, 7)]
+        # --- block 1: questions 1–25 ---
+        ("question", "1-25"),
 
-    # 2) Questions 1..25
-    seq += [("question", i) for i in range(1, 26)]
+        # --- pause between blocks ---
+        ("pause", 1),
 
-    # — Single pause between Q25 and Q26 —
-    # Use a numeric ID that exists in your table (e.g., 6 = "Take a Break")
-    seq += [("pause", 6)]
+        # --- block 2: questions 26–50 ---
+        ("question", "26-50"),
 
-    # 3) Questions 26..50
-    seq += [("question", i) for i in range(26, 51)]
+        # --- explain / after-questions section ---
+        ("explain", "after_questions"),
+    ]
 
-    # 4) Explains (1..EXPLAIN_COUNT)
-    seq += [("explain", i) for i in range(1, EXPLAIN_COUNT + 1)]
-
-    return seq
 
 # ===== Step 5 =======
 @loss_bp.route("/result/finalize", methods=["POST"])
@@ -464,12 +471,37 @@ def assessment_question_flow():
     idx = int(session.get("current_index", 0))
 
     # Finished the block already → advance sequence
+    if q_range and all(q_range):
+        answered_count = db.session.execute(
+            text("""
+                SELECT COUNT(*)
+                FROM lca_response r
+                JOIN lca_question q ON q.id = r.question_id
+                WHERE r.run_id = :rid
+                AND q.number BETWEEN :start AND :end
+            """),
+            {"rid": rid, "start": int(q_range[0]), "end": int(q_range[1])},
+        ).scalar()
+    else:
+        answered_count = db.session.execute(
+            text("""
+                SELECT COUNT(*)
+                FROM lca_response
+                WHERE run_id = :rid
+            """),
+            {"rid": rid},
+        ).scalar()
+
+    idx = int(answered_count or 0)
+    session["current_index"] = idx
+
     # Finished the block already → advance sequence
     if idx >= len(questions):
         pos = int(session.get("q_seq_pos", 0))
         for k in ("q_range", "q_seq_pos", "current_index", "active_q_range"):
             session.pop(k, None)
-        return redirect(url_for("loss_bp.sequence_step", pos=pos + 1, run_id=rid))
+        return redirect(url_for("loss_bp.sequence_step", pos=pos + 1))
+
 
 
     # ---------- POST: save answer ----------

@@ -3,6 +3,8 @@ from decimal import Decimal, ROUND_FLOOR
 from sqlalchemy import text
 from app.extensions import db
 from typing import Dict, List, Tuple
+from app.models import LcaOverallItem
+
 
 # ------------------------------------------------------------
 # Percent → item-count rules
@@ -39,14 +41,6 @@ def phase_item_count_for_percent(phase_no: int, pct: float | int | str) -> int:
     d_pct = _safe_pct(pct)
     return int((d_pct / step).quantize(Decimal("1"), rounding=ROUND_FLOOR))
 
-
-# ------------------------------------------------------------
-# Data access (RAW SQL) to match your table:
-#   lca_phase_item(id, phase_id, ordinal, body, active)
-#   lca_progress_item(id, phase_id, band, ordinal, body, active)
-#   (If your progress table uses different names, tweak SQL below.)
-# ------------------------------------------------------------
-
 def fetch_phase_items(phase_no: int, pct: float | int | str) -> List[str]:
     """
     Returns up to N comment 'body' rows for given phase, ordered by ordinal,id.
@@ -66,7 +60,6 @@ def fetch_phase_items(phase_no: int, pct: float | int | str) -> List[str]:
     rows = db.session.execute(sql, {"ph": phase_no, "n": n}).fetchall()
     return [r[0] for r in rows]
 
-
 def band_for_pct(pct: float | int | str) -> int:
     """
     1 = 0..39.999
@@ -79,7 +72,6 @@ def band_for_pct(pct: float | int | str) -> int:
     if d < 70:
         return 2
     return 3
-
 
 def fetch_progress_items(phase_no: int, pct: float | int | str) -> List[str]:
     """
@@ -96,12 +88,6 @@ def fetch_progress_items(phase_no: int, pct: float | int | str) -> List[str]:
     rows = db.session.execute(sql, {"ph": phase_no, "b": b}).fetchall()
     return [r[0] for r in rows]
 
-
-# ------------------------------------------------------------
-# Convenience: build the full blocks the template needs
-#   Input: per-phase percentages
-#   Output: list of dicts with pct, band, comments_list, progress_items
-# ------------------------------------------------------------
 def build_phase_blocks(phase_1_pct, phase_2_pct, phase_3_pct, phase_4_pct) -> List[Dict]:
     items = [(1, phase_1_pct), (2, phase_2_pct), (3, phase_3_pct), (4, phase_4_pct)]
     blocks: List[Dict] = []
@@ -127,13 +113,6 @@ def _width_pct(pct) -> int:
     if n > 100: n = 100
     return n
 
-from decimal import Decimal, ROUND_FLOOR
-from typing import Dict, List, Tuple
-from sqlalchemy import text
-
-
-# -------- Banding & orientation --------
-# Band thresholds shared by phases and progress:
 #   <40 => low, 40..69 => mid, 70..100 => high
 BAND_T1 = 40
 BAND_T2 = 70
@@ -191,18 +170,19 @@ TONE_CHIP = {
 
 def fetch_progress_notes(phase_no: int, pct) -> Dict:
     band_label = band_label_for_pct(_safe_pct(pct))  # "low" | "mid" | "high"
-    
+
     rows = db.session.execute(
         text("""
             SELECT tone, body
             FROM lca_progress_item
             WHERE phase_id = :ph
-            AND band     = :band
-            AND active IS TRUE
+            AND band = :band
+            AND active = TRUE
             ORDER BY ordinal ASC, id ASC
         """),
         {"ph": phase_no, "band": band_label},
     ).fetchall()
+
 
 
     if not rows:
@@ -246,38 +226,6 @@ def adaptive_vector_from_phases(p1, p2, p3, p4) -> str:
     if ((c >= 40 or d >= 40) and (a < 70 and b < 70)):  return "Slightly Coping"
     return "Not Coping"
 
-'''
-# -------- Assemble blocks --------
-def _width_pct(pct) -> int:
-    try:
-        n = int(float(str(pct)))
-    except Exception:
-        n = 0
-    return max(0, min(100, n))
-
-def build_phase_blocks(p1, p2, p3, p4) -> List[Dict]:
-    items = [(1, p1), (2, p2), (3, p3), (4, p4)]
-    blocks: List[Dict] = []
-    for ph, pct in items:
-        w    = _width_pct(pct)
-        band = band_for_pct(pct)
-        bar_cls, chip_cls = color_classes_for(ph, pct)
-        progress = fetch_progress_notes(ph, pct)
-        blocks.append({
-            "phase": ph,
-            "pct": w,
-            "width_pct": w,
-            "band": band,
-            "level": level_from_band(band),
-            "coping": ("Coping" if (ph in (3,4) and w>=70) or (ph in (1,2) and w<40)
-                       else "Slightly Coping" if (40<=w<70) else "Not Coping"),
-            "bar_class": bar_cls,
-            "badge_class": chip_cls,
-            "comments_list": fetch_phase_items(ph, pct),
-            "progress": progress,   # dict: {band, tone, chip_class, notes: [...]}
-        })
-    return blocks
-'''
 def overall_assessment_from_p1(p1_pct) -> dict:
     """
     Overall Assessment is based ONLY on Phase 1, collapsed to two buckets:
@@ -355,53 +303,8 @@ def build_phase_blocks(p1, p2, p3, p4) -> list[dict]:
             "progress": progress,
         })
     return blocks
-'''
-def overall_assessment_from_p1(p1_pct) -> dict:
-    """
-    Overall Assessment is based ONLY on Phase 1 (Impact) and has 2 buckets:
-      - LOW  (0–39)  -> Placeholder 1 (steadying)
-      - HIGH (≥40)   -> Placeholder 2 (long supportive guidance)
-    """
-    p = _safe_pct(p1_pct)
-    is_low = p < 40.0
-    pct_i = int(p)
 
-    if is_low:
-        # Placeholder 1 (Low – short version)
-        return {
-            "label": "Low",
-            "pct": pct_i,
-            "chip_class": "bg-emerald-50 text-emerald-700 border-emerald-200",
-            "summary": (
-                "You’re carrying this experience with steadiness. Keep what’s working—simple routines, "
-                "small connections, and naming needs—so your footing stays firm as you move forward."
-            ),
-            "bullets": [],     # no bullets for low
-            "key_need": None,
-        }
 
-    # High (≥40) — Placeholder 2 (long, “pleasant” guidance)
-    return {
-        "label": "High",
-        "pct": pct_i,
-        "chip_class": "bg-rose-50 text-rose-700 border-rose-200",
-        "summary": (
-            "It looks like this event is still taking up a lot of space, which can tug anyone into a place "
-            "where adjusting feels hard. The good news is you’re not stuck—most people regain their footing "
-            "with a little gentle structure and reliable support."
-        ),
-        "bullets": [
-            "Anchor one small daily routine (wake → eat → move → rest).",
-            "Reconnect with one trusted person this week.",
-            "Name one feeling + one need each day to lower overload.",
-            "Keep a brief “worry window” (e.g., 10 minutes) to reduce rumination.",
-            "Use a calming reset (slow exhale breathing, short walk, stretch).",
-            "If distress stays high or safety is a concern, speak to a counselor/GP.",
-        ],
-        "key_need": "gentle structure + reliable support",
-    }
-'''
-from app.models import LcaOverallItem
 
 
 def overall_assessment_from_p1(p1_pct) -> dict:

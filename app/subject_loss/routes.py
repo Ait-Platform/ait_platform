@@ -523,16 +523,14 @@ def assessment_question_flow():
                 phase_2,
                 phase_3,
                 phase_4,
-                total,
-                av
+                total
             )
             SELECT
                 :uid,
                 :rid,
                 'LOSS',
                 0, 0, 0, 0,   -- phases start at 0
-                0,            -- total starts at 0
-                0             -- av starts at 0
+                0             -- total starts at 0
             WHERE NOT EXISTS (
                 SELECT 1
                 FROM lca_result

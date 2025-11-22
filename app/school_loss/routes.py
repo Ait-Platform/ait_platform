@@ -986,11 +986,14 @@ def create_loss_run_for_user(user_id: int) -> int:
         if rid:
             return int(rid)
 
-        # Create a new run (no created_at column)
+        # Create a new run (now includes started_at)
         conn.execute(text("""
-            INSERT INTO lca_run (user_id, subject, status)
-            VALUES (:uid, 'LOSS', 'active')
-        """), {"uid": user_id})
+            INSERT INTO lca_run (user_id, started_at, status, subject)
+            VALUES (:uid, :ts, 'active', 'LOSS')
+        """), {
+            "uid": user_id,
+            "ts": datetime.utcnow(),
+        })
 
         # Return the new id
         rid = conn.scalar(text("""
@@ -1155,6 +1158,7 @@ def _render_loss_template(base_name: str, **ctx):
     except TemplateNotFound:
         current_app.logger.info("Learner template missing, using admin/loss/%s", base_name)
         return render_template(f"admin/loss/{base_name}", **ctx)
+
 def _make_pdf(html_str: str) -> bytes | None:
     if not WEASYPRINT_AVAILABLE:
         return None

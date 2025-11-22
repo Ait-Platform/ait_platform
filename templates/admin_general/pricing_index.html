@@ -63,17 +63,20 @@
           <label class="block text-xs font-medium text-slate-500 mb-1">
             Country
           </label>
-          <select name="country_code"
+          <select id="country_select"
+                  name="country_code"
                   class="w-full rounded border px-2 py-1 text-sm"
                   required>
             <option value="">Select…</option>
             {% for c in countries %}
-              <option value="{{ c.country_code }}">
-                {{ c.country_code }} · {{ c.currency_code }}
+              <option value="{{ c.country_code }}"
+                      data-fx="{{ c.fx_to_zar }}">
+                {{ c.name }} ({{ c.country_code }} · {{ c.currency_code }})
               </option>
             {% endfor %}
           </select>
         </div>
+
 
 
         <div>
@@ -148,9 +151,10 @@
     const anchorCents = {{ anchor_zar_cents|int }};
     if (!anchorCents) return;
 
-    const rateEl  = document.getElementById('fx_rate');
-    const localEl = document.getElementById('local_amount_cents');
-    const hintEl  = document.getElementById('local_amount_hint');
+    const rateEl     = document.getElementById('fx_rate');
+    const localEl    = document.getElementById('local_amount_cents');
+    const hintEl     = document.getElementById('local_amount_hint');
+    const countryEl  = document.getElementById('country_select');
 
     if (!rateEl || !localEl || !hintEl) return;
 
@@ -173,8 +177,24 @@
       }
     }
 
+    // When FX rate changes manually
     rateEl.addEventListener('input', recalc);
+
+    // When country changes: auto-fill FX from ref_country_currency and recalc immediately
+    if (countryEl) {
+      countryEl.addEventListener('change', function () {
+        const opt = countryEl.options[countryEl.selectedIndex];
+        if (!opt) return;
+        const fx = opt.getAttribute('data-fx');
+        if (fx) {
+          rateEl.value = fx;
+        }
+        recalc();
+      });
+    }
   })();
 </script>
+{% endif %}
+
 {% endif %}
 {% endblock %}

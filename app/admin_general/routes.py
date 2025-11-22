@@ -124,13 +124,16 @@ def pricing_index():
     countries = db.session.execute(
         text("""
             SELECT
-                alpha2   AS country_code,
-                currency AS currency_code
+                alpha2     AS country_code,
+                currency   AS currency_code,
+                name,
+                fx_to_zar
             FROM ref_country_currency
             WHERE COALESCE(is_active, TRUE) = TRUE
-            ORDER BY alpha2 ASC
+            ORDER BY name ASC
         """)
     ).mappings().all()
+
 
 
 

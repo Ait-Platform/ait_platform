@@ -517,22 +517,25 @@ def assessment_question_flow():
         db.session.execute(text("""
             INSERT INTO lca_result (
                 user_id,
+                run_id,
+                subject,
                 phase_1,
                 phase_2,
                 phase_3,
                 phase_4,
                 total,
-                av_band,
-                run_id,
-                subject
+                av_band
             )
             SELECT
                 :uid,
-                0, 0, 0, 0,    -- initial phase scores
-                0,             -- total (NOT NULL in Postgres)
-                '',            -- av_band placeholder
                 :rid,
-                'LOSS'
+                'LOSS',
+                0,  -- phase_1
+                0,  -- phase_2
+                0,  -- phase_3
+                0,  -- phase_4
+                0,  -- total
+                ''  -- av_band (empty to start)
             WHERE NOT EXISTS (
                 SELECT 1
                 FROM lca_result
@@ -541,7 +544,6 @@ def assessment_question_flow():
                 AND subject = 'LOSS'
             )
         """), {"uid": uid, "rid": rid})
-
 
         # Increment cumulative totals in lca_result from the map for this (qid, answer)
         db.session.execute(text("""

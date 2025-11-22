@@ -977,23 +977,28 @@ def create_loss_run_for_user(user_id: int) -> int:
         # Reuse latest active LOSS run if present
         rid = conn.scalar(text("""
             SELECT id FROM lca_run
-            WHERE user_id=:uid AND subject='LOSS' AND status='active'
-            ORDER BY id DESC LIMIT 1
+            WHERE user_id = :uid
+              AND subject = 'LOSS'
+              AND status  = 'active'
+            ORDER BY id DESC
+            LIMIT 1
         """), {"uid": user_id})
         if rid:
             return int(rid)
 
-        # Create a new run
+        # Create a new run (no created_at column)
         conn.execute(text("""
-            INSERT INTO lca_run (user_id, subject, status, created_at)
-            VALUES (:uid, 'LOSS', 'active', :ts)
-        """), {"uid": user_id, "ts": datetime.utcnow()})
+            INSERT INTO lca_run (user_id, subject, status)
+            VALUES (:uid, 'LOSS', 'active')
+        """), {"uid": user_id})
 
         # Return the new id
         rid = conn.scalar(text("""
             SELECT id FROM lca_run
-            WHERE user_id=:uid AND subject='LOSS'
-            ORDER BY id DESC LIMIT 1
+            WHERE user_id = :uid
+              AND subject = 'LOSS'
+            ORDER BY id DESC
+            LIMIT 1
         """), {"uid": user_id})
         return int(rid)
 

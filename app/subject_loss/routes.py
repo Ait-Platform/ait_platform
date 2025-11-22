@@ -515,8 +515,8 @@ def assessment_question_flow():
 
         # Ensure a lca_result row exists for this run (unique on run_id)
         db.session.execute(text("""
-            INSERT INTO lca_result (user_id, run_id, subject)
-            SELECT :uid, :rid, 'LOSS'
+            INSERT INTO lca_result (user_id, run_id, subject, phase_1, phase_2, phase_3, phase_4)
+            SELECT :uid, :rid, 'LOSS', 0, 0, 0, 0
             WHERE NOT EXISTS (
                 SELECT 1
                 FROM lca_result
@@ -525,7 +525,6 @@ def assessment_question_flow():
                 AND subject = 'LOSS'
             )
         """), {"uid": uid, "rid": rid})
-
 
         # Increment cumulative totals in lca_result from the map for this (qid, answer)
         db.session.execute(text("""

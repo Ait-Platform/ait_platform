@@ -120,6 +120,19 @@ def pricing_index():
         else None
     )
 
+    # NEW: load country picker options from ref_country_currency
+    countries = db.session.execute(
+        text("""
+            SELECT
+                country_code,
+                currency_code
+            FROM ref_country_currency
+            WHERE COALESCE(is_active, 1) = 1
+            ORDER BY country_code ASC
+        """)
+    ).mappings().all()
+
+
     # 2) Handle Add-country POST (add a new tier row)
     if request.method == "POST":
         country_code = (request.form.get("country_code") or "").strip().upper()
@@ -188,4 +201,6 @@ def pricing_index():
         all_subjects=all_subjects,
         tiers=rows,
         anchor_zar_cents=anchor_zar_cents,
+        countries=countries,
     )
+

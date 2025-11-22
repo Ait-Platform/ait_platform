@@ -16,7 +16,6 @@
     </div>
 
     <a href="/admin/general/"
-
        class="rounded-lg border px-3 py-1.5 text-sm hover:bg-slate-50">
       ← Back to Admin
     </a>
@@ -36,6 +35,73 @@
       {% endfor %}
     </select>
   </form>
+
+  <!-- Anchor info -->
+  {% if anchor_zar_cents %}
+    <div class="mb-4 text-sm text-slate-600">
+      ZAR anchor for {{ subject.name }}:
+      <span class="font-semibold">
+        {{ anchor_zar_cents }} cents
+        (R {{ '%.2f' % (anchor_zar_cents / 100.0) }})
+      </span>
+    </div>
+  {% else %}
+    <div class="mb-4 text-sm text-red-600">
+      No base price found in auth_pricing for this subject. Add that first.
+    </div>
+  {% endif %}
+
+  <!-- Add country tier (with simple FX helper) -->
+  {% if anchor_zar_cents %}
+    <form method="post"
+          class="mb-6 rounded-lg border border-slate-200 bg-white p-4 flex flex-col gap-3">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="text-sm font-semibold text-slate-800">Add country tier</div>
+
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+        <div>
+          <label class="block text-xs font-medium text-slate-500 mb-1">
+            Country code
+          </label>
+          <input name="country_code"
+                 class="w-full rounded border px-2 py-1 text-sm"
+                 placeholder="US, IN, ZA..."
+                 maxlength="3"
+                 required>
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-slate-500 mb-1">
+            FX rate (1 ZAR = ? local)
+          </label>
+          <input id="fx_rate"
+                 name="fx_rate"
+                 class="w-full rounded border px-2 py-1 text-sm"
+                 placeholder="e.g. 4.50">
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-slate-500 mb-1">
+            Local amount (cents)
+          </label>
+          <input id="local_amount_cents"
+                 name="local_amount_cents"
+                 class="w-full rounded border px-2 py-1 text-sm"
+                 placeholder="auto from FX, or type"
+                 inputmode="numeric">
+          <p id="local_amount_hint"
+             class="mt-1 text-xs text-slate-500"></p>
+        </div>
+
+        <div>
+          <button type="submit"
+                  class="w-full rounded-md bg-slate-800 px-3 py-2 text-sm font-medium text-white hover:bg-slate-900">
+            Save tier
+          </button>
+        </div>
+      </div>
+    </form>
+  {% endif %}
 
   <!-- Tiers table -->
   <div class="overflow-x-auto rounded-lg border bg-white">
@@ -70,4 +136,39 @@
   </div>
 
 </div>
+{% if anchor_zar_cents %}
+<script>
+  (function () {
+    const anchorCents = {{ anchor_zar_cents|int }};
+    if (!anchorCents) return;
+
+    const rateEl  = document.getElementById('fx_rate');
+    const localEl = document.getElementById('local_amount_cents');
+    const hintEl  = document.getElementById('local_amount_hint');
+
+    if (!rateEl || !localEl || !hintEl) return;
+
+    function recalc() {
+      const rate = parseFloat(rateEl.value || '0');
+      if (!rate) {
+        hintEl.textContent = '';
+        return;
+      }
+      // anchorCents is ZAR cents; rate is local per 1 ZAR
+      const localCents  = Math.round(anchorCents * rate);
+      const localAmount = localCents / 100.0;
+
+      hintEl.textContent =
+        localCents + ' cents (~' + localAmount.toFixed(2) + ' in local currency).';
+
+      // If user hasn't typed a specific local value yet, auto-fill it.
+      if (!localEl.value) {
+        localEl.value = localCents;
+      }
+    }
+
+    rateEl.addEventListener('input', recalc);
+  })();
+</script>
+{% endif %}
 {% endblock %}

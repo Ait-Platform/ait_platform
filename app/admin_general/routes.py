@@ -124,13 +124,14 @@ def pricing_index():
     countries = db.session.execute(
         text("""
             SELECT
-                country_code,
-                currency_code
+                alpha2   AS country_code,
+                currency AS currency_code
             FROM ref_country_currency
-            WHERE COALESCE(is_active, 1) = 1
-            ORDER BY country_code ASC
+            WHERE COALESCE(is_active, TRUE) = TRUE
+            ORDER BY alpha2 ASC
         """)
     ).mappings().all()
+
 
 
     # 2) Handle Add-country POST (add a new tier row)

@@ -191,15 +191,19 @@ TONE_CHIP = {
 
 def fetch_progress_notes(phase_no: int, pct) -> Dict:
     band_label = band_label_for_pct(_safe_pct(pct))  # "low" | "mid" | "high"
+    
     rows = db.session.execute(
         text("""
             SELECT tone, body
             FROM lca_progress_item
-            WHERE phase_id = :ph AND band = :band AND active = 1
+            WHERE phase_id = :ph
+            AND band     = :band
+            AND active IS TRUE
             ORDER BY ordinal ASC, id ASC
         """),
         {"ph": phase_no, "band": band_label},
     ).fetchall()
+
 
     if not rows:
         return {"band": band_label, "tone": None, "chip_class": "", "notes": []}

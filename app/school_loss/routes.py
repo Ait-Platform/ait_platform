@@ -1050,15 +1050,6 @@ def compute_loss_results(run_id: int, user_id: int):
 
         return {"phase_1": p1, "phase_2": p2, "phase_3": p3, "phase_4": p4, "total": total}
 
-def create_loss_run_for_user(user_id):
-    ts = datetime.utcnow().isoformat(timespec="seconds")  # TEXT-friendly for SQLite
-    with db.engine.begin() as conn:
-        conn.execute(text("""
-            INSERT INTO lca_run (user_id, subject, status, started_at)
-            VALUES (:uid, 'LOSS', 'in_progress', :ts)
-        """), {"uid": user_id, "ts": ts})
-        run_id = conn.execute(text("SELECT last_insert_rowid()")).scalar_one()
-    return run_id
 
 def finalize_run_totals(rid: int, uid: int):
     # Insert/Upsert totals

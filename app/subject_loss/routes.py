@@ -28,9 +28,7 @@ from app.subject_loss.report_context import render_report_html
 from app.subject_loss.report_context_adapter import build_learner_report_ctx
 from app.utils.mailer import send_pdf_email
 from xhtml2pdf import pisa
-
 from datetime import datetime
-
 import matplotlib.dates as mdates
 from flask import render_template_string
 import base64
@@ -85,9 +83,6 @@ from sqlalchemy import func as SA_FUNC, text as SA_TEXT
 from app.payments.pricing import price_for_country, subject_id_for  # table-driven helper
 
 loss_bp = Blueprint("loss_bp", __name__, url_prefix="/loss")
-
-
-
 
 @loss_bp.get("/about")
 def about_loss():
@@ -520,9 +515,17 @@ def assessment_question_flow():
 
         # Ensure a lca_result row exists for this run (unique on run_id)
         db.session.execute(text("""
-            INSERT OR IGNORE INTO lca_result (user_id, run_id, subject)
-            VALUES (:uid, :rid, 'LOSS')
+            INSERT INTO lca_result (user_id, run_id, subject)
+            SELECT :uid, :rid, 'LOSS'
+            WHERE NOT EXISTS (
+                SELECT 1
+                FROM lca_result
+                WHERE user_id = :uid
+                AND run_id  = :rid
+                AND subject = 'LOSS'
+            )
         """), {"uid": uid, "rid": rid})
+
 
         # Increment cumulative totals in lca_result from the map for this (qid, answer)
         db.session.execute(text("""

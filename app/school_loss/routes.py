@@ -1,23 +1,15 @@
 # loss_helper.py
-
-
 from app.models.loss import (
     LcaResult, LcaRun, LcaScoringMap,LcaSequence,  LcaQuestion, LcaResponse,
     )
-
 from app.extensions import db
 from sqlalchemy import text, func
 from flask import flash, send_file
-
 from app.subject_loss.charts import phase_scores_bar
-
 from xhtml2pdf import pisa
-
 from datetime import datetime
-
 import matplotlib.dates as mdates
 from flask import render_template_string
-
 from reportlab.lib.pagesizes import letter
 import matplotlib.pyplot as plt
 import matplotlib
@@ -48,15 +40,12 @@ try:
 except Exception:
     current_user = None
 from flask import current_app as cap
-
 try:
     from weasyprint import HTML
     WEASYPRINT_AVAILABLE = True
 except Exception:
     WEASYPRINT_AVAILABLE = False
-
 from weasyprint import HTML as WPHTML   # alias to avoid name confusion
-
 from werkzeug.exceptions import BadRequest
 from io import BytesIO
 from email.message import EmailMessage

@@ -14,31 +14,27 @@ import logging, uuid
 import matplotlib
 matplotlib.use("Agg")
 from flask import Flask, g, request, current_app
-from flask_login import LoginManager
+from flask_login import LoginManager, current_user
 from sqlalchemy import text, event
 from sqlalchemy import text as sa_text
-from sqlalchemy.engine import Engine
-from sqlalchemy.pool import NullPool
+from sqlalchemy import event
 from jinja2 import select_autoescape
 from flask_mail import Message  # only Message here
-from app.extensions import mail
-from app.extensions import db, login_manager, mail  # <-- use the one from extensions
+from app.extensions import mail, db, login_manager, csrf
+
 from app.models.loss import LcaRun, LcaResult
 from app.models.auth import User
 from config import DEFAULT_LOGIN_EMAIL, Config
 from os import getenv
+import os  # sqlite3 no longer needed
 import click
 from hashlib import sha256
-from flask_login import current_user
 from app.models.visit import VisitLog
 from app.models.payment import Payment, Subscription
-import os, sqlite3
 from werkzeug.middleware.proxy_fix import ProxyFix
 from dotenv import load_dotenv, find_dotenv
 load_dotenv(find_dotenv(), override=False)  # picks up your .env locally
-#from flask_wtf import CSRFProtect
 from flask_wtf.csrf import generate_csrf
-from app.extensions import csrf
 from datetime import date
 from flask import Flask, render_template_string
 
@@ -63,62 +59,7 @@ def create_app():
     # 3) Environment overrides (e.g., FLASK_SQLALCHEMY_DATABASE_URI)
     app.config.from_prefixed_env()
 
-    # 4) Last-resort fallback if nothing set
-    # Stripe config
-    #app.config["STRIPE_SECRET_KEY"] = _os.getenv("STRIPE_SECRET_KEY")  # sk_test_...
-    #app.config["STRIPE_CURRENCY"]   = (_os.getenv("STRIPE_CURRENCY") or "zar").lower()
-    # Database URI bootstrap (your existing logic, but with _os)
-
-    # ⭐ NEW: prefer DATABASE_URL (Render/Postgres) if present
-    db_url = _os.getenv("DATABASE_URL")
-    if db_url:
-        # Render sometimes gives postgres://; SQLAlchemy wants postgresql+psycopg2://
-        if db_url.startswith("postgres://"):
-            db_url = db_url.replace("postgres://", "postgresql+psycopg2://", 1)
-        app.config["SQLALCHEMY_DATABASE_URI"] = db_url
-
-    # If still nothing, fall back to local SQLite in instance_data
-    if not app.config.get("SQLALCHEMY_DATABASE_URI"):
-        data_dir = _os.getenv("AIT_DATA_DIR") or _os.path.join(_os.getcwd(), "instance_data")
-        _os.makedirs(data_dir, exist_ok=True)
-        app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + _os.path.join(data_dir, "data.db")
-
-    uri = app.config.get("SQLALCHEMY_DATABASE_URI", "")
-
-    # --- Default to a local instance DB outside OneDrive if none provided ---
-    import os, sqlite3
-    from sqlalchemy import event
-    from sqlalchemy.engine import Engine
-    from sqlalchemy.pool import NullPool
-
-    # (this second fallback is now harmless redundancy; condition prevents overwrite)
-    if not app.config.get("SQLALCHEMY_DATABASE_URI"):
-        data_dir = os.getenv("AIT_DATA_DIR") or os.path.join(os.getcwd(), "instance_data")
-        os.makedirs(data_dir, exist_ok=True)
-        app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + os.path.join(data_dir, "data.db")
-
-    uri = app.config.get("SQLALCHEMY_DATABASE_URI", "")
-
-    if uri.startswith("sqlite"):
-        # one connection per request; avoids stale cross-thread handles
-        opts = app.config.setdefault("SQLALCHEMY_ENGINE_OPTIONS", {})
-        opts["poolclass"] = NullPool
-        connect_args = opts.setdefault("connect_args", {})
-        connect_args.setdefault("timeout", 5)
-        connect_args.setdefault("isolation_level", "IMMEDIATE")
-
-        if not app.config.get("_SQLITE_PRAGMAS_INSTALLED"):
-            @event.listens_for(Engine, "connect")
-            def _set_sqlite_pragmas(dbapi_connection, connection_record):
-                if isinstance(dbapi_connection, sqlite3.Connection):
-                    cur = dbapi_connection.cursor()
-                    cur.execute("PRAGMA journal_mode=WAL;")
-                    cur.execute("PRAGMA synchronous=NORMAL;")
-                    cur.execute("PRAGMA busy_timeout=5000;")
-                    cur.execute("PRAGMA foreign_keys=ON;")
-                    cur.close()
-            app.config["_SQLITE_PRAGMAS_INSTALLED"] = True
-                
+               
     # 3) Init extensions AFTER config
     db.init_app(app)
     csrf.init_app(app)
@@ -542,119 +483,7 @@ def register_cli(app):
             mail.send(msg)
             click.echo(f"Sent test email to {to}")
             
-    @app.cli.command("fix-overall-schema")
-    def fix_overall_schema():
-        """Ensure lca_overall_item has type/ordinal/active + indexes (SQLite-safe)."""
-        from sqlalchemy import text
-        from app.extensions import db
-
-        def has_col(tab, col):
-            rows = db.session.execute(text(f"PRAGMA table_info({tab})")).fetchall()
-            return any(r[1] == col for r in rows)
-
-        tab = "lca_overall_item"
-
-        # Add missing columns (idempotent; prints error if already exists)
-        if not has_col(tab, "type"):
-            db.session.execute(text("ALTER TABLE lca_overall_item ADD COLUMN type TEXT NOT NULL DEFAULT 'summary'"))
-        if not has_col(tab, "ordinal"):
-            db.session.execute(text("ALTER TABLE lca_overall_item ADD COLUMN ordinal INTEGER NOT NULL DEFAULT 0"))
-        if not has_col(tab, "active"):
-            db.session.execute(text("ALTER TABLE lca_overall_item ADD COLUMN active INTEGER NOT NULL DEFAULT 1"))
-
-        # Normalize values
-        db.session.execute(text("""
-            UPDATE lca_overall_item
-            SET type = COALESCE(NULLIF(type,''), 'summary')
-            WHERE type IS NULL OR type = ''
-        """))
-
-        # Helpful indexes
-        for stmt in [
-            "CREATE INDEX IF NOT EXISTS ix_lca_overall_item_type    ON lca_overall_item(type)",
-            "CREATE INDEX IF NOT EXISTS ix_lca_overall_item_band    ON lca_overall_item(band)",
-            "CREATE INDEX IF NOT EXISTS ix_lca_overall_item_active  ON lca_overall_item(active)",
-            "CREATE INDEX IF NOT EXISTS ix_lca_overall_item_ordinal ON lca_overall_item(ordinal)",
-        ]:
-            db.session.execute(text(stmt))
-
-        db.session.commit()
-
-        cols = db.session.execute(text("PRAGMA table_info(lca_overall_item)")).fetchall()
-        print("Columns now:", [c[1] for c in cols])
-        print("OK")
-
-        @app.cli.command("user-reset-password")
-        @click.argument("email")
-        @click.argument("password")
-        def user_reset_password(email, password):
-            """Reset a user's password."""
-            from app.models.auth import User
-            email = email.strip().lower()
-            u = User.query.filter_by(email=email).first()
-            if not u:
-                click.echo(f"User not found: {email}")
-                return
-            u.set_password(password)
-            db.session.commit()
-            click.echo(f"Password reset for: {email}")
-
 # Keep this helper separate; name avoids shadowing seed_cli.register_cli
-def register_migration_cli(app):
-    import click
-    @app.cli.command("migrate-response-unique")
-    def migrate_response_unique_cmd():
-        """Rebuild lca_response so uniqueness is (run_id, question_id)."""
-        try:
-            # drop broken view if present
-            db.session.execute(text("DROP VIEW IF EXISTS approved_admins;"))
-            ddl = db.session.execute(text("""
-                SELECT sql FROM sqlite_master
-                WHERE type='table' AND name='lca_response'
-            """)).scalar() or ""
-            needs = ("unique" in ddl.lower()
-                     and "user_id" in ddl.lower()
-                     and "question_id" in ddl.lower())
-
-            db.session.execute(text("PRAGMA foreign_keys=OFF;"))
-            db.session.execute(text("PRAGMA legacy_alter_table=ON;"))
-
-            if needs:
-                click.echo("Migrating table (removing UNIQUE(user_id,question_id))...")
-                db.session.execute(text("""
-                    CREATE TABLE lca_response_new (
-                      id          INTEGER PRIMARY KEY,
-                      user_id     INTEGER NOT NULL,
-                      run_id      INTEGER NOT NULL,
-                      question_id INTEGER NOT NULL,
-                      answer      VARCHAR(3) NOT NULL,
-                      created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
-                      FOREIGN KEY(question_id) REFERENCES lca_question (id) ON DELETE CASCADE
-                    )
-                """))
-                db.session.execute(text("""
-                    INSERT INTO lca_response_new (id, user_id, run_id, question_id, answer, created_at)
-                    SELECT id, user_id, run_id, question_id, answer, created_at
-                    FROM lca_response
-                """))
-                db.session.execute(text("DROP TABLE lca_response;"))
-                db.session.execute(text("ALTER TABLE lca_response_new RENAME TO lca_response;"))
-
-            db.session.execute(text("""
-                CREATE UNIQUE INDEX IF NOT EXISTS ux_response_run_q
-                ON lca_response(run_id, question_id)
-            """))
-            db.session.execute(text("CREATE INDEX IF NOT EXISTS ix_response_user ON lca_response(user_id)"))
-            db.session.execute(text("CREATE INDEX IF NOT EXISTS ix_response_run  ON lca_response(run_id)"))
-
-            db.session.execute(text("PRAGMA legacy_alter_table=OFF;"))
-            db.session.execute(text("PRAGMA foreign_keys=ON;"))
-            db.session.commit()
-            click.echo("OK")
-        except Exception as e:
-            db.session.rollback()
-            click.echo(f"ERROR: {e}", err=True)
-            raise
 
 def send_mail(to, subject, html):
     msg = Message(subject=subject, recipients=[to])

@@ -21,7 +21,6 @@ from sqlalchemy import event
 from jinja2 import select_autoescape
 from flask_mail import Message  # only Message here
 from app.extensions import mail, db, login_manager, csrf
-
 from app.models.loss import LcaRun, LcaResult
 from app.models.auth import User
 from config import DEFAULT_LOGIN_EMAIL, Config
@@ -87,7 +86,7 @@ def create_app():
     )
 
     # (optional) ensure keys are present – maps OS envs directly if Config missed any
-    import os
+
     for k in (
         "PAYFAST_MODE","PAYFAST_MERCHANT_ID","PAYFAST_MERCHANT_KEY",
         "PAYFAST_PASSPHRASE","PAYFAST_RETURN_URL","PAYFAST_CANCEL_URL",

@@ -173,6 +173,11 @@ def pricing_index():
                             (subject_id, country_code, local_amount_cents, zar_amount_cents, is_active)
                         VALUES
                             (:sid, :cc, :local, :zar, 1)
+                        ON CONFLICT (subject_id, country_code)
+                        DO UPDATE SET
+                            local_amount_cents = EXCLUDED.local_amount_cents,
+                            zar_amount_cents   = EXCLUDED.zar_amount_cents,
+                            is_active          = EXCLUDED.is_active
                     """),
                     {
                         "sid": subject.id,
@@ -182,6 +187,9 @@ def pricing_index():
                     },
                 )
                 db.session.commit()
+
+
+
                 return redirect(url_for("general_bp.pricing_index", subject=subject.slug))
 
     # 3) Fetch existing tiers for display

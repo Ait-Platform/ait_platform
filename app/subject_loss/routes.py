@@ -414,13 +414,18 @@ def assessment_question_flow():
     if not uid:
         return redirect(url_for("auth_bp.login"))
 
-    # Current run_id (prefer session, else latest for this user)
-    rid = session.get("loss_run_id")
+    # Current run_id (prefer current_run_id set by sequence_step)
+    rid = (
+        session.get("current_run_id")
+        or session.get("loss_run_id")
+    )
+
     if not rid:
         rid = db.session.execute(
             text("SELECT id FROM lca_run WHERE user_id=:uid ORDER BY id DESC LIMIT 1"),
             {"uid": uid},
         ).scalar()
+
 
     # Optional hard reset for THIS run only
     if request.method == "GET" and request.args.get("reset") == "1":
@@ -459,11 +464,13 @@ def assessment_question_flow():
     idx = int(session.get("current_index", 0))
 
     # Finished the block already → advance sequence
+    # Finished the block already → advance sequence
     if idx >= len(questions):
         pos = int(session.get("q_seq_pos", 0))
         for k in ("q_range", "q_seq_pos", "current_index", "active_q_range"):
             session.pop(k, None)
-        return redirect(url_for("loss_bp.sequence_step", pos=pos + 1))
+        return redirect(url_for("loss_bp.sequence_step", pos=pos + 1, run_id=rid))
+
 
     # ---------- POST: save answer ----------
     answer = None  # defensive: prevents NameError if refactored later
@@ -606,7 +613,8 @@ def assessment_question_flow():
                 session.pop(k, None)
             return redirect(url_for("loss_bp.sequence_step", pos=pos + 1))
 
-        return redirect(url_for("loss_bp.assessment_question_flow"))
+        #return redirect(url_for("loss_bp.assessment_question_flow"))
+        return redirect(url_for("loss_bp.assessment_question_flow", run_id=rid))
 
     # ---------- GET: render current question ----------
     qrow = questions[idx]

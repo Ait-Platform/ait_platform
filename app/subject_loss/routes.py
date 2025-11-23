@@ -244,17 +244,16 @@ def sequence_step(pos: int):
     next_pos = min(pos + 1, total)
     next_url = url_for("loss_bp.sequence_step", pos=next_pos, run_id=run_id)
 
-    # Final step → your result dashboard (or admin report if you prefer)
+    # Final step → public result page
     if pos == total:
         session["last_loss_run_id"] = run_id
         next_url = url_for("loss_bp.result_run", run_id=run_id)
-        # or: next_url = url_for("admin_bp.loss_report", run_id=run_id)
-        
+
     # POST → PRG
     if request.method == "POST":
         return redirect(next_url)
 
-    # QUESTION BRANCH
+    # -------- QUESTION BRANCH --------
     if kind == "question":
         q_range = None
         if isinstance(ident, str) and "-" in ident:
@@ -275,61 +274,37 @@ def sequence_step(pos: int):
         # Carry run_id to the question flow (harmless if ignored)
         return redirect(url_for("loss_bp.assessment_question_flow", run_id=run_id))
 
-    # Finalize totals at explain/after_questions (as you had)
-    if kind == "explain" and str(ident) == "after_questions" and request.method == "GET":
-        uid = int(session.get("user_id"))
-        rid = int(session.get("loss_run_id") or run_id)
-        try:
-            finalize_run_totals(rid, uid)
-        except Exception:
-            current_app.logger.exception("finalize_run_totals failed: run_id=%s uid=%s", run_id, uid)
+    # ❌ IMPORTANT: we REMOVE the special after_questions block entirely.
+    # The explain cards (including "after_questions") now behave like
+    # normal non-question cards and the very last card (pos == total)
+    # sends the user to result_run.
 
-        # after last card is submitted
-        run_id = session.get("loss_run_id")
-        uid    = session.get("user_id")
+    # -------- NON-QUESTION CARDS --------
 
-        compute_loss_results(run_id, uid)   # your helper
-        finish_loss_run(run_id)             # your helper
-
-        # ✅ go to PUBLIC route, not admin
-        return redirect(url_for("loss_bp.result_run", run_id=run_id))
-
-
-
-    # NON-QUESTION CARDS
-    # --- NON-QUESTION CARDS: load from tables, no helpers, no hardcoding ---
-    # --- NON-QUESTION CARDS: DB-driven, no external imports/helpers ---
-
-    # Choose template under subject/loss
     template = {
         "instruction": "subject/loss/cards/instruction.html",
         "pause":       "subject/loss/cards/pause.html",
         "explain":     "subject/loss/cards/explain.html",
     }.get(kind, "subject/loss/cards/instruction.html")
 
-    # Map kind -> table (adjust when you add specific tables)
     table_by_kind = {
         "instruction": "lca_instruction",
-        "pause":       "lca_pause",   # change to 'lca_pause' when that table exists
-        "explain":     "lca_explain",   # change to 'lca_explain' when that table exists
+        "pause":       "lca_pause",
+        "explain":     "lca_explain",
     }
     table = table_by_kind.get(kind)
 
     row_dict = None
     if table:
-        # Try SQLAlchemy first (if present)
         sa_ext = current_app.extensions.get("sqlalchemy")
         if sa_ext:
-            # ✅ Flask-SQLAlchemy v3: use sa_ext.session (not sa_ext.db.session)
             from sqlalchemy import text
             stmt = text(f"SELECT id, title, caption, content FROM {table} WHERE id = :id")
             result = sa_ext.session.execute(stmt, {"id": int(ident)})
             row = result.mappings().first()
             row_dict = dict(row) if row else None
         else:
-            # fallback to sqlite3
             import sqlite3, os
-            # try DATABASE first, else derive from SQLALCHEMY_DATABASE_URI if it's sqlite
             db_path = current_app.config.get("DATABASE")
             if not db_path:
                 uri = current_app.config.get("SQLALCHEMY_DATABASE_URI", "")
@@ -353,11 +328,8 @@ def sequence_step(pos: int):
                 finally:
                     conn.close()
 
-
-    # Build item for template (fallback shows at least a title if no row found)
     item = row_dict or {"title": f"{kind.title()} {ident}", "caption": "", "content": ""}
 
-    # Always pass a Next button so the footer renders
     buttons = [{"label": "Next", "href": next_url, "kind": "primary"}]
 
     return render_template(

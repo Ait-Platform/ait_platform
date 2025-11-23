@@ -175,11 +175,15 @@ def fetch_progress_notes(phase_no: int, pct) -> Dict:
         text("""
             SELECT tone, body
             FROM lca_progress_item
-            WHERE phase_id = :ph AND band = :band AND active = TRUE
+            WHERE phase_id = :ph
+            AND band = :band
+            AND COALESCE(active, TRUE) = TRUE
             ORDER BY ordinal ASC, id ASC
         """),
         {"ph": phase_no, "band": band_label},
     ).fetchall()
+
+
 
     if not rows:
         return {"band": band_label, "tone": None, "chip_class": "", "notes": []}

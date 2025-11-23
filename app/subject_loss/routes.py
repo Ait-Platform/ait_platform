@@ -252,7 +252,12 @@ def sequence_step(pos: int):
     next_pos = min(pos + 1, total)
     next_url = url_for("loss_bp.sequence_step", pos=next_pos, run_id=run_id)
 
-    # Final step → public result page
+    # Special: final explain card AFTER questions -> jump straight to result
+    if kind == "explain" and str(ident) == "after_questions":
+        session["last_loss_run_id"] = run_id
+        next_url = url_for("loss_bp.result_run", run_id=run_id)
+
+    # Final step → public result page (fallback if your sequence ends there)
     if pos == total:
         session["last_loss_run_id"] = run_id
         next_url = url_for("loss_bp.result_run", run_id=run_id)
@@ -279,8 +284,12 @@ def sequence_step(pos: int):
         session["current_index"] = 0
         session["active_q_range"] = q_range
 
-        # Just send into the question flow; it will decide when to come back
-        return redirect(url_for("loss_bp.assessment_question_flow"))
+        # Carry run_id *and* current position so we can advance correctly
+        return redirect(url_for(
+            "loss_bp.assessment_question_flow",
+            run_id=run_id,
+            from_pos=pos,
+        ))
 
     # -------- NON-QUESTION CARDS --------
 

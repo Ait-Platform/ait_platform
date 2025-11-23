@@ -144,15 +144,13 @@ def phase_item_count_for_percent(phase_no: int, pct) -> int:
     step = PHASE_ITEM_STEP.get(int(phase_no), 12.5)
     return int(_safe_pct(pct) // step)
 
-def fetch_phase_items(phase_no: int, pct) -> List[str]:
-    n = phase_item_count_for_percent(phase_no, pct)
-    if n <= 0:
-        return []
+def fetch_phase_items(phase_no: int, n: int = 9) -> list[str]:
     rows = db.session.execute(
         text("""
             SELECT body
             FROM lca_phase_item
-            WHERE phase_id = :ph AND active = 1
+            WHERE phase_id = :ph
+              AND COALESCE(active, TRUE) = TRUE
             ORDER BY ordinal ASC, id ASC
             LIMIT :n
         """),

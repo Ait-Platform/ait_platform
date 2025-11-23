@@ -1380,3 +1380,145 @@ def _infer_user_id_for_run(run_id: int):
         {"rid": run_id}
     ).mappings().first()
     return row["user_id"] if row else None
+
+# loss/flow_script.py (or inside your loss views file)
+
+LOSS_ASSESSMENT_SCRIPT = [
+    # 1–2: setup cards
+    {"pos": 1, "kind": "setup",       "ref": "setup_1"},
+    {"pos": 2, "kind": "setup",       "ref": "setup_2"},
+
+    # 3–8: instructions (6 cards)
+    {"pos": 3, "kind": "instruction", "ref": "inst_1"},
+    {"pos": 4, "kind": "instruction", "ref": "inst_2"},
+    {"pos": 5, "kind": "instruction", "ref": "inst_3"},
+    {"pos": 6, "kind": "instruction", "ref": "inst_4"},
+    {"pos": 7, "kind": "instruction", "ref": "inst_5"},
+    {"pos": 8, "kind": "instruction", "ref": "inst_6"},
+
+    # 9–33: Q1–Q25
+    # ref = question number, so you can look up in your questions table
+    {"pos": 9,  "kind": "question", "q_no": 1},
+    {"pos": 10, "kind": "question", "q_no": 2},
+    {"pos": 11, "kind": "question", "q_no": 3},
+    {"pos": 12, "kind": "question", "q_no": 4},
+    {"pos": 13, "kind": "question", "q_no": 5},
+    {"pos": 14, "kind": "question", "q_no": 6},
+    {"pos": 15, "kind": "question", "q_no": 7},
+    {"pos": 16, "kind": "question", "q_no": 8},
+    {"pos": 17, "kind": "question", "q_no": 9},
+    {"pos": 18, "kind": "question", "q_no": 10},
+    {"pos": 19, "kind": "question", "q_no": 11},
+    {"pos": 20, "kind": "question", "q_no": 12},
+    {"pos": 21, "kind": "question", "q_no": 13},
+    {"pos": 22, "kind": "question", "q_no": 14},
+    {"pos": 23, "kind": "question", "q_no": 15},
+    {"pos": 24, "kind": "question", "q_no": 16},
+    {"pos": 25, "kind": "question", "q_no": 17},
+    {"pos": 26, "kind": "question", "q_no": 18},
+    {"pos": 27, "kind": "question", "q_no": 19},
+    {"pos": 28, "kind": "question", "q_no": 20},
+    {"pos": 29, "kind": "question", "q_no": 21},
+    {"pos": 30, "kind": "question", "q_no": 22},
+    {"pos": 31, "kind": "question", "q_no": 23},
+    {"pos": 32, "kind": "question", "q_no": 24},
+    {"pos": 33, "kind": "question", "q_no": 25},
+
+    # 34: pause card
+    {"pos": 34, "kind": "pause", "ref": "pause_1"},
+
+    # 35–59: Q26–Q50
+    {"pos": 35, "kind": "question", "q_no": 26},
+    {"pos": 36, "kind": "question", "q_no": 27},
+    {"pos": 37, "kind": "question", "q_no": 28},
+    {"pos": 38, "kind": "question", "q_no": 29},
+    {"pos": 39, "kind": "question", "q_no": 30},
+    {"pos": 40, "kind": "question", "q_no": 31},
+    {"pos": 41, "kind": "question", "q_no": 32},
+    {"pos": 42, "kind": "question", "q_no": 33},
+    {"pos": 43, "kind": "question", "q_no": 34},
+    {"pos": 44, "kind": "question", "q_no": 35},
+    {"pos": 45, "kind": "question", "q_no": 36},
+    {"pos": 46, "kind": "question", "q_no": 37},
+    {"pos": 47, "kind": "question", "q_no": 38},
+    {"pos": 48, "kind": "question", "q_no": 39},
+    {"pos": 49, "kind": "question", "q_no": 40},
+    {"pos": 50, "kind": "question", "q_no": 41},
+    {"pos": 51, "kind": "question", "q_no": 42},
+    {"pos": 52, "kind": "question", "q_no": 43},
+    {"pos": 53, "kind": "question", "q_no": 44},
+    {"pos": 54, "kind": "question", "q_no": 45},
+    {"pos": 55, "kind": "question", "q_no": 46},
+    {"pos": 56, "kind": "question", "q_no": 47},
+    {"pos": 57, "kind": "question", "q_no": 48},
+    {"pos": 58, "kind": "question", "q_no": 49},
+    {"pos": 59, "kind": "question", "q_no": 50},
+
+    # 60–67: explain cards (8)
+    {"pos": 60, "kind": "explain", "ref": "explain_1"},
+    {"pos": 61, "kind": "explain", "ref": "explain_2"},
+    {"pos": 62, "kind": "explain", "ref": "explain_3"},
+    {"pos": 63, "kind": "explain", "ref": "explain_4"},
+    {"pos": 64, "kind": "explain", "ref": "explain_5"},
+    {"pos": 65, "kind": "explain", "ref": "explain_6"},
+    {"pos": 66, "kind": "explain", "ref": "explain_7"},
+    {"pos": 67, "kind": "explain", "ref": "explain_8"},
+]
+
+LOSS_ASSESSMENT_MAX_POS = len(LOSS_ASSESSMENT_SCRIPT)
+
+
+def get_step_for_pos(pos: int) -> dict | None:
+    if pos < 1 or pos > LOSS_ASSESSMENT_MAX_POS:
+        return None
+    # positions are 1-based, list is 0-based
+    return LOSS_ASSESSMENT_SCRIPT[pos - 1]
+
+# Fixed script for Loss Clinical Assessment (LCA)
+
+LOSS_ASSESSMENT_SCRIPT: list[dict] = []
+
+# 1–2: setup
+LOSS_ASSESSMENT_SCRIPT.extend([
+    {"pos": 1, "kind": "setup", "ref": "setup_1"},
+    {"pos": 2, "kind": "setup", "ref": "setup_2"},
+])
+
+# 3–8: instructions (6)
+for i in range(1, 7):
+    LOSS_ASSESSMENT_SCRIPT.append(
+        {"pos": 2 + i, "kind": "instruction", "ref": f"inst_{i}"}
+    )
+
+# 9–33: Q1–Q25
+pos = 8
+for q_no in range(1, 26):
+    pos += 1
+    LOSS_ASSESSMENT_SCRIPT.append(
+        {"pos": pos, "kind": "question", "q_no": q_no}
+    )
+
+# 34: pause
+pos += 1
+LOSS_ASSESSMENT_SCRIPT.append(
+    {"pos": pos, "kind": "pause", "ref": "pause_1"}
+)
+
+# 35–59: Q26–Q50
+for q_no in range(26, 51):
+    pos += 1
+    LOSS_ASSESSMENT_SCRIPT.append(
+        {"pos": pos, "kind": "question", "q_no": q_no}
+    )
+
+# 60–67: explain (8)
+for i in range(1, 9):
+    pos += 1
+    LOSS_ASSESSMENT_SCRIPT.append(
+        {"pos": pos, "kind": "explain", "ref": f"explain_{i}"}
+    )
+
+LOSS_ASSESSMENT_MAX_POS = len(LOSS_ASSESSMENT_SCRIPT)
+
+
+

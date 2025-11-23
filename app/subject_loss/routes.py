@@ -9,7 +9,7 @@ import pdfkit
 from app.admin.loss.routes import _render_report_html
 from app.models.auth import AuthSubject
 from app.models.loss import (
-    LcaRun,  LcaQuestion,
+    LcaAnswer, LcaRun,  LcaQuestion,
     )
 from app.extensions import db
 from sqlalchemy import select, text, inspect, func, and_
@@ -17,11 +17,11 @@ from flask import send_file
 from app.utils.country_list import COUNTRIES, _name_code_iter
 from app.utils.mailer import send_loss_report_email as _send_mail  # <— use the shared mailer
 from app.school_loss.routes import (
-    SUBJECT, _came_from_admin, _coerce_dt, _current_user_id, _extract_phase_scores_from_ctx,
+    LOSS_ASSESSMENT_MAX_POS, SUBJECT, _came_from_admin, _coerce_dt, _current_user_id, _extract_phase_scores_from_ctx,
     _finalize_and_send_pdf, _get_int_arg, _get_user_id_for_run, _infer_user_id_for_run, 
     _loss_result_percents, _render_loss_pdf_bytes, _scores_from_blocks, _send_pdf_email_smtp, 
     _sum_scorecard, compute_loss_results, create_loss_run_for_user, ensure_lca_result, finalize_run_totals,
-    finish_loss_run, latest_run_for_user, viewer_is_admin
+    finish_loss_run, get_step_for_pos, latest_run_for_user, viewer_is_admin
     )
 from app.subject_loss.charts import phase_scores_bar
 from app.subject_loss.report_context import render_report_html
@@ -391,174 +391,6 @@ def result_finalize():
     #return redirect(url_for("loss_bp.result_dashboard", run_id=run_id))
     return redirect(url_for("loss_bp.result_run", run_id=run_id))
 
-@loss_bp.route("/assessment_question_flow", methods=["GET", "POST"])
-def assessment_question_flow():
-    uid = session.get("user_id")
-    if not uid:
-        return redirect(url_for("auth_bp.login"))
-
-    # Prefer explicit run_id from query, then session
-    rid = (
-        request.args.get("run_id", type=int)
-        or session.get("current_run_id")
-        or session.get("loss_run_id")
-    )
-
-    if not rid:
-        rid = db.session.execute(
-            text("SELECT id FROM lca_run WHERE user_id = :uid ORDER BY id DESC LIMIT 1"),
-            {"uid": uid},
-        ).scalar()
-
-    if not rid:
-        # No run at all – send them back to course_start
-        return redirect(url_for("loss_bp.course_start"))
-
-    session["current_run_id"] = rid
-
-    from_pos = request.args.get("from_pos", type=int)
-
-    # Optional hard reset for THIS run only
-    if request.method == "GET" and request.args.get("reset") == "1":
-        db.session.execute(text("DELETE FROM lca_response   WHERE run_id = :rid"), {"rid": rid})
-        db.session.execute(text("DELETE FROM lca_scorecard WHERE run_id = :rid"), {"rid": rid})
-        db.session.execute(text("DELETE FROM lca_result    WHERE run_id = :rid"), {"rid": rid})
-        db.session.commit()
-        for k in ("current_index", "q_range", "q_seq_pos", "active_q_range"):
-            session.pop(k, None)
-        return redirect(url_for("loss_bp.assessment_question_flow", run_id=rid))
-
-    # Active block (e.g. (1,25) or (26,50)) is set by sequence_step
-    q_range = session.get("q_range")  # list/tuple like (start, end) or None
-
-    # If block changed, clear any old index (defensive)
-    if q_range != session.get("active_q_range"):
-        session["active_q_range"] = q_range
-        session["current_index"] = 0
-
-    # Build questions for this block
-    q = LcaQuestion.query
-    if q_range and all(q_range):
-        q = q.filter(LcaQuestion.number.between(int(q_range[0]), int(q_range[1])))
-    questions = q.order_by(LcaQuestion.number.asc()).all()
-
-    global_total = LcaQuestion.query.count()
-
-    # If no questions in this block → advance sequence
-    if not questions:
-        pos = int(from_pos or session.get("q_seq_pos", 0) or 0)
-        for k in ("q_range", "q_seq_pos", "current_index", "active_q_range"):
-            session.pop(k, None)
-        return redirect(url_for("loss_bp.sequence_step", pos=pos + 1, run_id=rid))
-
-    # ---------- Determine current index from DB (idempotent) ----------
-    if q_range and all(q_range):
-        answered_count = db.session.execute(
-            text("""
-                SELECT COUNT(*)
-                  FROM lca_response r
-                  JOIN lca_question q ON q.id = r.question_id
-                 WHERE r.run_id = :rid
-                   AND q.number BETWEEN :start AND :end
-            """),
-            {"rid": rid, "start": int(q_range[0]), "end": int(q_range[1])},
-        ).scalar()
-    else:
-        answered_count = db.session.execute(
-            text("""
-                SELECT COUNT(*)
-                  FROM lca_response
-                 WHERE run_id = :rid
-            """),
-            {"rid": rid},
-        ).scalar()
-
-    idx = int(answered_count or 0)
-    session["current_index"] = idx  # purely informational / debugging
-    block_len = len(questions)
-
-    # Finished the block already → advance sequence
-    if idx >= block_len:
-        pos = int(from_pos or session.get("q_seq_pos", 0) or 0)
-        for k in ("q_range", "q_seq_pos", "current_index", "active_q_range"):
-            session.pop(k, None)
-        return redirect(url_for("loss_bp.sequence_step", pos=pos + 1, run_id=rid))
-
-    # ---------- POST: save answer ----------
-    if request.method == "POST":
-        answer = (request.form.get("answer") or "").strip().lower()
-        qid    = request.form.get("question_id", type=int)
-
-        # Validate
-        if answer not in {"yes", "no"} or not qid:
-            qrow = questions[min(idx, block_len - 1)]
-            offset = (int(q_range[0]) - 1) if (q_range and all(q_range)) else 0
-            display_idx = offset + idx + 1
-            pct = int(round(display_idx * 100.0 / max(1, global_total)))
-            return render_template(
-                "subject/loss/cards/question.html",
-                question=qrow,
-                display_idx=display_idx,
-                display_total=global_total,
-                progress_pct=pct,
-                error="Please choose Yes or No.",
-            )
-
-        # Upsert into lca_response (per-run uniqueness)
-        db.session.execute(text("""
-            INSERT INTO lca_response (user_id, run_id, question_id, answer)
-            VALUES (:uid, :rid, :qid, :ans)
-            ON CONFLICT(run_id, question_id) DO UPDATE SET
-              user_id = excluded.user_id,
-              answer  = excluded.answer
-        """), {"uid": uid, "rid": rid, "qid": qid, "ans": answer})
-
-        # Upsert into lca_scorecard (per-run uniqueness)
-        db.session.execute(text("""
-            INSERT INTO lca_scorecard
-              (user_id, run_id, question_id, answer_type, phase_1, phase_2, phase_3, phase_4)
-            SELECT
-              :uid, :rid, :qid, :ans,
-              m.phase_1, m.phase_2, m.phase_3, m.phase_4
-              FROM lca_question_phase_map m
-             WHERE m.question_id = :qid
-               AND m.answer_type = :ans
-            ON CONFLICT(run_id, question_id) DO UPDATE SET
-              user_id     = excluded.user_id,
-              answer_type = excluded.answer_type,
-              phase_1     = excluded.phase_1,
-              phase_2     = excluded.phase_2,
-              phase_3     = excluded.phase_3,
-              phase_4     = excluded.phase_4
-        """), {"uid": uid, "rid": rid, "qid": qid, "ans": answer})
-
-        db.session.commit()
-
-        # We just answered the question at index idx.
-        # If that was the LAST question in this block, jump straight back to sequence.
-        next_idx = idx + 1
-        if next_idx >= block_len:
-            pos = int(from_pos or session.get("q_seq_pos", 0) or 0)
-            for k in ("q_range", "q_seq_pos", "current_index", "active_q_range"):
-                session.pop(k, None)
-            return redirect(url_for("loss_bp.sequence_step", pos=pos + 1, run_id=rid))
-
-        # Otherwise, PRG back into this view to show the next question in the block
-        return redirect(url_for("loss_bp.assessment_question_flow", run_id=rid))
-
-    # ---------- GET: render current question ----------
-    qrow = questions[idx]
-    offset = (int(q_range[0]) - 1) if (q_range and all(q_range)) else 0
-    display_idx = offset + idx + 1
-    pct = int(round(display_idx * 100.0 / max(1, global_total)))
-
-    return render_template(
-        "subject/loss/cards/question.html",
-        question=qrow,
-        display_idx=display_idx,
-        display_total=global_total,
-        progress_pct=pct,
-    )
 
 TEMPLATE_DIR_LEARNER = "subject/loss"   # learner page templates (report.html / report.pdf)
 TEMPLATE_PDF_LEARNER = "subject/loss/report.pdf"  # or "subject/loss/report_pdf.html" if that's your file
@@ -1462,4 +1294,281 @@ def _complete_loss_enrollment_sql(user_id: int) -> None:
         db.session.rollback()
         current_app.logger.exception("complete_loss_enrollment_sql failed: %s", e)
 
+@loss_bp.route("/assessment_start")
+@login_required
+def assessment_start():
+    # Try to find existing in-progress run for this user
+    run = LcaRun.query.filter_by(
+        user_id=current_user.id,
+        status="in_progress",
+    ).order_by(LcaRun.created_at.desc()).first()
 
+    if run is None:
+        run = LcaRun(user_id=current_user.id, current_pos=1)
+        db.session.add(run)
+        db.session.commit()
+
+    # If run already completed, send straight to result
+    if run.status == "completed":
+        return redirect(url_for("loss_bp.assessment_result", run_id=run.id))
+
+    # Resume from current_pos
+    return redirect(
+        url_for("loss_bp.assessment_flow", run_id=run.id)
+    )
+
+@loss_bp.route("/assessment", methods=["GET", "POST"])
+@login_required
+def assessment_flow():
+    run_id = request.args.get("run_id", type=int)
+    if not run_id:
+        # No run_id → go to start (creates new run)
+        return redirect(url_for("loss_bp.assessment_start"))
+
+    run = LcaRun.query.get(run_id)
+    if not run or run.user_id != current_user.id:
+        # Invalid or someone else's run → start a fresh one
+        return redirect(url_for("loss_bp.assessment_start"))
+
+    # If already completed, always send to result
+    if run.status == "completed":
+        return redirect(url_for("loss_bp.assessment_result", run_id=run.id))
+
+    # what position to show? always trust run.current_pos
+    pos = run.current_pos
+    step = get_step_for_pos(pos)
+
+    # safety: if pos out of range → mark completed and go to result
+    if step is None:
+        run.status = "completed"
+        run.completed_at = db.func.now()
+        db.session.commit()
+        return redirect(url_for("loss_bp.assessment_result", run_id=run.id))
+
+    if request.method == "POST":
+        # ------------ HANDLE ANSWER + ADVANCE -------------
+        if step["kind"] == "question":
+            q_no = step["q_no"]
+            # your form uses e.g. <input type="radio" name="answer" value="yes/no">
+            answer = request.form.get("answer")
+            if answer not in ("yes", "no"):
+                # redisplay same card with error if needed
+                flash("Please choose an answer to continue.", "warning")
+                return redirect(url_for("loss_bp.assessment_flow", run_id=run.id))
+
+            # Upsert answer: one row per (run_id, q_no)
+            existing = LcaAnswer.query.filter_by(
+                run_id=run.id, q_no=q_no
+            ).first()
+            if existing:
+                existing.answer = answer
+            else:
+                db.session.add(
+                    LcaAnswer(run_id=run.id, q_no=q_no, answer=answer)
+                )
+
+        # For non-question cards (setup, instruction, pause, explain),
+        # nothing to save — they are just 'continue' screens.
+
+        # Advance loop
+        next_pos = pos + 1
+        run.current_pos = next_pos
+
+        if next_pos > LOSS_ASSESSMENT_MAX_POS:
+            # We have passed the last card → completed
+            run.status = "completed"
+            run.completed_at = db.func.now()
+
+        db.session.commit()
+
+        # POST-redirect-GET to avoid double submit on refresh
+        if run.status == "completed":
+            return redirect(url_for("loss_bp.assessment_result", run_id=run.id))
+        else:
+            return redirect(url_for("loss_bp.assessment_flow", run_id=run.id))
+
+    # ------------------ GET: RENDER CURRENT CARD ------------------
+
+    context = {"run": run, "pos": pos, "step": step}
+
+    if step["kind"] == "setup":
+        # load any extra setup content by step["ref"] if needed
+        return render_template("loss/setup_card.html", **context)
+
+    if step["kind"] == "instruction":
+        # fetch instruction from your instruction table using step["ref"]
+        # instruction = Instruction.query.filter_by(code=step["ref"]).first()
+        # context["instruction"] = instruction
+        return render_template("loss/instruction_card.html", **context)
+
+    if step["kind"] == "pause":
+        # e.g. simple pause card template
+        return render_template("loss/pause_card.html", **context)
+
+    if step["kind"] == "explain":
+        # load explanation card by step["ref"]
+        # explain = ExplainQuestion.query.filter_by(code=step["ref"]).first()
+        # context["explain"] = explain
+        return render_template("loss/explain_card.html", **context)
+
+    if step["kind"] == "question":
+        q_no = step["q_no"]
+        # fetch question/explanation from your question table
+        # question = LossQuestion.query.filter_by(q_no=q_no).first()
+        # context["question"] = question
+
+        # optionally, pass previous answer if revisiting
+        prev = LcaAnswer.query.filter_by(
+            run_id=run.id, q_no=q_no
+        ).first()
+        context["prev_answer"] = prev.answer if prev else None
+
+        return render_template("loss/question_card.html", **context)
+
+    # fallback: treat unknown kind as end
+    run.status = "completed"
+    run.completed_at = db.func.now()
+    db.session.commit()
+    return redirect(url_for("loss_bp.assessment_result", run_id=run.id))
+
+def compute_loss_result(run_id: int):
+    answers = LcaAnswer.query.filter_by(run_id=run_id).all()
+    # TODO: your scoring logic goes here.
+    # Example outline:
+    #   total_q = 50
+    #   yes_count = sum(1 for a in answers if a.answer == "yes")
+    #   profile = ...
+    #   return {"yes_count": yes_count, "profile": profile, ...}
+    return {}
+
+
+
+@loss_bp.route("/assessment_question_flow", methods=["GET", "POST"])
+@login_required
+def assessment_question_flow():
+    # 1. Get or create run
+    run_id = request.args.get("run_id", type=int)
+
+    if run_id:
+        run = LcaRun.query.get(run_id)
+        if not run or run.user_id != current_user.id:
+            run = None
+    else:
+        run = None
+
+    if run is None:
+        # new run
+        run = LcaRun(user_id=current_user.id, current_pos=1, status="in_progress")
+        db.session.add(run)
+        db.session.commit()
+
+    # if already completed, always go to result
+    if run.status == "completed":
+        return redirect(url_for("loss_bp.assessment_result", run_id=run.id))
+
+    pos = run.current_pos
+    step = get_step_for_pos(pos)
+
+    # safety: if out of range, mark complete and go to result
+    if step is None:
+        run.status = "completed"
+        run.completed_at = db.func.now()
+        db.session.commit()
+        return redirect(url_for("loss_bp.assessment_result", run_id=run.id))
+
+    # ---------------- POST: handle click ----------------
+    if request.method == "POST":
+        if step["kind"] == "question":
+            q_no = step["q_no"]
+            answer = request.form.get("answer")
+
+            if answer not in ("yes", "no"):
+                flash("Please select Yes or No to continue.", "warning")
+                return redirect(url_for("loss_bp.assessment_question_flow", run_id=run.id))
+
+            existing = LcaAnswer.query.filter_by(run_id=run.id, q_no=q_no).first()
+            if existing:
+                existing.answer = answer
+            else:
+                db.session.add(LcaAnswer(run_id=run.id, q_no=q_no, answer=answer))
+
+        # non-question cards just move on
+
+        next_pos = pos + 1
+        run.current_pos = next_pos
+
+        if next_pos > LOSS_ASSESSMENT_MAX_POS:
+            run.status = "completed"
+            run.completed_at = db.func.now()
+
+        db.session.commit()
+
+        # redirect to break double-submit
+        if run.status == "completed":
+            return redirect(url_for("loss_bp.assessment_result", run_id=run.id))
+        return redirect(url_for("loss_bp.assessment_question_flow", run_id=run.id))
+
+    # ---------------- GET: render card ----------------
+    ctx = {"run": run, "pos": pos, "step": step}
+
+    if step["kind"] == "setup":
+        # look up your lca_setup row using step["ref"], if needed
+        # setup = LcaSetup.query.filter_by(code=step["ref"]).first()
+        # ctx["setup"] = setup
+        return render_template("loss/setup_card.html", **ctx)
+
+    if step["kind"] == "instruction":
+        # instruction = LcaInstruction.query.filter_by(code=step["ref"]).first()
+        # ctx["instruction"] = instruction
+        return render_template("loss/instruction_card.html", **ctx)
+
+    if step["kind"] == "pause":
+        return render_template("loss/pause_card.html", **ctx)
+
+    if step["kind"] == "explain":
+        # explain = LcaExplain.query.filter_by(code=step["ref"]).first()
+        # ctx["explain"] = explain
+        return render_template("loss/explain_card.html", **ctx)
+
+    if step["kind"] == "question":
+        q_no = step["q_no"]
+        # question = LcaQuestion.query.filter_by(q_no=q_no).first()
+        # ctx["question"] = question
+
+        prev = LcaAnswer.query.filter_by(run_id=run.id, q_no=q_no).first()
+        ctx["prev_answer"] = prev.answer if prev else None
+
+        return render_template("loss/question_card.html", **ctx)
+
+    # fallback: treat as end
+    run.status = "completed"
+    run.completed_at = db.func.now()
+    db.session.commit()
+    return redirect(url_for("loss_bp.assessment_result", run_id=run.id))
+
+def compute_lca_result(run_id: int):
+    answers = LcaAnswer.query.filter_by(run_id=run_id).all()
+    # TODO: your scoring logic
+    return {}
+
+
+@loss_bp.route("/assessment_result")
+@login_required
+def assessment_result():
+    run_id = request.args.get("run_id", type=int)
+    if not run_id:
+        return redirect(url_for("loss_bp.assessment_question_flow"))
+
+    run = LcaRun.query.get(run_id)
+    if not run or run.user_id != current_user.id:
+        return redirect(url_for("loss_bp.assessment_question_flow"))
+
+    if run.status != "completed":
+        # you can either block, or force-complete on whatever answers exist
+        run.status = "completed"
+        run.completed_at = db.func.now()
+        db.session.commit()
+
+    result = compute_lca_result(run.id)
+
+    return render_template("loss/result.html", run=run, result=result)

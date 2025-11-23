@@ -151,22 +151,6 @@ class LcaScoringMap(db.Model):
     phase_3 = db.Column(db.Integer, nullable=False, default=0)
     phase_4 = db.Column(db.Integer, nullable=False, default=0)
 
-class LcaRun(db.Model):
-    __tablename__ = "lca_run"
-
-    id          = db.Column(db.Integer, primary_key=True)
-    user_id     = db.Column(db.Integer, nullable=False)
-    started_at  = db.Column(db.String,  nullable=False)  # TEXT in DB
-    finished_at = db.Column(db.String)                   # TEXT in DB (nullable)
-    status      = db.Column(db.String,  default="in_progress")
-    subject     = db.Column(db.String)
-
-    # Optional convenience: parseable accessors (safe if strings are ISO-like)
-    @property
-    def started_display(self): return self.started_at or "—"
-    @property
-    def finished_display(self): return self.finished_at or ""
-
 class LcaResult(db.Model):
     __tablename__ = "lca_result"
 
@@ -211,4 +195,29 @@ class LcaOverallItem(db.Model):
     active   = db.Column(db.Boolean, nullable=False, default=True, index=True)
     type     = db.Column(db.String(20), nullable=False, default="summary", index=True)
 
+# Example models: adjust to match your DB
+
+class LcaRun(db.Model):
+    __tablename__ = "lca_run"
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    status = db.Column(db.String(20), default="in_progress")  # in_progress|completed
+    current_pos = db.Column(db.Integer, default=1)  # last position reached (1–67)
+    created_at = db.Column(db.DateTime, server_default=db.func.now())
+    completed_at = db.Column(db.DateTime)
+
+    # optional: store result summary fields here too
+
+
+class LcaAnswer(db.Model):
+    __tablename__ = "lca_answer"
+    id = db.Column(db.Integer, primary_key=True)
+    run_id = db.Column(db.Integer, db.ForeignKey("loss_assessment_run.id"), nullable=False)
+    q_no = db.Column(db.Integer, nullable=False)      # 1–50
+    answer = db.Column(db.String(10), nullable=False) # "yes"/"no"
+    created_at = db.Column(db.DateTime, server_default=db.func.now())
+
+    __table_args__ = (
+        db.UniqueConstraint("run_id", "q_no", name="uq_loss_run_q"),
+    )
 

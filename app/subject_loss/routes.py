@@ -376,32 +376,25 @@ def sequence_step(pos: int):
 EXPLAIN_COUNT = 8  # or whatever you use
 
 def get_sequence():
-    """
-    LOSS course sequence:
-      - intro cards
-      - questions 1–25
-      - pause card
-      - questions 26–50
-      - explain cards / result intro
-    """
-    return [
-        # --- your intro/instruction cards ---
-        ("instruction", 1),
-        ("instruction", 2),   # keep/add as many as you actually use
+    seq = []
 
-        # --- block 1: questions 1–25 ---
-        ("question", "1-25"),
+    # 1) Instructions (IDs 1..6 in lca_instruction)
+    seq += [("instruction", i) for i in range(1, 7)]
 
-        # --- pause between blocks ---
-        ("pause", 1),
+    # 2) Questions 1..25
+    seq += [("question", i) for i in range(1, 26)]
 
-        # --- block 2: questions 26–50 ---
-        ("question", "26-50"),
+    # — Single pause between Q25 and Q26 —
+    # Use a numeric ID that exists in your table (e.g., 6 = "Take a Break")
+    seq += [("pause", 6)]
 
-        # --- explain / after-questions section ---
-        ("explain", "after_questions"),
-    ]
+    # 3) Questions 26..50
+    seq += [("question", i) for i in range(26, 51)]
 
+    # 4) Explains (1..EXPLAIN_COUNT)
+    seq += [("explain", i) for i in range(1, EXPLAIN_COUNT + 1)]
+
+    return seq
 
 # ===== Step 5 =======
 @loss_bp.route("/result/finalize", methods=["POST"])

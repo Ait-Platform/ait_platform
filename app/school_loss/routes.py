@@ -994,99 +994,22 @@ def create_loss_run_for_user(user_id: int) -> int:
         """), {"uid": user_id})
         return int(rid)
 
-def compute_loss_results(run_id: int, user_id: int):
-    """
-    Compute phase totals for a LOSS run and upsert a row in lca_result.
-    Prefers a view `lca_scorecard_v` if you have it; otherwise falls back
-    to joining responses + mappings + score definitions.
-    Returns a dict with phase totals.
-    """
-    with db.engine.begin() as conn:
-        # 1) Try the convenient view first
-        try:
-            sums = conn.execute(text("""
-                SELECT
-                  COALESCE(SUM(phase_1), 0) AS p1,
-                  COALESCE(SUM(phase_2), 0) AS p2,
-                  COALESCE(SUM(phase_3), 0) AS p3,
-                  COALESCE(SUM(phase_4), 0) AS p4
-                FROM lca_scorecard_v
-                WHERE run_id = :rid
-            """), {"rid": run_id}).mappings().first()
-        except Exception:
-            sums = None
-
-        # 2) Fallback: compute from raw tables
-        if not sums or sums is None:
-            sums = conn.execute(text("""
-                SELECT
-                  COALESCE(SUM(CASE WHEN m.phase = 1 AND r.answer = 'yes' THEN s.phase_1 ELSE 0 END), 0) AS p1,
-                  COALESCE(SUM(CASE WHEN m.phase = 2 AND r.answer = 'yes' THEN s.phase_2 ELSE 0 END), 0) AS p2,
-                  COALESCE(SUM(CASE WHEN m.phase = 3 AND r.answer = 'yes' THEN s.phase_3 ELSE 0 END), 0) AS p3,
-                  COALESCE(SUM(CASE WHEN m.phase = 4 AND r.answer = 'yes' THEN s.phase_4 ELSE 0 END), 0) AS p4
-                FROM lca_response r
-                JOIN lca_question_phase_map m ON m.question_id = r.question_id
-                JOIN lca_score_definitions s ON s.question_id = r.question_id
-               WHERE r.run_id = :rid
-            """), {"rid": run_id}).mappings().first()
-
-        p1 = int(sums.get("p1", 0) if sums else 0)
-        p2 = int(sums.get("p2", 0) if sums else 0)
-        p3 = int(sums.get("p3", 0) if sums else 0)
-        p4 = int(sums.get("p4", 0) if sums else 0)
-        total = p1 + p2 + p3 + p4
-
-        # Upsert result row (DELETE + INSERT works on SQLite without constraints)
-        conn.execute(text("DELETE FROM lca_result WHERE run_id = :rid"), {"rid": run_id})
-        conn.execute(text("""
-            INSERT INTO lca_result
-                (user_id, phase_1, phase_2, phase_3, phase_4, total, run_id, subject, created_at)
-            VALUES
-                (:uid, :p1, :p2, :p3, :p4, :tot, :rid, 'LOSS', CURRENT_TIMESTAMP)
-        """), {"uid": user_id, "rid": run_id, "p1": p1, "p2": p2, "p3": p3, "p4": p4, "tot": total})
-
-        return {"phase_1": p1, "phase_2": p2, "phase_3": p3, "phase_4": p4, "total": total}
+def finalize_run_totals(run_id: int, user_id: int) -> None:
+    from flask import current_app
+    current_app.logger.info(
+        "finalize_run_totals: AIT flow uses incremental lca_result; skipping recompute. run_id=%s user_id=%s",
+        run_id, user_id,
+    )
+    return
 
 
-def finalize_run_totals(rid: int, uid: int):
-    # Insert/Upsert totals
-    db.session.execute(text("""
-        INSERT INTO lca_result
-          (run_id, user_id, subject, phase_1, phase_2, phase_3, phase_4, score_total, created_at)
-        SELECT
-          r.run_id,
-          r.user_id,
-          'loss' AS subject,
-          SUM(sc.phase_1) AS p1,
-          SUM(sc.phase_2) AS p2,
-          SUM(sc.phase_3) AS p3,
-          SUM(sc.phase_4) AS p4,
-          SUM(sc.phase_1 + sc.phase_2 + sc.phase_3 + sc.phase_4) AS total,
-          MAX(r.created_at) AS created_at
-        FROM lca_scorecard sc
-        JOIN lca_response r
-          ON r.run_id = sc.run_id
-         AND r.question_id = sc.question_id
-        WHERE sc.run_id = :rid AND r.user_id = :uid
-        GROUP BY r.run_id, r.user_id
-        ON CONFLICT(run_id) DO UPDATE SET
-          user_id     = excluded.user_id,
-          subject     = excluded.subject,
-          phase_1     = excluded.phase_1,
-          phase_2     = excluded.phase_2,
-          phase_3     = excluded.phase_3,
-          phase_4     = excluded.phase_4,
-          score_total = excluded.score_total,
-          created_at  = excluded.created_at
-    """), {"rid": rid, "uid": uid})
-
-    db.session.execute(text("""
-        UPDATE lca_run
-           SET status='complete', finished_at = COALESCE(finished_at, datetime('now'))
-         WHERE id = :rid
-    """), {"rid": rid})
-
-    db.session.commit()
+def compute_loss_results(run_id: int, user_id: int | None = None) -> None:
+    from flask import current_app
+    current_app.logger.info(
+        "compute_loss_results: AIT flow uses lca_result aggregates; skipping legacy scoring. run_id=%s",
+        run_id,
+    )
+    return
 
 def finish_loss_run(run_id):
     ts = datetime.utcnow().isoformat(timespec="seconds")

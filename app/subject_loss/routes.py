@@ -209,6 +209,7 @@ def course_start():
 
 # Assessment step 3
 # ================
+
 @loss_bp.route("/sequence/<int:pos>", methods=["GET", "POST"])
 def sequence_step(pos: int):
     # 1) read -> keep
@@ -271,12 +272,8 @@ def sequence_step(pos: int):
         session["current_index"] = 0
         session["active_q_range"] = q_range
 
-        # Carry run_id *and* current position so we can advance correctly
-        return redirect(url_for(
-            "loss_bp.assessment_question_flow",
-            run_id=run_id,
-            from_pos=pos,
-        ))
+        # Just send into the question flow; it will decide when to come back
+        return redirect(url_for("loss_bp.assessment_question_flow"))
 
     # -------- NON-QUESTION CARDS --------
 
@@ -402,9 +399,6 @@ def assessment_question_flow():
 
     session["current_run_id"] = rid
 
-    # Where in the sequence did we come from? (for advancing AFTER the block)
-    from_pos = request.args.get("from_pos", type=int) or session.get("q_seq_pos")
-
     # Optional hard reset for THIS run only
     if request.method == "GET" and request.args.get("reset") == "1":
         db.session.execute(text("DELETE FROM lca_response   WHERE run_id = :rid"), {"rid": rid})
@@ -413,7 +407,7 @@ def assessment_question_flow():
         db.session.commit()
         for k in ("current_index", "q_range", "q_seq_pos", "active_q_range"):
             session.pop(k, None)
-        return redirect(url_for("loss_bp.assessment_question_flow", run_id=rid))
+        return redirect(url_for("loss_bp.assessment_question_flow"))
 
     # Active block (e.g. (1,25) or (26,50)) is set by sequence_step
     q_range = session.get("q_range")  # tuple like (start, end) or None
@@ -431,20 +425,22 @@ def assessment_question_flow():
 
     global_total = LcaQuestion.query.count()
 
-    # If there are truly no questions for this block, STOP (no auto-advance)
+    # Helper: where to go when this block is done / invalid
+    def _advance_sequence():
+        pos = int(session.get("q_seq_pos", 0) or 0)
+        # If we somehow don't know the pos, just bail to course_start
+        if pos <= 0:
+            for k in ("q_range", "q_seq_pos", "current_index", "active_q_range"):
+                session.pop(k, None)
+            return redirect(url_for("loss_bp.course_start"))
+        next_pos = pos + 1
+        for k in ("q_range", "q_seq_pos", "current_index", "active_q_range"):
+            session.pop(k, None)
+        return redirect(url_for("loss_bp.sequence_step", pos=next_pos, run_id=rid))
+
+    # If no questions in this block → advance sequence
     if not questions:
-        current_app.logger.error(
-            "assessment_question_flow: no questions for q_range=%s run_id=%s uid=%s",
-            q_range, rid, uid,
-        )
-        return render_template(
-            "subject/loss/cards/question.html",
-            question=None,
-            display_idx=0,
-            display_total=global_total,
-            progress_pct=0,
-            error="Questions for this section are not available. Please contact support.",
-        ), 500
+        return _advance_sequence()
 
     # ---------- Determine current index from DB (idempotent) ----------
     if q_range and all(q_range):
@@ -469,24 +465,22 @@ def assessment_question_flow():
         ).scalar()
 
     idx = int(answered_count or 0)
-    session["current_index"] = idx  # informational only
+    session["current_index"] = idx  # informational / debugging
 
-    # Clamp idx into valid range for safety
-    if idx < 0:
-        idx = 0
+    # Finished the block already → advance sequence
     if idx >= len(questions):
-        idx = len(questions) - 1
+        return _advance_sequence()
 
-    # ---------- POST: save answer and possibly advance sequence ----------
+    # ---------- POST: save answer ----------
     if request.method == "POST":
         answer = (request.form.get("answer") or "").strip().lower()
         qid    = request.form.get("question_id", type=int)
 
         # Validate
         if answer not in {"yes", "no"} or not qid:
-            qrow = questions[idx]
+            qrow = questions[min(idx, len(questions) - 1)]
             offset = (int(q_range[0]) - 1) if (q_range and all(q_range)) else 0
-            display_idx = offset + (idx + 1)
+            display_idx = offset + idx + 1
             pct = int(round(display_idx * 100.0 / max(1, global_total)))
             return render_template(
                 "subject/loss/cards/question.html",
@@ -527,44 +521,13 @@ def assessment_question_flow():
 
         db.session.commit()
 
-        # Recompute how many are answered in this block
-        if q_range and all(q_range):
-            answered_count = db.session.execute(
-                text("""
-                    SELECT COUNT(*)
-                      FROM lca_response r
-                      JOIN lca_question q ON q.id = r.question_id
-                     WHERE r.run_id = :rid
-                       AND q.number BETWEEN :start AND :end
-                """),
-                {"rid": rid, "start": int(q_range[0]), "end": int(q_range[1])},
-            ).scalar()
-        else:
-            answered_count = db.session.execute(
-                text("""
-                    SELECT COUNT(*)
-                      FROM lca_response
-                     WHERE run_id = :rid
-                """),
-                {"rid": rid},
-            ).scalar()
+        # PRG: recompute index from DB on the next GET (handles double-clicks safely)
+        return redirect(url_for("loss_bp.assessment_question_flow"))
 
-        answered_count = int(answered_count or 0)
-
-        # If we finished this block, NOW we advance the sequence (single jump)
-        if answered_count >= len(questions):
-            pos = int(from_pos or session.get("q_seq_pos") or 0)
-            for k in ("q_range", "q_seq_pos", "current_index", "active_q_range"):
-                session.pop(k, None)
-            return redirect(url_for("loss_bp.sequence_step", pos=pos + 1, run_id=rid))
-
-        # Otherwise, keep going to the next question in this SAME block
-        return redirect(url_for("loss_bp.assessment_question_flow", run_id=rid))
-
-    # ---------- GET: render current question (never auto-advance) ----------
+    # ---------- GET: render current question ----------
     qrow = questions[idx]
     offset = (int(q_range[0]) - 1) if (q_range and all(q_range)) else 0
-    display_idx = offset + (idx + 1)
+    display_idx = offset + idx + 1
     pct = int(round(display_idx * 100.0 / max(1, global_total)))
 
     return render_template(

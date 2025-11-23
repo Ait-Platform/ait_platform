@@ -393,7 +393,7 @@ def assessment_question_flow():
 
     if not rid:
         rid = db.session.execute(
-            text("SELECT id FROM lca_run WHERE user_id=:uid ORDER BY id DESC LIMIT 1"),
+            text("SELECT id FROM lca_run WHERE user_id = :uid ORDER BY id DESC LIMIT 1"),
             {"uid": uid},
         ).scalar()
 
@@ -401,11 +401,13 @@ def assessment_question_flow():
         # No run at all – send them back to course_start
         return redirect(url_for("loss_bp.course_start"))
 
+    session["current_run_id"] = rid
+
     # Optional hard reset for THIS run only
     if request.method == "GET" and request.args.get("reset") == "1":
-        db.session.execute(text("DELETE FROM lca_response   WHERE run_id=:rid"), {"rid": rid})
-        db.session.execute(text("DELETE FROM lca_scorecard WHERE run_id=:rid"), {"rid": rid})
-        db.session.execute(text("DELETE FROM lca_result    WHERE run_id=:rid"), {"rid": rid})
+        db.session.execute(text("DELETE FROM lca_response   WHERE run_id = :rid"), {"rid": rid})
+        db.session.execute(text("DELETE FROM lca_scorecard WHERE run_id = :rid"), {"rid": rid})
+        db.session.execute(text("DELETE FROM lca_result    WHERE run_id = :rid"), {"rid": rid})
         db.session.commit()
         for k in ("current_index", "q_range", "q_seq_pos", "active_q_range"):
             session.pop(k, None)
@@ -414,7 +416,7 @@ def assessment_question_flow():
     # Active block (e.g. (1,25) or (26,50)) is set by sequence_step
     q_range = session.get("q_range")  # tuple like (start, end) or None
 
-    # Reset index if block changed (prevents cross-block loops)
+    # If block changed, clear any old index (defensive)
     if q_range != session.get("active_q_range"):
         session["active_q_range"] = q_range
         session["current_index"] = 0
@@ -434,16 +436,32 @@ def assessment_question_flow():
             session.pop(k, None)
         return redirect(url_for("loss_bp.sequence_step", pos=pos + 1, run_id=rid))
 
-    # Current index in this block
-    idx = int(session.get("current_index", 0))
+    # ---------- Determine current index from DB (idempotent) ----------
+    if q_range and all(q_range):
+        answered_count = db.session.execute(
+            text("""
+                SELECT COUNT(*)
+                  FROM lca_response r
+                  JOIN lca_question q ON q.id = r.question_id
+                 WHERE r.run_id = :rid
+                   AND q.number BETWEEN :start AND :end
+            """),
+            {"rid": rid, "start": int(q_range[0]), "end": int(q_range[1])},
+        ).scalar()
+    else:
+        answered_count = db.session.execute(
+            text("""
+                SELECT COUNT(*)
+                  FROM lca_response
+                 WHERE run_id = :rid
+            """),
+            {"rid": rid},
+        ).scalar()
 
-    # ✅ If we arrive on a fresh GET but index is "stale finished" (>= len),
-    #    reset to 0 so we actually start the block instead of skipping it.
-    if request.method == "GET" and idx >= len(questions):
-        idx = 0
-        session["current_index"] = 0
+    idx = int(answered_count or 0)
+    session["current_index"] = idx  # purely informational / debugging
 
-    # Finished the block already (real case after last POST) → advance sequence
+    # Finished the block already → advance sequence
     if idx >= len(questions):
         pos = int(session.get("q_seq_pos", 0))
         for k in ("q_range", "q_seq_pos", "current_index", "active_q_range"):
@@ -451,14 +469,13 @@ def assessment_question_flow():
         return redirect(url_for("loss_bp.sequence_step", pos=pos + 1, run_id=rid))
 
     # ---------- POST: save answer ----------
-    answer = None  # defensive: prevents NameError if refactored later
     if request.method == "POST":
         answer = (request.form.get("answer") or "").strip().lower()
         qid    = request.form.get("question_id", type=int)
 
         # Validate
         if answer not in {"yes", "no"} or not qid:
-            qrow = questions[idx]
+            qrow = questions[min(idx, len(questions) - 1)]
             offset = (int(q_range[0]) - 1) if (q_range and all(q_range)) else 0
             display_idx = offset + idx + 1
             pct = int(round(display_idx * 100.0 / max(1, global_total)))
@@ -487,8 +504,9 @@ def assessment_question_flow():
             SELECT
               :uid, :rid, :qid, :ans,
               m.phase_1, m.phase_2, m.phase_3, m.phase_4
-            FROM lca_question_phase_map m
-            WHERE m.question_id = :qid AND m.answer_type = :ans
+              FROM lca_question_phase_map m
+             WHERE m.question_id = :qid
+               AND m.answer_type = :ans
             ON CONFLICT(run_id, question_id) DO UPDATE SET
               user_id     = excluded.user_id,
               answer_type = excluded.answer_type,
@@ -498,98 +516,9 @@ def assessment_question_flow():
               phase_4     = excluded.phase_4
         """), {"uid": uid, "rid": rid, "qid": qid, "ans": answer})
 
-        # Ensure a lca_result row exists for this run (unique on run_id)
-        db.session.execute(text("""
-            INSERT INTO lca_result (
-                user_id,
-                run_id,
-                subject,
-                phase_1,
-                phase_2,
-                phase_3,
-                phase_4,
-                total
-            )
-            SELECT
-                :uid,
-                :rid,
-                'LOSS',
-                0, 0, 0, 0,   -- phases start at 0
-                0             -- total starts at 0
-            WHERE NOT EXISTS (
-                SELECT 1
-                FROM lca_result
-                WHERE user_id = :uid
-                AND run_id  = :rid
-                AND subject = 'LOSS'
-            )
-        """), {"uid": uid, "rid": rid})
-
-        # Increment cumulative totals in lca_result from the map for this (qid, answer)
-        db.session.execute(text("""
-            UPDATE lca_result
-               SET phase_1 = phase_1 + (
-                         SELECT COALESCE(phase_1,0)
-                         FROM lca_question_phase_map
-                         WHERE question_id = :qid AND answer_type = :ans),
-                   phase_2 = phase_2 + (
-                         SELECT COALESCE(phase_2,0)
-                         FROM lca_question_phase_map
-                         WHERE question_id = :qid AND answer_type = :ans),
-                   phase_3 = phase_3 + (
-                         SELECT COALESCE(phase_3,0)
-                         FROM lca_question_phase_map
-                         WHERE question_id = :qid AND answer_type = :ans),
-                   phase_4 = phase_4 + (
-                         SELECT COALESCE(phase_4,0)
-                         FROM lca_question_phase_map
-                         WHERE question_id = :qid AND answer_type = :ans),
-                   total   = total + (
-                         SELECT COALESCE(phase_1,0)+COALESCE(phase_2,0)+COALESCE(phase_3,0)+COALESCE(phase_4,0)
-                         FROM lca_question_phase_map
-                         WHERE question_id = :qid AND answer_type = :ans)
-             WHERE run_id = :rid
-        """), {"rid": rid, "qid": qid, "ans": answer})
-
-        # Commit all DB work for this answer
         db.session.commit()
 
-        # Advance index and continue / or return to sequence
-        idx += 1
-        session["current_index"] = idx
-
-        if idx >= len(questions):
-            # End of block: update max_* columns once (based on questions answered so far in this run)
-            db.session.execute(text("""
-            WITH qset AS (
-              SELECT DISTINCT question_id
-              FROM lca_scorecard
-              WHERE run_id = :rid
-            ),
-            mx AS (
-              SELECT
-                SUM(COALESCE(m.phase_1,0)) AS max_p1,
-                SUM(COALESCE(m.phase_2,0)) AS max_p2,
-                SUM(COALESCE(m.phase_3,0)) AS max_p3,
-                SUM(COALESCE(m.phase_4,0)) AS max_p4
-              FROM lca_question_phase_map m
-              JOIN qset q ON q.question_id = m.question_id
-            )
-            UPDATE lca_result
-               SET max_phase_1 = (SELECT max_p1 FROM mx),
-                   max_phase_2 = (SELECT max_p2 FROM mx),
-                   max_phase_3 = (SELECT max_p3 FROM mx),
-                   max_phase_4 = (SELECT max_p4 FROM mx),
-                   max_total   = (SELECT max_p1 + max_p2 + max_p3 + max_p4 FROM mx)
-             WHERE run_id = :rid
-            """), {"rid": rid})
-            db.session.commit()
-
-            pos = int(session.get("q_seq_pos", 0))
-            for k in ("q_range", "q_seq_pos", "current_index", "active_q_range"):
-                session.pop(k, None)
-            return redirect(url_for("loss_bp.sequence_step", pos=pos + 1, run_id=rid))
-
+        # PRG: recompute index from DB on the next GET (handles double-clicks safely)
         return redirect(url_for("loss_bp.assessment_question_flow", run_id=rid))
 
     # ---------- GET: render current question ----------
@@ -597,6 +526,7 @@ def assessment_question_flow():
     offset = (int(q_range[0]) - 1) if (q_range and all(q_range)) else 0
     display_idx = offset + idx + 1
     pct = int(round(display_idx * 100.0 / max(1, global_total)))
+
     return render_template(
         "subject/loss/cards/question.html",
         question=qrow,

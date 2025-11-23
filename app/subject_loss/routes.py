@@ -407,7 +407,6 @@ def result_finalize():
     #return redirect(url_for("loss_bp.result_dashboard", run_id=run_id))
     return redirect(url_for("loss_bp.result_run", run_id=run_id))
 
-
 @loss_bp.route("/assessment_question_flow", methods=["GET", "POST"])
 def assessment_question_flow():
     uid = session.get("user_id")
@@ -426,22 +425,24 @@ def assessment_question_flow():
             {"uid": uid},
         ).scalar()
 
+    if not rid:
+        # No run at all – send them back to course_start
+        return redirect(url_for("loss_bp.course_start"))
 
     # Optional hard reset for THIS run only
     if request.method == "GET" and request.args.get("reset") == "1":
-        if rid:
-            db.session.execute(text("DELETE FROM lca_response   WHERE run_id=:rid"), {"rid": rid})
-            db.session.execute(text("DELETE FROM lca_scorecard WHERE run_id=:rid"), {"rid": rid})
-            db.session.execute(text("DELETE FROM lca_result    WHERE run_id=:rid"), {"rid": rid})
-            db.session.commit()
+        db.session.execute(text("DELETE FROM lca_response   WHERE run_id=:rid"), {"rid": rid})
+        db.session.execute(text("DELETE FROM lca_scorecard WHERE run_id=:rid"), {"rid": rid})
+        db.session.execute(text("DELETE FROM lca_result    WHERE run_id=:rid"), {"rid": rid})
+        db.session.commit()
         for k in ("current_index", "q_range", "q_seq_pos", "active_q_range"):
             session.pop(k, None)
-        return redirect(url_for("loss_bp.assessment_question_flow"))
+        return redirect(url_for("loss_bp.assessment_question_flow", run_id=rid))
 
     # Active block (e.g. (1,25) or (26,50)) is set by sequence_step
     q_range = session.get("q_range")  # tuple like (start, end) or None
 
-    # Reset index if block changed (prevents loops)
+    # Reset index if block changed (prevents cross-block loops)
     if q_range != session.get("active_q_range"):
         session["active_q_range"] = q_range
         session["current_index"] = 0
@@ -459,43 +460,23 @@ def assessment_question_flow():
         pos = int(session.get("q_seq_pos", 0))
         for k in ("q_range", "q_seq_pos", "current_index", "active_q_range"):
             session.pop(k, None)
-        return redirect(url_for("loss_bp.sequence_step", pos=pos + 1))
+        return redirect(url_for("loss_bp.sequence_step", pos=pos + 1, run_id=rid))
 
+    # Current index in this block
     idx = int(session.get("current_index", 0))
 
-    # Finished the block already → advance sequence
-    if q_range and all(q_range):
-        answered_count = db.session.execute(
-            text("""
-                SELECT COUNT(*)
-                FROM lca_response r
-                JOIN lca_question q ON q.id = r.question_id
-                WHERE r.run_id = :rid
-                AND q.number BETWEEN :start AND :end
-            """),
-            {"rid": rid, "start": int(q_range[0]), "end": int(q_range[1])},
-        ).scalar()
-    else:
-        answered_count = db.session.execute(
-            text("""
-                SELECT COUNT(*)
-                FROM lca_response
-                WHERE run_id = :rid
-            """),
-            {"rid": rid},
-        ).scalar()
+    # ✅ If we arrive on a fresh GET but index is "stale finished" (>= len),
+    #    reset to 0 so we actually start the block instead of skipping it.
+    if request.method == "GET" and idx >= len(questions):
+        idx = 0
+        session["current_index"] = 0
 
-    idx = int(answered_count or 0)
-    session["current_index"] = idx
-
-    # Finished the block already → advance sequence
+    # Finished the block already (real case after last POST) → advance sequence
     if idx >= len(questions):
         pos = int(session.get("q_seq_pos", 0))
         for k in ("q_range", "q_seq_pos", "current_index", "active_q_range"):
             session.pop(k, None)
-        return redirect(url_for("loss_bp.sequence_step", pos=pos + 1))
-
-
+        return redirect(url_for("loss_bp.sequence_step", pos=pos + 1, run_id=rid))
 
     # ---------- POST: save answer ----------
     answer = None  # defensive: prevents NameError if refactored later
@@ -572,7 +553,6 @@ def assessment_question_flow():
             )
         """), {"uid": uid, "rid": rid})
 
-
         # Increment cumulative totals in lca_result from the map for this (qid, answer)
         db.session.execute(text("""
             UPDATE lca_result
@@ -636,9 +616,8 @@ def assessment_question_flow():
             pos = int(session.get("q_seq_pos", 0))
             for k in ("q_range", "q_seq_pos", "current_index", "active_q_range"):
                 session.pop(k, None)
-            return redirect(url_for("loss_bp.sequence_step", pos=pos + 1))
+            return redirect(url_for("loss_bp.sequence_step", pos=pos + 1, run_id=rid))
 
-        #return redirect(url_for("loss_bp.assessment_question_flow"))
         return redirect(url_for("loss_bp.assessment_question_flow", run_id=rid))
 
     # ---------- GET: render current question ----------

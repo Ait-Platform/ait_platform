@@ -271,13 +271,12 @@ def sequence_step(pos: int):
         session["current_index"] = 0
         session["active_q_range"] = q_range
 
-        # Carry run_id to the question flow (harmless if ignored)
-        return redirect(url_for("loss_bp.assessment_question_flow", run_id=run_id))
-
-    # ❌ IMPORTANT: we REMOVE the special after_questions block entirely.
-    # The explain cards (including "after_questions") now behave like
-    # normal non-question cards and the very last card (pos == total)
-    # sends the user to result_run.
+        # Carry run_id *and* current position so we can advance correctly
+        return redirect(url_for(
+            "loss_bp.assessment_question_flow",
+            run_id=run_id,
+            from_pos=pos,
+        ))
 
     # -------- NON-QUESTION CARDS --------
 
@@ -403,6 +402,8 @@ def assessment_question_flow():
 
     session["current_run_id"] = rid
 
+    from_pos = request.args.get("from_pos", type=int)
+
     # Optional hard reset for THIS run only
     if request.method == "GET" and request.args.get("reset") == "1":
         db.session.execute(text("DELETE FROM lca_response   WHERE run_id = :rid"), {"rid": rid})
@@ -431,10 +432,11 @@ def assessment_question_flow():
 
     # If no questions in this block → advance sequence
     if not questions:
-        pos = int(session.get("q_seq_pos", 0))
+        pos = int(from_pos or session.get("q_seq_pos", 0) or 0)
         for k in ("q_range", "q_seq_pos", "current_index", "active_q_range"):
             session.pop(k, None)
         return redirect(url_for("loss_bp.sequence_step", pos=pos + 1, run_id=rid))
+
 
     # ---------- Determine current index from DB (idempotent) ----------
     if q_range and all(q_range):
@@ -463,10 +465,11 @@ def assessment_question_flow():
 
     # Finished the block already → advance sequence
     if idx >= len(questions):
-        pos = int(session.get("q_seq_pos", 0))
+        pos = int(from_pos or session.get("q_seq_pos", 0) or 0)
         for k in ("q_range", "q_seq_pos", "current_index", "active_q_range"):
             session.pop(k, None)
         return redirect(url_for("loss_bp.sequence_step", pos=pos + 1, run_id=rid))
+
 
     # ---------- POST: save answer ----------
     if request.method == "POST":

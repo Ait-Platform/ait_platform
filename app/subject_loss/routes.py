@@ -182,29 +182,35 @@ def dashboard():
 
 # Assessment starts from here step 2
 # =====================
-@loss_bp.get("/course/start")
+@loss_bp.route("/course/start")
 def course_start():
-    uid = session.get("user_id", 1)
-    run_id = (request.args.get("run_id", type=int)
-              or session.get("current_run_id")
-              or session.get("loss_run_id"))
+    uid = session.get("user_id")
+    if not uid:
+        return redirect(url_for("auth_bp.login"))
 
-    if not run_id:
-        current_app.logger.warning("course_start: creating lca_run for uid=%s (LOSS)", uid)
-        run_id = create_loss_run_for_user(uid)
+    # Always create a NEW run row for this user/subject
+    rid = db.session.execute(
+        text("""
+            INSERT INTO lca_run (user_id, subject)
+            VALUES (:uid, 'LOSS')
+            RETURNING id
+        """),
+        {"uid": uid},
+    ).scalar()
 
-    if request.args.get("return_to") == "admin":
-        session["loss_return_to"] = {
-            "endpoint": "admin_bp.loss_home",
-            "params": {"uid": request.args.get("admin_uid", type=int) or session.get("user_id")},
-        }
-        session["came_from_admin"] = True  # optional flag for UI
+    db.session.commit()
+    current_app.logger.warning(
+        "course_start: created NEW lca_run id=%s for uid=%s (LOSS)", rid, uid
+    )
 
-    session["current_run_id"] = run_id
-    session["loss_run_id"] = run_id
+    # Reset all loss-run session state
+    session["loss_run_id"] = rid
+    session["current_run_id"] = rid
+    for k in ("q_range", "q_seq_pos", "current_index", "active_q_range", "last_loss_run_id"):
+        session.pop(k, None)
 
-    #pos = 1
-    return redirect(url_for("loss_bp.sequence_step", pos=1, run_id=run_id))
+    # Always start sequence at step 1 for the new run
+    return redirect(url_for("loss_bp.sequence_step", pos=1, run_id=rid))
 
 
 # Assessment step 3

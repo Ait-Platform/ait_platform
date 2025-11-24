@@ -202,29 +202,18 @@ class LcaRun(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
-
+    subject = db.Column(db.String(20), nullable=False, default="LOSS")
     status = db.Column(db.String(20), nullable=False, default="in_progress")
     current_pos = db.Column(db.Integer, nullable=False, default=1)
-
-    created_at = db.Column(db.DateTime, server_default=db.func.now(), nullable=False)
+    started_at = db.Column(db.DateTime, server_default=db.func.now())
     completed_at = db.Column(db.DateTime)
 
-class LcaAnswer(db.Model):
-    __tablename__ = "lca_answer"
+class LcaResponse(db.Model):
+    __tablename__ = "lca_response"
 
     id = db.Column(db.Integer, primary_key=True)
-
-    # 🔴 THIS IS THE IMPORTANT LINE
-    run_id = db.Column(
-        db.Integer,
-        db.ForeignKey("lca_run.id"),   # ✅ must point to lca_run, NOT loss_assessment_run
-        nullable=False,
-    )
-
-    q_no = db.Column(db.Integer, nullable=False)
-    answer = db.Column(db.String(10), nullable=False)
-    created_at = db.Column(db.DateTime, server_default=db.func.now(), nullable=False)
-
-    __table_args__ = (
-        db.UniqueConstraint("run_id", "q_no", name="uq_lca_run_q"),
-    )
+    user_id = db.Column(db.Integer, nullable=False)
+    question_id = db.Column(db.Integer, nullable=False)
+    answer = db.Column(db.String(3), nullable=False)  # 'yes' / 'no'
+    created_at = db.Column(db.DateTime, server_default=db.func.now())
+    run_id = db.Column(db.Integer, db.ForeignKey("lca_run.id"), nullable=False)

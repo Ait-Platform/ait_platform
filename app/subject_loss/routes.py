@@ -1471,25 +1471,27 @@ def assessment_question_flow():
     if run.status == "completed":
         return redirect(url_for("loss_bp.assessment_result", run_id=run.id))
 
-    pos = run.current_pos
-    step = get_step_for_pos(pos)
-
-    # safety: if out of range, mark complete and go to result
-    if step is None:
-        run.status = "completed"
-        run.completed_at = db.func.now()
-        db.session.commit()
-        return redirect(url_for("loss_bp.assessment_result", run_id=run.id))
-
-    # ---------------- POST: handle click ----------------
+    # ---------------- POST: handle click (Yes/No or Next) ----------------
     if request.method == "POST":
+        pos = run.current_pos or 1
+        step = get_step_for_pos(pos)
+
+        # safety: if out of range, mark complete and go to result
+        if step is None:
+            run.status = "completed"
+            run.completed_at = db.func.now()
+            db.session.commit()
+            return redirect(url_for("loss_bp.assessment_result", run_id=run.id))
+
         if step["kind"] == "question":
             q_no = step["q_no"]
             answer = request.form.get("answer")
 
             if answer not in ("yes", "no"):
                 flash("Please select Yes or No to continue.", "warning")
-                return redirect(url_for("loss_bp.assessment_question_flow", run_id=run.id))
+                return redirect(
+                    url_for("loss_bp.assessment_question_flow", run_id=run.id)
+                )
 
             existing = LcaAnswer.query.filter_by(run_id=run.id, q_no=q_no).first()
             if existing:
@@ -1497,8 +1499,7 @@ def assessment_question_flow():
             else:
                 db.session.add(LcaAnswer(run_id=run.id, q_no=q_no, answer=answer))
 
-        # non-question cards just move on
-
+        # Advance position
         next_pos = pos + 1
         run.current_pos = next_pos
 
@@ -1508,44 +1509,48 @@ def assessment_question_flow():
 
         db.session.commit()
 
-        # redirect to break double-submit
         if run.status == "completed":
             return redirect(url_for("loss_bp.assessment_result", run_id=run.id))
-        return redirect(url_for("loss_bp.assessment_question_flow", run_id=run.id))
+
+        # include from_pos so GET knows where to resume
+        return redirect(
+            url_for(
+                "loss_bp.assessment_question_flow",
+                run_id=run.id,
+                from_pos=next_pos,
+            )
+        )
 
     # ---------------- GET: render card ----------------
-    # ---------------- GET: render card ----------------
-    # Allow from_pos for compatibility with existing templates
+    # read position from query or fall back to engine pointer
     pos = request.args.get("from_pos", type=int) or run.current_pos or 1
+    if pos < 1:
+        pos = 1
+    if pos > LOSS_ASSESSMENT_MAX_POS:
+        run.status = "completed"
+        run.completed_at = db.func.now()
+        db.session.commit()
+        return redirect(url_for("loss_bp.assessment_result", run_id=run.id))
+
     run.current_pos = pos
     db.session.commit()
+
+    step = get_step_for_pos(pos)
+    if step is None:
+        run.status = "completed"
+        run.completed_at = db.func.now()
+        db.session.commit()
+        return redirect(url_for("loss_bp.assessment_result", run_id=run.id))
 
     kind = step["kind"]
     total = LOSS_ASSESSMENT_MAX_POS
     next_pos = min(pos + 1, total)
 
-    # URL the "Next" / continue button should hit
     next_url = url_for(
         "loss_bp.assessment_question_flow",
         run_id=run.id,
         from_pos=next_pos,
     )
-
-    # QUESTION CARDS: Yes/No form
-    # ---------------- GET: render card ----------------
-    kind = step["kind"]
-
-    # Trust the engine pointer; if from_pos is present, sync once
-    pos_override = request.args.get("from_pos", type=int)
-    if pos_override:
-        run.current_pos = pos_override
-        db.session.commit()
-
-    pos = run.current_pos or 1
-    total = LOSS_ASSESSMENT_MAX_POS
-    next_pos = min(pos + 1, total)
-
-    next_url = url_for("loss_bp.assessment_question_flow", run_id=run.id)
 
     # -------- QUESTION CARDS (Yes/No) --------
     if kind == "question":
@@ -1583,17 +1588,13 @@ def assessment_question_flow():
             run_id=run.id,
             pos=pos,
             total=total,
-            question=question,        # <- what template needs
+            question=question,        # what template expects
             display_idx=q_no,         # used as backup in title
             prev_answer=(prev.answer if prev else None),
             next_url=next_url,
         )
 
-
-    # NON-QUESTION CARDS: instruction / pause / explain
-    # For now, give a simple item so templates don't show "Untitled".
     # -------- NON-QUESTION CARDS (setup / instruction / pause / explain) --------
-    # Map our script ref (e.g. "inst_3", "pause_1") -> numeric id
     ref = step.get("ref")
     ident = None
     if ref and "_" in ref:
@@ -1608,8 +1609,7 @@ def assessment_question_flow():
         "instruction": "lca_instruction",
         "pause":       "lca_pause",
         "explain":     "lca_explain",
-        # treat setup as instruction-type content
-        "setup":       "lca_instruction",
+        "setup":       "lca_instruction",  # treat setup as instruction-type
     }
     template_by_kind = {
         "instruction": "subject/loss/cards/instruction.html",
@@ -1653,7 +1653,7 @@ def assessment_question_flow():
         pos=pos,
         total=total,
         next_url=next_url,
-        item=item,          # <- what your old templates used
+        item=item,
         buttons=buttons,
         run_id=run.id,
     )

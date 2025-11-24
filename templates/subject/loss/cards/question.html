@@ -41,8 +41,10 @@
 
   <form method="post" action="{{ url_for('loss_bp.assessment_question_flow') }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <input type="hidden" name="question_id" value="{{ question.id }}">
-
+    
+    <input type="hidden" name="run_id" value="{{ run_id }}">
+    <input type="hidden" name="from_pos" value="{{ pos }}">
+     {# your Yes/No inputs here #}
       <div class="flex items-center justify-between">
         <button
           type="submit"

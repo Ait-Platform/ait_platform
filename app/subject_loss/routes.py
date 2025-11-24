@@ -1452,7 +1452,14 @@ def compute_loss_result(run_id: int):
 @login_required
 def assessment_question_flow():
     # 1. Get or create run
-    run_id = request.args.get("run_id", type=int)
+        # 1. Get or create run
+    if request.method == "POST":
+        # run_id comes from a hidden field in the form
+        run_id = request.form.get("run_id", type=int)
+    else:
+        # run_id comes from the query string on GET
+        run_id = request.args.get("run_id", type=int)
+
 
     if run_id:
         run = LcaRun.query.get(run_id)

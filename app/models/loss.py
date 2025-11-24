@@ -199,25 +199,32 @@ class LcaOverallItem(db.Model):
 
 class LcaRun(db.Model):
     __tablename__ = "lca_run"
+
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
-    status = db.Column(db.String(20), default="in_progress")  # in_progress|completed
-    current_pos = db.Column(db.Integer, default=1)  # last position reached (1–67)
-    created_at = db.Column(db.DateTime, server_default=db.func.now())
+
+    status = db.Column(db.String(20), nullable=False, default="in_progress")
+    current_pos = db.Column(db.Integer, nullable=False, default=1)
+
+    created_at = db.Column(db.DateTime, server_default=db.func.now(), nullable=False)
     completed_at = db.Column(db.DateTime)
-
-    # optional: store result summary fields here too
-
 
 class LcaAnswer(db.Model):
     __tablename__ = "lca_answer"
-    id = db.Column(db.Integer, primary_key=True)
-    run_id = db.Column(db.Integer, db.ForeignKey("loss_assessment_run.id"), nullable=False)
-    q_no = db.Column(db.Integer, nullable=False)      # 1–50
-    answer = db.Column(db.String(10), nullable=False) # "yes"/"no"
-    created_at = db.Column(db.DateTime, server_default=db.func.now())
 
-    __table_args__ = (
-        db.UniqueConstraint("run_id", "q_no", name="uq_loss_run_q"),
+    id = db.Column(db.Integer, primary_key=True)
+
+    # 🔴 THIS IS THE IMPORTANT LINE
+    run_id = db.Column(
+        db.Integer,
+        db.ForeignKey("lca_run.id"),   # ✅ must point to lca_run, NOT loss_assessment_run
+        nullable=False,
     )
 
+    q_no = db.Column(db.Integer, nullable=False)
+    answer = db.Column(db.String(10), nullable=False)
+    created_at = db.Column(db.DateTime, server_default=db.func.now(), nullable=False)
+
+    __table_args__ = (
+        db.UniqueConstraint("run_id", "q_no", name="uq_lca_run_q"),
+    )

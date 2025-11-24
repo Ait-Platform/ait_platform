@@ -41,32 +41,29 @@
 
   <form method="post" action="{{ url_for('loss_bp.assessment_question_flow') }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    
     <input type="hidden" name="run_id" value="{{ run_id }}">
-    <input type="hidden" name="from_pos" value="{{ pos }}">
-     {# your Yes/No inputs here #}
-      <div class="flex items-center justify-between">
-        <button
-          type="submit"
-          name="answer"
-          value="yes"
-          class="rounded-lg border px-4 py-2 text-sm font-semibold
-                bg-sky-100 text-sky-800 border-sky-200
-                hover:bg-sky-200 transition"
-        >Yes</button>
 
-        <button
-          type="submit"
-          name="answer"
-          value="no"
-          class="rounded-lg border px-4 py-2 text-sm font-semibold
-                bg-violet-100 text-violet-800 border-violet-200
-                hover:bg-violet-200 transition"
-        >No</button>
-      </div>
+    <div class="flex items-center justify-between">
+      <button
+        type="submit"
+        name="answer"
+        value="yes"
+        class="rounded-lg border px-4 py-2 text-sm font-semibold
+              bg-sky-100 text-sky-800 border-sky-200
+              hover:bg-sky-200 transition"
+      >Yes</button>
 
-
+      <button
+        type="submit"
+        name="answer"
+        value="no"
+        class="rounded-lg border px-4 py-2 text-sm font-semibold
+              bg-violet-100 text-violet-800 border-violet-200
+              hover:bg-violet-200 transition"
+      >No</button>
+    </div>
   </form>
+
 
 
 </div>

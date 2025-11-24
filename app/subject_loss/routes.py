@@ -1511,24 +1511,30 @@ def assessment_question_flow():
         return redirect(url_for("loss_bp.assessment_question_flow", run_id=run.id))
 
     # ---------------- GET: render card ----------------
+    kind = step["kind"]
     ctx = {"run": run, "pos": pos, "step": step}
 
-    # If it's a question, you can still fetch the DB row and previous answer:
-    if step["kind"] == "question":
+    # QUESTION CARDS → Yes/No template
+    if kind == "question":
         q_no = step["q_no"]
         prev = LcaAnswer.query.filter_by(run_id=run.id, q_no=q_no).first()
         ctx["q_no"] = q_no
         ctx["prev_answer"] = prev.answer if prev else None
 
-    # IMPORTANT: use the SAME template you already used for /loss/sequence
-    # e.g. "loss/sequence.html" or whatever that file is.
-    return render_template("loss/sequence.html", **ctx)
+        # use your question-card template
+        return render_template("subject/loss/cards/question.html", **ctx)
 
-    # fallback: treat as end
-    run.status = "completed"
-    run.completed_at = db.func.now()
-    db.session.commit()
-    return redirect(url_for("loss_bp.assessment_result", run_id=run.id))
+    # NON-QUESTION CARDS → reuse existing card templates
+    template = {
+        "instruction": "subject/loss/cards/instruction.html",
+        "pause":       "subject/loss/cards/pause.html",
+        "explain":     "subject/loss/cards/explain.html",
+        # treat setup like an instruction card
+        "setup":       "subject/loss/cards/instruction.html",
+    }.get(kind, "subject/loss/cards/instruction.html")
+
+    return render_template(template, **ctx)
+
 
 def compute_lca_result(run_id: int):
     answers = LcaAnswer.query.filter_by(run_id=run_id).all()

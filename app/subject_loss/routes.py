@@ -212,7 +212,8 @@ def course_start():
         session.pop(k, None)
 
     # Always start sequence at step 1 for the new run
-    return redirect(url_for("loss_bp.sequence_step", pos=1, run_id=rid))
+    #return redirect(url_for("loss_bp.sequence_step", pos=1, run_id=rid))
+    return redirect(url_for("loss_bp.assessment_question_flow", run_id=rid))
 
 
 # Assessment step 3

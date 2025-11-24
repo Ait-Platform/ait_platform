@@ -191,12 +191,13 @@ def course_start():
     # Always create a NEW run row for this user/subject
     rid = db.session.execute(
         text("""
-            INSERT INTO lca_run (user_id, subject, started_at)
-            VALUES (:uid, 'LOSS', CURRENT_TIMESTAMP)
+            INSERT INTO lca_run (user_id, status, current_pos)
+            VALUES (:uid, 'in_progress', 1)
             RETURNING id
         """),
         {"uid": uid},
     ).scalar()
+
 
 
     db.session.commit()

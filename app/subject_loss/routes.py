@@ -9,7 +9,7 @@ import pdfkit
 from app.admin.loss.routes import _render_report_html
 from app.models.auth import AuthSubject
 from app.models.loss import (
-    LcaAnswer, LcaResponse, LcaRun,  LcaQuestion,
+    LcaResponse, LcaRun,  LcaQuestion,
     )
 from app.extensions import db
 from sqlalchemy import select, text, inspect, func, and_
@@ -1362,14 +1362,14 @@ def assessment_flow():
                 return redirect(url_for("loss_bp.assessment_flow", run_id=run.id))
 
             # Upsert answer: one row per (run_id, q_no)
-            existing = LcaAnswer.query.filter_by(
+            existing = LcaResponse.query.filter_by(
                 run_id=run.id, q_no=q_no
             ).first()
             if existing:
                 existing.answer = answer
             else:
                 db.session.add(
-                    LcaAnswer(run_id=run.id, q_no=q_no, answer=answer)
+                    LcaResponse(run_id=run.id, q_no=q_no, answer=answer)
                 )
 
         # For non-question cards (setup, instruction, pause, explain),
@@ -1430,7 +1430,7 @@ def assessment_flow():
         # context["question"] = question
 
         # optionally, pass previous answer if revisiting
-        prev = LcaAnswer.query.filter_by(
+        prev = LcaResponse.query.filter_by(
             run_id=run.id, q_no=q_no
         ).first()
         context["prev_answer"] = prev.answer if prev else None
@@ -1444,7 +1444,7 @@ def assessment_flow():
     return redirect(url_for("loss_bp.assessment_result", run_id=run.id))
 
 def compute_loss_result(run_id: int):
-    answers = LcaAnswer.query.filter_by(run_id=run_id).all()
+    answers = LcaResponse.query.filter_by(run_id=run_id).all()
     # TODO: your scoring logic goes here.
     # Example outline:
     #   total_q = 50
@@ -1697,7 +1697,7 @@ def assessment_question_flow():
 
 
 def compute_lca_result(run_id: int):
-    answers = LcaAnswer.query.filter_by(run_id=run_id).all()
+    answers = LcaResponse.query.filter_by(run_id=run_id).all()
     # TODO: your scoring logic
     return {}
 

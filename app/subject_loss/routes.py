@@ -1565,7 +1565,7 @@ def assessment_question_flow():
         if sa_ext:
             from sqlalchemy import text
             stmt = text("""
-                SELECT id, number, title, caption, content
+                SELECT *
                 FROM lca_question
                 WHERE number = :num
                 LIMIT 1

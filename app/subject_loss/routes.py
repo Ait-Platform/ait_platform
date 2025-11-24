@@ -1453,248 +1453,7 @@ def compute_loss_result(run_id: int):
     #   return {"yes_count": yes_count, "profile": profile, ...}
     return {}
 
-@loss_bp.route("/assessment_question_flow", methods=["GET", "POST"])
-@login_required
-def assessment_question_flow():
-    LOSS_ASSESSMENT_MAX_POS = 67   # total engine steps (cards)
-    TOTAL_QUESTIONS = 50           # for the "1/50" header
 
-    # ---------- 1. Get existing run (or create once) ----------
-    run_id = (
-        request.args.get("run_id", type=int)
-        or request.form.get("run_id", type=int)
-    )
-
-    run = None
-    if run_id:
-        run = LcaRun.query.get(run_id)
-        if not run or run.user_id != current_user.id:
-            run = None
-
-    if run is None:
-        # single place where a new run is created
-        run = LcaRun(
-            user_id=current_user.id,
-            current_pos=1,
-            status="in_progress",
-        )
-        db.session.add(run)
-        db.session.commit()
-
-
-    # if already completed → always go to learner result page
-    if run.status == "completed":
-        return redirect(url_for("loss_bp.result_run", run_id=run.id))
-
-    # ---------- 2. Engine position ----------
-    # allow from_pos override from URL / form
-    pos = (
-        request.args.get("from_pos", type=int)
-        or request.form.get("from_pos", type=int)
-        or run.current_pos
-        or 1
-    )
-
-    # clamp
-    if pos < 1:
-        pos = 1
-    if pos > LOSS_ASSESSMENT_MAX_POS:
-        pos = LOSS_ASSESSMENT_MAX_POS
-
-    run.current_pos = pos  # keep pointer in DB
-
-    # ---------- 3. Lookup step ----------
-    step = get_step_for_pos(pos)
-    if step is None:
-        run.status = "completed"
-        run.completed_at = db.func.now()
-        db.session.commit()
-        return redirect(url_for("loss_bp.result_run", run_id=run.id))
-
-    kind = step["kind"]
-
-    # engine next position (unclamped)
-    next_pos = pos + 1
-    # for links we clamp to the script end
-    next_from_pos = min(next_pos, LOSS_ASSESSMENT_MAX_POS)
-
-    # where the "Next" button and POST redirect should land
-    next_url = url_for(
-        "loss_bp.assessment_question_flow",
-        run_id=run.id,
-        from_pos=next_from_pos,
-    )
-
-    # ---------- 4. POST: save answer / advance ----------
-    if request.method == "POST":
-        if kind == "question":
-            q_no = step["q_no"]
-            answer = request.form.get("answer")
-
-            if answer not in ("yes", "no"):
-                flash("Please select Yes or No to continue.", "warning")
-                return redirect(
-                    url_for(
-                        "loss_bp.assessment_question_flow",
-                        run_id=run.id,
-                        from_pos=pos,
-                    )
-                )
-
-            # upsert into lca_response
-            existing = LcaResponse.query.filter_by(
-                run_id=run.id,
-                question_id=q_no,
-                user_id=current_user.id,
-            ).first()
-
-            if existing:
-                existing.answer = answer
-            else:
-                db.session.add(
-                    LcaResponse(
-                        run_id=run.id,
-                        user_id=current_user.id,
-                        question_id=q_no,
-                        answer=answer,
-                    )
-                )
-
-        # move engine pointer forward (clamped in DB)
-        run.current_pos = min(next_pos, LOSS_ASSESSMENT_MAX_POS)
-
-        # if we have gone past the end of the script → complete
-        if next_pos > LOSS_ASSESSMENT_MAX_POS:
-            run.status = "completed"
-            run.completed_at = db.func.now()
-
-        db.session.commit()
-
-        if run.status == "completed":
-            return redirect(url_for("loss_bp.result_run", run_id=run.id))
-
-        return redirect(
-            url_for(
-                "loss_bp.assessment_question_flow",
-                run_id=run.id,
-                from_pos=next_from_pos,
-            )
-        )
-
-    # ---------- 5. GET: render cards ----------
-
-    # QUESTION CARDS
-    if kind == "question":
-        q_no = step["q_no"]
-
-        # pull the question row from lca_question
-        sa_ext = current_app.extensions.get("sqlalchemy")
-        question = None
-        if sa_ext:
-            stmt = text(
-                """
-                SELECT id, number, title, caption, content
-                FROM lca_question
-                WHERE number = :num
-                LIMIT 1
-                """
-            )
-            row = sa_ext.session.execute(stmt, {"num": q_no}).mappings().first()
-            question = dict(row) if row else None
-
-
-        if not question:
-            question = {
-                "id": q_no,
-                "number": q_no,
-                "title": f"Question {q_no}",
-                "caption": "",
-                "content": "",
-            }
-
-        prev = LcaResponse.query.filter_by(
-            run_id=run.id,
-            question_id=q_no,
-            user_id=current_user.id,
-        ).first()
-
-        return render_template(
-            "subject/loss/cards/question.html",
-            run_id=run.id,
-            pos=pos,
-            total=LOSS_ASSESSMENT_MAX_POS,   # engine total
-            total_questions=TOTAL_QUESTIONS, # for "1/50"
-            question=question,
-            display_idx=q_no,
-            prev_answer=(prev.answer if prev else None),
-            next_url=next_url,
-        )
-
-    # NON-QUESTION CARDS: setup / instruction / pause / explain
-    ref = step.get("ref")
-    ident = None
-    if ref and "_" in ref:
-        try:
-            ident = int(ref.split("_", 1)[1])
-        except ValueError:
-            ident = None
-    if ident is None:
-        ident = pos
-
-    table_by_kind = {
-        "setup": "lca_instruction",
-        "instruction": "lca_instruction",
-        "pause": "lca_pause",
-        "explain": "lca_explain",
-    }
-    template_by_kind = {
-        "setup": "subject/loss/cards/instruction.html",
-        "instruction": "subject/loss/cards/instruction.html",
-        "pause": "subject/loss/cards/pause.html",
-        "explain": "subject/loss/cards/explain.html",
-    }
-
-    table = table_by_kind.get(kind)
-    template = template_by_kind.get(kind, "subject/loss/cards/instruction.html")
-
-    row_dict = None
-    if table:
-        sa_ext = current_app.extensions.get("sqlalchemy")
-        if sa_ext:
-            stmt = text(
-                f"""
-                SELECT id, title, caption, content
-                FROM {table}
-                WHERE id = :id
-                LIMIT 1
-                """
-            )
-            row = sa_ext.session.execute(stmt, {"id": ident}).mappings().first()
-            row_dict = dict(row) if row else None
-
-    item = row_dict or {
-        "id": ident,
-        "title": f"{kind.title()} {ident}",
-        "caption": "",
-        "content": "",
-    }
-
-    buttons = [
-        {"label": "Next", "href": next_url, "kind": "primary"},
-    ]
-
-    return render_template(
-        template,
-        kind=kind,
-        ident=ident,
-        pos=pos,
-        total=LOSS_ASSESSMENT_MAX_POS,
-        total_questions=TOTAL_QUESTIONS,
-        next_url=next_url,
-        item=item,
-        buttons=buttons,
-        run_id=run.id,
-    )
 
 
 def compute_lca_result(run_id: int):
@@ -1750,4 +1509,257 @@ def assessment_result():
         total_questions=total_questions,
         yes_count=yes_count,
         no_count=no_count,
+    )
+ 
+@loss_bp.route("/assessment_question_flow", methods=["GET", "POST"])
+@login_required
+def assessment_question_flow():
+    LOSS_ASSESSMENT_MAX_POS = 67   # total engine steps (cards)
+    TOTAL_QUESTIONS = 50           # for the "1/50" header
+
+    # ---------- 1. Find or create run ----------
+    run_id = (
+        request.args.get("run_id", type=int)
+        or request.form.get("run_id", type=int)
+    )
+
+    run = None
+    if run_id:
+        run = LcaRun.query.get(run_id)
+        if not run or run.user_id != current_user.id:
+            run = None
+
+    if run is None:
+        run = LcaRun(
+            user_id=current_user.id,
+            subject="LOSS",
+            status="in_progress",
+            current_pos=1,
+        )
+        db.session.add(run)
+        db.session.commit()
+
+    # already completed → straight to result
+    if run.status == "completed":
+        return redirect(url_for("loss_bp.assessment_result", run_id=run.id))
+
+    # ---------- 2. Engine position ----------
+    pos = (
+        request.args.get("from_pos", type=int)
+        or request.form.get("from_pos", type=int)
+        or run.current_pos
+        or 1
+    )
+
+    if pos < 1:
+        pos = 1
+    if pos > LOSS_ASSESSMENT_MAX_POS:
+        pos = LOSS_ASSESSMENT_MAX_POS
+
+    run.current_pos = pos
+
+    step = get_step_for_pos(pos)
+    if step is None:
+        run.status = "completed"
+        run.completed_at = db.func.now()
+        db.session.commit()
+        return redirect(url_for("loss_bp.result_run", run_id=run.id))
+
+    kind = step["kind"]
+
+    # if at/beyond last non-question card → finish
+    if pos >= LOSS_ASSESSMENT_MAX_POS and kind != "question":
+        run.status = "completed"
+        run.completed_at = db.func.now()
+        db.session.commit()
+        return redirect(url_for("loss_bp.result_run", run_id=run.id))
+
+    next_pos = min(pos + 1, LOSS_ASSESSMENT_MAX_POS)
+    next_url = url_for(
+        "loss_bp.assessment_question_flow",
+        run_id=run.id,
+        from_pos=next_pos,
+    )
+
+    # ---------- 3. POST: save answer / advance ----------
+    if request.method == "POST":
+        if kind == "question":
+            q_no = step["q_no"]
+            answer = request.form.get("answer")
+
+            if answer not in ("yes", "no"):
+                flash("Please select Yes or No to continue.", "warning")
+                return redirect(
+                    url_for(
+                        "loss_bp.assessment_question_flow",
+                        run_id=run.id,
+                        from_pos=pos,
+                    )
+                )
+
+            existing = LcaResponse.query.filter_by(
+                run_id=run.id,
+                question_id=q_no,
+                user_id=current_user.id,
+            ).first()
+
+            if existing:
+                existing.answer = answer
+            else:
+                db.session.add(
+                    LcaResponse(
+                        run_id=run.id,
+                        user_id=current_user.id,
+                        question_id=q_no,
+                        answer=answer,
+                    )
+                )
+
+        # advance engine pointer
+        run.current_pos = next_pos
+
+        if next_pos > LOSS_ASSESSMENT_MAX_POS:
+            run.status = "completed"
+            run.completed_at = db.func.now()
+
+        db.session.commit()
+
+        if run.status == "completed":
+            return redirect(url_for("loss_bp.assessment_result", run_id=run.id))
+
+        return redirect(
+            url_for(
+                "loss_bp.assessment_question_flow",
+                run_id=run.id,
+                from_pos=next_pos,
+            )
+        )
+
+    # ---------- 4. GET: render cards ----------
+
+    # ----- Question cards -----
+    if kind == "question":
+        q_no = step["q_no"]
+
+        sa_ext = current_app.extensions.get("sqlalchemy")
+        question = None
+        if sa_ext:
+            from sqlalchemy import text
+            stmt = text(
+                """
+                SELECT *
+                FROM lca_question
+                WHERE number = :num
+                LIMIT 1
+                """
+            )
+            row = sa_ext.session.execute(stmt, {"num": q_no}).mappings().first()
+            if row:
+                row = dict(row)
+                question = {
+                    "id": row.get("id", q_no),
+                    "number": row.get("number", q_no),
+                    "title": row.get("title") or f"Question {q_no}",
+                    "caption": row.get("caption") or "",
+                    "content": (
+                        row.get("content")
+                        or row.get("question_text")
+                        or row.get("text")
+                        or ""
+                    ),
+                }
+
+        if not question:
+            question = {
+                "id": q_no,
+                "number": q_no,
+                "title": f"Question {q_no}",
+                "caption": "",
+                "content": "",
+            }
+
+        prev = LcaResponse.query.filter_by(
+            run_id=run.id,
+            question_id=q_no,
+            user_id=current_user.id,
+        ).first()
+
+        return render_template(
+            "subject/loss/cards/question.html",
+            run_id=run.id,
+            pos=pos,
+            total=LOSS_ASSESSMENT_MAX_POS,   # engine total
+            total_questions=TOTAL_QUESTIONS, # for "1/50"
+            question=question,
+            display_idx=q_no,
+            prev_answer=(prev.answer if prev else None),
+            next_url=next_url,
+        )
+
+    # ----- Non-question cards: setup / instruction / pause / explain -----
+    ref = step.get("ref")
+    ident = None
+    if ref and "_" in ref:
+        try:
+            ident = int(ref.split("_", 1)[1])
+        except ValueError:
+            ident = None
+    if ident is None:
+        ident = pos
+
+    table_by_kind = {
+        "setup": "lca_instruction",
+        "instruction": "lca_instruction",
+        "pause": "lca_pause",
+        "explain": "lca_explain",
+    }
+    template_by_kind = {
+        "setup": "subject/loss/cards/instruction.html",
+        "instruction": "subject/loss/cards/instruction.html",
+        "pause": "subject/loss/cards/pause.html",
+        "explain": "subject/loss/cards/explain.html",
+    }
+
+    table = table_by_kind.get(kind)
+    template = template_by_kind.get(kind, "subject/loss/cards/instruction.html")
+
+    item = None
+    sa_ext = current_app.extensions.get("sqlalchemy")
+    if table and sa_ext:
+        from sqlalchemy import text
+        stmt = text(
+            f"""
+            SELECT id, title, caption, content
+            FROM {table}
+            WHERE id = :id
+            LIMIT 1
+            """
+        )
+        row = sa_ext.session.execute(stmt, {"id": ident}).mappings().first()
+        if row:
+            item = dict(row)
+
+    if not item:
+        item = {
+            "id": ident,
+            "title": f"{kind.title()} {ident}",
+            "caption": "",
+            "content": "",
+        }
+
+    buttons = [
+        {"label": "Next", "href": next_url, "kind": "primary"},
+    ]
+
+    return render_template(
+        template,
+        kind=kind,
+        ident=ident,
+        pos=pos,
+        total=LOSS_ASSESSMENT_MAX_POS,
+        total_questions=TOTAL_QUESTIONS,
+        next_url=next_url,
+        item=item,
+        buttons=buttons,
+        run_id=run.id,
     )

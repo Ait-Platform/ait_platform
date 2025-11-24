@@ -1544,19 +1544,27 @@ def assessment_question_flow():
         return redirect(url_for("loss_bp.assessment_result", run_id=run.id))
 
     # ---------- 2. Engine position ----------
-    pos = (
-        request.args.get("from_pos", type=int)
-        or request.form.get("from_pos", type=int)
-        or run.current_pos
-        or 1
-    )
+    # ---------- 2. Engine position ----------
+    if request.method == "POST":
+        # Trust the hidden field sent from the card
+        pos = request.form.get("from_pos", type=int)
+    else:
+        # For GET, use from_pos in the URL if present
+        pos = request.args.get("from_pos", type=int)
+
+    if not pos:
+        pos = run.current_pos or 1
 
     if pos < 1:
         pos = 1
     if pos > LOSS_ASSESSMENT_MAX_POS:
         pos = LOSS_ASSESSMENT_MAX_POS
 
+    # Keep pointer in DB so other workers see it on the next request
     run.current_pos = pos
+    if request.method == "GET":
+        db.session.commit()
+
 
     step = get_step_for_pos(pos)
     if step is None:

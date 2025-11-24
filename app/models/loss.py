@@ -27,14 +27,6 @@ class LcaQuestionPhaseMap(db.Model):
     phase_4 = db.Column(db.Integer, nullable=False, default=0)
 
 # optional, to record what the user answered
-class LcaResponse(db.Model):
-    __tablename__ = 'lca_response'
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, nullable=False)  # <-- add this
-    question_id = db.Column(db.Integer, db.ForeignKey('lca_question.id', ondelete='CASCADE'), nullable=False)
-    answer = db.Column(db.String(3), nullable=False)  # 'yes' or 'no'
-    created_at = db.Column(db.DateTime, server_default=db.func.current_timestamp())
-
 
 class LcaScoreDefinition(db.Model):
     __tablename__ = 'lca_score_definitions'

@@ -204,6 +204,13 @@ class LcaRun(db.Model):
     __tablename__ = "lca_run"
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    user_id = db.Column(db.Integer, nullable=False, index=True)
     status = db.Column(db.String(20), nullable=False, default="in_progress")
     current_pos = db.Column(db.Integer, nullable=False, default=1)
+
+    # 🔁 match your Postgres table
+    created_at = db.Column(db.DateTime, server_default=db.func.now(), nullable=False)
+    completed_at = db.Column(db.DateTime)
+
+    # if you had subject or started_at here, REMOVE those lines completely
+    # no ForeignKey from this model, responses link back to it

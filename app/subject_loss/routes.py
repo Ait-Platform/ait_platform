@@ -1593,7 +1593,7 @@ def assessment_question_flow():
         if sa_ext:
             stmt = text(
                 """
-                SELECT id, number, title, caption, question_text AS content
+                SELECT id, number, title, caption, content
                 FROM lca_question
                 WHERE number = :num
                 LIMIT 1
@@ -1601,6 +1601,7 @@ def assessment_question_flow():
             )
             row = sa_ext.session.execute(stmt, {"num": q_no}).mappings().first()
             question = dict(row) if row else None
+
 
         if not question:
             question = {

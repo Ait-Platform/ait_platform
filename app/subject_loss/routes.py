@@ -1532,27 +1532,112 @@ def assessment_question_flow():
     )
 
     # QUESTION CARDS: Yes/No form
+    # ---------------- GET: render card ----------------
+    kind = step["kind"]
+
+    # Trust the engine pointer; if from_pos is present, sync once
+    pos_override = request.args.get("from_pos", type=int)
+    if pos_override:
+        run.current_pos = pos_override
+        db.session.commit()
+
+    pos = run.current_pos or 1
+    total = LOSS_ASSESSMENT_MAX_POS
+    next_pos = min(pos + 1, total)
+
+    next_url = url_for("loss_bp.assessment_question_flow", run_id=run.id)
+
+    # -------- QUESTION CARDS (Yes/No) --------
     if kind == "question":
         q_no = step["q_no"]
+
+        # previous answer if they’re resuming
         prev = LcaAnswer.query.filter_by(run_id=run.id, q_no=q_no).first()
+
+        # Load question row from lca_question by number
+        sa_ext = current_app.extensions.get("sqlalchemy")
+        question = None
+        if sa_ext:
+            from sqlalchemy import text
+            stmt = text("""
+                SELECT id, number, title, caption, content
+                FROM lca_question
+                WHERE number = :num
+                LIMIT 1
+            """)
+            row = sa_ext.session.execute(stmt, {"num": q_no}).mappings().first()
+            question = dict(row) if row else None
+
+        if not question:
+            # safe fallback so template never explodes
+            question = {
+                "id": q_no,
+                "number": q_no,
+                "title": f"Question {q_no}",
+                "caption": "",
+                "content": "",
+            }
 
         return render_template(
             "subject/loss/cards/question.html",
             run_id=run.id,
             pos=pos,
             total=total,
-            q_no=q_no,
-            step=step,
+            question=question,        # <- what template needs
+            display_idx=q_no,         # used as backup in title
             prev_answer=(prev.answer if prev else None),
             next_url=next_url,
         )
 
+
     # NON-QUESTION CARDS: instruction / pause / explain
     # For now, give a simple item so templates don't show "Untitled".
-    title = "Welcome to the Loss Assessment" if pos == 1 else kind.title()
-    item = {
-        "id": pos,
-        "title": title,
+    # -------- NON-QUESTION CARDS (setup / instruction / pause / explain) --------
+    # Map our script ref (e.g. "inst_3", "pause_1") -> numeric id
+    ref = step.get("ref")
+    ident = None
+    if ref and "_" in ref:
+        try:
+            ident = int(ref.split("_", 1)[1])
+        except ValueError:
+            ident = None
+    if ident is None:
+        ident = pos  # safe default
+
+    table_by_kind = {
+        "instruction": "lca_instruction",
+        "pause":       "lca_pause",
+        "explain":     "lca_explain",
+        # treat setup as instruction-type content
+        "setup":       "lca_instruction",
+    }
+    template_by_kind = {
+        "instruction": "subject/loss/cards/instruction.html",
+        "pause":       "subject/loss/cards/pause.html",
+        "explain":     "subject/loss/cards/explain.html",
+        "setup":       "subject/loss/cards/instruction.html",
+    }
+
+    table = table_by_kind.get(kind)
+    template = template_by_kind.get(kind, "subject/loss/cards/instruction.html")
+
+    row_dict = None
+    if table:
+        sa_ext = current_app.extensions.get("sqlalchemy")
+        if sa_ext:
+            from sqlalchemy import text
+            stmt = text(f"""
+                SELECT id, title, caption, content
+                FROM {table}
+                WHERE id = :id
+                LIMIT 1
+            """)
+            row = sa_ext.session.execute(stmt, {"id": ident}).mappings().first()
+            row_dict = dict(row) if row else None
+
+    item = row_dict or {
+        "id": ident,
+        "title": f"{kind.title()} {ident}",
         "caption": "",
         "content": "",
     }
@@ -1561,26 +1646,17 @@ def assessment_question_flow():
         {"label": "Next", "href": next_url, "kind": "primary"},
     ]
 
-    template = {
-        "instruction": "subject/loss/cards/instruction.html",
-        "pause":       "subject/loss/cards/pause.html",
-        "explain":     "subject/loss/cards/explain.html",
-        # treat first two as setup but still use instruction template
-        "setup":       "subject/loss/cards/instruction.html",
-    }.get(kind, "subject/loss/cards/instruction.html")
-
     return render_template(
         template,
         kind=kind,
-        ident=pos,        # simple ident; we’re not using DB rows here yet
+        ident=ident,
         pos=pos,
         total=total,
         next_url=next_url,
-        item=item,
+        item=item,          # <- what your old templates used
         buttons=buttons,
         run_id=run.id,
     )
-
 
 
 def compute_lca_result(run_id: int):

@@ -1746,16 +1746,22 @@ def latest_run_id_any():
 
 def list_runs_for_user(uid: int, limit: int = 50):
     sql = """
-      SELECT r.id, r.user_id, r.status, r.started_at, r.finished_at,
-             COALESCE(res.total, 0) AS total
+      SELECT
+          r.id,
+          r.user_id,
+          r.status,
+          r.created_at  AS started_at,
+          r.completed_at AS finished_at,
+          COALESCE(res.total, 0) AS total
       FROM lca_run r
       LEFT JOIN lca_result res ON res.run_id = r.id
-      WHERE r.subject='LOSS' AND r.user_id=:uid
+      WHERE r.subject = 'LOSS' AND r.user_id = :uid
       ORDER BY r.id DESC
       LIMIT :lim
     """
-    with db.engine.begin() as conn:
+    with db.engine.connect() as conn:
         return conn.execute(text(sql), {"uid": uid, "lim": limit}).mappings().all()
+
 
 def list_runs_all(limit: int = 50):
     sql = """

@@ -702,7 +702,7 @@ def results_hub():
         viewer_is_admin=viewer_is_admin(),
     )
 
-@loss_bp.post("/loss/report.email/<int:run_id>")
+@loss_bp.post("/report.email/<int:run_id>")
 def report_email_and_download(run_id: int):
     to  = request.form.get("to") or request.form.get("email")
     uid = request.form.get("user_id", type=int) or _get_user_id_for_run(run_id)
@@ -1546,24 +1546,35 @@ def assessment_question_flow():
         return redirect(url_for("loss_bp.result_run", run_id=run.id))
 
     # ---------- 2. Engine position ----------
-    if request.method == "POST":
-        # Trust the hidden field sent from the card
-        pos = request.form.get("from_pos", type=int)
+    if request.method == "GET":
+        # use from_pos in URL if present, else current_pos
+        pos = request.args.get("from_pos", type=int) or run.current_pos or 1
     else:
-        # For GET, use from_pos in the URL if present
-        pos = request.args.get("from_pos", type=int)
+        # POST: trust hidden field but guard against double-clicks
+        posted_pos = request.form.get("from_pos", type=int)
 
-    if not pos:
-        pos = run.current_pos or 1
+        # guard rail: if form says "I was on 9" but DB is already 10,
+        # treat as stale post and just send them to the current card
+        if posted_pos is not None and posted_pos != (run.current_pos or 1):
+            return redirect(
+                url_for(
+                    "loss_bp.assessment_question_flow",
+                    run_id=run.id,
+                    from_pos=run.current_pos or 1,
+                )
+            )
 
+        pos = posted_pos or run.current_pos or 1
+
+    # clamp to [1, MAX]
     if pos < 1:
         pos = 1
     if pos > LOSS_ASSESSMENT_MAX_POS:
         pos = LOSS_ASSESSMENT_MAX_POS
 
-    # Keep pointer in DB so other workers see it on the next request
-    run.current_pos = pos
+    # For GET, update pointer immediately; for POST we update after saving
     if request.method == "GET":
+        run.current_pos = pos
         db.session.commit()
 
     step = get_step_for_pos(pos)
@@ -1664,30 +1675,32 @@ def assessment_question_flow():
             row = sa_ext.session.execute(stmt, {"num": q_no}).mappings().first()
             if row:
                 row = dict(row)
+                # normalise into a single "text" field
+                q_text = (
+                    row.get("content")
+                    or row.get("question_text")
+                    or row.get("text")
+                    or row.get("body")
+                    or row.get("body_text")
+                    or row.get("caption")  # last resort
+                    or ""
+                )
                 question = {
                     "id": row.get("id", q_no),
                     "number": row.get("number", q_no),
                     "title": row.get("title") or f"Question {q_no}",
                     "caption": row.get("caption") or "",
-                    "content": (
-                        row.get("content")
-                        or row.get("question_text")
-                        or row.get("question")
-                        or row.get("body")
-                        or row.get("body_text")
-                        or row.get("description")
-                        or row.get("text")
-                        or ""
-                    ),
+                    "text": q_text,
                 }
 
         if not question:
+            # fallback if DB row missing
             question = {
                 "id": q_no,
                 "number": q_no,
                 "title": f"Question {q_no}",
                 "caption": "",
-                "content": "",
+                "text": "",
             }
 
         prev = LcaResponse.query.filter_by(
@@ -1696,16 +1709,18 @@ def assessment_question_flow():
             user_id=current_user.id,
         ).first()
 
+        # simple progress string "1 / 50"
+        progress = f"{q_no} / {TOTAL_QUESTIONS}"
+
         return render_template(
             "subject/loss/cards/question.html",
             run_id=run.id,
             pos=pos,
-            total=LOSS_ASSESSMENT_MAX_POS,   # engine total
-            total_questions=TOTAL_QUESTIONS, # for "1/50"
             question=question,
             display_idx=q_no,
+            display_total=TOTAL_QUESTIONS,
+            progress=progress,
             prev_answer=(prev.answer if prev else None),
-            next_url=next_url,
         )
 
     # ----- Non-question cards: setup / instruction / pause / explain -----

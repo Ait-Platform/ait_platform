@@ -9,16 +9,20 @@
     <div class="text-sm text-slate-500 mb-1">{{ progress }}</div>
   {% endif %}
 
-  {# We’ll treat the actual question text as the main body; title often holds "yes;no" #}
+  {# Title #}
   <h1 class="text-2xl font-bold text-slate-800 mb-1">
     {{ question.title or ("Question " ~ (display_idx or question.number or "")) }}
   </h1>
 
-  <span class="text-sm text-slate-500">{{ display_idx }} / {{ display_total }}</span>
+  {# ✅ proper counter: n / 50 #}
+  <span class="text-sm text-slate-500">
+    {{ display_idx }} / {{ total_questions }}
+  </span>
 
-  {# De-dupe: if caption == text (ignoring tags/whitespace), show only once #}
+  {# Decide what to use as the main body text #}
   {% set cap_norm  = (question.caption or '')|striptags|trim %}
-  {% set body_norm = (question.text or '')|striptags|trim %}
+  {% set body_raw  = question.content or question.text or question.prompt %}
+  {% set body_norm = (body_raw or '')|striptags|trim %}
   {% set show_caption = cap_norm and (cap_norm != body_norm) %}
 
   {% if show_caption %}
@@ -26,10 +30,8 @@
   {% endif %}
 
   <h2 class="mt-4 mb-6 text-slate-900 font-semibold text-lg md:text-xl leading-snug">
-    {{ (question.text or question.prompt)|safe }}
+    {{ body_raw or "Choose Yes or No" | safe }}
   </h2>
-
-
 
   {% if error %}
     <div class="mb-4 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -37,11 +39,11 @@
     </div>
   {% endif %}
 
-
-
   <form method="post" action="{{ url_for('loss_bp.assessment_question_flow') }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="run_id" value="{{ run_id }}">
+    {# ✅ needed for engine + double-click guard #}
+    <input type="hidden" name="from_pos" value="{{ pos }}">
 
     <div class="flex items-center justify-between">
       <button
@@ -49,8 +51,8 @@
         name="answer"
         value="yes"
         class="rounded-lg border px-4 py-2 text-sm font-semibold
-              bg-sky-100 text-sky-800 border-sky-200
-              hover:bg-sky-200 transition"
+               bg-sky-100 text-sky-800 border-sky-200
+               hover:bg-sky-200 transition"
       >Yes</button>
 
       <button
@@ -58,13 +60,10 @@
         name="answer"
         value="no"
         class="rounded-lg border px-4 py-2 text-sm font-semibold
-              bg-violet-100 text-violet-800 border-violet-200
-              hover:bg-violet-200 transition"
+               bg-violet-100 text-violet-800 border-violet-200
+               hover:bg-violet-200 transition"
       >No</button>
     </div>
   </form>
-
-
-
 </div>
 {% endblock %}

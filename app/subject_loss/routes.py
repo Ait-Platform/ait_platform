@@ -1513,34 +1513,16 @@ def assessment_question_flow():
     # ---------------- GET: render card ----------------
     ctx = {"run": run, "pos": pos, "step": step}
 
-    if step["kind"] == "setup":
-        # look up your lca_setup row using step["ref"], if needed
-        # setup = LcaSetup.query.filter_by(code=step["ref"]).first()
-        # ctx["setup"] = setup
-        return render_template("loss/setup_card.html", **ctx)
-
-    if step["kind"] == "instruction":
-        # instruction = LcaInstruction.query.filter_by(code=step["ref"]).first()
-        # ctx["instruction"] = instruction
-        return render_template("loss/instruction_card.html", **ctx)
-
-    if step["kind"] == "pause":
-        return render_template("loss/pause_card.html", **ctx)
-
-    if step["kind"] == "explain":
-        # explain = LcaExplain.query.filter_by(code=step["ref"]).first()
-        # ctx["explain"] = explain
-        return render_template("loss/explain_card.html", **ctx)
-
+    # If it's a question, you can still fetch the DB row and previous answer:
     if step["kind"] == "question":
         q_no = step["q_no"]
-        # question = LcaQuestion.query.filter_by(q_no=q_no).first()
-        # ctx["question"] = question
-
         prev = LcaAnswer.query.filter_by(run_id=run.id, q_no=q_no).first()
+        ctx["q_no"] = q_no
         ctx["prev_answer"] = prev.answer if prev else None
 
-        return render_template("loss/question_card.html", **ctx)
+    # IMPORTANT: use the SAME template you already used for /loss/sequence
+    # e.g. "loss/sequence.html" or whatever that file is.
+    return render_template("loss/sequence.html", **ctx)
 
     # fallback: treat as end
     run.status = "completed"

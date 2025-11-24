@@ -213,7 +213,10 @@ def course_start():
 
     # Always start sequence at step 1 for the new run
     #return redirect(url_for("loss_bp.sequence_step", pos=1, run_id=rid))
-    return redirect(url_for("loss_bp.assessment_question_flow", run_id=rid))
+    #return redirect(url_for("loss_bp.assessment_question_flow", run_id=rid))
+    return redirect(
+        url_for("loss_bp.assessment_question_flow", run_id=rid, from_pos=1)
+    )
 
 
 # Assessment step 3
@@ -1511,29 +1514,73 @@ def assessment_question_flow():
         return redirect(url_for("loss_bp.assessment_question_flow", run_id=run.id))
 
     # ---------------- GET: render card ----------------
-    kind = step["kind"]
-    ctx = {"run": run, "pos": pos, "step": step}
+    # ---------------- GET: render card ----------------
+    # Allow from_pos for compatibility with existing templates
+    pos = request.args.get("from_pos", type=int) or run.current_pos or 1
+    run.current_pos = pos
+    db.session.commit()
 
-    # QUESTION CARDS → Yes/No template
+    kind = step["kind"]
+    total = LOSS_ASSESSMENT_MAX_POS
+    next_pos = min(pos + 1, total)
+
+    # URL the "Next" / continue button should hit
+    next_url = url_for(
+        "loss_bp.assessment_question_flow",
+        run_id=run.id,
+        from_pos=next_pos,
+    )
+
+    # QUESTION CARDS: Yes/No form
     if kind == "question":
         q_no = step["q_no"]
         prev = LcaAnswer.query.filter_by(run_id=run.id, q_no=q_no).first()
-        ctx["q_no"] = q_no
-        ctx["prev_answer"] = prev.answer if prev else None
 
-        # use your question-card template
-        return render_template("subject/loss/cards/question.html", **ctx)
+        return render_template(
+            "subject/loss/cards/question.html",
+            run_id=run.id,
+            pos=pos,
+            total=total,
+            q_no=q_no,
+            step=step,
+            prev_answer=(prev.answer if prev else None),
+            next_url=next_url,
+        )
 
-    # NON-QUESTION CARDS → reuse existing card templates
+    # NON-QUESTION CARDS: instruction / pause / explain
+    # For now, give a simple item so templates don't show "Untitled".
+    title = "Welcome to the Loss Assessment" if pos == 1 else kind.title()
+    item = {
+        "id": pos,
+        "title": title,
+        "caption": "",
+        "content": "",
+    }
+
+    buttons = [
+        {"label": "Next", "href": next_url, "kind": "primary"},
+    ]
+
     template = {
         "instruction": "subject/loss/cards/instruction.html",
         "pause":       "subject/loss/cards/pause.html",
         "explain":     "subject/loss/cards/explain.html",
-        # treat setup like an instruction card
+        # treat first two as setup but still use instruction template
         "setup":       "subject/loss/cards/instruction.html",
     }.get(kind, "subject/loss/cards/instruction.html")
 
-    return render_template(template, **ctx)
+    return render_template(
+        template,
+        kind=kind,
+        ident=pos,        # simple ident; we’re not using DB rows here yet
+        pos=pos,
+        total=total,
+        next_url=next_url,
+        item=item,
+        buttons=buttons,
+        run_id=run.id,
+    )
+
 
 
 def compute_lca_result(run_id: int):

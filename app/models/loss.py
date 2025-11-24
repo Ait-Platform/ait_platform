@@ -189,16 +189,6 @@ class LcaOverallItem(db.Model):
 
 # Example models: adjust to match your DB
 
-class LcaRun(db.Model):
-    __tablename__ = "lca_run"
-
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
-    subject = db.Column(db.String(20), nullable=False, default="LOSS")
-    status = db.Column(db.String(20), nullable=False, default="in_progress")
-    current_pos = db.Column(db.Integer, nullable=False, default=1)
-    started_at = db.Column(db.DateTime, server_default=db.func.now())
-    completed_at = db.Column(db.DateTime)
 
 class LcaResponse(db.Model):
     __tablename__ = "lca_response"
@@ -209,3 +199,13 @@ class LcaResponse(db.Model):
     answer = db.Column(db.String(3), nullable=False)  # 'yes' / 'no'
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     run_id = db.Column(db.Integer, db.ForeignKey("lca_run.id"), nullable=False)
+
+class LcaRun(db.Model):
+    __tablename__ = "lca_run"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    status = db.Column(db.String(20), nullable=False, default="in_progress")
+    current_pos = db.Column(db.Integer, nullable=False, default=1)
+    started_at = db.Column(db.DateTime, server_default=db.func.now())
+    completed_at = db.Column(db.DateTime)

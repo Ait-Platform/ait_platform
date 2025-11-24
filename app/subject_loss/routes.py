@@ -1475,12 +1475,12 @@ def assessment_question_flow():
         # single place where a new run is created
         run = LcaRun(
             user_id=current_user.id,
-            subject="LOSS",
             current_pos=1,
             status="in_progress",
         )
         db.session.add(run)
         db.session.commit()
+
 
     # if already completed → always go to learner result page
     if run.status == "completed":

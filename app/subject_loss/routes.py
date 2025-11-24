@@ -1487,9 +1487,11 @@ def assessment_result():
 
     if run.status != "completed":
         # if they somehow hit result early, send them back into the engine
-        return redirect(
-            url_for("loss_bp.assessment_question_flow", run_id=run.id, from_pos=run.current_pos)
-        )
+        #return redirect(url_for("loss_bp.assessment_question_flow", run_id=run.id, from_pos=run.current_pos)
+        # after scoring + db.commit())
+        return redirect(url_for("loss_bp.result_run", run_id=run_id))
+    
+        
 
     answers = (
         LcaResponse.query
@@ -1541,9 +1543,8 @@ def assessment_question_flow():
 
     # already completed → straight to result
     if run.status == "completed":
-        return redirect(url_for("loss_bp.assessment_result", run_id=run.id))
+        return redirect(url_for("loss_bp.result_run", run_id=run.id))
 
-    # ---------- 2. Engine position ----------
     # ---------- 2. Engine position ----------
     if request.method == "POST":
         # Trust the hidden field sent from the card
@@ -1564,7 +1565,6 @@ def assessment_question_flow():
     run.current_pos = pos
     if request.method == "GET":
         db.session.commit()
-
 
     step = get_step_for_pos(pos)
     if step is None:
@@ -1633,7 +1633,7 @@ def assessment_question_flow():
         db.session.commit()
 
         if run.status == "completed":
-            return redirect(url_for("loss_bp.assessment_result", run_id=run.id))
+            return redirect(url_for("loss_bp.result_run", run_id=run.id))
 
         return redirect(
             url_for(
@@ -1672,6 +1672,10 @@ def assessment_question_flow():
                     "content": (
                         row.get("content")
                         or row.get("question_text")
+                        or row.get("question")
+                        or row.get("body")
+                        or row.get("body_text")
+                        or row.get("description")
                         or row.get("text")
                         or ""
                     ),

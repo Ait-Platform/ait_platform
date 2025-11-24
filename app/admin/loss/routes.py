@@ -2837,8 +2837,14 @@ def _pct(score, mx):
     except Exception:
         return 0
 
+
+
+
+
 def _build_context(rid: int, uid: int | None):
-    row = db.session.execute(text("""
+    # ---------- A. Ensure there IS a row in lca_result ----------
+    row = db.session.execute(
+        text("""
         SELECT id, user_id, run_id, subject, created_at,
                phase_1, phase_2, phase_3, phase_4, total,
                COALESCE(max_phase_1, 18) AS max_p1,
@@ -2849,10 +2855,94 @@ def _build_context(rid: int, uid: int | None):
         WHERE run_id = :rid
         ORDER BY id DESC
         LIMIT 1
-    """), {"rid": rid}).mappings().first()
+        """),
+        {"rid": rid},
+    ).mappings().first()
+
     if not row:
+        # --- No result yet: derive a simple one from lca_response ---
+
+        # 1) Get user_id if missing
+        if not uid:
+            run_row = db.session.execute(
+                text("SELECT user_id FROM lca_run WHERE id = :rid LIMIT 1"),
+                {"rid": rid},
+            ).mappings().first()
+            if run_row:
+                uid = run_row["user_id"]
+
+        # 2) Aggregate YES answers per phase (adjust ranges later if needed)
+        scores = db.session.execute(
+            text("""
+            SELECT
+              SUM(CASE WHEN question_id BETWEEN  1 AND 13 AND answer = 'yes' THEN 1 ELSE 0 END) AS phase_1,
+              SUM(CASE WHEN question_id BETWEEN 14 AND 25 AND answer = 'yes' THEN 1 ELSE 0 END) AS phase_2,
+              SUM(CASE WHEN question_id BETWEEN 26 AND 37 AND answer = 'yes' THEN 1 ELSE 0 END) AS phase_3,
+              SUM(CASE WHEN question_id BETWEEN 38 AND 50 AND answer = 'yes' THEN 1 ELSE 0 END) AS phase_4
+            FROM lca_response
+            WHERE run_id = :rid
+            """),
+            {"rid": rid},
+        ).mappings().first() or {}
+
+        p1 = scores.get("phase_1") or 0
+        p2 = scores.get("phase_2") or 0
+        p3 = scores.get("phase_3") or 0
+        p4 = scores.get("phase_4") or 0
+        total = p1 + p2 + p3 + p4
+
+        # 3) Insert a new lca_result row
+        db.session.execute(
+            text("""
+            INSERT INTO lca_result (
+                user_id, run_id, subject,
+                phase_1, phase_2, phase_3, phase_4, total,
+                max_phase_1, max_phase_2, max_phase_3, max_phase_4,
+                created_at
+            )
+            VALUES (
+                :uid, :rid, :subject,
+                :p1, :p2, :p3, :p4, :total,
+                18, 18, 32, 32,
+                CURRENT_TIMESTAMP
+            )
+            """),
+            {
+                "uid": uid,
+                "rid": rid,
+                "subject": "LOSS",
+                "p1": p1,
+                "p2": p2,
+                "p3": p3,
+                "p4": p4,
+                "total": total,
+            },
+        )
+        db.session.commit()
+
+        # 4) Re-select using your original query so the rest of the
+        #    function works unchanged.
+        row = db.session.execute(
+            text("""
+            SELECT id, user_id, run_id, subject, created_at,
+                   phase_1, phase_2, phase_3, phase_4, total,
+                   COALESCE(max_phase_1, 18) AS max_p1,
+                   COALESCE(max_phase_2, 18) AS max_p2,
+                   COALESCE(max_phase_3, 32) AS max_p3,
+                   COALESCE(max_phase_4, 32) AS max_p4
+            FROM lca_result
+            WHERE run_id = :rid
+            ORDER BY id DESC
+            LIMIT 1
+            """),
+            {"rid": rid},
+        ).mappings().first()
+
+    if not row:
+        # still nothing → give up
         return None, None, None
 
+    # ---------- B. Your existing context logic ----------
     p1 = _pct(row["phase_1"], row["max_p1"])
     p2 = _pct(row["phase_2"], row["max_p2"])
     p3 = _pct(row["phase_3"], row["max_p3"])
@@ -2864,8 +2954,10 @@ def _build_context(rid: int, uid: int | None):
 
     user = None
     if uid:
-        user = db.session.execute(text('SELECT id, name, email FROM "user" WHERE id=:uid'),
-                                  {"uid": uid}).mappings().first()
+        user = db.session.execute(
+            text('SELECT id, name, email FROM "user" WHERE id = :uid'),
+            {"uid": uid},
+        ).mappings().first()
 
     ctx = {
         "run_id": rid,
@@ -2873,12 +2965,20 @@ def _build_context(rid: int, uid: int | None):
         "user": user,
         "created_at_label": str(row.get("created_at") or ""),
         "phase_blocks": blocks,
-        "progress_block": {"lines": [f"Phase 1: {p1}%", f"Phase 2: {p2}%", f"Phase 3: {p3}%", f"Phase 4: {p4}%"]},
+        "progress_block": {
+            "lines": [
+                f"Phase 1: {p1}%",
+                f"Phase 2: {p2}%",
+                f"Phase 3: {p3}%",
+                f"Phase 4: {p4}%",
+            ]
+        },
         "adaptive_vector": av,
         "overall_assessment": oa,
         "disclaimer_text": DISCLAIMER_TEXT,
     }
     return ctx, (p1, p2, p3, p4), row
+
 
 def _render_pdf_bytes(ctx: dict) -> bytes:
     html = render_template("admin/loss/report.html", **ctx, pdf_mode=True)

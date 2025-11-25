@@ -2596,16 +2596,17 @@ def loss_results_raw():
     # Totals row (plus when it was taken)
     result_row = db.session.execute(text("""
         SELECT
-          r.user_id, r.subject,
-          r.phase_1, r.phase_2, r.phase_3, r.phase_4, r.total,
-          r.max_phase_1, r.max_phase_2, r.max_phase_3, r.max_phase_4, r.max_total,
-          COALESCE(r.created_at, lr.finished_at, lr.started_at) AS taken_at
+        r.user_id, r.subject,
+        r.phase_1, r.phase_2, r.phase_3, r.phase_4, r.total,
+        r.max_phase_1, r.max_phase_2, r.max_phase_3, r.max_phase_4, r.max_total,
+        COALESCE(lr.finished_at, lr.started_at, r.created_at::timestamp) AS taken_at
         FROM lca_result r
         LEFT JOIN lca_run lr ON lr.id = r.run_id
         WHERE r.run_id = :rid
         ORDER BY r.id DESC
         LIMIT 1
     """), {"rid": rid}).mappings().first()
+
 
     # Per-question raw rows
     rows = db.session.execute(text("""

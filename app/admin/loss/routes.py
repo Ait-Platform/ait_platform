@@ -1744,23 +1744,54 @@ def latest_run_id_any():
         row = conn.execute(text("SELECT id FROM lca_run ORDER BY id DESC LIMIT 1")).first()
         return row[0] if row else None
 
+
+
 def list_runs_for_user(uid: int, limit: int = 50):
-    sql = """
-      SELECT
-          r.id,
-          r.user_id,
-          r.status,
-          r.created_at  AS started_at,
-          r.completed_at AS finished_at,
-          COALESCE(res.total, 0) AS total
-      FROM lca_run r
-      LEFT JOIN lca_result res ON res.run_id = r.id
-      WHERE r.subject = 'LOSS' AND r.user_id = :uid
-      ORDER BY r.id DESC
-      LIMIT :lim
     """
-    with db.engine.connect() as conn:
-        return conn.execute(text(sql), {"uid": uid, "lim": limit}).mappings().all()
+    Return last LOSS runs for a user, working on both:
+    - SQLite (old schema: started_at/completed_at, no subject/current_pos)
+    - Postgres (new schema: created_at/completed_at + subject)
+    Shape: [{id, user_id, status, started_at, finished_at, total}, ...]
+    """
+
+    engine_name = db.session.bind.dialect.name
+
+    if engine_name == "sqlite":
+        # OLD local schema
+        sql = """
+          SELECT
+              r.id,
+              r.user_id,
+              r.status,
+              r.started_at   AS started_at,
+              r.completed_at AS finished_at,
+              COALESCE(res.total, 0) AS total
+          FROM lca_run r
+          LEFT JOIN lca_result res ON res.run_id = r.id
+          WHERE r.user_id = :uid
+          ORDER BY r.id DESC
+          LIMIT :lim
+        """
+    else:
+        # NEW Postgres schema
+        sql = """
+          SELECT
+              r.id,
+              r.user_id,
+              r.status,
+              r.created_at   AS started_at,
+              r.completed_at AS finished_at,
+              COALESCE(res.total, 0) AS total
+          FROM lca_run r
+          LEFT JOIN lca_result res ON res.run_id = r.id
+          WHERE r.subject = 'LOSS' AND r.user_id = :uid
+          ORDER BY r.id DESC
+          LIMIT :lim
+        """
+
+    conn = db.session.connection()
+    rows = conn.execute(text(sql), {"uid": uid, "lim": limit}).mappings().all()
+    return rows
 
 
 def list_runs_all(limit: int = 50):

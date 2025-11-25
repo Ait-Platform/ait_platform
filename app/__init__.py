@@ -436,32 +436,25 @@ def create_app():
                 db.session.commit()
     return app
 
-
-
-
-
-
-
-
 def register_cli(app):
     @app.cli.command("user-create")
     @click.argument("email")
     @click.argument("password")
     @click.option("--name", default="Admin")
-    @click.option("--country", default="South Africa")
     @click.option("--role", default="admin")
-    def user_create(email, password, name, country, role):
+    def user_create(email, password, name, role):
         """Create a user with the given credentials."""
         from app.models.auth import User
         email = email.strip().lower()
         if User.query.filter_by(email=email).first():
             click.echo(f"User already exists: {email}")
             return
-        u = User(name=name, email=email, country=country, role=role)
+        u = User(name=name, email=email, role=role)
         u.set_password(password)
         db.session.add(u)
         db.session.commit()
         click.echo(f"Created user: {email}")
+
 
 # --- ADD THIS BLOCK BELOW ---
     @app.cli.command("mail-test")

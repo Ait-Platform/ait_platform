@@ -1754,7 +1754,9 @@ def list_runs_for_user(uid: int, limit: int = 50):
     Shape: [{id, user_id, status, started_at, finished_at, total}, ...]
     """
 
-    engine_name = db.session.bind.dialect.name
+    bind = db.session.get_bind() or db.engine
+    engine_name = bind.dialect.name
+
 
     if engine_name == "sqlite":
         # OLD local schema
@@ -1792,6 +1794,7 @@ def list_runs_for_user(uid: int, limit: int = 50):
     conn = db.session.connection()
     rows = conn.execute(text(sql), {"uid": uid, "lim": limit}).mappings().all()
     return rows
+
 
 
 def list_runs_all(limit: int = 50):

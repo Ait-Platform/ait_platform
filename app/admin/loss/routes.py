@@ -522,51 +522,6 @@ def _get_run_id_or_latest():
         LIMIT 1
     """), {"uid": uid}).scalar()
 
-'''
-@admin_bp.route("/loss/result/recompute", methods=["POST"])
-def loss_result_recompute():
-    rid = request.args.get("run_id", type=int)
-    if not rid:
-        return "run_id required", 400
-
-    # Build (or refresh) totals from lca_response only
-    db.session.execute(text("""
-        INSERT INTO lca_result
-          (run_id, user_id, subject, phase_1, phase_2, phase_3, phase_4, total, created_at)
-        SELECT
-          r.run_id,
-          COALESCE(MIN(run.user_id), 0),
-          COALESCE(MIN(run.subject), 'loss'),
-          SUM(COALESCE(m.phase_1,0)),
-          SUM(COALESCE(m.phase_2,0)),
-          SUM(COALESCE(m.phase_3,0)),
-          SUM(COALESCE(m.phase_4,0)),
-          SUM(COALESCE(m.phase_1,0)+COALESCE(m.phase_2,0)+COALESCE(m.phase_3,0)+COALESCE(m.phase_4,0)),
-          MAX(r.created_at)
-        FROM lca_response r
-        LEFT JOIN lca_question_phase_map m
-               ON m.question_id = r.question_id
-              AND m.answer_type = LOWER(r.answer)
-        LEFT JOIN lca_run run
-               ON run.id = r.run_id
-        WHERE r.run_id = :rid
-          AND LOWER(r.answer) IN ('yes','no')
-        GROUP BY r.run_id
-        ON CONFLICT(run_id) DO UPDATE SET
-          user_id    = excluded.user_id,
-          subject    = excluded.subject,
-          phase_1    = excluded.phase_1,
-          phase_2    = excluded.phase_2,
-          phase_3    = excluded.phase_3,
-          phase_4    = excluded.phase_4,
-          total      = excluded.total,
-          created_at = excluded.created_at
-    """), {"rid": rid})
-    db.session.commit()
-    return redirect(url_for("admin_bp.loss_result", run_id=rid))
-
-'''
-
 
 def _fetch_result_row(run_id: int):
     row = db.session.execute(text("""

@@ -21,32 +21,40 @@
 
       <!-- Controls -->
       <div class="rounded-xl border bg-white p-5 shadow-sm">
-        <form method="get" action="{{ url_for('admin_bp.loss_index') }}"
+        <form method="get"
+              action="{{ url_for('admin_bp.loss_index') }}"
               class="grid grid-cols-1 gap-3 md:grid-cols-12 md:items-end">
+          <!-- User select -->
           <div class="md:col-span-6">
             <label class="block text-sm text-slate-600 mb-1">User</label>
             <select name="user_id" class="w-full rounded border px-2 py-1.5 text-sm">
               <option value="">— select a user —</option>
               {% for uid_opt in user_ids %}
-                <option value="{{ uid_opt }}" {{ 'selected' if user_id and user_id == uid_opt else '' }}>
+                <option value="{{ uid_opt }}"
+                        {{ 'selected' if user_id is not none and (user_id|string) == (uid_opt|string) else '' }}>
                   User {{ uid_opt }}
                 </option>
               {% endfor %}
             </select>
           </div>
 
+          <!-- Run select -->
           <div class="md:col-span-4">
             <label class="block text-sm text-slate-600 mb-1">Run</label>
             <select name="run_id" class="w-full rounded border px-2 py-1.5 text-sm">
               <option value="">— select a run —</option>
               {% for r in runs %}
-                <option value="{{ r }}" {{ 'selected' if run_id and run_id == r else '' }}>
-                  Run {{ r }}
+                {# r might be an int or a row; normalise to rid #}
+                {% set rid = r.id if r.id is defined else r %}
+                <option value="{{ rid }}"
+                        {{ 'selected' if run_id is not none and (run_id|string) == (rid|string) else '' }}>
+                  Run {{ rid }}
                 </option>
               {% endfor %}
             </select>
           </div>
 
+          <!-- Load button -->
           <div class="md:col-span-2">
             <button type="submit"
                     class="w-full rounded bg-slate-800 px-3 py-2 text-sm font-medium text-white hover:bg-slate-900">
@@ -63,15 +71,15 @@
       </div>
 
       {# status + actions ----------------------------------------------------- #}
-      {% set q = "user_id=" ~ user_id ~ "&run_id=" ~ run_id if user_id and run_id else "" %}
-      {% set can_run = run_id is not none %}
+      {% set has_user = user_id is not none and user_id != '' %}
+      {% set has_run  = run_id is not none and run_id != '' %}
+      {% set can_run = has_run %}
       {% set can_report = has_result %}
       {% set disabled_cls = '' if can_run else 'opacity-50 pointer-events-none' %}
 
-      {# tidy status line ABOVE the buttons #}
       {% if can_run %}
         <div class="mt-4 text-sm text-slate-600">
-          Run {{ run_id }} • User {{ user_id if user_id is not none else '—' }}
+          Run {{ run_id }} • User {{ user_id if has_user else '—' }}
           {% if subject %} • Subject: {{ subject }}{% endif %}
           • Result: {{ 'Ready' if can_report else 'Pending' }}
         </div>
@@ -98,100 +106,4 @@
   </div>
 </div>
 
-
-
-
-<script>
-(function(){
-  // Grab selects by id OR name (works with your existing markup)
-  const userSel = document.querySelector('#user, select[name="user_id"]');
-  const runSel  = document.querySelector('#run,  select[name="run_id"]');
-  const loadBtn = document.querySelector('#btn-load, button[data-load], button#btn-load');
-
-  function navigate(params){
-    const url = new URL(location.href);
-    // wipe old values first
-    url.searchParams.delete('user_id');
-    url.searchParams.delete('run_id');
-    if (params.user_id) url.searchParams.set('user_id', params.user_id);
-    if (params.run_id)  url.searchParams.set('run_id',  params.run_id);
-    // keep same path, replace query
-    location.href = url.pathname + '?' + url.searchParams.toString();
-  }
-
-  // 1) Pick user -> reload with ?user_id=... (populates the Run list)
-  if (userSel){
-    userSel.addEventListener('change', () => {
-      const u = userSel.value || '';
-      if (u) navigate({ user_id: u });
-    });
-  }
-
-  // 2) Pick run -> reload with both ?user_id=...&run_id=... (shows actions)
-  if (runSel){
-    runSel.addEventListener('change', () => {
-      const r = runSel.value || '';
-      const u = userSel ? (userSel.value || new URL(location.href).searchParams.get('user_id')) : '';
-      if (u && r) navigate({ user_id: u, run_id: r });
-    });
-  }
-
-  // 3) Optional: Load button works in ONE click
-  if (loadBtn){
-    loadBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      const u = userSel && userSel.value;
-      const r = runSel && runSel.value;
-      if (!u) return;                   // need a user at minimum
-      navigate({ user_id: u, run_id: r || undefined });
-    });
-  }
-})();
-</script>
-
-<script>
-document.addEventListener('DOMContentLoaded', function(){
-  // Works if you use either ids OR name="user_id"/"run_id"
-  const userSel = document.querySelector('#user, select[name="user_id"]');
-  const runSel  = document.querySelector('#run,  select[name="run_id"]');
-  const loadBtn = document.getElementById('btn-load');
-
-  function go(u, r){
-    const url = new URL(location.href);
-    // remove old params to avoid junk like run_id={'id':...}
-    url.searchParams.delete('user_id');
-    url.searchParams.delete('run_id');
-    if (u) url.searchParams.set('user_id', u);
-    if (r) url.searchParams.set('run_id',  r);
-    location.href = url.pathname + '?' + url.searchParams.toString();
-  }
-
-  // Change user → reload with user, keep run empty (so you then pick run)
-  if (userSel) userSel.addEventListener('change', () => {
-    go(userSel.value || '', null);
-  });
-
-  // Change run → reload with current user (if present) + run
-  if (runSel) runSel.addEventListener('change', () => {
-    const current = new URL(location.href).searchParams;
-    const u = (userSel && userSel.value) || current.get('user_id') || '';
-    go(u, runSel.value || '');
-  });
-
-  // Optional "Load" button (one click only)
-  if (loadBtn){
-    loadBtn.addEventListener('click', function(e){
-      e.preventDefault();
-      const u = userSel ? userSel.value : '';
-      const r = runSel  ? runSel.value  : '';
-      if (!u && !r) return; // nothing chosen
-      go(u, r);
-    });
-  }
-});
-</script>
-
-</body>
-</html>
 {% endblock %}
-

@@ -2311,9 +2311,23 @@ def _result_for_run(run_id: int, user_id: int | None = None):
 
 @admin_bp.route("/loss/", methods=["GET"], endpoint="loss_index")
 def loss_index():
-    # Read filters from query
+    # Raw filters from query
     uid = _coerce_int(request.args.get("user_id"))
     rid = _coerce_int(request.args.get("run_id"))
+
+    # 0) If we have a run but no user, resolve user from DB
+    if rid and not uid:
+        row = db.session.execute(
+            text("""
+                SELECT user_id FROM lca_run WHERE id = :rid
+                UNION
+                SELECT user_id FROM lca_result WHERE run_id = :rid
+                LIMIT 1
+            """),
+            {"rid": rid},
+        ).mappings().first()
+        if row and row.get("user_id") is not None:
+            uid = int(row["user_id"])
 
     # 1) All users that have results
     user_ids = [
@@ -2323,17 +2337,27 @@ def loss_index():
         ).mappings().all()
     ]
 
+    # Make sure the resolved uid appears in the dropdown
+    if uid and uid not in user_ids:
+        user_ids.append(uid)
+        user_ids = sorted(user_ids)
+
     # 2) Runs for the chosen user (latest first)
-    runs = []
+    runs: list[int] = []
     if uid:
         runs = [
             r["run_id"]
             for r in db.session.execute(
-                text("SELECT DISTINCT run_id FROM lca_result WHERE user_id=:uid ORDER BY run_id DESC"),
+                text("""
+                    SELECT DISTINCT run_id
+                      FROM lca_result
+                     WHERE user_id = :uid
+                     ORDER BY run_id DESC
+                """),
                 {"uid": uid},
             ).mappings().all()
         ]
-        # If user picked but no run chosen yet, preselect latest
+        # If user picked (or inferred) but no run chosen yet, preselect latest
         if runs and not rid:
             rid = runs[0]
 
@@ -2342,15 +2366,14 @@ def loss_index():
     subject = (row or {}).get("subject")
     has_result = bool(row)
 
-    # Helpful trace while we stabilize
+    # Trace while stabilizing
     current_app.logger.warning(
         "[loss_index] args=%r -> user_id=%r run_id=%r has_result=%r subject=%r",
-        dict(request.args), uid, rid, has_result, subject
+        dict(request.args), uid, rid, has_result, subject,
     )
 
     return render_template(
         "admin/loss/dashboard.html",
-        # selections
         user_ids=user_ids,
         runs=runs,
         user_id=uid,

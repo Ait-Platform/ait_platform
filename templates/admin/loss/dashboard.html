@@ -24,24 +24,13 @@
         <form method="get"
               action="{{ url_for('admin_bp.loss_index') }}"
               class="grid grid-cols-1 gap-3 md:grid-cols-12 md:items-end">
-          <!-- User select -->
-          <div class="md:col-span-6">
-            <label class="block text-sm text-slate-600 mb-1">User</label>
-            <select name="user_id" class="w-full rounded border px-2 py-1.5 text-sm">
-              <option value="">— select a user —</option>
-              {% for uid_opt in user_ids %}
-                <option value="{{ uid_opt }}"
-                        {{ 'selected' if user_id is not none and (user_id|string) == (uid_opt|string) else '' }}>
-                  User {{ uid_opt }}
-                </option>
-              {% endfor %}
-            </select>
-          </div>
 
-          <!-- Run select -->
-          <div class="md:col-span-4">
+          <!-- Run select (primary driver) -->
+          <div class="md:col-span-8">
             <label class="block text-sm text-slate-600 mb-1">Run</label>
-            <select name="run_id" class="w-full rounded border px-2 py-1.5 text-sm">
+            <select name="run_id"
+                    class="w-full rounded border px-2 py-1.5 text-sm"
+                    onchange="this.form.submit()">
               <option value="">— select a run —</option>
               {% for r in runs %}
                 {# r might be an int or a row; normalise to rid #}
@@ -54,18 +43,34 @@
             </select>
           </div>
 
-          <!-- Load button -->
-          <div class="md:col-span-2">
-            <button type="submit"
-                    class="w-full rounded bg-slate-800 px-3 py-2 text-sm font-medium text-white hover:bg-slate-900">
-              Load
-            </button>
+          <!-- Spacer / info -->
+          <div class="md:col-span-4 text-xs text-slate-500">
+            Select a run to see its user and open the responses/report tools.
           </div>
         </form>
 
         {% if subject %}
           <p class="mt-3 text-sm text-slate-600">
-            Run Subject: <span class="font-semibold">{{ subject }}</span>
+            Run subject: <span class="font-semibold">{{ subject }}</span>
+          </p>
+        {% endif %}
+
+        {# Optional: show user nicely if you pass user_label / user_email / user_id #}
+        {% if user_id or user_label or user_email %}
+          <p class="mt-1 text-sm text-slate-600">
+            User:
+            <span class="font-semibold">
+              {# prefer a friendly label if you provide one from the view #}
+              {% if user_label %}
+                {{ user_label }}
+              {% elif user_email %}
+                {{ user_email }} (ID {{ user_id }})
+              {% elif user_id %}
+                User {{ user_id }}
+              {% else %}
+                —
+              {% endif %}
+            </span>
           </p>
         {% endif %}
       </div>
@@ -79,14 +84,26 @@
 
       {% if can_run %}
         <div class="mt-4 text-sm text-slate-600">
-          Run {{ run_id }} • User {{ user_id if has_user else '—' }}
+          Run {{ run_id }}
+          {% if has_user or user_label or user_email %}
+            • User:
+            {% if user_label %}
+              {{ user_label }}
+            {% elif user_email %}
+              {{ user_email }} (ID {{ user_id }})
+            {% elif user_id %}
+              User {{ user_id }}
+            {% else %}
+              —
+            {% endif %}
+          {% endif %}
           {% if subject %} • Subject: {{ subject }}{% endif %}
           • Result: {{ 'Ready' if can_report else 'Pending' }}
         </div>
       {% endif %}
 
       <!-- Buttons row -->
-      <div class="mt-3 flex gap-2">
+      <div class="mt-3 flex flex-wrap gap-2">
         <a href="{{ url_for('admin_bp.loss_responses', run_id=run_id) if can_run else '#' }}"
            class="px-3 py-2 rounded border hover:bg-slate-100 {{ disabled_cls }}"
            aria-disabled="{{ 'false' if can_run else 'true' }}">

@@ -981,10 +981,12 @@ def finish_report():
     except Exception: pass
 
     # Close tab; fallback link
+    # Close tab; fallback link
     try:
-        welcome_url = url_for("auth_bp.welcome", _external=True)
+        welcome_url = url_for("public_bp.welcome", _external=True)
     except Exception:
         welcome_url = (request.url_root or "/").rstrip("/")
+
 
     return f"""<!doctype html>
 <html>

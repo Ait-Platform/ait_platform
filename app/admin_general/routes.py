@@ -120,7 +120,7 @@ def pricing_index():
         else None
     )
 
-    # NEW: load country picker options from ref_country_currency
+    # Countries + default FX from ref table
     countries = db.session.execute(
         text("""
             SELECT
@@ -134,9 +134,6 @@ def pricing_index():
         """)
     ).mappings().all()
 
-
-
-
     # 2) Handle Add-country POST (add a new tier row)
     if request.method == "POST":
         country_code = (request.form.get("country_code") or "").strip().upper()
@@ -146,6 +143,14 @@ def pricing_index():
         if not country_code or not anchor_zar_cents:
             flash("Country code and a ZAR anchor are required.", "error")
         else:
+            # 🔹 If FX not typed, try default from ref_country_currency
+            if not fx_rate_raw:
+                for c in countries:
+                    if c.country_code == country_code:
+                        if c.fx_to_zar is not None:
+                            fx_rate_raw = str(c.fx_to_zar)
+                        break
+
             local_amount_cents = None
 
             # Prefer explicit local_amount_cents if provided
@@ -158,7 +163,7 @@ def pricing_index():
             elif fx_rate_raw:
                 try:
                     fx_rate = float(fx_rate_raw)
-                    # anchor_zar_cents is in cents; fx_rate is local per 1 ZAR
+                    # ✅ fx_rate means "1 ZAR = fx_rate local currency"
                     local_amount_cents = int(round(anchor_zar_cents * fx_rate))
                 except ValueError:
                     flash("FX rate must be a number.", "error")
@@ -187,8 +192,6 @@ def pricing_index():
                     },
                 )
                 db.session.commit()
-
-
 
                 return redirect(url_for("general_bp.pricing_index", subject=subject.slug))
 

@@ -54,74 +54,76 @@
 
   <!-- Add country tier -->
   {% if anchor_zar_cents %}
-    <form method="post"
-          class="mb-6 rounded-lg border border-slate-200 bg-white p-4 flex flex-col gap-3">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <form method="post"
+        class="mb-6 rounded-lg border border-slate-200 bg-white p-4 flex flex-col gap-3">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" id="fx_rate" name="fx_rate">
 
-      <div class="text-sm font-semibold text-slate-800 mb-2">
-        Add country tier
+    <div class="text-sm font-semibold text-slate-800 mb-2">Add country tier</div>
+
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+
+
+
+      <!-- Country -->
+      <div class="col-span-1 md:col-span-1">
+        <label class="block text-xs font-medium text-slate-500 mb-1">Country</label>
+        <select id="country_select"
+                name="country_code"
+                class="w-full rounded border px-2 py-1 text-sm"
+                required>
+          <option value="">Select…</option>
+          {% for c in countries %}
+            <option value="{{ c.country_code }}"
+                    data-fx="{{ c.fx_to_zar }}">
+              {{ c.name }} ({{ c.currency_code }})
+            </option>
+          {% endfor %}
+        </select>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
-
-        <!-- Country -->
-        <div>
-          <label class="block text-xs font-medium text-slate-500 mb-1">
-            Country
-          </label>
-          <select id="country_select"
-                  name="country_code"
-                  class="w-full rounded border px-2 py-1 text-sm"
-                  required>
-            <option value="">Select…</option>
-            {% for c in countries %}
-              <option value="{{ c.country_code }}"
-                      data-fx="{{ c.fx_to_zar }}">
-                {{ c.name }} ({{ c.country_code }} · {{ c.currency_code }})
-              </option>
-            {% endfor %}
-          </select>
-        </div>
-
-        <!-- FX rate (1 ZAR = ? local) -->
-        <div>
-          <label class="block text-xs font-medium text-slate-500 mb-1">
-            FX rate (1 ZAR = ? local)
-          </label>
-          <input id="fx_rate"
-                 name="fx_rate"
-                 type="text"
-                 class="w-full rounded border px-2 py-1 text-sm"
-                 placeholder="e.g. 0.055">
-          <p class="mt-1 text-xs text-slate-500">
-            Loaded from reference; adjust if you like.
-          </p>
-        </div>
-
-        <!-- Local amount (cents) -->
-        <div>
-          <label class="block text-xs font-medium text-slate-500 mb-1">
-            Local amount (cents)
-          </label>
-          <input id="local_amount_cents"
-                 name="local_amount_cents"
-                 class="w-full rounded border px-2 py-1 text-sm"
-                 placeholder="auto from FX, or type"
-                 inputmode="numeric">
-          <p id="local_amount_hint"
-             class="mt-1 text-xs text-slate-500"></p>
-        </div>
-
-        <!-- Save -->
-        <div>
-          <button type="submit"
-                  class="w-full rounded-md bg-slate-800 px-3 py-2 text-sm font-medium text-white hover:bg-slate-900">
-            Save tier
-          </button>
-        </div>
-
+      <!-- Local amount (middle) -->
+      <div class="col-span-1 md:col-span-1">
+        <label class="block text-xs font-medium text-slate-500 mb-1">
+          Local amount (cents)
+        </label>
+        <input id="local_amount_cents"
+              name="local_amount_cents"
+              class="w-full rounded border px-2 py-1 text-sm bg-slate-50"
+              readonly>
+        <p id="local_amount_hint"
+          class="mt-1 text-xs text-slate-500"></p>
       </div>
-    </form>
+
+      <!-- Base ZAR (right) -->
+      <div class="col-span-1 md:col-span-1">
+        <label class="block text-xs font-medium text-slate-500 mb-1">
+          Base ZAR amount (cents)
+        </label>
+        <input id="base_zar_cents"
+              name="base_zar_cents"
+              class="w-full rounded border px-2 py-1 text-sm"
+              placeholder="e.g. 7500"
+              inputmode="numeric">
+        <p class="mt-1 text-xs text-slate-500">
+          What you charge in ZAR for this country.
+        </p>
+      </div>
+
+      <!-- Save -->
+      <div class="col-span-1 md:col-span-1 flex items-end">
+        <button type="submit"
+                class="w-full rounded-md bg-slate-800 px-3 py-2 text-sm font-medium text-white hover:bg-slate-900">
+          Save tier
+        </button>
+      </div>
+
+   
+
+
+    </div>
+  </form>
+
   {% endif %}
 
   <!-- Existing tiers -->
@@ -161,67 +163,50 @@
 {% if anchor_zar_cents %}
 <script>
 (function () {
-  var anchorCents = {{ anchor_zar_cents|int }};
-  if (!anchorCents) return;
+  const countryEl = document.getElementById("country_select");
+  const baseEl    = document.getElementById("base_zar_cents");
+  const rateEl    = document.getElementById("fx_rate");     // hidden
+  const localEl   = document.getElementById("local_amount_cents");
+  const hintEl    = document.getElementById("local_amount_hint");
 
-  var countryEl = document.getElementById('country_select');
-  var rateEl    = document.getElementById('fx_rate');
-  var localEl   = document.getElementById('local_amount_cents');
-  var hintEl    = document.getElementById('local_amount_hint');
+  if (!countryEl || !baseEl || !rateEl || !localEl || !hintEl) return;
 
-  if (!countryEl || !rateEl || !localEl || !hintEl) return;
+    function updateLocal() {
+      const base = parseInt(baseEl.value || "0", 10);
+      const fx   = parseFloat((rateEl.value || "0").replace(",", "."));
 
-  function updateHint(cents) {
-    if (!cents || isNaN(cents) || cents <= 0) {
-      hintEl.textContent = '';
-      return;
+      if (!base || !fx) {
+        localEl.value = "";
+        hintEl.textContent = "";
+        return;
+      }
+
+      // DB fx is ZAR per 1 unit of local currency
+      const local = Math.round(base / fx);
+
+      localEl.value = local;
+      const pretty = (local / 100).toFixed(2);
+      hintEl.textContent =
+        local + " cents (~" + pretty + " in local currency)";
     }
-    var amt = (cents / 100).toFixed(2);
-    hintEl.textContent = cents + ' cents (~' + amt + ' in local currency).';
-  }
 
-  function recalc() {
-    var rateRaw = rateEl.value || '0';
-    var rate = parseFloat(rateRaw.replace(',', '.'));
-    if (!rate) return;
 
-    var localCents = Math.round(anchorCents * rate);
-
-    // Only auto-fill if admin has NOT typed manually
-    if (localEl.dataset.userEdited !== '1') {
-      localEl.value = localCents;
-      updateHint(localCents);
-    }
-  }
-
-  // When country changes, load FX from data-fx and recalc
-  countryEl.addEventListener('change', function () {
-    var opt = countryEl.options[countryEl.selectedIndex];
+  // When country changes, load FX silently
+  countryEl.addEventListener("change", function () {
+    const opt = countryEl.options[countryEl.selectedIndex];
     if (!opt) return;
 
-    var fx = opt.dataset.fx || '';
-    // normalise decimal comma to dot
-    fx = fx.replace(',', '.');
-
+    let fx = opt.dataset.fx || "";
+    fx = fx.replace(",", ".");
     rateEl.value = fx;
-    localEl.dataset.userEdited = '';
-    recalc();
+
+    updateLocal();
   });
 
-  // If admin edits FX manually, recompute (but still respect manual local if set)
-  rateEl.addEventListener('input', function () {
-    localEl.dataset.userEdited = '';
-    recalc();
-  });
-
-  // If admin edits local manually, never overwrite it again
-  localEl.addEventListener('input', function () {
-    localEl.dataset.userEdited = '1';
-    var cents = parseInt(localEl.value || '0', 10);
-    updateHint(cents);
-  });
-
+  // When base changes, recompute local
+  baseEl.addEventListener("input", updateLocal);
 })();
 </script>
+
 {% endif %}
 {% endblock %}

@@ -18,6 +18,8 @@ DEFAULT_LOGIN_EMAIL = os.getenv("DEFAULT_LOGIN_EMAIL", "ait@mathwithhands.com")
 SEED_REPO_DIR = os.getenv("SEED_REPO_DIR")              # e.g. "<project>/seeds"
 SEED_UPLOAD_ARCHIVE = os.getenv("SEED_UPLOAD_ARCHIVE")  # e.g. "<instance>/seed_uploads"
 
+PG_DUMP_PATH = r"C:\Program Files\PostgreSQL\18\bin\pg_dump.exe"
+DB_BACKUP_DIR = r"D:\backups"
 
 # ---- tiny helpers -----------------------------------------------------------
 def _to_bool(value: str | None, default: bool = False) -> bool:

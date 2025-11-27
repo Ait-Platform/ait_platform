@@ -1,5 +1,10 @@
 # app/admin_general/routes.py
-from flask import flash, redirect, render_template, jsonify, url_for
+import datetime
+import os
+import shutil
+import subprocess
+from flask import current_app, flash, redirect, render_template, jsonify, url_for
+from flask_login import login_required
 from sqlalchemy import text
 
 from app.models.auth import AuthPricing, AuthSubject
@@ -171,6 +176,20 @@ def pricing_index():
                 flash("Either enter a local amount or an FX rate.", "error")
 
             # Only insert if we ended up with a valid local_amount_cents
+            # --- get base in ZAR cents (required) ---
+            base_raw = (request.form.get("base_zar_cents") or "").strip()
+
+            if not base_raw:
+                flash("Please enter a base ZAR amount (cents).", "error")
+                return redirect(url_for("general_bp.pricing_index", subject=subject.slug))
+
+            try:
+                base_zar_cents = int(base_raw)
+            except ValueError:
+                flash("Base ZAR amount must be whole cents (integer).", "error")
+                return redirect(url_for("general_bp.pricing_index", subject=subject.slug))
+
+            # --- existing insert, unchanged except zar uses base_zar_cents ---
             if local_amount_cents is not None:
                 db.session.execute(
                     text("""
@@ -188,10 +207,11 @@ def pricing_index():
                         "sid": subject.id,
                         "cc": country_code,
                         "local": local_amount_cents,
-                        "zar": anchor_zar_cents,
+                        "zar": base_zar_cents,
                     },
                 )
                 db.session.commit()
+
 
                 return redirect(url_for("general_bp.pricing_index", subject=subject.slug))
 
@@ -219,3 +239,92 @@ def pricing_index():
         countries=countries,
     )
 
+@general_bp.route("/db-tools", methods=["GET"])
+@login_required
+def db_tools():
+    return render_template("admin_general/db_tools.html")
+
+
+@general_bp.get("/db-backup-now")
+@login_required
+def db_backup_now():
+    """
+    Create a PostgreSQL dump using pg_dump and stream it to the browser.
+    - pg_dump: C:\Program Files\PostgreSQL\18\bin\pg_dump.exe
+    - backup dir: D:\backups
+    """
+
+    engine = db.engine
+    backend = engine.url.get_backend_name()
+    if backend != "postgresql":
+        flash(f"Backup is wired for PostgreSQL, but current engine is '{backend}'.", "error")
+        return redirect(url_for("general_bp.db_tools"))
+
+    # DSN for pg_dump (e.g. postgresql://user:pass@host/dbname)
+    dsn = str(engine.url).replace("+psycopg2", "")
+
+    pg_dump_path = r"C:\Program Files\PostgreSQL\18\bin\pg_dump.exe"
+    backup_dir   = r"D:\backups"
+
+    if not os.path.exists(pg_dump_path):
+        flash(f'pg_dump not found at "{pg_dump_path}".', "error")
+        return redirect(url_for("general_bp.db_tools"))
+
+    os.makedirs(backup_dir, exist_ok=True)
+
+    ts = datetime.datetime.utcnow().strftime("%Y%m%d-%H%M%S")
+    fname = f"render_ait-{ts}.dump"
+    backup_path = os.path.join(backup_dir, fname)
+
+    try:
+        subprocess.run(
+            [pg_dump_path, "--format=custom", "--file", backup_path, dsn],
+            check=True,
+        )
+    except Exception as e:
+        current_app.logger.exception("pg_dump backup failed")
+        flash(f"Backup failed: {e}", "error")
+        return redirect(url_for("general_bp.db_tools"))
+
+    flash("Backup created and saved in D:/backups", "success")
+
+    return send_file(backup_path, as_attachment=True, download_name=fname)
+
+@general_bp.route("/admin/general/app-backup-now")
+@login_required
+def app_backup_now():
+    from datetime import datetime
+    import zipfile, os, io
+
+    # Where to save permanent snapshots
+    BACKUP_DIR = r"D:/backups"
+    os.makedirs(BACKUP_DIR, exist_ok=True)
+
+    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    file_name = f"ait_app_{stamp}.zip"
+    backup_path = os.path.join(BACKUP_DIR, file_name)
+
+    # Folders to include (clean, minimal)
+    APP_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
+    EXCLUDE = {"venv", "__pycache__", ".git", ".idea", "backups", "media"}
+
+    # Create ZIP on disk
+    with zipfile.ZipFile(backup_path, "w", zipfile.ZIP_DEFLATED) as z:
+        for root, dirs, files in os.walk(APP_ROOT):
+            dirs[:] = [d for d in dirs if d not in EXCLUDE]
+            for f in files:
+                if f.endswith((".pyc", ".log")):
+                    continue
+                full = os.path.join(root, f)
+                rel = os.path.relpath(full, APP_ROOT)
+                z.write(full, rel)
+                
+    flash("Backup created and saved in D:/backups", "success")
+
+    # Serve ZIP for download
+    return send_file(
+        backup_path,
+        mimetype="application/zip",
+        as_attachment=True,
+        download_name=file_name,
+    )

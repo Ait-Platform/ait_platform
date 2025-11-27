@@ -1,0 +1,38 @@
+{% extends "layout.html" %}
+{% block title %}Database tools · Admin · AIT{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-3xl py-8">
+
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <h1 class="text-xl font-semibold text-slate-800">Database tools</h1>
+      <p class="text-sm text-slate-500">
+        Use this page to create a manual backup before risky changes.
+      </p>
+    </div>
+    <a href="{{ url_for('general_bp.index') }}"
+       class="rounded-lg border px-3 py-1.5 text-sm hover:bg-slate-50">
+      ← Back to Admin
+    </a>
+  </div>
+
+  <div class="rounded-2xl border bg-white shadow-sm p-5">
+    <h2 class="text-sm font-semibold text-slate-800">Manual backup</h2>
+    <p class="mt-1 text-xs text-slate-500">
+      This will create a snapshot of the current database and make it available for download.
+    </p>
+
+    <div class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+
+    <a href="{{ url_for('general_bp.db_backup_now') }}"
+        class="inline-flex items-center rounded-md bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-900">
+        Create &amp; download backup
+    </a>
+
+    </div>
+
+  </div>
+
+</div>
+{% endblock %}

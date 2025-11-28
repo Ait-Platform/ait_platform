@@ -1,0 +1,71 @@
+{% extends "layout.html" %}
+{% block title %}Ad Builder · AIT{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-xl py-8">
+  <h1 class="text-2xl font-semibold text-slate-800 mb-2">AIT Ad Builder</h1>
+  <p class="text-slate-500 text-sm mb-4">
+    Choose an output name and pick logo, music, and voice files. The system will
+    launch Blender headless and render an MP4 into your ad media folder.
+  </p>
+
+  {% if error %}
+    <div class="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-800">
+      {{ error }}
+    </div>
+  {% elif message %}
+    <div class="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-900">
+      {{ message }}
+    </div>
+  {% endif %}
+
+  <form method="post" enctype="multipart/form-data" class="space-y-4">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div>
+      <label class="block text-xs font-semibold text-slate-600 mb-1">
+        Output file name (MP4)
+      </label>
+      <input
+        type="text"
+        name="output_name"
+        value="{{ default_output }}"
+        class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+      >
+      <p class="mt-1 text-[11px] text-slate-500">
+        File will be written to <code>{{ base_dir }}</code>.
+      </p>
+    </div>
+
+    {% include "admin_general/_ad_media_fields.html" %}
+
+
+
+    <div class="pt-2">
+      <button
+        type="submit"
+        class="rounded-md border border-slate-900 bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+      >
+        Generate video (run Blender)
+      </button>
+      <p class="mt-1 text-[11px] text-slate-500">
+        Blender runs in the background using <code>ait_ad_engine.py</code>. When it
+        finishes, open the MP4 from your ad media folder.
+      </p>
+    </div>
+  </form>
+
+  {% if last_cmd %}
+    <div class="mt-6">
+      <label class="block text-xs font-semibold text-slate-600 mb-1">
+        Blender command (debug)
+      </label>
+      <textarea
+        readonly
+        class="w-full rounded-md border border-slate-300 px-3 py-2 text-xs font-mono"
+        rows="3"
+      >{{ last_cmd }}</textarea>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

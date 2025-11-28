@@ -328,3 +328,174 @@ def app_backup_now():
         as_attachment=True,
         download_name=file_name,
     )
+
+
+import os
+import json
+import subprocess
+
+from flask import render_template, request, send_file, current_app
+# -----------------------------
+# AIT Ad Builder config
+# -----------------------------
+
+# Folder where your media lives and where final_ad.mp4 is written
+AD_BASE_DIR = r"C:\Users\Sanjith\OneDrive\Documentos\LoloAd2025"
+
+# Blender executable
+BLENDER_EXE = r"C:\Program Files\Blender Foundation\Blender 4.5\blender.exe"
+
+# Blender engine script (ait_ad_engine.py from app/scripts)
+ENGINE_SCRIPT = r"D:\Users\yeshk\Documents\ait_platform\app\scripts\ait_ad_engine.py"
+
+# Paths for config + output
+AD_CONFIG_PATH = os.path.join(AD_BASE_DIR, "ad_config.json")
+AD_OUTPUT_MP4 = os.path.join(AD_BASE_DIR, "final_ad.mp4")
+
+
+# Put near the top of your admin module
+BASE_DIR = r"C:\Users\Sanjith\OneDrive\Documentos\LoloAd2025"
+
+#BLENDER_EXE    = r"C:\Program Files\Blender Foundation\Blender 4.5\blender.exe"
+TEMPLATE_BLEND = os.path.join(BASE_DIR, "AIT_Adaptation_Vector.blend")
+BUILDER_SCRIPT = r"D:\Users\yeshk\Documents\ait_platform\app\scripts\blender.py"
+OUTPUT_DIR     = BASE_DIR
+DEFAULT_FPS    = 30
+# The mp4 your script produces
+OUTPUT_MP4 = os.path.join(BASE_DIR, "final_ad.mp4")
+# Your working Blender script that already renders the ad
+BLENDER_SCRIPT = r"D:\Users\yeshk\Documents\ait_platform\app\scripts\ait_ad_engine.py"
+# -----------------------------
+# AIT Ad Builder config
+# -----------------------------
+AD_BASE_DIR = r"C:\Users\Sanjith\OneDrive\Documentos\LoloAd2025"
+#BLENDER_EXE = r"C:\Program Files\Blender Foundation\Blender 4.5\blender.exe"
+#BLENDER_SCRIPT = r"D:\Users\yeshk\Documents\ait_platform\app\scripts\ait_ad_engine.py"
+
+def _list_audio_files():
+    """Return sorted list of audio filenames in AD_BASE_DIR."""
+    if not os.path.isdir(AD_BASE_DIR):
+        return []
+    exts = (".wav", ".mp3", ".flac", ".m4a", ".aac", ".ogg")
+    files = []
+    for fn in os.listdir(AD_BASE_DIR):
+        path = os.path.join(AD_BASE_DIR, fn)
+        if os.path.isfile(path) and fn.lower().endswith(exts):
+            files.append(fn)
+    return sorted(files)
+
+
+@general_bp.route("/ad-builder", methods=["GET", "POST"])
+def ad_builder():
+    """
+    Ad Builder:
+    - output file name (mp4)
+    - logo picker (file upload)
+    - music picker (file upload)
+    - voice picker (file upload)
+    Then launches Blender headless to render the MP4.
+    """
+    message = None
+    error = None
+    last_cmd = None
+    default_output = "ait_ad.mp4"
+    default_duration = 30
+
+
+    if request.method == "POST":
+        # 1) Output filename
+        output_name = (request.form.get("output_name") or default_output).strip()
+        if not output_name.lower().endswith(".mp4"):
+            output_name += ".mp4"
+        output_path = os.path.join(AD_BASE_DIR, output_name)
+
+        # Duration (seconds)
+        raw_duration = request.form.get("duration_seconds") or default_duration
+        try:
+            duration = int(raw_duration)
+        except (TypeError, ValueError):
+            duration = default_duration
+
+        # clamp between 5 and 120 seconds
+        if duration < 5:
+            duration = 5
+        if duration > 120:
+            duration = 120
+
+        os.makedirs(AD_BASE_DIR, exist_ok=True)
+
+        # 2) Save uploaded files (if any)
+        def save_upload(field_name):
+            f = request.files.get(field_name)
+            if not f or not f.filename:
+                return None
+            safe_name = os.path.basename(f.filename)
+            dest = os.path.join(AD_BASE_DIR, safe_name)
+            f.save(dest)
+            return dest
+
+        logo_path  = save_upload("logo_file")
+        music_path = save_upload("music_file")
+        voice_path = save_upload("voice_file")
+        bg_path    = save_upload("bg_file")
+        qr_path    = save_upload("qr_file")
+        img_path   = save_upload("img_file")
+
+
+        # 3) Build env for Blender
+        env = os.environ.copy()
+        env["AIT_AD_BASE_DIR"] = AD_BASE_DIR
+        env["AIT_AD_OUTPUT"] = output_path
+        env["AIT_AD_DURATION"] = str(duration)
+
+        if logo_path:
+            env["AIT_AD_LOGO"] = logo_path
+        if music_path:
+            env["AIT_AD_MUSIC"] = music_path
+        if voice_path:
+            env["AIT_AD_VOICE"] = voice_path
+        if bg_path:
+            env["AIT_AD_BG"] = bg_path
+        if qr_path:
+            env["AIT_AD_QR"] = qr_path
+        if img_path:
+            env["AIT_AD_IMAGE"] = img_path
+
+
+        # 4) Blender command
+        cmd = [BLENDER_EXE, "-b", "-P", BLENDER_SCRIPT]
+        last_cmd = " ".join(f'"{c}"' if " " in c else c for c in cmd)
+
+        try:
+            subprocess.Popen(cmd, cwd=AD_BASE_DIR, env=env)
+            message = (
+                f"Render started. When Blender finishes, your video will be "
+                f"at: {output_path}"
+            )
+            current_app.logger.info("Ad Builder: started Blender: %s", last_cmd)
+        except Exception as exc:
+            error = f"Could not start Blender: {exc}"
+            current_app.logger.exception("Ad Builder: failed to start Blender")
+
+        return render_template(
+            "admin_general/ad_builder.html",
+            message=message,
+            error=error,
+            last_cmd=last_cmd,
+            default_output=output_name,
+            base_dir=AD_BASE_DIR,
+            duration=duration,
+        )
+
+
+    # GET
+    return render_template(
+        "admin_general/ad_builder.html",
+        message=message,
+        error=error,
+        last_cmd=last_cmd,
+        default_output=default_output,
+        base_dir=AD_BASE_DIR,
+        duration=default_duration,
+    )
+

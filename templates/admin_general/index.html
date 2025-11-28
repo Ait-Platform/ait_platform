@@ -98,14 +98,18 @@
 
 
     <!-- Ad Builder (placeholder) -->
-    <div class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+    <div class="md:col-span-2 rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
       <div class="h-1.5 bg-purple-600"></div>
       <div class="p-5">
         <h2 class="font-medium text-slate-900">Ad Builder (Video & Assets)</h2>
         <p class="text-xs text-slate-500 mb-3">Assemble voice, music, images; export for YouTube.</p>
-        <button type="button" class="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-400" disabled>Open</button>
+        <a href="{{ url_for('general_bp.ad_builder') }}"
+          class="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50">
+          Open
+        </a>
       </div>
     </div>
+
 
         <!-- Text to Speech -->
     <div class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">

@@ -4,6 +4,8 @@ import re
 from pathlib import Path
 from flask import current_app
 
+from app.scripts.blender import CLI
+
 
 
 # ---- base directories -------------------------------------------------------
@@ -20,6 +22,61 @@ SEED_UPLOAD_ARCHIVE = os.getenv("SEED_UPLOAD_ARCHIVE")  # e.g. "<instance>/seed_
 
 PG_DUMP_PATH = r"C:\Program Files\PostgreSQL\18\bin\pg_dump.exe"
 DB_BACKUP_DIR = r"D:\backups"
+
+# Example of how to merge with your existing variables:
+
+# -----------------------------
+# CONFIG (with CLI overrides)
+# -----------------------------
+BASE_DIR = r"C:\Users\Sanjith\OneDrive\Documentos\LoloAd2025"
+
+# Defaults
+AD_TITLE_DEFAULT = "Adaptation Vector"
+MAIN_TEXT_DEFAULT = "Have you lost a loved one? Measure your adaptation vector."
+SUB_TEXT_DEFAULT = "Archoney Institute of Technology"
+
+THEME_DEFAULT = "navy"
+
+FPS = 30
+SEC = 30
+F_END = FPS * SEC
+
+BLEND_OUT = os.path.join(BASE_DIR, "AIT_Adaptation_Vector.blend")
+MP4_OUT = os.path.join(BASE_DIR, "ad.mp4")
+
+# Optional audio defaults (can stay empty)
+MUSIC_PATH = ""
+VOICE_PATH = ""
+
+# Apply CLI overrides if present
+AD_TITLE = CLI.get("title", AD_TITLE_DEFAULT)
+MAIN_TEXT = CLI.get("main_text", MAIN_TEXT_DEFAULT)
+SUB_TEXT = CLI.get("sub_text", SUB_TEXT_DEFAULT)
+
+THEME_KEY = CLI.get("theme", THEME_DEFAULT)
+
+if "fps" in CLI:
+    FPS = CLI["fps"]
+
+if "frames" in CLI:
+    F_END = CLI["frames"]
+else:
+    F_END = FPS * SEC
+
+if "mp4_out" in CLI:
+    MP4_OUT = CLI["mp4_out"]
+
+if "music" in CLI:
+    MUSIC_PATH = CLI["music"]
+
+if "voice" in CLI:
+    VOICE_PATH = CLI["voice"]
+
+
+
+# ...
+
+
 
 # ---- tiny helpers -----------------------------------------------------------
 def _to_bool(value: str | None, default: bool = False) -> bool:

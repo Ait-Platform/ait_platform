@@ -52,17 +52,25 @@
   </div>
 
   {# Row 3: QR + extra image #}
+  {# Row 3: QR + extra image #}
   <div>
     <label class="block text-xs font-semibold text-slate-600 mb-1">
-      QR code image (PNG/JPG)
+      QR code (PNG) – site launcher
     </label>
-    <input
-      type="file"
-      name="qr_file"
-      accept=".png,.jpg,.jpeg"
-      class="block w-full text-sm text-slate-700"
+    <select
+      name="qr_name"
+      class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
     >
+      <option value="">No QR code</option>
+      <option value="qr_main.png">Main site · mathwithhands.com</option>
+      <option value="qr_www.png">WWW redirect · www.mathwithhands.com</option>
+      <option value="qr_ait.png">AIT platform · ait.mathwithhands.com</option>
+    </select>
+    <p class="mt-1 text-[11px] text-slate-500">
+      Files are looked up in your ad media folder ({{ base_dir }}).
+    </p>
   </div>
+
 
   <div>
     <label class="block text-xs font-semibold text-slate-600 mb-1">

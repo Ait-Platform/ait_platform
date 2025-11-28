@@ -1,12 +1,12 @@
 # app/payments/quote.py
 from datetime import datetime
-
 from flask import current_app
 from app.extensions import db
 from app.models.auth import UserEnrollment
 from app.payments.pricing import get_parity_anchor_cents, price_cents_for, price_for_country
 from decimal import Decimal
 from sqlalchemy import text
+from decimal import Decimal, ROUND_HALF_UP
 
 def detect_country(request) -> str:
     cc = (request.headers.get("CF-IPCountry") or "").strip().upper()
@@ -31,10 +31,17 @@ def lock_enrollment_quote(enrollment_id: int, subject_slug: str, request, price_
     ue.price_locked_at = datetime.utcnow()
     db.session.commit()
 
-def fx_for_country_code(code: str) -> Decimal:
+def fx_for_country_code(code: str) -> Decimal | None:
     """
-    Look up FX (1 local = fx_to_zar ZAR). If the column/table
-    is missing (e.g. old SQLite schema), fall back to 1.0.
+    Look up FX (1 local = fx_to_zar ZAR).
+
+    Returns:
+        Decimal fx_to_zar if known and > 0
+        None if:
+          - no row
+          - NULL value
+          - table/column missing
+          - non-positive value
     """
     try:
         row = db.session.execute(
@@ -50,18 +57,22 @@ def fx_for_country_code(code: str) -> Decimal:
         current_app.logger.warning(
             "fx_for_country_code fallback for %s: %s", code, exc
         )
-        return Decimal("1.0")
+        return None
 
     if not row:
-        return Decimal("1.0")
+        return None
 
     val = getattr(row, "fx_to_zar", None)
     if val is None:
-        return Decimal("1.0")
+        return None
 
-    return Decimal(str(val))
+    fx = Decimal(str(val))
+    if fx <= 0:
+        return None
 
-from decimal import Decimal, ROUND_HALF_UP
+    return fx
+
+
 
 DISCOUNT_RATE = Decimal("0.10")  # 10% off on ZAR anchor
 

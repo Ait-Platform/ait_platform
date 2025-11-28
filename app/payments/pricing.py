@@ -382,65 +382,52 @@ def fx_rate_local_to_zar(country_code: str) -> float | None:
     # 5) No rate at all
     return None
 
-def price_for_country(subject_id: int, country_code: str):
+def price_for_country(country_code: str, base_zar_cents: int) -> tuple[int, str]:
     """
-    Lookup-based parity pricing (no FX):
+    Convert a ZAR anchor (cents) into a local price for display.
 
-    - subject_country_price.local_amount_cents = what user sees (local)
-    - subject_country_price.zar_amount_cents   = what PayFast charges (ZAR)
-
+    - If the country's currency is ZAR or FX is missing → return ZAR as-is.
+    - If FX exists (1 local = fx_to_zar ZAR), then:
+        local = ZAR / fx_to_zar
     Returns:
-        local_currency, local_cents, zar_cents, fx (always None here)
+        (local_cents, local_currency_code)
     """
-    code = (country_code or "ZA").strip().upper()
-
-    # Currency from ref_country_currency (we still use this mapping)
-    cur = currency_for_country_code(code) or "ZAR"
-
+    # Try to find currency + FX row
     row = db.session.execute(
         text("""
-            SELECT local_amount_cents, zar_amount_cents
-              FROM subject_country_price
-             WHERE subject_id   = :sid
-               AND UPPER(country_code) = :cc
-               AND COALESCE(is_active, 1) = 1
-             ORDER BY created_at DESC
-             LIMIT 1
+            SELECT currency_code, fx_to_zar
+            FROM ref_country_currency
+            WHERE alpha2 = :cc
+            LIMIT 1
         """),
-        {"sid": subject_id, "cc": code},
-    ).mappings().first()
+        {"cc": country_code},
+    ).first()
 
-    if row:
-        local_cents = int(row["local_amount_cents"])
-        zar_cents   = int(row["zar_amount_cents"])
-    else:
-        # Fallback: use auth_pricing ZAR anchor as BOTH local + ZAR
-        fallback = db.session.execute(
-            text("""
-                SELECT amount_cents
-                  FROM auth_pricing
-                 WHERE subject_id = :sid
-                   AND plan = 'enrollment'
-                   AND COALESCE(is_active, 1) = 1
-                   AND (active_to IS NULL OR active_to > CURRENT_TIMESTAMP)
-                 ORDER BY
-                   COALESCE(active_from, created_at) DESC,
-                   COALESCE(updated_at, created_at) DESC,
-                   id DESC
-                 LIMIT 1
-            """),
-            {"sid": subject_id},
-        ).first()
+    # Fallback: no row at all → just use ZAR
+    if not row:
+        return base_zar_cents, "ZAR"
 
-        if not fallback or fallback.amount_cents is None:
-            # No price at all
-            return (cur, None, None, None)
+    currency = getattr(row, "currency_code", None) or "ZAR"
+    fx_val = getattr(row, "fx_to_zar", None)
 
-        local_cents = int(fallback.amount_cents)
-        zar_cents   = int(fallback.amount_cents)
+    # If this country uses ZAR or FX missing/bad → no conversion
+    if currency == "ZAR" or fx_val is None:
+        return base_zar_cents, currency
 
-    # fx is None because we’re not using FX at runtime anymore
-    return (cur, local_cents, zar_cents, None)
+    fx = Decimal(str(fx_val))
+    if fx <= 0:
+        return base_zar_cents, currency
+
+    # base_zar_cents is in cents; convert to ZAR
+    zar_amount = Decimal(base_zar_cents) / Decimal("100")
+
+    # 1 local = fx ZAR → local = zar / fx
+    local_amount = (zar_amount / fx).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+    # back to cents
+    local_cents = int((local_amount * Decimal("100")).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+
+    return local_cents, currency
 
 # ─────────────────────────────────────────────
 # Helpers

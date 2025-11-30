@@ -57,13 +57,10 @@
   <form method="post"
         class="mb-6 rounded-lg border border-slate-200 bg-white p-4 flex flex-col gap-3">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <input type="hidden" id="fx_rate" name="fx_rate">
 
     <div class="text-sm font-semibold text-slate-800 mb-2">Add country tier</div>
 
     <div class="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
-
-
 
       <!-- Country -->
       <div class="col-span-1 md:col-span-1">
@@ -74,8 +71,7 @@
                 required>
           <option value="">Select…</option>
           {% for c in countries %}
-            <option value="{{ c.country_code }}"
-                    data-fx="{{ c.fx_to_zar }}">
+            <option value="{{ c.country_code }}">
               {{ c.name }} ({{ c.currency_code }})
             </option>
           {% endfor %}
@@ -88,11 +84,17 @@
           Local amount (cents)
         </label>
         <input id="local_amount_cents"
-              name="local_amount_cents"
-              class="w-full rounded border px-2 py-1 text-sm bg-slate-50"
-              readonly>
+               name="local_amount_cents"
+               type="number"
+               min="0"
+               step="1"
+               class="w-full rounded border px-2 py-1 text-sm"
+               placeholder="e.g. 53550"
+               value="">
         <p id="local_amount_hint"
-          class="mt-1 text-xs text-slate-500"></p>
+           class="mt-1 text-xs text-slate-500">
+          Use your own calculator to convert from ZAR to local and enter the local price in cents.
+        </p>
       </div>
 
       <!-- Base ZAR (right) -->
@@ -101,12 +103,15 @@
           Base ZAR amount (cents)
         </label>
         <input id="base_zar_cents"
-              name="base_zar_cents"
-              class="w-full rounded border px-2 py-1 text-sm"
-              placeholder="e.g. 7500"
-              inputmode="numeric">
+               name="base_zar_cents"
+               type="number"
+               min="0"
+               step="1"
+               class="w-full rounded border px-2 py-1 text-sm"
+               placeholder="e.g. 7500"
+               value="{{ anchor_zar_cents }}">
         <p class="mt-1 text-xs text-slate-500">
-          What you charge in ZAR for this country.
+          Internal ZAR anchor in cents (e.g. R75.00 → 7500).
         </p>
       </div>
 
@@ -118,12 +123,8 @@
         </button>
       </div>
 
-   
-
-
     </div>
   </form>
-
   {% endif %}
 
   <!-- Existing tiers -->
@@ -159,54 +160,4 @@
   </div>
 
 </div>
-
-{% if anchor_zar_cents %}
-<script>
-(function () {
-  const countryEl = document.getElementById("country_select");
-  const baseEl    = document.getElementById("base_zar_cents");
-  const rateEl    = document.getElementById("fx_rate");     // hidden
-  const localEl   = document.getElementById("local_amount_cents");
-  const hintEl    = document.getElementById("local_amount_hint");
-
-  if (!countryEl || !baseEl || !rateEl || !localEl || !hintEl) return;
-
-    function updateLocal() {
-      const base = parseInt(baseEl.value || "0", 10);
-      const fx   = parseFloat((rateEl.value || "0").replace(",", "."));
-
-      if (!base || !fx) {
-        localEl.value = "";
-        hintEl.textContent = "";
-        return;
-      }
-
-      // DB fx is ZAR per 1 unit of local currency
-      const local = Math.round(base / fx);
-
-      localEl.value = local;
-      const pretty = (local / 100).toFixed(2);
-      hintEl.textContent =
-        local + " cents (~" + pretty + " in local currency)";
-    }
-
-
-  // When country changes, load FX silently
-  countryEl.addEventListener("change", function () {
-    const opt = countryEl.options[countryEl.selectedIndex];
-    if (!opt) return;
-
-    let fx = opt.dataset.fx || "";
-    fx = fx.replace(",", ".");
-    rateEl.value = fx;
-
-    updateLocal();
-  });
-
-  // When base changes, recompute local
-  baseEl.addEventListener("input", updateLocal);
-})();
-</script>
-
-{% endif %}
 {% endblock %}

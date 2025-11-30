@@ -33,44 +33,33 @@ def lock_enrollment_quote(enrollment_id: int, subject_slug: str, request, price_
 
 def fx_for_country_code(code: str) -> Decimal | None:
     """
-    Look up FX (1 local = fx_to_zar ZAR).
-
-    Returns:
-        Decimal fx_to_zar if known and > 0
-        None if:
-          - no row
-          - NULL value
-          - table/column missing
-          - non-positive value
+    Returns fx_to_zar if available.
+    Returns None if:
+      - row missing
+      - fx_to_zar NULL or <= 0
+      - table errors
     """
     try:
         row = db.session.execute(
             text("""
                 SELECT fx_to_zar
                 FROM ref_country_currency
-                WHERE alpha2 = :cc
+                WHERE alpha2 = :cc AND is_active = true
                 LIMIT 1
             """),
             {"cc": code},
         ).first()
     except Exception as exc:
         current_app.logger.warning(
-            "fx_for_country_code fallback for %s: %s", code, exc
+            "fx_for_country_code error for %s: %s", code, exc
         )
         return None
 
-    if not row:
+    if not row or row.fx_to_zar is None:
         return None
 
-    val = getattr(row, "fx_to_zar", None)
-    if val is None:
-        return None
-
-    fx = Decimal(str(val))
-    if fx <= 0:
-        return None
-
-    return fx
+    fx = Decimal(str(row.fx_to_zar))
+    return fx if fx > 0 else None
 
 
 

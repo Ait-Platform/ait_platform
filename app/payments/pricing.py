@@ -1,4 +1,5 @@
 # payments/AuthPricing.py
+from decimal import ROUND_HALF_UP, Decimal
 import requests
 from sqlalchemy import select, and_, or_, func, text
 from app.extensions import db
@@ -384,54 +385,38 @@ def fx_rate_local_to_zar(country_code: str) -> float | None:
 
 def price_for_country(country_code: str, base_zar_cents: int) -> tuple[int, str]:
     """
-    Convert a ZAR anchor (cents) into a local price for display.
-
-    - If the country's currency is ZAR or FX is missing → return ZAR as-is.
-    - If FX exists (1 local = fx_to_zar ZAR), then:
-        local = ZAR / fx_to_zar
-    Returns:
-        (local_cents, local_currency_code)
+    Convert base ZAR cents to local currency cents.
+    Uses fx_to_zar where:
+        1 local = fx_to_zar ZAR
     """
-    # Try to find currency + FX row
     row = db.session.execute(
         text("""
-            SELECT currency_code, fx_to_zar
+            SELECT currency, fx_to_zar
             FROM ref_country_currency
-            WHERE alpha2 = :cc
+            WHERE alpha2 = :cc AND is_active = true
             LIMIT 1
         """),
         {"cc": country_code},
     ).first()
 
-    # Fallback: no row at all → just use ZAR
+    # Unknown country → fallback to ZAR
     if not row:
         return base_zar_cents, "ZAR"
 
-    currency = getattr(row, "currency_code", None) or "ZAR"
-    fx_val = getattr(row, "fx_to_zar", None)
+    currency = row.currency or "ZAR"
+    fx = row.fx_to_zar
 
-    # If this country uses ZAR or FX missing/bad → no conversion
-    if currency == "ZAR" or fx_val is None:
+    # No conversion if currency == ZAR or fx missing
+    if currency == "ZAR" or fx is None or fx <= 0:
         return base_zar_cents, currency
 
-    fx = Decimal(str(fx_val))
-    if fx <= 0:
-        return base_zar_cents, currency
-
-    # base_zar_cents is in cents; convert to ZAR
+    # Convert
     zar_amount = Decimal(base_zar_cents) / Decimal("100")
+    local_amount = (zar_amount / Decimal(str(fx))) \
+        .quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
-    # 1 local = fx ZAR → local = zar / fx
-    local_amount = (zar_amount / fx).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-
-    # back to cents
-    local_cents = int((local_amount * Decimal("100")).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
-
+    local_cents = int(local_amount * 100)
     return local_cents, currency
-
-# ─────────────────────────────────────────────
-# Helpers
-# ─────────────────────────────────────────────
 
 def _resolve_subject_from_request() -> tuple[int, str]:
     """

@@ -9,6 +9,7 @@ from sqlalchemy import text
 
 from app.models.auth import AuthPricing, AuthSubject
 from app.extensions import db
+from app.payments.pricing import price_for_country
 from . import general_bp
 from flask import render_template, request, send_file, jsonify
 import io, asyncio, time
@@ -499,3 +500,33 @@ def ad_builder():
         duration=default_duration,
     )
 
+@general_bp.route("/api/fx/quote", methods=["POST"])
+def api_fx_quote():
+    """
+    Return local-currency cents for a given country + ZAR base.
+    Used by the admin pricing UI to auto-fill local_amount.
+    """
+    data = request.get_json() or {}
+
+    cc = (data.get("country") or "").strip().upper()
+    zar_cents = int(data.get("zar_cents") or 0)
+
+    # Use your existing price_for_country engine
+    try:
+        local_cents, currency = price_for_country(cc, zar_cents)
+    except Exception as exc:
+        current_app.logger.error("FX quote error: %s", exc)
+        return jsonify({
+            "ok": False,
+            "error": "FX lookup failed",
+            "local_cents": zar_cents,   # fallback to ZAR cents
+            "currency": "ZAR"
+        }), 200
+
+    return jsonify({
+        "ok": True,
+        "country": cc,
+        "zar_cents": zar_cents,
+        "local_cents": local_cents,
+        "currency": currency
+    })

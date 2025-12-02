@@ -86,9 +86,9 @@ loss_bp = Blueprint("loss_bp", __name__, url_prefix="/loss")
 
 @loss_bp.get("/about")
 def about_loss():
-    # Subject slug/id (no magic 0)
+    # Subject slug/id
     slug = (request.args.get("subject") or "loss").strip().lower()
-    sid = subject_id_for(slug)  # your existing helper; returns int or raises
+    sid = subject_id_for(slug)  # your existing helper
 
     # Keep subject in reg_ctx so pricing/registration can see it
     reg_ctx = session.setdefault("reg_ctx", {})
@@ -102,7 +102,6 @@ def about_loss():
         or "ZA"
     )
     cc = str(cc).strip().upper()
-
     # Cloudflare sometimes returns "XX", "?", or even integers like "3"
     if len(cc) != 2 or not cc.isalpha():
         cc = "ZA"
@@ -132,71 +131,23 @@ def about_loss():
 
     # 3) Still nothing? Provisional price based on country
     if not q:
-        res = price_for_country(sid, cc)
+        amount_cents, cur = price_for_country(sid, cc)
 
-        # Normalise return shape to 4-tuple: (currency, amount_cents, status, fx)
-    if isinstance(res, tuple):
-        if len(res) == 4:
-            # If your 4-tuple is in a different order we can adjust later;
-            # for now assume (currency, amount_cents, status, fx)
-            cur, amt, _status, _fx = res
-
-        elif len(res) == 2:
-            a, b = res
-
-            # Detect which is amount and which is currency
-            if isinstance(a, (int, float)) and isinstance(b, str):
-                # (amount, currency)
-                amt = a
-                cur = b
-            elif isinstance(a, str) and isinstance(b, (int, float)):
-                # (currency, amount)
-                cur = a
-                amt = b
-            else:
-                # Fallback: try to guess amount by "looks numeric"
-                def _looks_numeric(x):
-                    if isinstance(x, (int, float)):
-                        return True
-                    if isinstance(x, str):
-                        x2 = x.replace(".", "", 1)
-                        return x2.isdigit()
-                    return False
-
-                if _looks_numeric(a) and not _looks_numeric(b):
-                    amt = a
-                    cur = b
-                elif _looks_numeric(b) and not _looks_numeric(a):
-                    amt = b
-                    cur = a
-                else:
-                    # totally unknown; safe defaults
-                    cur, amt = "ZAR", 0
-
-            _status = "ok"
-            _fx = 1.0
-
-        else:
-            cur, amt, _status, _fx = "ZAR", 0, "error", 1.0
-    else:
-        cur, amt, _status, _fx = "ZAR", 0, "error", 1.0
-
-    if amt is not None:
-        # Robust cast to int even if amt is a string like "12345" or "12345.0"
+        # Robust cast to int
         try:
-            amt_cents = int(amt)
+            amount_cents = int(amount_cents)
         except (TypeError, ValueError):
             try:
-                amt_cents = int(float(amt))
+                amount_cents = int(float(amount_cents))
             except (TypeError, ValueError):
-                amt_cents = 0
+                amount_cents = 0
 
-        q = {"currency": cur, "amount_cents": amt_cents}
+        q = {"currency": cur, "amount_cents": amount_cents}
 
     # 4) Build price object (or None)
-    price = {"currency": q["currency"], "amount_cents": q["amount_cents"]} if q else None
+    price = q if q else None
 
-    # 5) Countries list ONLY if your template still needs it; otherwise drop it
+    # 5) Countries list ONLY if your template still needs it
     countries = [
         {"name": nm, "code": (cd or "").upper()}
         for (nm, cd) in _name_code_iter(COUNTRIES)

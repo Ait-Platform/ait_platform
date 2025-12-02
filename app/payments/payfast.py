@@ -869,35 +869,8 @@ def pricing_lock():
         flash("Please choose your country first.", "warning")
         return redirect(url_for("payfast_bp.pricing_get", subject_id=subject_id))
 
-    # -----------------------------
-    # 1) Lookup-based pricing from price_for_country
-    #    price_for_country returns a 2-tuple, but we don't trust the order.
-    # -----------------------------
-    res = price_for_country(subject_id, code)
-
-    cur = "ZAR"
-    local_cents = 0
-
-    if isinstance(res, tuple) and len(res) >= 2:
-        a, b = res[0], res[1]
-
-        def _looks_numeric(x):
-            if isinstance(x, (int, float)):
-                return True
-            if isinstance(x, str):
-                x2 = x.replace(".", "", 1)
-                return x2.isdigit()
-            return False
-
-        # (amount, currency)
-        if _looks_numeric(a) and isinstance(b, str) and not _looks_numeric(b):
-            local_cents, cur = a, b
-        # (currency, amount)
-        elif isinstance(a, str) and not _looks_numeric(a) and _looks_numeric(b):
-            cur, local_cents = a, b
-        else:
-            # Fallback if ambiguous
-            local_cents, cur = 0, "ZAR"
+    # price_for_country returns (amount_cents, currency)
+    local_cents, cur = price_for_country(subject_id, code)
 
     # Robust cast to int for local_cents
     try:
@@ -908,9 +881,7 @@ def pricing_lock():
         except (TypeError, ValueError):
             local_cents = 0
 
-    # -----------------------------
-    # 2) FX lookup to derive ZAR anchor
-    # -----------------------------
+    # Look up FX to ZAR so we can derive a ZAR reference amount
     row = db.session.execute(
         db.text("""
             SELECT fx_to_zar
@@ -924,15 +895,11 @@ def pricing_lock():
     fx = float(row[0]) if row and row[0] is not None else 1.0
     zar_cents = int(local_cents * fx)
 
-    # -----------------------------
-    # 3) Values in units (for display)
-    # -----------------------------
-    local_value = round(local_cents / 100.0, 2) if local_cents is not None else None
-    zar_value = round(zar_cents / 100.0, 2) if zar_cents is not None else None
+    # Values in units for display
+    local_value = round(local_cents / 100.0, 2)
+    zar_value = round(zar_cents / 100.0, 2)
 
-    # -----------------------------
-    # 4) Store locked quote in session
-    # -----------------------------
+    # Store locked quote in session
     session.update({
         "pp_country":       code,
         "pp_currency":      cur,
@@ -940,16 +907,13 @@ def pricing_lock():
         "pp_value_base":    local_value,      # base local before discount
         "pp_est_zar":       zar_value,        # ZAR anchor
         "pp_est_zar_base":  zar_value,        # base ZAR before discount
-        "pp_fx_rate":       fx,               # internal anchor (not shown)
+        "pp_fx_rate":       fx,               # internal anchor
         "pp_vat_note":      "excl. VAT",
         "pp_discount":      False,            # no discount yet
     })
 
     # Base ZAR amount for PayFast (string with 2 decimals)
-    if zar_value is not None:
-        session["pf_amount_zar"] = f"{zar_value:.2f}"
-    else:
-        session.pop("pf_amount_zar", None)
+    session["pf_amount_zar"] = f"{zar_value:.2f}"
 
     return redirect(url_for("payfast_bp.pricing_get", subject_id=subject_id))
 

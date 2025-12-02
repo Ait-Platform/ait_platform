@@ -402,63 +402,53 @@ def _resolve_subject_from_request() -> tuple[int, str]:
 
 def price_for_country(subject_id, country_code):
     """
-    Return (local_amount_cents, local_currency_code) for a subject + country,
-    using the subject_country_price table as the single source of truth.
+    Return a pure table-driven price:
 
-    subject_country_price:
-      - subject_id          (int)
-      - country_code        (text, ISO alpha-2)
-      - local_amount_cents  (int, price in local currency, in cents)
-      - zar_amount_cents    (int, unused here)
-      - is_active           (int)
+        local_cents  – subject_country_price.local_amount_cents
+        zar_cents    – subject_country_price.zar_amount_cents
+        currency     – ref_country_currency.currency
+
+    No FX maths, no ref_subject_parity_price, no COALESCE tricks.
     """
-
     cc = (country_code or "").strip().upper()
-    if len(cc) != 2 or not cc.isalpha():
+    if not cc:
         cc = "ZA"
 
-    # 1) Exact subject + country
-    sql_main = """
-        SELECT p.local_amount_cents, c.currency
-        FROM subject_country_price AS p
-        JOIN ref_country_currency AS c
-          ON lower(c.alpha2) = lower(p.country_code)
-         AND c.is_active = true
-        WHERE p.subject_id   = :sid
-          AND lower(p.country_code) = lower(:cc)
-          AND p.is_active    = 1
-        LIMIT 1
-    """
     row = db.session.execute(
-        text(sql_main),
+        text("""
+            SELECT p.local_amount_cents, p.zar_amount_cents, c.currency
+            FROM subject_country_price p
+            JOIN ref_country_currency c
+              ON c.alpha2 = p.country_code
+             AND c.is_active = true
+           WHERE p.subject_id   = :sid
+             AND p.country_code = :cc
+             AND p.is_active    = 1
+           LIMIT 1
+        """),
         {"sid": subject_id, "cc": cc},
     ).first()
 
-    # 2) Fallback: ZA row for that subject
     if not row:
-        sql_fallback = """
-            SELECT p.local_amount_cents, c.currency
-            FROM subject_country_price AS p
-            JOIN ref_country_currency AS c
-              ON lower(c.alpha2) = lower(p.country_code)
-             AND c.is_active = true
-            WHERE p.subject_id   = :sid
-              AND lower(p.country_code) = 'za'
-              AND p.is_active    = 1
-            LIMIT 1
-        """
+        # Fallback: same subject, ZA row (still table-driven, no FX)
         row = db.session.execute(
-            text(sql_fallback),
+            text("""
+                SELECT p.local_amount_cents, p.zar_amount_cents, c.currency
+                FROM subject_country_price p
+                JOIN ref_country_currency c
+                  ON c.alpha2 = p.country_code
+                 AND c.is_active = true
+               WHERE p.subject_id   = :sid
+                 AND p.country_code = 'ZA'
+                 AND p.is_active    = 1
+               LIMIT 1
+            """),
             {"sid": subject_id},
         ).first()
 
-    if row:
-        local_cents, currency = row[0], row[1]
-        try:
-            local_cents = int(local_cents)
-        except (TypeError, ValueError):
-            local_cents = 0
-    else:
-        local_cents, currency = 0, "ZAR"
+    if not row:
+        # last-resort safe default
+        return 0, 0, "ZAR"
 
-    return local_cents, currency
+    local_cents, zar_cents, cur = row
+    return int(local_cents or 0), int(zar_cents or 0), (cur or "ZAR")

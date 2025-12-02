@@ -145,15 +145,17 @@ def register():
             role=role,
             subject=subject,
             next_url=next_url,
-            values={}
+            values={},
         )
 
     # ---------- POST ----------
     role       = (request.form.get("role") or "user").strip().lower()
     subject    = (request.form.get("subject") or "loss").strip().lower()
-    next_url   = (request.form.get("next")
-                  or session.get("reg_ctx", {}).get("next_url")
-                  or "/").strip()
+    next_url   = (
+        request.form.get("next")
+        or session.get("reg_ctx", {}).get("next_url")
+        or "/"
+    ).strip()
     email_in   = (request.form.get("email") or "").strip()
     full_name  = (request.form.get("full_name") or "").strip()
     password   = (request.form.get("password") or "").strip()
@@ -163,101 +165,101 @@ def register():
     # basic validation
     if not email_in or not password:
         flash("Please provide an email and password.", "danger")
-        return render_template("auth/register.html", role=role, subject=subject, next_url=next_url, values=values)
+        return render_template(
+            "auth/register.html",
+            role=role,
+            subject=subject,
+            next_url=next_url,
+            values=values,
+        )
 
     if len(password) < 8:
         flash("Password must be at least 8 characters long.", "danger")
-        return render_template("auth/register.html", role=role, subject=subject, next_url=next_url, values=values)
+        return render_template(
+            "auth/register.html",
+            role=role,
+            subject=subject,
+            next_url=next_url,
+            values=values,
+        )
 
     # confirm subject exists -> sid
     sid = db.session.execute(
-        sa_text("SELECT id FROM auth_subject WHERE slug=:s OR name=:s LIMIT 1"),
-        {"s": subject}
+        sa_text("SELECT id FROM auth_subject WHERE slug = :s OR name = :s LIMIT 1"),
+        {"s": subject},
     ).scalar()
     if not sid:
         flash("Unknown subject.", "danger")
-        return render_template("auth/register.html", role=role, subject=subject, next_url=next_url, values=values)
+        return render_template(
+            "auth/register.html",
+            role=role,
+            subject=subject,
+            next_url=next_url,
+            values=values,
+        )
 
     # normalize email & block duplicates
     email_norm = email_in.lower()
     existing = db.session.execute(
-        sa_text('SELECT id FROM "user" WHERE lower(email)=lower(:e) LIMIT 1'),
-        {"e": email_norm}
+        sa_text('SELECT id FROM "user" WHERE lower(email) = lower(:e) LIMIT 1'),
+        {"e": email_norm},
     ).scalar()
     if existing:
         flash("That email is already registered. Please sign in.", "danger")
-        return render_template("auth/register.html", role=role, subject=subject, next_url=next_url, values=values)
+        return render_template(
+            "auth/register.html",
+            role=role,
+            subject=subject,
+            next_url=next_url,
+            values=values,
+        )
 
     # stage user in session (no user row yet)
     staged_password_hash = generate_password_hash(password)
 
-    _save_reg_ctx(role=role, subject=subject, email=email_norm, full_name=full_name, next_url=next_url)
+    _save_reg_ctx(
+        role=role,
+        subject=subject,
+        email=email_norm,
+        full_name=full_name,
+        next_url=next_url,
+    )
     session["reg_ctx"]["email_lower"]   = email_norm
     session["reg_ctx"]["password_hash"] = staged_password_hash
 
-    # ---------- lock a DB-driven *ZAR* quote into session ----------
-    # country: form first → default ZA
-    cc = (request.form.get("country") or "ZA").strip().upper()
-
-    # subject is a slug here ("loss", "reading", etc) → convert to numeric id
+    # ---------- lock a DB-driven parity + ZAR quote into session ----------
+    cc      = (request.form.get("country") or "ZA").strip().upper()
     subj_id = subject_id_for(subject)
-    bill_cents = None          # what we will actually charge (ZAR cents)
-    local_cur = "ZAR"
-    local_cents = None
 
-    if not subj_id:
-        current_app.logger.error("register: no subject_id for slug %r", subject)
-    else:
-        # price_for_country returns: (currency, local_cents, est_zar_cents, fx)
-        local_cur, local_cents, est_zar_cents, fx = price_for_country(subj_id, cc)
+    local_cents    = 0
+    est_zar_cents  = 0
+    cur            = "ZAR"
 
-        # PayFast MUST be in ZAR → use estimated ZAR cents if available
-        if est_zar_cents is not None and est_zar_cents > 0:
-            bill_cents = int(est_zar_cents)
-        else:
-            # fallback: if we have local cents + fx, approximate ZAR
-            if local_cents is not None and fx:
-                bill_cents = int(round(local_cents * float(fx)))
+    if subj_id:
+        # price_for_country → (local_cents, zar_cents, currency)
+        local_cents, est_zar_cents, cur = price_for_country(subj_id, cc)
 
-    if bill_cents is None or bill_cents <= 0:
-        # last-resort safe fallback so flow doesn't explode
-        bill_cents = 5000  # 50.00 ZAR
+    if not est_zar_cents or est_zar_cents <= 0:
+        est_zar_cents = 5000  # 50.00 ZAR safety net
 
-    # store exactly what we will charge later (ZAR)
-    # ---------- lock a DB-driven parity quote into session ----------
-    # country: form first → default ZA
-    cc = (request.form.get("country") or "ZA").strip().upper()
-
-    # subject is a slug here ("loss", "reading", etc) → convert to numeric id
-    subj_id = subject_id_for(subject)
-    cur = "ZAR"
-    local_cents = None
-    est_zar_cents = None
-
-    if not subj_id:
-        current_app.logger.error("register: no subject_id for slug %r", subject)
-    else:
-        # price_for_country returns: (currency, local_cents, est_zar_cents, fx)
-        cur, local_cents, est_zar_cents, _ = price_for_country(subj_id, cc)
-
-    # store BOTH:
-    # - amount_cents     → local parity price (what user typed / saw, e.g. 75 AOA)
-    # - est_zar_cents    → estimated ZAR (what PayFast must actually charge)
-    session["reg_ctx"]["quote"] = {
-        "country_code":   cc,
-        "currency":       cur,                          # e.g. "AOA"
-        "amount_cents":   int(local_cents or 0),        # local parity price
-        "est_zar_cents":  int(est_zar_cents or 0),      # ZAR equivalent
-        "version":        "2025-11",
+    reg_ctx = session.get("reg_ctx", {})
+    reg_ctx["quote"] = {
+        "country_code":  cc,
+        "currency":      cur,
+        "amount_cents":  int(local_cents or 0),     # local parity price
+        "est_zar_cents": int(est_zar_cents or 0),   # ZAR to bill
+        "version":       "2025-11",
     }
+    reg_ctx["bill_cents_zar"] = int(est_zar_cents)
+    session["reg_ctx"] = reg_ctx
     session.modified = True
-
-    # ------------------------------------------------------------
 
     session.pop("just_paid_subject_id", None)
 
     # go to decision screen
-    return redirect(url_for("auth_bp.register_decision", email=email_in, subject=subject))
+    return redirect(
+        url_for("auth_bp.register_decision", email=email_in, subject=subject)
+    )
 
 @auth_bp.route("/register/decision", methods=["GET", "POST"])
 @csrf.exempt

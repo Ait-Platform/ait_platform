@@ -869,51 +869,29 @@ def pricing_lock():
         flash("Please choose your country first.", "warning")
         return redirect(url_for("payfast_bp.pricing_get", subject_id=subject_id))
 
-    # price_for_country returns (amount_cents, currency)
-    local_cents, cur = price_for_country(subject_id, code)
+    # Pure table-driven: (local_cents, zar_cents, currency)
+    local_cents, zar_cents, cur = price_for_country(subject_id, code)
 
-    # Robust cast to int for local_cents
-    try:
-        local_cents = int(local_cents)
-    except (TypeError, ValueError):
-        try:
-            local_cents = int(float(local_cents))
-        except (TypeError, ValueError):
-            local_cents = 0
+    local_value = round(local_cents / 100.0, 2) if local_cents else 0.0
+    zar_value   = round(zar_cents   / 100.0, 2) if zar_cents   else 0.0
 
-    # Look up FX to ZAR so we can derive a ZAR reference amount
-    row = db.session.execute(
-        db.text("""
-            SELECT fx_to_zar
-            FROM ref_country_currency
-            WHERE alpha2 = :cc AND is_active = true
-            LIMIT 1
-        """),
-        {"cc": code},
-    ).first()
-
-    fx = float(row[0]) if row and row[0] is not None else 1.0
-    zar_cents = int(local_cents * fx)
-
-    # Values in units for display
-    local_value = round(local_cents / 100.0, 2)
-    zar_value = round(zar_cents / 100.0, 2)
-
-    # Store locked quote in session
     session.update({
         "pp_country":       code,
         "pp_currency":      cur,
-        "pp_value":         local_value,      # what user sees (local)
-        "pp_value_base":    local_value,      # base local before discount
-        "pp_est_zar":       zar_value,        # ZAR anchor
-        "pp_est_zar_base":  zar_value,        # base ZAR before discount
-        "pp_fx_rate":       fx,               # internal anchor
+        "pp_value":         local_value,   # e.g. 850.00 AUD
+        "pp_value_base":    local_value,
+        "pp_est_zar":       zar_value,     # e.g. 75.84 ZAR from table
+        "pp_est_zar_base":  zar_value,
+        "pp_fx_rate":       None,          # no FX any more
         "pp_vat_note":      "excl. VAT",
-        "pp_discount":      False,            # no discount yet
+        "pp_discount":      False,
     })
 
-    # Base ZAR amount for PayFast (string with 2 decimals)
-    session["pf_amount_zar"] = f"{zar_value:.2f}"
+    # Amount we’ll send to PayFast (ZAR)
+    if zar_value:
+        session["pf_amount_zar"] = f"{zar_value:.2f}"
+    else:
+        session.pop("pf_amount_zar", None)
 
     return redirect(url_for("payfast_bp.pricing_get", subject_id=subject_id))
 

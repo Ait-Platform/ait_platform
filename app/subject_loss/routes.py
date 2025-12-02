@@ -130,19 +130,14 @@ def about_loss():
             q = {"currency": row[0], "amount_cents": int(row[1])}
 
     # 3) Still nothing? Provisional price based on country
+    # 3) Still nothing? Provisional price based on country
     if not q:
-        amount_cents, cur = price_for_country(sid, cc)
+        # price_for_country → (local_cents, zar_cents, currency)
+        local_cents, _zar_cents, cur = price_for_country(sid, cc)
 
-        # Robust cast to int
-        try:
-            amount_cents = int(amount_cents)
-        except (TypeError, ValueError):
-            try:
-                amount_cents = int(float(amount_cents))
-            except (TypeError, ValueError):
-                amount_cents = 0
-
+        amount_cents = int(local_cents or 0)
         q = {"currency": cur, "amount_cents": amount_cents}
+
 
     # 4) Build price object (or None)
     price = q if q else None

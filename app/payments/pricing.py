@@ -383,46 +383,6 @@ def fx_rate_local_to_zar(country_code: str) -> float | None:
     # 5) No rate at all
     return None
 
-def price_for_country(country_code: str, base_zar_cents: int) -> tuple[int, str]:
-    """
-    Convert base ZAR cents to local currency cents.
-    Uses fx_to_zar where:
-        1 local = fx_to_zar ZAR
-    """
-    # Ensure we always compare with alpha2 (which is varchar)
-    # Convert incoming value to string safely
-    alpha2 = str(country_code).upper().strip()
-
-    row = db.session.execute(
-        text("""
-            SELECT currency, fx_to_zar
-            FROM ref_country_currency
-            WHERE alpha2 = :cc AND is_active = true
-            LIMIT 1
-        """),
-        {"cc": alpha2},
-    ).first()
-
-
-    # Unknown country → fallback to ZAR
-    if not row:
-        return base_zar_cents, "ZAR"
-
-    currency = row.currency or "ZAR"
-    fx = row.fx_to_zar
-
-    # No conversion if currency == ZAR or fx missing
-    if currency == "ZAR" or fx is None or fx <= 0:
-        return base_zar_cents, currency
-
-    # Convert
-    zar_amount = Decimal(base_zar_cents) / Decimal("100")
-    local_amount = (zar_amount / Decimal(str(fx))) \
-        .quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-
-    local_cents = int(local_amount * 100)
-    return local_cents, currency
-
 def _resolve_subject_from_request() -> tuple[int, str]:
     """
     Decide which subject we're pricing for, based on:
@@ -439,3 +399,66 @@ def _resolve_subject_from_request() -> tuple[int, str]:
     sid = subject_id_for(slug)
     return sid, slug
 
+
+def price_for_country(subject_id, country_code):
+    """
+    Return (local_amount_cents, local_currency_code) for a subject + country,
+    using the subject_country_price table as the single source of truth.
+
+    subject_country_price:
+      - subject_id          (int)
+      - country_code        (text, ISO alpha-2)
+      - local_amount_cents  (int, price in local currency, in cents)
+      - zar_amount_cents    (int, unused here)
+      - is_active           (int)
+    """
+
+    cc = (country_code or "").strip().upper()
+    if len(cc) != 2 or not cc.isalpha():
+        cc = "ZA"
+
+    # 1) Exact subject + country
+    sql_main = """
+        SELECT p.local_amount_cents, c.currency
+        FROM subject_country_price AS p
+        JOIN ref_country_currency AS c
+          ON lower(c.alpha2) = lower(p.country_code)
+         AND c.is_active = true
+        WHERE p.subject_id   = :sid
+          AND lower(p.country_code) = lower(:cc)
+          AND p.is_active    = 1
+        LIMIT 1
+    """
+    row = db.session.execute(
+        text(sql_main),
+        {"sid": subject_id, "cc": cc},
+    ).first()
+
+    # 2) Fallback: ZA row for that subject
+    if not row:
+        sql_fallback = """
+            SELECT p.local_amount_cents, c.currency
+            FROM subject_country_price AS p
+            JOIN ref_country_currency AS c
+              ON lower(c.alpha2) = lower(p.country_code)
+             AND c.is_active = true
+            WHERE p.subject_id   = :sid
+              AND lower(p.country_code) = 'za'
+              AND p.is_active    = 1
+            LIMIT 1
+        """
+        row = db.session.execute(
+            text(sql_fallback),
+            {"sid": subject_id},
+        ).first()
+
+    if row:
+        local_cents, currency = row[0], row[1]
+        try:
+            local_cents = int(local_cents)
+        except (TypeError, ValueError):
+            local_cents = 0
+    else:
+        local_cents, currency = 0, "ZAR"
+
+    return local_cents, currency

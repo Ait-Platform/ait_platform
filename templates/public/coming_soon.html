@@ -1,0 +1,22 @@
+{% extends "layout.html" %}
+{% block title %}Coming Soon · AIT{% endblock %}
+
+{% block content %}
+<div class="max-w-xl mx-auto mt-16 text-center">
+
+  <h1 class="text-2xl font-semibold text-slate-800">
+    Coming Soon
+  </h1>
+
+  <p class="mt-3 text-slate-600 text-sm">
+    The <strong>{{ subject_slug|capitalize }}</strong> program is still being prepared.
+    We’re working hard to finish it — thank you for your patience!
+  </p>
+
+  <a href="{{ url_for('public_bp.welcome') }}"
+     class="mt-8 inline-block rounded bg-emerald-600 text-white text-sm font-semibold px-4 py-2 hover:bg-emerald-700">
+    ← Back to Home
+  </a>
+
+</div>
+{% endblock %}

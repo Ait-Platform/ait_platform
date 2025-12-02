@@ -94,6 +94,19 @@ def about_loss():
     reg_ctx = session.setdefault("reg_ctx", {})
     reg_ctx["subject"] = slug
 
+    # --- Country code detection (Cloudflare / query / default) ---
+    cc = (
+        request.args.get("cc")
+        or request.args.get("country")
+        or request.headers.get("CF-IPCountry")
+        or "ZA"
+    )
+    cc = str(cc).strip().upper()
+
+    # Cloudflare sometimes returns "XX", "?", or even integers like "3"
+    if len(cc) != 2 or not cc.isalpha():
+        cc = "ZA"
+
     # 1) Prefer a locked quote from session (set by /payments/pricing/lock)
     q = None
     if isinstance(reg_ctx.get("quote"), dict):
@@ -119,12 +132,66 @@ def about_loss():
 
     # 3) Still nothing? Provisional price based on country
     if not q:
-        cc = (request.headers.get("CF-IPCountry") or "ZA").strip().upper()
-        #cur, amt, _ = price_for_country(sid, cc)
-        cur, amt, _status, _fx = price_for_country(sid, cc)
+        res = price_for_country(sid, cc)
 
-        if amt is not None:
-            q = {"currency": cur, "amount_cents": int(amt)}
+        # Normalise return shape to 4-tuple: (currency, amount_cents, status, fx)
+    if isinstance(res, tuple):
+        if len(res) == 4:
+            # If your 4-tuple is in a different order we can adjust later;
+            # for now assume (currency, amount_cents, status, fx)
+            cur, amt, _status, _fx = res
+
+        elif len(res) == 2:
+            a, b = res
+
+            # Detect which is amount and which is currency
+            if isinstance(a, (int, float)) and isinstance(b, str):
+                # (amount, currency)
+                amt = a
+                cur = b
+            elif isinstance(a, str) and isinstance(b, (int, float)):
+                # (currency, amount)
+                cur = a
+                amt = b
+            else:
+                # Fallback: try to guess amount by "looks numeric"
+                def _looks_numeric(x):
+                    if isinstance(x, (int, float)):
+                        return True
+                    if isinstance(x, str):
+                        x2 = x.replace(".", "", 1)
+                        return x2.isdigit()
+                    return False
+
+                if _looks_numeric(a) and not _looks_numeric(b):
+                    amt = a
+                    cur = b
+                elif _looks_numeric(b) and not _looks_numeric(a):
+                    amt = b
+                    cur = a
+                else:
+                    # totally unknown; safe defaults
+                    cur, amt = "ZAR", 0
+
+            _status = "ok"
+            _fx = 1.0
+
+        else:
+            cur, amt, _status, _fx = "ZAR", 0, "error", 1.0
+    else:
+        cur, amt, _status, _fx = "ZAR", 0, "error", 1.0
+
+    if amt is not None:
+        # Robust cast to int even if amt is a string like "12345" or "12345.0"
+        try:
+            amt_cents = int(amt)
+        except (TypeError, ValueError):
+            try:
+                amt_cents = int(float(amt))
+            except (TypeError, ValueError):
+                amt_cents = 0
+
+        q = {"currency": cur, "amount_cents": amt_cents}
 
     # 4) Build price object (or None)
     price = {"currency": q["currency"], "amount_cents": q["amount_cents"]} if q else None
@@ -141,6 +208,7 @@ def about_loss():
         subject_id=sid,
         subject_slug=slug,
         can_enroll=True,
+        countries=countries,
     )
 
 # ----- entry from Bridge (non-admins jump straight into course) -----Step 1

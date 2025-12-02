@@ -389,6 +389,10 @@ def price_for_country(country_code: str, base_zar_cents: int) -> tuple[int, str]
     Uses fx_to_zar where:
         1 local = fx_to_zar ZAR
     """
+    # Ensure we always compare with alpha2 (which is varchar)
+    # Convert incoming value to string safely
+    alpha2 = str(country_code).upper().strip()
+
     row = db.session.execute(
         text("""
             SELECT currency, fx_to_zar
@@ -396,8 +400,9 @@ def price_for_country(country_code: str, base_zar_cents: int) -> tuple[int, str]
             WHERE alpha2 = :cc AND is_active = true
             LIMIT 1
         """),
-        {"cc": country_code},
+        {"cc": alpha2},
     ).first()
+
 
     # Unknown country → fallback to ZAR
     if not row:

@@ -126,5 +126,7 @@ def refresh_bridge_session(user):
     """), {"e": user.email, "uid": user.id, "is_admin_global": 1 if is_admin_global else 0}).fetchall()
     session["subjects_access"] = {r.slug: r.access_level for r in access_rows}
 
-
+@public_bp.route("/coming-soon/<subject_slug>")
+def coming_soon(subject_slug):
+    return render_template("public/coming_soon.html", subject_slug=subject_slug)
 

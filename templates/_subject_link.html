@@ -1,0 +1,15 @@
+{% macro link_for(subject_slug, real_endpoint) %}
+  {% set allowed = ['loss'] %}
+
+  {% if subject_slug in allowed %}
+    <a href="{{ real_endpoint }}"
+       class="inline-block bg-white text-slate-700 font-semibold text-sm py-1.5 px-4 rounded hover:bg-slate-100">
+      Explore
+    </a>
+  {% else %}
+    <a href="{{ url_for('public_bp.coming_soon', subject_slug=subject_slug) }}"
+       class="inline-block bg-white text-slate-700 font-semibold text-sm py-1.5 px-4 rounded cursor-not-allowed">
+      Coming soon
+    </a>
+  {% endif %}
+{% endmacro %}

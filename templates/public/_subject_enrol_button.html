@@ -1,0 +1,25 @@
+{# templates/public/_subject_enrol_button.html #}
+{# Expects:
+   - subject_slug      (e.g. "loss", "reading", "home", "billing")
+   - about_endpoint    (e.g. "loss_bp.about_loss")
+   - button_label (optional, defaults to "Enrol")
+#}
+
+{% set live_subjects = ['loss'] %}
+{# When a subject is ready, add its slug here, e.g.
+   ['loss', 'reading', 'home']
+#}
+
+{% if current_app.config.ENV == "production" and subject_slug not in live_subjects %}
+  {# WIP in production → send to coming-soon page #}
+  <a href="{{ url_for('public_bp.coming_soon', subject_slug=subject_slug) }}"
+     class="rounded bg-slate-300 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-300 cursor-not-allowed">
+    Coming soon
+  </a>
+{% else %}
+  {# Local OR live subject in production → normal enrol link #}
+  <a href="{{ url_for(about_endpoint, subject=subject_slug) }}"
+     class="rounded bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
+    {{ button_label or 'Enrol' }}
+  </a>
+{% endif %}

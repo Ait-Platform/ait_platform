@@ -85,6 +85,8 @@ def create_app():
         CONTACT_TO_EMAIL=os.getenv("CONTACT_TO_EMAIL", os.getenv("SMTP_USERNAME")),
     )
 
+    app.config["LOSS_FREE"] = os.getenv("LOSS_FREE", "false").lower() in ("1", "true", "yes")
+
     # (optional) ensure keys are present – maps OS envs directly if Config missed any
 
     for k in (

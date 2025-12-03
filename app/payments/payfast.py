@@ -899,6 +899,7 @@ def pricing_lock():
 @payfast_bp.get("/pricing")
 def pricing_get():
     # Is this visit the discount version (after cancel)?
+    # Is this visit the discount version (after cancel)?
     discount_flag = request.args.get("discount", type=int) == 1
 
     # Resolve subject
@@ -908,6 +909,16 @@ def pricing_get():
         subject_id = subject_id_for(subject_slug)
     else:
         subject_id, subject_slug = _resolve_subject_from_request()
+
+    # 🔹 NEW: if Loss is configured as free, skip pricing and go to registration
+    from flask import current_app, redirect, url_for
+
+    if current_app.config.get("LOSS_FREE") and subject_slug == "loss":
+        return redirect(url_for(
+            "auth_bp.start_registration",
+            role="user",
+            subject="loss",
+        ))
 
     # Fresh visit from About with ?subject=... AND not discount:
     # wipe old quote so the form starts blank.
@@ -924,6 +935,8 @@ def pricing_get():
         ):
             session.pop(key, None)
         session.pop("pf_amount_zar", None)
+
+    # ... rest of your function unchanged ...
 
     countries = countries_from_ref_with_names()
 

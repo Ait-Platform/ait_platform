@@ -261,6 +261,7 @@ def register():
         url_for("auth_bp.register_decision", email=email_in, subject=subject)
     )
 
+'''
 @auth_bp.route("/register/decision", methods=["GET", "POST"])
 @csrf.exempt
 def register_decision():
@@ -427,6 +428,155 @@ def register_decision():
             debug=0,
         )
     )
+'''
+
+@auth_bp.route("/register/decision", methods=["GET", "POST"])
+@csrf.exempt
+def register_decision():
+    from flask_login import current_user, login_user
+    from app.models import User
+
+    # 0) Resolve subject (no hardcoding)
+    ctx = session.setdefault("reg_ctx", {})
+    subject = (
+        (request.values.get("subject") or "").strip().lower()
+        or (ctx.get("subject") or "").strip().lower()
+        or "loss"
+    )
+
+    # 1) Ensure/create the user from staged session data
+    try:
+        user_id = _ensure_or_create_user_from_session(ctx)
+    except ValueError:
+        flash("Your session expired. Please re-enter your details.", "warning")
+        return redirect(url_for("auth_bp.register", subject=subject))
+
+    # 1b) Ensure the user is logged in
+    if not getattr(current_user, "is_authenticated", False):
+        user = db.session.get(User, user_id)
+        if user:
+            login_user(user)
+
+    # 2) Ensure an enrollment row
+    enrollment_id = _ensure_enrollment_row(user_id=user_id, subject_slug=subject)
+
+    # ---------- SPECIAL CASE: LOSS IS FREE (AD CAMPAIGN) ----------
+    if subject == "loss" and current_app.config.get("LOSS_FREE"):
+        # Optional: mark a zero-price quote so data stays consistent
+        db.session.execute(
+            db.text(
+                """
+                UPDATE user_enrollment
+                   SET country_code        = COALESCE(country_code, 'ZA'),
+                       quoted_currency     = COALESCE(quoted_currency, 'ZAR'),
+                       quoted_amount_cents = COALESCE(quoted_amount_cents, 0),
+                       price_version       = COALESCE(price_version, '2025-11'),
+                       price_locked_at     = COALESCE(price_locked_at, CURRENT_TIMESTAMP),
+                       status              = COALESCE(status, 'active')
+                 WHERE id = :eid
+                """
+            ),
+            {"eid": enrollment_id},
+        )
+        db.session.commit()
+
+        # Clean up session noise
+        session.pop("reg_ctx", None)
+        session.pop("just_paid_subject_id", None)
+
+        # Straight to subject dashboard / bridge
+        return redirect(url_for("auth_bp.bridge_dashboard"))
+    # ---------- END LOSS-FREE SPECIAL CASE ----------
+
+    # 3) Normal paid flow: keep your existing pricing + PayFast logic here
+
+    q = ctx.get("quote")
+
+    if not q:
+        country = (
+            (ctx.get("country_code") or "").strip().upper()
+            or getattr(g, "country_iso2", "ZA")
+            or "ZA"
+        )
+
+        try:
+            amount_cents = price_cents_for(subject, country)
+        except Exception:
+            current_app.logger.exception(
+                "pricing failed for subject=%s country=%s", subject, country
+            )
+            amount_cents = None
+
+        if amount_cents and amount_cents > 0:
+            q = {
+                "country_code": country,
+                "currency": ctx.get("quoted_currency") or "ZAR",
+                "amount_cents": int(amount_cents),
+                "version": "2025-11",
+            }
+
+    if not q or not int(q.get("amount_cents") or 0):
+        flash("Pricing is not configured for this course yet. Please contact us.", "danger")
+        return redirect(url_for("public_bp.welcome"))
+
+    db.session.execute(
+        db.text(
+            """
+            UPDATE user_enrollment
+               SET country_code        = :cc,
+                   quoted_currency     = :cur,
+                   quoted_amount_cents = :amt,
+                   price_version       = :ver,
+                   price_locked_at     = CURRENT_TIMESTAMP
+             WHERE id = :eid
+            """
+        ),
+        {
+            "cc":  q.get("country_code"),
+            "cur": q.get("currency") or "ZAR",
+            "amt": int(q.get("amount_cents") or 0),
+            "ver": q.get("version") or "2025-11",
+            "eid": enrollment_id,
+        },
+    )
+    db.session.commit()
+
+    row = db.session.execute(
+        db.text(
+            """
+            SELECT quoted_currency, quoted_amount_cents
+              FROM user_enrollment
+             WHERE id = :eid
+            """
+        ),
+        {"eid": enrollment_id},
+    ).first()
+
+    quoted_currency = (row[0] if row and row[0] else "ZAR")
+    quoted_amount_cents = int(row[1] or 0) if row else 0
+
+    if quoted_amount_cents <= 0:
+        flash("Pricing could not be determined. Please try again or contact us.", "danger")
+        return redirect(url_for("public_bp.welcome"))
+
+    user_email = (
+        (request.values.get("email") or "").strip().lower()
+        or (ctx.get("email") or "").strip().lower()
+    )
+
+    if not user_email:
+        flash("We couldn't confirm your email address. Please register again.", "warning")
+        return redirect(url_for("auth_bp.register", subject=subject))
+
+    return redirect(
+        url_for(
+            "payfast_bp.handoff",
+            email=user_email,
+            subject=subject,
+            debug=0,
+        )
+    )
+
 
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login():

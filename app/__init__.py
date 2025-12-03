@@ -301,12 +301,11 @@ def create_app():
     from app.subject_loss.routes import loss_bp
     from app.school_billing.routes import billing_bp
     from app.admin import admin_bp
-    #from app.checkout import checkout_bp
-    from app.admin.school_fee_management.routes import sfm_bp
     from app.admin_general.routes import general_bp      # GET /admin/general/
     from app.admin_general.admin_tts import tts_bp       # POST /admin/general/tts
     from app.payments.payfast import payfast_bp
-    
+    from app.admin.sms import sms_admin_bp
+    from app.subject_sms import sms_subject_bp
 
     #app.logger.warning("registered checkout_bp at /checkout")
 
@@ -318,7 +317,8 @@ def create_app():
     app.register_blueprint(loss_bp)
     app.register_blueprint(billing_bp)
     app.register_blueprint(admin_bp)
-    app.register_blueprint(sfm_bp)
+    app.register_blueprint(sms_subject_bp)
+    app.register_blueprint(sms_admin_bp)
     app.register_blueprint(general_bp, url_prefix="/admin/general")
     app.register_blueprint(tts_bp, url_prefix="/admin/general")
     app.register_blueprint(payfast_bp, url_prefix="/payments")

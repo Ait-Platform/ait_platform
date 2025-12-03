@@ -153,15 +153,25 @@
     </form>
 
     <!-- Enrol right -->
-    <a href="{% if has_quote %}{{ url_for('auth_bp.start_registration',
-                        role='user',
-                        subject=subject_slug,
-                        subject_id=subject_id,
-                        next=url_for('payfast_bp.checkout_review',
-                                     subject_id=subject_id, subject=subject_slug)) }}{% else %}#{% endif %}"
-       class="inline-flex items-center rounded bg-blue-600 px-4 py-2 text-white font-semibold hover:bg-blue-700 {{ disabled_class }}">
+    <a
+      href="{% if not loss_free and has_quote %}
+              {{ url_for('auth_bp.start_registration',
+                          role='user',
+                          subject=subject_slug,
+                          subject_id=subject_id,
+                          next=url_for('payfast_bp.checkout_review',
+                                      subject_id=subject_id,
+                                      subject=subject_slug)) }}
+            {% elif loss_free %}
+              {{ url_for('auth_bp.register',
+                          role='user',
+                          subject='loss',
+                          next=url_for('auth_bp.bridge_dashboard')) }}
+            {% else %}#{% endif %}"
+      class="inline-flex items-center rounded bg-blue-600 px-4 py-2 text-white font-semibold hover:bg-blue-700 {{ disabled_class }}">
       {% if price.is_discount %}Enrol with 10% off{% else %}Enrol{% endif %}
     </a>
+
   </div>
 
   {% if price.has_quote and price.local_currency != 'ZAR' %}

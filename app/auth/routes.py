@@ -58,7 +58,7 @@ from sqlalchemy import select, func, update as sa_update
 from app.services.users import _ensure_or_create_user_from_session
 from sqlalchemy.exc import IntegrityError
 from werkzeug.security import generate_password_hash
-
+import os
 
 auth_bp = Blueprint('auth_bp', __name__, url_prefix='/', template_folder='templates')
 
@@ -94,7 +94,7 @@ def start_registration():
     subject = AuthSubject.query.filter_by(slug=subject_slug).first()
     if not subject:
         flash("Enrollment for this course is not available right now.", "warning")
-        return redirect(url_for("public_bp.home"))
+        return redirect(url_for("public_bp.welcome"))
 
     subject_id = subject.id
 
@@ -279,22 +279,63 @@ def register_decision():
         flash("Your session expired. Please re-enter your details.", "warning")
         return redirect(url_for("auth_bp.register", subject=subject))
 
-    # 2) Ensure an enrollment row (returns primary key id)
+    # NEW: make sure this user is actually logged in
+    from flask_login import current_user, login_user
+    from app.models import User  # adjust if your User model is elsewhere
+
+    if not getattr(current_user, "is_authenticated", False):
+        user = db.session.get(User, user_id)  # or User.query.get(user_id)
+        if user:
+            login_user(user)
+
+
+    # 2) Ensure an enrollment row
     enrollment_id = _ensure_enrollment_row(user_id=user_id, subject_slug=subject)
 
-    # 3) Persist a locked quote
-    #    Prefer reg_ctx["quote"]; if absent, derive a fresh parity price here.
+    # 3) Build a quote
     q = ctx.get("quote")
 
-    if not q:
-        # Determine country: use reg_ctx, then g.country_iso2, then ZA
+    # Special case: SMS uses a fixed ZAR price from auth_pricing
+    if subject == "sms":
+        #from app.subjects.utils import subject_id_for  # adjust import if needed
+
+        sid = subject_id_for("sms")
+        row = db.session.execute(
+            db.text(
+                """
+                SELECT amount_cents, currency
+                  FROM auth_pricing
+                 WHERE subject_id = :sid
+                   AND role = 'user'
+                   AND plan = 'enrollment'
+                   AND is_active = 1
+                 ORDER BY active_from DESC
+                 LIMIT 1
+                """
+            ),
+            {"sid": sid},
+        ).first()
+
+        if row:
+            amount_cents = int(row[0] or 0)
+            currency = row[1] or "ZAR"
+            q = {
+                "country_code": "ZA",
+                "currency": currency,
+                "amount_cents": amount_cents,
+                "version": "2025-11",
+            }
+
+    # Fallback for other subjects if there is still no quote (Loss etc.)
+    if not q and subject != "sms":
         country = (
             (ctx.get("country_code") or "").strip().upper()
             or getattr(g, "country_iso2", "ZA")
             or "ZA"
         )
-
         try:
+            from app.payments.pricing import price_cents_for
+
             amount_cents = price_cents_for(subject, country)
         except Exception:
             current_app.logger.exception(
@@ -305,16 +346,18 @@ def register_decision():
         if amount_cents and amount_cents > 0:
             q = {
                 "country_code": country,
-                # helper could also return currency; for now default to ZAR below
-                "currency": ctx.get("quoted_currency"),
+                "currency": ctx.get("quoted_currency") or "ZAR",
                 "amount_cents": int(amount_cents),
                 "version": "2025-11",
             }
 
     # If we still have no quote or 0 amount, bail out gracefully
     if not q or not int(q.get("amount_cents") or 0):
-        flash("Pricing is not configured for this course yet. Please contact us.", "danger")
-        return redirect(url_for("public_bp.home"))
+        flash(
+            "Pricing is not configured for this course yet. Please contact us.",
+            "danger",
+        )
+        return redirect(url_for("public_bp.welcome"))
 
     # 3b) Write quote to user_enrollment
     db.session.execute(
@@ -330,7 +373,7 @@ def register_decision():
             """
         ),
         {
-            "cc":  q.get("country_code"),
+            "cc": q.get("country_code"),
             "cur": q.get("currency") or "ZAR",
             "amt": int(q.get("amount_cents") or 0),
             "ver": q.get("version") or "2025-11",
@@ -339,7 +382,7 @@ def register_decision():
     )
     db.session.commit()
 
-    # 4) Read back persisted quote (single source of truth)
+    # 4) Read back persisted quote
     row = db.session.execute(
         db.text(
             """
@@ -351,32 +394,39 @@ def register_decision():
         {"eid": enrollment_id},
     ).first()
 
-    quoted_currency = (row[0] if row and row[0] else "ZAR")
+    quoted_currency = row[0] if row and row[0] else "ZAR"
     quoted_amount_cents = int(row[1] or 0) if row else 0
 
     if quoted_amount_cents <= 0:
         flash("Pricing could not be determined. Please try again or contact us.", "danger")
-        return redirect(url_for("public_bp.home"))
+        return redirect(url_for("public_bp.welcome"))
 
-    amount = f"{quoted_amount_cents / 100:.2f}"  # currently unused but kept for clarity/logging
-
-    # 5) Final step: send the user to the PayFast handoff
+    # 5) Decide where to send the user
     user_email = (
         (request.values.get("email") or "").strip().lower()
         or (ctx.get("email") or "").strip().lower()
     )
-
     if not user_email:
-        # extremely defensive: if somehow we lost email, send them back to register
         flash("We couldn't confirm your email address. Please register again.", "warning")
         return redirect(url_for("auth_bp.register", subject=subject))
 
-    return redirect(url_for(
-        "payfast_bp.handoff",
-        email=user_email,
-        subject=subject,
-        debug=0,          # 👈 force debug mode for now
-    ))
+    # SMS: always skip PayFast, go straight to dashboard
+    if subject == "sms":
+        return redirect(url_for("auth_bp.bridge_dashboard"))
+
+    # LOSS_FREE flag: allow Loss to bypass PayFast if configured
+    if current_app.config.get("LOSS_FREE"):
+        return redirect(url_for("auth_bp.bridge_dashboard"))
+
+    # Normal flow: hand off to PayFast
+    return redirect(
+        url_for(
+            "payfast_bp.handoff",
+            email=user_email,
+            subject=subject,
+            debug=0,
+        )
+    )
 
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login():

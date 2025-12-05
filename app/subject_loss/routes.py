@@ -186,7 +186,7 @@ def enrol_loss():
         next=url_for("loss_bp.about_loss")  # where to land after payment
     ))
 
-
+'''
 # ====================================================
 @loss_bp.route("/dashboard", methods=["GET"])
 def dashboard():
@@ -231,7 +231,50 @@ def course_start():
     return redirect(
         url_for("loss_bp.assessment_question_flow", run_id=rid, from_pos=1)
     )
+'''
+# ====================================================
+@loss_bp.route("/dashboard", methods=["GET"])
+def dashboard():
+    # Admin view stays special
+    if session.get("is_admin"):
+        return render_template("school_loss/admin_dashboard.html")
+    # Normal users go straight into the course flow
+    return redirect(url_for("loss_bp.course_start"))
 
+
+# Assessment starts from here step 2
+# =====================
+
+@loss_bp.route("/course/start")
+@login_required
+def course_start():
+    uid = current_user.id
+
+    # Always create a NEW run row for this user/subject
+    rid = db.session.execute(
+        text("""
+            INSERT INTO lca_run (user_id, status, current_pos)
+            VALUES (:uid, 'in_progress', 1)
+            RETURNING id
+        """),
+        {"uid": uid},
+    ).scalar()
+
+    db.session.commit()
+    current_app.logger.warning(
+        "course_start: created NEW lca_run id=%s for uid=%s (LOSS)", rid, uid
+    )
+
+    # Reset all loss-run session state
+    session["loss_run_id"] = rid
+    session["current_run_id"] = rid
+    for k in ("q_range", "q_seq_pos", "current_index", "active_q_range", "last_loss_run_id"):
+        session.pop(k, None)
+
+    # Always start sequence at step 1 for the new run
+    return redirect(
+        url_for("loss_bp.assessment_question_flow", run_id=rid, from_pos=1)
+    )
 
 # Assessment step 3
 # ================

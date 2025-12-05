@@ -111,6 +111,35 @@ def create_app():
     def _inject_country():
         g.country_iso2 = (request.headers.get('cf-ipcountry') or 'ZA').upper()
 
+
+
+    @app.before_request
+    def log_site_hit():
+        # skip obvious noise / health / static
+        if request.endpoint in ("static",) or request.path.startswith("/healthz"):
+            return
+
+        try:
+            uid   = current_user.id if getattr(current_user, "is_authenticated", False) else None
+            authd = bool(getattr(current_user, "is_authenticated", False))
+        except Exception:
+            uid, authd = None, False
+
+        ua = (request.headers.get("User-Agent") or "")[:255]
+
+        try:
+            db.session.execute(
+                sa_text("""
+                    INSERT INTO site_hit (path, user_id, is_auth, user_agent)
+                    VALUES (:path, :uid, :authd, :ua)
+                """),
+                {"path": request.path, "uid": uid, "authd": authd, "ua": ua},
+            )
+            db.session.commit()
+        except Exception:
+            # don’t break the site if logging fails
+            db.session.rollback()
+
     @app.context_processor
     def _inject_helpers():
         return dict(price_cents_for=price_cents_for)
@@ -237,7 +266,6 @@ def create_app():
         """))
         db.session.commit()
         print("OK: fx_to_zar column ensured on ref_country_currency")
-
 
     @app.before_request
     def _trace_in():

@@ -3,17 +3,19 @@ import datetime
 import os
 import shutil
 import subprocess
-from flask import current_app, flash, redirect, render_template, jsonify, url_for
+from flask import current_app, flash, redirect, render_template, jsonify, url_for, request, send_file
 from flask_login import login_required
-from sqlalchemy import text
-
+from sqlalchemy import text, text as sa_text
 from app.models.auth import AuthPricing, AuthSubject
 from app.extensions import db
 from app.payments.pricing import price_for_country
 from . import general_bp
-from flask import render_template, request, send_file, jsonify
 import io, asyncio, time
 import edge_tts
+import json
+
+
+
 
 # keep your existing index()
 @general_bp.get("/")
@@ -331,11 +333,7 @@ def app_backup_now():
     )
 
 
-import os
-import json
-import subprocess
 
-from flask import render_template, request, send_file, current_app
 # -----------------------------
 # AIT Ad Builder config
 # -----------------------------
@@ -530,3 +528,24 @@ def api_fx_quote():
         "local_cents": local_cents,
         "currency": currency
     })
+
+@general_bp.route("/traffic")
+@login_required
+def traffic():
+
+
+    rows = db.session.execute(
+        text("""
+            SELECT
+                occurred_at AS created_at,      -- timestamp
+                path,
+                user_id,
+                is_auth AS is_authenticated,    -- boolean
+                user_agent
+            FROM site_hit
+            ORDER BY occurred_at DESC
+            LIMIT 100
+        """)
+    ).all()
+
+    return render_template("admin_general/traffic.html", rows=rows)

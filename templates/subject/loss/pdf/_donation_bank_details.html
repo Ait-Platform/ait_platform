@@ -1,40 +1,62 @@
-<div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #ccc; font-size: 12px; line-height: 1.4;">
+{# templates/subject/loss/pdf/_donation_bank_details.html #}
 
-  <h3 style="font-size: 14px; margin-bottom: 8px;">Support Warner Beach Hospital NPO</h3>
+<div style="
+  margin-top: 24px;
+  padding: 14px 16px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background-color: #f8fafc;
+  font-size: 12px;
+  line-height: 1.5;
+">
 
-  <p>
+  <div style="font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #64748b; margin-bottom: 6px;">
+    Optional donation
+  </div>
+
+  <h3 style="font-size: 14px; margin: 0 0 8px; color: #0f172a;">
+    Support Warner Beach Hospital NPO
+  </h3>
+
+  <p style="margin: 0 0 10px; color: #334155;">
     If this Loss of a Loved One report has helped you and you wish to support our
     non-profit hospital development project, you may contribute using the banking
     details below. Any amount is deeply appreciated.
   </p>
 
-  <p style="margin-top: 12px;"><strong>Banking Details (Local &amp; International)</strong></p>
+  <div style="
+    padding: 10px 12px;
+    border-radius: 6px;
+    background-color: #e2f3ff;
+    border: 1px solid #bfdbfe;
+    font-size: 11px;
+    margin-bottom: 10px;
+  ">
+    <div style="font-weight: 600; margin-bottom: 4px; color: #1e293b;">
+      Banking details (local & international)
+    </div>
 
-  <p style="margin: 0;">
-    <strong>Account name:</strong> WBH<br>
-    <strong>Bank:</strong> FNB<br>
-    <strong>Account number:</strong> 62107178726<br>
-    <strong>Branch / Universal code:</strong> Musgrave / 255355<br>
-    <strong>Account type:</strong> Cheque (Current)<br>
-    <strong>Reference:</strong>
-    {% if run_id is defined and run_id %}
-      LossRun {{ run_id }}
-    {% else %}
-      Run number
-    {% endif %}
-  </p>
+    <p style="margin: 0;">
+      <strong>Account name:</strong> WBH<br>
+      <strong>Bank:</strong> FNB<br>
+      <strong>Account number:</strong> 62107178726<br>
+      <strong>Branch / Universal code:</strong> Musgrave / 255355<br>
+      <strong>Account type:</strong> Cheque (Current)<br>
+      <strong>Reference:</strong> Loss run number
+    </p>
 
-  <p style="margin-top: 12px;">
-    <strong>For international transfers:</strong><br>
-    • <strong>SWIFT/BIC:</strong> FIRNZAJJ<br>
-    • <strong>Bank country:</strong> South Africa<br>
-    • <strong>Currency:</strong> ZAR (South African Rand)
-  </p>
+    <p style="margin: 8px 0 0;">
+      <strong>For international transfers:</strong><br>
+      • <strong>SWIFT/BIC:</strong> FIRNZAJJ<br>
+      • <strong>Bank country:</strong> South Africa<br>
+      • <strong>Currency:</strong> ZAR (South African Rand)
+    </p>
+  </div>
 
-  <p style="margin-top: 16px; font-size: 11px; color: #444;">
-    Warner Beach Hospital NPO (Reg. No.: 2018/247936/08) is a registered non-profit
-    organisation working toward the construction of a community hospital in
-    Warner Beach, South Africa. Thank you for your support.
+  <p style="margin: 0; font-size: 11px; color: #64748b;">
+    Warner Beach Hospital NPO (Reg. No.: 2018/247936/08) is a registered non-profit organisation
+    working toward the construction of a community hospital in Warner Beach, South Africa.
+    Thank you for your support.
   </p>
 
 </div>

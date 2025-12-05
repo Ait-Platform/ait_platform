@@ -1,40 +1,39 @@
-{% extends "school_counselling/loss/questions/question_base.html" %}
-
-{% block title %}Pause | LOSS{% endblock %}
+{% extends "layout.html" %}
+{% block title %}Loss assessment · Pause{% endblock %}
 
 {% block content %}
-<div class="bg-white max-w-xl mx-auto mt-24 p-8 rounded-2xl shadow-lg text-center">
-    <h2 class="text-3xl font-extrabold text-blue-800 mb-6">Pause</h2>
+<div class="mx-auto max-w-2xl mt-8 bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+  {# Top meta: step position #}
+  <div class="text-xs text-slate-500 mb-2">
+    Step {{ pos }} of {{ total }}
+  </div>
 
-    <p class="mb-6 text-gray-900 text-lg leading-relaxed">
-        Question 26 will resume automatically in <span id="countdown">5</span> seconds.
+  {# Title #}
+  <h1 class="text-xl font-semibold text-slate-900">
+    {{ item.title or "Pause" }}
+  </h1>
+
+  {# Caption (short text) #}
+  {% set cap = (item.caption or '')|striptags|trim %}
+  {% if cap %}
+    <p class="mt-3 text-slate-700">
+      {{ item.caption|safe }}
     </p>
+  {% endif %}
 
-    <p class="mb-4 text-sm italic text-gray-600">
-        To skip the pause, press the <strong>Next</strong> button.
-    </p>
+  {# Main body content #}
+  {% set body = (item.content or '')|trim %}
+  {% if body %}
+    <div class="mt-4 prose prose-sm max-w-none text-slate-800">
+      {{ item.content|safe }}
+    </div>
+  {% endif %}
 
-    <form action="{{ url_for('counselling_bp.loss_question', num=26) }}" method="get">
-        <div class="flex justify-end mt-6">
-            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2 rounded-lg shadow">
-                Next →
-            </button>
-        </div>
-    </form>
+  <div class="mt-6 flex justify-end">
+    <a href="{{ next_url }}"
+       class="inline-flex items-center rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700">
+      Continue
+    </a>
+  </div>
 </div>
-
-<script>
-    let seconds = 5;
-    const countdown = document.getElementById('countdown');
-
-    const timer = setInterval(() => {
-        seconds--;
-        countdown.textContent = seconds;
-
-        if (seconds <= 0) {
-            clearInterval(timer);
-            window.location.href = "{{ url_for('counselling_bp.loss_question', num=26) }}";
-        }
-    }, 1000);
-</script>
 {% endblock %}

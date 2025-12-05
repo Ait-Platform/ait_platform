@@ -948,7 +948,7 @@ def report_send_and_download():
 
 
 
-
+'''
 @loss_bp.post("/report/email")
 @login_required
 def email_report():  # endpoint: loss_bp.email_report
@@ -1083,7 +1083,7 @@ def report_exit():
         default_email=default_email,
         error=None,
     )
-
+'''
 
 
 def _get_run_user_email(run_id: int | None, user_id: int | None) -> str | None:
@@ -1848,4 +1848,122 @@ def assessment_question_flow():
         item=item,
         buttons=buttons,
         run_id=run.id,
+    )
+
+@loss_bp.post("/report/email")
+@login_required
+def email_report():  # endpoint: loss_bp.email_report
+    # --- form inputs ---
+    to = (request.form.get("to") or (current_user.email if current_user.is_authenticated else "")).strip()
+    run_id = request.form.get("run_id", type=int)
+    user_id = request.form.get("user_id", type=int)
+    note = (request.form.get("note") or "").strip()
+    include_summary = "include_summary" in request.form
+    include_responses = "include_responses" in request.form
+
+    if not to:
+        flash("Please provide a recipient email.", "warning")
+        return redirect(url_for("loss_bp.report_exit", run_id=run_id, user_id=user_id))
+
+    # --- call your existing PDF view to get the bytes, without JS auto-print ---
+    pdf_resp = current_app.ensure_sync(
+        current_app.view_functions["loss_bp.report_pdf"]
+    )(run_id=run_id, user_id=user_id, auto_print=0)
+
+    # Handle (response, status) or plain response
+    if isinstance(pdf_resp, tuple):
+        pdf_response = pdf_resp[0]
+    else:
+        pdf_response = pdf_resp
+
+    pdf_bytes = pdf_response.get_data()
+
+    # --- build email ---
+    subject = f"LOSS Assessment Report (Run {run_id})"
+    body_lines = []
+    if note:
+        body_lines.append(note)
+        body_lines.append("")  # blank line
+    body_lines.append(f"Run ID: {run_id}, User ID: {user_id}")
+    if include_summary:
+        body_lines.append("Summary: See the attached PDF report for your overall assessment and phase breakdown.")
+    if include_responses:
+        body_lines.append("Responses: The attached PDF includes itemised responses and scoring (if enabled).")
+
+    msg = Message(subject=subject, recipients=[to])
+    msg.body = "\n".join(body_lines) if body_lines else "Please find your LOSS assessment report attached."
+    msg.attach(
+        f"LOSS_Assessment_Run_{run_id}.pdf",
+        "application/pdf",
+        pdf_bytes,
+    )
+
+    # --- send ---
+    mail.send(msg)
+
+    flash("Report emailed successfully.", "success")
+
+    # Back to exit page (admin/manual flow)
+    return redirect(url_for("loss_bp.report_exit", run_id=run_id, user_id=user_id))
+
+
+@loss_bp.post("/report/finish", endpoint="finish_report")
+@login_required
+def finish_report():
+    run_id  = request.form.get("run_id")  or request.args.get("run_id")
+    user_id = request.form.get("user_id") or request.args.get("user_id")
+    email   = (request.form.get("email") or request.args.get("email") or "").strip().lower()
+
+    # Validate IDs
+    try:
+        run_id_int  = int(run_id)
+        user_id_int = int(user_id)
+    except Exception:
+        return render_template(
+            "subject/loss/report_exit.html",
+            run_id=run_id, user_id=user_id,
+            default_email=email or (session.get("email") or ""),
+            error="Missing run/user. Please go back and try again."
+        ), 400
+
+    # One helper that: completes run, builds PDF URL, triggers email, etc.
+    # (your existing logic – we keep it)
+    result = handle_exit_actions(
+        user_id=user_id_int,
+        subject_slug="loss",
+        run_id=run_id_int,
+        email=email,
+    )
+
+    # Optional: you can still read this if you ever need it
+    artifact_url = result.get("artifact_url")
+
+    # Logout + clear session, like before
+    try:
+        logout_user()
+    except Exception:
+        pass
+    try:
+        session.clear()
+    except Exception:
+        pass
+
+    # Friendly message and send user to public welcome page (NO Render/private screen)
+    flash("Your Loss report has been emailed to you. Thank you for using LOLO.", "success")
+    return redirect(url_for("public_bp.welcome"))
+
+
+@loss_bp.get("/report/exit", endpoint="report_exit")
+@login_required
+def report_exit():
+    run_id  = request.args.get("run_id", type=int)
+    user_id = request.args.get("user_id", type=int)
+    default_email = (session.get("email") or "").strip().lower()
+
+    return render_template(
+        "subject/loss/report_exit.html",
+        run_id=run_id,
+        user_id=user_id,
+        default_email=default_email,
+        error=None,
     )

@@ -1,5 +1,29 @@
 {% extends "layout.html" %}
-{% from "subject/loss/partials/card.html" import loss_card %}
+
 {% block content %}
-{{ loss_card(item.title, item.caption, item.content, buttons) }}
+{# pause.html #}
+{% set title   = (step.meta.title   if step.meta and step.meta.title   is defined else "Pause") %}
+{% set body    = (step.meta.body    if step.meta and step.meta.body    is defined else "Take a short pause before the next part.") %}
+{% set caption = (step.meta.caption if step.meta and step.meta.caption is defined else "") %}
+
+<div class="rounded-xl border border-slate-200 bg-white shadow-sm p-6 max-w-2xl mx-auto">
+  <h2 class="text-lg font-semibold text-slate-900 mb-2">
+    {{ title }}
+  </h2>
+  <p class="text-sm text-slate-700 mb-4">
+    {{ body }}
+  </p>
+  {% if caption %}
+    <p class="text-xs text-slate-500 italic">
+      {{ caption }}
+    </p>
+  {% endif %}
+  <div class="mt-6 text-right">
+    <a href="{{ next_url }}" class="inline-flex items-center rounded-md bg-emerald-600 px-4 py-2 text-xs font-medium text-white hover:bg-emerald-700">
+      Continue
+    </a>
+  </div>
+</div>
+
+
 {% endblock %}

@@ -14,10 +14,7 @@
     {{ question.title or ("Question " ~ (display_idx or question.number or "")) }}
   </h1>
 
-  {# ✅ proper counter: n / 50 #}
-  <span class="text-sm text-slate-500">
-    {{ display_idx }} / {{ total_questions }}
-  </span>
+
 
   {# Decide what to use as the main body text #}
   {% set cap_norm  = (question.caption or '')|striptags|trim %}

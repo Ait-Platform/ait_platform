@@ -1,10 +1,17 @@
 {# templates/subject/loss/pdf/_header.html #}
-{# Robust fallbacks so header always shows: loss • <email> • Run <id> • <timestamp> #}
+{# Robust fallbacks so header always shows: subject • email • Run <id> • <timestamp> #}
 
-{# Normalize fields from whatever the context provides #}
+{# Normalised subject #}
 {% set _subject = subject if (subject is defined and subject) else 'loss' %}
-{% set _run = (run_id if (run_id is defined and run_id is not none)
-          else (rid if rid is defined else None)) %}
+
+{# Normalised run id #}
+{% set _run = (
+  run_id if (run_id is defined and run_id is not none)
+  else rid if (rid is defined and rid is not none)
+  else None
+) %}
+
+{# Normalised email #}
 {% set _email = (
   header_user_email if (header_user_email is defined and header_user_email) else
   learner_email      if (learner_email      is defined and learner_email)      else
@@ -12,17 +19,19 @@
   (user_email        if (user_email is defined and user_email)   else None)
 ) or 'loss@gmail.com' %}
 
+{# Normalised timestamp label #}
 {% set _ts = (
-  created_at_label           if (created_at_label           is defined and created_at_label)           else
-  header_run_created_at_str  if (header_run_created_at_str  is defined and header_run_created_at_str)  else
-  taken_at                   if (taken_at                   is defined and taken_at)                   else
-  taken_at_str               if (taken_at_str               is defined and taken_at_str)               else
-  created_at                 if (created_at                 is defined and created_at)                 else
-  run_created_at             if (run_created_at             is defined and run_created_at)             else
-  started_at                 if (started_at                 is defined and started_at)                 else
+  created_at_label          if (created_at_label          is defined and created_at_label)          else
+  header_run_created_at_str if (header_run_created_at_str is defined and header_run_created_at_str) else
+  taken_at_str              if (taken_at_str              is defined and taken_at_str)              else
+  taken_at                  if (taken_at                  is defined and taken_at)                  else
+  created_at                if (created_at                is defined and created_at)                else
+  run_created_at            if (run_created_at            is defined and run_created_at)            else
+  started_at                if (started_at                is defined and started_at)                else
   ''
 ) %}
 
+{# Normalised user id #}
 {% set _uid = (
   user.id  if (user is defined and user and user.id) else
   (user_id if (user_id is defined) else None)
@@ -32,16 +41,16 @@
   <h1 class="report-title">Loss Assessment Report</h1>
 
   <div class="report-subline">
-    Loss {{ user.email }} • Run {{ run_id }} • {{ dt_label }}
+    {{ _subject|title }} • {{ _email }}
+    {% if _run %} • Run {{ _run }}{% endif %}
+    {% if _ts %} • {{ _ts }}{% endif %}
   </div>
 
   {% if viewer_is_admin %}
-  <div class="small muted">
-    debug → user_id={{ user_id }} • run_id={{ run_id }} • timestamp={{ dt_label }}
-  </div>
+    <div class="small muted">
+      debug → user_id={{ _uid or 'N/A' }} • run_id={{ _run or 'N/A' }} • timestamp={{ _ts or 'N/A' }}
+    </div>
   {% endif %}
-    <!-- First section title -->
+
   <h2 class="section-title">Assessment Results</h2>
 </div>
-
-

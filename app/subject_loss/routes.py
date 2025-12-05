@@ -653,6 +653,32 @@ def report_actions():
         share_url=share_url,   # so the partial can use it for Email/Copy
     )
 
+@loss_bp.route("/subject/loss/results")
+def results_hub():
+    run_id = request.args.get("run_id", type=int)
+    run = None
+
+    if run_id:
+        run = db.session.get(LcaRun, run_id)
+    elif current_user.is_authenticated:
+        run = latest_run_for_user(current_user.id)
+
+    if not run:
+        abort(404)
+
+    # compute/ensure result row
+    ensure_lca_result(run.id)
+
+    # ✅ recognize admin either by actual role OR by admin referrer
+    is_admin_view = viewer_is_admin() or _came_from_admin()
+    
+    # ✅ pass run_id (and user_id if you want it), not `run`
+    return render_template(
+        "subject/loss/results_hub.html",
+        run_id=run.id,
+        user_id=run.user_id,
+        viewer_is_admin=viewer_is_admin(),
+    )
 
 @loss_bp.route("/report.pdf")
 def report_pdf():
@@ -732,32 +758,6 @@ def report_pdf():
 
 
 
-@loss_bp.route("/subject/loss/results")
-def results_hub():
-    run_id = request.args.get("run_id", type=int)
-    run = None
-
-    if run_id:
-        run = db.session.get(LcaRun, run_id)
-    elif current_user.is_authenticated:
-        run = latest_run_for_user(current_user.id)
-
-    if not run:
-        abort(404)
-
-    # compute/ensure result row
-    ensure_lca_result(run.id)
-
-    # ✅ recognize admin either by actual role OR by admin referrer
-    is_admin_view = viewer_is_admin() or _came_from_admin()
-    
-    # ✅ pass run_id (and user_id if you want it), not `run`
-    return render_template(
-        "subject/loss/results_hub.html",
-        run_id=run.id,
-        user_id=run.user_id,
-        viewer_is_admin=viewer_is_admin(),
-    )
 
 @loss_bp.post("/report.email/<int:run_id>")
 def report_email_and_download(run_id: int):

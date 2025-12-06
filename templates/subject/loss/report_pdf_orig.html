@@ -1,0 +1,117 @@
+{# templates/subject/loss/report.html #}
+{% extends "layout.html" %}
+{% import "subject/loss/pdf/_macros.html" as M %}
+
+{% block title %}Loss Results | AIT{% endblock %}
+
+{% block content %}
+  {# Load PDF-only base styles first #}
+  {% if pdf_mode %}
+    {% include "subject/loss/pdf/_styles_base.html" %}
+  {% endif %}
+
+  {# ---- Context & safe defaults ---- #}
+  {% set phase_labels = {1:'Impact', 2:'Hopelessness', 3:'Helplessness', 4:'Re-Engagement'} %}
+  {% set blocks = phase_blocks | default([], true) %}
+  {% set oa = overall_assessment | default(None) %}
+  {% set viewer_is_admin = viewer_is_admin | default(false) %}
+
+  {# Learner/display name #}
+  {% set learner_name = (
+    user.display_name if user is defined and user and user.display_name
+    else (user.full_name if user and user.full_name
+    else (user.email if user and user.email else 'Learner'))
+  ) %}
+
+  {# Date label (created_at preferred, else started_at) #}
+  {% set dt_label = created_at if created_at is defined and created_at
+                    else (started_at if started_at is defined else None) %}
+
+  {# Extract P1..P4 safely from per-phase blocks, fallback to result.* #}
+  {% set ns = namespace(P1=None, P2=None, P3=None, P4=None) %}
+  {% for b in blocks %}
+    {% set v = (b.pct if b.pct is defined else (b.width_pct if b.width_pct is defined else 0)) | int %}
+    {% if b.phase == 1 %}{% set ns.P1 = v %}{% endif %}
+    {% if b.phase == 2 %}{% set ns.P2 = v %}{% endif %}
+    {% if b.phase == 3 %}{% set ns.P3 = v %}{% endif %}
+    {% if b.phase == 4 %}{% set ns.P4 = v %}{% endif %}
+  {% endfor %}
+
+  {% set P1 = (ns.P1 if ns.P1 is not none else (result.phase_1 if result is defined and result else 0)) | int %}
+  {% set P2 = (ns.P2 if ns.P2 is not none else (result.phase_2 if result is defined and result else 0)) | int %}
+  {% set P3 = (ns.P3 if ns.P3 is not none else (result.phase_3 if result is defined and result else 0)) | int %}
+  {% set P4 = (ns.P4 if ns.P4 is not none else (result.phase_4 if result is defined and result else 0)) | int %}
+  {% set total = (result.total if result is defined and result and result.total is not none else (P1 + P2 + P3 + P4)) | int %}
+
+  <div class="mx-auto w-full max-w-6xl px-6 pb-8">
+
+    {# pick data-URI when available, else fall back to static #}
+    {% set logo_path = (logo_data_uri or url_for('static', filename='branding/ait_logo.png')) %}
+    {% include "_ait_header.html" %}
+
+
+    {# optional thin divider (PDF-safe) #}
+    <div style="height:1px; background:#e2e8f0; margin: 6px 0 18px 0;"></div>
+
+    {# Existing shared header partial (kept) #}
+    <div class="mx-auto w-full max-w-6xl px-6">
+      {% include "subject/loss/pdf/_header.html" %}
+    </div>
+
+    {% if blocks|length == 0 %}
+      <div class="rounded-xl border border-amber-200 p-4 bg-amber-50 text-amber-800">
+        No phase data available for this run.
+      </div>
+    {% endif %}
+
+    {# ---------- Per-phase sections ---------- #}
+    {% for blk in blocks %}
+      {% set pct  = (blk.pct if blk.pct is defined else (blk.width_pct if blk.width_pct is defined else 0)) | int %}
+      {% set band = blk.band if blk.band is defined else (3 if pct>=70 else (2 if pct>=40 else 1)) %}
+      {% set range_label = 'High' if band==3 else ('Medium' if band==2 else 'Low') %}
+
+      {% if blk.phase in [1,2,3] %}
+        {% set av_txt     = 'Not Coping' if band==3 else ('Slightly Coping' if band==2 else 'Coping') %}
+        {% set range_chip = 'chip-emerald' if band==1 else ('chip-amber' if band==2 else 'chip-rose') %}
+        {% set bar_color  = 'bar-emerald' if band==1 else ('bar-amber' if band==2 else 'bar-rose') %}
+        {% set palette    = 'rose' if band==3 else ('amber' if band==2 else 'emerald') %}
+      {% else %}
+        {% set av_txt     = 'Coping' if band==3 else ('Slightly Coping' if band==2 else 'Not Coping') %}
+        {% set range_chip = 'chip-blue' if band==1 else ('chip-lightemerald' if band==2 else 'chip-emerald') %}
+        {% set bar_color  = 'bar-blue' if band==1 else ('bar-mint' if band==2 else 'bar-emerald') %}
+        {% set palette    = 'emerald' if band==3 else ('mint' if band==2 else 'blue') %}
+      {% endif %}
+
+      {% set av_chip = 'chip-av-coping' if av_txt=='Coping'
+                       else ('chip-av-slightlycoping' if av_txt=='Slightly Coping' else 'chip-av-notcoping') %}
+      {% set w_class = 'w-' ~ ((pct // 5) * 5) %}
+
+      <section class="phase-card rounded-2xl border border-slate-200 p-5">
+        {% include "subject/loss/pdf/_phase_heading.html" %}
+        {# colored, solid mini-vertical bar (safe, no inline styles) #}
+        {% if pdf_mode %}{% include "subject/loss/pdf/_styles_hbar.html" %}{% endif %}
+
+        {% include "subject/loss/pdf/_hbar_safe.html" %}
+        {% include "subject/loss/pdf/_phase_body.html" %}
+        {% include "subject/loss/pdf/_progress.html" %}
+      </section>
+    {% endfor %}
+
+    {# ---------- Phase Summary ---------- #}
+    {% include "subject/loss/pdf/_summary.html" %}
+
+    {# Vertical 4-bar chart styles (keep available; include chart partial if/when needed) #}
+    {% if pdf_mode %}{% include "subject/loss/pdf/_styles_vbar.html" %}{% endif %}
+    {# Example (currently disabled): #}
+    {# {% include "subject/loss/pdf/_vbar_four_safe.html" %} #}
+
+    {% include "subject/loss/pdf/_overall_assessment.html" %}
+    
+    {% include "subject/loss/pdf/_donation_bank_details.html" %}
+
+    {% include "subject/loss/pdf/_disclaimer.html" %}
+
+
+
+  </div>
+{% endblock %}

@@ -1,0 +1,51 @@
+{% extends "layout.html" %}
+{% block title %}Add SGB member · SMS{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-xl py-8">
+
+  <h1 class="text-2xl font-semibold text-slate-900 mb-4">
+    Add SGB member
+  </h1>
+  <p class="text-sm text-slate-600 mb-6">
+    Capture one governing body member at a time. You can add more later.
+  </p>
+
+  <form method="post" class="space-y-4">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+    <div>
+      <label class="block text-sm font-medium text-slate-700">Full name</label>
+      <input name="full_name" required
+             class="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm">
+    </div>
+
+    <div>
+      <label class="block text-sm font-medium text-slate-700">Role</label>
+      <input name="role" required placeholder="Chairperson, Principal, Treasurer…"
+             class="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm">
+    </div>
+
+    <div>
+      <label class="block text-sm font-medium text-slate-700">
+        Start date <span class="text-xs text-slate-400">(optional)</span>
+      </label>
+      <input name="start_date" type="date"
+             class="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm">
+    </div>
+
+    <div class="flex items-center justify-between pt-4">
+      <a href="{{ url_for('sms_bp.governance_home') }}"
+         class="text-sm text-slate-600 hover:text-slate-900">
+        ← Cancel
+      </a>
+
+      <button type="submit"
+              class="inline-flex items-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
+        Save member
+      </button>
+    </div>
+  </form>
+
+</div>
+{% endblock %}

@@ -1,0 +1,114 @@
+{% extends "layout.html" %}
+{% block title %}Parents · SMS{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-3xl mt-8 bg-white shadow rounded-lg p-6">
+
+  <div class="flex items-center justify-between mb-4">
+    <div>
+      <h1 class="text-lg font-semibold text-slate-900">
+        Parents / guardians
+      </h1>
+      <p class="text-sm text-slate-600">
+        {{ learner.first_name }} {{ learner.last_name }} · Grade {{ learner.grade or '—' }}
+      </p>
+    </div>
+    <a href="{{ url_for('sms_bp.learners_home') }}"
+       class="text-xs text-indigo-600 hover:text-indigo-800">
+      ← Back to learners
+    </a>
+  </div>
+
+  <form method="post" class="space-y-6">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <!-- Mother -->
+    <section>
+      <h2 class="text-sm font-semibold text-slate-900">Mother</h2>
+      <div class="mt-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-medium text-slate-700">Full name</label>
+          <input type="text" name="mother_name"
+                 value="{{ mother.full_name if mother else '' }}"
+                 class="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-700">Phone</label>
+          <input type="text" name="mother_phone"
+                 value="{{ mother.mobile if mother else '' }}"
+                 class="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-700">Email</label>
+          <input type="email" name="mother_email"
+                 value="{{ mother.email if mother else '' }}"
+                 class="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm">
+        </div>
+      </div>
+    </section>
+
+    <!-- Father -->
+    <section>
+      <h2 class="text-sm font-semibold text-slate-900">Father</h2>
+      <div class="mt-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-medium text-slate-700">Full name</label>
+          <input type="text" name="father_name"
+                 value="{{ father.full_name if father else '' }}"
+                 class="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-700">Phone</label>
+          <input type="text" name="father_phone"
+                 value="{{ father.mobile if father else '' }}"
+                 class="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-700">Email</label>
+          <input type="email" name="father_email"
+                 value="{{ father.email if father else '' }}"
+                 class="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm">
+        </div>
+    </section>
+
+    <!-- Guardian (optional) -->
+
+        <section>
+        <h2 class="text-sm font-semibold text-slate-900">
+            Guardian (if learner does not live with parents)
+        </h2>
+        <div class="mt-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+            <label class="block text-xs font-medium text-slate-700">Full name</label>
+            <input type="text" name="guardian_name"
+                    value="{{ guardian.full_name if guardian else '' }}"
+                    class="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm">
+            </div>
+            <div>
+            <label class="block text-xs font-medium text-slate-700">Phone</label>
+            <input type="text" name="guardian_phone"
+                    value="{{ guardian.phone if guardian else '' }}"
+                    class="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm">
+            </div>
+            <div>
+            <label class="block text-xs font-medium text-slate-700">Email</label>
+            <input type="email" name="guardian_email"
+                    value="{{ guardian.email if guardian else '' }}"
+                    class="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm">
+            </div>
+        </div>
+        </section>
+
+      
+    
+
+    <div class="flex justify-end">
+      <button type="submit"
+              class="inline-flex items-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">
+        Save parents
+      </button>
+    </div>
+  </form>
+
+</div>
+{% endblock %}

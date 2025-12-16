@@ -89,14 +89,7 @@ def create_app():
 
     # (optional) ensure keys are present – maps OS envs directly if Config missed any
 
-    for k in (
-        "PAYFAST_MODE","PAYFAST_MERCHANT_ID","PAYFAST_MERCHANT_KEY",
-        "PAYFAST_PASSPHRASE","PAYFAST_RETURN_URL","PAYFAST_CANCEL_URL",
-        "PAYFAST_NOTIFY_URL"
-    ):
-        if k not in app.config or not app.config[k]:
-            v = os.environ.get(k)
-            if v: app.config[k] = v
+
 
     @app.context_processor
     def inject_now():
@@ -333,9 +326,9 @@ def create_app():
     from app.admin import admin_bp
     from app.admin_general.routes import general_bp      # GET /admin/general/
     from app.admin_general.admin_tts import tts_bp       # POST /admin/general/tts
-    from app.payments.payfast import payfast_bp
     from app.admin.sms import sms_admin_bp
-    from app.subject_sms import sms_subject_bp
+    from app.subject_sms.routes import sms_bp
+    from app.payments.yoco import yoco_bp
 
     #app.logger.warning("registered checkout_bp at /checkout")
 
@@ -347,15 +340,16 @@ def create_app():
     app.register_blueprint(loss_bp)
     app.register_blueprint(billing_bp)
     app.register_blueprint(admin_bp)
-    app.register_blueprint(sms_subject_bp)
+    app.register_blueprint(sms_bp)
     app.register_blueprint(sms_admin_bp)
     app.register_blueprint(general_bp, url_prefix="/admin/general")
     app.register_blueprint(tts_bp, url_prefix="/admin/general")
-    app.register_blueprint(payfast_bp, url_prefix="/payments")
-    
+    app.register_blueprint(yoco_bp, url_prefix="/payments")
+
+
     #csrf.exempt(checkout_bp)  # keeps webhook/start happy
     # Exempt ONLY the PayFast IPN route (or the whole blueprint if you prefer)
-    csrf.exempt(payfast_bp)  # or: add @csrf.exempt on the /notify function
+    csrf.exempt(yoco_bp)  # or: add @csrf.exempt on the /notify function
 
     # Log admin routes only in debug
     if app.debug:

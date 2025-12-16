@@ -12,8 +12,8 @@
 
   <div class="rounded-2xl bg-white border border-slate-200 shadow-sm p-6 mb-8">
     <div class="flex items-center justify-between mb-2">
-      <h1 class="text-2xl font-semibold text-slate-800">Subjects Dashboard</h1>
-      <div class="text-sm text-slate-500">Choose a subject to continue.</div>
+      <h1 class="text-2xl font-semibold text-slate-800">Bridge Dashboard</h1>
+      <div class="text-sm text-slate-500">Choose a subject/program to continue.</div>
     </div>
 
     {% if banner %}
@@ -88,10 +88,17 @@
           <div class="mt-5 flex items-center gap-3">
             {% if primary_href %}
               <a href="{{ primary_href }}"
-                 class="inline-flex items-center rounded-lg px-3 py-2 text-sm font-medium border bg-white hover:bg-slate-50">
-                 {% if is_admin %}Open Admin{% else %}Open Course{% endif %}
+                class="inline-flex items-center rounded-lg px-3 py-2 text-sm font-medium border bg-white hover:bg-slate-50">
+                {% if is_admin %}
+                  Open Admin
+                {% elif s.slug == 'sms' %}
+                  Open Program
+                {% else %}
+                  Open Course
+                {% endif %}
               </a>
             {% else %}
+
               <button type="button"
                       class="inline-flex items-center rounded-lg px-3 py-2 text-sm font-medium border bg-white text-slate-400 cursor-not-allowed"
                       disabled>Locked</button>

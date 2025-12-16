@@ -1,9 +1,4 @@
-from flask import Blueprint
+#from .routes import sms_bp
 
-sms_subject_bp = Blueprint(
-    "sms_subject_bp",
-    __name__,
-    url_prefix="/sms",
-)
 
-from . import routes  # noqa
+

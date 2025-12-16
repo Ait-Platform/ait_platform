@@ -680,85 +680,6 @@ def results_hub():
         viewer_is_admin=viewer_is_admin(),
     )
 
-@loss_bp.route("/report.pdf")
-def report_pdf():
-    from sqlalchemy import text  # local import to avoid module-level surprises
-
-    rid = _get_int_arg("run_id")
-    uid = _get_int_arg("user_id", required=False)
-    if not rid:
-        return ("Missing run_id", 400)
-
-    # Build base context
-    ctx = build_learner_report_ctx(rid, uid) or {}
-
-    # Ensure the template never falls back to "Learner":
-    # Prefer an explicit user object/dict with at least email/full_name.
-    if not ctx.get("user"):
-        # Try DB lookup only if we have a uid
-        if uid:
-            row = db.session.execute(
-                text('SELECT COALESCE(name, "") AS full_name, email FROM "user" WHERE id = :id LIMIT 1'),
-                {"id": int(uid)},
-            ).mappings().first()
-            if row:
-                ctx["user"] = {"full_name": row["full_name"], "email": row["email"]}
-        # Final fallback: if build_learner_report_ctx populated an email elsewhere
-        if not ctx.get("user") and ctx.get("email"):
-            ctx["user"] = {"full_name": "", "email": ctx["email"]}
-
-    ctx["pdf_mode"] = True
-
-    # Logo as data-URI for PDF engines (with static fallback in template)
-    try:
-        from app.utils.branding import get_logo_data_uri
-        ctx["logo_data_uri"] = get_logo_data_uri()
-    except Exception:
-        current_app.logger.exception("Failed to load logo_data_uri")
-        ctx["logo_data_uri"] = None
-
-    # Phase scores (P1..P4) for the PNG chart + summary
-    L = _loss_result_percents(rid, uid) or {}
-    scores = [
-        int(L.get("P1") or L.get("phase_1") or 0),
-        int(L.get("P2") or L.get("phase_2") or 0),
-        int(L.get("P3") or L.get("phase_3") or 0),
-        int(L.get("P4") or L.get("phase_4") or 0),
-    ]
-    ctx["loss_result_percents"] = {"P1": scores[0], "P2": scores[1], "P3": scores[2], "P4": scores[3]}
-
-    # Build the embedded bar-chart image (data URI)
-    try:
-        data_uri, _png_bytes = phase_scores_bar(scores)
-        ctx["phase_scores_chart_src"] = data_uri
-    except Exception:
-        current_app.logger.exception("phase_scores_bar failed")
-        ctx["phase_scores_chart_src"] = None
-
-    # Render HTML -> PDF
-    html = render_template("subject/loss/report_pdf.html", **ctx)
-
-    from io import BytesIO
-    try:
-        from weasyprint import HTML
-        pdf_bytes = HTML(string=html, base_url=request.host_url).write_pdf()
-    except Exception:
-        from xhtml2pdf import pisa
-        out = BytesIO()
-        pisa.CreatePDF(html, dest=out, encoding="UTF-8")
-        pdf_bytes = out.getvalue()
-
-    return send_file(
-        BytesIO(pdf_bytes),
-        mimetype="application/pdf",
-        as_attachment=True,
-        download_name=f"loss-result-run-{rid}.pdf",
-        max_age=0,
-    )
-
-
-
-
 @loss_bp.post("/report.email/<int:run_id>")
 def report_email_and_download(run_id: int):
     to  = request.form.get("to") or request.form.get("email")
@@ -946,146 +867,6 @@ def report_send_and_download():
         max_age=0,
     )
 
-
-
-'''
-@loss_bp.post("/report/email")
-@login_required
-def email_report():  # endpoint: loss_bp.email_report
-    # --- form inputs ---
-    to = (request.form.get("to") or (current_user.email if current_user.is_authenticated else "")).strip()
-    run_id = request.form.get("run_id", type=int)
-    user_id = request.form.get("user_id", type=int)
-    note = (request.form.get("note") or "").strip()
-    include_summary = "include_summary" in request.form
-    include_responses = "include_responses" in request.form
-
-    if not to:
-        flash("Please provide a recipient email.", "warning")
-        return redirect(url_for("loss_bp.report_exit", run_id=run_id, user_id=user_id))
-
-    # --- call your existing PDF view to get the bytes, without JS auto-print ---
-    # This avoids duplicating PDF generation logic.
-    pdf_resp = current_app.ensure_sync(
-        current_app.view_functions["loss_bp.report_pdf"]
-    )(run_id=run_id, user_id=user_id, auto_print=0)
-
-    # Handle (response, status) or plain response
-    if isinstance(pdf_resp, tuple):
-        pdf_response = pdf_resp[0]
-    else:
-        pdf_response = pdf_resp
-
-    pdf_bytes = pdf_response.get_data()
-
-    # --- build email ---
-    subject = f"LOSS Assessment Report (Run {run_id})"
-    body_lines = []
-    if note:
-        body_lines.append(note)
-        body_lines.append("")  # blank line
-    body_lines.append(f"Run ID: {run_id}, User ID: {user_id}")
-    if include_summary:
-        body_lines.append("Summary: See the attached PDF report for your overall assessment and phase breakdown.")
-    if include_responses:
-        body_lines.append("Responses: The attached PDF includes itemised responses and scoring (if enabled).")
-
-    msg = Message(subject=subject, recipients=[to])
-    msg.body = "\n".join(body_lines) if body_lines else "Please find your LOSS assessment report attached."
-    msg.attach(
-        f"LOSS_Assessment_Run_{run_id}.pdf",
-        "application/pdf",
-        pdf_bytes,
-    )
-
-    # --- send ---
-    mail.send(msg)
-
-    flash("Report emailed successfully.", "success")
-
-    # for security, mirror your “finish up” flow: sign out / redirect as you prefer
-    # if you have a logout route, redirect there; else go back to exit page.
-    return redirect(url_for("loss_bp.report_exit", run_id=run_id, user_id=user_id))
-
-
-@loss_bp.post("/report/finish", endpoint="finish_report")
-@login_required
-def finish_report():
-    run_id  = request.form.get("run_id")  or request.args.get("run_id")
-    user_id = request.form.get("user_id") or request.args.get("user_id")
-    email   = (request.form.get("email") or request.args.get("email") or "").strip().lower()
-
-    try:
-        run_id, user_id = int(run_id), int(user_id)
-    except Exception:
-        return render_template(
-            "subject/loss/report_exit.html",
-            run_id=run_id, user_id=user_id,
-            default_email=email or (session.get("email") or ""),
-            error="Missing run/user. Please go back and try again."
-        ), 400
-
-    # Single call: completes + builds + emails (email from form takes precedence)
-    result = handle_exit_actions(user_id=user_id, subject_slug="loss", run_id=run_id, email=email)
-    artifact_url = result.get("artifact_url") or url_for(
-        "loss_bp.report_pdf", run_id=run_id, user_id=user_id, _external=True
-    )
-
-    # Logout + clear
-    try: logout_user()
-    except Exception: pass
-    try: session.clear()
-    except Exception: pass
-
-    # Close tab; fallback link
-    # Close tab; fallback link
-    try:
-        welcome_url = url_for("public_bp.welcome", _external=True)
-    except Exception:
-        welcome_url = (request.url_root or "/").rstrip("/")
-
-
-    return f"""<!doctype html>
-<html>
-  <head><meta charset="utf-8"><title>Finishing…</title></head>
-  <body>
-    <script>
-      (function() {{
-        try {{ window.open({artifact_url!r}, "_blank"); }} catch(e) {{}}
-        setTimeout(function() {{
-          try {{ window.close(); }} catch(e) {{}}
-          setTimeout(function() {{
-            try {{ window.location.replace({welcome_url!r}); }} catch(e) {{}}
-          }}, 400);
-        }}, 400);
-      }})();
-    </script>
-    <noscript>
-      <p>Report ready — <a href="{artifact_url}" target="_blank" rel="noopener">Open</a>. You may now close this tab.</p>
-      <p><a href="{welcome_url}">Return to welcome</a></p>
-    </noscript>
-  </body>
-</html>
-""", 200, {"Content-Type": "text/html; charset=utf-8"}
-
-
-@loss_bp.get("/report/exit", endpoint="report_exit")
-@login_required
-def report_exit():
-    run_id  = request.args.get("run_id", type=int)
-    user_id = request.args.get("user_id", type=int)
-    default_email = (session.get("email") or "").strip().lower()
-
-    return render_template(
-        "subject/loss/report_exit.html",
-        run_id=run_id,
-        user_id=user_id,
-        default_email=default_email,
-        error=None,
-    )
-'''
-
-
 def _get_run_user_email(run_id: int | None, user_id: int | None) -> str | None:
     try:
         try:
@@ -1116,7 +897,6 @@ def _get_run_user_email(run_id: int | None, user_id: int | None) -> str | None:
     except Exception:
         pass
     return None
-
 
 def _close_loss_enrollment(user_id: int | None) -> None:
     """
@@ -1172,8 +952,6 @@ def _close_loss_enrollment(user_id: int | None) -> None:
     except Exception:
         db.session.rollback()  # don't block the finish flow if this fails
 
-
-
 def _build_pdf_bytes(run_id: int, user_id: int) -> bytes | None:
     try:
         pdf_url = url_for("loss_bp.report_pdf", run_id=run_id, user_id=user_id, auto_print=0)
@@ -1187,14 +965,6 @@ def _build_pdf_bytes(run_id: int, user_id: int) -> bytes | None:
         current_app.logger.error("PDF build failed for run_id=%s user_id=%s\n%s",
                                  run_id, user_id, traceback.format_exc())
         return None
-
-
-
-
-# ---------------------------
-# Utilities
-# ---------------------------
-
 
 def _endpoint_exists(name: str) -> bool:
     return name in current_app.view_functions
@@ -1265,12 +1035,6 @@ def _send_loss_report_email_async(to_email: str, run_id: int, user_id: int, pdf_
 
     Thread(target=_task, daemon=True).start()
 
-# ---------------------------
-# Finish flow
-# ---------------------------
-
-
-
 def _send_loss_report_email_async(to_email: str, run_id: int, user_id: int, pdf_url: str) -> None:
     """Fire-and-forget email send, with a proper Flask app context inside the thread."""
     # Capture the real app object while we're still in request/app context
@@ -1302,10 +1066,6 @@ def _send_loss_report_email_async(to_email: str, run_id: int, user_id: int, pdf_
 
     Thread(target=_task, daemon=True).start()
 
-
-
-
-
 def _send_loss_report_email_async(to_email: str, run_id: int, user_id: int, pdf_url: str, learner_name: str | None = None) -> None:
     """Background email with proper Flask app context so nothing crashes."""
     app = current_app._get_current_object()
@@ -1318,8 +1078,6 @@ def _send_loss_report_email_async(to_email: str, run_id: int, user_id: int, pdf_
                 app.logger.exception("loss email async send failed: %s", e)
 
     Thread(target=_task, daemon=True).start()
-
-
 
 def _complete_loss_enrollment_sql(user_id: int) -> None:
     """Mark the user's LOSS enrollment as completed in user_enrollment (safe + idempotent)."""
@@ -1512,14 +1270,10 @@ def compute_loss_result(run_id: int):
     #   return {"yes_count": yes_count, "profile": profile, ...}
     return {}
 
-
-
-
 def compute_lca_result(run_id: int):
     answers = LcaResponse.query.filter_by(run_id=run_id).all()
     # TODO: your scoring logic
     return {}
-
 
 @loss_bp.route("/assessment_result")
 @login_required
@@ -1906,7 +1660,6 @@ def email_report():  # endpoint: loss_bp.email_report
     # Back to exit page (admin/manual flow)
     return redirect(url_for("loss_bp.report_exit", run_id=run_id, user_id=user_id))
 
-
 @loss_bp.post("/report/finish", endpoint="finish_report")
 @login_required
 def finish_report():
@@ -1952,7 +1705,6 @@ def finish_report():
     flash("Your Loss report has been emailed to you. Thank you for using LOLO.", "success")
     return redirect(url_for("public_bp.welcome"))
 
-
 @loss_bp.get("/report/exit", endpoint="report_exit")
 @login_required
 def report_exit():
@@ -1966,4 +1718,78 @@ def report_exit():
         user_id=user_id,
         default_email=default_email,
         error=None,
+    )
+
+from flask_login import login_required, current_user
+
+@loss_bp.route("/report.pdf")
+@login_required
+def report_pdf():
+    from sqlalchemy import text
+    from io import BytesIO
+
+    rid = _get_int_arg("run_id")
+    if not rid:
+        return ("Missing run_id", 400)
+
+    # enforce: a user can only fetch THEIR OWN pdf
+    uid = _get_int_arg("user_id", required=False) or getattr(current_user, "id", None)
+    if not uid:
+        return ("Missing user_id", 400)
+
+    if int(uid) != int(getattr(current_user, "id", 0)):
+        return ("Forbidden", 403)
+
+    ctx = build_learner_report_ctx(rid, uid) or {}
+
+    if not ctx.get("user"):
+        row = db.session.execute(
+            text('SELECT COALESCE(name, "") AS full_name, email FROM "user" WHERE id = :id LIMIT 1'),
+            {"id": int(uid)},
+        ).mappings().first()
+        if row:
+            ctx["user"] = {"full_name": row["full_name"], "email": row["email"]}
+
+    ctx["pdf_mode"] = True
+
+    try:
+        from app.utils.branding import get_logo_data_uri
+        ctx["logo_data_uri"] = get_logo_data_uri()
+    except Exception:
+        current_app.logger.exception("Failed to load logo_data_uri")
+        ctx["logo_data_uri"] = None
+
+    L = _loss_result_percents(rid, uid) or {}
+    scores = [
+        int(L.get("P1") or L.get("phase_1") or 0),
+        int(L.get("P2") or L.get("phase_2") or 0),
+        int(L.get("P3") or L.get("phase_3") or 0),
+        int(L.get("P4") or L.get("phase_4") or 0),
+    ]
+    ctx["loss_result_percents"] = {"P1": scores[0], "P2": scores[1], "P3": scores[2], "P4": scores[3]}
+
+    try:
+        data_uri, _ = phase_scores_bar(scores)   # don't keep png bytes around
+        ctx["phase_scores_chart_src"] = data_uri
+    except Exception:
+        current_app.logger.exception("phase_scores_bar failed")
+        ctx["phase_scores_chart_src"] = None
+
+    html = render_template("subject/loss/report_pdf.html", **ctx)
+
+    out = BytesIO()
+    try:
+        from weasyprint import HTML
+        HTML(string=html, base_url=request.host_url).write_pdf(target=out)
+    except Exception:
+        from xhtml2pdf import pisa
+        pisa.CreatePDF(html, dest=out, encoding="UTF-8")
+
+    out.seek(0)
+    return send_file(
+        out,
+        mimetype="application/pdf",
+        as_attachment=True,
+        download_name=f"loss-result-run-{rid}.pdf",
+        max_age=0,
     )

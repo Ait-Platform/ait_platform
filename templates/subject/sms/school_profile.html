@@ -1,0 +1,128 @@
+{% extends "layout.html" %}
+{% block title %}School Profile · SMS{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-2xl mt-8 bg-white shadow rounded-lg p-6">
+  <h1 class="text-lg font-semibold text-slate-900 mb-4">School profile</h1>
+    <p class="text-xs text-slate-500 mb-4">
+        <a href="{{ url_for('sms_bp.subject_home') }}" class="text-indigo-600 hover:underline">
+            ← Back to SMS dashboard
+        </a>
+    </p>
+
+  <form method="post" enctype="multipart/form-data" class="space-y-4">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <!-- Basic details -->
+    <div>
+      <label class="block text-sm font-medium text-slate-700">School name</label>
+      <input type="text" name="name"
+             value="{{ school.name or '' }}"
+             class="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm" required>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <label class="block text-sm font-medium text-slate-700">EMIS number</label>
+        <input type="text" name="emis_no"
+               value="{{ school.emis_no or '' }}"
+               class="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-slate-700">Phase</label>
+        <input type="text" name="phase"
+               value="{{ school.phase or '' }}"
+               class="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+               placeholder="Primary / Secondary / Combined">
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <label class="block text-sm font-medium text-slate-700">Quintile</label>
+        <input type="text" name="quintile"
+               value="{{ school.quintile or '' }}"
+               class="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+               placeholder="Q1–Q5 / No-fee">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-slate-700">Approx. learners</label>
+        <input type="number" name="learners"
+               value="{{ school.learners or '' }}"
+               class="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+               min="0">
+      </div>
+    </div>
+
+    <hr class="my-4">
+
+    <!-- Uploads -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div>
+        <label class="block text-sm font-medium text-slate-700">Logo (PNG/JPG)</label>
+        <input type="file" name="logo_file"
+               accept=".png,.jpg,.jpeg"
+               class="mt-1 block w-full text-sm">
+        {% if school.logo_path %}
+          <p class="mt-2 text-xs text-slate-500">
+            Stored: {{ school.logo_path }}
+          </p>
+        {% endif %}
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-slate-700">Letterhead (PNG/JPG/PDF)</label>
+        <input type="file" name="letterhead_file"
+               accept=".png,.jpg,.jpeg,.pdf"
+               class="mt-1 block w-full text-sm">
+        {% if school.letterhead_path %}
+          <p class="mt-2 text-xs text-slate-500">
+            Stored: {{ school.letterhead_path }}
+          </p>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Branding preview -->
+    {% if school.logo_path or school.letterhead_path %}
+      <div class="mt-6 border-t pt-4">
+        <h2 class="text-sm font-semibold text-slate-800 mb-3">Current branding</h2>
+
+        {% if school.logo_path %}
+          <div class="mb-4">
+            <p class="text-xs text-slate-500 mb-1">Logo preview</p>
+            <img src="{{ url_for('sms_bp.school_media',
+                                 filename=school.logo_path.replace('school_media/', '')) }}"
+                 style="max-height:80px; border:1px solid #e2e8f0; padding:4px; background:white;">
+          </div>
+        {% endif %}
+
+        {% if school.letterhead_path %}
+          <div>
+            <p class="text-xs text-slate-500 mb-1">Letterhead</p>
+            {% if school.letterhead_path.endswith('.pdf') %}
+              <a href="{{ url_for('sms_bp.school_media',
+                                  filename=school.letterhead_path.replace('school_media/', '')) }}"
+                 target="_blank"
+                 class="text-indigo-600 text-sm hover:underline">
+                Open letterhead PDF
+              </a>
+            {% else %}
+              <img src="{{ url_for('sms_bp.school_media',
+                                   filename=school.letterhead_path.replace('school_media/', '')) }}"
+                   style="max-width:100%; max-height:200px; border:1px solid #e2e8f0;">
+            {% endif %}
+          </div>
+        {% endif %}
+      </div>
+    {% endif %}
+
+    <div class="mt-6 flex justify-end">
+      <button type="submit"
+              class="inline-flex items-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
+        Save profile
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}

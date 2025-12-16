@@ -1,0 +1,91 @@
+{% extends "layout.html" %}
+{% block title %}Learners · SMS{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-5xl py-8">
+
+  <div class="mb-6">
+    <p class="text-sm text-slate-500">
+      School Management System · Learners
+    </p>
+    <h1 class="mt-1 text-2xl font-semibold text-slate-900">
+      Learners
+    </h1>
+    <p class="mt-1 text-sm text-slate-600">
+      Admissions, grades, progression and learner records.
+    </p>
+    <p class="mt-1 text-xs text-slate-500">
+      {{ school.short_code or "" }} · {{ school.name }}
+    </p>
+  </div>
+
+  <div class="mb-4 flex items-center justify-between">
+    <div class="text-sm text-slate-600">
+      Active learners listed by grade and class.
+    </div>
+    <a href="{{ url_for('sms_bp.learners_new') }}"
+       class="inline-flex items-center rounded-md px-3 py-1.5 text-xs font-medium
+              bg-emerald-600 text-white hover:bg-emerald-700
+              focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-1">
+      + Add learner
+    </a>
+  </div>
+
+  <div class="rounded-xl border border-slate-200 bg-white shadow-sm">
+    {% if learners %}
+      <table class="min-w-full text-sm">
+        <thead class="bg-slate-50 text-slate-600 text-xs uppercase tracking-wide">
+          <tr>
+            <th class="px-4 py-2 text-left">Name</th>
+            <th class="px-4 py-2 text-left">Grade</th>
+            <th class="px-4 py-2 text-left">Class</th>
+            <th class="px-4 py-2 text-left">Admission no.</th>
+            <th class="px-4 py-2 text-left">Admission date</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          {% for l in learners %}
+            <tr>
+              <td class="px-4 py-2 text-slate-800">
+                {{ l.last_name }}, {{ l.first_name }}
+              </td>
+              <td class="px-4 py-2 text-slate-700">
+                {{ l.grade }}
+              </td>
+              <td class="px-4 py-2 text-slate-700">
+                {{ l.class_code or "—" }}
+              </td>
+              <td class="px-4 py-2 text-slate-700">
+                {{ l.admission_no or "—" }}
+              </td>
+              <td class="px-4 py-2 text-slate-700">
+                {% if l.admission_date %}
+                  {{ l.admission_date.strftime("%Y-%m-%d") }}
+                {% else %}
+                  —
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <div class="px-4 py-6 text-sm text-slate-500">
+        No learners captured yet. Start by adding your first learner.
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="mt-8 flex items-center justify-between text-sm">
+    <a href="{{ url_for('sms_bp.subject_home') }}"
+       class="text-slate-600 hover:text-slate-900">
+      ← Back to SMS home
+    </a>
+    <a href="{{ url_for('auth_bp.learner_subject_dashboard', subject='sms') }}"
+       class="text-slate-600 hover:text-slate-900">
+      ← Back to program dashboard
+    </a>
+  </div>
+
+</div>
+{% endblock %}

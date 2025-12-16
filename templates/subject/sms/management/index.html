@@ -1,0 +1,102 @@
+{% extends "layout.html" %}
+{% block title %}Management · SMS{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-5xl py-8">
+
+  <div class="mb-6">
+    <p class="text-sm text-slate-500">
+      School Management System · Management
+    </p>
+    <h1 class="mt-1 text-2xl font-semibold text-slate-900">
+      Management tasks
+    </h1>
+    <p class="mt-1 text-sm text-slate-600">
+      SMT actions, deadlines and follow-ups for {{ school.short_code or school.name }}.
+    </p>
+  </div>
+
+  <div class="mb-4 flex items-center justify-between">
+    <div class="text-sm text-slate-600">
+      Open and completed management tasks.
+    </div>
+    <a href="{{ url_for('sms_bp.management_task_new') }}"
+       class="inline-flex items-center rounded-md px-3 py-1.5 text-xs font-medium
+              bg-indigo-600 text-white hover:bg-indigo-700
+              focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1">
+      + Add task
+    </a>
+  </div>
+
+  <div class="rounded-xl border border-slate-200 bg-white shadow-sm">
+    {% if tasks %}
+      <table class="min-w-full text-sm">
+        <thead class="bg-slate-50 text-slate-600 text-xs uppercase tracking-wide">
+          <tr>
+            <th class="px-4 py-2 text-left">Task</th>
+            <th class="px-4 py-2 text-left">Owner</th>
+            <th class="px-4 py-2 text-left">Due date</th>
+            <th class="px-4 py-2 text-left">Status</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          {% for t in tasks %}
+            <tr>
+              <td class="px-4 py-2 text-slate-800">
+                {{ t.title }}
+                {% if t.notes %}
+                  <div class="mt-0.5 text-xs text-slate-500">
+                    {{ t.notes[:90] }}{% if t.notes|length > 90 %}…{% endif %}
+                  </div>
+                {% endif %}
+              </td>
+              <td class="px-4 py-2 text-slate-700">
+                {{ t.owner_name or "—" }}
+              </td>
+              <td class="px-4 py-2 text-slate-700">
+                {% if t.due_date %}
+                  {{ t.due_date.strftime("%Y-%m-%d") }}
+                {% else %}
+                  —
+                {% endif %}
+              </td>
+              <td class="px-4 py-2">
+                {% set s = (t.status or "open")|lower %}
+                {% if s == "done" %}
+                  <span class="text-[11px] rounded-full bg-emerald-50 px-2 py-0.5 text-emerald-700 border border-emerald-200">
+                    Done
+                  </span>
+                {% elif s == "in_progress" %}
+                  <span class="text-[11px] rounded-full bg-amber-50 px-2 py-0.5 text-amber-700 border border-amber-200">
+                    In progress
+                  </span>
+                {% else %}
+                  <span class="text-[11px] rounded-full bg-slate-100 px-2 py-0.5 text-slate-700 border border-slate-200">
+                    Open
+                  </span>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <div class="px-4 py-6 text-sm text-slate-500">
+        No management tasks captured yet. Add your first SMT action item.
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="mt-8 flex items-center justify-between text-sm">
+    <a href="{{ url_for('sms_bp.subject_home') }}"
+       class="text-slate-600 hover:text-slate-900">
+      ← Back to SMS home
+    </a>
+    <a href="{{ url_for('auth_bp.learner_subject_dashboard', subject='sms') }}"
+       class="text-slate-600 hover:text-slate-900">
+      ← Back to program dashboard
+    </a>
+  </div>
+
+</div>
+{% endblock %}

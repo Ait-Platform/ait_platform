@@ -1,0 +1,25 @@
+{% extends "layout.html" %}
+{% block title %}No access · SMS{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-xl py-10">
+
+  <div class="bg-white rounded-lg shadow border border-slate-100 p-6">
+    <h1 class="text-lg font-semibold text-slate-900">No assigned role yet</h1>
+    <p class="mt-2 text-sm text-slate-600">
+      Your email does not have an active role for any school.
+      Please ask your principal to grant you access in SMS Setup.
+    </p>
+
+    <div class="mt-6 flex items-center justify-between text-sm">
+      <a href="{{ url_for('sms_bp.about') }}" class="text-slate-500 hover:text-slate-700">
+        ← Back to SMS overview
+      </a>
+      <a href="{{ url_for('auth_bp.logout') }}" class="text-slate-500 hover:text-slate-700">
+        Sign out
+      </a>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

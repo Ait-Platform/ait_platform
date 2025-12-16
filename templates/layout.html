@@ -72,21 +72,24 @@
     {# Flash messages (inline basic renderer; replace with your partial if you prefer) #}
     
     {# layout.html #}
-    {% with msgs = get_flashed_messages(with_categories=true) %}
-      {% if msgs %}
-        <div class="mx-auto max-w-4xl mt-4 space-y-2">
-          {% for cat, msg in msgs %}
-            <div class="rounded-md border px-3 py-2 text-sm
-                        {% if cat == 'success' %}border-emerald-300 bg-emerald-50 text-emerald-800
-                        {% elif cat == 'warning' %}border-amber-300 bg-amber-50 text-amber-800
-                        {% elif cat == 'danger' %}border-rose-300 bg-rose-50 text-rose-800
-                        {% else %}border-slate-200 bg-slate-50 text-slate-700{% endif %}">
-              {{ msg }}
-            </div>
-          {% endfor %}
-        </div>
-      {% endif %}
-    {% endwith %}
+    {# layout.html #}
+    {% block flashes %}
+      {% with msgs = get_flashed_messages(with_categories=true) %}
+        {% if msgs %}
+          <div class="mx-auto max-w-4xl mt-4 space-y-2">
+            {% for cat, msg in msgs %}
+              <div class="rounded-md border px-3 py-2 text-sm
+                          {% if cat == 'success' %}border-emerald-300 bg-emerald-50 text-emerald-800
+                          {% elif cat == 'warning' %}border-amber-300 bg-amber-50 text-amber-800
+                          {% elif cat == 'danger' %}border-rose-300 bg-rose-50 text-rose-800
+                          {% else %}border-slate-200 bg-slate-50 text-slate-700{% endif %}">
+                {{ msg }}
+              </div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+    {% endblock %}
 
 
     <!-- Main content -->

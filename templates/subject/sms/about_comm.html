@@ -1,24 +1,18 @@
 {% extends "layout.html" %}
-{% block title %}School Management System · AIT{% endblock %}
+{% block title %}School Management System · Communication · AIT{% endblock %}
 
 {% block content %}
 <div class="mx-auto max-w-4xl py-10">
 
   <div class="flex items-center justify-between mb-6">
-    <div>
-      <h1 class="text-2xl md:text-3xl font-semibold text-slate-900">
-        School Management System (SMS)
-      </h1>
-      <p class="mt-2 text-sm md:text-base text-slate-600">
-        A complete school ERP for South African schools, covering governance, operations,
-        teaching, learning, compliance, finance and communication.
-      </p>
-    </div>
-
-    <a href="{{ url_for('public_bp.welcome') }}"
-       class="hidden md:inline-flex text-sm text-slate-500 hover:text-slate-700">
-      ← Back to Programs
+    <a href="{{ url_for('sms_bp.about_details') }}"
+       class="inline-flex items-center rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50">
+      ← Back
     </a>
+
+    <div class="text-sm text-slate-500">
+      School Management System · Page 3 of 3
+    </div>
   </div>
 
   <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -37,19 +31,13 @@
   <div class="mt-8 flex items-center justify-between">
     <a href="{{ url_for('sms_bp.about_details') }}"
        class="inline-flex items-center rounded-md border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">
-      More details →
+      ← Back to previous
     </a>
 
     <a href="{{ url_for('sms_bp.start_sms') }}"
        class="inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
       Start Program →
     </a>
-
-
-    <a href="{{ url_for('sms_bp.assigned_role') }}" class="btn btn-outline">
-      Assigned role
-    </a>
-
   </div>
 
 </div>

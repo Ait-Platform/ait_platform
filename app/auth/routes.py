@@ -16,6 +16,7 @@ from app.extensions import db, csrf
 from werkzeug.security import check_password_hash
 from flask_login import login_user, logout_user, login_required, current_user
 from app.models import subject
+from app.models.sms import SmsApprovedUser
 from app.payments.pricing import price_cents_for, price_for_country, subject_id_for
 from app.services import enrollment
 from app.services.enrollment import _ensure_enrollment_row
@@ -59,6 +60,11 @@ from app.services.users import _ensure_or_create_user_from_session
 from sqlalchemy.exc import IntegrityError
 from werkzeug.security import generate_password_hash
 import os
+from app.auth.pricing_helpers import (
+    mark_loss_enrollment_free,
+    get_sms_base_price_cents,
+)
+
 
 auth_bp = Blueprint('auth_bp', __name__, url_prefix='/', template_folder='templates')
 
@@ -294,23 +300,7 @@ def register_decision():
 
     # ---------- SPECIAL CASE: LOSS IS FREE (AD CAMPAIGN) ----------
     if subject == "loss" and current_app.config.get("LOSS_FREE"):
-        # Optional: mark a zero-price quote so data stays consistent
-        db.session.execute(
-            db.text(
-                """
-                UPDATE user_enrollment
-                   SET country_code        = COALESCE(country_code, 'ZA'),
-                       quoted_currency     = COALESCE(quoted_currency, 'ZAR'),
-                       quoted_amount_cents = COALESCE(quoted_amount_cents, 0),
-                       price_version       = COALESCE(price_version, '2025-11'),
-                       price_locked_at     = COALESCE(price_locked_at, CURRENT_TIMESTAMP),
-                       status              = COALESCE(status, 'active')
-                 WHERE id = :eid
-                """
-            ),
-            {"eid": enrollment_id},
-        )
-        db.session.commit()
+        mark_loss_enrollment_free(enrollment_id)
 
         # Clean up session noise
         session.pop("reg_ctx", None)
@@ -320,8 +310,18 @@ def register_decision():
         return redirect(url_for("auth_bp.bridge_dashboard"))
     # ---------- END LOSS-FREE SPECIAL CASE ----------
 
-    # 3) Normal paid flow: keep your existing pricing + PayFast logic here
+    # ---------- SPECIAL CASE: SMS FLAT ZAR PRICE ----------
+    if subject == "sms":
+        amount_cents = get_sms_base_price_cents()
+        ctx["quote"] = {
+            "country_code": "ZA",
+            "currency": "ZAR",
+            "amount_cents": amount_cents,
+            "version": "2025-12-sms",
+        }
+    # ---------- END SMS SPECIAL CASE ----------
 
+    # 3) Normal paid flow: keep your existing pricing + PayFast logic here
     q = ctx.get("quote")
 
     if not q:
@@ -348,7 +348,10 @@ def register_decision():
             }
 
     if not q or not int(q.get("amount_cents") or 0):
-        flash("Pricing is not configured for this course yet. Please contact us.", "danger")
+        flash(
+            "Pricing is not configured for this course yet. Please contact us.",
+            "danger",
+        )
         return redirect(url_for("public_bp.welcome"))
 
     db.session.execute(
@@ -402,7 +405,8 @@ def register_decision():
 
     return redirect(
         url_for(
-            "payfast_bp.handoff",
+            "yoco_bp.yoco_start",
+            
             email=user_email,
             subject=subject,
             debug=0,
@@ -720,6 +724,11 @@ def bridge_dashboard():
             session["email"] = email
     if not email:
         return redirect(url_for("auth_bp.login"))
+    
+    # ✅ SMS sieve at BRIDGE level: if this email has an active SMS role, skip Bridge
+    sms_ok = SmsApprovedUser.query.filter_by(email=email, active=True).first()
+    if sms_ok:
+        return redirect(url_for("sms_bp.sms_entry"))
 
     # If we didn't get user_obj above, resolve it by email
     if user_obj is None:
@@ -797,11 +806,18 @@ def learner_subject_dashboard(subject):
 
     slug = row["slug"].lower()
 
-    # 🔧 Minimal fix: loss → /loss/subject/home
+    # ✅ For SMS: skip this generic subject dashboard and go straight to SMS home
+    # ✅ For SMS: route through the SMS sieve (roles/approvals) first
+    # FIX
+    if slug == "sms":
+        return redirect(url_for("sms_bp.sms_entry"))
+
+
+
+    # (optional: keep or remove the old sms branch below, it's now unreachable)
     if slug == "loss":
         start_url = url_for("loss_bp.subject_home")
     else:
-        # leave other subjects as they were
         try:
             start_url = url_for(f"{slug}_bp.subject_home")
         except BuildError:

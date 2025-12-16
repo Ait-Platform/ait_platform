@@ -1,0 +1,234 @@
+{% extends "layout.html" %}
+{% block title %}School Management System · Overview · AIT{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-4xl py-10">
+
+  <!-- Header -->
+  <div class="mb-4">
+    <div class="flex items-center justify-between gap-3">
+      <h1 class="text-2xl md:text-3xl font-semibold text-slate-900">
+        School Management System
+      </h1>
+
+      <span class="inline-flex items-center rounded-full border border-slate-200 px-3 py-1 text-xs font-medium text-slate-600">
+        SMS · Overview
+      </span>
+    </div>
+
+    {% if school %}
+      <p class="mt-2 text-sm md:text-base text-slate-600">
+        {{ school.name }} · {{ school.phase or "School" }}
+      </p>
+    {% else %}
+      <p class="mt-2 text-sm md:text-base text-slate-600">
+        School details not set yet. Use <span class="font-semibold">Edit school</span> to add your information.
+      </p>
+    {% endif %}
+  </div>
+
+  {% if school %}
+    <div class="mb-5 flex items-center gap-3">
+      {% if school.logo_path %}
+        <img src="{{ url_for('sms_bp.school_media',
+                            filename=school.logo_path.replace('school_media/', '')) }}"
+             alt="{{ school.name }} logo"
+             class="h-10 w-auto rounded border border-slate-200 bg-white p-1">
+      {% endif %}
+      <div>
+        <div class="text-sm font-semibold text-slate-900">
+          {{ school.name }}
+        </div>
+        <div class="text-xs text-slate-500">
+          EMIS {{ school.emis_no or '—' }} · Phase {{ school.phase or '—' }} · Q{{ school.quintile or '–' }}
+        </div>
+      </div>
+    </div>
+  {% endif %}
+
+  <!-- TOP NAV BAR -->
+  <nav class="mb-6 border-b border-slate-200 pb-2 flex flex-wrap gap-2 text-sm">
+
+    <a href="{{ url_for('sms_bp.governance_home') }}"
+       class="px-3 py-1.5 rounded-md text-slate-700 hover:bg-slate-100">
+      Governance
+    </a>
+
+    <a href="{{ url_for('sms_bp.learners_home') }}"
+       class="px-3 py-1.5 rounded-md text-slate-700 hover:bg-slate-100">
+      Learners
+    </a>
+
+    <a href="{{ url_for('sms_bp.teachers_home') }}"
+       class="px-3 py-1.5 rounded-md text-slate-700 hover:bg-slate-100">
+      Teachers
+    </a>
+
+    <a href="{{ url_for('sms_bp.finance_home') }}"
+       class="px-3 py-1.5 rounded-md text-slate-700 hover:bg-slate-100">
+      Finance &amp; Assets
+    </a>
+
+    <a href="{{ url_for('sms_bp.management_home') }}"
+       class="px-3 py-1.5 rounded-md text-slate-700 hover:bg-slate-100">
+      Management
+    </a>
+
+    <a href="{{ url_for('sms_bp.documentation_home') }}"
+       class="px-3 py-1.5 rounded-md text-slate-700 hover:bg-slate-100">
+      Documentation
+    </a>
+
+    <a href="{{ url_for('sms_bp.year_progress_home') }}"
+       class="px-3 py-1.5 rounded-md text-slate-700 hover:bg-slate-100">
+      Year progression
+    </a>
+
+    <a href="{{ url_for('sms_bp.compliance_home') }}"
+       class="px-3 py-1.5 rounded-md text-slate-700 hover:bg-slate-100">
+      Compliance &amp; comms
+    </a>
+
+    <a href="{{ url_for('sms_bp.school_profile') }}"
+       class="px-3 py-1.5 rounded-md text-slate-700 hover:bg-slate-100 font-semibold">
+      Edit school
+    </a>
+
+    {% if school and school.user_id == current_user.id %}
+      <a href="{{ url_for('sms_bp.setup_dashboard') }}"
+        class="px-3 py-1.5 rounded-md text-slate-700 hover:bg-slate-100">
+        Setup
+      </a>
+
+    {% endif %}
+
+    <!-- Overview = current tab -->
+    <span class="px-3 py-1.5 rounded-md bg-slate-900 text-white font-medium"
+          aria-current="page">
+      Overview
+    </span>
+  </nav>
+
+  <!-- OVERVIEW = STATIC HELP TEXT, NO BUTTONS -->
+  <div class="space-y-6 text-sm md:text-base text-slate-700">
+
+    <p>
+      This page gives a high-level view of the School Management System.
+      Use the menu above to open the tools for your school.
+    </p>
+
+    <section>
+      <h2 class="text-base md:text-lg font-semibold text-slate-900">Governance</h2>
+      <p class="mt-1">
+        Keep your SGB records organised:
+      </p>
+      <ul class="mt-1 list-disc list-inside text-slate-600">
+        <li>SGB membership (chairperson, principal, treasurer, etc.).</li>
+        <li>Formal meetings with agendas and minutes.</li>
+        <li>Approval status (draft vs approved).</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2 class="text-base md:text-lg font-semibold text-slate-900">Learners</h2>
+      <p class="mt-1">
+        Track who is in your school:
+      </p>
+      <ul class="mt-1 list-disc list-inside text-slate-600">
+        <li>Admissions and basic learner details.</li>
+        <li>Class and grade placement.</li>
+        <li>Flags for support, interventions, or special notes.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2 class="text-base md:text-lg font-semibold text-slate-900">Teachers</h2>
+      <p class="mt-1">
+        Keep staff information in one place:
+      </p>
+      <ul class="mt-1 list-disc list-inside text-slate-600">
+        <li>Teacher list with roles and posts.</li>
+        <li>Phase and subject allocations.</li>
+        <li>Links to classes and timetables (future).</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2 class="text-base md:text-lg font-semibold text-slate-900">Finance &amp; Assets</h2>
+      <p class="mt-1">
+        Preview the billing and asset tools:
+      </p>
+      <ul class="mt-1 list-disc list-inside text-slate-600">
+        <li>Term fees per grade and simple arrears tracking.</li>
+        <li>Receipt history and finance exports (future).</li>
+        <li>Textbook and equipment inventories.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2 class="text-base md:text-lg font-semibold text-slate-900">Management</h2>
+      <p class="mt-1">
+        Support SMT and school-wide management:
+      </p>
+      <ul class="mt-1 list-disc list-inside text-slate-600">
+        <li>SMT meetings and key decisions.</li>
+        <li>Duty rosters and school-wide tasks (future).</li>
+        <li>Term planning support.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2 class="text-base md:text-lg font-semibold text-slate-900">Documentation</h2>
+      <p class="mt-1">
+        Keep key school documents together:
+      </p>
+      <ul class="mt-1 list-disc list-inside text-slate-600">
+        <li>Admission and attendance registers.</li>
+        <li>Policy library (PDFs or links).</li>
+        <li>Quick reports for monitoring and audits.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2 class="text-base md:text-lg font-semibold text-slate-900">Year progression</h2>
+      <p class="mt-1">
+        Plan who moves, repeats, or needs support:
+      </p>
+      <ul class="mt-1 list-disc list-inside text-slate-600">
+        <li>Per-grade promotion lists (future).</li>
+        <li>Summary counts per class and phase.</li>
+        <li>Flags for learners needing extra support.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2 class="text-base md:text-lg font-semibold text-slate-900">Compliance &amp; communication</h2>
+      <p class="mt-1">
+        Future tools to support DBE reporting and school–home communication:
+      </p>
+      <ul class="mt-1 list-disc list-inside text-slate-600">
+        <li>Checklists for key DBE submissions.</li>
+        <li>Simple incident and risk logs.</li>
+        <li>Templates for notices, letters, and bulk messages.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2 class="text-base md:text-lg font-semibold text-slate-900">Edit school</h2>
+      <p class="mt-1 text-slate-600">
+        Use the <span class="font-semibold">Edit school</span> item in the menu above
+        to update your school name, phase, and basic details. These settings apply across all SMS tools.
+      </p>
+    </section>
+  </div>
+
+  <!-- Bottom link -->
+  <div class="mt-8 flex items-center justify-between text-sm">
+    <a href="{{ url_for('auth_bp.bridge_dashboard') }}"
+       class="text-slate-500 hover:text-slate-700">
+      ← Back to dashboard
+    </a>
+  </div>
+
+</div>
+{% endblock %}

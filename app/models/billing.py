@@ -12,7 +12,8 @@ from wtforms import StringField, SelectField, SubmitField
 from wtforms.validators import DataRequired
 from dateutil.relativedelta import relativedelta
 from sqlalchemy.orm import validates, relationship
-
+from sqlalchemy.orm import synonym
+from app.extensions import db  # adjust import
 
 
 
@@ -32,66 +33,7 @@ class BilProperty(db.Model):
     )
 
     manager = db.relationship('User', backref='managed_properties')
-'''
-class BilSectionalUnit(db.Model):
-    __tablename__ = 'bil_sectional_unit'
-    __table_args__ = {'extend_existing': True}
 
-    id = db.Column(db.Integer, primary_key=True)
-    unit_number = db.Column(db.String(50), nullable=False)
-    property_id = db.Column(db.Integer, db.ForeignKey('bil_property.id'), nullable=False)
-
-    # 🧭 Reverse relationship
-    meters = db.relationship('BilMeter', back_populates='sectional_unit')
-
-    def __repr__(self):
-        return f'<BilSectionalUnit {self.unit_number}>'
-
-class BilTenant(db.Model):
-    __tablename__ = 'bil_tenant'
-    __table_args__ = {'extend_existing': True}
-
-    id = db.Column(db.Integer, primary_key=True)
-
-    # 🔗 Link to the sectional unit this tenant occupies
-    sectional_unit_id = db.Column(
-        db.Integer,
-        db.ForeignKey('bil_sectional_unit.id'),
-        nullable=False
-    )
-
-    # 🧾 Tenant details
-    name = db.Column(db.String(100), nullable=False)
-    unit_label = db.Column(db.String(50))
-    rent_amount = db.Column(db.Float)
-
-    # 📅 Lease info
-    start_date = db.Column(db.Date, default=date.today)
-    lease_duration_months = db.Column(db.Integer, default=12)  # e.g., 12-month lease
-    end_date = db.Column(db.Date)  # Can be auto-set from start_date + duration
-    reminder_date = db.Column(db.Date)  # Optional — 3 months before end_date
-
-    # 👤 Link to the user account for login
-    user_id = db.Column(
-        db.Integer,
-        db.ForeignKey('user.id'),
-        nullable=False
-    )
-
-    # ↔️ Relationships
-    sectional_unit = db.relationship('BilSectionalUnit', backref='tenants')
-    user = db.relationship('User', backref='tenant_profile')
-
-    def __repr__(self):
-        label = self.unit_label or self.name
-        return f"<BilTenant {label}>"
-
-    # 🔹 Auto-set end_date & reminder_date when saving
-    def set_lease_dates(self):
-        if self.start_date and self.lease_duration_months:
-            self.end_date = self.start_date + relativedelta(months=self.lease_duration_months)
-            self.reminder_date = self.end_date - relativedelta(months=3)
-'''
 class BilMeter(db.Model):
     __tablename__ = 'bil_meter'
     __table_args__ = {'extend_existing': True}
@@ -181,8 +123,7 @@ class BilConsumption(db.Model):
     consumption = Column(Float, nullable=False)
     month = db.Column(db.String)  # 🔧 Add this line to match the table
     meter = relationship('BilMeter')
-''''''
-# 🏗️ Property Onboarding Form
+
 class PropertyForm(FlaskForm):
     name = StringField("Property Name", validators=[DataRequired()])
     location = StringField("Location", validators=[DataRequired()])
@@ -192,19 +133,6 @@ class PropertyForm(FlaskForm):
         ("mixed_use", "Mixed-Use")
     ])
     submit = SubmitField("Add Property")   
-
-# models/lease.py
-
-
-
-# or from sqlalchemy.orm import relationship
-# but here we'll keep db.relationship for consistency
-
-# models.py (or wherever BilLease is defined)
-from sqlalchemy.orm import synonym
-from app.extensions import db  # adjust import
-
-
 
 class BilLease(db.Model):
     __tablename__ = "bil_lease"
@@ -233,11 +161,6 @@ class BilLease(db.Model):
     def __repr__(self):
         return f"<BilLease id={self.id} tenant_id={self.tenant_id} unit_id={self.sectional_unit_id}>"
 
-
-# models/sectional_unit.py
-
-
-# models/billing/sectional_unit.py
 class BilSectionalUnit(db.Model):
     __tablename__ = "bil_sectional_unit"
 
@@ -301,6 +224,16 @@ class BilTenant(db.Model):
     # If meters are attached to the UNIT (your current design), you’ll traverse via unit:
     # meters = association_proxy('unit', 'meters')  # only if you use association_proxy
 
+class BilStatement(db.Model):
+    __tablename__ = "bil_statement"
+
+    id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey("bil_tenant.id"), nullable=False)
+
+    # add your other columns here, e.g. period_start, period_end, total_due, etc.
+
+    tenant = db.relationship("BilTenant", back_populates="statements")
+
 __table_args__ = (
         CheckConstraint("rent_includes_metro IN (0, 1)", name="ck_tenant_rent_includes_metro"),
         # Optional: prevent empty string names
@@ -326,21 +259,6 @@ def _validate_email(self, key, value):
 @validates("phone")
 def _validate_phone(self, key, value):
         return value.strip() if value else value
-
-
-
-# models/billing/tenant.py  (unchanged)
-
-class BilStatement(db.Model):
-    __tablename__ = "bil_statement"
-
-    id = db.Column(db.Integer, primary_key=True)
-    tenant_id = db.Column(db.Integer, db.ForeignKey("bil_tenant.id"), nullable=False)
-
-    # add your other columns here, e.g. period_start, period_end, total_due, etc.
-
-    tenant = db.relationship("BilTenant", back_populates="statements")
-
 
 
 

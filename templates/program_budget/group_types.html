@@ -1,0 +1,73 @@
+{% extends "layout.html" %}
+{% block title %}BudgetCash · Group types{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-4xl mt-10 bg-white shadow rounded-lg p-6">
+
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="text-lg font-semibold text-slate-900">Group types</h1>
+      <div class="text-sm text-slate-500">Used to categorize accounts for reports.</div>
+    </div>
+
+    <a href="{{ url_for('budget_bp.dashboard') }}"
+       class="rounded border border-slate-300 px-3 py-1.5 hover:bg-slate-50 text-sm">
+      ← Back
+    </a>
+  </div>
+
+  <!-- Add group -->
+  <div class="mt-6 rounded border border-slate-200 p-4 bg-slate-50">
+    <div class="font-semibold text-slate-900">Add group type</div>
+
+    <form method="post" action="{{ url_for('budget_bp.group_types') }}" class="mt-3 flex flex-col md:flex-row gap-3">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+      <input name="label" maxlength="50" placeholder="e.g. Retail, Cards, Utilities"
+             class="w-full rounded border border-slate-300 px-3 py-2 text-sm" required>
+
+      <button class="rounded bg-sky-600 text-white px-4 py-2.5 text-sm font-medium hover:bg-sky-700">
+        Add
+      </button>
+    </form>
+  </div>
+
+  <!-- Existing -->
+  <div class="mt-6 rounded border border-slate-200 p-4">
+    <div class="font-semibold text-slate-900">Existing group types</div>
+
+    {% if groups %}
+      <div class="mt-3 overflow-x-auto">
+        <table class="min-w-full text-sm">
+          <thead class="text-slate-500 border-b">
+            <tr>
+              <th class="text-left py-2 pr-4 font-medium">Label</th>
+              <th class="text-right py-2 pl-4 font-medium">Action</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y">
+            {% for g in groups %}
+              <tr>
+                <td class="py-2 pr-4">{{ g.label }}</td>
+                <td class="py-2 pl-4 text-right">
+                  <form method="post" action="{{ url_for('budget_bp.group_type_delete') }}" class="inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="label" value="{{ g.label }}">
+                    <button class="text-rose-700 hover:underline text-sm"
+                            onclick="return confirm('Remove {{ g.label }}?');">
+                      Remove
+                    </button>
+                  </form>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="mt-3 text-sm text-slate-500">No group types yet.</div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

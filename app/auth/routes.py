@@ -812,7 +812,8 @@ def learner_subject_dashboard(subject):
     if slug == "sms":
         return redirect(url_for("sms_bp.sms_entry"))
 
-
+    if slug == "budget":
+        return redirect(url_for("budget_bp.dashboard"))
 
     # (optional: keep or remove the old sms branch below, it's now unreachable)
     if slug == "loss":

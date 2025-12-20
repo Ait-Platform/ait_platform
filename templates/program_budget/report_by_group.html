@@ -1,0 +1,116 @@
+{% extends "layout.html" %}
+{% block title %}BudgetCash · Report by group{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-5xl mt-10 bg-white shadow rounded-lg p-6">
+
+  <div class="flex items-start justify-between gap-4">
+    <div>
+      <h1 class="text-lg font-semibold text-slate-900">Report by group</h1>
+      <div class="text-sm text-slate-500">
+        Period: <span class="font-medium text-slate-700">{{ period }}</span>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-2">
+      <form method="get" class="flex items-center gap-2">
+        <input type="hidden" name="next" value="{{ next_url }}">
+
+        <label for="period" class="text-xs font-medium text-slate-600">Month</label>
+        <input id="period"
+               type="month"
+               name="period"
+               value="{{ period }}"
+               required
+               class="w-36 rounded border border-slate-300 px-3 py-2 text-sm">
+
+        <label for="view" class="text-xs font-medium text-slate-600 ml-2">View</label>
+        <select id="view" name="view" class="rounded border border-slate-300 px-3 py-2 text-sm">
+          <option value="kind:liability" {% if view == 'kind:liability' %}selected{% endif %}>All liabilities</option>
+          <option value="kind:asset" {% if view == 'kind:asset' %}selected{% endif %}>All assets</option>
+          <option value="kind:income" {% if view == 'kind:income' %}selected{% endif %}>All income</option>
+          <option value="kind:expense" {% if view == 'kind:expense' %}selected{% endif %}>All expenses</option>
+
+          {% if groups and groups|length %}
+            <option disabled>──────────</option>
+            {% for g in groups %}
+              {% set v = 'group:' ~ g.label %}
+              <option value="{{ v }}" {% if view == v %}selected{% endif %}>Group · {{ g.label }}</option>
+            {% endfor %}
+          {% endif %}
+        </select>
+
+        <button type="submit"
+                class="rounded bg-slate-900 text-white px-4 py-2 text-sm font-medium hover:bg-slate-800">
+          Go
+        </button>
+      </form>
+
+      <button type="button"
+              onclick="window.print()"
+              class="rounded border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50">
+        Print
+      </button>
+
+      <a href="{{ next_url }}"
+         class="rounded border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50">
+        ← Back
+      </a>
+    </div>
+  </div>
+
+  <div class="mt-6 rounded border border-slate-200">
+    <div class="px-4 py-3 border-b border-slate-200 bg-slate-50">
+      <div class="text-sm font-semibold text-slate-900">Accounts</div>
+      <div class="text-xs text-slate-500">
+        Paid is the sum of cashbook entries during {{ period }} ({{ start }} to {{ end }}).
+      </div>
+    </div>
+
+    {% if not rows %}
+      <div class="p-4 text-sm text-slate-600">No accounts found for this view.</div>
+    {% else %}
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="text-xs uppercase text-slate-500">
+            <tr class="border-b border-slate-200">
+              <th class="text-left font-medium px-4 py-3">Account</th>
+              <th class="text-right font-medium px-4 py-3">Arrears</th>
+              <th class="text-right font-medium px-4 py-3">Balance</th>
+              <th class="text-right font-medium px-4 py-3">Due</th>
+              <th class="text-right font-medium px-4 py-3">Paid (month)</th>
+              <th class="text-left font-medium px-4 py-3">As at</th>
+            </tr>
+          </thead>
+
+          <tbody class="divide-y divide-slate-100">
+            {% for r in rows %}
+              <tr>
+                <td class="px-4 py-2">
+                  <div class="font-medium text-slate-900">{{ r.name }}</div>
+
+                </td>
+                <td class="px-4 py-2 text-right tabular-nums">{{ '%.2f'|format((r.arrears_cents|int)/100) }}</td>
+                <td class="px-4 py-2 text-right tabular-nums">{{ '%.2f'|format((r.balance_cents|int)/100) }}</td>
+                <td class="px-4 py-2 text-right tabular-nums">{{ '%.2f'|format((r.due_cents|int)/100) }}</td>
+                <td class="px-4 py-2 text-right tabular-nums">{{ '%.2f'|format((r.paid_month_cents|int)/100) }}</td>
+                <td class="px-4 py-2 text-slate-700">{{ r.as_at or '—' }}</td>
+              </tr>
+            {% endfor %}
+
+            <tr class="bg-slate-50 border-t border-slate-200">
+              <td class="px-4 py-3 font-semibold text-slate-900">Totals</td>
+              <td class="px-4 py-3 text-right font-semibold tabular-nums">{{ '%.2f'|format((totals.arrears_cents|int)/100) }}</td>
+              <td class="px-4 py-3 text-right font-semibold tabular-nums">{{ '%.2f'|format((totals.balance_cents|int)/100) }}</td>
+              <td class="px-4 py-3 text-right font-semibold tabular-nums">{{ '%.2f'|format((totals.due_cents|int)/100) }}</td>
+              <td class="px-4 py-3 text-right font-semibold tabular-nums">{{ '%.2f'|format((totals.paid_month_cents|int)/100) }}</td>
+              <td class="px-4 py-3"></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

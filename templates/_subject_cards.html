@@ -1,5 +1,3 @@
-{% import "_subject_link.html" as sl %}
-
 {% macro render_subject_cards() %}
 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto px-4">
 
@@ -9,34 +7,51 @@
     <p class="text-sm mb-4">
       Learn to read from scratch with the Litre Method.
     </p>
-    {{ sl.link_for(
-         'reading',
-         url_for('reading_bp.about_reading', subject='reading')
-    ) }}
+    <a
+      href="{{ url_for('reading_bp.about_reading', subject='reading') }}"
+      class="inline-block bg-white text-green-600 font-semibold text-sm py-1.5 px-4 rounded hover:bg-green-100"
+    >
+      Explore
+    </a>
   </div>
 
-  <!-- Loss -->
+  <!-- LOSS -->
   <div class="bg-purple-700 text-white rounded-2xl p-6 shadow hover:shadow-lg transition">
     <h3 class="text-xl font-bold mb-2">Loss of a Loved One (LOLO)</h3>
     <p class="text-sm mb-4">
       Get support, assess your needs, and begin healing.
     </p>
-    {{ sl.link_for(
-         'loss',
-         url_for('loss_bp.about_loss', subject='loss')
-    ) }}
+    <a
+      href="{{ url_for('loss_bp.about_loss', subject='loss') }}"
+      class="inline-block bg-white text-purple-700 font-semibold text-sm py-1.5 px-4 rounded hover:bg-purple-100"
+    >
+      Explore
+    </a>
   </div>
 
-  <!-- School Management System (SMS) -->
+  <!-- Budget -->
+  <div class="rounded-2xl p-8 text-white shadow-sm" style="background:#111827;">
+    <h3 class="text-2xl font-semibold">BudgetCash</h3>
+    <p class="mt-2 text-sm text-slate-100/90">External statement cashbook with balances, arrears, and due.</p>
+    <a href="{{ url_for('budget_bp.about') }}"
+      class="mt-6 inline-block rounded-lg bg-white px-4 py-2 text-sm font-medium text-slate-900">
+      Explore
+    </a>
+  </div>
+
+  <!-- School Fee Management -->
   <div class="bg-teal-600 text-white rounded-2xl p-6 shadow hover:shadow-lg transition">
     <h3 class="text-xl font-bold mb-2">School Management System</h3>
     <p class="text-sm mb-4">
       Manage learners, classes, fees, staff, meetings, and assets in one place.
     </p>
-    {{ sl.link_for(
-         'School Management System',
-         url_for('sms_bp.about', subject='sms')
-    ) }}
+    <a
+      href="{{ url_for('sms_bp.about') }}"
+
+      class="inline-block bg-white text-teal-700 font-semibold text-sm py-1.5 px-4 rounded hover:bg-teal-100"
+    >
+      Explore
+    </a>
   </div>
 
 
@@ -46,10 +61,12 @@
     <p class="text-sm mb-4">
       Track utilities, manage tenants, and simplify statements.
     </p>
-    {{ sl.link_for(
-         'billing',
-         url_for('billing_bp.billing_about', subject='billing')
-    ) }}
+    <a
+      href="{{ url_for('billing_bp.billing_about', subject='billing') }}"
+      class="inline-block bg-white text-orange-500 font-semibold text-sm py-1.5 px-4 rounded hover:bg-orange-100"
+    >
+      Explore
+    </a>
   </div>
 
   <!-- HOME (Math) -->
@@ -58,10 +75,12 @@
     <p class="text-sm mb-4">
       Master math through hands-on learning and visual tools.
     </p>
-    {{ sl.link_for(
-         'home',
-         url_for('home_bp.home_about', subject='home')
-    ) }}
+    <a
+      href="{{ url_for('home_bp.home_about', subject='home') }}"
+      class="inline-block bg-white text-blue-600 font-semibold text-sm py-1.5 px-4 rounded hover:bg-blue-100"
+    >
+      Explore
+    </a>
   </div>
 
 </div>

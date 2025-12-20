@@ -1,0 +1,3 @@
+﻿ext_ref,txn_date,amount,balance,description
+T001,2025-01-01,0,1000.00,Opening
+T002,2025-01-05,-200.00,800.00,Expense

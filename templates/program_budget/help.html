@@ -1,0 +1,110 @@
+{% extends "layout.html" %}
+{% block title %}BudgetCash · Help{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-4xl mt-10 bg-white shadow rounded-lg p-6">
+
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="text-lg font-semibold text-slate-900">Help guide</h1>
+      <div class="text-sm text-slate-500">Setup and how to use BudgetCash</div>
+    </div>
+    <a href="{{ url_for('budget_bp.dashboard') }}"
+       class="rounded border border-slate-300 px-3 py-1.5 hover:bg-slate-50 text-sm">
+      ← Back to dashboard
+    </a>
+  </div>
+
+  <div class="mt-6 space-y-6">
+
+    <div class="rounded border border-slate-200 p-4">
+      <div class="font-semibold text-slate-900">1) Create your accounts first</div>
+      <p class="text-sm text-slate-600 mt-1">
+        Accounts are the names you will use everywhere (lookup + cashbook + reports).
+      </p>
+
+      <div class="mt-3 rounded border border-slate-200 bg-slate-50 p-3">
+        <div class="text-sm font-semibold text-slate-900">Account naming (recommended)</div>
+        <p class="text-sm text-slate-700 mt-1">
+          Use short, recognisable names that stay stable over time.
+        </p>
+        <ul class="mt-2 list-disc pl-5 text-sm text-slate-700 space-y-1">
+          <li>Start with the provider/brand, then add a unique short suffix.</li>
+          <li>For cards or store accounts, use the <b>last 4 digits</b>.</li>
+        </ul>
+        <p class="text-sm text-slate-700 mt-2">
+          Example: 3 credit cards from BlueBean →
+          <span class="font-medium">BB-7894</span>, <span class="font-medium">BB-1120</span>, <span class="font-medium">BB-4431</span>
+        </p>
+        <p class="text-xs text-slate-600 mt-2">
+          Avoid “Card 1 / Card 2”, avoid full card numbers, and avoid renaming accounts every month.
+        </p>
+      </div>
+
+      <ul class="mt-3 list-disc pl-5 text-sm text-slate-700 space-y-1">
+        <li><b>Asset</b> = cash/bank or anything that holds value (Bank, Wallet, Savings).</li>
+        <li><b>Liability</b> = anything you owe and may have arrears or a repayment plan (Bills in arrears, Store account, Loan, Credit card).</li>
+        <li><b>Expense</b> = normal monthly spending categories (Fuel, Groceries, Data).</li>
+        <li><b>Income</b> = sources of money coming in (Salary, Side income).</li>
+      </ul>
+      <p class="text-xs text-slate-500 mt-3">
+        Best practice: if an account has a statement with arrears/balance/due, treat it as a <b>Liability</b>.
+      </p>
+    </div>
+
+    <div class="rounded border border-slate-200 p-4">
+      <div class="font-semibold text-slate-900">2) Add groups for reporting (optional)</div>
+      <p class="text-sm text-slate-600 mt-1">
+        Groups let you report totals like Retail, Cards, Utilities, School.
+      </p>
+      <ul class="mt-3 list-disc pl-5 text-sm text-slate-700 space-y-1">
+        <li>Create group types once.</li>
+        <li>Assign a group to an account when creating/editing it.</li>
+      </ul>
+    </div>
+
+    <div class="rounded border border-slate-200 p-4">
+      <div class="font-semibold text-slate-900">3) Capture the statement snapshot (Lookup)</div>
+      <p class="text-sm text-slate-600 mt-1">
+        This is a quick “as-at” summary used when resolving queries. It is not the full history.
+      </p>
+      <ol class="mt-3 list-decimal pl-5 text-sm text-slate-700 space-y-1">
+        <li>Open Cashbook → Lookup</li>
+        <li>Select an account → Lookup</li>
+        <li>Enter the <b>As at date</b> and fill only what the statement provides (arrears/balance/due).</li>
+        <li>Save.</li>
+      </ol>
+      <div class="mt-3 grid grid-cols-1 md:grid-cols-4 gap-2 text-xs text-slate-600">
+        <div class="rounded border border-slate-200 p-2"><b>As at</b><br>Statement date</div>
+        <div class="rounded border border-slate-200 p-2"><b>Arrears</b><br>Overdue portion</div>
+        <div class="rounded border border-slate-200 p-2"><b>Balance</b><br>Total outstanding</div>
+        <div class="rounded border border-slate-200 p-2"><b>Due</b><br>Next amount to pay</div>
+      </div>
+    </div>
+
+    <div class="rounded border border-slate-200 p-4">
+      <div class="font-semibold text-slate-900">4) Record payments and income (Cashbook)</div>
+      <p class="text-sm text-slate-600 mt-1">
+        Cashbook entries are the real movements. They feed reports and “Paid to date”.
+      </p>
+      <ul class="mt-3 list-disc pl-5 text-sm text-slate-700 space-y-1">
+        <li>When you pay: Add payment (account + date + amount).</li>
+        <li>When money comes in: add an entry to an Income account.</li>
+      </ul>
+    </div>
+
+    <div class="rounded border border-slate-200 p-4">
+      <div class="font-semibold text-slate-900">5) Fix mistakes (edit account type/name/group)</div>
+      <p class="text-sm text-slate-600 mt-1">
+        If you created an account with the wrong type:
+      </p>
+      <ol class="mt-3 list-decimal pl-5 text-sm text-slate-700 space-y-1">
+        <li>Cashbook → Lookup → open the account</li>
+        <li>Use <b>Account settings</b> to change Type/Name/Group</li>
+        <li>Save.</li>
+      </ol>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

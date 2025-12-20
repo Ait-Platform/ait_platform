@@ -1,6 +1,7 @@
 # app/__init__.py
 import os as _os
 from flask_migrate import migrate
+
 from app.payments.pricing import number_to_words, price_cents_for
 from app.bootstrap.subjects import ensure_core_subjects
 try:
@@ -90,7 +91,6 @@ def create_app():
     # (optional) ensure keys are present – maps OS envs directly if Config missed any
 
 
-
     @app.context_processor
     def inject_now():
         return {"now": datetime.utcnow}
@@ -100,10 +100,10 @@ def create_app():
     def inject_csrf():
         return {"csrf_token": generate_csrf}
     
+
     @app.before_request
     def _inject_country():
         g.country_iso2 = (request.headers.get('cf-ipcountry') or 'ZA').upper()
-
 
 
     @app.before_request
@@ -260,6 +260,7 @@ def create_app():
         db.session.commit()
         print("OK: fx_to_zar column ensured on ref_country_currency")
 
+
     @app.before_request
     def _trace_in():
         g.reqid = str(uuid.uuid4())[:8]
@@ -329,6 +330,7 @@ def create_app():
     from app.admin.sms import sms_admin_bp
     from app.subject_sms.routes import sms_bp
     from app.payments.yoco import yoco_bp
+    from app.program_budget import budget_bp
 
     #app.logger.warning("registered checkout_bp at /checkout")
 
@@ -345,7 +347,7 @@ def create_app():
     app.register_blueprint(general_bp, url_prefix="/admin/general")
     app.register_blueprint(tts_bp, url_prefix="/admin/general")
     app.register_blueprint(yoco_bp, url_prefix="/payments")
-
+    app.register_blueprint(budget_bp)
 
     #csrf.exempt(checkout_bp)  # keeps webhook/start happy
     # Exempt ONLY the PayFast IPN route (or the whole blueprint if you prefer)
@@ -458,6 +460,15 @@ def create_app():
                 u.set_password(getenv("DEFAULT_LOGIN_PASSWORD", "123"))
                 db.session.add(u)
                 db.session.commit()
+
+    from app.jobs.budgetcash_daily import run_budgetcash_daily_jobs
+
+    @app.cli.command("budgetcash-daily")
+    def budgetcash_daily():
+        """Run BudgetCash daily jobs (purge/reminders)."""
+        run_budgetcash_daily_jobs()
+        click.echo("OK: budgetcash-daily done")
+                        
     return app
 
 def register_cli(app):
@@ -498,7 +509,10 @@ def register_cli(app):
             )
             mail.send(msg)
             click.echo(f"Sent test email to {to}")
-            
+
+
+
+
 # Keep this helper separate; name avoids shadowing seed_cli.register_cli
 
 def send_mail(to, subject, html):

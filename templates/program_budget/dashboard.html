@@ -1,0 +1,86 @@
+{% extends "layout.html" %}
+{% block title %}BudgetCash Dashboard{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-5xl mt-10 bg-white rounded-lg shadow ring-1 ring-slate-200">
+  <div class="h-2 rounded-t-lg bg-indigo-600"></div>
+
+  <div class="p-8 md:p-10">
+    <div class="flex items-start justify-between gap-4">
+      <div>
+        <h1 class="text-2xl md:text-3xl font-semibold text-slate-900">BudgetCash</h1>
+        <p class="mt-1 text-slate-600">Choose what you want to do.</p>
+      </div>
+
+      <a href="{{ url_for('auth_bp.bridge_dashboard') }}"
+         class="shrink-0 rounded border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50">
+        ← Back
+      </a>
+    </div>
+
+    <div class="mt-8 space-y-6">
+
+      <!-- Row 1 -->
+      <div class="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
+        <!--div class="grid grid-cols-1 sm:grid-cols-3 gap-3"-->
+        <a href="{{ url_for('budget_bp.ledger') }}"
+            class="block rounded-xl border p-6 shadow-sm transition hover:shadow
+                    bg-sky-50 border-sky-100 hover:bg-sky-100">
+          <div class="font-semibold text-slate-900">Cashbook</div>
+          <div class="mt-1 text-sm text-slate-600">Capture payments and view entries.</div>
+        </a>
+
+        <!--a href="{{ url_for('budget_bp.ledger') }}#lookup"
+            class="block rounded-xl border p-6 shadow-sm transition hover:shadow
+                    bg-indigo-50 border-indigo-100 hover:bg-indigo-100">
+          <div class="font-semibold text-slate-900">Lookup</div>
+          <div class="mt-1 text-sm text-slate-600">Find an account to edit arrears/balance/due.</div>
+        </a-->
+        <a href="{{ url_for('budget_bp.report_income_expense') }}"
+            class="block rounded-xl border p-6 shadow-sm transition hover:shadow
+                    bg-amber-50 border-amber-100 hover:bg-amber-100">
+          <div class="font-semibold text-slate-900">Income statement</div>
+          <div class="mt-1 text-sm text-slate-600">Income vs expenses by month.</div>
+        </a>
+
+        <a href="{{ url_for('budget_bp.account_new', next=url_for('budget_bp.dashboard')) }}"
+            class="block rounded-xl border p-6 shadow-sm transition hover:shadow
+                    bg-emerald-50 border-emerald-100 hover:bg-emerald-100">
+          <div class="font-semibold text-slate-900">New account</div>
+          <div class="mt-1 text-sm text-slate-600">Create a cash, expense, income, or liability account.</div>
+        </a>
+
+
+      
+
+        <!-- Row 2 >
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3"-->
+
+
+        <a href="{{ url_for('budget_bp.report_by_group', next=request.full_path) }}"
+          class="block rounded-xl border p-6 shadow-sm transition hover:shadow
+                  bg-purple-50 border-purple-100 hover:bg-purple-100">
+          <div class="font-semibold text-slate-900">Report by groups</div>
+          <div class="mt-1 text-sm text-slate-600">Totals by selected group type.</div>
+        </a>
+
+
+        <a href="{{ url_for('budget_bp.group_types') }}"
+            class="block rounded-xl border p-6 shadow-sm transition hover:shadow
+                    bg-rose-50 border-rose-100 hover:bg-rose-100">
+          <div class="font-semibold text-slate-900">Add group types</div>
+          <div class="mt-1 text-sm text-slate-600">Manage group labels used in reports.</div>
+        </a>
+
+        <a href="{{ url_for('budget_bp.help_guide') }}"
+            class="block rounded-xl border p-6 shadow-sm transition hover:shadow
+                    bg-slate-50 border-slate-200 hover:bg-slate-100">
+          <div class="font-semibold text-slate-900">Help guide</div>
+          <div class="mt-1 text-sm text-slate-600">Account type meanings and setup tips.</div>
+        </a>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}

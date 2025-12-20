@@ -1,0 +1,28 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="max-w-xl mx-auto bg-white p-6 rounded shadow">
+  <h1 class="text-lg font-semibold mb-4">Edit account</h1>
+
+  <form method="post" class="space-y-4">
+    <div>
+      <label class="text-sm font-medium">Account name</label>
+      <input disabled class="w-full bg-slate-100" value="{{ account.name }}">
+    </div>
+
+    <div>
+      <label class="text-sm font-medium">Type</label>
+      <select name="kind" class="w-full">
+        <option value="asset" {{ 'selected' if account.kind=='asset' }}>Asset</option>
+        <option value="liability" {{ 'selected' if account.kind=='liability' }}>Liability</option>
+      </select>
+    </div>
+
+    <div>
+      <label class="text-sm font-medium">Group</label>
+      <input name="group_label" value="{{ account.group_label or '' }}" class="w-full">
+    </div>
+
+    <button class="btn btn-primary w-full">Save changes</button>
+  </form>
+</div>
+{% endblock %}

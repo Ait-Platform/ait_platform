@@ -1,0 +1,49 @@
+{% extends "layout.html" %}
+{% block title %}Edit payment · BudgetCash{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-xl mt-10 bg-white shadow rounded-lg p-6">
+
+  <div class="flex items-center justify-between">
+    <h1 class="text-lg font-semibold text-slate-900">Edit payment</h1>
+    <a href="{{ next_url }}" class="rounded border border-slate-300 px-3 py-1.5 hover:bg-slate-50 text-sm">← Back</a>
+  </div>
+
+  <form method="post" class="mt-6 space-y-4">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="next" value="{{ next_url }}">
+
+    <div>
+      <label class="block text-xs font-medium text-slate-600 mb-1">Account</label>
+      <select name="account_id" class="w-full rounded border border-slate-300 px-3 py-2 text-sm" required>
+        {% for a in accounts %}
+          <option value="{{ a.id }}" {% if a.id == entry.account_id %}selected{% endif %}>
+            {{ a.kind|title }} · {{ a.name }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <div>
+        <label class="block text-xs font-medium text-slate-600 mb-1">Date</label>
+        <input name="txn_date" type="date"
+               value="{{ entry.txn_date }}"
+               class="w-full rounded border border-slate-300 px-3 py-2 text-sm" required>
+      </div>
+
+      <div>
+        <label class="block text-xs font-medium text-slate-600 mb-1">Paid</label>
+        <input name="amount" inputmode="decimal"
+               value="{{ amount_str }}"
+               class="w-full rounded border border-slate-300 px-3 py-2 text-sm" required>
+      </div>
+    </div>
+
+    <button class="w-full rounded bg-sky-600 text-white px-4 py-2.5 text-sm font-medium hover:bg-sky-700">
+      Save changes
+    </button>
+  </form>
+
+</div>
+{% endblock %}

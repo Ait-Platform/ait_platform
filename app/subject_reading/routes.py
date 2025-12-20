@@ -119,11 +119,15 @@ def subject_home():
 # 1. helpers
 # ─────────────────────────────────
 
+from flask_login import current_user
+
 def _ensure_enrollment_row():
     """
     Make sure rdp_enrollment row exists for this user.
     Return that row as a mapping.
     """
+    uid = int(current_user.id)
+
     row = db.session.execute(
         sa_text("""
             SELECT
@@ -137,7 +141,7 @@ def _ensure_enrollment_row():
             WHERE user_id = :uid
             LIMIT 1
         """),
-        {"uid": g.user_id},
+        {"uid": uid},
     ).mappings().first()
 
     if row:
@@ -162,7 +166,7 @@ def _ensure_enrollment_row():
                 NULL
             )
         """),
-        {"uid": g.user_id},
+        {"uid": uid},
     )
     db.session.commit()
 
@@ -180,11 +184,10 @@ def _ensure_enrollment_row():
             WHERE user_id = :uid
             LIMIT 1
         """),
-        {"uid": g.user_id},
+        {"uid": uid},
     ).mappings().first()
 
     return row
-
 
 def _get_enrollment():
     return db.session.execute(

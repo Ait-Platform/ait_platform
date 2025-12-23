@@ -793,30 +793,42 @@ def bridge_dashboard():
 def learner_subject_dashboard(subject):
     subj_key = (subject or "").strip().lower()
 
-    row = db.session.execute(text("""
-        SELECT id,
-               COALESCE(slug, name) AS slug,
-               COALESCE(name, slug) AS name
-        FROM auth_subject
-        WHERE LOWER(COALESCE(slug, name)) = :s
-        LIMIT 1
-    """), {"s": subj_key}).mappings().first()
+    # -------------------------------------------------
+    # Hard routes (do NOT depend on DB slug/name)
+    # -------------------------------------------------
+    if subj_key == "sms":
+        return redirect(url_for("sms_bp.sms_entry"))
+
+    if subj_key == "budget":
+        return redirect(url_for("budget_bp.dashboard"))
+
+    if subj_key == "reading":
+        return redirect(url_for("reading_bp.subject_home"))
+
+    # -------------------------------------------------
+    # Lookup subject row (for generic subjects + loss)
+    # -------------------------------------------------
+    row = db.session.execute(
+        text("""
+            SELECT id,
+                   COALESCE(slug, name) AS slug,
+                   COALESCE(name, slug) AS name
+              FROM auth_subject
+             WHERE LOWER(COALESCE(slug, name)) = :s
+             LIMIT 1
+        """),
+        {"s": subj_key},
+    ).mappings().first()
+
     if not row:
         return render_template("errors/not_found.html"), 404
 
-    slug = row["slug"].lower()
+    slug = ((row.get("slug") or "")).strip().lower()
 
-    # ✅ For SMS: skip this generic subject dashboard and go straight to SMS home
-    # ✅ For SMS: route through the SMS sieve (roles/approvals) first
-    # FIX
-    if slug == "sms":
-        return redirect(url_for("sms_bp.sms_entry"))
-
-    if slug == "budget":
-        return redirect(url_for("budget_bp.dashboard"))
-
-    # (optional: keep or remove the old sms branch below, it's now unreachable)
-    if slug == "loss":
+    # -------------------------------------------------
+    # Determine start URL for generic "Press Next" screen
+    # -------------------------------------------------
+    if slug == "loss" or subj_key == "loss":
         start_url = url_for("loss_bp.subject_home")
     else:
         try:

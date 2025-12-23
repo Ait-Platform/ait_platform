@@ -130,6 +130,28 @@
     }
   </style>
 
+  <style>
+    /* Tailwind is loaded, but <progress> needs vendor styling for reliable colors */
+    progress.progressbar {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 100%;
+      height: 0.5rem; /* h-2 */
+    }
+    progress.progressbar::-webkit-progress-bar {
+      background-color: #ffffff; /* white track */
+      border: 1px solid #e2e8f0; /* slate-200 */
+      border-radius: 9999px;
+    }
+    progress.progressbar::-webkit-progress-value {
+      background-color: #059669; /* emerald-600 */
+      border-radius: 9999px;
+    }
+    progress.progressbar::-moz-progress-bar {
+      background-color: #059669; /* emerald-600 */
+      border-radius: 9999px;
+    }
+  </style>
 
   {% block scripts %}{% endblock %}
 </body>

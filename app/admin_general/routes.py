@@ -65,6 +65,7 @@ def tts_api():
 def tts_ui():
     return render_template("admin_general/tts.html")
 
+'''
 @general_bp.route("/pricing/base")
 def pricing_base():
     subject_slug = request.args.get("subject", "loss")
@@ -241,6 +242,19 @@ def pricing_index():
         anchor_zar_cents=anchor_zar_cents,
         countries=countries,
     )
+'''
+
+@general_bp.get("/pricing/base")
+def pricing_base():
+    subject_slug = request.args.get("subject", "loss")
+    return redirect(url_for("payment_bp.pricing_base", subject=subject_slug))
+
+@general_bp.route("/pricing", methods=["GET", "POST"])
+def pricing_index():
+    subject_slug = request.args.get("subject", "loss")
+    if request.method == "POST":
+        return redirect(url_for("payment_bp.pricing_index", subject=subject_slug), code=307)
+    return redirect(url_for("payment_bp.pricing_index", subject=subject_slug))
 
 @general_bp.route("/db-tools", methods=["GET"])
 @login_required

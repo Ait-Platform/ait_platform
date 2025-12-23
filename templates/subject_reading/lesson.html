@@ -2,125 +2,227 @@
 {% block title %}{{ lesson["order"] }}. {{ lesson["title"] }}{% endblock %}
 
 {% block content %}
-<div class="max-w-3xl mx-auto mt-8 px-4">
-  <!-- heading -->
-  <h1 class="text-xl font-semibold text-slate-900">
-    {{ lesson["order"] }}. {{ lesson["title"] }}
-  </h1>
-  <p class="text-slate-600 text-sm mb-4">{{ lesson["caption"] }}</p>
+<div class="mx-auto max-w-5xl mt-8 px-4">
 
-  <!-- card -->
-  <div class="bg-white rounded-xl border border-slate-200 shadow p-4">
-    <!-- video -->
-      <style>
-        video#lessonPlayer {
-          width: 100%;
-          max-height: 480px;
-          background-color: #000;
-          object-fit: contain;
-        }
-        </style>
+  <!-- Row 1 -->
+  <div class="flex items-start justify-between gap-4">
+    <div class="min-w-0">
+      <h1 class="text-lg font-semibold text-slate-900 truncate">
+        {{ lesson["order"] }}. {{ lesson["title"] }}
+      </h1>
 
-    <div class="rounded-lg overflow-hidden border border-slate-300 bg-black">
-      <video id="lessonPlayer"
-             class="w-full h-auto bg-black"
-             src="{{ video_src }}"
-             preload="metadata"
-             style="max-height:480px; width:100%; background-color:#000;">
-      </video>
+      {% if lesson["caption"] %}
+        <div class="text-sm text-slate-600 truncate">{{ lesson["caption"] }}</div>
+      {% endif %}
     </div>
 
-    <!-- controls row -->
+    <a href="{{ url_for('reading_bp.learner_dashboard') }}"
+       class="shrink-0 rounded border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-50">
+      ← Back
+    </a>
+  </div>
 
-      <div class="mt-4 flex flex-col items-center">
-        <div class="flex flex-wrap items-center justify-center gap-3 text-sm">
+  <div class="mt-4 rounded-lg border border-slate-200 bg-white shadow">
 
-          {% if prev_id %}
-          <a class="inline-flex items-center rounded-md border border-slate-300 bg-white px-3 py-2 font-medium text-slate-700 hover:bg-slate-50"
-            href="{{ url_for('reading_bp.view_lesson', lesson_id=prev_id) }}">
-            {{ t("previous", ui_lang) }}
-          </a>
-          {% else %}
-          <button class="inline-flex items-center rounded-md border border-slate-200 bg-slate-100 px-3 py-2 font-medium text-slate-400 cursor-not-allowed"
-                  disabled>
-            {{ t("previous", ui_lang) }}
+    <!-- Row 2: controls -->
+    <div class="sticky top-0 z-10 bg-white/95 backdrop-blur border-b border-slate-200 px-4 py-3">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+
+        <div class="flex items-center gap-2">
+          <button type="button"
+                  id="btnPrev"
+                  data-href="{% if prev_id %}{{ url_for('reading_bp.view_lesson', lesson_id=prev_id) }}{% endif %}"
+                  class="rounded border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-50 disabled:opacity-50"
+                  {% if not prev_id %}disabled{% endif %}>
+            ← Previous
           </button>
-          {% endif %}
 
-          <button id="btnBack10"
-                  class="inline-flex items-center rounded-md border border-slate-300 bg-white px-3 py-2 font-medium text-slate-700 hover:bg-slate-50">
+          <button type="button"
+                  id="btnBack10"
+                  class="rounded border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-50">
             ⏪ 10s
           </button>
 
-          <button id="btnPlayPause"
-                  class="inline-flex items-center rounded-md border border-slate-300 bg-white px-3 py-2 font-medium text-slate-700 hover:bg-slate-50">
-            ▶ {{ t("replay", ui_lang) }}
+          <button type="button"
+                  id="btnPlay"
+                  class="rounded bg-slate-900 text-white px-4 py-1.5 text-sm font-medium hover:bg-slate-800">
+            ▶ Play
           </button>
 
-          <button id="btnFwd10"
-                  class="inline-flex items-center rounded-md border border-slate-300 bg-white px-3 py-2 font-medium text-slate-700 hover:bg-slate-50">
+          <button type="button"
+                  id="btnFwd10"
+                  class="rounded border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-50">
             10s ⏩
           </button>
 
-          {% if not last_one %}
-          <a class="inline-flex items-center rounded-md bg-indigo-600 px-4 py-2 font-semibold text-white shadow hover:bg-indigo-700"
-            href="{{ url_for('reading_bp.view_lesson', lesson_id=next_id) }}">
-            {{ t("next", ui_lang) }}
-          </a>
-          {% else %}
-          <form method="POST"
-                action="{{ url_for('reading_bp.finish_course') }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit"
-                    class="inline-flex items-center rounded-md bg-emerald-600 px-4 py-2 font-semibold text-white shadow hover:bg-emerald-700">
-              {{ t("finish_course", ui_lang) }}
-            </button>
-          </form>
-          {% endif %}
-
+          <button type="button"
+                  id="btnNext"
+                  data-href="{% if next_id %}{{ url_for('reading_bp.view_lesson', lesson_id=next_id) }}{% endif %}"
+                  class="rounded border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-50 disabled:opacity-50"
+                  {% if not next_id %}disabled{% endif %}>
+            Next →
+          </button>
         </div>
 
-        <div class="text-[11px] text-slate-500 mt-3">
-          {{ t("back_to_dashboard", ui_lang) }}
+        <div class="text-xs text-slate-500">
+          {% if last_one %}Last lesson{% else %}Lesson {{ lesson["order"] }}{% endif %}
         </div>
+
       </div>
+    </div>
 
+    <!-- Row 3: video -->
+    <div class="p-4">
+      <div class="w-full overflow-hidden rounded-lg bg-black aspect-video">
+        <video id="lessonVideo"
+              data-lesson-key="{{ lesson_key }}"
+              data-is-last="{{ 1 if last_one else 0 }}"
+
+               class="h-full w-full"
+               controls
+               playsinline
+               preload="metadata">
+          <source src="{{ video_src }}" type="video/mp4">
+          Your browser does not support MP4 video.
+        </video>
+      </div>
+    </div>
+
+    <!-- Hidden forms (POST) -->
+    <form id="frmComplete" method="POST" action="{{ url_for('reading_bp.complete_lesson') }}" class="hidden">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="lesson_key" value="{{ lesson_key }}">
+    </form>
+
+    <form id="frmDefer" method="POST" action="{{ url_for('reading_bp.defer_lesson') }}" class="hidden">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="lesson_key" value="{{ lesson_key }}">
+    </form>
 
   </div>
 </div>
 
-<!-- lightweight player controller -->
+<!-- End-of-video modal -->
+<div id="endModal" class="fixed inset-0 hidden z-50">
+  <div class="absolute inset-0 bg-black/50"></div>
+
+  <div class="absolute inset-0 flex items-center justify-center p-4">
+    <div class="w-full max-w-md rounded-lg bg-white shadow border border-slate-200 p-5">
+      <div class="text-sm font-semibold text-slate-900">Watch again?</div>
+      <div class="mt-1 text-xs text-slate-600">
+        Replay, continue to the next lesson, or come back later (intro lessons only).
+      </div>
+
+      <div class="mt-4 flex flex-wrap gap-2 justify-end">
+        <button type="button"
+                id="btnReplayChoice"
+                class="rounded border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-50">
+          ↻ Replay
+        </button>
+
+        <button type="button"
+                id="btnDeferChoice"
+                class="rounded border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-50">
+          Come back later
+        </button>
+
+        <button type="button"
+                id="btnContinueChoice"
+                class="rounded bg-indigo-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-indigo-700">
+          Continue
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
-(function(){
-  const vid = document.getElementById('lessonPlayer');
-  const btnPlay = document.getElementById('btnPlayPause');
-  const btnBack = document.getElementById('btnBack10');
-  const btnFwd  = document.getElementById('btnFwd10');
+  const v = document.getElementById("lessonVideo");
 
-  if (!vid) return;
+  const btnPlay   = document.getElementById("btnPlay");
+  const btnBack10 = document.getElementById("btnBack10");
+  const btnFwd10  = document.getElementById("btnFwd10");
+  const btnPrev   = document.getElementById("btnPrev");
+  const btnNext   = document.getElementById("btnNext");
 
-  // disable native controls & download
-  vid.setAttribute('controlsList','nodownload noremoteplayback');
-  vid.setAttribute('disablePictureInPicture','true');
-  vid.controls = false;
+  const frmComplete = document.getElementById("frmComplete");
+  const frmDefer    = document.getElementById("frmDefer");
 
-  btnPlay?.addEventListener('click', () => {
-    if (vid.paused) {
-      vid.play();
-      btnPlay.textContent = '❚❚ Pause';
-    } else {
-      vid.pause();
-      btnPlay.textContent = '▶ Play';
-    }
+  const endModal          = document.getElementById("endModal");
+  const btnReplayChoice   = document.getElementById("btnReplayChoice");
+  const btnDeferChoice    = document.getElementById("btnDeferChoice");
+  const btnContinueChoice = document.getElementById("btnContinueChoice");
+
+  const LESSON_KEY = parseInt(v.dataset.lessonKey || "0", 10);
+  const IS_LAST = (v.dataset.isLast === "1");
+  const IS_INTRO = (LESSON_KEY <= 5);
+
+
+  const setPlayLabel  = () => { btnPlay.textContent = "▶ Play"; };
+  const setPauseLabel = () => { btnPlay.textContent = "⏸ Pause"; };
+
+  v.addEventListener("loadedmetadata", () => setPlayLabel());
+  v.addEventListener("play",  setPauseLabel);
+  v.addEventListener("pause", setPlayLabel);
+
+  btnPlay.addEventListener("click", () => {
+    if (v.paused) v.play();
+    else v.pause();
   });
 
-  btnBack?.addEventListener('click', () => {
-    vid.currentTime = Math.max(vid.currentTime - 10, 0);
+  btnBack10.addEventListener("click", () => {
+    v.currentTime = Math.max(0, (v.currentTime || 0) - 10);
   });
 
-  btnFwd?.addEventListener('click', () => {
-    vid.currentTime = Math.min(vid.currentTime + 10, vid.duration || vid.currentTime + 10);
+  btnFwd10.addEventListener("click", () => {
+    v.currentTime = Math.min(v.duration || 1e9, (v.currentTime || 0) + 10);
   });
-})();
+
+  btnPrev.addEventListener("click", () => {
+    const href = btnPrev.dataset.href || "";
+    if (href) window.location.href = href;
+  });
+
+  btnNext.addEventListener("click", () => {
+    const href = btnNext.dataset.href || "";
+    if (href) window.location.href = href;
+  });
+
+  function openEndModal() {
+    // Last lesson: force exit path (no defer)
+    if (IS_LAST) btnDeferChoice.classList.add("hidden");
+    else btnDeferChoice.classList.toggle("hidden", !IS_INTRO);
+
+    endModal.classList.remove("hidden");
+  }
+
+  function closeEndModal() {
+    endModal.classList.add("hidden");
+  }
+
+  v.addEventListener("ended", () => {
+    setPlayLabel();
+    openEndModal();
+  });
+
+  btnReplayChoice.addEventListener("click", () => {
+    closeEndModal();
+    v.currentTime = 0;
+    v.play();
+  });
+
+  btnContinueChoice.addEventListener("click", () => {
+    frmComplete.submit();
+  });
+
+  btnDeferChoice.addEventListener("click", () => {
+    frmDefer.submit();
+  });
+
+  // Close modal if user clicks the dark backdrop
+  endModal.addEventListener("click", (e) => {
+    if (e.target === endModal) closeEndModal();
+  });
 </script>
+
 {% endblock %}

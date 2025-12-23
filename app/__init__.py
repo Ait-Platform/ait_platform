@@ -331,6 +331,8 @@ def create_app():
     from app.subject_sms.routes import sms_bp
     from app.payments.yoco import yoco_bp
     from app.program_budget import budget_bp
+    from app.payments import payment_bp
+
 
     #app.logger.warning("registered checkout_bp at /checkout")
 
@@ -348,6 +350,7 @@ def create_app():
     app.register_blueprint(tts_bp, url_prefix="/admin/general")
     app.register_blueprint(yoco_bp, url_prefix="/payments")
     app.register_blueprint(budget_bp)
+    app.register_blueprint(payment_bp)
 
     #csrf.exempt(checkout_bp)  # keeps webhook/start happy
     # Exempt ONLY the PayFast IPN route (or the whole blueprint if you prefer)
@@ -509,9 +512,6 @@ def register_cli(app):
             )
             mail.send(msg)
             click.echo(f"Sent test email to {to}")
-
-
-
 
 # Keep this helper separate; name avoids shadowing seed_cli.register_cli
 

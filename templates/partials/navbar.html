@@ -2,15 +2,9 @@
   <div class="mx-auto max-w-6xl px-4 h-12 flex items-center justify-between">
     <a href="{{ url_for('public_bp.welcome') }}" class="font-semibold">AIT Platform</a>
 
-    
     <div class="flex items-center gap-4">
-      <!-- Contact Us (always shown) -->
-      
       <a href="{{ url_for('public_bp.contact') }}" class="hover:underline">Contact Us</a>
 
-      
-      </a>
-
       {% if current_user.is_authenticated %}
         <span>Hi, {{ current_user.name or current_user.email }}</span>
 
@@ -19,24 +13,7 @@
         {% endif %}
 
         <form method="POST" action="{{ url_for('auth_bp.logout') }}" class="inline">
-          {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endif %}
-          <button type="submit" class="hover:underline">Sign Out</button>
-        </form>
-      {% else %}
-        <a href="{{ url_for('auth_bp.login') }}" class="hover:underline">Sign In</a>
-      {% endif %}
-    </div>
-
-      {% if current_user.is_authenticated %}
-        <span>Hi, {{ current_user.name or current_user.email }}</span>
-
-        {% if session.get('is_admin') or session.get('role') == 'admin' %}
-          <a href="{{ url_for('admin_bp.loss_dashboard') }}" class="hover:underline">Admin</a>
-        {% endif %}
-
-
-        <form method="POST" action="{{ url_for('auth_bp.logout') }}" class="inline">
-          {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endif %}
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button type="submit" class="hover:underline">Sign Out</button>
         </form>
       {% else %}
@@ -45,23 +22,3 @@
     </div>
   </div>
 </nav>
-
-{# Flash area – include this partial only once per page #}
-{% with messages = get_flashed_messages(with_categories=true) %}
-  {% if messages %}
-    <div class="mx-auto max-w-3xl px-4 mt-4 space-y-2">
-      {% for cat, msg in messages %}
-        <div class="rounded-lg px-3 py-2 text-sm ring-1
-             {% if cat == 'success' %} bg-emerald-50 text-emerald-700 ring-emerald-200
-             {% elif cat == 'info' %} bg-blue-50 text-blue-700 ring-blue-200
-             {% elif cat == 'warning' %} bg-amber-50 text-amber-800 ring-amber-200
-             {% elif cat in ['danger','error'] %} bg-rose-50 text-rose-700 ring-rose-200
-             {% elif cat == 'locked' %} bg-pink-50 text-pink-700 ring-pink-200 border-l-4 border-pink-500
-             {% else %} bg-slate-50 text-slate-700 ring-slate-200 {% endif %}">
-          {% if cat == 'locked' %}<strong class="mr-1">🔒 Access locked:</strong>{% endif %}
-          {{ msg }}
-        </div>
-      {% endfor %}
-    </div>
-  {% endif %}
-{% endwith %}

@@ -7,7 +7,7 @@ from flask_login import login_required, current_user, login_user
 
 from app.extensions import db
 from app.models.auth import User, UserEnrollment, AuthSubject
-from app.models.payment import Payment
+
 from app.models.adv_math import AdvMathProgress, AdvMathAssessment
 from werkzeug.security import generate_password_hash
 import re

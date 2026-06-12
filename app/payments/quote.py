@@ -16,7 +16,6 @@ def detect_country(request) -> str:
 
 def lock_enrollment_quote(enrollment_id: int, subject_slug: str, request, price_version="2025-11"):
     country = detect_country(request)
-    # With PayFast you’ll likely always use ZAR here
     currency = "ZAR"
     amount_cents = price_cents_for(subject_slug, currency) or 5000
 
@@ -72,7 +71,6 @@ def build_amount_quote(subject, country_code: str, discounted: bool) -> dict:
     - base ZAR anchor (subject-level value)
     - optional 10% discount on ZAR
     - parity price for UI (local currency)
-    - PayFast amount in ZAR as '123.45'
     """
 
     # 1) Get your anchor in ZAR cents (reuse your existing logic)
@@ -93,7 +91,7 @@ def build_amount_quote(subject, country_code: str, discounted: bool) -> dict:
     # 3) Parity pricing for the user’s country (you already have price_for_country)
     local_cents, local_currency = price_for_country(country_code, final_zar_cents)
 
-    # 4) PayFast wants ZAR as rands with 2 decimals, e.g. "123.45"
+    # 4) Calculate ZAR as rands with 2 decimals, e.g. "123.45"
     final_zar_rands = (
         Decimal(final_zar_cents) / Decimal("100")
     ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
@@ -102,7 +100,7 @@ def build_amount_quote(subject, country_code: str, discounted: bool) -> dict:
     return {
         "anchor_zar_cents": anchor_zar_cents,   # original value in ZAR cents
         "final_zar_cents": final_zar_cents,     # after discount (or same)
-        "final_zar_str": final_zar_str,         # for PayFast "amount"
+        "final_zar_str": final_zar_str,         # ZAR amount string
         "local_cents": local_cents,             # for UI
         "local_currency": local_currency,       # "ZAR", "USD", etc
         "is_discount": is_discount,             # banner text / copy

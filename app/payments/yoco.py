@@ -16,6 +16,7 @@ from sqlalchemy import text
 
 from app.extensions import db
 from app.models.auth import User
+from app.models.payment import YocoPayment
 
 yoco_bp = Blueprint("yoco_bp", __name__)
 
@@ -123,7 +124,20 @@ def start():
         if response.status_code in (200, 201):
             data = response.json()
             redirect_url = data.get("redirectUrl")
+            checkout_id = data.get("id")
+            
             if redirect_url:
+                yp = YocoPayment(
+                    user_id=u.id if u else None,
+                    email=email,
+                    subject_slug=subject,
+                    amount_cents=amount_cents,
+                    currency="ZAR",
+                    status="pending",
+                    checkout_id=checkout_id
+                )
+                db.session.add(yp)
+                db.session.commit()
                 return redirect(redirect_url)
             else:
                 flash("Payment failed: Invalid response from payment gateway.", "error")
@@ -248,6 +262,13 @@ def success():
             )
 
         session["just_paid_subject_id"] = int(sid)
+
+    # 4.5) Update YocoPayment record
+    pending = YocoPayment.query.filter_by(email=email, subject_slug=subject, status="pending").order_by(YocoPayment.id.desc()).first()
+    if pending:
+        from datetime import datetime
+        pending.status = "completed"
+        pending.paid_at = datetime.utcnow()
 
     db.session.commit()
 

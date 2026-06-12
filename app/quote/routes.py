@@ -77,6 +77,9 @@ def quote():
         if prev_enr and not country_code:
             country_code = prev_enr.country_code
 
+    if not country_code:
+        country_code = session.get("country_code", "")
+
     if country_code:
         session["country_code"] = country_code
         print("Quote: storing country_code =", country_code)

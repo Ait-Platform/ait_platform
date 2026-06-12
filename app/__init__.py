@@ -31,7 +31,7 @@ import os  # sqlite3 no longer needed
 import click
 from hashlib import sha256
 from app.models.visit import VisitLog
-from app.models.payment import Payment, Subscription
+from app.models.payment import Subscription
 from werkzeug.middleware.proxy_fix import ProxyFix
 from dotenv import load_dotenv, find_dotenv
 load_dotenv(find_dotenv(), override=False)  # picks up your .env locally
@@ -378,8 +378,8 @@ def create_app():
     app.register_blueprint(adv_math_bp)
 
     #csrf.exempt(checkout_bp)  # keeps webhook/start happy
-    # Exempt ONLY the PayFast IPN route (or the whole blueprint if you prefer)
-    csrf.exempt(yoco_bp)  # or: add @csrf.exempt on the /notify function
+    # Exempt the Yoco webhook route
+    csrf.exempt(yoco_bp)
 
     # Log admin routes only in debug
     # if app.debug:

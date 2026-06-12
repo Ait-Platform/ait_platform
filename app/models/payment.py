@@ -18,76 +18,24 @@ def _try_reflect(names):
 _PAYMENT_TABLE = _try_reflect(["stripe_payment", "sprite_payment", "payments", "payment"])
 _SUB_TABLE     = _try_reflect(["stripe_subscription", "sprite_subscription", "subscriptions", "subscription"])
 
-# ---- Payment ---------------------------------------------------------------
-
-class Payment(db.Model):
-    """
-    Stripe one-off payments. If an existing table is found, we bind to it.
-    Otherwise we define an explicit schema on 'stripe_payment'.
-    """
-    if _PAYMENT_TABLE is not None:
-        __table__ = _PAYMENT_TABLE
-    else:
-        __tablename__ = "stripe_payment"
-        id = db.Column(db.Integer, primary_key=True)
-        user_id = db.Column(db.Integer, nullable=True, index=True)
-
-        stripe_session_id = db.Column(db.String(255), unique=True, index=True)
-        stripe_payment_intent_id = db.Column(db.String(255), index=True)
-        customer_id = db.Column(db.String(255), index=True)
-        email = db.Column(db.String(255))
-
-        amount_total = db.Column(db.Integer)           # cents
-        currency = db.Column(db.String(10))            # 'zar'
-        status = db.Column(db.String(50))              # 'paid','unpaid','canceled', etc.
-        purpose = db.Column(db.String(120))            # e.g. 'loss_enrollment'
-        next_url = db.Column(db.Text)                  # optional redirect
-        receipt_url = db.Column(db.Text)
-
-        paid_at = db.Column(db.DateTime, nullable=True)
-        created_at = db.Column(db.DateTime, default=datetime.utcnow)
-        updated_at = db.Column(db.DateTime, onupdate=datetime.utcnow)
-
-    # ---- upsert from Stripe checkout.session --------------------------------
-    @classmethod
-    def upsert_from_checkout_session(cls, sess: dict):
-        """
-        Idempotently create/update from Stripe 'checkout.session.completed' object.
-        """
-        meta = (sess.get("metadata") or {})
-        cust = (sess.get("customer_details") or {})
-        vals = {
-            "stripe_session_id": sess.get("id"),
-            "stripe_payment_intent_id": sess.get("payment_intent"),
-            "customer_id": sess.get("customer"),
-            "email": cust.get("email") or sess.get("customer_email"),
-            "amount_total": sess.get("amount_total"),
-            "currency": sess.get("currency"),
-            "status": sess.get("payment_status"),  # 'paid' on success
-            "purpose": meta.get("purpose"),
-            "next_url": meta.get("next"),
-            "user_id": meta.get("user_id"),
-            "paid_at": datetime.utcnow() if sess.get("payment_status") == "paid" else None,
-        }
-
-        # find by session_id first; else by payment_intent
-        q = None
-        if hasattr(cls, "stripe_session_id") and vals.get("stripe_session_id"):
-            q = cls.query.filter_by(stripe_session_id=vals["stripe_session_id"]).first()
-        if not q and hasattr(cls, "stripe_payment_intent_id") and vals.get("stripe_payment_intent_id"):
-            q = cls.query.filter_by(stripe_payment_intent_id=vals["stripe_payment_intent_id"]).first()
-
-        if q:
-            for k, v in vals.items():
-                if hasattr(q, k):
-                    setattr(q, k, v)
-            return q
-
-        # only pass columns that exist on this table
-        filtered = {k: v for k, v in vals.items() if hasattr(cls, k)}
-        obj = cls(**filtered)
-        db.session.add(obj)
-        return obj
+class YocoPayment(db.Model):
+    __tablename__ = "yoco_payment"
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True, index=True)
+    email = db.Column(db.String(255), index=True)
+    subject_slug = db.Column(db.String(120), index=True)
+    
+    amount_cents = db.Column(db.Integer, nullable=False)           # cents
+    currency = db.Column(db.String(10), default="ZAR")
+    status = db.Column(db.String(50), default="pending")           # 'pending', 'completed', 'canceled', etc.
+    
+    checkout_id = db.Column(db.String(255), unique=True, index=True)
+    gateway_reference = db.Column(db.String(255))
+    
+    paid_at = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, onupdate=datetime.utcnow)
 
 
 class Subscription(db.Model):

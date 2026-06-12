@@ -1,11 +1,15 @@
 {% extends "layout.html" %}
 {% block title %}Verify Your Country · AIT{% endblock %}
 
+{% block flashes %}{% endblock %}
+
 {% block content %}
 <div class="mx-auto max-w-2xl mt-10 px-4">
   <div class="bg-white rounded-xl shadow overflow-hidden">
     <div class="h-2 bg-amber-500"></div>
     <div class="p-6">
+      {% include "partials/flash_messages.html" %}
+      
       <div class="flex items-center justify-between mb-4">
         <h1 class="text-xl font-bold text-slate-800">Account Region Mismatch</h1>
       </div>
@@ -13,7 +17,7 @@
       <div class="rounded-md border border-amber-300 bg-amber-50 p-4 text-amber-800 mb-6 text-sm">
         <p class="font-semibold mb-2">We noticed a mismatch in your selected country.</p>
         <p>
-          You requested a quote for <strong>{{ quote_country_name }} ({{ quote_country_code }})</strong>, 
+          Our system attempted to apply pricing for <strong>{{ quote_country_name }} ({{ quote_country_code }})</strong>, 
           but your established account region is <strong>{{ user_country_name }} ({{ user_country_code }})</strong>.
         </p>
         <p class="mt-2">

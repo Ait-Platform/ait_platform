@@ -1,6 +1,6 @@
 from flask import Blueprint, Response, current_app, request, send_file
 import sys, io
-import pdfkit, cairosvg
+import pdfkit
 
 pdf_bp = Blueprint("pdf_bp", __name__)
 
@@ -37,6 +37,7 @@ def html_to_pdf_bytes(html: str, base_url: str | None = None) -> bytes:
 
     # Fallback: CairoSVG
     try:
+        import cairosvg
         return cairosvg.svg2pdf(bytestring=html.encode("utf-8"))
     except Exception as e:
         current_app.logger.exception(f"CairoSVG failed: {e}")

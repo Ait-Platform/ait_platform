@@ -41,9 +41,9 @@ except Exception:
     current_user = None
 from flask import current_app as cap
 
-import cairosvg
 
 def generate_pdf(svg_string: str, output_path: str):
+    import cairosvg
     pdf_bytes = cairosvg.svg2pdf(bytestring=svg_string.encode("utf-8"))
     with open(output_path, "wb") as f:
         f.write(pdf_bytes)

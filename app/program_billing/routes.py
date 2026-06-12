@@ -1,7 +1,6 @@
 
 import tempfile
 import os
-from playwright.sync_api import sync_playwright
 from flask import send_file, request
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, abort
@@ -2094,6 +2093,7 @@ def metsoa_pdf(tenant_id, month):
         pdf_path = tmp.name
 
     try:
+        from playwright.sync_api import sync_playwright
         with sync_playwright() as p:
             browser = p.chromium.launch()
             page = browser.new_page()

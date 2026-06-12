@@ -113,6 +113,11 @@ class AuthSubject(db.Model):
     # Commercial details
     paid_days = db.Column(db.Integer, nullable=True)
 
+    # Dashboard display & routing overrides
+    is_hidden_on_bridge = db.Column(db.Boolean, default=False, nullable=False)
+    parent_subject_id = db.Column(db.Integer, db.ForeignKey('auth_subject.id'), nullable=True)
+    bypass_dashboard_endpoint = db.Column(db.String(128), nullable=True)
+
     # Endpoints
     start_endpoint = db.Column(db.String(128), nullable=True)
     about_endpoint = db.Column(db.String(128), nullable=True)

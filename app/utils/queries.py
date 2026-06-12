@@ -31,7 +31,7 @@ SELECT
 FROM auth_subject s
 WHERE
   s.is_active = 1
-  AND s.slug NOT IN ('home_premium', 'home2', 'home_section3')
+  AND (s.is_hidden_on_bridge IS NULL OR s.is_hidden_on_bridge = FALSE)
   AND (
     -- global admin sees all subjects
     (SELECT is_admin_global FROM globals) = 1

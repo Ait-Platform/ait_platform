@@ -382,6 +382,75 @@ def register_decision():
 
     # 3) Normal paid flow: keep your existing pricing + PayFast logic here
     q = ctx.get("quote")
+
+    # ----- COUNTRY PRICE CHECKER INTERCEPT -----
+    if subject not in ("sms", "cultural_fire"):
+        from app.enrollment.logic import get_quote_for_subject_country
+        from app.models.auth import AuthSubject
+        
+        established_country = db.session.execute(
+            db.text("SELECT country_code FROM user_enrollment WHERE user_id = :uid AND country_code IS NOT NULL AND status != 'archived' ORDER BY id ASC LIMIT 1"),
+            {"uid": user_id}
+        ).scalar()
+
+        if established_country:
+            established_country = established_country.strip().upper()
+            quote_country = None
+            if q and q.get("country_code"):
+                quote_country = q.get("country_code").strip().upper()
+            elif session.get("subject_slug") == subject and session.get("country_code"):
+                quote_country = session.get("country_code").strip().upper()
+            elif request.form.get("country"):
+                quote_country = request.form.get("country").strip().upper()
+
+            # If mismatch and not yet acknowledged
+            if quote_country and quote_country != established_country and request.form.get("acknowledge_mismatch") != "1":
+                subj_obj = AuthSubject.query.filter(db.func.lower(AuthSubject.slug) == subject).first()
+                if subj_obj:
+                    # Recalculate using established country
+                    new_quote_row = get_quote_for_subject_country(subj_obj.id, established_country)
+                    if new_quote_row:
+                        # Get country names
+                        from app.models.payment import RefCountryCurrency
+                        q_country_obj = db.session.execute(db.text("SELECT name FROM ref_country_currency WHERE alpha2 = :c LIMIT 1"), {"c": quote_country}).scalar() or quote_country
+                        e_country_obj = db.session.execute(db.text("SELECT name FROM ref_country_currency WHERE alpha2 = :c LIMIT 1"), {"c": established_country}).scalar() or established_country
+                        
+                        # Get other enrolled slugs
+                        other_enrolls = db.session.execute(
+                            db.text("SELECT s.slug FROM user_enrollment e JOIN auth_subject s ON e.subject_id = s.id WHERE e.user_id = :uid AND e.status != 'archived' AND s.slug != :slug"),
+                            {"uid": user_id, "slug": subject}
+                        ).scalars().all()
+
+                        return render_template(
+                            "auth/country_price_checker.html",
+                            subject=subject,
+                            quote_country_code=quote_country,
+                            quote_country_name=q_country_obj,
+                            user_country_code=established_country,
+                            user_country_name=e_country_obj,
+                            local_currency=new_quote_row.local_currency,
+                            local_amount_cents=new_quote_row.local_amount_cents,
+                            zar_amount_cents=new_quote_row.zar_amount_cents,
+                            other_slugs=other_enrolls
+                        )
+
+            # If acknowledged or matched, FORCE the established country
+            if quote_country and quote_country != established_country:
+                subj_obj = AuthSubject.query.filter(db.func.lower(AuthSubject.slug) == subject).first()
+                if subj_obj:
+                    new_quote_row = get_quote_for_subject_country(subj_obj.id, established_country)
+                    if new_quote_row:
+                        q = {
+                            "country_code": new_quote_row.country_code,
+                            "currency": new_quote_row.local_currency,
+                            "amount_cents": new_quote_row.local_amount_cents,
+                            "zar_amount_cents": new_quote_row.zar_amount_cents,
+                            "est_zar_cents": new_quote_row.zar_amount_cents,
+                            "version": new_quote_row.price_version,
+                        }
+                        ctx["quote"] = q
+                        session.modified = True
+    # ----- END COUNTRY PRICE CHECKER INTERCEPT -----
     
     # Fallback to session quote_baton if available for this subject
     if not q and session.get("subject_slug") == subject and session.get("zar_amount_cents"):
@@ -870,14 +939,11 @@ def bridge_dashboard():
     open_sid = session.pop("just_paid_subject_id", None)
     if open_sid:
         try:
-            # If they just paid for home_premium, home2, or home_section3, we want to show the base home tile
-            premium_sids = db.session.scalars(text("SELECT id FROM auth_subject WHERE slug IN ('home_premium', 'home2', 'home_section3')")).all()
-            if premium_sids and int(open_sid) in premium_sids:
-                home_sid = db.session.scalar(text("SELECT id FROM auth_subject WHERE slug='home' LIMIT 1"))
-                if home_sid:
-                    open_sid = home_sid
+            paid_subj = db.session.scalar(text("SELECT parent_subject_id FROM auth_subject WHERE id = :sid"), {"sid": open_sid})
+            if paid_subj:
+                open_sid = paid_subj
         except Exception as e:
-            current_app.logger.error(f"Failed to map premium sid: {e}")
+            current_app.logger.error(f"Failed to map parent sid: {e}")
 
     base_sql = BRIDGE_QUERY.strip()
     # drop a trailing semicolon so we can reuse / modify the text safely
@@ -911,8 +977,7 @@ def bridge_dashboard():
 
     banner = session.pop("payment_banner", None)
     
-    # User requested CFI Judge NOT to be a standalone tile on the bridge
-    rows = [r for r in rows if r.slug != 'cfi_judge']
+    banner = session.pop("payment_banner", None)
     
     # Bypass bridge dashboard if the user only has a single active enrollment
     # Only bypass if they didn't explicitly request the bridge via force=1
@@ -922,15 +987,12 @@ def bridge_dashboard():
         s = rows[0]
         access_level = getattr(s, 'access_level', '')
         if access_level == 'enrolled':
+            bypass_endpoint = getattr(s, 'bypass_dashboard_endpoint', None)
+            if bypass_endpoint:
+                return redirect(url_for(bypass_endpoint))
+            
             slug = getattr(s, 'slug', '').lower()
-            if slug == 'cultural_fire':
-                return redirect(url_for('cultural_bp.cultural_fire_router'))
-            elif slug == 'home':
-                return redirect(url_for('home_bp.learner_dashboard'))
-            elif slug == 'billing':
-                return redirect(url_for('billing_bp.learner_dashboard'))
-            else:
-                return redirect(url_for('auth_bp.learner_subject_dashboard', subject=slug))
+            return redirect(url_for('auth_bp.learner_subject_dashboard', subject=slug))
 
     return render_template(
         "auth/bridge_dashboard.html",
@@ -944,29 +1006,13 @@ def bridge_dashboard():
 def learner_subject_dashboard(subject):
     subj_key = (subject or "").strip().lower()
 
-    # -------------------------------------------------
-    # Hard routes (do NOT depend on DB slug/name)
-    # -------------------------------------------------
-    if subj_key == "sms":
-        return redirect(url_for("sms_bp.sms_entry"))
-
-    if subj_key == "budget":
-        return redirect(url_for("budget_bp.dashboard"))
-
-    if subj_key == "reading":
-        return redirect(url_for("reading_bp.subject_home"))
-
-    if subj_key == "adv_math":
-        return redirect(url_for("adv_math_bp.dashboard"))
-
-    # -------------------------------------------------
-    # Lookup subject row (for generic subjects + loss)
-    # -------------------------------------------------
     row = db.session.execute(
         text("""
             SELECT id,
                    COALESCE(slug, name) AS slug,
-                   COALESCE(name, slug) AS name
+                   COALESCE(name, slug) AS name,
+                   bypass_dashboard_endpoint,
+                   start_endpoint
               FROM auth_subject
              WHERE LOWER(COALESCE(slug, name)) = :s
              LIMIT 1
@@ -976,6 +1022,10 @@ def learner_subject_dashboard(subject):
 
     if not row:
         return render_template("errors/not_found.html"), 404
+
+    # Direct bypass (no "Press Next" screen)
+    if row.get("bypass_dashboard_endpoint"):
+        return redirect(url_for(row["bypass_dashboard_endpoint"]))
 
     slug = ((row.get("slug") or "")).strip().lower()
 
@@ -992,16 +1042,11 @@ def learner_subject_dashboard(subject):
     # -------------------------------------------------
     # Determine start URL for generic "Press Next" screen
     # -------------------------------------------------
-    if slug == "loss" or subj_key == "loss":
-        start_url = url_for("loss_bp.subject_home")
-    elif slug == "cultural_fire" or subj_key == "cultural_fire":
-        start_url = url_for("cultural_bp.cultural_fire_router")
-    elif slug == "home" or subj_key == "home":
-        start_url = url_for("home_bp.learner_dashboard")
-    elif slug == "billing" or subj_key == "billing":
-        start_url = url_for("billing_bp.learner_dashboard")
-    elif slug == "adv_math" or subj_key == "adv_math":
-        start_url = url_for("adv_math_bp.dashboard")
+    if row.get("start_endpoint"):
+        try:
+            start_url = url_for(row["start_endpoint"])
+        except BuildError:
+            start_url = url_for("auth_bp.bridge_dashboard")
     else:
         try:
             start_url = url_for(f"{slug}_bp.subject_home")
@@ -1051,7 +1096,7 @@ def dashboard_info(subject: str):
         return redirect(url_for("auth_bp.learner_subject_dashboard", subject=row.slug))
 
     # Auto-enroll if the subject is free
-    if row.slug in ("cultural_fire",) or row.program_type == 'free' or row.commercial_mode == 'free':
+    if row.program_type == 'free' or row.commercial_mode == 'free':
         from app.services.enrollment import _ensure_enrollment_row
         from app.auth.pricing_helpers import mark_loss_enrollment_free
         eid = _ensure_enrollment_row(user_id=user, subject_slug=row.slug)

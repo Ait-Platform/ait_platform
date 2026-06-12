@@ -1,7 +1,7 @@
 from flask import current_app, flash, redirect, render_template, session, url_for, request, abort
 from flask_login import current_user
 from sqlalchemy import text as sa_text
-from app.auth.decisions import commercial_decision
+
 from app.enrollment.helpers import lock_quote_into_enrollment
 from app.extensions import db
 from app.models.auth import AuthSubject, User, UserEnrollment

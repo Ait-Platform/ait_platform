@@ -1,0 +1,68 @@
+{% extends "layout.html" %}
+{% block title %}Submit Talent | Cultural Fire{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto bg-white rounded-xl shadow overflow-hidden">
+  <!-- Color strip -->
+  <div class="h-2 bg-pink-600"></div>
+
+  <div class="p-6">
+    <!-- Header row -->
+    <div class="flex justify-between items-start">
+      <h1 class="text-2xl font-bold text-slate-900">Submit Talent</h1>
+
+      <!-- Back to Dashboard button -->
+      <a href="{{ url_for('cultural_bp.participant_solo_dashboard', enrollment_id=enrollment.id) }}"
+         class="ml-4 px-4 py-2 bg-slate-200 text-slate-700 rounded hover:bg-slate-300 text-sm font-medium">
+         ← Back to Dashboard
+      </a>
+    </div>
+
+    <!-- Submission Form -->
+    {% if current_user.role == 'participant' %}
+    <form method="POST" action="{{ url_for('cultural_bp.participant_submit', enrollment_id=enrollment.id) }}" 
+          enctype="multipart/form-data" class="mt-6 space-y-4">
+      
+      {{ form.hidden_tag() }}  <!-- CSRF token -->
+
+      <!-- Category -->
+      <div>
+        <label class="block text-sm font-medium text-slate-700">Category</label>
+        <input name="category" placeholder="Category"
+              class="w-full border p-2 rounded text-sm"/>
+      </div>
+
+      <!-- Media Link -->
+      <div>
+        <label class="block text-sm font-medium text-slate-700">Video or Audio Link</label>
+        <input name="media_url" placeholder="Paste a YouTube, Vimeo, or SoundCloud link"
+              class="w-full border p-2 rounded text-sm"/>
+      </div>
+
+      <!-- File Upload -->
+      <div>
+        <label class="block text-sm font-medium text-slate-700">Upload Performance</label>
+        <input type="file" name="talent_files" multiple
+              class="block w-full text-sm text-slate-600 border rounded px-3 py-2 cursor-pointer">
+      </div>
+
+      <!-- Description -->
+      <div>
+        <label class="block text-sm font-medium text-slate-700">Brief Description</label>
+        <textarea name="description" rows="3"
+                  placeholder="Describe your submission (e.g. Spoken word piece, dance routine, original song)"
+                  class="w-full border rounded px-3 py-2 text-sm"></textarea>
+      </div>
+
+      <!-- Submit Button -->
+      <button class="bg-pink-600 text-white px-5 py-2 rounded-lg hover:bg-pink-700 font-semibold">
+        Submit
+      </button>
+    </form>
+    {% else %}
+      <p>This dashboard is read‑only for your role.</p>
+    {% endif %}
+
+  </div>
+</div>
+{% endblock %}

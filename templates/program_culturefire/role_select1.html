@@ -1,0 +1,72 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="max-w-4xl mx-auto mt-10">
+
+  <h2 class="text-2xl font-bold text-gray-800 mb-6">
+    Choose your role in Cultural Fire
+  </h2>
+
+  <form method="post" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    
+      {{ form.hidden_tag() }}
+    <!-- Participant -->
+    <button type="submit" name="role" value="participant"
+      class="bg-white shadow-md rounded-lg overflow-hidden border hover:shadow-lg transition">
+      <div class="h-2 bg-blue-500"></div>
+      <div class="p-6 text-left">
+        <h3 class="text-lg font-semibold text-gray-700">Participant</h3>
+        <p class="text-sm text-gray-500">Join as an individual learner.</p>
+      </div>
+    </button>
+
+    <!-- Band -->
+    <button type="submit" name="role" value="band"
+      class="bg-white shadow-md rounded-lg overflow-hidden border hover:shadow-lg transition">
+      <div class="h-2 bg-green-500"></div>
+      <div class="p-6 text-left">
+        <h3 class="text-lg font-semibold text-gray-700">Band</h3>
+        <p class="text-sm text-gray-500">Register as a group or band.</p>
+      </div>
+    </button>
+
+    <!-- Parent -->
+    <button type="submit" name="role" value="parent"
+      class="bg-white shadow-md rounded-lg overflow-hidden border hover:shadow-lg transition">
+      <div class="h-2 bg-purple-500"></div>
+      <div class="p-6 text-left">
+        <h3 class="text-lg font-semibold text-gray-700">Parent</h3>
+        <p class="text-sm text-gray-500">Manage your child’s enrollment.</p>
+      </div>
+    </button>
+
+    <!-- Sponsor -->
+    <button type="submit" name="role" value="sponsor"
+      class="bg-white shadow-md rounded-lg overflow-hidden border hover:shadow-lg transition">
+      <div class="h-2 bg-yellow-500"></div>
+      <div class="p-6 text-left">
+        <h3 class="text-lg font-semibold text-gray-700">Sponsor</h3>
+        <p class="text-sm text-gray-500">Support learners financially.</p>
+      </div>
+    </button>
+
+    <!-- Volunteer -->
+    <button type="submit" name="role" value="volunteer"
+      class="bg-white shadow-md rounded-lg overflow-hidden border hover:shadow-lg transition">
+      <div class="h-2 bg-red-500"></div>
+      <div class="p-6 text-left">
+        <h3 class="text-lg font-semibold text-gray-700">Volunteer</h3>
+        <p class="text-sm text-gray-500">Assist with program activities.</p>
+      </div>
+    </button>
+  </form>
+
+  <!-- Back button -->
+  <div class="mt-8">
+    <a href="{{ url_for('bridge_bp.bridge') }}"
+       class="inline-block px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition">
+      ← Back
+    </a>
+  </div>
+
+</div>
+{% endblock %}

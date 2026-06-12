@@ -39,7 +39,7 @@ def _ensure_enrollment_row(user_id: int, subject_slug: str) -> int:
     res = db.session.execute(
         sa_text("""
             INSERT INTO user_enrollment (user_id, subject_id, status, started_at)
-            VALUES (:uid, :sid, 'active', CURRENT_TIMESTAMP)
+            VALUES (:uid, :sid, 'pending', CURRENT_TIMESTAMP)
             RETURNING id
         """),
         {"uid": user_id, "sid": sid},

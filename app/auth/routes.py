@@ -68,6 +68,14 @@ from app.auth.pricing_helpers import (
 
 auth_bp = Blueprint('auth_bp', __name__, url_prefix='/', template_folder='templates')
 
+def get_all_subjects():
+    # Return all active subjects
+    return AuthSubject.query.filter_by(is_active=1).all()
+
+def check_admin(email):
+    # Return True if email is in approved admin list
+    return ApprovedAdmin.query.filter_by(email=email.lower()).first() is not None
+
 @auth_bp.app_context_processor
 def inject_has_endpoint():
     from flask import current_app
@@ -121,14 +129,16 @@ def start_registration():
                 next_url = f"{next_url}?{p.query}"
 
     if not next_url:
-        next_url = url_for("payfast_bp.checkout_review",
-                           subject_id=subject_id,
+        next_url = url_for("yoco_bp.yoco_start",
                            subject=subject_slug)
 
     # 5) Role (default "user")
     role = (request.args.get("role") or "user").strip().lower()
 
-    # 6) Redirect to the real registration form
+    # 6) Redirect to the real registration form or decision if already logged in
+    if getattr(current_user, "is_authenticated", False):
+        return redirect(url_for("auth_bp.dashboard_info", subject=subject_slug))
+        
     return redirect(
         url_for("auth_bp.register",
                 role=role,
@@ -140,11 +150,30 @@ def start_registration():
 def register():
     # ---------- GET ----------
     if request.method == "GET":
-        role     = (request.args.get("role") or "user").strip().lower()
+        from flask_login import current_user
+        
         subject  = (request.args.get("subject") or "loss").strip().lower()
+        role     = (request.args.get("role") or "user").strip().lower()
         next_url = (request.args.get("next") or "/").strip()
 
+        # If already logged in, skip the form!
+        if getattr(current_user, "is_authenticated", False):
+            return redirect(url_for("auth_bp.dashboard_info", subject=subject))
+
         _save_reg_ctx(role, subject, "", "", next_url)
+        
+        # Pull quote baton from session if it matches this subject
+        if session.get("subject_slug") == subject and session.get("zar_amount_cents"):
+            ctx = session.get("reg_ctx", {})
+            ctx["quote"] = {
+                "country_code": session.get("country_code"),
+                "currency": session.get("local_currency"),
+                "amount_cents": session.get("local_amount_cents"),
+                "zar_amount_cents": session.get("zar_amount_cents"),
+                "est_zar_cents": session.get("zar_amount_cents"),
+                "version": session.get("price_version"),
+            }
+            session.modified = True
 
         return render_template(
             "auth/register.html",
@@ -190,6 +219,7 @@ def register():
         )
 
     # confirm subject exists -> sid
+
     sid = db.session.execute(
         sa_text("SELECT id FROM auth_subject WHERE slug = :s OR name = :s LIMIT 1"),
         {"s": subject},
@@ -204,21 +234,43 @@ def register():
             values=values,
         )
 
-    # normalize email & block duplicates
+    # normalize email & check if user exists
     email_norm = email_in.lower()
-    existing = db.session.execute(
-        sa_text('SELECT id FROM "user" WHERE lower(email) = lower(:e) LIMIT 1'),
-        {"e": email_norm},
-    ).scalar()
-    if existing:
-        flash("That email is already registered. Please sign in.", "danger")
-        return render_template(
-            "auth/register.html",
-            role=role,
-            subject=subject,
-            next_url=next_url,
-            values=values,
-        )
+    from app.models.auth import User
+    existing_user = User.query.filter(db.func.lower(User.email) == email_norm).first()
+    
+    if existing_user:
+        # Check if the provided password matches
+        is_ok = False
+        pw_hash = getattr(existing_user, "password_hash", None)
+        if pw_hash:
+            is_ok = check_password_hash(pw_hash, password)
+        elif getattr(existing_user, "password", None):
+            # Legacy plaintext password fallback just in case
+            if existing_user.password == password:
+                is_ok = True
+
+        if is_ok:
+            # Password matches, log them in seamlessly
+            login_user(existing_user, fresh=True)
+            flash("Welcome back! We logged you in automatically.", "success")
+            
+            # Replicate login session scaffolding
+            session["is_authenticated"] = True
+            session["email"] = email_norm
+            session["user_id"] = int(existing_user.id)
+            session["user_name"] = existing_user.name or email_norm.split("@")[0]
+            
+            return redirect(url_for("auth_bp.dashboard_info", subject=subject))
+        else:
+            flash("That email is already registered, but the password provided is incorrect.", "danger")
+            return render_template(
+                "auth/register.html",
+                role=role,
+                subject=subject,
+                next_url=next_url,
+                values=values,
+            )
 
     # stage user in session (no user row yet)
     staged_password_hash = generate_password_hash(password)
@@ -234,16 +286,17 @@ def register():
     session["reg_ctx"]["password_hash"] = staged_password_hash
 
     # ---------- lock a DB-driven parity + ZAR quote into session ----------
-    cc      = (request.form.get("country") or "ZA").strip().upper()
+    cc = (request.form.get("country") or session.get("country_code") or "ZA").strip().upper()
     subj_id = subject_id_for(subject)
 
-    local_cents    = 0
-    est_zar_cents  = 0
-    cur            = "ZAR"
+    local_cents    = session.get("local_amount_cents") or 0
+    est_zar_cents  = session.get("zar_amount_cents") or 0
+    cur            = session.get("local_currency") or "ZAR"
 
-    if subj_id:
-        # price_for_country → (local_cents, zar_cents, currency)
-        local_cents, est_zar_cents, cur = price_for_country(subj_id, cc)
+    if not est_zar_cents or est_zar_cents <= 0:
+        if subj_id:
+            # price_for_country → (local_cents, zar_cents, currency)
+            local_cents, est_zar_cents, cur = price_for_country(subj_id, cc)
 
     if not est_zar_cents or est_zar_cents <= 0:
         est_zar_cents = 5000  # 50.00 ZAR safety net
@@ -282,33 +335,39 @@ def register_decision():
         or "loss"
     )
 
-    # 1) Ensure/create the user from staged session data
-    try:
-        user_id = _ensure_or_create_user_from_session(ctx)
-    except ValueError:
-        flash("Your session expired. Please re-enter your details.", "warning")
-        return redirect(url_for("auth_bp.register", subject=subject))
 
-    # 1b) Ensure the user is logged in
-    if not getattr(current_user, "is_authenticated", False):
+
+    # 1) Ensure/create the user from staged session data or current user
+    if getattr(current_user, "is_authenticated", False):
+        user_id = current_user.id
+        ctx["email"] = current_user.email
+    else:
+        try:
+            user_id = _ensure_or_create_user_from_session(ctx)
+        except ValueError:
+            flash("Your session expired. Please re-enter your details.", "warning")
+            return redirect(url_for("auth_bp.register", subject=subject))
+
+        # 1b) Ensure the user is logged in
         user = db.session.get(User, user_id)
         if user:
             login_user(user)
+            session["user_id"] = int(user.id)
+            session["email"] = (user.email or "").lower()
+            session["role"] = "user"
+            session["user_name"] = user.name or session["email"].split("@", 1)[0]
+            session.modified = True
 
     # 2) Ensure an enrollment row
     enrollment_id = _ensure_enrollment_row(user_id=user_id, subject_slug=subject)
 
-    # ---------- SPECIAL CASE: LOSS IS FREE (AD CAMPAIGN) ----------
-    if subject == "loss" and current_app.config.get("LOSS_FREE"):
-        mark_loss_enrollment_free(enrollment_id)
-
-        # Clean up session noise
+    # ---------- SPECIAL CASE: FREE SUBJECTS (CULTURAL FIRE) ----------
+    if subject == "cultural_fire":
+        mark_loss_enrollment_free(enrollment_id) # Acts as a generic free marker
         session.pop("reg_ctx", None)
         session.pop("just_paid_subject_id", None)
-
-        # Straight to subject dashboard / bridge
         return redirect(url_for("auth_bp.bridge_dashboard"))
-    # ---------- END LOSS-FREE SPECIAL CASE ----------
+    # ---------- END FREE SPECIAL CASE ----------
 
     # ---------- SPECIAL CASE: SMS FLAT ZAR PRICE ----------
     if subject == "sms":
@@ -323,6 +382,19 @@ def register_decision():
 
     # 3) Normal paid flow: keep your existing pricing + PayFast logic here
     q = ctx.get("quote")
+    
+    # Fallback to session quote_baton if available for this subject
+    if not q and session.get("subject_slug") == subject and session.get("zar_amount_cents"):
+        q = {
+            "country_code": session.get("country_code"),
+            "currency": session.get("local_currency"),
+            "amount_cents": session.get("local_amount_cents"),
+            "zar_amount_cents": session.get("zar_amount_cents"),
+            "est_zar_cents": session.get("zar_amount_cents"),
+            "version": session.get("price_version"),
+        }
+        ctx["quote"] = q
+        session.modified = True
 
     if not q:
         country = (
@@ -332,10 +404,12 @@ def register_decision():
         )
 
         try:
-            amount_cents = price_cents_for(subject, country)
+            from app.payments.pricing import currency_for_country_code
+            currency = currency_for_country_code(country) or "ZAR"
+            amount_cents = price_cents_for(subject, currency)
         except Exception:
             current_app.logger.exception(
-                "pricing failed for subject=%s country=%s", subject, country
+                "pricing failed for subject=%s country=%s currency=%s", subject, country, currency
             )
             amount_cents = None
 
@@ -354,32 +428,41 @@ def register_decision():
         )
         return redirect(url_for("public_bp.welcome"))
 
-    db.session.execute(
-        db.text(
-            """
-            UPDATE user_enrollment
-               SET country_code        = :cc,
-                   quoted_currency     = :cur,
-                   quoted_amount_cents = :amt,
-                   price_version       = :ver,
-                   price_locked_at     = CURRENT_TIMESTAMP
-             WHERE id = :eid
-            """
-        ),
-        {
-            "cc":  q.get("country_code"),
-            "cur": q.get("currency") or "ZAR",
-            "amt": int(q.get("amount_cents") or 0),
-            "ver": q.get("version") or "2025-11",
-            "eid": enrollment_id,
-        },
-    )
-    db.session.commit()
+    # Check if the enrollment already has a locked price to prevent exploitation
+    existing_enrollment = db.session.execute(
+        db.text("SELECT zar_amount_cents FROM user_enrollment WHERE id = :eid"),
+        {"eid": enrollment_id}
+    ).first()
+
+    if not existing_enrollment or not existing_enrollment.zar_amount_cents or existing_enrollment.zar_amount_cents <= 0:
+        db.session.execute(
+            db.text(
+                """
+                UPDATE user_enrollment
+                   SET country_code        = :cc,
+                       local_currency      = :cur,
+                       local_amount_cents  = :amt,
+                       zar_amount_cents    = :zar_amt,
+                       price_version       = :ver,
+                       price_locked_at     = CURRENT_TIMESTAMP
+                 WHERE id = :eid
+                """
+            ),
+            {
+                "cc":  q.get("country_code"),
+                "cur": q.get("currency") or "ZAR",
+                "amt": int(q.get("amount_cents") or 0),
+                "zar_amt": int(q.get("est_zar_cents") or q.get("zar_amount_cents") or q.get("amount_cents") or 0),
+                "ver": q.get("version") or "2025-11",
+                "eid": enrollment_id,
+            },
+        )
+        db.session.commit()
 
     row = db.session.execute(
         db.text(
             """
-            SELECT quoted_currency, quoted_amount_cents
+            SELECT local_currency, local_amount_cents
               FROM user_enrollment
              WHERE id = :eid
             """
@@ -403,6 +486,34 @@ def register_decision():
         flash("We couldn't confirm your email address. Please register again.", "warning")
         return redirect(url_for("auth_bp.register", subject=subject))
 
+    next_url = ctx.get("next_url")
+    from app.models.auth import AuthSubject, UserEnrollment
+    from datetime import datetime, timedelta
+    
+    subj_obj = AuthSubject.query.filter(db.func.lower(AuthSubject.slug) == subject.lower()).first()
+    if subj_obj:
+        session["just_paid_subject_id"] = subj_obj.id
+        
+        # If the subject is completely free, bypass payment
+        if subj_obj.commercial_mode == "free":
+            ue = db.session.get(UserEnrollment, enrollment_id)
+            if ue:
+                ue.status = "active"
+                db.session.commit()
+            return redirect(url_for("auth_bp.bridge_dashboard"))
+            
+        # If the subject has a trial period, bypass payment and set trial expiration
+        if subj_obj.trial_days and float(subj_obj.trial_days) > 0:
+            ue = db.session.get(UserEnrollment, enrollment_id)
+            if ue:
+                ue.status = "active"
+                ue.trial_end = datetime.utcnow() + timedelta(days=float(subj_obj.trial_days))
+                db.session.commit()
+            return redirect(url_for("auth_bp.bridge_dashboard"))
+
+
+
+    # If they reach here, there is NO free access and NO trial, so we MUST send them to Yoco for payment
     return redirect(
         url_for(
             "yoco_bp.yoco_start",
@@ -571,7 +682,13 @@ def login():
                     FROM user_enrollment ue
                     JOIN auth_subject s ON s.id = ue.subject_id
                     WHERE ue.user_id = :uid
-                      AND ue.status  = 'active'
+                      AND (
+                         s.commercial_mode = 'free' OR
+                         s.requires_price = 0 OR
+                         ue.status IN ('active', 'started', 'enrolled', 'paid') OR
+                         (ue.trial_end IS NOT NULL AND ue.trial_end > CURRENT_TIMESTAMP) OR
+                         (ue.expires_at IS NOT NULL AND ue.expires_at > CURRENT_TIMESTAMP)
+                      )
                 """),
                 {"uid": user.id}
             ).fetchall()
@@ -651,7 +768,7 @@ def logout():
 @auth_bp.route("/admin/select_subject", methods=["GET", "POST"])
 @login_required
 def select_subject():
-    if current_user.role != "admin":
+    if not current_user.has_role('admin'):
         flash("Access denied", "danger")
         return redirect(url_for("public_bp.welcome"))
 
@@ -737,6 +854,8 @@ def bridge_dashboard():
     # 🔹 NEW: build enrollment map for this user from user_enrollment
     enroll_map = {}
     if user_obj:
+        # Removed auto-enrollment in cultural_fire
+
         rows_en = db.session.execute(
             text("""
                 SELECT subject_id, status
@@ -749,6 +868,16 @@ def bridge_dashboard():
 
     # One-time focus from Stripe success
     open_sid = session.pop("just_paid_subject_id", None)
+    if open_sid:
+        try:
+            # If they just paid for home_premium, home2, or home_section3, we want to show the base home tile
+            premium_sids = db.session.scalars(text("SELECT id FROM auth_subject WHERE slug IN ('home_premium', 'home2', 'home_section3')")).all()
+            if premium_sids and int(open_sid) in premium_sids:
+                home_sid = db.session.scalar(text("SELECT id FROM auth_subject WHERE slug='home' LIMIT 1"))
+                if home_sid:
+                    open_sid = home_sid
+        except Exception as e:
+            current_app.logger.error(f"Failed to map premium sid: {e}")
 
     base_sql = BRIDGE_QUERY.strip()
     # drop a trailing semicolon so we can reuse / modify the text safely
@@ -781,6 +910,28 @@ def bridge_dashboard():
         rows = db.session.execute(sa_text(base_sql), params).fetchall()
 
     banner = session.pop("payment_banner", None)
+    
+    # User requested CFI Judge NOT to be a standalone tile on the bridge
+    rows = [r for r in rows if r.slug != 'cfi_judge']
+    
+    # Bypass bridge dashboard if the user only has a single active enrollment
+    # Only bypass if they didn't explicitly request the bridge via force=1
+    force_bridge = request.args.get('force') == '1'
+    is_admin = any(getattr(r, 'access_level', '') == 'admin' for r in rows)
+    if len(rows) == 1 and not is_admin and not force_bridge:
+        s = rows[0]
+        access_level = getattr(s, 'access_level', '')
+        if access_level == 'enrolled':
+            slug = getattr(s, 'slug', '').lower()
+            if slug == 'cultural_fire':
+                return redirect(url_for('cultural_bp.cultural_fire_router'))
+            elif slug == 'home':
+                return redirect(url_for('home_bp.learner_dashboard'))
+            elif slug == 'billing':
+                return redirect(url_for('billing_bp.learner_dashboard'))
+            else:
+                return redirect(url_for('auth_bp.learner_subject_dashboard', subject=slug))
+
     return render_template(
         "auth/bridge_dashboard.html",
         subjects=rows,
@@ -805,6 +956,9 @@ def learner_subject_dashboard(subject):
     if subj_key == "reading":
         return redirect(url_for("reading_bp.subject_home"))
 
+    if subj_key == "adv_math":
+        return redirect(url_for("adv_math_bp.dashboard"))
+
     # -------------------------------------------------
     # Lookup subject row (for generic subjects + loss)
     # -------------------------------------------------
@@ -825,11 +979,29 @@ def learner_subject_dashboard(subject):
 
     slug = ((row.get("slug") or "")).strip().lower()
 
+    if slug == "loss":
+        uid = current_user.id
+        completed_run = db.session.execute(
+            text("SELECT id FROM lca_run WHERE user_id = :uid AND status = 'completed' LIMIT 1"),
+            {"uid": uid}
+        ).scalar()
+        if completed_run:
+            flash("You have already completed this course. You are only allowed to enroll for this course once.", "info")
+            return redirect(url_for("loss_bp.result_dashboard"))
+
     # -------------------------------------------------
     # Determine start URL for generic "Press Next" screen
     # -------------------------------------------------
     if slug == "loss" or subj_key == "loss":
         start_url = url_for("loss_bp.subject_home")
+    elif slug == "cultural_fire" or subj_key == "cultural_fire":
+        start_url = url_for("cultural_bp.cultural_fire_router")
+    elif slug == "home" or subj_key == "home":
+        start_url = url_for("home_bp.learner_dashboard")
+    elif slug == "billing" or subj_key == "billing":
+        start_url = url_for("billing_bp.learner_dashboard")
+    elif slug == "adv_math" or subj_key == "adv_math":
+        start_url = url_for("adv_math_bp.dashboard")
     else:
         try:
             start_url = url_for(f"{slug}_bp.subject_home")
@@ -852,15 +1024,44 @@ def dashboard_info(subject: str):
     if not email:
         return redirect(url_for("auth_bp.login"))
 
+    from app.models.auth import User
+    user = db.session.scalar(db.text('SELECT id FROM "user" WHERE lower(email) = :e'), {"e": email.lower()})
+    if not user:
+        return redirect(url_for("auth_bp.login"))
+
     row = db.session.execute(
-        text("SELECT id, slug, name FROM auth_subject WHERE slug = :slug AND is_active = 1"),
+        db.text("SELECT id, slug, name, program_type, commercial_mode FROM auth_subject WHERE slug = :slug AND is_active = 1"),
         {"slug": subject.strip().lower()}
     ).fetchone()
+    
     if not row:
         abort(404)
 
-    flash(f"You are not registered for {row.name}. Please contact an administrator if you need access.", "info")
-    return redirect(url_for("auth_bp.bridge_dashboard"))
+    # Check if they already have an enrollment
+    ue_status = db.session.scalar(
+        db.text("SELECT status FROM user_enrollment WHERE user_id = :uid AND subject_id = :sid AND status != 'archived' LIMIT 1"),
+        {"uid": user, "sid": row.id}
+    )
+
+    if ue_status in ("active", "expired"):
+        flash(f"Welcome back to {row.name}!", "success")
+        return redirect(url_for("auth_bp.learner_subject_dashboard", subject=row.slug))
+
+    if ue_status == "completed":
+        return redirect(url_for("auth_bp.learner_subject_dashboard", subject=row.slug))
+
+    # Auto-enroll if the subject is free
+    if row.slug in ("cultural_fire",) or row.program_type == 'free' or row.commercial_mode == 'free':
+        from app.services.enrollment import _ensure_enrollment_row
+        from app.auth.pricing_helpers import mark_loss_enrollment_free
+        eid = _ensure_enrollment_row(user_id=user, subject_slug=row.slug)
+        mark_loss_enrollment_free(eid)
+        flash(f"You have successfully enrolled in {row.name}!", "success")
+        return redirect(url_for("auth_bp.bridge_dashboard"))
+
+    # For paid subjects, send them to the register/payment flow
+    flash(f"Please complete registration or payment to unlock {row.name}.", "info")
+    return redirect(url_for("auth_bp.register_decision", subject=row.slug))
 
 @auth_bp.route("/dev-login")
 def dev_login():
@@ -1139,7 +1340,7 @@ def reenrol_existing_user():
         login_user(u, remember=True)          # <-- pass the instance
         session["user_id"]   = int(u.id)
         session["email"]     = (u.email or "").lower()
-        session["role"]      = (u.role or "user").lower()
+        session["role"]      = "user"
         session["user_name"] = u.name or session["email"].split("@", 1)[0]
 
     sid = subject_id_from_slug(subject)
@@ -1465,6 +1666,10 @@ def _compute_subject_start_url(slug: str) -> str:
         "reading": [
             "reading_bp.preflight_reading",
             "reading_bp.subject_home",
+        ],
+        
+        "home": [
+            "home_bp.learner_dashboard",
         ],
 
         # you can add more subjects here later, eg:

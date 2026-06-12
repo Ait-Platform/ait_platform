@@ -17,11 +17,12 @@ def mark_loss_enrollment_free(enrollment_id: int) -> None:
             """
             UPDATE user_enrollment
                SET country_code        = COALESCE(country_code, 'ZA'),
-                   quoted_currency     = COALESCE(quoted_currency, 'ZAR'),
-                   quoted_amount_cents = COALESCE(quoted_amount_cents, 0),
+                   local_currency      = COALESCE(local_currency, 'ZAR'),
+                   local_amount_cents  = COALESCE(local_amount_cents, 0),
+                   zar_amount_cents    = COALESCE(zar_amount_cents, 0),
                    price_version       = COALESCE(price_version, '2025-11'),
                    price_locked_at     = COALESCE(price_locked_at, CURRENT_TIMESTAMP),
-                   status              = COALESCE(status, 'active')
+                   status              = 'active'
              WHERE id = :eid
             """
         ),

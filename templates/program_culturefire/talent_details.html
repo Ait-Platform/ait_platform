@@ -1,0 +1,81 @@
+{% extends "layout.html" %}
+
+{% block title %}Talent Details{% endblock %}
+{% block heading %}Talent Details{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto mt-6 bg-white shadow rounded-lg overflow-hidden">
+
+  <!-- Color stripe -->
+  <div class="h-2 bg-blue-600"></div>
+
+  <!-- Header -->
+  <div class="px-4 py-3 border-b flex justify-between items-center">
+    <h1 class="text-lg font-semibold text-gray-800">
+      Talent Details: {{ talent.talent_name }} ({{ talent.category_item.name }})
+    </h1>
+
+    {% if talent.user_enrollment %}
+      <a href="{{ url_for('cultural_bp.talent_dashboard', enrollment_id=talent.user_enrollment.id) }}">
+        Back
+      </a>
+    {% else %}
+      <span>No enrollment linked</span>
+    {% endif %}
+  </div>
+
+
+  <!-- Help Guide -->
+  <div class="px-4 py-2 bg-gray-50 border-b text-sm text-gray-600">
+    Complete the form below. Details must be filled in for this item to reach showcase level.
+  </div>
+
+  <!-- Detail Form -->
+  <form method="POST" class="px-4 py-4 space-y-4">
+       {{ form.hidden_tag() }}
+
+    <!-- Context -->
+    <div>
+        <div>
+          {{ form.context.label(class="block text-gray-700 font-medium") }}
+          {{ form.context(class="w-full border rounded px-3 py-2") }}
+        </div>
+
+        <!-- Sponsor -->
+        <div>
+          {{ form.sponsor_id.label(class="block text-gray-700 font-medium") }}
+          {{ form.sponsor_id(class="w-full border rounded px-3 py-2") }}
+        </div>
+
+        <!-- Sponsor Type >
+        <div>
+          {#{ form.sponsor_type.label(class="block text-gray-700 font-medium") }#}
+          {#{ form.sponsor_type(class="w-full border rounded px-3 py-2") }#}
+        </div-->
+
+        <!-- Supporter -->
+        <div>
+          {{ form.supporter_id.label(class="block text-gray-700 font-medium") }}
+          {{ form.supporter_id(class="w-full border rounded px-3 py-2") }}
+        </div>
+
+        <!-- Supporter Type >
+        <div>
+          {#{ form.supporter_type.label(class="block text-gray-700 font-medium") }#}
+          {#{ form.supporter_type(class="w-full border rounded px-3 py-2") }#}
+        </div-->
+
+
+    <!-- Submit -->
+    <div class="flex justify-end">
+      <button type="submit" 
+              class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+        Save Details
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+
+

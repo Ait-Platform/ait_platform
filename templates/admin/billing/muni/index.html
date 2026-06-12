@@ -1,93 +1,97 @@
 {% extends "layout.html" %}
 {% block content %}
+<div class="p-10 max-w-6xl mx-auto">
+  <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+    <!-- Top Gradient Strip -->
+    <div class="h-2 w-full bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500"></div>
+    
+    <!-- Header -->
+    <div class="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+      <div>
+        <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight">Municipal Accounts</h1>
+        <p class="text-sm text-slate-500 mt-1">Search, jump to, and manage municipal ledgers.</p>
+      </div>
+      <a href="{{ url_for('admin_bp.subject_dashboard', subject='billing') }}" class="inline-flex items-center text-sm font-medium text-slate-500 hover:text-slate-800 transition bg-white hover:bg-slate-50 px-4 py-2 rounded-lg border border-slate-200 shadow-sm">
+        <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+        Back to Dashboard
+      </a>
+    </div>
 
-<div class="container mx-auto py-10 space-y-6">
+    <!-- Main Content -->
+    <div class="p-8 space-y-8">
+      
+      <!-- Toolbar: Filters -->
+      <div class="bg-slate-50 border border-slate-200 rounded-xl p-6">
+        <form method="get" class="flex flex-col md:flex-row gap-6 w-full items-end">
+          
+          <!-- Select Account -->
+          <div class="flex-1 w-full">
+            <label class="block text-sm font-medium text-slate-700 mb-2">Select Account</label>
+            <select name="q_acc" class="w-full border border-slate-300 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+              <option value="">All Accounts</option>
+              {% for n in all_nums %}
+                <option value="{{ n }}" {% if q_acc == n %}selected{% endif %}>{{ n }}</option>
+              {% endfor %}
+            </select>
+          </div>
 
-  <h1 class="text-2xl font-semibold">Municipal Accounts — Picker</h1>
+          <!-- Select Occupier -->
+          <div class="flex-1 w-full">
+            <label class="block text-sm font-medium text-slate-700 mb-2">Select Occupier</label>
+            <select name="q_occ" class="w-full border border-slate-300 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+              <option value="">All Occupiers</option>
+              {% for o in all_occupiers %}
+                <option value="{{ o }}" {% if q_occ == o %}selected{% endif %}>{{ o }}</option>
+              {% endfor %}
+            </select>
+          </div>
 
-  <!-- Actions toolbar (Search + Jump only) -->
-  <div class="rounded-xl border p-4">
-    <div class="flex flex-col md:flex-row md:items-end md:gap-6">
+          <!-- Actions -->
+          <div class="flex gap-2">
+            <button class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-6 rounded-lg transition shadow-sm text-sm">
+              Filter Table
+            </button>
+            <a href="{{ url_for('admin_bp.muni_accounts') }}" class="flex items-center justify-center border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 px-4 py-2 rounded-lg transition text-sm font-medium">
+              Clear
+            </a>
+          </div>
+        </form>
+      </div>
 
-      <!-- Search (GET) -->
-      <form method="get" class="flex items-end gap-2">
-        <label class="text-sm">
-          Search (account or owner)
-          <input
-            name="q"
-            value="{{ q or '' }}"
-            class="mt-1 border rounded-lg p-2 w-64"
-            placeholder="e.g. 8332 or Nanhoo">
-        </label>
-        <button class="px-4 py-2 rounded-lg bg-black text-white">Search</button>
-        <a href="{{ url_for('admin_bp.muni_accounts') }}" class="text-sm underline">Clear</a>
-      </form>
-
-      <!-- Jump to account (POST) -->
-      <form method="post" action="{{ url_for('admin_bp.muni_accounts_go') }}" class="flex items-end gap-2">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <label class="text-sm">
-          Jump to account
-          <input
-            name="account_number"
-            list="accnums"
-            class="mt-1 border rounded-lg p-2 w-56"
-            placeholder="Start typing…"
-            required>
-        </label>
-        <button class="px-4 py-2 rounded-lg bg-black text-white">Open Capture</button>
-      </form>
+      <!-- Accounts Table -->
+      <div class="rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <table class="w-full text-sm text-left whitespace-nowrap">
+          <thead class="bg-slate-50 text-slate-600 border-b border-slate-200">
+            <tr>
+              <th class="px-6 py-4 font-semibold">Account #</th>
+              <th class="px-6 py-4 font-semibold">Occupier</th>
+              <th class="px-6 py-4 font-semibold">Water Meter</th>
+              <th class="px-6 py-4 font-semibold">Elec Meter</th>
+              <th class="px-6 py-4 font-semibold text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            {% for a in accounts %}
+              <tr class="hover:bg-slate-50 transition">
+                <td class="px-6 py-4 font-mono font-medium text-slate-900">{{ a.account_number }}</td>
+                <td class="px-6 py-4 text-slate-700">{{ a.owner_name or '—' }}</td>
+                <td class="px-6 py-4 text-slate-500">{{ a.muni_water_meter_no or '—' }}</td>
+                <td class="px-6 py-4 text-slate-500">{{ a.muni_elec_meter_no or '—' }}</td>
+                <td class="px-6 py-4 text-right space-x-3">
+                  <a class="text-indigo-600 hover:text-indigo-800 font-medium transition" href="{{ url_for('admin_bp.muni_capture', account_number=a.account_number) }}">Capture</a>
+                  <a class="text-blue-600 hover:text-blue-800 font-medium transition" href="{{ url_for('admin_bp.muni_ledger', account_number=a.account_number) }}">Ledger</a>
+                </td>
+              </tr>
+            {% else %}
+              <tr>
+                <td class="px-6 py-8 text-center text-slate-500" colspan="5">No accounts found matching your search.</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
 
     </div>
   </div>
-
-  <!-- Datalist for Jump to account -->
-  <datalist id="accnums">
-    {% for n in all_nums %}
-      <option value="{{ n }}"></option>
-    {% endfor %}
-  </datalist>
-
-  <!-- Accounts table -->
-  <div class="rounded-xl border overflow-hidden">
-    <table class="w-full text-sm">
-      <thead class="bg-slate-50">
-        <tr class="text-left">
-          <th class="px-4 py-3">Account #</th>
-          <th class="px-4 py-3">Owner</th>
-          <th class="px-4 py-3">Water Meter</th>
-          <th class="px-4 py-3">Elec Meter</th>
-          <th class="px-4 py-3">Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for a in accounts %}
-          <tr class="border-t">
-            <td class="px-4 py-2 font-mono">{{ a.account_number }}</td>
-            <td class="px-4 py-2">{{ a.owner_name or '—' }}</td>
-            <td class="px-4 py-2">{{ a.muni_water_meter_no or '—' }}</td>
-            <td class="px-4 py-2">{{ a.muni_elec_meter_no or '—' }}</td>
-            <td class="px-4 py-2">
-              <a class="underline mr-3" href="{{ url_for('admin_bp.muni_capture', account_number=a.account_number) }}">Capture</a>
-              <a class="underline" href="{{ url_for('admin_bp.muni_ledger', account_number=a.account_number) }}">Ledger</a>
-            </td>
-          </tr>
-        {% else %}
-          <tr class="border-t">
-            <td class="px-4 py-6 text-center text-slate-500" colspan="5">No accounts found.</td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-
-  <!-- Footer -->
-  <div>
-    <a href="{{ url_for('admin_bp.subject_dashboard', subject='billing') }}" class="text-sm underline">
-      Back to Billing
-    </a>
-  </div>
-
 </div>
-
 {% endblock %}

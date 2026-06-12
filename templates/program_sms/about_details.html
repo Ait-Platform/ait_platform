@@ -1,0 +1,44 @@
+{% extends "layout.html" %}
+{% block title %}School Management System · Details · AIT{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-4xl py-10">
+
+  <div class="flex items-center justify-between mb-6">
+    <a href="{{ url_for('sms_bp.about') }}"
+       class="inline-flex items-center rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50">
+      ← Back
+    </a>
+
+    <div class="text-sm text-slate-500">
+      School Management System · Page 2 of 3
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    {% for m in modules %}
+      <div class="rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-sm">
+        <h2 class="text-base md:text-lg font-medium text-slate-900">
+          {{ m.title }}
+        </h2>
+        <p class="mt-1 text-xs md:text-sm text-slate-600">
+          {{ m.text }}
+        </p>
+      </div>
+    {% endfor %}
+  </div>
+
+  <div class="mt-8 flex items-center justify-between">
+    <a href="{{ url_for('sms_bp.about') }}"
+       class="inline-flex items-center rounded-md border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">
+      ← Back to overview
+    </a>
+
+    <a href="{{ url_for('sms_bp.about_comm') }}"
+       class="inline-flex items-center rounded-md border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">
+      More details →
+    </a>
+  </div>
+
+</div>
+{% endblock %}

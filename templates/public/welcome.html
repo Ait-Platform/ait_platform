@@ -3,26 +3,136 @@
 
 {% block content %}
 
-<div class="text-center mt-8 mb-8">
-  <h1 class="text-xl font-semibold text-slate-900">Archoney Institute of Technology</h1>
-  <p class="text-slate-600 text-sm mt-2">
-    Explore powerful programs tailored to different needs
-  </p>
+<!-- School tile -->
+<div class="mx-auto max-w-6xl mb-8">
+  <div class="bg-white rounded-xl shadow overflow-hidden">
+    <div class="h-2 bg-indigo-600"></div>
+    <div class="p-6 text-center">
+      <h1 class="text-xl font-semibold text-slate-900">Archoney Institute of Technology</h1>
+      <p class="mt-2 text-slate-600 text-sm">
+        Explore powerful programs tailored to different needs
+      </p>
+    </div>
+  </div>
 </div>
 
-{# templates/public/welcome.html #}
 {% if request.args.get('sent') == '1' %}
-  <div class="mx-auto max-w-3xl mt-4 rounded-lg bg-emerald-50 text-emerald-800 px-4 py-2 border border-emerald-200">
+  <div class="mx-auto max-w-6xl mb-8 rounded-lg bg-emerald-50 text-emerald-800 px-4 py-2 border border-emerald-200">
     Report emailed successfully.
   </div>
 {% elif request.args.get('sent') == '0' %}
-  <div class="mx-auto max-w-3xl mt-4 rounded-lg bg-red-50 text-red-800 px-4 py-2 border border-red-200">
+  <div class="mx-auto max-w-6xl mb-8 rounded-lg bg-red-50 text-red-800 px-4 py-2 border border-red-200">
     We couldn’t complete your request ({{ request.args.get('err') }}). Please try again or contact support.
   </div>
 {% endif %}
 
-{# bring in the subject cards #}
-{% import "_subject_cards.html" as cards %}
-{{ cards.render_subject_cards() }}
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto px-4 mb-8">
+
+  <!-- Loss -->
+  <div class="bg-white rounded-xl shadow overflow-hidden">
+    <div class="h-2 bg-purple-600"></div>
+    <div class="p-6 flex flex-col h-full">
+      <div class="flex items-start justify-between">
+        <h2 class="text-lg font-semibold text-slate-800">Loss of a Loved One (LOLO)</h2>
+        <span class="text-xs bg-purple-100 text-purple-600 px-2 py-1 rounded">Paid</span>
+      </div>
+      <p class="mt-2 text-sm text-slate-600 flex-grow">Get support, assess your needs, and begin healing.</p>
+      <a href="{{ url_for('loss_bp.about_loss', subject='loss') }}" class="inline-block mt-4 px-4 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition">Explore</a>
+    </div>
+  </div>
+
+  <!-- Reading -->
+  <div class="bg-white rounded-xl shadow overflow-hidden">
+    <div class="h-2 bg-emerald-600"></div>
+    <div class="p-6 flex flex-col h-full">
+      <div class="flex items-start justify-between">
+        <h2 class="text-lg font-semibold text-slate-800">Reading</h2>
+        <span class="text-xs bg-emerald-100 text-emerald-600 px-2 py-1 rounded">Paid</span>
+      </div>
+      <p class="mt-2 text-sm text-slate-600 flex-grow">Learn to read from scratch with the Litre Method.</p>
+      <a href="{{ url_for('reading_bp.about_reading', subject='reading') }}" class="inline-block mt-4 px-4 py-2 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700 transition">Explore</a>
+    </div>
+  </div>
+
+  <!-- Home -->
+  <div class="bg-white rounded-xl shadow overflow-hidden">
+    <div class="h-2 bg-blue-600"></div>
+    <div class="p-6 flex flex-col h-full">
+      <div class="flex items-start justify-between">
+        <h2 class="text-lg font-semibold text-slate-800">HOME (Math)</h2>
+        <span class="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded">Paid</span>
+      </div>
+      <p class="mt-2 text-sm text-slate-600 flex-grow">Master math through hands-on learning and visual tools.</p>
+      <a href="{{ url_for('home_bp.subject_home', subject='home') }}" class="inline-block mt-4 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition">Explore</a>
+    </div>
+  </div>
+
+  <!-- Budget -->
+  <div class="bg-white rounded-xl shadow overflow-hidden">
+    <div class="h-2 bg-amber-500"></div>
+    <div class="p-6 flex flex-col h-full">
+      <div class="flex items-start justify-between">
+        <h2 class="text-lg font-semibold text-slate-800">BudgetCash</h2>
+        <span class="text-xs bg-amber-100 text-amber-600 px-2 py-1 rounded">Trial</span>
+      </div>
+      <p class="mt-2 text-sm text-slate-600 flex-grow">External statement cashbook with balances, arrears, and due.</p>
+      <a href="{{ url_for('budget_bp.about', subject='budget') }}" class="inline-block mt-4 px-4 py-2 bg-amber-500 text-white text-sm rounded-lg hover:bg-amber-600 transition">Explore</a>
+    </div>
+  </div>
+
+
+  <!-- Billing -->
+  <div class="bg-white rounded-xl shadow overflow-hidden">
+    <div class="h-2 bg-orange-500"></div>
+    <div class="p-6 flex flex-col h-full">
+      <div class="flex items-start justify-between">
+        <h2 class="text-lg font-semibold text-slate-800">Metro Billing</h2>
+        <span class="text-xs bg-orange-100 text-orange-600 px-2 py-1 rounded">Paid</span>
+      </div>
+      <p class="mt-2 text-sm text-slate-600 flex-grow">Track utilities, manage tenants, and simplify statements.</p>
+      <a href="{{ url_for('billing_bp.billing_about', subject='billing') }}" class="inline-block mt-4 px-4 py-2 bg-orange-500 text-white text-sm rounded-lg hover:bg-orange-600 transition">Explore</a>
+    </div>
+  </div>
+
+  <!-- SPV -->
+  <div class="bg-white rounded-xl shadow overflow-hidden">
+    <div class="h-2 bg-slate-800"></div>
+    <div class="p-6 flex flex-col h-full">
+      <div class="flex items-start justify-between">
+        <h2 class="text-lg font-semibold text-slate-800">Special Purpose Vehicle</h2>
+        <span class="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded">Paid</span>
+      </div>
+      <p class="mt-2 text-sm text-slate-600 flex-grow">Manage and participate in Special Purpose Vehicle investments.</p>
+      <a href="{{ url_for('spv_bp.about_spv') }}" class="inline-block mt-4 px-4 py-2 bg-slate-800 text-white text-sm rounded-lg hover:bg-slate-900 transition">Explore</a>
+    </div>
+  </div>
+
+  <!-- Cultural Fire -->
+  <div class="bg-white rounded-xl shadow overflow-hidden">
+    <div class="h-2 bg-pink-500"></div>
+    <div class="p-6 flex flex-col h-full">
+      <div class="flex items-start justify-between">
+        <h2 class="text-lg font-semibold text-slate-800">Cultural Fire</h2>
+        <span class="text-xs bg-pink-100 text-pink-600 px-2 py-1 rounded">Free</span>
+      </div>
+      <p class="mt-2 text-sm text-slate-600 flex-grow">Talent Begins Here. Discover, submit, and showcase youth talent.</p>
+      <a href="{{ url_for('cultural_bp.cultural_fire_about') }}" class="inline-block mt-4 px-4 py-2 bg-pink-600 text-white text-sm rounded-lg hover:bg-pink-700 transition">Explore</a>
+    </div>
+  </div>
+
+  <!-- Advanced Mathematics -->
+  <div class="bg-white rounded-xl shadow overflow-hidden">
+    <div class="h-2 bg-cyan-600"></div>
+    <div class="p-6 flex flex-col h-full">
+      <div class="flex items-start justify-between">
+        <h2 class="text-lg font-semibold text-slate-800">Advanced Mathematics</h2>
+        <span class="text-xs bg-cyan-100 text-cyan-800 px-2 py-1 rounded">Paid</span>
+      </div>
+      <p class="mt-2 text-sm text-slate-600 flex-grow">Your Matric Success Partner. AI-driven mastery preparation for NSC Grade 12 Math.</p>
+      <a href="{{ url_for('adv_math_bp.about') }}" class="inline-block mt-4 px-4 py-2 bg-cyan-600 text-white text-sm rounded-lg hover:bg-cyan-700 transition">Explore</a>
+    </div>
+  </div>
+
+</div>
 
 {% endblock %}

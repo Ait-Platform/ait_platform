@@ -1,6 +1,7 @@
 # app/__init__.py
 import os as _os
-from flask_migrate import migrate
+from flask_migrate import Migrate
+migrate = Migrate()
 
 from app.payments.pricing import number_to_words, price_cents_for
 from app.bootstrap.subjects import ensure_core_subjects
@@ -66,6 +67,7 @@ def create_app():
     mail.init_app(app)
     login_manager.init_app(app)
     login_manager.login_view = "auth_bp.login"
+    migrate.init_app(app, db)
 
     # ⬇ add this near the end of create_app, before `return app`
     with app.app_context():
@@ -321,9 +323,9 @@ def create_app():
     from app.public.routes import public_bp
     from app.auth.routes import auth_bp
     from app.subject_reading.routes import reading_bp
-    from app.school_home.routes import home_bp
+    from app.subject_home.routes import home_bp
     from app.subject_loss.routes import loss_bp
-    from app.school_billing.routes import billing_bp
+    from app.program_billing.routes import billing_bp
     from app.admin import admin_bp
     from app.admin_general.routes import general_bp      # GET /admin/general/
     from app.admin_general.admin_tts import tts_bp       # POST /admin/general/tts
@@ -332,7 +334,18 @@ def create_app():
     from app.payments.yoco import yoco_bp
     from app.program_budget import budget_bp
     from app.payments import payment_bp
-
+    from app.admin.spv import spv_admin_bp
+    from app.subscription import subscription_bp
+    from app.quote import quote_bp
+    from app.bridge.routes import bridge_bp
+    from app.modes.routes import modes_bp
+    from app.ops import ops_bp
+    from app.program import program_bp
+    from app.reports.routes import reports_bp
+    from app.pdf.routes import pdf_bp
+    from app.program_culturalfire.routes import cultural_bp
+    from app.program_spv.routes import spv_bp
+    from app.program_adv_math.routes import adv_math_bp
 
     #app.logger.warning("registered checkout_bp at /checkout")
 
@@ -351,17 +364,29 @@ def create_app():
     app.register_blueprint(yoco_bp, url_prefix="/payments")
     app.register_blueprint(budget_bp)
     app.register_blueprint(payment_bp)
+    app.register_blueprint(spv_admin_bp)
+    app.register_blueprint(subscription_bp)
+    app.register_blueprint(quote_bp)
+    app.register_blueprint(bridge_bp)
+    app.register_blueprint(modes_bp)
+    app.register_blueprint(ops_bp)
+    app.register_blueprint(program_bp)
+    app.register_blueprint(reports_bp)
+    app.register_blueprint(pdf_bp)
+    app.register_blueprint(cultural_bp)
+    app.register_blueprint(spv_bp)
+    app.register_blueprint(adv_math_bp)
 
     #csrf.exempt(checkout_bp)  # keeps webhook/start happy
     # Exempt ONLY the PayFast IPN route (or the whole blueprint if you prefer)
     csrf.exempt(yoco_bp)  # or: add @csrf.exempt on the /notify function
 
     # Log admin routes only in debug
-    if app.debug:
-        with app.app_context():
-            for r in app.url_map.iter_rules():
-                if r.endpoint.startswith("admin_bp."):
-                    print("ADMIN ROUTE:", r.endpoint, "->", r.rule)
+    # if app.debug:
+    #     with app.app_context():
+    #         for r in app.url_map.iter_rules():
+    #             if r.endpoint.startswith("admin_bp."):
+    #                 print("ADMIN ROUTE:", r.endpoint, "->", r.rule)
 
     # app/filters.py
     def _to_number_0_100(value):
@@ -443,12 +468,12 @@ def create_app():
     #app.logger.warning("Jinja autoescape reset to select_autoescape(['html','htm','xml']).")
     #app.logger.warning("registered payfast_bp at /payments")    
     #app.logger.info(f"[DB] Using {db.engine.url}")
-        # --- temporary diagnostics (keep while debugging) ---
-    try:
-        for p in app.jinja_loader.searchpath:  # type: ignore[attr-defined]
-            app.logger.info(f"[JINJA] searchpath: {p}")
-    except Exception:
-        pass
+    # --- temporary diagnostics (keep while debugging) ---
+    # try:
+    #     for p in app.jinja_loader.searchpath:  # type: ignore[attr-defined]
+    #         app.logger.info(f"[JINJA] searchpath: {p}")
+    # except Exception:
+    #     pass
     # ----------------------------------------------------
         from app.admin.seed_cli import init_app as init_seed_cli
         init_seed_cli(app)

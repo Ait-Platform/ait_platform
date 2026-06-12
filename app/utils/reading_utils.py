@@ -38,7 +38,7 @@ def run_reset():
 def run_sequence():
     sequence = _load_sequence()
     if not sequence:
-        return render_template('school_reading/sequence_card.html', heading='No sequence defined', body='Please seed rdp_sequence.', button_label='Back to Dashboard', show_next=False)
+        return render_template('subject_reading/sequence_card.html', heading='No sequence defined', body='Please seed rdp_sequence.', button_label='Back to Dashboard', show_next=False)
 
     # Initialize index
     if SEQ_SESSION_KEY not in session:
@@ -80,7 +80,7 @@ def run_sequence():
     show_done = (idx == len(sequence) - 1)
 
     return render_template(
-        'school_reading/sequence_card.html',
+        'subject_reading/sequence_card.html',
         kind=kind,
         heading=heading,
         body=body,

@@ -58,3 +58,5 @@ def upsert_active_enrollment(uid: int, sid: int) -> None:
         SET status='inactive'
         WHERE id IN (SELECT id FROM act WHERE rn > 1)
     """), {"uid": int(uid), "sid": int(sid)})
+
+

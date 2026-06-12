@@ -15,8 +15,8 @@ from app.extensions import db
 from sqlalchemy import select, text, inspect, func, and_
 from flask import send_file
 from app.utils.country_list import COUNTRIES, _name_code_iter
-from app.utils.mailer import send_loss_report_email as _send_mail  # <— use the shared mailer
-from app.school_loss.routes import (
+from app.utils.mailer import send_standard_report_email as _send_mail  # <-- use the shared mailer
+from app.subject_loss.services import (
     LOSS_ASSESSMENT_MAX_POS, SUBJECT, _came_from_admin, _coerce_dt, _current_user_id, _extract_phase_scores_from_ctx,
     _finalize_and_send_pdf, _get_int_arg, _get_user_id_for_run, _infer_user_id_for_run, 
     _loss_result_percents, _render_loss_pdf_bytes, _scores_from_blocks, _send_pdf_email_smtp, 
@@ -60,10 +60,11 @@ except Exception:
 from flask import current_app as cap
 try:
     from weasyprint import HTML
+    from weasyprint import HTML as WPHTML   # alias to avoid name confusion
     WEASYPRINT_AVAILABLE = True
 except Exception:
     WEASYPRINT_AVAILABLE = False
-from weasyprint import HTML as WPHTML   # alias to avoid name confusion
+    WPHTML = None
 from flask import (
     Blueprint, render_template, request, abort, current_app, send_file
 )
@@ -114,20 +115,9 @@ def about_loss():
             "amount_cents": reg_ctx["quote"].get("amount_cents"),
         }
 
-    # 2) If logged in and no session quote, use last enrollment quote
-    if not q and getattr(current_user, "is_authenticated", False):
-        row = db.session.execute(
-            db.text("""
-                SELECT ue.quoted_currency, ue.quoted_amount_cents
-                FROM user_enrollment ue
-                WHERE ue.user_id = :uid AND ue.subject_id = :sid
-                ORDER BY ue.started_at DESC
-                LIMIT 1
-            """),
-            {"uid": current_user.id, "sid": sid},
-        ).first()
-        if row and row[1] is not None:
-            q = {"currency": row[0], "amount_cents": int(row[1])}
+    # 2) If logged in and no session quote, we skip looking up quoted_amount_cents 
+    # since those columns do not exist in the database schema.
+    pass
 
     # 3) Still nothing? Provisional price based on country
     # 3) Still nothing? Provisional price based on country
@@ -161,6 +151,18 @@ def about_loss():
 # ====================================================
 @loss_bp.get("/subject/home")
 def subject_home():
+    if current_user.is_authenticated:
+        uid = current_user.id
+        
+        # Check overall enrollment completion
+        enr = db.session.execute(
+            text("SELECT status, completed_at FROM user_enrollment WHERE user_id = :uid AND subject_id = (SELECT id FROM auth_subject WHERE slug = 'loss') AND status != 'archived' LIMIT 1"),
+            {"uid": uid}
+        ).fetchone()
+
+        if enr and enr.status == 'completed':
+            return render_template("subject/loss/completed_return.html", enr=enr)
+
     # fetch landing card row (id=1) – adjust if you use another id
     sa = current_app.extensions.get("sqlalchemy")
     row = None
@@ -202,6 +204,15 @@ def dashboard():
 @login_required
 def course_start():
     uid = current_user.id
+
+    # Check overall enrollment completion
+    enr = db.session.execute(
+        text("SELECT status, completed_at FROM user_enrollment WHERE user_id = :uid AND subject_id = (SELECT id FROM auth_subject WHERE slug = 'loss') AND status != 'archived' LIMIT 1"),
+        {"uid": uid}
+    ).fetchone()
+
+    if enr and enr.status == 'completed':
+        return render_template("subject/loss/completed_return.html", enr=enr)
 
     # Always create a NEW run row for this user/subject
     rid = db.session.execute(
@@ -403,9 +414,9 @@ def result_finalize():
     if not run_id:
         abort(400, description="run_id is required")
     session["last_loss_run_id"] = run_id
-    #return redirect(url_for("loss_bp.result_dashboard", run_id=run_id))
-    return redirect(url_for("loss_bp.result_run", run_id=run_id))
-
+    
+    # Redirect to the exit page so the user can enter their email address
+    return redirect(url_for("loss_bp.report_exit", run_id=run_id))
 
 TEMPLATE_DIR_LEARNER = "subject/loss"   # learner page templates (report.html / report.pdf)
 TEMPLATE_PDF_LEARNER = "subject/loss/report.pdf"  # or "subject/loss/report_pdf.html" if that's your file
@@ -796,18 +807,17 @@ def report_send_and_download():
     try:
         learner_name = ctx.get("learner_name") or "Learner"
         subject = "Your LOSS Assessment Report"
-        body = (
-            f"Dear {learner_name},\n\n"
-            f"Attached is your LOSS assessment report for run #{rid}.\n\n"
-            f"Regards,\nAIT Platform"
+        
+        pdf_url = url_for("loss_bp.report_pdf", run_id=rid, user_id=uid, _external=True)
+        _send_mail(
+            to_email=to_email,
+            subject=subject,
+            pdf_url=pdf_url,
+            pdf_bytes=pdf_bytes,
+            filename=filename,
+            run_id=rid,
+            user_name=learner_name
         )
-        # Swap to Flask-Mail if you prefer:
-        # from flask_mail import Message
-        # msg = Message(subject=subject, recipients=[to_email], body=body)
-        # msg.attach(filename, "application/pdf", pdf_bytes)
-        # mail.send(msg)
-        _send_pdf_email_smtp(to_email, pdf_bytes, filename, subject, body)
-        #
 
     except Exception as e:
         current_app.logger.exception("Email send failed: %s", e)
@@ -1026,11 +1036,43 @@ def _send_loss_report_email_async(to_email: str, run_id: int, user_id: int, pdf_
     def _task():
         with app.app_context():
             try:
-                _send_mail(to=to_email, run_id=run_id, user_id=user_id, pdf_url=pdf_url, learner_name=learner_name)
+                # Generate PDF bytes explicitly for standard email
+                pdf_bytes = _build_pdf_bytes(run_id, user_id)
+                filename = f"LOSS-Report-Run-{run_id}.pdf"
+                subject = f"Your LOSS Assessment Report (Run #{run_id})"
+                
+                _send_mail(
+                    to_email=to_email,
+                    subject=subject,
+                    pdf_url=pdf_url,
+                    pdf_bytes=pdf_bytes,
+                    filename=filename,
+                    run_id=run_id,
+                    user_name=learner_name
+                )
             except Exception as e:
                 app.logger.exception("loss email async send failed: %s", e)
 
+    from threading import Thread
     Thread(target=_task, daemon=True).start()
+
+@loss_bp.post("/reenroll")
+@login_required
+def reenroll():
+    uid = int(current_user.id)
+    sid = db.session.execute(text("SELECT id FROM auth_subject WHERE slug = 'loss'")).scalar()
+    
+    if sid:
+        # Archive old enrollment
+        db.session.execute(
+            text("UPDATE user_enrollment SET status='archived' WHERE user_id=:uid AND subject_id=:sid"),
+            {"uid": uid, "sid": sid}
+        )
+        # We optionally archive runs here. In Loss, we can just leave them as 'completed'.
+    db.session.commit()
+    flash("Your previous progress was archived. Please register to re-enroll.", "info")
+    return redirect(url_for("auth_bp.register", subject="loss"))
+
 
 def _complete_loss_enrollment_sql(user_id: int) -> None:
     """Mark the user's LOSS enrollment as completed in user_enrollment (safe + idempotent)."""
@@ -1628,24 +1670,38 @@ def finish_report():
         return render_template(
             "subject/loss/report_exit.html",
             run_id=run_id, user_id=user_id,
-            default_email=email or (session.get("email") or ""),
+            default_email=email or getattr(current_user, "email", "") or session.get("user_email", ""),
             error="Missing run/user. Please go back and try again."
         ), 400
 
-    # One helper that: completes run, builds PDF URL, triggers email, etc.
-    # (your existing logic – we keep it)
-    result = handle_exit_actions(
-        user_id=user_id_int,
-        subject_slug="loss",
-        run_id=run_id_int,
-        email=email,
-    )
+    if email:
+        try:
+            pdf_bytes = current_app.ensure_sync(
+                current_app.view_functions["loss_bp.report_pdf"]
+            )(run_id=run_id_int, user_id=user_id_int, auto_print=0, return_bytes=True)
 
-    # Optional: you can still read this if you ever need it
-    artifact_url = result.get("artifact_url")
+            from app.utils.mailer import send_standard_report_email
+            from itsdangerous import URLSafeSerializer
+            s = URLSafeSerializer(current_app.secret_key, salt="pdf-report")
+            token = s.dumps({"run_id": run_id_int, "user_id": user_id_int})
+            pdf_url = url_for("loss_bp.report_pdf", token=token, _external=True)
+            subject = f"LOSS Assessment Report (Run {run_id_int})"
+            user_name = getattr(current_user, "name", "")
+            
+            send_standard_report_email(
+                to_email=email,
+                subject=subject,
+                pdf_url=pdf_url,
+                pdf_bytes=pdf_bytes,
+                filename=f"LOSS_Assessment_Run_{run_id_int}.pdf",
+                run_id=run_id_int,
+                user_name=user_name
+            )
+        except Exception as e:
+            current_app.logger.error(f"Failed to email report: {e}")
 
-    # Logout + clear session, like before
     try:
+        from flask_login import logout_user
         logout_user()
     except Exception:
         pass
@@ -1654,16 +1710,15 @@ def finish_report():
     except Exception:
         pass
 
-    # Friendly message and send user to public welcome page (NO Render/private screen)
-    flash("Your Loss report has been emailed to you. Thank you for using LOLO.", "success")
+    flash("Your Loss report has been emailed to you. Thank you for using AIT.", "success")
     return redirect(url_for("public_bp.welcome"))
 
 @loss_bp.get("/report/exit", endpoint="report_exit")
 @login_required
 def report_exit():
     run_id  = request.args.get("run_id", type=int)
-    user_id = request.args.get("user_id", type=int)
-    default_email = (session.get("email") or "").strip().lower()
+    user_id = request.args.get("user_id", type=int) or current_user.id
+    default_email = getattr(current_user, "email", "") or session.get("user_email", "")
 
     return render_template(
         "subject/loss/report_exit.html",
@@ -1676,22 +1731,39 @@ def report_exit():
 from flask_login import login_required, current_user
 
 @loss_bp.route("/report.pdf")
-@login_required
-def report_pdf():
+def report_pdf(run_id=None, user_id=None, auto_print=None, return_bytes=False):
     from sqlalchemy import text
     from io import BytesIO
+    from itsdangerous import URLSafeSerializer
 
-    rid = _get_int_arg("run_id")
+    bypass_auth = False
+    token = request.args.get("token")
+    if token:
+        s = URLSafeSerializer(current_app.secret_key, salt="pdf-report")
+        try:
+            data = s.loads(token)
+            run_id = run_id or data.get("run_id")
+            user_id = user_id or data.get("user_id")
+            bypass_auth = True
+        except Exception:
+            return ("Invalid or expired token", 403)
+    else:
+        if not current_user.is_authenticated:
+            return current_app.login_manager.unauthorized()
+
+    rid = run_id or _get_int_arg("run_id")
     if not rid:
         return ("Missing run_id", 400)
 
-    # enforce: a user can only fetch THEIR OWN pdf
-    uid = _get_int_arg("user_id", required=False) or getattr(current_user, "id", None)
-    if not uid:
-        return ("Missing user_id", 400)
-
-    if int(uid) != int(getattr(current_user, "id", 0)):
-        return ("Forbidden", 403)
+    if bypass_auth:
+        uid = user_id
+    else:
+        # enforce: a user can only fetch THEIR OWN pdf
+        uid = user_id or _get_int_arg("user_id", required=False) or getattr(current_user, "id", None)
+        if not uid:
+            return ("Missing user_id", 400)
+        if int(uid) != int(getattr(current_user, "id", 0)):
+            return ("Forbidden", 403)
 
     ctx = build_learner_report_ctx(rid, uid) or {}
 
@@ -1738,6 +1810,9 @@ def report_pdf():
         from xhtml2pdf import pisa
         pisa.CreatePDF(html, dest=out, encoding="UTF-8")
 
+    if return_bytes:
+        return out.getvalue()
+
     out.seek(0)
     return send_file(
         out,
@@ -1746,3 +1821,4 @@ def report_pdf():
         download_name=f"loss-result-run-{rid}.pdf",
         max_age=0,
     )
+

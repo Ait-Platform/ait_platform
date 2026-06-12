@@ -1,0 +1,427 @@
+{% extends "layout.html" %}
+
+{% block title %}
+Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
+{% endblock %}
+
+{% block content %}
+
+<div class="max-w-4xl mx-auto bg-white shadow-xl rounded-2xl mt-6 overflow-hidden border border-slate-100">
+
+    <!-- Top Color Strip -->
+    <div class="h-3 bg-blue-600"></div>
+
+    <div class="p-8 md:p-12">
+
+        <!-- Header -->
+        <div class="flex flex-row justify-between items-center mb-8 pb-6 border-b border-slate-100">
+            <div>
+                <span class="text-sm font-bold tracking-wider text-blue-600 uppercase">SECTION 1 – PRACTICAL LEARNING</span>
+                <h1 class="text-3xl font-extrabold text-slate-900 mt-1">
+                    CHAPTER {{ chapter.chapter_number }} – {{ chapter.title|upper }}
+                </h1>
+            </div>
+            <a href="{{ url_for('home_bp.learner_dashboard') }}"
+               class="inline-flex items-center px-4 py-2 rounded-lg text-sm font-semibold text-slate-600 border border-slate-200 hover:bg-slate-50 transition">
+                ← Back
+            </a>
+        </div>
+
+        <!-- Objective & Prep -->
+        <div class="grid md:grid-cols-2 gap-6 mb-10">
+            <div class="bg-blue-50 border-l-4 border-blue-500 p-6 rounded-r-xl">
+                <h2 class="text-lg font-bold text-blue-800 mb-2 flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    Objective
+                </h2>
+                <p class="text-blue-900 leading-relaxed text-sm">
+                    Learn how to use facts, clues, evidence and reasoning to make correct decisions and reach sensible conclusions.
+                </p>
+            </div>
+            
+            <div class="bg-amber-50 border-l-4 border-amber-500 p-6 rounded-r-xl">
+                <h2 class="text-lg font-bold text-amber-800 mb-2 flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                    Teacher Preparation
+                </h2>
+                <p class="text-amber-900 leading-relaxed text-sm">
+                    Gather everyday objects and prepare simple scenarios.
+                    <br><span class="font-semibold">Examples:</span> Cup, Key, Book, Pencil, Ball.
+                </p>
+            </div>
+        </div>
+
+        <form method="POST" action="{{ url_for('home_bp.chapter_page', chapter_num=chapter.chapter_number) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <!-- Activity 1 -->
+            <div class="border border-slate-200 rounded-xl p-6 md:p-8 mb-6 shadow-sm">
+                <h3 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Activity 1 – Finding the Correct Object</h3>
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Instruction</h4>
+                        <p class="text-slate-700 text-sm mb-2">Place three objects on a table. Teacher gives clues.</p>
+                        <p class="text-slate-700 text-sm font-semibold mb-2">Example:</p>
+                        <ul class="list-none text-slate-700 space-y-1 mb-4 text-sm pl-4 border-l-2 border-amber-300">
+                            <li>• I am used for writing.</li>
+                            <li>• I am longer than a key.</li>
+                            <li>• I am usually found in a pencil case.</li>
+                        </ul>
+                        <p class="text-slate-700 text-sm font-semibold mb-2">Teacher asks:</p>
+                        <ul class="list-none text-slate-700 space-y-1 mb-4 text-sm pl-4 border-l-2 border-amber-300">
+                            <li>• Which object am I describing?</li>
+                        </ul>
+
+                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Expected Answer</h4>
+                        <p class="text-slate-700 text-sm italic">Learner correctly identifies the object that matches all clues.</p>
+                    </div>
+                    <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
+                        <label class="flex items-start gap-3 cursor-pointer group">
+                            <input type="checkbox" name="act1_check" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
+                            <div>
+                                <span class="block font-bold text-slate-800 group-hover:text-blue-600 transition">Teacher Check</span>
+                                <span class="block text-sm text-slate-500">Learner uses clues to identify the correct object.</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Activity 2 -->
+            <div class="border border-slate-200 rounded-xl p-6 md:p-8 mb-6 shadow-sm">
+                <h3 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Activity 2 – True or False</h3>
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Instruction</h4>
+                        <p class="text-slate-700 text-sm mb-2">Teacher makes statements about visible objects.</p>
+                        <p class="text-slate-700 text-sm font-semibold mb-2">Examples:</p>
+                        <ul class="list-none text-slate-700 space-y-1 mb-4 text-sm pl-4 border-l-2 border-amber-300">
+                            <li>• The book is larger than the pencil.</li>
+                            <li>• The ball is square.</li>
+                            <li>• The cup can hold water.</li>
+                        </ul>
+                        <p class="text-slate-700 text-sm font-semibold mb-2">Teacher asks:</p>
+                        <ul class="list-none text-slate-700 space-y-1 mb-4 text-sm pl-4 border-l-2 border-amber-300">
+                            <li>• Is the statement true or false?</li>
+                        </ul>
+
+                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Expected Answer</h4>
+                        <p class="text-slate-700 text-sm italic">Learner correctly identifies true and false statements using observation.</p>
+                    </div>
+                    <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
+                        <label class="flex items-start gap-3 cursor-pointer group">
+                            <input type="checkbox" name="act2_check" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
+                            <div>
+                                <span class="block font-bold text-slate-800 group-hover:text-blue-600 transition">Teacher Check</span>
+                                <span class="block text-sm text-slate-500">Learner evaluates statements correctly.</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Activity 3 -->
+            <div class="border border-slate-200 rounded-xl p-6 md:p-8 mb-6 shadow-sm">
+                <h3 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Activity 3 – What Does Not Belong?</h3>
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Instruction</h4>
+                        <p class="text-slate-700 text-sm mb-2">Place four objects together.</p>
+                        <p class="text-slate-700 text-sm font-semibold mb-2">Example:</p>
+                        <ul class="list-none text-slate-700 space-y-1 mb-4 text-sm pl-4 border-l-2 border-amber-300">
+                            <li>• Apple</li>
+                            <li>• Banana</li>
+                            <li>• Orange</li>
+                            <li>• Pencil</li>
+                        </ul>
+                        <p class="text-slate-700 text-sm font-semibold mb-2">Teacher asks:</p>
+                        <ul class="list-none text-slate-700 space-y-1 mb-4 text-sm pl-4 border-l-2 border-amber-300">
+                            <li>• Which object does not belong?</li>
+                            <li>• Why?</li>
+                        </ul>
+
+                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Expected Answer</h4>
+                        <p class="text-slate-700 text-sm italic">Learner identifies the item that differs from the others and explains why.</p>
+                    </div>
+                    <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
+                        <label class="flex items-start gap-3 cursor-pointer group">
+                            <input type="checkbox" name="act3_check" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
+                            <div>
+                                <span class="block font-bold text-slate-800 group-hover:text-blue-600 transition">Teacher Check</span>
+                                <span class="block text-sm text-slate-500">Learner identifies the odd item.</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Activity 4 -->
+            <div class="border border-slate-200 rounded-xl p-6 md:p-8 mb-6 shadow-sm">
+                <h3 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Activity 4 – Following Evidence</h3>
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Instruction</h4>
+                        <p class="text-slate-700 text-sm mb-2">Teacher creates a simple scenario.</p>
+                        <p class="text-slate-700 text-sm font-semibold mb-2">Example:</p>
+                        <ul class="list-none text-slate-700 space-y-1 mb-4 text-sm pl-4 border-l-2 border-amber-300">
+                            <li>• The floor is wet.</li>
+                            <li>• There is an open tap.</li>
+                            <li>• Water is near the sink.</li>
+                        </ul>
+                        <p class="text-slate-700 text-sm font-semibold mb-2">Teacher asks:</p>
+                        <ul class="list-none text-slate-700 space-y-1 mb-4 text-sm pl-4 border-l-2 border-amber-300">
+                            <li>• What probably happened?</li>
+                        </ul>
+
+                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Expected Answer</h4>
+                        <p class="text-slate-700 text-sm italic">Learner concludes that water likely came from the tap.</p>
+                    </div>
+                    <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
+                        <label class="flex items-start gap-3 cursor-pointer group">
+                            <input type="checkbox" name="act4_check" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
+                            <div>
+                                <span class="block font-bold text-slate-800 group-hover:text-blue-600 transition">Teacher Check</span>
+                                <span class="block text-sm text-slate-500">Learner draws conclusions from evidence.</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Activity 5 -->
+            <div class="border border-slate-200 rounded-xl p-6 md:p-8 mb-6 shadow-sm">
+                <h3 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Activity 5 – Elimination Challenge</h3>
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Instruction</h4>
+                        <p class="text-slate-700 text-sm mb-2">Place three objects on a table. Teacher gives clues.</p>
+                        <p class="text-slate-700 text-sm font-semibold mb-2">Example:</p>
+                        <ul class="list-none text-slate-700 space-y-1 mb-4 text-sm pl-4 border-l-2 border-amber-300">
+                            <li>• It is not the book.</li>
+                            <li>• It is not the pencil.</li>
+                        </ul>
+                        <p class="text-slate-700 text-sm font-semibold mb-2">Teacher asks:</p>
+                        <ul class="list-none text-slate-700 space-y-1 mb-4 text-sm pl-4 border-l-2 border-amber-300">
+                            <li>• Which object must it be?</li>
+                        </ul>
+
+                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Expected Answer</h4>
+                        <p class="text-slate-700 text-sm italic">Learner identifies the remaining possible object.</p>
+                    </div>
+                    <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
+                        <label class="flex items-start gap-3 cursor-pointer group">
+                            <input type="checkbox" name="act5_check" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
+                            <div>
+                                <span class="block font-bold text-slate-800 group-hover:text-blue-600 transition">Teacher Check</span>
+                                <span class="block text-sm text-slate-500">Learner uses elimination correctly.</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Activity 6 -->
+            <div class="border border-slate-200 rounded-xl p-6 md:p-8 mb-6 shadow-sm">
+                <h3 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Activity 6 – Sequence Logic</h3>
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Instruction</h4>
+                        <p class="text-slate-700 text-sm mb-2">Teacher performs actions. Example:</p>
+                        <ul class="list-none text-slate-700 space-y-1 mb-4 text-sm pl-4 border-l-2 border-amber-300">
+                            <li>• Clap</li>
+                            <li>• Stamp</li>
+                            <li>• Clap</li>
+                            <li>• Stamp</li>
+                        </ul>
+                        <p class="text-slate-700 text-sm mb-2">Teacher stops.</p>
+                        <p class="text-slate-700 text-sm font-semibold mb-2">Teacher asks:</p>
+                        <ul class="list-none text-slate-700 space-y-1 mb-4 text-sm pl-4 border-l-2 border-amber-300">
+                            <li>• What should happen next?</li>
+                        </ul>
+
+                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Expected Answer</h4>
+                        <p class="text-slate-700 text-sm italic">Learner predicts the next correct action.</p>
+                    </div>
+                    <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
+                        <label class="flex items-start gap-3 cursor-pointer group">
+                            <input type="checkbox" name="act6_check" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
+                            <div>
+                                <span class="block font-bold text-slate-800 group-hover:text-blue-600 transition">Teacher Check</span>
+                                <span class="block text-sm text-slate-500">Learner identifies logical continuation.</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Activity 7 -->
+            <div class="border border-slate-200 rounded-xl p-6 md:p-8 mb-6 shadow-sm">
+                <h3 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Activity 7 – Cause and Effect</h3>
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Instruction</h4>
+                        <p class="text-slate-700 text-sm font-semibold mb-2">Teacher asks practical questions. Examples:</p>
+                        <ul class="list-none text-slate-700 space-y-1 mb-4 text-sm pl-4 border-l-2 border-amber-300">
+                            <li>• What happens if a plant is never watered?</li>
+                            <li>• What happens if a ball is kicked?</li>
+                            <li>• What happens if a light switch is turned off?</li>
+                        </ul>
+
+                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Expected Answer</h4>
+                        <p class="text-slate-700 text-sm italic">Learner explains the likely outcome.</p>
+                    </div>
+                    <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
+                        <label class="flex items-start gap-3 cursor-pointer group">
+                            <input type="checkbox" name="act7_check" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
+                            <div>
+                                <span class="block font-bold text-slate-800 group-hover:text-blue-600 transition">Teacher Check</span>
+                                <span class="block text-sm text-slate-500">Learner understands cause and effect.</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Activity 8 -->
+            <div class="border border-slate-200 rounded-xl p-6 md:p-8 mb-6 shadow-sm">
+                <h3 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Activity 8 – Solving a Simple Mystery</h3>
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Instruction</h4>
+                        <p class="text-slate-700 text-sm mb-2">Teacher presents a situation.</p>
+                        <p class="text-slate-700 text-sm mb-2">Example: Three learners had a ball.</p>
+                        <p class="text-slate-700 text-sm font-semibold mb-2">Teacher says:</p>
+                        <ul class="list-none text-slate-700 space-y-1 mb-4 text-sm pl-4 border-l-2 border-amber-300">
+                            <li>• Sipho was reading a book.</li>
+                            <li>• Amina was drawing.</li>
+                            <li>• John was playing outside.</li>
+                        </ul>
+                        <p class="text-slate-700 text-sm font-semibold mb-2">Teacher asks:</p>
+                        <ul class="list-none text-slate-700 space-y-1 mb-4 text-sm pl-4 border-l-2 border-amber-300">
+                            <li>• Who most likely had the ball?</li>
+                        </ul>
+
+                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Expected Answer</h4>
+                        <p class="text-slate-700 text-sm italic">Learner selects the person most likely connected to the evidence.</p>
+                    </div>
+                    <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
+                        <label class="flex items-start gap-3 cursor-pointer group">
+                            <input type="checkbox" name="act8_check" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
+                            <div>
+                                <span class="block font-bold text-slate-800 group-hover:text-blue-600 transition">Teacher Check</span>
+                                <span class="block text-sm text-slate-500">Learner uses evidence to make a logical conclusion.</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Activity 9 -->
+            <div class="border border-slate-200 rounded-xl p-6 md:p-8 mb-6 shadow-sm">
+                <h3 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Activity 9 – Real-Life Problem Solving</h3>
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Instruction</h4>
+                        <p class="text-slate-700 text-sm mb-2">Teacher presents a practical problem. Example:</p>
+                        <p class="text-slate-700 text-sm mb-2">A learner wants to carry many books.</p>
+                        <p class="text-slate-700 text-sm font-semibold mb-2">Teacher asks:</p>
+                        <ul class="list-none text-slate-700 space-y-1 mb-4 text-sm pl-4 border-l-2 border-amber-300">
+                            <li>• Which would be better: a plastic bag or a school bag?</li>
+                            <li>• Why?</li>
+                        </ul>
+
+                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Expected Answer</h4>
+                        <p class="text-slate-700 text-sm italic">Learner selects the most suitable option and explains the reasoning.</p>
+                    </div>
+                    <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
+                        <label class="flex items-start gap-3 cursor-pointer group">
+                            <input type="checkbox" name="act9_check" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
+                            <div>
+                                <span class="block font-bold text-slate-800 group-hover:text-blue-600 transition">Teacher Check</span>
+                                <span class="block text-sm text-slate-500">Learner justifies a logical choice.</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Activity 10 -->
+            <div class="border border-slate-200 rounded-xl p-6 md:p-8 mb-6 shadow-sm">
+                <h3 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Activity 10 – Logic Investigation</h3>
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Instruction</h4>
+                        <p class="text-slate-700 text-sm mb-2">Teacher places five objects on a table.</p>
+                        <ul class="list-disc list-inside text-slate-700 space-y-1 mb-4 text-sm">
+                            <li>Learner must create three clues describing one object.</li>
+                            <li>Another person must identify the object using the clues.</li>
+                        </ul>
+
+                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Expected Answer</h4>
+                        <p class="text-slate-700 text-sm italic">Clues are accurate, useful and lead to the correct object.</p>
+                    </div>
+                    <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center space-y-4">
+                        <label class="flex items-start gap-3 cursor-pointer group">
+                            <input type="checkbox" name="act10_check_a" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
+                            <div>
+                                <span class="block font-bold text-slate-800 group-hover:text-blue-600 transition">Teacher Check</span>
+                                <span class="block text-sm text-slate-500">Learner creates logical clues.</span>
+                            </div>
+                        </label>
+                        <label class="flex items-start gap-3 cursor-pointer group">
+                            <input type="checkbox" name="act10_check_b" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
+                            <div>
+                                <span class="block font-bold text-slate-800 group-hover:text-blue-600 transition">Teacher Check</span>
+                                <span class="block text-sm text-slate-500">Learner uses clues to identify objects.</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Final Competency Check -->
+            <div class="bg-slate-900 rounded-xl p-8 mb-8 text-white shadow-lg">
+                <h3 class="text-2xl font-bold mb-4">Chapter Competency Result</h3>
+                <p class="text-slate-300 mb-6 text-sm">As the observer, verify that the learner can successfully do all of the following:</p>
+                
+                <div class="grid grid-cols-2 gap-4 mb-8 text-sm text-slate-300 opacity-80">
+                    <div>✓ Use clues to identify objects</div>
+                    <div>✓ Distinguish between true and false statements</div>
+                    <div>✓ Identify differences and similarities</div>
+                    <div>✓ Draw conclusions from evidence</div>
+                    <div>✓ Use elimination to solve problems</div>
+                    <div>✓ Recognise logical sequences</div>
+                    <div>✓ Understand cause and effect</div>
+                    <div>✓ Solve simple mysteries</div>
+                    <div>✓ Make reasoned decisions</div>
+                    <div>✓ Create logical clues for others</div>
+                </div>
+
+                <div class="bg-slate-800 p-6 rounded-lg border border-slate-700">
+                    <p class="font-bold mb-4 text-lg text-center">FINAL RESULT</p>
+                    <div class="flex flex-col md:flex-row justify-center items-center gap-6">
+                        <label class="flex items-center gap-3 cursor-pointer p-4 border-2 border-emerald-500/30 rounded-lg hover:bg-emerald-500/10 transition w-full md:w-auto">
+                            <input type="radio" name="competency" value="competent" class="w-6 h-6 text-emerald-500 bg-slate-700 border-slate-600 focus:ring-emerald-500 focus:ring-offset-slate-900" required>
+                            <span class="font-bold text-emerald-400 tracking-wider">COMPETENT</span>
+                        </label>
+                        <label class="flex items-center gap-3 cursor-pointer p-4 border-2 border-rose-500/30 rounded-lg hover:bg-rose-500/10 transition w-full md:w-auto">
+                            <input type="radio" name="competency" value="not_yet" class="w-6 h-6 text-rose-500 bg-slate-700 border-slate-600 focus:ring-rose-500 focus:ring-offset-slate-900" required>
+                            <span class="font-bold text-rose-400 tracking-wider">NOT YET COMPETENT</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Submit -->
+            <div class="text-center">
+                <button type="submit" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 px-10 rounded-full shadow-lg transition-transform hover:scale-105 text-lg w-full md:w-auto">
+                    Submit Final Evaluation
+                </button>
+            </div>
+
+        </form>
+
+    </div>
+</div>
+
+{% endblock %}

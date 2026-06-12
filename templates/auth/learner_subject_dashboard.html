@@ -3,11 +3,28 @@
   {% if subject.slug|lower in ('loss','lolo') %}Mental Preparation · Preparation — Part 1{% else %}{{ subject.name }} · Dashboard{% endif %}
 {% endblock %}
 
+{% block flashes %}{% endblock %}
+
 {% block content %}
 <div class="rounded-xl border bg-white shadow-sm hover:shadow transition overflow-hidden max-w-3xl mx-auto">
   <div class="h-2 {{ color_bar }}"></div>
 
   <div class="py-10 px-6">
+    {% with msgs = get_flashed_messages(with_categories=true) %}
+      {% if msgs %}
+        <div class="mb-6 space-y-2">
+          {% for cat, msg in msgs %}
+            <div class="rounded-md border px-3 py-2 text-sm
+                        {% if cat == 'success' %}border-emerald-300 bg-emerald-50 text-emerald-800
+                        {% elif cat == 'warning' %}border-amber-300 bg-amber-50 text-amber-800
+                        {% elif cat == 'danger' %}border-rose-300 bg-rose-50 text-rose-800
+                        {% else %}border-slate-200 bg-slate-50 text-slate-700{% endif %}">
+              {{ msg }}
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
     {% if subject.slug|lower in ('loss','lolo') %}
       <h1 class="text-2xl font-semibold mb-2 text-center">Mental Preparation</h1>
       <p class="text-slate-600 mb-6 text-center">Getting ready · Preparation — Part 1</p>

@@ -1,0 +1,29 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="max-w-4xl mx-auto py-12">
+
+  <!-- Back button -->
+  <div class="flex justify-end mb-6">
+    <a href="{{ url_for('cultural_bp.group_hub') }}"
+       class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">
+      ← Back
+    </a>
+  </div>
+
+  <!-- Tile -->
+  <div class="rounded-xl shadow border border-green-200 overflow-hidden">
+    <!-- Color strip -->
+    <div class="h-3 bg-green-600"></div>
+
+    <div class="bg-green-50 p-10 text-center">
+      <h1 class="text-3xl font-bold text-green-700 mb-8">Group Management</h1>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <button class="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700">New Group</button>
+        <button class="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700">Update Group</button>
+        <button class="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700">View Groups</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

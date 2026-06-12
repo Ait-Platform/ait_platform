@@ -19,6 +19,13 @@ CORE_SUBJECTS = [
     #     "sort_order": 10,
     #     "start_endpoint": "reading_bp.about_reading",
     # },
+    {
+        "slug": "spv",
+        "name": "Special Purpose Vehicles",
+        "is_active": 1,
+        "sort_order": 90,
+        "start_endpoint": "spv_bp.about",
+    },
 ]
 
 def ensure_core_subjects() -> None:
@@ -48,4 +55,4 @@ def ensure_core_subjects() -> None:
 
     db.session.commit()
     # optional: you can drop the prints if you want
-    print(f"[bootstrap] auth_subject: created={created}, updated={updated}")
+    # print(f"[bootstrap] auth_subject: created={created}, updated={updated}")

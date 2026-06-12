@@ -1,0 +1,148 @@
+{% extends "layout.html" %}
+{% block title %}Metro Billing Dashboard{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-slate-50 py-10 px-4 flex flex-col items-center">
+  <div class="w-full max-w-5xl bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+    
+    <!-- Top Strip -->
+    <div class="h-2 w-full bg-orange-500"></div>
+
+    <div class="p-8">
+      <div class="flex flex-col md:flex-row md:justify-between md:items-start mb-8">
+        <!-- Header -->
+        <div class="mb-4 md:mb-0">
+          <h1 class="text-3xl font-extrabold text-slate-800 tracking-tight">Billing Dashboard</h1>
+          <p class="text-slate-500 mt-2">Manage your properties, meters, and utility billing.</p>
+        </div>
+        
+        <!-- Header Actions -->
+        <div class="flex flex-col items-end space-y-4">
+          <a href="{{ url_for('auth_bp.bridge_dashboard') }}" class="inline-flex items-center text-sm font-medium text-slate-500 hover:text-slate-800 transition">
+            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+            Back to Bridge
+          </a>
+        </div>
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="mb-4">
+        <a href="{{ url_for('billing_bp.ai_onboarding') }}" class="w-full bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 font-bold py-3 px-5 rounded-xl shadow-sm transition flex items-center justify-center text-sm">
+          <svg class="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+          Use AI to extract your details from your Municipal Bill
+        </a>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-8 border-b border-slate-100 pb-6">
+        <a href="{{ url_for('billing_bp.setup_wizard') }}" class="bg-orange-50 hover:bg-orange-100 border border-orange-200 text-orange-700 font-bold py-2.5 px-5 rounded-xl shadow-sm transition flex items-center justify-center text-sm">
+          <svg class="w-5 h-5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+          Manual Setup
+        </a>
+        <a href="{{ url_for('billing_bp.muni_recon_email') }}" class="bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold py-2.5 px-5 rounded-xl shadow-sm transition flex items-center justify-center text-sm">
+          <svg class="w-5 h-5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+          Email Metro Readings
+        </a>
+        <a href="{{ url_for('billing_bp.muni_recon_statement') }}" class="bg-teal-50 hover:bg-teal-100 border border-teal-200 text-teal-700 font-bold py-2.5 px-5 rounded-xl shadow-sm transition flex items-center justify-center text-sm">
+          <svg class="w-5 h-5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+          Metro Reconciliation
+        </a>
+      </div>
+
+      <!-- Property Data Table -->
+      <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
+          <h2 class="text-lg font-bold text-slate-800">Your Property Overview</h2>
+        </div>
+        
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-slate-50 text-slate-500 text-sm uppercase tracking-wider border-b border-slate-200">
+                <th class="px-6 py-4 font-semibold">Property</th>
+                <th class="px-6 py-4 font-semibold">Tenant</th>
+                <th class="px-6 py-4 font-semibold">Meter Linked</th>
+                <th class="px-6 py-4 font-semibold text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200">
+              {% if data %}
+                {% for row in data %}
+                <tr class="hover:bg-slate-50 transition">
+                  <td class="px-6 py-4">
+                    <div class="font-bold text-slate-800">{{ row.property_name }}</div>
+                    <div class="text-xs text-slate-500">{{ row.address }}</div>
+                  </td>
+                  <td class="px-6 py-4">
+                    {% if row.tenant_name %}
+                      <div class="font-medium text-slate-800">{{ row.tenant_name }}</div>
+                    {% else %}
+                      <span class="text-xs text-orange-500 font-semibold bg-orange-100 px-2 py-1 rounded-full">No Tenant</span>
+                    {% endif %}
+                  </td>
+                  <td class="px-6 py-4">
+                    {% if row.meter_number %}
+                      <div class="text-sm font-medium text-slate-700">{{ row.meter_number }}</div>
+                      <div class="text-xs text-slate-500 capitalize">{{ row.utility_type }}</div>
+                    {% else %}
+                      <span class="text-xs text-slate-400">No Meter</span>
+                    {% endif %}
+                  </td>
+                  <td class="px-6 py-4">
+                    <div class="flex items-center space-x-2 justify-end">
+                      <a href="{{ url_for('billing_bp.property_hub', property_id=row.property_id) }}" class="text-sm bg-blue-100 hover:bg-blue-200 text-blue-700 font-medium py-1.5 px-3 rounded-lg transition" title="Readings & Bills">Hub</a>
+                      <a href="{{ url_for('billing_bp.view_property', property_id=row.property_id) }}" class="text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium py-1.5 px-3 rounded-lg transition" title="View / Edit Property Details">View / Edit</a>
+                      
+                      {% if row.tenant_id %}
+                      <!-- Document Buttons -->
+                      <button data-url="{{ url_for('admin_bp.tenant_ledger', tenant_id=row.tenant_id) }}" onclick="openStatement(this.getAttribute('data-url'))" class="text-sm border border-slate-300 text-slate-700 hover:bg-slate-100 font-medium py-1.5 px-3 rounded-lg transition" title="Tenant Ledger">Ledger</button>
+                      {% endif %}
+
+                      <form action="{{ url_for('billing_bp.delete_property', property_id=row.property_id) }}" method="POST" class="inline ml-2" data-name="{{ row.property_name }}" onsubmit="return confirmDelete(event, this.getAttribute('data-name'))">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <button type="submit" class="text-sm bg-red-100 hover:bg-red-200 text-red-700 font-medium py-1.5 px-3 rounded-lg transition" title="Delete Property">X</button>
+                      </form>
+                    </div>
+                  </td>
+                </tr>
+                {% endfor %}
+              {% else %}
+                <tr>
+                  <td colspan="4" class="px-6 py-10 text-center text-slate-500">
+                    <p class="mb-2">No properties or meters found.</p>
+                    <a href="{{ url_for('billing_bp.setup_wizard') }}" class="text-orange-500 font-semibold hover:underline">Click here to run the Setup Wizard</a>
+                  </td>
+                </tr>
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  // Open statement with the current month dynamically
+  function openStatement(baseUrl) {
+    const now = new Date();
+    const currentMonth = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+    
+    // Check if URL already has query params
+    const separator = baseUrl.includes('?') ? '&' : '?';
+    window.location.href = baseUrl + separator + 'month=' + currentMonth;
+  }
+
+function confirmDelete(event, propertyName) {
+  event.preventDefault();
+  const confirmation = prompt(`DANGER! You are about to permanently delete '${propertyName}' and all of its associated meters, tenants, and bills.\n\nTo confirm, please type the property name exactly:`);
+  
+  if (confirmation === propertyName) {
+    event.target.submit();
+  } else {
+    if (confirmation !== null) {
+      alert("Property name did not match. Deletion canceled.");
+    }
+  }
+}
+</script>
+{% endblock %}

@@ -2,18 +2,25 @@
 {% block title %}BudgetCash · Help{% endblock %}
 
 {% block content %}
-<div class="mx-auto max-w-4xl mt-10 bg-white shadow rounded-lg p-6">
+<div class="min-h-screen bg-gray-50 flex flex-col items-center py-10 px-4">
+  <div class="w-full max-w-5xl bg-white rounded-xl shadow-lg overflow-hidden flex flex-col">
+    <div class="h-3 bg-amber-500"></div>
+    <div class="p-8">
 
-  <div class="flex items-center justify-between">
-    <div>
-      <h1 class="text-lg font-semibold text-slate-900">Help guide</h1>
-      <div class="text-sm text-slate-500">Setup and how to use BudgetCash</div>
-    </div>
-    <a href="{{ url_for('budget_bp.dashboard') }}"
-       class="rounded border border-slate-300 px-3 py-1.5 hover:bg-slate-50 text-sm">
-      ← Back to dashboard
-    </a>
-  </div>
+
+      <!-- Row 1: Title & Action/Back Buttons -->
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 pb-4 border-b border-gray-100 gap-4">
+        <div>
+            <h1 class="text-2xl md:text-3xl font-bold text-gray-800 flex items-center">Help guide</h1>
+            <p class="mt-1 text-slate-600">Setup and how to use BudgetCash</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <a href="{{ url_for('budget_bp.dashboard') }}"
+               class="rounded border border-slate-300 px-3 py-1.5 hover:bg-slate-50 text-sm">
+              ← Back to dashboard
+            </a>
+        </div>
+      </div>
 
   <div class="mt-6 space-y-6">
 
@@ -105,6 +112,8 @@
       </ol>
     </div>
 
+  </div>
+    </div>
   </div>
 </div>
 {% endblock %}

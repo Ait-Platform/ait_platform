@@ -1,0 +1,17 @@
+NATIONAL SENIOR CERTIFICATE
+GRADE 12
+MATHEMATICS P1
+NOVEMBER 2024
+MARKS: 150
+TIME: 3 hours
+QUESTION 1: ALGEBRA
+1.1 Solve for x:
+    1.1.1  x^2 - x - 20 = 0
+    1.1.2  2x^2 - 11x + 7 = 0 (correct to TWO decimal places)
+    1.1.3  5x^2 + 4 > 21x
+QUESTION 2: CALCULUS
+2.1 Determine f'(x) from first principles if f(x) = 3x^2 - 5
+2.2 Determine dy/dx if y = 2x^3 + 4/x
+QUESTION 3: FUNCTIONS
+3.1 Given f(x) = 2/(x-3) + 1. Write down equations of asymptotes.
+3.2 Determine the x and y intercepts of f.

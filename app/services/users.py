@@ -40,9 +40,30 @@ def _ensure_or_create_user_from_session(ctx: dict) -> int:
 
     db.session.flush()
 
-    new_id = db.session.execute(
+    new_id = int(db.session.execute(
         sa_text('SELECT id FROM "user" WHERE email = :e'),
         {"e": email},
-    ).scalar()
+    ).scalar())
 
-    return int(new_id)
+    # --- AUTO ENROLL ---
+    # Automatically enroll the new user in any subject flagged as 'auto_enroll'
+    auto_enroll_subjects = db.session.execute(
+        sa_text("SELECT id FROM auth_subject WHERE enroll_policy='auto_enroll' AND is_active=1")
+    ).fetchall()
+
+    for row in auto_enroll_subjects:
+        sid = int(row.id)
+        db.session.execute(
+            sa_text("""
+                INSERT INTO user_enrollment (user_id, subject_id, status, started_at)
+                SELECT :uid, :sid, 'active', CURRENT_TIMESTAMP
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM user_enrollment WHERE user_id = :uid AND subject_id = :sid
+                )
+            """),
+            {"uid": new_id, "sid": sid}
+        )
+
+    db.session.flush()
+
+    return new_id

@@ -11,19 +11,12 @@
       {% include '_components/about_footer.html' %}
     {% endset %}
 
-
     {# Build main body content for the card by stitching the partials #}
     {% set body %}
       <div class="text-sm text-slate-700 leading-relaxed space-y-6">
-
         {% include "subject_reading/_how_it_works.html" %}
-        {% include "subject_reading/_language_support.html" %}
-
       </div>
     {% endset %}
-
-
-    {% include "subject_reading/_audio_selector.html" %}
 
 
     {{ card(

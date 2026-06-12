@@ -1,0 +1,214 @@
+{% extends "layout.html" %}
+{% block title %}SMS Setup{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-5xl mt-8 bg-white shadow rounded-lg p-6">
+
+  <div class="flex items-start justify-between gap-4">
+    <div>
+      <h1 class="text-lg font-semibold text-slate-900">SMS Setup</h1>
+      <a href="{{ url_for('sms_bp.subject_home') }}"
+         class="text-slate-500 hover:text-slate-700 text-sm">
+        ← Back to SMS dashboard
+      </a>
+      <p class="text-slate-600 mt-2">
+        Principal control panel: configure access + open modules.
+      </p>
+    </div>
+
+    <div class="min-w-[260px]">
+      <label class="block text-xs font-medium text-slate-700">Open module</label>
+      <select id="module_jump"
+              class="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm">
+        <option value="">Select…</option>
+        <option value="{{ url_for('sms_bp.teachers_home') }}">Teachers</option>
+        <option value="{{ url_for('sms_bp.learners_home') }}">Learners</option>
+        <option value="{{ url_for('sms_bp.finance_home') }}">Finance</option>
+        <option value="{{ url_for('sms_bp.governance_home') }}">Governance</option>
+        <option value="{{ url_for('sms_bp.management_home') }}">Management</option>
+        <option value="{{ url_for('sms_bp.documentation_home') }}">Documentation</option>
+        <option value="{{ url_for('sms_bp.year_progress_home') }}">Year progression</option>
+        <option value="{{ url_for('sms_bp.compliance_home') }}">Compliance & comms</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="mt-8">
+    <h2 class="text-base font-semibold text-slate-900">Access & roles</h2>
+    <p class="text-sm text-slate-600 mt-1">
+      Pick a group, choose the person, then assign a role. Email is pulled from the person record (or you can type it).
+    </p>
+
+    <form method="post" class="mt-4 grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="add_access">
+
+      <div class="md:col-span-3">
+        <label class="block text-xs font-medium text-slate-700">Group</label>
+        <select name="person_type" id="person_type"
+                class="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm">
+          <option value="">Select group…</option>
+          <option value="teacher">Teachers</option>
+        </select>
+      </div>
+
+      <div class="md:col-span-4">
+        <label class="block text-xs font-medium text-slate-700">Person</label>
+        <select name="person_id" id="person_id"
+                class="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                disabled>
+          <option value="">Select person…</option>
+        </select>
+        <div id="person_help" class="mt-1 text-[11px] text-slate-500"></div>
+      </div>
+
+      <div class="md:col-span-3">
+        <label class="block text-xs font-medium text-slate-700">Role</label>
+        <select name="role" id="role"
+                class="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm">
+          <option value="">Select role…</option>
+          <option value="auditor">Auditor</option>
+          <option value="sgb">SGB</option>
+          <option value="treasurer">Treasurer</option>
+          <option value="dp">DP</option>
+          <option value="hod">HOD</option>
+          <option value="teacher">Teacher</option>
+        </select>
+      </div>
+
+      <div class="md:col-span-2">
+        <label class="block text-xs font-medium text-slate-700">Email</label>
+        <input name="email" id="email" type="email" placeholder="email@example.com"
+               class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm">
+      </div>
+
+      <div class="md:col-span-12 flex justify-end">
+        <button class="rounded-md bg-slate-900 text-white px-4 py-2 text-sm font-semibold hover:opacity-90">
+          Add / Activate
+        </button>
+      </div>
+    </form>
+
+    <div class="mt-6 overflow-x-auto">
+      <table class="min-w-full text-sm">
+        <thead>
+          <tr class="text-left border-b">
+            <th class="py-2 pr-4">Role</th>
+            <th class="py-2 pr-4">Email</th>
+            <th class="py-2 pr-4">Status</th>
+            <th class="py-2 pr-4">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in approved %}
+          <tr class="border-b">
+            <td class="py-2 pr-4">{{ row.role }}</td>
+            <td class="py-2 pr-4">{{ row.email }}</td>
+            <td class="py-2 pr-4">{% if row.active %}Active{% else %}Inactive{% endif %}</td>
+            <td class="py-2 pr-4">
+              <form method="post" class="inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="action" value="toggle_access">
+                <input type="hidden" name="row_id" value="{{ row.id }}">
+                <button class="rounded border px-3 py-1.5 hover:bg-slate-50">Toggle</button>
+              </form>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td class="py-3 text-slate-500" colspan="4">No access records yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="mt-4 text-sm text-slate-600">
+      Note: users will be routed by <code>/subject/sms/entry</code> based on their active role.
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  // Module jump
+  const jump = document.getElementById("module_jump");
+  if (jump) {
+    jump.addEventListener("change", () => {
+      const v = (jump.value || "").trim();
+      if (v) window.location.assign(v);
+    });
+  }
+
+  // People loader
+  const typeEl   = document.getElementById("person_type");
+  const personEl = document.getElementById("person_id");
+  const emailEl  = document.getElementById("email");
+  const helpEl   = document.getElementById("person_help");
+
+  if (!typeEl || !personEl || !emailEl) return;
+
+  function setHelp(msg) { if (helpEl) helpEl.textContent = msg || ""; }
+
+  function resetPeople() {
+    personEl.innerHTML = '<option value="">Select person…</option>';
+    personEl.disabled = true;
+    setHelp("");
+  }
+
+  async function loadPeople(groupType) {
+    resetPeople();
+    emailEl.value = "";              // important: don’t leave stale email
+    if (!groupType) return;
+
+    personEl.disabled = true;
+    setHelp("Loading…");
+
+    try {
+      const url = "{{ url_for('sms_bp.setup_people') }}" + "?type=" + encodeURIComponent(groupType);
+      const res = await fetch(url, {
+        method: "GET",
+        credentials: "same-origin",
+        headers: { "Accept": "application/json" }
+      });
+
+      // If flask-login redirects, we will get HTML, not JSON
+      const ct = (res.headers.get("content-type") || "").toLowerCase();
+      if (!res.ok || !ct.includes("application/json")) {
+        setHelp("Could not load people (not authorised or session expired).");
+        personEl.disabled = true;
+        return;
+      }
+
+      const rows = await res.json();
+
+      for (const r of rows) {
+        const opt = document.createElement("option");
+        opt.value = String(r.id);
+        opt.textContent = r.label || "";
+        opt.dataset.email = (r.email || "").trim();
+        personEl.appendChild(opt);
+      }
+
+      personEl.disabled = (rows.length === 0);
+      setHelp(rows.length ? "" : "No people found in this group.");
+    } catch (e) {
+      setHelp("Could not load people for this group.");
+      personEl.disabled = true;
+    }
+  }
+
+  typeEl.addEventListener("change", function () {
+    loadPeople((typeEl.value || "").trim());
+  });
+
+  personEl.addEventListener("change", function () {
+    const opt = personEl.options[personEl.selectedIndex];
+    const em = (opt && opt.dataset) ? (opt.dataset.email || "") : "";
+    if (em) emailEl.value = em;
+  });
+
+  // If the browser cached the group selection on refresh, reload people
+  const initial = (typeEl.value || "").trim();
+  if (initial) loadPeople(initial);
+})();
+</script>
+{% endblock %}

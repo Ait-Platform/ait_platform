@@ -1,29 +1,44 @@
 {% extends "layout.html" %}
 {% block content %}
-<div class="container mx-auto max-w-lg py-10">
-  <h1 class="text-2xl font-semibold mb-6">Export / Print</h1>
-
-  <form class="space-y-4" method="get" action="{{ url_for('admin_bp.muni_recon_export') }}">
-    <div>
-      <label class="block text-sm mb-1">Month</label>
-      <input type="month" name="month" value="{{ default_month }}" class="w-full border rounded-lg px-3 py-2" required>
-    </div>
-
-    <div class="flex gap-2">
-      <button class="px-4 py-2 rounded-lg border">Export Muni Recon CSV</button>
-      <a href="{{ url_for('admin_bp.muni_recon', month=default_month) }}"
-         class="px-4 py-2 rounded-lg border">Open Muni Recon</a>
-      <a href="{{ url_for('admin_bp.subject_dashboard', subject='billing') }}" class="text-sm underline">
-        Back to Admin
+<div class="p-10 max-w-5xl mx-auto">
+  <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+    <div class="h-2 w-full bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500"></div>
+    <div class="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+      <div>
+        <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight">Export / Print</h1>
+        <p class="text-sm text-slate-500 mt-1">Review Municipal Recon and generate exports.</p>
+      </div>
+      <a href="{{ url_for('admin_bp.readings_dashboard') }}" class="inline-flex items-center text-sm font-medium text-slate-500 hover:text-slate-800 transition bg-white hover:bg-slate-50 px-4 py-2 rounded-lg border border-slate-200 shadow-sm">
+        <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+        Back to Dashboard
       </a>
-   
     </div>
-  </form>
+    
+    <div class="p-8">
+      <form class="space-y-6 max-w-lg" method="get" action="{{ url_for('admin_bp.muni_recon_export') }}">
+        <div class="bg-slate-50 p-6 rounded-xl border border-slate-200">
+          <label class="block text-sm font-medium text-slate-700 mb-2">Billing Month</label>
+          <input type="month" name="month" value="{{ default_month }}" class="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none" required>
+        </div>
 
-  <div class="mt-8 text-sm text-slate-600">
-    Tip: You can always review matches at
-    <code>/admin/muni/recon?month=YYYY-MM</code>, then export from
-    <code>/admin/muni/recon/export?month=YYYY-MM</code>.
+        <div class="flex gap-3">
+          <a href="{{ url_for('admin_bp.muni_recon', month=default_month) }}"
+             class="flex-1 text-center bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 font-semibold py-2.5 px-4 rounded-lg transition shadow-sm">
+            Open Muni Recon
+          </a>
+          <button class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 px-4 rounded-lg transition shadow-sm">
+            Export CSV
+          </button>
+        </div>
+      </form>
+
+      <div class="mt-8 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800 flex gap-3">
+        <svg class="w-5 h-5 text-blue-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        <div>
+          <span class="font-medium">Pro Tip:</span> You can always review matches directly at <code>/admin/muni/recon?month=YYYY-MM</code> before generating your final exports.
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 {% endblock %}

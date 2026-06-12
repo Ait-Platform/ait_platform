@@ -1,0 +1,59 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-8">
+
+  <!-- Single Main Tile -->
+  <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+    <!-- Color strip on top -->
+    <div class="h-2 bg-emerald-600"></div>
+
+    <div class="p-6 md:p-8 space-y-6">
+      <!-- First Row: Title (left) & Back Button (right) -->
+      <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+        <h1 class="text-2xl md:text-3xl font-bold text-slate-900">SPV Investments</h1>
+        <a href="{{ url_for('public_bp.welcome') }}"
+           class="inline-flex items-center gap-2 rounded border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition">
+          <span>←</span><span>Back</span>
+        </a>
+      </div>
+
+      <!-- Content Body -->
+      <div>
+        <p class="text-slate-600 leading-relaxed mb-6">
+          Invest in structured private deals with full transparency, tracked returns, and clear ownership.
+        </p>
+
+        <div class="space-y-3 text-slate-700 mb-8">
+          <div class="flex items-start gap-2">
+            <span class="text-emerald-600 font-semibold">•</span>
+            <span>Access curated investment opportunities</span>
+          </div>
+          <div class="flex items-start gap-2">
+            <span class="text-emerald-600 font-semibold">•</span>
+            <span>Track your capital and returns in real time</span>
+          </div>
+          <div class="flex items-start gap-2">
+            <span class="text-emerald-600 font-semibold">•</span>
+            <span>View deal performance and documents</span>
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <a href="{{ url_for('spv_bp.spv_list') }}"
+             class="bg-emerald-600 text-white text-center py-2.5 rounded-xl font-semibold hover:bg-emerald-700 transition">
+            View SPV List
+          </a>
+          <a href="{{ url_for('spv_bp.investor_dashboard') }}"
+             class="bg-slate-900 text-white text-center py-2.5 rounded-xl font-semibold hover:bg-slate-700 transition">
+            My Investments
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+

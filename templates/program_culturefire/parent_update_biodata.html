@@ -1,0 +1,43 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="max-w-lg mx-auto mt-10 bg-white shadow-lg rounded-lg overflow-hidden">
+  <!-- Color strip at top -->
+  <div class="h-2 bg-green-600"></div>
+
+  <!-- Heading row with title + back button -->
+  <div class="flex items-center justify-between px-6 py-4 border-b">
+    <h1 class="text-xl font-semibold">Update Child Bio Data</h1>
+    <a href="{{ url_for('cultural_bp.parent_dashboard') }}"
+       class="text-sm text-gray-600 hover:text-gray-800">
+      ⬅ Back
+    </a>
+  </div>
+
+  <!-- Form content -->
+  <div class="p-6">
+    <form method="post">
+      {{ form.hidden_tag() }}
+
+      <div class="mb-4">
+        {{ form.dob.label(class="block text-gray-700 mb-1") }}
+        {{ form.dob(class="w-full border rounded px-3 py-2") }}
+      </div>
+
+      <div class="mb-4">
+        {{ form.school.label(class="block text-gray-700 mb-1") }}
+        {{ form.school(class="w-full border rounded px-3 py-2") }}
+      </div>
+
+      <div class="mb-4">
+        {{ form.grade.label(class="block text-gray-700 mb-1") }}
+        {{ form.grade(class="w-full border rounded px-3 py-2") }}
+      </div>
+
+      <button type="submit"
+              class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+        Save
+      </button>
+    </form>
+  </div>
+</div>
+{% endblock %}

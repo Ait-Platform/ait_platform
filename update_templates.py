@@ -1,0 +1,35 @@
+import os
+
+stubs = ['meters.html', 'invoices.html', 'reports.html', 'units.html', 'tenants.html']
+tpl = """{% extends "layout.html" %}
+{% block content %}
+<div class="p-10 max-w-5xl mx-auto">
+  <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+    <div class="h-2 w-full bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500"></div>
+    <div class="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+      <div>
+        <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight">TITLE Management</h1>
+        <p class="text-sm text-slate-500 mt-1">Manage TITLE records for your property.</p>
+      </div>
+      <a href="{{ url_for('admin_bp.billing_home') }}" class="inline-flex items-center text-sm font-medium text-slate-500 hover:text-slate-800 transition bg-white hover:bg-slate-50 px-4 py-2 rounded-lg border border-slate-200 shadow-sm">
+        <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+        Back to Dashboard
+      </a>
+    </div>
+    <div class="p-8">
+      <div class="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-12 text-center">
+        <p class="text-sm font-medium text-slate-600">Module coming soon.</p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+"""
+
+for f in stubs:
+    title = f.replace('.html', '').capitalize()
+    path = os.path.join('templates', 'admin', 'billing', f)
+    with open(path, 'w', encoding='utf-8') as out:
+        out.write(tpl.replace('TITLE', title))
+
+print("Templates updated!")

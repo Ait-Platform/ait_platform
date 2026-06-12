@@ -1,0 +1,90 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto p-6">
+
+  <!-- Cultural Fire About Tile -->
+  <div class="bg-white rounded-2xl shadow overflow-hidden">
+    <!-- Color strip -->
+    <div class="h-2 bg-red-600"></div>
+
+    <div class="p-6">
+      <h1 class="text-2xl font-semibold mb-2 text-slate-900">
+        About Cultural Fire
+      </h1>
+      <p class="text-sm text-gray-500 mb-6">
+        Talent Begins Here
+      </p>
+
+      <div class="space-y-6 text-gray-700 mb-6">
+        <p>
+          Cultural Fire is a community-driven youth talent discovery program designed
+          to identify, develop, and showcase young talent across local communities.
+        </p>
+
+        <p>
+          Launched to create opportunities for learners, Cultural Fire provides a structured
+          platform where children can safely express their talents in areas such as singing,
+          dancing, poetry, acting, comedy, instrumental, and cultural performance.
+        </p>
+
+        <h2 class="text-lg font-bold text-slate-900">Our Mission</h2>
+        <p>
+          To empower young individuals by giving them a stage to be seen, heard, and celebrated—
+          while building confidence, creativity, and community pride.
+        </p>
+
+        <h2 class="text-lg font-bold text-slate-900">How It Works</h2>
+        <p>
+          Learners register on the Cultural Fire platform with parent or guardian consent and
+          submit a short video showcasing their talent. Submissions are reviewed, and selected
+          participants are invited to perform in a live community showcase event.
+        </p>
+        <p>
+          These events are professionally organised and hosted in local venues, bringing together
+          families, schools, and community members for an unforgettable experience.
+        </p>
+
+        <h2 class="text-lg font-bold text-slate-900">Our Vision</h2>
+        <p>
+          To grow Cultural Fire into a leading youth talent platform across communities, creating
+          pathways from local showcases to regional and national stages.
+        </p>
+
+        <h2 class="text-lg font-bold text-slate-900">Community First</h2>
+        <p>
+          Cultural Fire is built on community involvement. Parents, educators, and local supporters
+          play an active role through volunteering, mentoring, and supporting events.
+        </p>
+
+        <h2 class="text-lg font-bold text-slate-900">Safety and Trust</h2>
+        <p>
+          We prioritise the safety and wellbeing of all participants. All learner participation
+          requires verified parental consent, and all content is managed responsibly.
+        </p>
+
+        <h2 class="text-lg font-bold text-slate-900">Sponsorship and Partnerships</h2>
+        <p>
+          We work with local businesses and organisations to support youth development while
+          offering meaningful brand exposure within the community.
+        </p>
+
+        <h2 class="text-lg font-bold text-slate-900">Join the Movement</h2>
+        <p>
+          Whether you are a learner, parent, school, or sponsor—Cultural Fire invites you to be
+          part of a growing platform where talent is discovered and celebrated.
+        </p>
+
+        <p class="font-semibold">Talent Begins Here.</p>
+      </div>
+
+      <!-- Explore button leading to price page -->
+      <a href="{{ url_for('cultural_bp.cultural_fire_price') }}"
+         class="inline-block bg-red-600 text-white font-semibold text-sm py-2 px-6 rounded hover:bg-red-700">
+        Prices
+      </a>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

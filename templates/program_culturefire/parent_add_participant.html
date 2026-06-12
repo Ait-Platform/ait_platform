@@ -1,0 +1,67 @@
+{% extends "layout.html" %}
+{% block content %}
+
+<div class="max-w-4xl mx-auto mt-10 bg-white shadow-lg rounded-lg overflow-hidden">
+
+  <!-- Row 1: Header strip -->
+  <div class="bg-blue-600 px-6 py-4 flex items-center justify-between">
+    <h1 class="text-xl font-semibold text-white">Add Participant</h1>
+    <a href="{{ url_for('bridge_bp.bridge') }}" 
+       class="text-white bg-blue-800 hover:bg-blue-900 px-3 py-1 rounded">
+      Back
+    </a>
+  </div>
+
+  <!-- Form content -->
+  <div class="p-6">
+    <form method="POST" action="{{ url_for('cultural_bp.parent_add_participant') }}" class="space-y-6">
+        {{ form.hidden_tag() }}
+
+      <!-- Select child from enrolled users -->
+      <div>
+        <label for="child_id" class="block text-gray-700 font-medium mb-2">
+          Select Child
+        </label>
+        <select id="child_id" name="child_id" required
+                class="w-full border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500">
+          {% for enrollment in cfi_users %}
+            <option value="{{ enrollment.user.id }}">
+              {{ enrollment.user.name }} ({{ enrollment.user.email }})
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- Relationship selection -->
+      <div>
+        <label for="relationship" class="block text-gray-700 font-medium mb-2">
+          Relationship
+        </label>
+        <select id="relationship" name="relationship" required
+                class="w-full border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500">
+          <option value="Parent">Parent</option>
+          <option value="Guardian">Guardian</option>
+        </select>
+      </div>
+
+      <!-- Consent -->
+      <div class="flex items-center">
+        <input id="consent" name="consent" type="checkbox"
+               class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+        <label for="consent" class="ml-2 block text-gray-700">
+          I confirm consent for this participant.
+        </label>
+      </div>
+
+      <!-- Submit -->
+      <div>
+        <button type="submit"
+                class="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700">
+          Link Participant
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}

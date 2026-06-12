@@ -3,6 +3,26 @@
 
 {% block content %}
   <div class="max-w-5xl mx-auto px-4 py-10">
-    {% include "subject_reading/_lessons_table.html" with context %}
+    <div class="rounded-xl border bg-white shadow-sm overflow-hidden">
+      <div class="h-2 bg-green-600"></div>
+      
+      <div class="p-6">
+        <div class="flex items-center justify-between mb-6">
+          <div>
+            <h1 class="text-2xl font-semibold text-slate-800">Reading Programme</h1>
+            <div class="text-sm text-slate-500 mt-1">👋 {{ t("hello", ui_lang) }}, {{ learner_name }}!</div>
+          </div>
+          
+          <div class="flex items-center gap-3">
+            <a href="{{ url_for('auth_bp.bridge_dashboard') }}" class="inline-flex items-center rounded-lg px-4 py-2 text-sm font-semibold border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition">
+              &larr; Back
+            </a>
+          </div>
+          
+        </div>
+
+        {% include "subject_reading/_lessons_table.html" with context %}
+      </div>
+    </div>
   </div>
 {% endblock %}

@@ -8,7 +8,7 @@ from flask import (
 from app.extensions import db
 from app.models.billing import (
     BilLease, BilMeterFixedCharge, BilTenant, BilMeter, BilMeterReading,
-    BilSectionalUnit)
+    BilSectionalUnit, BilTariff, BilTenantLedger)
 from datetime import datetime, date, timedelta
 from sqlalchemy import and_, func, select, text, or_
 from app.auth.forms import LoginForm
@@ -35,7 +35,11 @@ from io import BytesIO
 
 @admin_bp.route("/billing/tenants", endpoint="billing_tenants")
 def billing_tenants():
-    return render_template("admin/billing/tenants.html")
+    from app.models.billing import BilTenant
+    from datetime import date
+    tenants = BilTenant.query.order_by(BilTenant.name).all()
+    current_month = date.today().strftime('%Y-%m')
+    return render_template("admin/billing/tenants.html", tenants=tenants, current_month=current_month)
 
 @admin_bp.route("/billing/units", endpoint="billing_units")
 def billing_units():
@@ -45,9 +49,53 @@ def billing_units():
 def billing_meters():
     return render_template("admin/billing/meters.html")
 
-@admin_bp.route("/billing/tariffs", endpoint="billing_tariffs")
+@admin_bp.route("/billing/tariffs", methods=["GET", "POST"], endpoint="billing_tariffs")
 def billing_tariffs():
-    return render_template("admin/billing/tariffs.html")
+    if request.method == "POST":
+        action = request.form.get('action')
+        if action == 'add':
+            new_tariff = BilTariff(
+                utility_type=request.form.get('utility_type'),
+                code=request.form.get('code'),
+                description=request.form.get('description'),
+                rate=float(request.form.get('rate') or 0.0),
+                block_start=float(request.form.get('block_start') or 0.0),
+                block_end=float(request.form.get('block_end') or 0.0),
+                effective_date=request.form.get('effective_date', date.today().strftime('%Y-%m-%d')),
+                reduction_factor=float(request.form.get('reduction_factor') or 1.0),
+                unit=request.form.get('unit')
+            )
+            db.session.add(new_tariff)
+            db.session.commit()
+            flash('Tariff added successfully', 'success')
+            
+        elif action == 'edit':
+            t_id = request.form.get('tariff_id')
+            t = BilTariff.query.get(t_id)
+            if t:
+                t.utility_type = request.form.get('utility_type')
+                t.code = request.form.get('code')
+                t.description = request.form.get('description')
+                t.rate = float(request.form.get('rate') or 0.0)
+                t.block_start = float(request.form.get('block_start') or 0.0)
+                t.block_end = float(request.form.get('block_end') or 0.0)
+                t.reduction_factor = float(request.form.get('reduction_factor') or 1.0)
+                t.unit = request.form.get('unit')
+                db.session.commit()
+                flash('Tariff updated successfully', 'success')
+                
+        elif action == 'delete':
+            t_id = request.form.get('tariff_id')
+            t = BilTariff.query.get(t_id)
+            if t:
+                db.session.delete(t)
+                db.session.commit()
+                flash('Tariff deleted successfully', 'success')
+
+        return redirect(url_for('admin_bp.billing_tariffs'))
+
+    tariffs = BilTariff.query.order_by(BilTariff.utility_type, BilTariff.block_start).all()
+    return render_template("admin/billing/tariffs.html", tariffs=tariffs)
 
 @admin_bp.route("/billing/invoices", endpoint="billing_invoices")
 def billing_invoices():
@@ -89,12 +137,9 @@ def readings_create():
 def readings_view():
     tenants = BilTenant.query.order_by(BilTenant.name).all()
 
-    # Distinct months present in readings, newest first (SQLite strftime)
-    month_rows = (db.session.query(func.strftime('%Y-%m', BilMeterReading.reading_date))
-                  .distinct()
-                  .order_by(func.strftime('%Y-%m', BilMeterReading.reading_date).desc())
-                  .all())
-    months = [m[0] for m in month_rows]
+    # Distinct months present in readings, newest first (Database agnostic)
+    month_rows = db.session.query(BilMeterReading.reading_date).distinct().all()
+    months = sorted({d[0].strftime("%Y-%m") for d in month_rows if d[0]}, reverse=True)
 
     tenant_id = request.args.get("tenant_id", type=int)
     month = request.args.get("month")  # "YYYY-MM"
@@ -468,21 +513,35 @@ def metsoa_water_config(meter_id):
         water_due=water_row.amount if water_row else None,
     )
 
-
 @admin_bp.route("/billing/metsoa/build")
 def metsoa_build():
     tenant_id = request.args.get("tenant_id", type=int)
     month = request.args.get("month", type=str)
-    if not tenant_id or not month:
-        abort(400)
+    if not tenant_id or not month: abort(400)
+    return redirect(url_for("billing_bp.metsoa", tenant_id=tenant_id, month=month))
 
-    # Build everything in one pass and store once
-    page1, page2 = build_metsoa_payload(tenant_id, month)
-    session["metsoa_page1"] = page1
-    session["metsoa_page2"] = page2
-    session["metsoa_context"] = {"tenant_id": tenant_id, "month": month}
+@admin_bp.route("/admin/billing/metsoa")
+def metsoa_page1():
+    tenant_id = request.args.get("tenant_id", type=int)
+    month     = request.args.get("month", type=str)
+    if not tenant_id or not month: abort(400)
+    return redirect(url_for("billing_bp.metsoa", tenant_id=tenant_id, month=month))
 
-    return redirect(url_for("admin_bp.metsoa_page1", tenant_id=tenant_id, month=month))
+@admin_bp.route("/billing/metsoa/page2")
+def metsoa_page2():
+    tenant_id = request.args.get("tenant_id", type=int)
+    month     = request.args.get("month", type=str)
+    if not tenant_id or not month: abort(400)
+    return redirect(url_for("billing_bp.metsoa", tenant_id=tenant_id, month=month))
+
+@admin_bp.route("/billing/metsoa/commit", methods=["GET","POST"])
+def metsoa_commit():
+    tenant_id = request.values.get("tenant_id", type=int)
+    month     = request.values.get("month", type=str)
+    if not tenant_id or not month: abort(400)
+    # The billing.metsoa route automatically posts to the ledger when viewed
+    flash("Redirected to MetSoa statement. Generating the statement automatically commits it to the ledger.", "info")
+    return redirect(url_for("billing_bp.metsoa", tenant_id=tenant_id, month=month))
 
 def _get_tenant_month_water_totals(tenant_id: int, month: str):
     # Prefer aggregated table; otherwise sum per-meter table.
@@ -506,119 +565,6 @@ def _get_tenant_month_water_totals(tenant_id: int, month: str):
 
 # app/admin/billing/routes.py
 
-
-
-@admin_bp.route("/admin/billing/metsoa")
-def metsoa_page1():
-    tenant_id = request.args.get("tenant_id", type=int)
-    month     = request.args.get("month", type=str)
-    if not tenant_id or not month: abort(400)
-    month = datetime.strptime(month, "%Y-%m").strftime("%Y-%m")
-
-    tenant = db.session.get(BilTenant, tenant_id) or abort(404)
-
-    base_rows = get_consumption_rows_for_month(tenant_id, month) or []
-    elec_sources  = [r for r in base_rows if (r.get("utility_type") or "").lower().startswith("e")]
-    water_sources = [r for r in base_rows if (r.get("utility_type") or "").lower().startswith("w")]
-
-    # ---- Electricity table ----
-    # Get the latest ElecRate; fall back to 0 if missing.
-    e_tar = _tariff_latest_by_code("ElecRate")
-    elec_rate = float(e_tar["rate"]) if e_tar else 0.0
-
-    elec_rows = []
-    elec_total = 0.0
-    for r in elec_sources:
-        prev_date = r.get("prev_date"); curr_date = r.get("curr_date")
-        prev_read = r.get("prev_value") or r.get("prev_read")
-        curr_read = r.get("curr_value") or r.get("curr_read")
-        days      = int(r.get("days") or 0)
-        cons      = float(r.get("consumption") or r.get("cons") or 0)
-        due       = round(cons * elec_rate, 2)
-
-        upsert_electricity_line(
-            tenant_id=tenant_id, meter_id=r["meter_id"], month=month,
-            prev_date=prev_date, prev_read=prev_read,
-            curr_date=curr_date, curr_read=curr_read,
-            days=days, consumption=cons,
-            rate=elec_rate, due=due
-        )
-
-        elec_rows.append({
-            "meter": r.get("meter_label") or str(r["meter_id"]),
-            "prev_date": prev_date, "prev_read": prev_read,
-            "curr_date": curr_date, "curr_read": curr_read,
-            "days": days, "cons": cons, "rate": elec_rate, "due": due,
-        })
-        elec_total += due
-
-    # ---- Water table (one line per water meter) ----
-    water_rows = []
-    ws_total_all = 0.0
-    sd_total_all = 0.0
-    water_total_all = 0.0
-
-    for r in water_sources:
-        prev_date = r.get("prev_date"); curr_date = r.get("curr_date")
-        prev_read = r.get("prev_value") or r.get("prev_read")
-        curr_read = r.get("curr_value") or r.get("curr_read")
-        days      = int(r.get("days") or 0)
-        cons      = int(r.get("consumption") or r.get("cons") or 0)
-
-        t = calc_ws_sd_totals(
-            meter_id=r["meter_id"], month_str=month,
-            consumption_kl=cons, days=days,
-            include_fixed=True, want_breakdown=False
-        )
-
-        # Persist water per meter (keeps Page 2 in sync)
-        upsert_meter_month_total(
-            tenant_id=tenant_id, meter_id=r["meter_id"], month=month,
-            ws=float(t["ws_total"]), sd=float(t["sd_total"]), wc=float(t["water_cost"]),
-        )
-
-        water_rows.append({
-            "meter":      r.get("meter_label") or str(r["meter_id"]),
-            "prev_date":  prev_date, "prev_read": prev_read,
-            "curr_date":  curr_date, "curr_read": curr_read,
-            "days": days, "cons": cons,
-            "rate": None,                         # tiered -> show dash in UI
-            "due": float(t["water_cost"]),        # WS + SD per meter
-        })
-
-        ws_total_all    += float(t["ws_total"])
-        sd_total_all    += float(t["sd_total"])
-        water_total_all += float(t["water_cost"])
-
-    # Aggregate once for the tenant-month
-    upsert_tenant_month_water_totals(
-        tenant_id=tenant_id, month=month,
-        ws=ws_total_all, sd=sd_total_all, wc=water_total_all
-    )
-
-    # ---- Totals to show in the footer ----
-    water_total = round(water_total_all, 2)
-    elec_total  = round(elec_total, 2)
-
-    # Hook up refuse/rates/other when available
-    refuse_total = 0.0
-    rates_total  = 0.0
-    other_total  = 0.0
-
-    due_to_metro = round(water_total + elec_total + refuse_total + rates_total, 2)
-    grand_total  = round(due_to_metro + other_total, 2)
-
-    return render_template(
-        "admin/billing/metsoa_page1.html",
-        tenant=tenant, month=month,
-        # Tables
-        elec_rows=elec_rows, water_rows=water_rows,
-        # Footer lines
-        elec_total=elec_total, water_total=water_total,
-        refuse_total=refuse_total, rates_total=rates_total, other_total=other_total,
-        due_to_metro=due_to_metro, grand_total=grand_total,
-    )
-
 def _upsert_meter_month_total(tenant_id: int, meter_id: int, month: str, ws: float, sd: float, wc: float):
     # SQLite/PG-friendly UPSERT; if your table/index differs, adjust the ON CONFLICT target accordingly.
     try:
@@ -637,78 +583,6 @@ def _upsert_meter_month_total(tenant_id: int, meter_id: int, month: str, ws: flo
     except Exception:
         db.session.rollback()  # non-fatal if table/constraint not present
 
-@admin_bp.route("/billing/metsoa/page2")
-def metsoa_page2():
-    tenant_id = request.args.get("tenant_id", type=int)
-    month     = request.args.get("month", type=str)
-    if not tenant_id or not month:
-        abort(400)
-
-    tenant = db.session.get(BilTenant, tenant_id) or abort(404)
-    base_rows   = get_consumption_rows_for_month(tenant_id, month) or []
-    water_bases = [r for r in base_rows if (r.get("utility_type") or "").strip().lower().startswith("w")]
-
-    sections = []
-
-    # NEW: accumulate across all meters
-    page_ws_total = 0.0
-    page_sd_total = 0.0
-    page_water_total = 0.0
-
-    for r in water_bases:
-        cons = int(r.get("consumption") or 0)
-        days = int(r.get("days") or 0)
-
-        totals = calc_ws_sd_totals(
-            meter_id=r["meter_id"],
-            month_str=month,
-            consumption_kl=cons,
-            days=days,
-            include_fixed=True,
-            want_breakdown=True,
-        )
-
-        # Persist for Page 1 (unchanged)
-        _upsert_meter_month_total(
-            tenant_id=tenant_id,
-            meter_id=r["meter_id"],
-            month=month,
-            ws=float(totals["ws_total"]),
-            sd=float(totals["sd_total"]),
-            wc=float(totals["water_cost"]),
-        )
-
-        # NEW: accumulate page-level totals
-        page_ws_total   += float(totals["ws_total"])
-        page_sd_total   += float(totals["sd_total"])
-        page_water_total += float(totals["water_cost"])
-
-        # Pass per-meter totals to template (for small line under each card)
-        sections.append({
-            "meter":      r.get("meter_label") or str(r["meter_id"]),
-            "prev_date":  r.get("prev_date"),
-            "prev_value": r.get("prev_value"),
-            "curr_date":  r.get("curr_date"),
-            "curr_value": r.get("curr_value"),
-            "days":       days,
-            "cons":       cons,
-            "ws_lines":   totals["ws_lines"],
-            "sd_lines":   totals["sd_lines"],
-            "ws_total":   float(totals["ws_total"]),     # NEW
-            "sd_total":   float(totals["sd_total"]),     # NEW
-            "water_cost": float(totals["water_cost"]),   # NEW
-        })
-
-    return render_template(
-        "admin/billing/metsoa_page2.html",
-        tenant=tenant,
-        month=month,
-        sections=sections,
-        page_ws_total=round(page_ws_total, 2),       # NEW
-        page_sd_total=round(page_sd_total, 2),       # NEW
-        water_total=round(page_water_total, 2),      # Cost of Water (WS+SD)
-    )
-
 def _upsert_tenant_month_water_totals(tenant_id: int, month: str, ws: float, sd: float, wc: float):
     try:
         db.session.execute(text("""
@@ -725,37 +599,6 @@ def _upsert_tenant_month_water_totals(tenant_id: int, month: str, ws: float, sd:
         db.session.commit()
     except Exception:
         db.session.rollback()  # safe if table doesn't exist
-
-@admin_bp.route("/billing/metsoa/commit", methods=["GET","POST"])
-def metsoa_commit():
-    tenant_id = request.values.get("tenant_id", type=int)
-    month     = request.values.get("month", type=str)
-    if not tenant_id or not month:
-        abort(400)
-
-    # recompute & upsert — keep your existing logic
-    try:
-        from app.utils.billing_helpers import build_metsoa_rows
-        _, elec_total, _, water_total, due_to_metro = build_metsoa_rows(tenant_id, month)
-        amt = round(float(due_to_metro or 0.0), 2)
-        db.session.execute(text("""
-            INSERT INTO bil_tenant_ledger
-              (tenant_id, month, description, kind, amount, debit, credit, txn_date, created_at)
-            VALUES
-              (:tid, :mon, 'Due to Metro', 'charge', :amt, :amt, 0, date(:mon || '-01'), datetime('now'))
-            ON CONFLICT(tenant_id, month, kind, description)
-            DO UPDATE SET amount=excluded.amount, debit=excluded.debit, credit=excluded.credit, txn_date=excluded.txn_date
-        """), {"tid": tenant_id, "mon": month, "amt": amt})
-        db.session.commit()
-        flash(f"Posted to ledger for {month}: {amt:.2f}", "success")
-    except Exception as e:
-        db.session.rollback()
-        current_app.logger.exception("Commit to ledger failed")
-        flash(f"Commit error: {getattr(e, 'orig', e)}", "danger")
-        return redirect(f"/admin/admin/billing/metsoa?tenant_id={tenant_id}&month={month}")
-
-    # 🔒 Force landing on the ledger page you actually use in your app right now
-    return redirect(f"/admin/admin/billing/ledger?tenant_id={tenant_id}&month={month}")
 
 @admin_bp.route("/billing/tenant/soa")
 def tenant_soa():
@@ -828,25 +671,25 @@ def record_payment_form():
         return redirect(url_for("admin_bp.record_payment_form", tenant_id=tenant_id))
 
     # idempotency: prevent accidental double-capture of same payment
-    db.session.execute(text("""
-        INSERT OR IGNORE INTO bil_tenant_ledger
-          (tenant_id, month, description, kind, debit, credit, txn_date, created_at)
-        VALUES
-          (:tid,
-           strftime('%Y-%m', :dt),
-           :desc,
-           'payment',
-           0,
-           :amt,
-           :dt,
-           datetime('now'));
-    """), {
-        "tid": tenant_id,
-        "dt":  date_s,
-        "amt": amount,
-        "desc": f"Payment {ref}" if ref else "Payment",
-    })
-    db.session.commit()
+    month_str = date_s[:7]
+    desc = f"Payment {ref}" if ref else "Payment"
+    txn_date_obj = datetime.strptime(date_s, "%Y-%m-%d").date()
+    
+    existing = BilTenantLedger.query.filter_by(
+        tenant_id=tenant_id, month=month_str, description=desc, kind='payment', txn_date=txn_date_obj
+    ).first()
+
+    if not existing:
+        new_payment = BilTenantLedger(
+            tenant_id=tenant_id,
+            month=month_str,
+            description=desc,
+            kind='payment',
+            amount=-amount, # Credit/Payment usually stored as negative
+            txn_date=txn_date_obj
+        )
+        db.session.add(new_payment)
+        db.session.commit()
 
     flash("Payment recorded.", "success")
     return redirect(url_for("admin_bp.tenant_ledger", tenant_id=tenant_id))
@@ -1023,13 +866,19 @@ def tenant_ledger():
     try:
         from app.utils.billing_helpers import ensure_recurring_materialized
         ensure_recurring_materialized(tenant_id, month)
-    except Exception:
-        pass  # don't crash the page
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error in ensure_recurring_materialized: {e}")
 
-    tenant = db.session.execute(
-        text("SELECT id, name, unit_label FROM bil_tenant WHERE id=:tid"),
-        {"tid": tenant_id}
-    ).mappings().first() or abort(404)
+    tenant_obj = db.session.get(BilTenant, tenant_id)
+    if not tenant_obj:
+        abort(404)
+    unit_label = tenant_obj.sectional_unit.name if tenant_obj.sectional_unit else "No Unit"
+    tenant = {
+        "id": tenant_obj.id,
+        "name": tenant_obj.name,
+        "unit_label": unit_label
+    }
 
     rows = db.session.execute(
         text("""
@@ -2108,26 +1957,84 @@ def muni_accounts_go():
         return redirect(url_for("admin_bp.muni_accounts"))
     return redirect(url_for("admin_bp.muni_capture", account_number=acc))
 
+# --- Recon Statement ---
+@admin_bp.route("/billing/muni/recon_statement", methods=["GET"])
+def muni_recon_statement():
+    from app.school_billing.helpers import sync_muni_accounts
+    sync_muni_accounts()
+    
+    month = (request.args.get("month") or datetime.now().strftime("%Y-%m")).strip()
+    q_occ = (request.args.get("q_occ") or "").strip()
+    
+    # Query accounts and join metsoa charges and owner payments for the given month
+    base_sql = """
+        SELECT a.account_number, o.name AS owner_name,
+               a.muni_water_meter_no, a.muni_elec_meter_no,
+               COALESCE(mc.metsoa_due, 0) AS metsoa_charges,
+               COALESCE(p.total_paid, 0) AS owner_payment,
+               (COALESCE(p.total_paid, 0) - COALESCE(mc.metsoa_due, 0)) AS difference
+        FROM bil_muni_account a
+        LEFT JOIN ref_muni_owner o ON o.id = a.owner_id
+        LEFT JOIN bil_metsoa_cycle mc ON mc.account_id = a.id AND mc.period = :month
+        LEFT JOIN (
+            SELECT account_id, month, SUM(amount) as total_paid 
+            FROM bil_muni_payment 
+            WHERE month = :month 
+            GROUP BY account_id, month
+        ) p ON p.account_id = a.id
+        WHERE 1=1
+    """
+    params = {"month": month}
+    if q_occ:
+        base_sql += " AND o.name = :q_occ"
+        params["q_occ"] = q_occ
+        
+    base_sql += " ORDER BY a.account_number"
+    rows = db.session.execute(text(base_sql), params).mappings().all()
+    
+    all_occupiers = db.session.execute(
+        text("SELECT name FROM ref_muni_owner ORDER BY name")
+    ).scalars().all()
+    
+    return render_template("admin/billing/muni/recon_statement.html", rows=rows, month=month, q_occ=q_occ, all_occupiers=all_occupiers)
+
 # --- Account picker ---
 @admin_bp.route("/billing/muni", methods=["GET"])
 def muni_accounts():
-    q = (request.args.get("q") or "").strip()
+    q_acc = (request.args.get("q_acc") or "").strip()
+    q_occ = (request.args.get("q_occ") or "").strip()
     params = {}
     base_sql = """
         SELECT a.account_number, o.name AS owner_name,
                a.muni_water_meter_no, a.muni_elec_meter_no
         FROM bil_muni_account a
         LEFT JOIN ref_muni_owner o ON o.id = a.owner_id
+        WHERE 1=1
     """
-    if q:
-        base_sql += " WHERE a.account_number LIKE :q OR o.name LIKE :q"
-        params["q"] = f"%{q}%"
+    if q_acc:
+        base_sql += " AND a.account_number = :q_acc"
+        params["q_acc"] = q_acc
+    if q_occ:
+        base_sql += " AND o.name = :q_occ"
+        params["q_occ"] = q_occ
+        
     base_sql += " ORDER BY a.account_number"
     accounts = db.session.execute(text(base_sql), params).mappings().all()
+    
     all_nums = db.session.execute(
         text("SELECT account_number FROM bil_muni_account ORDER BY account_number")
     ).scalars().all()
-    return render_template("admin/billing/muni/index.html", accounts=accounts, q=q, all_nums=all_nums)
+    
+    all_occupiers = db.session.execute(
+        text("SELECT name FROM ref_muni_owner ORDER BY name")
+    ).scalars().all()
+    
+    return render_template("admin/billing/muni/index.html", 
+                           accounts=accounts, 
+                           q_acc=q_acc, 
+                           q_occ=q_occ, 
+                           all_nums=all_nums,
+                           all_occupiers=all_occupiers)
 
 # --- Capture & Ledger ---
 
@@ -2167,7 +2074,7 @@ def muni_export_all():
     with zipfile.ZipFile(zbuf, "w", compression=zipfile.ZIP_DEFLATED) as zf:
         # accounts
         rows = db.session.execute(text("""
-            SELECT a.account_number, o.name AS owner_name, a.email_electric,
+            SELECT a.account_number, o.name AS owner_name, a.muni_email,
                    a.muni_water_meter_no, a.muni_water_ref,
                    a.muni_elec_meter_no,  a.muni_elec_ref
             FROM bil_muni_account a
@@ -2175,7 +2082,7 @@ def muni_export_all():
             ORDER BY a.account_number
         """)).mappings().all()
         zf.writestr("accounts.csv", _rows_to_csv(rows, [
-            "account_number","owner_name","email_electric",
+            "account_number","owner_name","muni_email",
             "muni_water_meter_no","muni_water_ref","muni_elec_meter_no","muni_elec_ref"
         ]))
         # monthly totals

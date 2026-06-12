@@ -1,0 +1,50 @@
+{% extends "layout.html" %}
+
+{% block title %}Cultural Fire Admin Dashboard{% endblock %}
+
+{% block content %}
+<div class="bg-white shadow rounded-lg overflow-hidden max-w-6xl mx-auto">
+  <div class="h-2 bg-blue-800"></div>
+  
+  <div class="px-6 py-4 border-b flex justify-between items-center bg-gray-50">
+    <h1 class="text-2xl font-bold text-gray-800">Cultural Fire Admin Dashboard</h1>
+    <a href="{{ url_for('main.index') }}" class="bg-gray-300 text-gray-800 px-4 py-2 rounded hover:bg-gray-400">Back</a>
+  </div>
+
+  <div class="p-6">
+    <h2 class="text-xl font-semibold mb-4 text-gray-700">Manage Shows & Scores</h2>
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-gray-200 border">
+        <thead class="bg-gray-100">
+          <tr>
+            <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Show Title</th>
+            <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Status</th>
+            <th class="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="bg-white divide-y divide-gray-200">
+          {% for show in shows %}
+          <tr class="hover:bg-gray-50">
+            <td class="px-6 py-4 font-medium text-gray-900">{{ show.title }}</td>
+            <td class="px-6 py-4 text-sm text-gray-500">
+              <span class="px-2 py-1 rounded text-xs font-bold {% if show.status == 'active' %}bg-green-100 text-green-800{% else %}bg-gray-100 text-gray-800{% endif %}">
+                {{ show.status|capitalize }}
+              </span>
+            </td>
+            <td class="px-6 py-4 text-center">
+              <a href="{{ url_for('cultural_bp.admin_scores', show_id=show.id) }}" class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 text-sm font-semibold inline-block">
+                View Judge Score Sheet
+              </a>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="3" class="px-6 py-8 text-center text-gray-500">No shows available.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

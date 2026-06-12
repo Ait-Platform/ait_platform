@@ -1,0 +1,183 @@
+{% extends "layout.html" %}
+
+{% block title %}Talent Dashboard{% endblock %}
+{% block heading %}Talent Dashboard{% endblock %}
+
+{% block flashes %}{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto mt-6 bg-white shadow rounded-lg overflow-hidden">
+
+  <!-- Color stripe -->
+  <div class="h-2 bg-blue-600"></div>
+
+  <!-- Header -->
+  <div class="flex justify-between items-center px-4 py-3 border-b">
+    <h1 class="text-lg font-semibold text-gray-800">Talent Dashboard</h1>
+    <a href="{{ url_for('bridge_bp.bridge') }}" 
+       class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">
+       Back
+    </a>
+  </div>
+
+  <!-- Navigation Row -->
+  <div class="flex items-center justify-end space-x-2 px-4 py-3 border-b bg-gray-50">
+    <a href="{{ url_for('cultural_bp.judge_dashboard') }}" 
+       class="bg-indigo-600 text-white px-3 py-1 rounded hover:bg-indigo-700 shadow-sm transition-transform hover:-translate-y-0.5">
+       Judges
+    </a>
+    <a href="{{ url_for('cultural_bp.showcase_dashboard', origin='talent', enrollment_id=enrollment.id) }}" 
+       class="bg-purple-600 text-white px-3 py-1 rounded hover:bg-purple-700 shadow-sm transition-transform hover:-translate-y-0.5">
+       Showcase
+    </a>
+    <a href="{{ url_for('cultural_bp.live_results_list', origin='talent', enrollment_id=enrollment.id) }}" 
+       class="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600 shadow-sm transition-transform hover:-translate-y-0.5">
+       Results
+    </a>
+    <a href="{{ url_for('cultural_bp.live_shows_static', origin='talent', enrollment_id=enrollment.id) }}" 
+       class="bg-emerald-500 text-white px-3 py-1 rounded hover:bg-emerald-600 shadow-sm flex items-center gap-2 transition-transform hover:-translate-y-0.5">
+       <span class="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+       Live
+    </a>
+  </div>
+
+  <!-- Inline Flash Messages -->
+  {% include "partials/flash_messages.html" %}
+
+  <!-- Help Guide -->
+  <div class="px-4 py-2 bg-gray-50 border-b text-sm text-gray-600">
+    Select a category and complete each step. 
+    <strong>Details must be filled in for the item to reach showcase level.</strong>
+  </div>
+
+
+<div class="px-4 py-6 bg-white border-b shadow-sm mb-4">
+  <form method="GET" action="{{ url_for('cultural_bp.talent_select', enrollment_id=enrollment.id) }}">
+      <label for="category" class="font-semibold text-gray-800">Select Category:</label>
+      <select id="category" name="category_id" class="ml-2 border-2 border-indigo-500 rounded p-2 focus:ring focus:ring-indigo-200" data-base-url="{{ url_for('cultural_bp.talent_select', enrollment_id=enrollment.id) }}">
+          <option value="">-- Choose Category --</option>
+          {% for cat in categories %}
+              <option value="{{ cat.id }}" {% if cat.id == selected_category_id %}selected{% endif %}>
+                  {{ cat.name }}
+              </option>
+          {% endfor %}
+      </select>
+  </form>
+</div>
+
+  {% if selected_category and selected_category.name == "Pageant" %}
+  <form method="GET" action="{{ url_for('cultural_bp.segment_form',
+                                        enrollment_id=enrollment.id,
+                                        show_id=show.id,
+                                        category_id=selected_category.id,
+                                        segment_id=selected_segment_id) }}">
+      <label for="segment">Select Segment:</label>
+      <select id="segment" name="segment_id" onchange="this.form.submit()">
+          <option value="">-- Choose Segment --</option>
+          {% for seg in segments %}
+              {% set ns = namespace(completed=false) %}
+              {% for item in segment_items %}
+                  {% if item.segment_type == seg.name and item.status == "uploaded" %}
+                      {% set ns.completed = true %}
+                  {% endif %}
+              {% endfor %}
+              <option value="{{ seg.id }}" {% if seg.id == selected_segment_id %}selected{% endif %}>
+                  {{ seg.name }} {% if ns.completed %} (Completed ✓){% endif %}
+              </option>
+          {% endfor %}
+      </select>
+  </form>
+  {% elif selected_category %}
+  <div class="mt-4 px-4 py-2 bg-blue-50 border-l-4 border-blue-500 text-blue-700 flex justify-between items-center">
+      <span>You have selected <strong>{{ selected_category.name }}</strong>. Click here to start your submission.</span>
+      <a href="{{ url_for('cultural_bp.talent_new', enrollment_id=enrollment.id, category_id=selected_category.id) }}" 
+         class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 font-semibold shadow-sm">
+         Start {{ selected_category.name }} Submission
+      </a>
+  </div>
+  {% endif %}
+
+
+  <!-- JS handler -->
+  <script>
+    document.getElementById('category').addEventListener('change', function() {
+      if (this.value) {
+        const baseUrl = this.getAttribute('data-base-url');
+        window.location.href = baseUrl + '?category_id=' + encodeURIComponent(this.value);
+      }
+    });
+  </script>
+
+    <table class="min-w-full border border-gray-200">
+      <thead class="bg-gray-100">
+        <tr>
+          <th class="px-4 py-2 border">No.</th>
+          <th class="px-4 py-2 border">Talent Name</th>
+          <th class="px-4 py-2 border">Category</th>
+          <th class="px-4 py-2 border">Actions</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        {% for talent in talents %}
+        <tr class="{% if talent.group or talent.group_members %}bg-blue-50{% endif %}">
+          <td class="px-4 py-2 border">{{ loop.index }}</td>
+          <td class="px-4 py-2 border">{{ talent.talent_name }}</td>
+          <td class="px-4 py-2 border">{{ talent.category_item.name }}</td>
+          <td class="px-4 py-2 border">
+            <!-- Single action: Edit -->
+            <a href="{{ url_for('cultural_bp.talent_edit',
+                                submission_id=talent.id) }}" 
+              class="text-yellow-600 hover:underline">
+              Edit
+            </a>
+            <br>
+            {% if talent.group %}
+              <a href="{{ url_for('cultural_bp.talent_group_dashboard', group_id=talent.group.id) }}" 
+                class="text-indigo-600 hover:underline text-sm font-semibold mt-1 inline-block">
+                Group Action
+              </a>
+            {% elif talent.group_members %}
+              <a href="{{ url_for('cultural_bp.talent_group_dashboard', group_id=talent.group_members[0].group_id) }}" 
+                class="text-indigo-600 hover:underline text-sm font-semibold mt-1 inline-block">
+                Group Action
+              </a>
+            {% else %}
+              <a href="{{ url_for('cultural_bp.talent_group_create', submission_id=talent.id, enrollment_id=enrollment.id) }}" 
+                class="text-green-600 hover:underline text-sm font-semibold mt-1 inline-block">
+                Make Group
+              </a>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="4" class="px-4 py-2 text-center text-gray-500">
+            No talents submitted yet.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <!-- Toggle buttons -->
+    <div class="flex justify-end mt-3">
+      {% if show_all %}
+        <a href="{{ url_for('cultural_bp.talent_dashboard',
+                            enrollment_id=enrollment.id,
+                            all='false') }}"
+           class="bg-gray-600 text-white px-3 py-1 rounded hover:bg-gray-700">
+           View Less ←
+        </a>
+      {% elif showing_count < total_count %}
+        <a href="{{ url_for('cultural_bp.talent_dashboard',
+                            enrollment_id=enrollment.id,
+                            all='true') }}"
+           class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">
+           View All →
+        </a>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -26,7 +26,7 @@ def _set_ui_lang():
 
 @reading_bp.route("/about", methods=["GET"], endpoint="about_reading")
 def about_reading():
-    return render_template("subject_reading/about.html")  # ← change this line
+    return render_template("subject_reading/about.html", subject_slug="reading", t=_t, ui_lang=g.ui_lang)
 
 @reading_bp.post("/enrol", endpoint="enrol_reading")
 def enrol_reading():
@@ -43,6 +43,7 @@ def enrol_reading():
 def learner_dashboard():
     # 1) learner display name
     email = getattr(current_user, "email", None) or "learner@example.com"
+    
     learner_name = (
         getattr(current_user, "display_name", None)
         or getattr(current_user, "first_name", None)
@@ -151,57 +152,34 @@ def learner_dashboard():
 @reading_bp.get("/", endpoint="subject_home")
 @login_required
 def subject_home():
-    enr = _get_enrollment(current_user.id)
-    if not enr:
-        return redirect(url_for("reading_bp.learner_dashboard"))
-
     uid = int(current_user.id)
 
-    total = int(db.session.execute(sa_text("SELECT COUNT(*) FROM rdp_lesson")).scalar() or 0)
-
-    completed = int(db.session.execute(
+    ue_status = db.session.execute(
         sa_text("""
-            SELECT COUNT(*)
-              FROM rdp_lesson_progress
-             WHERE user_id = :uid
-               AND status = 'completed'
+            SELECT status FROM user_enrollment 
+            WHERE user_id=:uid 
+              AND subject_id=(SELECT id FROM auth_subject WHERE slug='reading' LIMIT 1) 
+              AND status != 'archived' 
+            LIMIT 1
         """),
-        {"uid": uid},
-    ).scalar() or 0)
+        {"uid": uid}
+    ).scalar()
 
-    progress_percent = int(round((completed / total) * 100)) if total else 0
+    enr = _get_enrollment(uid)
 
-    enrollment_status = (enr.get("status") if isinstance(enr, dict) else getattr(enr, "status", None)) or "active"
+    total_lessons = db.session.execute(sa_text("SELECT COUNT(*) FROM rdp_lesson")).scalar() or 0
+    completed_lessons = db.session.execute(
+        sa_text("SELECT COUNT(*) FROM rdp_lesson_progress WHERE user_id = :uid AND status = 'completed'"),
+        {"uid": uid}
+    ).scalar() or 0
 
-    return render_template(
-        "subject_reading/hub.html",
-        progress_percent=progress_percent,
-        enrollment_status=enrollment_status,
-        completed=completed,
-        total=total,
-    )
+    if ue_status == 'completed' or (total_lessons > 0 and completed_lessons == total_lessons):
+        return render_template("subject_reading/completed_return.html", enr=enr)
 
+    # If they have never completed a lesson, we can just drop them in the dashboard
+    # since language selection now happens on the About page.
 
-# ─────────────────────────────────
-# 2. language picker save
-# ─────────────────────────────────
-@reading_bp.post("/set-lang", endpoint="set_lang")
-@login_required
-def set_lang():
-    lang = (request.form.get("lang") or "en").strip().lower()
-    session["ui_lang"] = lang
-
-    db.session.execute(
-        sa_text("""
-            UPDATE rdp_enrollment
-               SET ui_lang = :lang
-             WHERE user_id = :uid
-        """),
-        {"lang": lang, "uid": int(current_user.id)},
-    )
-    db.session.commit()
-
-    return redirect(request.referrer or url_for("reading_bp.dashboard"))
+    return redirect(url_for("reading_bp.learner_dashboard"))
 
 # ─────────────────────────────────
 # 3. dashboard
@@ -414,85 +392,129 @@ def view_lesson(lesson_id: int):
 # 6. finish (after last lesson / Finish button)
 # ─────────────────────────────────
 
-@reading_bp.post("/finish", endpoint="finish_course")
+@reading_bp.get("/report/exit", endpoint="report_exit")
 @login_required
-def finish_course():
+def report_exit():
+    # Mark completed here so they don't lose their completion status if they leave
     uid = int(current_user.id)
-
-    total = int(db.session.execute(sa_text("SELECT COUNT(*) FROM rdp_lesson")).scalar() or 0)
-    completed = int(db.session.execute(
-        sa_text("""
-            SELECT COUNT(*)
-              FROM rdp_lesson_progress
-             WHERE user_id = :uid
-               AND status = 'completed'
-        """),
-        {"uid": uid},
-    ).scalar() or 0)
-
-    if total and completed < total:
-        flash("Finish all lessons first to unlock your certificate.", "warning")
-        return redirect(url_for("reading_bp.subject_home"))
-
-    enr = _get_enrollment()
-    if not enr:
-        return redirect(url_for("reading_bp.dashboard"))
-
-    cert_id = enr.certificate_id or _make_certificate_id(current_user.id)
-
-    # mark THIS subject completed only
-    db.session.execute(
-        sa_text("""
-            UPDATE user_enrollment
-            SET status = 'completed'
-            WHERE user_id = :uid
-              AND subject_id = :sid
-        """),
-        {
-            "uid": g.user_id,
-            "sid": READING_SUBJECT_ID,
-        },
-    )
-    db.session.commit()
-
-    # learner name
-    learner_name = (
-        getattr(current_user, "name", None)
-        or getattr(current_user, "display_name", None)
-        or getattr(current_user, "first_name", None)
-        or getattr(current_user, "username", None)
-        or "Learner"
-    )
-
-    learner_email = getattr(current_user, "email", None)
-
-    # make / refresh PDF
-    fresh = _get_enrollment()
-    completed_at = fresh.completed_at if fresh else datetime.utcnow()
-    pdf_path = _generate_certificate_pdf(
-        certificate_id=cert_id,
-        learner_name=learner_name,
-        completed_at=completed_at,
-    )
-
-    # email best-effort
-    if learner_email:
-        _email_certificate_pdf(
-            to_email=learner_email,
-            learner_name=learner_name,
-            certificate_id=cert_id,
-            pdf_path=pdf_path,
+    enr = _get_enrollment(uid)
+    if enr:
+        cert_id = enr.certificate_id or _make_certificate_id(uid)
+        db.session.execute(
+            sa_text("""
+                UPDATE rdp_enrollment
+                SET
+                    completed_at = COALESCE(completed_at, CURRENT_TIMESTAMP),
+                    progress_percent = 100,
+                    certificate_id = :cid
+                WHERE user_id = :uid
+            """),
+            {"cid": cert_id, "uid": uid},
         )
+        db.session.execute(
+            sa_text("""
+                UPDATE user_enrollment
+                SET status = 'completed'
+                WHERE user_id = :uid AND subject_id = (SELECT id FROM auth_subject WHERE slug = 'reading' LIMIT 1)
+            """),
+            {"uid": uid},
+        )
+        db.session.commit()
 
-    flash("You're done. Your certificate has been issued.", "success")
+    default_email = getattr(current_user, "email", "") or session.get("user_email", "")
+    return render_template(
+        "subject_reading/report_exit.html",
+        default_email=default_email,
+        error=None,
+    )
 
-    # do NOT guess next step. Let exit_page offer choices.
-    return redirect(url_for("reading_bp.exit_page"))
+@reading_bp.post("/report/finish", endpoint="finish_report")
+@login_required
+def finish_report():
+    email = (request.form.get("email") or "").strip().lower()
+    
+    if email:
+        uid = int(current_user.id)
+        enr = _get_enrollment(uid)
+        if enr and enr.certificate_id:
+            learner_name = (
+                getattr(current_user, "name", None)
+                or getattr(current_user, "display_name", None)
+                or getattr(current_user, "first_name", None)
+                or getattr(current_user, "username", None)
+                or "Learner"
+            )
+            completed_at = enr.completed_at if enr else datetime.utcnow()
+            
+            try:
+                pdf_path = _generate_certificate_pdf(
+                    certificate_id=enr.certificate_id,
+                    learner_name=learner_name,
+                    completed_at=completed_at,
+                )
+                
+                with open(pdf_path, "rb") as f:
+                    pdf_bytes = f.read()
+
+                from app.utils.mailer import send_standard_report_email
+                send_standard_report_email(
+                    to_email=email,
+                    subject="Reading Programme Certificate",
+                    pdf_url="No public link available. Please see attached PDF.",
+                    pdf_bytes=pdf_bytes,
+                    filename=f"{enr.certificate_id}.pdf",
+                    run_id=None,
+                    user_name=learner_name
+                )
+            except Exception as e:
+                current_app.logger.error(f"Failed to email certificate: {e}")
+
+    try:
+        from flask_login import logout_user
+        logout_user()
+    except Exception:
+        pass
+    try:
+        session.clear()
+    except Exception:
+        pass
+
+    flash("Your certificate has been emailed to you. Thank you for completing the Reading Programme.", "success")
+    return redirect(url_for("public_bp.welcome"))
 
 @reading_bp.get("/exit", endpoint="exit_page")
 @login_required
 def exit_page():
     return render_template("subject_reading/exit.html")
+
+@reading_bp.post("/reenroll", endpoint="reenroll")
+@login_required
+def reenroll():
+    uid = int(current_user.id)
+    # archive old enrollment so they can purchase again
+    db.session.execute(
+        sa_text("""
+            UPDATE user_enrollment 
+            SET status = 'archived' 
+            WHERE user_id = :uid 
+              AND subject_id = (SELECT id FROM auth_subject WHERE slug = 'reading' LIMIT 1) 
+              AND status != 'archived'
+        """),
+        {"uid": uid}
+    )
+    # delete lesson progress
+    db.session.execute(
+        sa_text("DELETE FROM rdp_lesson_progress WHERE user_id = :uid"),
+        {"uid": uid}
+    )
+    # delete rdp_enrollment if it exists so a fresh one will be made
+    db.session.execute(
+        sa_text("DELETE FROM rdp_enrollment WHERE user_id = :uid"),
+        {"uid": uid}
+    )
+    db.session.commit()
+    flash("Your previous progress was archived. Please register to re-enroll.", "info")
+    return redirect(url_for("auth_bp.register", subject="reading"))
 
 @reading_bp.get("/certificate", endpoint="get_certificate")
 @login_required
@@ -544,7 +566,7 @@ def complete_lesson():
 
     if next_id:
         return redirect(url_for("reading_bp.view_lesson", lesson_id=int(next_id)))
-    return redirect(url_for("reading_bp.learner_dashboard"))
+    return redirect(url_for("reading_bp.report_exit"))
 
 @reading_bp.post("/lesson/defer", endpoint="defer_lesson")
 @login_required
@@ -575,7 +597,9 @@ def defer_lesson():
 # 1. helpers
 # ─────────────────────────────────
 
-def _get_enrollment():
+def _get_enrollment(uid=None):
+    if uid is None:
+        uid = current_user.id
     row = db.session.execute(
         sa_text("""
             SELECT
@@ -590,14 +614,14 @@ def _get_enrollment():
             WHERE user_id = :uid
             LIMIT 1
         """),
-        {"uid": g.user_id},
+        {"uid": uid},
     ).fetchone()
     return row
 
 def _redirect_after_reading():
-    if _has_other_active_subjects(g.user_id):
+    if _has_other_active_subjects(current_user.id):
         # learner has more to do → send to bridge hub
-        return redirect(url_for("bridge_bp.bridge_home"))
+        return redirect(url_for("bridge_bp.bridge"))
     else:
         # reading was their only/last subject → send to welcome/landing
         return redirect(url_for("public_bp.welcome"))
@@ -619,21 +643,35 @@ def _ensure_enrollment_row():
     row = db.session.execute(
         sa_text("""
             SELECT
-                user_id,
-                started_at,
-                expires_at,
-                completed_at,
-                progress_percent,
-                certificate_id
-            FROM rdp_enrollment
-            WHERE user_id = :uid
+                r.user_id,
+                r.started_at,
+                r.expires_at,
+                r.completed_at,
+                r.progress_percent,
+                r.certificate_id,
+                u.status AS ue_status
+            FROM rdp_enrollment r
+            LEFT JOIN user_enrollment u ON u.user_id = r.user_id AND u.subject_id = (SELECT id FROM auth_subject WHERE slug = 'reading' LIMIT 1)
+            WHERE r.user_id = :uid
             LIMIT 1
         """),
         {"uid": uid},
     ).mappings().first()
 
     if row:
-        return row
+        # Check if this rdp_enrollment is stale/orphaned
+        ue_status = row.get("ue_status")
+        is_orphaned = (ue_status is None)
+        is_stale_paid = (ue_status == "active" and row.get("completed_at") is not None)
+        
+        if is_orphaned or is_stale_paid:
+            # Wipe stale reading progress so they can start fresh
+            db.session.execute(sa_text("DELETE FROM rdp_lesson_progress WHERE user_id = :uid"), {"uid": uid})
+            db.session.execute(sa_text("DELETE FROM rdp_enrollment WHERE user_id = :uid"), {"uid": uid})
+            db.session.commit()
+            # Continue below to create a fresh rdp_enrollment
+        else:
+            return row
 
     # create brand new row
     db.session.execute(
@@ -727,6 +765,8 @@ def _email_certificate_pdf(to_email, learner_name, certificate_id, pdf_path):
     Best-effort email.
     Does NOT block the redirect if it fails.
     """
+    from app.utils.mailer import send_pdf_email
+    
     subject = "Your Reading Programme Certificate"
     body = (
         f"Hi {learner_name},\n\n"
@@ -736,29 +776,22 @@ def _email_certificate_pdf(to_email, learner_name, certificate_id, pdf_path):
         "AIT Platform"
     )
 
-    msg = EmailMessage()
-    msg["Subject"] = subject
-    msg["From"] = "no-reply@your-domain.example"
-    msg["To"] = to_email
-    msg.set_content(body)
-
+    pdf_bytes = None
     if pdf_path:
         try:
             with open(pdf_path, "rb") as f:
-                data = f.read()
-            msg.add_attachment(
-                data,
-                maintype="application",
-                subtype="pdf",
-                filename=f"{certificate_id}.pdf"
-            )
+                pdf_bytes = f.read()
         except Exception as e:
-            current_app.logger.error(f"Attach failed for {certificate_id}: {e}")
+            current_app.logger.error(f"Read PDF failed for {certificate_id}: {e}")
 
     try:
-        with smtplib.SMTP_SSL("smtp.zoho.com", 465) as smtp:
-            smtp.login("no-reply@your-domain.example", "YOUR_SMTP_PASSWORD")
-            smtp.send_message(msg)
+        send_pdf_email(
+            to_email=to_email,
+            subject=subject,
+            body_text=body,
+            pdf_bytes=pdf_bytes,
+            filename=f"{certificate_id}.pdf"
+        )
     except Exception as e:
         current_app.logger.error(f"Email send failed for {certificate_id}: {e}")
 

@@ -42,8 +42,8 @@ def _map_rows_for_meter(meter_id, month_str):
         FROM bil_meter_charge_map
         WHERE meter_id = :mid
           AND is_enabled = 1
-          AND (effective_start IS NULL OR effective_start = '' OR effective_start <= :md)
-          AND (effective_end   IS NULL OR effective_end   = '' OR effective_end   >= :md)
+          AND (effective_start IS NULL OR effective_start <= :md)
+          AND (effective_end   IS NULL OR effective_end   >= :md)
         ORDER BY charge_code
     """), {"mid": meter_id, "md": month_day}).mappings().all()
 
@@ -322,6 +322,10 @@ def build_metsoa_payload(tenant_id, month_str):
         # Page 2 section for this meter
         sections.append({
             "meter":     r["meter_label"],
+            "prev_date": r["prev_date"],
+            "prev_value":r["prev_value"],
+            "curr_date": r["curr_date"],
+            "curr_value":r["curr_value"],
             "cons_kl":   cons,
             "days":      days,
             "ws_tiers":  totals.get("ws_tiers", []),

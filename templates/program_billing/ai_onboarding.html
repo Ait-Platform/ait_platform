@@ -1,0 +1,294 @@
+{% extends "layout.html" %}
+{% block title %}AI Billing Onboarding{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gradient-to-b from-blue-50 to-white py-12 px-4 flex flex-col items-center">
+  <div class="w-full max-w-4xl bg-white rounded-3xl shadow-xl border border-slate-100 overflow-hidden relative">
+    
+    <!-- Decorative Header -->
+    <div class="h-4 w-full bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500"></div>
+
+    <div class="p-10">
+      <div class="relative mb-10 text-center">
+        <div class="absolute right-0 top-0">
+          <a href="{{ url_for('billing_bp.learner_dashboard') }}" class="inline-flex items-center text-sm font-medium text-slate-500 hover:text-slate-800 transition bg-slate-50 hover:bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm">
+            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+            Back
+          </a>
+        </div>
+        <h1 class="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 tracking-tight mb-3 pr-20">AI Billing Onboarding</h1>
+        <p class="text-slate-500 text-lg max-w-2xl mx-auto pr-20">Upload your first municipality bill. Our AI will automatically extract your property details, meter numbers, and baseline readings. We'll then generate your first statement so you can verify our math matches perfectly.</p>
+      </div>
+
+      <!-- Drag & Drop Zone -->
+      <div id="aiDropzone" class="mb-10 p-12 bg-blue-50/50 border-2 border-dashed border-blue-300 rounded-2xl hover:border-blue-500 hover:bg-blue-50 transition-all cursor-pointer relative group flex flex-col items-center justify-center min-h-[300px]" onclick="document.getElementById('billFileInput').click()">
+        <input type="file" id="billFileInput" class="hidden" accept=".pdf,image/*">
+        
+        <div id="dropzoneContent" class="text-center transform group-hover:scale-105 transition-transform duration-300">
+          <div class="w-20 h-20 mx-auto bg-white rounded-full shadow-sm flex items-center justify-center mb-6">
+            <svg class="h-10 w-10 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+            </svg>
+          </div>
+          <h3 class="text-2xl font-bold text-slate-800">Drag & Drop your bill here</h3>
+          <p class="text-slate-500 mt-2">Supports PDF, JPG, and PNG files.</p>
+          <button class="mt-6 px-6 py-2 bg-white border border-slate-200 text-slate-700 font-semibold rounded-full shadow-sm hover:shadow transition">Browse Files</button>
+        </div>
+
+        <div id="dropzoneLoading" class="hidden text-center flex flex-col items-center justify-center w-full h-full absolute inset-0 bg-white/90 rounded-2xl z-10 backdrop-blur-sm">
+          <div class="relative w-24 h-24 mb-6">
+            <svg class="animate-spin w-full h-full text-blue-200" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="#3B82F6" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <div class="absolute inset-0 flex items-center justify-center">
+              <svg class="w-8 h-8 text-blue-600 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+            </div>
+          </div>
+          <h3 class="text-xl font-bold text-slate-800 animate-pulse">AI is extracting your data...</h3>
+          <p class="text-sm text-slate-500 mt-2">Reading property details and calculating meter baselines.</p>
+        </div>
+      </div>
+
+      <div id="aiErrorBox" class="hidden mb-8 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 rounded-r-lg shadow-sm text-sm font-medium"></div>
+
+      <!-- Results Form -->
+      <form id="onboardingForm" action="{{ url_for('billing_bp.ai_onboarding_process') }}" method="POST" class="hidden opacity-0 transform translate-y-4 transition-all duration-500 ease-out">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="payload" id="payloadInput">
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+          <!-- Property Details Card -->
+          <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+            <div class="bg-slate-50 border-b border-slate-200 px-6 py-4 flex items-center justify-between">
+              <h3 class="font-bold text-slate-800 flex items-center">
+                <svg class="w-5 h-5 mr-2 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+                Property Details
+              </h3>
+            </div>
+            <div class="p-6 space-y-4">
+              <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Property Name</label>
+                <input type="text" id="propName" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-800 font-medium focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none transition">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Address</label>
+                <input type="text" id="propAddress" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-800 focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none transition">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Metro Account No</label>
+                <input type="text" id="propAccount" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-800 font-mono focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none transition">
+              </div>
+              <div class="flex space-x-4">
+                <div class="flex-1">
+                  <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Billing Month</label>
+                  <input type="month" id="propMonth" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-800 font-medium focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none transition" value="{{ current_month }}">
+                </div>
+                <div class="flex-1">
+                  <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Rates Amount (R)</label>
+                  <input type="number" step="any" id="propRates" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-800 font-mono focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none transition">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Account Settings Card -->
+          <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+            <div class="bg-slate-50 border-b border-slate-200 px-6 py-4 flex items-center justify-between">
+              <h3 class="font-bold text-slate-800 flex items-center">
+                <svg class="w-5 h-5 mr-2 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                Owner / Tenant Profile
+              </h3>
+            </div>
+            <div class="p-6 space-y-4">
+              <div class="bg-blue-50 text-blue-800 text-sm p-3 rounded-lg flex items-start mb-4">
+                <svg class="w-5 h-5 mr-2 flex-shrink-0 mt-0.5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                <p>If you live here, you are the "Owner Tenant". Leave name blank to default to "Owner Account".</p>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Tenant Name (Optional)</label>
+                <input type="text" id="tenantName" placeholder="Owner Account (Vacant)" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-800 focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none transition">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Monthly Rent Charge (R)</label>
+                <input type="number" step="any" id="tenantRent" placeholder="0.00" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-800 font-mono focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none transition">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Extracted Meters -->
+        <h3 class="text-xl font-bold text-slate-800 mb-4 flex items-center">
+          <svg class="w-6 h-6 mr-2 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+          Extracted Meter Baselines
+        </h3>
+        
+        <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden mb-8">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200">
+                  <th class="px-6 py-4 font-semibold">Meter No.</th>
+                  <th class="px-6 py-4 font-semibold">Utility</th>
+                  <th class="px-6 py-4 font-semibold text-right">Prev Reading</th>
+                  <th class="px-6 py-4 font-semibold text-right">New Reading</th>
+                  <th class="px-6 py-4 font-semibold text-right">Usage</th>
+                </tr>
+              </thead>
+              <tbody id="metersList" class="divide-y divide-slate-100 text-sm">
+                <!-- Populated via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="flex justify-between items-center bg-slate-50 p-6 rounded-2xl border border-slate-200">
+          <div>
+            <p class="text-slate-500 text-sm">Once you click generate, we will create your property and immediately produce your first statement.</p>
+            <p class="text-slate-800 font-bold mt-1">Verify our math matches your bill perfectly!</p>
+          </div>
+          <button type="button" onclick="submitData()" class="px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold rounded-xl shadow-lg hover:shadow-xl hover:from-blue-700 hover:to-indigo-700 transform hover:-translate-y-0.5 transition-all text-lg flex items-center">
+            Generate Initial MetSoa
+            <svg class="w-5 h-5 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+          </button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  const fileInput = document.getElementById('billFileInput');
+  const dropzone = document.getElementById('aiDropzone');
+  const content = document.getElementById('dropzoneContent');
+  const loading = document.getElementById('dropzoneLoading');
+  const errorBox = document.getElementById('aiErrorBox');
+  const form = document.getElementById('onboardingForm');
+  let extractedData = {};
+
+  dropzone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropzone.classList.add('border-blue-500', 'bg-blue-100');
+  });
+
+  dropzone.addEventListener('dragleave', () => {
+      dropzone.classList.remove('border-blue-500', 'bg-blue-100');
+  });
+
+  dropzone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropzone.classList.remove('border-blue-500', 'bg-blue-100');
+      if (e.dataTransfer.files.length > 0) {
+          handleFile(e.dataTransfer.files[0]);
+      }
+  });
+
+  fileInput.addEventListener('change', (e) => {
+      if (e.target.files.length > 0) {
+          handleFile(e.target.files[0]);
+      }
+  });
+
+  async function handleFile(file) {
+      loading.classList.remove('hidden');
+      errorBox.classList.add('hidden');
+      form.classList.add('hidden', 'opacity-0', 'translate-y-4');
+      dropzone.style.pointerEvents = 'none';
+
+      const formData = new FormData();
+      formData.append('bill_file', file);
+
+      try {
+          const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+
+          const response = await fetch('/api/parse_bill_onboarding', {
+              method: 'POST',
+              headers: { 'X-CSRFToken': csrfToken },
+              body: formData
+          });
+
+          const result = await response.json();
+
+          if (response.ok && result) {
+              extractedData = result;
+              populateForm(result);
+              
+              // Hide dropzone entirely or collapse it
+              dropzone.classList.add('hidden');
+              
+              // Show form with animation
+              form.classList.remove('hidden');
+              setTimeout(() => {
+                form.classList.remove('opacity-0', 'translate-y-4');
+              }, 50);
+              
+          } else {
+              throw new Error(result.error || 'Failed to extract data from the bill.');
+          }
+      } catch (err) {
+          errorBox.textContent = err.message;
+          errorBox.classList.remove('hidden');
+      } finally {
+          loading.classList.add('hidden');
+          dropzone.style.pointerEvents = 'auto';
+          fileInput.value = '';
+      }
+  }
+
+  function populateForm(data) {
+      document.getElementById('propName').value = data.property_name || '';
+      document.getElementById('propAddress').value = data.address || '';
+      document.getElementById('propAccount').value = data.metro_account_no || '';
+      document.getElementById('propRates').value = data.rates_amount || '';
+      
+      const tbody = document.getElementById('metersList');
+      tbody.innerHTML = '';
+      
+      if (data.readings && data.readings.length > 0) {
+          data.readings.forEach((r, idx) => {
+              const utilColor = (r.utility_type && r.utility_type.toLowerCase() === 'electricity') ? 'text-yellow-600 bg-yellow-100' : 'text-blue-600 bg-blue-100';
+              
+              tbody.innerHTML += `
+                <tr class="hover:bg-slate-50 transition">
+                  <td class="px-6 py-4">
+                    <div class="font-bold text-slate-800">${r.meter_number || 'Unknown'}</div>
+                  </td>
+                  <td class="px-6 py-4">
+                    <span class="px-2.5 py-1 rounded-md text-[10px] font-bold uppercase ${utilColor}">${r.utility_type || 'Unknown'}</span>
+                  </td>
+                  <td class="px-6 py-4 text-right">
+                    <div class="font-mono text-slate-600">${r.previous_reading || 0}</div>
+                    <div class="text-[10px] text-slate-400">${r.previous_date || '-'}</div>
+                  </td>
+                  <td class="px-6 py-4 text-right">
+                    <div class="font-mono font-bold text-slate-800">${r.current_reading || 0}</div>
+                    <div class="text-[10px] text-slate-400">${r.current_date || '-'}</div>
+                  </td>
+                  <td class="px-6 py-4 text-right">
+                    <div class="font-bold text-green-600">${r.usage || 0}</div>
+                  </td>
+                </tr>
+              `;
+          });
+      } else {
+          tbody.innerHTML = `<tr><td colspan="5" class="px-6 py-8 text-center text-slate-500 italic">No meters detected in this bill.</td></tr>`;
+      }
+  }
+
+  function submitData() {
+      // Gather user edits
+      extractedData.property_name = document.getElementById('propName').value;
+      extractedData.address = document.getElementById('propAddress').value;
+      extractedData.metro_account_no = document.getElementById('propAccount').value;
+      extractedData.rates_amount = document.getElementById('propRates').value;
+      extractedData.tenant_name = document.getElementById('tenantName').value;
+      extractedData.rent_amount = document.getElementById('tenantRent').value;
+      extractedData.month = document.getElementById('propMonth').value;
+      
+      // Pack into payload and submit
+      document.getElementById('payloadInput').value = JSON.stringify(extractedData);
+      document.getElementById('onboardingForm').submit();
+  }
+</script>
+{% endblock %}

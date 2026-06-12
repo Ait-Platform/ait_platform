@@ -15,11 +15,6 @@ from sqlalchemy.exc import SQLAlchemyError
 # subjects you support in admin
 ALLOWED_SUBJECTS = {"reading", "home", "loss", "billing"}  # extend as needed
 
-@admin_bp.before_request
-def _guard():
-    if not is_admin():
-        return redirect(url_for("public_bp.welcome"))
-
 @admin_bp.route("/")   # ← no endpoint="index"
 def admin_home():      # ← unique name; endpoint becomes "admin_bp.admin_home"
     return render_template("admin/index.html", subjects=sorted(ALLOWED_SUBJECTS))

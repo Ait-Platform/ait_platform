@@ -1,0 +1,69 @@
+{% extends "layout.html" %}
+{% block title %}Checkout | Yoco{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto mt-12 bg-white p-8 rounded-xl shadow-sm border border-slate-200 text-center">
+  <div class="mb-6">
+    <h2 class="text-2xl font-bold text-slate-800">Secure Checkout</h2>
+    <p class="text-slate-500 text-sm mt-2">You are enrolling in the <strong>{{ subject | title }}</strong> programme.</p>
+  </div>
+  
+  <div class="bg-slate-50 rounded-lg p-4 mb-8 flex justify-between items-center border border-slate-100">
+    <span class="text-slate-600 font-medium">Total Due:</span>
+    <span class="text-xl font-bold text-indigo-700">ZAR {{ "%.2f" | format(amount_cents / 100) }}</span>
+  </div>
+
+  <!-- Form to submit the token to backend -->
+  <form id="payment-form" action="{{ url_for('yoco_bp.yoco_charge') }}" method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="token" id="yoco-token-input">
+    <input type="hidden" name="subject" value="{{ subject }}">
+    <input type="hidden" name="email" value="{{ email }}">
+    
+    <button type="button" id="pay-button" class="w-full bg-indigo-600 text-white font-semibold py-3 px-4 rounded-lg hover:bg-indigo-700 transition">
+      Pay with Credit Card
+    </button>
+  </form>
+  
+  <div class="bg-blue-50 text-blue-800 text-sm p-4 rounded-lg mb-6 text-left border border-blue-100">
+    <strong>Test Mode Active:</strong><br>
+    Please use card number <code>4111 1111 1111 1111</code> with any future expiry date and CVC to complete this test transaction.
+  </div>
+
+  <p class="text-xs text-slate-400 mt-6 flex items-center justify-center gap-2">
+    <span>🔒 Payments securely processed by Yoco</span>
+  </p>
+</div>
+
+<!-- Load Yoco SDK -->
+<script src="https://js.yoco.com/sdk/v1/yoco-sdk-web.js"></script>
+<script>
+  // Initialize Yoco SDK with the Test Public Key
+  var yoco = new window.YocoSDK({
+    publicKey: 'pk_test_ed3c54a6gOol69qa7f45'
+  });
+
+  var payButton = document.getElementById('pay-button');
+  
+  payButton.addEventListener('click', function () {
+    yoco.showPopup({
+      amountInCents: {{ amount_cents }},
+      currency: 'ZAR',
+      name: 'AIT Platform',
+      description: '{{ subject | title }} Enrollment',
+      callback: function (result) {
+        if (result.error) {
+          alert("Payment Error: " + result.error.message);
+        } else {
+          // Send the token to the backend
+          document.getElementById('yoco-token-input').value = result.id;
+          payButton.innerText = "Processing...";
+          payButton.disabled = true;
+          payButton.classList.add('opacity-50', 'cursor-not-allowed');
+          document.getElementById('payment-form').submit();
+        }
+      }
+    });
+  });
+</script>
+{% endblock %}

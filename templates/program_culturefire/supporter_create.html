@@ -1,0 +1,87 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="max-w-3xl mx-auto mt-6 bg-white shadow rounded-lg overflow-hidden">
+  <div class="h-2 bg-blue-600"></div>
+
+  <!-- Row 1: Header -->
+  <div class="px-4 py-3 border-b flex justify-between items-center">
+    <h1 class="text-xl font-bold">Add Supporter Commitment</h1>
+    <a href="{{ url_for('cultural_bp.supporter_dashboard', enrollment_id=enrollment_id) }}" class="text-blue-600">Back</a>
+  </div>
+
+  <form method="POST" class="px-4 py-4 space-y-4">
+    {{ form.hidden_tag() }}
+
+    <!-- Row 2: Participant  -->
+    <div>
+    {{ form.participant_id.label }}
+    {{ form.participant_id(class="w-full border rounded px-3 py-2") }}
+    </div>
+
+    
+    <!-- Row 3: Show --> 
+    <div>
+      <label for="show_id">Show</label>
+      <select name="show_id" id="show_id" class="w-full border rounded px-3 py-2">
+        <option value="">Upcoming Show (Placeholder)</option>
+      </select>
+    </div>
+
+    <!-- Row 4: Confirmation -->
+    <div class="border-t pt-4">
+      <label class="block font-medium">Confirmation</label>
+      <p class="text-sm text-gray-600">If participant is a minor, confirmation required from Parent, Admin, and one other referee.</p>
+      <div class="space-y-2">
+
+        <div>
+        {{ form.referee_id.label }}
+        {{ form.referee_id(class="w-full border rounded px-3 py-2") }}
+        </div>        
+
+      </div>
+    </div>
+
+    <!-- Row 5: Supporter Offer -->
+    <div class="flex items-center space-x-4">
+        <!-- Dropdown on the left -->
+        <div class="w-1/2">
+            {{ form.supporter_type.label }}
+            {{ form.supporter_type(class="w-full border rounded px-3 py-2", id="supporter_type") }}
+        </div>
+
+        <!-- Custom "Other" box on the right -->
+        <div class="w-1/2" id="supporter_type_other_group" style="display:none;">
+            {{ form.supporter_type_other.label }}
+            {{ form.supporter_type_other(class="w-full border rounded px-3 py-2") }}
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener("DOMContentLoaded", function() {
+        var supporterTypeSelect = document.getElementById("supporter_type");
+        var otherGroup = document.getElementById("supporter_type_other_group");
+
+        function toggleOtherBox() {
+            if (supporterTypeSelect.value.toLowerCase() === "other") {
+                otherGroup.style.display = "block";
+            } else {
+                otherGroup.style.display = "none";
+            }
+        }
+
+        // Run once on page load
+        toggleOtherBox();
+
+        // Attach change listener
+        supporterTypeSelect.addEventListener("change", toggleOtherBox);
+    });
+    </script>
+
+    <div class="flex justify-end">
+      <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+        Save
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}

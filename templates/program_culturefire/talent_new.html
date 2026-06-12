@@ -1,0 +1,88 @@
+{% extends "layout.html" %}
+{% block title %}New Submission | Cultural Fire{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto mt-10">
+  <div class="h-2 bg-green-600 rounded-t-xl"></div>
+  <div class="bg-white rounded-b-xl shadow p-8">
+
+    <!-- Title + Back -->
+    <div class="flex justify-between items-center mb-6">
+      <h1 class="text-3xl font-bold text-slate-900">New Submission</h1>
+      <a href="{{ url_for('cultural_bp.talent_dashboard', enrollment_id=enrollment.id) }}"
+         class="px-4 py-2 bg-slate-200 text-slate-700 rounded hover:bg-slate-300 font-semibold">
+        ← Back
+      </a>
+    </div>
+
+    <form method="POST" enctype="multipart/form-data" class="space-y-6">
+      {{ form.hidden_tag() }}
+
+      <!-- Category -->
+      <div>
+        <label class="block text-sm font-medium text-slate-700">Category</label>
+          <select name="category_id" class="mt-1 block w-full border rounded p-2" required>
+              <option value="">Select category</option>
+              {% for cat in categories %}
+                  <option value="{{ cat.id }}" {% if cat.id == selected_category_id %}selected{% endif %}>{{ cat.name }}</option>
+              {% endfor %}
+          </select>
+
+      </div>
+
+      <!-- Custom Talent (only if "Other") -->
+      <div id="customTalentField" style="display:none;">
+        <label class="block text-sm font-medium text-slate-700">Custom Talent</label>
+        <input type="text" name="custom_talent" class="mt-1 block w-full border rounded p-2"
+               placeholder="Describe your talent">
+      </div>
+
+      <!-- Talent Name (short tagline) -->
+      <div>
+        <label class="block text-sm font-medium text-slate-700">Talent Name</label>
+        <input type="text" name="talent_name" class="mt-1 block w-full border rounded p-2"
+               placeholder="Give your talent a short title">
+      </div>
+
+      <!-- File Upload -->
+      <div>
+        <label class="block text-sm font-medium text-slate-700">Upload Files</label>
+        <p class="text-slate-500 text-sm mb-2">
+          Please upload only your own original work. Do not submit TikTok, YouTube, or other third‑party content.
+        </p>
+        <input type="file" name="talent_files" multiple class="mt-1 block w-full">
+      </div>
+
+      <!-- Submit -->
+      <div class="flex justify-end">
+        <button type="submit"
+                class="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 font-semibold">
+          Submit Talent
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  function toggleCustomTalent() {
+    const select = document.querySelector('select[name="category_id"]');
+    const customField = document.getElementById('customTalentField');
+    if (select && select.options[select.selectedIndex]) {
+      const selectedText = select.options[select.selectedIndex].text.trim().toLowerCase();
+      if (selectedText.includes("other")) {
+        customField.style.display = 'block';
+      } else {
+        customField.style.display = 'none';
+      }
+    }
+  }
+
+  const catSelect = document.querySelector('select[name="category_id"]');
+  if (catSelect) {
+    catSelect.addEventListener('change', toggleCustomTalent);
+    // Run on load to handle pre-selected category
+    toggleCustomTalent();
+  }
+</script>
+{% endblock %}

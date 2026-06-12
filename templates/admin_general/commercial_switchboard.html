@@ -1,0 +1,170 @@
+{% extends "layout.html" %}
+{% block title %}Commercial Switchboard · Admin{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-3xl py-8">
+
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <h1 class="text-2xl font-semibold text-slate-800">Commercial Switchboard</h1>
+      <p class="text-sm text-slate-500">
+        Single gatekeeper for subject access (Free / Trial / Paid / Deny).
+      </p>
+    </div>
+    <a href="{{ url_for('general_bp.index') }}"
+       class="rounded-lg border px-3 py-2 text-sm hover:bg-slate-50">
+      ← Back to Admin Hub
+    </a>
+  </div>
+
+  {# -------------------------
+     LOAD (GET)
+     ------------------------- #}
+
+  <form method="get" class="mb-6">
+    <label class="block text-sm font-medium mb-1">Subject</label>
+
+    <div class="flex items-center gap-2">
+      <select name="subject_id"
+              class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm">
+        {% for s in subjects %}
+          <option value="{{ s.id }}"
+            {% if selected and s.id == selected.id %}selected{% endif %}>
+            {{ s.name or s.slug }}
+          </option>
+        {% endfor %}
+      </select>
+
+      <button type="submit"
+              class="shrink-0 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
+        Load
+      </button>
+    </div>
+  </form>
+
+  {% if selected %}
+  <div class="rounded-xl border bg-white shadow-sm overflow-hidden">
+    <div class="h-1.5 bg-violet-600"></div>
+
+    {# -------------------------
+       SAVE (POST)
+       ------------------------- #}
+    <form method="post" action="{{ url_for('general_bp.update_subject') }}" class="p-5 space-y-5">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="subject_id" value="{{ selected.id }}">
+      
+      <div>
+        <div class="text-sm text-slate-600">Selected subject</div>
+        <div class="text-lg font-medium">{{ selected.name or selected.slug }}</div>
+        <div class="text-xs text-slate-500">slug: {{ selected.slug }}</div>
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium mb-1">Commercial mode</label>
+        <select name="commercial_mode" id="commercial_mode"
+                class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm">
+          <option value="free"  {% if selected.commercial_mode == 'free' %}selected{% endif %}>Free</option>
+          <option value="trial" {% if selected.commercial_mode == 'trial' %}selected{% endif %}>Trial</option>
+          <option value="paid"  {% if selected.commercial_mode == 'paid' %}selected{% endif %}>Paid</option>
+          <option value="deny"  {% if selected.commercial_mode == 'deny' %}selected{% endif %}>Deny</option>
+        </select>
+        <p class="text-xs text-slate-500 mt-1">
+          Free/Trial auto-enroll. Paid requires payment. Deny blocks access.
+        </p>
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium mb-1">Trial days</label>
+        <input type="number" min="0" name="trial_days" id="trial_days"
+               value="{{ selected.trial_days or 0 }}"
+               class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm">
+        <p class="text-xs text-slate-500 mt-1">
+          Editable only when mode = Trial.
+        </p>
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium mb-1">Paid days (shelf-life)</label>
+        <input type="number" min="0" name="paid_days" id="paid_days"
+               value="{{ selected.paid_days or 0 }}"
+               class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm">
+        <p class="text-xs text-slate-500 mt-1">
+          Duration after payment (0 = unlimited).
+        </p>
+      </div>
+
+      <div class="flex items-center justify-between pt-2">
+        <div class="text-xs text-slate-500">
+          Updated by {{ selected.updated_by or "—" }}
+          · {{ selected.updated_at }}
+        </div>
+        <button type="submit"
+                class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
+          Save
+        </button>
+      </div>
+    </form>
+
+    <div class="border-t bg-slate-50 p-4 text-sm">
+      <div class="font-semibold mb-2">Effective settings (database)</div>
+      <table class="text-sm">
+        {% for k,v in {
+          'commercial_mode': selected.commercial_mode,
+          'requires_price': selected.requires_price,
+          'enroll_policy': selected.enroll_policy,
+          'allow_country_pricing': selected.allow_country_pricing,
+          'processor_default': selected.processor_default,
+          'trial_days': selected.trial_days,
+          'paid_days': selected.paid_days,
+          'mor_mode': selected.mor_mode
+        }.items() %}
+        <tr>
+          <td class="pr-4 text-slate-600">{{ k }}</td>
+          <td class="text-slate-900">{{ v }}</td>
+        </tr>
+        {% endfor %}
+      </table>
+    </div>
+  </div>
+  {% else %}
+    <div class="rounded border bg-white p-5 text-slate-600">
+      No subjects available.
+    </div>
+  {% endif %}
+</div>
+
+
+<script>
+(function () {
+  const mode  = document.getElementById("commercial_mode");
+  const trial = document.getElementById("trial_days");
+  if (!mode || !trial) return;
+
+  function sync() {
+    const v = (mode.value || "").toLowerCase();
+
+    // ✅ BEST PRACTICE:
+    // - paid: trial_days is editable (trial is controlled by trial_days > 0)
+    // - trial: editable
+    // - free/closed: disable (trial irrelevant)
+    const disableTrialDays = (v === "free" || v === "deny");
+
+
+    trial.disabled = disableTrialDays;
+
+    // visual cue
+    if (disableTrialDays) {
+      trial.classList.add("bg-slate-100", "text-slate-500");
+      trial.classList.remove("bg-white", "text-slate-900");
+    } else {
+      trial.classList.remove("bg-slate-100", "text-slate-500");
+      trial.classList.add("bg-white", "text-slate-900");
+    }
+  }
+
+  mode.addEventListener("change", sync);
+  sync();
+})();
+</script>
+
+{% endblock %}

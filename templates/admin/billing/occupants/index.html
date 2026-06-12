@@ -1,11 +1,95 @@
 {% extends "layout.html" %}
+
 {% block content %}
-  <h1 class="text-xl font-semibold mb-4">Tenants</h1>
-  <ul class="list-disc pl-6">
-    {% for t in tenants %}
-      <li>{{ t.name }}</li>
-    {% else %}
-      <li>No tenants yet.</li>
-    {% endfor %}
-  </ul>
+<div class="container mx-auto py-8">
+  <div class="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div>
+      <h1 class="text-2xl font-semibold">Tenants & Statements</h1>
+      <p class="text-sm text-slate-500">Manage tenants and generate statements of account.</p>
+    </div>
+    
+    <!-- Global Month Picker -->
+    <div class="bg-white px-4 py-2 rounded-lg border shadow-sm inline-flex items-center gap-3">
+      <label for="global-month" class="text-sm font-medium text-slate-700">Statement Month:</label>
+      <input type="month" id="global-month" class="border rounded px-2 py-1 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+    </div>
+  </div>
+
+  <div class="bg-white border rounded-xl shadow-sm overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm text-left">
+        <thead class="bg-slate-50 border-b">
+          <tr>
+            <th class="px-6 py-3 font-medium text-slate-700">Tenant Name</th>
+            <th class="px-6 py-3 font-medium text-slate-700">Unit / Property</th>
+            <th class="px-6 py-3 font-medium text-slate-700">Metro Account</th>
+            <th class="px-6 py-3 font-medium text-slate-700 text-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y">
+          {% for t in tenants %}
+          <tr class="hover:bg-slate-50 transition-colors">
+            <td class="px-6 py-4 font-medium text-slate-900">{{ t.name }}</td>
+            <td class="px-6 py-4 text-slate-600">
+              {% if t.sectional_unit %}
+                Unit {{ t.sectional_unit.name }} 
+                <span class="text-xs text-slate-400 block">{{ t.sectional_unit.property.name if t.sectional_unit.property else '' }}</span>
+              {% else %}
+                <span class="text-slate-400 italic">No Unit Assigned</span>
+              {% endif %}
+            </td>
+            <td class="px-6 py-4 text-slate-600">
+              {{ t.metro_account_no or '-' }}
+            </td>
+            <td class="px-6 py-4 text-right space-x-2 whitespace-nowrap">
+              <button onclick="openLink('{{ url_for('admin_bp.tenant_ledger', tenant_id=t.id) }}')" 
+                      class="inline-flex items-center px-3 py-1.5 border border-slate-300 rounded text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors">
+                View Ledger
+              </button>
+              <button onclick="openLink('{{ url_for('admin_bp.metsoa_page1', tenant_id=t.id) }}')" 
+                      class="inline-flex items-center px-3 py-1.5 border border-slate-300 rounded text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors">
+                View METSOA
+              </button>
+              <button onclick="openLink('{{ url_for('admin_bp.tenant_soa', tenant_id=t.id) }}')" 
+                      class="inline-flex items-center px-3 py-1.5 border border-blue-200 bg-blue-50 rounded text-blue-700 hover:bg-blue-100 font-medium transition-colors">
+                View SOA
+              </button>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="4" class="px-6 py-8 text-center text-slate-500">
+              No tenants found in the system.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Set default month to current month
+  document.addEventListener('DOMContentLoaded', () => {
+    const monthInput = document.getElementById('global-month');
+    const now = new Date();
+    // Format YYYY-MM
+    const defaultMonth = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+    monthInput.value = defaultMonth;
+  });
+
+  // Open link and dynamically append the selected month
+  function openLink(baseUrl) {
+    const month = document.getElementById('global-month').value;
+    if (!month) {
+      alert("Please select a statement month first.");
+      return;
+    }
+    
+    // Check if URL already has query params
+    const separator = baseUrl.includes('?') ? '&' : '?';
+    window.location.href = baseUrl + separator + 'month=' + month;
+  }
+</script>
 {% endblock %}

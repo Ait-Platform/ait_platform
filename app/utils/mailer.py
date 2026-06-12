@@ -20,7 +20,6 @@ def send_pdf_email(to_email: str, subject: str, body_text: str, pdf_bytes: bytes
         body=body_text or "",
     )
 
-    # Attach PDF
     if pdf_bytes:
         msg.attach(
             filename or "report.pdf",
@@ -28,7 +27,40 @@ def send_pdf_email(to_email: str, subject: str, body_text: str, pdf_bytes: bytes
             pdf_bytes,
         )
 
-    # Respect MAIL_DEFAULT_SENDER if set (Flask-Mail uses it automatically if not overridden)
+    mail.send(msg)
+    return True
+
+def send_standard_report_email(to_email: str, subject: str, pdf_url: str, pdf_bytes: bytes, filename: str = "report.pdf", run_id: int = None, user_name: str = None):
+    """
+    Standardized email dispatcher for all modules (slugs) that sends a report 
+    with a direct URL link and an attached PDF document.
+    """
+    if not to_email:
+        raise ValueError("to_email is required")
+
+    greeting = f"Hi {user_name}," if user_name else "Hi,"
+    body_text = (
+        f"{greeting}\n\n"
+        "Your assessment report is ready.\n\n"
+        f"Open it here:\n{pdf_url}\n\n"
+        "We've also attached the PDF in case links are blocked or you need offline access.\n\n"
+        "If you didn't request this, please ignore this email.\n\n"
+        "— AIT Platform"
+    )
+
+    msg = Message(
+        subject=subject or f"Your Assessment Report",
+        recipients=[to_email],
+        body=body_text,
+    )
+
+    if pdf_bytes:
+        msg.attach(
+            filename,
+            "application/pdf",
+            pdf_bytes,
+        )
+
     mail.send(msg)
     return True
 

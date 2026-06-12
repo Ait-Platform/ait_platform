@@ -1,0 +1,72 @@
+{% extends "layout.html" %}
+
+{% block content %}
+
+<div class="min-h-screen flex items-center justify-center bg-gray-100 p-6">
+
+    <div class="w-full max-w-xl bg-white rounded-2xl shadow-lg overflow-hidden">
+
+        <!-- Top stripe -->
+        <div class="bg-blue-600 text-white px-6 py-4">
+            <h4 class="text-lg font-semibold">Subscription Expired</h4>
+        </div>
+
+        <div class="p-8 text-center">
+
+            <h2 class="text-2xl font-bold text-red-600">
+                Your Subscription Has Expired
+            </h2>
+
+            <p class="mt-4 text-gray-700">
+                Hi {{ enrollment.user_id }}, your subscription for
+                <strong>{{ subject.slug }}</strong><br>
+                has expired. To continue enjoying access please renew.
+            </p>
+
+            <!-- Buttons -->
+            <div class="flex justify-between mt-8">
+
+                <form action="{{ url_for('subscription_bp.renew_subscription_route', subscription_id=subscription.id) }}" method="post">
+                    <button
+                        type="submit"
+                        class="bg-green-500 hover:bg-green-600 text-white font-semibold px-6 py-2 rounded-lg transition">
+                        Renew
+                    </button>
+
+                    {% if csrf_token is defined %}
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    {% elif request and request.cookies.get('csrf_token') %}
+                        <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_token') }}">
+                    {% endif %}
+                </form>
+
+                <!--form action="{{ url_for('subscription_bp.cancel_subscription', subscription_id=subscription.id) }}" method="post">
+                    <button
+                        type="submit"
+                        class="bg-red-500 hover:bg-red-600 text-white font-semibold px-6 py-2 rounded-lg transition">
+                        Cancel
+                    </button>
+                </form-->
+                <a href="{{ url_for('public_bp.welcome') }}"
+                class="bg-red-500 hover:bg-red-600 text-white font-semibold px-6 py-2 rounded-lg transition">
+                Cancel
+                </a>
+            </div>
+
+            <div class="border-t mt-8 pt-6 text-sm text-gray-500">
+
+                <p>Subscription ID: {{ subscription.id }}</p>
+                <p>Enrollment ID: {{ enrollment.id }}</p>
+                <p>Price ID: {{ enrollment.price_id }}</p>
+                <p>Local Price: {{ enrollment.local_currency }} {{ enrollment.local_amount_cents / 100 }}</p>
+                <p>Canonical Amount: ZAR {{ enrollment.zar_amount_cents / 100 }}</p>
+                <p>Expired on: {{ enrollment.expires_at.strftime('%Y-%m-%d %H:%M:%S UTC') }}</p>
+
+            </div>
+
+        </div>
+    </div>
+
+</div>
+
+{% endblock %}

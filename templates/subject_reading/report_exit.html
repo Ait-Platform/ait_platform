@@ -1,0 +1,39 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="max-w-md mx-auto mt-12 bg-white p-6 rounded-xl shadow">
+  <h1 class="text-xl font-semibold mb-3 text-center">Email Your Certificate</h1>
+  <p class="text-slate-600 mb-4 text-center">
+    Congratulations on finishing the Reading Programme! Please confirm your email to receive your certificate.
+  </p>
+
+  {% if error %}
+    <div class="mb-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2">
+      {{ error }}
+    </div>
+  {% endif %}
+
+  <form method="post" action="{{ url_for('reading_bp.finish_report') }}" class="space-y-4">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <label class="block text-sm font-medium text-slate-700">Email address</label>
+    <input
+      type="text"
+      name="email"
+      value="{{ default_email }}"
+      placeholder="you@example.com"
+      required
+      class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring focus:ring-blue-100"
+    />
+
+    <button type="submit"
+            class="w-full bg-green-600 text-white rounded-lg py-2 font-semibold hover:bg-green-700 transition">
+      Email & Finish
+    </button>
+  </form>
+
+  <p class="text-xs text-slate-500 text-center mt-4">
+    Once you press "Email & Finish", your certificate will be sent and your session will end automatically.
+  </p>
+</div>
+{% endblock %}

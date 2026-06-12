@@ -1,0 +1,47 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="max-w-md mx-auto px-4 py-8">
+
+  <!-- Single Main Tile -->
+  <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+    <!-- Color strip on top -->
+    <div class="h-2 bg-emerald-600"></div>
+
+    <div class="p-6 md:p-8 space-y-6">
+      <!-- First Row: Title (left) & Back Button (right) -->
+      <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+        <h1 class="text-xl md:text-2xl font-bold text-slate-900">Reserve Investment</h1>
+        <a href="{{ url_for('spv_bp.spv_deal_page', code=spv.code) }}"
+           class="inline-flex items-center gap-2 rounded border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition shrink-0">
+          <span>←</span><span>Back</span>
+        </a>
+      </div>
+
+      <!-- Form & content body -->
+      <div class="space-y-4">
+        <p class="text-sm text-slate-600">
+          Enter the amount you want to commit to <span class="font-semibold text-slate-900">{{ spv.name }}</span>.
+        </p>
+
+        <form method="POST" class="space-y-4">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div>
+            <label for="amount" class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">Amount (ZAR)</label>
+            <input type="number" name="amount" id="amount" required
+                   class="w-full border border-slate-200 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none rounded-xl px-4 py-2.5 text-sm transition"
+                   placeholder="Amount (ZAR)">
+          </div>
+
+          <button type="submit"
+                  class="w-full bg-emerald-600 text-white py-2.5 rounded-xl font-semibold hover:bg-emerald-700 transition">
+            Confirm Commitment
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+

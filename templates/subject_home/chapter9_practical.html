@@ -1,0 +1,405 @@
+{% extends "layout.html" %}
+
+{% block title %}
+Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
+{% endblock %}
+
+{% block content %}
+
+<div class="max-w-4xl mx-auto bg-white shadow-xl rounded-2xl mt-6 overflow-hidden border border-slate-100">
+
+    <!-- Top Color Strip -->
+    <div class="h-3 bg-blue-600"></div>
+
+    <div class="p-8 md:p-12">
+
+        <!-- Header -->
+        <div class="flex flex-row justify-between items-center mb-8 pb-6 border-b border-slate-100">
+            <div>
+                <span class="text-sm font-bold tracking-wider text-blue-600 uppercase">SECTION 1 – PRACTICAL LEARNING</span>
+                <h1 class="text-3xl font-extrabold text-slate-900 mt-1">
+                    CHAPTER {{ chapter.chapter_number }} – {{ chapter.title|upper }}
+                </h1>
+            </div>
+            <a href="{{ url_for('home_bp.learner_dashboard') }}"
+               class="inline-flex items-center px-4 py-2 rounded-lg text-sm font-semibold text-slate-600 border border-slate-200 hover:bg-slate-50 transition">
+                ← Back
+            </a>
+        </div>
+
+        <!-- Objective & Prep -->
+        <div class="grid md:grid-cols-2 gap-6 mb-10">
+            <div class="bg-blue-50 border-l-4 border-blue-500 p-6 rounded-r-xl">
+                <h2 class="text-lg font-bold text-blue-800 mb-2 flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    Objective
+                </h2>
+                <p class="text-blue-900 leading-relaxed text-sm">
+                    Learn how mathematics helps solve everyday problems involving counting, addition, subtraction, multiplication, division, money and quantities.
+                </p>
+            </div>
+            
+            <div class="bg-amber-50 border-l-4 border-amber-500 p-6 rounded-r-xl">
+                <h2 class="text-lg font-bold text-amber-800 mb-2 flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                    Teacher Preparation
+                </h2>
+                <p class="text-amber-900 leading-relaxed text-sm">
+                    Gather everyday objects.
+                    <br><span class="font-semibold">Examples:</span> Coins, Bottle tops, Beans, Blocks, Pencils, Books, Toys.
+                </p>
+            </div>
+        </div>
+
+        <form method="POST" action="{{ url_for('home_bp.chapter_page', chapter_num=chapter.chapter_number) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <!-- Activity 1 -->
+            <div class="border border-slate-200 rounded-xl p-6 md:p-8 mb-6 shadow-sm">
+                <h3 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Activity 1 – Counting Objects</h3>
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Instruction</h4>
+                        <p class="text-slate-700 text-sm mb-2">Place a collection of objects on a table. Examples:</p>
+                        <ul class="list-none text-slate-700 space-y-1 mb-4 text-sm pl-4 border-l-2 border-amber-300">
+                            <li>• 10 beans</li>
+                            <li>• 15 bottle tops</li>
+                            <li>• 20 blocks</li>
+                        </ul>
+                        <p class="text-slate-700 text-sm font-semibold mb-2">Teacher asks:</p>
+                        <ul class="list-none text-slate-700 space-y-1 mb-4 text-sm pl-4 border-l-2 border-amber-300">
+                            <li>• How many objects are there?</li>
+                        </ul>
+
+                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Expected Answer</h4>
+                        <p class="text-slate-700 text-sm italic">Learner correctly counts the objects without skipping or repeating.</p>
+                    </div>
+                    <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
+                        <label class="flex items-start gap-3 cursor-pointer group">
+                            <input type="checkbox" name="act1_check" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
+                            <div>
+                                <span class="block font-bold text-slate-800 group-hover:text-blue-600 transition">Teacher Check</span>
+                                <span class="block text-sm text-slate-500">Learner counts accurately.</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Activity 2 -->
+            <div class="border border-slate-200 rounded-xl p-6 md:p-8 mb-6 shadow-sm">
+                <h3 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Activity 2 – Grouping Objects</h3>
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Instruction</h4>
+                        <p class="text-slate-700 text-sm mb-2">Provide a collection of objects.</p>
+                        <p class="text-slate-700 text-sm font-semibold mb-2">Teacher asks learner to:</p>
+                        <ul class="list-none text-slate-700 space-y-1 mb-4 text-sm pl-4 border-l-2 border-amber-300">
+                            <li>• Group them into sets of 2.</li>
+                            <li>• Group them into sets of 5.</li>
+                            <li>• Group them into sets of 10.</li>
+                        </ul>
+
+                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Expected Answer</h4>
+                        <p class="text-slate-700 text-sm italic">Objects are arranged into equal groups.</p>
+                    </div>
+                    <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
+                        <label class="flex items-start gap-3 cursor-pointer group">
+                            <input type="checkbox" name="act2_check" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
+                            <div>
+                                <span class="block font-bold text-slate-800 group-hover:text-blue-600 transition">Teacher Check</span>
+                                <span class="block text-sm text-slate-500">Learner groups objects correctly.</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Activity 3 -->
+            <div class="border border-slate-200 rounded-xl p-6 md:p-8 mb-6 shadow-sm">
+                <h3 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Activity 3 – Addition in Action</h3>
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Instruction</h4>
+                        <p class="text-slate-700 text-sm mb-2">Place 5 objects on the table. Add 3 more objects.</p>
+                        <p class="text-slate-700 text-sm font-semibold mb-2">Teacher asks:</p>
+                        <ul class="list-none text-slate-700 space-y-1 mb-4 text-sm pl-4 border-l-2 border-amber-300">
+                            <li>• How many objects are there now?</li>
+                        </ul>
+                        <p class="text-slate-700 text-sm italic mb-4">Repeat with different quantities.</p>
+
+                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Expected Answer</h4>
+                        <p class="text-slate-700 text-sm italic">Learner calculates the total number of objects.</p>
+                    </div>
+                    <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
+                        <label class="flex items-start gap-3 cursor-pointer group">
+                            <input type="checkbox" name="act3_check" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
+                            <div>
+                                <span class="block font-bold text-slate-800 group-hover:text-blue-600 transition">Teacher Check</span>
+                                <span class="block text-sm text-slate-500">Learner combines groups correctly.</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Activity 4 -->
+            <div class="border border-slate-200 rounded-xl p-6 md:p-8 mb-6 shadow-sm">
+                <h3 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Activity 4 – Subtraction in Action</h3>
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Instruction</h4>
+                        <p class="text-slate-700 text-sm mb-2">Place 10 objects on the table. Remove 4 objects.</p>
+                        <p class="text-slate-700 text-sm font-semibold mb-2">Teacher asks:</p>
+                        <ul class="list-none text-slate-700 space-y-1 mb-4 text-sm pl-4 border-l-2 border-amber-300">
+                            <li>• How many objects remain?</li>
+                        </ul>
+
+                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Expected Answer</h4>
+                        <p class="text-slate-700 text-sm italic">Learner calculates the correct remainder.</p>
+                    </div>
+                    <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
+                        <label class="flex items-start gap-3 cursor-pointer group">
+                            <input type="checkbox" name="act4_check" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
+                            <div>
+                                <span class="block font-bold text-slate-800 group-hover:text-blue-600 transition">Teacher Check</span>
+                                <span class="block text-sm text-slate-500">Learner determines the remaining quantity.</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Activity 5 -->
+            <div class="border border-slate-200 rounded-xl p-6 md:p-8 mb-6 shadow-sm">
+                <h3 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Activity 5 – Multiplication Through Groups</h3>
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Instruction</h4>
+                        <p class="text-slate-700 text-sm mb-2">Create equal groups.</p>
+                        <p class="text-slate-700 text-sm font-semibold mb-2">Example:</p>
+                        <ul class="list-none text-slate-700 space-y-1 mb-4 text-sm pl-4 border-l-2 border-amber-300">
+                            <li>• 3 groups with 4 blocks in each group.</li>
+                        </ul>
+                        <p class="text-slate-700 text-sm font-semibold mb-2">Teacher asks:</p>
+                        <ul class="list-none text-slate-700 space-y-1 mb-4 text-sm pl-4 border-l-2 border-amber-300">
+                            <li>• How many blocks are there altogether?</li>
+                        </ul>
+
+                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Expected Answer</h4>
+                        <p class="text-slate-700 text-sm italic">Learner calculates the total quantity.</p>
+                    </div>
+                    <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
+                        <label class="flex items-start gap-3 cursor-pointer group">
+                            <input type="checkbox" name="act5_check" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
+                            <div>
+                                <span class="block font-bold text-slate-800 group-hover:text-blue-600 transition">Teacher Check</span>
+                                <span class="block text-sm text-slate-500">Learner understands repeated addition.</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Activity 6 -->
+            <div class="border border-slate-200 rounded-xl p-6 md:p-8 mb-6 shadow-sm">
+                <h3 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Activity 6 – Sharing Equally</h3>
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Instruction</h4>
+                        <p class="text-slate-700 text-sm mb-2">Place 12 objects on the table.</p>
+                        <p class="text-slate-700 text-sm font-semibold mb-2">Teacher asks learner to share them equally between:</p>
+                        <ul class="list-none text-slate-700 space-y-1 mb-4 text-sm pl-4 border-l-2 border-amber-300">
+                            <li>• 2 people</li>
+                            <li>• 3 people</li>
+                            <li>• 4 people</li>
+                        </ul>
+
+                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Expected Answer</h4>
+                        <p class="text-slate-700 text-sm italic">Each group receives an equal number of objects.</p>
+                    </div>
+                    <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
+                        <label class="flex items-start gap-3 cursor-pointer group">
+                            <input type="checkbox" name="act6_check" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
+                            <div>
+                                <span class="block font-bold text-slate-800 group-hover:text-blue-600 transition">Teacher Check</span>
+                                <span class="block text-sm text-slate-500">Learner shares quantities equally.</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Activity 7 -->
+            <div class="border border-slate-200 rounded-xl p-6 md:p-8 mb-6 shadow-sm">
+                <h3 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Activity 7 – Money Mathematics</h3>
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Instruction</h4>
+                        <p class="text-slate-700 text-sm mb-2">Provide coins or pretend money. Examples:</p>
+                        <ul class="list-none text-slate-700 space-y-1 mb-4 text-sm pl-4 border-l-2 border-amber-300">
+                            <li>• R2 coin</li>
+                            <li>• R5 coin</li>
+                            <li>• R10 note</li>
+                        </ul>
+                        <p class="text-slate-700 text-sm font-semibold mb-2">Teacher asks:</p>
+                        <ul class="list-none text-slate-700 space-y-1 mb-4 text-sm pl-4 border-l-2 border-amber-300">
+                            <li>• How much money do you have?</li>
+                            <li>• If you spend R5, how much remains?</li>
+                            <li>• What can you buy with the money available?</li>
+                        </ul>
+
+                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Expected Answer</h4>
+                        <p class="text-slate-700 text-sm italic">Learner correctly adds and subtracts money values.</p>
+                    </div>
+                    <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
+                        <label class="flex items-start gap-3 cursor-pointer group">
+                            <input type="checkbox" name="act7_check" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
+                            <div>
+                                <span class="block font-bold text-slate-800 group-hover:text-blue-600 transition">Teacher Check</span>
+                                <span class="block text-sm text-slate-500">Learner performs practical money calculations.</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Activity 8 -->
+            <div class="border border-slate-200 rounded-xl p-6 md:p-8 mb-6 shadow-sm">
+                <h3 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Activity 8 – Shopping Challenge</h3>
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Instruction</h4>
+                        <p class="text-slate-700 text-sm mb-2">Create a small pretend shop. Examples:</p>
+                        <ul class="list-none text-slate-700 space-y-1 mb-4 text-sm pl-4 border-l-2 border-amber-300">
+                            <li>• Apple = R3</li>
+                            <li>• Juice = R5</li>
+                            <li>• Bread = R8</li>
+                        </ul>
+                        <p class="text-slate-700 text-sm mb-2">Teacher gives learner R20.</p>
+                        <p class="text-slate-700 text-sm font-semibold mb-2">Teacher asks:</p>
+                        <ul class="list-none text-slate-700 space-y-1 mb-4 text-sm pl-4 border-l-2 border-amber-300">
+                            <li>• What can you buy?</li>
+                            <li>• How much change should you receive?</li>
+                        </ul>
+
+                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Expected Answer</h4>
+                        <p class="text-slate-700 text-sm italic">Learner calculates costs and change correctly.</p>
+                    </div>
+                    <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
+                        <label class="flex items-start gap-3 cursor-pointer group">
+                            <input type="checkbox" name="act8_check" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
+                            <div>
+                                <span class="block font-bold text-slate-800 group-hover:text-blue-600 transition">Teacher Check</span>
+                                <span class="block text-sm text-slate-500">Learner uses mathematics in practical situations.</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Activity 9 -->
+            <div class="border border-slate-200 rounded-xl p-6 md:p-8 mb-6 shadow-sm">
+                <h3 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Activity 9 – Mathematics in Daily Life</h3>
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Instruction</h4>
+                        <p class="text-slate-700 text-sm font-semibold mb-2">Teacher asks practical questions. Examples:</p>
+                        <ul class="list-none text-slate-700 space-y-1 mb-4 text-sm pl-4 border-l-2 border-amber-300">
+                            <li>• There are 6 people and 12 apples. How many apples does each person get?</li>
+                            <li>• A bus has 20 seats and 15 are occupied. How many seats are empty?</li>
+                            <li>• You have R50 and spend R18. How much remains?</li>
+                        </ul>
+
+                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Expected Answer</h4>
+                        <p class="text-slate-700 text-sm italic">Learner uses appropriate calculations to solve the problem.</p>
+                    </div>
+                    <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
+                        <label class="flex items-start gap-3 cursor-pointer group">
+                            <input type="checkbox" name="act9_check" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
+                            <div>
+                                <span class="block font-bold text-slate-800 group-hover:text-blue-600 transition">Teacher Check</span>
+                                <span class="block text-sm text-slate-500">Learner applies mathematics to real situations.</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Activity 10 -->
+            <div class="border border-slate-200 rounded-xl p-6 md:p-8 mb-6 shadow-sm">
+                <h3 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Activity 10 – Mathematical Investigation</h3>
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Instruction</h4>
+                        <p class="text-slate-700 text-sm mb-2">Learner chooses a collection of objects.</p>
+                        <p class="text-slate-700 text-sm font-semibold mb-2">Teacher asks learner to:</p>
+                        <ul class="list-none text-slate-700 space-y-1 mb-4 text-sm pl-4 border-l-2 border-amber-300">
+                            <li>• Count them.</li>
+                            <li>• Group them.</li>
+                            <li>• Add more.</li>
+                            <li>• Remove some.</li>
+                            <li>• Share them equally.</li>
+                        </ul>
+
+                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Expected Answer</h4>
+                        <p class="text-slate-700 text-sm italic">Learner successfully performs all tasks using logical calculations.</p>
+                    </div>
+                    <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
+                        <label class="flex items-start gap-3 cursor-pointer group">
+                            <input type="checkbox" name="act10_check" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
+                            <div>
+                                <span class="block font-bold text-slate-800 group-hover:text-blue-600 transition">Teacher Check</span>
+                                <span class="block text-sm text-slate-500">Learner demonstrates multiple mathematical skills.</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Final Competency Check -->
+            <div class="bg-slate-900 rounded-xl p-8 mb-8 text-white shadow-lg">
+                <h3 class="text-2xl font-bold mb-4">Chapter Competency Result</h3>
+                <p class="text-slate-300 mb-6 text-sm">As the observer, verify that the learner can successfully do all of the following:</p>
+                
+                <div class="grid grid-cols-2 gap-4 mb-8 text-sm text-slate-300 opacity-80">
+                    <div>✓ Count accurately</div>
+                    <div>✓ Group objects</div>
+                    <div>✓ Add quantities</div>
+                    <div>✓ Subtract quantities</div>
+                    <div>✓ Use multiplication through grouping</div>
+                    <div>✓ Share equally using division</div>
+                    <div>✓ Calculate money values</div>
+                    <div>✓ Determine change</div>
+                    <div>✓ Apply mathematics to everyday situations</div>
+                    <div>✓ Solve practical mathematical problems</div>
+                </div>
+
+                <div class="bg-slate-800 p-6 rounded-lg border border-slate-700">
+                    <p class="font-bold mb-4 text-lg text-center">FINAL RESULT</p>
+                    <div class="flex flex-col md:flex-row justify-center items-center gap-6">
+                        <label class="flex items-center gap-3 cursor-pointer p-4 border-2 border-emerald-500/30 rounded-lg hover:bg-emerald-500/10 transition w-full md:w-auto">
+                            <input type="radio" name="competency" value="competent" class="w-6 h-6 text-emerald-500 bg-slate-700 border-slate-600 focus:ring-emerald-500 focus:ring-offset-slate-900" required>
+                            <span class="font-bold text-emerald-400 tracking-wider">COMPETENT</span>
+                        </label>
+                        <label class="flex items-center gap-3 cursor-pointer p-4 border-2 border-rose-500/30 rounded-lg hover:bg-rose-500/10 transition w-full md:w-auto">
+                            <input type="radio" name="competency" value="not_yet" class="w-6 h-6 text-rose-500 bg-slate-700 border-slate-600 focus:ring-rose-500 focus:ring-offset-slate-900" required>
+                            <span class="font-bold text-rose-400 tracking-wider">NOT YET COMPETENT</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Submit -->
+            <div class="text-center">
+                <button type="submit" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 px-10 rounded-full shadow-lg transition-transform hover:scale-105 text-lg w-full md:w-auto">
+                    Submit Final Evaluation
+                </button>
+            </div>
+
+        </form>
+
+    </div>
+</div>
+
+{% endblock %}

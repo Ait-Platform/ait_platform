@@ -1,0 +1,316 @@
+{% extends "layout.html" %}
+{% block title %}Input Meter Readings{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-slate-50 py-10 px-4 flex flex-col items-center">
+  <div class="w-full max-w-5xl bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+    
+    <div class="h-2 w-full bg-blue-500"></div>
+
+    <div class="p-8">
+      <div class="flex items-center justify-between mb-8">
+        <h1 class="text-3xl font-extrabold text-slate-800 tracking-tight">Input Readings: {{ property.name }}</h1>
+        <a href="{{ url_for('billing_bp.learner_dashboard') }}" class="flex items-center text-slate-500 hover:text-slate-700 font-bold bg-slate-100 hover:bg-slate-200 px-4 py-2 rounded-lg transition">
+          <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+          Back / Cancel
+        </a>
+      </div>
+      
+      <p class="text-slate-500 mb-8">Enter the new readings for each meter. If this is the first entry, it will establish the baseline. If a previous reading exists, consumption will be calculated automatically.</p>
+
+      
+      <!-- AI Dropzone for Readings -->
+      <div class="mb-8 p-6 bg-slate-50 border-2 border-dashed border-blue-300 rounded-xl hover:border-blue-500 transition cursor-pointer relative" id="aiDropzone" onclick="document.getElementById('billFileInput').click()">
+        <input type="file" id="billFileInput" class="hidden" accept=".pdf,image/*">
+        <div class="text-center" id="dropzoneContent">
+          <svg class="mx-auto h-12 w-12 text-blue-400 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+          </svg>
+          <h3 class="text-lg font-bold text-slate-700">Upload this month's municipality bill</h3>
+          <p class="text-sm text-slate-500 mt-1">Our AI will extract all meter readings, backwards-calculate your baselines, and auto-fill the inputs below.</p>
+        </div>
+        <div class="text-center hidden" id="dropzoneLoading">
+          <svg class="animate-spin mx-auto h-10 w-10 text-blue-600 mb-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <p class="text-blue-600 font-semibold animate-pulse">AI is reading the meters...</p>
+        </div>
+      </div>
+      
+      <div id="aiErrorBox" class="hidden mb-8 p-4 bg-red-50 text-red-700 border border-red-200 rounded-lg text-sm font-semibold"></div>
+
+      <form action="{{ url_for('billing_bp.input_readings', property_id=property.id) }}" method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+        <div class="mb-8 p-6 bg-blue-50 border border-blue-200 rounded-xl">
+          <label class="block text-sm font-bold text-blue-900 mb-2">Reading Month</label>
+          <input type="month" name="reading_month" required class="block w-64 rounded-md border-2 border-blue-300 p-2 focus:border-blue-500 focus:ring-blue-500 bg-white" value="{{ current_month }}">
+        </div>
+
+        {% if not meters_data %}
+          <div class="text-center p-8 bg-slate-100 rounded-xl border border-slate-200 text-slate-500">
+            No meters found for this property. <a href="{{ url_for('billing_bp.edit_property', property_id=property.id) }}" class="text-blue-500 underline font-bold">Add meters first</a>.
+          </div>
+        {% else %}
+          <div class="space-y-6">
+            {% for m in meters_data %}
+            <div class="bg-white border {% if m.hierarchy == 'Bulk' %}border-purple-300 shadow-sm{% else %}border-slate-200{% endif %} rounded-xl p-5 relative meter-row"
+                 data-avg-cons="{{ m.avg_cons }}">
+              
+              <!-- Badge -->
+              <div class="absolute -top-3 -left-2">
+                <span class="px-3 py-1 rounded-md text-[10px] font-bold uppercase shadow-sm border
+                      {% if m.hierarchy == 'Bulk' %}bg-purple-100 text-purple-700 border-purple-200
+                      {% elif m.hierarchy == 'Sub-Meter' %}bg-slate-100 text-slate-600 border-slate-200
+                      {% else %}bg-green-100 text-green-700 border-green-200{% endif %}">
+                  {{ m.hierarchy }}
+                </span>
+              </div>
+
+              <div class="flex flex-col md:flex-row md:items-center md:justify-between mt-2">
+                
+                <div class="mb-4 md:mb-0">
+                  <div class="text-lg font-bold text-slate-800">{{ m.meter_number }}</div>
+                  <div class="text-xs text-slate-500 capitalize flex items-center space-x-2 mt-1">
+                    <span class="px-2 py-0.5 rounded-md font-bold {% if m.utility_type == 'water' %}bg-blue-100 text-blue-700{% else %}bg-yellow-100 text-yellow-700{% endif %}">{{ m.utility_type }}</span>
+                    {% if m.pointing_to %}<span>• Pointing to: {{ m.pointing_to }}</span>{% endif %}
+                  </div>
+                  {% if m.avg_cons > 0 %}
+                    <div class="text-xs text-slate-400 mt-1">Avg Cons: {{ m.avg_cons }}</div>
+                  {% endif %}
+                </div>
+
+                <div class="flex items-center space-x-6">
+                  
+                  <div class="text-right border-r border-slate-200 pr-6">
+                    <div class="text-[10px] uppercase font-bold text-slate-400 mb-1">Previous Reading</div>
+                    {% if m.last_reading %}
+                      <input type="hidden" class="prev-read-hidden" value="{{ m.last_reading.reading_value }}">
+                      <div class="font-mono text-slate-700 font-bold">{{ m.last_reading.reading_value }}</div>
+                      <div class="text-[10px] text-slate-500">{{ m.last_reading.reading_date.strftime('%Y-%m-%d') }}</div>
+                    {% else %}
+                      <!-- Active Inputs for Baseline -->
+                      <div class="flex space-x-2">
+                        <input type="number" step="any" name="prev_reading_{{ m.meter.id }}" placeholder="Value" class="prev-read-input w-24 rounded-md border-2 border-slate-300 p-1 text-sm font-mono focus:border-blue-500 focus:ring-blue-500" value="{{ m.last_read }}">
+                        <input type="date" name="prev_date_{{ m.meter.id }}" class="w-32 rounded-md border-2 border-slate-300 p-1 text-sm focus:border-blue-500 focus:ring-blue-500" value="{{ m.last_date }}">
+                      </div>
+                      <div class="text-[10px] text-orange-500 font-bold mt-1">Establish Baseline</div>
+                    {% endif %}
+                  </div>
+
+                  <div>
+                    <div class="text-[10px] uppercase font-bold text-blue-500 mb-1">New Reading & Date</div>
+                    <div class="flex space-x-2">
+                      <input type="number" step="any" name="reading_{{ m.meter.id }}" placeholder="Value" class="new-read-input w-32 rounded-md border-2 border-slate-300 p-2 text-sm font-mono focus:border-blue-500 focus:ring-blue-500" value="{{ m.new_read }}">
+                      <input type="date" name="date_{{ m.meter.id }}" class="w-36 rounded-md border-2 border-slate-300 p-2 text-sm focus:border-blue-500 focus:ring-blue-500" value="{{ m.new_date if m.new_date else current_date }}">
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          
+          <div class="flex justify-end pt-8 mt-8 border-t border-slate-200">
+            <button type="submit" onclick="return validateReadings(event)" class="px-8 py-3 bg-blue-600 text-white font-bold rounded-xl shadow hover:bg-blue-700 transition text-lg">Save Readings</button>
+          </div>
+        {% endif %}
+
+      </form>
+    </div>
+  </div>
+</div>
+
+
+<script>
+  // AI Dropzone Logic
+  const fileInput = document.getElementById('billFileInput');
+  const dropzone = document.getElementById('aiDropzone');
+  const content = document.getElementById('dropzoneContent');
+  const loading = document.getElementById('dropzoneLoading');
+  const errorBox = document.getElementById('aiErrorBox');
+
+  dropzone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropzone.classList.add('border-blue-500', 'bg-blue-50');
+  });
+
+  dropzone.addEventListener('dragleave', () => {
+      dropzone.classList.remove('border-blue-500', 'bg-blue-50');
+  });
+
+  dropzone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropzone.classList.remove('border-blue-500', 'bg-blue-50');
+      if (e.dataTransfer.files.length > 0) {
+          handleFile(e.dataTransfer.files[0]);
+      }
+  });
+
+  fileInput.addEventListener('change', (e) => {
+      if (e.target.files.length > 0) {
+          handleFile(e.target.files[0]);
+      }
+  });
+
+  async function handleFile(file) {
+      content.classList.add('hidden');
+      loading.classList.remove('hidden');
+      errorBox.classList.add('hidden');
+      dropzone.style.pointerEvents = 'none';
+
+      const formData = new FormData();
+      formData.append('bill_file', file);
+
+      try {
+          // Get CSRF token
+          const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+
+          const response = await fetch('/api/parse_readings', {
+              method: 'POST',
+              headers: {
+                  'X-CSRFToken': csrfToken
+              },
+              body: formData
+          });
+
+          const result = await response.json();
+
+          if (response.ok && result.readings) {
+              // Successfully parsed
+              applyReadings(result.readings);
+          } else {
+              throw new Error(result.error || 'Failed to extract readings from the bill.');
+          }
+      } catch (err) {
+          errorBox.textContent = err.message;
+          errorBox.classList.remove('hidden');
+      } finally {
+          content.classList.remove('hidden');
+          loading.classList.add('hidden');
+          dropzone.style.pointerEvents = 'auto';
+          fileInput.value = ''; // Reset
+      }
+  }
+
+  function applyReadings(readings) {
+      // Create a map of extracted readings by normalized meter number
+      const extracted = {};
+      readings.forEach(r => {
+          if (r.meter_number) {
+              const key = r.meter_number.toString().trim().toLowerCase();
+              extracted[key] = r;
+          }
+      });
+
+      // Loop through all meter rows in the UI
+      const rows = document.querySelectorAll('.meter-row');
+      let matchCount = 0;
+      
+      rows.forEach(row => {
+          // Extract the meter number text from the UI
+          const meterDiv = row.querySelector('.text-lg.font-bold.text-slate-800');
+          if (!meterDiv) return;
+          const uiMeterNo = meterDiv.textContent.trim().toLowerCase();
+          
+          if (extracted[uiMeterNo]) {
+              const r = extracted[uiMeterNo];
+              matchCount++;
+              
+              // Apply new reading
+              const newReadInput = row.querySelector('.new-read-input');
+              if (newReadInput && r.current_reading) {
+                  // Keep only numbers and decimals
+                  newReadInput.value = r.current_reading.toString().replace(/[^0-9.]/g, '');
+                  newReadInput.classList.add('ring-2', 'ring-green-400', 'border-green-400');
+              }
+              
+              // Apply new date
+              const newDateInput = row.querySelector('input[name^="date_"]');
+              if (newDateInput && r.current_date) {
+                  newDateInput.value = r.current_date;
+              }
+              
+              // Apply prev reading (if the input exists because it's a baseline entry)
+              const prevReadInput = row.querySelector('.prev-read-input');
+              if (prevReadInput && r.previous_reading) {
+                  prevReadInput.value = r.previous_reading.toString().replace(/[^0-9.]/g, '');
+                  prevReadInput.classList.add('ring-2', 'ring-green-400', 'border-green-400');
+              }
+              
+              // Apply prev date
+              const prevDateInput = row.querySelector('input[name^="prev_date_"]');
+              if (prevDateInput && r.previous_date) {
+                  prevDateInput.value = r.previous_date;
+              }
+          }
+      });
+      
+      if (matchCount === 0) {
+         errorBox.textContent = "AI successfully read the bill, but none of the extracted meter numbers (" + readings.map(r=>r.meter_number).join(", ") + ") perfectly matched the meters assigned to this property.";
+         errorBox.classList.remove('hidden');
+      } else {
+         // Success flash effect
+         dropzone.classList.add('bg-green-50', 'border-green-500');
+         content.innerHTML = '<h3 class="text-lg font-bold text-green-700">Successfully extracted ' + matchCount + ' meters!</h3><p class="text-sm text-green-600 mt-1">Review the highlighted inputs below.</p>';
+      }
+  }
+</script>
+
+<script>
+function validateReadings(event) {
+  const rows = document.querySelectorAll('.meter-row');
+  let hasWarnings = false;
+  
+  for (let row of rows) {
+    const avgConsStr = row.getAttribute('data-avg-cons');
+    const avgCons = avgConsStr ? parseFloat(avgConsStr) : 0;
+    
+    // Find previous read (either hidden or user input)
+    let prevVal = 0;
+    let hasPrev = false;
+    const prevHidden = row.querySelector('.prev-read-hidden');
+    const prevInput = row.querySelector('.prev-read-input');
+    
+    if (prevHidden && prevHidden.value) {
+      prevVal = parseFloat(prevHidden.value);
+      hasPrev = true;
+    } else if (prevInput && prevInput.value) {
+      prevVal = parseFloat(prevInput.value);
+      hasPrev = true;
+    }
+    
+    const newInput = row.querySelector('.new-read-input');
+    if (newInput && newInput.value && hasPrev) {
+      const newVal = parseFloat(newInput.value);
+      
+      // Validation 1: Negative consumption
+      if (newVal < prevVal) {
+        alert("Error: New reading cannot be less than the previous reading. Please fix your entries.");
+        event.preventDefault();
+        return false;
+      }
+      
+      // Validation 2: Average consumption threshold (+20 buffer)
+      const cons = newVal - prevVal;
+      // If there is an average, check against it + 20
+      if (avgCons > 0 && cons > (avgCons + 20)) {
+        hasWarnings = true;
+      }
+    }
+  }
+  
+  if (hasWarnings) {
+    const confirmed = confirm("WARNING: One or more readings generate a consumption that is over 20 units higher than the historical average for that meter!\n\nAre you sure you want to proceed?");
+    if (!confirmed) {
+      event.preventDefault();
+      return false;
+    }
+  }
+  
+  return true;
+}
+</script>
+{% endblock %}

@@ -1,0 +1,83 @@
+{% extends "layout.html" %}
+
+{% block title %}Register for Advanced Mathematics{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto px-4 py-8">
+
+  <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+    <!-- Color strip on top -->
+    <div class="h-2 bg-cyan-600"></div>
+
+    <div class="p-6 md:p-8 space-y-6">
+      <!-- First Row: Title (left) & Back Button (right) -->
+      <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+        <div>
+          <h1 class="text-2xl md:text-3xl font-bold text-slate-900">Registration</h1>
+          <p class="text-sm text-slate-500 mt-1">Create your profile to proceed to checkout</p>
+        </div>
+        <a href="{{ url_for('adv_math_bp.payflow') }}"
+           class="inline-flex items-center gap-2 rounded border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition shrink-0">
+          <span>←</span><span>Back</span>
+        </a>
+      </div>
+
+      <!-- Main description -->
+      <div class="bg-slate-50 rounded-2xl p-6 text-slate-700 leading-relaxed text-sm md:text-base">
+        <form method="POST" action="{{ url_for('adv_math_bp.register') }}" class="space-y-4 max-w-md mx-auto">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            
+            <div>
+                <label for="name" class="block text-sm font-medium text-gray-700">Full Name</label>
+                <input type="text" name="name" id="name" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-cyan-500 focus:border-cyan-500 sm:text-sm">
+            </div>
+            
+            <div>
+                <label for="email" class="block text-sm font-medium text-gray-700">Email Address</label>
+                <input type="email" name="email" id="email" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-cyan-500 focus:border-cyan-500 sm:text-sm">
+            </div>
+            
+            <div>
+                <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
+                <input type="password" name="password" id="password" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-cyan-500 focus:border-cyan-500 sm:text-sm">
+            </div>
+            
+            <div>
+                <label for="province" class="block text-sm font-medium text-gray-700">Province</label>
+                <select name="province" id="province" required class="mt-1 block w-full border border-gray-300 bg-white rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-cyan-500 focus:border-cyan-500 sm:text-sm">
+                    <option value="">Select a province</option>
+                    <option value="EC">Eastern Cape</option>
+                    <option value="FS">Free State</option>
+                    <option value="GP">Gauteng</option>
+                    <option value="KZN">KwaZulu-Natal</option>
+                    <option value="LP">Limpopo</option>
+                    <option value="MP">Mpumalanga</option>
+                    <option value="NW">North West</option>
+                    <option value="NC">Northern Cape</option>
+                    <option value="WC">Western Cape</option>
+                </select>
+            </div>
+            
+            <div class="flex items-start mt-4">
+                <div class="flex items-center h-5">
+                    <input id="is_private" name="is_private" type="checkbox" required class="focus:ring-cyan-500 h-4 w-4 text-cyan-600 border-gray-300 rounded">
+                </div>
+                <div class="ml-3 text-sm">
+                    <label for="is_private" class="font-medium text-gray-700">I confirm that I am registering as a private candidate.</label>
+                </div>
+            </div>
+            
+            <div class="pt-4 border-t border-slate-200 mt-6">
+                <!-- For Dev Purposes, this creates the user and redirects to checkout/dashboard -->
+                <button type="submit" class="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-3 px-4 rounded-xl shadow focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 transition">
+                    Create Profile & Proceed to Checkout
+                </button>
+            </div>
+        </form>
+      </div>
+      
+    </div>
+  </div>
+
+</div>
+{% endblock %}

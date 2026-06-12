@@ -1,116 +1,149 @@
 {% extends "layout.html" %}
 {% macro money(v) -%}{{ '{:,.2f}'.format((v|default(0)|float)) }}{%- endmacro %}
 {% block content %}
-<div class="container mx-auto py-8">
-  <h1 class="text-2xl font-semibold mb-2">Metro SOA — Page 1 (Summary)</h1>
-  <div class="text-sm text-slate-600 mb-4">
-    <strong>Tenant:</strong> {{ tenant.name or tenant.display_name or ('#'+tenant.id|string) }}
-    {% if tenant.unit_name %} — <strong>Unit</strong> {{ tenant.unit_name }}{% endif %}
-    • <strong>Month:</strong> {{ month }}
-  </div>
+<div class="p-10 max-w-6xl mx-auto print:p-0 print:max-w-none">
+  <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden print:border-none print:shadow-none">
+    <div class="h-2 w-full bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 print:hidden"></div>
+    
+    <div class="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 print:hidden">
+      <div>
+        <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight">Metro SOA — Page 1 (Summary)</h1>
+        <p class="text-sm text-slate-500 mt-1">
+          <strong>Tenant:</strong> {{ tenant.name or tenant.display_name or ('#'+tenant.id|string) }}
+          {% if tenant.unit_name %} — <strong>Unit</strong> {{ tenant.unit_name }}{% endif %}
+          • <strong>Month:</strong> {{ month }}
+        </p>
+      </div>
+      <div class="flex gap-2 items-center">
+        <a href="{{ url_for('admin_bp.readings_consumption', tenant_id=tenant.id, month=month) }}" class="inline-flex items-center text-sm font-medium text-slate-500 hover:text-slate-800 transition mr-2">
+          &larr; Back to Consumption
+        </a>
+        <button type="button" class="inline-flex items-center text-sm font-medium text-slate-700 bg-white hover:bg-slate-50 px-4 py-2 rounded-lg border border-slate-200 shadow-sm transition" onclick="window.print()">
+          Print
+        </button>
+        <a href="{{ url_for('admin_bp.metsoa_page2', tenant_id=tenant.id, month=month) }}" class="inline-flex items-center text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-lg shadow-sm transition">
+          Page 2 &rarr;
+        </a>
+      </div>
+    </div>
 
-  <style>
-  @media print {
-    .no-print { display: none !important; }
-    .container { width: 100% !important; max-width: none !important; }
-  }
-  </style>
+    <div class="p-8 print:p-4">
+      <div class="hidden print:block mb-6">
+        <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight">Metro SOA — Page 1 (Summary)</h1>
+        <p class="text-sm text-slate-500 mt-1">
+          <strong>Tenant:</strong> {{ tenant.name or tenant.display_name or ('#'+tenant.id|string) }}
+          {% if tenant.unit_name %} — <strong>Unit</strong> {{ tenant.unit_name }}{% endif %}
+          • <strong>Month:</strong> {{ month }}
+        </p>
+      </div>
 
-  <div class="container mx-auto py-8">
-    <div class="no-print mb-3 flex gap-2">
-      <a href="{{ url_for('admin_bp.readings_consumption', tenant_id=tenant.id, month=month) }}"
-        class="inline-block rounded-lg border px-3 py-1 text-sm hover:bg-slate-50">
-        ← Back to Page 1
-      </a>
+      <!-- ELECTRICITY -->
+      <h2 class="text-lg font-bold text-slate-800 mb-3">Electricity</h2>
+      <div class="overflow-x-auto rounded-lg border border-slate-200 mb-8 shadow-sm">
+        <table class="w-full text-sm text-left whitespace-nowrap">
+          <thead class="bg-slate-50 text-slate-600 border-b border-slate-200">
+            <tr>
+              <th class="px-4 py-3 font-semibold">Meter</th>
+              <th class="px-4 py-3 font-semibold">Prev Date</th>
+              <th class="px-4 py-3 font-semibold text-right">Prev Reading</th>
+              <th class="px-4 py-3 font-semibold">Current Date</th>
+              <th class="px-4 py-3 font-semibold text-right">Current Reading</th>
+              <th class="px-4 py-3 font-semibold text-right">Days</th>
+              <th class="px-4 py-3 font-semibold text-right">Consumption</th>
+              <th class="px-4 py-3 font-semibold text-right">Rate</th>
+              <th class="px-4 py-3 font-semibold text-right">Due</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            {% for r in elec_rows %}
+            <tr class="hover:bg-slate-50 transition">
+              <td class="px-4 py-3 font-medium text-slate-900">{{ r.meter }}</td>
+              <td class="px-4 py-3 text-slate-500">{{ r.prev_date }}</td>
+              <td class="px-4 py-3 text-right text-slate-600">{{ r.prev_value }}</td>
+              <td class="px-4 py-3 text-slate-500">{{ r.curr_date }}</td>
+              <td class="px-4 py-3 text-right text-slate-600">{{ r.curr_value }}</td>
+              <td class="px-4 py-3 text-right text-slate-600">{{ r.days }}</td>
+              <td class="px-4 py-3 text-right font-medium text-slate-800">{{ r.consumption }}</td>
+              <td class="px-4 py-3 text-right text-slate-600">{{ money(r.rate) }}</td>
+              <td class="px-4 py-3 text-right font-bold text-slate-900">{{ money(r.due) }}</td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="9" class="px-4 py-6 text-center text-slate-500">No electricity meters found.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot class="bg-slate-50 border-t border-slate-200">
+            <tr>
+              <td class="px-4 py-3 font-bold text-slate-800" colspan="8">Total Due (Electricity)</td>
+              <td class="px-4 py-3 font-extrabold text-slate-900 text-right">{{ money(elec_total) }}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
 
-      <button type="button" class="rounded border px-3 py-1 text-sm hover:bg-slate-50"
-      onclick="window.print()">🖨 Print</button>
-
-      <a href="{{ url_for('admin_bp.metsoa_page2', tenant_id=tenant.id, month=month) }}"
-        class="rounded border px-3 py-1 text-sm hover:bg-slate-50">Page 2 →</a>
+      <!-- WATER -->
+      <div class="mb-3">
+        <h2 class="text-lg font-bold text-slate-800">Water</h2>
+        <p class="text-xs text-slate-500">See Page 2 for the tier and fixed-charge breakdown per meter.</p>
+      </div>
+      <div class="overflow-x-auto rounded-lg border border-slate-200 shadow-sm">
+        <table class="w-full text-sm text-left whitespace-nowrap">
+          <thead class="bg-slate-50 text-slate-600 border-b border-slate-200">
+            <tr>
+              <th class="px-4 py-3 font-semibold">Meter / Line</th>
+              <th class="px-4 py-3 font-semibold">Prev Date</th>
+              <th class="px-4 py-3 font-semibold text-right">Prev Reading</th>
+              <th class="px-4 py-3 font-semibold">Current Date</th>
+              <th class="px-4 py-3 font-semibold text-right">Current Reading</th>
+              <th class="px-4 py-3 font-semibold text-right">Days</th>
+              <th class="px-4 py-3 font-semibold text-right">Consumption</th>
+              <th class="px-4 py-3 font-semibold text-right">Rate</th>
+              <th class="px-4 py-3 font-semibold text-right">Due</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            {% for r in water_rows %}
+              {% if r.kind == 'water-cons' %}
+                <tr class="hover:bg-slate-50 transition bg-white">
+                  <td class="px-4 py-3 font-medium text-slate-900">{{ r.meter }}</td>
+                  <td class="px-4 py-3 text-slate-500">{{ r.prev_date }}</td>
+                  <td class="px-4 py-3 text-right text-slate-600">{{ r.prev_value }}</td>
+                  <td class="px-4 py-3 text-slate-500">{{ r.curr_date }}</td>
+                  <td class="px-4 py-3 text-right text-slate-600">{{ r.curr_value }}</td>
+                  <td class="px-4 py-3 text-right text-slate-600">{{ r.days }}</td>
+                  <td class="px-4 py-3 text-right font-medium text-indigo-700">{{ r.consumption }}</td>
+                  <td class="px-4 py-3 text-right text-slate-400 italic">—</td>
+                  <td class="px-4 py-3 text-right text-slate-400 italic">—</td>
+                </tr>
+              {% elif r.kind in ['ws', 'sd'] %}
+                <tr class="bg-slate-50/50">
+                  <td colspan="7" class="px-4 py-2 text-right text-slate-600">{{ r.label }}</td>
+                  <td class="px-4 py-2 text-right font-medium text-slate-800">{{ money(r.rate) }}</td>
+                  <td class="px-4 py-2 text-right text-slate-400 italic">—</td>
+                </tr>
+              {% elif r.kind == 'water-total' %}
+                <tr class="bg-indigo-50/30 border-b border-indigo-100">
+                  <td colspan="8" class="px-4 py-3 text-right font-bold text-slate-800">{{ r.label }}</td>
+                  <td class="px-4 py-3 text-right font-bold text-indigo-700">{{ money(r.due) }}</td>
+                </tr>
+              {% endif %}
+            {% else %}
+              <tr>
+                <td colspan="9" class="px-4 py-6 text-center text-slate-500">No water meters found.</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot class="bg-slate-800 text-white border-t border-slate-800">
+            <tr>
+              <td class="px-4 py-3 font-bold" colspan="8">DUE TO METRO:</td>
+              <td class="px-4 py-3 font-extrabold text-right">{{ money(due_to_metro) }}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
 
     </div>
   </div>
-  <!-- ELECTRICITY -->
-  <h2 class="font-semibold mb-2">Electricity</h2>
-  <table class="w-full text-sm border mb-8">
-    <thead class="bg-slate-100">
-      <tr>
-        <th class="p-2 text-left">Meter</th>
-        <th class="p-2 text-left">Prev Date</th>
-        <th class="p-2 text-right">Prev Reading</th>
-        <th class="p-2 text-left">Current Date</th>
-        <th class="p-2 text-right">Current Reading</th>
-        <th class="p-2 text-right">Days</th>
-        <th class="p-2 text-right">Consumption</th>
-        <th class="p-2 text-right">Rate</th>
-        <th class="p-2 text-right">Due</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for r in elec_rows %}
-      <tr class="border-t">
-        <td class="p-2">{{ r.meter }}</td>
-        <td class="p-2">{{ r.prev_date }}</td>
-        <td class="p-2 text-right">{{ r.prev_read }}</td>
-        <td class="p-2">{{ r.curr_date }}</td>
-        <td class="p-2 text-right">{{ r.curr_read }}</td>
-        <td class="p-2 text-right">{{ r.days }}</td>
-        <td class="p-2 text-right">{{ r.cons }}</td>
-        <td class="p-2 text-right">{{ money(r.rate) }}</td>
-        <td class="p-2 text-right">{{ money(r.due) }}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-    <tfoot>
-      <tr class="border-t bg-slate-50 font-semibold">
-        <td class="p-2" colspan="8">Total Due (Electricity)</td>
-        <td class="p-2 text-right">{{ money(elec_total) }}</td>
-      </tr>
-    </tfoot>
-  </table>
-
-  <!-- WATER -->
-<h2 class="font-semibold mb-1">Water</h2>
-<p class="text-xs text-slate-500 mb-2">
-  See Page 2 for the tier and fixed-charge breakdown per meter.
-</p>
-
-  <table class="w-full text-sm border">
-    <thead class="bg-slate-100">
-      <tr>
-        <th class="p-2 text-left">Meter / Line</th>
-        <th class="p-2 text-left">Prev Date</th>
-        <th class="p-2 text-right">Prev Reading</th>
-        <th class="p-2 text-left">Current Date</th>
-        <th class="p-2 text-right">Current Reading</th>
-        <th class="p-2 text-right">Days</th>
-        <th class="p-2 text-right">Consumption</th>
-        <th class="p-2 text-right">Rate</th>
-        <th class="p-2 text-right">Due</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for r in water_rows %}
-      <tr class="border-t">
-        <td class="p-2">{{ r.meter }}</td>
-        <td class="p-2">{{ r.prev_date }}</td>
-        <td class="p-2 text-right">{{ r.prev_read }}</td>
-        <td class="p-2">{{ r.curr_date }}</td>
-        <td class="p-2 text-right">{{ r.curr_read }}</td>
-        <td class="p-2 text-right">{{ r.days }}</td>
-        <td class="p-2 text-right">{{ r.cons }}</td>
-        <td class="p-2 text-right">—</td>  {# tiered pricing shown on Page 2 #}
-        <td class="p-2 text-right">{{ money(r.due) }}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-    <tfoot>
-      <tr class="border-t bg-slate-50 font-semibold">
-        <td class="p-2" colspan="8">DUE TO METRO:</td>
-        <td class="p-2 text-right">{{ money(due_to_metro) }}</td>
-      </tr>
-    </tfoot>
-  </table>
 </div>
 {% endblock %}

@@ -1,0 +1,15 @@
+{% with msgs = get_flashed_messages(with_categories=true) %}
+  {% if msgs %}
+    <div class="w-full space-y-2 mb-4 px-4 pt-4">
+      {% for cat, msg in msgs %}
+        <div class="rounded-md border px-3 py-2 text-sm shadow-sm
+                    {% if cat == 'success' %}border-emerald-300 bg-emerald-50 text-emerald-800
+                    {% elif cat == 'warning' %}border-amber-300 bg-amber-50 text-amber-800
+                    {% elif cat == 'danger' or cat == 'error' %}border-rose-300 bg-rose-50 text-rose-800
+                    {% else %}border-blue-300 bg-blue-50 text-blue-800{% endif %}">
+          {{ msg }}
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}

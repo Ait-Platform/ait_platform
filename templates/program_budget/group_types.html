@@ -2,19 +2,25 @@
 {% block title %}BudgetCash · Group types{% endblock %}
 
 {% block content %}
-<div class="mx-auto max-w-4xl mt-10 bg-white shadow rounded-lg p-6">
+<div class="min-h-screen bg-gray-50 flex flex-col items-center py-10 px-4">
+  <div class="w-full max-w-5xl bg-white rounded-xl shadow-lg overflow-hidden flex flex-col">
+    <div class="h-3 bg-amber-500"></div>
+    <div class="p-8">
 
-  <div class="flex items-center justify-between">
-    <div>
-      <h1 class="text-lg font-semibold text-slate-900">Group types</h1>
-      <div class="text-sm text-slate-500">Used to categorize accounts for reports.</div>
-    </div>
 
-    <a href="{{ url_for('budget_bp.dashboard') }}"
-       class="rounded border border-slate-300 px-3 py-1.5 hover:bg-slate-50 text-sm">
-      ← Back
-    </a>
-  </div>
+      <!-- Row 1: Title & Action/Back Buttons -->
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 pb-4 border-b border-gray-100 gap-4">
+        <div>
+            <h1 class="text-2xl md:text-3xl font-bold text-gray-800 flex items-center">Group types</h1>
+            <p class="mt-1 text-slate-600">Used to categorize accounts for reports.</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <a href="{{ url_for('budget_bp.dashboard') }}"
+               class="rounded border border-slate-300 px-3 py-1.5 hover:bg-slate-50 text-sm">
+              ← Back
+            </a>
+        </div>
+      </div>
 
   <!-- Add group -->
   <div class="mt-6 rounded border border-slate-200 p-4 bg-slate-50">
@@ -69,5 +75,7 @@
     {% endif %}
   </div>
 
+    </div>
+  </div>
 </div>
 {% endblock %}

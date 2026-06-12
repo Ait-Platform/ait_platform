@@ -1,0 +1,136 @@
+{% extends "layout.html" %}
+{% block title %}Finance & Assets · SMS{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-5xl py-8">
+
+  <!-- Header + back links -->
+  <div class="mb-4 flex items-start justify-between gap-4">
+    <div>
+      <p class="text-sm text-slate-500">
+        School Management System · Finance &amp; Assets
+      </p>
+      <h1 class="mt-1 text-2xl md:text-3xl font-semibold text-slate-900">
+        Finance &amp; Assets
+      </h1>
+      <p class="mt-1 text-sm text-slate-600">
+        Capture fees, other income, expenses, and basic stock.
+      </p>
+      <p class="mt-1 text-xs text-slate-500">
+        {{ school.short_code or "" }} · {{ school.name }}
+      </p>
+    </div>
+    <div class="flex flex-col items-end gap-1 text-xs">
+      <a href="{{ url_for('sms_bp.subject_home') }}"
+         class="text-slate-600 hover:text-slate-900">
+        ← Back to SMS home
+      </a>
+      <a href="{{ url_for('auth_bp.learner_subject_dashboard', subject='sms') }}"
+         class="text-slate-600 hover:text-slate-900">
+        ← Back to program dashboard
+      </a>
+    </div>
+  </div>
+
+  <!-- Finance nav -->
+  <nav class="mb-6 border-b border-slate-200 pb-2 flex flex-wrap gap-2 text-sm">
+    <a href="{{ url_for('sms_bp.finance_transactions') }}"
+       class="px-3 py-1.5 rounded-md text-slate-700 hover:bg-slate-100">
+      Cashbook
+    </a>
+
+    <!--a href="{{ url_for('sms_bp.finance_categories') }}"
+       class="px-3 py-1.5 rounded-md text-slate-700 hover:bg-slate-100">
+      Finance categories
+    </a-->
+
+    <!--a href="{{ url_for('sms_bp.finance_audit') }}"
+      class="{% if request.endpoint == 'sms_bp.finance_audit' %}bg-slate-900 text-white{% else %}text-slate-700 hover:text-slate-900{% endif %} rounded-md px-3 py-2 text-sm font-medium">
+      Audit
+    </a-->
+
+  {#% if has_sms_audit_nav_access() %#}
+    <!--a href="{{ url_for('sms_bp.finance_audit') }}"
+      class="{% if request.endpoint == 'sms_bp.finance_audit' %}bg-slate-900 text-white{% else %}text-slate-700 hover:text-slate-900{% endif %} rounded-md px-3 py-2 text-sm font-medium">
+      Audit
+    </a-->
+  {#% endif %#}
+
+    <a href="{{ url_for('sms_bp.finance_summary') }}"
+       class="px-3 py-1.5 rounded-md text-slate-700 hover:bg-slate-100">
+      Income statement &amp; fees helper
+    </a>
+
+    <!-- Overview = current page, placed at the end -->
+    <span class="px-3 py-1.5 rounded-md bg-slate-900 text-white font-medium">
+      Overview
+    </span>
+
+    <span class="ml-auto px-3 py-1.5 text-xs text-slate-400">
+      Assets &amp; stock (future module)
+    </span>
+  </nav>
+
+  <!-- Single overview tile -->
+  <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm text-sm md:text-base text-slate-700">
+    <h2 class="text-base md:text-lg font-semibold text-slate-900">
+      How to use Finance &amp; Assets
+    </h2>
+
+    <div class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <h3 class="text-sm font-semibold text-slate-900">1. Set up finance categories</h3>
+        <p class="mt-1 text-sm text-slate-600">
+          Use <span class="font-semibold">Finance categories</span> to define the main
+          income and expense lines for the school:
+        </p>
+        <ul class="mt-1 list-disc list-inside text-slate-600 text-sm">
+          <li>Income: <em>School fees</em>, <em>Hall hire</em>, <em>Donations</em>, …</li>
+          <li>Expenses: <em>Salaries – GB staff</em>, <em>Electricity</em>, <em>Stationery</em>, …</li>
+          <li>Mark <em>School fees</em> as “fee income” so it links to learners.</li>
+        </ul>
+      </div>
+
+      <div>
+        <h3 class="text-sm font-semibold text-slate-900">2. Capture income &amp; expenses</h3>
+        <p class="mt-1 text-sm text-slate-600">
+          Use the <span class="font-semibold">Cashbook</span> to record everything:
+        </p>
+        <ul class="mt-1 list-disc list-inside text-slate-600 text-sm">
+          <li>Fee payments per learner (cash, EFT, stop orders).</li>
+          <li>Other income such as hall hire, fundraising, donations.</li>
+          <li>Expenses such as salaries, municipal accounts, stationery, etc.</li>
+          <li>Use the bank / receipt reference so you can match cashbook to bank statements later.</li>
+        </ul>
+      </div>
+
+      <div>
+        <h3 class="text-sm font-semibold text-slate-900">3. Review the year</h3>
+        <p class="mt-1 text-sm text-slate-600">
+          The <span class="font-semibold">Income statement &amp; fees helper</span>
+          will summarise:
+        </p>
+        <ul class="mt-1 list-disc list-inside text-slate-600 text-sm">
+          <li>Total fee income vs other income.</li>
+          <li>Main expense lines for the school year.</li>
+          <li>Simple views to help the SGB decide fees for the next year.</li>
+        </ul>
+      </div>
+
+      <div>
+        <h3 class="text-sm font-semibold text-slate-900">4. Assets &amp; stock (coming later)</h3>
+        <p class="mt-1 text-sm text-slate-600">
+          A future module will allow simple tracking of textbooks, devices,
+          furniture and other school resources:
+        </p>
+        <ul class="mt-1 list-disc list-inside text-slate-600 text-sm">
+          <li>Room-level inventories (e.g. Grade 7A classroom).</li>
+          <li>Issue / return records for learners and staff.</li>
+          <li>Flags for lost or damaged items for SGB reporting.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

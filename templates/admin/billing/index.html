@@ -1,35 +1,67 @@
 {% extends "layout.html" %}
 {% block content %}
-<div class="container mx-auto py-10 max-w-4xl">
-  <h1 class="text-2xl font-semibold mb-6">Meter Readings</h1>
+<div class="p-10 max-w-5xl mx-auto">
+  <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+    <!-- Top color strip -->
+    <div class="h-2 w-full bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500"></div>
+    
+    <!-- Row 1: Header -->
+    <div class="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+      <div>
+        <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight">Billing Administration</h1>
+        <p class="text-sm text-slate-500 mt-1">Manage meters, readings, and generated statements.</p>
+      </div>
+      <a href="{{ url_for('bridge_bp.bridge') }}" class="inline-flex items-center text-sm font-medium text-slate-500 hover:text-slate-800 transition bg-white hover:bg-slate-50 px-4 py-2 rounded-lg border border-slate-200 shadow-sm">
+        <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+        Back to Bridge
+      </a>
+    </div>
 
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-    <a href="{{ url_for('admin_bp.readings_enter') }}" class="block rounded-xl border p-6 hover:bg-slate-50">
-      <h2 class="font-medium">Enter Readings</h2>
-      <p class="text-sm text-slate-500">Capture monthly readings per meter.</p>
-    </a>
+    <!-- Inner Content -->
+    <div class="p-8">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <a href="{{ url_for('admin_bp.readings_enter') }}" class="block rounded-xl border border-emerald-200 bg-emerald-50 p-6 hover:bg-emerald-100 transition-colors">
+          <h2 class="font-medium text-emerald-900">Enter Readings</h2>
+          <p class="text-sm text-emerald-700 mt-1">Capture monthly readings per meter.</p>
+        </a>
 
-    <a href="{{ url_for('admin_bp.readings_view') }}" class="block rounded-xl border p-6 hover:bg-slate-50">
-      <h2 class="font-medium">View Readings</h2>
-      <p class="text-sm text-slate-500">Filter by tenant, meter, or date range.</p>
-    </a>
+        <a href="{{ url_for('admin_bp.readings_view') }}" class="block rounded-xl border border-sky-200 bg-sky-50 p-6 hover:bg-sky-100 transition-colors">
+          <h2 class="font-medium text-sky-900">View Readings</h2>
+          <p class="text-sm text-sky-700 mt-1">Filter by tenant, meter, or date range.</p>
+        </a>
 
-    <a href="{{ url_for('admin_bp.readings_consumption') }}" class="block rounded-xl border p-6 hover:bg-slate-50">
-      <h2 class="font-medium">Compute Consumption</h2>
-      <p class="text-sm text-slate-500">Monthly deltas vs previous month.</p>
-    </a>
+        <a href="{{ url_for('admin_bp.readings_consumption') }}" class="block rounded-xl border border-amber-200 bg-amber-50 p-6 hover:bg-amber-100 transition-colors">
+          <h2 class="font-medium text-amber-900">Compute Consumption</h2>
+          <p class="text-sm text-amber-700 mt-1">Monthly deltas vs previous month.</p>
+        </a>
 
-    <!-- templates/.../admin/billing/index.html (your readings dashboard) -->
-    <!-- Single tile (kept as “Export / Print” but opens Capture/Picker) -->
-    <a href="{{ url_for('admin_bp.muni_accounts') }}"
-      class="block rounded-xl border p-6 hover:bg-slate-50">
-      <h2 class="font-medium">Export / Print</h2>
-      <p class="text-sm text-slate-500">Open municipal Capture, then jump to Exports.</p>
-    </a>
+        <!-- templates/.../admin/billing/index.html (your readings dashboard) -->
+        <a href="{{ url_for('admin_bp.muni_accounts') }}"
+          class="block rounded-xl border border-rose-200 bg-rose-50 p-6 hover:bg-rose-100 transition-colors">
+          <h2 class="font-medium text-rose-900">Export / Print</h2>
+          <p class="text-sm text-rose-700 mt-1">Open municipal Capture, then jump to Exports.</p>
+        </a>
 
+        <!-- New Tenants / Statements Card -->
+        <a href="{{ url_for('admin_bp.billing_tenants') }}" class="block rounded-xl border border-blue-200 bg-blue-50 p-6 hover:bg-blue-100 transition-colors">
+          <h2 class="font-medium text-blue-900">Tenants & SOA</h2>
+          <p class="text-sm text-blue-700 mt-1">View tenants, manage ledgers, and generate Statements of Account (SOA).</p>
+        </a>
 
+        <!-- New Tariffs Card -->
+        <a href="{{ url_for('admin_bp.billing_tariffs') }}" class="block rounded-xl border border-purple-200 bg-purple-50 p-6 hover:bg-purple-100 transition-colors">
+          <h2 class="font-medium text-purple-900">Tariffs & Rates</h2>
+          <p class="text-sm text-purple-700 mt-1">Update utility rates, water tiers, and fixed charges directly from municipality bills.</p>
+        </a>
 
+        <!-- Metro Reconciliation -->
+        <a href="{{ url_for('admin_bp.muni_recon_statement') }}" class="block rounded-xl border border-teal-200 bg-teal-50 p-6 hover:bg-teal-100 transition-colors">
+          <h2 class="font-medium text-teal-900">Metro Reconciliation</h2>
+          <p class="text-sm text-teal-700 mt-1">Reconcile calculated MetSoa utility charges against actual Metro payments.</p>
+        </a>
 
+      </div>
+    </div>
   </div>
 </div>
 {% endblock %}

@@ -1,0 +1,151 @@
+{% extends "layout.html" %}
+{% block content %}
+
+<div class="max-w-4xl mx-auto bg-white shadow rounded overflow-hidden">
+
+  <!-- Top strip -->
+  <div class="bg-indigo-600 h-2"></div>
+
+  <!-- Header -->
+  <div class="flex justify-between items-center px-6 py-4 border-b">
+
+    <h2 class="text-xl font-bold text-gray-800">
+      {{ segment.name }}
+    </h2>
+
+    <a href="{{ url_for('cultural_bp.pageant_dashboard',
+        enrollment_id=enrollment.id,
+        category_id=category.id) }}"
+       class="bg-gray-200 text-gray-700 px-3 py-1 rounded hover:bg-gray-300">
+      Back
+    </a>
+
+  </div>
+
+  <!-- Body -->
+  <div class="px-6 py-4">
+
+    <p class="text-gray-600 mb-4">
+      Upload or update your {{ segment.name }} video
+      {% if show %} for {{ show.title }}{% endif %}
+    </p>
+
+    <!-- Upload -->
+    <form method="POST" enctype="multipart/form-data" class="mb-6">
+
+      {{ form.hidden_tag() }}
+
+      <input type="file"
+             name="video"
+             accept="video/*"
+             required
+             class="block w-full text-sm text-gray-600 border rounded px-2 py-1 mb-2">
+
+      <button type="submit"
+              class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">
+        Save
+      </button>
+
+    </form>
+
+    <!-- Segment Navigation -->
+    <div class="mt-8 pt-6 border-t">
+
+      <!-- Flash messages above segments -->
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <div class="mb-6">
+          {% for category, message in messages %}
+            <div class="mb-2 p-3 rounded text-sm {% if category == 'success' %}bg-green-100 text-green-800 border-green-400{% elif category == 'error' %}bg-red-100 text-red-800 border-red-400{% else %}bg-blue-100 text-blue-800 border-blue-400{% endif %} border shadow-sm font-medium">
+              {{ message }}
+            </div>
+          {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+
+      {% if submission %}
+        <div class="mb-6 bg-indigo-50 p-4 border border-indigo-100 rounded-lg shadow-sm">
+          <h4 class="text-lg font-semibold text-indigo-900">Success!</h4>
+          <p class="text-indigo-700 text-sm mt-1">You can view your uploaded video below. To continue, simply click the "Start" action for another segment in the list below. If you're not ready to proceed, you can safely leave or click "Back" and return to complete this later.</p>
+        </div>
+      {% endif %}
+
+      {% set total_segments = segments|length %}
+      {% set uploaded_segments = submissions|selectattr("status", "equalto", "uploaded")|list|length %}
+      {% set remaining_segments = total_segments - uploaded_segments %}
+
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-4">
+        <h3 class="text-lg font-semibold text-gray-800 mb-2 sm:mb-0">
+          Segments
+        </h3>
+        <span class="text-sm font-medium {% if remaining_segments == 0 %}text-green-700 bg-green-100 border-green-200{% else %}text-indigo-700 bg-indigo-50 border-indigo-200{% endif %} px-3 py-1 rounded-full border shadow-sm">
+          {{ uploaded_segments }} submitted, {{ remaining_segments }} left
+        </span>
+      </div>
+
+      <ul class="space-y-2">
+
+        {% for seg in segments %}
+
+          {% set seg_submission = submissions
+              |selectattr("segment_type", "equalto", seg.name)
+              |first %}
+
+          <li class="flex justify-between items-center border rounded px-3 py-2">
+
+            <span class="{% if seg.id == segment.id %}font-semibold text-indigo-700{% endif %}">
+              {{ seg.name }}
+            </span>
+
+            {% if seg.id == segment.id %}
+              <span class="text-indigo-600 font-medium">Current</span>
+
+            {% elif seg_submission and seg_submission.status == "uploaded" %}
+              <a href="{{ url_for('cultural_bp.segment_form',
+                  enrollment_id=enrollment.id,
+                  show_id=show.id,
+                  category_id=category.id,
+                  segment_id=seg.id) }}"
+                 class="text-green-600 hover:underline">
+                View
+              </a>
+
+            {% else %}
+              <a href="{{ url_for('cultural_bp.segment_form',
+                  enrollment_id=enrollment.id,
+                  show_id=show.id,
+                  category_id=category.id,
+                  segment_id=seg.id) }}"
+                 class="text-indigo-600 hover:underline">
+                Start
+              </a>
+            {% endif %}
+
+          </li>
+
+        {% endfor %}
+
+      </ul>
+
+    </div>
+
+    <!-- Preview -->
+    {% if submission %}
+      <div class="mt-6">
+        
+        <p class="text-gray-700 mb-2">Current file saved. You can upload a new one above to replace it if needed.</p>
+        <video controls class="w-full mt-2 rounded border shadow-sm">
+          <source src="{{ url_for('cultural_bp.uploaded_file', filename=submission.video_url) }}" type="video/mp4">
+        </video>
+        
+      </div>
+    {% else %}
+      <p class="text-red-600 mt-6">No submission yet (Pending)</p>
+    {% endif %}
+
+  </div>
+
+</div>
+
+{% endblock %}

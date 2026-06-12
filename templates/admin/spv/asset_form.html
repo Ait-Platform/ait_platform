@@ -1,0 +1,156 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-8">
+
+    <!-- Header -->
+    <div class="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden mb-8">
+
+        <div class="h-2 bg-emerald-600"></div>
+
+        <div class="p-8 flex items-start justify-between">
+
+            <div>
+
+                <p class="text-sm font-semibold text-emerald-600 mb-2">
+                    SPV Administration
+                </p>
+
+                <h1 class="text-4xl font-bold text-slate-900">
+                    Upload Asset
+                </h1>
+
+                <p class="text-slate-600 mt-3">
+                    Upload site plans, zoning certificates, images, maps and investment documents.
+                </p>
+
+            </div>
+
+            <a href="{{ url_for('spv_admin_bp.asset_list') }}"
+               class="text-sm text-slate-600 hover:text-slate-900">
+
+                ← Back
+
+            </a>
+
+        </div>
+
+    </div>
+
+    <!-- Form -->
+    <div class="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
+
+        <div class="h-2 bg-emerald-600"></div>
+
+        <form method="POST"
+              enctype="multipart/form-data"
+              class="p-8 space-y-8">
+
+            {{ form.hidden_tag() }}
+
+            <!-- Errors -->
+            {% for field, errors in form.errors.items() %}
+                {% for error in errors %}
+                    <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-2xl text-sm">
+                        {{ error }}
+                    </div>
+                {% endfor %}
+            {% endfor %}
+
+            <!-- Section -->
+            <div class="space-y-2">
+
+                <label class="text-sm font-semibold text-slate-700">
+                    Section
+                </label>
+
+                {{ form.section_id(
+                    class="w-full rounded-2xl border border-slate-200 px-4 py-3 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                ) }}
+
+            </div>
+
+            <!-- Title -->
+            <div class="space-y-2">
+
+                <label class="text-sm font-semibold text-slate-700">
+                    Asset Title
+                </label>
+
+                {{ form.title_type(
+                    class="w-full rounded-2xl border border-slate-200 px-4 py-3 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500",
+                    placeholder="Example: Municipality Consent Letter"
+                ) }}
+
+            </div>
+
+            <!-- Asset Type -->
+            <div class="space-y-2">
+
+                <label class="text-sm font-semibold text-slate-700">
+                    Asset Type
+                </label>
+
+                {{ form.asset_type(
+                    class="w-full rounded-2xl border border-slate-200 px-4 py-3 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                ) }}
+
+            </div>
+
+            <!-- Upload -->
+            <div class="space-y-2">
+
+                <label class="text-sm font-semibold text-slate-700">
+                    Upload File
+                </label>
+
+                <div class="border-2 border-dashed border-slate-200 rounded-3xl p-8 bg-slate-50">
+
+                    {{ form.file(
+                        class="w-full text-sm text-slate-700"
+                    ) }}
+
+                    <p class="text-xs text-slate-500 mt-3">
+                        Supported formats: JPG, PNG, WEBP, PDF
+                    </p>
+
+                </div>
+
+            </div>
+
+            <!-- External URL -->
+            <div class="space-y-2">
+
+                <label class="text-sm font-semibold text-slate-700">
+                    External URL
+                </label>
+
+                {{ form.external_url(
+                    class="w-full rounded-2xl border border-slate-200 px-4 py-3 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500",
+                    placeholder="Optional YouTube or external document link"
+                ) }}
+
+            </div>
+
+            <!-- Actions -->
+            <div class="flex items-center justify-end gap-4 pt-4">
+
+                <a href="{{ url_for('spv_admin_bp.asset_list') }}"
+                   class="px-5 py-3 rounded-2xl border border-slate-200 text-slate-700 hover:bg-slate-50 transition">
+
+                    Cancel
+
+                </a>
+
+                {{ form.submit(
+                    class="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-2xl font-semibold transition"
+                ) }}
+
+            </div>
+
+        </form>
+
+    </div>
+
+</div>
+{% endblock %}

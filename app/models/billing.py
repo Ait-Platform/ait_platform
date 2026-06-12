@@ -23,7 +23,13 @@ class BilProperty(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     address = db.Column(db.String(200))
+    municipal_bill_number = db.Column(db.String(100))
     description = db.Column(db.Text)
+    
+    # Financials / Arrangements
+    metro_arrangement_amount = db.Column(db.Float, default=0.0)
+    metro_arrangement_duration = db.Column(db.Integer, default=0)
+    metro_rates_amount = db.Column(db.Float, default=0.0)
 
     # 👤 Link to the manager who owns this property
     manager_id = db.Column(
@@ -39,8 +45,11 @@ class BilMeter(db.Model):
     __table_args__ = {'extend_existing': True}
 
     id = db.Column(db.Integer, primary_key=True)
-    meter_number = db.Column(db.String(50), nullable=False, unique=True)
+    meter_number = db.Column(db.String(50), nullable=False)
     utility_type = db.Column(db.String(50), nullable=False)  # ✅ Add this line
+    parent_meter_id = db.Column(db.Integer, db.ForeignKey('bil_meter.id'), nullable=True)
+    pointing_to = db.Column(db.String(100), nullable=True)
+    municipal_bill_number = db.Column(db.String(100), nullable=True)
 
     # BilMeter
     sectional_unit_id = db.Column(db.Integer, db.ForeignKey('bil_sectional_unit.id'), nullable=False)
@@ -71,6 +80,8 @@ class BilTariff(db.Model):
     block_start = db.Column(db.Float, default=0.0)           # Start of tier (for block/tiered rates)
     block_end = db.Column(db.Float, default=0.0)             # End of tier
     effective_date = db.Column(db.String, nullable=False)    # e.g. '2025-06-01'
+    reduction_factor = db.Column(db.Float, default=1.0)
+    unit = db.Column(db.String(20))
 
 class BilFixedItem(db.Model):
     __tablename__ = 'bil_fixed_item'
@@ -146,6 +157,14 @@ class BilLease(db.Model):
     rent_amount  = db.Column(db.Numeric, nullable=True)
     day_of_month = db.Column(db.Integer, nullable=True)
     notes        = db.Column(db.Text, nullable=True)
+    
+    # Pass-Through Charges
+    tenant_arrangement_charge = db.Column(db.Float, default=0.0)
+    tenant_rates_charge = db.Column(db.Float, default=0.0)
+    tenant_arrears_total = db.Column(db.Float, default=0.0)
+    tenant_arrears_installment = db.Column(db.Float, default=0.0)
+    agent_fee_amount = db.Column(db.Float, default=0.0)
+    agent_fee_target = db.Column(db.String(50), default='owner') # 'tenant' or 'owner'
 
     tenant = db.relationship("BilTenant", back_populates="leases", lazy="joined")
 
@@ -166,6 +185,7 @@ class BilSectionalUnit(db.Model):
 
     id   = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(120), nullable=False, unique=True, index=True)
+    property_id = db.Column(db.Integer, db.ForeignKey('bil_property.id'), nullable=True)
 
     # Match BilMeter.sectional_unit  (cascade delete meters when a unit is removed)
     meters = db.relationship(
@@ -184,6 +204,21 @@ class BilSectionalUnit(db.Model):
     def __repr__(self):
         return f"<BilSectionalUnit id={self.id} name={self.name!r}>"
 
+
+class BilBankDetail(db.Model):
+    __tablename__ = "bil_bank_detail"
+
+    id = db.Column(db.Integer, primary_key=True)
+    bank_name = db.Column(db.String(100), nullable=False)
+    branch_name = db.Column(db.String(100))
+    branch_code = db.Column(db.String(50))
+    account_number = db.Column(db.String(100), nullable=False)
+    account_holder = db.Column(db.String(150))
+    account_type = db.Column(db.String(50))
+
+    def __repr__(self):
+        return f"<BilBankDetail {self.bank_name} - {self.account_number}>"
+
 class BilTenant(db.Model):
     __tablename__ = "bil_tenant"
 
@@ -198,7 +233,11 @@ class BilTenant(db.Model):
     metro_account_no     = db.Column(db.String(64), index=True)
     rent_includes_metro  = db.Column(db.Integer, default=0, nullable=False)  # 0/1
     email                = db.Column(db.String(255), index=True)
+    email_statements     = db.Column(db.Boolean, default=False)
     phone                = db.Column(db.String(50), index=True)
+    bank_detail_id = db.Column(db.Integer, db.ForeignKey('bil_bank_detail.id'), nullable=True)
+    bank_detail = db.relationship("BilBankDetail")
+
     notes                = db.Column(db.Text)
 
     leases = db.relationship(
@@ -234,13 +273,67 @@ class BilStatement(db.Model):
 
     tenant = db.relationship("BilTenant", back_populates="statements")
 
-__table_args__ = (
-        CheckConstraint("rent_includes_metro IN (0, 1)", name="ck_tenant_rent_includes_metro"),
-        # Optional: prevent empty string names
-        CheckConstraint("length(trim(coalesce(name, ''))) > 0", name="ck_tenant_name_not_empty"),
-        # Helpful composite index for admin search
-        Index("ix_tenant_name_unit", "name", "sectional_unit_id"),
-    )
+
+class BilTenantLedger(db.Model):
+    __tablename__ = "bil_tenant_ledger"
+
+    id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey('bil_tenant.id'), nullable=False, index=True)
+    txn_date = db.Column(db.DateTime)
+    month = db.Column(db.String(7))
+    description = db.Column(db.String(255))
+    kind = db.Column(db.String(50))
+    amount = db.Column(db.Numeric(10, 2))
+    ref = db.Column(db.String(255))
+    
+    tenant = db.relationship("BilTenant", backref="ledger_entries")
+
+
+class BilTenantRecurring(db.Model):
+    __tablename__ = "bil_tenant_recurring"
+
+    id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey('bil_tenant.id'), nullable=False, index=True)
+    description = db.Column(db.String(255))
+    kind = db.Column(db.String(50))
+    amount = db.Column(db.Numeric(10, 2))
+    day_of_month = db.Column(db.Integer, default=1)
+    is_active = db.Column(db.Integer, default=1)
+
+    tenant = db.relationship("BilTenant", backref="recurring_items")
+
+class BilMetsoaTenantMonth(db.Model):
+    __tablename__ = "bil_metsoa_tenant_month"
+    id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, nullable=False)
+    month = db.Column(db.String(7), nullable=False)
+    ws_total = db.Column(db.Float, default=0.0)
+    sd_total = db.Column(db.Float, default=0.0)
+    water_total = db.Column(db.Float, default=0.0)
+    updated_at = db.Column(db.DateTime)
+    __table_args__ = (db.UniqueConstraint('tenant_id', 'month', name='uq_metsoa_tenant_month'),)
+
+class BilMetsoaMeterMonth(db.Model):
+    __tablename__ = "bil_metsoa_meter_month"
+    id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, nullable=False)
+    meter_id = db.Column(db.Integer, nullable=False)
+    month = db.Column(db.String(7), nullable=False)
+    utility_type = db.Column(db.String(50))
+    prev_date = db.Column(db.String(50))
+    prev_read = db.Column(db.Float)
+    curr_date = db.Column(db.String(50))
+    curr_read = db.Column(db.Float)
+    days = db.Column(db.Integer)
+    consumption = db.Column(db.Float)
+    elec_rate = db.Column(db.Float)
+    elec_due = db.Column(db.Float)
+    ws_total = db.Column(db.Float, default=0.0)
+    sd_total = db.Column(db.Float, default=0.0)
+    water_cost = db.Column(db.Float, default=0.0)
+    total_due = db.Column(db.Float, default=0.0)
+    updated_at = db.Column(db.DateTime)
+    __table_args__ = (db.UniqueConstraint('tenant_id', 'meter_id', 'month', name='uq_metsoa_meter_month'),)
 
 def __repr__(self):
         return f"<BilTenant id={self.id} name={self.name!r} active={self.is_active}>"
@@ -262,7 +355,74 @@ def _validate_phone(self, key, value):
 
 
 
+# --- Municipal Accounts & Ledger ---
 
+class RefMuniOwner(db.Model):
+    __tablename__ = "ref_muni_owner"
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False, unique=True)
 
+class BilMuniAccount(db.Model):
+    __tablename__ = "bil_muni_account"
+    id = db.Column(db.Integer, primary_key=True)
+    account_number = db.Column(db.String(50), nullable=False, unique=True)
+    owner_id = db.Column(db.Integer, db.ForeignKey('ref_muni_owner.id', ondelete='RESTRICT'), nullable=False)
+    muni_email = db.Column(db.String(255))
+    water_meter_id = db.Column(db.Integer, db.ForeignKey('bil_meter.id', ondelete='SET NULL'))
+    elec_meter_id = db.Column(db.Integer, db.ForeignKey('bil_meter.id', ondelete='SET NULL'))
+    muni_water_meter_no = db.Column(db.String(50))
+    muni_water_ref = db.Column(db.String(50))
+    muni_elec_meter_no = db.Column(db.String(50))
+    muni_elec_ref = db.Column(db.String(50))
 
+class BilMuniCycleTotals(db.Model):
+    __tablename__ = "bil_muni_cycle_totals"
+    id = db.Column(db.Integer, primary_key=True)
+    account_id = db.Column(db.Integer, db.ForeignKey('bil_muni_account.id', ondelete='CASCADE'), nullable=False)
+    period = db.Column(db.String(7), nullable=False)
+    balance = db.Column(db.Float, default=0.0, nullable=False)
+    due = db.Column(db.Float, default=0.0, nullable=False)
+    arrears = db.Column(db.Float, default=0.0, nullable=False)
+    paid = db.Column(db.Float, default=0.0, nullable=False)
+    __table_args__ = (db.UniqueConstraint('account_id', 'period', name='uq_muni_cycle_account_period'),)
 
+class BilMetsoaCycle(db.Model):
+    __tablename__ = "bil_metsoa_cycle"
+    id = db.Column(db.Integer, primary_key=True)
+    account_id = db.Column(db.Integer, db.ForeignKey('bil_muni_account.id', ondelete='CASCADE'), nullable=False)
+    period = db.Column(db.String(7), nullable=False)
+    metsoa_due = db.Column(db.Float, default=0.0, nullable=False)
+    __table_args__ = (db.UniqueConstraint('account_id', 'period', name='uq_metsoa_cycle_account_period'),)
+
+class BilMeterChargeMap(db.Model):
+    __tablename__ = "bil_meter_charge_map"
+    id = db.Column(db.Integer, primary_key=True)
+    meter_id = db.Column(db.Integer, db.ForeignKey('bil_meter.id', ondelete='CASCADE'), nullable=False)
+    charge_code = db.Column(db.String(50), nullable=False)
+    utility_type = db.Column(db.String(50))
+    effective_start = db.Column(db.Date)
+    effective_end = db.Column(db.Date)
+    is_enabled = db.Column(db.Integer, default=1)
+    tariff_code_override = db.Column(db.String(50))
+
+class BilMuniPayment(db.Model):
+    __tablename__ = "bil_muni_payment"
+    id = db.Column(db.Integer, primary_key=True)
+    account_id = db.Column(db.Integer, db.ForeignKey('bil_muni_account.id', ondelete='CASCADE'), nullable=False)
+    month = db.Column(db.String(7), nullable=False) # e.g. '2026-06'
+    payment_date = db.Column(db.Date, nullable=False)
+    amount = db.Column(db.Float, default=0.0, nullable=False)
+    reference = db.Column(db.String(100))
+    account = db.relationship('BilMuniAccount', backref=db.backref('payments', lazy=True, cascade='all, delete-orphan'))
+
+class BilMetroReadingLog(db.Model):
+    __tablename__ = "bil_metro_reading_log"
+    id = db.Column(db.Integer, primary_key=True)
+    meter_number = db.Column(db.String(50), nullable=False)
+    meter_id = db.Column(db.Integer, db.ForeignKey('bil_meter.id', ondelete='CASCADE'), nullable=False)
+    account_number = db.Column(db.String(50), nullable=False)
+    reading_date = db.Column(db.Date, nullable=False)
+    reading_value = db.Column(db.Float, nullable=False)
+    billing_period = db.Column(db.String(7), nullable=False) # e.g. '2026-06'
+    metro_email = db.Column(db.String(255))
+    sent_at = db.Column(db.DateTime, default=datetime.utcnow)

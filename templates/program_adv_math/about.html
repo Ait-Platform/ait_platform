@@ -1,0 +1,95 @@
+{% extends "layout.html" %}
+
+{% block title %}About Advanced Mathematics{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto px-4 py-8">
+
+  <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+    <!-- Color strip on top -->
+    <div class="h-2 bg-cyan-600"></div>
+
+    <div class="p-6 md:p-8 space-y-6">
+      <!-- First Row: Title (left) & Back Button (right) -->
+      <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+        <div>
+          <h1 class="text-2xl md:text-3xl font-bold text-slate-900">About Advanced Mathematics</h1>
+          <p class="text-sm text-slate-500 mt-1">Course Curriculum & Details</p>
+        </div>
+        <a href="{{ url_for('public_bp.welcome') }}"
+           class="inline-flex items-center gap-2 rounded border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition shrink-0">
+          <span>←</span><span>Back</span>
+        </a>
+      </div>
+
+      <!-- Main description -->
+      <div class="bg-slate-50 rounded-2xl p-6 text-slate-700 leading-relaxed text-sm md:text-base">
+        <div class="prose prose-lg text-gray-600 mx-auto max-w-none">
+            <p class="mb-6">
+                AIT prepares private candidates for the NSC Grade 12 Advanced Mathematics examinations. Our rigorous, AI-driven curriculum focuses on building true mastery rather than simple memorization.
+            </p>
+            
+            <h3 class="text-xl font-bold text-gray-800 mb-3">Our Core Modules</h3>
+            <ul class="list-disc pl-5 mb-6 space-y-2">
+                <li><strong>Numbers:</strong> Number systems, surds, exponents, logarithms</li>
+                <li><strong>Algebra:</strong> Equations, inequalities, sequences & series</li>
+                <li><strong>Functions & Graphs:</strong> Linear, quadratic, exponential, logarithmic, trigonometric functions</li>
+                <li><strong>Calculus:</strong> Differentiation, integration, applications</li>
+                <li><strong>Probability & Statistics:</strong> Data handling, probability rules, distributions</li>
+                <li><strong>Geometry & Trigonometry:</strong> Euclidean geometry, analytical geometry, trigonometric identities</li>
+            </ul>
+
+            <h3 class="text-xl font-bold text-gray-800 mt-10 mb-4">Support for Private Candidates</h3>
+            <p class="mb-6 text-slate-600">To support private candidates (students who failed or want to complete their NSC outside school), we strictly align with the Department of Basic Education (DBE) regulations. Here’s the structured process we follow to ensure legitimacy and academic excellence:</p>
+            
+            <div class="grid md:grid-cols-2 gap-6 mb-10">
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition">
+                    <div class="text-cyan-600 font-black text-4xl mb-2 opacity-20">01</div>
+                    <h4 class="font-bold text-slate-800 mb-2 text-base">Confirm subject eligibility</h4>
+                    <p class="text-slate-600 text-sm leading-relaxed">Check the DBE list of NSC subjects available for private candidates — most core subjects like Mathematics, Physical Sciences, and Languages are included.</p>
+                </div>
+                
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition">
+                    <div class="text-cyan-600 font-black text-4xl mb-2 opacity-20">02</div>
+                    <h4 class="font-bold text-slate-800 mb-2 text-base">Register candidates with DBE</h4>
+                    <p class="text-slate-600 text-sm leading-relaxed">Private learners must register through the provincial education department or online DBE portal during the official registration window.</p>
+                </div>
+
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition">
+                    <div class="text-cyan-600 font-black text-4xl mb-2 opacity-20">03</div>
+                    <h4 class="font-bold text-slate-800 mb-2 text-base">Provide accredited material</h4>
+                    <p class="text-slate-600 text-sm leading-relaxed">Offer past papers, study guides, and structured lessons aligned with the CAPS curriculum to ensure compliance with exam standards.</p>
+                </div>
+
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition">
+                    <div class="text-cyan-600 font-black text-4xl mb-2 opacity-20">04</div>
+                    <h4 class="font-bold text-slate-800 mb-2 text-base">Support exam preparation</h4>
+                    <p class="text-slate-600 text-sm leading-relaxed">Integrate timed practice tests, memoranda, and progress tracking in our app to simulate real exam conditions.</p>
+                </div>
+
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition">
+                    <div class="text-cyan-600 font-black text-4xl mb-2 opacity-20">05</div>
+                    <h4 class="font-bold text-slate-800 mb-2 text-base">Guide exam booking</h4>
+                    <p class="text-slate-600 text-sm leading-relaxed">Direct learners to register for the official NSC exam sittings at designated centres — our app provides the preparation, not the final exam.</p>
+                </div>
+
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition">
+                    <div class="text-cyan-600 font-black text-4xl mb-2 opacity-20">06</div>
+                    <h4 class="font-bold text-slate-800 mb-2 text-base">Offer post-exam support</h4>
+                    <p class="text-slate-600 text-sm leading-relaxed">Help candidates interpret results, plan rewrites if needed, and provide pathways to tertiary or vocational opportunities.</p>
+                </div>
+            </div>
+
+            <div class="text-center mt-8 pt-6 border-t border-slate-200">
+                <a href="{{ url_for('adv_math_bp.payflow') }}" class="inline-block bg-cyan-600 hover:bg-cyan-700 text-white font-semibold py-3 px-8 rounded-xl shadow-md transition">
+                    Pricing & Enrollment
+                </a>
+            </div>
+        </div>
+      </div>
+      
+    </div>
+  </div>
+
+</div>
+{% endblock %}

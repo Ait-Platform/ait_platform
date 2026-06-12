@@ -1628,42 +1628,6 @@ def loss_after():
 
 ALLOWED_ADMIN_ROLES = {"admin", "superadmin"}
 
-@admin_bp.before_request
-def admin_gate():
-    uid   = session.get("user_id")
-    role  = session.get("role") or session.get("user_role")  # tolerate both
-    email = (session.get("user_email") or session.get("email") or "").lower()
-
-    if not uid:
-        current_app.logger.warning("ADMIN GATE: no user -> welcome (%s)", request.path)
-        return redirect(url_for("public_bp.welcome"))
-
-    if role in ALLOWED_ADMIN_ROLES:
-        return  # allow
-
-    # Self-heal: if email is on allowlist, elevate
-    if email:
-        try:
-            with db.engine.begin() as conn:
-                ok = conn.execute(
-                    text("SELECT 1 FROM auth_approved_admin WHERE lower(email)=lower(:e) LIMIT 1"),
-                    {"e": email}
-                ).scalar()
-            if ok:
-                session["role"] = "admin"
-                session["user_role"] = "admin"
-                session["is_admin"] = True
-                current_app.logger.info("ADMIN GATE: elevated %s to admin (allowlist)", email)
-                return
-        except Exception as ex:
-            current_app.logger.error("ADMIN GATE allowlist check failed: %r", ex)
-
-    current_app.logger.warning("ADMIN GATE: blocked uid=%s role=%r email=%r -> welcome", uid, role, email)
-    return redirect(url_for("public_bp.welcome"))
-
-
-
-
 def list_recent_runs_for_user(uid: int, limit: int = 50):
     # Use id DESC (fast and format-agnostic) so weird timestamp formats don't hide rows
     sql = """
@@ -2402,7 +2366,7 @@ def loss_responses():
 
     # OPTIONAL but helpful: make sure the result row exists before linking
     try:
-        from app.school_loss.routes import ensure_lca_result  # wherever you defined it
+        from app.subject_loss.services import ensure_lca_result  # wherever you defined it
         ensure_lca_result(rid)
     except Exception:
         pass

@@ -1,0 +1,109 @@
+Statement For All Metro Meters
+Address 21 Almond Road, Warner Beach 4126
+Customer Graham Curtis Clack
+Email grahamclack68@gmail.com
+Amount Due R15 299,75 for  Utilities.
+Date 2026/05/29
+Item Meters Old Date New Date Old ReadNew ReadDays Cons Rate DueAvg
+1 7150696S 2026/04/30 2026/05/29 49546 49553 29 7 3,2795 22,960
+2 9027800S 2026/04/30 2026/05/29 83361 83412 29 51 3,2795 167,250
+3 9027600S 2026/04/30 2026/05/29 25687 25946 29 259 3,2795 849,390
+4 796387S 2026/03/31 2026/04/30 54865 55253 30 388 3,2795 1272,450
+5 2188802S 2026/04/30 2026/05/29 28303 28699 29 396 3,2795 1298,680
+6 9343803S 2026/04/30 2026/05/29 91462 91978 29 516 3,2795 1692,220
+Electricity Sub-Total R5 302,95
+8 BLZ080 2026/04/30 2026/05/29 2828 2889 29 612,1 KL/day
+W&S Cost For # 8 R4 777,38
+S & D Cost #8 R1 251,88
+Total Water Cost For #8 R6 029,26
+14 AGN489 2026/04/30 2026/05/29 14836 14889 29 5,30,2 KL/day
+W&S Cost For # 14 R382,03
+S & D Cost #14 R243,66
+Total Water Cost For #1 R625,69
+20 CXN998 2026/04/30 2026/05/29 597 610 29 130,4 KL/day
+W&S Cost For # 20 R610,94
+S & D Cost #20 R117,09
+Total Water Cost For #2 R728,03
+21 CWR826 2026/04/30 2026/05/29 213 224 29 110,4 KL/day
+W&S Cost For # 21 R512,98
+S & D Cost #21 R95,73
+Total Water Cost For #2 R608,71
+22 CWR820 2026/04/30 2026/05/29 158 167 29 90,3 KL/day
+W&S Cost For # 22 R415,02
+S & D Cost #22 R74,37
+Total Water Cost For #2 R489,39
+23 CWA388 2026/04/30 2026/05/29 279 290 29 110,4 KL/day
+W&S Cost For # 23 R512,98
+S & D Cost #23 R95,73
+Total Water Cost For #2 R608,71
+24 CWA074 2026/04/30 2026/05/29 251 267 29 160,6 KL/day
+W&S Cost For # 24 R757,88
+S & D Cost #24 R149,13
+Total Water Cost For #2 R907,01
+DUE TO ETHEKWINI R15 299,75
+Page 1 of 3
+Statement For All Metro Meters
+Address 21 Almond Road, Warner Beach 4126
+Customer Graham Curtis Clack
+Email grahamclack68@gmail.com
+Amount Due R15 299,75 for  Utilities.
+Date 2026/05/29
+W&S For # 8 Cons Rate Due S&D For #8 Cons Rate Due
+0L-200L/29Days 5,8 40,1 232,58 0L-200L/29Days 5,8 40,1 31,61
+201L-833L/29Days 18,357 47,5 871,96 201L-833L/29Days 18,357 47,5 168,88
+833L-1KL/29Days 4,843 63,3 306,56 833L-1KL/29Days 4,843 63,3 84,95
+1KL-1,5KL/29Days 32 101,84 3258,88 1KL-1,5KL/29Days 32 101,84 876,16
+Surcharge 61 1,48 90,28 Surcharge 61 1,48 90,28
+Water Loss Levy 61 1,48 17,12
+W&S Cost For # 8 4777,38 S & D Cost #8 1251,88
+------------------------- ----- ----- ----- ------------------------- ----- ----- -----
+W&S For # 14 Cons Rate Due S&D For #14 Cons Rate Due
+0L-200L/29Days 5,3 40,1 212,53 0L-200L/29Days 5,3 40,1 28,89
+Surcharge 5,3 1,48 7,84 Surcharge 5,3 1,48 7,84
+Water Loss Levy 5,3 1,48 17,12 Refuse Bins 206,93
+Monthly Management Fee 6 24,09 144,54
+W&S Cost For # 14 382,03 S & D Cost #14 243,66
+------------------------- ----- ----- ----- ------------------------- ----- ----- -----
+W&S For # 20 Cons Rate Due S&D For #20 Cons Rate Due
+0L-200L/29Days 5,8 40,1 232,58 0L-200L/29Days 5,8 40,1 31,61
+201L-833L/29Days 7,2 47,5 342,00 201L-833L/29Days 7,2 47,5 66,24
+Surcharge 13 1,48 19,24 Surcharge 13 1,48 19,24
+Water Loss Levy 13 1,48 17,12
+W&S Cost For # 20 610,94 S & D Cost #20 117,09
+------------------------- ----- ----- ----- ------------------------- ----- ----- -----
+W&S For # 21 Cons Rate Due S&D For #21 Cons Rate Due
+0L-200L/29Days 5,8 40,1 232,58 0L-200L/29Days 5,8 40,1 31,61
+201L-833L/29Days 5,2 47,5 247,00 201L-833L/29Days 5,2 47,5 47,84
+Surcharge 11 1,48 16,28 Surcharge 11 1,48 16,28
+Water Loss Levy 11 1,48 17,12
+W&S Cost For # 21 512,98 S & D Cost #21 95,73
+------------------------- ----- ----- ----- ------------------------- ----- ----- -----
+W&S For # 22 Cons Rate Due S&D For #22 Cons Rate Due
+0L-200L/29Days 5,8 40,1 232,58 0L-200L/29Days 5,8 40,1 31,61
+201L-833L/29Days 3,2 47,5 152,00 201L-833L/29Days 3,2 47,5 29,44
+Surcharge 9 1,48 13,32 Surcharge 9 1,48 13,32
+Water Loss Levy 9 1,48 17,12
+W&S Cost For # 22 415,02 S & D Cost #22 74,37
+------------------------- ----- ----- ----- ------------------------- ----- ----- -----
+W&S For # 23 Cons Rate Due S&D For #23 Cons Rate Due
+0L-200L/29Days 5,8 40,1 232,58 0L-200L/29Days 5,8 40,1 31,61
+201L-833L/29Days 5,2 47,5 247,00 201L-833L/29Days 5,2 47,5 47,84
+Surcharge 11 1,48 16,28 Surcharge 11 1,48 16,28
+Water Loss Levy 11 1,48 17,12
+W&S Cost For # 23 512,98 S & D Cost #23 95,73
+------------------------- ----- ----- ----- ------------------------- ----- ----- -----
+Page 2 of 3
+Statement For All Metro Meters
+Address 21 Almond Road, Warner Beach 4126
+Customer Graham Curtis Clack
+Email grahamclack68@gmail.com
+Amount Due R15 299,75 for  Utilities.
+Date 2026/05/29
+W&S For # 24 Cons Rate Due S&D For #24 Cons Rate Due
+0L-200L/29Days 5,8 40,1 232,58 0L-200L/29Days 5,8 40,1 31,61
+201L-833L/29Days 10,2 47,5 484,50 201L-833L/29Days 10,2 47,5 93,84
+Surcharge 16 1,48 23,68 Surcharge 16 1,48 23,68
+Water Loss Levy 16 1,48 17,12
+W&S Cost For # 24 757,88 S & D Cost #24 149,13
+------------------------- ----- ----- ----- ------------------------- ----- ----- -----
+Page 3 of 3

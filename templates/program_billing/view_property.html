@@ -1,0 +1,135 @@
+{% extends "layout.html" %}
+{% block title %}View Property{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-slate-50 py-10 px-4 flex flex-col items-center">
+  <div class="w-full max-w-4xl bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+    
+    <!-- Top Strip -->
+    <div class="h-2 w-full bg-slate-500"></div>
+
+    <div class="p-8">
+      <div class="flex items-center justify-between mb-8">
+        <div class="flex-1">
+          <h1 class="text-3xl font-extrabold text-slate-800 tracking-tight">{{ property.name }}</h1>
+        </div>
+        <div class="flex-1 flex justify-center">
+          <a href="{{ url_for('billing_bp.edit_property', property_id=property.id) }}" class="px-6 py-2 bg-orange-100 text-orange-700 font-bold rounded-lg hover:bg-orange-200 transition">Edit Settings</a>
+        </div>
+        <div class="flex-1 flex justify-end">
+          <a href="{{ url_for('billing_bp.learner_dashboard') }}" class="flex items-center text-slate-500 hover:text-slate-700 font-bold bg-slate-100 hover:bg-slate-200 px-4 py-2 rounded-lg transition">
+            Back / Cancel
+          </a>
+        </div>
+      </div>
+      
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+        <!-- Property Info -->
+        <div class="bg-slate-50 rounded-xl p-6 border border-slate-200">
+          <h3 class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4">Property Info</h3>
+          <p class="text-slate-800 font-medium text-lg mb-1">{{ property.name }}</p>
+          <p class="text-slate-500 text-sm mb-4">{{ property.address or 'No address provided' }}</p>
+          
+          <h4 class="text-xs font-bold text-slate-400 uppercase mt-4 mb-2">Metro Financials</h4>
+          <div class="flex justify-between items-center py-2 border-b border-slate-200">
+            <span class="text-slate-600 text-sm">Metro Arrangement</span>
+            <span class="font-semibold text-slate-800">R {{ property.metro_arrangement_amount }}</span>
+          </div>
+          <div class="flex justify-between items-center py-2">
+            <span class="text-slate-600 text-sm">Metro Rates</span>
+            <span class="font-semibold text-slate-800">R {{ property.metro_rates_amount }}</span>
+          </div>
+        </div>
+
+        <!-- Tenant Info -->
+        <div class="bg-blue-50 rounded-xl p-6 border border-blue-200">
+          <h3 class="text-sm font-bold text-blue-400 uppercase tracking-wider mb-4">Current Tenant</h3>
+          
+          {% set unit = units[0] if units else None %}
+          {% set tenant = unit.tenants[0] if unit and unit.tenants else None %}
+          {% set lease = tenant.leases[0] if tenant and tenant.leases else None %}
+          
+          {% if tenant %}
+            <p class="text-blue-900 font-bold text-lg mb-1">{{ tenant.name }}</p>
+            <p class="text-blue-600 text-sm mb-4">{{ tenant.email or 'No email' }}</p>
+            
+            <h4 class="text-xs font-bold text-blue-400 uppercase mt-4 mb-2">Tenant Financials</h4>
+            <div class="flex justify-between items-center py-2 border-b border-blue-200">
+              <span class="text-blue-800 text-sm">Base Rent</span>
+              <span class="font-bold text-blue-900">R {{ lease.rent_amount or 0 }}</span>
+            </div>
+            <div class="flex justify-between items-center py-2 border-b border-blue-200">
+              <span class="text-blue-800 text-sm">Arrears Debt</span>
+              <span class="font-bold text-red-600">R {{ lease.tenant_arrears_total or 0 }}</span>
+            </div>
+            <div class="flex justify-between items-center py-2">
+              <span class="text-blue-800 text-sm">Monthly Arrears</span>
+              <span class="font-bold text-red-600">+ R {{ lease.tenant_arrears_installment or 0 }}</span>
+            </div>
+            
+            {% if lease.agent_fee_target == 'tenant' %}
+            <div class="mt-4 inline-block bg-green-100 text-green-800 text-xs font-bold px-2 py-1 rounded">Pays Agent Fee</div>
+            {% else %}
+            <div class="mt-4 inline-block bg-slate-200 text-slate-600 text-xs font-bold px-2 py-1 rounded">Landlord Pays Agent Fee</div>
+            {% endif %}
+            
+          {% else %}
+            <p class="text-slate-500 italic">No tenant assigned.</p>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Meters List -->
+      <h3 class="text-lg font-bold text-slate-800 mb-4">Meter Configuration</h3>
+      <div class="bg-white border border-slate-200 rounded-xl overflow-hidden">
+        <table class="w-full text-left border-collapse">
+          <thead>
+            <tr class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200">
+              <th class="px-6 py-3 font-semibold">Meter Number</th>
+              <th class="px-6 py-3 font-semibold">Type</th>
+              <th class="px-6 py-3 font-semibold">Location / Pointing To</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-200">
+            {% if units and units[0].meters %}
+              {% for meter in units[0].meters %}
+              <tr class="hover:bg-slate-50">
+                <td class="px-6 py-4 font-medium text-slate-800">
+                  {{ meter.meter_number }}
+                  
+                  {% set ns = namespace(is_bulk=false) %}
+                  {% for m in units[0].meters %}
+                    {% if m.parent_meter_id == meter.id %}
+                      {% set ns.is_bulk = true %}
+                    {% endif %}
+                  {% endfor %}
+                  
+                  {% if ns.is_bulk %}
+                    <span class="ml-2 px-2 py-1 rounded-md text-[10px] font-bold bg-purple-100 text-purple-700 border border-purple-200 uppercase">Bulk</span>
+                  {% elif meter.parent_meter_id %}
+                    <span class="ml-2 px-2 py-1 rounded-md text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200 uppercase">Sub-Meter</span>
+                  {% else %}
+                    <span class="ml-2 px-2 py-1 rounded-md text-[10px] font-bold bg-green-100 text-green-700 border border-green-200 uppercase">Independent</span>
+                  {% endif %}
+                </td>
+                <td class="px-6 py-4 capitalize text-sm text-slate-600">
+                  <span class="px-2 py-1 rounded-full text-xs font-bold {% if meter.utility_type == 'water' %}bg-blue-100 text-blue-700{% else %}bg-yellow-100 text-yellow-700{% endif %}">
+                    {{ meter.utility_type }}
+                  </span>
+                </td>
+                <td class="px-6 py-4 text-sm text-slate-600">{{ meter.pointing_to or 'Main Unit' }}</td>
+              </tr>
+              {% endfor %}
+            {% else %}
+              <tr>
+                <td colspan="3" class="px-6 py-8 text-center text-slate-500 italic">No meters linked to this property.</td>
+              </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}

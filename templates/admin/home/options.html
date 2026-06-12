@@ -1,0 +1,137 @@
+{% extends "layout.html" %}
+
+{% block content %}
+
+<div class="max-w-7xl mx-auto py-8">
+
+```
+<div class="flex justify-between items-center mb-6">
+
+    <h1 class="text-3xl font-bold">
+        HOME Options
+    </h1>
+
+    <a
+        href="{{ url_for('admin_bp.add_option') }}"
+        class="px-4 py-2 rounded-lg bg-blue-600 text-white"
+    >
+        Add Option
+    </a>
+
+</div>
+
+<div class="bg-white rounded-xl shadow overflow-hidden">
+
+    <table class="min-w-full">
+
+        <thead class="bg-slate-100">
+
+            <tr>
+
+                <th class="px-4 py-3 text-left">
+                    ID
+                </th>
+
+                <th class="px-4 py-3 text-left">
+                    Question
+                </th>
+
+                <th class="px-4 py-3 text-left">
+                    Option
+                </th>
+
+                <th class="px-4 py-3 text-left">
+                    Sort
+                </th>
+
+                <th class="px-4 py-3 text-right">
+                    Actions
+                </th>
+
+            </tr>
+
+        </thead>
+
+        <tbody>
+
+            {% for option in options %}
+
+            <tr class="border-t">
+
+                <td class="px-4 py-3">
+                    {{ option.id }}
+                </td>
+
+                <td class="px-4 py-3">
+                    {{ option.question.question }}
+                </td>
+
+                <td class="px-4 py-3">
+                    {{ option.option_text }}
+                </td>
+
+                <td class="px-4 py-3">
+                    {{ option.sort_order }}
+                </td>
+
+                <td class="px-4 py-3 text-right">
+
+                    <a href="{{ url_for('admin_bp.edit_option', option_id=option.id) }}"
+                       class="text-blue-600 mr-3">
+                        Edit
+                    </a>
+
+                    <form
+                        method="POST"
+                        action="{{ url_for(
+                            'admin_bp.delete_option',
+                            option_id=option.id
+                        ) }}"
+                        class="inline"
+                    >
+
+                        <input
+                            type="hidden"
+                            name="csrf_token"
+                            value="{{ csrf_token() }}"
+                        >
+
+                        <button
+                            type="submit"
+                            class="text-red-600"
+                            onclick="return confirm('Delete this option?')"
+                        >
+                            Delete
+                        </button>
+
+                    </form>
+
+                </td>
+
+            </tr>
+
+            {% else %}
+
+            <tr>
+
+                <td colspan="5"
+                    class="px-4 py-8 text-center">
+
+                    No options found.
+
+                </td>
+
+            </tr>
+
+            {% endfor %}
+
+        </tbody>
+
+    </table>
+
+</div>
+```
+
+</div>
+
+{% endblock %}

@@ -1,0 +1,92 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="p-6">
+
+  <!-- Tile -->
+  <div class="bg-white shadow-lg rounded-lg overflow-hidden mb-8">
+    <!-- Color Strip -->
+    <div class="h-2 bg-indigo-600"></div>
+
+    <!-- Header Row -->
+    <div class="flex justify-between items-center p-6">
+      <!-- Left: Title -->
+      <h1 class="text-2xl font-bold text-gray-800">Showcase Dashboard</h1>
+
+      <!-- Right: Back button -->
+      {% if origin == 'talent' %}
+        <a href="{{ url_for('cultural_bp.talent_dashboard', enrollment_id=enrollment_id) }}"
+           class="bg-gray-300 text-gray-800 px-4 py-2 rounded hover:bg-gray-400">Back</a>
+      {% elif origin == 'parent' %}
+        <a href="{{ url_for('cultural_bp.parent_dashboard', enrollment_id=enrollment_id) }}"
+           class="bg-gray-300 text-gray-800 px-4 py-2 rounded hover:bg-gray-400">Back</a>
+      {% elif origin == 'supporter' %}
+        <a href="{{ url_for('cultural_bp.supporter_dashboard', enrollment_id=enrollment_id) }}"
+           class="bg-gray-300 text-gray-800 px-4 py-2 rounded hover:bg-gray-400">Back</a>
+      {% elif origin == 'sponsor' %}
+        <a href="{{ url_for('cultural_bp.sponsor_dashboard', enrollment_id=enrollment_id) }}"
+           class="bg-gray-300 text-gray-800 px-4 py-2 rounded hover:bg-gray-400">Back</a>
+      {% endif %}
+    </div>
+
+    <!-- Table of Shows -->
+    <div class="overflow-x-auto">
+      <table class="min-w-full bg-white border border-gray-200">
+        <thead class="bg-gray-100">
+          <tr>
+            <th class="px-4 py-2 border">No.</th>
+            <th class="px-4 py-2 border">Title</th>
+            <!--th class="px-4 py-2 border">Description</th-->
+            <th class="px-4 py-2 border">Start Date</th>
+            <!--th class="px-4 py-2 border">End Date</th>
+            <th class="px-4 py-2 border">Location</th-->
+            <th class="px-4 py-2 border">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for show in shows %}
+          <tr class="hover:bg-gray-50">
+            <td class="px-4 py-2 border">{{ loop.index }}</td>
+            <td class="px-4 py-2 border">{{ show.title }}</td>
+            <td class="px-4 py-2 border">
+              {{ show.start_date.strftime("%d %B %Y") if show.start_date else "Not scheduled" }}
+            </td>
+            <td class="px-4 py-2 border flex gap-2">
+              <a href="{{ url_for('cultural_bp.show_program', show_id=show.id, origin=origin, enrollment_id=enrollment_id) }}"
+                 class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">Program</a>
+              
+              {% if show.category_item and show.category_item.name == "Pageant" and current_user.has_role('admin') %}
+              <a href="{{ url_for('cultural_bp.pageant_results', show_id=show.id) }}"
+                 class="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600">Results</a>
+              {% endif %}
+
+              {% set ns = namespace(is_judge=false, is_participant=false) %}
+              {% for j in judge_assignments %}
+                {% if j.show_id == show.id %}{% set ns.is_judge = true %}{% endif %}
+              {% endfor %}
+              {% for s in user_submissions %}
+                {% if s.show_id == show.id %}{% set ns.is_participant = true %}{% endif %}
+              {% endfor %}
+              
+              {% if ns.is_judge %}
+                <span class="bg-green-100 text-green-800 px-3 py-1 rounded border border-green-300 font-medium text-sm flex items-center">
+                  ✅ You are a Judge
+                </span>
+              {% elif ns.is_participant %}
+                <span class="bg-gray-100 text-gray-500 px-3 py-1 rounded border border-gray-300 text-sm flex items-center">
+                  Participant
+                </span>
+              {% else %}
+                <a href="{{ url_for('cultural_bp.judge_dashboard', target_show_id=show.id, origin=origin, enrollment_id=enrollment_id) }}" class="bg-purple-600 text-white px-3 py-1 rounded hover:bg-purple-700 transition-colors shadow-sm inline-block text-center">
+                  Become a Judge
+                </a>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

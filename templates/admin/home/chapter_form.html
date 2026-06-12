@@ -1,0 +1,111 @@
+{% extends "layout.html" %}
+
+{% block content %}
+
+<div class="max-w-3xl mx-auto py-8">
+
+```
+<div class="bg-white rounded-xl shadow p-8">
+
+    <h1 class="text-3xl font-bold mb-6">
+        {{ "Edit Chapter" if chapter else "Add Chapter" }}
+    </h1>
+
+    <form method="POST">
+
+        <input
+            type="hidden"
+            name="csrf_token"
+            value="{{ csrf_token() }}"
+        >
+
+        <div class="mb-4">
+
+        </div>
+
+        <div class="mb-4">
+
+            <label class="block mb-2 font-medium">
+                Title
+            </label>
+
+            <input
+                type="text"
+                name="title"
+                value="{{ chapter.title if chapter else '' }}"
+                required
+                class="w-full border rounded-lg p-3"
+            >
+
+        </div>
+
+        <div class="mb-4">
+
+            <label class="block mb-2 font-medium">
+                Objective
+            </label>
+
+            <textarea
+                name="objective"
+                rows="4"
+                class="w-full border rounded-lg p-3"
+            >{{ chapter.objective if chapter else '' }}</textarea>
+
+        </div>
+
+        <div class="mb-4">
+
+            <label class="block mb-2 font-medium">
+                Image Filename
+            </label>
+
+            <input
+                type="text"
+                name="image_filename"
+                value="{{ chapter.image_filename if chapter else '' }}"
+                class="w-full border rounded-lg p-3"
+            >
+
+        </div>
+
+        <div class="mb-6">
+
+            <label class="block mb-2 font-medium">
+                Pass Mark
+            </label>
+
+            <input
+                type="number"
+                name="pass_mark"
+                value="{{ chapter.pass_mark if chapter else 70 }}"
+                class="w-full border rounded-lg p-3"
+            >
+
+        </div>
+
+        <div class="flex justify-end gap-3">
+
+            <a
+                href="{{ url_for('admin_bp.chapters') }}"
+                class="px-4 py-2 border rounded-lg"
+            >
+                Cancel
+            </a>
+
+            <button
+                type="submit"
+                class="px-5 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+            >
+                {{ "Update Chapter" if chapter else "Save Chapter" }}
+            </button>
+
+        </div>
+
+    </form>
+
+</div>
+```
+
+</div>
+
+{% endblock %}

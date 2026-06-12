@@ -1,0 +1,19 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="px-6 py-4">
+  <h2 class="text-xl font-bold">Delete Ramp Walk + Intro</h2>
+  <p class="text-gray-600">Are you sure you want to delete your Ramp Walk + Intro submission?</p>
+
+  <form method="POST" class="mt-4">
+    <button type="submit" class="bg-red-600 text-white px-4 py-2 rounded">
+      Confirm Delete
+    </button>
+    <a href="{{ url_for('cultural_bp.pageant_flow',
+                        enrollment_id=enrollment.id,
+                        category_id=category.id) }}"
+       class="bg-gray-400 text-white px-4 py-2 rounded">
+       Cancel
+    </a>
+  </form>
+</div>
+{% endblock %}

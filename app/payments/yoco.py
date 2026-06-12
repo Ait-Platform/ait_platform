@@ -20,30 +20,138 @@ from app.models.auth import User
 yoco_bp = Blueprint("yoco_bp", __name__)
 
 
+import requests
+
 @yoco_bp.route("/start", methods=["GET", "POST"], endpoint="yoco_start")
 def start():
     """
-    Temporary Yoco bypass:
-    - accept email + subject sent by redirect()
-    - store into session
-    - immediately forward to success handler
+    Creates a Yoco Hosted Checkout session and redirects the user to the Yoco gateway.
     """
-    email = (request.values.get("email") or "").strip().lower()
-    subject = (request.values.get("subject") or "").strip().lower()
+
+
+    email = (
+        request.values.get("email") 
+        or session.get("pending_email") 
+        or session.get("reg_ctx", {}).get("email_lower") 
+        or session.get("reg_ctx", {}).get("email_in") 
+        or ""
+    ).strip().lower()
+    subject = (request.values.get("subject") or session.get("pending_subject") or session.get("reg_ctx", {}).get("subject") or "").strip().lower()
 
     if email:
         session["pending_email"] = email
-
     if subject:
         session["pending_subject"] = subject
 
-    return redirect(
-        url_for(
-            "yoco_bp.yoco_success",
-            email=email,
-            subject=subject
+    if not subject:
+        flash("Could not determine which module to purchase.", "error")
+        return redirect(url_for("public_bp.welcome"))
+
+    # 1) Try to get amount from user_enrollment (since they just generated a quote)
+    amount_cents = 0
+    u = User.query.filter_by(email=email).first()
+    if u:
+        row = db.session.execute(
+            text("""
+                SELECT zar_amount_cents
+                FROM user_enrollment
+                WHERE user_id = :uid 
+                  AND subject_id = (SELECT id FROM auth_subject WHERE lower(slug) = :s LIMIT 1)
+                ORDER BY id DESC LIMIT 1
+            """),
+            {"uid": u.id, "s": subject}
+        ).scalar()
+        if row and int(row) > 0:
+            amount_cents = int(row)
+            
+    # 2) Fallback to session reg_ctx if user isn't fully created yet but session has quote
+    if amount_cents <= 0:
+        ctx = session.get("reg_ctx", {})
+        quote = ctx.get("quote", {})
+        if quote:
+            fallback = quote.get("est_zar_cents") or quote.get("zar_amount_cents")
+            if fallback:
+                amount_cents = int(fallback)
+                
+    # 2.5) New fallback to session root since quote route stores it there
+    if amount_cents <= 0:
+        fallback = session.get("zar_amount_cents")
+        if fallback:
+            amount_cents = int(fallback)
+            
+    # 3) Final fallback to AuthPricing
+    if amount_cents <= 0:
+        from app.payments.pricing import get_subject_price
+        price_info = get_subject_price(subject)
+        if price_info and price_info["amount_cents"] > 0:
+            amount_cents = int(price_info["amount_cents"])
+            
+    if amount_cents < 200:
+        flash(f"Payment cannot proceed: invalid amount (R{amount_cents/100:.2f}). Minimum is R2.00.", "error")
+        return redirect(url_for("public_bp.welcome"))
+
+    # --- LOCAL DEVELOPMENT BYPASS ---
+    # Yoco's Hosted Sandbox actively crashes when attempting to webhook/redirect to private local IPs (localhost/127.0.0.1).
+    if request.host.startswith("127.0.0.1") or request.host.startswith("localhost"):
+        flash("Local Development: Bypassing Yoco Gateway to simulate successful payment.", "info")
+        return redirect(url_for("yoco_bp.yoco_success", email=email, subject=subject))
+
+        
+    # Charge via Yoco Checkout API (Hosted Gateway)
+    SECRET_KEY = "sk_test_960bfde0VBrLlpK098e4ffeb53e1"
+    
+    success_url = url_for("yoco_bp.yoco_success", _external=True)
+    cancel_url = url_for("yoco_bp.yoco_cancel", _external=True)
+    
+    try:
+        response = requests.post(
+            "https://payments.yoco.com/api/checkouts",
+            headers={
+                "Authorization": f"Bearer {SECRET_KEY}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "amount": int(amount_cents),
+                "currency": "ZAR",
+                "metadata": {"subject": subject, "email": email},
+                "successUrl": success_url,
+                "cancelUrl": cancel_url
+            },
+            timeout=15
         )
-    )
+        
+        if response.status_code in (200, 201):
+            data = response.json()
+            redirect_url = data.get("redirectUrl")
+            if redirect_url:
+                return redirect(redirect_url)
+            else:
+                flash("Payment failed: Invalid response from payment gateway.", "error")
+                return redirect(url_for("public_bp.welcome"))
+        else:
+            try:
+                err_msg = response.json().get("message", "Unknown error occurred.")
+            except Exception:
+                err_msg = response.text
+            current_app.logger.error(f"Yoco API Error: {response.status_code} - {err_msg}")
+            flash(f"Payment gateway error: {err_msg}", "error")
+            return redirect(url_for("public_bp.welcome"))
+            
+    except Exception as e:
+        current_app.logger.error(f"Exception calling Yoco API: {str(e)}")
+        flash("Payment gateway is currently unreachable. Please try again later.", "error")
+        return redirect(url_for("public_bp.welcome"))
+
+
+@yoco_bp.post("/callback", endpoint="yoco_callback")
+def callback():
+    """
+    Yoco webhook endpoint to receive server-to-server notifications.
+    Yoco will send a POST request here when a payment completes.
+    Must return 200 OK.
+    """
+    current_app.logger.info("Yoco webhook received!")
+    return {"ok": True}, 200
 
 
 @yoco_bp.get("/success", endpoint="yoco_success")

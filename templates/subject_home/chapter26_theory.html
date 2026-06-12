@@ -1,0 +1,147 @@
+{% extends "layout.html" %}
+
+{% block title %}
+Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
+{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto bg-white shadow rounded-xl mt-6 overflow-hidden">
+    <!-- Top Color Strip -->
+    <div class="h-2 bg-blue-600"></div>
+
+    <div class="p-8">
+        <!-- Header -->
+        <div class="flex flex-row justify-between items-center mb-6 pb-4 border-b border-gray-100">
+            <div class="flex-1 text-left">
+                <h1 class="text-3xl font-bold text-blue-800">
+                    Chapter {{ chapter.chapter_number }} – {{ chapter.title }}
+                </h1>
+            </div>
+            <div class="flex-1 text-right">
+                <a href="{{ url_for('home_bp.learner_dashboard') }}"
+                   class="inline-flex items-center px-5 py-2 rounded-lg shadow-sm text-sm font-semibold text-white bg-gray-600 hover:bg-gray-700 transition-colors">
+                    ← Back to Dashboard
+                </a>
+            </div>
+        </div>
+
+        <!-- Objective -->
+        <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-8 rounded">
+            <h2 class="text-lg font-bold text-blue-800 mb-2">Learning Objective</h2>
+            <p class="text-blue-900">{{ chapter.objective }}</p>
+        </div>
+
+        <!-- Theory Section -->
+        <div class="bg-white border border-gray-200 rounded-xl p-8 mb-10 shadow-sm">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6 border-b pb-2">Key Concepts</h2>
+
+            <div class="space-y-8 text-gray-700">
+                
+                <div>
+                    <h3 class="text-xl font-semibold text-blue-700 mb-2">Pattern</h3>
+                    <p class="mb-2">A pattern is a sequence that follows a rule.</p>
+                </div>
+
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div class="bg-gray-50 p-5 rounded-lg border border-gray-100">
+                        <h4 class="font-bold text-blue-800 mb-2">Repeating Pattern</h4>
+                        <p class="text-sm text-gray-700 mb-3">A pattern that repeats the same sequence.</p>
+                        <p class="font-medium text-gray-800 text-sm">Example:</p>
+                        <div class="bg-white p-3 rounded mt-1 border border-gray-200 text-center text-blue-600 font-bold">
+                            Circle, Square, Circle, Square
+                        </div>
+                    </div>
+                    
+                    <div class="bg-gray-50 p-5 rounded-lg border border-gray-100">
+                        <h4 class="font-bold text-green-800 mb-2">Growing Pattern</h4>
+                        <p class="text-sm text-gray-700 mb-3">A pattern that increases according to a rule.</p>
+                        <p class="font-medium text-gray-800 text-sm">Example:</p>
+                        <div class="bg-white p-3 rounded mt-1 border border-gray-200 text-center text-green-600 font-bold tracking-widest">
+                            1, 2, 3, 4, 5
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <h3 class="text-xl font-semibold text-blue-700 mb-2">Pattern Rule</h3>
+                    <p class="mb-2">The rule explains how the pattern works.</p>
+                    <div class="bg-gray-50 p-4 rounded-lg mt-2">
+                        <p class="font-medium text-gray-800 mb-2">Examples:</p>
+                        <ul class="list-disc pl-6 space-y-1">
+                            <li>Red, Blue, Red, Blue</li>
+                            <li>Clap, Tap, Clap, Tap</li>
+                            <li>2, 4, 6, 8</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div>
+                    <h3 class="text-xl font-semibold text-blue-700 mb-2">Why Patterns Are Important</h3>
+                    <p class="mb-2">Patterns help us:</p>
+                    <ul class="list-disc pl-6 space-y-1 bg-gray-50 p-4 rounded-lg">
+                        <li>Recognise order.</li>
+                        <li>Predict outcomes.</li>
+                        <li>Solve problems.</li>
+                        <li>Understand mathematics.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Chapter Summary -->
+            <div class="mt-10 bg-blue-600 text-white p-6 rounded-xl shadow-md">
+                <h3 class="text-xl font-bold mb-4 flex items-center">
+                    <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    Chapter Summary
+                </h3>
+                <p class="mb-3">Patterns are sequences that follow rules. Patterns can be:</p>
+                <ul class="space-y-1 pl-4 mb-4 font-semibold">
+                    <li class="flex items-start"><span class="mr-2">•</span>Repeating</li>
+                    <li class="flex items-start"><span class="mr-2">•</span>Growing</li>
+                </ul>
+                <p>Patterns help us predict, organise information and solve problems.</p>
+            </div>
+        </div>
+
+        <!-- Quiz Section -->
+        <div class="border-t-2 border-gray-200 pt-8 mt-4">
+            <h2 class="text-2xl font-bold text-gray-800 mb-2">Knowledge & Application Check</h2>
+            <p class="text-gray-600 mb-8">Test your understanding of Chapter {{ chapter.chapter_number }} by answering the questions below.</p>
+            
+            <form method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                {% for question in questions %}
+                <div class="bg-gray-50 border border-gray-200 rounded-xl p-6 mb-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">
+                        {{ loop.index }}. {{ question.question }}
+                    </h3>
+
+                    {% if question.question_type in ['single_select', 'select'] %}
+                        {% for option in question.shuffled_options %}
+                        <label class="flex items-center mb-3 cursor-pointer">
+                            <input type="radio" name="q{{ question.id }}" value="{{ option.option_text }}" class="mr-3" required>
+                            <span class="text-gray-700">{{ option.option_text }}</span>
+                        </label>
+                        {% endfor %}
+                    {% elif question.question_type == 'multi_select' %}
+                        {% for option in question.shuffled_options %}
+                        <label class="flex items-center mb-3 cursor-pointer">
+                            <input type="checkbox" name="q{{ question.id }}" value="{{ option.option_text }}" class="mr-3">
+                            <span class="text-gray-700">{{ option.option_text }}</span>
+                        </label>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+                {% endfor %}
+
+                <div class="flex justify-end mt-8">
+                    <button type="submit" class="inline-flex items-center px-6 py-3 rounded-lg shadow-sm text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-colors">
+                        Submit Answers
+                    </button>
+                </div>
+            </form>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

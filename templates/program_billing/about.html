@@ -1,0 +1,111 @@
+{% extends "layout.html" %}
+{% block title %}About Metro Billing{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 flex flex-col items-center py-10 px-4">
+  
+  <!-- Unified Tile with Color Strip -->
+  <div class="w-full max-w-4xl bg-white rounded-xl shadow-lg overflow-hidden flex flex-col">
+    
+    <!-- Top Color Strip -->
+    <div class="h-3 bg-orange-500"></div>
+    
+    <div class="p-8">
+      
+      <!-- Row 1: Title & Back Button -->
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 pb-4 border-b border-gray-100 gap-4">
+        <h1 class="text-2xl md:text-3xl font-bold text-gray-800 flex items-center">
+          <span class="mr-2"></span> Metro Billing
+        </h1>
+        <a href="{{ url_for('public_bp.welcome') }}" class="inline-flex items-center text-sm font-medium text-gray-500 hover:text-orange-600 transition-colors">
+          <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+          Back
+        </a>
+      </div>
+      
+      <!-- Content -->
+      <div class="prose max-w-none text-gray-700 space-y-6">
+        <h2 class="text-xl font-semibold text-gray-800 border-b pb-2">Why Choose Metro Billing?</h2>
+        
+        <p class="leading-relaxed mb-4">
+          Our platform automates utility management for property owners and agents. Simply upload your municipal bill, and our AI instantly extracts your account details, meter numbers, and starting baselines. You can configure complex property layouts, from independent units to bulk supplies with multiple sub-meters. Each month, tenants or caretakers can securely submit their readings via a simple email link—eliminating manual data entry.
+        </p>
+
+        <p class="leading-relaxed font-bold text-orange-700 bg-orange-50 border-l-4 border-orange-500 p-4 mb-8 rounded-r-lg">
+          Platform Costing: Pricing is based simply on the number of meter readings entered. Up to 2 meters costs R100/month. Any additional meter adds a small charge of just R15/month per meter.
+        </p>
+
+        <h3 class="text-xl font-bold text-gray-800 mb-4">Instant, Professional Statements</h3>
+        <p class="leading-relaxed mb-4">With a single click, the system automatically generates three distinct, professional PDF statements:</p>
+        <ul class="space-y-4 mb-8">
+          <li class="flex items-start">
+            <svg class="w-6 h-6 text-green-500 mr-3 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            <span class="text-gray-700"><strong>The Tenant MetSoa:</strong> A clear, itemized Statement of Account for individual tenants showing their exact utility usage, arrears, and current amount due.</span>
+          </li>
+          <li class="flex items-start">
+            <svg class="w-6 h-6 text-green-500 mr-3 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            <span class="text-gray-700"><strong>The Landlord Ledger:</strong> A comprehensive financial overview for property owners, detailing total collected utilities against municipal charges.</span>
+          </li>
+          <li class="flex items-start">
+            <svg class="w-6 h-6 text-green-500 mr-3 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            <span class="text-gray-700"><strong>The Metro Reconciliation Report:</strong> A diagnostic master statement that compares bulk meter consumption against the sum of all sub-meters, highlighting unbilled usage or leaks.</span>
+          </li>
+        </ul>
+
+        <div class="grid md:grid-cols-2 gap-6 mt-6">
+          
+          <div class="bg-gray-50 p-5 rounded-lg border border-gray-100 shadow-sm">
+            <h3 class="font-bold text-orange-600 mb-2 flex items-center">
+              <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+              Regulatory Protection
+            </h3>
+            <p class="text-sm">
+              Following recent Apex Court rulings, it is explicitly clear that property owners are ultimately responsible for the payment of municipal bills, not the tenants. Our system provides compliance and legally sound billing records to protect landlords from these massive financial risks.
+            </p>
+          </div>
+
+          <div class="bg-gray-50 p-5 rounded-lg border border-gray-100 shadow-sm">
+            <h3 class="font-bold text-orange-600 mb-2 flex items-center">
+              <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+              The Prepaid Meter Trap
+            </h3>
+            <p class="text-sm">
+              Prepaid meters are easily tampered with, causing massive, undetected losses for landlords. Furthermore, tenants are often saddled with hidden surcharges by prepaid vendors. Our post-paid readings eliminate these risks entirely.
+            </p>
+          </div>
+
+          <div class="bg-gray-50 p-5 rounded-lg border border-gray-100 shadow-sm">
+            <h3 class="font-bold text-orange-600 mb-2 flex items-center">
+              <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
+              On-Time, Accurate Billing
+            </h3>
+            <p class="text-sm">
+              Municipalities frequently estimate bills or delay readings. Our system guarantees utilities are based on actual meter readings taken on-time, each and every month.
+            </p>
+          </div>
+
+          <div class="bg-gray-50 p-5 rounded-lg border border-gray-100 shadow-sm">
+            <h3 class="font-bold text-orange-600 mb-2 flex items-center">
+              <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"></path></svg>
+              Dual Statements & Simple Costing
+            </h3>
+            <p class="text-sm">
+              We provide two distinct statements: a utility statement (METSOA) and a comprehensive tenant ledger (SOA). Costing is based on a simple, transparent method rather than confusing municipal tariff tiers.
+            </p>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+    
+    <!-- Footer Section inside tile (Right aligned enroll button) -->
+    <div class="bg-gray-50 p-6 border-t border-gray-100 flex justify-end">
+      <a href="{{ url_for('quote_bp.quote', subject='billing') }}" class="rounded bg-orange-500 px-6 py-2 text-sm font-semibold text-white hover:bg-orange-600 shadow-sm transition-colors">
+        Enroll Now
+      </a>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,189 @@
+{% extends "layout.html" %}
+
+{% block title %}
+Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
+{% endblock %}
+
+{% block content %}
+
+<div class="max-w-5xl mx-auto bg-white shadow rounded-xl mt-6 overflow-hidden">
+
+    <!-- Top Color Strip -->
+    <div class="h-2 bg-blue-600"></div>
+
+    <div class="p-8">
+
+        <!-- Header -->
+        <div class="flex flex-row justify-between items-center mb-6 pb-4 border-b border-gray-100">
+
+            <div class="flex-1 text-left">
+                <h1 class="text-2xl font-bold text-blue-800">
+                    Chapter {{ chapter.chapter_number }} – {{ chapter.title }}
+                </h1>
+            </div>
+
+            <div class="flex-1 text-right">
+                <a href="{{ url_for('home_bp.learner_dashboard') }}"
+                   class="inline-flex items-center px-5 py-2 rounded-lg shadow-sm text-sm font-semibold text-white bg-gray-600 hover:bg-gray-700 transition-colors">
+                    ← Back to Dashboard
+                </a>
+            </div>
+
+        </div>
+
+        <!-- Objective -->
+        <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-8 rounded">
+
+            <h2 class="text-lg font-bold text-blue-800 mb-2">
+                Objective
+            </h2>
+
+            <p class="text-blue-900">
+                {{ chapter.objective }}
+            </p>
+
+        </div>
+
+        <!-- Chapter Image -->
+        {% if chapter.image_filename %}
+        <div class="mb-8">
+
+            <img
+                src="{{ url_for('static', filename='images/' + chapter.image_filename) }}"
+                alt="{{ chapter.title }}"
+                class="w-full rounded-xl shadow border"
+            >
+
+        </div>
+        {% endif %}
+
+        <!-- Questions Form -->
+        {% if chapter.chapter_number <= 10 %}
+            <form method="POST" action="{{ url_for('home_bp.chapter_page', chapter_num=chapter.chapter_number) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                
+                <!-- Practical Instructions -->
+                <div class="bg-blue-50 border-l-4 border-blue-500 p-6 mb-6 rounded-r-xl">
+                    <h3 class="text-xl font-bold text-blue-800 mb-3">Practical Instructions</h3>
+                    <p class="text-blue-900 mb-2">For this exercise, you need to work with a partner (parent, teacher, or friend). Together, <strong>select 5 different objects</strong> from around you.</p>
+                    <p class="text-blue-900 mb-2"><strong>What is an object?</strong> An object is anything you can see and touch (like a pen, a cup, or a toy).</p>
+                    <p class="text-blue-900"><strong>What are properties?</strong> Properties are words we use to describe the object (like its color, shape, size, or what it feels like). Discuss the properties of each object with your partner!</p>
+                </div>
+                
+                <div class="bg-gray-50 border border-gray-200 rounded-xl p-6 mb-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">
+                        1. Name the 5 objects you chose for this practical exercise:
+                    </h3>
+                    <textarea name="objects_list" rows="3" class="w-full p-3 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500" required placeholder="e.g. Apple, Toy block, Pencil..."></textarea>
+                </div>
+                
+                <div class="bg-gray-50 border border-gray-200 rounded-xl p-6 mb-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">
+                        2. Using those 5 objects, place them in this order: Left, Right, Center, Middle, Back, Front. Did you successfully complete this arrangement with your partner?
+                    </h3>
+                    <div class="flex items-center space-x-6">
+                        <label class="flex items-center cursor-pointer">
+                            <input type="radio" name="positional_success" value="Yes" class="mr-2" required>
+                            <span class="text-gray-700">Yes</span>
+                        </label>
+                        <label class="flex items-center cursor-pointer">
+                            <input type="radio" name="positional_success" value="No" class="mr-2" required>
+                            <span class="text-gray-700">No, we need more practice</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="text-center">
+                    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg shadow-md transition-colors text-lg">
+                        Submit Practical Work
+                    </button>
+                </div>
+            </form>
+        {% else %}
+        <form method="POST">
+
+            <input
+                type="hidden"
+                name="csrf_token"
+                value="{{ csrf_token() }}"
+            >
+
+            {% for question in questions %}
+
+            <div class="bg-gray-50 border border-gray-200 rounded-xl p-6 mb-6">
+
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">
+                    {{ loop.index }}.
+                    {{ question.question }}
+                </h3>
+
+                {% if question.question_type in ['single_select', 'select'] %}
+
+                    {% for option in question.shuffled_options %}
+
+                    <label class="flex items-center mb-3 cursor-pointer">
+
+                        <input
+                            type="radio"
+                            name="q{{ question.id }}"
+                            value="{{ option.option_text }}"
+                            class="mr-3"
+                            required
+                        >
+
+                        <span class="text-gray-700">
+                            {{ option.option_text }}
+                        </span>
+
+                    </label>
+
+                    {% endfor %}
+
+                {% elif question.question_type == 'multi_select' %}
+
+                    {% for option in question.shuffled_options %}
+
+                    <label class="flex items-center mb-3 cursor-pointer">
+
+                        <input
+                            type="checkbox"
+                            name="q{{ question.id }}"
+                            value="{{ option.option_text }}"
+                            class="mr-3"
+                        >
+
+                        <span class="text-gray-700">
+                            {{ option.option_text }}
+                        </span>
+
+                    </label>
+
+                    {% endfor %}
+
+                {% endif %}
+
+            </div>
+
+            {% else %}
+                <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-6 mb-6">
+                    <p class="text-yellow-700 font-medium">Content for this chapter is coming soon. Please click "Proceed to Next Chapter" to bypass this placeholder.</p>
+                </div>
+            {% endfor %}
+
+            <!-- Submit -->
+            <div class="flex justify-end mt-8">
+                <button
+                    type="submit"
+                    class="inline-flex items-center px-6 py-3 rounded-lg shadow-sm text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-colors">
+                    {% if questions %}Submit Answers{% else %}Proceed to Next Chapter{% endif %}
+                </button>
+            </div>
+
+        </form>
+        {% endif %}
+
+    </div>
+
+</div>
+
+{% endblock %}

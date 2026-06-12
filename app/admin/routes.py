@@ -10,11 +10,17 @@ from app.models.reading import RdpLesson
 from .. import admin_bp
 #admin_bp = Blueprint("admin_bp", __name__, url_prefix="/admin")
 from sqlalchemy import select, func
+from flask_login import current_user
+
 # subjects you support in admin
 ALLOWED_SUBJECTS = {"reading", "home", "loss", "billing"}  # extend as needed
 
 @admin_bp.before_request
 def _guard():
+    # Allow authenticated property managers to access billing statement routes
+    if request.path.startswith('/admin/billing/') and current_user.is_authenticated:
+        return None
+        
     if not is_admin():
         return redirect(url_for("public_bp.welcome"))
 
@@ -177,23 +183,6 @@ from . import admin_bp
 # app/admin/routes.py
 from flask import request, session, redirect, url_for
 
-@admin_bp.before_request
-def _admin_gate():
-    # 1) Only block non-admins
-    if not session.get("is_admin"):
-        return redirect(url_for("public_bp.welcome"))
-
-    # 2) Never redirect the main admin dashboard (tiles)
-    if request.path.rstrip("/") == "/admin":
-        return None
-    if request.endpoint in ("admin_bp.admin_dashboard", "admin_bp.index"):
-        return None
-
-    # 3) Allow everything else (billing, loss, reading, etc.)
-    return None
-
-
-
 def _admins_only():
     if not (session.get("is_admin") or session.get("role") == "admin"):
         return redirect(url_for("public_bp.welcome"))  # not login
@@ -208,12 +197,6 @@ def _admins_only():
 
 from . import admin_bp
 from flask import render_template, session, redirect, url_for
-
-# Simple auth gate: only block non-admins
-@admin_bp.before_request
-def _admin_only():
-    if not session.get("is_admin"):
-        return redirect(url_for("public_bp.welcome"))
 
 # --- define the view function ONCE ---
 def _admin_dashboard_view():

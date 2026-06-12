@@ -1,0 +1,75 @@
+{% extends "layout.html" %}
+
+{% block title %}Assessment Result{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-12">
+  <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+    <!-- Top Color Strip -->
+    <div class="h-3 bg-cyan-600 w-full"></div>
+
+    <div class="p-8 md:p-12">
+      <!-- Header Row -->
+      <div class="flex items-center justify-between mb-8 pb-6 border-b border-slate-100">
+        <div>
+          <h1 class="text-2xl md:text-3xl font-bold text-slate-900">Result</h1>
+          <p class="text-sm text-slate-500 mt-1">{{ topic_id|capitalize }} Assessment</p>
+        </div>
+        <a href="{{ url_for('adv_math_bp.dashboard') }}"
+           class="inline-flex items-center gap-2 rounded border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition shrink-0">
+          <span>←</span><span>Back to Dashboard</span>
+        </a>
+      </div>
+
+      <!-- Result Content -->
+      <div class="text-center mb-8">
+          {% if attempt.is_correct %}
+          <div class="mx-auto flex items-center justify-center h-20 w-20 rounded-full bg-green-100 mb-6">
+              <svg class="h-10 w-10 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+              </svg>
+          </div>
+          <h2 class="text-3xl font-bold text-slate-900 mb-2">Excellent!</h2>
+          <p class="text-slate-600 text-lg mb-8">You've mastered this topic.</p>
+          {% else %}
+          <div class="mx-auto flex items-center justify-center h-20 w-20 rounded-full bg-red-100 mb-6">
+              <svg class="h-10 w-10 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+          </div>
+          <h2 class="text-3xl font-bold text-slate-900 mb-2">Not quite right.</h2>
+          <p class="text-slate-600 text-lg mb-8">Keep practicing this topic to achieve mastery.</p>
+          {% endif %}
+          
+          <div class="bg-slate-50 border border-slate-200 rounded-xl p-6 text-left mb-8 shadow-sm">
+              <h3 class="font-bold text-slate-900 mb-2">AI Feedback:</h3>
+              <p class="text-slate-700 whitespace-pre-wrap leading-relaxed">{{ attempt.ai_feedback }}</p>
+          </div>
+          
+          <div class="flex flex-col sm:flex-row justify-center items-center gap-4">
+              {% if last_qid %}
+              <a href="{{ url_for('adv_math_bp.topic_flow', topic_id=topic_id, qid=last_qid) }}" class="inline-block bg-white border border-cyan-600 text-cyan-600 hover:bg-cyan-50 font-semibold py-3 px-8 rounded-lg shadow-sm transition">
+                  Retry This Question
+              </a>
+              {% endif %}
+              <a href="{{ url_for('adv_math_bp.dashboard') }}" class="inline-block bg-cyan-600 hover:bg-cyan-700 text-white font-semibold py-3 px-8 rounded-lg shadow-sm transition">
+                  Return to Dashboard
+              </a>
+          </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<script>
+  window.MathJax = {
+    tex: {
+      inlineMath: [['\\(', '\\)'], ['$', '$']],
+      displayMath: [['\\[', '\\]'], ['$$', '$$']]
+    }
+  };
+</script>
+{% endblock %}

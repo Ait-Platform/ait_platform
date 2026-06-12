@@ -1,0 +1,67 @@
+{% extends "layout.html" %}
+{% block title %}Registration Confirmation{% endblock %}
+
+{% block content %}
+<div class="modal fade show" id="charlieModal" tabindex="-1" aria-modal="true" style="display:block;">
+  <div class="modal-dialog">
+    <div class="modal-content shadow-lg rounded">
+
+      <!-- Color streak on top -->
+      <div class="modal-header p-0">
+        <div style="height:6px; width:100%; background: linear-gradient(to right, #007bff, #28a745);"></div>
+      </div>
+
+      <!-- Title -->
+      <div class="modal-header bg-light">
+        <h5 class="modal-title text-primary fw-bold">Registration Confirmation</h5>
+      </div>
+
+      <!-- Body with aligned input boxes -->
+      <div class="modal-body">
+        <div class="mb-2">
+          <label class="fw-bold">Subject:</label>
+          <input type="text" class="form-control" value="{{ subject.slug }}" readonly>
+        </div>
+        <div class="mb-2">
+          <label class="fw-bold">Country:</label>
+          <input type="text" class="form-control" value="{{ country_code }}" readonly>
+        </div>
+        <div class="mb-2">
+          <label class="fw-bold">Quoted amount:</label>
+          <input type="text" class="form-control"
+                 value="{{ enrollment.quoted_amount_cents }} {{ enrollment.quoted_currency }}" readonly>
+        </div>
+        <div class="mb-2">
+          <label class="fw-bold">Local amount:</label>
+          <input type="text" class="form-control"
+                 value="{{ local_amount_cents }} {{ local_currency or '' }}" readonly>
+        </div>
+        <div class="mb-2">
+          <label class="fw-bold">Estimated ZAR:</label>
+          <input type="text" class="form-control"
+                 value="{{ enrollment.charged_amount_cents or '' }} ZAR" readonly>
+        </div>
+      </div>
+
+      <!-- Footer with buttons in same row -->
+      <div class="modal-footer d-flex justify-content-between">
+        <a href="{{ url_for('quote_bp.quote', subject=subject.slug) }}" class="btn btn-success">
+          Cancel
+        </a>
+        <form method="POST" action="{{ url_for('payment_bp.checkout_review') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="price_id" value="{{ enrollment.price_id }}">
+          <input type="hidden" name="country" value="{{ country_code }}">
+          <input type="hidden" name="subject" value="{{ enrollment.subject_id }}">
+          <input type="hidden" name="enrollment_id" value="{{ enrollment.id }}">
+
+          <button type="submit" class="btn btn-primary">
+            Proceed to Checkout
+          </button>
+        </form>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}

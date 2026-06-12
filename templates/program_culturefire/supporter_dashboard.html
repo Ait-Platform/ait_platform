@@ -1,0 +1,87 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="max-w-5xl mx-auto mt-6 bg-white shadow rounded-lg overflow-hidden">
+  <div class="h-2 bg-blue-600"></div>
+
+  <!-- Row 1: Header -->
+  <div class="px-4 py-3 border-b flex justify-between items-center">
+    <h1 class="text-xl font-bold">Supporters Dashboard</h1>
+    <a href="{{ url_for('bridge_bp.bridge') }}" 
+       class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">
+       Back
+    </a>
+  </div>
+
+  <!-- Navigation Row -->
+  <div class="flex items-center justify-end space-x-2 px-4 py-3 border-b bg-gray-50">
+    <a href="{{ url_for('cultural_bp.judge_dashboard') }}" 
+       class="bg-indigo-600 text-white px-3 py-1 rounded hover:bg-indigo-700 shadow-sm transition-transform hover:-translate-y-0.5">
+       Judges
+    </a>
+    <a href="{{ url_for('cultural_bp.showcase_dashboard', origin='supporter', enrollment_id=enrollment.id) }}"
+       class="bg-purple-600 text-white px-3 py-1 rounded hover:bg-purple-700 shadow-sm transition-transform hover:-translate-y-0.5">
+       Showcase
+    </a>
+    <a href="{{ url_for('cultural_bp.live_results_list', origin='supporter', enrollment_id=enrollment.id) }}" 
+       class="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600 shadow-sm transition-transform hover:-translate-y-0.5">
+       Results
+    </a>
+    <a href="{{ url_for('cultural_bp.live_shows_static', origin='supporter', enrollment_id=enrollment.id) }}" 
+       class="bg-emerald-500 text-white px-3 py-1 rounded hover:bg-emerald-600 shadow-sm flex items-center gap-2 transition-transform hover:-translate-y-0.5">
+       <span class="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+       Live
+    </a>
+  </div>
+
+  <!-- Row 2: Action Buttons -->
+  <div class="px-4 py-3 flex justify-between">
+    <a href="{{ url_for('cultural_bp.supporter_create', enrollment_id=enrollment_id) }}" 
+       class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">New</a>
+  </div>
+
+  <!-- Row 3: Table -->
+  <div class="px-4 py-4">
+    <table class="w-full border-collapse">
+      <thead>
+        <tr class="bg-gray-100 text-left">
+          <th class="px-3 py-2">No.</th>
+          <th class="px-3 py-2">Name</th>
+          <th class="px-3 py-2">Support Type</th>
+          <th class="px-3 py-2">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for supporter, participant, biodata, show in supporters %}
+        <tr class="border-b">
+            <td class="px-3 py-2">{{ loop.index }}</td>
+            
+            <td>
+                {% if biodata %}
+                    {{ biodata.full_name }}
+                {% elif show %}
+                    {{ show.title }}
+                {% else %}
+                    -- Not specified --
+                {% endif %}
+            </td>
+            <td>
+                {% if supporter.supporter_type == 'other' and supporter.supporter_type_other %}
+                    Other ({{ supporter.supporter_type_other }})
+                {% else %}
+                    {{ supporter.supporter_type }}
+                {% endif %}
+            </td>
+            <td class="px-3 py-2 space-x-2">
+            <a href="{{ url_for('cultural_bp.supporter_edit', id=supporter.id) }}" class="text-blue-600">Edit</a>
+            <a href="{{ url_for('cultural_bp.supporter_details', id=supporter.id) }}" class="text-gray-600">Details</a>
+            <a href="{{ url_for('cultural_bp.supporter_confirm', id=supporter.id) }}" class="text-green-600">Confirm</a>
+            </td>
+        </tr>
+        {% endfor %}
+                
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+

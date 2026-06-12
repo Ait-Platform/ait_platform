@@ -1,0 +1,126 @@
+{% extends "layout.html" %}
+
+{% block title %}
+Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
+{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto bg-white shadow rounded-xl mt-6 overflow-hidden">
+    <!-- Top Color Strip -->
+    <div class="h-2 bg-blue-600"></div>
+
+    <div class="p-8">
+        <!-- Header -->
+        <div class="flex flex-row justify-between items-center mb-6 pb-4 border-b border-gray-100">
+            <div class="flex-1 text-left">
+                <h1 class="text-3xl font-bold text-blue-800">
+                    Chapter {{ chapter.chapter_number }} – {{ chapter.title }}
+                </h1>
+            </div>
+            <div class="flex-1 text-right">
+                <a href="{{ url_for('home_bp.learner_dashboard') }}"
+                   class="inline-flex items-center px-5 py-2 rounded-lg shadow-sm text-sm font-semibold text-white bg-gray-600 hover:bg-gray-700 transition-colors">
+                    ← Back to Dashboard
+                </a>
+            </div>
+        </div>
+
+        <!-- Objective -->
+        <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-8 rounded">
+            <h2 class="text-lg font-bold text-blue-800 mb-2">Learning Objective</h2>
+            <p class="text-blue-900">{{ chapter.objective }}</p>
+        </div>
+
+        <!-- Theory Section -->
+        <div class="bg-white border border-gray-200 rounded-xl p-8 mb-10 shadow-sm">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6 border-b pb-2">Key Concepts</h2>
+
+            <div class="space-y-8 text-gray-700">
+                
+                <div>
+                    <h3 class="text-xl font-semibold text-blue-700 mb-2">Estimation</h3>
+                    <p class="mb-2">Estimation is making a sensible guess based on observation and experience.</p>
+                </div>
+
+                <div>
+                    <h3 class="text-xl font-semibold text-blue-700 mb-2">Estimate</h3>
+                    <p class="mb-2">An estimate is not an exact answer. It is an answer that is close to the actual value.</p>
+                    <div class="bg-gray-50 p-4 rounded-lg mt-2">
+                        <p class="font-medium text-gray-800 mb-2">Examples:</p>
+                        <ul class="list-disc pl-6 space-y-1">
+                            <li>Estimating how many sweets are in a jar.</li>
+                            <li>Estimating how far a building is.</li>
+                            <li>Estimating how much water is in a bottle.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div>
+                    <h3 class="text-xl font-semibold text-blue-700 mb-2">Why Estimation Is Important</h3>
+                    <p class="mb-2">Estimation helps us:</p>
+                    <ul class="list-disc pl-6 space-y-1 bg-gray-50 p-4 rounded-lg">
+                        <li>Make quick decisions.</li>
+                        <li>Check if answers are reasonable.</li>
+                        <li>Save time.</li>
+                        <li>Predict outcomes.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Chapter Summary -->
+            <div class="mt-10 bg-blue-600 text-white p-6 rounded-xl shadow-md">
+                <h3 class="text-xl font-bold mb-4 flex items-center">
+                    <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    Chapter Summary
+                </h3>
+                <ul class="space-y-2">
+                    <li class="flex items-start"><span class="mr-2">•</span>Estimation is a sensible guess.</li>
+                    <li class="flex items-start"><span class="mr-2">•</span>Estimates are not exact but should be reasonable.</li>
+                    <li class="flex items-start"><span class="mr-2">•</span>Estimation helps us predict, plan and solve problems.</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Quiz Section -->
+        <div class="border-t-2 border-gray-200 pt-8 mt-4">
+            <h2 class="text-2xl font-bold text-gray-800 mb-2">Knowledge & Application Check</h2>
+            <p class="text-gray-600 mb-8">Test your understanding of Chapter {{ chapter.chapter_number }} by answering the questions below.</p>
+            
+            <form method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                {% for question in questions %}
+                <div class="bg-gray-50 border border-gray-200 rounded-xl p-6 mb-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">
+                        {{ loop.index }}. {{ question.question }}
+                    </h3>
+
+                    {% if question.question_type in ['single_select', 'select'] %}
+                        {% for option in question.shuffled_options %}
+                        <label class="flex items-center mb-3 cursor-pointer">
+                            <input type="radio" name="q{{ question.id }}" value="{{ option.option_text }}" class="mr-3" required>
+                            <span class="text-gray-700">{{ option.option_text }}</span>
+                        </label>
+                        {% endfor %}
+                    {% elif question.question_type == 'multi_select' %}
+                        {% for option in question.shuffled_options %}
+                        <label class="flex items-center mb-3 cursor-pointer">
+                            <input type="checkbox" name="q{{ question.id }}" value="{{ option.option_text }}" class="mr-3">
+                            <span class="text-gray-700">{{ option.option_text }}</span>
+                        </label>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+                {% endfor %}
+
+                <div class="flex justify-end mt-8">
+                    <button type="submit" class="inline-flex items-center px-6 py-3 rounded-lg shadow-sm text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-colors">
+                        Submit Answers
+                    </button>
+                </div>
+            </form>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

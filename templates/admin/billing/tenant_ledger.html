@@ -5,21 +5,70 @@
   {{ '%.2f' % x if x is not none else '—' }}
 {%- endmacro %}
 
-<div class="container mx-auto py-8">
-  <!-- Header -->
-  <div class="mb-6 flex items-center justify-between">
-    <div>
-      <h1 class="text-2xl font-semibold">
+<div class="min-h-screen bg-slate-100 py-10 px-4 flex flex-col items-center">
+  <div class="w-full max-w-5xl bg-white shadow-xl rounded-xl overflow-hidden relative">
+    
+    <!-- Color Strip -->
+    <div class="h-2 w-full bg-blue-600 print:hidden"></div>
+    
+    <!-- Top Action Bar -->
+    <div class="print:hidden bg-slate-800 text-white p-4 flex justify-between items-center">
+      <h1 class="text-xl font-bold">
         Tenant Ledger — {{ tenant.name }} ({{ tenant.unit_label }}) — {{ month }}
       </h1>
-      <p class="text-sm text-slate-500">Today: {{ today }}</p>
+      <div class="flex items-center gap-4">
+        <a href="{{ url_for('admin_bp.tenant_soa', tenant_id=tenant.id, month=month) }}" class="bg-blue-600 hover:bg-blue-700 font-bold py-2 px-4 rounded shadow transition text-sm flex items-center">
+          View SOA
+        </a>
+        <a href="{{ url_for('admin_bp.billing_tenants') }}" class="text-sm font-medium hover:text-slate-300 transition flex items-center">
+          &larr; Back to Tenants & SOA
+        </a>
+      </div>
     </div>
-    <div>
-      <a class="px-3 py-2 rounded-lg border"
-         href="{{ url_for('admin_bp.metsoa_page1', tenant_id=tenant.id, month=month) }}">
-        ← View METSOA
-      </a>
-    </div>
+
+    <!-- Content -->
+    <div class="p-8">
+      <p class="text-sm text-slate-500 mb-6">Today: {{ today }}</p>
+
+  <!-- Quick Add Entry -->
+  <div class="mb-6 bg-slate-50 border border-slate-200 rounded-xl p-4">
+    <h2 class="text-sm font-semibold mb-3">Quick Add Entry (Debits/Credits)</h2>
+    <form method="POST" action="{{ url_for('admin_bp.tenant_ledger_item_add') }}" class="flex flex-wrap gap-3 items-end">
+      {% if csrf_token is defined %}
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      {% elif request and request.cookies.get('csrf_token') %}
+        <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_token') }}">
+      {% endif %}
+      <input type="hidden" name="tenant_id" value="{{ tenant.id }}">
+      <input type="hidden" name="month" value="{{ month }}">
+      
+      <div class="flex flex-col">
+        <label class="text-xs text-slate-500 mb-1">Date</label>
+        <input type="date" name="txn_date" value="{{ today }}" class="border rounded px-2 py-1 text-sm w-36" required>
+      </div>
+      
+      <div class="flex flex-col flex-1 min-w-[150px]">
+        <label class="text-xs text-slate-500 mb-1">Description</label>
+        <input type="text" name="description" placeholder="e.g. Rates, Arrears, Cash in" class="border rounded px-2 py-1 text-sm" required>
+      </div>
+      
+      <div class="flex flex-col">
+        <label class="text-xs text-slate-500 mb-1">Type</label>
+        <select name="kind" class="border rounded px-2 py-1 text-sm" required>
+          <option value="charge">Debit (Charge/Arrear)</option>
+          <option value="payment">Credit (Payment/Cash in)</option>
+        </select>
+      </div>
+      
+      <div class="flex flex-col w-32">
+        <label class="text-xs text-slate-500 mb-1">Amount (R)</label>
+        <input type="number" step="0.01" min="0" name="amount" placeholder="0.00" class="border rounded px-2 py-1 text-sm" required>
+      </div>
+      
+      <button type="submit" class="bg-blue-600 text-white px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-blue-700 mb-0.5">
+        Add Entry
+      </button>
+    </form>
   </div>
 
   <!-- Ledger table -->
@@ -106,6 +155,8 @@
     </form>
 
     <button class="px-3 py-2 rounded-lg border" onclick="window.print()">Print</button>
+  </div>
+    </div>
   </div>
 </div>
 {% endblock %}

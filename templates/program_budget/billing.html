@@ -1,3 +1,33 @@
-<h1>BudgetCash subscription</h1>
-<p>Your trial has ended or is about to end.</p>
-<p>R50 / month or R500 / year.</p>
+{% extends "layout.html" %}
+{% block title %}BudgetCash Subscription{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 flex flex-col items-center py-10 px-4">
+  <div class="w-full max-w-5xl bg-white rounded-xl shadow-lg overflow-hidden flex flex-col">
+    <!-- Top Color Strip -->
+    <div class="h-3 bg-amber-500"></div>
+    <div class="p-8">
+      
+      <!-- Row 1: Title & Action/Back Buttons -->
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 pb-4 border-b border-gray-100 gap-4">
+        <h1 class="text-2xl md:text-3xl font-bold text-gray-800 flex items-center">
+          BudgetCash Subscription
+        </h1>
+        <div class="flex items-center gap-3">
+          <a href="javascript:history.back()"
+             class="rounded border border-slate-300 px-3 py-1.5 hover:bg-slate-50 text-sm">
+            ← Back
+          </a>
+        </div>
+      </div>
+      
+      <!-- Content -->
+      <div class="prose prose-slate max-w-none">
+        <p>Your trial has ended or is about to end.</p>
+        <p>R50 / month or R500 / year.</p>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}

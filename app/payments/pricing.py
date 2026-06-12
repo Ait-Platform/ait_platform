@@ -13,7 +13,7 @@ from sqlalchemy.exc import OperationalError
 
 VAT_RATE = 0.15  # SA VAT
 
-def get_subject_price(subject_slug: str, role: str = "learner", plan: str = "enrollment"):
+def get_subject_price(subject_slug: str, role: str = "user", plan: str = "enrollment"):
     """Return the active price row for a subject slug, with VAT-inclusive display."""
     now = datetime.utcnow()
 
@@ -30,7 +30,7 @@ def get_subject_price(subject_slug: str, role: str = "learner", plan: str = "enr
                 AuthPricing.subject_id == subj,
                 AuthPricing.role == role,
                 AuthPricing.plan == plan,
-                AuthPricing.is_active == True,
+                AuthPricing.is_active == 1,
                 or_(AuthPricing.active_from == None, AuthPricing.active_from <= now),
                 or_(AuthPricing.active_to == None, AuthPricing.active_to > now),
             )
@@ -104,7 +104,7 @@ def price_cents_for(subject_slug: str, currency: str = "ZAR") -> int | None:
     Return the active price (in cents) for a subject + currency, or None if none found.
     """
     row = db.session.execute(
-        """
+        text("""
         SELECT p.amount_cents
         FROM auth_pricing p
         JOIN auth_subject s ON s.id = p.subject_id
@@ -115,7 +115,7 @@ def price_cents_for(subject_slug: str, currency: str = "ZAR") -> int | None:
           AND (p.active_to   IS NULL OR p.active_to   >  CURRENT_TIMESTAMP)
         ORDER BY p.active_from DESC
         LIMIT 1
-        """,
+        """),
         {"slug": subject_slug, "cur": currency},
     ).fetchone()
     return int(row[0]) if row else None
@@ -423,7 +423,7 @@ def price_for_country(subject_id, country_code):
              AND c.is_active = true
            WHERE p.subject_id   = :sid
              AND p.country_code = :cc
-             AND p.is_active    = 1
+             AND p.is_active    = true
            LIMIT 1
         """),
         {"sid": subject_id, "cc": cc},

@@ -1,0 +1,44 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="max-w-xl mx-auto mt-8 bg-white shadow rounded p-6">
+  <h2 class="text-xl font-semibold mb-4">Enrollment – Step 3 of 3</h2>
+
+  <form id="enrollment-form" method="post">
+    {{ form.hidden_tag() }}
+
+    <!-- Full Pledge Consent -->
+    <div class="mb-4 bg-gray-50 border border-green-300 rounded px-3 py-2 text-sm text-gray-1000">
+      <p>
+        By enrolling in the Cultural Fire Initiative, I commit to uphold the values of respect,
+        collaboration, and integrity. I pledge to participate actively, to support fellow members,
+        and to represent the program with dignity. I understand that my involvement contributes
+        to the growth of youth talent and community empowerment, and I consent to the program’s
+        guidelines and code of conduct.
+      </p>
+    </div>
+
+    <!-- Checkbox -->
+    <div class="mb-4">
+      {{ form.pledge() }}
+      {{ form.pledge.label(class="inline-block text-gray-700 ml-2") }}
+    </div>
+
+    <!-- Role Choice -->
+    <div class="mb-4">
+      {{ form.role.label(class="block text-gray-700") }}
+      {{ form.role(class="w-full border border-green-300 rounded px-3 py-2") }}
+      <p class="text-xs text-gray-500 mt-1">
+        Choose your role: Participant, Parent, Sponsor, Supporter
+      </p>
+    </div>
+
+    <!-- Submit button -->
+    <div class="flex justify-end">
+      <button type="submit"
+              class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition">
+        Finish →
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}

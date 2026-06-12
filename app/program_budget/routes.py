@@ -811,48 +811,37 @@ def budget_entitlement_guard():
     if not current_user.is_authenticated:
         return
 
+    # Allow access to the billing page itself
+    if request.endpoint == "budget_bp.billing":
+        return
+
     now = datetime.utcnow()
 
     ent = db.session.execute(text("""
-        SELECT id, trial_start, trial_end, paid_until
-          FROM user_entitlement
-         WHERE user_id = :uid
-           AND product_slug = 'budgetcash'
+        SELECT ue.status, ue.trial_end, ue.expires_at
+          FROM user_enrollment ue
+          JOIN auth_subject s ON s.id = ue.subject_id
+         WHERE ue.user_id = :uid
+           AND s.slug = 'budget'
          LIMIT 1
     """), {"uid": current_user.id}).mappings().first()
 
-    # First-ever access → start 45-day trial
     if not ent:
-        db.session.execute(text("""
-            INSERT INTO user_entitlement
-              (user_id, product_slug, trial_start, trial_end, last_active)
-            VALUES
-              (:uid, 'budgetcash', :ts, :te, :now)
-        """), {
-            "uid": current_user.id,
-            "ts": now,
-            "te": now + timedelta(days=45),
-            "now": now,
-        })
-        db.session.commit()
-        return
+        flash("You are not enrolled in BudgetCash.", "warning")
+        return redirect(url_for("auth_bp.bridge_dashboard"))
 
-    active = (
-        (ent["paid_until"] and ent["paid_until"] >= now) or
-        (ent["trial_end"] and ent["trial_end"] >= now)
-    )
+    active = False
+    if ent["status"] in ("paid", "enrolled", "started"):
+        active = True
+    elif ent["status"] == "active":
+        if (ent["trial_end"] and ent["trial_end"] >= now) or (ent["expires_at"] and ent["expires_at"] >= now):
+            active = True
+        elif not ent["trial_end"] and not ent["expires_at"]:
+            active = True # edge case: active but no expiry set
 
     if not active:
-        return redirect(url_for("budget_bp.billing"))  # create simple page later
-
-    # Update last activity
-    db.session.execute(text("""
-        UPDATE user_entitlement
-           SET last_active = :now,
-               updated_at = :now
-         WHERE id = :id
-    """), {"now": now, "id": ent["id"]})
-    db.session.commit()
+        flash("Your trial for BudgetCash has expired. Please subscribe to continue.", "warning")
+        return redirect(url_for("budget_bp.billing"))
 
 @budget_bp.route("/billing")
 @login_required

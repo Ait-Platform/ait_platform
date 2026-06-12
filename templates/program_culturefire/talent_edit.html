@@ -1,0 +1,64 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="max-w-3xl mx-auto mt-10 bg-white shadow-lg rounded-lg overflow-hidden">
+
+  <!-- Top strip -->
+  <div class="h-2 bg-indigo-600"></div>
+
+  <!-- Header with back button -->
+  <div class="flex justify-between items-center px-6 py-4 border-b">
+    <h1 class="text-xl font-bold text-gray-800">Edit Talent</h1>
+    <a href="{{ url_for('cultural_bp.talent_dashboard', enrollment_id=enrollment.id) }}"
+       class="text-sm px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300">
+       ← Back
+    </a>
+  </div>
+
+  <!-- Form body -->
+  <div class="px-6 py-6">
+
+  <form method="POST" enctype="multipart/form-data">
+    {{ form.hidden_tag() }}
+
+    <!-- Upload new video -->
+    <label for="talent_files">Upload Video</label>
+    <input type="file" id="talent_files" name="talent_files" accept="video/*">
+
+    <!-- Current video from DB -->
+    {% if talent.files %}
+      <h3 class="text-lg font-semibold mt-4">Current Video</h3>
+      {% for file in talent.files %}
+        <video controls class="w-full rounded-lg mt-2">
+          <source src="{{ url_for('cultural_bp.uploaded_file', filename=file.filename) }}" type="video/mp4">
+        </video>
+      {% endfor %}
+    {% endif %}
+
+    <!-- Live preview of newly selected file -->
+    <h3 class="text-lg font-semibold mt-4">New Video Preview</h3>
+    <video id="preview" controls class="w-full rounded-lg mt-2" style="display:none;"></video>
+
+    <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded mt-4">
+      Save Changes
+    </button>
+  </form>
+
+  <script>
+  document.getElementById('talent_files').addEventListener('change', function(event) {
+    const file = event.target.files[0];
+    if (file) {
+      const preview = document.getElementById('preview');
+      preview.src = URL.createObjectURL(file);
+      preview.style.display = 'block';
+    }
+  });
+  </script>
+
+
+
+  </div>
+</div>
+{% endblock %}
+
+
+

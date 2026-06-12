@@ -1,0 +1,44 @@
+{% extends "layout.html" %}
+{% block title %}Assigned role · Confirm{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-xl py-10">
+  <div class="bg-white rounded-lg shadow p-6">
+    <h1 class="text-lg font-semibold text-slate-900">Confirm assigned role</h1>
+    <p class="mt-2 text-sm text-slate-600">
+      We found an active role for <span class="font-semibold">{{ email }}</span>.
+      {% if school %} School: <span class="font-semibold">{{ school.name }}</span>.{% endif %}
+    </p>
+
+    {% if approvals %}
+      <div class="mt-4 text-sm text-slate-700">
+        <div class="font-semibold mb-2">Assigned role(s)</div>
+        <ul class="list-disc list-inside text-slate-600">
+          {% for a in approvals %}
+            <li>{{ a.role }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+
+    <div class="mt-6 flex items-center justify-between">
+      <a href="{{ url_for('sms_bp.assigned_role') }}"
+         class="text-sm text-slate-500 hover:text-slate-700">← Back</a>
+
+      {# keep this button for now; wire it to your next step (password/abridged register) #}
+      <!--a href="{{ url_for('auth_bp.login') }}"
+         class="rounded bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">
+        Continue
+      </a-->
+
+      <form method="post" action="{{ url_for('sms_bp.assigned_role_continue') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn btn-primary">
+          {% if user_exists %}Sign in{% else %}Create password{% endif %}
+        </button>
+      </form>
+
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -2,29 +2,27 @@
 {% block title %}{{ lesson["order"] }}. {{ lesson["title"] }}{% endblock %}
 
 {% block content %}
-<div class="mx-auto max-w-5xl mt-8 px-4">
+<div class="max-w-5xl mx-auto px-4 py-10">
+  <div class="rounded-xl border bg-white shadow-sm overflow-hidden">
+    <div class="h-2 bg-green-600"></div>
+    
+    <div class="p-6">
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <h1 class="text-2xl font-semibold text-slate-800">
+            {{ lesson["order"] }}. {{ lesson["title"] }}
+          </h1>
+          {% if lesson["caption"] %}
+            <div class="text-sm text-slate-500 mt-1">{{ lesson["caption"] }}</div>
+          {% endif %}
+        </div>
+        <a href="{{ url_for('reading_bp.learner_dashboard') }}" class="inline-flex items-center rounded-lg px-4 py-2 text-sm font-semibold border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition">
+          &larr; Back
+        </a>
+      </div>
 
-  <!-- Row 1 -->
-  <div class="flex items-start justify-between gap-4">
-    <div class="min-w-0">
-      <h1 class="text-lg font-semibold text-slate-900 truncate">
-        {{ lesson["order"] }}. {{ lesson["title"] }}
-      </h1>
-
-      {% if lesson["caption"] %}
-        <div class="text-sm text-slate-600 truncate">{{ lesson["caption"] }}</div>
-      {% endif %}
-    </div>
-
-    <a href="{{ url_for('reading_bp.learner_dashboard') }}"
-       class="shrink-0 rounded border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-50">
-      ← Back
-    </a>
-  </div>
-
-  <div class="mt-4 rounded-lg border border-slate-200 bg-white shadow">
-
-    <!-- Row 2: controls -->
+      <div class="mt-4 rounded-lg border border-slate-200 bg-white shadow-sm overflow-hidden">
+        <!-- Row 2: controls -->
     <div class="sticky top-0 z-10 bg-white/95 backdrop-blur border-b border-slate-200 px-4 py-3">
       <div class="flex flex-wrap items-center justify-between gap-2">
 
@@ -35,24 +33,6 @@
                   class="rounded border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-50 disabled:opacity-50"
                   {% if not prev_id %}disabled{% endif %}>
             ← Previous
-          </button>
-
-          <button type="button"
-                  id="btnBack10"
-                  class="rounded border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-50">
-            ⏪ 10s
-          </button>
-
-          <button type="button"
-                  id="btnPlay"
-                  class="rounded bg-slate-900 text-white px-4 py-1.5 text-sm font-medium hover:bg-slate-800">
-            ▶ Play
-          </button>
-
-          <button type="button"
-                  id="btnFwd10"
-                  class="rounded border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-50">
-            10s ⏩
           </button>
 
           <button type="button"
@@ -77,9 +57,10 @@
         <video id="lessonVideo"
               data-lesson-key="{{ lesson_key }}"
               data-is-last="{{ 1 if last_one else 0 }}"
-
                class="h-full w-full"
                controls
+               controlsList="nodownload noplaybackrate"
+               disablePictureInPicture
                playsinline
                preload="metadata">
           <source src="{{ video_src }}" type="video/mp4">
@@ -88,95 +69,22 @@
       </div>
     </div>
 
-    <!-- Hidden forms (POST) -->
     <form id="frmComplete" method="POST" action="{{ url_for('reading_bp.complete_lesson') }}" class="hidden">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="lesson_key" value="{{ lesson_key }}">
     </form>
-
-    <form id="frmDefer" method="POST" action="{{ url_for('reading_bp.defer_lesson') }}" class="hidden">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <input type="hidden" name="lesson_key" value="{{ lesson_key }}">
-    </form>
-
-  </div>
-</div>
-
-<!-- End-of-video modal -->
-<div id="endModal" class="fixed inset-0 hidden z-50">
-  <div class="absolute inset-0 bg-black/50"></div>
-
-  <div class="absolute inset-0 flex items-center justify-center p-4">
-    <div class="w-full max-w-md rounded-lg bg-white shadow border border-slate-200 p-5">
-      <div class="text-sm font-semibold text-slate-900">Watch again?</div>
-      <div class="mt-1 text-xs text-slate-600">
-        Replay, continue to the next lesson, or come back later (intro lessons only).
-      </div>
-
-      <div class="mt-4 flex flex-wrap gap-2 justify-end">
-        <button type="button"
-                id="btnReplayChoice"
-                class="rounded border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-50">
-          ↻ Replay
-        </button>
-
-        <button type="button"
-                id="btnDeferChoice"
-                class="rounded border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-50">
-          Come back later
-        </button>
-
-        <button type="button"
-                id="btnContinueChoice"
-                class="rounded bg-indigo-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-indigo-700">
-          Continue
-        </button>
-      </div>
-    </div>
   </div>
 </div>
 
 <script>
   const v = document.getElementById("lessonVideo");
-
-  const btnPlay   = document.getElementById("btnPlay");
-  const btnBack10 = document.getElementById("btnBack10");
-  const btnFwd10  = document.getElementById("btnFwd10");
-  const btnPrev   = document.getElementById("btnPrev");
-  const btnNext   = document.getElementById("btnNext");
-
+  const btnPrev = document.getElementById("btnPrev");
+  const btnNext = document.getElementById("btnNext");
   const frmComplete = document.getElementById("frmComplete");
-  const frmDefer    = document.getElementById("frmDefer");
-
-  const endModal          = document.getElementById("endModal");
-  const btnReplayChoice   = document.getElementById("btnReplayChoice");
-  const btnDeferChoice    = document.getElementById("btnDeferChoice");
-  const btnContinueChoice = document.getElementById("btnContinueChoice");
 
   const LESSON_KEY = parseInt(v.dataset.lessonKey || "0", 10);
   const IS_LAST = (v.dataset.isLast === "1");
   const IS_INTRO = (LESSON_KEY <= 5);
-
-
-  const setPlayLabel  = () => { btnPlay.textContent = "▶ Play"; };
-  const setPauseLabel = () => { btnPlay.textContent = "⏸ Pause"; };
-
-  v.addEventListener("loadedmetadata", () => setPlayLabel());
-  v.addEventListener("play",  setPauseLabel);
-  v.addEventListener("pause", setPlayLabel);
-
-  btnPlay.addEventListener("click", () => {
-    if (v.paused) v.play();
-    else v.pause();
-  });
-
-  btnBack10.addEventListener("click", () => {
-    v.currentTime = Math.max(0, (v.currentTime || 0) - 10);
-  });
-
-  btnFwd10.addEventListener("click", () => {
-    v.currentTime = Math.min(v.duration || 1e9, (v.currentTime || 0) + 10);
-  });
 
   btnPrev.addEventListener("click", () => {
     const href = btnPrev.dataset.href || "";
@@ -188,40 +96,8 @@
     if (href) window.location.href = href;
   });
 
-  function openEndModal() {
-    // Last lesson: force exit path (no defer)
-    if (IS_LAST) btnDeferChoice.classList.add("hidden");
-    else btnDeferChoice.classList.toggle("hidden", !IS_INTRO);
-
-    endModal.classList.remove("hidden");
-  }
-
-  function closeEndModal() {
-    endModal.classList.add("hidden");
-  }
-
   v.addEventListener("ended", () => {
-    setPlayLabel();
-    openEndModal();
-  });
-
-  btnReplayChoice.addEventListener("click", () => {
-    closeEndModal();
-    v.currentTime = 0;
-    v.play();
-  });
-
-  btnContinueChoice.addEventListener("click", () => {
     frmComplete.submit();
-  });
-
-  btnDeferChoice.addEventListener("click", () => {
-    frmDefer.submit();
-  });
-
-  // Close modal if user clicks the dark backdrop
-  endModal.addEventListener("click", (e) => {
-    if (e.target === endModal) closeEndModal();
   });
 </script>
 

@@ -44,7 +44,7 @@ def fx_for_country_code(code: str) -> Decimal | None:
             text("""
                 SELECT fx_to_zar
                 FROM ref_country_currency
-                WHERE alpha2 = :cc AND is_active = true
+                WHERE alpha2 = :cc AND is_active = 1
                 LIMIT 1
             """),
             {"cc": code},

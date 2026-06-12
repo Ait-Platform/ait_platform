@@ -2,35 +2,30 @@
 {% block title %}BudgetCash · Cashbook{% endblock %}
 
 {% block content %}
-<div class="mx-auto max-w-5xl mt-10 bg-white shadow rounded-lg p-6">
-
-  <!-- Header -->
-    <h1 class="text-lg font-semibold text-slate-900">
-        BudgetCash · Cashbook
-    </h1>
-
-    <div class="flex items-center gap-4 text-sm">
-        <a href="{{ url_for('budget_bp.account_new', next=request.full_path) }}"
-            class="text-sky-700 hover:underline">New account</a>
-
-        <a href="{{ url_for('budget_bp.report_income_expense') }}"
-            class="text-sky-700 hover:underline">Income statement</a>
-
-        <a href="{{ url_for('budget_bp.help_guide') }}"
-            class="text-sky-700 hover:underline">Help</a>
-
-        <!--a href="{{ url_for('budget_bp.dashboard') }}"
-            class="rounded border border-slate-300 px-3 py-1.5 hover:bg-slate-50">
-            ← Back
-        </a-->
-
-        <a href="{{ back_url }}"
-            class="rounded border border-slate-300 px-3 py-1.5 hover:bg-slate-50">
-            ← Back
-        </a>
+<div class="min-h-screen bg-gray-50 flex flex-col items-center py-10 px-4">
+  <div class="w-full max-w-5xl bg-white rounded-xl shadow-lg overflow-hidden flex flex-col">
+    <div class="h-3 bg-amber-500"></div>
+    <div class="p-8">
 
 
-    </div>
+      <!-- Row 1: Title & Action/Back Buttons -->
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 pb-4 border-b border-gray-100 gap-4">
+        <h1 class="text-2xl md:text-3xl font-bold text-gray-800 flex items-center">
+            BudgetCash · Cashbook
+        </h1>
+        <div class="flex items-center gap-4 text-sm">
+            <a href="{{ url_for('budget_bp.account_new', next=request.full_path) }}"
+                class="text-sky-700 hover:underline">New account</a>
+            <a href="{{ url_for('budget_bp.report_income_expense') }}"
+                class="text-sky-700 hover:underline">Income statement</a>
+            <a href="{{ url_for('budget_bp.help_guide') }}"
+                class="text-sky-700 hover:underline">Help</a>
+            <a href="{{ back_url }}"
+                class="rounded border border-slate-300 px-3 py-1.5 hover:bg-slate-50">
+                ← Back
+            </a>
+        </div>
+      </div>
 
 
   <!-- LOOKUP -->
@@ -176,5 +171,7 @@
     {% endif %}
   </div>
 
+    </div>
+  </div>
 </div>
 {% endblock %}

@@ -1,82 +1,104 @@
 {% extends "layout.html" %}
 {% block content %}
-<div class="container mx-auto py-10 max-w-6xl">
-  <h1 class="text-2xl font-semibold mb-6">View Readings</h1>
-    <div class="mb-4 print:hidden">
-      <a href="{{ url_for('admin_bp.readings_dashboard') }}"
-        class="inline-flex items-center gap-2 rounded border px-3 py-1.5 hover:bg-slate-50">
-        <span aria-hidden="true">←</span><span>Back</span>
+<div class="p-10 max-w-6xl mx-auto">
+  <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+    <!-- Top color strip -->
+    <div class="h-2 w-full bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500"></div>
+    
+    <!-- Row 1: Header -->
+    <div class="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+      <div>
+        <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight">View Readings</h1>
+        <p class="text-sm text-slate-500 mt-1">Review captured meter readings by month and tenant.</p>
+      </div>
+      <a href="{{ url_for('admin_bp.readings_dashboard') }}" class="inline-flex items-center text-sm font-medium text-slate-500 hover:text-slate-800 transition bg-white hover:bg-slate-50 px-4 py-2 rounded-lg border border-slate-200 shadow-sm">
+        <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+        Back to Dashboard
       </a>
     </div>
 
-  <!-- Filters -->
-  <form method="GET" action="{{ url_for('admin_bp.readings_view') }}" class="grid md:grid-cols-4 gap-4 mb-6 items-end">
-    <div class="md:col-span-2">
-      <label class="block text-sm mb-1">Tenant</label>
-      <select name="tenant_id" class="w-full border rounded p-2" required>
-        <option value="">Select a tenant…</option>
-        {% for t in tenants %}
-          <option value="{{ t.id }}" {{ selected_tenant_id==t.id and 'selected' or '' }}>
-            {{ t.name }}{% if t.unit_label %} — Unit {{ t.unit_label }}{% endif %}
-          </option>
-        {% endfor %}
-      </select>
-    </div>
+    <!-- Inner Content -->
+    <div class="p-8">
+      <!-- Filters -->
+      <form method="GET" action="{{ url_for('admin_bp.readings_view') }}" class="grid md:grid-cols-4 gap-4 mb-6 items-end bg-slate-50 p-6 rounded-xl border border-slate-100">
+        <div class="md:col-span-2">
+          <label class="block text-sm font-medium text-slate-700 mb-1">Tenant</label>
+          <select name="tenant_id" class="w-full border border-slate-300 rounded-lg p-2.5 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" required>
+            <option value="">Select a tenant…</option>
+            {% for t in tenants %}
+              <option value="{{ t.id }}" {{ selected_tenant_id==t.id and 'selected' or '' }}>
+                {{ t.name }}{% if t.unit_label %} — Unit {{ t.unit_label }}{% endif %}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
 
-    <div>
-      <label class="block text-sm mb-1">Month</label>
-      <select name="month" class="w-full border rounded p-2" required>
-        <option value="">YYYY-MM</option>
-        {% for m in months %}
-          <option value="{{ m }}" {{ selected_month==m and 'selected' or '' }}>{{ m }}</option>
-        {% endfor %}
-      </select>
-    </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">Month</label>
+          <select name="month" class="w-full border border-slate-300 rounded-lg p-2.5 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" required>
+            <option value="">YYYY-MM</option>
+            {% for m in months %}
+              <option value="{{ m }}" {{ selected_month==m and 'selected' or '' }}>{{ m }}</option>
+            {% endfor %}
+          </select>
+        </div>
 
-    <div class="flex gap-3">
-      <button class="px-4 py-2 rounded bg-black text-white">View</button>
+        <div class="flex gap-3">
+          <button class="px-6 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-medium shadow-sm transition-colors">View</button>
+          {% if rows %}
+            <button type="button" onclick="window.print()" class="px-6 py-2.5 rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 font-medium shadow-sm transition-colors">Print</button>
+          {% endif %}
+        </div>
+      </form>
+
+      {% if tenant and selected_month and not rows %}
+        <div class="rounded-lg border border-slate-200 bg-slate-50 p-6 text-center">
+          <p class="text-sm text-slate-600">No readings found for <strong>{{ tenant.name }}</strong> in <strong>{{ selected_month }}</strong>.</p>
+        </div>
+      {% endif %}
+
       {% if rows %}
-        <button type="button" onclick="window.print()" class="px-4 py-2 rounded border">Print</button>
+        <div id="results" class="overflow-hidden rounded-xl border border-slate-200 mt-6">
+          <div class="px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+            <div class="text-sm text-slate-700">
+              <span class="font-semibold">{{ tenant.name }}</span>
+              {% if tenant.unit_label %}<span class="text-slate-500"> — Unit {{ tenant.unit_label }}</span>{% endif %}
+            </div>
+            <div class="text-sm font-medium text-slate-600 bg-white px-3 py-1 rounded-full border border-slate-200">
+              Month: {{ selected_month }}
+            </div>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-slate-200">
+              <thead class="bg-slate-50">
+                <tr>
+                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Meter</th>
+                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Date</th>
+                  <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Reading</th>
+                </tr>
+              </thead>
+              <tbody class="bg-white divide-y divide-slate-200">
+                {% for m, r in rows %}
+                  <tr class="hover:bg-slate-50 transition-colors">
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">
+                      {{ m.meter_number or m.display_name or ('Meter #' ~ m.id) }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                      {{ r.reading_date }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-slate-900 text-right">
+                      {{ r.reading_value|int }}
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
       {% endif %}
     </div>
-  </form>
-
-  {% if tenant and selected_month and not rows %}
-    <p class="text-sm text-slate-600 mb-4">No readings found for {{ tenant.name }} in {{ selected_month }}.</p>
-  {% endif %}
-
-  {% if rows %}
-    <div id="results">
-      <div class="mb-3 text-sm text-slate-700">
-        <strong>Tenant:</strong> {{ tenant.name }}
-        {% if tenant.unit_label %} — <strong>Unit:</strong> {{ tenant.unit_label }}{% endif %}
-        &nbsp; | &nbsp; <strong>Month:</strong> {{ selected_month }}
-      </div>
-
-      <table class="w-full border">
-        <thead>
-          <tr>
-            <th class="p-2 border text-right">Meter</th>
-            <th class="p-2 border text-left">Date</th>
-            <th class="p-2 border text-right">Reading</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for m, r in rows %}
-            <tr>
-            
-            + <td class="p-2 border text-right">
-                {{ m.meter_number or m.display_name or ('Meter #' ~ m.id) }}
-              </td>
-              <td class="p-2 border">{{ r.reading_date }}</td>
-            
-            + <td class="p-2 border text-right">{{ r.reading_value|int }}</td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  {% endif %}
+  </div>
 </div>
 {% endblock %}
 

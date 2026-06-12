@@ -37,6 +37,14 @@ DASHBOARD_MAP = {
         ("public_bp.reading_home", False),
         ("public_bp.welcome", False),
     ],
+    "home": [
+        ("home_bp.learner_dashboard", False),
+        ("public_bp.welcome", False),
+    ],
+    "budget": [
+        ("budget_bp.ledger", False),
+        ("public_bp.welcome", False),
+    ],
 }
 
 def pick_dashboard(role: str | None, subject: str | None = None) -> tuple[str, dict]:

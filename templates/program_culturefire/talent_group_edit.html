@@ -1,0 +1,45 @@
+{% extends "layout.html" %}
+{% block title %}Update Group | Cultural Fire{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto mt-10">
+  <div class="h-2 bg-green-600 rounded-t-xl"></div>
+
+  <div class="bg-white rounded-b-xl shadow-lg p-8 relative">
+
+    {% if enrollment %}
+      <a href="{{ url_for('cultural_bp.talent_dashboard', enrollment_id=enrollment.id) }}"
+        class="text-sm text-gray-600 hover:text-gray-800">Back</a>
+    {% else %}
+      <a href="{{ url_for('cultural_bp.talent_dashboard', enrollment_id=current_user.enrollments[0].id) }}"
+        class="text-sm text-gray-600 hover:text-gray-800">Back</a>
+    {% endif %}
+
+    <h1 class="text-3xl font-bold text-slate-900 mb-2">Update Group</h1>
+    <p class="text-slate-600 mb-8">Rename your group and adjust members. You remain the leader automatically.</p>
+
+    <form method="POST">
+      {{ form.hidden_tag() }}  <!-- CSRF token -->
+
+      <!-- Group Name -->
+      <div class="mb-6">
+        {{ form.group_name.label(class="block text-xl font-semibold text-slate-800 mb-2") }}
+        {{ form.group_name(class="w-full border rounded-lg p-3 focus:ring-2 focus:ring-green-500 focus:outline-none") }}
+      </div>
+
+      <!-- Members -->
+      <div class="mb-6">
+        {{ form.member_ids.label(class="block text-xl font-semibold text-slate-800 mb-2") }}
+        {{ form.member_ids(class="w-full border rounded-lg p-3 focus:ring-2 focus:ring-green-500 focus:outline-none") }}
+        <p class="text-slate-500 mt-2 text-sm">Hold Ctrl (Windows) or Command (Mac) to select multiple members.</p>
+      </div>
+
+      <!-- Submit -->
+      <div class="mt-10 flex justify-end">
+        {{ form.submit(class="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold") }}
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+

@@ -2,7 +2,10 @@
 {% extends "layout.html" %}
 {% block title %}Payment received · AIT{% endblock %}
 {% block content %}
+{% block flashes %}{% endblock %}
+
 <div class="mx-auto max-w-xl mt-8 rounded-2xl border p-6 bg-white">
+  {% include "partials/flash_messages.html" %}
   <h1 class="text-xl font-semibold text-emerald-700">Thanks — payment received</h1>
   <p class="mt-2 text-slate-700">
     We’re confirming your payment in the background. You’ll be redirected to your dashboard in a moment.
@@ -19,19 +22,25 @@
 
   <div class="mt-6">
     {% if current_user.is_authenticated %}
-      <a href="{{ url_for('auth_bp.bridge_dashboard') }}"
+      {% if subject == 'cfi_judge' %}
+        {% set target_url = url_for('cultural_bp.judge_dashboard') %}
+      {% else %}
+        {% set target_url = url_for('auth_bp.bridge_dashboard') %}
+      {% endif %}
+      <a href="{{ target_url }}"
         class="inline-flex items-center rounded-lg border px-3 py-1 text-sm hover:bg-slate-50">
         Continue to Dashboard →
       </a>
       <script>
         setTimeout(function () {
-          window.location.href = "{{ url_for('auth_bp.bridge_dashboard') }}";
+          window.location.href = "{{ target_url }}";
         }, 2000);
       </script>
     {% else %}
+      {% set login_target = url_for('auth_bp.bridge_dashboard') %}
       <p class="mt-2 text-slate-700">Please sign in to view your course.</p>
       <a class="inline-flex items-center rounded-lg border px-3 py-1 text-sm hover:bg-slate-50"
-        href="{{ url_for('auth_bp.login', next=url_for('auth_bp.bridge_dashboard')) }}">
+        href="{{ url_for('auth_bp.login', next=login_target) }}">
         Sign in to Continue →
       </a>
     {% endif %}

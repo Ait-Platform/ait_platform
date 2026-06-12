@@ -1,0 +1,168 @@
+{% extends "layout.html" %}
+{% block content %}
+
+<div class="max-w-6xl mx-auto mt-10 bg-white shadow-lg rounded-lg overflow-hidden">
+
+  <!-- Header strip -->
+  <div class="h-2 bg-blue-600"></div>
+  <div class="px-6 py-4 flex items-center justify-between border-b">
+    <h1 class="text-xl font-semibold">Parent Dashboard</h1>
+    <a href="{{ url_for('bridge_bp.bridge') }}" 
+       class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">
+       Back
+    </a>
+  </div>
+
+  <!-- Navigation Row -->
+  <div class="flex items-center justify-end space-x-2 px-6 py-3 border-b bg-gray-50">
+    <a href="{{ url_for('cultural_bp.judge_dashboard') }}" 
+       class="bg-indigo-600 text-white px-3 py-1 rounded hover:bg-indigo-700 shadow-sm transition-transform hover:-translate-y-0.5">
+       Judges
+    </a>
+    <a href="{{ url_for('cultural_bp.showcase_dashboard', origin='parent', enrollment_id=enrollment.id) }}"
+       class="bg-purple-600 text-white px-3 py-1 rounded hover:bg-purple-700 shadow-sm transition-transform hover:-translate-y-0.5">
+       Showcase
+    </a>
+    <a href="{{ url_for('cultural_bp.live_results_list', origin='parent', enrollment_id=enrollment.id) }}" 
+       class="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600 shadow-sm transition-transform hover:-translate-y-0.5">
+       Results
+    </a>
+    <a href="{{ url_for('cultural_bp.live_shows_static', origin='parent', enrollment_id=enrollment.id) }}" 
+       class="bg-emerald-500 text-white px-3 py-1 rounded hover:bg-emerald-600 shadow-sm flex items-center gap-2 transition-transform hover:-translate-y-0.5">
+       <span class="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+       Live
+    </a>
+  </div>
+
+  <!-- Action row -->
+  <div class="px-6 py-4 flex items-center justify-between bg-gray-50 border-b">
+    <a href="{{ url_for('cultural_bp.parent_add_participant') }}" 
+       class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+       + Add Participant
+    </a>
+  </div>
+
+  <!-- Children loop -->
+  <div class="p-6">
+    {% if children %}
+    {% for child in children %}
+      <div class="mb-10">
+
+        <!-- Bio Data Section -->
+        <div class="text-center my-6">
+          <h2 class="text-xl font-semibold">Bio Data</h2>
+        </div>
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-lg font-semibold">{{ child.user.name }}</h3>
+          <a href="{{ url_for('cultural_bp.parent_update_biodata', child_id=child.user.id) }}"
+             class="text-blue-600 hover:underline">Update Bio Data</a>
+        </div>
+        {% if child.biodata %}
+        <div class="grid grid-cols-3 gap-4 text-gray-600">
+          <div>
+            <span class="block font-semibold">Age</span>
+            <span>{{ calculate_age_from_dob(child.biodata.dob) }}</span>
+
+          </div>
+          <div>
+            <span class="block font-semibold">Grade</span>
+            <span>{{ child.biodata.grade or '' }}</span>
+          </div>
+          <div>
+            <span class="block font-semibold">School</span>
+            <span>{{ child.biodata.school or '' }}</span>
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- Talent Submissions Section -->
+        <div class="text-center my-6">
+          <h2 class="text-xl font-semibold">Talent Submissions</h2>
+        </div>
+
+        <table class="table-auto w-full border mb-6">
+        <thead>
+            <tr>
+            <th>No.</th>
+            <th>Name</th>
+            <th>Status</th>
+            <th>Permission</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for talent in child.talents %}
+            <tr>
+            <!-- Use submission id instead of loop.index -->
+            <td class="text-center">{{ talent.id }}</td>
+            <td>{{ talent.talent_name }}</td>
+            <td>{{ talent.status }}</td>
+            <td class="text-center">
+                <form action="{{ url_for('cultural_bp.toggle_permission') }}" method="post">
+                {{ form.csrf_token }}
+                <input type="hidden" name="child_id" value="{{ child.user.id }}">
+                <input type="hidden" name="item_id" value="{{ talent.id }}">
+                <input type="hidden" name="item_type" value="talent">
+                {% if talent.permission_granted %}
+                    <input type="hidden" name="action" value="revoke">
+                    <button type="submit" class="text-red-600 hover:underline"> Grant</button>
+                {% else %}
+                    <input type="hidden" name="action" value="grant">
+                    <button type="submit" class="text-blue-600 hover:underline">❌ Revoke</button>
+                {% endif %}
+                </form>
+            </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="4">No talent submissions yet.</td></tr>
+            {% endfor %}
+        </tbody>
+        </table>
+
+
+        <!-- Groups Section -->
+        <div class="text-center my-6">
+          <h2 class="text-xl font-semibold">Groups</h2>
+        </div>
+        <table class="table-auto w-full border mb-6">
+          <thead>
+            <tr>
+              <th>Group Name</th>
+              <th>Members</th>
+              <th>Submission Number(s)</th>
+            </tr>
+          </thead>
+
+            <tbody>
+            {% for group in child.groups %}
+            <tr>
+                <td>{{ group.name }}</td>
+                <td>
+                {% for member in group.members %}
+                    {{ member.user.name }}{% if not loop.last %}, {% endif %}
+                {% endfor %}
+                </td>
+                <td style="text-align: center;">
+                {% if group.submission_id %}
+                    {{ group.submission_id }}
+                {% else %}
+                    -
+                {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="3">No groups joined yet.</td></tr>
+            {% endfor %}
+            </tbody>
+
+        </table>
+
+      </div>
+    {% endfor %}
+    {% else %}
+      <p class="text-gray-600">No participants linked yet. Use “+ Add Participant” above to connect your child.</p>
+    {% endif %}
+  </div>
+
+</div>
+
+{% endblock %}

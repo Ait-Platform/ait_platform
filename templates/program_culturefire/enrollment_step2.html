@@ -1,0 +1,69 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="max-w-4xl mx-auto mt-6">
+  <div class="bg-white shadow-md rounded-lg overflow-hidden border">
+    <!-- Color strip -->
+    <div class="h-2 bg-blue-500"></div>
+    <div class="p-6">
+
+      <!-- Header row -->
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl font-bold text-gray-800">Enrollment – Step 2 of 3</h2>
+        <a href="{{ url_for('cultural_bp.biodata', step=1) }}"
+           class="px-3 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition">
+          ← Back
+        </a>
+      </div>
+
+      <form method="post" class="space-y-6">
+        {{ form.hidden_tag() }}
+
+        <!-- Row 1: Gender + City -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            {{ form.gender.label(class="block text-gray-700") }}
+            {{ form.gender(class="w-full border border-green-300 rounded px-3 py-2") }}
+          </div>
+          <div>
+            {{ form.city.label(class="block text-gray-700") }}
+            {{ form.city(class="w-full border border-green-300 rounded px-3 py-2") }}
+          </div>
+        </div>
+
+        <!-- Row 2: Province + Address -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            {{ form.province.label(class="block text-gray-700") }}
+            {{ form.province(class="w-full border border-green-300 rounded px-3 py-2") }}
+          </div>
+          <div>
+            {{ form.address_line.label(class="block text-gray-700") }}
+            {{ form.address_line(class="w-full border border-green-300 rounded px-3 py-2") }}
+          </div>
+        </div>
+
+        <!-- Row 3: Occupation + Qualification -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            {{ form.occupation.label(class="block text-gray-700") }}
+            {{ form.occupation(class="w-full border border-green-300 rounded px-3 py-2") }}
+          </div>
+          <div>
+            {{ form.highest_qualification.label(class="block text-gray-700") }}
+            {{ form.highest_qualification(class="w-full border border-green-300 rounded px-3 py-2") }}
+          </div>
+        </div>
+
+        <!-- Submit button -->
+        <div class="flex justify-end">
+          <button type="submit"
+                  class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition">
+            Next →
+          </button>
+        </div>
+      </form>
+
+    </div>
+  </div>
+</div>
+{% endblock %}

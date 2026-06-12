@@ -1,0 +1,61 @@
+{% extends "layout.html" %}
+{% block title %}Record meeting · SMS{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-xl py-8">
+
+  <h1 class="text-2xl font-semibold text-slate-900 mb-4">
+    Record SGB meeting
+  </h1>
+  <p class="text-sm text-slate-600 mb-6">
+    Capture the basic details. You can refine the minutes later.
+  </p>
+
+  <form method="post" class="space-y-4">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+    <div>
+      <label class="block text-sm font-medium text-slate-700">Meeting date</label>
+      <input name="meeting_date" type="date" required
+             class="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm">
+    </div>
+
+    <div>
+      <label class="block text-sm font-medium text-slate-700">
+        Term <span class="text-xs text-slate-400">(optional, 1–4)</span>
+      </label>
+      <input name="term" type="number" min="1" max="4"
+             class="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm">
+    </div>
+
+    <div>
+      <label class="block text-sm font-medium text-slate-700">
+        Agenda <span class="text-xs text-slate-400">(optional)</span>
+      </label>
+      <textarea name="agenda" rows="3"
+                class="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm"></textarea>
+    </div>
+
+    <div>
+      <label class="block text-sm font-medium text-slate-700">
+        Minutes / summary <span class="text-xs text-slate-400">(optional)</span>
+      </label>
+      <textarea name="minutes" rows="4"
+                class="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm"></textarea>
+    </div>
+
+    <div class="flex items-center justify-between pt-4">
+      <a href="{{ url_for('sms_bp.governance_home') }}"
+         class="text-sm text-slate-600 hover:text-slate-900">
+        ← Cancel
+      </a>
+
+      <button type="submit"
+              class="inline-flex items-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
+        Save meeting
+      </button>
+    </div>
+  </form>
+
+</div>
+{% endblock %}

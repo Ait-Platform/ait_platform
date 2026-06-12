@@ -1,0 +1,97 @@
+{% extends "layout.html" %}
+
+{% block title %}
+Final Assessment Result
+{% endblock %}
+
+{% block content %}
+
+<div class="bg-white rounded-xl shadow p-8">
+
+```
+<h1 class="text-3xl font-bold text-blue-800 mb-6">
+    HOME™ Final Assessment Results
+</h1>
+
+<div class="mb-8">
+
+    <h2 class="text-2xl font-semibold">
+        Overall Score: {{ assessment.overall_score }}%
+    </h2>
+
+    {% if assessment.passed %}
+
+        <div class="mt-4 p-4 rounded-lg bg-green-100 text-green-800">
+            PASS
+        </div>
+
+    {% else %}
+
+        <div class="mt-4 p-4 rounded-lg bg-red-100 text-red-800">
+            FAIL
+        </div>
+
+    {% endif %}
+
+</div>
+
+<div class="grid md:grid-cols-2 gap-4">
+
+    <div>Observation: {{ assessment.observation_score }}%</div>
+
+    <div>Position & Direction: {{ assessment.position_score }}%</div>
+
+    <div>Comparison: {{ assessment.comparison_score }}%</div>
+
+    <div>Estimation: {{ assessment.estimation_score }}%</div>
+
+    <div>Measurement: {{ assessment.measurement_score }}%</div>
+
+    <div>Pattern Recognition: {{ assessment.pattern_score }}%</div>
+
+    <div>Spatial Reasoning: {{ assessment.spatial_score }}%</div>
+
+    <div>Logic: {{ assessment.logic_score }}%</div>
+
+    <div>Mathematics: {{ assessment.mathematics_score }}%</div>
+
+    <div>Critical Thinking: {{ assessment.critical_thinking_score }}%</div>
+
+</div>
+
+<div class="mt-8">
+
+    {% if assessment.passed %}
+
+        <a href="{{ url_for('home_bp.view_certificate') }}"
+           class="px-6 py-3 bg-green-600 text-white rounded-lg">
+            View Certificate
+        </a>
+
+    {% else %}
+
+        <form method="POST"
+              action="{{ url_for('home_bp.re_enrol') }}">
+
+            <input
+                type="hidden"
+                name="csrf_token"
+                value="{{ csrf_token() }}"
+            >
+
+            <button
+                type="submit"
+                class="px-6 py-3 bg-yellow-600 text-white rounded-lg">
+                Re-Enrol
+            </button>
+
+        </form>
+
+    {% endif %}
+
+</div>
+```
+
+</div>
+
+{% endblock %}

@@ -1,0 +1,145 @@
+{% extends "layout.html" %}
+
+{% block content %}
+
+<div class="max-w-4xl mx-auto py-8">
+
+```
+<div class="bg-white rounded-xl shadow p-8">
+
+    <h1 class="text-3xl font-bold mb-6">
+      
+        {{ "Edit Question" if question else "Add Question" }}
+    </h1>
+
+    <form method="POST">
+
+        <input
+            type="hidden"
+            name="csrf_token"
+            value="{{ csrf_token() }}"
+        >
+
+        <div class="mb-4">
+
+            <label class="block mb-2 font-medium">
+                Chapter
+            </label>
+
+            <select
+                name="chapter_id"
+                required
+                class="w-full border rounded-lg p-3"
+            >
+
+                <option value="">
+                    Select Chapter
+                </option>
+
+                {% for chapter in chapters %}
+
+                <option
+                    value="{{ chapter.id }}"
+                    {% if question and question.chapter_id == chapter.id %}
+                    selected
+                    {% endif %}
+                >
+                    Chapter {{ chapter.chapter_number }} - {{ chapter.title }}
+                </option>
+
+                {% endfor %}
+
+            </select>
+
+        </div>
+
+        <div class="mb-4">
+
+            <label class="block mb-2 font-medium">
+                Question
+            </label>
+
+            <textarea
+                name="question"
+                rows="4"
+                required
+                class="w-full border rounded-lg p-3"
+            >{{ question.question if question else '' }}</textarea>
+
+        </div>
+
+        <div class="mb-4">
+
+            <label class="block mb-2 font-medium">
+                Question Type
+            </label>
+
+            <select
+                name="question_type"
+                required
+                class="w-full border rounded-lg p-3"
+            >
+
+                <option
+                    value="select"
+                    {% if question and question.question_type == "select" %}
+                    selected
+                    {% endif %}
+                >
+                    Single Choice
+                </option>
+
+                <option
+                    value="multi_select"
+                    {% if question and question.question_type == "multi_select" %}
+                    selected
+                    {% endif %}
+                >
+                    Multiple Choice
+                </option>
+
+            </select>
+
+        </div>
+
+        <div class="mb-6">
+
+            <label class="block mb-2 font-medium">
+                Correct Answer
+            </label>
+
+            <input
+                type="text"
+                name="correct_answer"
+                value="{{ question.correct_answer if question else '' }}"
+                required
+                class="w-full border rounded-lg p-3"
+            >
+        </div>
+
+        <div class="flex justify-end gap-3">
+
+            <a
+                href="{{ url_for('admin_bp.questions') }}"
+                class="px-4 py-2 border rounded-lg"
+            >
+                Cancel
+            </a>
+
+            <button
+                type="submit"
+                class="px-5 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+            >
+                Save Question
+            </button>
+
+        </div>
+
+    </form>
+
+</div>
+```
+
+</div>
+
+{% endblock %}

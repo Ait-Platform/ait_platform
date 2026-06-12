@@ -94,7 +94,7 @@ def create_new_accounts_schema(conn):
           id                   INTEGER PRIMARY KEY AUTOINCREMENT,
           account_number       TEXT NOT NULL UNIQUE,
           owner_id             INTEGER NOT NULL,
-          email_electric       TEXT,
+          muni_email           TEXT,
           water_meter_id       INTEGER,
           elec_meter_id        INTEGER,
           muni_water_meter_no  TEXT,
@@ -128,7 +128,7 @@ def migrate_old_accounts(conn, backup_name):
     aliases = {
         "account_number": ["account_number", "AccNum", "AccountNo", "Acc_Number"],
         "owner_name":     ["owner_name", "MetOwnerID_FK", "Owner", "OwnerName"],
-        "email_electric": ["email_electric", "EmailEle", "Email"],
+        "muni_email": ["muni_email", "email_electric", "EmailEle", "Email"],
         "muni_water_meter_no": ["muni_water_meter_no", "WtrMtr", "WaterMeter"],
         "muni_water_ref":      ["muni_water_ref", "WtrMetRef", "WaterRef"],
         "muni_elec_meter_no":  ["muni_elec_meter_no", "EleMtr", "ElecMeter"],
@@ -169,7 +169,7 @@ def migrate_old_accounts(conn, backup_name):
 
         q(conn, """
             INSERT OR IGNORE INTO bil_muni_account_new
-              (account_number, owner_id, email_electric,
+              (account_number, owner_id, muni_email,
                water_meter_id, elec_meter_id,
                muni_water_meter_no, muni_water_ref,
                muni_elec_meter_no,  muni_elec_ref)
@@ -177,7 +177,7 @@ def migrate_old_accounts(conn, backup_name):
         """, (
             account_number,
             owner_id,
-            grab("email_electric"),
+            grab("muni_email"),
             grab("muni_water_meter_no"),
             grab("muni_water_ref"),
             grab("muni_elec_meter_no"),
@@ -220,7 +220,7 @@ def seed_sample_account(conn):
     # Insert your example account if missing
     q(conn, """
         INSERT OR IGNORE INTO bil_muni_account
-          (account_number, owner_id, email_electric,
+          (account_number, owner_id, muni_email,
            water_meter_id, elec_meter_id,
            muni_water_meter_no, muni_water_ref,
            muni_elec_meter_no,  muni_elec_ref)

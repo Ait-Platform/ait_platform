@@ -1,0 +1,177 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="p-10 max-w-6xl mx-auto">
+  <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+    <!-- Top Gradient Strip -->
+    <div class="h-2 w-full bg-gradient-to-r from-teal-400 via-emerald-500 to-green-500"></div>
+    
+    <!-- Header -->
+    <div class="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+      <div>
+        <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight">Metro Reconciliation</h1>
+        <p class="text-sm text-slate-500 mt-1">Review your historical utility charges against your actual Metro payments.</p>
+      </div>
+      <a href="{{ url_for('billing_bp.learner_dashboard') }}" class="inline-flex items-center text-sm font-medium text-slate-500 hover:text-slate-800 transition bg-white hover:bg-slate-50 px-4 py-2 rounded-lg border border-slate-200 shadow-sm">
+        <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+        Back to Dashboard
+      </a>
+    </div>
+
+    <!-- Main Content -->
+    <div class="p-8 space-y-8" x-data="{ 
+        showModal: false, 
+        selectedAccount: '{{ selected_account.account_number if selected_account else "" }}', 
+        selectedMonth: '',
+        openPaymentModal(month) {
+            this.selectedMonth = month;
+            this.showModal = true;
+        }
+    }">
+      
+      <!-- Toolbar: Filters -->
+      <div class="bg-slate-50 border border-slate-200 rounded-xl p-6">
+        <form method="get" class="flex flex-col md:flex-row gap-6 w-full items-end">
+          
+          <!-- Select Account -->
+          <div class="flex-1 w-full">
+            <label class="block text-sm font-medium text-slate-700 mb-2">Select Metro Account</label>
+            {% if user_accounts|length == 0 %}
+              <div class="text-sm text-slate-500 py-2">No municipal accounts linked to your properties yet.</div>
+            {% elif user_accounts|length == 1 %}
+              <!-- Auto-populated text for single account -->
+              <input type="hidden" name="account_number" value="{{ user_accounts[0].account_number }}">
+              <div class="w-full border border-slate-300 rounded-lg px-4 py-2 text-sm bg-slate-100 text-slate-800 font-mono">
+                {{ user_accounts[0].account_number }} 
+                {% if user_accounts[0].muni_water_meter_no %}(Water: {{ user_accounts[0].muni_water_meter_no }}){% endif %}
+              </div>
+            {% else %}
+              <!-- Dropdown for multiple accounts -->
+              <select name="account_number" onchange="this.form.submit()" class="w-full border border-slate-300 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-teal-500 outline-none" required>
+                <option value="">-- Choose Account --</option>
+                {% for acc in user_accounts %}
+                  <option value="{{ acc.account_number }}" {% if selected_account and selected_account.account_number == acc.account_number %}selected{% endif %}>
+                    {{ acc.account_number }} - {{ acc.property_name }}
+                  </option>
+                {% endfor %}
+              </select>
+            {% endif %}
+          </div>
+          
+          {% if user_accounts|length > 0 %}
+          <!-- Actions -->
+          <div class="flex gap-2">
+            <a href="{{ url_for('billing_bp.muni_recon_statement') }}" class="flex items-center justify-center border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 px-4 py-2 rounded-lg transition text-sm font-medium">
+              Refresh
+            </a>
+          </div>
+          {% endif %}
+        </form>
+      </div>
+
+      <!-- Account Details Panel -->
+      {% if selected_account %}
+      <div class="bg-teal-50 border border-teal-100 rounded-xl p-5 flex flex-wrap gap-8 shadow-sm items-center">
+        <div>
+          <div class="text-xs text-teal-600 font-bold uppercase tracking-wider mb-1">Active Account</div>
+          <div class="font-mono text-lg font-bold text-teal-900">{{ selected_account.account_number }}</div>
+        </div>
+        <div>
+          <div class="text-xs text-teal-600 font-bold uppercase tracking-wider mb-1">Water Meter</div>
+          <div class="font-mono text-teal-900">{{ selected_account.muni_water_meter_no or '—' }}</div>
+        </div>
+        <div>
+          <div class="text-xs text-teal-600 font-bold uppercase tracking-wider mb-1">Elec Meter</div>
+          <div class="font-mono text-teal-900">{{ selected_account.muni_elec_meter_no or '—' }}</div>
+        </div>
+        <div>
+          <div class="text-xs text-teal-600 font-bold uppercase tracking-wider mb-1">Property</div>
+          <div class="text-teal-900 font-medium">{{ selected_account.property_name or '—' }}</div>
+        </div>
+        <div class="ml-auto">
+          <!-- Removed Add New Entry button as per request -->
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Recon Table -->
+      {% if selected_account %}
+      <div class="rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
+        <table class="w-full text-sm text-left whitespace-nowrap min-w-max">
+          <thead class="bg-slate-50 text-slate-600 border-b border-slate-200">
+            <tr>
+              <th class="px-6 py-4 font-semibold">Date</th>
+              <th class="px-6 py-4 font-semibold text-right leading-tight">MetSoa<br>Charges</th>
+              <th class="px-6 py-4 font-semibold text-right leading-tight">Metro<br>Due</th>
+              <th class="px-6 py-4 font-semibold text-right leading-tight">Your<br>Payment</th>
+              <th class="px-6 py-4 font-semibold text-right">Difference</th>
+              <th class="px-6 py-4 font-semibold text-center">Status</th>
+              <th class="px-6 py-4 font-semibold text-center">Action</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            {% for r in rows %}
+              <tr class="hover:bg-slate-50 transition">
+                <td class="px-6 py-4 font-medium text-slate-900">
+                  {{ r.month }}
+                </td>
+                <td class="px-6 py-4 text-right font-medium text-slate-700">
+                  R {{ "%.2f"|format(r.metsoa_charges) }}
+                </td>
+                <td class="px-6 py-4 text-right">
+                  R {{ "%.2f"|format(r.metro_due) }}
+                </td>
+                <td class="px-6 py-4 text-right">
+                  R {{ "%.2f"|format(r.owner_payment) }}
+                </td>
+                <td class="px-6 py-4 text-right font-bold {% if r.difference < 0 %}text-red-600{% elif r.difference == 0 %}text-emerald-600{% else %}text-blue-600{% endif %}">
+                  {% if r.difference < 0 %}
+                    (R {{ "%.2f"|format(r.difference|abs) }})
+                  {% elif r.difference == 0 %}
+                    R 0.00
+                  {% else %}
+                    R {{ "%.2f"|format(r.difference) }}
+                  {% endif %}
+                </td>
+                <td class="px-6 py-4 text-center">
+                  {% if r.difference < 0 %}
+                    <span class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold bg-red-50 text-red-700 border border-red-200/60 shadow-sm">
+                      Shortfall
+                    </span>
+                  {% elif r.difference == 0 %}
+                    <span class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/60 shadow-sm">
+                      Reconciled
+                    </span>
+                  {% else %}
+                    <span class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200/60 shadow-sm">
+                      Surplus
+                    </span>
+                  {% endif %}
+                </td>
+                <td class="px-6 py-4 text-center">
+                  <div class="flex items-center justify-center gap-2">
+                    <a href="{{ url_for('billing_bp.muni_recon_edit', account_number=selected_account.account_number, month=r.month) }}" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200 text-xs font-semibold px-3 py-1.5 rounded shadow-sm transition">Edit</a>
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+            {% if not rows %}
+              <tr>
+                <td colspan="7" class="px-6 py-8 text-center text-slate-500">
+                  <p class="mb-2">No reconciliation data found for this account.</p>
+                  <p class="text-sm">Entries will automatically appear when MetSoa charges are computed.</p>
+                </td>
+              </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+      {% elif user_accounts|length > 1 %}
+      <div class="text-center py-12 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50">
+        <p class="text-slate-500 font-medium">Please select an account from the dropdown above to view your reconciliation history.</p>
+      </div>
+      {% endif %}
+
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,153 @@
+{% extends "layout.html" %}
+
+{% block content %}
+
+<div class="max-w-7xl mx-auto py-8">
+
+```
+<div class="flex justify-between items-center mb-6">
+
+    <div>
+
+        <h1 class="text-3xl font-bold text-slate-800">
+            HOME Chapters
+        </h1>
+
+        <p class="text-slate-500 mt-1">
+            Manage curriculum chapters.
+        </p>
+
+    </div>
+
+    <a href="{{ url_for('admin_bp.add_chapter') }}"
+       class="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700">
+        Add Chapter
+    </a>
+
+</div>
+
+<div class="bg-white rounded-xl shadow overflow-hidden">
+
+    <table class="min-w-full">
+
+        <thead class="bg-slate-100">
+
+            <tr>
+
+                <th class="px-4 py-3 text-left">
+                    #
+                </th>
+
+                <th class="px-4 py-3 text-left">
+                    Title
+                </th>
+
+                <th class="px-4 py-3 text-left">
+                    Objective
+                </th>
+
+                <th class="px-4 py-3 text-left">
+                    Image
+                </th>
+
+                <th class="px-4 py-3 text-left">
+                    Pass Mark
+                </th>
+
+                <th class="px-4 py-3 text-right">
+                    Actions
+                </th>
+
+            </tr>
+
+        </thead>
+
+        <tbody>
+
+            {% for chapter in chapters %}
+
+            <tr class="border-t">
+
+                <td class="px-4 py-3">
+                    {{ chapter.chapter_number }}
+                </td>
+
+                <td class="px-4 py-3 font-medium">
+                    {{ chapter.title }}
+                </td>
+
+                <td class="px-4 py-3">
+                    {{ chapter.objective }}
+                </td>
+
+                <td class="px-4 py-3">
+                    {{ chapter.image_filename }}
+                </td>
+
+                <td class="px-4 py-3">
+                    {{ chapter.pass_mark }}%
+                </td>
+
+                <td class="px-4 py-3 text-right">
+
+                    <a href="{{ url_for(
+                        'admin_bp.edit_chapter',
+                        chapter_id=chapter.id
+                    ) }}"
+                    class="text-blue-600 hover:text-blue-800 mr-3">
+                        Edit
+                    </a>
+                    
+                    <form
+                        method="POST"
+                        action="{{ url_for(
+                            'admin_bp.delete_chapter',
+                            chapter_id=chapter.id
+                        ) }}"
+                        class="inline"
+                    >
+
+                        <input
+                            type="hidden"
+                            name="csrf_token"
+                            value="{{ csrf_token() }}"
+                        >
+
+                        <button
+                            type="submit"
+                            class="text-red-600 hover:text-red-800"
+                            onclick="return confirm('Delete this chapter?')"
+                        >
+                            Delete
+                        </button>
+
+                    </form>
+                </td>
+
+            </tr>
+
+            {% else %}
+
+            <tr>
+
+                <td colspan="6"
+                    class="px-4 py-8 text-center text-slate-500">
+
+                    No chapters found.
+
+                </td>
+
+            </tr>
+
+            {% endfor %}
+
+        </tbody>
+
+    </table>
+
+</div>
+```
+
+</div>
+
+{% endblock %}

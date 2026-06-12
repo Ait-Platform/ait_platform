@@ -1,0 +1,63 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="max-w-4xl mx-auto mt-6">
+  <div class="bg-white shadow-md rounded-lg overflow-hidden border">
+    <!-- Color strip -->
+    <div class="h-2 bg-blue-500"></div>
+    <div class="p-6">
+
+      <!-- Header row -->
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl font-bold text-gray-800">Enrollment – Step 1 of 3</h2>
+          <a href="{{ url_for('cultural_bp.cultural_fire_router') }}"
+            class="px-3 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition">
+            ← Back
+          </a>
+       
+      </div>
+
+      <form method="post" class="space-y-6">
+        {{ form.hidden_tag() }}
+
+        <!-- Row 1: Full Name + DOB -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            {{ form.full_name.label(class="block text-gray-700") }}
+            {{ form.full_name(class="w-full border border-green-300 rounded px-3 py-2", autofocus=True) }}
+          </div>
+          <div>
+            {{ form.dob.label(class="block text-gray-700") }}
+            {{ form.dob(class="w-full border border-green-300 rounded px-3 py-2") }}
+          </div>
+        </div>
+
+        <!-- Row 2: POPIA message -->
+        <div class="bg-gray-50 border border-red-300 rounded px-3 py-2 text-sm text-gray-1000">
+          Your ID number is required for age verification and participant records. It will be encrypted and handled in compliance with POPIA.
+        </div>
+
+        <!-- Row 3: ID Number + Phone -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            {{ form.id_number.label(class="block text-gray-700") }}
+            {{ form.id_number(class="w-full border border-green-300 rounded px-3 py-2") }}
+          </div>
+          <div>
+            {{ form.phone.label(class="block text-gray-700") }}
+            {{ form.phone(class="w-full border border-green-300 rounded px-3 py-2") }}
+          </div>
+        </div>
+
+        <!-- Submit button right-aligned -->
+        <div class="flex justify-end">
+          <button type="submit"
+                  class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition">
+            Next →
+          </button>
+        </div>
+      </form>
+
+    </div>
+  </div>
+</div>
+{% endblock %}

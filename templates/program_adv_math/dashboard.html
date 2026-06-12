@@ -1,0 +1,169 @@
+{% extends "layout.html" %}
+
+{% block title %}Advanced Mathematics Dashboard{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-12">
+  <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+    <!-- Top Color Strip -->
+    <div class="h-3 bg-cyan-600 w-full"></div>
+
+    <div class="p-8 md:p-12">
+      <!-- Header Row -->
+      <div class="flex items-center justify-between mb-8 pb-6 border-b border-slate-100">
+        <div>
+          <h1 class="text-2xl md:text-3xl font-bold text-slate-900">Advanced Mathematics</h1>
+          <p class="text-sm text-slate-500 mt-1">Welcome back, {{ current_user.name }} • {{ progress_pct }}% Mastery</p>
+        </div>
+        <a href="{{ url_for('auth_bp.bridge_dashboard', force=1) }}"
+           class="inline-flex items-center gap-2 rounded border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition shrink-0">
+          <span>←</span><span>Back to Bridge</span>
+        </a>
+      </div>
+
+      <!-- Content Area -->
+      <div class="mb-8">
+        
+        <!-- NSC Curriculum Overview -->
+        <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-6 mb-8">
+            <h2 class="text-lg font-bold text-indigo-900 mb-2 flex items-center gap-2">
+                <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                NSC Grade 12 Mathematics (CAPS-Aligned)
+            </h2>
+            <p class="text-indigo-800 text-sm mb-4">This dashboard maps directly to the national curriculum. Master each module to secure your final grade.</p>
+            
+            <div class="overflow-x-auto bg-white rounded-lg border border-indigo-100 shadow-sm">
+                <table class="min-w-full text-sm text-left">
+                    <thead class="bg-indigo-100 text-indigo-900 font-bold uppercase text-xs">
+                        <tr>
+                            <th class="px-4 py-3">Exam Paper (DBE NSC)</th>
+                            <th class="px-4 py-3">Content Focus</th>
+                            <th class="px-4 py-3 whitespace-nowrap">Weighting</th>
+                        </tr>
+                    </thead>
+                    <tbody class="text-slate-700 divide-y divide-slate-100">
+                        <tr class="hover:bg-slate-50 transition">
+                            <td class="px-4 py-3 font-semibold text-slate-900">Paper 1</td>
+                            <td class="px-4 py-3">Algebra, Functions & Graphs, Calculus</td>
+                            <td class="px-4 py-3 font-bold text-indigo-600">~150 marks</td>
+                        </tr>
+                        <tr class="hover:bg-slate-50 transition">
+                            <td class="px-4 py-3 font-semibold text-slate-900">Paper 2</td>
+                            <td class="px-4 py-3">Geometry, Trigonometry, Probability & Statistics, Financial Mathematics</td>
+                            <td class="px-4 py-3 font-bold text-indigo-600">~150 marks</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <p class="text-xs text-indigo-600/70 mt-3 italic">Each paper is 3 hours, total 300 marks. Both papers are compulsory.</p>
+        </div>
+
+        <div class="flex items-center justify-between mb-6">
+            <h2 class="text-xl font-bold text-slate-800">Syllabus Path</h2>
+            <a href="{{ url_for('adv_math_bp.readiness') }}" class="bg-slate-900 hover:bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-medium transition shadow-sm">
+                Check Readiness Gate
+            </a>
+        </div>
+
+        {% macro accordion_item(number, title, sub_topics, progress_data, is_open=False) %}
+        <div class="border border-slate-200 rounded-xl mb-4 bg-white overflow-hidden shadow-sm transition-all duration-300">
+            <button type="button" class="w-full px-6 py-4 flex items-center justify-between bg-slate-50 hover:bg-slate-100 transition focus:outline-none" onclick="const content = this.nextElementSibling; content.classList.toggle('hidden'); const icon = this.querySelector('.chevron'); icon.style.transform = content.classList.contains('hidden') ? 'rotate(0deg)' : 'rotate(180deg)';">
+                <h3 class="text-lg font-bold text-slate-800 flex items-center gap-3">
+                    <span class="bg-cyan-600 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm shadow-inner">{{ number }}</span>
+                    {{ title }}
+                </h3>
+                <svg class="chevron w-5 h-5 text-slate-500 transition-transform duration-300 {% if is_open %}rotate-180{% endif %}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+            </button>
+            <div class="{% if not is_open %}hidden{% endif %} border-t border-slate-200">
+                <div class="p-2">
+                    {% for st in sub_topics %}
+                        {% set status = progress_data.get(st.id, 'not_started') if progress_data else 'not_started' %}
+                        <div class="flex items-center justify-between p-4 hover:bg-slate-50 rounded-lg transition border-b border-slate-100 last:border-0 group">
+                            <div class="pr-4">
+                                <h4 class="font-bold text-slate-800 group-hover:text-cyan-700 transition-colors">{{ st.title }}</h4>
+                                <p class="text-sm text-slate-500">{{ st.desc }}</p>
+                            </div>
+                            <div class="flex items-center gap-4 shrink-0">
+                                {% if status == 'mastered' %}
+                                <span class="bg-green-100 text-green-800 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider hidden sm:inline-block">Mastered</span>
+                                {% elif status == 'in_progress' %}
+                                <span class="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider hidden sm:inline-block">In Progress</span>
+                                {% else %}
+                                <span class="bg-slate-100 text-slate-500 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider hidden sm:inline-block">Not Started</span>
+                                {% endif %}
+                                
+                                <a href="{{ url_for('adv_math_bp.topic_flow', topic_id=st.topic, sub_topic=st.id) }}" class="bg-white border border-slate-300 hover:border-cyan-600 hover:bg-cyan-50 hover:text-cyan-700 text-slate-700 font-medium py-2 px-4 rounded-lg text-sm transition shadow-sm whitespace-nowrap">
+                                    Start Module
+                                </a>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endmacro %}
+
+        <!-- 1. Algebra & Equations -->
+        {{ accordion_item('1', 'Algebra & Equations', [
+            {'topic': 'algebra', 'id': 'equations_linear', 'title': 'Linear Equations', 'desc': 'Solving for a single variable'},
+            {'topic': 'algebra', 'id': 'equations_quadratic', 'title': 'Quadratic Equations', 'desc': 'Factorization and the quadratic formula'},
+            {'topic': 'algebra', 'id': 'equations_simultaneous', 'title': 'Simultaneous Equations', 'desc': 'Solving two variables with substitution'},
+            {'topic': 'algebra', 'id': 'inequalities', 'title': 'Inequalities', 'desc': 'Solving and graphing linear/quadratic inequalities'},
+            {'topic': 'algebra', 'id': 'exponents_surds', 'title': 'Exponents & Surds', 'desc': 'Simplification, equations with powers and roots'},
+            {'topic': 'algebra', 'id': 'nature_of_roots', 'title': 'Nature of Roots', 'desc': 'Discriminant analysis and root properties'},
+            {'topic': 'algebra', 'id': 'logarithms', 'title': 'Logarithms', 'desc': 'Logarithmic laws and equations'}
+        ], progress.mastery_data, is_open=True) }}
+
+        <!-- 2. Sequences & Series -->
+        {{ accordion_item('2', 'Sequences & Series', [
+            {'topic': 'algebra', 'id': 'sequences_arithmetic', 'title': 'Arithmetic Sequences', 'desc': 'Linear patterns and arithmetic series formulas'},
+            {'topic': 'algebra', 'id': 'sequences_geometric', 'title': 'Geometric Sequences', 'desc': 'Constant ratios, nth term, and sum to infinity'},
+            {'topic': 'algebra', 'id': 'sequences_quadratic', 'title': 'Quadratic Sequences', 'desc': 'Second differences and general terms'}
+        ], progress.mastery_data) }}
+
+        <!-- 3. Functions & Graphs -->
+        {{ accordion_item('3', 'Functions & Graphs', [
+            {'topic': 'functions', 'id': 'functions_linear_quad', 'title': 'Linear & Quadratic', 'desc': 'Straight lines and parabolas'},
+            {'topic': 'functions', 'id': 'functions_exp_log', 'title': 'Exponential & Logarithmic', 'desc': 'Asymptotes and reflections'},
+            {'topic': 'functions', 'id': 'functions_hyperbolas', 'title': 'Hyperbolas', 'desc': 'Vertical and horizontal asymptotes'},
+            {'topic': 'functions', 'id': 'functions_inverses', 'title': 'Inverse Functions', 'desc': 'Domain, range, and reflections across y=x'}
+        ], progress.mastery_data) }}
+
+        <!-- 4. Differential Calculus -->
+        {{ accordion_item('4', 'Differential Calculus', [
+            {'topic': 'calculus', 'id': 'calculus_first_principles', 'title': 'First Principles', 'desc': 'Differentiation using the limit definition'},
+            {'topic': 'calculus', 'id': 'calculus_rules', 'title': 'Rules of Differentiation', 'desc': 'Power rule, chain rule applications'},
+            {'topic': 'calculus', 'id': 'calculus_cubics', 'title': 'Cubic Graphs', 'desc': 'Stationary points, inflection points, x-intercepts'},
+            {'topic': 'calculus', 'id': 'calculus_optimization', 'title': 'Optimization', 'desc': 'Max/min problems and rates of change'}
+        ], progress.mastery_data) }}
+
+        <!-- 5. Financial Mathematics -->
+        {{ accordion_item('5', 'Financial Mathematics', [
+            {'topic': 'financial_math', 'id': 'financial_interest', 'title': 'Simple & Compound Interest', 'desc': 'Timelines and nominal/effective rates'},
+            {'topic': 'financial_math', 'id': 'financial_annuities', 'title': 'Annuities & Depreciation', 'desc': 'Present and future value annuities, sinking funds'}
+        ], progress.mastery_data) }}
+
+        <!-- 6. Probability & Statistics -->
+        {{ accordion_item('6', 'Probability & Statistics', [
+            {'topic': 'probability', 'id': 'probability_counting', 'title': 'Counting Principle', 'desc': 'Permutations, combinations, probability rules'},
+            {'topic': 'probability', 'id': 'probability_diagrams', 'title': 'Venn & Tree Diagrams', 'desc': 'Dependent/independent events, mutually exclusive'},
+            {'topic': 'probability', 'id': 'statistics_regression', 'title': 'Regression & Correlation', 'desc': 'Scatter plots, least squares, correlation coefficient'},
+            {'topic': 'probability', 'id': 'statistics_distribution', 'title': 'Distributions', 'desc': 'Standard deviation, ogives, normal distribution'}
+        ], progress.mastery_data) }}
+
+        <!-- 7. Geometry & Trigonometry -->
+        {{ accordion_item('7', 'Geometry & Trigonometry', [
+            {'topic': 'geometry', 'id': 'euclidean_circle_theorems', 'title': 'Circle Theorems', 'desc': 'Angle at center, cyclic quads, tangents'},
+            {'topic': 'geometry', 'id': 'euclidean_proportionality', 'title': 'Proportionality & Similarity', 'desc': 'Ratio theorems, similar triangles'},
+            {'topic': 'geometry', 'id': 'analytical_lines_circles', 'title': 'Lines & Circles', 'desc': 'Gradients, midpoints, circle equations, tangents'},
+            {'topic': 'geometry', 'id': 'trigonometry_identities', 'title': 'Trig Identities & Reduction', 'desc': 'Compound angles, double angles, proofs'},
+            {'topic': 'geometry', 'id': 'trigonometry_graphs', 'title': 'Trig Graphs', 'desc': 'Amplitude, period, shifts, intersections'},
+            {'topic': 'geometry', 'id': 'trigonometry_2d_3d', 'title': '2D & 3D Problems', 'desc': 'Sine, cosine, area rules in complex planes'}
+        ], progress.mastery_data) }}
+
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}

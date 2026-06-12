@@ -1,13 +1,75 @@
 {% extends "layout.html" %}
 {% block content %}
-<div class="mx-auto max-w-6xl py-10">
-  <div class="flex items-center justify-between mb-6">
-    <h1 class="text-2xl font-semibold">tenants— <Title></h1>
-    <a href="{{ url_for('admin_bp.billing_home') }}" class="btn btn-light">Back</a>
-  </div>
-
-  <div class="rounded-xl border bg-white p-6">
-    <p class="text-sm text-slate-600">Coming soon.</p>
+<div class="p-10 max-w-5xl mx-auto">
+  <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+    <div class="h-2 w-full bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500"></div>
+    <div class="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+      <div>
+        <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight">Tenants & SOA</h1>
+        <p class="text-sm text-slate-500 mt-1">Manage tenant ledgers and Statements of Account.</p>
+      </div>
+      <a href="{{ url_for('admin_bp.readings_dashboard') }}" class="inline-flex items-center text-sm font-medium text-slate-500 hover:text-slate-800 transition bg-white hover:bg-slate-50 px-4 py-2 rounded-lg border border-slate-200 shadow-sm">
+        <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+        Back to Dashboard
+      </a>
+    </div>
+    
+    <div class="p-8">
+      <div class="mb-6 flex justify-between items-center bg-slate-50 p-4 rounded-xl border border-slate-200">
+        <div class="flex items-center gap-3">
+          <label class="font-medium text-slate-700">Billing Month:</label>
+          <input type="month" id="monthPicker" class="border border-slate-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-blue-500 outline-none" value="{{ current_month }}">
+        </div>
+      </div>
+      
+      <div class="overflow-hidden rounded-xl border border-slate-200 shadow-sm">
+        <table class="w-full text-left text-sm text-slate-600">
+          <thead class="bg-slate-50 text-slate-700 font-semibold border-b border-slate-200">
+            <tr>
+              <th class="px-6 py-4">Tenant Name</th>
+              <th class="px-6 py-4">Contact</th>
+              <th class="px-6 py-4 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            {% for t in tenants %}
+            <tr class="hover:bg-slate-50 transition">
+              <td class="px-6 py-4 font-medium text-slate-900">{{ t.name }}</td>
+              <td class="px-6 py-4">{{ t.email or '-' }}</td>
+              <td class="px-6 py-4 text-right space-x-2">
+                <button onclick="openLedger('{{ t.id }}')" class="text-sm border border-slate-300 text-slate-700 hover:bg-slate-100 font-medium py-1.5 px-3 rounded-lg transition" title="Tenant Ledger">Ledger</button>
+                <button onclick="openSOA('{{ t.id }}')" class="text-sm bg-blue-600 hover:bg-blue-700 text-white font-medium py-1.5 px-3 rounded-lg transition shadow-sm" title="Statement of Account">View SOA</button>
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="3" class="px-6 py-8 text-center text-slate-500">No tenants found.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      
+    </div>
   </div>
 </div>
+
+<script>
+function openLedger(tenantId) {
+    const month = document.getElementById('monthPicker').value;
+    if (!month) {
+        alert("Please select a Billing Month first.");
+        return;
+    }
+    window.location.href = `{{ url_for('admin_bp.tenant_ledger') }}?tenant_id=${tenantId}&month=${month}`;
+}
+function openSOA(tenantId) {
+    const month = document.getElementById('monthPicker').value;
+    if (!month) {
+        alert("Please select a Billing Month first.");
+        return;
+    }
+    window.location.href = `{{ url_for('admin_bp.tenant_soa') }}?tenant_id=${tenantId}&month=${month}`;
+}
+</script>
 {% endblock %}

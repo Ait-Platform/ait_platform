@@ -1,52 +1,140 @@
 {% extends "layout.html" %}
-{% block title %}Tenant SOA · {{ tenant.name }}{% endblock %}
+{% block title %}Statement of Account · {{ tenant.name }}{% endblock %}
+
 {% block content %}
-<div class="mx-auto max-w-5xl py-8">
-  <h1 class="text-2xl font-semibold mb-2">Statement of Account</h1>
-  <div class="text-sm text-slate-600 mb-4">
-    <strong>Tenant:</strong> {{ tenant.name }}{% if tenant.unit_label %} — Unit {{ tenant.unit_label }}{% endif %}
-    {% if start or end %}&nbsp;|&nbsp;<strong>Range:</strong> {{ start or '…' }} → {{ end or '…' }}{% endif %}
+<div class="min-h-screen bg-slate-50 py-10 px-4 flex flex-col items-center print:bg-white print:py-0 print:px-0">
+  <div class="w-full max-w-4xl bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden print:shadow-none print:border-none print-page relative font-sans text-gray-800">
+    
+    <!-- Top Color Strip -->
+    <div class="h-2 w-full bg-blue-600 print:hidden"></div>
+
+    <div class="p-8 print:p-0">
+      <!-- Header Actions (Hidden on Print) -->
+      <div class="flex justify-between items-start mb-6 print:hidden">
+        <div>
+          <h1 class="text-3xl font-extrabold text-slate-800 tracking-tight">Statement of Account</h1>
+          <form method="GET" action="{{ url_for('admin_bp.tenant_soa') }}" class="mt-3 flex items-center gap-2">
+            <input type="hidden" name="tenant_id" value="{{ tenant.id }}">
+            <label for="month" class="text-sm font-medium text-slate-600">Statement Month:</label>
+            <input type="month" name="month" id="month" value="{{ month }}" class="border border-slate-300 rounded-md shadow-sm px-3 py-1.5 text-sm focus:ring-blue-500 focus:border-blue-500" required>
+            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-1.5 px-3 rounded-md text-sm transition shadow-sm">View History</button>
+          </form>
+        </div>
+        <div class="flex gap-3">
+          <a href="{{ url_for('admin_bp.tenant_ledger', tenant_id=tenant.id, month=month) }}" class="inline-flex items-center text-sm font-medium text-slate-500 hover:text-slate-800 transition">
+            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+            Back to Ledger
+          </a>
+          <button onclick="window.print()" class="bg-white border-2 border-slate-200 text-slate-600 font-bold py-1.5 px-3 rounded-lg shadow-sm hover:bg-slate-50 transition flex items-center text-sm">
+            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+            Print SOA
+          </button>
+        </div>
+      </div>
+
+      <!-- Header -->
+      <div class="flex justify-between items-start mb-6">
+        <!-- Landlord Info -->
+        <div>
+          <h1 class="text-3xl font-bold mb-2 hidden print:block">Statement of Account</h1>
+          <p class="text-sm">19 Dale Road,</p>
+      <p class="text-sm">Howardene,</p>
+      <p class="text-sm">Durban 4001</p>
+      <p class="text-sm mt-1">Cell: 083 226 9381</p>
+      <p class="text-sm">email: sanjith.nanhoo@gmail.com</p>
+    </div>
+    
+    <!-- Direct Payment Details -->
+    <div class="text-right text-sm border border-gray-300 p-3 rounded bg-gray-50">
+      <h3 class="font-bold text-gray-900 mb-1 border-b pb-1">Direct Payment Details</h3>
+      {% if tenant.bank_detail %}
+      <p><span class="font-semibold">Bank:</span> {{ tenant.bank_detail.bank_name }}</p>
+      <p><span class="font-semibold">Branch:</span> {{ tenant.bank_detail.branch_name }}</p>
+      <p><span class="font-semibold">Bank Code:</span> {{ tenant.bank_detail.branch_code }}</p>
+      <p><span class="font-semibold">Account Number:</span> {{ tenant.bank_detail.account_number }}</p>
+      <p><span class="font-semibold">Account Holder:</span> {{ tenant.bank_detail.account_holder }}</p>
+      {% if tenant.bank_detail.account_type %}<p><span class="font-semibold">Account Type:</span> {{ tenant.bank_detail.account_type }}</p>{% endif %}
+      {% else %}
+      <p><span class="font-semibold">Bank:</span> STD</p>
+      <p><span class="font-semibold">Branch:</span> Overport City</p>
+      <p><span class="font-semibold">Bank Code:</span> 043826</p>
+      <p><span class="font-semibold">Account Number:</span> 10155663176</p>
+      <p><span class="font-semibold">Account Holder:</span> NANHOO</p>
+      <p><span class="font-semibold">Account Type:</span> Savings</p>
+      {% endif %}
+    </div>
   </div>
 
-  <div class="rounded border bg-white overflow-x-auto">
-    <table class="w-full text-sm">
-      <thead class="bg-slate-50">
-        <tr>
-          <th class="p-2 border">Date</th>
-          <th class="p-2 border">Month</th>
-          <th class="p-2 border">Description</th>
-          <th class="p-2 border">Kind</th>
-          <th class="p-2 border text-right">Amount</th>
-          <th class="p-2 border text-right">Balance</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for r in rows %}
-        <tr>
-          <td class="p-2 border">{{ r.date }}</td>
-          <td class="p-2 border">{{ r.month or '' }}</td>
-          <td class="p-2 border">{{ r.description }}</td>
-          <td class="p-2 border">{{ r.kind }}</td>
-          <td class="p-2 border text-right">{{ '%.2f'|format(r.amount) }}</td>
-          <td class="p-2 border text-right">{{ '%.2f'|format(r.balance) }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+  <!-- Customer & Account Details -->
+  <div class="flex justify-between items-end mb-8">
+    <div class="text-sm">
+      <h3 class="font-bold text-gray-900 border-b pb-1 mb-1 inline-block">Customer Details Section</h3>
+      <p><span class="font-semibold">In Account with:</span> {{ tenant.name }}</p>
+      <p><span class="font-semibold">Email:</span> {{ tenant.email or 'N/A' }}</p>
+      <p><span class="font-semibold">Address:</span></p>
+      <p class="pl-2">{{ tenant.sectional_unit.property.address if tenant.sectional_unit and tenant.sectional_unit.property else 'N/A' }}</p>
+      <p class="pl-2">Unit {{ tenant.sectional_unit.name if tenant.sectional_unit else '' }}</p>
+    </div>
+    <div class="text-right text-sm">
+      <p><span class="font-semibold">Statement Date:</span> {{ month }}-01</p>
+      <p><span class="font-semibold">Reference:</span> {{ tenant.metro_account_no or tenant.id }}</p>
+      {% set current_balance = rows[-1].balance if rows else 0 %}
+      <div class="mt-2 text-lg font-bold text-gray-900 border-2 border-gray-900 px-3 py-1 inline-block">
+        R{{ "%.2f"|format(current_balance) }} Is Now Due
+      </div>
+    </div>
   </div>
 
-  <!-- Back to Page 1 -->
-  <a href="{{ url_for('admin_bp.metsoa_page1', tenant_id=tenant.id, month=month) }}"
-    class="inline-flex items-center gap-2 rounded border px-3 py-1.5 hover:bg-slate-50">← Back</a>
+  <!-- Transactions Table -->
+  <table class="w-full text-sm text-left border-collapse border border-gray-400">
+    <thead>
+      <tr class="bg-gray-200 border-b border-gray-400">
+        <th class="py-2 px-2 border-r border-gray-400 w-12 text-center">No</th>
+        <th class="py-2 px-2 border-r border-gray-400">Date</th>
+        <th class="py-2 px-2 border-r border-gray-400 w-1/3">Details</th>
+        <th class="py-2 px-2 border-r border-gray-400 text-right">Debit</th>
+        <th class="py-2 px-2 border-r border-gray-400 text-right">Credit</th>
+        <th class="py-2 px-2 text-right">Balance</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+      <tr class="border-b border-gray-300 {{ 'bg-gray-50' if loop.index % 2 == 0 else '' }}">
+        <td class="py-1 px-2 border-r border-gray-400 text-center">{{ loop.index }}</td>
+        <td class="py-1 px-2 border-r border-gray-400">{{ (r.date|string)[:10] }}</td>
+        <td class="py-1 px-2 border-r border-gray-400">{{ r.description }}</td>
+        <td class="py-1 px-2 border-r border-gray-400 text-right">
+          {{ "R%.2f"|format(r.amount) if r.amount > 0 else "" }}
+        </td>
+        <td class="py-1 px-2 border-r border-gray-400 text-right">
+          {{ "R%.2f"|format(-r.amount) if r.amount < 0 else "" }}
+        </td>
+        <td class="py-1 px-2 text-right">R{{ "%.2f"|format(r.balance) }}</td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="6" class="py-4 text-center text-gray-500">No transactions found for this period.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
 
-  <!-- View Ledger -->
-  <a href="{{ url_for('admin_bp.tenant_ledger', tenant_id=tenant.id, month=month) }}"
-    class="inline-flex items-center gap-2 rounded border px-3 py-1.5 hover:bg-slate-50">View Ledger</a>
+  <!-- Footer -->
+  <div class="mt-8 flex justify-between text-xs text-gray-500 font-bold border-t pt-2">
+    <span>E&OE</span>
+    <span>Page 1 of 1</span>
+  </div>
 
-  <div class="mt-4 print:hidden">
-    <button type="button" onclick="window.print()" class="inline-flex items-center gap-2 rounded border px-3 py-1.5 hover:bg-slate-50">Print</button>
+    </div>
   </div>
 </div>
+
+<style>
+  @media print {
+    body { background: white !important; margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .print\:hidden { display: none !important; }
+    .print\:p-0 { padding: 0 !important; }
+    .shadow-sm { box-shadow: none !important; border: none !important; }
+  }
+</style>
 {% endblock %}
-
-

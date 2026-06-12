@@ -1,0 +1,1067 @@
+{% extends "layout.html" %}
+
+{% block title %}{{ topic_id|capitalize }} Assessment{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto px-4 py-8 relative">
+  
+  <div class="bg-white rounded-xl shadow-lg overflow-hidden flex flex-col h-full relative z-10">
+    <!-- Top Color Strip -->
+    <div class="h-3 bg-cyan-600 w-full"></div>
+
+    <div class="p-8 md:p-12">
+        <!-- Row 1: Title and Back Button -->
+        <div class="flex items-center justify-between mb-2">
+            <h1 class="text-3xl md:text-4xl font-bold text-slate-900">{{ topic_id|replace('_', ' ')|title }}</h1>
+            <a href="{{ url_for('adv_math_bp.dashboard') }}" class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition shadow-sm shrink-0">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                Back to Dashboard
+            </a>
+        </div>
+
+        <!-- Row 2: Source -->
+        {% if question.source and question.source != 'Mock Data' %}
+        <div class="mb-4">
+            <span class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 text-slate-600 border border-slate-200 rounded-md font-medium shadow-sm text-sm">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"></path></svg>
+                Source: {{ question.source }}
+            </span>
+        </div>
+        {% endif %}
+
+        <!-- Row 3: Subtopic & Navigation -->
+        <div class="mb-8 pb-6 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div class="flex flex-wrap gap-3 text-sm text-slate-500">
+                {% if sub_topic %}
+                <span class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-700 border border-indigo-100 rounded-md font-medium shadow-sm">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path></svg>
+                    {{ sub_topic|replace('_', ' ')|title }}
+                </span>
+                {% endif %}
+            </div>
+
+            <!-- Question Navigation -->
+            <div class="flex items-center gap-3 bg-white p-1 rounded-xl border border-slate-200 shadow-sm shrink-0">
+                {% if pagination %}
+                    {% if pagination.prev_qid %}
+                    <a href="{{ url_for('adv_math_bp.topic_flow', topic_id=topic_id, sub_topic=sub_topic, qid=pagination.prev_qid) }}" class="p-2 rounded-lg border border-slate-200 bg-slate-50 text-slate-600 hover:bg-cyan-50 hover:text-cyan-700 hover:border-cyan-200 transition" title="Previous Question">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                    </a>
+                    {% else %}
+                    <div class="p-2 rounded-lg border border-slate-100 bg-slate-50 text-slate-300 cursor-not-allowed">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="px-2 py-1 flex flex-col items-center justify-center">
+                        <span class="text-[10px] text-slate-500 uppercase tracking-wider font-bold">Question</span>
+                        <span class="font-bold text-cyan-700 text-sm leading-none">{{ pagination.current_index }} <span class="text-slate-400 text-xs">of</span> {{ pagination.total_questions }}</span>
+                    </div>
+                    
+                    {% if pagination.next_qid %}
+                    <a href="{{ url_for('adv_math_bp.topic_flow', topic_id=topic_id, sub_topic=sub_topic, qid=pagination.next_qid) }}" class="p-2 rounded-lg border border-slate-200 bg-slate-50 text-slate-600 hover:bg-cyan-50 hover:text-cyan-700 hover:border-cyan-200 transition" title="Next Question">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                    </a>
+                    {% else %}
+                    <div class="p-2 rounded-lg border border-slate-100 bg-slate-50 text-slate-300 cursor-not-allowed">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                    </div>
+                    {% endif %}
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Row 3: Horizontal Toolbox Buttons (Dynamic based on question.available_tools) -->
+        <div class="flex flex-wrap items-center justify-center gap-3 mb-8">
+            {% if 'deconstruct' in question.available_tools %}
+            <button type="button" onclick="document.getElementById('deconstruct-modal').classList.remove('hidden')" class="w-[120px] bg-red-50 text-red-800 p-3 rounded-xl border border-red-100 shadow-sm hover:bg-red-100 hover:border-red-200 text-center font-medium flex flex-col items-center justify-center gap-2 transition group text-sm animate-pulse">
+                <span class="bg-red-200 text-red-800 w-8 h-8 rounded-lg flex items-center justify-center shadow-sm text-lg group-hover:scale-110 transition-transform">🔍</span> 
+                <span>Deconstruct</span>
+            </button>
+            {% endif %}
+
+            {% if 'definitions' in question.available_tools %}
+            <button type="button" onclick="document.getElementById('definitions-modal').classList.remove('hidden')" class="w-[120px] bg-indigo-50 text-indigo-800 p-3 rounded-xl border border-indigo-100 shadow-sm hover:bg-indigo-100 hover:border-indigo-200 text-center font-medium flex flex-col items-center justify-center gap-2 transition group text-sm">
+                <span class="bg-indigo-200 text-indigo-800 w-8 h-8 rounded-lg flex items-center justify-center shadow-sm text-lg group-hover:scale-110 transition-transform">📚</span> 
+                <span>Definitions</span>
+            </button>
+            {% endif %}
+            
+            {% if 'formulas' in question.available_tools %}
+            <button type="button" onclick="document.getElementById('formulas-modal').classList.remove('hidden')" class="w-[120px] bg-emerald-50 text-emerald-800 p-3 rounded-xl border border-emerald-100 shadow-sm hover:bg-emerald-100 hover:border-emerald-200 text-center font-medium flex flex-col items-center justify-center gap-2 transition group text-sm">
+                <span class="bg-emerald-200 text-emerald-800 w-8 h-8 rounded-lg flex items-center justify-center shadow-sm text-lg group-hover:scale-110 transition-transform">📐</span> 
+                <span>Formulas</span>
+            </button>
+            {% endif %}
+
+            {% if 'rules' in question.available_tools %}
+            <button type="button" onclick="document.getElementById('rules-modal').classList.remove('hidden')" class="w-[120px] bg-rose-50 text-rose-800 p-3 rounded-xl border border-rose-100 shadow-sm hover:bg-rose-100 hover:border-rose-200 text-center font-medium flex flex-col items-center justify-center gap-2 transition group text-sm">
+                <span class="bg-rose-200 text-rose-800 w-8 h-8 rounded-lg flex items-center justify-center shadow-sm text-lg group-hover:scale-110 transition-transform">⚖️</span> 
+                <span>Rules</span>
+            </button>
+            {% endif %}
+            
+            {% if 'tools' in question.available_tools %}
+            <button type="button" onclick="document.getElementById('tools-modal').classList.remove('hidden')" class="w-[120px] bg-amber-50 text-amber-800 p-3 rounded-xl border border-amber-100 shadow-sm hover:bg-amber-100 hover:border-amber-200 text-center font-medium flex flex-col items-center justify-center gap-2 transition group text-sm">
+                <span class="bg-amber-200 text-amber-800 w-8 h-8 rounded-lg flex items-center justify-center shadow-sm text-lg group-hover:scale-110 transition-transform">🔨</span> 
+                <span>Math Tools</span>
+            </button>
+            {% endif %}
+
+            {% if 'strategy' in question.available_tools %}
+            <button type="button" onclick="document.getElementById('strategy-modal').classList.remove('hidden')" class="w-[120px] bg-cyan-50 text-cyan-800 p-3 rounded-xl border border-cyan-100 shadow-sm hover:bg-cyan-100 hover:border-cyan-200 text-center font-medium flex flex-col items-center justify-center gap-2 transition group text-sm">
+                <span class="bg-cyan-200 text-cyan-800 w-8 h-8 rounded-lg flex items-center justify-center shadow-sm text-lg group-hover:scale-110 transition-transform">🧠</span> 
+                <span>Strategy</span>
+            </button>
+            {% endif %}
+            
+            {% if 'steps' in question.available_tools %}
+            <button type="button" onclick="document.getElementById('steps-modal').classList.remove('hidden')" class="w-[120px] bg-fuchsia-50 text-fuchsia-800 p-3 rounded-xl border border-fuchsia-100 shadow-sm hover:bg-fuchsia-100 hover:border-fuchsia-200 text-center font-medium flex flex-col items-center justify-center gap-2 transition group text-sm">
+                <span class="bg-fuchsia-200 text-fuchsia-800 w-8 h-8 rounded-lg flex items-center justify-center shadow-sm text-lg group-hover:scale-110 transition-transform">🪜</span> 
+                <span>Steps</span>
+            </button>
+            {% endif %}
+        </div>
+
+        <!-- Row 4: Question -->
+        <div class="bg-slate-50 rounded-xl shadow-inner border border-slate-200 p-6 md:p-8 mb-8">
+            <div class="flex justify-between items-start mb-3 border-b border-slate-200 pb-2">
+                <h3 class="text-lg font-bold text-slate-800">Question:</h3>
+                {% if question.marks %}
+                <span class="bg-indigo-100 text-indigo-800 text-sm font-bold px-3 py-1 rounded-md shadow-sm border border-indigo-200">[{{ question.marks }} marks]</span>
+                {% endif %}
+            </div>
+            <p class="text-slate-800 whitespace-pre-wrap text-lg">{{ question.text }}</p>
+        </div>
+
+        <!-- Row 5: Interactive Working Space -->
+        <div class="bg-white border border-slate-200 rounded-xl p-6 md:p-8 shadow-sm">
+            <h3 class="text-lg font-bold text-slate-800 mb-6 border-b border-slate-100 pb-2 flex items-center gap-2">
+                <svg class="w-5 h-5 text-cyan-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg>
+                Interactive Tutor Space
+            </h3>
+
+            {% if sub_topic == 'sequences_geometric' %}
+            
+            <div class="mb-4 flex justify-end" id="bypass-container">
+                <button type="button" id="btn-bypass" class="text-sm text-slate-500 hover:text-cyan-600 font-medium underline underline-offset-4 decoration-slate-300 hover:decoration-cyan-400 transition-colors">
+                    {% if is_variation %}I'm stuck! (Switch to Tutor UI){% else %}Skip Scaffold (I'm an Expert){% endif %}
+                </button>
+            </div>
+
+            <!-- Scaffolded Step 1: Variables -->
+            <div id="scaffold-step-1" class="mb-8 p-5 bg-slate-50 border border-slate-200 rounded-xl transition-all duration-300 {% if is_variation %}hidden{% endif %}">
+                <h4 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                    <span class="bg-cyan-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs">1</span> 
+                    Understand the Problem (Variables)
+                </h4>
+                <p class="text-sm text-slate-600 mb-4">Before we use a formula, what are the variables given in the question?</p>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">a (first term)</label>
+                        <input type="text" id="var-a" class="w-full rounded-lg border-slate-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500" placeholder="e.g. 2">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">r (constant ratio)</label>
+                        <input type="text" id="var-r" class="w-full rounded-lg border-slate-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500" placeholder="e.g. 3">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">n (number of terms)</label>
+                        <input type="text" id="var-n" class="w-full rounded-lg border-slate-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500" placeholder="e.g. 10">
+                    </div>
+                </div>
+                <button type="button" id="btn-check-vars" class="mt-4 w-full sm:w-auto bg-slate-800 hover:bg-slate-900 text-white font-medium px-6 py-2 rounded-lg text-sm transition">Check Variables</button>
+                <p id="var-error" class="text-red-500 text-sm mt-2 hidden">Some of your variables are incorrect. Check your sequence rules and try again!</p>
+            </div>
+
+            <!-- Scaffolded Step 2: Micro Step -->
+            <div id="scaffold-step-2" class="mb-8 p-5 bg-cyan-50 border border-cyan-200 rounded-xl hidden transition-all duration-500 opacity-0">
+                <h4 class="font-bold text-cyan-900 mb-4 flex items-center gap-2">
+                    <span class="bg-cyan-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs">2</span> 
+                    Evaluate the Exponent
+                </h4>
+                <p class="text-sm text-slate-700 mb-4">Great! Now let's break down the formula \( S_n = \frac{a(r^n - 1)}{r - 1} \). First, evaluate \( r^n \).</p>
+                <div class="flex gap-4 items-center">
+                    <div class="flex-grow">
+                        <input type="text" id="var-rn" class="w-full rounded-lg border-slate-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500" placeholder="What is 3^10?">
+                    </div>
+                    <button type="button" id="btn-check-rn" class="bg-cyan-600 hover:bg-cyan-700 text-white font-medium px-4 py-2 rounded-lg text-sm transition shrink-0">Check Step</button>
+                </div>
+                <p id="rn-error" class="text-red-500 text-sm mt-2 hidden">Incorrect. Use the Math Tools to calculate 3 to the power of 10.</p>
+            </div>
+            
+            <!-- Scaffolded Step 3: Parenthesis -->
+            <div id="scaffold-step-3" class="mb-8 p-5 bg-cyan-50 border border-cyan-200 rounded-xl hidden transition-all duration-500 opacity-0">
+                <h4 class="font-bold text-cyan-900 mb-4 flex items-center gap-2">
+                    <span class="bg-cyan-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs">3</span> 
+                    Evaluate the Parenthesis
+                </h4>
+                <p class="text-sm text-slate-700 mb-4">Now subtract 1 from your previous answer to find \( (r^n - 1) \).</p>
+                <div class="flex gap-4 items-center">
+                    <div class="flex-grow">
+                        <input type="text" id="var-paren" class="w-full rounded-lg border-slate-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500" placeholder="59049 - 1 = ?">
+                    </div>
+                    <button type="button" id="btn-check-paren" class="bg-cyan-600 hover:bg-cyan-700 text-white font-medium px-4 py-2 rounded-lg text-sm transition shrink-0">Check Step</button>
+                </div>
+                <p id="paren-error" class="text-red-500 text-sm mt-2 hidden">Incorrect.</p>
+            </div>
+
+            <!-- Scaffolded Step 4: Numerator -->
+            <div id="scaffold-step-4" class="mb-8 p-5 bg-cyan-50 border border-cyan-200 rounded-xl hidden transition-all duration-500 opacity-0">
+                <h4 class="font-bold text-cyan-900 mb-4 flex items-center gap-2">
+                    <span class="bg-cyan-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs">4</span> 
+                    Evaluate the Numerator
+                </h4>
+                <p class="text-sm text-slate-700 mb-4">Multiply your parenthesis by \( a \) to find the whole numerator: \( a(r^n - 1) \).</p>
+                <div class="flex gap-4 items-center">
+                    <div class="flex-grow">
+                        <input type="text" id="var-num" class="w-full rounded-lg border-slate-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500" placeholder="2 * 59048 = ?">
+                    </div>
+                    <button type="button" id="btn-check-num" class="bg-cyan-600 hover:bg-cyan-700 text-white font-medium px-4 py-2 rounded-lg text-sm transition shrink-0">Check Step</button>
+                </div>
+                <p id="num-error" class="text-red-500 text-sm mt-2 hidden">Incorrect.</p>
+            </div>
+
+            <!-- Scaffolded Step 5: Denominator -->
+            <div id="scaffold-step-5" class="mb-8 p-5 bg-cyan-50 border border-cyan-200 rounded-xl hidden transition-all duration-500 opacity-0">
+                <h4 class="font-bold text-cyan-900 mb-4 flex items-center gap-2">
+                    <span class="bg-cyan-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs">5</span> 
+                    Evaluate the Denominator
+                </h4>
+                <p class="text-sm text-slate-700 mb-4">What is \( (r - 1) \)?</p>
+                <div class="flex gap-4 items-center">
+                    <div class="flex-grow">
+                        <input type="text" id="var-den" class="w-full rounded-lg border-slate-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500" placeholder="3 - 1 = ?">
+                    </div>
+                    <button type="button" id="btn-check-den" class="bg-cyan-600 hover:bg-cyan-700 text-white font-medium px-4 py-2 rounded-lg text-sm transition shrink-0">Check Step</button>
+                </div>
+                <p id="den-error" class="text-red-500 text-sm mt-2 hidden">Incorrect.</p>
+            </div>
+
+            <!-- Scaffolded Step 6: Final Division -->
+            <div id="scaffold-step-6" class="mb-8 p-5 bg-emerald-50 border border-emerald-200 rounded-xl hidden transition-all duration-500 opacity-0">
+                <h4 class="font-bold text-emerald-900 mb-4 flex items-center gap-2">
+                    <span class="bg-emerald-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs">6</span> 
+                    Final Division!
+                </h4>
+                <p class="text-sm text-slate-700 mb-4">Divide the Numerator by the Denominator to find the sum!</p>
+                <div class="flex gap-4 items-center">
+                    <div class="flex-grow">
+                        <input type="text" id="var-final" class="w-full rounded-lg border-slate-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500" placeholder="118096 / 2 = ?">
+                    </div>
+                    <button type="button" id="btn-check-final" class="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-4 py-2 rounded-lg text-sm transition shrink-0">Check Answer</button>
+                </div>
+                <p id="final-error" class="text-red-500 text-sm mt-2 hidden">Incorrect.</p>
+            </div>
+            
+            <!-- Standard Form -->
+            <div id="standard-tutor-form" class="transition-all duration-500 {% if not is_variation %}hidden opacity-0{% endif %}">
+            {% else %}
+            <!-- Standard Form -->
+            <div id="standard-tutor-form">
+            {% endif %}
+
+                  <!-- Tutor Chat History -->
+                  <div id="tutor-chat" class="space-y-4 mb-6 max-h-64 overflow-y-auto hidden">
+                      <!-- Messages will be appended here via JS -->
+                  </div>
+
+                  <form action="{% if sub_topic %}{{ url_for('adv_math_bp.topic_submit', topic_id=topic_id, sub_topic=sub_topic) }}{% else %}{{ url_for('adv_math_bp.topic_submit', topic_id=topic_id) }}{% endif %}" method="POST" id="math-form">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                      
+                      <div class="space-y-3 mb-6">
+                          {% if question.type == 'mcq' %}
+                              <p class="text-slate-600 text-sm mb-3">You MUST type your working out or ask for a hint below before you can submit a final answer!</p>
+                              <div id="mcq-options" class="opacity-50 pointer-events-none transition-opacity duration-300">
+                                  {% for opt in question.options %}
+                                  <label class="flex items-center p-4 border border-slate-200 rounded-lg cursor-pointer hover:bg-cyan-50 hover:border-cyan-200 transition">
+                                      <input type="radio" name="answer" value="{{ opt }}" required class="w-4 h-4 text-cyan-600 border-slate-300 focus:ring-cyan-500">
+                                      <span class="ml-3 text-slate-700">\( {{ opt }} \)</span>
+                                  </label>
+                                  {% endfor %}
+                              </div>
+                              <div class="mt-4">
+                                  <textarea id="tutor-input" rows="2" placeholder="Type your first step to unlock the options..." class="w-full rounded-lg border-slate-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500 p-3 text-sm"></textarea>
+                                  <p class="text-xs text-slate-500 mt-2">💡 <b>Math Tip:</b> Use <code>^</code> for powers (e.g. 2^2) and <code>/</code> for fractions (e.g. 1/2).</p>
+                              </div>
+                          {% else %}
+                              <label class="block">
+                                  <span class="text-slate-700 font-medium mb-2 block">Your Answer / Working:</span>
+                                  <textarea name="answer" id="tutor-input" rows="5" required placeholder="Type your step-by-step working here. Ask for a hint at any time!" class="w-full rounded-lg border-slate-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500 p-3"></textarea>
+                                  <p class="text-xs text-slate-500 mt-2">💡 <b>Math Tip:</b> Use <code>^</code> for powers (e.g. r^n), <code>_</code> for subscripts (e.g. T_n), and <code>/</code> for fractions (e.g. 1/2).</p>
+                              </label>
+                          {% endif %}
+                      </div>
+
+                      <div class="flex flex-col sm:flex-row justify-between items-center gap-4 pt-4 border-t border-slate-100">
+                          <button type="button" id="btn-hint" class="w-full flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium px-6 py-3 rounded-lg transition">
+                              <svg class="w-5 h-5 text-cyan-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                              </svg>
+                              Ask AI for a Hint
+                          </button>
+                          
+                          {% if sub_topic == 'sequences_geometric' and not is_variation %}
+                          <a href="{{ url_for('adv_math_bp.generate_variation', topic_id=topic_id, sub_topic=sub_topic) }}" id="btn-variation" class="hidden w-full text-center bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-6 py-3 rounded-lg transition shadow-sm">
+                              Level Up: Try Variation
+                          </a>
+                          {% endif %}
+                          
+                          <button type="button" id="btn-submit" onclick="showPreflight()" class="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-medium px-8 py-3 rounded-lg transition shadow-sm animate-pulse {% if not is_variation %}hidden{% endif %}">
+                              Commit Answer
+                          </button>
+                      </div>
+                  </form>
+              </div>
+          </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Definitions Modal -->
+  <div id="definitions-modal" class="fixed inset-0 z-50 hidden bg-slate-900/50 flex items-center justify-center p-4">
+      <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[85vh] flex flex-col">
+          <div class="p-6 border-b border-slate-100 flex justify-between items-center">
+              <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2">
+                  <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                  Mathematical Definitions
+              </h3>
+              <button type="button" onclick="document.getElementById('definitions-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600">
+                  <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+              </button>
+          </div>
+          
+          <div class="p-6 overflow-y-auto space-y-4 text-sm flex-grow">
+              {% if active_definitions %}
+                  {% for item in active_definitions %}
+                  <div class="p-4 bg-slate-50 border border-slate-100 rounded-lg">
+                      <span class="font-bold text-indigo-700 text-base block mb-1">{{ item.term }}</span>
+                      <span class="text-slate-700 leading-relaxed block mb-2">{{ item.definition }}</span>
+                      <div class="bg-indigo-100/50 p-3 rounded border border-indigo-100">
+                          <span class="text-xs font-bold text-indigo-800 uppercase tracking-wider block mb-1">Plain English:</span>
+                          <span class="text-slate-800 text-sm">{{ item.plain }}</span>
+                      </div>
+                  </div>
+                  {% endfor %}
+              {% else %}
+                  <div class="p-4 bg-slate-50 border border-slate-100 rounded-lg text-slate-500 italic">
+                      No key terms found in this question. Ask the AI Tutor if you need help with a specific concept!
+                  </div>
+              {% endif %}
+          </div>
+          
+          <div class="p-6 border-t border-slate-100 bg-slate-50 rounded-b-xl flex justify-end">
+              <button type="button" onclick="document.getElementById('definitions-modal').classList.add('hidden')" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-6 py-2 rounded-lg transition">Close</button>
+          </div>
+      </div>
+  </div>
+
+  <!-- Formulas Modal -->
+  <div id="formulas-modal" class="fixed inset-0 z-50 hidden bg-slate-900/50 flex items-center justify-center p-4">
+      <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[85vh] flex flex-col">
+          <div class="p-6 border-b border-slate-100 flex justify-between items-center">
+              <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2">
+                  <span class="bg-emerald-200 text-emerald-800 w-8 h-8 rounded-lg flex items-center justify-center shadow-sm">📐</span> Formulas
+              </h3>
+              <button type="button" onclick="document.getElementById('formulas-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600">
+                  <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+              </button>
+          </div>
+          <div class="p-6 overflow-y-auto space-y-4 text-sm flex-grow">
+              {% if active_formulas %}
+                  {% for item in active_formulas %}
+                  <div class="p-4 bg-emerald-50 border border-emerald-100 rounded-lg">
+                      <span class="font-bold text-emerald-800 text-base block mb-2">{{ item.term }}</span>
+                      <span class="text-slate-800 leading-relaxed text-lg block mb-3">{{ item.formula }}</span>
+                      <div class="bg-emerald-100/50 p-3 rounded border border-emerald-100">
+                          <span class="text-xs font-bold text-emerald-800 uppercase tracking-wider block mb-1">Plain English:</span>
+                          <span class="text-slate-800 text-sm">{{ item.plain }}</span>
+                      </div>
+                  </div>
+                  {% endfor %}
+              {% else %}
+                  <div class="p-4 bg-emerald-50 border border-emerald-100 rounded-lg text-slate-600 italic">
+                      No specific formulas detected for this question. Use your foundational knowledge or ask the tutor for a hint!
+                  </div>
+              {% endif %}
+          </div>
+          <div class="p-6 border-t border-slate-100 bg-slate-50 rounded-b-xl flex justify-end">
+              <button type="button" onclick="document.getElementById('formulas-modal').classList.add('hidden')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-6 py-2 rounded-lg transition">Close</button>
+          </div>
+      </div>
+  </div>
+
+  <!-- Rules Modal -->
+  <div id="rules-modal" class="fixed inset-0 z-50 hidden bg-slate-900/50 flex items-center justify-center p-4">
+      <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[85vh] flex flex-col">
+          <div class="p-6 border-b border-slate-100 flex justify-between items-center">
+              <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2">
+                  <span class="bg-rose-200 text-rose-800 w-8 h-8 rounded-lg flex items-center justify-center shadow-sm">⚖️</span> Mathematical Rules
+              </h3>
+              <button type="button" onclick="document.getElementById('rules-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600">
+                  <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+              </button>
+          </div>
+          <div class="p-6 overflow-y-auto space-y-4 text-sm flex-grow">
+              {% if active_rules %}
+                  {% for item in active_rules %}
+                  <div class="p-4 bg-rose-50 border border-rose-100 rounded-lg">
+                      <span class="font-bold text-rose-800 text-base block mb-2">{{ item.term }} Laws</span>
+                      <pre class="text-slate-800 leading-relaxed font-sans whitespace-pre-wrap text-base mb-3">{{ item.rule }}</pre>
+                      <div class="bg-rose-100/50 p-3 rounded border border-rose-100">
+                          <span class="text-xs font-bold text-rose-800 uppercase tracking-wider block mb-1">Plain English:</span>
+                          <span class="text-slate-800 text-sm">{{ item.plain }}</span>
+                      </div>
+                  </div>
+                  {% endfor %}
+              {% else %}
+                  <div class="p-4 bg-rose-50 border border-rose-100 rounded-lg text-slate-600 italic">
+                      No specific rules detected. Rely on your algebraic axioms!
+                  </div>
+              {% endif %}
+          </div>
+          <div class="p-6 border-t border-slate-100 bg-slate-50 rounded-b-xl flex justify-end">
+              <button type="button" onclick="document.getElementById('rules-modal').classList.add('hidden')" class="bg-rose-600 hover:bg-rose-700 text-white font-medium px-6 py-2 rounded-lg transition">Close</button>
+          </div>
+      </div>
+  </div>
+
+  <!-- Tools Modal -->
+  <div id="tools-modal" class="fixed inset-0 z-50 hidden bg-slate-900/50 flex items-center justify-center p-4">
+      <div class="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col">
+          <div class="p-6 border-b border-slate-100 flex justify-between items-center">
+              <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2">
+                  <span class="bg-amber-200 text-amber-800 w-8 h-8 rounded-lg flex items-center justify-center shadow-sm">🔨</span> Math Tools
+              </h3>
+              <button type="button" onclick="document.getElementById('tools-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600">
+                  <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+              </button>
+          </div>
+          <div class="p-6 overflow-y-auto flex-grow bg-slate-50 h-[70vh]">
+              <!-- Video Placeholder -->
+              <div class="bg-slate-900 rounded-xl aspect-video flex items-center justify-center relative overflow-hidden shadow-inner mb-6">
+                  <div class="absolute inset-0 bg-gradient-to-tr from-amber-900/40 to-transparent"></div>
+                  <div class="text-center z-10 p-4">
+                      <div class="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-3 backdrop-blur-sm border border-white/20">
+                          <svg class="w-8 h-8 text-white ml-1" fill="currentColor" viewBox="0 0 20 20"><path d="M4 4l12 6-12 6z"></path></svg>
+                      </div>
+                      <p class="text-white font-medium text-lg">How to use Math Tools</p>
+                      <p class="text-amber-200 text-xs mt-1">Short tutorial on graphing and plotting</p>
+                  </div>
+              </div>
+
+              <!-- Desmos Graphing Calculator API Container -->
+              <div class="rounded-xl overflow-hidden border border-slate-300 shadow-sm" style="height: 400px;">
+                  <div id="calculator" style="width: 100%; height: 100%;"></div>
+              </div>
+          </div>
+          <div class="p-6 border-t border-slate-100 bg-slate-50 rounded-b-xl flex justify-between items-center">
+              <span class="text-xs text-slate-500">Interactive graphing powered by Desmos API.</span>
+              <button type="button" onclick="document.getElementById('tools-modal').classList.add('hidden')" class="bg-amber-600 hover:bg-amber-700 text-white font-medium px-6 py-2 rounded-lg transition">Close</button>
+          </div>
+      </div>
+  </div>
+
+  <!-- Strategy Modal -->
+  <div id="strategy-modal" class="fixed inset-0 z-50 hidden bg-slate-900/50 flex items-center justify-center p-4">
+      <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col">
+          <div class="p-6 border-b border-slate-100 flex justify-between items-center">
+              <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2">
+                  <span class="bg-cyan-200 text-cyan-800 w-8 h-8 rounded-lg flex items-center justify-center shadow-sm">🧠</span> Strategy & Meta-Cognition
+              </h3>
+              <button type="button" onclick="document.getElementById('strategy-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600">
+                  <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+              </button>
+          </div>
+          <div class="p-6 overflow-y-auto space-y-6 text-sm flex-grow">
+              
+              <!-- Embedded YouTube Video -->
+              <div class="bg-slate-900 rounded-xl aspect-video flex items-center justify-center relative overflow-hidden shadow-inner mb-6">
+                  <iframe width="100%" height="100%" src="https://www.youtube.com/embed/a-e8fzqv3CE" title="Polya's Problem Solving Process" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+              </div>
+
+              <!-- Heuristic Prompts -->
+              <div class="bg-cyan-50 border border-cyan-100 rounded-xl p-5">
+                  <h4 class="font-bold text-cyan-900 mb-3 text-base">Heuristic Thinking Framework</h4>
+                  <ul class="space-y-3">
+                      <li class="flex items-start gap-3">
+                          <span class="text-cyan-600 font-bold mt-0.5">1.</span>
+                          <p class="text-slate-700"><b>Understand the Problem:</b> What is the unknown? What are the given data? What is the condition?</p>
+                      </li>
+                      <li class="flex items-start gap-3">
+                          <span class="text-cyan-600 font-bold mt-0.5">2.</span>
+                          <p class="text-slate-700"><b>Devise a Plan:</b> Have you seen it before? Or have you seen the same problem in a slightly different form? Do you know a related problem?</p>
+                      </li>
+                      <li class="flex items-start gap-3">
+                          <span class="text-cyan-600 font-bold mt-0.5">3.</span>
+                          <p class="text-slate-700"><b>Carry out the Plan:</b> Can you see clearly that the step is correct? Can you prove that it is correct?</p>
+                      </li>
+                      <li class="flex items-start gap-3">
+                          <span class="text-cyan-600 font-bold mt-0.5">4.</span>
+                          <p class="text-slate-700"><b>Look Back:</b> Can you check the result? Can you check the argument? Can you derive the result differently?</p>
+                      </li>
+                  </ul>
+              </div>
+
+          </div>
+          <div class="p-6 border-t border-slate-100 bg-slate-50 rounded-b-xl flex justify-between items-center">
+              <span class="text-xs text-slate-500">Video from the standard curriculum.</span>
+              <button type="button" onclick="document.getElementById('strategy-modal').classList.add('hidden')" class="bg-cyan-600 hover:bg-cyan-700 text-white font-medium px-6 py-2 rounded-lg transition">Close</button>
+          </div>
+      </div>
+  </div>
+  
+  <!-- Steps Modal -->
+  <div id="steps-modal" class="fixed inset-0 z-50 hidden bg-slate-900/50 flex items-center justify-center p-4">
+      <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col">
+          <div class="p-6 border-b border-slate-100 flex justify-between items-center">
+              <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2">
+                  <span class="bg-fuchsia-200 text-fuchsia-800 w-8 h-8 rounded-lg flex items-center justify-center shadow-sm">🪜</span> Step-by-Step Guide
+              </h3>
+              <button type="button" onclick="document.getElementById('steps-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600">
+                  <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+              </button>
+          </div>
+          <div class="p-6 overflow-y-auto flex-grow bg-slate-50 h-[70vh]">
+              <h4 class="font-bold text-slate-800 mb-4 text-lg border-b border-slate-200 pb-2">How to solve this type of question:</h4>
+              
+              {% if sub_topic == 'sequences_geometric' %}
+              <ul class="space-y-4">
+                  <li class="bg-white p-4 rounded-lg border border-slate-200 shadow-sm flex gap-4 items-start">
+                      <span class="bg-slate-800 text-white font-bold w-6 h-6 rounded-full flex items-center justify-center shrink-0">1</span>
+                      <div>
+                          <strong class="text-slate-800 block mb-1">Identify Variables</strong>
+                          <p class="text-slate-600 text-sm">Find \( a \) (first term), \( r \) (constant ratio), and \( n \) (number of terms).</p>
+                      </div>
+                  </li>
+                  <li class="bg-white p-4 rounded-lg border border-slate-200 shadow-sm flex gap-4 items-start">
+                      <span class="bg-slate-800 text-white font-bold w-6 h-6 rounded-full flex items-center justify-center shrink-0">2</span>
+                      <div>
+                          <strong class="text-slate-800 block mb-1">State the \(n\)th term formula</strong>
+                          <p class="text-slate-600 text-sm">Write out the general formula: \( T_n = ar^{n-1} \).</p>
+                      </div>
+                  </li>
+                  <li class="bg-white p-4 rounded-lg border border-slate-200 shadow-sm flex gap-4 items-start">
+                      <span class="bg-slate-800 text-white font-bold w-6 h-6 rounded-full flex items-center justify-center shrink-0">3</span>
+                      <div>
+                          <strong class="text-slate-800 block mb-1">Calculate the Exponent</strong>
+                          <p class="text-slate-600 text-sm">Calculate \( r^n \).</p>
+                      </div>
+                  </li>
+                  <li class="bg-white p-4 rounded-lg border border-slate-200 shadow-sm flex gap-4 items-start">
+                      <span class="bg-slate-800 text-white font-bold w-6 h-6 rounded-full flex items-center justify-center shrink-0">4</span>
+                      <div>
+                          <strong class="text-slate-800 block mb-1">Solve the Numerator</strong>
+                          <p class="text-slate-600 text-sm">Calculate \( a(r^n - 1) \).</p>
+                      </div>
+                  </li>
+                  <li class="bg-white p-4 rounded-lg border border-slate-200 shadow-sm flex gap-4 items-start">
+                      <span class="bg-slate-800 text-white font-bold w-6 h-6 rounded-full flex items-center justify-center shrink-0">5</span>
+                      <div>
+                          <strong class="text-slate-800 block mb-1">Divide by Denominator</strong>
+                          <p class="text-slate-600 text-sm">Divide by \( (r - 1) \) to find the final Sum.</p>
+                      </div>
+                  </li>
+              </ul>
+              {% else %}
+              <p class="text-slate-600">Standard heuristic breakdown goes here.</p>
+              {% endif %}
+          </div>
+          <div class="p-6 border-t border-slate-100 bg-slate-50 rounded-b-xl flex justify-between items-center">
+              <span class="text-xs text-slate-500">Follow these steps exactly in the Expert UI.</span>
+              <button type="button" onclick="document.getElementById('steps-modal').classList.add('hidden')" class="bg-fuchsia-600 hover:bg-fuchsia-700 text-white font-medium px-6 py-2 rounded-lg transition">Got it</button>
+          </div>
+      </div>
+  </div>
+
+  <!-- Deconstruct Modal -->
+  <div id="deconstruct-modal" class="fixed inset-0 z-50 hidden bg-slate-900/50 flex items-center justify-center p-4">
+      <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col border-t-4 border-red-500">
+          <div class="p-6 border-b border-slate-100 flex justify-between items-center">
+              <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2">
+                  <span class="bg-red-200 text-red-800 w-8 h-8 rounded-lg flex items-center justify-center shadow-sm">🔍</span> Question Deconstruction
+              </h3>
+              <button type="button" onclick="document.getElementById('deconstruct-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600">
+                  <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+              </button>
+          </div>
+          <div class="p-6 overflow-y-auto space-y-6 text-sm flex-grow bg-slate-50">
+              
+              <div class="bg-red-50 text-red-800 p-4 rounded-xl border border-red-100 shadow-sm">
+                  <h4 class="font-bold text-lg mb-2">How to read this question:</h4>
+                  <p class="mb-4">Before doing any math, train yourself to ask three questions:</p>
+                  <ul class="list-disc pl-5 space-y-2">
+                      <li><strong>Action Verbs:</strong> What is it asking me to <i>Determine</i>, <i>Calculate</i>, or <i>Prove</i>?</li>
+                      <li><strong>How many parts?</strong> Does the question say "AND" or "BOTH"? (e.g., "Find the formula AND the sum"). If yes, you must provide TWO final answers!</li>
+                      <li><strong>Is there a formula?</strong> Can I pull a formula from my sheet immediately based on the keywords?</li>
+                  </ul>
+              </div>
+
+              <!-- Interactive Slideshow for Universal Strategy -->
+              <h4 class="font-bold text-slate-800 mb-2">Interactive Guide: The Art of Deconstruction</h4>
+              <div id="deconstruct-carousel" class="relative bg-slate-900 rounded-xl overflow-hidden shadow-inner text-white mb-6 border border-slate-300" style="height: 280px;">
+                  
+                  <!-- Slide 1 -->
+                  <div id="slide-1" class="absolute inset-0 p-8 flex flex-col justify-center transition-opacity duration-500 opacity-100">
+                      <div class="w-12 h-12 bg-amber-500/20 text-amber-400 rounded-full flex items-center justify-center mb-3">
+                          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                      </div>
+                      <h5 class="text-amber-400 font-bold text-xl mb-2">Rule #1: Hands off the calculator!</h5>
+                      <p class="text-slate-300 leading-relaxed">The biggest mistake learners make is rushing into the math. The real challenge of an exam is structurally decoding what the examiner wants before you calculate anything.</p>
+                  </div>
+                  
+                  <!-- Slide 2 -->
+                  <div id="slide-2" class="absolute inset-0 p-8 flex flex-col justify-center transition-opacity duration-500 opacity-0 pointer-events-none">
+                      <div class="w-12 h-12 bg-cyan-500/20 text-cyan-400 rounded-full flex items-center justify-center mb-3">
+                          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                      </div>
+                      <h5 class="text-cyan-400 font-bold text-xl mb-2">Action Verbs</h5>
+                      <p class="text-slate-300">Highlight words like <span class="bg-cyan-900 text-cyan-100 px-1.5 rounded font-mono">Determine</span> or <span class="bg-fuchsia-900 text-fuchsia-100 px-1.5 rounded font-mono">Prove</span>.</p>
+                      <p class="text-slate-400 text-sm mt-3">"Determine" means calculate a final value. "Prove" means the logical steps are what get marked, not just the final line!</p>
+                  </div>
+                  
+                  <!-- Slide 3 -->
+                  <div id="slide-3" class="absolute inset-0 p-8 flex flex-col justify-center transition-opacity duration-500 opacity-0 pointer-events-none">
+                      <div class="w-12 h-12 bg-red-500/20 text-red-400 rounded-full flex items-center justify-center mb-3">
+                          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+                      </div>
+                      <h5 class="text-red-400 font-bold text-xl mb-2">The "AND" Trap</h5>
+                      <p class="text-slate-300 text-lg italic">"Calculate the nth term <span class="text-red-400 font-bold underline not-italic">AND</span> the sum."</p>
+                      <p class="text-slate-400 text-sm mt-3">If you see an 'AND', write down TWO blank spaces immediately on your paper so you don't forget the first part once you finish the complex calculation.</p>
+                  </div>
+                  
+                  <!-- Slide 4 -->
+                  <div id="slide-4" class="absolute inset-0 p-8 flex flex-col justify-center transition-opacity duration-500 opacity-0 pointer-events-none">
+                      <div class="w-12 h-12 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center mb-3">
+                          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+                      </div>
+                      <h5 class="text-emerald-400 font-bold text-xl mb-2">The Formula Hunt</h5>
+                      <p class="text-slate-300">See <span class="text-emerald-400 font-mono">Arithmetic Series</span>? Instantly write down \( S_n = \frac{n}{2}[2a + (n-1)d] \).</p>
+                      <p class="text-slate-400 text-sm mt-3">Write formulas in the margin before you even finish reading the question. Your brain will automatically start mapping the given numbers into it.</p>
+                  </div>
+
+                  <!-- Controls -->
+                  <div class="absolute bottom-5 left-0 right-0 flex justify-between px-8">
+                      <button type="button" onclick="changeSlide(-1)" class="text-slate-400 hover:text-white font-medium transition">&larr; Prev</button>
+                      <div class="flex gap-2 items-center" id="slide-dots">
+                          <span class="w-2.5 h-2.5 rounded-full bg-white slide-dot transition-colors"></span>
+                          <span class="w-2.5 h-2.5 rounded-full bg-slate-600 slide-dot transition-colors"></span>
+                          <span class="w-2.5 h-2.5 rounded-full bg-slate-600 slide-dot transition-colors"></span>
+                          <span class="w-2.5 h-2.5 rounded-full bg-slate-600 slide-dot transition-colors"></span>
+                      </div>
+                      <button type="button" onclick="changeSlide(1)" class="text-slate-400 hover:text-white font-medium transition">Next &rarr;</button>
+                  </div>
+              </div>
+
+          </div>
+          <div class="p-6 border-t border-slate-100 bg-white rounded-b-xl flex justify-between items-center">
+              <span class="text-xs text-slate-500">Mastering the question is half the battle.</span>
+              <button type="button" onclick="document.getElementById('deconstruct-modal').classList.add('hidden')" class="bg-red-600 hover:bg-red-700 text-white font-medium px-6 py-2 rounded-lg transition">I understand</button>
+          </div>
+      </div>
+  </div>
+
+  <!-- Preflight Checklist Modal -->
+  <div id="preflight-modal" class="fixed inset-0 z-[60] hidden bg-slate-900/70 flex items-center justify-center p-4 backdrop-blur-sm">
+      <div class="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 text-center transform transition-all border-t-8 border-amber-500">
+          <div class="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+          </div>
+          <h3 class="text-xl font-bold text-slate-900 mb-2">Wait! Is your answer complete?</h3>
+          <p class="text-slate-600 mb-6">
+              This is a <strong>multi-part question</strong>. 
+              Did you remember to include BOTH the formula AND the final numerical answer in your text box?
+          </p>
+          <div class="flex gap-3 justify-center">
+              <button type="button" onclick="document.getElementById('preflight-modal').classList.add('hidden')" class="px-5 py-2.5 bg-slate-100 text-slate-700 font-medium rounded-lg hover:bg-slate-200 transition">Let me check</button>
+              <button type="button" onclick="document.getElementById('answer-form').submit()" id="btn-confirm-submit" class="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-lg shadow-sm transition">Yes, submit it!</button>
+          </div>
+      </div>
+  </div>
+
+</div>
+
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="https://www.desmos.com/api/v1.9/calculator.js?apiKey=dcb31709b452b1cf9dc26972add0fda6"></script>
+    <script>
+      window.MathJax = {
+        tex: {
+          inlineMath: [['\\(', '\\)'], ['$', '$']],
+          displayMath: [['\\[', '\\]'], ['$$', '$$']]
+        }
+      };
+
+      function showPreflight() {
+          {% if is_variation %}
+          document.getElementById('preflight-modal').classList.remove('hidden');
+          {% else %}
+          document.getElementById('answer-form').submit();
+          {% endif %}
+      }
+
+      let currentSlide = 1;
+      function changeSlide(dir) {
+          document.getElementById('slide-' + currentSlide).classList.replace('opacity-100', 'opacity-0');
+          document.getElementById('slide-' + currentSlide).classList.add('pointer-events-none');
+          document.querySelectorAll('.slide-dot')[currentSlide-1].classList.replace('bg-white', 'bg-slate-600');
+          
+          currentSlide += dir;
+          if(currentSlide > 4) currentSlide = 1;
+          if(currentSlide < 1) currentSlide = 4;
+          
+          document.getElementById('slide-' + currentSlide).classList.replace('opacity-0', 'opacity-100');
+          document.getElementById('slide-' + currentSlide).classList.remove('pointer-events-none');
+          document.querySelectorAll('.slide-dot')[currentSlide-1].classList.replace('bg-slate-600', 'bg-white');
+          
+          // Trigger MathJax on new slide if needed
+          MathJax.typesetPromise();
+      }
+
+      document.addEventListener('DOMContentLoaded', function() {
+          const btnHint = document.getElementById('btn-hint');
+          const tutorInput = document.getElementById('tutor-input');
+          const chatHistory = document.getElementById('tutor-chat');
+          
+          // Initialize Desmos
+          const elt = document.getElementById('calculator');
+          if (elt) {
+              const calculator = Desmos.GraphingCalculator(elt, {
+                  keypad: true,
+                  expressions: true,
+                  settingsMenu: false,
+                  zoomButtons: true,
+                  border: false
+              });
+          }
+
+          // Bypass Logic
+          let isExpertUI = {{ 'true' if is_variation else 'false' }};
+          const btnBypass = document.getElementById('btn-bypass');
+          if (btnBypass) {
+              btnBypass.addEventListener('click', function() {
+                  isExpertUI = !isExpertUI;
+                  const scaffoldIds = ['scaffold-step-1', 'scaffold-step-2', 'scaffold-step-3', 'scaffold-step-4', 'scaffold-step-5', 'scaffold-step-6'];
+                  
+                  if (isExpertUI) {
+                      scaffoldIds.forEach(id => {
+                          const el = document.getElementById(id);
+                          if(el) el.classList.add('hidden');
+                      });
+                      
+                      const finalStep = document.getElementById('standard-tutor-form');
+                      finalStep.classList.remove('hidden');
+                      setTimeout(() => finalStep.classList.remove('opacity-0'), 50);
+                      btnBypass.innerHTML = "I'm stuck! (Switch to Tutor UI)";
+                      
+                      // In Expert UI, always reveal the submit button!
+                      const btnSubmit = document.getElementById('btn-submit');
+                      if(btnSubmit) btnSubmit.classList.remove('hidden');
+                      
+                  } else {
+                      document.getElementById('scaffold-step-1').classList.remove('hidden');
+                      // Only hide standard form if we hadn't solved the whole thing yet
+                      if (document.getElementById('btn-check-final') && document.getElementById('btn-check-final').innerHTML !== "Solved! ✅") {
+                          document.getElementById('standard-tutor-form').classList.add('hidden');
+                          document.getElementById('standard-tutor-form').classList.add('opacity-0');
+                          
+                          // Hide submit button again if we go back to Tutor UI
+                          const btnSubmit = document.getElementById('btn-submit');
+                          if(btnSubmit) btnSubmit.classList.add('hidden');
+                      }
+                      btnBypass.innerHTML = "Skip Scaffold (I'm an Expert)";
+                  }
+              });
+          }
+
+          // Scaffold Logic
+          let dynamicAns = { rn: "59049", paren: "59048", num: "118096", den: "2", final: "59048" };
+          
+          const btnCheckVars = document.getElementById('btn-check-vars');
+          if (btnCheckVars) {
+              btnCheckVars.addEventListener('click', async function() {
+                  const a = document.getElementById('var-a').value;
+                  const r = document.getElementById('var-r').value;
+                  const n = document.getElementById('var-n').value;
+                  
+                  btnCheckVars.innerHTML = "Checking...";
+                  btnCheckVars.disabled = true;
+
+                  try {
+                      const response = await fetch("{{ url_for('adv_math_bp.validate_variables') }}", {
+                          method: 'POST',
+                          headers: {
+                              'Content-Type': 'application/json',
+                              'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+                          },
+                          body: JSON.stringify({ 
+                              a: a, 
+                              r: r, 
+                              n: n,
+                              topic_id: "{{ topic_id }}",
+                              sub_topic: "{{ sub_topic }}",
+                              is_variation: {{ 'true' if is_variation else 'false' }}
+                          })
+                      });
+                      
+                      if (!response.ok) {
+                          const errText = await response.text();
+                          throw new Error(`Server returned ${response.status}: ${errText.substring(0, 100)}...`);
+                      }
+                      
+                      const data = await response.json();
+                      
+                      // Highlight inputs
+                      document.getElementById('var-a').classList.toggle('border-red-500', !data.a);
+                      document.getElementById('var-a').classList.toggle('border-green-500', data.a);
+                      document.getElementById('var-r').classList.toggle('border-red-500', !data.r);
+                      document.getElementById('var-r').classList.toggle('border-green-500', data.r);
+                      document.getElementById('var-n').classList.toggle('border-red-500', !data.n);
+                      document.getElementById('var-n').classList.toggle('border-green-500', data.n);
+                      
+                      if (data.all_correct) {
+                          dynamicAns.rn = data.ans_rn;
+                          dynamicAns.paren = data.ans_paren;
+                          dynamicAns.num = data.ans_num;
+                          dynamicAns.den = data.ans_den;
+                          dynamicAns.final = data.ans_final;
+                          
+                          document.getElementById('var-error').classList.add('hidden');
+                          btnCheckVars.classList.replace('bg-slate-800', 'bg-green-600');
+                          btnCheckVars.innerHTML = "Correct! ✅";
+                          
+                          // Reveal step 2
+                          const step2 = document.getElementById('scaffold-step-2');
+                          step2.classList.remove('hidden');
+                          setTimeout(() => step2.classList.remove('opacity-0'), 50);
+                      } else {
+                          if (data.error) {
+                              document.getElementById('var-error').innerHTML = "Error: " + data.error;
+                          } else {
+                              document.getElementById('var-error').innerHTML = "Some of your variables are incorrect. Check your sequence rules and try again!";
+                          }
+                          document.getElementById('var-error').classList.remove('hidden');
+                          btnCheckVars.innerHTML = "Check Variables";
+                          btnCheckVars.disabled = false;
+                      }
+                  } catch(e) {
+                      document.getElementById('var-error').innerHTML = "Connection Error: " + e.message;
+                      document.getElementById('var-error').classList.remove('hidden');
+                      btnCheckVars.innerHTML = "Check Variables";
+                      btnCheckVars.disabled = false;
+                  }
+              });
+              
+              const btnCheckRn = document.getElementById('btn-check-rn');
+              if(btnCheckRn) {
+                  btnCheckRn.addEventListener('click', function() {
+                      const rn = document.getElementById('var-rn').value.trim();
+                      if (rn === dynamicAns.rn) {
+                          document.getElementById('rn-error').classList.add('hidden');
+                          btnCheckRn.classList.replace('bg-cyan-600', 'bg-green-600');
+                          btnCheckRn.innerHTML = "Correct! ✅";
+                          document.getElementById('var-rn').classList.replace('border-slate-300', 'border-green-500');
+                          
+                          const nextStep = document.getElementById('scaffold-step-3');
+                          nextStep.classList.remove('hidden');
+                          setTimeout(() => nextStep.classList.remove('opacity-0'), 50);
+                      } else {
+                          document.getElementById('rn-error').classList.remove('hidden');
+                          document.getElementById('var-rn').classList.replace('border-slate-300', 'border-red-500');
+                      }
+                  });
+              }
+
+              const btnCheckParen = document.getElementById('btn-check-paren');
+              if(btnCheckParen) {
+                  btnCheckParen.addEventListener('click', function() {
+                      const ans = document.getElementById('var-paren').value.trim();
+                      if (ans === dynamicAns.paren) {
+                          document.getElementById('paren-error').classList.add('hidden');
+                          btnCheckParen.classList.replace('bg-cyan-600', 'bg-green-600');
+                          btnCheckParen.innerHTML = "Correct! ✅";
+                          document.getElementById('var-paren').classList.replace('border-slate-300', 'border-green-500');
+                          
+                          const nextStep = document.getElementById('scaffold-step-4');
+                          nextStep.classList.remove('hidden');
+                          setTimeout(() => nextStep.classList.remove('opacity-0'), 50);
+                      } else {
+                          document.getElementById('paren-error').classList.remove('hidden');
+                          document.getElementById('var-paren').classList.replace('border-slate-300', 'border-red-500');
+                      }
+                  });
+              }
+
+              const btnCheckNum = document.getElementById('btn-check-num');
+              if(btnCheckNum) {
+                  btnCheckNum.addEventListener('click', function() {
+                      const ans = document.getElementById('var-num').value.trim();
+                      if (ans === dynamicAns.num) {
+                          document.getElementById('num-error').classList.add('hidden');
+                          btnCheckNum.classList.replace('bg-cyan-600', 'bg-green-600');
+                          btnCheckNum.innerHTML = "Correct! ✅";
+                          document.getElementById('var-num').classList.replace('border-slate-300', 'border-green-500');
+                          
+                          const nextStep = document.getElementById('scaffold-step-5');
+                          nextStep.classList.remove('hidden');
+                          setTimeout(() => nextStep.classList.remove('opacity-0'), 50);
+                      } else {
+                          document.getElementById('num-error').classList.remove('hidden');
+                          document.getElementById('var-num').classList.replace('border-slate-300', 'border-red-500');
+                      }
+                  });
+              }
+
+              const btnCheckDen = document.getElementById('btn-check-den');
+              if(btnCheckDen) {
+                  btnCheckDen.addEventListener('click', function() {
+                      const ans = document.getElementById('var-den').value.trim();
+                      if (ans === dynamicAns.den) {
+                          document.getElementById('den-error').classList.add('hidden');
+                          btnCheckDen.classList.replace('bg-cyan-600', 'bg-green-600');
+                          btnCheckDen.innerHTML = "Correct! ✅";
+                          document.getElementById('var-den').classList.replace('border-slate-300', 'border-green-500');
+                          
+                          const nextStep = document.getElementById('scaffold-step-6');
+                          nextStep.classList.remove('hidden');
+                          setTimeout(() => nextStep.classList.remove('opacity-0'), 50);
+                      } else {
+                          document.getElementById('den-error').classList.remove('hidden');
+                          document.getElementById('var-den').classList.replace('border-slate-300', 'border-red-500');
+                      }
+                  });
+              }
+
+              const btnCheckFinal = document.getElementById('btn-check-final');
+              if(btnCheckFinal) {
+                  btnCheckFinal.addEventListener('click', function() {
+                      const ans = document.getElementById('var-final').value.trim();
+                      if (ans === dynamicAns.final) {
+                          document.getElementById('final-error').classList.add('hidden');
+                          btnCheckFinal.classList.replace('bg-emerald-600', 'bg-green-600');
+                          btnCheckFinal.innerHTML = "Solved! ✅";
+                          document.getElementById('var-final').classList.replace('border-slate-300', 'border-green-500');
+                          
+                          // Reveal final standard chat step
+                          const finalStep = document.getElementById('standard-tutor-form');
+                          finalStep.classList.remove('hidden');
+                          setTimeout(() => finalStep.classList.remove('opacity-0'), 50);
+                          
+                          // Show Variation Button
+                          const btnVar = document.getElementById('btn-variation');
+                          if(btnVar) btnVar.classList.remove('hidden');
+                          
+                          // Reveal the Submit button so they can complete the topic!
+                          const btnSubmit = document.getElementById('btn-submit');
+                          if(btnSubmit) btnSubmit.classList.remove('hidden');
+                          
+                          // Auto populate chat with final answer text
+                          document.getElementById('tutor-input').value = "I solved it! The final sum is " + dynamicAns.final + ".";
+                      } else {
+                          document.getElementById('final-error').classList.remove('hidden');
+                          document.getElementById('var-final').classList.replace('border-slate-300', 'border-red-500');
+                      }
+                  });
+              }
+          }
+
+          btnHint.addEventListener('click', async function() {
+              const step = tutorInput.value.trim();
+              if (!step) {
+                  alert("Please type a step or your thinking first before asking for a hint!");
+                  return;
+              }
+
+              // Append Student Message
+              chatHistory.classList.remove('hidden');
+              chatHistory.innerHTML += `
+                  <div class="flex justify-end">
+                      <div class="bg-blue-50 border border-blue-100 text-slate-800 p-3 rounded-lg rounded-tr-none max-w-[80%] text-sm">
+                          \\( ${step} \\)
+                      </div>
+                  </div>
+              `;
+              
+              // Trigger MathJax
+              MathJax.typesetPromise();
+
+              // Loading state
+              const originalText = btnHint.innerHTML;
+              btnHint.innerHTML = `<span class="animate-pulse">Thinking...</span>`;
+              btnHint.disabled = true;
+
+              try {
+                  const response = await fetch("{% if sub_topic %}{{ url_for('adv_math_bp.topic_tutor', topic_id=topic_id, sub_topic=sub_topic) }}{% else %}{{ url_for('adv_math_bp.topic_tutor', topic_id=topic_id) }}{% endif %}", {
+                      method: 'POST',
+                      headers: {
+                          'Content-Type': 'application/json',
+                          'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+                      },
+                      body: JSON.stringify({ step: step })
+                  });
+                  
+                  const data = await response.json();
+                  
+                  if (data.error) {
+                      chatHistory.innerHTML += `
+                          <div class="flex justify-start">
+                              <div class="bg-red-50 text-red-800 p-3 rounded-lg rounded-tl-none max-w-[80%] text-sm border border-red-100">
+                                  ${data.error}
+                              </div>
+                          </div>
+                      `;
+                      // Fallback: If AI is down, reveal submit button anyway so they aren't blocked!
+                      const btnSubmit = document.getElementById('btn-submit');
+                      if (btnSubmit) btnSubmit.classList.remove('hidden');
+                      
+                      const mcqOptions = document.getElementById('mcq-options');
+                      if (mcqOptions) mcqOptions.classList.remove('opacity-50', 'pointer-events-none');
+                  } else {
+                      chatHistory.innerHTML += `
+                          <div class="flex justify-start">
+                              <div class="bg-slate-100 text-slate-800 p-4 rounded-lg rounded-tl-none max-w-[90%] text-sm border border-slate-200">
+                                  <span class="font-bold text-cyan-600 block mb-1">AI Tutor:</span>
+                                  ${data.feedback}
+                              </div>
+                          </div>
+                      `;
+                      
+                      if (data.is_final) {
+                          const btnSubmit = document.getElementById('btn-submit');
+                          btnSubmit.classList.remove('hidden');
+                          
+                          const mcqOptions = document.getElementById('mcq-options');
+                          if (mcqOptions) {
+                              mcqOptions.classList.remove('opacity-50', 'pointer-events-none');
+                          }
+                      }
+                  }
+              } catch (error) {
+                  chatHistory.innerHTML += `
+                      <div class="flex justify-start">
+                          <div class="bg-red-50 text-red-800 p-3 rounded-lg rounded-tl-none max-w-[80%] text-sm border border-red-100">
+                              Failed to reach tutor.
+                          </div>
+                      </div>
+                  `;
+                  // Fallback: If network fails, reveal submit button anyway!
+                  const btnSubmit = document.getElementById('btn-submit');
+                  if (btnSubmit) btnSubmit.classList.remove('hidden');
+                  
+                  const mcqOptions = document.getElementById('mcq-options');
+                  if (mcqOptions) mcqOptions.classList.remove('opacity-50', 'pointer-events-none');
+              } finally {
+                  // Restore button
+                  btnHint.innerHTML = originalText;
+                  btnHint.disabled = false;
+                  
+                  // Trigger MathJax on AI feedback
+                  MathJax.typesetPromise();
+                  
+                  // Scroll to bottom
+                  chatHistory.scrollTop = chatHistory.scrollHeight;
+              }
+          });
+      });
+    </script>
+    {% endblock %}

@@ -18,15 +18,17 @@ var/
 cloudflared.exe
 
 # Media (use storage or Git LFS instead)
-static/**/*.mp4
-static/**/*.mkv
-static/**/*.webm
-static/**/*.mp3
-static/**/*.aac
-static/**/*.wav
+app/static/**/*.mp4
+app/static/**/*.mkv
+app/static/**/*.webm
+app/static/**/*.mp3
+app/static/**/*.aac
+app/static/**/*.wav
 
 # Office/binaries, big PDFs (keep code repo lean)
 *.docx
 *.xlsx
 *.pptx
 *.pdf
+
+render_backup.sql

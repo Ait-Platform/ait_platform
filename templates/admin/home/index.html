@@ -1,30 +1,160 @@
-{# templates/admin/home/index.html #}
 {% extends "layout.html" %}
 
 {% block content %}
-<div class="container mx-auto py-10">
-  <h1 class="text-2xl font-semibold mb-8">Hands-On Math Education — Admin</h1>
 
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-    <a href="#" class="block rounded-xl border p-6 hover:bg-slate-50">
-      <h2 class="font-medium">Manage Exercises</h2>
-      <p class="text-sm text-slate-500">Add, edit, and organize practice exercises.</p>
-    </a>
+<div class="max-w-6xl mx-auto py-8">
 
-    <a href="#" class="block rounded-xl border p-6 hover:bg-slate-50">
-      <h2 class="font-medium">Assignments</h2>
-      <p class="text-sm text-slate-500">Create and review student assignments.</p>
-    </a>
+```
+<div class="mb-8">
+    <h1 class="text-3xl font-bold text-slate-800">
+        HOME Administration
+    </h1>
 
-    <a href="#" class="block rounded-xl border p-6 hover:bg-slate-50">
-      <h2 class="font-medium">Reports</h2>
-      <p class="text-sm text-slate-500">View learner progress and performance analytics.</p>
-    </a>
-
-    <a href="#" class="block rounded-xl border p-6 hover:bg-slate-50">
-      <h2 class="font-medium">Resources</h2>
-      <p class="text-sm text-slate-500">Upload worksheets, tools, and supporting material.</p>
-    </a>
-  </div>
+    <p class="text-slate-500 mt-2">
+        Manage curriculum content, assessments and learner progress.
+    </p>
 </div>
+
+
+
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+
+
+    <!-- Chapters -->
+
+    <div class="bg-white rounded-xl shadow p-6">
+
+        <div class="text-sm text-slate-500">
+            Chapters
+        </div>
+
+        <div class="text-4xl font-bold text-blue-600 mt-2">
+            {{ chapter_count }}
+        </div>
+
+        <div class="text-sm mt-2">
+
+            {% if chapter_complete %}
+                <span class="text-green-600 font-medium">
+                    ✓ Complete
+                </span>
+            {% else %}
+                <span class="text-red-600 font-medium">
+                    Incomplete
+                </span>
+            {% endif %}
+
+        </div>
+
+    </div>
+
+    <!-- Questions -->
+
+    <div class="bg-white rounded-xl shadow p-6">
+
+        <div class="text-sm text-slate-500">
+            Questions
+        </div>
+
+        <div class="text-4xl font-bold text-green-600 mt-2">
+            {{ question_count }}
+        </div>
+
+        <div class="text-sm mt-2">
+
+            {% if question_complete %}
+                <span class="text-green-600 font-medium">
+                    ✓ Complete
+                </span>
+            {% else %}
+                <span class="text-red-600 font-medium">
+                    Incomplete
+                </span>
+            {% endif %}
+
+        </div>
+
+    </div>
+
+    <!-- Options -->
+
+    <div class="bg-white rounded-xl shadow p-6">
+
+        <div class="text-sm text-slate-500">
+            Options
+        </div>
+
+        <div class="text-4xl font-bold text-purple-600 mt-2">
+            {{ option_count }}
+        </div>
+
+        <div class="text-sm mt-2">
+
+            {% if option_complete %}
+                <span class="text-green-600 font-medium">
+                    ✓ Complete
+                </span>
+            {% else %}
+                <span class="text-red-600 font-medium">
+                    Incomplete
+                </span>
+            {% endif %}
+
+        </div>
+
+    </div>
+    ```
+
+</div>
+
+
+
+
+
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+    <a href="{{ url_for('admin_bp.chapters') }}"
+       class="block rounded-xl border p-6 hover:bg-slate-50">
+
+        <h2 class="font-medium text-lg">
+            Chapters
+        </h2>
+
+        <p class="text-sm text-slate-500 mt-2">
+            Create and manage HOME curriculum chapters.
+        </p>
+
+    </a>
+
+    <a href="{{ url_for('admin_bp.questions') }}"
+       class="block rounded-xl border p-6 hover:bg-slate-50">
+
+        <h2 class="font-medium text-lg">
+            Questions
+        </h2>
+
+        <p class="text-sm text-slate-500 mt-2">
+            Manage chapter questions and answers.
+        </p>
+
+    </a>
+
+    <a href="{{ url_for('admin_bp.options') }}"
+       class="block rounded-xl border p-6 hover:bg-slate-50">
+
+        <h2 class="font-medium text-lg">
+            Question Options
+        </h2>
+
+        <p class="text-sm text-slate-500 mt-2">
+            Manage selectable answer options.
+        </p>
+
+    </a>
+
+</div>
+```
+
+</div>
+
 {% endblock %}

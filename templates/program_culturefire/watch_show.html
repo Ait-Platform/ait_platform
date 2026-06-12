@@ -1,0 +1,292 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="max-w-5xl mx-auto px-4 py-8">
+  <div class="bg-white shadow-xl rounded-lg overflow-hidden">
+    <div class="h-3 bg-indigo-600"></div>
+
+    <!-- Header -->
+    <div class="flex items-center justify-between px-6 py-4 border-b">
+      <h1 class="text-2xl font-bold text-gray-800">{{ show.title }}</h1>
+      <a href="{{ url_for('cultural_bp.show_program', show_id=show.id, origin=origin, enrollment_id=enrollment_id) }}"
+         class="bg-gray-300 text-gray-800 px-4 py-2 rounded hover:bg-gray-400">
+        Back
+      </a>
+    </div>
+
+    <!-- Description -->
+    <div class="px-6 py-4 border-b">
+      <p class="text-gray-600">{{ show.description }}</p>
+    </div>
+
+    <!-- Segment Bar (For Pageants) -->
+    {% if available_segments %}
+    <div class="px-6 py-4 bg-gray-50 border-b flex justify-center gap-3">
+      {% for segment in available_segments %}
+      <button onclick="filterSegment('{{ segment }}')" class="bg-indigo-100 text-indigo-700 px-4 py-2 rounded font-semibold hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 segment-btn transition-colors" id="btn-segment-{{ segment }}">
+        {{ segment.replace('_', ' ').title() }}
+      </button>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Bottom: Controls (Moved up) -->
+    <div class="bg-gray-100 border-b px-6 py-3 flex justify-between items-center shadow-inner">
+      <button id="btnPrev" onclick="prevItem()" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded disabled:opacity-40 transition font-semibold">&larr; Previous Participant</button>
+      {% if not available_segments %}
+      <button id="btnStart" onclick="startShow()" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded transition font-bold shadow">Start Show</button>
+      {% endif %}
+      <button id="btnNext" onclick="nextItem()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded disabled:opacity-40 transition font-semibold">Next Participant &rarr;</button>
+    </div>
+
+    <!-- Player -->
+    <div class="px-6 py-6 text-center">
+
+      <div class="relative max-w-3xl mx-auto">
+
+        <!-- Top: Title & Vote/Score -->
+        <div class="bg-gray-800 text-white text-sm px-4 py-3 flex justify-between items-center rounded-t-lg">
+          <span id="currentTitle" class="font-medium text-lg">Not playing</span>
+          
+          {% if is_judge %}
+          <div id="scoreContainer" class="hidden flex items-center space-x-3">
+            <label for="scoreInput" class="font-semibold text-gray-300 text-lg">Score:</label>
+            <input type="number" id="scoreInput" min="1" max="10" class="w-20 px-3 py-2 text-black rounded font-bold text-center text-lg" placeholder="/10">
+            <span id="scoreMaxLabel" class="text-sm text-gray-400">/ 10</span>
+            <button id="btnVote" onclick="voteItem()" class="bg-purple-600 text-white px-5 py-2 rounded hover:bg-purple-700 font-bold shadow-lg transition text-lg">Submit Score</button>
+          </div>
+          {% else %}
+          <span class="text-gray-400 italic text-xs">Judging Panel Only</span>
+          {% endif %}
+        </div>
+
+        <!-- Video -->
+        <style>
+          video::-internal-media-controls-overflow-button { display: none !important; }
+          video::-webkit-media-controls-overflow-button { display: none !important; }
+        </style>
+        <video id="programPlayer" class="w-full bg-black shadow-lg rounded-b-lg" controls controlsList="nodownload noplaybackrate" disablePictureInPicture style="min-height: 400px;">
+          <source id="programSource" src="" type="video/mp4">
+          Your browser does not support the video tag.
+        </video>
+
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Data -->
+<script id="submissions-data" type="application/json">
+{{ submissions_data | tojson }}
+</script>
+
+<script>
+const allSubmissions = JSON.parse(
+  document.getElementById('submissions-data').textContent
+);
+
+// If available_segments is passed (i.e. it's a Pageant), start empty until a segment is selected
+let submissions = {% if available_segments %} [] {% else %} allSubmissions {% endif %};
+
+let currentIndex = -1;
+let nextDelayTimeout = null;
+
+const player = document.getElementById('programPlayer');
+const source = document.getElementById('programSource');
+const title = document.getElementById('currentTitle');
+const btnVote = document.getElementById('btnVote');
+
+const btnPrev = document.getElementById('btnPrev');
+const btnNext = document.getElementById('btnNext');
+
+function filterSegment(segmentType) {
+  // Update UI buttons
+  document.querySelectorAll('.segment-btn').forEach(btn => {
+    btn.classList.remove('bg-indigo-600', 'text-white');
+    btn.classList.add('bg-indigo-100', 'text-indigo-700');
+  });
+  const selectedBtn = document.getElementById(`btn-segment-${segmentType}`);
+  selectedBtn.classList.remove('bg-indigo-100', 'text-indigo-700');
+  selectedBtn.classList.add('bg-indigo-600', 'text-white');
+
+  // Filter the playlist
+  submissions = allSubmissions.filter(s => s.segment_type === segmentType);
+  
+  // Auto-start new segment if there are items
+  if (submissions.length > 0) {
+    loadItem(0);
+  } else {
+    stopShow();
+  }
+}
+
+// 🔥 Load item
+function loadItem(index) {
+  if (index < 0 || index >= submissions.length) return;
+
+  currentIndex = index;
+
+  player.src = submissions[index].src;
+  const sourceElem = document.getElementById('programSource');
+  if (sourceElem) sourceElem.src = submissions[index].src;
+
+  player.load();
+
+  // play safely (handles browser restrictions)
+  player.play().catch((err) => {
+    alert("Video playback error: " + err.message + "\nURL: " + submissions[index].src);
+  });
+
+  title.textContent = `${index + 1} of ${submissions.length} - ${submissions[index].title || "Untitled"}`;
+  
+  // Show score container if judge
+  const scoreContainer = document.getElementById('scoreContainer');
+  if (scoreContainer) {
+    scoreContainer.classList.remove('hidden');
+    const scoreInput = document.getElementById('scoreInput');
+    const scoreMaxLabel = document.getElementById('scoreMaxLabel');
+    // Check if it's a talent segment or regular
+    const isTalent = (submissions[index].segment_type === 'talent' || '{{ show.category_item.name }}' !== 'Pageant');
+    const maxScore = isTalent ? 20 : 10;
+    scoreInput.max = maxScore;
+    scoreMaxLabel.textContent = '/ ' + maxScore;
+    scoreInput.value = ''; // clear previous
+  }
+
+  updateButtons();
+  
+  // Disable next button for 15 seconds
+  btnNext.disabled = true;
+  btnNext.classList.add('opacity-40', 'cursor-not-allowed');
+  if (nextDelayTimeout) clearTimeout(nextDelayTimeout);
+  
+  nextDelayTimeout = setTimeout(() => {
+    updateButtons();
+  }, 15000);
+}
+
+// 🔥 Controls
+function startShow() {
+  if (submissions.length === 0) return;
+  loadItem(0);
+}
+
+function nextItem() {
+  if (submissions.length <= 1) return;
+
+  if (currentIndex < submissions.length - 1) {
+    loadItem(currentIndex + 1);
+  } else {
+    loadItem(0);
+  }
+}
+
+function prevItem() {
+  if (currentIndex > 0) {
+    loadItem(currentIndex - 1);
+  }
+}
+
+function togglePause() {
+  if (currentIndex === -1) return;
+
+  if (player.paused) {
+    player.play().catch(() => {});
+  } else {
+    player.pause();
+  }
+}
+
+function stopShow() {
+  player.pause();
+  player.currentTime = 0;
+
+  player.src = "";
+  player.load();
+
+  currentIndex = -1;
+  title.textContent = "Stopped";
+  const scoreContainer = document.getElementById('scoreContainer');
+  if (scoreContainer) scoreContainer.classList.add('hidden');
+  if (nextDelayTimeout) clearTimeout(nextDelayTimeout);
+
+  updateButtons();
+}
+
+// Auto-load first item if this is a standard show (Talent show)
+window.addEventListener('DOMContentLoaded', () => {
+  if (submissions.length > 0) {
+    loadItem(0);
+  }
+});
+
+function voteItem() {
+  if (currentIndex === -1) return;
+  const subId = submissions[currentIndex].id;
+  const scoreInput = document.getElementById('scoreInput');
+  const score = scoreInput ? parseInt(scoreInput.value) : 0;
+  
+  if (!score || score < 1 || (score > 10 && scoreInput.max == 10) || score > 20) {
+    alert("Please enter a valid score between 1 and " + (scoreInput ? scoreInput.max : 10));
+    return;
+  }
+  
+  fetch('{{ url_for("cultural_bp.vote_item") }}', {
+    method: 'POST',
+    headers: { 
+      'Content-Type': 'application/json',
+      'X-CSRFToken': '{{ csrf_token() }}'
+    },
+    body: JSON.stringify({ 
+      submission_id: subId,
+      type: '{{ "pageant" if show.category_item and show.category_item.name == "Pageant" else "talent" }}',
+      score: score
+    })
+  })
+  .then(res => res.json()).then(data => {
+    if(data.success) {
+      alert("Score recorded successfully!");
+      if (currentIndex < submissions.length - 1) {
+        nextItem();
+      }
+    } else {
+      alert("Error: " + data.message);
+    }
+  }).catch(err => {
+    alert("Error recording score");
+  });
+}
+
+function updateButtons() {
+  btnPrev.disabled = currentIndex <= 0;
+  // Next is only disabled if it's the last item AND there is no timeout
+  btnNext.disabled = submissions.length <= 1 || currentIndex >= submissions.length - 1;
+
+  if (btnPrev.disabled) {
+    btnPrev.classList.add('opacity-40', 'cursor-not-allowed');
+  } else {
+    btnPrev.classList.remove('opacity-40', 'cursor-not-allowed');
+  }
+
+  if (btnNext.disabled) {
+    btnNext.classList.add('opacity-40', 'cursor-not-allowed');
+  } else {
+    btnNext.classList.remove('opacity-40', 'cursor-not-allowed');
+  }
+}
+
+// 🔥 Auto next (but don’t break at end)
+player.addEventListener("ended", () => {
+  if (currentIndex < submissions.length - 1) {
+    nextItem();
+  }
+});
+
+// init
+updateButtons();
+
+</script>
+
+{% endblock %}
+
+

@@ -1,0 +1,38 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="p-8">
+  <!-- Back to Hub -->
+  <div class="mb-6">
+    <a href="{{ url_for('general_bp.cleanup_dashboard') }}"
+       class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700">
+      Back to Cleaner Up Hub
+    </a>
+  </div>
+
+  <h2 class="text-3xl font-bold text-red-600 mb-4">Flash Filter Dashboard</h2>
+  <p class="text-gray-700 mb-8">
+    Current flash filter selection:
+    <span class="font-bold">{{ session.get("flash_filter", "all") }}</span>
+  </p>
+
+  <!-- Feedback Section -->
+  <div class="bg-gray-50 border border-gray-200 rounded-lg p-6">
+    <h3 class="text-xl font-semibold text-red-600 mb-4">Filter Feedback</h3>
+
+    {% if session.get("cleanup_feedback") %}
+      {% for category, items in session["cleanup_feedback"].items() %}
+        <h4 class="text-lg font-bold mt-4 mb-2">{{ category|capitalize }}</h4>
+        <ul class="list-disc pl-6">
+          {% for i in items %}
+            <li>{{ i }}</li>
+          {% else %}
+            <li class="text-gray-500 italic">No {{ category }} items found.</li>
+          {% endfor %}
+        </ul>
+      {% endfor %}
+    {% else %}
+      <p class="text-gray-500 italic">No feedback available. Please apply a filter from the hub.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,179 @@
+{% extends "layout.html" %}
+{% block title %}Chapter {{ chapter_num }} Results | HOME™{% endblock %}
+
+{% block content %}
+
+<div class="max-w-4xl mx-auto mt-6">
+
+    <!-- Color Strip -->
+    <div class="h-3 bg-blue-600 rounded-t-xl"></div>
+
+    <!-- Main Tile -->
+    <div class="bg-white shadow rounded-b-xl p-8">
+
+        <!-- Header -->
+        <div class="flex justify-between items-center border-b border-gray-200 pb-4 mb-6">
+
+            <div>
+                <h1 class="text-3xl font-bold text-blue-800">
+                    Chapter {{ chapter_num }} Results
+                </h1>
+
+                <p class="text-gray-500 text-sm mt-1">
+                    Review your answers and learn from the corrections.
+                </p>
+            </div>
+
+            <a href="{{ url_for('home_bp.learner_dashboard') }}"
+               class="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-semibold text-gray-700 transition">
+                ← Dashboard
+            </a>
+
+        </div>
+
+        <!-- Score -->
+        {% if score >= 90 %}
+        <div class="bg-emerald-50 border-l-4 border-emerald-500 p-5 rounded-r-lg mb-8">
+            <h2 class="text-2xl font-bold text-emerald-800">
+                Final Score: {{ score }}%
+            </h2>
+
+            <p class="text-emerald-700 mt-2">
+                Excellent work. You have passed this chapter.
+            </p>
+        </div>
+        {% else %}
+        <div class="bg-red-50 border-l-4 border-red-500 p-5 rounded-r-lg mb-8">
+            <h2 class="text-2xl font-bold text-red-800">
+                Final Score: {{ score }}%
+            </h2>
+
+            <p class="text-red-700 mt-2">
+                Review the corrections below and try again.
+            </p>
+        </div>
+        {% endif %}
+
+        <!-- Questions -->
+        <div class="space-y-6">
+
+            {% for result in results %}
+
+            <div class="border border-gray-200 rounded-xl overflow-hidden">
+
+                <div class="bg-gray-50 px-5 py-3 border-b border-gray-200">
+
+                    <h3 class="font-bold text-gray-800">
+                        Question {{ loop.index }}
+                    </h3>
+
+                </div>
+
+                <div class="p-5">
+
+                    <p class="font-medium text-gray-800 mb-4">
+                        {{ result.question }}
+                    </p>
+
+                    <div class="grid md:grid-cols-2 gap-4">
+
+                        <!-- Learner Answer -->
+                        <div>
+
+                            <p class="text-xs uppercase font-bold text-gray-500 mb-2">
+                                Your Answer
+                            </p>
+
+                            {% if result.correct %}
+
+                            <div class="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-emerald-800 font-semibold">
+                                ✓ {{ result.your_answer }}
+                            </div>
+
+                            {% else %}
+
+                            <div class="bg-red-50 border border-red-200 rounded-lg p-3 text-red-800 font-semibold">
+                                ✗ {{ result.your_answer }}
+                            </div>
+
+                            {% endif %}
+
+                        </div>
+
+                        <!-- Correct Answer -->
+                        <div>
+
+                            <p class="text-xs uppercase font-bold text-gray-500 mb-2">
+                                Correct Answer
+                            </p>
+
+                            <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-blue-800 font-semibold">
+                                {{ result.correct_answer }}
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            {% endfor %}
+
+        </div>
+
+        <!-- Teacher Feedback -->
+        <div class="mt-8 bg-blue-50 border border-blue-200 rounded-xl p-6">
+
+            <h3 class="text-lg font-bold text-blue-800 mb-3">
+                Teacher Feedback
+            </h3>
+
+            {% if score >= 90 %}
+                <p class="text-blue-900">
+                    Excellent observation skills. You carefully identified the differences between the roads and answered accurately.
+                </p>
+            {% elif score >= 70 %}
+                <p class="text-blue-900">
+                    Good work. You identified most of the important observations correctly.
+                </p>
+            {% else %}
+                <p class="text-blue-900">
+                    Observation improves with practice. Study the image again and focus on the differences between the two roads.
+                </p>
+            {% endif %}
+
+        </div>
+
+        <!-- Actions -->
+        <!-- Actions -->
+
+        <div class="flex justify-between items-center mt-8">
+
+        
+        {% if not passed %}
+
+            <a href="{{ url_for(
+                'home_bp.chapter_page',
+                chapter_num=chapter_num
+            ) }}"
+            class="inline-flex items-center px-5 py-2 rounded-lg bg-yellow-500 text-white font-semibold">
+                Retry Chapter
+            </a>
+
+        {% endif %}
+
+        {% if passed %}
+            <a href="{{ next_url }}"
+            class="inline-flex items-center px-5 py-2 rounded-lg bg-emerald-600 text-white font-semibold shadow-sm hover:bg-emerald-700 transition">
+                {{ next_label }}
+            </a>
+        {% endif %}
+        
+
+        </div>
+
+
+{% endblock %}
+

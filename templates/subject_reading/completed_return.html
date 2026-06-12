@@ -1,0 +1,40 @@
+{% extends "layout.html" %}
+{% block title %}Course Completed{% endblock %}
+
+{% block content %}
+<div class="max-w-xl mx-auto mt-12 mb-20">
+  <div class="bg-white border rounded-2xl shadow-sm p-8 text-center">
+    <div class="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
+      <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+      </svg>
+    </div>
+    
+    <h2 class="text-2xl font-bold text-slate-800 mb-3">Course Completed</h2>
+    
+    <p class="text-slate-600 mb-6 leading-relaxed">
+      You have already completed the Reading Programme. 
+      {% if enr and enr.completed_at %}
+      (Completed on {{ enr.completed_at.strftime('%d %B %Y') }})
+      {% endif %}
+      <br><br>
+      The system does not allow unlimited returning to replay lessons or request certificates indefinitely.
+    </p>
+
+    <div class="bg-slate-50 border border-slate-200 rounded-xl p-5 mb-8">
+      <p class="text-sm text-slate-700 font-medium mb-4">Would you like to re-enroll to take the course again?</p>
+      
+      <form method="POST" action="{{ url_for('reading_bp.reenroll') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-4 py-2.5 rounded-lg transition-colors">
+          Yes, Re-Enroll
+        </button>
+      </form>
+    </div>
+
+    <a href="{{ url_for('auth_bp.bridge_dashboard') }}" class="text-indigo-600 hover:text-indigo-700 text-sm font-medium">
+      &larr; No, take me back to dashboard
+    </a>
+  </div>
+</div>
+{% endblock %}

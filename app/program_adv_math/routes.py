@@ -114,21 +114,13 @@ def enroll_free():
     subj = AuthSubject.query.filter_by(slug="adv_math").first_or_404()
     enr = UserEnrollment.query.filter_by(user_id=current_user.id, subject_id=subj.id).first()
     if not enr:
-        from app.models.culturalfire import CfiBiodata
-        dummy_bio = CfiBiodata.query.filter_by(user_id=current_user.id).first()
-        if not dummy_bio:
-            dummy_bio = CfiBiodata(user_id=current_user.id)
-            db.session.add(dummy_bio)
-            db.session.flush()
-            
         enr = UserEnrollment(
             user_id=current_user.id, 
             subject_id=subj.id, 
             status="active",
             local_currency="ZAR",
             local_amount_cents=0,
-            zar_amount_cents=0,
-            biodata_id=dummy_bio.id
+            zar_amount_cents=0
         )
         db.session.add(enr)
     else:

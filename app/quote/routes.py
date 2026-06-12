@@ -138,10 +138,9 @@ def quote():
             zar_amount_cents=row.zar_amount_cents,
         )
         
-        # Auto-bypass if user is authenticated (we have their quote, no need to show the UI)
-        if current_user.is_authenticated:
-            flash(f"Generating your checkout using regional pricing for {country_code}...", "info")
-            return redirect(url_for("auth_bp.register_decision", subject=subject.slug))
+        # We no longer auto-bypass for authenticated users.
+        # They should see the quote page, and then click "Buy Now" or "Start Free Trial"
+        # which will take them through the proper registration/authentication flow.
     return render_template(
         "payments/quote.html",
         subject=subject,

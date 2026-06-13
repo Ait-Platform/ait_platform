@@ -96,6 +96,33 @@ def outreach():
 def analytics():
     return render_template("cultural_fire/analytics.html")
 
+@cultural_bp.route("/program/cultural_fire/sponsor/topup/<int:participant_id>", methods=["GET"])
+@login_required
+def sponsor_topup_get(participant_id):
+    participant = UserEnrollment.query.get_or_404(participant_id)
+    return render_template("program_culturefire/sponsor_topup.html", participant=participant)
+
+@cultural_bp.route("/program/cultural_fire/sponsor/topup/<int:participant_id>", methods=["POST"])
+@login_required
+def sponsor_topup_post(participant_id):
+    participant = UserEnrollment.query.get_or_404(participant_id)
+    tokens = int(request.form.get("token_package", 0))
+    
+    if tokens not in [50, 100, 250]:
+        flash("Invalid token package selected.", "error")
+        return redirect(url_for("cultural_bp.sponsor_topup_get", participant_id=participant_id))
+        
+    # Calculate ZAR amount (1:1 parity for now, meaning 1 token = 1 ZAR = 100 Cents)
+    zar_cents = tokens * 100
+    
+    # Store topup intent in session
+    session["topup_participant_id"] = participant_id
+    session["topup_tokens"] = tokens
+    session["zar_amount_cents"] = zar_cents
+    session["subject_slug"] = "cultural_fire_topup"
+    
+    return redirect(url_for("yoco_bp.yoco_start", subject="cultural_fire_topup"))
+
 @cultural_bp.route("/program/cultural_fire/volunteer/<int:subject_id>")
 @login_required
 def cultural_fire_volunteer_dashboard(subject_id):

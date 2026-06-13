@@ -8,6 +8,11 @@ from flask_wtf import FlaskForm
 from wtforms.validators import DataRequired, Email, Optional
 from sqlalchemy.dialects.postgresql import ENUM
 
+class CfiConfig:
+    COST_UPLOAD_VIDEO = 20
+    COST_APPLY_JUDGE = 10
+    COST_VOTE = 50
+
 class CfiWallet(db.Model):
     __tablename__ = "cfi_wallet"
     id = db.Column(db.Integer, primary_key=True)

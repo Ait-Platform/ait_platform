@@ -330,9 +330,25 @@ def success():
         # Provision CFI Tokens if it was a wallet topup
         if subject.lower() == "cultural_fire_topup":
             from app.models.culturalfire import CfiWallet, CfiTokenTransaction
-            wallet = CfiWallet.query.filter_by(user_id=u.id).first()
+            
+            # Check if this is a sponsored topup for another participant
+            target_participant_id = session.pop("topup_participant_id", None)
+            target_user_id = u.id
+            sponsor_desc = "Wallet Top-Up"
+            
+            if target_participant_id:
+                # Look up the actual participant's user_id
+                target_enrollment = db.session.execute(
+                    text("SELECT user_id FROM user_enrollment WHERE id = :eid"),
+                    {"eid": int(target_participant_id)}
+                ).scalar()
+                if target_enrollment:
+                    target_user_id = target_enrollment
+                    sponsor_desc = f"Sponsored Top-Up by {u.name or email}"
+
+            wallet = CfiWallet.query.filter_by(user_id=target_user_id).first()
             if not wallet:
-                wallet = CfiWallet(user_id=u.id, balance=0)
+                wallet = CfiWallet(user_id=target_user_id, balance=0)
                 db.session.add(wallet)
                 db.session.flush()
                 
@@ -342,7 +358,7 @@ def success():
                 txn = CfiTokenTransaction(
                     wallet_id=wallet.id,
                     amount=amount_tokens,
-                    description=f"Wallet Top-Up ({amount_tokens} Tokens)"
+                    description=sponsor_desc
                 )
                 db.session.add(txn)
 

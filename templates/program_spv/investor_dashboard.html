@@ -4,39 +4,27 @@
 <div class="max-w-4xl mx-auto px-4 py-8">
   <div class="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
     
-    <!-- Row 1: Top color strip -->
-    <div class="bg-slate-900 px-6 py-4 flex items-center justify-between text-white">
-      <div class="flex items-center gap-3">
-        <i class="fas fa-shield-alt text-emerald-400 text-lg"></i>
-        <h1 class="text-lg font-bold">SPV Secure Platform</h1>
-      </div>
-      <div class="flex items-center gap-6">
-        <a href="{{ url_for('auth_bp.bridge_dashboard') }}" class="text-sm font-medium text-slate-300 hover:text-white transition flex items-center gap-2">
-          <i class="fas fa-arrow-left"></i> Back to Courses
-        </a>
-        <a href="{{ url_for('auth_bp.logout') }}" class="text-sm font-medium text-slate-400 hover:text-red-400 transition">Sign Out</a>
-      </div>
-    </div>
+    <!-- Row 1: Top color strip matching welcome tile -->
+    <div class="h-2 bg-slate-800"></div>
 
     <!-- Main Content Area -->
     <div class="p-8 space-y-8">
       
-      <!-- Row 2: Investor Dashboard & Name & Portfolio Value -->
-      <div class="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-slate-100 pb-8">
-        <div>
-          <h2 class="text-3xl font-bold text-slate-900 tracking-tight">Investor Dashboard</h2>
-          <p class="text-lg text-slate-500 mt-2">
-            Investor Profile: <span class="font-bold text-slate-800">{{ current_user.name or current_user.email.split('@')[0] | title }}</span>
-          </p>
-        </div>
-        <div class="bg-emerald-50 px-6 py-4 rounded-xl border border-emerald-100 text-right min-w-[200px]">
-          <p class="text-xs font-bold text-emerald-600 uppercase tracking-widest mb-1">Total Portfolio Value</p>
-          <p class="text-3xl font-bold text-slate-900">ZAR {{ "{:,.2f}".format(total_invested) }}</p>
-        </div>
+      <!-- Row 2: Titles & Investor Name -->
+      <div class="border-b border-slate-100 pb-6">
+        <h1 class="text-xl font-semibold text-slate-800 mb-6">SPV Secure Platform</h1>
+        <h2 class="text-3xl font-bold text-slate-900 tracking-tight">Investor Dashboard</h2>
+        <p class="text-lg text-slate-500 mt-2">
+          Investor Profile: <span class="font-bold text-slate-800">{{ current_user.name or current_user.email.split('@')[0] | title }}</span>
+        </p>
       </div>
 
       <!-- Row 3: Placeholder Buttons -->
       <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <button class="flex flex-col items-center justify-center p-5 bg-slate-50 rounded-xl border border-slate-200 hover:bg-slate-100 hover:border-slate-300 hover:shadow-sm transition group text-slate-600 hover:text-slate-900">
+          <i class="fas fa-list text-2xl mb-3 text-slate-400 group-hover:text-emerald-600 transition"></i>
+          <span class="text-sm font-bold tracking-wide">Your Ledger</span>
+        </button>
         <button class="flex flex-col items-center justify-center p-5 bg-slate-50 rounded-xl border border-slate-200 hover:bg-slate-100 hover:border-slate-300 hover:shadow-sm transition group text-slate-600 hover:text-slate-900">
           <i class="fas fa-file-invoice-dollar text-2xl mb-3 text-slate-400 group-hover:text-emerald-600 transition"></i>
           <span class="text-sm font-bold tracking-wide">Statements</span>
@@ -46,10 +34,6 @@
           <span class="text-sm font-bold tracking-wide">Withdraw</span>
         </button>
         <button class="flex flex-col items-center justify-center p-5 bg-slate-50 rounded-xl border border-slate-200 hover:bg-slate-100 hover:border-slate-300 hover:shadow-sm transition group text-slate-600 hover:text-slate-900">
-          <i class="fas fa-chart-pie text-2xl mb-3 text-slate-400 group-hover:text-emerald-600 transition"></i>
-          <span class="text-sm font-bold tracking-wide">Allocation</span>
-        </button>
-        <button class="flex flex-col items-center justify-center p-5 bg-slate-50 rounded-xl border border-slate-200 hover:bg-slate-100 hover:border-slate-300 hover:shadow-sm transition group text-slate-600 hover:text-slate-900">
           <i class="fas fa-headset text-2xl mb-3 text-slate-400 group-hover:text-emerald-600 transition"></i>
           <span class="text-sm font-bold tracking-wide">Support</span>
         </button>
@@ -57,61 +41,29 @@
 
       <!-- Row 4: Dale SPV -->
       <div class="pt-4">
-        <h3 class="text-xl font-bold text-slate-900 mb-5">Active Deals & Ledger</h3>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          
-          <!-- Dale Deal Brochure -->
-          {% if dale_deal %}
-          <div class="border border-slate-200 rounded-xl overflow-hidden hover:shadow-md transition flex flex-col group bg-white">
-            <div class="p-6 flex-grow">
-              <div class="flex justify-between items-start mb-4">
-                <h4 class="font-bold text-slate-900 text-lg">{{ dale_deal.title }}</h4>
-                <span class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold bg-emerald-100 text-emerald-800">
-                  ACTIVE DEAL
-                </span>
-              </div>
-              <p class="text-sm text-slate-600 mb-6 leading-relaxed">
-                {{ dale_deal.summary or "Dale SPV is an integrated redevelopment precinct focused on healthcare, wellness, retirement and housing participation." }}
-              </p>
+        <h3 class="text-xl font-bold text-slate-900 mb-5">Active Deals</h3>
+        
+        <!-- Dale Deal Brochure -->
+        {% if dale_deal %}
+        <div class="border border-slate-200 rounded-xl overflow-hidden hover:shadow-md transition flex flex-col md:flex-row group bg-white">
+          <div class="p-6 flex-grow">
+            <div class="flex justify-between items-start mb-4">
+              <h4 class="font-bold text-slate-900 text-xl">{{ dale_deal.title }}</h4>
+              <span class="inline-flex items-center px-3 py-1 rounded-md text-xs font-bold bg-emerald-100 text-emerald-800">
+                ACTIVE DEAL
+              </span>
             </div>
-            <div class="px-6 py-4 bg-slate-50 border-t border-slate-100">
-              <a href="{{ url_for('spv_bp.portfolio_detail', slug=dale_deal.slug) }}" class="block w-full text-center bg-slate-900 text-white font-bold py-3 rounded-lg hover:bg-slate-800 transition shadow-sm group-hover:bg-emerald-600">
-                View Brochure & Invest
-              </a>
-            </div>
+            <p class="text-sm text-slate-600 leading-relaxed mb-4">
+              {{ dale_deal.summary or "Dale SPV is an integrated redevelopment precinct focused on healthcare, wellness, retirement and housing participation." }}
+            </p>
           </div>
-          {% endif %}
-
-          <!-- Ledger snippet -->
-          <div class="border border-slate-200 rounded-xl overflow-hidden bg-white flex flex-col">
-            <div class="p-4 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
-              <h4 class="font-bold text-slate-900">Your Ledger</h4>
-              <i class="fas fa-list text-slate-400"></i>
-            </div>
-            <div class="divide-y divide-slate-100 flex-grow max-h-[240px] overflow-y-auto">
-              {% if investments %}
-                {% for inv in investments %}
-                  <div class="p-4 flex items-center justify-between hover:bg-slate-50 transition">
-                    <div>
-                      <p class="font-bold text-slate-900 text-sm">{{ inv.deal.title if inv.deal else 'Dale SPV' }}</p>
-                      <p class="text-xs font-medium text-slate-500 mt-1">{{ inv.created_at.strftime('%d %b %Y') }}</p>
-                    </div>
-                    <div class="text-right">
-                      <p class="font-bold text-slate-900">ZAR {{ "{:,.0f}".format(inv.amount) }}</p>
-                      <p class="text-[10px] text-emerald-600 font-bold uppercase mt-1 tracking-wider">Confirmed</p>
-                    </div>
-                  </div>
-                {% endfor %}
-              {% else %}
-                <div class="p-8 text-center flex flex-col justify-center items-center h-full text-slate-400 text-sm">
-                  <i class="fas fa-inbox text-3xl mb-3 text-slate-300"></i>
-                  No investments yet.
-                </div>
-              {% endif %}
-            </div>
+          <div class="p-6 bg-slate-50 border-t md:border-t-0 md:border-l border-slate-100 flex items-center justify-center md:min-w-[250px]">
+            <a href="{{ url_for('spv_bp.portfolio_detail', slug=dale_deal.slug) }}" class="block w-full text-center bg-slate-900 text-white font-bold py-3 px-6 rounded-lg hover:bg-slate-800 transition shadow-sm group-hover:bg-emerald-600">
+              View Brochure & Invest
+            </a>
           </div>
-
         </div>
+        {% endif %}
       </div>
 
     </div>

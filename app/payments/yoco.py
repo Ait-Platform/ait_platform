@@ -254,12 +254,11 @@ def success():
                     UPDATE user_enrollment
                        SET status = 'active',
                            trial_end = NULL,
-                           expires_at = {expires_clause},
-                           subscription_id = :ref
+                           expires_at = {expires_clause}
                      WHERE id = :eid
                     """
                 ),
-                {"eid": existing.id, "ref": ref},
+                {"eid": existing.id},
             )
             eid = existing.id
             zar_cents = existing.zar_amount_cents
@@ -271,12 +270,12 @@ def success():
             new_enr = db.session.execute(
                 text(
                     f"""
-                    INSERT INTO user_enrollment (user_id, subject_id, status, expires_at, subscription_id)
-                    VALUES (:uid, :sid, 'active', {expires_clause}, :ref)
+                    INSERT INTO user_enrollment (user_id, subject_id, status, expires_at)
+                    VALUES (:uid, :sid, 'active', {expires_clause})
                     RETURNING id
                     """
                 ),
-                {"uid": int(u.id), "sid": int(sid), "ref": ref},
+                {"uid": int(u.id), "sid": int(sid)},
             ).fetchone()
             eid = new_enr[0]
             zar_cents = 0

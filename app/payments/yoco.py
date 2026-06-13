@@ -224,6 +224,16 @@ def success():
 
     # 4) Flip enrollment to ACTIVE when we have a subject id
     if sid:
+        # Get subject's paid_days
+        subj_paid_days = db.session.execute(
+            text("SELECT paid_days FROM auth_subject WHERE id = :sid LIMIT 1"),
+            {"sid": int(sid)}
+        ).scalar()
+        
+        expires_clause = "NULL"
+        if subj_paid_days and int(subj_paid_days) > 0:
+            expires_clause = f"CURRENT_TIMESTAMP + INTERVAL '{int(subj_paid_days)} days'"
+
         existing = db.session.execute(
             text(
                 """
@@ -231,7 +241,7 @@ def success():
               FROM user_enrollment
              WHERE user_id   = :uid
                AND subject_id = :sid
-             LIMIT 1
+             ORDER BY id DESC LIMIT 1
             """
             ),
             {"uid": int(u.id), "sid": int(sid)},
@@ -240,23 +250,26 @@ def success():
         if existing:
             db.session.execute(
                 text(
-                    """
+                    f"""
                     UPDATE user_enrollment
-                       SET status = 'active'
+                       SET status = 'active',
+                           trial_end = NULL,
+                           expires_at = {expires_clause},
+                           subscription_id = :ref
                      WHERE id = :eid
                     """
                 ),
-                {"eid": existing.id},
+                {"eid": existing.id, "ref": ref},
             )
         else:
             db.session.execute(
                 text(
-                    """
-                    INSERT INTO user_enrollment (user_id, subject_id, status)
-                    VALUES (:uid, :sid, 'active')
+                    f"""
+                    INSERT INTO user_enrollment (user_id, subject_id, status, expires_at, subscription_id)
+                    VALUES (:uid, :sid, 'active', {expires_clause}, :ref)
                     """
                 ),
-                {"uid": int(u.id), "sid": int(sid)},
+                {"uid": int(u.id), "sid": int(sid), "ref": ref},
             )
             
         # Provision CFI Tokens if the subject is Cultural Fire

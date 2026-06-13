@@ -361,6 +361,27 @@ def success():
                     description=sponsor_desc
                 )
                 db.session.add(txn)
+        # Process SPV Investment
+        if subject.lower() == "spv_investment":
+            from app.models.spv import SpvDeal, SpvParticipation
+            spv_amount = float(session.pop("spv_amount", 0))
+            spv_pseudonym = session.pop("spv_pseudonym", "Anonymous")
+            spv_deal_slug = session.pop("spv_deal_slug", None)
+            
+            # 5% fee is deducted from the recorded investment
+            effective_amount = spv_amount * 0.95
+            
+            if spv_deal_slug and effective_amount > 0:
+                deal = SpvDeal.query.filter_by(slug=spv_deal_slug).first()
+                if deal:
+                    part = SpvParticipation(
+                        user_id=u.id,
+                        deal_id=deal.id,
+                        amount=effective_amount,
+                        pseudonym=spv_pseudonym,
+                        status="confirmed"
+                    )
+                    db.session.add(part)
 
         session["just_paid_subject_id"] = sid if sid else 12 # Default to CFI
 

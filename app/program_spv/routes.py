@@ -1,6 +1,6 @@
 from decimal import Decimal
 
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask import Blueprint, flash, redirect, render_template, request, url_for, session
 from flask_login import current_user, login_required
 
 from app.models.spv import Spv, SpvCommitment, SpvDeal, SpvInvestor, SpvSection, SpvTransaction
@@ -96,7 +96,7 @@ def investments():
 @spv_bp.route("/almond-dale")
 def almond_dale_spv():
 
-    deals = SpvDeal.query.all()
+    deals = SpvDeal.query.filter_by(slug="dale-housing").all()
 
     return render_template(
         "program_spv/almond_dale_spv.html",
@@ -136,6 +136,25 @@ def email_brochure(slug):
             slug=slug
         )
     )
+
+@spv_bp.route("/portfolio/<slug>/invest", methods=["POST"])
+@login_required
+def initiate_spv_investment(slug):
+    deal = SpvDeal.query.filter_by(slug=slug).first_or_404()
+    amount = float(request.form.get("amount", 0))
+    pseudonym = request.form.get("pseudonym", "Anonymous")
+    
+    if amount < 100:
+        flash("Minimum investment is ZAR 100", "error")
+        return redirect(url_for("spv_bp.portfolio_detail", slug=slug))
+        
+    session["spv_pseudonym"] = pseudonym
+    session["spv_amount"] = amount
+    session["spv_deal_slug"] = slug
+    session["zar_amount_cents"] = int(amount * 100)
+    session["subject_slug"] = "spv_investment"
+    
+    return redirect(url_for("yoco_bp.yoco_start", subject="spv_investment"))
 
 @spv_bp.route("/portfolio/<slug>")
 def portfolio_detail(slug):

@@ -38,6 +38,7 @@ class SpvInvestor(db.Model):
 
     amount_invested = db.Column(db.Numeric(12, 2), default=0)
     equity_percentage = db.Column(db.Float)
+    pseudonym = db.Column(db.String(100))
 
     joined_at = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -502,6 +503,8 @@ class SpvParticipation(db.Model):
         db.Numeric(12, 2),
         nullable=False
     )
+    
+    pseudonym = db.Column(db.String(100))
 
     status = db.Column(
         db.String(50),

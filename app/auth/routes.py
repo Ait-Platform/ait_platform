@@ -358,13 +358,16 @@ def register_decision():
             session["user_name"] = user.name or session["email"].split("@", 1)[0]
             session.modified = True
 
+    next_url = ctx.get("next_url")
+    user_email = ctx.get("email") or getattr(current_user, "email", "")
+
     # ---------- SPECIAL CASE: SPV PORTFOLIO REGISTRATION FEE ----------
     if next_url and ("/portfolio/" in next_url or "/program/spv/" in next_url):
         session.pop("reg_ctx", None)
         return redirect(
             url_for(
                 "yoco_bp.yoco_start",
-                email=(user.email if user else ""),
+                email=user_email,
                 subject="spv_registration",
                 debug=0
             )
@@ -568,7 +571,7 @@ def register_decision():
         flash("We couldn't confirm your email address. Please register again.", "warning")
         return redirect(url_for("auth_bp.register", subject=subject))
 
-    next_url = ctx.get("next_url")
+    # next_url already defined above
     from app.models.auth import AuthSubject, UserEnrollment
     from datetime import datetime, timedelta
     

@@ -24,6 +24,8 @@
     {% if current_user.is_authenticated %}
       {% if subject == 'cfi_judge' %}
         {% set target_url = url_for('cultural_bp.judge_dashboard') %}
+      {% elif subject in ['spv_registration', 'spv_investment'] %}
+        {% set target_url = url_for('spv_bp.investor_dashboard') %}
       {% else %}
         {% set target_url = url_for('auth_bp.bridge_dashboard') %}
       {% endif %}
@@ -37,8 +39,12 @@
         }, 2000);
       </script>
     {% else %}
-      {% set login_target = url_for('auth_bp.bridge_dashboard') %}
-      <p class="mt-2 text-slate-700">Please sign in to view your course.</p>
+      {% if subject in ['spv_registration', 'spv_investment'] %}
+        {% set login_target = url_for('spv_bp.investor_dashboard') %}
+      {% else %}
+        {% set login_target = url_for('auth_bp.bridge_dashboard') %}
+      {% endif %}
+      <p class="mt-2 text-slate-700">Please sign in to view your dashboard.</p>
       <a class="inline-flex items-center rounded-lg border px-3 py-1 text-sm hover:bg-slate-50"
         href="{{ url_for('auth_bp.login', next=login_target) }}">
         Sign in to Continue →

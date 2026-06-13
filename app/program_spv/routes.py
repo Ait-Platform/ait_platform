@@ -213,3 +213,48 @@ def portfolio_detail(slug):
         sections=sections
     )
 
+@spv_bp.route("/ledger")
+@login_required
+def spv_ledger():
+    from app.models.spv import SpvDeal, SpvParticipation
+    # 1. Ensure user is an active investor
+    user_investments = SpvParticipation.query.filter_by(
+        user_id=current_user.id, status="confirmed"
+    ).all()
+    
+    if not user_investments:
+        from flask import flash, redirect, url_for
+        flash("You must complete your R100 ZAR initial commitment to view the ledger.", "warning")
+        return redirect(url_for("yoco_bp.yoco_start", email=current_user.email, subject="spv_registration", debug=0))
+
+    # 2. Grab all participations for Dale SPV
+    dale_deal = SpvDeal.query.filter_by(slug="dale-housing").first()
+    all_participations = SpvParticipation.query.filter_by(
+        deal_id=dale_deal.id, status="confirmed"
+    ).order_by(SpvParticipation.created_at.asc()).all()
+
+    # 3. Calculate total
+    total_pool = sum(p.amount for p in all_participations)
+
+    return render_template(
+        "program_spv/ledger.html",
+        participations=all_participations,
+        total_pool=total_pool,
+        dale_deal=dale_deal
+    )
+
+
+@spv_bp.route("/ledger/pseudonym", methods=["POST"])
+@login_required
+def set_pseudonym():
+    from app.models.spv import SpvParticipation
+    new_pseudo = request.form.get("pseudonym", "").strip()
+    if new_pseudo:
+        participations = SpvParticipation.query.filter_by(user_id=current_user.id).all()
+        for p in participations:
+            p.pseudonym = new_pseudo
+        db.session.commit()
+        from flask import flash
+        flash("Pseudonym updated successfully.", "success")
+    return redirect(url_for("spv_bp.spv_ledger"))
+

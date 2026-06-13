@@ -13,6 +13,13 @@
         </p>
       </a>
     {% endfor %}
+    <a href="{{ url_for('admin_bp.manage_programs') }}"
+       class="block rounded-xl border border-sky-200 bg-sky-50 p-6 hover:bg-sky-100">
+      <h2 class="font-medium text-sky-800">Manage Programs & Visibility</h2>
+      <p class="text-sm text-sky-600">
+        Control which tiles appear on the bridge and edit program types.
+      </p>
+    </a>
   </div>
 </div>
 {% endblock %}

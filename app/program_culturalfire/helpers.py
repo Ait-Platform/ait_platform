@@ -264,5 +264,15 @@ def all_segments_filled(show):
 
 
 
-
+def charge_tokens(user_id, amount, description):
+    from app.models.culturalfire import CfiWallet, CfiTokenTransaction
+    from app.extensions import db
+    wallet = CfiWallet.query.filter_by(user_id=user_id).first()
+    if not wallet or wallet.balance < amount:
+        return False
+    wallet.balance -= amount
+    txn = CfiTokenTransaction(wallet_id=wallet.id, amount=-amount, description=description)
+    db.session.add(txn)
+    db.session.commit()
+    return True
 

@@ -223,3 +223,22 @@ def loss_runs_selector():
         .order_by(func.max(LcaResult.created_at).desc())
     ).all()
     return render_template("admin/loss/runs_selector.html", runs=rows)
+
+@admin_bp.route("/programs", methods=["GET", "POST"])
+def manage_programs():
+    from app.models.auth import AuthSubject
+    if request.method == "POST":
+        subject_id = request.form.get("subject_id")
+        is_hidden = request.form.get("is_hidden") == "1"
+        ptype = request.form.get("program_type")
+        subj = AuthSubject.query.get(subject_id)
+        if subj:
+            subj.is_hidden_on_bridge = is_hidden
+            subj.program_type = ptype
+            db.session.commit()
+            flash(f"Updated {subj.name}", "success")
+        return redirect(url_for("admin_bp.manage_programs"))
+    
+    subjects = AuthSubject.query.order_by(AuthSubject.name).all()
+    return render_template("admin/programs.html", subjects=subjects)
+

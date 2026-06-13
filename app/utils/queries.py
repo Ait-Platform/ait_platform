@@ -43,7 +43,7 @@ WHERE
     )
   )
   AND (
-    s.program_type != 'admin'
+    COALESCE(s.program_type, '') != 'admin'
     OR (SELECT is_admin_global FROM globals) = 1
   )
 ORDER BY s.name

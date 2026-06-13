@@ -8,6 +8,21 @@ from flask_wtf import FlaskForm
 from wtforms.validators import DataRequired, Email, Optional
 from sqlalchemy.dialects.postgresql import ENUM
 
+class CfiWallet(db.Model):
+    __tablename__ = "cfi_wallet"
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, unique=True)
+    balance = db.Column(db.Integer, default=0, nullable=False)
+    
+    transactions = db.relationship("CfiTokenTransaction", backref="wallet", lazy=True, cascade="all, delete-orphan")
+
+class CfiTokenTransaction(db.Model):
+    __tablename__ = "cfi_token_transaction"
+    id = db.Column(db.Integer, primary_key=True)
+    wallet_id = db.Column(db.Integer, db.ForeignKey("cfi_wallet.id"), nullable=False)
+    amount = db.Column(db.Integer, nullable=False)  # Positive for top-ups, negative for actions
+    description = db.Column(db.String(255), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 
 class CfiTalentCategory(db.Model):

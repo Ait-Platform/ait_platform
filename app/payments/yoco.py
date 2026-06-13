@@ -260,6 +260,23 @@ def success():
                 ),
                 {"uid": int(u.id), "sid": int(sid)},
             )
+            
+        # Provision CFI Tokens if the subject is Cultural Fire
+        if subject.lower() == "cultural_fire" or subject.lower() == "culturalfire":
+            from app.models.culturalfire import CfiWallet, CfiTokenTransaction
+            wallet = CfiWallet.query.filter_by(user_id=u.id).first()
+            if not wallet:
+                wallet = CfiWallet(user_id=u.id, balance=0)
+                db.session.add(wallet)
+                db.session.flush()
+            
+            wallet.balance += 150
+            txn = CfiTokenTransaction(
+                wallet_id=wallet.id,
+                amount=150,
+                description="Initial Registration Bundle (150 Tokens)"
+            )
+            db.session.add(txn)
 
         session["just_paid_subject_id"] = int(sid)
 

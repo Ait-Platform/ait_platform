@@ -13,6 +13,15 @@
 
             <div class="p-6 md:p-10 space-y-12">
 
+                <!-- Header -->
+                <div class="flex justify-between items-center border-b border-slate-100 pb-6">
+                    <h1 class="text-3xl font-bold text-slate-900 tracking-tight">Investment</h1>
+                    <a href="{{ url_for('spv_bp.investor_dashboard') }}" class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition shadow-sm">
+                        <span>←</span>
+                        <span>Back</span>
+                    </a>
+                </div>
+
                 <!-- Dynamic Sections -->
                 {% for key, section in sections.items() %}
 

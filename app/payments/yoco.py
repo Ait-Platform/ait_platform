@@ -237,7 +237,7 @@ def success():
         existing = db.session.execute(
             text(
                 """
-            SELECT id, status
+            SELECT id, status, zar_amount_cents, local_currency, local_amount_cents, country_code, price_id
               FROM user_enrollment
              WHERE user_id   = :uid
                AND subject_id = :sid
@@ -261,16 +261,55 @@ def success():
                 ),
                 {"eid": existing.id, "ref": ref},
             )
+            eid = existing.id
+            zar_cents = existing.zar_amount_cents
+            local_cur = existing.local_currency
+            local_cents = existing.local_amount_cents
+            price_id = existing.price_id
+            cc = existing.country_code
         else:
-            db.session.execute(
+            new_enr = db.session.execute(
                 text(
                     f"""
                     INSERT INTO user_enrollment (user_id, subject_id, status, expires_at, subscription_id)
                     VALUES (:uid, :sid, 'active', {expires_clause}, :ref)
+                    RETURNING id
                     """
                 ),
                 {"uid": int(u.id), "sid": int(sid), "ref": ref},
-            )
+            ).fetchone()
+            eid = new_enr[0]
+            zar_cents = 0
+            local_cur = None
+            local_cents = 0
+            price_id = None
+            cc = None
+            
+        # Log the payment to AuthPaymentLog
+        db.session.execute(
+            text(f"""
+                INSERT INTO auth_payment_log (
+                    user_id, program, amount, currency, transaction_id, status, 
+                    valid_from, valid_until, enrollment_id, local_currency, 
+                    local_amount_cents, price_id, country_code, created_at, updated_at
+                ) VALUES (
+                    :uid, :prog, :amt, 'ZAR', :ref, 'success',
+                    CURRENT_TIMESTAMP, {expires_clause}, :eid, :lcur, 
+                    :l_amt, :pid, :cc, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+                )
+            """),
+            {
+                "uid": int(u.id),
+                "prog": subject,
+                "amt": (zar_cents / 100.0) if zar_cents else 0,
+                "ref": ref or "yoco_sandbox",
+                "eid": eid,
+                "lcur": local_cur,
+                "l_amt": local_cents,
+                "pid": price_id,
+                "cc": cc
+            }
+        )
             
         # Provision CFI Tokens if the subject is Cultural Fire
         if subject.lower() == "cultural_fire" or subject.lower() == "culturalfire":

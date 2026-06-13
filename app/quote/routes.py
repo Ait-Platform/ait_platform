@@ -54,14 +54,35 @@ def quote():
         elif row and row.status in ("active", "completed"):
             from app.utils.routing import get_dashboard_route
             
-            # Use actual assigned role name if it exists, otherwise pass None to let subject fallback handle it
-            role_name = None
-            if current_user.user_roles:
-                # Get the name of their first role
-                role_name = getattr(current_user.user_roles[0].role, 'name', None)
-                
-            ep = get_dashboard_route(role_name, subject.slug)
-            return redirect(url_for(ep))
+            # Check if it's an expired subscription (like BudgetCash)
+            is_expired = False
+            if row.status == "active":
+                now = datetime.utcnow()
+                # We need to query the actual row to get trial_end and expires_at
+                full_row = db.session.execute(
+                    sa_text("""
+                        SELECT trial_end, expires_at 
+                        FROM user_enrollment 
+                        WHERE user_id = :uid AND subject_id = :sid 
+                        ORDER BY id DESC LIMIT 1
+                    """),
+                    {"uid": current_user.id, "sid": subject.id}
+                ).first()
+                if full_row:
+                    if full_row.expires_at and full_row.expires_at < now:
+                        is_expired = True
+                    elif full_row.trial_end and full_row.trial_end < now and not full_row.expires_at:
+                        is_expired = True
+                        
+            if not is_expired:
+                # Use actual assigned role name if it exists, otherwise pass None to let subject fallback handle it
+                role_name = None
+                if current_user.user_roles:
+                    # Get the name of their first role
+                    role_name = getattr(current_user.user_roles[0].role, 'name', None)
+                    
+                ep = get_dashboard_route(role_name, subject.slug)
+                return redirect(url_for(ep))
 
         # Anti-exploitation & convenience: Inherit country from previous enrollments
         prev_enr = db.session.execute(

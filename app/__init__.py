@@ -85,6 +85,12 @@ def create_app():
         except Exception:
             db.session.rollback()
 
+        try:
+            db.session.execute(text("UPDATE spv SET name = 'Dale SPV', description = 'Integrated healthcare, wellness, retirement and housing redevelopment precinct.' WHERE name LIKE '%Almond Dale%'"))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
     # 4) Template helpers
     app.jinja_env.globals.update(csrf_token=generate_csrf)
     app.jinja_env.autoescape = select_autoescape(['html', 'htm', 'xml'])

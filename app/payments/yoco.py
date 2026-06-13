@@ -48,23 +48,11 @@ def start():
         flash("Could not determine which module to purchase.", "error")
         return redirect(url_for("public_bp.welcome"))
 
-    # 1) Try to get amount from user_enrollment (since they just generated a quote)
+    # 1) Try to get amount from session root (since quote route stores it there)
     amount_cents = 0
-    u = User.query.filter_by(email=email).first()
-    if u:
-        row = db.session.execute(
-            text("""
-                SELECT zar_amount_cents
-                FROM user_enrollment
-                WHERE user_id = :uid 
-                  AND subject_id = (SELECT id FROM auth_subject WHERE lower(slug) = :s LIMIT 1)
-                ORDER BY id DESC LIMIT 1
-            """),
-            {"uid": u.id, "s": subject}
-        ).scalar()
-        if row and int(row) > 0:
-            amount_cents = int(row)
-            
+    if session.get("subject_slug") == subject and session.get("zar_amount_cents"):
+        amount_cents = int(session.get("zar_amount_cents"))
+
     # 2) Fallback to session reg_ctx if user isn't fully created yet but session has quote
     if amount_cents <= 0:
         ctx = session.get("reg_ctx", {})
@@ -73,12 +61,23 @@ def start():
             fallback = quote.get("est_zar_cents") or quote.get("zar_amount_cents")
             if fallback:
                 amount_cents = int(fallback)
-                
-    # 2.5) New fallback to session root since quote route stores it there
+
+    # 3) Fallback to user_enrollment (for existing trials)
     if amount_cents <= 0:
-        fallback = session.get("zar_amount_cents")
-        if fallback:
-            amount_cents = int(fallback)
+        u = User.query.filter_by(email=email).first()
+        if u:
+            row = db.session.execute(
+                text("""
+                    SELECT zar_amount_cents
+                    FROM user_enrollment
+                    WHERE user_id = :uid 
+                      AND subject_id = (SELECT id FROM auth_subject WHERE lower(slug) = :s LIMIT 1)
+                    ORDER BY id DESC LIMIT 1
+                """),
+                {"uid": u.id, "s": subject}
+            ).scalar()
+            if row and int(row) > 0:
+                amount_cents = int(row)
             
     # 3) Final fallback to AuthPricing
     if amount_cents <= 0:

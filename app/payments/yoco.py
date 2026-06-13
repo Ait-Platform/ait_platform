@@ -290,11 +290,11 @@ def success():
                 INSERT INTO auth_payment_log (
                     user_id, program, amount, currency, transaction_id, status, 
                     valid_from, valid_until, enrollment_id, local_currency, 
-                    local_amount_cents, price_id, country_code, created_at, updated_at
+                    local_amount_cents, price_id, country_code
                 ) VALUES (
                     :uid, :prog, :amt, 'ZAR', :ref, 'success',
                     CURRENT_TIMESTAMP, {expires_clause}, :eid, :lcur, 
-                    :l_amt, :pid, :cc, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+                    :l_amt, :pid, :cc
                 )
             """),
             {

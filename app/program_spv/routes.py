@@ -154,7 +154,7 @@ def initiate_spv_investment(slug):
     session["zar_amount_cents"] = int(amount * 100)
     session["subject_slug"] = "spv_investment"
     
-    return redirect(url_for("yoco_bp.yoco_start", subject="spv_investment"))
+    return redirect(url_for("yoco_bp.yoco_start", subject="spv_investment", email=current_user.email))
 
 @spv_bp.route("/portfolio/<slug>")
 def portfolio_detail(slug):

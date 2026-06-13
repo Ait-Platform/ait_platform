@@ -56,12 +56,13 @@ def quote():
             
             # Check if it's an expired subscription (like BudgetCash)
             is_expired = False
+            full_row = None
             if row.status == "active":
                 now = datetime.utcnow()
-                # We need to query the actual row to get trial_end and expires_at
+                # We need to query the actual row to get trial_end, expires_at, and zar_amount_cents
                 full_row = db.session.execute(
                     sa_text("""
-                        SELECT trial_end, expires_at 
+                        SELECT trial_end, expires_at, zar_amount_cents
                         FROM user_enrollment 
                         WHERE user_id = :uid AND subject_id = :sid 
                         ORDER BY id DESC LIMIT 1
@@ -83,6 +84,11 @@ def quote():
                     
                 ep = get_dashboard_route(role_name, subject.slug)
                 return redirect(url_for(ep))
+            else:
+                # Expired subscription: Force them to Yoco to lock in their existing old price
+                if full_row and full_row.zar_amount_cents and int(full_row.zar_amount_cents) > 0:
+                    flash("Redirecting to secure checkout at your locked renewal rate.", "info")
+                    return redirect(url_for("yoco_bp.yoco_start", email=current_user.email, subject=subject.slug))
 
         # Anti-exploitation & convenience: Inherit country from previous enrollments
         prev_enr = db.session.execute(

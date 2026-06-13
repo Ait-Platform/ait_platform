@@ -52,8 +52,11 @@ def invest(code):
 
 @spv_bp.route("/program/spv/about")
 def about_spv():
-    print("ROUTE HIT")
     return render_template("program_spv/about.html")
+
+@spv_bp.route("/program/spv/price")
+def price_spv():
+    return render_template("program_spv/price.html")
 
 @spv_bp.route("/program/spv")
 def spv_list():
@@ -63,7 +66,26 @@ def spv_list():
 @spv_bp.route("/program/spv/investor")
 @login_required
 def investor_dashboard():
-    return render_template("program_spv/investor_dashboard.html")
+    from app.models.spv import SpvParticipation
+    
+    # Get user's confirmed investments
+    investments = SpvParticipation.query.filter_by(
+        user_id=current_user.id,
+        status="confirmed"
+    ).order_by(SpvParticipation.created_at.desc()).all()
+    
+    # Calculate total invested
+    total_invested = sum(inv.amount for inv in investments) if investments else 0
+    
+    # Fetch Dale SPV as an available opportunity
+    dale_deal = SpvDeal.query.filter_by(slug="dale-housing").first()
+
+    return render_template(
+        "program_spv/investor_dashboard.html",
+        investments=investments,
+        total_invested=total_invested,
+        dale_deal=dale_deal
+    )
 
 @spv_bp.route("/program/spv/<code>/deal")
 def spv_deal_page(code):

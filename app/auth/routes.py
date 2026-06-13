@@ -359,7 +359,7 @@ def register_decision():
             session.modified = True
 
     # ---------- SPECIAL CASE: SPV PORTFOLIO BYPASS ----------
-    if next_url and "/portfolio/" in next_url:
+    if next_url and ("/portfolio/" in next_url or "/program/spv/" in next_url):
         session.pop("reg_ctx", None)
         return redirect(next_url)
     # ---------- END SPV PORTFOLIO BYPASS ----------

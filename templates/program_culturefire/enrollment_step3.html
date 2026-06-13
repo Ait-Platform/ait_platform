@@ -1,7 +1,20 @@
 {% extends "layout.html" %}
 {% block content %}
 <div class="max-w-xl mx-auto mt-8 bg-white shadow rounded p-6">
-  <h2 class="text-xl font-semibold mb-4">Enrollment – Step 3 of 3</h2>
+  <!-- Header row -->
+  <div class="flex justify-between items-center mb-4">
+    <h2 class="text-xl font-semibold">Enrollment – Step 3 of 3</h2>
+    <div class="flex gap-2">
+      <a href="{{ url_for('cultural_bp.enrollment_step2', subject_id=subject.id) }}"
+         class="px-3 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition text-sm">
+        ← Back
+      </a>
+      <a href="{{ url_for('auth_bp.bridge_dashboard') }}"
+         class="px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 transition text-sm">
+        Cancel
+      </a>
+    </div>
+  </div>
 
   <form id="enrollment-form" method="post">
     {{ form.hidden_tag() }}

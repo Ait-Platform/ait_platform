@@ -68,8 +68,7 @@ def learner_dashboard():
     )
 
     if is_completed:
-        flash("You have successfully completed the HOME Programme! Feel free to explore our other subjects.", "success")
-        return redirect(url_for('auth_bp.bridge_dashboard'))
+        flash("You have successfully completed the HOME Programme! You can review your Diagnostic Report and Certificate below.", "success")
 
     progresses = HomeProgress.query.filter_by(user_id=current_user.id).all()
     for p in progresses:

@@ -200,8 +200,8 @@
                   <div class="flex items-center">
                       <span class="w-6 h-6 rounded-full bg-yellow-100 text-yellow-700 flex items-center justify-center text-xs font-bold mr-3">★</span>
                       <div>
-                          <div class="font-semibold text-gray-800">Final Assessment</div>
-                          <div class="text-xs text-gray-500">Comprehensive exam covering all chapters.</div>
+                          <div class="font-semibold text-gray-800">Final Assessment, Report & Certificate</div>
+                          <div class="text-xs text-gray-500">Unlock your diagnostic report and certification upon completion.</div>
                       </div>
                   </div>
               </td>
@@ -231,11 +231,29 @@
                           </div>
                       </div>
                   {% elif chap_30_done and not has_premium %}
-                      <a href="{{ url_for('quote_bp.quote', subject='home') }}" class="inline-flex items-center rounded-lg px-4 py-2 text-xs font-semibold bg-yellow-500 text-white hover:bg-yellow-600 shadow-sm animate-pulse">Unlock Premium</a>
+                      <div class="flex flex-col items-end space-y-2">
+                          <a href="{{ url_for('quote_bp.quote', subject='home') }}" class="inline-flex items-center rounded-lg px-4 py-2 text-xs font-semibold bg-yellow-500 text-white hover:bg-yellow-600 shadow-sm animate-pulse">Unlock Premium</a>
+                          <div class="flex space-x-2 opacity-50 cursor-not-allowed" title="Unlock premium to access">
+                              <span class="inline-flex items-center rounded-lg px-4 py-2 text-xs font-semibold bg-gray-200 text-gray-600">Diagnostic Report</span>
+                              <span class="inline-flex items-center rounded-lg px-4 py-2 text-xs font-semibold bg-gray-200 text-gray-600">Certificate</span>
+                          </div>
+                      </div>
                   {% elif chap_30_done %}
-                      <a href="{{ url_for('home_bp.final_exam') }}" class="inline-flex items-center rounded-lg px-4 py-2 text-xs font-semibold bg-yellow-600 text-white hover:bg-yellow-700">Start Exam</a>
+                      <div class="flex flex-col items-end space-y-2">
+                          <a href="{{ url_for('home_bp.final_exam') }}" class="inline-flex items-center rounded-lg px-4 py-2 text-xs font-semibold bg-yellow-600 text-white hover:bg-yellow-700">Start Exam</a>
+                          <div class="flex space-x-2 opacity-50 cursor-not-allowed" title="Pass exam to unlock">
+                              <span class="inline-flex items-center rounded-lg px-4 py-2 text-xs font-semibold bg-gray-200 text-gray-600">Diagnostic Report</span>
+                              <span class="inline-flex items-center rounded-lg px-4 py-2 text-xs font-semibold bg-gray-200 text-gray-600">Certificate</span>
+                          </div>
+                      </div>
                   {% else %}
-                      <span class="inline-flex items-center rounded-lg px-4 py-2 text-xs font-semibold bg-gray-100 text-gray-400">Locked</span>
+                      <div class="flex flex-col items-end space-y-2">
+                          <span class="inline-flex items-center rounded-lg px-4 py-2 text-xs font-semibold bg-gray-100 text-gray-400">Locked</span>
+                          <div class="flex space-x-2 opacity-50 cursor-not-allowed" title="Complete chapters to unlock">
+                              <span class="inline-flex items-center rounded-lg px-4 py-2 text-xs font-semibold bg-gray-100 text-gray-400">Diagnostic Report</span>
+                              <span class="inline-flex items-center rounded-lg px-4 py-2 text-xs font-semibold bg-gray-100 text-gray-400">Certificate</span>
+                          </div>
+                      </div>
                   {% endif %}
               </td>
           </tr>

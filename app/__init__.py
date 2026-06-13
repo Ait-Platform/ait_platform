@@ -72,6 +72,18 @@ def create_app():
     # ⬇ add this near the end of create_app, before `return app`
     with app.app_context():
         db.create_all()
+        
+        try:
+            db.session.execute(text("ALTER TABLE spv_participations ADD COLUMN pseudonym VARCHAR(100)"))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+        try:
+            db.session.execute(text("ALTER TABLE spv_investors ADD COLUMN pseudonym VARCHAR(100)"))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
 
     # 4) Template helpers
     app.jinja_env.globals.update(csrf_token=generate_csrf)

@@ -208,6 +208,8 @@
                         <!-- Investment Form -->
                         <div class="bg-slate-50 p-6 md:p-10">
                             <h3 class="text-xl font-bold text-slate-900 mb-4">Invest in {{ deal.title }}</h3>
+                            
+                            {% if current_user.is_authenticated %}
                             <form method="POST" action="{{ url_for('spv_bp.initiate_spv_investment', slug=deal.slug) }}" class="space-y-6">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <div>
@@ -217,7 +219,7 @@
                                 <div>
                                     <label class="block text-sm font-medium text-slate-700 mb-2">Public Pseudonym (For Privacy)</label>
                                     <input type="text" name="pseudonym" required placeholder="e.g. The Smith Family" class="w-full rounded-xl border-slate-300 px-4 py-3 border focus:ring-emerald-500 focus:border-emerald-500">
-                                    <p class="text-xs text-slate-500 mt-2">This name will be displayed publicly on the ledger above.</p>
+                                    <p class="text-xs text-slate-500 mt-2">This name will be displayed publicly on the ledger above. It must be unique.</p>
                                 </div>
 
                                 <div class="bg-emerald-50 rounded-xl p-4 border border-emerald-100 text-sm text-emerald-800">
@@ -238,6 +240,24 @@
                                     document.getElementById('calc_output').innerText = 'ZAR ' + effective.toLocaleString('en-US');
                                 });
                             </script>
+                            {% else %}
+                            <div class="bg-white rounded-xl border border-slate-200 p-8 text-center shadow-sm">
+                                <div class="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <i class="fas fa-lock text-2xl"></i>
+                                </div>
+                                <h4 class="text-lg font-bold text-slate-900 mb-2">Account Required to Invest</h4>
+                                <p class="text-slate-600 mb-6 max-w-sm mx-auto">Please create an account or log in to securely track your investments and access the Yoco payment gateway.</p>
+                                
+                                <div class="flex flex-col sm:flex-row justify-center gap-4">
+                                    <a href="{{ url_for('auth_bp.register', next=request.path) }}" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-8 rounded-xl transition shadow-sm">
+                                        Create Account
+                                    </a>
+                                    <a href="{{ url_for('auth_bp.login', next=request.path) }}" class="bg-white hover:bg-slate-50 text-emerald-700 border border-emerald-200 font-bold py-3 px-8 rounded-xl transition shadow-sm">
+                                        Log In
+                                    </a>
+                                </div>
+                            </div>
+                            {% endif %}
                         </div>
                     </div>
                 </section>

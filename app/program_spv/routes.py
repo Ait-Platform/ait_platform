@@ -142,11 +142,17 @@ def email_brochure(slug):
 def initiate_spv_investment(slug):
     deal = SpvDeal.query.filter_by(slug=slug).first_or_404()
     amount = float(request.form.get("amount", 0))
-    pseudonym = request.form.get("pseudonym", "Anonymous")
+    pseudonym = request.form.get("pseudonym", "Anonymous").strip()
     
     if amount < 100:
         flash("Minimum investment is ZAR 100", "error")
-        return redirect(url_for("spv_bp.portfolio_detail", slug=slug))
+        return redirect(url_for("spv_bp.portfolio_detail", slug=slug) + "#invest")
+        
+    from app.models.spv import SpvParticipation
+    existing = SpvParticipation.query.filter_by(deal_id=deal.id, pseudonym=pseudonym).first()
+    if existing:
+        flash(f"The pseudonym '{pseudonym}' is already in use by another investor on this SPV. Please choose a different one.", "error")
+        return redirect(url_for("spv_bp.portfolio_detail", slug=slug) + "#invest")
         
     session["spv_pseudonym"] = pseudonym
     session["spv_amount"] = amount

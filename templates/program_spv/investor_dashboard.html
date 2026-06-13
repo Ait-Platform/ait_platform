@@ -12,7 +12,6 @@
       
       <!-- Row 2: Titles & Investor Name -->
       <div class="border-b border-slate-100 pb-6">
-        <h1 class="text-xl font-semibold text-slate-800 mb-6">SPV Secure Platform</h1>
         <h2 class="text-3xl font-bold text-slate-900 tracking-tight">Investor Dashboard</h2>
         <p class="text-lg text-slate-500 mt-2">
           Investor Profile: <span class="font-bold text-slate-800">{{ current_user.name or current_user.email.split('@')[0] | title }}</span>
@@ -41,7 +40,6 @@
 
       <!-- Row 4: Dale SPV -->
       <div class="pt-4">
-        <h3 class="text-xl font-bold text-slate-900 mb-5">Active Deals</h3>
         
         <!-- Dale Deal Brochure -->
         {% if dale_deal %}
@@ -49,17 +47,17 @@
           <div class="p-6 flex-grow">
             <div class="flex justify-between items-start mb-4">
               <h4 class="font-bold text-slate-900 text-xl">{{ dale_deal.title }}</h4>
-              <span class="inline-flex items-center px-3 py-1 rounded-md text-xs font-bold bg-emerald-100 text-emerald-800">
-                ACTIVE DEAL
-              </span>
             </div>
             <p class="text-sm text-slate-600 leading-relaxed mb-4">
-              {{ dale_deal.summary or "Dale SPV is an integrated redevelopment precinct focused on healthcare, wellness, retirement and housing participation." }}
+              Founded to transform the Almond Dale precinct, this Special Purpose Vehicle consolidates healthcare, wellness, and housing into a secure digital asset framework. It was structured to empower community participation by ensuring transparent, long-term capital growth and socio-economic development.
             </p>
           </div>
-          <div class="p-6 bg-slate-50 border-t md:border-t-0 md:border-l border-slate-100 flex items-center justify-center md:min-w-[250px]">
-            <a href="{{ url_for('spv_bp.portfolio_detail', slug=dale_deal.slug) }}" class="block w-full text-center bg-slate-900 text-white font-bold py-3 px-6 rounded-lg hover:bg-slate-800 transition shadow-sm group-hover:bg-emerald-600">
-              View Brochure & Invest
+          <div class="p-6 bg-slate-50 border-t md:border-t-0 md:border-l border-slate-100 flex flex-col gap-3 justify-center md:min-w-[250px]">
+            <a href="{{ url_for('spv_bp.portfolio_detail', slug=dale_deal.slug) }}" class="block w-full text-center bg-white text-slate-900 border border-slate-200 font-bold py-3 px-6 rounded-lg hover:bg-slate-50 transition shadow-sm">
+              View Brochure
+            </a>
+            <a href="{{ url_for('spv_bp.portfolio_detail', slug=dale_deal.slug) }}#invest" class="block w-full text-center bg-slate-900 text-white font-bold py-3 px-6 rounded-lg hover:bg-slate-800 transition shadow-sm group-hover:bg-emerald-600">
+              Invest
             </a>
           </div>
         </div>

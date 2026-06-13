@@ -42,5 +42,9 @@ WHERE
           AND lower(u.email) = lower(:email)
     )
   )
+  AND (
+    s.program_type != 'admin'
+    OR (SELECT is_admin_global FROM globals) = 1
+  )
 ORDER BY s.name
 """

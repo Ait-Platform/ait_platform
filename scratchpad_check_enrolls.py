@@ -1,10 +1,14 @@
-import os
 from app import create_app
 from app.extensions import db
-from sqlalchemy import text
+from app.models.auth import User, UserEnrollment, AuthSubject
 
 app = create_app()
 with app.app_context():
-    res = db.session.execute(text('SELECT u.email, s.slug, e.status FROM user_enrollment e JOIN "user" u ON u.id=e.user_id JOIN auth_subject s ON s.id=e.subject_id')).fetchall()
-    for r in res:
-        print(r)
+    u = User.query.filter_by(email="all@gmail.com").first()
+    if not u:
+        print("User not found!")
+    else:
+        enrs = UserEnrollment.query.filter_by(user_id=u.id).all()
+        for e in enrs:
+            subj = AuthSubject.query.get(e.subject_id)
+            print(f"Slug: {subj.slug}, Status: {e.status}")

@@ -31,24 +31,15 @@ SELECT
 FROM auth_subject s
 WHERE
   s.is_active = 1
-  AND (s.is_hidden_on_bridge IS NULL OR s.is_hidden_on_bridge = FALSE)
   AND (
-    -- global admin sees all subjects
-    (SELECT is_admin_global FROM globals) = 1
-    -- or user is actively enrolled in the subject
+    (s.is_hidden_on_bridge IS NULL OR s.is_hidden_on_bridge = FALSE)
+    OR (SELECT is_admin_global FROM globals) = 1
     OR EXISTS (
         SELECT 1
         FROM user_enrollment ue
         JOIN "user" u ON u.id = ue.user_id
-        WHERE ue.subject_id  = s.id
+        WHERE ue.subject_id = s.id
           AND lower(u.email) = lower(:email)
-          AND (
-             s.commercial_mode = 'free' OR
-             s.requires_price = 0 OR
-             ue.status IN ('active', 'started', 'enrolled', 'paid', 'completed') OR
-             (ue.trial_end IS NOT NULL AND ue.trial_end > CURRENT_TIMESTAMP) OR
-             (ue.expires_at IS NOT NULL AND ue.expires_at > CURRENT_TIMESTAMP)
-          )
     )
   )
 ORDER BY s.name

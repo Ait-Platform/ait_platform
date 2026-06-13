@@ -440,7 +440,7 @@ def price_for_country(subject_id, country_code):
                  AND c.is_active = true
                WHERE p.subject_id   = :sid
                  AND p.country_code = 'ZA'
-                 AND p.is_active    = 1
+                 AND p.is_active    = true
                LIMIT 1
             """),
             {"sid": subject_id},

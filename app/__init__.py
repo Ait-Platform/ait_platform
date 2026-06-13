@@ -414,6 +414,19 @@ def create_app():
 
     # 7) Create tables + helper view
     with app.app_context():
+        # Auto-sync bridge visibility for production (one-time fix)
+        try:
+            from app.models.auth import AuthSubject
+            subjects_to_hide = ['sms', 'cfi_judge', 'home_premium', 'home_section3', 'home2', 'admin', 'admin_general', 'spv']
+            AuthSubject.query.filter(AuthSubject.slug.in_(subjects_to_hide)).update({"is_hidden_on_bridge": True}, synchronize_session=False)
+            AuthSubject.query.filter(AuthSubject.slug.in_(['admin', 'admin_general'])).update({"program_type": "admin"}, synchronize_session=False)
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"Auto-sync failed: {e}")
+
+        # Setup globals
+        app.jinja_env.globals['current_year'] = datetime.now().year
         db.create_all()
         # Create Postgres-safe view (no missing columns)
         # ensure core subjects exist in auth_subject (SQLite + Postgres)

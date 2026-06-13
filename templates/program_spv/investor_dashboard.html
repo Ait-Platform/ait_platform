@@ -19,22 +19,32 @@
       </div>
 
       <!-- Row 3: Placeholder Buttons -->
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        {% if dale_deal %}
+        <a href="{{ url_for('spv_bp.portfolio_detail', slug=dale_deal.slug) }}" class="flex flex-col items-center justify-center p-5 bg-slate-50 rounded-xl border border-slate-200 hover:bg-slate-100 hover:border-slate-300 hover:shadow-sm transition group text-slate-600 hover:text-slate-900">
+          <i class="fas fa-book-open text-2xl mb-3 text-slate-400 group-hover:text-blue-600 transition"></i>
+          <span class="text-sm font-bold tracking-wide text-center">Brochure</span>
+        </a>
+        <a href="{{ url_for('spv_bp.portfolio_detail', slug=dale_deal.slug) }}#invest" class="flex flex-col items-center justify-center p-5 bg-slate-50 rounded-xl border border-slate-200 hover:bg-slate-100 hover:border-slate-300 hover:shadow-sm transition group text-slate-600 hover:text-slate-900">
+          <i class="fas fa-chart-line text-2xl mb-3 text-slate-400 group-hover:text-emerald-600 transition"></i>
+          <span class="text-sm font-bold tracking-wide text-center">Invest</span>
+        </a>
+        {% endif %}
         <button class="flex flex-col items-center justify-center p-5 bg-slate-50 rounded-xl border border-slate-200 hover:bg-slate-100 hover:border-slate-300 hover:shadow-sm transition group text-slate-600 hover:text-slate-900">
-          <i class="fas fa-list text-2xl mb-3 text-slate-400 group-hover:text-emerald-600 transition"></i>
-          <span class="text-sm font-bold tracking-wide">Your Ledger</span>
+          <i class="fas fa-list text-2xl mb-3 text-slate-400 group-hover:text-slate-900 transition"></i>
+          <span class="text-sm font-bold tracking-wide text-center">Ledger</span>
         </button>
         <button class="flex flex-col items-center justify-center p-5 bg-slate-50 rounded-xl border border-slate-200 hover:bg-slate-100 hover:border-slate-300 hover:shadow-sm transition group text-slate-600 hover:text-slate-900">
-          <i class="fas fa-file-invoice-dollar text-2xl mb-3 text-slate-400 group-hover:text-emerald-600 transition"></i>
-          <span class="text-sm font-bold tracking-wide">Statements</span>
+          <i class="fas fa-file-invoice-dollar text-2xl mb-3 text-slate-400 group-hover:text-slate-900 transition"></i>
+          <span class="text-sm font-bold tracking-wide text-center">Statements</span>
         </button>
         <button class="flex flex-col items-center justify-center p-5 bg-slate-50 rounded-xl border border-slate-200 hover:bg-slate-100 hover:border-slate-300 hover:shadow-sm transition group text-slate-600 hover:text-slate-900">
-          <i class="fas fa-hand-holding-usd text-2xl mb-3 text-slate-400 group-hover:text-emerald-600 transition"></i>
-          <span class="text-sm font-bold tracking-wide">Withdraw</span>
+          <i class="fas fa-hand-holding-usd text-2xl mb-3 text-slate-400 group-hover:text-slate-900 transition"></i>
+          <span class="text-sm font-bold tracking-wide text-center">Withdraw</span>
         </button>
         <button class="flex flex-col items-center justify-center p-5 bg-slate-50 rounded-xl border border-slate-200 hover:bg-slate-100 hover:border-slate-300 hover:shadow-sm transition group text-slate-600 hover:text-slate-900">
-          <i class="fas fa-headset text-2xl mb-3 text-slate-400 group-hover:text-emerald-600 transition"></i>
-          <span class="text-sm font-bold tracking-wide">Support</span>
+          <i class="fas fa-headset text-2xl mb-3 text-slate-400 group-hover:text-slate-900 transition"></i>
+          <span class="text-sm font-bold tracking-wide text-center">Support</span>
         </button>
       </div>
 
@@ -43,22 +53,14 @@
         
         <!-- Dale Deal Brochure -->
         {% if dale_deal %}
-        <div class="border border-slate-200 rounded-xl overflow-hidden hover:shadow-md transition flex flex-col md:flex-row group bg-white">
-          <div class="p-6 flex-grow">
+        <div class="border border-slate-200 rounded-xl overflow-hidden hover:shadow-md transition flex flex-col group bg-white">
+          <div class="p-8">
             <div class="flex justify-between items-start mb-4">
               <h4 class="font-bold text-slate-900 text-xl">{{ dale_deal.title }}</h4>
             </div>
-            <p class="text-sm text-slate-600 leading-relaxed mb-4">
+            <p class="text-slate-600 leading-relaxed max-w-3xl">
               Founded to transform the Almond Dale precinct, this Special Purpose Vehicle consolidates healthcare, wellness, and housing into a secure digital asset framework. It was structured to empower community participation by ensuring transparent, long-term capital growth and socio-economic development.
             </p>
-          </div>
-          <div class="p-6 bg-slate-50 border-t md:border-t-0 md:border-l border-slate-100 flex flex-col gap-3 justify-center md:min-w-[250px]">
-            <a href="{{ url_for('spv_bp.portfolio_detail', slug=dale_deal.slug) }}" class="block w-full text-center bg-white text-slate-900 border border-slate-200 font-bold py-3 px-6 rounded-lg hover:bg-slate-50 transition shadow-sm">
-              View Brochure
-            </a>
-            <a href="{{ url_for('spv_bp.portfolio_detail', slug=dale_deal.slug) }}#invest" class="block w-full text-center bg-slate-900 text-white font-bold py-3 px-6 rounded-lg hover:bg-slate-800 transition shadow-sm group-hover:bg-emerald-600">
-              Invest
-            </a>
           </div>
         </div>
         {% endif %}

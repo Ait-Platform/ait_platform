@@ -34,7 +34,14 @@
               <input type="text" name="program_type" value="{{ s.program_type or '' }}" class="rounded border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500 sm:text-sm">
             </td>
             <td class="px-6 py-4 whitespace-nowrap text-center">
-              <input type="checkbox" name="is_hidden" value="1" {% if s.is_hidden_on_bridge %}checked{% endif %} class="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-600">
+              <label class="inline-flex items-center">
+                <input type="checkbox" name="is_hidden" value="1" {% if s.is_hidden_on_bridge %}checked{% endif %} class="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-600">
+                <span class="ml-2 text-xs text-slate-500">Hidden</span>
+              </label>
+              <label class="inline-flex items-center ml-4">
+                <input type="checkbox" name="requires_price" value="1" {% if s.requires_price %}checked{% endif %} class="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-600">
+                <span class="ml-2 text-xs text-slate-500">Requires Price</span>
+              </label>
             </td>
             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
               <button type="submit" class="text-white bg-sky-600 hover:bg-sky-700 px-3 py-1.5 rounded text-xs font-semibold">Save</button>

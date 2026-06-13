@@ -277,8 +277,29 @@ def success():
                 description="Initial Registration Bundle (150 Tokens)"
             )
             db.session.add(txn)
+            
+        # Provision CFI Tokens if it was a wallet topup
+        if subject.lower() == "cultural_fire_topup":
+            from app.models.culturalfire import CfiWallet, CfiTokenTransaction
+            wallet = CfiWallet.query.filter_by(user_id=u.id).first()
+            if not wallet:
+                wallet = CfiWallet(user_id=u.id, balance=0)
+                db.session.add(wallet)
+                db.session.flush()
+                
+            amount_tokens = int(session.pop("topup_tokens", 0) or (int(session.get("zar_amount_cents", 0)) // 100))
+            if amount_tokens > 0:
+                wallet.balance += amount_tokens
+                txn = CfiTokenTransaction(
+                    wallet_id=wallet.id,
+                    amount=amount_tokens,
+                    description=f"Wallet Top-Up ({amount_tokens} Tokens)"
+                )
+                db.session.add(txn)
 
-        session["just_paid_subject_id"] = int(sid)
+        session["just_paid_subject_id"] = sid if sid else 12 # Default to CFI
+
+    db.session.commit()
 
     # 4.5) Update YocoPayment record
     pending = YocoPayment.query.filter_by(email=email, subject_slug=subject, status="pending").order_by(YocoPayment.id.desc()).first()

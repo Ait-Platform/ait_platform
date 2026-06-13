@@ -31,7 +31,7 @@ import os  # sqlite3 no longer needed
 import click
 from hashlib import sha256
 from app.models.visit import VisitLog
-from app.models.payment import Subscription
+from app.models.payment import YocoPayment
 from werkzeug.middleware.proxy_fix import ProxyFix
 from dotenv import load_dotenv, find_dotenv
 load_dotenv(find_dotenv(), override=False)  # picks up your .env locally

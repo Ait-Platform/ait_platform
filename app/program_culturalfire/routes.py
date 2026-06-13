@@ -353,6 +353,11 @@ def talent_new(enrollment_id):
         category_obj = CfiTalentCategoryItem.query.get(category_item_id)
         is_other = category_obj and "other" in category_obj.name.lower()
 
+        from app.program_culturalfire.helpers import charge_tokens
+        if not charge_tokens(enrollment.user_id, 20, f"Talent Submission: {talent_name}"):
+            flash("Insufficient tokens to submit a video. Please top up your wallet (20 Tokens required).", "warning")
+            return redirect(url_for("cultural_bp.wallet_dashboard"))
+
         # Find or create active show for this category
         active_show = CfiShow.query.filter_by(
             category_item_id=category_item_id,
@@ -2247,3 +2252,34 @@ def admin_scores(show_id):
         contestants_list = list(scoresheet.values())
 
     return render_template("program_culturefire/admin_scores.html", show=show, judges=judges, contestants=contestants_list)
+
+@cultural_bp.route("/wallet")
+@login_required
+def wallet_dashboard():
+    from app.models.culturalfire import CfiWallet, CfiTokenTransaction
+    wallet = CfiWallet.query.filter_by(user_id=current_user.id).first()
+    transactions = []
+    if wallet:
+        transactions = CfiTokenTransaction.query.filter_by(wallet_id=wallet.id).order_by(CfiTokenTransaction.created_at.desc()).all()
+    
+    return render_template("program_culturefire/wallet.html", wallet=wallet, transactions=transactions)
+
+@cultural_bp.route("/wallet/topup", methods=["POST"])
+@login_required
+def wallet_topup():
+    amount = request.form.get("amount", type=int)
+    if not amount or amount < 20:
+        flash("Invalid top-up amount.", "danger")
+        return redirect(url_for("cultural_bp.wallet_dashboard"))
+        
+    # Standard 1 Token = R1 ZAR
+    zar_cents = amount * 100
+    
+    # Store top-up intent in session
+    session["topup_tokens"] = amount
+    session["zar_amount_cents"] = zar_cents
+    session["subject_slug"] = "cultural_fire_topup"
+    session["just_paid_subject_id"] = None
+    
+    # Route to checkout via Yoco
+    return redirect(url_for("peach_bp.checkout"))  # Handles Yoco

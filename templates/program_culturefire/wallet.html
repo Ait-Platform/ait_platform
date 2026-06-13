@@ -1,0 +1,61 @@
+{% extends "layout.html" %}
+{% block title %}CFI Wallet{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-3xl mt-10 px-4">
+  <div class="bg-white rounded-xl shadow overflow-hidden">
+    <div class="bg-indigo-600 px-6 py-4 flex items-center justify-between">
+      <h1 class="text-xl font-bold text-white">Your Cultural Fire Wallet</h1>
+      <span class="inline-flex items-center rounded-full bg-indigo-800 px-3 py-1 text-sm font-medium text-white">
+        Balance: {{ wallet.balance if wallet else 0 }} Tokens
+      </span>
+    </div>
+    
+    <div class="p-6">
+      {% include "partials/flash_messages.html" %}
+      
+      <div class="flex flex-col md:flex-row md:items-center justify-between bg-slate-50 border rounded-lg p-5 mb-6">
+        <div>
+          <h2 class="text-lg font-semibold text-slate-800">Need more tokens?</h2>
+          <p class="text-sm text-slate-600 mt-1">Tokens are used to upload videos, apply for judgeship, and complete your biodata. 1 Token = R1 ZAR.</p>
+        </div>
+        <div class="mt-4 md:mt-0 flex flex-col space-y-2">
+          <form method="POST" action="{{ url_for('cultural_bp.wallet_topup') }}" class="flex gap-2">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <select name="amount" class="rounded border-slate-300 text-sm">
+              <option value="20">20 Tokens (R20)</option>
+              <option value="50">50 Tokens (R50)</option>
+              <option value="100">100 Tokens (R100)</option>
+              <option value="200">200 Tokens (R200)</option>
+            </select>
+            <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded text-sm font-semibold">Buy Tokens</button>
+          </form>
+        </div>
+      </div>
+
+      <h3 class="font-semibold text-slate-700 mb-4">Transaction History</h3>
+      {% if transactions %}
+        <div class="divide-y border rounded-lg overflow-hidden">
+          {% for t in transactions %}
+          <div class="p-4 flex justify-between items-center hover:bg-slate-50 bg-white">
+            <div>
+              <p class="text-sm font-medium text-slate-800">{{ t.description }}</p>
+              <p class="text-xs text-slate-500">{{ t.created_at.strftime('%b %d, %Y at %H:%M') }}</p>
+            </div>
+            <div>
+              {% if t.amount > 0 %}
+                <span class="text-sm font-bold text-emerald-600">+{{ t.amount }}</span>
+              {% else %}
+                <span class="text-sm font-bold text-rose-600">{{ t.amount }}</span>
+              {% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="text-sm text-slate-500 text-center py-4 border rounded-lg bg-slate-50">No transactions yet.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

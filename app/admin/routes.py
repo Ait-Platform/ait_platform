@@ -230,10 +230,12 @@ def manage_programs():
     if request.method == "POST":
         subject_id = request.form.get("subject_id")
         is_hidden = request.form.get("is_hidden") == "1"
+        req_price = request.form.get("requires_price") == "1"
         ptype = request.form.get("program_type")
         subj = AuthSubject.query.get(subject_id)
         if subj:
             subj.is_hidden_on_bridge = is_hidden
+            subj.requires_price = req_price
             subj.program_type = ptype
             db.session.commit()
             flash(f"Updated {subj.name}", "success")

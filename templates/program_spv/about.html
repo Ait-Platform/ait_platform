@@ -20,34 +20,36 @@
 
       <!-- Content Body -->
       <div>
-        <p class="text-slate-600 leading-relaxed mb-6">
-          Invest in structured private deals with full transparency, tracked returns, and clear ownership.
+        <p class="text-slate-600 leading-relaxed mb-6 text-lg">
+          Join an exclusive network of investors participating in high-value, digitally managed private redevelopment projects.
         </p>
 
-        <div class="space-y-3 text-slate-700 mb-8">
-          <div class="flex items-start gap-2">
-            <span class="text-emerald-600 font-semibold">•</span>
-            <span>Access curated investment opportunities</span>
+        <div class="space-y-4 text-slate-700 mb-8">
+          <div class="flex items-start gap-3">
+            <div class="mt-1 w-6 h-6 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
+              <i class="fas fa-building text-xs"></i>
+            </div>
+            <span>Secure your stake in curated real estate, healthcare, and community wellness developments.</span>
           </div>
-          <div class="flex items-start gap-2">
-            <span class="text-emerald-600 font-semibold">•</span>
-            <span>Track your capital and returns in real time</span>
+          <div class="flex items-start gap-3">
+            <div class="mt-1 w-6 h-6 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
+              <i class="fas fa-chart-line text-xs"></i>
+            </div>
+            <span>Enjoy absolute transparency with our live public ledger and real-time portfolio tracking.</span>
           </div>
-          <div class="flex items-start gap-2">
-            <span class="text-emerald-600 font-semibold">•</span>
-            <span>View deal performance and documents</span>
+          <div class="flex items-start gap-3">
+            <div class="mt-1 w-6 h-6 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
+              <i class="fas fa-shield-alt text-xs"></i>
+            </div>
+            <span>Benefit from a highly secure, privacy-focused investment pipeline.</span>
           </div>
         </div>
 
         <!-- Actions -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="flex justify-start">
           <a href="{{ url_for('spv_bp.price_spv') }}"
-             class="bg-emerald-600 text-white text-center py-3 rounded-xl font-semibold hover:bg-emerald-700 transition shadow-sm">
-            Learn About Pricing
-          </a>
-          <a href="{{ url_for('spv_bp.investor_dashboard') }}"
-             class="bg-slate-900 text-white text-center py-3 rounded-xl font-semibold hover:bg-slate-700 transition shadow-sm border border-slate-700">
-            My Dashboard
+             class="inline-block bg-emerald-600 text-white px-8 py-3 rounded-xl font-bold text-lg hover:bg-emerald-700 transition shadow-sm">
+            View Pricing & Registration
           </a>
         </div>
       </div>

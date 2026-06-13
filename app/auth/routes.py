@@ -358,11 +358,18 @@ def register_decision():
             session["user_name"] = user.name or session["email"].split("@", 1)[0]
             session.modified = True
 
-    # ---------- SPECIAL CASE: SPV PORTFOLIO BYPASS ----------
+    # ---------- SPECIAL CASE: SPV PORTFOLIO REGISTRATION FEE ----------
     if next_url and ("/portfolio/" in next_url or "/program/spv/" in next_url):
         session.pop("reg_ctx", None)
-        return redirect(next_url)
-    # ---------- END SPV PORTFOLIO BYPASS ----------
+        return redirect(
+            url_for(
+                "yoco_bp.yoco_start",
+                email=(user.email if user else ""),
+                subject="spv_registration",
+                debug=0
+            )
+        )
+    # ---------- END SPV PORTFOLIO REGISTRATION FEE ----------
 
     # 2) Ensure an enrollment row
     enrollment_id = _ensure_enrollment_row(user_id=user_id, subject_slug=subject)

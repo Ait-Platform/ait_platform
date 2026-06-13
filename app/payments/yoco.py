@@ -49,20 +49,25 @@ def start():
         return redirect(url_for("public_bp.welcome"))
     # 1) Try to get amount from user_enrollment (since parity pricing locks the user to their first trial country price)
     amount_cents = 0
-    u = User.query.filter_by(email=email).first()
-    if u:
-        row = db.session.execute(
-            text("""
-                SELECT zar_amount_cents
-                FROM user_enrollment
-                WHERE user_id = :uid 
-                  AND subject_id = (SELECT id FROM auth_subject WHERE lower(slug) = :s LIMIT 1)
-                ORDER BY id DESC LIMIT 1
-            """),
-            {"uid": u.id, "s": subject}
-        ).scalar()
-        if row and int(row) > 0:
-            amount_cents = int(row)
+    
+    if subject == "spv_registration":
+        amount_cents = 10000
+        
+    if amount_cents <= 0:
+        u = User.query.filter_by(email=email).first()
+        if u:
+            row = db.session.execute(
+                text("""
+                    SELECT zar_amount_cents
+                    FROM user_enrollment
+                    WHERE user_id = :uid 
+                      AND subject_id = (SELECT id FROM auth_subject WHERE lower(slug) = :s LIMIT 1)
+                    ORDER BY id DESC LIMIT 1
+                """),
+                {"uid": u.id, "s": subject}
+            ).scalar()
+            if row and int(row) > 0:
+                amount_cents = int(row)
 
     # 2) Try to get amount from session root (since quote route stores it there for new users)
     if amount_cents <= 0:
@@ -361,29 +366,43 @@ def success():
                     description=sponsor_desc
                 )
                 db.session.add(txn)
-        # Process SPV Investment
-        if subject.lower() == "spv_investment":
-            from app.models.spv import SpvDeal, SpvParticipation
-            spv_amount = float(session.pop("spv_amount", 0))
-            spv_pseudonym = session.pop("spv_pseudonym", "Anonymous")
-            spv_deal_slug = session.pop("spv_deal_slug", None)
-            
-            # 5% fee is deducted from the recorded investment
-            effective_amount = spv_amount * 0.95
-            
-            if spv_deal_slug and effective_amount > 0:
-                deal = SpvDeal.query.filter_by(slug=spv_deal_slug).first()
-                if deal:
-                    part = SpvParticipation(
-                        user_id=u.id,
-                        deal_id=deal.id,
-                        amount=effective_amount,
-                        pseudonym=spv_pseudonym,
-                        status="confirmed"
-                    )
-                    db.session.add(part)
-
         session["just_paid_subject_id"] = sid if sid else 12 # Default to CFI
+
+    # Process SPV Registration
+    if subject.lower() == "spv_registration":
+        from app.models.spv import SpvDeal, SpvParticipation
+        deal = SpvDeal.query.filter_by(slug="dale-housing").first()
+        if deal:
+            part = SpvParticipation(
+                user_id=u.id,
+                deal_id=deal.id,
+                amount=100.00,
+                pseudonym=u.name or "Anonymous",
+                status="confirmed"
+            )
+            db.session.add(part)
+
+    # Process SPV Investment
+    if subject.lower() == "spv_investment":
+        from app.models.spv import SpvDeal, SpvParticipation
+        spv_amount = float(session.pop("spv_amount", 0))
+        spv_pseudonym = session.pop("spv_pseudonym", "Anonymous")
+        spv_deal_slug = session.pop("spv_deal_slug", None)
+        
+        # 5% fee is deducted from the recorded investment
+        effective_amount = spv_amount * 0.95
+        
+        if spv_deal_slug and effective_amount > 0:
+            deal = SpvDeal.query.filter_by(slug=spv_deal_slug).first()
+            if deal:
+                part = SpvParticipation(
+                    user_id=u.id,
+                    deal_id=deal.id,
+                    amount=effective_amount,
+                    pseudonym=spv_pseudonym,
+                    status="confirmed"
+                )
+                db.session.add(part)
 
     db.session.commit()
 

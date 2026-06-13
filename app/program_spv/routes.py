@@ -77,6 +77,11 @@ def investor_dashboard():
     # Calculate total invested
     total_invested = sum(inv.amount for inv in investments) if investments else 0
     
+    if not investments:
+        from flask import flash, redirect, url_for
+        flash("You must complete your R100 ZAR initial commitment to access your investor dashboard.", "warning")
+        return redirect(url_for("yoco_bp.yoco_start", email=current_user.email, subject="spv_registration", debug=0))
+    
     # Fetch Dale SPV as an available opportunity
     dale_deal = SpvDeal.query.filter_by(slug="dale-housing").first()
 

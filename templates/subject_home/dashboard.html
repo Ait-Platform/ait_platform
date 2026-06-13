@@ -124,7 +124,7 @@
                       {% if session.get(chapter_key) %}
                           <span class="inline-flex items-center rounded-lg px-4 py-2 text-xs font-semibold bg-gray-100 text-gray-500">Done</span>
                       {% elif needs_premium %}
-                          <a href="{{ url_for('quote_bp.quote', subject='home2') }}" class="inline-flex items-center rounded-lg px-4 py-2 text-xs font-semibold bg-yellow-500 text-white hover:bg-yellow-600 shadow-sm animate-pulse">Unlock Premium</a>
+                          <a href="{{ url_for('quote_bp.quote', subject='home') }}" class="inline-flex items-center rounded-lg px-4 py-2 text-xs font-semibold bg-yellow-500 text-white hover:bg-yellow-600 shadow-sm animate-pulse">Unlock Premium</a>
                       {% elif is_locked %}
                           <span class="inline-flex items-center rounded-lg px-4 py-2 text-xs font-semibold bg-gray-100 text-gray-400">Locked</span>
                       {% else %}
@@ -184,7 +184,7 @@
                       {% if session.get(chapter_key) %}
                           <span class="inline-flex items-center rounded-lg px-4 py-2 text-xs font-semibold bg-gray-100 text-gray-500">Done</span>
                       {% elif needs_section3 %}
-                          <a href="{{ url_for('quote_bp.quote', subject='home_section3') }}" class="inline-flex items-center rounded-lg px-4 py-2 text-xs font-semibold bg-yellow-500 text-white hover:bg-yellow-600 shadow-sm animate-pulse">Unlock Section 3</a>
+                          <a href="{{ url_for('quote_bp.quote', subject='home') }}" class="inline-flex items-center rounded-lg px-4 py-2 text-xs font-semibold bg-yellow-500 text-white hover:bg-yellow-600 shadow-sm animate-pulse">Unlock Premium</a>
                       {% elif is_locked %}
                           <span class="inline-flex items-center rounded-lg px-4 py-2 text-xs font-semibold bg-gray-100 text-gray-400">Locked</span>
                       {% else %}
@@ -231,7 +231,7 @@
                           </div>
                       </div>
                   {% elif chap_30_done and not has_premium %}
-                      <a href="{{ url_for('quote_bp.quote', subject='home2') }}" class="inline-flex items-center rounded-lg px-4 py-2 text-xs font-semibold bg-yellow-500 text-white hover:bg-yellow-600 shadow-sm animate-pulse">Unlock Premium</a>
+                      <a href="{{ url_for('quote_bp.quote', subject='home') }}" class="inline-flex items-center rounded-lg px-4 py-2 text-xs font-semibold bg-yellow-500 text-white hover:bg-yellow-600 shadow-sm animate-pulse">Unlock Premium</a>
                   {% elif chap_30_done %}
                       <a href="{{ url_for('home_bp.final_exam') }}" class="inline-flex items-center rounded-lg px-4 py-2 text-xs font-semibold bg-yellow-600 text-white hover:bg-yellow-700">Start Exam</a>
                   {% else %}

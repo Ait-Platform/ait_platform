@@ -13,6 +13,30 @@ SHUFFLE_HOME_QUESTIONS = False
 
 home_bp = Blueprint("home_bp", __name__)
 
+def _has_active_home_subscription(user_id):
+    from datetime import datetime
+    now = datetime.utcnow()
+    ent = db.session.execute(text("""
+        SELECT ue.status, ue.trial_end, ue.expires_at
+          FROM user_enrollment ue
+          JOIN auth_subject s ON s.id = ue.subject_id
+         WHERE ue.user_id = :uid
+           AND s.slug = 'home'
+         LIMIT 1
+    """), {"uid": user_id}).mappings().first()
+
+    if not ent:
+        return False
+
+    if ent["status"] in ("paid", "completed"):
+        return True
+    elif ent["status"] == "active":
+        if (ent["trial_end"] and ent["trial_end"] >= now) or (ent["expires_at"] and ent["expires_at"] >= now):
+            return True
+        elif not ent["trial_end"] and not ent["expires_at"]:
+            return True
+    return False
+
 def _save_home_progress(user_id, chapter_number):
     try:
         exists = HomeProgress.query.filter_by(user_id=user_id, chapter_number=chapter_number).first()
@@ -65,27 +89,8 @@ def learner_dashboard():
         HomeFinalAssessment.id.desc()
     ).first()
 
-    has_premium = db.session.scalar(
-        text("""
-            SELECT 1 FROM user_enrollment 
-            WHERE user_id = :uid 
-              AND subject_id = (SELECT id FROM auth_subject WHERE slug = 'home2' LIMIT 1)
-              AND status IN ('active', 'completed')
-            LIMIT 1
-        """),
-        {"uid": current_user.id}
-    ) is not None
-    
-    has_section3 = db.session.scalar(
-        text("""
-            SELECT 1 FROM user_enrollment 
-            WHERE user_id = :uid 
-              AND subject_id = (SELECT id FROM auth_subject WHERE slug = 'home_section3' LIMIT 1)
-              AND status IN ('active', 'completed')
-            LIMIT 1
-        """),
-        {"uid": current_user.id}
-    ) is not None
+    has_premium = _has_active_home_subscription(current_user.id)
+    has_section3 = has_premium
 
     return render_template(
         'subject_home/dashboard.html',
@@ -111,37 +116,9 @@ def chapter_page(chapter_num):
     ).first_or_404()
 
     if chapter_num >= 11:
-        if chapter_num >= 21:
-            has_section3 = db.session.scalar(
-                text("""
-                    SELECT 1 FROM user_enrollment 
-                    WHERE user_id = :uid 
-                      AND subject_id = (SELECT id FROM auth_subject WHERE slug = 'home_section3' LIMIT 1)
-                      AND status IN ('active', 'completed')
-                    LIMIT 1
-                """),
-                {"uid": current_user.id}
-            ) is not None
-            
-            if not has_section3:
-                flash("You must unlock the Section 3 Upgrade to access this chapter.", "warning")
-                return redirect(url_for('quote_bp.quote', subject='home_section3'))
-                
-        else:
-            has_premium = db.session.scalar(
-                text("""
-                    SELECT 1 FROM user_enrollment 
-                    WHERE user_id = :uid 
-                      AND subject_id = (SELECT id FROM auth_subject WHERE slug = 'home2' LIMIT 1)
-                      AND status IN ('active', 'completed')
-                    LIMIT 1
-                """),
-                {"uid": current_user.id}
-            ) is not None
-            
-            if not has_premium:
-                flash("You must unlock the Premium Bundle to access this chapter.", "warning")
-                return redirect(url_for('quote_bp.quote', subject='home2'))
+        if not _has_active_home_subscription(current_user.id):
+            flash("You must subscribe to unlock the rest of the HOME course.", "warning")
+            return redirect(url_for('quote_bp.quote', subject='home'))
 
     questions = HomeQuestion.query.filter_by(
         chapter_id=chapter.id
@@ -489,19 +466,10 @@ methods=['GET', 'POST']
 )
 @login_required
 def final_exam():
-    has_premium = db.session.scalar(
-        text("""
-            SELECT 1 FROM user_enrollment 
-            WHERE user_id = :uid 
-              AND subject_id = (SELECT id FROM auth_subject WHERE slug = 'home2' LIMIT 1)
-              AND status IN ('active', 'completed')
-            LIMIT 1
-        """),
-        {"uid": current_user.id}
-    ) is not None
+    has_premium = _has_active_home_subscription(current_user.id)
     
     if not has_premium:
-        flash("You must unlock the Premium Bundle to access the Final Exam.", "warning")
+        flash("You must subscribe to unlock the Final Exam.", "warning")
         return redirect(url_for('home_bp.learner_dashboard'))
 
     questions = HomeQuestion.query.order_by(

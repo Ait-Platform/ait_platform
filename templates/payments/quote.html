@@ -124,15 +124,22 @@
 
           {% if trial_allowed %}
             {% if can_act %}
-              <a href="{{ url_for('auth_bp.register',
-                                  role='user',
-                                  subject=subject_slug,
-                                  plan='trial',
-                                  next=reg_next,
-                                  price_id=price.price_id) }}"
-                 class="inline-flex items-center justify-center rounded bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-700">
-                Start free {{ trial_days }}-day trial
-              </a>
+              {% if current_user.is_authenticated %}
+                <a href="{{ url_for('yoco_bp.yoco_start', email=current_user.email, subject=subject_slug) }}"
+                  class="inline-flex items-center justify-center rounded bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-700 shadow-sm transition-colors">
+                  Start free {{ trial_days }}-day trial
+                </a>
+              {% else %}
+                <a href="{{ url_for('auth_bp.register',
+                                    role='user',
+                                    subject=subject_slug,
+                                    plan='trial',
+                                    next=reg_next,
+                                    price_id=price.price_id) }}"
+                   class="inline-flex items-center justify-center rounded bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-700 shadow-sm transition-colors">
+                  Start free {{ trial_days }}-day trial
+                </a>
+              {% endif %}
             {% else %}
               <button type="button"
                       class="rounded bg-sky-600 px-4 py-2 text-sm font-semibold text-white opacity-50 cursor-not-allowed"
@@ -142,15 +149,22 @@
             {% endif %}
           {% elif requires_price|int == 1 %}
             {% if can_act %}
-              <a href="{{ url_for('auth_bp.register',
-                                  role='user',
-                                  subject=subject_slug,
-                                  plan='paid',
-                                  next=reg_next,
-                                  price_id=price.price_id) }}"
-                class="inline-flex items-center justify-center rounded bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
-                Buy now
-              </a>
+              {% if current_user.is_authenticated %}
+                <a href="{{ url_for('yoco_bp.yoco_start', email=current_user.email, subject=subject_slug) }}"
+                  class="inline-flex items-center justify-center rounded bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 shadow-sm transition-colors">
+                  Buy now
+                </a>
+              {% else %}
+                <a href="{{ url_for('auth_bp.register',
+                                    role='user',
+                                    subject=subject_slug,
+                                    plan='paid',
+                                    next=reg_next,
+                                    price_id=price.price_id) }}"
+                  class="inline-flex items-center justify-center rounded bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 shadow-sm transition-colors">
+                  Buy now
+                </a>
+              {% endif %}
             {% else %}
               <button type="button"
                       class="rounded bg-emerald-600 px-4 py-2 text-sm font-semibold text-white opacity-50 cursor-not-allowed"
@@ -159,14 +173,23 @@
               </button>
             {% endif %}
           {% else %}
-            <a href="{{ url_for('auth_bp.register',
-                                role='user',
-                                subject=subject_slug,
-                                plan='free',
-                                next=reg_next) }}"
-               class="inline-flex items-center justify-center rounded bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
-              Start now
-            </a>
+            {% if current_user.is_authenticated %}
+              <form action="{{ url_for('auth_bp.register_decision', subject=subject_slug) }}" method="POST" class="inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="inline-flex items-center justify-center rounded bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 shadow-sm transition-colors">
+                  Start now
+                </button>
+              </form>
+            {% else %}
+              <a href="{{ url_for('auth_bp.register',
+                                  role='user',
+                                  subject=subject_slug,
+                                  plan='free',
+                                  next=reg_next) }}"
+                 class="inline-flex items-center justify-center rounded bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 shadow-sm transition-colors">
+                Start now
+              </a>
+            {% endif %}
           {% endif %}
         </div>
       </div>

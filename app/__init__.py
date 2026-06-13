@@ -420,7 +420,7 @@ def create_app():
             
             # Deactivate obsolete HOME sub-subjects (deletion fails due to enrollment FKs)
             obsolete_slugs = ['home2', 'home_premium', 'home_section3']
-            AuthSubject.query.filter(AuthSubject.slug.in_(obsolete_slugs)).update({"is_active": False}, synchronize_session=False)
+            AuthSubject.query.filter(AuthSubject.slug.in_(obsolete_slugs)).update({"is_active": 0}, synchronize_session=False)
 
             subjects_to_hide = ['sms', 'cfi_judge', 'admin', 'admin_general', 'spv']
             AuthSubject.query.filter(AuthSubject.slug.in_(subjects_to_hide)).update({"is_hidden_on_bridge": True}, synchronize_session=False)

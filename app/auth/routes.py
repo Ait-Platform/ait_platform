@@ -1024,7 +1024,21 @@ def bridge_dashboard():
 
     banner = session.pop("payment_banner", None)
     
-    banner = session.pop("payment_banner", None)
+    # Bypass bridge dashboard if they only have 1 enrollment AND it is completed
+    force_bridge = request.args.get('force') == '1'
+    is_admin = any(getattr(r, 'access_level', '') == 'admin' for r in rows)
+    enrolled_tiles = [r for r in rows if getattr(r, 'access_level', '') == 'enrolled']
+    
+    if len(enrolled_tiles) == 1 and not is_admin and not force_bridge:
+        s = enrolled_tiles[0]
+        uid = current_user.id
+        enr_status = db.session.execute(
+            text("SELECT status FROM user_enrollment WHERE user_id = :uid AND subject_id = :sid LIMIT 1"),
+            {"uid": uid, "sid": s.id}
+        ).scalar()
+        if enr_status == 'completed':
+            slug = getattr(s, 'slug', '').lower()
+            return redirect(url_for('auth_bp.learner_subject_dashboard', subject=slug))
     
     return render_template(
         "auth/bridge_dashboard.html",

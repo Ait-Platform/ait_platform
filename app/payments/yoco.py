@@ -97,8 +97,21 @@ def start():
     # --- LOCAL DEVELOPMENT BYPASS ---
     # Yoco's Hosted Sandbox actively crashes when attempting to webhook/redirect to private local IPs (localhost/127.0.0.1).
     if request.host.startswith("127.0.0.1") or request.host.startswith("localhost"):
-        flash("Local Development: Bypassing Yoco Gateway to simulate successful payment.", "info")
-        return redirect(url_for("yoco_bp.yoco_success", email=email, subject=subject))
+        return f"""
+        <html>
+            <head><title>Simulated Payment</title></head>
+            <body style="font-family: sans-serif; text-align: center; padding: 50px;">
+                <h1>Local Development: Simulated Payment Flow</h1>
+                <p>You are about to pay R{amount_cents/100:.2f} for {subject}.</p>
+                <p>Since you are running on localhost, the real Yoco gateway is bypassed to prevent crashes.</p>
+                <form action="{url_for('yoco_bp.yoco_success', email=email, subject=subject)}" method="GET">
+                    <button type="submit" style="padding: 10px 20px; background: #9333ea; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                        Simulate Successful Payment
+                    </button>
+                </form>
+            </body>
+        </html>
+        """
 
         
     # Charge via Yoco Checkout API (Hosted Gateway)
@@ -389,8 +402,8 @@ def success():
         spv_pseudonym = session.pop("spv_pseudonym", "Anonymous")
         spv_deal_slug = session.pop("spv_deal_slug", None)
         
-        # 5% fee is deducted from the recorded investment
-        effective_amount = spv_amount * 0.95
+        # The 5% fee was added to the charge amount, so the recorded investment is the full spv_amount
+        effective_amount = spv_amount
         
         if spv_deal_slug and effective_amount > 0:
             deal = SpvDeal.query.filter_by(slug=spv_deal_slug).first()

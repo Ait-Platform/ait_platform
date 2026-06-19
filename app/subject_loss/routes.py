@@ -1688,30 +1688,42 @@ def finish_report():
         ), 400
 
     if email:
-        try:
-            pdf_bytes = current_app.ensure_sync(
-                current_app.view_functions["loss_bp.report_pdf"]
-            )(run_id=run_id_int, user_id=user_id_int, auto_print=0, return_bytes=True)
-
+        from itsdangerous import URLSafeSerializer
+        s = URLSafeSerializer(current_app.secret_key, salt="pdf-report")
+        token = s.dumps({"run_id": run_id_int, "user_id": user_id_int})
+        pdf_url = url_for("loss_bp.report_pdf", token=token, _external=True)
+        subject = f"LOSS Assessment Report (Run {run_id_int})"
+        user_name = getattr(current_user, "name", "")
+        
+        req_url_root = request.url_root
+        app = current_app._get_current_object()
+        
+        def background_email(app_obj, root_url, r_id, u_id, tkn, subj, u_name, to_mail, p_url):
             from app.utils.mailer import send_standard_report_email
-            from itsdangerous import URLSafeSerializer
-            s = URLSafeSerializer(current_app.secret_key, salt="pdf-report")
-            token = s.dumps({"run_id": run_id_int, "user_id": user_id_int})
-            pdf_url = url_for("loss_bp.report_pdf", token=token, _external=True)
-            subject = f"LOSS Assessment Report (Run {run_id_int})"
-            user_name = getattr(current_user, "name", "")
-            
-            send_standard_report_email(
-                to_email=email,
-                subject=subject,
-                pdf_url=pdf_url,
-                pdf_bytes=pdf_bytes,
-                filename=f"LOSS_Assessment_Run_{run_id_int}.pdf",
-                run_id=run_id_int,
-                user_name=user_name
-            )
-        except Exception as e:
-            current_app.logger.error(f"Failed to email report: {e}")
+            with app_obj.test_request_context(path=f"/loss/report.pdf?token={tkn}", base_url=root_url):
+                try:
+                    pdf_bytes = app_obj.ensure_sync(
+                        app_obj.view_functions["loss_bp.report_pdf"]
+                    )(return_bytes=True)
+                    
+                    send_standard_report_email(
+                        to_email=to_mail,
+                        subject=subj,
+                        pdf_url=p_url,
+                        pdf_bytes=pdf_bytes,
+                        filename=f"LOSS_Assessment_Run_{r_id}.pdf",
+                        run_id=r_id,
+                        user_name=u_name
+                    )
+                except Exception as e:
+                    app_obj.logger.error(f"Background email failed: {e}")
+
+        import threading
+        t = threading.Thread(
+            target=background_email, 
+            args=(app, req_url_root, run_id_int, user_id_int, token, subject, user_name, email, pdf_url)
+        )
+        t.start()
 
     try:
         from flask_login import logout_user

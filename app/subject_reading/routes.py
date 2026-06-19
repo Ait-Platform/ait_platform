@@ -964,24 +964,8 @@ def _generate_certificate_pdf(certificate_id, learner_name, completed_at):
 
     completed_date = completed_at.strftime("%d %B %Y")
 
-    # 2. read logo file and base64 it
-    logo_file_path = os.path.join(
-        current_app.root_path,
-        "static",
-        "branding",
-        "ait_logo.png",   # make sure this file exists
-    )
-
-    logo_data_uri = None
-    try:
-        with open(logo_file_path, "rb") as f:
-            b = f.read()
-        b64 = base64.b64encode(b).decode("ascii")
-        # tell browser/WeasyPrint: this is an inline PNG
-        logo_data_uri = f"data:image/png;base64,{b64}"
-    except Exception as e:
-        current_app.logger.error(f"Logo load failed: {e}")
-        logo_data_uri = None
+    from app.utils.branding import get_logo_data_uri
+    logo_data_uri = get_logo_data_uri()
 
     # 3. render html
     html_str = render_template(
@@ -999,8 +983,9 @@ def _generate_certificate_pdf(certificate_id, learner_name, completed_at):
     pdf_path = os.path.join(cert_dir, f"{certificate_id}.pdf")
 
     try:
+        from flask import request
         from weasyprint import HTML
-        HTML(string=html_str).write_pdf(pdf_path)
+        HTML(string=html_str, base_url=request.host_url).write_pdf(pdf_path)
         return pdf_path
     except Exception as e:
         current_app.logger.error(f"PDF generation failed for {certificate_id}: {e}")

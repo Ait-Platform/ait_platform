@@ -558,7 +558,7 @@ def loss_result_dashboard():
         run.get("run_id"), run.get("total"), run.get("res_created_at")
     )
     return render_template(
-        "school_loss/result_dashboard.html",
+        "subject/loss/result_dashboard.html",
         run=run,
         user=user,
         # pass a real datetime here so your template line:
@@ -1069,6 +1069,12 @@ def reenroll():
             {"uid": uid, "sid": sid}
         )
         # We optionally archive runs here. In Loss, we can just leave them as 'completed'.
+        # IMPORTANT: We MUST create a new run here so that `latest_run_for_user` doesn't
+        # pick up the old completed run and redirect them back to the results dashboard!
+        db.session.execute(
+            text("INSERT INTO lca_run (user_id, status, subject, started_at) VALUES (:uid, 'active', 'LOSS', CURRENT_TIMESTAMP)"),
+            {"uid": uid}
+        )
     db.session.commit()
     flash("Your previous progress was archived. Please register to re-enroll.", "info")
     return redirect(url_for("auth_bp.register", subject="loss"))
@@ -1253,6 +1259,10 @@ def assessment_flow():
     run.status = "completed"
     run.completed_at = db.func.now()
     db.session.commit()
+    
+    # Compute the final result so it's guaranteed to be up-to-date
+    compute_loss_results(run.id, current_user.id)
+    
     return redirect(url_for("loss_bp.assessment_result", run_id=run.id))
 
 def compute_loss_result(run_id: int):
@@ -1390,6 +1400,7 @@ def assessment_question_flow():
         run.status = "completed"
         run.completed_at = db.func.now()
         db.session.commit()
+        compute_loss_results(run.id, current_user.id)
         return redirect(url_for("loss_bp.result_run", run_id=run.id))
 
     kind = step["kind"]
@@ -1399,6 +1410,7 @@ def assessment_question_flow():
         run.status = "completed"
         run.completed_at = db.func.now()
         db.session.commit()
+        compute_loss_results(run.id, current_user.id)
         return redirect(url_for("loss_bp.result_run", run_id=run.id))
 
     next_pos = min(pos + 1, LOSS_ASSESSMENT_MAX_POS)
@@ -1452,6 +1464,7 @@ def assessment_question_flow():
         db.session.commit()
 
         if run.status == "completed":
+            compute_loss_results(run.id, current_user.id)
             return redirect(url_for("loss_bp.result_run", run_id=run.id))
 
         return redirect(

@@ -148,13 +148,37 @@ def start_registration():
 
 @auth_bp.route("/register", methods=["GET", "POST"])
 def register():
+    # Helper to infer subject from next_url if it defaulted to loss
+    def _infer_subject_from_next(subj: str, n_url: str) -> str:
+        if subj and subj != "loss":
+            return subj
+        if not n_url:
+            return subj or "loss"
+        n_url_lower = n_url.lower()
+        if "/adv-math" in n_url_lower or "/adv_math" in n_url_lower:
+            return "adv_math"
+        if "/sms" in n_url_lower:
+            return "sms"
+        if "/spv" in n_url_lower or "/portfolio" in n_url_lower:
+            return "spv_registration"
+        if "/reading" in n_url_lower:
+            return "reading"
+        if "/cultural-fire" in n_url_lower or "/culturefire" in n_url_lower:
+            return "cultural_fire"
+        if "/budget" in n_url_lower:
+            return "budget"
+        return subj or "loss"
+
     # ---------- GET ----------
     if request.method == "GET":
         from flask_login import current_user
         
-        subject  = (request.args.get("subject") or "loss").strip().lower()
+        subject  = request.args.get("subject")
         role     = (request.args.get("role") or "user").strip().lower()
         next_url = (request.args.get("next") or "/").strip()
+        
+        subject = _infer_subject_from_next(subject, next_url)
+        subject = (subject or "loss").strip().lower()
 
         # If already logged in, skip the form!
         if getattr(current_user, "is_authenticated", False):
@@ -185,12 +209,16 @@ def register():
 
     # ---------- POST ----------
     role       = (request.form.get("role") or "user").strip().lower()
-    subject    = (request.form.get("subject") or "loss").strip().lower()
+    subject    = request.form.get("subject")
     next_url   = (
         request.form.get("next")
         or session.get("reg_ctx", {}).get("next_url")
         or "/"
     ).strip()
+    
+    subject = _infer_subject_from_next(subject, next_url)
+    subject = (subject or "loss").strip().lower()
+    
     email_in   = (request.form.get("email") or "").strip()
     full_name  = (request.form.get("full_name") or "").strip()
     password   = (request.form.get("password") or "").strip()
@@ -991,25 +1019,13 @@ def bridge_dashboard():
     else:
         rows = db.session.execute(sa_text(base_sql), params).fetchall()
 
-    banner = session.pop("payment_banner", None)
-    
-    banner = session.pop("payment_banner", None)
-    
-    # Bypass bridge dashboard if the user only has a single active enrollment
-    # Only bypass if they didn't explicitly request the bridge via force=1
-    force_bridge = request.args.get('force') == '1'
-    is_admin = any(getattr(r, 'access_level', '') == 'admin' for r in rows)
-    if len(rows) == 1 and not is_admin and not force_bridge:
-        s = rows[0]
-        access_level = getattr(s, 'access_level', '')
-        if access_level == 'enrolled':
-            bypass_endpoint = getattr(s, 'bypass_dashboard_endpoint', None)
-            if bypass_endpoint:
-                return redirect(url_for(bypass_endpoint))
-            
-            slug = getattr(s, 'slug', '').lower()
-            return redirect(url_for('auth_bp.learner_subject_dashboard', subject=slug))
+    # The user requested that locked subjects are never shown on the bridge
+    rows = [r for r in rows if getattr(r, 'access_level', '') != 'locked']
 
+    banner = session.pop("payment_banner", None)
+    
+    banner = session.pop("payment_banner", None)
+    
     return render_template(
         "auth/bridge_dashboard.html",
         subjects=rows,
@@ -1045,15 +1061,7 @@ def learner_subject_dashboard(subject):
 
     slug = ((row.get("slug") or "")).strip().lower()
 
-    if slug == "loss":
-        uid = current_user.id
-        completed_run = db.session.execute(
-            text("SELECT id FROM lca_run WHERE user_id = :uid AND status = 'completed' LIMIT 1"),
-            {"uid": uid}
-        ).scalar()
-        if completed_run:
-            flash("You have already completed this course. You are only allowed to enroll for this course once.", "info")
-            return redirect(url_for("loss_bp.result_dashboard"))
+
 
     # -------------------------------------------------
     # Determine start URL for generic "Press Next" screen
@@ -1281,7 +1289,7 @@ def forgot():
         return redirect(url_for("auth_bp.login"))
 
     # GET
-    return render_template("auth/forgot.html", csrf_token=generate_csrf())
+    return render_template("auth/forgot.html")
 
 @auth_bp.route("/reset/<token>", methods=["GET", "POST"], endpoint="reset")
 def reset(token):
@@ -1304,8 +1312,7 @@ def reset(token):
         db.session.commit()
         flash("Password updated. Please sign in.", "success")
         return redirect(url_for("auth_bp.login"))
-
-    return render_template("auth/reset.html", csrf_token=generate_csrf())
+    return render_template("auth/reset.html")
 
 @auth_bp.get("/debug/sendmail")
 def _debug_sendmail():

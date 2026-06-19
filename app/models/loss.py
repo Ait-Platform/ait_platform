@@ -152,6 +152,12 @@ class LcaResult(db.Model):
     phase_2    = db.Column(db.Integer, nullable=False, default=0)
     phase_3    = db.Column(db.Integer, nullable=False, default=0)
     phase_4    = db.Column(db.Integer, nullable=False, default=0)
+    
+    max_phase_1 = db.Column(db.Integer, nullable=False, default=18)
+    max_phase_2 = db.Column(db.Integer, nullable=False, default=18)
+    max_phase_3 = db.Column(db.Integer, nullable=False, default=32)
+    max_phase_4 = db.Column(db.Integer, nullable=False, default=32)
+    
     total      = db.Column(db.Integer, nullable=False, default=0)
     created_at = db.Column(db.String)                    # DATETIME in SQLite -> TEXT storage
     run_id     = db.Column(db.Integer, db.ForeignKey("lca_run.id"), index=True)

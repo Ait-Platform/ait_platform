@@ -1033,6 +1033,10 @@ def compute_loss_results(run_id: int, user_id: int | None = None) -> None:
     res.phase_2 = p2
     res.phase_3 = p3
     res.phase_4 = p4
+    res.max_phase_1 = 18
+    res.max_phase_2 = 18
+    res.max_phase_3 = 32
+    res.max_phase_4 = 32
     res.total = total
     res.created_at = db.func.current_timestamp()
     

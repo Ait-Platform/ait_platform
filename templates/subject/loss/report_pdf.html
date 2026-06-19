@@ -1,14 +1,16 @@
-{# templates/subject/loss/report.html #}
-{% extends "layout.html" %}
+{# templates/subject/loss/report_pdf.html #}
 {% import "subject/loss/pdf/_macros.html" as M %}
-
-{% block title %}Loss Results | AIT{% endblock %}
-
-{% block content %}
-  {# Load PDF-only base styles first #}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Loss Results | AIT</title>
+  <link href="{{ url_for('static', filename='dist/css/output.css') }}" rel="stylesheet">
   {% if pdf_mode %}
     {% include "subject/loss/pdf/_styles_base.html" %}
   {% endif %}
+</head>
+<body class="bg-white">
 
   {# ---- Context & safe defaults ---- #}
   {% set phase_labels = {1:'Impact', 2:'Hopelessness', 3:'Helplessness', 4:'Re-Engagement'} %}
@@ -112,4 +114,5 @@
 
 
   </div>
-{% endblock %}
+</body>
+</html>

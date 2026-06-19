@@ -1079,6 +1079,15 @@ def learner_subject_dashboard(subject):
 
     just_paid = bool(session.pop("just_paid", False))
 
+    uid = getattr(current_user, 'id', None)
+    if uid:
+        enr = db.session.execute(
+            text("SELECT status FROM user_enrollment WHERE user_id = :uid AND subject_id = :sid AND status = 'completed' LIMIT 1"),
+            {"uid": uid, "sid": row["id"]}
+        ).fetchone()
+        if enr:
+            return redirect(start_url)
+
     return render_template(
         "auth/learner_subject_dashboard.html",
         subject=row,

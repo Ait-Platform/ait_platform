@@ -1,0 +1,253 @@
+{% extends "layout.html" %}
+{% block title %}Healthcare Data Switch | Dashboard{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-6xl py-10">
+  <div class="bg-white rounded-xl shadow overflow-hidden">
+    <div class="h-2 bg-fuchsia-600"></div>
+    <div class="p-8">
+      <div class="flex items-center justify-between mb-8">
+        <h1 class="text-2xl font-bold text-slate-900">HDS Dashboard</h1>
+        <div class="flex items-center space-x-4">
+          <a href="{{ url_for('auth_bp.bridge_dashboard') }}" class="text-sm font-medium text-slate-500 hover:text-slate-700 border border-slate-200 px-3 py-1.5 rounded-md hover:bg-slate-50 transition">Back to Bridge</a>
+        </div>
+      </div>
+      
+      {% include "partials/flash_messages.html" %}
+
+      <div class="mb-8 bg-slate-50 border border-slate-200 rounded-lg p-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-lg font-semibold text-slate-800">Practice Details</h2>
+            <p class="text-sm text-slate-600 mt-1">Configure your practice profession to load the correct ICD-10 codes.</p>
+          </div>
+          <div class="w-64">
+            <label class="block text-sm font-medium text-slate-700 mb-1">Profession</label>
+            <select id="hds-profession-select" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-fuchsia-500 bg-white">
+              <option value="">-- Select Profession --</option>
+              <option value="dental">Dental Therapist</option>
+              <option value="gp">General Practitioner (GP)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="mb-8">
+        <h2 class="text-lg font-semibold text-slate-800 mb-4">Submit New Claim</h2>
+        <form action="#" method="POST" class="space-y-6">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl">
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1">Select Patient</label>
+              <select id="hds-patient-select" name="patient_name" required autofocus class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-fuchsia-500 focus:border-fuchsia-500">
+                <option value="">-- Choose or type new patient... --</option>
+                {% for p in patients %}
+                <option value="{{ p.name }}" data-id="{{ p.id_no }}" data-aid="{{ p.medical_aid }}" data-aidno="{{ p.medical_aid_no }}">{{ p.name }} {% if p.id_no %}({{ p.id_no }}){% endif %}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1">ID Number</label>
+              <input type="text" id="hds-patient-id" name="patient_id_no" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-fuchsia-500 focus:border-fuchsia-500">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1">Medical Aid</label>
+              <input type="text" id="hds-medical-aid" name="medical_aid" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-fuchsia-500 focus:border-fuchsia-500">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1">Medical Aid No</label>
+              <input type="text" id="hds-medical-aid-no" name="medical_aid_no" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-fuchsia-500 focus:border-fuchsia-500">
+            </div>
+          </div>
+          <div class="mt-6 border-t border-slate-200 pt-6">
+            <div class="flex justify-between items-center mb-4">
+              <h3 class="text-sm font-semibold text-slate-800">Invoice: Procedures & Codes</h3>
+              <button type="button" id="add-procedure-btn" class="text-xs bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded font-medium hover:bg-emerald-200 transition">+ Add Procedure</button>
+            </div>
+            
+            <div class="border border-slate-200 rounded-lg overflow-hidden">
+              <table class="w-full text-left border-collapse" id="invoice-table">
+                <thead class="bg-slate-100 border-b border-slate-200">
+                  <tr>
+                    <th class="py-3 px-4 text-xs font-semibold text-slate-600 uppercase">Procedure / ICD-10 Code</th>
+                    <th class="py-3 px-4 text-xs font-semibold text-slate-600 uppercase w-48 text-right">Amount (ZAR)</th>
+                    <th class="py-3 px-4 w-12 text-center"></th>
+                  </tr>
+                </thead>
+                <tbody id="procedures-container" class="divide-y divide-slate-100 bg-white">
+                  <!-- First Row -->
+                  <tr class="procedure-row">
+                    <td class="py-3 px-4">
+                      <select name="icd10_code[]" class="icd-select w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-fuchsia-500 bg-white" disabled>
+                        <option value="" data-price="">-- Select Profession First --</option>
+                      </select>
+                    </td>
+                    <td class="py-3 px-4">
+                      <div class="relative w-full">
+                        <span class="absolute left-3 top-2 text-slate-500 font-medium">R</span>
+                        <input type="text" name="amount_claimed[]" class="amount-input w-full border border-gray-300 rounded-md pl-8 pr-3 py-2 bg-slate-50 focus:outline-none text-right font-semibold text-slate-700" readonly placeholder="0.00">
+                      </div>
+                    </td>
+                    <td class="py-3 px-4 text-center">
+                      <button type="button" class="remove-btn text-rose-500 hover:text-rose-700 font-bold px-2 invisible">✕</button>
+                    </td>
+                  </tr>
+                </tbody>
+                <tfoot class="bg-slate-50 border-t border-slate-200">
+                  <tr>
+                    <td class="py-4 px-4 text-right text-sm font-semibold text-slate-600">Total Claim Amount:</td>
+                    <td class="py-4 px-4 text-right text-lg font-bold text-fuchsia-600">R <span id="total-claimed">0.00</span></td>
+                    <td></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+          
+          <div class="pt-6">
+            <button type="submit" class="bg-fuchsia-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-fuchsia-700 transition w-full md:w-auto">Submit Claim</button>
+          </div>
+        </form>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+const patientSelect = document.getElementById('hds-patient-select');
+if (patientSelect) {
+    patientSelect.addEventListener('change', function() {
+        const option = this.options[this.selectedIndex];
+        if (option.value) {
+            document.getElementById('hds-patient-id').value = option.dataset.id || '';
+            document.getElementById('hds-medical-aid').value = option.dataset.aid || '';
+            document.getElementById('hds-medical-aid-no').value = option.dataset.aidno || '';
+        } else {
+            document.getElementById('hds-patient-id').value = '';
+            document.getElementById('hds-medical-aid').value = '';
+            document.getElementById('hds-medical-aid-no').value = '';
+        }
+    });
+}
+
+const professionSelect = document.getElementById('hds-profession-select');
+const proceduresContainer = document.getElementById('procedures-container');
+const addProcedureBtn = document.getElementById('add-procedure-btn');
+const totalClaimedSpan = document.getElementById('total-claimed');
+
+const icdData = {
+    'dental': [
+        { code: 'Z01.2', text: 'Z01.2 - Dental examination', price: '250.00' },
+        { code: 'K02.9', text: 'K02.9 - Dental caries, unspecified', price: '450.00' },
+        { code: 'K04.0', text: 'K04.0 - Pulpitis', price: '850.00' },
+        { code: 'K05.3', text: 'K05.3 - Chronic periodontitis', price: '600.00' },
+        { code: 'K08.1', text: 'K08.1 - Loss of teeth due to accident, extraction', price: '700.00' }
+    ],
+    'gp': [
+        { code: 'Z00.0', text: 'Z00.0 - General medical examination', price: '400.00' },
+        { code: 'J06.9', text: 'J06.9 - Acute upper respiratory infection', price: '450.00' },
+        { code: 'I10', text: 'I10 - Essential (primary) hypertension', price: '500.00' },
+        { code: 'E11.9', text: 'E11.9 - Type 2 diabetes mellitus', price: '550.00' },
+        { code: 'A09.9', text: 'A09.9 - Gastroenteritis and colitis', price: '480.00' }
+    ]
+};
+
+function updateTotal() {
+    let total = 0;
+    document.querySelectorAll('.amount-input').forEach(input => {
+        if (input.value) total += parseFloat(input.value);
+    });
+    totalClaimedSpan.textContent = total.toFixed(2);
+}
+
+function updateSelectOptions(selectElement) {
+    const prof = professionSelect ? professionSelect.value : '';
+    selectElement.innerHTML = '<option value="" data-price="">-- Select Procedure --</option>';
+    
+    if (prof && icdData[prof]) {
+        selectElement.disabled = false;
+        icdData[prof].forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c.code;
+            opt.dataset.price = c.price;
+            opt.textContent = c.text;
+            selectElement.appendChild(opt);
+        });
+    } else {
+        selectElement.disabled = true;
+        selectElement.innerHTML = '<option value="" data-price="">-- Select Profession First --</option>';
+    }
+}
+
+if (professionSelect && proceduresContainer) {
+    // When profession changes, update all dropdowns
+    professionSelect.addEventListener('change', function() {
+        document.querySelectorAll('.icd-select').forEach(select => {
+            updateSelectOptions(select);
+            // Clear corresponding amount
+            select.closest('.procedure-row').querySelector('.amount-input').value = '';
+        });
+        updateTotal();
+    });
+
+    // Handle adding new rows
+    addProcedureBtn.addEventListener('click', function() {
+        const firstRow = proceduresContainer.querySelector('.procedure-row');
+        const newRow = firstRow.cloneNode(true);
+        
+        // Reset values
+        newRow.querySelector('.icd-select').selectedIndex = 0;
+        newRow.querySelector('.amount-input').value = '';
+        newRow.querySelector('.remove-btn').classList.remove('invisible');
+        
+        proceduresContainer.appendChild(newRow);
+    });
+
+    // Handle row events (change dropdown, remove row)
+    proceduresContainer.addEventListener('change', function(e) {
+        if (e.target.classList.contains('icd-select')) {
+            const currentSelect = e.target;
+            const selectedCode = currentSelect.value;
+            
+            // Check for duplicates
+            if (selectedCode) {
+                let isDuplicate = false;
+                document.querySelectorAll('.icd-select').forEach(otherSelect => {
+                    if (otherSelect !== currentSelect && otherSelect.value === selectedCode) {
+                        isDuplicate = true;
+                    }
+                });
+                
+                if (isDuplicate) {
+                    alert('This ICD-10 code has already been added to the claim.');
+                    currentSelect.selectedIndex = 0; // Reset to default
+                }
+            }
+
+            const row = currentSelect.closest('.procedure-row');
+            const amountInput = row.querySelector('.amount-input');
+            const option = currentSelect.options[currentSelect.selectedIndex];
+            
+            if (option.dataset.price) {
+                amountInput.value = option.dataset.price;
+            } else {
+                amountInput.value = '';
+            }
+            updateTotal();
+        }
+    });
+
+    proceduresContainer.addEventListener('click', function(e) {
+        if (e.target.classList.contains('remove-btn')) {
+            // Only remove if it's not the last row standing
+            if (proceduresContainer.querySelectorAll('.procedure-row').length > 1) {
+                e.target.closest('.procedure-row').remove();
+                updateTotal();
+            }
+        }
+    });
+}
+</script>
+{% endblock %}

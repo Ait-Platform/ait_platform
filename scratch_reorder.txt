@@ -1,36 +1,3 @@
-{% extends "layout.html" %}
-{% block title %}Welcome | AIT Platform{% endblock %}
-
-{% block content %}
-
-{% block flashes %}{% endblock %}
-
-<!-- School tile -->
-<div class="mx-auto max-w-6xl mb-8">
-  <div class="bg-white rounded-xl shadow overflow-hidden">
-    <div class="h-2 bg-indigo-600"></div>
-    <div class="p-6 text-center">
-      {% include "partials/flash_messages.html" %}
-      <h1 class="text-xl font-semibold text-slate-900">Archoney Institute of Technology</h1>
-      <p class="mt-2 text-slate-600 text-sm">
-        Explore powerful programs tailored to different needs
-      </p>
-    </div>
-  </div>
-</div>
-
-{% if request.args.get('sent') == '1' %}
-  <div class="mx-auto max-w-6xl mb-8 rounded-lg bg-emerald-50 text-emerald-800 px-4 py-2 border border-emerald-200">
-    Report emailed successfully.
-  </div>
-{% elif request.args.get('sent') == '0' %}
-  <div class="mx-auto max-w-6xl mb-8 rounded-lg bg-red-50 text-red-800 px-4 py-2 border border-red-200">
-    We couldn’t complete your request ({{ request.args.get('err') }}). Please try again or contact support.
-  </div>
-{% endif %}
-
-<div class="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto px-4 mb-8">
-
   <!-- Loss -->
   <div class="bg-white rounded-xl shadow overflow-hidden">
     <div class="h-2 bg-purple-600"></div>
@@ -131,24 +98,7 @@
         <span class="text-xs bg-teal-100 text-teal-800 px-2 py-1 rounded">Trial</span>
       </div>
       <p class="mt-2 text-sm text-slate-600 flex-grow">Eliminate patient leakage and control risks in a medical/dental reception environment.</p>
-      {% if session.get('subjects_access', {}).get('practice_crm') in ['enrolled', 'admin'] %}
-      <a href="{{ url_for('practice_crm_bp.dashboard') }}" class="inline-block mt-4 px-4 py-2 bg-teal-600 text-white text-sm rounded-lg hover:bg-teal-700 transition">Go to Dashboard</a>
-      {% else %}
       <a href="{{ url_for('practice_crm_bp.about') }}" class="inline-block mt-4 px-4 py-2 bg-teal-600 text-white text-sm rounded-lg hover:bg-teal-700 transition">Explore</a>
-      {% endif %}
-    </div>
-  </div>
-
-  <!-- Healthcare Data Switch -->
-  <div class="bg-white rounded-xl shadow overflow-hidden">
-    <div class="h-2 bg-fuchsia-600"></div>
-    <div class="p-6 flex flex-col h-full">
-      <div class="flex items-start justify-between">
-        <h2 class="text-lg font-semibold text-slate-800">Healthcare Data Switch</h2>
-        <span class="text-xs bg-fuchsia-100 text-fuchsia-800 px-2 py-1 rounded">Paid</span>
-      </div>
-      <p class="mt-2 text-sm text-slate-600 flex-grow">Securely switch, manage, and track healthcare claims and data transactions.</p>
-      <a href="{{ url_for('hds_bp.about') }}" class="inline-block mt-4 px-4 py-2 bg-fuchsia-600 text-white text-sm rounded-lg hover:bg-fuchsia-700 transition">Explore</a>
     </div>
   </div>
 
@@ -190,7 +140,3 @@
       <a href="{{ url_for('adv_math_bp.about') }}" class="inline-block mt-4 px-4 py-2 bg-cyan-600 text-white text-sm rounded-lg hover:bg-cyan-700 transition">Explore</a>
     </div>
   </div>
-
-</div>
-
-{% endblock %}

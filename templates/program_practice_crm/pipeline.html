@@ -15,13 +15,14 @@
           <p class="text-slate-500">{{ practice.name }}</p>
         </div>
         <div class="flex items-center space-x-2">
-          <!-- Back button on right as requested earlier in the project -->
-          {% if practice.owner_id == current_user.id %}
-          <a href="{{ url_for('practice_crm_bp.dashboard') }}" class="text-emerald-600 hover:text-emerald-700 font-medium mr-4">← Back to Dashboard</a>
-          {% else %}
-          <a href="{{ url_for('public_bp.welcome') }}" class="text-emerald-600 hover:text-emerald-700 font-medium mr-4">← Back</a>
-          {% endif %}
+          <!-- Back button points to Bridge Dashboard -->
+          <a href="{{ url_for('auth_bp.bridge_dashboard') }}" class="text-emerald-600 hover:text-emerald-700 font-medium mr-4">← Back to Hub</a>
         </div>
+      </div>
+      
+      <!-- Receptionist/Owner Help Text -->
+      <div class="mb-6 p-4 bg-emerald-50 border border-emerald-100 rounded-lg text-emerald-800 text-sm leading-relaxed">
+        <strong>Pipeline Guide:</strong> Log every patient enquiry from the moment they call using the "+ Log New Enquiry" button. Move them through the stages by verifying their medical aid and offering an appointment. Ensure all fields are completed promptly to prevent patient leakage.
       </div>
       
       <!-- Buttons row -->
@@ -32,6 +33,14 @@
         <a href="{{ url_for('practice_crm_bp.appointments_log') }}" class="bg-slate-100 text-slate-700 border border-slate-200 px-4 py-2 rounded shadow-sm hover:bg-slate-200 font-medium flex items-center gap-2">
           <span>📅</span> View Appointments Log
         </a>
+        {% if practice.owner_id == current_user.id %}
+        <a href="{{ url_for('practice_crm_bp.practice_settings') }}" class="bg-slate-100 text-slate-700 border border-slate-200 px-4 py-2 rounded shadow-sm hover:bg-slate-200 font-medium flex items-center gap-2">
+          <span>⚙️</span> Practice Settings
+        </a>
+        <a href="{{ url_for('practice_crm_bp.staff') }}" class="bg-slate-100 text-slate-700 border border-slate-200 px-4 py-2 rounded shadow-sm hover:bg-slate-200 font-medium flex items-center gap-2">
+          <span>👥</span> Manage Staff
+        </a>
+        {% endif %}
       </div>
 
       <!-- Flash messages inside tile -->
@@ -213,19 +222,20 @@
       <input type="hidden" name="practice_id" value="{{ practice.id }}">
       
       <div class="grid grid-cols-2 gap-4">
-        <div>
+        <div class="relative">
           <label class="block text-sm font-medium text-slate-700 mb-1">Patient Name *</label>
-          <input type="text" id="new-patient-name" name="patient_name" required class="w-full rounded border border-slate-300 focus:ring-emerald-500 focus:border-emerald-500 px-3 py-2">
+          <input type="text" id="new-patient-name" name="patient_name" autocomplete="off" required class="w-full rounded border border-slate-300 focus:ring-emerald-500 focus:border-emerald-500 px-3 py-2">
+          <ul id="patient-autocomplete-list" class="absolute z-10 w-full bg-white border border-slate-300 rounded shadow-lg hidden max-h-48 overflow-y-auto mt-1"></ul>
         </div>
         <div>
           <label class="block text-sm font-medium text-slate-700 mb-1">Phone Number *</label>
-          <input type="tel" name="phone" placeholder="e.g. 082 123 4567" required class="w-full rounded border border-slate-300 focus:ring-emerald-500 focus:border-emerald-500 px-3 py-2">
+          <input type="tel" id="new-phone" name="phone" placeholder="e.g. 082 123 4567" required class="w-full rounded border border-slate-300 focus:ring-emerald-500 focus:border-emerald-500 px-3 py-2">
         </div>
       </div>
       <div class="grid grid-cols-2 gap-4">
         <div>
           <label class="block text-sm font-medium text-slate-700 mb-1">ID Number</label>
-          <input type="text" name="patient_id_no" class="w-full rounded border border-slate-300 focus:ring-emerald-500 focus:border-emerald-500 px-3 py-2">
+          <input type="text" id="new-patient-id-no" name="patient_id_no" class="w-full rounded border border-slate-300 focus:ring-emerald-500 focus:border-emerald-500 px-3 py-2">
         </div>
         <div>
           <label class="block text-sm font-medium text-slate-700 mb-1">Medical Aid</label>
@@ -255,7 +265,7 @@
       </div>
       <div>
         <label class="block text-sm font-medium text-slate-700 mb-1">Membership Number</label>
-        <input type="text" name="medical_aid_no" placeholder="Leave blank if Cash/Private" class="w-full rounded border border-slate-300 focus:ring-emerald-500 focus:border-emerald-500 px-3 py-2">
+        <input type="text" id="new-medical-aid-no" name="medical_aid_no" placeholder="Leave blank if Cash/Private" class="w-full rounded border border-slate-300 focus:ring-emerald-500 focus:border-emerald-500 px-3 py-2">
       </div>
       <div>
         <label class="block text-sm font-medium text-slate-700 mb-1">Reason for Call</label>
@@ -411,6 +421,61 @@
 </div>
 
 <script>
+let patientDebounceTimer;
+const newPatientNameInput = document.getElementById('new-patient-name');
+const patientAutocompleteList = document.getElementById('patient-autocomplete-list');
+
+if (newPatientNameInput) {
+    newPatientNameInput.addEventListener('input', function() {
+        clearTimeout(patientDebounceTimer);
+        const query = this.value;
+        if (query.length < 2) {
+            patientAutocompleteList.classList.add('hidden');
+            return;
+        }
+        
+        patientDebounceTimer = setTimeout(() => {
+            fetch(`/practice-crm/api/patients/search?practice_id={{ practice.id }}&q=${encodeURIComponent(query)}`)
+                .then(res => res.json())
+                .then(data => {
+                    patientAutocompleteList.innerHTML = '';
+                    if (data.length > 0) {
+                        data.forEach(patient => {
+                            const li = document.createElement('li');
+                            li.className = 'px-4 py-2 hover:bg-emerald-50 cursor-pointer text-sm border-b border-slate-100 last:border-0';
+                            li.innerHTML = `<div class="font-medium text-slate-800">${patient.name}</div>
+                                            <div class="text-xs text-slate-500">${patient.id_no ? 'ID: ' + patient.id_no + ' | ' : ''}${patient.phone}</div>`;
+                            li.addEventListener('click', () => {
+                                newPatientNameInput.value = patient.name;
+                                document.getElementById('new-phone').value = patient.phone;
+                                document.getElementById('new-patient-id-no').value = patient.id_no;
+                                document.getElementById('medical-aid-input').value = patient.medical_aid;
+                                
+                                // trigger input event to populate plans datalist
+                                document.getElementById('medical-aid-input').dispatchEvent(new Event('input'));
+                                document.getElementById('medical-aid-plan-input').value = patient.medical_aid_plan;
+                                document.getElementById('new-medical-aid-no').value = patient.medical_aid_no;
+                                
+                                patientAutocompleteList.classList.add('hidden');
+                            });
+                            patientAutocompleteList.appendChild(li);
+                        });
+                        patientAutocompleteList.classList.remove('hidden');
+                    } else {
+                        patientAutocompleteList.classList.add('hidden');
+                    }
+                });
+        }, 300);
+    });
+
+    // Hide autocomplete when clicking outside
+    document.addEventListener('click', function(e) {
+        if (e.target !== newPatientNameInput) {
+            patientAutocompleteList.classList.add('hidden');
+        }
+    });
+}
+
 function openNewEnquiryModal() {
     document.getElementById('new-enquiry-modal').classList.remove('hidden');
     setTimeout(() => {

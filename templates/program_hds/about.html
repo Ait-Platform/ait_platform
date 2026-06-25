@@ -1,0 +1,39 @@
+{% extends "layout.html" %}
+{% block title %}Healthcare Data Switch | About{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-6xl py-10">
+  <div class="bg-white rounded-xl shadow overflow-hidden">
+    <div class="h-2 bg-fuchsia-600"></div>
+    <div class="p-8">
+      <div class="flex items-center justify-between mb-6">
+        <h1 class="text-2xl font-bold text-slate-900">Healthcare Data Switch</h1>
+        <a href="{{ url_for('public_bp.welcome') }}" class="text-sm font-medium text-slate-500 hover:text-slate-700 border border-slate-200 px-3 py-1.5 rounded-md hover:bg-slate-50 transition">Back</a>
+      </div>
+      
+      <div class="prose max-w-none mb-8 text-slate-700">
+        <p>The Healthcare Data Switch (HDS) is an integrated platform for medical practices and organizations to securely switch, manage, and track healthcare claims and data transactions.</p>
+        <p>Enrolling in this program gives your practice a dedicated pipeline for your data.</p>
+      </div>
+      
+      <div class="bg-slate-50 border border-slate-200 rounded-lg p-6 flex flex-col md:flex-row items-center justify-between">
+        <div>
+          <h3 class="text-lg font-semibold text-slate-800">Ready to start?</h3>
+          <p class="text-sm text-slate-600 mt-1">
+            <strong>R150 per month</strong> <span class="text-slate-500">(First 30 days free)</span><br>
+            Get full access to HDS for your entire organization.
+          </p>
+        </div>
+        <div class="mt-4 md:mt-0">
+          <form action="{{ url_for('hds_bp.start_trial') }}" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="inline-flex items-center rounded-lg px-6 py-3 text-sm font-semibold border border-transparent bg-fuchsia-600 text-white hover:bg-fuchsia-700 shadow-sm transition-colors">
+              Start 30-Day Free Trial
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

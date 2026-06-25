@@ -7,7 +7,8 @@
   'reading': 'bg-green-600',
   'loss':    'bg-purple-600',
   'billing': 'bg-orange-600',
-  'budget':  'bg-amber-500'
+  'budget':  'bg-amber-500',
+  'hds':     'bg-fuchsia-600'
 } %}
 
 <div class="mx-auto max-w-5xl py-10">
@@ -52,10 +53,14 @@
       {% elif is_enrolled %}
         {% if s.slug == 'cultural_fire' %}
           {% set primary_href = url_for('cultural_bp.cultural_fire_router') %}
+        {% elif s.slug == 'practice_crm' %}
+          {% set primary_href = url_for('practice_crm_bp.pipeline') %}
         {% elif s.slug == 'home' %}
           {% set primary_href = url_for('home_bp.learner_dashboard') %}
         {% elif s.slug == 'billing' %}
           {% set primary_href = url_for('billing_bp.learner_dashboard') %}
+        {% elif s.slug == 'hds' %}
+          {% set primary_href = url_for('hds_bp.dashboard') %}
         {% else %}
           {% set primary_href = url_for('auth_bp.learner_subject_dashboard', subject=s.slug) %}
         {% endif %}

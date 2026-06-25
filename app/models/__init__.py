@@ -22,3 +22,4 @@ from .loss import (
 
 from .adv_math import AdvMathProgress, AdvMathAssessment, AdvMathQuestion, AdvMathStep
 from .practice_crm import CrmPractice, CrmPracticeUser, CrmEnquiry, CrmAuditLog
+from .hds import HdsOrganization, HdsClaim

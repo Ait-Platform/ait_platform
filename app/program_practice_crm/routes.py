@@ -30,72 +30,7 @@ def migrate_db():
     except Exception as e:
         return f"Error: {str(e)}"
 
-@practice_crm_bp.route("/dashboard")
-@login_required
-def dashboard():
-    """Owner dashboard: metrics and exception reports"""
-    
-    from app.models.auth import UserEnrollment, AuthSubject
-    
-    # Check if the user is a receptionist by checking their enrollment
-    crm_subj = AuthSubject.query.filter_by(slug='practice_crm').first()
-    if crm_subj:
-        enr = UserEnrollment.query.filter_by(user_id=current_user.id, subject_id=crm_subj.id).first()
-        if enr and enr.status == 'receptionist':
-            # Receptionists do not get access to the exception report
-            # Check if they have a practice yet
-            pu = CrmPracticeUser.query.filter_by(user_id=current_user.id).first()
-            if not pu:
-                flash("Your Practice Owner has not added you to their staff list yet. Please ask them to add your email address.", "warning")
-                return redirect(url_for('public_bp.welcome'))
-            return redirect(url_for('practice_crm_bp.pipeline'))
 
-    # Find the practice for this owner
-    practice = CrmPractice.query.filter_by(owner_id=current_user.id).first()
-    if not practice:
-        # Create default practice if none exists
-        practice = CrmPractice(owner_id=current_user.id, name=f"{current_user.name or 'My'} Practice")
-        db.session.add(practice)
-        db.session.commit()
-    
-    # Exception Report Logic
-    today = datetime.utcnow().date()
-    yesterday = datetime.utcnow() - timedelta(days=1)
-    
-    enquiries = CrmEnquiry.query.filter_by(practice_id=practice.id).all()
-    
-    # Dashboard metrics (General Pipeline stats for owner)
-    open_enquiries = [e for e in enquiries if e.status not in ('Booked', 'Not Booked')]
-    
-    # EXCEPTIONS:
-    # 1. Enquiries with no follow-up after 24 hours (Stuck in New or Verification Pending)
-    no_followup_24h = [e for e in enquiries if e.status in ('New', 'Verification Pending') and e.updated_at < yesterday]
-    
-    # 2. Verified patients not booked
-    verified_not_booked = [e for e in enquiries if e.status in ('Verified', 'Appointment Offered')]
-    
-    # 3. Enquiries closed without booking
-    closed_no_booking = [e for e in enquiries if e.status == 'Not Booked']
-    
-    # 4. Receptionist activity report
-    from sqlalchemy import func
-    activity = db.session.query(
-        User.name,
-        func.count(CrmEnquiry.id).label('total_created'),
-        func.sum(db.case((CrmEnquiry.status == 'Booked', 1), else_=0)).label('total_booked')
-    ).join(CrmEnquiry, User.id == CrmEnquiry.created_by_id) \
-     .filter(CrmEnquiry.practice_id == practice.id) \
-     .group_by(User.name).all()
-    
-    return render_template(
-        "program_practice_crm/dashboard.html",
-        practice=practice,
-        open_count=len(open_enquiries),
-        no_followup_24h=no_followup_24h,
-        verified_not_booked=verified_not_booked,
-        closed_no_booking=closed_no_booking,
-        activity=activity
-    )
 
 @practice_crm_bp.route("/settings", methods=["GET", "POST"])
 @login_required
@@ -104,7 +39,7 @@ def practice_settings():
     practice = CrmPractice.query.filter_by(owner_id=current_user.id).first()
     if not practice:
         flash("Please visit the dashboard first to initialize your practice.", "warning")
-        return redirect(url_for('practice_crm_bp.dashboard'))
+        return redirect(url_for('practice_crm_bp.pipeline'))
         
     if request.method == "POST":
         practice.name = request.form.get("name", "").strip()
@@ -128,7 +63,7 @@ def staff():
     practice = CrmPractice.query.filter_by(owner_id=current_user.id).first()
     if not practice:
         flash("Please visit the dashboard first to initialize your practice.", "warning")
-        return redirect(url_for('practice_crm_bp.dashboard'))
+        return redirect(url_for('practice_crm_bp.pipeline'))
         
     if request.method == "POST":
         email = request.form.get('email', '').strip()
@@ -169,7 +104,7 @@ def staff_edit(pu_id):
     practice = CrmPractice.query.filter_by(owner_id=current_user.id).first()
     if not practice:
         flash("Unauthorized.", "error")
-        return redirect(url_for('practice_crm_bp.dashboard'))
+        return redirect(url_for('practice_crm_bp.pipeline'))
         
     pu = CrmPracticeUser.query.filter_by(id=pu_id, practice_id=practice.id).first()
     if not pu:
@@ -192,7 +127,7 @@ def staff_toggle_status(pu_id):
     practice = CrmPractice.query.filter_by(owner_id=current_user.id).first()
     if not practice:
         flash("Unauthorized.", "error")
-        return redirect(url_for('practice_crm_bp.dashboard'))
+        return redirect(url_for('practice_crm_bp.pipeline'))
         
     pu = CrmPracticeUser.query.filter_by(id=pu_id, practice_id=practice.id).first()
     if not pu:
@@ -237,7 +172,12 @@ def pipeline():
             return redirect(url_for('public_bp.welcome'))
     else:
         practice = CrmPractice.query.filter_by(owner_id=current_user.id).first()
-        
+        if not practice:
+            # Create default practice if none exists for a new owner
+            practice = CrmPractice(owner_id=current_user.id, name=f"{current_user.name or 'My'} Practice")
+            db.session.add(practice)
+            db.session.commit()
+            
     if not practice:
         flash("You are not assigned to any practice.", "error")
         return redirect(url_for('public_bp.welcome'))
@@ -297,6 +237,51 @@ def appointments_log():
                            is_receptionist=is_receptionist)
 
 
+
+@practice_crm_bp.route("/api/patients/search")
+@login_required
+def search_patients():
+    from flask import jsonify
+    practice_id = request.args.get('practice_id')
+    query = request.args.get('q', '').strip()
+    
+    if not practice_id or not query:
+        return jsonify([])
+        
+    # Ensure current user has access to this practice
+    has_access = False
+    pu = CrmPracticeUser.query.filter_by(user_id=current_user.id, practice_id=practice_id).first()
+    if pu and pu.status == 'active':
+        has_access = True
+    else:
+        practice = CrmPractice.query.filter_by(id=practice_id, owner_id=current_user.id).first()
+        if practice:
+            has_access = True
+            
+    if not has_access:
+        return jsonify([])
+        
+    enquiries = CrmEnquiry.query.filter_by(practice_id=practice_id)\
+        .filter((CrmEnquiry.patient_name.ilike(f'%{query}%')) | (CrmEnquiry.patient_id_no.ilike(f'%{query}%')))\
+        .order_by(CrmEnquiry.created_at.desc())\
+        .limit(20).all()
+        
+    results = []
+    seen = set()
+    for e in enquiries:
+        key = e.patient_name.lower().strip()
+        if key not in seen:
+            seen.add(key)
+            results.append({
+                'name': e.patient_name,
+                'id_no': e.patient_id_no or '',
+                'phone': e.phone or '',
+                'medical_aid': e.medical_aid or '',
+                'medical_aid_plan': e.medical_aid_plan or '',
+                'medical_aid_no': e.medical_aid_no or ''
+            })
+            
+    return jsonify(results)
 
 @practice_crm_bp.route("/enquiry/new", methods=["POST"])
 @login_required

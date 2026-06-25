@@ -459,6 +459,7 @@ def create_app():
     from app.program_spv.routes import spv_bp
     from app.program_adv_math.routes import adv_math_bp
     from app.program_practice_crm.routes import practice_crm_bp
+    from app.program_hds.routes import hds_bp
 
     #app.logger.warning("registered checkout_bp at /checkout")
 
@@ -490,6 +491,7 @@ def create_app():
     app.register_blueprint(spv_bp)
     app.register_blueprint(adv_math_bp)
     app.register_blueprint(practice_crm_bp, url_prefix="/practice-crm")
+    app.register_blueprint(hds_bp, url_prefix="/hds")
 
     #csrf.exempt(checkout_bp)  # keeps webhook/start happy
     # Exempt the Yoco webhook route

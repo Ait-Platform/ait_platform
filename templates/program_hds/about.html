@@ -25,12 +25,12 @@
           </p>
         </div>
         <div class="mt-4 md:mt-0">
-          <form action="{{ url_for('hds_bp.start_trial') }}" method="POST">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" class="inline-flex items-center rounded-lg px-6 py-3 text-sm font-semibold border border-transparent bg-fuchsia-600 text-white hover:bg-fuchsia-700 shadow-sm transition-colors">
+          
+            
+            <a href="{{ url_for('public_bp.coming_soon', subject_slug='hds') }}" class="inline-flex items-center rounded-lg px-6 py-3 text-sm font-semibold border border-transparent bg-fuchsia-600 text-white hover:bg-fuchsia-700 shadow-sm transition-colors">
               Start 30-Day Free Trial
-            </button>
-          </form>
+            </a>
+          
         </div>
       </div>
     </div>

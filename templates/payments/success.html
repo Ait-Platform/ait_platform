@@ -24,7 +24,9 @@
     {% if current_user.is_authenticated %}
       {% if subject == 'cfi_judge' %}
         {% set target_url = url_for('cultural_bp.judge_dashboard') %}
-      {% elif subject in ['spv_registration', 'spv_investment'] %}
+      {% elif subject == 'spv_investment' %}
+        {% set target_url = url_for('spv_bp.spv_ledger') %}
+      {% elif subject == 'spv_registration' %}
         {% set target_url = url_for('spv_bp.investor_dashboard') %}
       {% else %}
         {% set target_url = url_for('auth_bp.bridge_dashboard') %}
@@ -39,7 +41,9 @@
         }, 2000);
       </script>
     {% else %}
-      {% if subject in ['spv_registration', 'spv_investment'] %}
+      {% if subject == 'spv_investment' %}
+        {% set login_target = url_for('spv_bp.spv_ledger') %}
+      {% elif subject == 'spv_registration' %}
         {% set login_target = url_for('spv_bp.investor_dashboard') %}
       {% else %}
         {% set login_target = url_for('auth_bp.bridge_dashboard') %}

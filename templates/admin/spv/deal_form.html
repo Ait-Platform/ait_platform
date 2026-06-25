@@ -1,0 +1,121 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-8">
+
+    <!-- Header -->
+    <div class="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden mb-8">
+
+        <div class="h-2 bg-emerald-600"></div>
+
+        <div class="p-8 flex items-start justify-between">
+
+            <div>
+
+                <p class="text-sm font-semibold text-emerald-600 mb-2">
+                    SPV Administration
+                </p>
+
+                <h1 class="text-4xl font-bold text-slate-900">
+                    New Deal
+                </h1>
+
+                <p class="text-slate-600 mt-3">
+                    Create a new SPV deal for investment.
+                </p>
+
+            </div>
+
+            <a href="{{ url_for('spv_admin_bp.spv_dashboard') }}"
+               class="text-sm font-medium text-slate-600 hover:text-slate-900">
+
+                ← Back
+
+            </a>
+
+        </div>
+
+    </div>
+
+    <!-- Form -->
+    <div class="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
+
+        <div class="h-2 bg-emerald-600"></div>
+
+        <form method="POST" class="p-8 space-y-8">
+
+            {{ form.hidden_tag() }}
+
+            <!-- Errors -->
+            {% for field, errors in form.errors.items() %}
+                {% for error in errors %}
+                    <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-2xl text-sm">
+                        {{ error }}
+                    </div>
+                {% endfor %}
+            {% endfor %}
+
+            <!-- Title -->
+            <div class="space-y-2">
+
+                <label class="text-sm font-semibold text-slate-700">
+                    Deal Title
+                </label>
+
+                {{ form.title(
+                    autofocus=True,
+                    class="w-full rounded-2xl border-2 border-slate-400 px-4 py-3 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500",
+                    placeholder="Example: Dale Housing Redevelopment"
+                ) }}
+
+            </div>
+
+            <!-- Summary -->
+            <div class="space-y-2">
+
+                <label class="text-sm font-semibold text-slate-700">
+                    Summary
+                </label>
+
+                {{ form.summary(
+                    class="w-full rounded-2xl border-2 border-slate-400 px-4 py-3 min-h-[150px] focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500",
+                    placeholder="Brief description of the deal..."
+                ) }}
+
+            </div>
+
+            <!-- Status -->
+            <div class="space-y-2">
+
+                <label class="text-sm font-semibold text-slate-700">
+                    Status
+                </label>
+
+                {{ form.status(
+                    class="w-full rounded-2xl border-2 border-slate-400 px-4 py-3 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                ) }}
+
+            </div>
+
+            <!-- Actions -->
+            <div class="flex items-center justify-end gap-4 pt-4">
+
+                <a href="{{ url_for('spv_admin_bp.spv_dashboard') }}"
+                   class="px-5 py-3 rounded-2xl border-2 border-slate-300 text-slate-700 hover:bg-slate-50 transition font-bold">
+
+                    Cancel
+
+                </a>
+
+                {{ form.submit(
+                    class="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-2xl font-bold transition shadow-sm cursor-pointer"
+                ) }}
+
+            </div>
+
+        </form>
+
+    </div>
+
+</div>
+{% endblock %}

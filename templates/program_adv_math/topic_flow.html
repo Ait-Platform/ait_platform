@@ -74,51 +74,44 @@
         <!-- Row 3: Horizontal Toolbox Buttons (Dynamic based on question.available_tools) -->
         <div class="flex flex-wrap items-center justify-center gap-3 mb-8">
             {% if 'deconstruct' in question.available_tools %}
-            <button type="button" onclick="document.getElementById('deconstruct-modal').classList.remove('hidden')" class="w-[120px] bg-red-50 text-red-800 p-3 rounded-xl border border-red-100 shadow-sm hover:bg-red-100 hover:border-red-200 text-center font-medium flex flex-col items-center justify-center gap-2 transition group text-sm animate-pulse">
-                <span class="bg-red-200 text-red-800 w-8 h-8 rounded-lg flex items-center justify-center shadow-sm text-lg group-hover:scale-110 transition-transform">🔍</span> 
-                <span>Deconstruct</span>
+            <button type="button" onclick="document.getElementById('deconstruct-modal').classList.remove('hidden')" class="bg-red-50 text-red-800 px-4 py-2 rounded-xl border border-red-100 shadow-sm hover:bg-red-100 hover:border-red-200 font-medium transition text-sm animate-pulse whitespace-nowrap">
+                Deconstruct
             </button>
             {% endif %}
 
             {% if 'definitions' in question.available_tools %}
-            <button type="button" onclick="document.getElementById('definitions-modal').classList.remove('hidden')" class="w-[120px] bg-indigo-50 text-indigo-800 p-3 rounded-xl border border-indigo-100 shadow-sm hover:bg-indigo-100 hover:border-indigo-200 text-center font-medium flex flex-col items-center justify-center gap-2 transition group text-sm">
-                <span class="bg-indigo-200 text-indigo-800 w-8 h-8 rounded-lg flex items-center justify-center shadow-sm text-lg group-hover:scale-110 transition-transform">📚</span> 
-                <span>Definitions</span>
+            <button type="button" onclick="document.getElementById('definitions-modal').classList.remove('hidden')" class="bg-indigo-50 text-indigo-800 px-4 py-2 rounded-xl border border-indigo-100 shadow-sm hover:bg-indigo-100 hover:border-indigo-200 font-medium transition text-sm whitespace-nowrap">
+                Definitions
             </button>
             {% endif %}
             
             {% if 'formulas' in question.available_tools %}
-            <button type="button" onclick="document.getElementById('formulas-modal').classList.remove('hidden')" class="w-[120px] bg-emerald-50 text-emerald-800 p-3 rounded-xl border border-emerald-100 shadow-sm hover:bg-emerald-100 hover:border-emerald-200 text-center font-medium flex flex-col items-center justify-center gap-2 transition group text-sm">
-                <span class="bg-emerald-200 text-emerald-800 w-8 h-8 rounded-lg flex items-center justify-center shadow-sm text-lg group-hover:scale-110 transition-transform">📐</span> 
-                <span>Formulas</span>
+            <button type="button" onclick="document.getElementById('formulas-modal').classList.remove('hidden')" class="bg-emerald-50 text-emerald-800 px-4 py-2 rounded-xl border border-emerald-100 shadow-sm hover:bg-emerald-100 hover:border-emerald-200 font-medium transition text-sm whitespace-nowrap">
+                Formulas
             </button>
             {% endif %}
 
             {% if 'rules' in question.available_tools %}
-            <button type="button" onclick="document.getElementById('rules-modal').classList.remove('hidden')" class="w-[120px] bg-rose-50 text-rose-800 p-3 rounded-xl border border-rose-100 shadow-sm hover:bg-rose-100 hover:border-rose-200 text-center font-medium flex flex-col items-center justify-center gap-2 transition group text-sm">
-                <span class="bg-rose-200 text-rose-800 w-8 h-8 rounded-lg flex items-center justify-center shadow-sm text-lg group-hover:scale-110 transition-transform">⚖️</span> 
-                <span>Rules</span>
+            <button type="button" onclick="document.getElementById('rules-modal').classList.remove('hidden')" class="bg-rose-50 text-rose-800 px-4 py-2 rounded-xl border border-rose-100 shadow-sm hover:bg-rose-100 hover:border-rose-200 font-medium transition text-sm whitespace-nowrap">
+                Rules
             </button>
             {% endif %}
             
             {% if 'tools' in question.available_tools %}
-            <button type="button" onclick="document.getElementById('tools-modal').classList.remove('hidden')" class="w-[120px] bg-amber-50 text-amber-800 p-3 rounded-xl border border-amber-100 shadow-sm hover:bg-amber-100 hover:border-amber-200 text-center font-medium flex flex-col items-center justify-center gap-2 transition group text-sm">
-                <span class="bg-amber-200 text-amber-800 w-8 h-8 rounded-lg flex items-center justify-center shadow-sm text-lg group-hover:scale-110 transition-transform">🔨</span> 
-                <span>Math Tools</span>
+            <button type="button" onclick="document.getElementById('tools-modal').classList.remove('hidden')" class="bg-amber-50 text-amber-800 px-4 py-2 rounded-xl border border-amber-100 shadow-sm hover:bg-amber-100 hover:border-amber-200 font-medium transition text-sm whitespace-nowrap">
+                Math Tools
             </button>
             {% endif %}
 
             {% if 'strategy' in question.available_tools %}
-            <button type="button" onclick="document.getElementById('strategy-modal').classList.remove('hidden')" class="w-[120px] bg-cyan-50 text-cyan-800 p-3 rounded-xl border border-cyan-100 shadow-sm hover:bg-cyan-100 hover:border-cyan-200 text-center font-medium flex flex-col items-center justify-center gap-2 transition group text-sm">
-                <span class="bg-cyan-200 text-cyan-800 w-8 h-8 rounded-lg flex items-center justify-center shadow-sm text-lg group-hover:scale-110 transition-transform">🧠</span> 
-                <span>Strategy</span>
+            <button type="button" onclick="document.getElementById('strategy-modal').classList.remove('hidden')" class="bg-cyan-50 text-cyan-800 px-4 py-2 rounded-xl border border-cyan-100 shadow-sm hover:bg-cyan-100 hover:border-cyan-200 font-medium transition text-sm whitespace-nowrap">
+                Strategy
             </button>
             {% endif %}
             
             {% if 'steps' in question.available_tools %}
-            <button type="button" onclick="document.getElementById('steps-modal').classList.remove('hidden')" class="w-[120px] bg-fuchsia-50 text-fuchsia-800 p-3 rounded-xl border border-fuchsia-100 shadow-sm hover:bg-fuchsia-100 hover:border-fuchsia-200 text-center font-medium flex flex-col items-center justify-center gap-2 transition group text-sm">
-                <span class="bg-fuchsia-200 text-fuchsia-800 w-8 h-8 rounded-lg flex items-center justify-center shadow-sm text-lg group-hover:scale-110 transition-transform">🪜</span> 
-                <span>Steps</span>
+            <button type="button" onclick="document.getElementById('steps-modal').classList.remove('hidden')" class="bg-fuchsia-50 text-fuchsia-800 px-4 py-2 rounded-xl border border-fuchsia-100 shadow-sm hover:bg-fuchsia-100 hover:border-fuchsia-200 font-medium transition text-sm whitespace-nowrap">
+                Steps
             </button>
             {% endif %}
         </div>
@@ -130,8 +123,17 @@
                 {% if question.marks %}
                 <span class="bg-indigo-100 text-indigo-800 text-sm font-bold px-3 py-1 rounded-md shadow-sm border border-indigo-200">[{{ question.marks }} marks]</span>
                 {% endif %}
+            <div class="overflow-auto w-full max-h-[60vh] bg-white rounded-lg border border-slate-200 p-4 custom-q-container shadow-inner">
+                <div class="text-slate-800 whitespace-pre-wrap text-lg">{{ question.text|safe }}</div>
             </div>
-            <p class="text-slate-800 whitespace-pre-wrap text-lg">{{ question.text }}</p>
+            <style>
+                .custom-q-container img {
+                    max-width: none !important;
+                    min-width: 140% !important;
+                    height: auto;
+                    display: block;
+                }
+            </style>
         </div>
 
         <!-- Row 5: Interactive Working Space -->
@@ -281,15 +283,73 @@
                                   {% endfor %}
                               </div>
                               <div class="mt-4">
+                                  <div class="flex flex-wrap gap-2 mb-2 p-2 bg-slate-50 border border-slate-200 rounded-lg">
+                                      <button type="button" onclick="insertSymbol('√')" class="px-2 py-1 bg-white border border-slate-300 rounded shadow-sm hover:bg-slate-100 text-sm font-medium">√</button>
+                                      <button type="button" onclick="insertSymbol('²')" class="px-2 py-1 bg-white border border-slate-300 rounded shadow-sm hover:bg-slate-100 text-sm font-medium">x²</button>
+                                      <button type="button" onclick="insertSymbol('³')" class="px-2 py-1 bg-white border border-slate-300 rounded shadow-sm hover:bg-slate-100 text-sm font-medium">x³</button>
+                                      <button type="button" onclick="insertSymbol('π')" class="px-2 py-1 bg-white border border-slate-300 rounded shadow-sm hover:bg-slate-100 text-sm font-medium">π</button>
+                                      <button type="button" onclick="insertSymbol('θ')" class="px-2 py-1 bg-white border border-slate-300 rounded shadow-sm hover:bg-slate-100 text-sm font-medium">θ</button>
+                                      <button type="button" onclick="insertSymbol('±')" class="px-2 py-1 bg-white border border-slate-300 rounded shadow-sm hover:bg-slate-100 text-sm font-medium">±</button>
+                                      <button type="button" onclick="insertSymbol('∞')" class="px-2 py-1 bg-white border border-slate-300 rounded shadow-sm hover:bg-slate-100 text-sm font-medium">∞</button>
+                                      <button type="button" onclick="insertSymbol('≠')" class="px-2 py-1 bg-white border border-slate-300 rounded shadow-sm hover:bg-slate-100 text-sm font-medium">≠</button>
+                                      <button type="button" onclick="insertSymbol('≤')" class="px-2 py-1 bg-white border border-slate-300 rounded shadow-sm hover:bg-slate-100 text-sm font-medium">≤</button>
+                                      <button type="button" onclick="insertSymbol('≥')" class="px-2 py-1 bg-white border border-slate-300 rounded shadow-sm hover:bg-slate-100 text-sm font-medium">≥</button>
+                                      <button type="button" onclick="insertSymbol('°')" class="px-2 py-1 bg-white border border-slate-300 rounded shadow-sm hover:bg-slate-100 text-sm font-medium">°</button>
+                                  </div>
                                   <textarea id="tutor-input" rows="2" placeholder="Type your first step to unlock the options..." class="w-full rounded-lg border-slate-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500 p-3 text-sm"></textarea>
-                                  <p class="text-xs text-slate-500 mt-2">💡 <b>Math Tip:</b> Use <code>^</code> for powers (e.g. 2^2) and <code>/</code> for fractions (e.g. 1/2).</p>
+                                  <p class="text-xs text-slate-500 mt-2">💡 <b>Math Tip:</b> Use the symbol buttons above to quickly insert special characters like powers, roots, and greek letters.</p>
                               </div>
                           {% else %}
-                              <label class="block">
-                                  <span class="text-slate-700 font-medium mb-2 block">Your Answer / Working:</span>
-                                  <textarea name="answer" id="tutor-input" rows="5" required placeholder="Type your step-by-step working here. Ask for a hint at any time!" class="w-full rounded-lg border-slate-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500 p-3"></textarea>
-                                  <p class="text-xs text-slate-500 mt-2">💡 <b>Math Tip:</b> Use <code>^</code> for powers (e.g. r^n), <code>_</code> for subscripts (e.g. T_n), and <code>/</code> for fractions (e.g. 1/2).</p>
-                              </label>
+                              <div class="block">
+                                  <div class="flex items-center justify-between mb-2">
+                                      <span class="text-slate-700 font-medium">Your Answer / Working:</span>
+                                      <div class="bg-slate-100 p-1 rounded-lg flex items-center shadow-sm border border-slate-200">
+                                          <button type="button" id="toggle-keyboard" class="px-3 py-1 text-sm font-medium rounded-md bg-white text-slate-800 shadow-sm transition">Keyboard</button>
+                                          <button type="button" id="toggle-scratchpad" class="px-3 py-1 text-sm font-medium rounded-md text-slate-500 hover:text-slate-800 transition">Scratchpad</button>
+                                      </div>
+                                  </div>
+                                  
+                                  <!-- Keyboard Input -->
+                                  <div id="keyboard-container" class="transition-all duration-300">
+                                      <div class="flex flex-wrap gap-2 mb-2 p-2 bg-slate-50 border border-slate-200 rounded-lg">
+                                          <button type="button" onclick="insertSymbol('√')" class="px-2 py-1 bg-white border border-slate-300 rounded shadow-sm hover:bg-slate-100 text-sm font-medium">√</button>
+                                          <button type="button" onclick="insertSymbol('²')" class="px-2 py-1 bg-white border border-slate-300 rounded shadow-sm hover:bg-slate-100 text-sm font-medium">x²</button>
+                                          <button type="button" onclick="insertSymbol('³')" class="px-2 py-1 bg-white border border-slate-300 rounded shadow-sm hover:bg-slate-100 text-sm font-medium">x³</button>
+                                          <button type="button" onclick="insertSymbol('π')" class="px-2 py-1 bg-white border border-slate-300 rounded shadow-sm hover:bg-slate-100 text-sm font-medium">π</button>
+                                          <button type="button" onclick="insertSymbol('θ')" class="px-2 py-1 bg-white border border-slate-300 rounded shadow-sm hover:bg-slate-100 text-sm font-medium">θ</button>
+                                          <button type="button" onclick="insertSymbol('±')" class="px-2 py-1 bg-white border border-slate-300 rounded shadow-sm hover:bg-slate-100 text-sm font-medium">±</button>
+                                          <button type="button" onclick="insertSymbol('∞')" class="px-2 py-1 bg-white border border-slate-300 rounded shadow-sm hover:bg-slate-100 text-sm font-medium">∞</button>
+                                          <button type="button" onclick="insertSymbol('≠')" class="px-2 py-1 bg-white border border-slate-300 rounded shadow-sm hover:bg-slate-100 text-sm font-medium">≠</button>
+                                          <button type="button" onclick="insertSymbol('≤')" class="px-2 py-1 bg-white border border-slate-300 rounded shadow-sm hover:bg-slate-100 text-sm font-medium">≤</button>
+                                          <button type="button" onclick="insertSymbol('≥')" class="px-2 py-1 bg-white border border-slate-300 rounded shadow-sm hover:bg-slate-100 text-sm font-medium">≥</button>
+                                          <button type="button" onclick="insertSymbol('°')" class="px-2 py-1 bg-white border border-slate-300 rounded shadow-sm hover:bg-slate-100 text-sm font-medium">°</button>
+                                      </div>
+                                      <textarea name="answer" id="tutor-input" rows="5" placeholder="Type your step-by-step working here. Ask for a hint at any time!" class="w-full rounded-lg border-slate-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500 p-3"></textarea>
+                                      <p class="text-xs text-slate-500 mt-2">💡 <b>Math Tip:</b> Use the symbol buttons above to quickly insert special characters like powers, roots, and greek letters.</p>
+                                  </div>
+
+                                  <!-- Scratchpad Canvas -->
+                                  <div id="scratchpad-container" class="hidden transition-all duration-300">
+                                      <div class="border-2 border-slate-300 rounded-lg overflow-hidden bg-white shadow-sm relative">
+                                          <!-- Canvas Toolbar -->
+                                          <div class="bg-slate-50 border-b border-slate-200 p-2 flex items-center justify-between">
+                                              <div class="flex items-center gap-2">
+                                                  <button type="button" id="tool-pen" class="p-2 rounded bg-cyan-100 text-cyan-800 shadow-sm transition" title="Pen Tool">
+                                                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                                                  </button>
+                                                  <button type="button" id="tool-eraser" class="p-2 rounded hover:bg-slate-200 text-slate-600 transition" title="Eraser Tool">
+                                                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                                  </button>
+                                              </div>
+                                              <button type="button" id="btn-clear-canvas" class="text-xs font-medium text-red-600 hover:text-red-800 px-3 py-1 rounded hover:bg-red-50 transition">
+                                                  Clear All
+                                              </button>
+                                          </div>
+                                          <canvas id="mathCanvas" class="w-full h-[250px] cursor-crosshair touch-none"></canvas>
+                                      </div>
+                                      <p class="text-xs text-slate-500 mt-2">🖋️ <b>Scratchpad:</b> Draw your math step clearly and ask the AI for a hint to check it!</p>
+                                  </div>
+                              </div>
                           {% endif %}
                       </div>
 
@@ -713,9 +773,180 @@
           document.getElementById('slide-' + currentSlide).classList.replace('opacity-0', 'opacity-100');
           document.getElementById('slide-' + currentSlide).classList.remove('pointer-events-none');
           document.querySelectorAll('.slide-dot')[currentSlide-1].classList.replace('bg-slate-600', 'bg-white');
-          
-          // Trigger MathJax on new slide if needed
+// Trigger MathJax on new slide if needed
           MathJax.typesetPromise();
+      }
+
+      document.addEventListener("DOMContentLoaded", function() {
+          if (typeof MathJax !== "undefined") {
+              MathJax.typesetPromise();
+          }
+          
+          // --- SCRATCHPAD LOGIC ---
+          const btnKeyboard = document.getElementById('toggle-keyboard');
+          const btnScratchpad = document.getElementById('toggle-scratchpad');
+          const containerKeyboard = document.getElementById('keyboard-container');
+          const containerScratchpad = document.getElementById('scratchpad-container');
+          const tutorInput = document.getElementById('tutor-input');
+          
+          if(btnKeyboard && btnScratchpad) {
+              btnKeyboard.addEventListener('click', () => {
+                  btnKeyboard.className = "px-3 py-1 text-sm font-medium rounded-md bg-white text-slate-800 shadow-sm transition";
+                  btnScratchpad.className = "px-3 py-1 text-sm font-medium rounded-md text-slate-500 hover:text-slate-800 transition";
+                  containerKeyboard.classList.remove('hidden');
+                  containerScratchpad.classList.add('hidden');
+                  tutorInput.setAttribute('required', 'true');
+              });
+              
+              btnScratchpad.addEventListener('click', () => {
+                  btnScratchpad.className = "px-3 py-1 text-sm font-medium rounded-md bg-white text-slate-800 shadow-sm transition";
+                  btnKeyboard.className = "px-3 py-1 text-sm font-medium rounded-md text-slate-500 hover:text-slate-800 transition";
+                  containerScratchpad.classList.remove('hidden');
+                  containerKeyboard.classList.add('hidden');
+                  tutorInput.removeAttribute('required');
+                  resizeCanvas(); // Ensure canvas fits container when revealed
+              });
+          }
+
+          // Canvas Drawing Implementation
+          const canvas = document.getElementById('mathCanvas');
+          if(canvas) {
+              const ctx = canvas.getContext('2d', { willReadFrequently: true });
+              let isDrawing = false;
+              let isEraser = false;
+              let lastX = 0;
+              let lastY = 0;
+              
+              // Initialize canvas background to white (required for jpeg extraction)
+              function initCanvasBg() {
+                  ctx.fillStyle = '#ffffff';
+                  ctx.fillRect(0, 0, canvas.width, canvas.height);
+              }
+
+              // Fit canvas to screen natively
+              function resizeCanvas() {
+                  const rect = canvas.parentElement.getBoundingClientRect();
+                  if(canvas.width !== rect.width) {
+                      // Save drawing
+                      const tempCanvas = document.createElement('canvas');
+                      const tCtx = tempCanvas.getContext('2d');
+                      tempCanvas.width = canvas.width;
+                      tempCanvas.height = canvas.height;
+                      tCtx.drawImage(canvas, 0, 0);
+                      
+                      // Resize
+                      canvas.width = rect.width;
+                      canvas.height = 250; // Fixed height
+                      
+                      initCanvasBg();
+                      
+                      // Restore
+                      if(tempCanvas.width > 0) {
+                          ctx.drawImage(tempCanvas, 0, 0);
+                      }
+                  }
+              }
+              
+              // Only call on load, then wait for reveal
+              setTimeout(() => {
+                  const rect = canvas.parentElement.getBoundingClientRect();
+                  canvas.width = rect.width || 500;
+                  canvas.height = 250;
+                  initCanvasBg();
+              }, 100);
+
+              function getPos(e) {
+                  const rect = canvas.getBoundingClientRect();
+                  let x, y;
+                  if (e.touches && e.touches.length > 0) {
+                      x = e.touches[0].clientX - rect.left;
+                      y = e.touches[0].clientY - rect.top;
+                  } else {
+                      x = e.clientX - rect.left;
+                      y = e.clientY - rect.top;
+                  }
+                  return [x, y];
+              }
+
+              function startDrawing(e) {
+                  e.preventDefault();
+                  isDrawing = true;
+                  [lastX, lastY] = getPos(e);
+              }
+
+              function draw(e) {
+                  if (!isDrawing) return;
+                  e.preventDefault();
+                  const [currentX, currentY] = getPos(e);
+                  
+                  ctx.beginPath();
+                  ctx.moveTo(lastX, lastY);
+                  ctx.lineTo(currentX, currentY);
+                  
+                  if (isEraser) {
+                      ctx.strokeStyle = '#ffffff'; // Erase by drawing white over it
+                      ctx.lineWidth = 15;
+                      ctx.lineCap = 'round';
+                      ctx.lineJoin = 'round';
+                  } else {
+                      ctx.strokeStyle = '#0f172a'; // Slate-900
+                      ctx.lineWidth = 3;
+                      ctx.lineCap = 'round';
+                      ctx.lineJoin = 'round';
+                  }
+                  
+                  ctx.stroke();
+                  ctx.closePath();
+                  
+                  [lastX, lastY] = [currentX, currentY];
+              }
+
+              function stopDrawing() {
+                  isDrawing = false;
+              }
+
+              // Event listeners
+              canvas.addEventListener('mousedown', startDrawing);
+              canvas.addEventListener('mousemove', draw);
+              canvas.addEventListener('mouseup', stopDrawing);
+              canvas.addEventListener('mouseout', stopDrawing);
+              
+              canvas.addEventListener('touchstart', startDrawing, {passive: false});
+              canvas.addEventListener('touchmove', draw, {passive: false});
+              canvas.addEventListener('touchend', stopDrawing);
+              canvas.addEventListener('touchcancel', stopDrawing);
+
+              // Tools
+              const btnPen = document.getElementById('tool-pen');
+              const btnEraser = document.getElementById('tool-eraser');
+              
+              btnPen.addEventListener('click', () => {
+                  isEraser = false;
+                  btnPen.className = "p-2 rounded bg-cyan-100 text-cyan-800 shadow-sm transition";
+                  btnEraser.className = "p-2 rounded hover:bg-slate-200 text-slate-600 transition";
+              });
+              
+              btnEraser.addEventListener('click', () => {
+                  isEraser = true;
+                  btnEraser.className = "p-2 rounded bg-slate-200 text-slate-800 shadow-sm transition";
+                  btnPen.className = "p-2 rounded hover:bg-cyan-100 text-slate-600 transition";
+              });
+              
+              document.getElementById('btn-clear-canvas').addEventListener('click', () => {
+                  initCanvasBg();
+              });
+          }
+      });
+
+      function insertSymbol(sym) {
+          const input = document.getElementById('tutor-input');
+          if (!input) return;
+          const start = input.selectionStart;
+          const end = input.selectionEnd;
+          const text = input.value;
+          input.value = text.substring(0, start) + sym + text.substring(end);
+          input.selectionStart = input.selectionEnd = start + sym.length;
+          input.focus();
       }
 
       document.addEventListener('DOMContentLoaded', function() {
@@ -966,21 +1197,46 @@
           }
 
           btnHint.addEventListener('click', async function() {
-              const step = tutorInput.value.trim();
-              if (!step) {
-                  alert("Please type a step or your thinking first before asking for a hint!");
-                  return;
+              let step = tutorInput.value.trim();
+              let imageData = null;
+
+              // Check if scratchpad is active
+              const isScratchpad = !document.getElementById('scratchpad-container').classList.contains('hidden');
+              
+              if (isScratchpad) {
+                  const canvas = document.getElementById('mathCanvas');
+                  // Check if canvas is actually drawn on (not purely blank)
+                  // For MVP, we will just grab the data URL. 
+                  imageData = canvas.toDataURL('image/jpeg', 0.8);
+                  step = "Please review my handwritten working.";
+              } else {
+                  if (!step) {
+                      alert("Please type a step or your thinking first before asking for a hint!");
+                      return;
+                  }
               }
 
               // Append Student Message
               chatHistory.classList.remove('hidden');
-              chatHistory.innerHTML += `
-                  <div class="flex justify-end">
-                      <div class="bg-blue-50 border border-blue-100 text-slate-800 p-3 rounded-lg rounded-tr-none max-w-[80%] text-sm">
-                          \\( ${step} \\)
+              
+              if (isScratchpad && imageData) {
+                  chatHistory.innerHTML += `
+                      <div class="flex justify-end">
+                          <div class="bg-blue-50 border border-blue-100 text-slate-800 p-3 rounded-lg rounded-tr-none max-w-[80%] text-sm">
+                              <img src="${imageData}" class="w-full rounded bg-white border border-slate-200 mb-2">
+                              <span class="italic text-slate-500 text-xs">Handwritten working submitted</span>
+                          </div>
                       </div>
-                  </div>
-              `;
+                  `;
+              } else {
+                  chatHistory.innerHTML += `
+                      <div class="flex justify-end">
+                          <div class="bg-blue-50 border border-blue-100 text-slate-800 p-3 rounded-lg rounded-tr-none max-w-[80%] text-sm">
+                              \\( ${step} \\)
+                          </div>
+                      </div>
+                  `;
+              }
               
               // Trigger MathJax
               MathJax.typesetPromise();
@@ -997,7 +1253,7 @@
                           'Content-Type': 'application/json',
                           'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
                       },
-                      body: JSON.stringify({ step: step })
+                      body: JSON.stringify({ step: step, image_data: imageData })
                   });
                   
                   const data = await response.json();

@@ -200,6 +200,30 @@ class HomeProgress(db.Model):
     __table_args__ = (
         db.UniqueConstraint('user_id', 'chapter_number', name='_user_home_chapter_uc'),
     )
+class HomeTeacherLink(db.Model):
+    __tablename__ = "home_teacher_links"
+    id = db.Column(db.Integer, primary_key=True)
+    teacher_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    student_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        db.UniqueConstraint('teacher_id', 'student_id', name='_home_teacher_student_uc'),
+    )
+
+class HomePracticalSubmission(db.Model):
+    __tablename__ = "home_practical_submissions"
+    id = db.Column(db.Integer, primary_key=True)
+    student_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    chapter_number = db.Column(db.Integer, nullable=False)
+    status = db.Column(db.String(50), nullable=False, default="pending") # pending, competent, not_yet_competent
+    teacher_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True) # ID of teacher who graded it
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    graded_at = db.Column(db.DateTime, nullable=True)
+
+    __table_args__ = (
+        db.UniqueConstraint('student_id', 'chapter_number', name='_home_student_chapter_sub_uc'),
+    )
 
 
 

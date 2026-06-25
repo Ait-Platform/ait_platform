@@ -1,0 +1,80 @@
+{% extends "layout.html" %}
+
+{% block title %}Syllabus - Advanced Mathematics{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-12">
+  <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+    <!-- Top Color Strip -->
+    <div class="h-3 bg-cyan-600 w-full"></div>
+
+    <div class="p-8 md:p-12">
+      <!-- Header Row -->
+      <div class="flex items-center justify-between mb-8 pb-6 border-b border-slate-100">
+        <div>
+          <h1 class="text-2xl md:text-3xl font-bold text-slate-900">Syllabus Path</h1>
+          <p class="text-sm text-slate-500 mt-1">Review the full curriculum and your progress.</p>
+        </div>
+        <a href="{{ url_for('adv_math_bp.dashboard') }}"
+           class="inline-flex items-center gap-2 rounded border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition shrink-0">
+          <span>←</span><span>Back to Desk</span>
+        </a>
+      </div>
+
+      <!-- Content Area -->
+      <div class="mb-8">
+
+        {% macro accordion_item(number, title, sub_topics, progress_data, question_counts, is_open=False) %}
+        <div class="border border-slate-200 rounded-xl mb-4 bg-white overflow-hidden shadow-sm transition-all duration-300">
+            <button type="button" class="w-full px-6 py-4 flex items-center justify-between bg-slate-50 hover:bg-slate-100 transition focus:outline-none" onclick="const content = this.nextElementSibling; content.classList.toggle('hidden'); const icon = this.querySelector('.chevron'); icon.style.transform = content.classList.contains('hidden') ? 'rotate(0deg)' : 'rotate(180deg)';">
+                <h3 class="text-lg font-bold text-slate-800 flex items-center gap-3">
+                    <span class="bg-cyan-600 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm shadow-inner">{{ number }}</span>
+                    {{ title }}
+                </h3>
+                <svg class="chevron w-5 h-5 text-slate-500 transition-transform duration-300 {% if is_open %}rotate-180{% endif %}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+            </button>
+            <div class="{% if not is_open %}hidden{% endif %} border-t border-slate-200">
+                <div class="p-2">
+                    {% for st in sub_topics %}
+                        {% set status = progress_data.get(st.id, 'not_started') if progress_data else 'not_started' %}
+                        {% set count = question_counts.get(st.id, 0) %}
+                        <div class="flex items-center justify-between p-4 hover:bg-slate-50 rounded-lg transition border-b border-slate-100 last:border-0 group {% if count == 0 %}opacity-50{% endif %}">
+                            <div class="pr-4">
+                                <h4 class="font-bold text-slate-800 group-hover:text-cyan-700 transition-colors">{{ st.title }}</h4>
+                                <p class="text-sm text-slate-500">{{ st.desc }}</p>
+                                <span class="inline-flex mt-1 items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-600">
+                                    {{ count }} questions available
+                                </span>
+                            </div>
+                            <div class="flex items-center gap-4 shrink-0">
+                                {% if status == 'mastered' %}
+                                <span class="bg-green-100 text-green-800 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider hidden sm:inline-block">Mastered</span>
+                                {% elif status == 'in_progress' %}
+                                <span class="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider hidden sm:inline-block">In Progress</span>
+                                {% else %}
+                                <span class="bg-slate-100 text-slate-500 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider hidden sm:inline-block">Not Started</span>
+                                {% endif %}
+                                
+                                <div class="flex items-center gap-2">
+                                    <a href="{{ url_for('adv_math_bp.dashboard', st=st.id) }}" class="bg-cyan-50 border border-cyan-200 hover:bg-cyan-600 hover:text-white text-cyan-700 font-medium py-2 px-3 rounded-lg text-sm transition shadow-sm whitespace-nowrap">
+                                        Select Topic
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endmacro %}
+
+        {% for group in syllabus_data %}
+            {{ accordion_item(group.number, group.title, group.subtopics, progress.mastery_data, question_counts, is_open=loop.first) }}
+        {% endfor %}
+
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}

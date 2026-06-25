@@ -33,8 +33,6 @@ def _has_active_home_subscription(user_id):
     elif ent["status"] == "active":
         if (ent["trial_end"] and ent["trial_end"] >= now) or (ent["expires_at"] and ent["expires_at"] >= now):
             return True
-        elif not ent["trial_end"] and not ent["expires_at"]:
-            return True
     return False
 
 def _save_home_progress(user_id, chapter_number):
@@ -71,6 +69,12 @@ def learner_dashboard():
         flash("You have successfully completed the HOME Programme! You can review your Diagnostic Report and Certificate below.", "success")
 
     progresses = HomeProgress.query.filter_by(user_id=current_user.id).all()
+    
+    # Clear any old chapter progress from session (prevents leak when switching users)
+    keys_to_clear = [k for k in session.keys() if k.startswith('chapter_') and k.endswith('_done')]
+    for k in keys_to_clear:
+        session.pop(k, None)
+        
     for p in progresses:
         session[f'chapter_{p.chapter_number}_done'] = True
 
@@ -91,7 +95,30 @@ def learner_dashboard():
     has_premium = _has_active_home_subscription(current_user.id)
     has_section3 = has_premium
 
-    return render_template(
+    from app.models.home import HomePracticalSubmission
+    pending_subs = HomePracticalSubmission.query.filter_by(
+        student_id=current_user.id,
+        status='pending'
+    ).all()
+    pending_chapters = [s.chapter_number for s in pending_subs]
+
+    # Teacher linking variables
+    from app.models.auth import User, UserEnrollment, AuthSubject
+    from app.models.home import HomeTeacherLink
+    
+    home_subject = AuthSubject.query.filter_by(slug='home').first()
+    all_home_teachers = []
+    if home_subject:
+        all_home_teachers = db.session.query(User).join(UserEnrollment).filter(
+            UserEnrollment.subject_id == home_subject.id,
+            UserEnrollment.status == 'teacher'
+        ).all()
+        
+    current_link = HomeTeacherLink.query.filter_by(student_id=current_user.id).first()
+    linked_teacher = User.query.get(current_link.teacher_id) if current_link else None
+
+    from flask import make_response
+    response = make_response(render_template(
         'subject_home/dashboard.html',
         user=current_user,
         chapters=chapters,
@@ -100,8 +127,37 @@ def learner_dashboard():
         section3_chapters=section3_chapters,
         assessment=assessment,
         has_premium=has_premium,
-        has_section3=has_section3
-    )
+        has_section3=has_section3,
+        pending_chapters=pending_chapters,
+        is_completed=is_completed,
+        all_home_teachers=all_home_teachers,
+        linked_teacher=linked_teacher
+    ))
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
+
+@home_bp.route('/home/link_teacher', methods=['POST'])
+@login_required
+def link_teacher():
+    from app.models.home import HomeTeacherLink
+    from app.models.auth import User
+    
+    teacher_id_str = request.form.get('teacher_id')
+    if teacher_id_str and teacher_id_str.isdigit():
+        teacher = User.query.get(int(teacher_id_str))
+        if not teacher:
+            flash("Teacher not found.", "danger")
+        else:
+            # Delete any existing link
+            HomeTeacherLink.query.filter_by(student_id=current_user.id).delete()
+            # Create new link
+            new_link = HomeTeacherLink(teacher_id=teacher.id, student_id=current_user.id)
+            db.session.add(new_link)
+            db.session.commit()
+            flash(f"Successfully linked to teacher: {teacher.name or teacher.email}", "success")
+    return redirect(url_for('home_bp.learner_dashboard'))
 
 @home_bp.route(
     '/home/chapter/<int:chapter_num>',
@@ -126,19 +182,36 @@ def chapter_page(chapter_num):
     if request.method == 'POST':
         
         if chapter_num <= 10:
-            if chapter_num in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]:
-                competency = request.form.get("competency")
-                if competency == "competent":
-                    session[f'chapter_{chapter_num}_done'] = True
-                    _save_home_progress(current_user.id, chapter_num)
-                    flash(f"Chapter {chapter_num} Practical marked as COMPETENT!", "success")
-                else:
-                    flash("The learner is NOT YET COMPETENT. Please review the material and try again.", "warning")
-                    return redirect(url_for('home_bp.chapter_page', chapter_num=chapter_num))
+            from app.models.home import HomePracticalSubmission
+            
+            # Check if there is already a submission
+            existing = HomePracticalSubmission.query.filter_by(
+                student_id=current_user.id, 
+                chapter_number=chapter_num
+            ).first()
+            
+            if not existing:
+                new_sub = HomePracticalSubmission(
+                    student_id=current_user.id,
+                    chapter_number=chapter_num,
+                    status="pending"
+                )
+                db.session.add(new_sub)
+                db.session.commit()
+                flash(f"Practical work for Chapter {chapter_num} submitted to your teacher for review!", "success")
+            elif existing.status == "pending":
+                flash(f"You have already submitted Chapter {chapter_num} for review. Please wait for your teacher.", "info")
             else:
-                session[f'chapter_{chapter_num}_done'] = True
-                _save_home_progress(current_user.id, chapter_num)
-                flash(f"Practical work for Chapter {chapter_num} submitted successfully!", "success")
+                # If they were not_yet_competent, they can resubmit
+                existing.status = "pending"
+                db.session.commit()
+                flash(f"Practical work for Chapter {chapter_num} re-submitted for review!", "success")
+            
+            if chapter_num == 10:
+                from app.models.home import HomeTeacherLink
+                has_teacher = HomeTeacherLink.query.filter_by(student_id=current_user.id).first()
+                if not has_teacher:
+                    flash("Important: You have not saved a teacher yet! Please go to your dashboard to select and save a teacher so your practicals can be reviewed and Chapter 11 can be unlocked.", "warning")
                 
             return redirect(url_for('home_bp.learner_dashboard'))
 
@@ -303,19 +376,58 @@ def advance_chapter(chapter_id):
     return redirect(url_for('home_bp.learner_dashboard'))
 
 
-@home_bp.route('/home/re_enrol', methods=['POST'])
+@home_bp.route('/home/re_enrol', methods=['GET', 'POST'])
+@login_required
 def re_enrol():
     if 'user_id' not in session:
         return redirect(url_for('auth_bp.login'))
-        
-    uid = current_user.id
-        
-    # Delete previous failed assessments so they get a clean slate for the Final Exam only
-    HomeFinalAssessment.query.filter_by(user_id=uid).delete()
-    db.session.commit()
-        
-    flash("Your previous failed exam has been reset. You can now retake the Final Exam.", "success")
-    return redirect(url_for("home_bp.learner_dashboard"))
+
+    from app.models.auth import UserEnrollment, AuthSubject
+    
+    # 1. Fetch the HOME subject and user's locked enrollment
+    home_subj = AuthSubject.query.filter(db.func.lower(AuthSubject.slug) == 'home').first()
+    enr = None
+    if home_subj:
+        enr = UserEnrollment.query.filter_by(
+            user_id=current_user.id, 
+            subject_id=home_subj.id
+        ).order_by(UserEnrollment.id.desc()).first()
+
+    if not enr or not enr.zar_amount_cents:
+        flash("We could not find your original payment details.", "warning")
+        return redirect(url_for('home_bp.learner_dashboard'))
+
+    # 2. Calculate the discounted retake prices
+    # Exam Only (66% discount -> / 3)
+    exam_zar_cents = int(round((enr.zar_amount_cents / 3.0) / 100.0) * 100)
+    # Entire Course (50% discount -> / 2)
+    course_zar_cents = int(round((enr.zar_amount_cents / 2.0) / 100.0) * 100)
+    
+    exam_local_cents = 0
+    course_local_cents = 0
+    if enr.local_amount_cents:
+        exam_local_cents = int(round((enr.local_amount_cents / 3.0) / 100.0) * 100)
+        course_local_cents = int(round((enr.local_amount_cents / 2.0) / 100.0) * 100)
+
+    if request.method == 'POST':
+        retake_type = request.form.get('retake_type', 'exam')
+        session['is_retake'] = True
+        session['retake_type'] = retake_type
+        session['pending_subject'] = 'home'
+        session['pending_email'] = current_user.email
+        session['retake_zar_cents'] = course_zar_cents if retake_type == 'course' else exam_zar_cents
+        flash("You are about to retake the program. A retake fee applies.", "info")
+        return redirect(url_for("yoco_bp.yoco_start"))
+
+    return render_template(
+        'subject_home/retake_quote.html',
+        country_code=enr.country_code,
+        local_currency=enr.local_currency,
+        exam_local_cents=exam_local_cents,
+        exam_zar_cents=exam_zar_cents,
+        course_local_cents=course_local_cents,
+        course_zar_cents=course_zar_cents
+    )
 
 @home_bp.route('/view_diagnostic')
 def view_diagnostic():
@@ -401,7 +513,15 @@ def finish_report():
         from app.utils.mailer import send_pdf_email
 
         # Generate HTML for Certificate & Diagnostic Report
-        report_html = render_template('subject_home/certificate.html', assessment=assessment)
+        from flask import current_app
+        import os, base64
+        logo_path = os.path.join(current_app.root_path, 'static', 'images', 'Palm.png')
+        logo_b64 = ""
+        if os.path.exists(logo_path):
+            with open(logo_path, "rb") as image_file:
+                logo_b64 = "data:image/png;base64," + base64.b64encode(image_file.read()).decode('utf-8')
+        
+        report_html = render_template('subject_home/certificate.html', assessment=assessment, logo_b64=logo_b64)
         out_report = io.BytesIO()
         pisa.CreatePDF(report_html, dest=out_report, encoding="UTF-8")
         report_pdf_bytes = out_report.getvalue()
@@ -634,7 +754,6 @@ def view_final_certificate():
 def view_failed_certificate():
     return render_template('subject_home/failed_certificate.html')
 
-
 @home_bp.route('/test_passed_certificate')
 @login_required
 def test_passed_certificate():
@@ -664,7 +783,15 @@ def test_passed_certificate():
     mock.mathematics_score = assessment.mathematics_score
     mock.critical_thinking_score = assessment.critical_thinking_score
     
-    html = render_template('subject_home/certificate.html', assessment=mock)
+    from flask import current_app
+    import os, base64
+    logo_path = os.path.join(current_app.root_path, 'static', 'images', 'Palm.png')
+    logo_b64 = ""
+    if os.path.exists(logo_path):
+        with open(logo_path, "rb") as image_file:
+            logo_b64 = "data:image/png;base64," + base64.b64encode(image_file.read()).decode('utf-8')
+
+    html = render_template('subject_home/certificate.html', assessment=mock, logo_b64=logo_b64)
     out = io.BytesIO()
     pisa.CreatePDF(html, dest=out, encoding="UTF-8")
     pdf_bytes = out.getvalue()
@@ -678,3 +805,116 @@ def test_passed_certificate():
 
 
 
+
+
+# ==========================================
+# TEACHER / PARENT ROUTES
+# ==========================================
+
+@home_bp.route('/teacher/register', methods=['GET', 'POST'])
+def teacher_register():
+    return redirect(url_for('public_bp.tutor_register'))
+
+@home_bp.route('/teacher/dashboard', methods=['GET', 'POST'])
+@login_required
+def teacher_dashboard():
+    from app.models.home import HomeTeacherLink, HomePracticalSubmission
+    from app.models.auth import User, UserEnrollment, AuthSubject
+    from app import db
+
+    # Get the home subject
+    home_subject = AuthSubject.query.filter_by(slug='home').first()
+    
+    # We no longer process POST here for claiming students
+    # Students must claim their teacher via the learner dashboard
+
+    # Get students linked to this teacher
+    linked_students = db.session.query(User).join(
+        HomeTeacherLink, HomeTeacherLink.student_id == User.id
+    ).filter(
+        HomeTeacherLink.teacher_id == current_user.id
+    ).all()
+
+    student_ids = [s.id for s in linked_students]
+    students = User.query.filter(User.id.in_(student_ids)).all() if student_ids else []
+
+    # Get all pending submissions for linked students
+    submissions = []
+    if student_ids:
+        raw_submissions = HomePracticalSubmission.query.filter(
+            HomePracticalSubmission.student_id.in_(student_ids),
+            HomePracticalSubmission.status == 'pending'
+        ).all()
+        student_map = {s.id: s for s in students}
+        submissions = [(sub, student_map.get(sub.student_id)) for sub in raw_submissions]
+
+    # Calculate completed practicals per student
+    student_progress_map = {}
+    if student_ids:
+        completed_subs = HomePracticalSubmission.query.filter(
+            HomePracticalSubmission.student_id.in_(student_ids),
+            HomePracticalSubmission.status != 'pending'
+        ).all()
+        for csub in completed_subs:
+            uid = csub.student_id
+            if uid not in student_progress_map:
+                student_progress_map[uid] = []
+            student_progress_map[uid].append(csub.chapter_number)
+        for uid in student_progress_map:
+            student_progress_map[uid] = list(set(student_progress_map[uid]))
+            student_progress_map[uid].sort()
+
+    from flask import make_response
+    response = make_response(render_template(
+        'subject_home/teacher_dashboard.html',
+        students=students,
+        submissions=submissions,
+        linked_student_ids=student_ids,
+        student_progress_map=student_progress_map if student_ids else {}
+    ))
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
+
+@home_bp.route('/teacher/grade_view/<int:submission_id>')
+@login_required
+def teacher_grade_view(submission_id):
+    from app.models.home import HomePracticalSubmission, HomeChapter
+    sub = HomePracticalSubmission.query.get_or_404(submission_id)
+    chapter = HomeChapter.query.filter_by(chapter_number=sub.chapter_number).first_or_404()
+    
+    # Render the exact same practical template, but tell it we are grading!
+    template_name = f'subject_home/chapter{sub.chapter_number}_practical.html'
+    
+    return render_template(
+        template_name,
+        chapter=chapter,
+        is_teacher_scoring=True,
+        submission=sub
+    )
+
+@home_bp.route('/teacher/score/<int:submission_id>', methods=['POST'])
+@login_required
+def teacher_score(submission_id):
+    from app.models.home import HomePracticalSubmission
+    from app import db
+    
+    sub = HomePracticalSubmission.query.get_or_404(submission_id)
+    decision = request.form.get('decision')
+    
+    if decision not in ['competent', 'not_yet_competent']:
+        flash("Invalid decision.", "danger")
+        return redirect(url_for('home_bp.teacher_dashboard'))
+        
+    sub.status = decision
+    db.session.commit()
+    
+    if decision == 'competent':
+        # Actually unlock the next chapter for the student
+        _save_home_progress(sub.student_id, sub.chapter_number)
+        flash(f"Marked Chapter {sub.chapter_number} as Competent for student.", "success")
+    else:
+        flash(f"Marked Chapter {sub.chapter_number} as Not Yet Competent. The student can retry.", "info")
+        
+    return redirect(url_for('home_bp.teacher_dashboard'))

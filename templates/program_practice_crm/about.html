@@ -1,0 +1,40 @@
+{% extends "layout.html" %}
+{% block title %}Practice CRM - AIT Platform{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto py-12 px-4 sm:px-6">
+  <div class="bg-white rounded-xl shadow overflow-hidden">
+    <!-- Color strip on top -->
+    <div class="h-2 bg-emerald-600"></div>
+    
+    <div class="p-8">
+      <!-- Title left, Back right -->
+      <div class="flex items-center justify-between mb-6">
+        <h1 class="text-3xl font-bold text-slate-800">Practice CRM</h1>
+        <a href="{{ url_for('public_bp.welcome') }}" class="text-emerald-600 hover:text-emerald-700 font-medium">← Back to Dashboard</a>
+      </div>
+
+      <!-- Flash messages inside tile -->
+      {% include "partials/flash_messages.html" %}
+
+      <div class="text-center bg-gradient-to-r from-emerald-600 to-teal-700 text-white p-6 rounded-lg mb-8">
+        <h2 class="text-2xl font-bold mb-2">Medical Enquiry Pipeline</h2>
+        <p class="text-emerald-100 text-lg">Stop patient leakage. Track every enquiry from call to booking.</p>
+      </div>
+
+      <h2 class="text-xl font-semibold mb-4 text-slate-800">Control Risks Addressed</h2>
+      <ul class="list-disc pl-5 mb-6 text-slate-600 space-y-2">
+        <li><strong>Appointment suppression:</strong> Receptionists cannot claim no slots are available.</li>
+        <li><strong>Lead leakage:</strong> Every call is tracked; receptionists must follow up.</li>
+        <li><strong>Favouritism:</strong> All patients follow the same verified pipeline.</li>
+      </ul>
+      
+      <div class="mt-8 flex justify-center gap-4 border-t border-slate-100 pt-6">
+        <a href="{{ url_for('quote_bp.quote', subject='practice_crm') }}" class="rounded bg-emerald-600 px-6 py-3 text-white font-semibold hover:bg-emerald-700 transition-colors shadow-sm">
+          Start 30-Day Free Trial
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

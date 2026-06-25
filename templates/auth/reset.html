@@ -5,7 +5,7 @@
   <h1 class="text-xl font-semibold mb-4">Choose a new password</h1>
   <form method="post">
     <label class="block text-sm mb-1">New password</label>
-    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input name="password" type="password" minlength="8" required class="w-full border rounded px-3 py-2 mb-4">
     <button class="rounded bg-blue-600 text-white px-4 py-2">Update password</button>
   </form>

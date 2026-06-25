@@ -9,7 +9,6 @@ CORE_SUBJECTS = [
         "name": "Loss & Adaptation",
         "is_active": 1,
         "sort_order": 30,
-        "start_endpoint": "loss_bp.about_loss",  # or None / "" if not used
     },
     # You can add more later in ONE place, e.g.:
     # {
@@ -49,7 +48,8 @@ def ensure_core_subjects() -> None:
         subj.name          = cfg["name"]
         subj.is_active     = cfg.get("is_active", 1)
         subj.sort_order    = cfg.get("sort_order", 0)
-        subj.start_endpoint = cfg.get("start_endpoint")
+        if "start_endpoint" in cfg:
+            subj.start_endpoint = cfg["start_endpoint"]
 
         db.session.add(subj)
 

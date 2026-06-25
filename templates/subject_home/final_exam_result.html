@@ -70,22 +70,10 @@ Final Assessment Result
 
     {% else %}
 
-        <form method="POST"
-              action="{{ url_for('home_bp.re_enrol') }}">
-
-            <input
-                type="hidden"
-                name="csrf_token"
-                value="{{ csrf_token() }}"
-            >
-
-            <button
-                type="submit"
-                class="px-6 py-3 bg-yellow-600 text-white rounded-lg">
-                Re-Enrol
-            </button>
-
-        </form>
+        <a href="{{ url_for('home_bp.re_enrol') }}"
+           class="px-6 py-3 bg-yellow-600 text-white rounded-lg inline-block">
+            Re-Enrol
+        </a>
 
     {% endif %}
 

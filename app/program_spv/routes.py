@@ -85,11 +85,17 @@ def investor_dashboard():
     # Fetch Dale SPV as an available opportunity
     dale_deal = SpvDeal.query.filter_by(slug="dale-housing").first()
 
+    # Generate user pseudonym for display
+    name_part = (current_user.name or current_user.email.split('@')[0])[:3].capitalize()
+    id_part = str(current_user.id)[-3:].zfill(3)
+    user_pseudonym = f"{name_part}{id_part}"
+
     return render_template(
         "program_spv/investor_dashboard.html",
         investments=investments,
         total_invested=total_invested,
-        dale_deal=dale_deal
+        dale_deal=dale_deal,
+        user_pseudonym=user_pseudonym
     )
 
 @spv_bp.route("/program/spv/<code>/deal")
@@ -169,22 +175,20 @@ def email_brochure(slug):
 def initiate_spv_investment(slug):
     deal = SpvDeal.query.filter_by(slug=slug).first_or_404()
     amount = float(request.form.get("amount", 0))
-    pseudonym = request.form.get("pseudonym", "Anonymous").strip()
+    from app.models.spv import SpvParticipation
     
     if amount < 100:
         flash("Minimum investment is ZAR 100", "error")
         return redirect(url_for("spv_bp.portfolio_detail", slug=slug) + "#invest")
         
-    from app.models.spv import SpvParticipation
-    existing = SpvParticipation.query.filter_by(deal_id=deal.id, pseudonym=pseudonym).first()
-    if existing:
-        flash(f"The pseudonym '{pseudonym}' is already in use by another investor on this SPV. Please choose a different one.", "error")
-        return redirect(url_for("spv_bp.portfolio_detail", slug=slug) + "#invest")
+    name_part = (current_user.name or current_user.email.split('@')[0])[:3].capitalize()
+    id_part = str(current_user.id)[-3:].zfill(3)
+    pseudonym = f"{name_part}{id_part}"
         
     session["spv_pseudonym"] = pseudonym
     session["spv_amount"] = amount
     session["spv_deal_slug"] = slug
-    session["zar_amount_cents"] = int(amount * 100)
+    session["zar_amount_cents"] = int(amount * 1.05 * 100)
     session["subject_slug"] = "spv_investment"
     
     return redirect(url_for("yoco_bp.yoco_start", subject="spv_investment", email=current_user.email))
@@ -207,10 +211,38 @@ def portfolio_detail(slug):
         for section in section_list
     }
 
+    user_ratio = 0.0
+    target_ratio = 0.25
+    amount_needed = 0.0
+    
+    if current_user.is_authenticated:
+        from app.models.spv import SpvParticipation
+        all_p = SpvParticipation.query.filter_by(deal_id=deal.id, status="confirmed").all()
+        total_pool = sum(p.amount for p in all_p)
+        user_total = sum(p.amount for p in all_p if p.user_id == current_user.id)
+        
+        user_ratio = float(user_total / total_pool * 100) if total_pool > 0 else 0.0
+
+        import math
+        if user_ratio < 0.25:
+            target_ratio = 0.25
+        else:
+            target_ratio = math.ceil((user_ratio + 0.0001) / 0.25) * 0.25
+            
+        R = target_ratio / 100.0
+        
+        if R >= 1.0 or total_pool == 0:
+            amount_needed = 0
+        else:
+            amount_needed = (R * float(total_pool) - float(user_total)) / (1.0 - R)
+
     return render_template(
         "program_spv/portfolio_detail.html",
         deal=deal,
-        sections=sections
+        sections=sections,
+        user_ratio=user_ratio,
+        target_ratio=target_ratio,
+        amount_needed=amount_needed
     )
 
 @spv_bp.route("/ledger")
@@ -235,13 +267,70 @@ def spv_ledger():
 
     # 3. Calculate total
     total_pool = sum(p.amount for p in all_participations)
+    
+    user_total = sum(ui.amount for ui in user_investments)
+    user_ratio = float(user_total / total_pool * 100) if total_pool > 0 else 0.0
+
+    import math
+    if user_ratio < 0.25:
+        target_ratio = 0.25
+    else:
+        target_ratio = math.ceil((user_ratio + 0.0001) / 0.25) * 0.25
+        
+    R = target_ratio / 100.0
+    
+    if R >= 1.0 or total_pool == 0:
+        amount_needed = 0
+    else:
+        amount_needed = (R * float(total_pool) - float(user_total)) / (1.0 - R)
+
+    from collections import defaultdict
+    from decimal import Decimal
+    grouped_ledger = defaultdict(Decimal)
+    for p in all_participations:
+        pseudo = p.pseudonym or 'Anonymous Investor'
+        grouped_ledger[pseudo] += p.amount
+    
+    name_part = (current_user.name or current_user.email.split('@')[0])[:3].capitalize()
+    id_part = str(current_user.id)[-3:].zfill(3)
+    user_pseudo = f"{name_part}{id_part}"
+    
+    public_ledger = []
+    for pseudo, amount in grouped_ledger.items():
+        public_ledger.append({
+            'pseudonym': pseudo,
+            'amount': amount,
+            'is_current_user': (user_pseudo and pseudo == user_pseudo)
+        })
+    public_ledger.sort(key=lambda x: x['amount'], reverse=True)
 
     return render_template(
         "program_spv/ledger.html",
-        participations=all_participations,
+        public_ledger=public_ledger,
+        user_investments=user_investments,
         total_pool=total_pool,
-        dale_deal=dale_deal
+        dale_deal=dale_deal,
+        user_pseudo=user_pseudo,
+        user_ratio=user_ratio,
+        target_ratio=target_ratio,
+        amount_needed=amount_needed
     )
+
+@spv_bp.route("/program/spv/<slug>/brochure/<section_slug>")
+@login_required
+def brochure_section(slug, section_slug):
+    deal = SpvDeal.query.filter_by(slug=slug).first_or_404()
+    
+    section = SpvSection.query.filter_by(deal_id=deal.id, slug=section_slug).first()
+    
+    if not section:
+        class DummySection:
+            title = section_slug.replace("-", " ").title()
+            content = f"<h2>{title}</h2><p>This document content is coming soon or the file is being prepared for display.</p>"
+            assets = []
+        section = DummySection()
+        
+    return render_template("program_spv/brochure_section.html", deal=deal, section=section)
 
 
 @spv_bp.route("/ledger/pseudonym", methods=["POST"])

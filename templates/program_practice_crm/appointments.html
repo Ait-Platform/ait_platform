@@ -1,0 +1,133 @@
+{% extends "layout.html" %}
+{% block title %}Appointments Log - Practice CRM{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto py-8 px-4">
+  <div class="bg-white rounded-xl shadow overflow-hidden">
+    <!-- Color strip on top -->
+    <div class="h-2 bg-emerald-600"></div>
+    
+    <div class="p-6">
+      <!-- Title left, Back right -->
+      <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
+        <div>
+          <h1 class="text-2xl font-bold text-slate-800">Appointments Log</h1>
+          <p class="text-slate-500">{{ practice.name }}</p>
+        </div>
+        <div class="flex items-center space-x-2">
+          {% if is_receptionist %}
+          <a href="{{ url_for('practice_crm_bp.pipeline') }}" class="text-emerald-600 hover:text-emerald-700 font-medium mr-4">← Back to Pipeline</a>
+          {% else %}
+          <a href="{{ url_for('practice_crm_bp.dashboard') }}" class="text-emerald-600 hover:text-emerald-700 font-medium mr-4">← Back to Dashboard</a>
+          {% endif %}
+        </div>
+      </div>
+      
+      <!-- Flash messages inside tile -->
+      {% include "partials/flash_messages.html" %}
+
+      <!-- UPCOMING APPOINTMENTS -->
+      <div class="mb-10">
+        <h2 class="text-xl font-bold text-emerald-800 mb-4 flex items-center gap-2">
+          <span>📅</span> Upcoming Appointments
+          <span class="bg-emerald-100 text-emerald-800 text-sm font-semibold px-2.5 py-0.5 rounded-full">{{ upcoming|length }}</span>
+        </h2>
+        
+        <div class="bg-white border border-emerald-200 rounded-xl overflow-hidden shadow-sm">
+          <table class="w-full text-left text-sm text-slate-600">
+            <thead class="bg-emerald-50 border-b border-emerald-200">
+              <tr>
+                <th class="px-6 py-3 font-semibold text-emerald-900">Date & Time</th>
+                <th class="px-6 py-3 font-semibold text-emerald-900">Patient</th>
+                <th class="px-6 py-3 font-semibold text-emerald-900">Contact</th>
+                <th class="px-6 py-3 font-semibold text-emerald-900">Details</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-emerald-100">
+              {% for a in upcoming %}
+              <tr class="hover:bg-emerald-50/50 transition-colors">
+                <td class="px-6 py-4 whitespace-nowrap font-bold text-emerald-700">
+                  {{ a.appointment_time.strftime('%A, %d %b %Y') }}<br>
+                  <span class="text-lg">{{ a.appointment_time.strftime('%H:%M') }}</span>
+                </td>
+                <td class="px-6 py-4 font-semibold text-slate-800 text-base">{{ a.patient_name }}</td>
+                <td class="px-6 py-4">
+                  {% set clean_phone = a.phone|replace(' ', '')|replace('-', '') %}
+                  {% set wa_phone = '27' ~ clean_phone[1:] if clean_phone.startswith('0') else clean_phone|replace('+', '') %}
+                  <div class="flex flex-col gap-2">
+                    <a href="tel:{{ clean_phone }}" class="text-emerald-600 hover:text-emerald-700 font-medium hover:underline flex items-center gap-1">
+                      <span>📞</span> {{ a.phone }}
+                    </a>
+                    <a href="https://wa.me/{{ wa_phone }}" target="_blank" class="text-emerald-600 hover:text-emerald-700 font-medium hover:underline flex items-center gap-1">
+                      <span>💬</span> WhatsApp
+                    </a>
+                  </div>
+                </td>
+                <td class="px-6 py-4">
+                  <div class="text-sm">
+                    <span class="font-medium text-slate-700">Aid:</span> {{ a.medical_aid or 'None' }}<br>
+                    <span class="font-medium text-slate-700">Reason:</span> {{ a.reason or 'Not specified' }}
+                  </div>
+                </td>
+              </tr>
+              {% else %}
+              <tr>
+                <td colspan="4" class="px-6 py-8 text-center text-slate-500 italic">No upcoming appointments scheduled.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- PAST APPOINTMENTS -->
+      <div>
+        <h2 class="text-xl font-bold text-slate-600 mb-4 flex items-center gap-2">
+          <span>🕒</span> Past Appointments
+        </h2>
+        
+        <div class="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+          <table class="w-full text-left text-sm text-slate-500">
+            <thead class="bg-slate-50 border-b border-slate-200">
+              <tr>
+                <th class="px-6 py-3 font-semibold text-slate-700">Date & Time</th>
+                <th class="px-6 py-3 font-semibold text-slate-700">Patient</th>
+                <th class="px-6 py-3 font-semibold text-slate-700">Contact</th>
+                <th class="px-6 py-3 font-semibold text-slate-700">Details</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              {% for a in past %}
+              <tr class="hover:bg-slate-50 transition-colors opacity-75">
+                <td class="px-6 py-4 whitespace-nowrap font-medium text-slate-600">
+                  {{ a.appointment_time.strftime('%A, %d %b %Y') }}<br>
+                  {{ a.appointment_time.strftime('%H:%M') }}
+                </td>
+                <td class="px-6 py-4 font-medium text-slate-700">{{ a.patient_name }}</td>
+                <td class="px-6 py-4">
+                  {% set clean_phone = a.phone|replace(' ', '')|replace('-', '') %}
+                  {% set wa_phone = '27' ~ clean_phone[1:] if clean_phone.startswith('0') else clean_phone|replace('+', '') %}
+                  <div class="flex items-center gap-3">
+                    <a href="tel:{{ clean_phone }}" class="text-slate-500 hover:text-emerald-600 hover:underline">📞</a>
+                    <a href="https://wa.me/{{ wa_phone }}" target="_blank" class="text-slate-500 hover:text-emerald-600 hover:underline">💬</a>
+                  </div>
+                </td>
+                <td class="px-6 py-4 text-xs">
+                  <span class="font-medium">Aid:</span> {{ a.medical_aid or 'None' }}<br>
+                  <span class="font-medium">Reason:</span> {{ a.reason or 'Not specified' }}
+                </td>
+              </tr>
+              {% else %}
+              <tr>
+                <td colspan="4" class="px-6 py-8 text-center text-slate-400 italic">No past appointments found.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}

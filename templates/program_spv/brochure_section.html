@@ -1,0 +1,92 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-8">
+  <div class="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden mb-8">
+    <div class="h-2 bg-emerald-600"></div>
+    <div class="p-8 flex items-start justify-between">
+        <div>
+            <h1 class="text-4xl font-bold text-slate-900 tracking-tight">{{ section.title }}</h1>
+            <p class="text-slate-500 mt-1">{{ deal.title }}</p>
+        </div>
+        <a href="{{ url_for('spv_bp.investor_dashboard') }}" class="text-sm font-medium text-slate-600 hover:text-slate-900">
+            ← Back
+        </a>
+    </div>
+    
+    <div class="border-t border-slate-100 bg-slate-50">
+      {% if section.assets %}
+        {% for asset in section.assets %}
+            {% set asset_url = url_for('static', filename=asset.file_path) if asset.file_path else asset.external_url %}
+            
+            {% set ext = asset.file_path.split('.')[-1]|lower if asset.file_path else '' %}
+            {% set actual_type = 'image' if ext in ['jpg', 'jpeg', 'png', 'webp', 'gif'] else 'pdf' if ext == 'pdf' else asset.asset_type %}
+            
+            {% if actual_type == 'pdf' %}
+              <!-- PDF.js library -->
+              <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+              <script>
+                pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+              </script>
+              
+              <div id="pdf-container-{{ loop.index }}" class="pdf-container w-full">
+                <p class="text-center text-slate-500 loading-text my-8 animate-pulse"><i class="fas fa-spinner fa-spin mr-2"></i>Loading document...</p>
+              </div>
+
+              <script>
+                (function() {
+                  var url = "{{ asset_url }}";
+                  var container = document.getElementById('pdf-container-{{ loop.index }}');
+
+                  pdfjsLib.getDocument(url).promise.then(function(pdf) {
+                    container.innerHTML = ''; // remove loading text
+                    
+                    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+                      pdf.getPage(pageNum).then(function(page) {
+                        var unscaledViewport = page.getViewport({scale: 1.0});
+                        var containerWidth = container.clientWidth - 32; // account for padding
+                        var scale = Math.min(1.5, containerWidth / unscaledViewport.width);
+                        var viewport = page.getViewport({scale: scale});
+
+                        var canvas = document.createElement('canvas');
+                        canvas.className = 'mx-auto shadow-md mb-8 bg-white max-w-full rounded-sm';
+                        var ctx = canvas.getContext('2d');
+                        canvas.height = viewport.height;
+                        canvas.width = viewport.width;
+                        
+                        // Insert canvases in correct order
+                        canvas.setAttribute('data-page', pageNum);
+                        var inserted = false;
+                        for (var i = 0; i < container.children.length; i++) {
+                            if (parseInt(container.children[i].getAttribute('data-page')) > pageNum) {
+                                container.insertBefore(canvas, container.children[i]);
+                                inserted = true;
+                                break;
+                            }
+                        }
+                        if (!inserted) {
+                            container.appendChild(canvas);
+                        }
+
+                        var renderContext = {
+                          canvasContext: ctx,
+                          viewport: viewport
+                        };
+                        page.render(renderContext);
+                      });
+                    }
+                  }).catch(function(error) {
+                    console.error('Error loading PDF:', error);
+                    container.innerHTML = '<p class="text-center text-red-500 my-8">Failed to load PDF document. Please ensure the file is valid.</p>';
+                  });
+                })();
+              </script>
+            {% elif actual_type == 'image' %}
+              <img src="{{ asset_url }}" alt="{{ asset.title }}" class="max-w-full rounded-lg shadow-sm border border-slate-300 mx-auto">
+            {% endif %}
+        {% endfor %}
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

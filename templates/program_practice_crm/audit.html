@@ -1,0 +1,71 @@
+{% extends "layout.html" %}
+{% block title %}Audit Trail - Practice CRM{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto py-8 px-4">
+  <div class="bg-white rounded-xl shadow overflow-hidden">
+    <!-- Color strip on top -->
+    <div class="h-2 bg-emerald-600"></div>
+    
+    <div class="p-6">
+      <!-- Title left, Back right -->
+      <div class="flex justify-between items-center mb-6">
+        <div>
+          <h1 class="text-2xl font-bold text-slate-800">Enquiry Audit Trail</h1>
+        </div>
+        <a href="{{ url_for('practice_crm_bp.dashboard') }}" class="text-emerald-600 hover:text-emerald-700 font-medium">← Back to Dashboard</a>
+      </div>
+
+      <!-- Patient Details Box -->
+      <div class="bg-slate-50 p-5 rounded-xl border border-slate-200 mb-8">
+        <h2 class="text-sm font-bold text-slate-800 uppercase tracking-wide mb-3">Patient Details</h2>
+        <div class="grid grid-cols-2 gap-4 text-sm text-slate-600">
+          <div><span class="font-semibold text-slate-700">Name:</span> {{ enquiry.patient_name }}</div>
+          <div><span class="font-semibold text-slate-700">Phone:</span> {{ enquiry.phone }}</div>
+          <div>
+            <span class="font-semibold text-slate-700">Medical Aid:</span> 
+            {{ enquiry.medical_aid }} 
+            {% if enquiry.medical_aid_plan %}({{ enquiry.medical_aid_plan }}){% endif %}
+            {% if enquiry.medical_aid_no %} - {{ enquiry.medical_aid_no }}{% endif %}
+          </div>
+          <div>
+            <span class="font-semibold text-slate-700">Status:</span> 
+            <span class="px-2 py-0.5 rounded text-xs font-semibold inline-block ml-1 {{ 'bg-emerald-100 text-emerald-700' if enquiry.status == 'Booked' else 'bg-rose-100 text-rose-700' if enquiry.status == 'Not Booked' else 'bg-slate-200 text-slate-700' }}">
+              {{ enquiry.status }}
+            </span>
+          </div>
+          {% if enquiry.not_booked_reason %}
+          <div class="col-span-2 pt-2 border-t border-slate-200 mt-2">
+            <span class="font-semibold text-slate-700">Reason Declined:</span> <span class="text-rose-600">{{ enquiry.not_booked_reason }}</span>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Flash messages inside tile -->
+      {% include "partials/flash_messages.html" %}
+
+      <div class="border border-slate-200 rounded-xl overflow-hidden">
+        <table class="w-full text-left text-sm text-slate-600">
+          <thead class="bg-slate-50 border-b border-slate-200">
+            <tr>
+              <th class="px-6 py-3 font-semibold">Date/Time</th>
+              <th class="px-6 py-3 font-semibold">Staff Member</th>
+              <th class="px-6 py-3 font-semibold">Action</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            {% for a, u in audits %}
+            <tr class="hover:bg-slate-50">
+              <td class="px-6 py-4 whitespace-nowrap">{{ a.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+              <td class="px-6 py-4 font-medium">{{ u.name }}</td>
+              <td class="px-6 py-4 text-slate-800 font-medium">{{ a.action }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -68,7 +68,15 @@
 
         <div class="p-6">
           <div class="flex items-start justify-between">
-            <h2 class="text-lg font-medium">{{ s.name }}</h2>
+            <h2 class="text-lg font-medium">
+              {% if s.slug == 'admin' %}
+                Programs Admin Hub
+              {% elif s.slug == 'admin_general' %}
+                Global Site Tools & Settings
+              {% else %}
+                {{ s.name }}
+              {% endif %}
+            </h2>
 
             {% if is_admin %}
               <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">Admin</span>
@@ -141,26 +149,35 @@
           {% endif %}
 
           <div class="mt-5 flex items-center gap-3">
-            {% if primary_href %}
-              <a href="{{ primary_href }}"
-                class="inline-flex items-center rounded-lg px-4 py-2 text-sm font-semibold border border-transparent bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm transition-colors">
-                {% if is_admin %}
-                  Open Admin
-                {% else %}
-                  Open Program
-                {% endif %}
-              </a>
-            {% else %}
-
-              <button type="button"
-                      class="inline-flex items-center rounded-lg px-3 py-2 text-sm font-medium border bg-white text-slate-400 cursor-not-allowed"
-                      disabled>Locked</button>
+            {% set is_teacher_only = (enroll_map.get(s.id) == 'teacher') %}
+            
+            {% if not is_teacher_only %}
+              {% if primary_href %}
+                <a href="{{ primary_href }}"
+                  class="inline-flex items-center rounded-lg px-4 py-2 text-sm font-semibold border border-transparent bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm transition-colors">
+                  {% if is_admin %}
+                    Open Admin
+                  {% else %}
+                    Open Program
+                  {% endif %}
+                </a>
+              {% else %}
+                <button type="button"
+                        class="inline-flex items-center rounded-lg px-3 py-2 text-sm font-medium border bg-white text-slate-400 cursor-not-allowed"
+                        disabled>Locked</button>
+              {% endif %}
             {% endif %}
 
             <a href="{{ url_for('auth_bp.dashboard_info', subject=s.slug) if is_locked else '#' }}"
                class="text-sm text-slate-500 hover:text-slate-700 font-medium {% if not is_locked %}pointer-events-none opacity-40{% endif %}">
               {% if is_locked %}Unlock / Enroll{% else %}&nbsp;{% endif %}
             </a>
+            
+            {% if s.slug == 'home' and is_teacher_only %}
+            <a href="{{ url_for('home_bp.teacher_dashboard') }}" class="inline-flex items-center rounded-lg px-4 py-2 text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 shadow-sm ml-auto transition-colors">
+              Teacher Dashboard
+            </a>
+            {% endif %}
           </div>
         </div>
       </div>

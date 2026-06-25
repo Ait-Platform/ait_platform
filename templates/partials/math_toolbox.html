@@ -1,0 +1,311 @@
+<!-- Horizontal Toolbox Buttons -->
+<div class="flex flex-wrap items-center justify-center gap-3 mb-8">
+    <button type="button" onclick="document.getElementById('definitions-modal').classList.remove('hidden')" class="bg-indigo-50 text-indigo-800 px-4 py-2 rounded-xl border border-indigo-100 shadow-sm hover:bg-indigo-100 hover:border-indigo-200 font-medium transition text-sm whitespace-nowrap">
+        Definitions
+    </button>
+    
+    <button type="button" onclick="document.getElementById('formulas-modal').classList.remove('hidden')" class="bg-emerald-50 text-emerald-800 px-4 py-2 rounded-xl border border-emerald-100 shadow-sm hover:bg-emerald-100 hover:border-emerald-200 font-medium transition text-sm whitespace-nowrap">
+        Formulas
+    </button>
+
+    <button type="button" onclick="document.getElementById('rules-modal').classList.remove('hidden')" class="bg-rose-50 text-rose-800 px-4 py-2 rounded-xl border border-rose-100 shadow-sm hover:bg-rose-100 hover:border-rose-200 font-medium transition text-sm whitespace-nowrap">
+        Rules
+    </button>
+    
+    <button type="button" onclick="document.getElementById('tools-modal').classList.remove('hidden')" class="bg-amber-50 text-amber-800 px-4 py-2 rounded-xl border border-amber-100 shadow-sm hover:bg-amber-100 hover:border-amber-200 font-medium transition text-sm whitespace-nowrap">
+        Math Tools
+    </button>
+    
+    <button type="button" onclick="document.getElementById('steps-modal').classList.remove('hidden')" class="bg-cyan-50 text-cyan-800 px-4 py-2 rounded-xl border border-cyan-100 shadow-sm hover:bg-cyan-100 hover:border-cyan-200 font-medium transition text-sm whitespace-nowrap">
+        Steps
+    </button>
+</div>
+
+<!-- Definitions Modal -->
+<div id="definitions-modal" class="fixed inset-0 z-50 hidden bg-slate-900/50 flex items-start pt-12 justify-center p-4">
+    <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[85vh] flex flex-col relative" id="definitions-modal-content">
+        <div class="p-6 border-b border-slate-100 flex justify-between items-center cursor-move" id="definitions-modal-header">
+            <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2">
+                <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                Mathematical Definitions
+            </h3>
+            <button type="button" onclick="document.getElementById('definitions-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+        <div class="p-6 overflow-y-auto space-y-4 text-sm flex-grow bg-slate-50">
+            <div class="p-4 bg-white border border-slate-200 rounded-lg shadow-sm">
+                <span class="font-bold text-indigo-700 text-base block mb-1">Sequence</span>
+                <span class="text-slate-700 leading-relaxed block mb-2">A list of numbers or objects in a special order.</span>
+                <div class="bg-indigo-50 p-3 rounded border border-indigo-100 mt-2">
+                    <span class="text-xs font-bold text-indigo-800 uppercase tracking-wider block mb-1">Plain English:</span>
+                    <span class="text-slate-800 text-sm">A pattern of numbers lined up in a row.</span>
+                </div>
+            </div>
+            <div class="p-4 bg-white border border-slate-200 rounded-lg shadow-sm">
+                <span class="font-bold text-indigo-700 text-base block mb-1">Geometric</span>
+                <span class="text-slate-700 leading-relaxed block mb-2">A sequence made by multiplying by the same value each time (e.g., 2, 4, 8, 16).</span>
+                <div class="bg-indigo-50 p-3 rounded border border-indigo-100 mt-2">
+                    <span class="text-xs font-bold text-indigo-800 uppercase tracking-wider block mb-1">Plain English:</span>
+                    <span class="text-slate-800 text-sm">A pattern where you multiply the previous number by the exact same amount to get the next one.</span>
+                </div>
+            </div>
+            <div class="p-4 bg-white border border-slate-200 rounded-lg shadow-sm">
+                <span class="font-bold text-indigo-700 text-base block mb-1">Arithmetic</span>
+                <span class="text-slate-700 leading-relaxed block mb-2">A sequence made by adding the same value each time (e.g., 1, 4, 7, 10).</span>
+                <div class="bg-indigo-50 p-3 rounded border border-indigo-100 mt-2">
+                    <span class="text-xs font-bold text-indigo-800 uppercase tracking-wider block mb-1">Plain English:</span>
+                    <span class="text-slate-800 text-sm">A pattern where you add or subtract the exact same amount to get to the next number.</span>
+                </div>
+            </div>
+        </div>
+        <div class="p-6 border-t border-slate-100 bg-white rounded-b-xl flex justify-end">
+            <button type="button" onclick="document.getElementById('definitions-modal').classList.add('hidden')" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-6 py-2 rounded-lg transition">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Formulas Modal -->
+<div id="formulas-modal" class="fixed inset-0 z-50 hidden bg-slate-900/50 flex items-start pt-12 justify-center p-4">
+    <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[85vh] flex flex-col relative" id="formulas-modal-content">
+        <div class="p-6 border-b border-slate-100 flex justify-between items-center cursor-move" id="formulas-modal-header">
+            <div class="flex flex-col">
+                <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2">
+                    <span class="bg-emerald-200 text-emerald-800 w-8 h-8 rounded-lg flex items-center justify-center shadow-sm">📐</span> Exam Information Sheet
+                </h3>
+                <span class="text-sm text-slate-500 mt-1">Official formulas with usage instructions</span>
+            </div>
+            <button type="button" onclick="document.getElementById('formulas-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 self-start mt-1">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+        <div class="p-6 overflow-y-auto space-y-6 text-sm flex-grow bg-slate-50">
+            
+            <!-- Quadratic Equations -->
+            <div class="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                <div class="bg-emerald-50 px-4 py-3 border-b border-emerald-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <span class="font-bold text-emerald-900 text-base">Quadratic Formula</span>
+                    <span class="text-lg font-mono text-emerald-800">\( x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a} \)</span>
+                </div>
+                <div class="p-5 space-y-4">
+                    <div>
+                        <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Where to use it</span>
+                        <p class="text-slate-700">When you need to find the roots (x-intercepts) of a quadratic equation (\(ax^2 + bx + c = 0\)) that cannot be easily factorized, or when the question asks for answers "correct to two decimal places".</p>
+                    </div>
+                    <div>
+                        <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">How to use it</span>
+                        <p class="text-slate-700">Ensure the equation is in standard form and equal to zero. Identify the coefficients <b>a</b>, <b>b</b>, and <b>c</b>. Substitute them directly into the formula. Be extremely careful when squaring negative <b>b</b> values inside the square root.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Arithmetic Sequences -->
+            <div class="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                <div class="bg-emerald-50 px-4 py-3 border-b border-emerald-100 flex flex-col gap-2">
+                    <span class="font-bold text-emerald-900 text-base">Arithmetic Sequences & Series</span>
+                    <div class="flex flex-col sm:flex-row gap-4 sm:gap-8 font-mono text-emerald-800 text-lg">
+                        <span>\( T_n = a + (n-1)d \)</span>
+                        <span>\( S_n = \frac{n}{2}[2a + (n-1)d] \)</span>
+                    </div>
+                </div>
+                <div class="p-5 space-y-4">
+                    <div>
+                        <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Where to use it</span>
+                        <p class="text-slate-700">When dealing with a linear pattern where you add or subtract the exact same constant difference (<b>d</b>) to get to the next term.</p>
+                    </div>
+                    <div>
+                        <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">How to use it</span>
+                        <p class="text-slate-700">Use \( T_n \) to find the value of a specific term or to solve for the number of terms (\( n \)). Use \( S_n \) to calculate the total sum of the first \( n \) terms. You must identify <b>a</b> (the first term) and calculate <b>d</b> (\( T_2 - T_1 \)) first.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Geometric Sequences -->
+            <div class="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                <div class="bg-emerald-50 px-4 py-3 border-b border-emerald-100 flex flex-col gap-2">
+                    <span class="font-bold text-emerald-900 text-base">Geometric Sequences & Series</span>
+                    <div class="flex flex-col gap-2 font-mono text-emerald-800 text-lg">
+                        <span>\( T_n = ar^{n-1} \)</span>
+                        <div class="flex flex-col sm:flex-row gap-4 sm:gap-8">
+                            <span>\( S_n = \frac{a(r^n - 1)}{r - 1} \text{ for } r \neq 1 \)</span>
+                            <span>\( S_{\infty} = \frac{a}{1 - r} \text{ for } -1 < r < 1 \)</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="p-5 space-y-4">
+                    <div>
+                        <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Where to use it</span>
+                        <p class="text-slate-700">When dealing with an exponential pattern where you multiply by the exact same constant ratio (<b>r</b>) to get to the next term.</p>
+                    </div>
+                    <div>
+                        <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">How to use it</span>
+                        <p class="text-slate-700">Use \( T_n \) for specific terms. Use \( S_n \) for the sum of a finite sequence. Use \( S_{\infty} \) ONLY when the question asks for the "sum to infinity" and explicitly states or implies the series converges (meaning the ratio <b>r</b> is a fraction between -1 and 1).</p>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+        <div class="p-6 border-t border-slate-100 bg-white rounded-b-xl flex justify-end">
+            <button type="button" onclick="document.getElementById('formulas-modal').classList.add('hidden')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-6 py-2 rounded-lg transition">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Rules Modal -->
+<div id="rules-modal" class="fixed inset-0 z-50 hidden bg-slate-900/50 flex items-start pt-12 justify-center p-4">
+    <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[85vh] flex flex-col relative" id="rules-modal-content">
+        <div class="p-6 border-b border-slate-100 flex justify-between items-center cursor-move" id="rules-modal-header">
+            <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2">
+                <span class="bg-rose-200 text-rose-800 w-8 h-8 rounded-lg flex items-center justify-center shadow-sm">⚖️</span> Mathematical Rules
+            </h3>
+            <button type="button" onclick="document.getElementById('rules-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+        <div class="p-6 overflow-y-auto space-y-4 text-sm flex-grow bg-slate-50">
+            <div class="p-4 bg-white border border-slate-200 rounded-lg shadow-sm">
+                <span class="font-bold text-rose-800 text-base block mb-2">Exponent Laws</span>
+                <pre class="text-slate-800 leading-relaxed font-sans whitespace-pre-wrap text-base mb-3 border border-slate-100 p-2 rounded bg-slate-50">1. \( x^a \cdot x^b = x^{a+b} \)
+2. \( \frac{x^a}{x^b} = x^{a-b} \)
+3. \( (x^a)^b = x^{a \cdot b} \)</pre>
+                <div class="bg-rose-50 p-3 rounded border border-rose-100">
+                    <span class="text-xs font-bold text-rose-800 uppercase tracking-wider block mb-1">Plain English:</span>
+                    <span class="text-slate-800 text-sm">When multiplying bases, add exponents. When dividing, subtract. Power to a power, multiply!</span>
+                </div>
+            </div>
+        </div>
+        <div class="p-6 border-t border-slate-100 bg-white rounded-b-xl flex justify-end">
+            <button type="button" onclick="document.getElementById('rules-modal').classList.add('hidden')" class="bg-rose-600 hover:bg-rose-700 text-white font-medium px-6 py-2 rounded-lg transition">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Tools Modal -->
+<div id="tools-modal" class="fixed inset-0 z-50 hidden bg-slate-900/50 flex items-start pt-12 justify-center p-4">
+    <div class="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col relative" id="tools-modal-content">
+        <div class="p-6 border-b border-slate-100 flex justify-between items-center cursor-move" id="tools-modal-header">
+            <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2">
+                <span class="bg-amber-200 text-amber-800 w-8 h-8 rounded-lg flex items-center justify-center shadow-sm">🔨</span> Math Tools
+            </h3>
+            <button type="button" onclick="document.getElementById('tools-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+        <div class="p-6 overflow-y-auto flex-grow bg-slate-50 h-[70vh]">
+            <p class="text-slate-600 mb-4">Use this scratchpad to calculate values or draw notes. (Note: Full Desmos API requires internet connection and an API key).</p>
+            <textarea rows="10" class="w-full border-slate-300 rounded-lg shadow-sm p-4 font-mono focus:border-amber-500 focus:ring-amber-500" placeholder="Type your rough calculations here..."></textarea>
+        </div>
+        <div class="p-6 border-t border-slate-100 bg-white rounded-b-xl flex justify-end">
+            <button type="button" onclick="document.getElementById('tools-modal').classList.add('hidden')" class="bg-amber-600 hover:bg-amber-700 text-white font-medium px-6 py-2 rounded-lg transition">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Steps Modal -->
+<div id="steps-modal" class="fixed inset-0 z-50 hidden bg-slate-900/50 flex items-start pt-12 justify-center p-4">
+    <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[85vh] flex flex-col relative" id="steps-modal-content">
+        <div class="p-6 border-b border-slate-100 flex justify-between items-center cursor-move" id="steps-modal-header">
+            <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2">
+                <span class="bg-cyan-200 text-cyan-800 w-8 h-8 rounded-lg flex items-center justify-center shadow-sm">🪜</span> Standard Steps
+            </h3>
+            <button type="button" onclick="document.getElementById('steps-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+        <div class="p-6 overflow-y-auto space-y-4 text-sm flex-grow bg-slate-50">
+            {% if sub_topic == 'sequences_arithmetic' %}
+            <div class="p-4 bg-white border border-slate-200 rounded-lg shadow-sm">
+                <span class="font-bold text-cyan-800 text-base block mb-3">Arithmetic Sequences & Series</span>
+                <ol class="list-decimal ml-4 space-y-2 text-slate-700">
+                    <li>Identify the known variables: first term <b>a</b>, common difference <b>d</b>.</li>
+                    <li>If calculating a specific term, write down \( T_n = a + (n-1)d \).</li>
+                    <li>If you need to find <b>n</b> first, substitute knowns into the \( T_n \) formula and solve for n.</li>
+                    <li>If calculating a sum, choose the right formula: \( S_n = \frac{n}{2}[2a + (n-1)d] \) OR \( S_n = \frac{n}{2}(a+L) \).</li>
+                    <li>Substitute your variables and solve carefully.</li>
+                </ol>
+            </div>
+            {% elif sub_topic == 'sequences_geometric' %}
+            <div class="p-4 bg-white border border-slate-200 rounded-lg shadow-sm">
+                <span class="font-bold text-cyan-800 text-base block mb-3">Geometric Sequences & Series</span>
+                <ol class="list-decimal ml-4 space-y-2 text-slate-700">
+                    <li>Identify the known variables: first term <b>a</b>, constant ratio <b>r</b>.</li>
+                    <li>Find <b>r</b> by dividing any term by its preceding term (\( T_2 / T_1 \)).</li>
+                    <li>Write down the relevant formula: \( T_n = ar^{n-1} \) or \( S_n = \frac{a(r^n - 1)}{r - 1} \).</li>
+                    <li>Substitute variables. If solving for an exponent <b>n</b>, use logarithms!</li>
+                    <li>Calculate final answer.</li>
+                </ol>
+            </div>
+            {% else %}
+            <div class="p-4 bg-white border border-slate-200 rounded-lg shadow-sm text-center">
+                <p class="text-slate-600">1. Identify known variables.<br>2. Choose the correct formula.<br>3. Substitute values.<br>4. Solve step-by-step.</p>
+            </div>
+            {% endif %}
+        </div>
+        <div class="p-6 border-t border-slate-100 bg-white rounded-b-xl flex justify-end">
+            <button type="button" onclick="document.getElementById('steps-modal').classList.add('hidden')" class="bg-cyan-600 hover:bg-cyan-700 text-white font-medium px-6 py-2 rounded-lg transition">Close</button>
+        </div>
+    </div>
+</div>
+
+<script>
+function makeDraggable(modalContentId, modalHeaderId) {
+    const modalContent = document.getElementById(modalContentId);
+    const modalHeader = document.getElementById(modalHeaderId);
+    if (!modalContent || !modalHeader) return;
+
+    let isDragging = false;
+    let startX, startY, initialX, initialY;
+    let currentX = 0, currentY = 0;
+
+    // Attach mousedown event on the header
+    modalHeader.addEventListener('mousedown', dragStart);
+    
+    function dragStart(e) {
+        // Prevent dragging if clicking a button (like the close button)
+        if (e.target.tagName.toLowerCase() === 'button' || e.target.closest('button')) return;
+        
+        initialX = e.clientX - currentX;
+        initialY = e.clientY - currentY;
+
+        isDragging = true;
+        
+        // Disable text selection during drag
+        document.body.style.userSelect = 'none';
+        
+        document.addEventListener('mousemove', drag);
+        document.addEventListener('mouseup', dragEnd);
+    }
+
+    function drag(e) {
+        if (!isDragging) return;
+        e.preventDefault();
+        
+        currentX = e.clientX - initialX;
+        currentY = e.clientY - initialY;
+        
+        // Apply translation
+        modalContent.style.transform = `translate(${currentX}px, ${currentY}px)`;
+    }
+
+    function dragEnd(e) {
+        initialX = currentX;
+        initialY = currentY;
+        isDragging = false;
+        
+        // Re-enable text selection
+        document.body.style.userSelect = '';
+        
+        document.removeEventListener('mousemove', drag);
+        document.removeEventListener('mouseup', dragEnd);
+    }
+}
+
+// Initialize dragging for all modals when DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+    makeDraggable('definitions-modal-content', 'definitions-modal-header');
+    makeDraggable('formulas-modal-content', 'formulas-modal-header');
+    makeDraggable('rules-modal-content', 'rules-modal-header');
+    makeDraggable('tools-modal-content', 'tools-modal-header');
+    makeDraggable('steps-modal-content', 'steps-modal-header');
+});
+</script>

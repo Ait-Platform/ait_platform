@@ -45,6 +45,10 @@ DASHBOARD_MAP = {
         ("budget_bp.ledger", False),
         ("public_bp.welcome", False),
     ],
+    "practice_crm": [
+        ("practice_crm_bp.dashboard", False),
+        ("public_bp.welcome", False),
+    ],
 }
 
 def pick_dashboard(role: str | None, subject: str | None = None) -> tuple[str, dict]:

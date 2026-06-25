@@ -1,0 +1,72 @@
+[
+  {
+    "question": "Q1",
+    "topic_name": "probability",
+    "sub_topic": "financial_math",
+    "concepts_tested": "mean, standard deviation, data analysis, percentage increase, new mean calculation",
+    "marks": 9
+  },
+  {
+    "question": "Q2",
+    "topic_name": "probability",
+    "sub_topic": "probability_venn",
+    "concepts_tested": "scatter plot, least squares regression line, correlation coefficient, prediction, y-intercept interpretation",
+    "marks": 10
+  },
+  {
+    "question": "Q3",
+    "topic_name": "geometry",
+    "sub_topic": "geometry_analytical",
+    "concepts_tested": "coordinates, equation of a line, length formula, perpendicular lines, gradient, reflection, area of polygon",
+    "marks": 21
+  },
+  {
+    "question": "Q4",
+    "topic_name": "geometry",
+    "sub_topic": "geometry_analytical",
+    "concepts_tested": "equation of a circle, tangent to a circle, radius perpendicular to tangent, distance formula, parallelogram properties, angle in a circle",
+    "marks": 20
+  },
+  {
+    "question": "Q5",
+    "topic_name": "functions",
+    "sub_topic": "trigonometry_identities",
+    "concepts_tested": "trigonometric ratios, quadrants, reduction formulae, compound angles, double angles, simplifying expressions",
+    "marks": 19
+  },
+  {
+    "question": "Q6",
+    "topic_name": "functions",
+    "sub_topic": "trigonometry_identities",
+    "concepts_tested": "double angle identity, compound angle identities, proving identities, general solution of trigonometric equations",
+    "marks": 13
+  },
+  {
+    "question": "Q7",
+    "topic_name": "functions",
+    "sub_topic": "trigonometry_identities",
+    "concepts_tested": "range of a function, period of a function, increasing intervals, graph analysis, derivative interpretation, solving trigonometric inequalities, function transformation",
+    "marks": 10
+  },
+  {
+    "question": "Q8",
+    "topic_name": "functions",
+    "sub_topic": "trigonometry_identities",
+    "concepts_tested": "right-angled triangles, trigonometric ratios, 3D geometry, proving trigonometric relationships",
+    "marks": 8
+  },
+  {
+    "question": "Q9",
+    "topic_name": "geometry",
+    "sub_topic": "geometry_analytical",
+    "concepts_tested": "parallel lines, proportionality theorem, similar triangles, ratios of sides",
+    "marks": 7
+  },
+  {
+    "question": "Q10",
+    "topic_name": "geometry",
+    "sub_topic": "geometry_analytical",
+    "concepts_tested": "proving similarity of triangles, ratios of sides in similar triangles, circle theorems, angle properties",
+    "marks": 20
+  }
+]

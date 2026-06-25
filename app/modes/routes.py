@@ -202,8 +202,7 @@ def modes_checkpoint_route():
                     exp = exp.astimezone(timezone.utc)
 
                 if now < exp:
-                    flash("You are already enrolled in this program.", "info")
-                    return redirect(url_for("bridge_bp.bridge"))
+                    return redirect(url_for(subj.start_endpoint))
                 else:
                     flash("Your enrollment has expired. Please renew.", "warning")
                     return redirect(url_for(

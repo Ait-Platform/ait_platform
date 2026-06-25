@@ -7,13 +7,11 @@
   margin-bottom:1.5rem;
   text-align:center;
 ">
-  {% if logo_path %}
-    <img
-      src="{{ logo_path }}"
-      alt="AIT Logo"
-      style="height:60px; object-fit:contain;"
-    >
-  {% endif %}
+  <img
+    src="{{ logo_b64 if logo_b64 else url_for('static', filename='images/Palm.png') }}"
+    alt="AIT Logo"
+    style="height:60px; object-fit:contain;"
+  >
 
   <div style="
     font-size:1.5rem;

@@ -174,12 +174,19 @@
             {% endif %}
           {% else %}
             {% if current_user.is_authenticated %}
-              <form action="{{ url_for('auth_bp.register_decision', subject=subject_slug) }}" method="POST" class="inline">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="inline-flex items-center justify-center rounded bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 shadow-sm transition-colors">
-                  Start now
-                </button>
-              </form>
+              {% if is_upgrade %}
+                <a href="{{ url_for('yoco_bp.yoco_start', email=current_user.email, subject=subject_slug) }}" 
+                   class="inline-flex items-center justify-center rounded bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 shadow-sm transition-colors">
+                  Proceed to Payment
+                </a>
+              {% else %}
+                <form action="{{ url_for('auth_bp.register_decision', subject=subject_slug) }}" method="POST" class="inline">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="inline-flex items-center justify-center rounded bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 shadow-sm transition-colors">
+                    Start now
+                  </button>
+                </form>
+              {% endif %}
             {% else %}
               <a href="{{ url_for('auth_bp.register',
                                   role='user',

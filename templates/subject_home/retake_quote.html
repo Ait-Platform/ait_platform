@@ -1,0 +1,94 @@
+{% extends "layout.html" %}
+
+{% block title %}
+Retake Program Quote
+{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-center min-h-[60vh] bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div class="bg-white p-8 rounded-2xl shadow-xl max-w-3xl w-full border border-gray-100">
+        <div class="text-center mb-8">
+            <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 mb-4">
+                <svg class="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+            </div>
+            <h1 class="text-2xl font-extrabold text-gray-900">Retake Options</h1>
+            <p class="text-sm text-gray-500 mt-2">Choose how you would like to proceed. Discounted retake fees apply.</p>
+        </div>
+
+        <div class="mb-6 flex justify-between items-center text-sm text-gray-500 bg-gray-50 p-3 rounded-lg border border-gray-200">
+            <span><strong>Country Profile:</strong> {{ country_code }}</span>
+            <span><i class="fas fa-lock text-gray-400 mr-1"></i> Secure Yoco Checkout</span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <!-- Option 1: Exam Only -->
+            <form method="POST" action="{{ url_for('home_bp.re_enrol') }}" class="flex flex-col">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="retake_type" value="exam">
+                <div class="flex-1 bg-white border-2 border-gray-200 rounded-xl p-6 flex flex-col justify-between hover:border-blue-500 hover:shadow-md transition-all cursor-pointer group" onclick="this.parentElement.submit()">
+                    <div>
+                        <h3 class="text-lg font-bold text-gray-900 group-hover:text-blue-600 transition-colors">Retake Final Assessment</h3>
+                        <p class="text-sm text-gray-500 mt-2">Skip the theory and go straight to the final exam.</p>
+                        <span class="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded mt-3 font-semibold">66% Discount</span>
+                    </div>
+                    
+                    <div class="mt-6 border-t border-gray-100 pt-4 space-y-2">
+                        {% if exam_local_cents > 0 %}
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-500">Local Price</span>
+                            <span class="font-medium text-gray-900">{{ local_currency }} {{ "%.2f"|format(exam_local_cents / 100.0) }}</span>
+                        </div>
+                        {% endif %}
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-500 font-medium">ZAR Amount</span>
+                            <span class="text-blue-700 font-bold text-xl">R {{ "%.2f"|format(exam_zar_cents / 100.0) }}</span>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="mt-6 w-full flex justify-center py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 transition-colors">
+                        Select Exam Only
+                    </button>
+                </div>
+            </form>
+
+            <!-- Option 2: Entire Course -->
+            <form method="POST" action="{{ url_for('home_bp.re_enrol') }}" class="flex flex-col">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="retake_type" value="course">
+                <div class="flex-1 bg-white border-2 border-gray-200 rounded-xl p-6 flex flex-col justify-between hover:border-indigo-500 hover:shadow-md transition-all cursor-pointer group" onclick="this.parentElement.submit()">
+                    <div>
+                        <h3 class="text-lg font-bold text-gray-900 group-hover:text-indigo-600 transition-colors">Retake Entire Course</h3>
+                        <p class="text-sm text-gray-500 mt-2">Reset all your progress and start fresh from Chapter 1.</p>
+                        <span class="inline-block bg-indigo-100 text-indigo-800 text-xs px-2 py-1 rounded mt-3 font-semibold">50% Discount</span>
+                    </div>
+                    
+                    <div class="mt-6 border-t border-gray-100 pt-4 space-y-2">
+                        {% if course_local_cents > 0 %}
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-500">Local Price</span>
+                            <span class="font-medium text-gray-900">{{ local_currency }} {{ "%.2f"|format(course_local_cents / 100.0) }}</span>
+                        </div>
+                        {% endif %}
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-500 font-medium">ZAR Amount</span>
+                            <span class="text-indigo-700 font-bold text-xl">R {{ "%.2f"|format(course_zar_cents / 100.0) }}</span>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="mt-6 w-full flex justify-center py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 transition-colors">
+                        Select Entire Course
+                    </button>
+                </div>
+            </form>
+        </div>
+        
+        <div class="text-center">
+            <a href="{{ url_for('home_bp.learner_dashboard') }}" class="text-sm font-medium text-gray-500 hover:text-gray-700">
+                Cancel and return
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

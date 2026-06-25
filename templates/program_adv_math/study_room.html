@@ -1,0 +1,201 @@
+{% extends "layout.html" %}
+
+{% block title %}{{ topic_title }} - Study Room{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-8">
+  <div class="bg-white rounded-xl shadow-lg overflow-hidden flex flex-col h-full relative z-10">
+    <div class="h-3 bg-indigo-600 w-full"></div>
+    <div class="p-8 md:p-12">
+        
+        <!-- Header Row 1 -->
+        <div class="flex items-center justify-between mb-4">
+            <span class="text-sm font-bold text-indigo-600 tracking-wider uppercase">Study Room</span>
+            <div class="flex items-center gap-3">
+                <a href="{{ url_for('adv_math_bp.dashboard') }}" class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition shadow-sm shrink-0">
+                    <span>←</span> Dashboard
+                </a>
+            </div>
+        </div>
+        
+        <!-- Header Row 2 -->
+        <div class="flex flex-col md:flex-row md:items-center justify-between mb-8 border-b border-slate-100 pb-4 gap-4">
+            <div>
+                <h1 class="text-2xl md:text-3xl font-bold text-slate-900 mb-1">{{ active_subtopic.title }}</h1>
+                <p class="text-slate-600 font-medium text-sm">Topic: {{ topic_title }}</p>
+            </div>
+            
+            <a href="{{ url_for('adv_math_bp.desk_flow', topic_id=topic_id, sub_topic=sub_topic) }}" class="inline-flex items-center justify-center gap-2 bg-cyan-600 hover:bg-cyan-700 text-white font-bold px-6 py-3 rounded-lg transition shadow-sm whitespace-nowrap">
+                Go to Practice Desk →
+            </a>
+        </div>
+
+        <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-6 mb-8 text-indigo-900">
+            <h3 class="text-xl font-bold mb-2 flex items-center gap-2">
+                <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                Welcome to the Study Room
+            </h3>
+            <p class="text-indigo-800">Before jumping into the "deep end" questions on the Practice Desk, review the fundamental concepts and rules below. If you don't understand something, ask the AI Tutor for an explanation!</p>
+        </div>
+
+        <!-- Fundamentals Drill-Down -->
+        <div class="mb-10">
+            <h3 class="text-xl font-bold text-slate-800 mb-6 border-b border-slate-200 pb-2">
+                Core Rules & Formulas
+            </h3>
+            
+            {% if active_blueprint %}
+                <div class="space-y-4">
+                    {% for step in active_blueprint.steps %}
+                    <div class="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm hover:border-indigo-300 transition">
+                        <div class="p-5 flex gap-4">
+                            <div class="shrink-0 pt-1">
+                                <div class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 border border-indigo-200 flex items-center justify-center font-bold">
+                                    {{ loop.index }}
+                                </div>
+                            </div>
+                            <div class="w-full">
+                                <h4 class="text-lg font-bold text-slate-800 mb-2">{{ step.title }}</h4>
+                                <p class="text-slate-600 mb-3">{{ step.content }}</p>
+                                <div class="bg-slate-50 border-l-4 border-slate-300 p-3 text-sm text-slate-600">
+                                    <span class="font-bold text-slate-700 block mb-1">Why this matters:</span>
+                                    {{ step.explanation }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="bg-slate-50 p-8 rounded-xl border border-slate-200 text-center">
+                    <p class="text-slate-600">Fundamentals for this topic are being updated. You can still ask the AI Tutor below for help!</p>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- AI Tutor for Concepts -->
+        <div class="bg-white border border-slate-200 rounded-xl p-6 md:p-8 shadow-sm">
+            <h3 class="text-xl font-bold text-slate-800 flex items-center gap-2 mb-2">
+                <span class="text-2xl">🤖</span> Ask the Tutor
+            </h3>
+            <p class="text-slate-500 text-sm mb-6 pb-4 border-b border-slate-100">Confused about the ratio rule? Need an example of a sequence? Ask here.</p>
+            
+            <div id="tutor-chat" class="space-y-4 mb-6 max-h-80 overflow-y-auto hidden p-2">
+                <!-- Chat history -->
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-3">
+                <input type="text" id="concept-query" class="flex-grow rounded-lg border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-3" placeholder="e.g., 'Explain what the 'a' and 'r' variables mean in simple terms'">
+                <button type="button" id="btn-ask" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-6 py-3 rounded-lg shadow-sm transition shrink-0">
+                    Ask Tutor
+                </button>
+            </div>
+            
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        </div>
+
+        <div class="mt-12 text-center pt-8 border-t border-slate-200">
+            <a href="{{ url_for('adv_math_bp.desk_flow', topic_id=topic_id, sub_topic=sub_topic) }}" class="inline-flex items-center justify-center gap-2 bg-cyan-600 hover:bg-cyan-700 text-white font-bold px-8 py-4 rounded-xl transition shadow-lg transform hover:scale-105">
+                I'm ready! Go to the Practice Desk →
+            </a>
+        </div>
+        
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+window.MathJax = {
+  tex: {
+    inlineMath: [['\\(', '\\)']],
+    displayMath: [['\\[', '\\]']]
+  }
+};
+</script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const btnAsk = document.getElementById('btn-ask');
+    const queryInput = document.getElementById('concept-query');
+    const chatHistory = document.getElementById('tutor-chat');
+    
+    if (btnAsk && queryInput && chatHistory) {
+        btnAsk.addEventListener('click', async function() {
+            const query = queryInput.value.trim();
+            if (!query) return;
+
+            chatHistory.classList.remove('hidden');
+            chatHistory.innerHTML += `
+                <div class="flex justify-end">
+                    <div class="bg-indigo-50 border border-indigo-100 text-slate-800 p-3 rounded-lg rounded-tr-none max-w-[80%] text-sm">
+                        ${query}
+                    </div>
+                </div>
+            `;
+            
+            queryInput.value = '';
+            
+            const originalText = btnAsk.innerHTML;
+            btnAsk.innerHTML = `<span class="animate-pulse">Thinking...</span>`;
+            btnAsk.disabled = true;
+
+            try {
+                const response = await fetch("{{ url_for('adv_math_bp.topic_tutor', topic_id=topic_id, sub_topic=sub_topic) }}", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+                    },
+                    body: JSON.stringify({ step: query })
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    chatHistory.innerHTML += `
+                        <div class="flex justify-start">
+                            <div class="bg-red-50 text-red-800 p-3 rounded-lg rounded-tl-none max-w-[80%] text-sm border border-red-100">
+                                ${data.error}
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    chatHistory.innerHTML += `
+                        <div class="flex justify-start">
+                            <div class="bg-slate-100 text-slate-800 p-4 rounded-lg rounded-tl-none max-w-[90%] text-sm border border-slate-200">
+                                <span class="font-bold text-indigo-600 block mb-1">AI Tutor:</span>
+                                ${data.feedback}
+                            </div>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                chatHistory.innerHTML += `
+                    <div class="flex justify-start">
+                        <div class="bg-red-50 text-red-800 p-3 rounded-lg rounded-tl-none max-w-[80%] text-sm border border-red-100">
+                            Failed to reach tutor.
+                        </div>
+                    </div>
+                `;
+            } finally {
+                btnAsk.innerHTML = originalText;
+                btnAsk.disabled = false;
+                if (window.MathJax) MathJax.typesetPromise();
+                chatHistory.scrollTop = chatHistory.scrollHeight;
+            }
+        });
+        
+        queryInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                btnAsk.click();
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

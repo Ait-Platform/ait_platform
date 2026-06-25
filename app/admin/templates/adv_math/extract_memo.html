@@ -1,0 +1,92 @@
+{% extends 'admin/base.html' %}
+{% block content %}
+<h2 class="text-2xl font-semibold mb-4">Add Marking Memo</h2>
+<div id="question-container" class="mb-4">
+  <p class="font-medium">Select a question to attach a memo:</p>
+  <select id="question-select" class="border rounded p-2 w-full mb-2">
+    <option value="" disabled selected>-- Choose Question --</option>
+  </select>
+  <div id="question-preview" class="border rounded p-2" style="max-height:400px; overflow:auto;">
+    <!-- Question image will be injected here -->
+  </div>
+</div>
+<div class="mb-4">
+  <p class="font-medium">Upload memo image (crop before uploading):</p>
+  <input type="file" id="memo-file" accept="image/*" class="border p-2" />
+</div>
+<button id="save-memo" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Save Memo</button>
+
+<script>
+// Helper to convert image file to base64
+function toBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(",")[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+// Load questions for selected paper
+async function loadQuestions() {
+  const paper = new URLSearchParams(window.location.search).get('paper');
+  if (!paper) return;
+  const resp = await fetch('{{ url_for("admin_bp.adv_math_api_questions_by_paper") }}', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ paper_name: paper })
+  });
+  const data = await resp.json();
+  const select = document.getElementById('question-select');
+  data.questions.forEach(q => {
+    const opt = document.createElement('option');
+    opt.value = q.id;
+    opt.textContent = `Q${q.id} – ${q.topic} (${q.sub_topic})`;
+    select.appendChild(opt);
+  });
+}
+
+// When a question is selected, show its image
+document.getElementById('question-select').addEventListener('change', async (e) => {
+  const qid = e.target.value;
+  const resp = await fetch(`/admin/adv_math/api/question_image/${qid}`); // you may need to implement this endpoint
+  // For now, we assume the question image URL is stored in the question's HTML already
+  // We'll fetch the question object via the API again to extract the img tag
+  const apiResp = await fetch('{{ url_for("admin_bp.adv_math_api_questions_by_paper") }}', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ paper_name: new URLSearchParams(window.location.search).get('paper') })
+  });
+  const apiData = await apiResp.json();
+  const q = apiData.questions.find(q => q.id == qid);
+  const preview = document.getElementById('question-preview');
+  preview.innerHTML = q ? q.question_html || '' : '';
+});
+
+document.getElementById('save-memo').addEventListener('click', async () => {
+  const qid = document.getElementById('question-select').value;
+  const fileInput = document.getElementById('memo-file');
+  if (!qid || fileInput.files.length === 0) {
+    alert('Select a question and a memo image');
+    return;
+  }
+  const base64 = await toBase64(fileInput.files[0]);
+  const payload = { question_id: qid, image_data: `data:${fileInput.files[0].type};base64,${base64}` };
+  const resp = await fetch('{{ url_for("admin_bp.adv_math_extract_memo_save") }}', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  const result = await resp.json();
+  if (result.success) {
+    alert('Memo saved!');
+    // Optionally refresh or close modal
+  } else {
+    alert('Error: ' + result.error);
+  }
+});
+
+// Init
+loadQuestions();
+</script>
+{% endblock %}

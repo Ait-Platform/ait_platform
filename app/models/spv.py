@@ -627,5 +627,9 @@ class SpvSection(db.Model):
     )
 
 
-
+class SpvGenericSection(db.Model):
+    __tablename__ = "spv_generic_sections"
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(255), nullable=False, unique=True)
+    
 

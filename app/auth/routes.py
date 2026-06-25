@@ -798,7 +798,7 @@ def login():
                       AND (
                          s.commercial_mode = 'free' OR
                          s.requires_price = 0 OR
-                         ue.status IN ('active', 'started', 'enrolled', 'paid') OR
+                         ue.status IN ('active', 'started', 'enrolled', 'paid', 'receptionist') OR
                          (ue.trial_end IS NOT NULL AND ue.trial_end > CURRENT_TIMESTAMP) OR
                          (ue.expires_at IS NOT NULL AND ue.expires_at > CURRENT_TIMESTAMP)
                       )

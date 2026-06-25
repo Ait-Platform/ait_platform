@@ -1,0 +1,287 @@
+{% extends "layout.html" %}
+{% block title %}Admin | Extract Marking Memo{% endblock %}
+
+{% block content %}
+<link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+
+<div class="mx-auto max-w-7xl mb-8 mt-8">
+  <div class="bg-white rounded-xl shadow overflow-hidden">
+    <div class="h-2 bg-indigo-600"></div>
+    
+    <div class="p-6">
+        <div class="flex items-center justify-between mb-8 border-b border-slate-200 pb-4">
+            <div>
+                <h1 class="text-3xl font-bold text-slate-800">Marking Memo Extractor</h1>
+                <p class="text-slate-500">Upload a Marking Guideline PDF and crop solutions to link them to existing questions.</p>
+            </div>
+            <div class="flex gap-4">
+                <a href="{{ url_for('admin_bp.adv_math_extract') }}" class="text-sm font-bold text-cyan-700 bg-cyan-50 border-2 border-cyan-200 hover:bg-cyan-100 px-4 py-2 rounded-lg shadow-sm transition">
+                    &larr; Extract Questions
+                </a>
+                <a href="{{ url_for('admin_bp.index') }}" class="text-sm font-medium text-slate-600 hover:text-slate-900 bg-white border-2 border-slate-200 px-4 py-2 rounded-lg shadow-sm transition">
+                    Dashboard
+                </a>
+            </div>
+        </div>
+
+        <div class="flex flex-col gap-8">
+            
+            <!-- Top Section: Data Entry -->
+            <div class="bg-white p-6 rounded-xl border-2 border-slate-200 shadow-sm">
+                <h2 class="text-lg font-bold text-slate-800 mb-4">Link Solution to Question</h2>
+                
+                <form id="extractMemoForm" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+                    <div class="col-span-1 lg:col-span-2">
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Select Source Paper</label>
+                        <select id="sourcePaper" required class="w-full rounded-lg border-2 border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 p-2 outline-none">
+                            <option value="">Select Paper...</option>
+                            <option value="May-June 2028 Paper 1">May-June 2028 Paper 1</option>
+                            <option value="May-June 2028 Paper 2">May-June 2028 Paper 2</option>
+                            <option value="Nov 2028 Paper 1">Nov 2028 Paper 1</option>
+                            <option value="Nov 2028 Paper 2">Nov 2028 Paper 2</option>
+                            <option value="May-June 2027 Paper 1">May-June 2027 Paper 1</option>
+                            <option value="May-June 2027 Paper 2">May-June 2027 Paper 2</option>
+                            <option value="Nov 2027 Paper 1">Nov 2027 Paper 1</option>
+                            <option value="Nov 2027 Paper 2">Nov 2027 Paper 2</option>
+                            <option value="May-June 2026 Paper 1">May-June 2026 Paper 1</option>
+                            <option value="May-June 2026 Paper 2">May-June 2026 Paper 2</option>
+                            <option value="Nov 2026 Paper 1">Nov 2026 Paper 1</option>
+                            <option value="Nov 2026 Paper 2">Nov 2026 Paper 2</option>
+                            <option value="May-June 2025 Paper 1">May-June 2025 Paper 1</option>
+                            <option value="May-June 2025 Paper 2">May-June 2025 Paper 2</option>
+                            <option value="Nov 2025 Paper 1">Nov 2025 Paper 1</option>
+                            <option value="Nov 2025 Paper 2">Nov 2025 Paper 2</option>
+                            <option value="May-June 2024 Paper 1">May-June 2024 Paper 1</option>
+                            <option value="May-June 2024 Paper 2">May-June 2024 Paper 2</option>
+                            <option value="Nov 2024 Paper 1">Nov 2024 Paper 1</option>
+                            <option value="Nov 2024 Paper 2">Nov 2024 Paper 2</option>
+                            <option value="May-June 2023 Paper 1">May-June 2023 Paper 1</option>
+                            <option value="May-June 2023 Paper 2">May-June 2023 Paper 2</option>
+                            <option value="Nov 2023 Paper 1">Nov 2023 Paper 1</option>
+                            <option value="Nov 2023 Paper 2">Nov 2023 Paper 2</option>
+                            <option value="May-June 2022 Paper 1">May-June 2022 Paper 1</option>
+                            <option value="May-June 2022 Paper 2">May-June 2022 Paper 2</option>
+                            <option value="Nov 2022 Paper 1">Nov 2022 Paper 1</option>
+                            <option value="Nov 2022 Paper 2">Nov 2022 Paper 2</option>
+                        </select>
+                    </div>
+
+                    <div class="col-span-1 lg:col-span-1">
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Select Question</label>
+                        <select id="questionSelect" required disabled class="w-full rounded-lg border-2 border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 p-2 outline-none disabled:bg-slate-100 disabled:text-slate-400">
+                            <option value="">Select Paper First...</option>
+                        </select>
+                    </div>
+
+                    <div class="col-span-1 lg:col-span-1">
+                        <button type="submit" id="saveBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-lg shadow-sm transition h-[42px]">
+                            Save Cropped Solution
+                        </button>
+                    </div>
+                    
+                    <div id="statusMsg" class="hidden text-sm p-3 rounded-lg mt-4 font-medium col-span-1 md:col-span-2 lg:col-span-4"></div>
+                </form>
+            </div>
+
+            <!-- Middle Section: PDF Viewer (Full Width) -->
+            <div class="flex flex-col h-[800px]">
+                <div class="bg-slate-100 p-4 rounded-t-xl border-2 border-slate-300 border-b-0 flex items-center justify-between">
+                    <div>
+                        <input type="file" id="pdfUpload" accept="application/pdf" class="text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <button id="prevPage" class="px-3 py-1 bg-white border border-slate-300 rounded hover:bg-slate-50 disabled:opacity-50">&larr; Prev</button>
+                        <span class="text-sm font-medium">Page <span id="pageNum">0</span> / <span id="pageCount">0</span></span>
+                        <button id="nextPage" class="px-3 py-1 bg-white border border-slate-300 rounded hover:bg-slate-50 disabled:opacity-50">Next &rarr;</button>
+                    </div>
+                </div>
+                
+                <div class="flex-grow bg-slate-200 border-2 border-slate-300 rounded-b-xl overflow-auto p-6 w-full">
+                    <div id="canvasSizer" class="mx-auto shadow-lg bg-white relative">
+                        <canvas id="pdfCanvas" class="block w-full h-full"></canvas>
+                    </div>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+  </div>
+</div>
+
+<script>
+    // PDF.js setup
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+    
+    let pdfDoc = null;
+    let pageNum = 1;
+    let canvas = document.getElementById('pdfCanvas');
+    let ctx = canvas.getContext('2d');
+    let cropper = null;
+
+    document.getElementById('pdfUpload').addEventListener('change', function(e) {
+        let file = e.target.files[0];
+        if (file.type !== "application/pdf") {
+            alert("Please upload a valid PDF file.");
+            return;
+        }
+
+        let fileReader = new FileReader();
+        fileReader.onload = function() {
+            let typedarray = new Uint8Array(this.result);
+            pdfjsLib.getDocument(typedarray).promise.then(pdf => {
+                pdfDoc = pdf;
+                document.getElementById('pageCount').innerText = pdf.numPages;
+                pageNum = 1;
+                renderPage(pageNum);
+            });
+        };
+        fileReader.readAsArrayBuffer(file);
+    });
+
+    function renderPage(num) {
+        pdfDoc.getPage(num).then(page => {
+            let viewport = page.getViewport({ scale: 1.0 }); // Slightly larger scale for memo clarity
+            
+            let wrapper = document.getElementById('canvasSizer');
+            wrapper.style.width = viewport.width + "px";
+            wrapper.style.height = viewport.height + "px";
+
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+
+            let renderContext = {
+                canvasContext: ctx,
+                viewport: viewport
+            };
+
+            page.render(renderContext).promise.then(() => {
+                document.getElementById('pageNum').innerText = num;
+                
+                if (cropper) { cropper.destroy(); }
+                
+                cropper = new Cropper(canvas, {
+                    zoomable: false,
+                    viewMode: 1,
+                    autoCropArea: 0.2,
+                    background: false
+                });
+            });
+        });
+    }
+
+    document.getElementById('prevPage').addEventListener('click', () => {
+        if (pageNum <= 1) return;
+        pageNum--;
+        renderPage(pageNum);
+    });
+
+    document.getElementById('nextPage').addEventListener('click', () => {
+        if (pageNum >= pdfDoc.numPages) return;
+        pageNum++;
+        renderPage(pageNum);
+    });
+
+    // Fetch Questions when Paper is selected
+    document.getElementById('sourcePaper').addEventListener('change', function() {
+        let paper = this.value;
+        let qSelect = document.getElementById('questionSelect');
+        
+        if (!paper) {
+            qSelect.innerHTML = '<option value="">Select Paper First...</option>';
+            qSelect.disabled = true;
+            return;
+        }
+        
+        qSelect.innerHTML = '<option value="">Loading...</option>';
+        qSelect.disabled = true;
+        
+        fetch('/admin/adv_math/api/questions_by_paper', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ paper_name: paper })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                if (data.questions.length === 0) {
+                    qSelect.innerHTML = '<option value="">No questions missing memos found.</option>';
+                } else {
+                    qSelect.innerHTML = '<option value="">-- Select Question --</option>';
+                    data.questions.forEach(q => {
+                        let sub = q.sub_topic ? ` (${q.sub_topic})` : '';
+                        qSelect.innerHTML += `<option value="${q.id}">Q ID: ${q.id} - ${q.topic}${sub} [${q.marks}m]</option>`;
+                    });
+                    qSelect.disabled = false;
+                }
+            } else {
+                qSelect.innerHTML = '<option value="">Error loading questions</option>';
+            }
+        });
+    });
+
+    // Handle Form Submit
+    document.getElementById('extractMemoForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        if (!cropper) {
+            alert("Please upload a PDF and crop a solution first.");
+            return;
+        }
+
+        let questionId = document.getElementById('questionSelect').value;
+        let btn = document.getElementById('saveBtn');
+        let status = document.getElementById('statusMsg');
+        
+        if(!questionId) {
+            alert("Please select a question.");
+            return;
+        }
+
+        // Get cropped image as base64
+        let imageData = cropper.getCroppedCanvas().toDataURL('image/jpeg');
+
+        btn.disabled = true;
+        btn.innerText = "Saving...";
+        status.classList.add('hidden');
+
+        fetch('/admin/adv_math/extract_memo_save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                question_id: questionId,
+                image_data: imageData
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                status.innerText = "Solution Saved Successfully!";
+                status.className = "text-sm p-3 rounded-lg mt-4 font-medium bg-green-50 text-green-700 col-span-1 md:col-span-2 lg:col-span-4 block";
+                
+                // Remove the saved question from the dropdown
+                let optionToRemove = document.querySelector(`#questionSelect option[value="${questionId}"]`);
+                if (optionToRemove) optionToRemove.remove();
+                document.getElementById('questionSelect').value = "";
+                
+                setTimeout(() => {
+                    status.classList.add('hidden');
+                }, 3000);
+            } else {
+                status.innerText = "❌ Error: " + data.error;
+                status.className = "text-sm p-3 rounded-lg mt-4 font-medium bg-red-50 text-red-700 col-span-1 md:col-span-2 lg:col-span-4 block";
+            }
+        })
+        .catch(err => {
+            status.innerText = "Network Error";
+            status.className = "text-sm p-3 rounded-lg mt-4 font-medium bg-red-50 text-red-700 block";
+        })
+        .finally(() => {
+            btn.disabled = false;
+            btn.innerText = "Save Cropped Solution";
+        });
+    });
+
+</script>
+{% endblock %}

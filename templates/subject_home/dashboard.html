@@ -1,8 +1,33 @@
 {% extends "layout.html" %}
 {% block title %}Progress Chart | AIT{% endblock %}
 
+{% block flashes %}{% endblock %}
+
 {% block content %}
-<div class="min-h-screen bg-gray-50 flex flex-col items-center py-10 px-4">
+{% if is_completed %}
+<!-- Lockout Modal Overlay -->
+<div class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-75 backdrop-blur-sm">
+    <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4 text-center pointer-events-auto">
+        <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-6">
+            <svg class="h-8 w-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+        </div>
+        <h2 class="text-2xl font-bold text-gray-900 mb-2">Course Completed</h2>
+        <p class="text-gray-600 mb-8">Congratulations! You have successfully completed this course. Your certificate and diagnostic report have been emailed to you. If you would like to take the course again, you can re-enrol.</p>
+        
+        <div class="flex flex-col space-y-3">
+            <a href="{{ url_for('home_bp.re_enrol') }}" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none transition-colors">
+                Re-Enrol
+            </a>
+            <a href="{{ url_for('public_bp.welcome') }}" class="w-full flex justify-center py-3 px-4 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none transition-colors">
+                Cancel
+            </a>
+        </div>
+    </div>
+</div>
+{% endif %}
+<div class="min-h-screen bg-gray-50 flex flex-col items-center py-10 px-4 {% if is_completed %}pointer-events-none overflow-hidden h-screen{% endif %}">
   
   <!-- Unified Tile with Color Strip -->
   <div class="w-full max-w-4xl bg-white rounded-xl shadow-lg overflow-hidden flex flex-col">
@@ -12,16 +37,63 @@
     
     <div class="p-8">
       
+      <!-- Flash Messages Inside Tile -->
+      <div class="mb-6">
+        {% include "partials/flash_messages.html" %}
+      </div>
+      
       <!-- Row 1: Title, Back -->
       <div class="flex flex-row items-center justify-between mb-8 pb-4 border-b border-gray-100">
         <h1 class="text-2xl md:text-3xl font-bold text-gray-800 text-left">
           Hands On Math Education
         </h1>
-        <div class="text-right">
+        <div class="flex items-center gap-4">
           <a href="{{ url_for('auth_bp.bridge_dashboard') }}" class="inline-flex items-center text-sm font-medium text-gray-500 hover:text-blue-600 transition-colors">
             Back
           </a>
         </div>
+      </div>
+
+      <!-- Section: My Teacher -->
+      <div class="mb-8 p-6 bg-blue-50 rounded-xl border border-blue-100">
+          <h2 class="text-lg font-bold text-blue-900 mb-2">My Linked Teacher</h2>
+          {% if linked_teacher %}
+              <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-3">
+                      <div class="w-10 h-10 bg-blue-200 text-blue-700 rounded-full flex items-center justify-center font-bold text-lg">
+                          {{ linked_teacher.name[0] if linked_teacher.name else linked_teacher.email[0]|upper }}
+                      </div>
+                      <div>
+                          <p class="font-semibold text-blue-900">{{ linked_teacher.name or "Teacher" }}</p>
+                          <p class="text-sm text-blue-700">{{ linked_teacher.email }}</p>
+                      </div>
+                  </div>
+                  <button onclick="document.getElementById('change-teacher-form').classList.toggle('hidden')" class="text-sm font-semibold text-blue-600 hover:text-blue-800 underline">Change Teacher</button>
+              </div>
+          {% else %}
+              <p class="text-sm text-blue-800 mb-4">You have not linked a teacher to your account. Your practicals will not be graded until you select a teacher.</p>
+          {% endif %}
+
+          <form id="change-teacher-form" action="{{ url_for('home_bp.link_teacher') }}" method="POST" class="{% if linked_teacher %}hidden mt-4 pt-4 border-t border-blue-200{% else %}flex flex-col gap-3{% endif %}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <div class="flex items-end gap-3">
+                  <div class="flex-grow">
+                      <label for="teacher_id" class="block text-sm font-medium text-blue-900 mb-1">Select a Teacher</label>
+                      <select name="teacher_id" id="teacher_id" class="w-full rounded-md border-blue-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" required>
+                          <option value="" disabled selected>-- Choose your teacher --</option>
+                          {% for t in all_home_teachers %}
+                              <option value="{{ t.id }}">{{ t.name or t.email }} ({{ t.email }})</option>
+                          {% endfor %}
+                      </select>
+                  </div>
+                  <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 h-[38px]">
+                      Save Teacher
+                  </button>
+              </div>
+              <p class="text-xs text-blue-700 mt-2">
+                  Don't see your teacher? Please ask them to click the <strong>Tutor Platform</strong> button on the main Welcome page to register first.
+              </p>
+          </form>
       </div>
 
       <!-- Section 1: Practical Learning -->
@@ -38,7 +110,8 @@
               {% set is_locked = false %}
               {% if chapter.chapter_number > 1 %}
                   {% set prev_key = 'chapter_' ~ (chapter.chapter_number - 1) ~ '_done' %}
-                  {% if not session.get(prev_key) %}
+                  {% set prev_chapter_pending = (chapter.chapter_number - 1) in pending_chapters %}
+                  {% if not session.get(prev_key) and not prev_chapter_pending %}
                       {% set is_locked = true %}
                   {% endif %}
               {% endif %}
@@ -55,6 +128,8 @@
                   <td class="px-6 py-4 w-32">
                       {% if session.get(chapter_key) %}
                           <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">Completed</span>
+                      {% elif chapter.chapter_number in pending_chapters %}
+                          <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">Pending Review</span>
                       {% elif is_locked %}
                           <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-400">Locked</span>
                       {% else %}
@@ -64,6 +139,8 @@
                   <td class="px-6 py-4 text-right">
                       {% if session.get(chapter_key) %}
                           <span class="inline-flex items-center rounded-lg px-4 py-2 text-xs font-semibold bg-gray-100 text-gray-500">Done</span>
+                      {% elif chapter.chapter_number in pending_chapters %}
+                          <span class="inline-flex items-center rounded-lg px-4 py-2 text-xs font-semibold bg-gray-100 text-gray-500" title="Waiting for Teacher">Submitted</span>
                       {% elif is_locked %}
                           <span class="inline-flex items-center rounded-lg px-4 py-2 text-xs font-semibold bg-gray-100 text-gray-400">Locked</span>
                       {% else %}
@@ -206,13 +283,18 @@
                   </div>
               </td>
               <td class="px-6 py-4 w-32">
-                  {% set chap_30_done = session.get('chapter_30_done') %}
-                  {% if assessment %}
-                      <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">Completed</span>
-                  {% elif chap_30_done and not has_premium %}
-                      <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">Premium</span>
-                  {% elif chap_30_done %}
-                      <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">Available</span>
+                    {% set ns = namespace(chap_30_done=true) %}
+                        {% for c in chapters %}
+                            {% if not session.get('chapter_' ~ c.chapter_number ~ '_done') %}
+                                {% set ns.chap_30_done = false %}
+                            {% endif %}
+                        {% endfor %}
+                    {% if assessment %}
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">Completed</span>
+                    {% elif ns.chap_30_done and not has_premium %}
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">Premium</span>
+                    {% elif ns.chap_30_done %}
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">Available</span>
                   {% else %}
                       <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-400">Locked</span>
                   {% endif %}
@@ -221,37 +303,32 @@
                   {% if assessment %}
                       <div class="flex flex-col items-end space-y-2">
                           <div class="flex space-x-2">
-                              <a href="{{ url_for('home_bp.report_exit', assessment_id=assessment.id, type='report') }}" class="inline-flex items-center rounded-lg px-4 py-2 text-xs font-semibold bg-blue-600 text-white hover:bg-blue-700">Diagnostic Report</a>
-                              
                               {% if assessment.passed %}
-                              <a href="{{ url_for('home_bp.report_exit', assessment_id=assessment.id, type='certificate') }}" class="inline-flex items-center rounded-lg px-4 py-2 text-xs font-semibold bg-green-600 text-white hover:bg-green-700">Certificate</a>
+                              <a href="{{ url_for('home_bp.report_exit', assessment_id=assessment.id, type='certificate') }}" class="inline-flex items-center rounded-lg px-4 py-2 text-xs font-semibold bg-green-600 text-white hover:bg-green-700">Certificate with Diagnostic Report</a>
                               {% else %}
-                              <a href="{{ url_for('home_bp.view_failed_certificate') }}" class="inline-flex items-center rounded-lg px-4 py-2 text-xs font-semibold bg-gray-500 text-white hover:bg-gray-600">Certificate</a>
+                              <a href="{{ url_for('home_bp.report_exit', assessment_id=assessment.id, type='report') }}" class="inline-flex items-center rounded-lg px-4 py-2 text-xs font-semibold bg-blue-600 text-white hover:bg-blue-700">Certificate with Diagnostic Report</a>
                               {% endif %}
                           </div>
                       </div>
-                  {% elif chap_30_done and not has_premium %}
+                  {% elif ns.chap_30_done and not has_premium %}
                       <div class="flex flex-col items-end space-y-2">
                           <a href="{{ url_for('quote_bp.quote', subject='home') }}" class="inline-flex items-center rounded-lg px-4 py-2 text-xs font-semibold bg-yellow-500 text-white hover:bg-yellow-600 shadow-sm animate-pulse">Unlock Premium</a>
                           <div class="flex space-x-2 opacity-50 cursor-not-allowed" title="Unlock premium to access">
-                              <span class="inline-flex items-center rounded-lg px-4 py-2 text-xs font-semibold bg-gray-200 text-gray-600">Diagnostic Report</span>
-                              <span class="inline-flex items-center rounded-lg px-4 py-2 text-xs font-semibold bg-gray-200 text-gray-600">Certificate</span>
+                              <span class="inline-flex items-center rounded-lg px-4 py-2 text-xs font-semibold bg-gray-200 text-gray-600">Certificate with Diagnostic Report</span>
                           </div>
                       </div>
-                  {% elif chap_30_done %}
+                  {% elif ns.chap_30_done %}
                       <div class="flex flex-col items-end space-y-2">
                           <a href="{{ url_for('home_bp.final_exam') }}" class="inline-flex items-center rounded-lg px-4 py-2 text-xs font-semibold bg-yellow-600 text-white hover:bg-yellow-700">Start Exam</a>
                           <div class="flex space-x-2 opacity-50 cursor-not-allowed" title="Pass exam to unlock">
-                              <span class="inline-flex items-center rounded-lg px-4 py-2 text-xs font-semibold bg-gray-200 text-gray-600">Diagnostic Report</span>
-                              <span class="inline-flex items-center rounded-lg px-4 py-2 text-xs font-semibold bg-gray-200 text-gray-600">Certificate</span>
+                              <span class="inline-flex items-center rounded-lg px-4 py-2 text-xs font-semibold bg-gray-200 text-gray-600">Certificate with Diagnostic Report</span>
                           </div>
                       </div>
                   {% else %}
                       <div class="flex flex-col items-end space-y-2">
                           <span class="inline-flex items-center rounded-lg px-4 py-2 text-xs font-semibold bg-gray-100 text-gray-400">Locked</span>
                           <div class="flex space-x-2 opacity-50 cursor-not-allowed" title="Complete chapters to unlock">
-                              <span class="inline-flex items-center rounded-lg px-4 py-2 text-xs font-semibold bg-gray-100 text-gray-400">Diagnostic Report</span>
-                              <span class="inline-flex items-center rounded-lg px-4 py-2 text-xs font-semibold bg-gray-100 text-gray-400">Certificate</span>
+                              <span class="inline-flex items-center rounded-lg px-4 py-2 text-xs font-semibold bg-gray-100 text-gray-400">Certificate with Diagnostic Report</span>
                           </div>
                       </div>
                   {% endif %}

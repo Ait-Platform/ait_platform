@@ -78,13 +78,28 @@
       {{ csrf_field() }}
     {% endif %}
     <input type="hidden" name="run_id" value="{{ run.run_id }}">
-    <button type="submit" class="inline-flex items-center justify-center rounded-2xl border px-6 py-2 hover:bg-gray-50">
+    <button type="submit" class="inline-flex items-center justify-center rounded-lg bg-blue-600 px-6 py-2.5 text-white font-medium hover:bg-blue-700 transition-colors">
       Email &amp; Download PDF
     </button>
-    <p class="text-xs text-slate-500 mt-2">
+    <p class="text-xs text-slate-500 mt-2 mb-8">
       This will email your report, download a PDF copy, and close your LOSS session.
     </p>
   </form>
+
+  <div class="bg-slate-50 border border-slate-200 rounded-xl p-5 mt-8 mb-4 text-center">
+    <p class="text-sm text-slate-700 font-medium mb-4">Would you like to re-enroll to take the assessment again?</p>
+    <form method="POST" action="{{ url_for('loss_bp.reenroll') }}">
+      {% if csrf_token is defined %}
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      {% elif csrf_field is defined %}
+        {{ csrf_field() }}
+      {% endif %}
+      <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-4 py-2.5 rounded-lg transition-colors">
+        Yes, Re-Enroll
+      </button>
+    </form>
+  </div>
+
 </div>  
   <script>
   (function () {

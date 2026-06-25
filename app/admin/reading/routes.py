@@ -13,7 +13,7 @@ from sqlalchemy.exc import SQLAlchemyError
 #admin_bp = Blueprint("admin_bp", __name__, url_prefix="/admin")
 
 # subjects you support in admin
-ALLOWED_SUBJECTS = {"reading", "home", "loss", "billing"}  # extend as needed
+ALLOWED_SUBJECTS = {"reading", "home", "loss", "billing", "adv_math", "spv"}  # extend as needed
 
 @admin_bp.route("/")   # ← no endpoint="index"
 def admin_home():      # ← unique name; endpoint becomes "admin_bp.admin_home"

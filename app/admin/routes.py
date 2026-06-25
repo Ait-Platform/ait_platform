@@ -4,16 +4,16 @@ from flask import (
     jsonify, flash)
 from app.models.loss import LcaResult
 from app.utils import reading_utils
-from app.utils.role_utils import is_admin  # reuse your helper
+from app.utils.roles import is_admin  # reuse your helper
 from app.extensions import db
 from app.models.reading import RdpLesson
-from .. import admin_bp
+from . import admin_bp
 #admin_bp = Blueprint("admin_bp", __name__, url_prefix="/admin")
 from sqlalchemy import select, func
 from flask_login import current_user
 
 # subjects you support in admin
-ALLOWED_SUBJECTS = {"reading", "home", "loss", "billing"}  # extend as needed
+ALLOWED_SUBJECTS = {"reading", "home", "loss", "billing", "adv_math", "spv"}  # extend as needed
 
 @admin_bp.before_request
 def _guard():

@@ -1,0 +1,79 @@
+[
+  {
+    "question": "Q1",
+    "topic_name": "algebra",
+    "sub_topic": "algebra_equations",
+    "concepts_tested": "quadratic equations, exponential equations, surd equations, quadratic inequalities, simultaneous equations, algebraic manipulation, exponents",
+    "marks": 25
+  },
+  {
+    "question": "Q2",
+    "topic_name": "algebra",
+    "sub_topic": "sequences_arithmetic",
+    "concepts_tested": "arithmetic sequences, arithmetic series, geometric sequences, geometric series, sum to infinity, pattern recognition",
+    "marks": 18
+  },
+  {
+    "question": "Q3",
+    "topic_name": "functions",
+    "sub_topic": "functions_quadratic",
+    "concepts_tested": "quadratic sequences, nth term, difference between terms, inequalities, transformations",
+    "marks": 9
+  },
+  {
+    "question": "Q4",
+    "topic_name": "functions",
+    "sub_topic": "algebra_equations",
+    "concepts_tested": "hyperbolic functions, asymptotes, intercepts, lines of symmetry, inequalities, distance formula, transformations",
+    "marks": 15
+  },
+  {
+    "question": "Q5",
+    "topic_name": "functions",
+    "sub_topic": "functions_quadratic",
+    "concepts_tested": "quadratic functions, parabola, turning points, intercepts, roots, vertical shift, reflections, derivatives, stationary points, sketching graphs",
+    "marks": 9
+  },
+  {
+    "question": "Q6",
+    "topic_name": "functions",
+    "sub_topic": "algebra_equations",
+    "concepts_tested": "exponential functions, linear functions, range, inverse functions, intercepts",
+    "marks": 11
+  },
+  {
+    "question": "Q7",
+    "topic_name": "financial_math",
+    "sub_topic": "financial_math",
+    "concepts_tested": "effective interest rate, compound interest, present value annuity, future value annuity, mixed deposits",
+    "marks": 13
+  },
+  {
+    "question": "Q8",
+    "topic_name": "calculus",
+    "sub_topic": "calculus_differentiation",
+    "concepts_tested": "differentiation from first principles, differentiation rules, power rule, product rule, chain rule, tangents, gradient of a curve",
+    "marks": 17
+  },
+  {
+    "question": "Q9",
+    "topic_name": "functions",
+    "sub_topic": "functions_cubic",
+    "concepts_tested": "cubic functions, factorization, roots, x-intercepts, y-intercepts, turning points, derivatives, second derivative, concavity, graph sketching, vertical distance between curves",
+    "marks": 18
+  },
+  {
+    "question": "Q10",
+    "topic_name": "probability",
+    "sub_topic": "probability_venn",
+    "concepts_tested": "mutually exclusive events, probability of union, independent events, calculating probability, expected value, profit calculation",
+    "marks": 8
+  },
+  {
+    "question": "Q11",
+    "topic_name": "probability",
+    "sub_topic": "probability_venn",
+    "concepts_tested": "counting principle, permutations, probability, complementary events",
+    "marks": 7
+  }
+]

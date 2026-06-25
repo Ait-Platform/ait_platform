@@ -15,12 +15,31 @@ import os
 from slugify import slugify
 
 
+from flask import request
+
 @spv_admin_bp.route("/")
 @login_required
 def spv_dashboard():
-
+    deal_id = request.args.get("deal_id", type=int)
+    section_id = request.args.get("section_id", type=int)
+    
+    deals = SpvDeal.query.order_by(SpvDeal.title.asc()).all()
+    
+    selected_deal = SpvDeal.query.get(deal_id) if deal_id else None
+    
+    if selected_deal and not section_id and selected_deal.sections:
+        section_id = selected_deal.sections[0].id
+        
+    selected_section = SpvSection.query.get(section_id) if section_id else None
+    
+    asset_form = SpvAssetForm()
+    
     return render_template(
-        "admin/spv/investments.html"
+        "admin/spv/unified_dashboard.html",
+        deals=deals,
+        selected_deal=selected_deal,
+        selected_section=selected_section,
+        asset_form=asset_form
     )
 
 @spv_admin_bp.route("/sections")
@@ -44,26 +63,26 @@ def section_list():
 def create_section():
 
     form = SpvSectionForm()
-
-    form.deal_id.choices = [
-        (d.id, d.title)
-        for d in SpvDeal.query.order_by(
-            SpvDeal.title.asc()
-        ).all()
-    ]
+    
+    deal_id = request.args.get("deal_id", type=int)
+    if request.method == "GET" and deal_id:
+        form.deal_id.data = deal_id
 
     if form.validate_on_submit():
 
-        #from slugify import slugify
+        from app.models.spv import SpvGenericSection
+        title = form.title.data.title()
+        generic_sec = SpvGenericSection.query.filter_by(title=title).first()
+        if not generic_sec:
+            db.session.add(SpvGenericSection(title=title))
+            db.session.commit()
 
         section = SpvSection(
             deal_id=form.deal_id.data,
 
-            title=form.section_type.data
-                .replace("-", " ")
-                .title(),
+            title=title,
 
-            slug=slugify(form.section_type.data),
+            slug=slugify(form.title.data),
 
             content=form.content.data,
 
@@ -80,14 +99,61 @@ def create_section():
 
         return redirect(
             url_for(
-                "spv_admin_bp.section_list"
+                "spv_admin_bp.spv_dashboard",
+                deal_id=section.deal_id,
+                section_id=section.id
             )
         )
 
+    from app.models.spv import SpvGenericSection
+    generic_sections = SpvGenericSection.query.order_by(SpvGenericSection.title.asc()).all()
+
     return render_template(
         "admin/spv/section_form.html",
-        form=form
+        form=form,
+        generic_sections=generic_sections,
+        deal_id=deal_id or form.deal_id.data
     )
+
+@spv_admin_bp.route("/deals/create", methods=["GET", "POST"])
+@login_required
+def create_deal():
+    from app.admin.spv.forms import SpvDealForm
+    form = SpvDealForm()
+    
+    if form.validate_on_submit():
+        deal = SpvDeal(
+            title=form.title.data,
+            slug=slugify(form.title.data),
+            summary=form.summary.data,
+            status=form.status.data
+        )
+        db.session.add(deal)
+        db.session.commit()
+        
+        flash("Deal created successfully.", "success")
+        return redirect(url_for("spv_admin_bp.spv_dashboard", deal_id=deal.id))
+        
+    return render_template("admin/spv/deal_form.html", form=form)
+
+@spv_admin_bp.route("/deals/<int:deal_id>/edit", methods=["GET", "POST"])
+@login_required
+def edit_deal(deal_id):
+    deal = SpvDeal.query.get_or_404(deal_id)
+    from app.admin.spv.forms import SpvDealForm
+    form = SpvDealForm(obj=deal)
+    
+    if form.validate_on_submit():
+        deal.title = form.title.data
+        deal.slug = slugify(form.title.data)
+        deal.summary = form.summary.data
+        deal.status = form.status.data
+        
+        db.session.commit()
+        flash("Deal updated successfully.", "success")
+        return redirect(url_for("spv_admin_bp.spv_dashboard", deal_id=deal.id))
+        
+    return render_template("admin/spv/deal_form.html", form=form)
 
 @spv_admin_bp.route("/assets")
 @login_required
@@ -118,6 +184,10 @@ def create_asset():
         ).all()
     ]
 
+    section_id_query = request.args.get("section_id", type=int)
+    if request.method == "GET" and section_id_query:
+        form.section_id.data = section_id_query
+
     if form.validate_on_submit():
 
         file_path = None
@@ -126,13 +196,12 @@ def create_asset():
 
             file = form.file.data
 
-            filename = secure_filename(
-                file.filename
-            )
+            import uuid
+            unique_id = uuid.uuid4().hex[:8]
+            filename = f"{unique_id}_{secure_filename(file.filename)}"
 
             upload_folder = os.path.join(
-                "app",
-                "static",
+                current_app.static_folder,
                 "uploads",
                 "spv"
             )
@@ -161,9 +230,11 @@ def create_asset():
 
         next_sort = (last_sort or 0) + 1
 
+        section_for_asset = SpvSection.query.get(form.section_id.data)
+
         asset = SpvAsset(
             section_id=form.section_id.data,
-            title=form.title_type.data,
+            title=section_for_asset.title if section_for_asset else "Asset",
             asset_type=form.asset_type.data,
             file_path=file_path,
             external_url=form.external_url.data,
@@ -180,13 +251,26 @@ def create_asset():
 
         return redirect(
             url_for(
-                "spv_admin_bp.asset_list"
+                "spv_admin_bp.spv_dashboard",
+                deal_id=asset.section.deal_id,
+                section_id=asset.section_id
             )
         )
 
+    deal_id = None
+    if form.section_id.data:
+        sec = SpvSection.query.get(form.section_id.data)
+        if sec:
+            deal_id = sec.deal_id
+    elif section_id_query:
+        sec = SpvSection.query.get(section_id_query)
+        if sec:
+            deal_id = sec.deal_id
+
     return render_template(
         "admin/spv/asset_form.html",
-        form=form
+        form=form,
+        deal_id=deal_id
     )
 
 @spv_admin_bp.route(
@@ -200,30 +284,19 @@ def edit_section(section_id):
 
     form = SpvSectionForm(obj=section)
 
-    form.deal_id.choices = [
-        (d.id, d.title)
-        for d in SpvDeal.query.order_by(
-            SpvDeal.title
-        ).all()
-    ]
-
     if form.validate_on_submit():
+
+        from app.models.spv import SpvGenericSection
+        title = form.title.data.title()
+        generic_sec = SpvGenericSection.query.filter_by(title=title).first()
+        if not generic_sec:
+            db.session.add(SpvGenericSection(title=title))
 
         section.deal_id = form.deal_id.data
 
-        section.section_type = (
-            form.section_type.data
-        )
+        section.title = title
 
-        section.title = (
-            form.section_type.data
-            .replace("-", " ")
-            .title()
-        )
-
-        section.slug = slugify(
-            form.section_type.data
-        )
+        section.slug = slugify(form.title.data)
 
         section.content = form.content.data
 
@@ -239,14 +312,19 @@ def edit_section(section_id):
         )
 
         return redirect(
-            url_for("spv_admin_bp.section_list")
+            url_for("spv_admin_bp.spv_dashboard", deal_id=section.deal_id, section_id=section.id)
         )
+
+    from app.models.spv import SpvGenericSection
+    generic_sections = SpvGenericSection.query.order_by(SpvGenericSection.title.asc()).all()
 
     return render_template(
         "admin/spv/section_form.html",
         form=form,
         section=section,
-        title="Edit Section"
+        title="Edit Section",
+        generic_sections=generic_sections,
+        deal_id=section.deal_id
     )
 
 @spv_admin_bp.route(
@@ -275,8 +353,9 @@ def edit_asset(asset_id):
 
         asset.section_id = form.section_id.data
 
-        #asset.title = form.title.data
-        asset.title = form.title_type.data
+        section_for_asset = SpvSection.query.get(form.section_id.data)
+        if section_for_asset:
+            asset.title = section_for_asset.title
 
         asset.asset_type = form.asset_type.data
 
@@ -286,11 +365,12 @@ def edit_asset(asset_id):
 
             file = form.file.data
 
-            filename = secure_filename(file.filename)
+            import uuid
+            unique_id = uuid.uuid4().hex[:8]
+            filename = f"{unique_id}_{secure_filename(file.filename)}"
 
             upload_dir = os.path.join(
-                current_app.root_path,
-                "static",
+                current_app.static_folder,
                 "uploads",
                 "spv"
             )
@@ -314,13 +394,14 @@ def edit_asset(asset_id):
         )
 
         return redirect(
-            url_for("spv_admin_bp.asset_list")
+            url_for("spv_admin_bp.spv_dashboard", deal_id=asset.section.deal_id, section_id=asset.section_id)
         )
 
     return render_template(
         "admin/spv/asset_form.html",
         form=form,
         asset=asset,
+        deal_id=asset.section.deal_id,
         page_title="Edit Asset"
     )
 

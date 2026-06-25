@@ -1,0 +1,222 @@
+{% extends "layout.html" %}
+
+{% block title %}{{ topic_title }} - Expert Mode{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-8">
+  <div class="bg-white rounded-xl shadow-lg overflow-hidden flex flex-col h-full relative z-10">
+    <div class="h-3 bg-slate-900 w-full"></div>
+    <div class="p-8 md:p-12">
+        
+        <!-- Header Row 1 -->
+        <div class="flex items-center justify-between mb-4">
+            <span class="text-sm font-bold {% if is_revision %}text-rose-600{% else %}text-slate-800{% endif %} tracking-wider uppercase flex items-center gap-2">
+                <svg class="w-4 h-4 {% if is_revision %}text-rose-500{% else %}text-slate-500{% endif %}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
+                {% if is_revision %}Revision Test{% else %}Expert Mode{% endif %}
+            </span>
+            <div class="flex items-center gap-3">
+                {% if not is_revision %}
+                <a href="{{ url_for('adv_math_bp.learner_flow', topic_id=topic_id, sub_topic=sub_topic, qid=question.id if question else 0) }}" class="inline-flex items-center gap-2 rounded-lg border border-cyan-600 bg-cyan-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-cyan-700 transition shadow-sm shrink-0">
+                    Switch to Learner Mode
+                </a>
+                {% endif %}
+                <a href="{{ url_for('adv_math_bp.dashboard') }}" class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition shadow-sm shrink-0">
+                    <span>←</span> Dashboard
+                </a>
+            </div>
+        </div>
+        
+        <!-- Header Row 2 -->
+        <div class="flex flex-col md:flex-row md:items-center justify-between mb-6 border-b border-slate-100 pb-4 gap-4">
+            <div>
+                <h1 class="text-2xl md:text-3xl font-bold text-slate-900 mb-1">{{ topic_title }}</h1>
+                {% if question and question.source_paper %}
+                <p class="text-slate-600 font-medium text-sm">Source: {{ question.source_paper }}</p>
+                {% endif %}
+            </div>
+            
+            <div class="flex flex-wrap items-center gap-3">
+                <!-- Subtopic Navigation -->
+                {% if not is_revision %}
+                <div class="flex items-center gap-2 bg-white p-1 rounded-xl border border-slate-200 shadow-sm shrink-0">
+                    {% if prev_st_obj %}
+                    <a href="{{ url_for('adv_math_bp.expert_flow', topic_id=prev_st_obj.topic, sub_topic=prev_st_obj.id) }}" class="p-2 rounded-lg border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-200 hover:text-slate-900 hover:border-slate-300 transition" title="Previous Subtopic">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                    </a>
+                    {% else %}
+                    <div class="p-2 rounded-lg border border-slate-100 bg-slate-50 text-slate-300 cursor-not-allowed">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="px-2 py-1 flex flex-col items-center justify-center min-w-[100px]">
+                        <span class="text-[10px] text-slate-500 uppercase tracking-wider font-bold truncate max-w-[120px]">{{ active_subtopic.title }}</span>
+                        <span class="font-bold text-slate-800 text-sm leading-none">Subtopic {{ st_index }} <span class="text-slate-400 text-xs">of</span> {{ st_total }}</span>
+                    </div>
+                    
+                    {% if next_st_obj %}
+                    <a href="{{ url_for('adv_math_bp.expert_flow', topic_id=next_st_obj.topic, sub_topic=next_st_obj.id) }}" class="p-2 rounded-lg border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-200 hover:text-slate-900 hover:border-slate-300 transition" title="Next Subtopic">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                    </a>
+                    {% else %}
+                    <div class="p-2 rounded-lg border border-slate-100 bg-slate-50 text-slate-300 cursor-not-allowed">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+
+                <!-- Question Navigation -->
+                <div class="flex items-center gap-2 bg-white p-1 rounded-xl border border-slate-200 shadow-sm shrink-0">
+                    {% if pagination %}
+                        {% if pagination.prev_url or pagination.prev_qid %}
+                        <a href="{{ pagination.prev_url or url_for('adv_math_bp.expert_flow', topic_id=topic_id, sub_topic=sub_topic, qid=pagination.prev_qid) }}" class="p-2 rounded-lg border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-200 hover:text-slate-900 hover:border-slate-300 transition" title="Previous Question">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                        </a>
+                        {% else %}
+                        <div class="p-2 rounded-lg border border-slate-100 bg-slate-50 text-slate-300 cursor-not-allowed">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="px-2 py-1 flex flex-col items-center justify-center">
+                            <span class="text-[10px] text-slate-500 uppercase tracking-wider font-bold">Question</span>
+                            <span class="font-bold text-slate-800 text-sm leading-none">{{ pagination.current_index }} <span class="text-slate-400 text-xs">of</span> {{ pagination.total_questions }}</span>
+                        </div>
+                        
+                        {% if pagination.next_url or pagination.next_qid %}
+                        <a href="{{ pagination.next_url or url_for('adv_math_bp.expert_flow', topic_id=topic_id, sub_topic=sub_topic, qid=pagination.next_qid) }}" class="p-2 rounded-lg border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-200 hover:text-slate-900 hover:border-slate-300 transition" title="{% if pagination.next_qid == 'revision' %}Start Revision Test{% else %}Next Question{% endif %}">
+                            {% if pagination.next_qid == 'revision' %}
+                            <span class="text-sm font-bold text-rose-600 px-2">Test →</span>
+                            {% else %}
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                            {% endif %}
+                        </a>
+                        {% else %}
+                        <div class="p-2 rounded-lg border border-slate-100 bg-slate-50 text-slate-300 cursor-not-allowed">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                        </div>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        {% if not question %}
+        <div class="text-center py-12">
+            <h2 class="text-xl font-bold text-slate-700">No questions available yet.</h2>
+            <p class="text-slate-500 mt-2">The extraction script is still processing. Check back soon!</p>
+        </div>
+        {% else %}
+
+        {% include "partials/math_toolbox.html" %}
+
+        <!-- Question -->
+        <div class="bg-slate-50 rounded-xl border border-slate-200 p-6 md:p-8 mb-8 shadow-sm relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-24 h-24 bg-slate-200 rounded-bl-full opacity-50 z-0"></div>
+            <div class="relative z-10">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                        <span class="bg-slate-800 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs">Q</span>
+                        Question
+                    </h3>
+                    {% if question.marks %}
+                    <span class="text-sm font-bold text-slate-700 bg-white border border-slate-300 px-3 py-1 rounded shadow-sm">[{{ question.marks }} marks]</span>
+                    {% endif %}
+                </div>
+                <div class="overflow-auto w-full max-h-[60vh] bg-white rounded-lg border border-slate-200 p-4 custom-q-container shadow-inner">
+                    <div class="text-slate-800 whitespace-pre-wrap text-lg leading-relaxed">{{ question.question_text|safe }}</div>
+                </div>
+                <style>
+                    .custom-q-container img {
+                        max-width: none !important;
+                        min-width: 140% !important;
+                        height: auto;
+                        display: block;
+                    }
+                </style>
+            </div>
+        </div>
+
+        <!-- Expert Workspace -->
+        <div class="mb-10">
+            <h3 class="text-xl font-bold text-slate-800 mb-4 border-b border-slate-200 pb-2 flex items-center justify-between">
+                <span class="flex items-center gap-2">
+                    <span class="text-xl">📝</span> Your Working Space
+                </span>
+                <button type="button" onclick="document.getElementById('marking-memo').classList.remove('hidden'); this.style.display='none';" class="text-sm bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-4 py-2 rounded-lg transition shadow-sm flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                    Reveal Marking Memo
+                </button>
+            </h3>
+            
+            <p class="text-sm text-slate-500 mb-4">Work out the problem on paper. When you are finished, reveal the marking memo to self-grade.</p>
+            
+            <textarea rows="6" class="w-full rounded-xl border-slate-300 shadow-inner focus:border-slate-500 focus:ring-slate-500 p-4 bg-slate-50 text-slate-700 font-mono" placeholder="Optional: Jot down your final answer or key steps here..."></textarea>
+        </div>
+
+        <!-- Marking Memo (Hidden by default) -->
+        <div id="marking-memo" class="mb-10 hidden transition-all duration-500 animate-fade-in">
+            <div class="bg-indigo-50 border border-indigo-200 rounded-xl overflow-hidden shadow-sm">
+                <div class="bg-indigo-100/50 border-b border-indigo-200 p-4 flex justify-between items-center">
+                    <h4 class="font-bold text-indigo-900 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        Official Marking Memo
+                    </h4>
+                    <span class="text-xs font-bold text-indigo-600 uppercase tracking-wider bg-white px-2 py-1 rounded shadow-sm border border-indigo-100">Confidential</span>
+                </div>
+                
+                <div class="p-6 md:p-8 bg-white">
+                    {% if question.marking_memo %}
+                        <div class="prose prose-indigo max-w-none prose-p:text-slate-700 prose-pre:bg-slate-50 prose-pre:text-slate-800 prose-pre:border prose-pre:border-slate-200">
+                            {{ question.marking_memo | safe }}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-6 text-slate-500 italic">
+                            No marking memo provided for this question.
+                        </div>
+                    {% endif %}
+                    
+                    {% if question.correct_answer %}
+                    <div class="mt-8 pt-6 border-t border-slate-100 flex items-center justify-between">
+                        <span class="text-sm font-bold text-slate-500 uppercase tracking-wider">Final Answer</span>
+                        <span class="font-bold text-2xl text-indigo-700">{{ question.correct_answer }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Self Grading Action -->
+                <div class="bg-indigo-900 p-6 flex flex-col md:flex-row items-center justify-between gap-4">
+                    <p class="text-indigo-100 font-medium text-sm">How did you do? Self-grade your attempt based on the memo above.</p>
+                    <div class="flex gap-3 w-full md:w-auto">
+                        <button class="flex-1 md:flex-none bg-white/10 hover:bg-white/20 text-white border border-white/20 px-4 py-2 rounded-lg font-medium text-sm transition">
+                            Needs Work
+                        </button>
+                        <button class="flex-1 md:flex-none bg-emerald-500 hover:bg-emerald-600 text-white border border-emerald-600 px-4 py-2 rounded-lg font-medium text-sm transition shadow-sm">
+                            Nailed It!
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom area empty now that navigation is top -->
+
+        {% endif %}
+        
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+window.MathJax = {
+  tex: {
+    inlineMath: [['\\(', '\\)']],
+    displayMath: [['\\[', '\\]']]
+  }
+};
+</script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+{% endblock %}

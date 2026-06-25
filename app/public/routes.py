@@ -126,6 +126,97 @@ def refresh_bridge_session(user):
     """), {"e": user.email, "uid": user.id, "is_admin_global": 1 if is_admin_global else 0}).fetchall()
     session["subjects_access"] = {r.slug: r.access_level for r in access_rows}
 
+@public_bp.route("/tutor/register", methods=["GET", "POST"])
+def tutor_register():
+    if request.method == "POST":
+        email = request.form.get("email", "").strip().lower()
+        name = request.form.get("name", "").strip()
+        password = request.form.get("password", "")
+
+        if not email or not password or not name:
+            flash("All fields are required.", "error")
+            return redirect(url_for("public_bp.tutor_register"))
+
+        from app.models.auth import User, UserEnrollment, AuthSubject
+
+        user = User.query.filter(db.func.lower(User.email) == email).first()
+        if not user:
+            user = User(
+                email=email,
+                name=name,
+                is_active=1
+            )
+            user.set_password(password)
+            db.session.add(user)
+            db.session.commit()
+
+        # For now, only enroll as teacher in the 'home' subject 
+        # since it's the only one with a Teacher Dashboard.
+        home_subj = AuthSubject.query.filter_by(slug='home').first()
+        if home_subj:
+            enr = UserEnrollment.query.filter_by(user_id=user.id, subject_id=home_subj.id).first()
+            if not enr:
+                enr = UserEnrollment(
+                    user_id=user.id,
+                    subject_id=home_subj.id,
+                    status='teacher'
+                )
+                db.session.add(enr)
+            else:
+                enr.status = 'teacher'
+        
+        db.session.commit()
+        
+        flash("Tutor registration successful! You are now available for learners to select.", "success")
+        return redirect(url_for("public_bp.welcome"))
+
+    return render_template("public/tutor_register.html")
+
+@public_bp.route("/receptionist/register", methods=["GET", "POST"])
+def receptionist_register():
+    if request.method == "POST":
+        email = request.form.get("email", "").strip().lower()
+        name = request.form.get("name", "").strip()
+        password = request.form.get("password", "")
+
+        if not email or not password or not name:
+            flash("All fields are required.", "error")
+            return redirect(url_for("public_bp.receptionist_register"))
+
+        from app.models.auth import User, UserEnrollment, AuthSubject
+
+        user = User.query.filter(db.func.lower(User.email) == email).first()
+        if not user:
+            user = User(
+                email=email,
+                name=name,
+                is_active=1
+            )
+            user.set_password(password)
+            db.session.add(user)
+            db.session.commit()
+
+        # Enroll as receptionist for practice_crm
+        crm_subj = AuthSubject.query.filter_by(slug='practice_crm').first()
+        if crm_subj:
+            enr = UserEnrollment.query.filter_by(user_id=user.id, subject_id=crm_subj.id).first()
+            if not enr:
+                enr = UserEnrollment(
+                    user_id=user.id,
+                    subject_id=crm_subj.id,
+                    status='receptionist'
+                )
+                db.session.add(enr)
+            else:
+                enr.status = 'receptionist'
+        
+        db.session.commit()
+        
+        flash(f"Registration successful! Your practice owner can now add your email ({email}) to their staff list.", "success")
+        return redirect(url_for("public_bp.welcome"))
+
+    return render_template("public/receptionist_register.html")
+
 @public_bp.route("/coming-soon/<subject_slug>")
 def coming_soon(subject_slug):
     return render_template("public/coming_soon.html", subject_slug=subject_slug)

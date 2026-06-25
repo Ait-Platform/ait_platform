@@ -6,7 +6,7 @@ from PIL import Image
 import google.generativeai as genai
 from app import create_app
 from app.extensions import db
-from app.models.adv_math import AdvMathQuestion
+from app.models.adv_math import AdvMathQuestion, AdvMathStep
 
 def process_papers():
     app = create_app()
@@ -14,15 +14,22 @@ def process_papers():
     model = genai.GenerativeModel("gemini-flash-latest") # Use standard flash model
     
     with app.app_context():
-        # Wipe all existing questions to re-seed with sub-topics
-        print("Wiping existing questions...")
-        db.session.query(AdvMathQuestion).delete()
-        db.session.commit()
+        # We no longer wipe the DB. We will resume from where we left off.
+        print("Resuming extraction without wiping DB...")
+
     
     dbe_papers_dir = os.path.join(app.root_path, "data", "dbe_papers")
     if not os.path.exists(dbe_papers_dir):
         print(f"Directory {dbe_papers_dir} does not exist.")
         return
+
+    # Load processed chunks to allow resuming
+    processed_chunks_file = os.path.join(dbe_papers_dir, "processed_chunks.json")
+    if os.path.exists(processed_chunks_file):
+        with open(processed_chunks_file, "r") as f:
+            processed_chunks = json.load(f)
+    else:
+        processed_chunks = []
 
     with app.app_context():
         for filename in os.listdir(dbe_papers_dir):
@@ -36,6 +43,11 @@ def process_papers():
                     
                     # Process in chunks of 2 pages
                     for i in range(0, total_pages, 2):
+                        chunk_id = f"{filename}_{i}"
+                        if chunk_id in processed_chunks:
+                            print(f"  Skipping chunk pages {i+1} to {min(i+2, total_pages)} (already processed).")
+                            continue
+
                         print(f"  Chunking pages {i+1} to {min(i+2, total_pages)} of {total_pages}...")
                         
                         images = []
@@ -74,8 +86,15 @@ CRITICAL RULES:
     "question_text": "...",
     "question_type": "long_form", // or "mcq"
     "options": ["A", "B", "C", "D"], // leave empty if long_form
+    "marks": 5, // IMPORTANT: The exact numerical mark allocation for this question (e.g. 5 if it says [5]). Default to 0 if not found.
     "correct_answer": "...", // The final answer
-    "explanation": "...", // Step-by-step working to reach the answer
+    "marking_memo": "...", // The complete unbroken marking memo
+    "steps": [ // CRITICAL: Break the problem down like a Socratic tutor! Do NOT jump to the final answer or skip intermediate calculations (like finding 'n'). Break the solution into extremely granular, sequential micro-steps.
+       // VERY IMPORTANT: Your instructions must guide the student to discover the next step WITHOUT giving away the name of the mathematical rule, theorem, or technique (e.g. Do NOT say 'Recognize the difference of squares' or 'Use the quadratic formula'. INSTEAD say 'What do you notice about the two terms?' or 'What formula can we use to find the roots here?').
+       // E.g., for sequences, Step 1: "What are the known variables?", Step 2: "What formula connects these variables?", Step 3: "Substitute the variables to find n", Step 4: "What is the final sum formula?", Step 5: "Calculate the final answer".
+       {{"step_number": 1, "instruction": "A highly specific question prompting the student for the next micro-step (e.g. 'What are the known variables \\(a\\), \\(d\\), and the last term \\(L\\)?')", "math_content": "The explicit math or variables for this step (e.g. '\\(a=5, d=2, L=93\\)')"}},
+       {{"step_number": 2, "instruction": "The next question prompting the next micro-step", "math_content": "..."}}
+    ],
     "topic": "algebra", // MUST be from the broad topics list
     "sub_topic": "sequences_series" // MUST be from the specific sub-topics list
   }}
@@ -86,7 +105,7 @@ Do NOT wrap the output in markdown block ticks. Return raw JSON.
 """
                         contents = images + [prompt]
                         
-                        max_retries = 3
+                        max_retries = 5
                         for attempt in range(max_retries):
                             try:
                                 print(f"    Calling Gemini API (Attempt {attempt+1})...")
@@ -108,8 +127,8 @@ Do NOT wrap the output in markdown block ticks. Return raw JSON.
                                 print(f"    Gemini API or Parsing Error on attempt {attempt+1}: {e}")
                                 if attempt < max_retries - 1:
                                     import time
-                                    print("    Waiting 30 seconds before retrying...")
-                                    time.sleep(30)
+                                    print("    Waiting 65 seconds before retrying (rate limit buffer)...")
+                                    time.sleep(65)
                                 else:
                                     data = [] # give up
                                     
@@ -117,6 +136,7 @@ Do NOT wrap the output in markdown block ticks. Return raw JSON.
                             continue
                             
                         # Save to DB
+                        total_marks_this_chunk = 0
                         for q in data:
                             q_obj = AdvMathQuestion(
                                 topic_name=q["topic"],
@@ -124,22 +144,41 @@ Do NOT wrap the output in markdown block ticks. Return raw JSON.
                                 source_paper=filename,
                                 question_type=q["question_type"],
                                 question_text=q["question_text"],
+                                marks=q.get("marks", 0),
                                 option_a=q.get("options", ["", "", "", ""])[0] if q.get("options") else "",
                                 option_b=q.get("options", ["", "", "", ""])[1] if q.get("options") else "",
                                 option_c=q.get("options", ["", "", "", ""])[2] if q.get("options") else "",
                                 option_d=q.get("options", ["", "", "", ""])[3] if q.get("options") else "",
                                 correct_answer=q.get("correct_answer", ""),
-                                explanation=q.get("explanation", "")
+                                explanation=q.get("explanation", ""),
+                                marking_memo=q.get("marking_memo", "")
                             )
                             db.session.add(q_obj)
+                            db.session.flush() # flush to get the id for the steps
                             
+                            total_marks_this_chunk += q.get("marks", 0)
+                            
+                            for s in q.get("steps", []):
+                                step_obj = AdvMathStep(
+                                    question_id=q_obj.id,
+                                    step_number=s.get("step_number", 1),
+                                    instruction=s.get("instruction", ""),
+                                    math_content=s.get("math_content", "")
+                                )
+                                db.session.add(step_obj)
+                                
                         db.session.commit()
-                        print(f"    Successfully extracted and saved {len(data)} questions.")
+                        
+                        # Mark chunk as processed
+                        processed_chunks.append(chunk_id)
+                        with open(processed_chunks_file, "w") as f:
+                            json.dump(processed_chunks, f)
+
+                        print(f"    Successfully extracted and saved {len(data)} questions. Chunk Marks: {total_marks_this_chunk}")
                         
                         # Respect rate limits (15 RPM for Free Tier)
-                        # Waiting 5 seconds ensures we don't burst too fast
-                        print("    Waiting 5 seconds to respect rate limits...")
-                        time.sleep(5)
+                        print("    Waiting 15 seconds to respect rate limits...")
+                        time.sleep(15)
                         
                 except Exception as e:
                     print(f"Failed to process PDF {filename}: {e}")

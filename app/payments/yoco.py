@@ -90,6 +90,13 @@ def start():
         if price_info and price_info["amount_cents"] > 0:
             amount_cents = int(price_info["amount_cents"])
             
+    if session.get('is_retake'):
+        retake_zar = session.get('retake_zar_cents')
+        if retake_zar:
+            amount_cents = int(retake_zar)
+        else:
+            amount_cents = amount_cents // 3
+
     if amount_cents < 200:
         flash(f"Payment cannot proceed: invalid amount (R{amount_cents/100:.2f}). Minimum is R2.00.", "error")
         return redirect(url_for("public_bp.welcome"))
@@ -248,9 +255,10 @@ def success():
             {"sid": int(sid)}
         ).scalar()
         
-        expires_clause = "NULL"
+        expires_at_val = None
         if subj_paid_days and int(subj_paid_days) > 0:
-            expires_clause = f"CURRENT_TIMESTAMP + INTERVAL '{int(subj_paid_days)} days'"
+            from datetime import timedelta
+            expires_at_val = datetime.utcnow() + timedelta(days=int(subj_paid_days))
 
         existing = db.session.execute(
             text(
@@ -265,18 +273,19 @@ def success():
             {"uid": int(u.id), "sid": int(sid)},
         ).first()
 
+        new_status = 'paid' if expires_at_val is None else 'active'
         if existing:
             db.session.execute(
                 text(
-                    f"""
+                    """
                     UPDATE user_enrollment
-                       SET status = 'active',
+                       SET status = :st,
                            trial_end = NULL,
-                           expires_at = {expires_clause}
+                           expires_at = :exp
                      WHERE id = :eid
                     """
                 ),
-                {"eid": existing.id},
+                {"eid": existing.id, "st": new_status, "exp": expires_at_val},
             )
             eid = existing.id
             zar_cents = existing.zar_amount_cents
@@ -287,13 +296,13 @@ def success():
         else:
             new_enr = db.session.execute(
                 text(
-                    f"""
+                    """
                     INSERT INTO user_enrollment (user_id, subject_id, status, expires_at)
-                    VALUES (:uid, :sid, 'active', {expires_clause})
+                    VALUES (:uid, :sid, :st, :exp)
                     RETURNING id
                     """
                 ),
-                {"uid": int(u.id), "sid": int(sid)},
+                {"uid": int(u.id), "sid": int(sid), "st": new_status, "exp": expires_at_val},
             ).fetchone()
             eid = new_enr[0]
             zar_cents = 0
@@ -311,7 +320,7 @@ def success():
                     local_amount_cents, price_id, country_code
                 ) VALUES (
                     :uid, :prog, :amt, 'ZAR', :ref, 'success',
-                    CURRENT_TIMESTAMP, {expires_clause}, :eid, :lcur, 
+                    CURRENT_TIMESTAMP, :vu, :eid, :lcur, 
                     :l_amt, :pid, :cc
                 )
             """),
@@ -320,6 +329,7 @@ def success():
                 "prog": subject,
                 "amt": (zar_cents / 100.0) if zar_cents else 0,
                 "ref": ref or "yoco_sandbox",
+                "vu": expires_at_val,
                 "eid": eid,
                 "lcur": local_cur,
                 "l_amt": local_cents,
@@ -381,6 +391,19 @@ def success():
                 db.session.add(txn)
         session["just_paid_subject_id"] = sid if sid else 12 # Default to CFI
 
+    if session.get('is_retake') and subject == 'home':
+        retake_type = session.get('retake_type', 'exam')
+        from app.models.home import HomeFinalAssessment, HomeProgress
+        HomeFinalAssessment.query.filter_by(user_id=u.id).delete()
+        if retake_type == 'course':
+            HomeProgress.query.filter_by(user_id=u.id).delete()
+            for k in list(session.keys()):
+                if k.startswith('chapter_') and k.endswith('_done'):
+                    session.pop(k, None)
+        session.pop('is_retake', None)
+        session.pop('retake_type', None)
+        db.session.commit()
+
     # Process SPV Registration
     if subject.lower() == "spv_registration":
         from app.models.spv import SpvDeal, SpvParticipation
@@ -417,7 +440,7 @@ def success():
                 )
                 db.session.add(part)
 
-    db.session.commit()
+        db.session.commit()
 
     # 4.5) Update YocoPayment record
     pending = YocoPayment.query.filter_by(email=email, subject_slug=subject, status="pending").order_by(YocoPayment.id.desc()).first()
@@ -444,4 +467,6 @@ def success():
 
 @yoco_bp.get("/cancel", endpoint="yoco_cancel")
 def cancel():
+    session.pop('is_retake', None)
+    session.pop('retake_type', None)
     return render_template("payments/cancelled.html"), 200

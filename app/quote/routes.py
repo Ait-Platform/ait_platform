@@ -37,6 +37,7 @@ def quote():
         flash("This program is currently unavailable.", "warning")
         return redirect(url_for("public_bp.welcome"))
 
+    is_upgrade = False
     # Anti-exploitation: If logged in, check if they already have an enrollment for this subject
     if current_user.is_authenticated:
         row = db.session.execute(
@@ -74,6 +75,8 @@ def quote():
                         is_expired = True
                     elif full_row.trial_end and full_row.trial_end < now and not full_row.expires_at:
                         is_expired = True
+                    elif subject.slug == 'home' and not full_row.expires_at and not full_row.trial_end:
+                        is_expired = True
                         
             if not is_expired:
                 # Use actual assigned role name if it exists, otherwise pass None to let subject fallback handle it
@@ -85,8 +88,10 @@ def quote():
                 ep = get_dashboard_route(role_name, subject.slug)
                 return redirect(url_for(ep))
             else:
+                is_upgrade = True
                 # Expired subscription: Force them to Yoco to lock in their existing old price
-                if full_row and full_row.zar_amount_cents and int(full_row.zar_amount_cents) > 0:
+                # BUT don't do this for HOME upgrades, as they need to go through parity pricing quote page
+                if subject.slug != 'home' and full_row and full_row.zar_amount_cents and int(full_row.zar_amount_cents) > 0:
                     flash("Redirecting to secure checkout at your locked renewal rate.", "info")
                     return redirect(url_for("yoco_bp.yoco_start", email=current_user.email, subject=subject.slug))
 
@@ -182,7 +187,8 @@ def quote():
         local_currency=row.local_currency if row else None,
         local_amount_cents=row.local_amount_cents if row else None,
         zar_amount_cents=row.zar_amount_cents if row else None,
-        country_code=row.country_code if row else country_code,  # ✅ included
+        country_code=row.country_code if row else country_code,
+        is_upgrade=is_upgrade,
     )
 
 def anchor_quote_to_baton(subject, country_code):

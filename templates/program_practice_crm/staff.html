@@ -1,0 +1,118 @@
+{% extends "layout.html" %}
+{% block title %}Manage Staff - Practice CRM{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto py-8 px-4">
+  <div class="bg-white rounded-xl shadow overflow-hidden">
+    <!-- Color strip on top -->
+    <div class="h-2 bg-emerald-600"></div>
+    
+    <div class="p-6">
+      <!-- Title left, Back right -->
+      <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold text-slate-800">Manage Receptionists</h1>
+        <a href="{{ url_for('practice_crm_bp.dashboard') }}" class="text-emerald-600 hover:text-emerald-700 font-medium">← Back to Dashboard</a>
+      </div>
+
+      <!-- Flash messages inside tile -->
+      {% include "partials/flash_messages.html" %}
+
+      <div class="bg-slate-50 p-6 rounded-xl border border-slate-200 mb-8">
+        <h2 class="text-lg font-semibold text-slate-800 mb-4">Add Receptionist</h2>
+        <form method="POST" class="flex gap-4">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="flex-1">
+            <input type="email" name="email" list="available-receptionists" autocomplete="off" required placeholder="Type name or email of Receptionist..." class="w-full rounded-md border border-slate-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 px-3 py-2">
+            <datalist id="available-receptionists">
+              {% for ar in available_receptionists %}
+              <option value="{{ ar.email }}">{{ ar.name or 'Unknown Name' }}</option>
+              {% endfor %}
+            </datalist>
+            <p class="mt-1 text-sm text-slate-500">The receptionist must first create a free account on AIT Platform before you can add them.</p>
+          </div>
+          <div>
+            <button type="submit" class="bg-emerald-600 text-white px-4 py-2 rounded shadow-sm hover:bg-emerald-700 font-medium">Add to Practice</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="border border-slate-200 rounded-xl overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-200 bg-slate-50">
+          <h2 class="font-semibold text-slate-800">Current Staff</h2>
+        </div>
+        <ul class="divide-y divide-slate-100">
+          {% for pu, u in receptionists %}
+          <li class="px-6 py-4 hover:bg-slate-50 transition">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="font-medium text-slate-800 flex items-center">
+                  {{ u.name }} <span class="text-xs text-slate-400 font-normal ml-2 mr-3">({{ u.email }})</span>
+                  {% if pu.status == 'suspended' %}
+                  <span class="px-2 py-0.5 rounded text-xs font-semibold bg-rose-100 text-rose-700">Suspended</span>
+                  {% else %}
+                  <span class="px-2 py-0.5 rounded text-xs font-semibold bg-emerald-100 text-emerald-700">Active</span>
+                  {% endif %}
+                </p>
+                <p class="text-sm text-slate-500 mt-1">Role: {{ pu.role|title }} &bull; Phone: {{ pu.phone or 'N/A' }}</p>
+              </div>
+              <div class="flex items-center space-x-3">
+                <div class="text-sm text-slate-400">Added: {{ pu.created_at.strftime('%Y-%m-%d') }}</div>
+                
+                <form method="POST" action="{{ url_for('practice_crm_bp.staff_toggle_status', pu_id=pu.id) }}" class="inline">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  {% if pu.status == 'suspended' %}
+                  <button type="submit" class="px-3 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-medium rounded transition">Reactivate</button>
+                  {% else %}
+                  <button type="submit" class="px-3 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-medium rounded transition">Suspend</button>
+                  {% endif %}
+                </form>
+
+                <button onclick="toggleEditStaff({{ pu.id }})" class="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium rounded transition">Edit</button>
+              </div>
+            </div>
+            
+            <!-- Hidden Edit Form -->
+            <div id="edit-staff-{{ pu.id }}" class="hidden mt-4 pt-4 border-t border-slate-100">
+              <form method="POST" action="{{ url_for('practice_crm_bp.staff_edit', pu_id=pu.id) }}" class="flex gap-4 items-end">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="flex-1">
+                  <label class="block text-xs font-medium text-slate-600 mb-1">Full Name</label>
+                  <input type="text" name="name" value="{{ u.name }}" class="w-full rounded-md border border-slate-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 text-sm px-3 py-2">
+                </div>
+                <div class="flex-1">
+                  <label class="block text-xs font-medium text-slate-600 mb-1">Phone Number</label>
+                  <input type="text" id="phone-input-{{ pu.id }}" name="phone" value="{{ pu.phone or '' }}" class="w-full rounded-md border border-slate-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 text-sm px-3 py-2">
+                </div>
+                <div>
+                  <button type="submit" class="bg-emerald-600 text-white px-4 py-2 rounded shadow-sm hover:bg-emerald-700 text-sm font-medium">Save Changes</button>
+                </div>
+              </form>
+            </div>
+          </li>
+          {% else %}
+          <li class="px-6 py-8 text-center text-slate-500">No receptionists added yet.</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function toggleEditStaff(id) {
+    const form = document.getElementById('edit-staff-' + id);
+    form.classList.toggle('hidden');
+    if (!form.classList.contains('hidden')) {
+        setTimeout(() => {
+            const phoneInput = document.getElementById('phone-input-' + id);
+            if (phoneInput) {
+                // Move cursor to the end of the text
+                const len = phoneInput.value.length;
+                phoneInput.setSelectionRange(len, len);
+                phoneInput.focus();
+            }
+        }, 50);
+    }
+}
+</script>
+{% endblock %}

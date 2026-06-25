@@ -1,0 +1,163 @@
+{% extends "layout.html" %}
+
+{% block flashes %}{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto px-4 py-8">
+
+    <!-- Header Tile -->
+    <div class="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden mb-8">
+        <div class="h-2 bg-emerald-600"></div>
+        
+        <div class="px-8 pt-6 -mb-4">
+            {% include "partials/flash_messages.html" %}
+        </div>
+
+        <div class="p-8 flex items-start justify-between">
+            <div>
+                <p class="text-sm font-semibold text-emerald-600 mb-2">Admin Panel</p>
+                <h1 class="text-4xl font-bold text-slate-900">SPV Dashboard</h1>
+                <p class="text-slate-600 mt-3">Manage deals, sections, and upload assets seamlessly in one place.</p>
+            </div>
+            <a href="{{ url_for('bridge_bp.bridge') }}" class="text-sm text-slate-600 hover:text-slate-900">← Back to Bridge</a>
+        </div>
+    </div>
+
+    <!-- Selection Bar -->
+    <form method="GET" action="{{ url_for('spv_admin_bp.spv_dashboard') }}" class="flex flex-col gap-6 bg-white p-6 rounded-2xl shadow-sm border border-slate-200 mb-8">
+        
+        <div class="w-full">
+            <label class="block text-sm font-bold text-slate-700 mb-2">1. Select Deal</label>
+            <div class="flex items-center gap-3">
+                <select name="deal_id" onchange="this.form.submit()" class="w-full max-w-md rounded-xl border-2 border-slate-400 shadow-sm focus:ring-emerald-500 focus:border-emerald-500 h-[42px]">
+                    <option value="">-- Choose a Deal --</option>
+                    {% for deal in deals %}
+                    <option value="{{ deal.id }}" {% if selected_deal and selected_deal.id == deal.id %}selected{% endif %}>{{ deal.title }}</option>
+                    {% endfor %}
+                </select>
+                
+                <a href="{{ url_for('spv_admin_bp.create_deal') }}" class="inline-flex items-center justify-center px-4 bg-slate-100 text-slate-700 font-bold rounded-xl border-2 border-slate-300 hover:bg-slate-200 transition shadow-sm h-[42px]">
+                    <i class="fas fa-plus mr-2 text-emerald-600"></i> New Deal
+                </a>
+                
+                {% if selected_deal %}
+                <a href="{{ url_for('spv_admin_bp.edit_deal', deal_id=selected_deal.id) }}" class="inline-flex items-center justify-center px-4 bg-emerald-100 text-emerald-800 font-bold rounded-xl border-2 border-emerald-300 hover:bg-emerald-200 transition shadow-sm h-[42px]">
+                    <i class="fas fa-edit mr-2"></i> Edit Deal
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        
+        {% if selected_deal %}
+        <div class="w-full">
+            <label class="block text-sm font-bold text-slate-700 mb-2">2. Select Section</label>
+            <div class="flex items-center gap-3">
+                <select name="section_id" onchange="this.form.submit()" class="w-full max-w-md rounded-xl border-2 border-slate-400 shadow-sm focus:ring-emerald-500 focus:border-emerald-500 h-[42px]">
+                    <option value="">-- Choose a Section --</option>
+                    {% for section in selected_deal.sections %}
+                    <option value="{{ section.id }}" {% if selected_section and selected_section.id == section.id %}selected{% endif %}>{{ section.title }}</option>
+                    {% endfor %}
+                </select>
+                
+                <a href="{{ url_for('spv_admin_bp.create_section', deal_id=selected_deal.id) }}" class="inline-flex items-center justify-center px-4 bg-slate-100 text-slate-700 font-bold rounded-xl border-2 border-slate-300 hover:bg-slate-200 transition shadow-sm h-[42px]">
+                    <i class="fas fa-plus mr-2 text-emerald-600"></i> New Section
+                </a>
+                
+                {% if selected_section %}
+                <a href="{{ url_for('spv_admin_bp.edit_section', section_id=selected_section.id) }}" class="inline-flex items-center justify-center px-4 bg-emerald-100 text-emerald-800 font-bold rounded-xl border-2 border-emerald-300 hover:bg-emerald-200 transition shadow-sm h-[42px]">
+                    <i class="fas fa-edit mr-2"></i> Edit Section
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </form>
+
+    {% if selected_deal %}
+    <!-- Section Management Area -->
+    <div class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
+        
+        <div class="p-6">
+            <!-- Asset List -->
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold text-slate-800">Brochure Video Layout: {{ selected_deal.title }}</h3>
+            </div>
+            {% if selected_deal.sections %}
+            <div class="overflow-hidden rounded-xl border border-slate-200">
+                <table class="w-full text-left text-sm text-slate-600">
+                    <thead class="text-xs uppercase bg-slate-50 text-slate-500 border-b border-slate-200">
+                        <tr>
+                            <th class="px-5 py-4 font-bold">No.</th>
+                            <th class="px-5 py-4 font-bold">Section</th>
+                            <th class="px-5 py-4 font-bold">Upload Name</th>
+                            <th class="px-5 py-4 font-bold text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        {% set ns = namespace(row_num=1) %}
+                        {% for section in selected_deal.sections %}
+                            {% if section.assets %}
+                                {% for asset in section.assets %}
+                                <tr class="hover:bg-slate-50 transition">
+                                    <td class="px-5 py-4 font-bold text-slate-500">{{ ns.row_num }}</td>
+                                    <td class="px-5 py-4 font-bold text-slate-900">{{ section.title }}</td>
+                                    <td class="px-5 py-4 font-bold text-slate-900 text-emerald-600">
+                                        {% if asset.file_path %}
+                                            <i class="fas fa-file-alt mr-2"></i> {{ asset.file_path.split('/')[-1] }}
+                                        {% elif asset.external_url %}
+                                            <i class="fas fa-link mr-2"></i> External Link
+                                        {% else %}
+                                            No File
+                                        {% endif %}
+                                    </td>
+                                    <td class="px-5 py-4 text-right">
+                                        <a href="{{ url_for('spv_admin_bp.create_asset', section_id=section.id) }}" class="inline-flex items-center justify-center text-blue-700 hover:text-blue-900 font-bold bg-blue-100 hover:bg-blue-200 px-4 py-2 rounded-lg transition shadow-sm mr-2">
+                                            <i class="fas fa-plus mr-2"></i> Add
+                                        </a>
+                                        <a href="{{ url_for('spv_admin_bp.edit_asset', asset_id=asset.id) }}" class="inline-flex items-center justify-center text-emerald-700 hover:text-emerald-900 font-bold bg-emerald-100 hover:bg-emerald-200 px-4 py-2 rounded-lg transition shadow-sm">
+                                            <i class="fas fa-edit mr-2"></i> Edit
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% set ns.row_num = ns.row_num + 1 %}
+                                {% endfor %}
+                            {% else %}
+                                <tr class="hover:bg-slate-50 transition">
+                                    <td class="px-5 py-4 font-bold text-slate-500">{{ ns.row_num }}</td>
+                                    <td class="px-5 py-4 font-bold text-slate-900">{{ section.title }}</td>
+                                    <td class="px-5 py-4 text-slate-400 italic">
+                                        No asset uploaded yet
+                                    </td>
+                                    <td class="px-5 py-4 text-right">
+                                        <a href="{{ url_for('spv_admin_bp.create_asset', section_id=section.id) }}" class="inline-flex items-center justify-center text-blue-700 hover:text-blue-900 font-bold bg-blue-100 hover:bg-blue-200 px-4 py-2 rounded-lg transition shadow-sm mr-2">
+                                            <i class="fas fa-plus mr-2"></i> Add
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% set ns.row_num = ns.row_num + 1 %}
+                            {% endif %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-12 bg-slate-50 rounded-xl border border-dashed border-slate-300">
+                <i class="fas fa-folder-open text-4xl text-slate-300 mb-3"></i>
+                <p class="text-slate-500 italic mb-4">No sections added to this deal yet.</p>
+                <a href="{{ url_for('spv_admin_bp.create_section', deal_id=selected_deal.id) }}" class="inline-flex items-center justify-center px-6 py-2 bg-emerald-600 text-white font-bold rounded-lg hover:bg-emerald-700 transition shadow-sm">
+                    <i class="fas fa-plus mr-2"></i> Create First Section
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% else %}
+    <div class="text-center py-16 bg-white rounded-3xl shadow-sm border border-slate-200">
+        <i class="fas fa-hand-pointer text-5xl text-slate-300 mb-4"></i>
+        <h3 class="text-xl font-bold text-slate-700 mb-2">Select a Deal</h3>
+        <p class="text-slate-500">Choose a deal from the dropdown above to manage its documents and sections.</p>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

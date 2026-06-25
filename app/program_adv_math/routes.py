@@ -12,7 +12,7 @@ from app.models.adv_math import AdvMathProgress, AdvMathAssessment
 from werkzeug.security import generate_password_hash
 import re
 
-adv_math_bp = Blueprint("adv_math_bp", __name__, url_prefix="/adv-math")
+adv_math_bp = Blueprint("adv_math_bp", __name__, url_prefix="/grade-12-math")
 
 MATH_GLOSSARY = {
     "term": {"definition": "A single number, a variable, or numbers and variables multiplied together (e.g., \\(4x\\) or \\(7\\)).", "plain": "Think of a 'term' as a single chunk of math separated by plus or minus signs."},
@@ -50,6 +50,40 @@ MATH_RULES = {
     "logarithm": {"rule": "1. \\(\\log_a(xy) = \\log_a x + \\log_a y\\)\n2. \\(\\log_a(x/y) = \\log_a x - \\log_a y\\)\n3. \\(\\log_a(x^n) = n\\log_a x\\)", "plain": "Logs turn multiplication into addition, and division into subtraction."},
     "probability": {"rule": "1. \\(P(A \\cup B) = P(A) + P(B) - P(A \\cap B)\\)\n2. Mutually Exclusive: \\(P(A \\cap B) = 0\\)\n3. Independent: \\(P(A \\cap B) = P(A) \\times P(B)\\)", "plain": "If two events can't happen at the same time, you just add their chances together!"},
     "derivative": {"rule": "Power Rule: If \\(f(x) = ax^n\\), then \\(f'(x) = anx^{n-1}\\)", "plain": "Bring the exponent down to the front and multiply, then subtract 1 from the exponent."}
+}
+
+MATH_BLUEPRINTS = {
+    "sequences_geometric": {
+        "title": "Geometric Sequences",
+        "description": "A geometric sequence has a constant ratio ($r$) between consecutive terms.",
+        "steps": [
+            {
+                "title": "Step 1: Identify Given Information",
+                "content": "Extract the first term ($a$) and the constant ratio ($r$). If $r$ is not given, find it by dividing any term by the previous term: $r = \\frac{T_2}{T_1} = \\frac{T_3}{T_2}$.",
+                "explanation": "Why? We need both $a$ and $r$ to use any geometric formula. If we don't know $r$, the defining property of geometric sequences is that the ratio between consecutive terms is always exactly the same."
+            },
+            {
+                "title": "Step 2: Choose the Correct Formula",
+                "content": "Decide what the question is asking for:\n- For a specific term (e.g., 'find the 5th term'), use $T_n = ar^{n-1}$.\n- For a sum of terms (e.g., 'sum of the first 10 terms'), use $S_n = \\frac{a(r^n - 1)}{r - 1}$.\n- For a sum to infinity (if $-1 < r < 1$), use $S_\\infty = \\frac{a}{1 - r}$.",
+                "explanation": "What are these? $T_n$ gives you the value of a single specific spot in the pattern. $S_n$ adds all the spots together up to $n$. $S_\\infty$ adds them together forever (only works if the numbers are getting smaller)."
+            },
+            {
+                "title": "Step 3: Substitute Values Directly",
+                "content": "Plug $a$, $r$, and $n$ into your chosen formula.",
+                "explanation": "How? Do not simplify anything in your head yet. Write down the exact substitution to ensure you secure the 'substitution mark' in the marking memo."
+            },
+            {
+                "title": "Step 4: Solve / Simplify",
+                "content": "Carefully apply exponent rules. E.g., if finding $n$ in an equation like $2^n = 32$, get the same bases or use logarithms: $n = \\log_2(32)$.",
+                "explanation": "Why? Many geometric sequence problems hide an exponent equation or a logarithm inside them because the unknown $n$ is an exponent."
+            },
+            {
+                "title": "Step 5: Final Statement",
+                "content": "State the final answer clearly, matching the format requested (e.g., correct decimal places).",
+                "explanation": "The marking memo always awards a final accuracy mark for the completely correct final value."
+            }
+        ]
+    }
 }
 
 def get_math_progress(user_id, enrollment_id):
@@ -96,7 +130,7 @@ def register():
 
 @adv_math_bp.route("/payflow")
 def payflow():
-    subj = AuthSubject.query.filter_by(slug="adv_math").first_or_404()
+    subj = AuthSubject.query.filter_by(slug="grade_12_math").first_or_404()
     
     # Check if already enrolled
     if getattr(current_user, "is_authenticated", False):
@@ -111,7 +145,7 @@ def payflow():
 @login_required
 def enroll_free():
     # If the user chooses a free trial or we override for dev purposes
-    subj = AuthSubject.query.filter_by(slug="adv_math").first_or_404()
+    subj = AuthSubject.query.filter_by(slug="grade_12_math").first_or_404()
     enr = UserEnrollment.query.filter_by(user_id=current_user.id, subject_id=subj.id).first()
     if not enr:
         enr = UserEnrollment(
@@ -131,10 +165,82 @@ def enroll_free():
     flash("Successfully enrolled in Advanced Mathematics!", "success")
     return redirect(url_for("adv_math_bp.dashboard"))
 
+SYLLABUS_DATA = [
+    {'number': '1', 'title': 'Algebra & Equations', 'subtopics': [
+        {'topic': 'algebra', 'id': 'equations_linear', 'title': 'Linear Equations', 'desc': 'Solving for a single variable'},
+        {'topic': 'algebra', 'id': 'equations_quadratic', 'title': 'Quadratic Equations', 'desc': 'Factorization and the quadratic formula'},
+        {'topic': 'algebra', 'id': 'equations_simultaneous', 'title': 'Simultaneous Equations', 'desc': 'Solving two variables with substitution'},
+        {'topic': 'algebra', 'id': 'inequalities', 'title': 'Inequalities', 'desc': 'Solving and graphing linear/quadratic inequalities'},
+        {'topic': 'algebra', 'id': 'exponents_surds', 'title': 'Exponents & Surds', 'desc': 'Simplification, equations with powers and roots'},
+        {'topic': 'algebra', 'id': 'nature_of_roots', 'title': 'Nature of Roots', 'desc': 'Discriminant analysis and root properties'},
+        {'topic': 'algebra', 'id': 'logarithms', 'title': 'Logarithms', 'desc': 'Logarithmic laws and equations'}
+    ]},
+    {'number': '2', 'title': 'Sequences & Series', 'subtopics': [
+        {'topic': 'algebra', 'id': 'sequences_arithmetic', 'title': 'Arithmetic Sequences', 'desc': 'Linear patterns and arithmetic series formulas'},
+        {'topic': 'algebra', 'id': 'sequences_geometric', 'title': 'Geometric Sequences', 'desc': 'Constant ratios, nth term, and sum to infinity'},
+        {'topic': 'algebra', 'id': 'sequences_quadratic', 'title': 'Quadratic Sequences', 'desc': 'Second differences and general terms'}
+    ]},
+    {'number': '3', 'title': 'Functions & Graphs', 'subtopics': [
+        {'topic': 'functions', 'id': 'functions_linear_quad', 'title': 'Linear & Quadratic', 'desc': 'Straight lines and parabolas'},
+        {'topic': 'functions', 'id': 'functions_exp_log', 'title': 'Exponential & Logarithmic', 'desc': 'Asymptotes and reflections'},
+        {'topic': 'functions', 'id': 'functions_hyperbolas', 'title': 'Hyperbolas', 'desc': 'Vertical and horizontal asymptotes'},
+        {'topic': 'functions', 'id': 'functions_inverses', 'title': 'Inverse Functions', 'desc': 'Domain, range, and reflections across y=x'}
+    ]},
+    {'number': '4', 'title': 'Differential Calculus', 'subtopics': [
+        {'topic': 'calculus', 'id': 'calculus_first_principles', 'title': 'First Principles', 'desc': 'Differentiation using the limit definition'},
+        {'topic': 'calculus', 'id': 'calculus_rules', 'title': 'Rules of Differentiation', 'desc': 'Power rule, chain rule applications'},
+        {'topic': 'calculus', 'id': 'calculus_cubics', 'title': 'Cubic Graphs', 'desc': 'Stationary points, inflection points, x-intercepts'},
+        {'topic': 'calculus', 'id': 'calculus_optimization', 'title': 'Optimization', 'desc': 'Max/min problems and rates of change'}
+    ]},
+    {'number': '5', 'title': 'Financial Mathematics', 'subtopics': [
+        {'topic': 'financial_math', 'id': 'financial_interest', 'title': 'Simple & Compound Interest', 'desc': 'Timelines and nominal/effective rates'},
+        {'topic': 'financial_math', 'id': 'financial_annuities', 'title': 'Annuities & Depreciation', 'desc': 'Present and future value annuities, sinking funds'}
+    ]},
+    {'number': '6', 'title': 'Probability & Statistics', 'subtopics': [
+        {'topic': 'probability', 'id': 'probability_counting', 'title': 'Counting Principle', 'desc': 'Permutations, combinations, probability rules'},
+        {'topic': 'probability', 'id': 'probability_diagrams', 'title': 'Venn & Tree Diagrams', 'desc': 'Dependent/independent events, mutually exclusive'},
+        {'topic': 'probability', 'id': 'statistics_regression', 'title': 'Regression & Correlation', 'desc': 'Scatter plots, least squares, correlation coefficient'},
+        {'topic': 'probability', 'id': 'statistics_distribution', 'title': 'Distributions', 'desc': 'Standard deviation, ogives, normal distribution'}
+    ]},
+    {'number': '7', 'title': 'Geometry & Trigonometry', 'subtopics': [
+        {'topic': 'geometry', 'id': 'euclidean_circle_theorems', 'title': 'Circle Theorems', 'desc': 'Angle at center, cyclic quads, tangents'},
+        {'topic': 'geometry', 'id': 'euclidean_proportionality', 'title': 'Proportionality & Similarity', 'desc': 'Ratio theorems, similar triangles'},
+        {'topic': 'geometry', 'id': 'analytical_lines_circles', 'title': 'Lines & Circles', 'desc': 'Gradients, midpoints, circle equations, tangents'},
+        {'topic': 'geometry', 'id': 'trigonometry_identities', 'title': 'Trig Identities & Reduction', 'desc': 'Compound angles, double angles, proofs'},
+        {'topic': 'geometry', 'id': 'trigonometry_graphs', 'title': 'Trig Graphs', 'desc': 'Amplitude, period, shifts, intersections'},
+        {'topic': 'geometry', 'id': 'trigonometry_2d_3d', 'title': '2D & 3D Problems', 'desc': 'Sine, cosine, area rules in complex planes'}
+    ]}
+]
+
+FLAT_SUBTOPICS = []
+for group in SYLLABUS_DATA:
+    for st in group['subtopics']:
+        st['group_title'] = group['title']
+        st['group_number'] = group['number']
+        FLAT_SUBTOPICS.append(st)
+
+@adv_math_bp.route("/syllabus")
+@login_required
+def syllabus():
+    subj = AuthSubject.query.filter_by(slug="grade_12_math").first_or_404()
+    enr = UserEnrollment.query.filter_by(user_id=current_user.id, subject_id=subj.id).first()
+    if not enr:
+        return redirect(url_for("adv_math_bp.about"))
+        
+    prog = get_math_progress(current_user.id, enr.id)
+    
+    from app.models.adv_math import AdvMathQuestion
+    from sqlalchemy import func
+    
+    counts_query = db.session.query(AdvMathQuestion.sub_topic, func.count(AdvMathQuestion.id)).group_by(AdvMathQuestion.sub_topic).all()
+    question_counts = {sub_topic: count for sub_topic, count in counts_query}
+
+    return render_template("program_adv_math/syllabus.html", progress=prog, syllabus_data=SYLLABUS_DATA, question_counts=question_counts)
+
 @adv_math_bp.route("/dashboard")
 @login_required
 def dashboard():
-    subj = AuthSubject.query.filter_by(slug="adv_math").first_or_404()
+    subj = AuthSubject.query.filter_by(slug="grade_12_math").first_or_404()
     enr = UserEnrollment.query.filter_by(user_id=current_user.id, subject_id=subj.id).first()
     if not enr:
         return redirect(url_for("adv_math_bp.about"))
@@ -154,8 +260,32 @@ def dashboard():
     else:
         prog.readiness_status = 0
     db.session.commit()
+    
+    active_id = request.args.get("st") or session.get("adv_math_active_subtopic") or FLAT_SUBTOPICS[0]['id']
+    
+    # ensure active_id exists in our list
+    active_subtopic = next((st for st in FLAT_SUBTOPICS if st['id'] == active_id), FLAT_SUBTOPICS[0])
+    session["adv_math_active_subtopic"] = active_subtopic['id']
+    
+    # Get total questions for active subtopic
+    from app.models.adv_math import AdvMathQuestion
+    total_q = AdvMathQuestion.query.filter_by(sub_topic=active_subtopic['id']).count()
+    
+    # Find prev/next subtopics for the carousel
+    idx = FLAT_SUBTOPICS.index(active_subtopic)
+    prev_st = FLAT_SUBTOPICS[idx - 1]['id'] if idx > 0 else None
+    next_st = FLAT_SUBTOPICS[idx + 1]['id'] if idx < len(FLAT_SUBTOPICS) - 1 else None
 
-    return render_template("program_adv_math/dashboard.html", progress=prog, progress_pct=progress_pct, enrollment=enr)
+    return render_template("program_adv_math/dashboard.html", 
+                           progress=prog, 
+                           progress_pct=progress_pct, 
+                           enrollment=enr,
+                           active_subtopic=active_subtopic,
+                           prev_st=prev_st,
+                           next_st=next_st,
+                           st_index=idx+1,
+                           st_total=len(FLAT_SUBTOPICS),
+                           total_questions=total_q)
 
 @adv_math_bp.route("/topic/<topic_id>")
 @adv_math_bp.route("/topic/<topic_id>/<sub_topic>")
@@ -206,7 +336,12 @@ def topic_flow(topic_id, sub_topic=None):
     elif topic_questions:
         total_questions = len(topic_questions)
         qid = request.args.get('qid')
+        
+        if qid == "revision":
+            return redirect(url_for('adv_math_bp.expert_flow', topic_id=topic_id, sub_topic=sub_topic, revision=1))
+            
         q_obj = None
+        current_index = 0
         
         if qid:
             for i, q in enumerate(topic_questions):
@@ -220,7 +355,7 @@ def topic_flow(topic_id, sub_topic=None):
             current_index = 0
             
         prev_qid = topic_questions[current_index - 1].id if current_index > 0 else None
-        next_qid = topic_questions[current_index + 1].id if current_index < total_questions - 1 else None
+        next_qid = topic_questions[current_index + 1].id if current_index < total_questions - 1 else "revision"
         
         pagination = {
             "current_index": current_index + 1,
@@ -315,6 +450,188 @@ def topic_flow(topic_id, sub_topic=None):
         is_variation=is_variation
     )
 
+@adv_math_bp.route("/desk/<topic_id>/<sub_topic>")
+@login_required
+def desk_flow(topic_id, sub_topic):
+    user_id = current_user.id
+    enrollments = UserEnrollment.query.filter_by(user_id=user_id, status='active').all()
+    if not enrollments:
+        flash("You need an active enrollment to access this module.", "warning")
+        return redirect(url_for('adv_math_bp.about'))
+    
+    from app.models.adv_math import AdvMathQuestion
+    from app.extensions import db
+    query = AdvMathQuestion.query.filter(
+        AdvMathQuestion.topic_name == topic_id,
+        db.or_(AdvMathQuestion.sub_topic == sub_topic, AdvMathQuestion.sub_topic == '', AdvMathQuestion.sub_topic == None)
+    ).order_by(AdvMathQuestion.id.desc())
+    topic_questions = query.all()
+    
+    qid = request.args.get('qid')
+    
+    if qid == "revision":
+        return redirect(url_for('adv_math_bp.desk_flow', topic_id=topic_id, sub_topic=sub_topic, revision=1))
+        
+    q_obj = None
+    current_index = 0
+    
+    if topic_questions:
+        total_questions = len(topic_questions)
+        if qid:
+            for i, q in enumerate(topic_questions):
+                if str(q.id) == str(qid):
+                    q_obj = q
+                    current_index = i
+                    break
+        if not q_obj:
+            q_obj = topic_questions[0]
+            
+        prev_qid = topic_questions[current_index - 1].id if current_index > 0 else None
+        next_qid = topic_questions[current_index + 1].id if current_index < total_questions - 1 else "revision"
+        
+        pagination = {
+            "current_index": current_index + 1,
+            "total_questions": total_questions,
+            "prev_qid": prev_qid,
+            "next_qid": next_qid,
+            "questions_list": topic_questions
+        }
+    else:
+        # Mock question when DB is empty so UI still works
+        class MockQuestion:
+            id = 1
+            question_text = "Evaluate the limit as x approaches 0 for sin(x)/x (Mock DBE Question)"
+            question_type = "mcq"
+            correct_answer = "1"
+            explanation = "By L'Hopital's rule, the derivative of sin(x) is cos(x) and x is 1. cos(0)/1 = 1."
+            source_paper = "Mock Data"
+            marks = "5"
+            options = ["0", "1", "Infinity", "Undefined"]
+            steps = []
+            
+        q_obj = MockQuestion()
+        pagination = {
+            "current_index": 1,
+            "total_questions": 1,
+            "prev_qid": None,
+            "next_qid": "revision",
+            "questions_list": [q_obj]
+        }
+        
+    # Setup for tutor and toolbox
+    import re
+    
+    if q_obj:
+        session[f"adv_math_q_{topic_id}"] = {
+            "id": q_obj.id,
+            "correct_answer": q_obj.correct_answer,
+            "explanation": q_obj.explanation,
+            "text": q_obj.question_text
+        }
+        text_to_search = q_obj.question_text.lower()
+    else:
+        text_to_search = ""
+        
+    active_definitions = []
+    for term, data in MATH_GLOSSARY.items():
+        if re.search(r'\b' + term + r'\b', text_to_search):
+            active_definitions.append({
+                "term": term.capitalize(),
+                "definition": data["definition"],
+                "plain": data["plain"]
+            })
+            
+    if not active_definitions:
+        default_terms = ["term", "coefficient", "equation"]
+        for dt in default_terms:
+            active_definitions.append({
+                "term": dt.capitalize(),
+                "definition": MATH_GLOSSARY[dt]["definition"],
+                "plain": MATH_GLOSSARY[dt]["plain"]
+            })
+            
+    active_formulas = []
+    for term, data in MATH_FORMULAS.items():
+        if re.search(r'\b' + term + r'\b', text_to_search):
+            active_formulas.append({
+                "term": term.capitalize(),
+                "formula": data["formula"],
+                "plain": data["plain"]
+            })
+            
+    active_rules = []
+    for term, data in MATH_RULES.items():
+        if re.search(r'\b' + term + r'\b', text_to_search):
+            active_rules.append({
+                "term": term.capitalize(),
+                "rule": data["rule"],
+                "plain": data["plain"]
+            })
+            
+    # Subtopic carousel context
+    active_subtopic = next((st for st in FLAT_SUBTOPICS if st['id'] == sub_topic), FLAT_SUBTOPICS[0])
+    idx = FLAT_SUBTOPICS.index(active_subtopic)
+    prev_st_obj = FLAT_SUBTOPICS[idx - 1] if idx > 0 else None
+    next_st_obj = FLAT_SUBTOPICS[idx + 1] if idx < len(FLAT_SUBTOPICS) - 1 else None
+
+    # Mocking available_tools for now based on what topic_flow did
+    if q_obj:
+        q_obj.available_tools = ["definitions", "formulas", "strategy", "deconstruct"]
+        
+    active_blueprint = MATH_BLUEPRINTS.get(sub_topic)
+    if not active_blueprint:
+        active_blueprint = {
+            "title": f"Blueprint for {sub_topic.replace('_', ' ').title()}",
+            "description": "This is a placeholder blueprint. The exact marking memo steps for this topic will be added here.",
+            "steps": [
+                {
+                    "title": "Step 1: Setup",
+                    "content": "Identify the given variables and what needs to be solved.",
+                    "explanation": "Standard procedure for this topic."
+                }
+            ]
+        }
+
+    return render_template(
+        "program_adv_math/desk_flow.html",
+        topic_id=topic_id,
+        sub_topic=sub_topic,
+        topic_title=topic_id.replace('_', ' ').title(),
+        question=q_obj,
+        pagination=pagination,
+        active_definitions=active_definitions,
+        active_formulas=active_formulas,
+        active_rules=active_rules,
+        active_subtopic=active_subtopic,
+        prev_st_obj=prev_st_obj,
+        next_st_obj=next_st_obj,
+        st_index=idx + 1,
+        st_total=len(FLAT_SUBTOPICS),
+        active_blueprint=active_blueprint
+    )
+
+@adv_math_bp.route("/study-room/<topic_id>/<sub_topic>")
+@login_required
+def study_room(topic_id, sub_topic):
+    user_id = current_user.id
+    enrollments = UserEnrollment.query.filter_by(user_id=user_id, status='active').all()
+    if not enrollments:
+        flash("You need an active enrollment to access this module.", "warning")
+        return redirect(url_for('adv_math_bp.about'))
+        
+    active_subtopic = next((st for st in FLAT_SUBTOPICS if st['id'] == sub_topic), FLAT_SUBTOPICS[0])
+    active_blueprint = MATH_BLUEPRINTS.get(sub_topic)
+    
+    return render_template(
+        "program_adv_math/study_room.html",
+        topic_id=topic_id,
+        sub_topic=sub_topic,
+        topic_title=topic_id.replace('_', ' ').title(),
+        active_subtopic=active_subtopic,
+        active_blueprint=active_blueprint
+    )
+
+
 @adv_math_bp.route("/topic/<topic_id>/<sub_topic>/variation", methods=["GET"])
 @login_required
 def generate_variation(topic_id, sub_topic):
@@ -363,13 +680,14 @@ def topic_tutor(topic_id, sub_topic=None):
     
     data = request.get_json()
     student_step = data.get("step", "").strip()
+    image_data = data.get("image_data")
     
-    if not student_step:
+    if not student_step and not image_data:
         return {"error": "Please provide your working or question."}, 400
         
     try:
         genai.configure(api_key=current_app.config.get("GEMINI_API_KEY", os.environ.get("GEMINI_API_KEY")))
-        model = genai.GenerativeModel("gemini-flash-latest")
+        model = genai.GenerativeModel("gemini-1.5-flash")
         
         prompt = f"""
         You are a strictly Socratic Mathematics Tutor.
@@ -379,17 +697,28 @@ def topic_tutor(topic_id, sub_topic=None):
         The correct final answer / marking guideline is:
         "{correct_answer}"
         "{explanation}"
+        """
         
+        if image_data:
+            prompt += """
+        The student has provided a handwritten step on a digital scratchpad (see attached image).
+        First, carefully transcribe what they wrote in the image.
+        Then, treat that transcription as their current step.
+        """
+        else:
+            prompt += f"""
         The student has just submitted this intermediate step or question:
         "{student_step}"
-        
+        """
+            
+        prompt += """
         CRITICAL RULES:
         1. UNDER NO CIRCUMSTANCES should you give the student the final answer or solve the next step for them.
-        2. If the student asks for a definition (e.g., "what is a term?", "what is a coefficient?"), provide a simple, clear definition using an example from the current question, but do NOT proceed to solve the problem for them.
+        2. If the student asks for a definition, provide a simple clear definition but do NOT proceed to solve the problem.
         3. Be highly encouraging.
         4. Ask a guiding, Socratic question to help them realize their next step or identify their own mistake based on the concept of 'Observation'.
         5. Keep your feedback brief (2-4 sentences maximum).
-        6. You can use LaTeX math formatting wrapped in \\\\( and \\\\).
+        6. You can use LaTeX math formatting wrapped in \\( and \\).
         
         You MUST return your response as a raw JSON object matching this exact schema:
         {
@@ -399,7 +728,18 @@ def topic_tutor(topic_id, sub_topic=None):
         Set "is_final_answer_reached" to true ONLY if the student's step logically demonstrates the final correct answer based on the marking guideline. Otherwise, set it to false. Do not wrap the JSON in markdown ticks.
         """
         
-        response = model.generate_content(prompt)
+        contents = [prompt]
+        if image_data:
+            import base64
+            header, encoded = image_data.split(",", 1)
+            image_bytes = base64.b64decode(encoded)
+            image_part = {
+                "mime_type": "image/jpeg",
+                "data": image_bytes
+            }
+            contents = [prompt, image_part]
+        
+        response = model.generate_content(contents)
         raw_text = response.text.strip()
         
         if raw_text.startswith("```json"):
@@ -491,7 +831,7 @@ def validate_variables():
 @adv_math_bp.route("/topic/<topic_id>/<sub_topic>/submit", methods=["POST"])
 @login_required
 def topic_submit(topic_id, sub_topic=None):
-    subj = AuthSubject.query.filter_by(slug="adv_math").first_or_404()
+    subj = AuthSubject.query.filter_by(slug="grade_12_math").first_or_404()
     enr = UserEnrollment.query.filter_by(user_id=current_user.id, subject_id=subj.id).first_or_404()
     prog = get_math_progress(current_user.id, enr.id)
     
@@ -615,7 +955,7 @@ def result(topic_id, attempt_id):
 @adv_math_bp.route("/readiness")
 @login_required
 def readiness():
-    subj = AuthSubject.query.filter_by(slug="adv_math").first_or_404()
+    subj = AuthSubject.query.filter_by(slug="grade_12_math").first_or_404()
     enr = UserEnrollment.query.filter_by(user_id=current_user.id, subject_id=subj.id).first_or_404()
     prog = get_math_progress(current_user.id, enr.id)
     

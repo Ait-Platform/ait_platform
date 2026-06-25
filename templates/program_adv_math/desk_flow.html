@@ -1,0 +1,349 @@
+{% extends "layout.html" %}
+
+{% block title %}{{ topic_title }} - Practice Desk{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-8">
+  <div class="bg-white rounded-xl shadow-lg overflow-hidden flex flex-col h-full relative z-10">
+    <div class="h-3 bg-cyan-600 w-full"></div>
+    <div class="p-8 md:p-12">
+        
+        <!-- Header Row 1 -->
+        <div class="flex items-center justify-between mb-4">
+            <span class="text-sm font-bold text-cyan-600 tracking-wider uppercase">Practice Desk</span>
+            <div class="flex items-center gap-3">
+                <a href="{{ url_for('adv_math_bp.study_room', topic_id=topic_id, sub_topic=sub_topic) }}" class="inline-flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700 transition shadow-sm shrink-0">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                    Study Room
+                </a>
+                <a href="{{ url_for('adv_math_bp.dashboard') }}" class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition shadow-sm shrink-0">
+                    <span>←</span> Dashboard
+                </a>
+            </div>
+        </div>
+        
+        <!-- Header Row 2 -->
+        <div class="flex flex-col md:flex-row md:items-center justify-between mb-6 border-b border-slate-100 pb-4 gap-4">
+            <div>
+                <h1 class="text-2xl md:text-3xl font-bold text-slate-900 mb-1">{{ topic_title }}</h1>
+                {% if question and question.source_paper %}
+                <p class="text-slate-600 font-medium text-sm">Source: {{ question.source_paper }}</p>
+                {% endif %}
+            </div>
+            
+            <div class="flex flex-wrap items-center gap-3">
+                <!-- Subtopic Navigation -->
+                <div class="flex items-center gap-2 bg-white p-1 rounded-xl border border-slate-200 shadow-sm shrink-0">
+                    {% if prev_st_obj %}
+                    <a href="{{ url_for('adv_math_bp.desk_flow', topic_id=prev_st_obj.topic, sub_topic=prev_st_obj.id) }}" class="p-2 rounded-lg border border-slate-200 bg-slate-50 text-slate-600 hover:bg-cyan-50 hover:text-cyan-700 hover:border-cyan-200 transition" title="Previous Subtopic">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                    </a>
+                    {% else %}
+                    <div class="p-2 rounded-lg border border-slate-100 bg-slate-50 text-slate-300 cursor-not-allowed">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="px-2 py-1 flex flex-col items-center justify-center min-w-[100px]">
+                        <span class="text-[10px] text-slate-500 uppercase tracking-wider font-bold truncate max-w-[120px]">{{ active_subtopic.title }}</span>
+                        <span class="font-bold text-cyan-700 text-sm leading-none">Subtopic {{ st_index }} <span class="text-slate-400 text-xs">of</span> {{ st_total }}</span>
+                    </div>
+                    
+                    {% if next_st_obj %}
+                    <a href="{{ url_for('adv_math_bp.desk_flow', topic_id=next_st_obj.topic, sub_topic=next_st_obj.id) }}" class="p-2 rounded-lg border border-slate-200 bg-slate-50 text-slate-600 hover:bg-cyan-50 hover:text-cyan-700 hover:border-cyan-200 transition" title="Next Subtopic">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                    </a>
+                    {% else %}
+                    <div class="p-2 rounded-lg border border-slate-100 bg-slate-50 text-slate-300 cursor-not-allowed">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Question Navigation -->
+                <div class="flex items-center gap-2 bg-white p-1 rounded-xl border border-slate-200 shadow-sm shrink-0">
+                    {% if pagination %}
+                        {% if pagination.prev_qid %}
+                        <a href="{{ url_for('adv_math_bp.desk_flow', topic_id=topic_id, sub_topic=sub_topic, qid=pagination.prev_qid) }}" class="p-2 rounded-lg border border-slate-200 bg-slate-50 text-slate-600 hover:bg-cyan-50 hover:text-cyan-700 hover:border-cyan-200 transition" title="Previous Question">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                        </a>
+                        {% else %}
+                        <div class="p-2 rounded-lg border border-slate-100 bg-slate-50 text-slate-300 cursor-not-allowed">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="px-2 py-1 flex flex-col items-center justify-center">
+                            <span class="text-[10px] text-slate-500 uppercase tracking-wider font-bold">Question</span>
+                            <span class="font-bold text-cyan-700 text-sm leading-none">{{ pagination.current_index }} <span class="text-slate-400 text-xs">of</span> {{ pagination.total_questions }}</span>
+                        </div>
+                        
+                        {% if pagination.next_qid %}
+                        <a href="{{ url_for('adv_math_bp.desk_flow', topic_id=topic_id, sub_topic=sub_topic, qid=pagination.next_qid) }}" class="p-2 rounded-lg border border-slate-200 bg-slate-50 text-slate-600 hover:bg-cyan-50 hover:text-cyan-700 hover:border-cyan-200 transition" title="Next Question">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                        </a>
+                        {% else %}
+                        <div class="p-2 rounded-lg border border-slate-100 bg-slate-50 text-slate-300 cursor-not-allowed">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                        </div>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        {% if not question %}
+        <div class="text-center py-12">
+            <h2 class="text-xl font-bold text-slate-700">No questions available yet.</h2>
+            <p class="text-slate-500 mt-2">Check back soon!</p>
+        </div>
+        {% else %}
+
+        {% include "partials/math_toolbox.html" %}
+
+        <!-- Question View -->
+        <div class="bg-slate-50 rounded-xl border border-slate-200 p-6 md:p-8 mb-8 shadow-sm relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-24 h-24 bg-cyan-100 rounded-bl-full opacity-50 z-0"></div>
+            <div class="relative z-10">
+                <div class="flex flex-wrap justify-between items-center mb-4 gap-4">
+                    <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                        <span class="bg-cyan-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs">Q</span>
+                        Question
+                    </h3>
+                    
+                    <div class="flex items-center gap-3">
+                        {% if question.marks %}
+                        <span class="text-sm font-bold text-slate-700 bg-white border border-slate-200 px-3 py-2 rounded-lg shadow-sm">{{ question.marks }} marks</span>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                {% if question.concepts_tested %}
+                <div class="mb-4 flex flex-wrap gap-2">
+                    <span class="text-xs font-bold text-slate-500 uppercase tracking-wider mr-1 mt-1">Tests:</span>
+                    {% for concept in question.concepts_tested.split(',') %}
+                    <span class="px-2.5 py-1 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-100 text-xs font-semibold shadow-sm">{{ concept.strip() }}</span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                
+                <div class="overflow-auto w-full max-h-[60vh] bg-white rounded-lg border border-slate-200 p-4 custom-q-container shadow-inner">
+                    <div class="text-slate-800 whitespace-pre-wrap text-lg leading-relaxed">{{ question.question_text|safe }}</div>
+                </div>
+                <style>
+                    .custom-q-container img {
+                        max-width: none !important;
+                        min-width: 140% !important;
+                        height: auto;
+                        display: block;
+                    }
+                </style>
+            </div>
+        </div>
+
+        <!-- Scratchpad Area -->
+        <div class="mb-10">
+            <h3 class="text-xl font-bold text-slate-800 mb-4 border-b border-slate-200 pb-2 flex items-center gap-2">
+                <span class="text-xl">🖋️</span> Your Scratchpad
+            </h3>
+            <div id="scratchpad-container" class="transition-all duration-300">
+                <div class="border-2 border-slate-300 rounded-lg overflow-hidden bg-white shadow-sm relative">
+                    <!-- Canvas Toolbar -->
+                    <div class="bg-slate-50 border-b border-slate-200 p-2 flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <button type="button" id="tool-pen" class="p-2 rounded bg-cyan-100 text-cyan-800 shadow-sm transition" title="Pen Tool">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                            </button>
+                            <button type="button" id="tool-eraser" class="p-2 rounded hover:bg-slate-200 text-slate-600 transition" title="Eraser Tool">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                            </button>
+                        </div>
+                        <button type="button" id="btn-clear-canvas" class="text-xs font-medium text-red-600 hover:text-red-800 px-3 py-1 rounded hover:bg-red-50 transition">
+                            Clear All
+                        </button>
+                    </div>
+                    <canvas id="mathCanvas" class="w-full h-[400px] cursor-crosshair touch-none"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Self Assessment -->
+        <div class="bg-white border border-slate-200 rounded-xl p-6 md:p-8 shadow-sm mb-8">
+            <h3 class="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+                <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path></svg>
+                Self-Assessment
+            </h3>
+            
+            <div class="flex flex-col sm:flex-row gap-4 mb-6">
+                <button onclick="document.getElementById('model-answer').classList.toggle('hidden')" class="w-full flex justify-center items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-6 py-3 rounded-lg shadow-sm transition">
+                    Reveal Model Answer
+                </button>
+                <button onclick="document.getElementById('marking-memo').classList.toggle('hidden')" class="w-full flex justify-center items-center gap-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-medium px-6 py-3 rounded-lg shadow-sm transition">
+                    Reveal Marking Memo
+                </button>
+            </div>
+
+            <!-- Model Answer Content -->
+            <div id="model-answer" class="hidden transition-all duration-300">
+                <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-6 mb-6">
+                    <span class="block text-sm font-bold text-emerald-800 uppercase tracking-wider mb-3">Model Final Answer</span>
+                    <div class="text-xl font-bold text-slate-900 bg-white p-4 rounded-lg shadow-inner border border-emerald-100">
+                        {{ question.correct_answer|default("No final answer provided.", true) }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Marking Memo Content -->
+            <div id="marking-memo" class="hidden transition-all duration-300">
+                <div class="bg-slate-50 border border-slate-200 rounded-xl p-6 mb-4">
+                    <h4 class="font-bold text-slate-800 text-lg flex items-center gap-2 mb-4 border-b border-slate-200 pb-2">
+                        Marking Memo (Answer Blueprint)
+                    </h4>
+                    
+                    {% if active_blueprint %}
+                        <p class="text-slate-600 text-sm mb-6">{{ active_blueprint.description }}</p>
+                        <div class="space-y-6">
+                            {% for step in active_blueprint.steps %}
+                            <div class="relative pl-8 pb-6 border-l-2 border-slate-300 last:border-l-0 last:pb-0">
+                                <div class="absolute -left-[11px] top-0 w-5 h-5 rounded-full bg-white border-[3px] border-indigo-500 shadow-sm"></div>
+                                <h5 class="font-bold text-slate-800 text-base mb-2 leading-none mt-1">{{ step.title }}</h5>
+                                <p class="text-slate-600 text-sm mb-3">{{ step.content }}</p>
+                                
+                                <div class="bg-indigo-50/50 border-l-4 border-indigo-300 p-3 rounded-r-lg text-sm text-slate-600 shadow-sm">
+                                    <span class="font-bold text-indigo-700 mb-1 flex items-center gap-1">
+                                        <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                        Memo Insight:
+                                    </span>
+                                    {{ step.explanation }}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-slate-500 italic">Detailed marking memo not available for this question yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+        </div>
+        {% endif %}
+        
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+window.MathJax = {
+  tex: {
+    inlineMath: [['\\(', '\\)']],
+    displayMath: [['\\[', '\\]']]
+  }
+};
+</script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+<!-- Scratchpad Logic -->
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const canvas = document.getElementById('mathCanvas');
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    
+    // Fit canvas to container
+    function resizeCanvas() {
+        canvas.width = canvas.offsetWidth;
+        canvas.height = canvas.offsetHeight;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 2;
+    }
+    
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+    
+    let isDrawing = false;
+    let currentTool = 'pen';
+    let lastX = 0;
+    let lastY = 0;
+    
+    const btnPen = document.getElementById('tool-pen');
+    const btnEraser = document.getElementById('tool-eraser');
+    
+    function setTool(tool) {
+        currentTool = tool;
+        if(tool === 'pen') {
+            btnPen.classList.replace('text-slate-600', 'text-cyan-800');
+            btnPen.classList.replace('hover:bg-slate-200', 'bg-cyan-100');
+            btnEraser.classList.replace('bg-cyan-100', 'hover:bg-slate-200');
+            btnEraser.classList.replace('text-cyan-800', 'text-slate-600');
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 2;
+        } else {
+            btnEraser.classList.replace('text-slate-600', 'text-cyan-800');
+            btnEraser.classList.replace('hover:bg-slate-200', 'bg-cyan-100');
+            btnPen.classList.replace('bg-cyan-100', 'hover:bg-slate-200');
+            btnPen.classList.replace('text-cyan-800', 'text-slate-600');
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 20;
+        }
+    }
+    
+    btnPen.addEventListener('click', () => setTool('pen'));
+    btnEraser.addEventListener('click', () => setTool('eraser'));
+    
+    document.getElementById('btn-clear-canvas').addEventListener('click', () => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    });
+    
+    function startDraw(e) {
+        isDrawing = true;
+        const rect = canvas.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        lastX = clientX - rect.left;
+        lastY = clientY - rect.top;
+        
+        ctx.beginPath();
+        ctx.moveTo(lastX, lastY);
+        e.preventDefault();
+    }
+    
+    function draw(e) {
+        if (!isDrawing) return;
+        const rect = canvas.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        const currentX = clientX - rect.left;
+        const currentY = clientY - rect.top;
+        
+        ctx.lineTo(currentX, currentY);
+        ctx.stroke();
+        
+        lastX = currentX;
+        lastY = currentY;
+        e.preventDefault();
+    }
+    
+    function stopDraw() {
+        if (!isDrawing) return;
+        isDrawing = false;
+        ctx.closePath();
+    }
+    
+    canvas.addEventListener('mousedown', startDraw);
+    canvas.addEventListener('mousemove', draw);
+    canvas.addEventListener('mouseup', stopDraw);
+    canvas.addEventListener('mouseout', stopDraw);
+    
+    canvas.addEventListener('touchstart', startDraw, {passive: false});
+    canvas.addEventListener('touchmove', draw, {passive: false});
+    canvas.addEventListener('touchend', stopDraw);
+    canvas.addEventListener('touchcancel', stopDraw);
+});
+</script>
+{% endblock %}

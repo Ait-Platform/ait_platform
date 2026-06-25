@@ -43,7 +43,7 @@
         </ul>
 
         <div class="flex items-center justify-between">
-          <a href="{{ url_for('auth_bp.bridge_dashboard') }}"
+          <a href="{{ url_for('auth_bp.bridge_dashboard', force=1) }}"
              class="text-sm text-slate-600 hover:text-slate-800">← Back to dashboard</a>
 
           <a href="{{ start_url }}"
@@ -54,17 +54,21 @@
       </div>
     {% else %}
       {# default for other subjects stays unchanged #}
-      <h1 class="text-2xl font-semibold mb-2 text-center">{{ subject.name }} Dashboard</h1>
-      <p class="text-slate-600 mb-6 text-center">Welcome back.</p>
+      <div class="flex items-center justify-between mb-2">
+        <h1 class="text-2xl font-semibold text-slate-800">{{ subject.name }} Dashboard</h1>
+        <a href="{{ url_for('auth_bp.bridge_dashboard', force=1) }}" class="text-emerald-600 hover:text-emerald-700 font-medium">← Back</a>
+      </div>
+      <p class="text-slate-600 mb-6">Welcome back.</p>
 
       <div class="rounded-xl border bg-white p-6 shadow-sm">
         <p class="text-sm text-slate-600 mb-4">Press <strong>Next</strong> to begin {{ subject.name }}.</p>
         <div class="flex items-center justify-between">
-          <a href="{{ url_for('auth_bp.bridge_dashboard') }}"
-             class="text-sm text-slate-600 hover:text-slate-800">← Back to dashboard</a>
+          <div class="text-sm text-slate-500 italic bg-slate-50 border border-slate-200 rounded px-3 py-2 mr-4">
+            <strong>Help:</strong> How to use this program.
+          </div>
 
           <a href="{{ start_url }}"
-             class="inline-flex items-center rounded-lg px-4 py-2 text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white">
+             class="inline-flex items-center rounded-lg px-6 py-2 text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white shrink-0">
             Next
           </a>
         </div>

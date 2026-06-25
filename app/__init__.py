@@ -66,7 +66,14 @@ def create_app():
     csrf.init_app(app)
     mail.init_app(app)
     login_manager.init_app(app)
-    login_manager.login_view = "auth_bp.login"
+    
+    @login_manager.unauthorized_handler
+    def unauthorized():
+        from flask import request, redirect, url_for
+        if request.path.startswith("/adv-math"):
+            return redirect(url_for("adv_math_bp.about"))
+        return redirect(url_for("auth_bp.login", next=request.url))
+
     migrate.init_app(app, db)
 
     # ⬇ add this near the end of create_app, before `return app`
@@ -87,6 +94,12 @@ def create_app():
 
         try:
             db.session.execute(text("UPDATE spv SET name = 'Dale SPV', description = 'Integrated healthcare, wellness, retirement and housing redevelopment precinct.' WHERE name LIKE '%Almond Dale%'"))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+        try:
+            db.session.execute(text("ALTER TABLE adv_math_question ADD COLUMN concepts_tested VARCHAR(255)"))
             db.session.commit()
         except Exception:
             db.session.rollback()
@@ -280,6 +293,87 @@ def create_app():
         db.session.commit()
         print("OK: fx_to_zar column ensured on ref_country_currency")
 
+    @app.cli.command("seed-country-prices")
+    def seed_country_prices():
+        from sqlalchemy import text
+        from app.payments.pricing import fx_rate_local_to_zar
+        
+        # Prices in ZAR numbers (will be * 100 for cents)
+        slug_prices = {
+            "home": 150,
+            "reading": 150,
+            "loss": 150,
+            "practice_crm": 100,
+            "budget": 50
+        }
+        
+        # First, fetch subject IDs for these slugs
+        subject_map = {}
+        rows = db.session.execute(text("SELECT id, slug FROM auth_subject")).fetchall()
+        for r in rows:
+            if r.slug in slug_prices:
+                subject_map[r.slug] = r.id
+                
+        if not subject_map:
+            print("No matching subjects found in auth_subject.")
+            return
+            
+        print("Starting parity pricing seed across all countries...")
+        # Get all active countries
+        countries = db.session.execute(text("SELECT alpha2, currency FROM ref_country_currency WHERE is_active=true")).fetchall()
+        
+        # Clear existing rows for these subjects
+        subj_ids_str = ",".join(str(i) for i in subject_map.values())
+        db.session.execute(text(f"DELETE FROM subject_country_price WHERE subject_id IN ({subj_ids_str})"))
+        
+        total_inserted = 0
+        for c in countries:
+            alpha2 = c.alpha2
+            currency = c.currency
+            
+            # Fetch FX rate (live if not cached)
+            fx = fx_rate_local_to_zar(alpha2)
+            if fx is None:
+                # If we cannot get FX, we skip to avoid bad prices.
+                continue
+                
+            for slug, base_price in slug_prices.items():
+                if slug not in subject_map:
+                    continue
+                subj_id = subject_map[slug]
+                
+                # Rule: Local Price Number = Base ZAR Number
+                local_amount_cents = base_price * 100
+                
+                # ZAR equivalent = Local Price Number * FX rate
+                zar_amount_cents = int(base_price * fx * 100)
+                
+                # Minimum Yoco rule: 10 ZAR (1000 cents)
+                zar_amount_cents = max(1000, zar_amount_cents)
+                
+                # Exception: For ZA, keep it strictly the base value without FX floating drift
+                if alpha2 == "ZA":
+                    zar_amount_cents = base_price * 100
+                    
+                db.session.execute(
+                    text("""
+                        INSERT INTO subject_country_price 
+                        (subject_id, country_code, local_amount_cents, zar_amount_cents, local_currency, is_active, price_version)
+                        VALUES (:sid, :cc, :lac, :zac, :cur, true, 1)
+                    """),
+                    {
+                        "sid": subj_id,
+                        "cc": alpha2,
+                        "lac": local_amount_cents,
+                        "zac": zar_amount_cents,
+                        "cur": currency
+                    }
+                )
+                total_inserted += 1
+                
+        db.session.commit()
+        print(f"OK: Parity pricing seeded. Inserted {total_inserted} records across {len(countries)} countries.")
+
 
     @app.before_request
     def _trace_in():
@@ -364,6 +458,7 @@ def create_app():
     from app.program_culturalfire.routes import cultural_bp
     from app.program_spv.routes import spv_bp
     from app.program_adv_math.routes import adv_math_bp
+    from app.program_practice_crm.routes import practice_crm_bp
 
     #app.logger.warning("registered checkout_bp at /checkout")
 
@@ -394,6 +489,7 @@ def create_app():
     app.register_blueprint(cultural_bp)
     app.register_blueprint(spv_bp)
     app.register_blueprint(adv_math_bp)
+    app.register_blueprint(practice_crm_bp, url_prefix="/practice-crm")
 
     #csrf.exempt(checkout_bp)  # keeps webhook/start happy
     # Exempt the Yoco webhook route

@@ -117,21 +117,32 @@
                             <h3 class="text-xl font-bold text-slate-900 mb-4">Invest in {{ deal.title }}</h3>
                             
                             {% if current_user.is_authenticated %}
+                            
+                            <!-- Encouraging Milestone Block -->
+                            {% if amount_needed and amount_needed > 0 %}
+                            <div class="mb-6 bg-emerald-50 border border-emerald-100 rounded-xl p-5 shadow-sm flex flex-col items-start gap-4">
+                              <div class="flex items-center gap-3 w-full">
+                                <div class="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center flex-shrink-0">
+                                  <i class="fas fa-rocket"></i>
+                                </div>
+                                <h4 class="font-bold text-emerald-900 text-lg">Boost Your Stake!</h4>
+                              </div>
+                              <p class="text-emerald-800 text-sm leading-relaxed">
+                                You currently hold a <span class="font-bold">{{ "%.4f"|format(user_ratio) }}%</span> participation ratio. 
+                                Invest an additional <span class="font-bold text-emerald-900">ZAR {{ "{:,.2f}".format(amount_needed) }}</span> to push your ownership to the next milestone of <span class="font-bold text-emerald-900">{{ "%.4f"|format(target_ratio) }}%</span>!
+                              </p>
+                            </div>
+                            {% endif %}
+
                             <form method="POST" action="{{ url_for('spv_bp.initiate_spv_investment', slug=deal.slug) }}" class="space-y-6">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <div>
                                     <label class="block text-sm font-medium text-slate-700 mb-2">Investment Amount (ZAR)</label>
-                                    <input type="number" name="amount" id="inv_amount" min="100" required placeholder="e.g. 5000" class="w-full rounded-xl border-slate-300 px-4 py-3 border focus:ring-emerald-500 focus:border-emerald-500">
+                                    <input type="number" name="amount" id="inv_amount" min="100" required placeholder="e.g. 5000" class="w-full rounded-xl border-2 border-slate-400 px-4 py-3 focus:ring-emerald-500 focus:border-emerald-500 transition">
                                 </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-slate-700 mb-2">Public Pseudonym (For Privacy)</label>
-                                    <input type="text" name="pseudonym" required placeholder="e.g. The Smith Family" class="w-full rounded-xl border-slate-300 px-4 py-3 border focus:ring-emerald-500 focus:border-emerald-500">
-                                    <p class="text-xs text-slate-500 mt-2">This name will be displayed publicly on the ledger above. It must be unique.</p>
-                                </div>
-
                                 <div class="bg-emerald-50 rounded-xl p-4 border border-emerald-100 text-sm text-emerald-800">
-                                    <p><strong>Note:</strong> Payments processed via Yoco incur a standard 5% gateway transaction fee.</p>
-                                    <p class="mt-2">If you pay <span id="calc_input" class="font-bold">ZAR 0</span> today, your effective recorded investment will be <strong id="calc_output" class="text-emerald-900">ZAR 0</strong>.</p>
+                                    <p><strong>Note:</strong> A standard 5% gateway transaction fee is added to cover Yoco processing.</p>
+                                    <p class="mt-2">If you invest <span id="calc_input" class="font-bold">ZAR 0</span> today, your total charge will be <strong id="calc_output" class="text-emerald-900">ZAR 0</strong>.</p>
                                 </div>
 
                                 <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 rounded-xl transition shadow-sm text-lg">
@@ -142,9 +153,9 @@
                                 document.getElementById('inv_amount').addEventListener('input', function(e) {
                                     let amt = parseFloat(e.target.value) || 0;
                                     let fee = amt * 0.05;
-                                    let effective = amt - fee;
-                                    document.getElementById('calc_input').innerText = 'ZAR ' + amt.toLocaleString('en-US');
-                                    document.getElementById('calc_output').innerText = 'ZAR ' + effective.toLocaleString('en-US');
+                                    let total = amt + fee;
+                                    document.getElementById('calc_input').innerText = 'ZAR ' + amt.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                                    document.getElementById('calc_output').innerText = 'ZAR ' + total.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                                 });
                             </script>
                             {% else %}

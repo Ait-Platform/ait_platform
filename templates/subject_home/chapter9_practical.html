@@ -51,7 +51,7 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
             </div>
         </div>
 
-        <form method="POST" action="{{ url_for('home_bp.chapter_page', chapter_num=chapter.chapter_number) }}">
+        <form method="POST" action="{% if is_teacher_scoring %}{{ url_for('home_bp.teacher_score', submission_id=submission.id) }}{% else %}{{ url_for('home_bp.chapter_page', chapter_num=chapter.chapter_number) }}{% endif %}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
             <!-- Activity 1 -->
@@ -74,7 +74,8 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
                         <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Expected Answer</h4>
                         <p class="text-slate-700 text-sm italic">Learner correctly counts the objects without skipping or repeating.</p>
                     </div>
-                    <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
+                    {% if is_teacher_scoring %}
+<div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
                         <label class="flex items-start gap-3 cursor-pointer group">
                             <input type="checkbox" name="act1_check" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
                             <div>
@@ -83,7 +84,8 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
                             </div>
                         </label>
                     </div>
-                </div>
+                {% endif %}
+</div>
             </div>
 
             <!-- Activity 2 -->
@@ -103,7 +105,8 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
                         <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Expected Answer</h4>
                         <p class="text-slate-700 text-sm italic">Objects are arranged into equal groups.</p>
                     </div>
-                    <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
+                    {% if is_teacher_scoring %}
+<div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
                         <label class="flex items-start gap-3 cursor-pointer group">
                             <input type="checkbox" name="act2_check" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
                             <div>
@@ -112,7 +115,8 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
                             </div>
                         </label>
                     </div>
-                </div>
+                {% endif %}
+</div>
             </div>
 
             <!-- Activity 3 -->
@@ -131,7 +135,8 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
                         <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Expected Answer</h4>
                         <p class="text-slate-700 text-sm italic">Learner calculates the total number of objects.</p>
                     </div>
-                    <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
+                    {% if is_teacher_scoring %}
+<div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
                         <label class="flex items-start gap-3 cursor-pointer group">
                             <input type="checkbox" name="act3_check" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
                             <div>
@@ -140,7 +145,8 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
                             </div>
                         </label>
                     </div>
-                </div>
+                {% endif %}
+</div>
             </div>
 
             <!-- Activity 4 -->
@@ -158,7 +164,8 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
                         <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Expected Answer</h4>
                         <p class="text-slate-700 text-sm italic">Learner calculates the correct remainder.</p>
                     </div>
-                    <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
+                    {% if is_teacher_scoring %}
+<div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
                         <label class="flex items-start gap-3 cursor-pointer group">
                             <input type="checkbox" name="act4_check" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
                             <div>
@@ -167,7 +174,8 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
                             </div>
                         </label>
                     </div>
-                </div>
+                {% endif %}
+</div>
             </div>
 
             <!-- Activity 5 -->
@@ -189,7 +197,8 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
                         <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Expected Answer</h4>
                         <p class="text-slate-700 text-sm italic">Learner calculates the total quantity.</p>
                     </div>
-                    <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
+                    {% if is_teacher_scoring %}
+<div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
                         <label class="flex items-start gap-3 cursor-pointer group">
                             <input type="checkbox" name="act5_check" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
                             <div>
@@ -198,7 +207,8 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
                             </div>
                         </label>
                     </div>
-                </div>
+                {% endif %}
+</div>
             </div>
 
             <!-- Activity 6 -->
@@ -218,7 +228,8 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
                         <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Expected Answer</h4>
                         <p class="text-slate-700 text-sm italic">Each group receives an equal number of objects.</p>
                     </div>
-                    <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
+                    {% if is_teacher_scoring %}
+<div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
                         <label class="flex items-start gap-3 cursor-pointer group">
                             <input type="checkbox" name="act6_check" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
                             <div>
@@ -227,7 +238,8 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
                             </div>
                         </label>
                     </div>
-                </div>
+                {% endif %}
+</div>
             </div>
 
             <!-- Activity 7 -->
@@ -252,7 +264,8 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
                         <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Expected Answer</h4>
                         <p class="text-slate-700 text-sm italic">Learner correctly adds and subtracts money values.</p>
                     </div>
-                    <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
+                    {% if is_teacher_scoring %}
+<div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
                         <label class="flex items-start gap-3 cursor-pointer group">
                             <input type="checkbox" name="act7_check" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
                             <div>
@@ -261,7 +274,8 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
                             </div>
                         </label>
                     </div>
-                </div>
+                {% endif %}
+</div>
             </div>
 
             <!-- Activity 8 -->
@@ -286,7 +300,8 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
                         <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Expected Answer</h4>
                         <p class="text-slate-700 text-sm italic">Learner calculates costs and change correctly.</p>
                     </div>
-                    <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
+                    {% if is_teacher_scoring %}
+<div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
                         <label class="flex items-start gap-3 cursor-pointer group">
                             <input type="checkbox" name="act8_check" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
                             <div>
@@ -295,7 +310,8 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
                             </div>
                         </label>
                     </div>
-                </div>
+                {% endif %}
+</div>
             </div>
 
             <!-- Activity 9 -->
@@ -314,7 +330,8 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
                         <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Expected Answer</h4>
                         <p class="text-slate-700 text-sm italic">Learner uses appropriate calculations to solve the problem.</p>
                     </div>
-                    <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
+                    {% if is_teacher_scoring %}
+<div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
                         <label class="flex items-start gap-3 cursor-pointer group">
                             <input type="checkbox" name="act9_check" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
                             <div>
@@ -323,7 +340,8 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
                             </div>
                         </label>
                     </div>
-                </div>
+                {% endif %}
+</div>
             </div>
 
             <!-- Activity 10 -->
@@ -345,7 +363,8 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
                         <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Expected Answer</h4>
                         <p class="text-slate-700 text-sm italic">Learner successfully performs all tasks using logical calculations.</p>
                     </div>
-                    <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
+                    {% if is_teacher_scoring %}
+<div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
                         <label class="flex items-start gap-3 cursor-pointer group">
                             <input type="checkbox" name="act10_check" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
                             <div>
@@ -354,12 +373,14 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
                             </div>
                         </label>
                     </div>
-                </div>
+                {% endif %}
+</div>
             </div>
 
-            <!-- Final Competency Check -->
+            {% if is_teacher_scoring %}
+<!-- Final Competency Check -->
             <div class="bg-slate-900 rounded-xl p-8 mb-8 text-white shadow-lg">
-                <h3 class="text-2xl font-bold mb-4">Chapter Competency Result</h3>
+                <h3 class="text-2xl font-bold mb-4">Final Checklist</h3>
                 <p class="text-slate-300 mb-6 text-sm">As the observer, verify that the learner can successfully do all of the following:</p>
                 
                 <div class="grid grid-cols-2 gap-4 mb-8 text-sm text-slate-300 opacity-80">
@@ -376,26 +397,31 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
                 </div>
 
                 <div class="bg-slate-800 p-6 rounded-lg border border-slate-700">
-                    <p class="font-bold mb-4 text-lg text-center">FINAL RESULT</p>
-                    <div class="flex flex-col md:flex-row justify-center items-center gap-6">
-                        <label class="flex items-center gap-3 cursor-pointer p-4 border-2 border-emerald-500/30 rounded-lg hover:bg-emerald-500/10 transition w-full md:w-auto">
-                            <input type="radio" name="competency" value="competent" class="w-6 h-6 text-emerald-500 bg-slate-700 border-slate-600 focus:ring-emerald-500 focus:ring-offset-slate-900" required>
-                            <span class="font-bold text-emerald-400 tracking-wider">COMPETENT</span>
-                        </label>
-                        <label class="flex items-center gap-3 cursor-pointer p-4 border-2 border-rose-500/30 rounded-lg hover:bg-rose-500/10 transition w-full md:w-auto">
-                            <input type="radio" name="competency" value="not_yet" class="w-6 h-6 text-rose-500 bg-slate-700 border-slate-600 focus:ring-rose-500 focus:ring-offset-slate-900" required>
-                            <span class="font-bold text-rose-400 tracking-wider">NOT YET COMPETENT</span>
-                        </label>
-                    </div>
+                    
+    
+        <p class="font-bold mb-4 text-lg text-center">FINAL RESULT</p>
+        <div class="flex flex-col md:flex-row justify-center items-center gap-6">
+            <button type="submit" name="decision" value="competent" class="w-full md:w-auto font-bold tracking-wider p-4 border-2 border-emerald-500/30 rounded-lg hover:bg-emerald-500/10 transition text-emerald-400 bg-slate-700 focus:ring-emerald-500 focus:ring-offset-slate-900 cursor-pointer">
+                MARK COMPETENT
+            </button>
+            <button type="submit" name="decision" value="not_yet_competent" class="w-full md:w-auto font-bold tracking-wider p-4 border-2 border-rose-500/30 rounded-lg hover:bg-rose-500/10 transition text-rose-400 bg-slate-700 focus:ring-rose-500 focus:ring-offset-slate-900 cursor-pointer">
+                NOT YET COMPETENT
+            </button>
+        </div>
+    
+    
                 </div>
             </div>
 
-            <!-- Submit -->
+            {% endif %}
+<!-- Submit -->
+            {% if not is_teacher_scoring %}
             <div class="text-center">
                 <button type="submit" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 px-10 rounded-full shadow-lg transition-transform hover:scale-105 text-lg w-full md:w-auto">
-                    Submit Final Evaluation
+                    Submit to Teacher for Review
                 </button>
             </div>
+            {% endif %}
 
         </form>
 
@@ -403,3 +429,4 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
 </div>
 
 {% endblock %}
+

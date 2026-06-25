@@ -1,0 +1,493 @@
+{% extends "layout.html" %}
+{% block title %}Pipeline - Practice CRM{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto py-8 px-4">
+  <div class="bg-white rounded-xl shadow overflow-hidden">
+    <!-- Color strip on top -->
+    <div class="h-2 bg-emerald-600"></div>
+    
+    <div class="p-6">
+      <!-- Title left, Back right -->
+      <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
+        <div>
+          <h1 class="text-2xl font-bold text-slate-800">Enquiry Pipeline</h1>
+          <p class="text-slate-500">{{ practice.name }}</p>
+        </div>
+        <div class="flex items-center space-x-2">
+          <!-- Back button on right as requested earlier in the project -->
+          {% if practice.owner_id == current_user.id %}
+          <a href="{{ url_for('practice_crm_bp.dashboard') }}" class="text-emerald-600 hover:text-emerald-700 font-medium mr-4">← Back to Dashboard</a>
+          {% else %}
+          <a href="{{ url_for('public_bp.welcome') }}" class="text-emerald-600 hover:text-emerald-700 font-medium mr-4">← Back</a>
+          {% endif %}
+        </div>
+      </div>
+      
+      <!-- Buttons row -->
+      <div class="flex space-x-2 mb-6 pb-4 border-b border-slate-100">
+        <button onclick="openNewEnquiryModal()" class="bg-emerald-600 text-white px-4 py-2 rounded shadow-sm hover:bg-emerald-700 font-medium">
+          + Log New Enquiry
+        </button>
+        <a href="{{ url_for('practice_crm_bp.appointments_log') }}" class="bg-slate-100 text-slate-700 border border-slate-200 px-4 py-2 rounded shadow-sm hover:bg-slate-200 font-medium flex items-center gap-2">
+          <span>📅</span> View Appointments Log
+        </a>
+      </div>
+
+      <!-- Flash messages inside tile -->
+      {% include "partials/flash_messages.html" %}
+
+      <div class="flex overflow-x-auto space-x-6 pb-4">
+        
+        <!-- 1. NEW -->
+        <div class="flex-shrink-0 w-80 bg-slate-50 rounded-xl border border-slate-200 p-4">
+          <h2 class="font-bold text-slate-700 mb-4 flex items-center justify-between">
+            <span>1. NEW</span>
+            <span class="bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full text-xs">{{ enquiries|selectattr('status', 'equalto', 'New')|list|length }}</span>
+          </h2>
+          <div class="space-y-3">
+            {% for e in enquiries if e.status == 'New' %}
+            <div class="bg-white p-4 rounded shadow-sm border border-slate-200 border-l-4 border-l-rose-500">
+              <div class="font-semibold text-slate-800">{{ e.patient_name }}</div>
+              {% set clean_phone = e.phone|replace(' ', '')|replace('-', '') %}
+              {% set wa_phone = '27' ~ clean_phone[1:] if clean_phone.startswith('0') else clean_phone|replace('+', '') %}
+              <div class="flex items-center gap-4 mt-1">
+                <a href="tel:{{ clean_phone }}" class="text-sm text-emerald-600 hover:text-emerald-700 font-medium hover:underline flex items-center gap-1">
+                  <span>📞</span> {{ e.phone }}
+                </a>
+                <a href="https://wa.me/{{ wa_phone }}" target="_blank" class="text-sm text-emerald-600 hover:text-emerald-700 font-medium hover:underline flex items-center gap-1" title="Send WhatsApp Message">
+                  <span>💬</span> WhatsApp
+                </a>
+              </div>
+              <div class="text-sm font-medium text-slate-600 mt-1">
+                {{ e.medical_aid }} {% if e.medical_aid_plan %}({{ e.medical_aid_plan }}){% endif %}
+              </div>
+              <div class="text-xs text-slate-500">ID: {{ e.patient_id_no }} | Mem: {{ e.medical_aid_no }}</div>
+              <div class="text-xs text-slate-400 mt-2">Logged: {{ e.created_at.strftime('%H:%M') }}</div>
+              <button onclick="openRequestVerifyModal({{ e.id }})" class="mt-3 w-full bg-slate-100 text-slate-700 border border-slate-200 rounded py-1.5 text-sm font-medium hover:bg-slate-200 transition-colors">
+                Phone Verification →
+              </button>
+              <form method="POST" action="{{ url_for('practice_crm_bp.update_enquiry', id=e.id) }}" class="mt-2">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="action_type" value="direct_verify">
+                <button type="submit" class="w-full bg-amber-50 text-amber-700 border border-amber-200 rounded py-1.5 text-sm font-medium hover:bg-amber-100 transition-colors">
+                  Direct e-Verification ⚡
+                </button>
+              </form>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- 2. VERIFICATION PENDING -->
+        <div class="flex-shrink-0 w-80 bg-slate-50 rounded-xl border border-slate-200 p-4">
+          <h2 class="font-bold text-slate-700 mb-4 flex items-center justify-between">
+            <span>2. VERIF PENDING</span>
+            <span class="bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full text-xs">{{ enquiries|selectattr('status', 'equalto', 'Verification Pending')|list|length }}</span>
+          </h2>
+          <div class="space-y-3">
+            {% for e in enquiries if e.status == 'Verification Pending' %}
+            <div class="bg-white p-4 rounded shadow-sm border border-slate-200 border-l-4 border-l-orange-400">
+              <div class="font-semibold text-slate-800">{{ e.patient_name }}</div>
+              {% set clean_phone = e.phone|replace(' ', '')|replace('-', '') %}
+              {% set wa_phone = '27' ~ clean_phone[1:] if clean_phone.startswith('0') else clean_phone|replace('+', '') %}
+              <div class="flex items-center gap-4 mt-1">
+                <a href="tel:{{ clean_phone }}" class="text-sm text-emerald-600 hover:text-emerald-700 font-medium hover:underline flex items-center gap-1">
+                  <span>📞</span> {{ e.phone }}
+                </a>
+                <a href="https://wa.me/{{ wa_phone }}" target="_blank" class="text-sm text-emerald-600 hover:text-emerald-700 font-medium hover:underline flex items-center gap-1" title="Send WhatsApp Message">
+                  <span>💬</span> WhatsApp
+                </a>
+              </div>
+              <div class="text-xs text-slate-400 mt-2">Waiting on Medical Aid...</div>
+              <button onclick="openVerifyModal({{ e.id }})" class="mt-3 w-full bg-indigo-50 text-indigo-700 border border-indigo-200 rounded py-1.5 text-sm font-medium hover:bg-indigo-100 transition-colors">
+                Record Result →
+              </button>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- 3. VERIFIED -->
+        <div class="flex-shrink-0 w-80 bg-slate-50 rounded-xl border border-slate-200 p-4">
+          <h2 class="font-bold text-slate-700 mb-4 flex items-center justify-between">
+            <span>3. VERIFIED</span>
+            <span class="bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full text-xs">{{ enquiries|selectattr('status', 'equalto', 'Verified')|list|length }}</span>
+          </h2>
+          <div class="space-y-3">
+            {% for e in enquiries if e.status == 'Verified' %}
+            <div class="bg-white p-4 rounded shadow-sm border border-slate-200 border-l-4 border-l-indigo-500">
+              <div class="font-semibold text-slate-800">{{ e.patient_name }}</div>
+              {% set clean_phone = e.phone|replace(' ', '')|replace('-', '') %}
+              {% set wa_phone = '27' ~ clean_phone[1:] if clean_phone.startswith('0') else clean_phone|replace('+', '') %}
+              <div class="flex items-center gap-4 mt-1">
+                <a href="tel:{{ clean_phone }}" class="text-sm text-emerald-600 hover:text-emerald-700 font-medium hover:underline flex items-center gap-1">
+                  <span>📞</span> {{ e.phone }}
+                </a>
+                <a href="https://wa.me/{{ wa_phone }}" target="_blank" class="text-sm text-emerald-600 hover:text-emerald-700 font-medium hover:underline flex items-center gap-1" title="Send WhatsApp Message">
+                  <span>💬</span> WhatsApp
+                </a>
+              </div>
+              <div class="text-sm text-slate-600 mt-2">Ref: {{ e.reference_no }} ({{ 'Funds OK' if e.funds_available else 'No Funds' }})</div>
+              <button onclick="openOfferApptModal({{ e.id }})" class="mt-3 w-full bg-blue-50 text-blue-700 border border-blue-200 rounded py-1.5 text-sm font-medium hover:bg-blue-100 transition-colors">
+                Offer Appointment →
+              </button>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- 4. APPOINTMENT OFFERED -->
+        <div class="flex-shrink-0 w-80 bg-slate-50 rounded-xl border border-slate-200 p-4">
+          <h2 class="font-bold text-slate-700 mb-4 flex items-center justify-between">
+            <span>4. APPT OFFERED</span>
+            <span class="bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full text-xs">{{ enquiries|selectattr('status', 'equalto', 'Appointment Offered')|list|length }}</span>
+          </h2>
+          <div class="space-y-3">
+            {% for e in enquiries if e.status == 'Appointment Offered' %}
+            <div class="bg-white p-4 rounded shadow-sm border border-slate-200 border-l-4 border-l-blue-500">
+              <div class="font-semibold text-slate-800">{{ e.patient_name }}</div>
+              {% set clean_phone = e.phone|replace(' ', '')|replace('-', '') %}
+              {% set wa_phone = '27' ~ clean_phone[1:] if clean_phone.startswith('0') else clean_phone|replace('+', '') %}
+              <div class="flex items-center gap-4 mt-1">
+                <a href="tel:{{ clean_phone }}" class="text-sm text-emerald-600 hover:text-emerald-700 font-medium hover:underline flex items-center gap-1">
+                  <span>📞</span> {{ e.phone }}
+                </a>
+                <a href="https://wa.me/{{ wa_phone }}" target="_blank" class="text-sm text-emerald-600 hover:text-emerald-700 font-medium hover:underline flex items-center gap-1" title="Send WhatsApp Message">
+                  <span>💬</span> WhatsApp
+                </a>
+              </div>
+              <div class="text-xs text-slate-400 mt-2">Awaiting patient decision...
+              {% if e.appointment_time %}
+                <br><span class="font-medium text-slate-600">Proposed Slot: {{ e.appointment_time.strftime('%Y-%m-%d %H:%M') }}</span>
+              {% endif %}
+              </div>
+              <div class="flex gap-2 mt-3">
+                <button onclick="openBookModal({{ e.id }}, '{{ e.appointment_time.strftime("%Y-%m-%dT%H:%M") if e.appointment_time else "" }}')" class="flex-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded py-1.5 text-sm font-medium hover:bg-emerald-100 transition-colors">
+                  Accepted
+                </button>
+                <button onclick="openNotBookedModal({{ e.id }})" class="flex-1 bg-rose-50 text-rose-700 border border-rose-200 rounded py-1.5 text-sm font-medium hover:bg-rose-100 transition-colors">
+                  Declined
+                </button>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- 5. CLOSED -->
+        <div class="flex-shrink-0 w-80 bg-slate-50 rounded-xl border border-slate-200 p-4">
+          <h2 class="font-bold text-slate-700 mb-4 flex items-center justify-between">
+            <span>5. CLOSED</span>
+          </h2>
+          <div class="space-y-3">
+            {% for e in enquiries if e.status in ['Booked', 'Not Booked'] %}
+            <div class="bg-white p-4 rounded shadow-sm border border-slate-200 border-l-4 {{ 'border-l-emerald-500' if e.status == 'Booked' else 'border-l-slate-400' }}">
+              <div class="font-semibold text-slate-800">{{ e.patient_name }}</div>
+              <div class="text-sm font-medium {{ 'text-emerald-600' if e.status == 'Booked' else 'text-slate-500' }}">
+                {{ e.status }}
+              </div>
+              {% if e.status == 'Booked' %}
+              <div class="text-xs text-slate-500">Slot: {{ e.appointment_time.strftime('%Y-%m-%d %H:%M') if e.appointment_time }}</div>
+              {% else %}
+              <div class="text-xs text-slate-500">Reason: {{ e.not_booked_reason }}</div>
+              {% endif %}
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: New Enquiry -->
+<div id="new-enquiry-modal" class="hidden fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
+    <div class="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+      <h3 class="font-bold text-lg text-slate-800">Log New Enquiry</h3>
+      <button onclick="closeModal('new-enquiry-modal')" class="text-slate-400 hover:text-slate-600">✕</button>
+    </div>
+    <form action="{{ url_for('practice_crm_bp.new_enquiry') }}" method="POST" class="p-6 space-y-4">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="practice_id" value="{{ practice.id }}">
+      
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">Patient Name *</label>
+          <input type="text" id="new-patient-name" name="patient_name" required class="w-full rounded border border-slate-300 focus:ring-emerald-500 focus:border-emerald-500 px-3 py-2">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">Phone Number *</label>
+          <input type="tel" name="phone" placeholder="e.g. 082 123 4567" required class="w-full rounded border border-slate-300 focus:ring-emerald-500 focus:border-emerald-500 px-3 py-2">
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">ID Number</label>
+          <input type="text" name="patient_id_no" class="w-full rounded border border-slate-300 focus:ring-emerald-500 focus:border-emerald-500 px-3 py-2">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">Medical Aid</label>
+          <input type="text" name="medical_aid" id="medical-aid-input" list="sa-medical-aids" autocomplete="off" placeholder="e.g. Discovery" class="w-full rounded border border-slate-300 focus:ring-emerald-500 focus:border-emerald-500 px-3 py-2">
+          <datalist id="sa-medical-aids">
+            <option value="Private (Cash / No Medical Aid)">
+            <option value="Discovery Health">
+            <option value="Bonitas">
+            <option value="Momentum Health">
+            <option value="Bestmed">
+            <option value="Medihelp">
+            <option value="GEMS (Govt Employees)">
+            <option value="Medshield">
+            <option value="Fedhealth">
+            <option value="Sizwe">
+            <option value="KeyHealth">
+            <option value="Genesis">
+            <option value="Profmed">
+            <option value="Polmed (Police)">
+          </datalist>
+        </div>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-slate-700 mb-1">Medical Aid Plan</label>
+        <input type="text" name="medical_aid_plan" id="medical-aid-plan-input" list="sa-medical-plans" autocomplete="off" placeholder="e.g. KeyCare, Classic, Saver..." class="w-full rounded border border-slate-300 focus:ring-emerald-500 focus:border-emerald-500 px-3 py-2">
+        <datalist id="sa-medical-plans"></datalist>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-slate-700 mb-1">Membership Number</label>
+        <input type="text" name="medical_aid_no" placeholder="Leave blank if Cash/Private" class="w-full rounded border border-slate-300 focus:ring-emerald-500 focus:border-emerald-500 px-3 py-2">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-slate-700 mb-1">Reason for Call</label>
+        <input type="text" name="reason" list="dental-reasons" autocomplete="off" placeholder="Select or type reason..." class="w-full rounded border border-slate-300 focus:ring-emerald-500 focus:border-emerald-500 px-3 py-2">
+        <datalist id="dental-reasons">
+          <option value="General Checkup & Cleaning">
+          <option value="Toothache / Pain">
+          <option value="Cavity / Filling">
+          <option value="Root Canal">
+          <option value="Extraction (e.g., Wisdom Tooth)">
+          <option value="Crown / Bridge">
+          <option value="Braces / Orthodontics">
+          <option value="Teeth Whitening">
+          <option value="Dentures">
+          <option value="Emergency (Trauma/Bleeding)">
+          <option value="Follow-up Appointment">
+        </datalist>
+      </div>
+      
+      <div class="pt-4 flex justify-end">
+        <button type="submit" class="bg-emerald-600 text-white px-6 py-2 rounded font-medium hover:bg-emerald-700">Save Enquiry</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Request Verification -->
+<div id="request-verify-modal" class="hidden fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
+    <div class="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+      <h3 class="font-bold text-lg text-slate-800">Send to Verification</h3>
+      <button onclick="closeModal('request-verify-modal')" class="text-slate-400 hover:text-slate-600">✕</button>
+    </div>
+    <form id="request-verify-form" method="POST" class="p-6 space-y-4">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action_type" value="request_verify">
+      <p class="text-sm text-slate-600 mb-4">Move this enquiry to "Verification Pending" while you contact the medical aid.</p>
+      <div class="pt-4 flex justify-end">
+        <button type="submit" class="bg-slate-800 text-white px-6 py-2 rounded font-medium hover:bg-slate-900">Proceed</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Verify Funds -->
+<div id="verify-modal" class="hidden fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
+    <div class="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+      <h3 class="font-bold text-lg text-slate-800">Record Verification Result</h3>
+      <button onclick="closeModal('verify-modal')" class="text-slate-400 hover:text-slate-600">✕</button>
+    </div>
+    <form id="verify-form" method="POST" class="p-6 space-y-4">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action_type" value="record_verify">
+      
+      <div>
+        <label class="block text-sm font-medium text-slate-700 mb-1">Consultant Name</label>
+        <input type="text" id="verify-consultant-name" name="consultant_name" required class="w-full rounded border border-slate-300 focus:ring-indigo-500 focus:border-indigo-500 px-3 py-2">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-slate-700 mb-1">Funds Available?</label>
+        <select name="funds_available" class="w-full rounded border border-slate-300 focus:ring-indigo-500 focus:border-indigo-500 px-3 py-2">
+          <option value="yes">Yes</option>
+          <option value="no">No</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-slate-700 mb-1">Reference Number</label>
+        <input type="text" name="reference_no" required class="w-full rounded border border-slate-300 focus:ring-indigo-500 focus:border-indigo-500 px-3 py-2">
+      </div>
+      
+      <div class="pt-4 flex justify-end">
+        <button type="submit" class="bg-indigo-600 text-white px-6 py-2 rounded font-medium hover:bg-indigo-700">Mark Verified</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Offer Appointment -->
+<div id="offer-appt-modal" class="hidden fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
+    <div class="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+      <h3 class="font-bold text-lg text-slate-800">Offer Appointment</h3>
+      <button onclick="closeModal('offer-appt-modal')" class="text-slate-400 hover:text-slate-600">✕</button>
+    </div>
+    <form id="offer-appt-form" method="POST" class="p-6 space-y-4">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action_type" value="offer_appt">
+      <p class="text-sm text-slate-600 mb-4">Mark this enquiry as "Appointment Offered" to indicate you have reached out to the patient with a time slot.</p>
+      
+      <div>
+        <label class="block text-sm font-medium text-slate-700 mb-1">Proposed Appointment Time</label>
+        <input type="datetime-local" name="appointment_time" required class="w-full rounded border-slate-300 focus:ring-emerald-500 focus:border-emerald-500 px-3 py-2">
+      </div>
+      
+      <div class="pt-4 flex justify-end">
+        <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded font-medium hover:bg-blue-700">Proceed</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Book -->
+<div id="book-modal" class="hidden fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
+    <div class="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+      <h3 class="font-bold text-lg text-slate-800">Book Appointment</h3>
+      <button onclick="closeModal('book-modal')" class="text-slate-400 hover:text-slate-600">✕</button>
+    </div>
+    <form id="book-form" method="POST" class="p-6 space-y-4">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action_type" value="book">
+      
+      <div>
+        <label class="block text-sm font-medium text-slate-700 mb-1">Confirmed Appointment Time</label>
+        <input type="datetime-local" name="appointment_time" id="book-time-input" required class="w-full rounded border-slate-300 focus:ring-emerald-500 focus:border-emerald-500 px-3 py-2">
+      </div>
+      
+      <div class="pt-4 flex justify-end">
+        <button type="submit" class="bg-emerald-600 text-white px-6 py-2 rounded font-medium hover:bg-emerald-700">Confirm Booking</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Not Booked -->
+<div id="not-booked-modal" class="hidden fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
+    <div class="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+      <h3 class="font-bold text-lg text-slate-800">Close without Booking</h3>
+      <button onclick="closeModal('not-booked-modal')" class="text-slate-400 hover:text-slate-600">✕</button>
+    </div>
+    <form id="not-booked-form" method="POST" class="p-6 space-y-4">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action_type" value="not_booked">
+      
+      <div>
+        <label class="block text-sm font-medium text-slate-700 mb-1">Reason required *</label>
+        <select name="not_booked_reason" required class="w-full rounded border-slate-300 focus:ring-rose-500 focus:border-rose-500">
+          <option value="">Select reason...</option>
+          <option value="Declined by patient">Declined by patient</option>
+          <option value="No medical aid funds">No medical aid funds</option>
+          <option value="Dentist unavailable">Dentist unavailable</option>
+          <option value="Cancelled">Cancelled</option>
+        </select>
+      </div>
+      
+      <div class="pt-4 flex justify-end">
+        <button type="submit" class="bg-rose-600 text-white px-6 py-2 rounded font-medium hover:bg-rose-700">Close Enquiry</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function openNewEnquiryModal() {
+    document.getElementById('new-enquiry-modal').classList.remove('hidden');
+    setTimeout(() => {
+        document.getElementById('new-patient-name').focus();
+    }, 50);
+}
+function openRequestVerifyModal(id) {
+    document.getElementById('request-verify-form').action = '/practice-crm/enquiry/' + id + '/update';
+    document.getElementById('request-verify-modal').classList.remove('hidden');
+}
+function openVerifyModal(id) {
+    document.getElementById('verify-form').action = '/practice-crm/enquiry/' + id + '/update';
+    document.getElementById('verify-modal').classList.remove('hidden');
+    setTimeout(() => {
+        document.getElementById('verify-consultant-name').focus();
+    }, 50);
+}
+  function openOfferApptModal(id) {
+    const form = document.getElementById('offer-appt-form');
+    form.action = `/practice-crm/enquiry/${id}/update`;
+    document.getElementById('offer-appt-modal').classList.remove('hidden');
+  }
+
+  function openBookModal(id, existingTime) {
+    const form = document.getElementById('book-form');
+    form.action = `/practice-crm/enquiry/${id}/update`;
+    
+    // Auto-fill existing time if available
+    const timeInput = document.getElementById('book-time-input');
+    if (existingTime && existingTime !== 'None') {
+      timeInput.value = existingTime;
+    } else {
+      timeInput.value = '';
+    }
+    
+    document.getElementById('book-modal').classList.remove('hidden');
+  }
+function openNotBookedModal(id) {
+    document.getElementById('not-booked-form').action = '/practice-crm/enquiry/' + id + '/update';
+    document.getElementById('not-booked-modal').classList.remove('hidden');
+}
+function closeModal(id) {
+    document.getElementById(id).classList.add('hidden');
+}
+
+// Dynamic Medical Aid Plans
+document.addEventListener("DOMContentLoaded", () => {
+    const aidInput = document.getElementById('medical-aid-input');
+    const planDatalist = document.getElementById('sa-medical-plans');
+    
+    const aidPlans = {
+        "Discovery Health": ["Classic Comprehensive", "Classic Saver", "Classic Smart", "Essential Saver", "KeyCare Plus", "KeyCare Core"],
+        "Bonitas": ["BonClassic", "BonComprehensive", "Standard", "Primary", "BonFit Select", "BonCap"],
+        "Momentum Health": ["Extender", "Incentive", "Custom", "Evolve", "Ingwe"],
+        "Bestmed": ["Pace 1", "Pace 2", "Pace 3", "Pace 4", "Beat 1", "Beat 2", "Beat 3", "Rhythm 1", "Rhythm 2"],
+        "Medihelp": ["MedAdd", "MedElect", "MedPrime", "MedPlus", "MedVital"],
+        "GEMS (Govt Employees)": ["Beryl", "Ruby", "Emerald", "Emerald Value", "Onyx", "Tanzanite One"],
+        "Medshield": ["PremiumPlus", "MediBonus", "MediSaver", "MediCore", "MediPhila"],
+        "Fedhealth": ["maxima PLUS", "maxima EXEC", "flexiFED 1", "flexiFED 2", "flexiFED 3", "flexiFED 4", "myFED"],
+        "Profmed": ["ProPinnacle", "ProSecure Plus", "ProSecure", "ProActive Plus", "ProActive"],
+        "Polmed (Police)": ["Aquamarine", "Marine"]
+    };
+
+    if (aidInput && planDatalist) {
+        aidInput.addEventListener('input', (e) => {
+            const selectedAid = e.target.value;
+            planDatalist.innerHTML = ''; // Clear existing options
+            
+            if (aidPlans[selectedAid]) {
+                aidPlans[selectedAid].forEach(plan => {
+                    const option = document.createElement('option');
+                    option.value = plan;
+                    planDatalist.appendChild(option);
+                });
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

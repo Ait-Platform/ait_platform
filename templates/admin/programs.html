@@ -5,7 +5,7 @@
 <div class="mx-auto max-w-7xl px-4 py-10">
   <div class="flex items-center justify-between mb-6">
     <h1 class="text-2xl font-bold text-slate-800">Manage Programs</h1>
-    <a href="{{ url_for('admin_bp.admin_dashboard') }}" class="text-sm font-medium text-sky-600 hover:underline">← Back to Admin</a>
+    <a href="{{ url_for('admin_bp.index') }}" class="text-sm font-medium text-sky-600 hover:underline">← Back to Admin</a>
   </div>
 
   {% include "partials/flash_messages.html" %}
@@ -27,26 +27,27 @@
             <div class="text-sm font-medium text-slate-900">{{ s.name }}</div>
             <div class="text-sm text-slate-500">{{ s.slug }}</div>
           </td>
-          <form method="POST" action="{{ url_for('admin_bp.manage_programs') }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="subject_id" value="{{ s.id }}">
-            <td class="px-6 py-4 whitespace-nowrap">
-              <input type="text" name="program_type" value="{{ s.program_type or '' }}" class="rounded border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500 sm:text-sm">
-            </td>
-            <td class="px-6 py-4 whitespace-nowrap text-center">
-              <label class="inline-flex items-center">
-                <input type="checkbox" name="is_hidden" value="1" {% if s.is_hidden_on_bridge %}checked{% endif %} class="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-600">
-                <span class="ml-2 text-xs text-slate-500">Hidden</span>
-              </label>
-              <label class="inline-flex items-center ml-4">
-                <input type="checkbox" name="requires_price" value="1" {% if s.requires_price %}checked{% endif %} class="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-600">
-                <span class="ml-2 text-xs text-slate-500">Requires Price</span>
-              </label>
-            </td>
-            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-              <button type="submit" class="text-white bg-sky-600 hover:bg-sky-700 px-3 py-1.5 rounded text-xs font-semibold">Save</button>
-            </td>
-          </form>
+          <td class="px-6 py-4 whitespace-nowrap">
+            <form id="form_{{ s.id }}" method="POST" action="{{ url_for('admin_bp.manage_programs') }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="subject_id" value="{{ s.id }}">
+            </form>
+            <input form="form_{{ s.id }}" type="text" name="program_type" value="{{ s.program_type or '' }}" class="rounded border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500 sm:text-sm">
+          </td>
+          <td class="px-6 py-4 whitespace-nowrap text-center">
+            <label class="inline-flex items-center">
+              <input form="form_{{ s.id }}" type="checkbox" name="is_hidden" value="1" {% if s.is_hidden_on_bridge %}checked{% endif %} class="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-600">
+              <span class="ml-2 text-xs text-slate-500">Hidden</span>
+            </label>
+            <label class="inline-flex items-center ml-4">
+              <input form="form_{{ s.id }}" type="checkbox" name="requires_price" value="1" {% if s.requires_price %}checked{% endif %} class="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-600">
+              <span class="ml-2 text-xs text-slate-500">Requires Price</span>
+            </label>
+          </td>
+          <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+            <a href="{{ url_for('admin_bp.subject_dashboard', subject=s.slug) }}" class="text-sky-600 hover:text-sky-900 border border-sky-600 hover:bg-sky-50 px-3 py-1.5 rounded text-xs font-semibold inline-block">Open</a>
+            <button form="form_{{ s.id }}" type="submit" class="text-white bg-sky-600 hover:bg-sky-700 px-3 py-1.5 rounded text-xs font-semibold inline-block">Save</button>
+          </td>
         </tr>
         {% endfor %}
       </tbody>

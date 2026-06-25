@@ -1,0 +1,499 @@
+{% extends "layout.html" %}
+{% block title %}Admin | Extract Questions{% endblock %}
+
+{% block content %}
+<link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+
+<div class="mx-auto max-w-7xl mb-8 mt-8">
+  <div class="bg-white rounded-xl shadow overflow-hidden">
+    <div class="h-2 bg-cyan-600"></div>
+    
+    <div class="p-6">
+        <!-- Row 1: Title & Back Button -->
+        <div class="flex items-center justify-between mb-8 border-b border-slate-200 pb-4">
+            <div>
+                <h1 class="text-3xl font-bold text-slate-800">PDF Question Extractor</h1>
+                <p class="text-slate-500">Upload an exam paper and crop image questions directly into the database.</p>
+            </div>
+            <div class="flex gap-4">
+                <a href="{{ url_for('admin_bp.adv_math_extract_memo') }}" class="text-sm font-bold text-indigo-700 bg-indigo-50 border-2 border-indigo-200 hover:bg-indigo-100 px-4 py-2 rounded-lg shadow-sm transition">
+                    Extract Memos &rarr;
+                </a>
+                <a href="{{ url_for('admin_bp.index') }}" class="text-sm font-medium text-slate-600 hover:text-slate-900 bg-white border-2 border-slate-200 px-4 py-2 rounded-lg shadow-sm transition">
+                    ← Back
+                </a>
+            </div>
+        </div>
+
+        <div class="flex flex-col gap-8">
+            
+            <!-- Top Section: Data Entry -->
+            <div class="bg-white p-6 rounded-xl border-2 border-slate-200 shadow-sm">
+                <h2 class="text-lg font-bold text-slate-800 mb-4">Question Details</h2>
+                
+                <form id="extractForm" class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 items-end">
+                    <div class="col-span-1 md:col-span-2 lg:col-span-2">
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Source Paper Name</label>
+                        <select id="sourcePaper" required autofocus class="w-full rounded-lg border-2 border-slate-300 shadow-sm focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 p-2 outline-none">
+                            <option value="">Select</option>
+                            <option value="May-June 2028 Paper 1">May-June 2028 Paper 1</option>
+                            <option value="May-June 2028 Paper 2">May-June 2028 Paper 2</option>
+                            <option value="Nov 2028 Paper 1">Nov 2028 Paper 1</option>
+                            <option value="Nov 2028 Paper 2">Nov 2028 Paper 2</option>
+                            <option value="May-June 2027 Paper 1">May-June 2027 Paper 1</option>
+                            <option value="May-June 2027 Paper 2">May-June 2027 Paper 2</option>
+                            <option value="Nov 2027 Paper 1">Nov 2027 Paper 1</option>
+                            <option value="Nov 2027 Paper 2">Nov 2027 Paper 2</option>
+                            <option value="May-June 2026 Paper 1">May-June 2026 Paper 1</option>
+                            <option value="May-June 2026 Paper 2">May-June 2026 Paper 2</option>
+                            <option value="Nov 2026 Paper 1">Nov 2026 Paper 1</option>
+                            <option value="Nov 2026 Paper 2">Nov 2026 Paper 2</option>
+                            <option value="May-June 2025 Paper 1">May-June 2025 Paper 1</option>
+                            <option value="May-June 2025 Paper 2">May-June 2025 Paper 2</option>
+                            <option value="Nov 2025 Paper 1">Nov 2025 Paper 1</option>
+                            <option value="Nov 2025 Paper 2">Nov 2025 Paper 2</option>
+                            <option value="May-June 2024 Paper 1">May-June 2024 Paper 1</option>
+                            <option value="May-June 2024 Paper 2">May-June 2024 Paper 2</option>
+                            <option value="Nov 2024 Paper 1">Nov 2024 Paper 1</option>
+                            <option value="Nov 2024 Paper 2">Nov 2024 Paper 2</option>
+                            <option value="May-June 2023 Paper 1">May-June 2023 Paper 1</option>
+                            <option value="May-June 2023 Paper 2">May-June 2023 Paper 2</option>
+                            <option value="Nov 2023 Paper 1">Nov 2023 Paper 1</option>
+                            <option value="Nov 2023 Paper 2">Nov 2023 Paper 2</option>
+                            <option value="May-June 2022 Paper 1">May-June 2022 Paper 1</option>
+                            <option value="May-June 2022 Paper 2">May-June 2022 Paper 2</option>
+                            <option value="Nov 2022 Paper 1">Nov 2022 Paper 1</option>
+                            <option value="Nov 2022 Paper 2">Nov 2022 Paper 2</option>
+                        </select>
+                        <button type="button" id="btn-scan" class="mt-2 w-full flex justify-center items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-1.5 px-4 rounded-lg shadow-sm transition text-sm">
+                            <span class="text-lg">✨</span> Scan
+                        </button>
+                    </div>
+
+                    <div class="col-span-1">
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Topic</label>
+                        <select id="topicName" required class="w-full rounded-lg border-2 border-slate-300 shadow-sm focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 p-2 outline-none">
+                            <option value="">-- Select --</option>
+                            <option value="algebra">Algebra</option>
+                            <option value="calculus">Calculus</option>
+                            <option value="geometry">Geometry</option>
+                            <option value="functions">Functions</option>
+                            <option value="probability">Probability</option>
+                        </select>
+                    </div>
+
+                    <div class="col-span-1">
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Subtopic ID</label>
+                        <select id="subTopic" class="w-full rounded-lg border-2 border-slate-300 shadow-sm focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 p-2 outline-none">
+                            <option value="">-- Select --</option>
+                            <option value="algebra_factorization">Factorization</option>
+                            <option value="algebra_equations">Equations</option>
+                            <option value="sequences_geometric">Geometric Seq</option>
+                            <option value="sequences_arithmetic">Arithmetic Seq</option>
+                            <option value="functions_quadratic">Quadratic</option>
+                            <option value="functions_cubic">Cubic</option>
+                            <option value="calculus_differentiation">Differentiation</option>
+                            <option value="calculus_integration">Integration</option>
+                            <option value="trigonometry_identities">Trig Identities</option>
+                            <option value="geometry_analytical">Analyt Geometry</option>
+                            <option value="probability_venn">Venn Diagrams</option>
+                            <option value="financial_math">Financial</option>
+                        </select>
+                    </div>
+
+                    <div class="col-span-1">
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Concepts</label>
+                        <input type="text" id="conceptsTested" placeholder="e.g. ratio" class="w-full rounded-lg border-2 border-slate-300 shadow-sm focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 p-2 outline-none">
+                    </div>
+                    
+                    <div class="col-span-1">
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Marks</label>
+                        <input type="number" id="marks" placeholder="e.g. 5" min="1" required class="w-full rounded-lg border-2 border-slate-300 shadow-sm focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 p-2 outline-none">
+                    </div>
+
+                    <div class="col-span-1 md:col-span-3 lg:col-span-6 mt-2">
+                        <button type="submit" id="saveBtn" class="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-medium py-3 px-4 rounded-lg shadow-sm transition">
+                            Save Cropped Question
+                        </button>
+                    </div>
+                    
+                    <div id="statusMsg" class="hidden text-sm p-3 rounded-lg mt-4 font-medium col-span-1 md:col-span-3 lg:col-span-6"></div>
+                </form>
+            </div>
+
+            <!-- Middle Section: PDF Viewer (Full Width) -->
+            <div class="flex flex-col h-[800px]">
+                <div class="bg-slate-100 p-4 rounded-t-xl border-2 border-slate-300 border-b-0 flex items-center justify-between">
+                    <div>
+                        <input type="file" id="pdfUpload" accept="application/pdf" class="text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-cyan-50 file:text-cyan-700 hover:file:bg-cyan-100">
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <button id="prevPage" class="px-3 py-1 bg-white border border-slate-300 rounded hover:bg-slate-50 disabled:opacity-50">&larr; Prev</button>
+                        <span class="text-sm font-medium">Page <span id="pageNum">0</span> / <span id="pageCount">0</span></span>
+                        <button id="nextPage" class="px-3 py-1 bg-white border border-slate-300 rounded hover:bg-slate-50 disabled:opacity-50">Next &rarr;</button>
+                    </div>
+                </div>
+                
+                <div class="flex-grow bg-slate-200 border-2 border-slate-300 rounded-b-xl overflow-auto p-6 w-full">
+                    <div id="canvasSizer" class="mx-auto shadow-lg bg-white relative">
+                        <canvas id="pdfCanvas" class="block w-full h-full"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AI Map Table -->
+            <div id="ai-map-container" class="mt-8 hidden border-t-2 border-slate-200 pt-6">
+                <h3 class="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2">
+                    <span class="text-indigo-600">✨</span> AI Paper Map
+                </h3>
+                <div class="overflow-x-auto rounded-lg border border-slate-200 shadow-sm max-h-64 overflow-y-auto">
+                    <table class="min-w-full text-sm text-left">
+                        <thead class="bg-slate-50 text-slate-700 text-xs uppercase font-bold sticky top-0 z-10">
+                            <tr>
+                                <th class="px-3 py-2 border-b border-slate-200">Q</th>
+                                <th class="px-3 py-2 border-b border-slate-200">Topics</th>
+                                <th class="px-3 py-2 border-b border-slate-200 text-right">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ai-map-body" class="divide-y divide-slate-100 bg-white">
+                            <!-- JS Populated -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+  </div>
+</div>
+
+<!-- Review & Delete Modal -->
+<div id="reviewModal" class="hidden fixed inset-0 bg-slate-900 bg-opacity-50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-xl max-w-2xl w-full overflow-hidden flex flex-col max-h-[90vh]">
+        <div class="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+            <h3 class="text-lg font-bold text-slate-800">Review Saved Question</h3>
+            <button type="button" onclick="document.getElementById('reviewModal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+        <div class="p-6 overflow-y-auto flex-grow flex justify-center items-center bg-slate-100">
+            <img id="reviewImg" class="max-w-full rounded-lg border border-slate-300 shadow-sm" src="">
+        </div>
+        <div class="p-4 border-t border-slate-200 bg-slate-50 flex justify-between items-center">
+            <p class="text-sm text-slate-600">If this crop looks incorrect, delete it and try again.</p>
+            <div class="flex gap-3">
+                <button type="button" onclick="document.getElementById('reviewModal').classList.add('hidden')" class="px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 font-medium transition">Keep It</button>
+                <button type="button" id="btn-delete-question" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                    Delete & Redo
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // PDF.js setup
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+    
+    let pdfDoc = null;
+    let pageNum = 1;
+    let canvas = document.getElementById('pdfCanvas');
+    let ctx = canvas.getContext('2d');
+    let cropper = null;
+
+    document.getElementById('pdfUpload').addEventListener('change', function(e) {
+        let file = e.target.files[0];
+        if (file.type !== "application/pdf") {
+            alert("Please upload a valid PDF file.");
+            return;
+        }
+
+        let fileReader = new FileReader();
+        fileReader.onload = function() {
+            let typedarray = new Uint8Array(this.result);
+            pdfjsLib.getDocument(typedarray).promise.then(pdf => {
+                pdfDoc = pdf;
+                document.getElementById('pageCount').innerText = pdf.numPages;
+                pageNum = 1;
+                renderPage(pageNum);
+            });
+        };
+        fileReader.readAsArrayBuffer(file);
+    });
+
+    function renderPage(num) {
+        pdfDoc.getPage(num).then(page => {
+            let viewport = page.getViewport({ scale: 0.8 }); // Reduced scale to fit on screen cleanly
+            
+            // Explicitly lock the wrapper dimensions to prevent Cropper resize loops
+            let wrapper = document.getElementById('canvasSizer');
+            wrapper.style.width = viewport.width + "px";
+            wrapper.style.height = viewport.height + "px";
+
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+
+            let renderContext = {
+                canvasContext: ctx,
+                viewport: viewport
+            };
+
+            page.render(renderContext).promise.then(() => {
+                document.getElementById('pageNum').innerText = num;
+                
+                // Destroy old cropper if exists
+                if (cropper) { cropper.destroy(); }
+                
+                // Initialize new cropper
+                cropper = new Cropper(canvas, {
+                    zoomable: false,
+                    viewMode: 1,
+                    autoCropArea: 0.2,
+                    background: false
+                });
+            });
+        });
+    }
+
+    document.getElementById('prevPage').addEventListener('click', () => {
+        if (pageNum <= 1) return;
+        pageNum--;
+        renderPage(pageNum);
+    });
+
+    document.getElementById('nextPage').addEventListener('click', () => {
+        if (pageNum >= pdfDoc.numPages) return;
+        pageNum++;
+        renderPage(pageNum);
+    });
+
+    document.getElementById('extractForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        if (!cropper) {
+            alert("Please upload a PDF and crop a question first.");
+            return;
+        }
+
+        let croppedCanvas = cropper.getCroppedCanvas({
+            fillColor: '#fff', // White background
+            imageSmoothingEnabled: true,
+            imageSmoothingQuality: 'high',
+        });
+
+        let base64Image = croppedCanvas.toDataURL('image/jpeg', 0.9);
+        let btn = document.getElementById('saveBtn');
+        let status = document.getElementById('statusMsg');
+        
+        btn.disabled = true;
+        btn.innerText = "Saving...";
+        
+        let payload = {
+            image_data: base64Image,
+            source_paper: document.getElementById('sourcePaper').value,
+            topic_name: document.getElementById('topicName').value,
+            sub_topic: document.getElementById('subTopic').value,
+            concepts_tested: document.getElementById('conceptsTested').value,
+            marks: document.getElementById('marks').value
+        };
+
+        fetch("{{ url_for('admin_bp.adv_math_extract_save') }}", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": "{{ csrf_token() }}"
+            },
+            body: JSON.stringify(payload)
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('statusMsg').innerText = "Question Saved Successfully!";
+                document.getElementById('statusMsg').className = "text-sm p-3 rounded-lg mt-4 font-medium bg-green-50 text-green-700 col-span-1 md:col-span-3 lg:col-span-6 block";
+                
+                // Keep the source paper selected, but clear the rest
+                let currentPaper = document.getElementById('sourcePaper').value;
+                document.getElementById('extractForm').reset();
+                document.getElementById('sourcePaper').value = currentPaper;
+
+                // Update the corresponding Load button
+                let activeBtn = document.querySelector('.active-load-btn');
+                if (activeBtn) {
+                    activeBtn.innerText = "Review/Edit";
+                    activeBtn.classList.remove('bg-white', 'text-slate-600', 'hover:bg-indigo-50', 'active-load-btn');
+                    activeBtn.classList.add('bg-green-100', 'text-green-800', 'border-green-300', 'hover:bg-green-200', 'review-btn');
+                    activeBtn.dataset.qid = data.question_id;
+                    activeBtn.dataset.imgData = cropper.getCroppedCanvas().toDataURL('image/jpeg'); // Cache image for review
+                    
+                    // Replace click event to open modal instead of loading form
+                    let newBtn = activeBtn.cloneNode(true);
+                    activeBtn.parentNode.replaceChild(newBtn, activeBtn);
+                    
+                    newBtn.addEventListener('click', function() {
+                        document.getElementById('reviewImg').src = this.dataset.imgData;
+                        document.getElementById('btn-delete-question').dataset.qid = this.dataset.qid;
+                        // Store reference so we can revert it later
+                        document.getElementById('btn-delete-question').dataset.btnId = this.id; 
+                        
+                        document.getElementById('reviewModal').classList.remove('hidden');
+                    });
+                }
+                
+                setTimeout(() => {
+                    document.getElementById('statusMsg').classList.add('hidden');
+                }, 3000);
+            } else {  status.innerText = "❌ Error: " + data.error;
+                status.className = "text-sm p-3 rounded-lg mt-4 font-medium bg-red-50 text-red-700 block";
+            }
+        })
+        .catch(err => {
+            status.innerText = "❌ Network error.";
+            status.className = "text-sm p-3 rounded-lg mt-4 font-medium bg-red-50 text-red-700 block";
+        })
+        .finally(() => {
+            btn.disabled = false;
+            btn.innerText = "Save Cropped Question";
+            setTimeout(() => { status.className = "hidden"; }, 3000);
+        });
+    });
+
+    // AI Scanner Logic
+    document.getElementById('btn-scan').addEventListener('click', function() {
+        let paperName = document.getElementById('sourcePaper').value;
+        if (!paperName) {
+            alert("Please select a Source Paper Name first.");
+            return;
+        }
+
+        let btn = this;
+        let originalContent = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = `<svg class="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Scanning... (takes ~15s)`;
+
+        fetch("{{ url_for('admin_bp.adv_math_ai_scan_paper') }}", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": "{{ csrf_token() }}"
+            },
+            body: JSON.stringify({ paper_name: paperName })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success && data.map) {
+                let tbody = document.getElementById('ai-map-body');
+                tbody.innerHTML = '';
+                
+                data.map.forEach(item => {
+                    let tr = document.createElement('tr');
+                    tr.className = "hover:bg-slate-50";
+                    tr.innerHTML = `
+                        <td class="px-3 py-2 font-bold text-slate-800">${item.question}</td>
+                        <td class="px-3 py-2 text-xs">
+                            <span class="text-indigo-600 font-bold block">${item.topic_name}</span>
+                            <span class="text-slate-500 block truncate max-w-[150px]" title="${item.sub_topic}">${item.sub_topic}</span>
+                        </td>
+                        <td class="px-3 py-2 text-right">
+                            <button type="button" id="load-btn-${index}" class="btn-load-map bg-white border border-slate-300 text-slate-600 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-200 px-2 py-1 rounded text-xs font-bold transition"
+                                data-topic="${item.topic_name}" data-sub="${item.sub_topic}" data-concepts="${item.concepts_tested}" data-marks="${item.marks || ''}">
+                                Load
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+
+                document.getElementById('ai-map-container').classList.remove('hidden');
+
+                // Attach events to newly created load buttons
+                document.querySelectorAll('.btn-load-map').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        // Remove active class from any previously clicked button
+                        document.querySelectorAll('.active-load-btn').forEach(b => b.classList.remove('active-load-btn'));
+                        // Add active class to this button
+                        this.classList.add('active-load-btn');
+
+                        document.getElementById('topicName').value = this.getAttribute('data-topic') || '';
+                        document.getElementById('subTopic').value = this.getAttribute('data-sub') || '';
+                        document.getElementById('conceptsTested').value = this.getAttribute('data-concepts') || '';
+                        document.getElementById('marks').value = this.getAttribute('data-marks') || '';
+                        
+                        // Scroll to top
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                    });
+                });
+            } else {
+                alert("AI Scan failed: " + (data.error || "Unknown error"));
+            }
+        })
+        .catch(err => {
+            alert("Network error contacting AI Scanner.");
+        })
+        .finally(() => {
+            btn.innerHTML = originalContent;
+            btn.disabled = false;
+        });
+    });
+
+    // Automatically trigger scan when a paper is selected
+    document.getElementById('sourcePaper').addEventListener('change', function() {
+        if (this.value) {
+            document.getElementById('btn-scan').click();
+        } else {
+            // Hide the map if they deselect
+            document.getElementById('ai-map-container').classList.add('hidden');
+        }
+    });
+
+    // Handle Delete Question
+    document.getElementById('btn-delete-question').addEventListener('click', function() {
+        let qid = this.dataset.qid;
+        let btnId = this.dataset.btnId;
+        
+        let oldHtml = this.innerHTML;
+        this.innerHTML = "Deleting...";
+        this.disabled = true;
+        
+        fetch(`/admin/adv_math/delete_question/${qid}`, {
+            method: 'POST'
+        })
+        .then(r => r.json())
+        .then(data => {
+            this.innerHTML = oldHtml;
+            this.disabled = false;
+            
+            if (data.success) {
+                document.getElementById('reviewModal').classList.add('hidden');
+                
+                // Revert button
+                let reviewBtn = document.getElementById(btnId);
+                if (reviewBtn) {
+                    let loadBtn = reviewBtn.cloneNode(true);
+                    loadBtn.innerText = "Load";
+                    loadBtn.classList.remove('bg-green-100', 'text-green-800', 'border-green-300', 'hover:bg-green-200', 'review-btn');
+                    loadBtn.classList.add('btn-load-map', 'bg-white', 'border', 'border-slate-300', 'text-slate-600', 'hover:bg-indigo-50', 'hover:text-indigo-700', 'hover:border-indigo-200');
+                    
+                    reviewBtn.parentNode.replaceChild(loadBtn, reviewBtn);
+                    
+                    // Re-attach load event
+                    loadBtn.addEventListener('click', function() {
+                        document.querySelectorAll('.active-load-btn').forEach(b => b.classList.remove('active-load-btn'));
+                        this.classList.add('active-load-btn');
+                        document.getElementById('topicName').value = this.getAttribute('data-topic') || '';
+                        document.getElementById('subTopic').value = this.getAttribute('data-sub') || '';
+                        document.getElementById('conceptsTested').value = this.getAttribute('data-concepts') || '';
+                        document.getElementById('marks').value = this.getAttribute('data-marks') || '';
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                    });
+                }
+            } else {
+                alert("Failed to delete: " + data.error);
+            }
+        });
+    });
+
+</script>
+{% endblock %}

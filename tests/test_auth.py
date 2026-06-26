@@ -1,12 +1,12 @@
-from app.models.auth import User, Subject
+from app.models.auth import User, AuthSubject as Subject
 from app.extensions import db
 
 def test_login_page_renders(client):
-    response = client.get('/auth/login')
+    response = client.get('/login')
     assert response.status_code == 200
-    assert b'Log In' in response.data
+    assert b'Sign In' in response.data
 
 def test_register_page_renders(client):
-    response = client.get('/auth/register')
+    response = client.get('/register')
     assert response.status_code == 200
-    assert b'Register' in response.data
+    assert b'Create your account' in response.data

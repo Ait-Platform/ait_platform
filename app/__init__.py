@@ -43,7 +43,7 @@ BASE_DIR = Path(__file__).resolve().parent
 TEMPLATES_DIR = BASE_DIR / "templates"
 STATIC_DIR = BASE_DIR / "static"
 
-def create_app():
+def create_app(test_config=None):
     app = Flask(__name__, instance_relative_config=True, 
                 #template_folder=str(TEMPLATES_DIR),
         template_folder="../templates",
@@ -59,6 +59,9 @@ def create_app():
 
     # 3) Environment overrides (e.g., FLASK_SQLALCHEMY_DATABASE_URI)
     app.config.from_prefixed_env()
+
+    if test_config is not None:
+        app.config.update(test_config)
 
                
     # 3) Init extensions AFTER config

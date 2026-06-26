@@ -916,7 +916,7 @@ def rebuild_scorecard_for_run(rid: int):
         FROM lca_response r
         JOIN lca_question_phase_map m
           ON m.question_id = r.question_id
-         AND m.answer_type = r.answer
+         AND LOWER(m.answer_type) = LOWER(r.answer)
         WHERE r.run_id = :rid
     """), {"rid": rid})
     db.session.commit()

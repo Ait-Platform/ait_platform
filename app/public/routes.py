@@ -138,6 +138,7 @@ def tutor_register():
             return redirect(url_for("public_bp.tutor_register"))
 
         from app.models.auth import User, UserEnrollment, AuthSubject
+        from flask_login import login_user
 
         user = User.query.filter(db.func.lower(User.email) == email).first()
         if not user:
@@ -167,8 +168,9 @@ def tutor_register():
         
         db.session.commit()
         
+        login_user(user)
         flash("Tutor registration successful! You are now available for learners to select.", "success")
-        return redirect(url_for("public_bp.welcome"))
+        return redirect(url_for("auth_bp.bridge_dashboard"))
 
     return render_template("public/tutor_register.html")
 

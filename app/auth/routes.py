@@ -196,6 +196,7 @@ def register():
                 "zar_amount_cents": session.get("zar_amount_cents"),
                 "est_zar_cents": session.get("zar_amount_cents"),
                 "version": session.get("price_version"),
+                "price_id": request.args.get("price_id") or session.get("price_id"),
             }
             session.modified = True
 
@@ -204,6 +205,7 @@ def register():
             role=role,
             subject=subject,
             next_url=next_url,
+            price_id=request.args.get("price_id") or session.get("price_id"),
             values={},
         )
 
@@ -336,6 +338,7 @@ def register():
         "amount_cents":  int(local_cents or 0),     # local parity price
         "est_zar_cents": int(est_zar_cents or 0),   # ZAR to bill
         "version":       "2025-11",
+        "price_id":      request.form.get("price_id") or session.get("price_id"),
     }
     reg_ctx["bill_cents_zar"] = int(est_zar_cents)
     session["reg_ctx"] = reg_ctx
@@ -505,6 +508,7 @@ def register_decision():
             "zar_amount_cents": session.get("zar_amount_cents"),
             "est_zar_cents": session.get("zar_amount_cents"),
             "version": session.get("price_version"),
+            "price_id": session.get("price_id"),
         }
         ctx["quote"] = q
         session.modified = True
@@ -550,13 +554,13 @@ def register_decision():
     if not existing_enrollment or not existing_enrollment.zar_amount_cents or existing_enrollment.zar_amount_cents <= 0:
         db.session.execute(
             db.text(
-                """
                 UPDATE user_enrollment
                    SET country_code        = :cc,
                        local_currency      = :cur,
                        local_amount_cents  = :amt,
                        zar_amount_cents    = :zar_amt,
                        price_version       = :ver,
+                       price_id            = :pid,
                        price_locked_at     = CURRENT_TIMESTAMP
                  WHERE id = :eid
                 """
@@ -567,6 +571,7 @@ def register_decision():
                 "amt": int(q.get("amount_cents") or 0),
                 "zar_amt": int(q.get("est_zar_cents") or q.get("zar_amount_cents") or q.get("amount_cents") or 0),
                 "ver": q.get("version") or "2025-11",
+                "pid": q.get("price_id"),
                 "eid": enrollment_id,
             },
         )

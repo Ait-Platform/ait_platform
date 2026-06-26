@@ -46,7 +46,7 @@ DASHBOARD_MAP = {
         ("public_bp.welcome", False),
     ],
     "practice_crm": [
-        ("practice_crm_bp.dashboard", False),
+        ("practice_crm_bp.pipeline", False),
         ("public_bp.welcome", False),
     ],
 }

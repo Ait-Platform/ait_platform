@@ -132,7 +132,7 @@
       </div>
       <p class="mt-2 text-sm text-slate-600 flex-grow">Eliminate patient leakage and control risks in a medical/dental reception environment.</p>
       {% if session.get('subjects_access', {}).get('practice_crm') in ['enrolled', 'admin'] %}
-      <a href="{{ url_for('practice_crm_bp.dashboard') }}" class="inline-block mt-4 px-4 py-2 bg-teal-600 text-white text-sm rounded-lg hover:bg-teal-700 transition">Go to Dashboard</a>
+      <a href="{{ url_for('practice_crm_bp.pipeline') }}" class="inline-block mt-4 px-4 py-2 bg-teal-600 text-white text-sm rounded-lg hover:bg-teal-700 transition">Go to Dashboard</a>
       {% else %}
       <a href="{{ url_for('practice_crm_bp.about') }}" class="inline-block mt-4 px-4 py-2 bg-teal-600 text-white text-sm rounded-lg hover:bg-teal-700 transition">Explore</a>
       {% endif %}

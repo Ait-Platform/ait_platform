@@ -257,7 +257,7 @@ def success():
         
         expires_at_val = None
         if subj_paid_days and int(subj_paid_days) > 0:
-            from datetime import timedelta
+            from datetime import datetime, timedelta
             expires_at_val = datetime.utcnow() + timedelta(days=int(subj_paid_days))
 
         existing = db.session.execute(

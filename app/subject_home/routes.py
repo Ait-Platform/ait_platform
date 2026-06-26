@@ -676,34 +676,34 @@ def final_exam():
 
                 total_correct += 1
 
-                if 1 <= question.id <= 5:
+                if question.chapter_id == 1:
                     section_scores["observation"] += 1
 
-                elif 6 <= question.id <= 10:
+                elif question.chapter_id == 2:
                     section_scores["position"] += 1
 
-                elif 11 <= question.id <= 15:
+                elif question.chapter_id == 3:
                     section_scores["comparison"] += 1
 
-                elif 16 <= question.id <= 20:
+                elif question.chapter_id == 4:
                     section_scores["estimation"] += 1
 
-                elif 21 <= question.id <= 25:
+                elif question.chapter_id == 5:
                     section_scores["measurement"] += 1
 
-                elif 26 <= question.id <= 30:
+                elif question.chapter_id == 6:
                     section_scores["pattern"] += 1
 
-                elif 31 <= question.id <= 35:
+                elif question.chapter_id == 7:
                     section_scores["spatial"] += 1
 
-                elif 36 <= question.id <= 40:
+                elif question.chapter_id == 8:
                     section_scores["logic"] += 1
 
-                elif 41 <= question.id <= 45:
+                elif question.chapter_id == 9:
                     section_scores["mathematics"] += 1
 
-                elif 46 <= question.id <= 50:
+                elif question.chapter_id == 10:
                     section_scores["critical"] += 1
 
         overall_score = round(

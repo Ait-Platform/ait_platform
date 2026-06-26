@@ -1,0 +1,125 @@
+{% extends "layout.html" %}
+{% block title %}Price · HOME{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-4xl mt-10 px-4">
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+    {# -----------------------------
+       LEFT TILE: Country + Local Price
+       ----------------------------- #}
+    <div class="bg-white rounded-xl shadow overflow-hidden flex flex-col">
+      <div class="h-2 bg-sky-600"></div>
+      <div class="p-6 flex-1">
+        {% include "partials/flash_messages.html" %}
+        
+        <div class="flex items-center justify-between">
+          <h1 class="text-lg font-semibold text-slate-800">Check Your Premium Rate</h1>
+          <div class="text-xs text-slate-500">HOME Programme</div>
+        </div>
+
+        <p class="mt-2 text-sm text-slate-600">
+          Section 1 is completely free. Check the localized upgrade cost for Section 2 and 3 before you start.
+        </p>
+
+        <div class="mt-5">
+          <label class="block text-sm font-medium text-slate-700 mb-2">Select Your Country</label>
+          <form id="countryForm" method="get" action="{{ url_for('home_bp.price_page') }}">
+            <select name="country"
+                    onchange="this.form.submit()"
+                    class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200">
+              <option value="" {% if not price.has_quote %}selected{% endif %}>Select your country</option>
+              {% for c in countries %}
+                <option value="{{ c.code }}" {% if price.country_code == c.code %}selected{% endif %}>
+                  {{ c.name }}
+                </option>
+              {% endfor %}
+            </select>
+          </form>
+          <p class="mt-2 text-xs text-slate-500">
+            Don’t see your country? Choose any country that uses your currency.
+          </p>
+        </div>
+
+        {% set has_quote = price and price.has_quote %}
+        {% set disabled_class = '' if has_quote else 'opacity-50' %}
+
+        <div class="mt-6">
+          <div class="text-sm font-medium text-slate-700 mb-2">Section 2 Upgrade Price</div>
+          <div class="flex items-center gap-2 {{ disabled_class }}">
+            <div class="flex-1 rounded-lg border bg-slate-50 px-3 py-2 text-right text-sm text-slate-800">
+              {% if has_quote and price.local_amount is not none %}
+                {{ '%.2f' % (price.local_amount / 100) }}
+              {% else %}
+                —
+              {% endif %}
+            </div>
+            <div class="rounded-lg border px-3 py-2 text-sm text-slate-700">
+              {{ price.local_currency if has_quote else '—' }}
+            </div>
+          </div>
+          {% if has_quote and price.is_discount %}
+            <p class="mt-2 text-xs text-emerald-600">Regional parity discount applied.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    {# -----------------------------
+       RIGHT TILE: Free Section 1
+       ----------------------------- #}
+    <div class="bg-white rounded-xl shadow overflow-hidden flex flex-col">
+      <div class="h-2 bg-emerald-600"></div>
+      <div class="p-6 flex flex-col justify-between flex-1">
+        <div>
+          <div class="flex items-center justify-between">
+            <h2 class="text-lg font-semibold text-slate-800">Section 1: Practical Foundation</h2>
+            <div class="text-xs font-bold text-emerald-600 uppercase">100% Free</div>
+          </div>
+
+          <div class="mt-4 p-4 bg-emerald-50 rounded border border-emerald-100">
+            <p class="text-sm text-emerald-800 mb-2 font-medium">What's included today?</p>
+            <ul class="list-disc list-inside text-sm text-emerald-700 space-y-1">
+              <li>10 Practical Chapters</li>
+              <li>Hands-on Exercises</li>
+              <li>Teacher Review Access</li>
+            </ul>
+          </div>
+          
+          <div class="mt-4">
+             <p class="text-xs text-slate-500 leading-relaxed">
+               You are about to start Section 1 for free. If you choose to continue your learning journey into Section 2, the rate calculated on the left will be securely locked in for your account.
+             </p>
+          </div>
+        </div>
+
+        <div class="mt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <a href="{{ url_for('home_bp.subject_home') }}"
+             class="rounded-lg border px-4 py-2 text-sm hover:bg-slate-50 w-full sm:w-auto text-center">
+            ← Back to Info
+          </a>
+
+          {% if has_quote %}
+            {% if current_user.is_authenticated %}
+              <a href="{{ url_for('home_bp.learner_dashboard') }}"
+                 class="inline-flex items-center justify-center rounded bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 shadow-sm transition-colors w-full sm:w-auto">
+                Go to Dashboard
+              </a>
+            {% else %}
+              <a href="{{ url_for('auth_bp.register', role='user', subject='home', plan='free', next=url_for('auth_bp.bridge_dashboard'), price_id=price.price_id) }}"
+                 class="inline-flex items-center justify-center rounded bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 shadow-sm transition-colors w-full sm:w-auto">
+                Start Section 1 For Free
+              </a>
+            {% endif %}
+          {% else %}
+            <button type="button" class="rounded bg-emerald-600 px-4 py-2 text-sm font-semibold text-white opacity-50 cursor-not-allowed w-full sm:w-auto" disabled>
+              Select Country First
+            </button>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

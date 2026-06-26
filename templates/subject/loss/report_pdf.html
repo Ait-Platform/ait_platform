@@ -46,7 +46,7 @@
   {% set P4 = (ns.P4 if ns.P4 is not none else (result.phase_4 if result is defined and result else 0)) | int %}
   {% set total = (result.total if result is defined and result and result.total is not none else (P1 + P2 + P3 + P4)) | int %}
 
-  <div class="mx-auto w-full max-w-6xl px-6 pb-8">
+  <div class="mx-auto w-full max-w-6xl px-6 pb-8" style="break-inside: auto; page-break-inside: auto;">
 
     {# pick data-URI when available, else fall back to static #}
     {% set logo_path = (logo_data_uri or url_for('static', filename='branding/ait_logo.png')) %}

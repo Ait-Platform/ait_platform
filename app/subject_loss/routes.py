@@ -1067,6 +1067,14 @@ def _send_loss_report_email_async(to_email: str, run_id: int, user_id: int, pdf_
             try:
                 # Generate PDF bytes explicitly for standard email
                 pdf_bytes = _build_pdf_bytes(run_id, user_id)
+                
+                import os
+                cache_dir = os.path.join(app.static_folder, "pdf_cache")
+                os.makedirs(cache_dir, exist_ok=True)
+                cache_path = os.path.join(cache_dir, f"loss-result-run-{run_id}.pdf")
+                with open(cache_path, "wb") as f:
+                    f.write(pdf_bytes)
+                
                 filename = f"LOSS-Report-Run-{run_id}.pdf"
                 subject = f"Your LOSS Assessment Report (Run #{run_id})"
                 
@@ -1817,6 +1825,20 @@ def report_pdf(run_id=None, user_id=None, auto_print=None, return_bytes=False):
         if int(uid) != int(getattr(current_user, "id", 0)):
             return ("Forbidden", 403)
 
+    import os
+    cache_path = os.path.join(current_app.static_folder, "pdf_cache", f"loss-result-run-{rid}.pdf")
+    if os.path.exists(cache_path):
+        if return_bytes:
+            with open(cache_path, "rb") as f:
+                return f.read()
+        return send_file(
+            cache_path,
+            mimetype="application/pdf",
+            as_attachment=True,
+            download_name=f"loss-result-run-{rid}.pdf",
+            max_age=0,
+        )
+
     ctx = build_learner_report_ctx(rid, uid) or {}
 
     if not ctx.get("user"):
@@ -1857,6 +1879,17 @@ def report_pdf(run_id=None, user_id=None, auto_print=None, return_bytes=False):
     from app.utils.pdf_render import html_to_pdf_bytes
     try:
         pdf_bytes = html_to_pdf_bytes(html)
+        
+        try:
+            import os
+            cache_dir = os.path.join(current_app.static_folder, "pdf_cache")
+            os.makedirs(cache_dir, exist_ok=True)
+            cache_save_path = os.path.join(cache_dir, f"loss-result-run-{rid}.pdf")
+            with open(cache_save_path, "wb") as f:
+                f.write(pdf_bytes)
+        except Exception as e:
+            current_app.logger.warning("Failed to cache PDF: %s", e)
+            
     except Exception as e:
         current_app.logger.exception("html_to_pdf_bytes failed")
         return ("Error generating PDF", 500)

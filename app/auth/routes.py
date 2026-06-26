@@ -554,6 +554,7 @@ def register_decision():
     if not existing_enrollment or not existing_enrollment.zar_amount_cents or existing_enrollment.zar_amount_cents <= 0:
         db.session.execute(
             db.text(
+                """
                 UPDATE user_enrollment
                    SET country_code        = :cc,
                        local_currency      = :cur,

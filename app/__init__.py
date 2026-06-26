@@ -84,6 +84,12 @@ def create_app(test_config=None):
         db.create_all()
         
         try:
+            db.session.execute(text("UPDATE auth_subject SET paid_days = NULL WHERE slug = 'reading'"))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            
+        try:
             db.session.execute(text("ALTER TABLE spv_participations ADD COLUMN pseudonym VARCHAR(100)"))
             db.session.commit()
         except Exception:

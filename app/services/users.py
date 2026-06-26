@@ -45,23 +45,33 @@ def _ensure_or_create_user_from_session(ctx: dict) -> int:
         {"e": email},
     ).scalar())
 
-    # --- AUTO ENROLL ---
+    # --- AUTO ENROLL (NOW GRANTS TRIALS) ---
     # Automatically enroll the new user in any subject flagged as 'auto_enroll'
     auto_enroll_subjects = db.session.execute(
-        sa_text("SELECT id FROM auth_subject WHERE enroll_policy='auto_enroll' AND is_active=1")
+        sa_text("SELECT id, trial_days FROM auth_subject WHERE enroll_policy='auto_enroll' AND is_active=1")
     ).fetchall()
+
+    from datetime import datetime, timedelta
+    now_utc = datetime.utcnow()
 
     for row in auto_enroll_subjects:
         sid = int(row.id)
+        # Use subject's configured trial_days, fallback to 15 if missing or 0
+        t_days = int(row.trial_days) if getattr(row, 'trial_days', None) else 15
+        if t_days <= 0:
+            t_days = 15
+            
+        trial_end_date = now_utc + timedelta(days=t_days)
+
         db.session.execute(
             sa_text("""
-                INSERT INTO user_enrollment (user_id, subject_id, status, started_at)
-                SELECT :uid, :sid, 'active', CURRENT_TIMESTAMP
+                INSERT INTO user_enrollment (user_id, subject_id, status, trial_end, started_at)
+                SELECT :uid, :sid, 'trial', :tend, CURRENT_TIMESTAMP
                 WHERE NOT EXISTS (
                     SELECT 1 FROM user_enrollment WHERE user_id = :uid AND subject_id = :sid
                 )
             """),
-            {"uid": new_id, "sid": sid}
+            {"uid": new_id, "sid": sid, "tend": trial_end_date}
         )
 
     db.session.flush()

@@ -229,7 +229,7 @@ def chapter_page(chapter_num):
     if chapter_num >= 11:
         if not _has_active_home_subscription(current_user.id):
             flash("You must subscribe to unlock the rest of the HOME course.", "warning")
-            return redirect(url_for('quote_bp.quote', subject='home'))
+            return redirect(url_for('yoco_bp.yoco_start', subject='home', email=current_user.email))
 
     questions = HomeQuestion.query.filter_by(
         chapter_id=chapter.id

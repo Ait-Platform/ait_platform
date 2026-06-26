@@ -1,19 +1,13 @@
 {# templates/_ait_header.html #}
-<div style="
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  gap:12px;
-  margin-bottom:1.5rem;
-  text-align:center;
-">
+<div style="margin-bottom:1.5rem; text-align:center;">
   <img
-    src="{{ logo_b64 if logo_b64 else url_for('static', filename='images/Palm.png') }}"
+    src="{{ logo_path if logo_path else (logo_b64 if logo_b64 else url_for('static', filename='branding/ait_logo.png')) }}"
     alt="AIT Logo"
-    style="height:60px; object-fit:contain;"
+    style="height:60px; display:inline-block; vertical-align:middle; margin-right:12px;"
   >
-
   <div style="
+    display:inline-block;
+    vertical-align:middle;
     font-size:1.5rem;
     font-weight:700;
     text-transform:uppercase;

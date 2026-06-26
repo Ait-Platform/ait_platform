@@ -1753,8 +1753,6 @@ def report_exit():
         error=None,
     )
 
-from flask_login import login_required, current_user
-
 @loss_bp.route("/report.pdf")
 def report_pdf(run_id=None, user_id=None, auto_print=None, return_bytes=False):
     from sqlalchemy import text

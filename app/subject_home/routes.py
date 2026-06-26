@@ -1,6 +1,6 @@
 # routes.py
 from flask import Blueprint, abort, render_template,redirect, request, url_for, flash, session
-from flask_login import login_required, current_user
+from flask_login import login_required, current_user, login_user
 from app.models.auth import db, User
 from app.models.home import HomeChapter, HomeFinalAssessment, HomeQuestion, HomeProgress
 from sqlalchemy import text
@@ -69,12 +69,6 @@ def learner_dashboard():
         flash("You have successfully completed the HOME Programme! You can review your Diagnostic Report and Certificate below.", "success")
 
     progresses = HomeProgress.query.filter_by(user_id=current_user.id).all()
-    
-    # Clear any old chapter progress from session (prevents leak when switching users)
-    keys_to_clear = [k for k in session.keys() if k.startswith('chapter_') and k.endswith('_done')]
-    for k in keys_to_clear:
-        session.pop(k, None)
-        
     for p in progresses:
         session[f'chapter_{p.chapter_number}_done'] = True
 
@@ -102,21 +96,6 @@ def learner_dashboard():
     ).all()
     pending_chapters = [s.chapter_number for s in pending_subs]
 
-    # Teacher linking variables
-    from app.models.auth import User, UserEnrollment, AuthSubject
-    from app.models.home import HomeTeacherLink
-    
-    home_subject = AuthSubject.query.filter_by(slug='home').first()
-    all_home_teachers = []
-    if home_subject:
-        all_home_teachers = db.session.query(User).join(UserEnrollment).filter(
-            UserEnrollment.subject_id == home_subject.id,
-            UserEnrollment.status == 'teacher'
-        ).all()
-        
-    current_link = HomeTeacherLink.query.filter_by(student_id=current_user.id).first()
-    linked_teacher = User.query.get(current_link.teacher_id) if current_link else None
-
     from flask import make_response
     response = make_response(render_template(
         'subject_home/dashboard.html',
@@ -129,35 +108,12 @@ def learner_dashboard():
         has_premium=has_premium,
         has_section3=has_section3,
         pending_chapters=pending_chapters,
-        is_completed=is_completed,
-        all_home_teachers=all_home_teachers,
-        linked_teacher=linked_teacher
+        is_completed=is_completed
     ))
     response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
     response.headers["Pragma"] = "no-cache"
     response.headers["Expires"] = "0"
     return response
-
-@home_bp.route('/home/link_teacher', methods=['POST'])
-@login_required
-def link_teacher():
-    from app.models.home import HomeTeacherLink
-    from app.models.auth import User
-    
-    teacher_id_str = request.form.get('teacher_id')
-    if teacher_id_str and teacher_id_str.isdigit():
-        teacher = User.query.get(int(teacher_id_str))
-        if not teacher:
-            flash("Teacher not found.", "danger")
-        else:
-            # Delete any existing link
-            HomeTeacherLink.query.filter_by(student_id=current_user.id).delete()
-            # Create new link
-            new_link = HomeTeacherLink(teacher_id=teacher.id, student_id=current_user.id)
-            db.session.add(new_link)
-            db.session.commit()
-            flash(f"Successfully linked to teacher: {teacher.name or teacher.email}", "success")
-    return redirect(url_for('home_bp.learner_dashboard'))
 
 @home_bp.route(
     '/home/chapter/<int:chapter_num>',
@@ -206,12 +162,6 @@ def chapter_page(chapter_num):
                 existing.status = "pending"
                 db.session.commit()
                 flash(f"Practical work for Chapter {chapter_num} re-submitted for review!", "success")
-            
-            if chapter_num == 10:
-                from app.models.home import HomeTeacherLink
-                has_teacher = HomeTeacherLink.query.filter_by(student_id=current_user.id).first()
-                if not has_teacher:
-                    flash("Important: You have not saved a teacher yet! Please go to your dashboard to select and save a teacher so your practicals can be reviewed and Chapter 11 can be unlocked.", "warning")
                 
             return redirect(url_for('home_bp.learner_dashboard'))
 
@@ -813,7 +763,46 @@ def test_passed_certificate():
 
 @home_bp.route('/teacher/register', methods=['GET', 'POST'])
 def teacher_register():
-    return redirect(url_for('public_bp.tutor_register'))
+    from app.models.auth import User, UserEnrollment, AuthSubject
+    if current_user.is_authenticated:
+        return redirect(url_for('home_bp.teacher_dashboard'))
+
+    if request.method == 'POST':
+        from app import db
+        full_name = request.form.get('full_name', '').strip()
+        email = request.form.get('email', '').strip().lower()
+        password = request.form.get('password', '')
+
+        if not email or not password:
+            flash("Email and password are required.", "danger")
+            return redirect(url_for('home_bp.teacher_register'))
+
+        existing_user = User.query.filter(db.func.lower(User.email) == email).first()
+        if existing_user:
+            flash("That email is already registered. Please log in.", "danger")
+            return redirect(url_for('auth_bp.login'))
+
+        # Create new Teacher user
+        new_teacher = User(
+            name=full_name,
+            email=email
+        )
+        new_teacher.set_password(password)
+        db.session.add(new_teacher)
+        db.session.commit()
+        
+        # Auto-enroll in 'home' subject so they see the tile on bridge dashboard
+        home_subject = AuthSubject.query.filter_by(slug='home').first()
+        if home_subject:
+            enr = UserEnrollment(user_id=new_teacher.id, subject_id=home_subject.id, status='teacher')
+            db.session.add(enr)
+            db.session.commit()
+
+        login_user(new_teacher)
+        flash("Teacher account created successfully!", "success")
+        return redirect(url_for('home_bp.teacher_dashboard'))
+
+    return render_template('subject_home/teacher_register.html')
 
 @home_bp.route('/teacher/dashboard', methods=['GET', 'POST'])
 @login_required
@@ -825,50 +814,65 @@ def teacher_dashboard():
     # Get the home subject
     home_subject = AuthSubject.query.filter_by(slug='home').first()
     
-    # We no longer process POST here for claiming students
-    # Students must claim their teacher via the learner dashboard
+    if request.method == 'POST':
+        # Add a student via dropdown
+        student_id_str = request.form.get('student_id')
+        if student_id_str and student_id_str.isdigit():
+            student = User.query.get(int(student_id_str))
+            if not student:
+                flash("Student not found.", "danger")
+            else:
+                existing_link = HomeTeacherLink.query.filter_by(teacher_id=current_user.id, student_id=student.id).first()
+                if existing_link:
+                    flash("Student is already linked to your dashboard.", "info")
+                else:
+                    new_link = HomeTeacherLink(teacher_id=current_user.id, student_id=student.id)
+                    db.session.add(new_link)
+                    db.session.commit()
+                    flash(f"Successfully linked student: {student.name or student.email}", "success")
+        return redirect(url_for('home_bp.teacher_dashboard'))
 
-    # Get students linked to this teacher
-    linked_students = db.session.query(User).join(
-        HomeTeacherLink, HomeTeacherLink.student_id == User.id
-    ).filter(
-        HomeTeacherLink.teacher_id == current_user.id
-    ).all()
+    # GET: Load dashboard
+    links = HomeTeacherLink.query.filter_by(teacher_id=current_user.id).all()
+    student_ids = [link.student_id for link in links]
 
-    student_ids = [s.id for s in linked_students]
-    students = User.query.filter(User.id.in_(student_ids)).all() if student_ids else []
-
-    # Get all pending submissions for linked students
-    submissions = []
-    if student_ids:
-        raw_submissions = HomePracticalSubmission.query.filter(
+    if not student_ids:
+        submissions = []
+        students = []
+    else:
+        students = User.query.filter(User.id.in_(student_ids)).all()
+        # Get pending submissions for linked students
+        submissions = db.session.query(HomePracticalSubmission, User).join(
+            User, HomePracticalSubmission.student_id == User.id
+        ).filter(
             HomePracticalSubmission.student_id.in_(student_ids),
             HomePracticalSubmission.status == 'pending'
-        ).all()
-        student_map = {s.id: s for s in students}
-        submissions = [(sub, student_map.get(sub.student_id)) for sub in raw_submissions]
+        ).order_by(HomePracticalSubmission.created_at.asc()).all()
 
-    # Calculate completed practicals per student
-    student_progress_map = {}
-    if student_ids:
-        completed_subs = HomePracticalSubmission.query.filter(
-            HomePracticalSubmission.student_id.in_(student_ids),
-            HomePracticalSubmission.status != 'pending'
-        ).all()
-        for csub in completed_subs:
-            uid = csub.student_id
-            if uid not in student_progress_map:
-                student_progress_map[uid] = []
-            student_progress_map[uid].append(csub.chapter_number)
+        from app.models.home import HomeProgress
+        all_progress = HomeProgress.query.filter(HomeProgress.user_id.in_(student_ids)).all()
+        student_progress_map = {}
+        for p in all_progress:
+            if p.user_id not in student_progress_map:
+                student_progress_map[p.user_id] = []
+            student_progress_map[p.user_id].append(p.chapter_number)
+            
         for uid in student_progress_map:
-            student_progress_map[uid] = list(set(student_progress_map[uid]))
             student_progress_map[uid].sort()
+
+    # Get all learners enrolled in home (for the dropdown)
+    all_home_learners = []
+    if home_subject:
+        all_home_learners = db.session.query(User).join(UserEnrollment).filter(
+            UserEnrollment.subject_id == home_subject.id
+        ).all()
 
     from flask import make_response
     response = make_response(render_template(
         'subject_home/teacher_dashboard.html',
         students=students,
         submissions=submissions,
+        all_home_learners=all_home_learners,
         linked_student_ids=student_ids,
         student_progress_map=student_progress_map if student_ids else {}
     ))

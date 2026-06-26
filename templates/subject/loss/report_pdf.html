@@ -5,9 +5,10 @@
 <head>
   <meta charset="UTF-8">
   <title>Loss Results | AIT</title>
-  <link href="{{ url_for('static', filename='dist/css/output.css') }}" rel="stylesheet">
   {% if pdf_mode %}
     {% include "subject/loss/pdf/_styles_base.html" %}
+  {% else %}
+    <script src="https://cdn.tailwindcss.com"></script>
   {% endif %}
 </head>
 <body class="bg-white">

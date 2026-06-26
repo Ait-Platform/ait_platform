@@ -535,8 +535,9 @@ def loss_result_dashboard():
         # no runs yet → start the course
         return redirect(url_for("loss_bp.course_start"))
 
-    # --- if result missing, compute it, then refetch so we have created_at
-    if run.get("total") is None:
+    # --- if result missing or 0 (due to previous case-sensitivity bug), compute it, then refetch
+    total_score = run.get("total")
+    if total_score is None or total_score == 0:
         # requires your existing helper:
         # compute_loss_results(run_id, user_id) -> creates lca_result row
         compute_loss_results(run["run_id"], uid)

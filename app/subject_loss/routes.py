@@ -644,12 +644,40 @@ def results_hub():
         viewer_is_admin=viewer_is_admin(),
     )
 
+def _generate_learner_pdf_html(run_id: int, uid: int) -> str | None:
+    ctx = build_learner_report_ctx(run_id, uid)
+    if not ctx:
+        return None
+
+    ctx["default_email"] = ctx.get("learner_email") or ""
+    ctx["run_id"]        = run_id
+    ctx["learner_name"]  = ctx.get("learner_name") or ctx.get("user_name") or ""
+    ctx["learner_email"] = ctx.get("learner_email") or ctx.get("user_email") or ""
+    ctx["taken_at"]      = ctx.get("taken_at_str") or ctx.get("taken_at") or ""
+    ctx["pdf_mode"]      = True
+
+    try:
+        scores = _extract_phase_scores_from_ctx(ctx)
+        ctx["phase_scores_pct"] = scores
+        data_uri, _png = phase_scores_bar(scores)
+        ctx["phase_scores_chart_src"] = data_uri
+    except Exception as e:
+        current_app.logger.exception("phase_scores_bar failed: %s", e)
+        ctx["phase_scores_pct"] = None
+        ctx["phase_scores_chart_src"] = None
+
+    from app.utils.branding import get_logo_data_uri
+    ctx["logo_data_uri"] = get_logo_data_uri()
+    ctx["logo_path"] = ctx["logo_data_uri"]
+
+    return render_template(f"{TEMPLATE_DIR_LEARNER}/report_pdf.html", **ctx)
+
 @loss_bp.post("/report.email/<int:run_id>")
 def report_email_and_download(run_id: int):
     to  = request.form.get("to") or request.form.get("email")
     uid = request.form.get("user_id", type=int) or _get_user_id_for_run(run_id)
 
-    html = _render_report_html(run_id, uid, pdf_mode=True)
+    html = _generate_learner_pdf_html(run_id, uid)
     if html is None:
         return ("Report not available", 404)
 
@@ -684,7 +712,7 @@ def report_pdf_download(run_id: int):
     if uid is None:
         return ("No user for this run.", 404)
 
-    html = render_report_html(run_id, uid, pdf_mode=True)
+    html = _generate_learner_pdf_html(run_id, uid)
     if not html:
         return ("Report not available", 404)
 

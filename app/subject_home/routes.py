@@ -154,12 +154,26 @@ def learner_dashboard():
     has_premium = _has_active_home_subscription(current_user.id)
     has_section3 = has_premium
 
-    from app.models.home import HomePracticalSubmission
+    from app.models.home import HomePracticalSubmission, HomeTeacherLink
     pending_subs = HomePracticalSubmission.query.filter_by(
         student_id=current_user.id,
         status='pending'
     ).all()
     pending_chapters = [s.chapter_number for s in pending_subs]
+
+    # Fetch teacher link info
+    link = HomeTeacherLink.query.filter_by(student_id=current_user.id).first()
+    linked_teacher = User.query.get(link.teacher_id) if link else None
+
+    # Fetch all teachers enrolled in HOME
+    from app.models.auth import UserEnrollment, AuthSubject
+    home_subject = AuthSubject.query.filter_by(slug='home').first()
+    all_home_teachers = []
+    if home_subject:
+        teacher_enrollments = UserEnrollment.query.filter_by(subject_id=home_subject.id, status='teacher').all()
+        teacher_ids = [e.user_id for e in teacher_enrollments]
+        if teacher_ids:
+            all_home_teachers = User.query.filter(User.id.in_(teacher_ids)).all()
 
     from flask import make_response
     response = make_response(render_template(
@@ -173,12 +187,33 @@ def learner_dashboard():
         has_premium=has_premium,
         has_section3=has_section3,
         pending_chapters=pending_chapters,
-        is_completed=is_completed
+        is_completed=is_completed,
+        linked_teacher=linked_teacher,
+        all_home_teachers=all_home_teachers
     ))
     response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
     response.headers["Pragma"] = "no-cache"
     response.headers["Expires"] = "0"
     return response
+
+@home_bp.route('/home/link_teacher', methods=['POST'])
+@login_required
+def link_teacher():
+    from app.models.home import HomeTeacherLink
+    teacher_id = request.form.get('teacher_id')
+    if not teacher_id:
+        flash("Please select a teacher.", "warning")
+        return redirect(url_for('home_bp.learner_dashboard'))
+
+    link = HomeTeacherLink.query.filter_by(student_id=current_user.id).first()
+    if link:
+        link.teacher_id = teacher_id
+    else:
+        link = HomeTeacherLink(student_id=current_user.id, teacher_id=teacher_id)
+        db.session.add(link)
+    db.session.commit()
+    flash("Teacher linked successfully!", "success")
+    return redirect(url_for('home_bp.learner_dashboard'))
 
 @home_bp.route(
     '/home/chapter/<int:chapter_num>',

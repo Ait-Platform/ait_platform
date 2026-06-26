@@ -65,12 +65,12 @@
 
     </div>
     
-    <!-- Footer Section inside tile (Right aligned enroll button) -->
+    <!-- Footer Section inside tile -->
     <div class="bg-gray-50 p-6 border-t border-gray-100 flex flex-col sm:flex-row justify-between items-center gap-4">
-      <a href="{{ url_for('home_bp.teacher_register') }}" class="rounded bg-amber-500 px-6 py-2 text-sm font-semibold text-white hover:bg-amber-600 shadow-sm transition-colors w-full sm:w-auto text-center">
-        Register as Teacher/Parent
-      </a>
-      <a href="{{ url_for('auth_bp.start_registration', subject='home') }}" class="rounded bg-emerald-600 px-6 py-2 text-sm font-semibold text-white hover:bg-emerald-700 shadow-sm transition-colors w-full sm:w-auto text-center">
+      <div class="text-sm text-gray-600 italic max-w-lg">
+        <strong>Reminder:</strong> To complete Section 1, please ensure your teacher or parent registers via the Tutor Platform to review your practical submissions.
+      </div>
+      <a href="{{ url_for('auth_bp.start_registration', subject='home') }}" class="rounded bg-emerald-600 px-6 py-2 text-sm font-semibold text-white hover:bg-emerald-700 shadow-sm transition-colors w-full sm:w-auto text-center whitespace-nowrap">
         Start Section 1 for Free
       </a>
     </div>

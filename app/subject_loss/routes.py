@@ -1854,17 +1854,17 @@ def report_pdf(run_id=None, user_id=None, auto_print=None, return_bytes=False):
 
     html = render_template("subject/loss/report_pdf.html", **ctx)
 
-    out = BytesIO()
+    from app.utils.pdf_render import html_to_pdf_bytes
     try:
-        from weasyprint import HTML
-        HTML(string=html, base_url=request.host_url).write_pdf(target=out)
-    except Exception:
-        from xhtml2pdf import pisa
-        pisa.CreatePDF(html, dest=out, encoding="UTF-8")
+        pdf_bytes = html_to_pdf_bytes(html)
+    except Exception as e:
+        current_app.logger.exception("html_to_pdf_bytes failed")
+        return ("Error generating PDF", 500)
 
     if return_bytes:
-        return out.getvalue()
+        return pdf_bytes
 
+    out = BytesIO(pdf_bytes)
     out.seek(0)
     return send_file(
         out,

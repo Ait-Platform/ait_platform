@@ -89,19 +89,6 @@
       font-weight: 600;
       color: #0f172a;
     }
-
-    .disclaimer-block {
-      margin-top: 1rem;
-      font-size: 9pt;
-      line-height: 1.3;
-      color: #475569;
-    }
-
-    .disclaimer-heading {
-      font-weight: 600;
-      color: #0f172a;
-      margin-bottom: 0.25rem;
-    }
   </style>
 </head>
 
@@ -225,15 +212,26 @@
 
   <table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-top: 1rem; font-size: 10pt; color: #475569;">
     <tr>
-      <td style="vertical-align: top; width: 33%;">
-        <div class="label" style="font-weight: 600; color: #0f172a;">Issued:</div>
-        <div style="margin-top: 0.2rem;">{{ assessment.created_at.strftime('%d %B %Y') }}</div>
+      <td style="vertical-align: top; width: 65%; padding-right: 20px;">
+        <table width="100%" border="0" cellpadding="0" cellspacing="0">
+          <tr>
+            <td style="width: 50%; vertical-align: top;">
+              <div class="label" style="font-weight: 600; color: #0f172a;">Issued:</div>
+              <div style="margin-top: 0.2rem;">{{ assessment.created_at.strftime('%d %B %Y') }}</div>
+            </td>
+            <td style="width: 50%; vertical-align: top;">
+              <div class="label" style="font-weight: 600; color: #0f172a;">Assessment ID:</div>
+              <div style="margin-top: 0.2rem;">HOME-{{ assessment.id }}</div>
+            </td>
+          </tr>
+        </table>
+        
+        <div style="margin-top: 2rem; font-size: 9pt; line-height: 1.3;">
+          <div style="font-weight: 600; color: #0f172a; margin-bottom: 0.25rem;">Disclaimer</div>
+          <div>This diagnostic report summarises your performance in the Hands On Math Education assessment. It is not an academic qualification. For verification or further support, contact AIT Platform — www.mathwithhands.com.</div>
+        </div>
       </td>
-      <td style="vertical-align: top; width: 33%; text-align: center;">
-        <div class="label" style="font-weight: 600; color: #0f172a;">Assessment ID:</div>
-        <div style="margin-top: 0.2rem;">HOME-{{ assessment.id }}</div>
-      </td>
-      <td style="vertical-align: top; width: 33%; text-align: right;">
+      <td style="vertical-align: top; width: 35%; text-align: right;">
         {% if seal_b64 %}
         <div style="margin-bottom: 0.5rem;">
             <img src="{{ seal_b64 }}" style="width: 70px; height: 70px; opacity: 0.85;">
@@ -245,15 +243,6 @@
       </td>
     </tr>
   </table>
-
-  <div class="disclaimer-block">
-    <div class="disclaimer-heading">Disclaimer</div>
-    <div>
-      This diagnostic report summarises your performance in the Hands On Math Education assessment.
-      It is not an academic qualification.
-      For verification or further support, contact AIT Platform — www.mathwithhands.com.
-    </div>
-  </div>
 
 </body>
 </html>

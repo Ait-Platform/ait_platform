@@ -227,6 +227,15 @@ def chapter_page(chapter_num):
     ).first_or_404()
 
     if chapter_num >= 11:
+        from app.models.home import HomeProgress
+        completed_count = db.session.scalar(
+            db.text("SELECT COUNT(DISTINCT chapter_number) FROM home_progress WHERE user_id = :uid AND chapter_number <= 10"),
+            {"uid": current_user.id}
+        )
+        if completed_count < 10:
+            flash("You must complete all practical assignments (Chapters 1-10) and receive a Competent grade from your teacher before starting Section 2.", "warning")
+            return redirect(url_for('home_bp.learner_dashboard'))
+
         if not _has_active_home_subscription(current_user.id):
             flash("You must subscribe to unlock the rest of the HOME course.", "warning")
             return redirect(url_for('yoco_bp.yoco_start', subject='home', email=current_user.email))
@@ -629,16 +638,7 @@ def bypass_chapters():
     flash('Chapters bypassed for testing. Final exam is now unlocked.', 'success')
     return redirect(url_for('home_bp.learner_dashboard'))
 
-@home_bp.route('/home/reset_18_20', methods=['GET'])
-@login_required
-def reset_18_20():
-    session.pop('chapter_18_done', None)
-    session.pop('chapter_20_done', None)
-    HomeProgress.query.filter_by(user_id=current_user.id, chapter_number=18).delete()
-    HomeProgress.query.filter_by(user_id=current_user.id, chapter_number=20).delete()
-    db.session.commit()
-    flash('Progress for Chapters 18 and 20 has been reset. You may now retake them.', 'success')
-    return redirect(url_for('home_bp.learner_dashboard'))
+
 
 @home_bp.route(
 '/final_exam',

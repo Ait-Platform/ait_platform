@@ -6,9 +6,16 @@
 
   <style>
     @page {
-      margin: 0.8cm;
+      margin: 2cm;
       border: 4px solid #0033a1;
       padding: 0.4cm;
+      @frame footer {
+          -pdf-frame-content: footer_content;
+          bottom: 2cm;
+          margin-left: 2.4cm;
+          margin-right: 2.4cm;
+          height: 1.5cm;
+      }
     }
 
     body {
@@ -246,7 +253,7 @@
     </tr>
   </table>
 
-  <div class="disclaimer-block">
+  <div id="footer_content" class="disclaimer-block">
     <div class="disclaimer-heading">Disclaimer</div>
     <div>
       This diagnostic report summarises your performance in the Hands On Math Education assessment.

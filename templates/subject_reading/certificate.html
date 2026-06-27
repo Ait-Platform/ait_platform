@@ -12,11 +12,22 @@
       --border-gray: #cbd5e1;
     }
 
+    @page {
+      margin: 2cm;
+      border: 4px solid #0033a1;
+      padding: 0.4cm;
+      @frame footer {
+          -pdf-frame-content: footer_content;
+          bottom: 2cm;
+          margin-left: 2.4cm;
+          margin-right: 2.4cm;
+          height: 1.5cm;
+      }
+    }
+
     body {
       font-family: system-ui, sans-serif;
       color: var(--text-dark);
-      padding: 3rem;
-      border: 4px solid var(--ait-blue);
     }
 
     .heading {
@@ -111,25 +122,30 @@
     demonstrating focus and persistence across 18 guided sessions.
   </div>
 
-  <div class="meta-row">
-    <div>
-      <div class="label">Issued:</div>
-      <div>{{ completed_date }}</div>
-    </div>
+  <table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-top: 1rem; font-size: 10pt; color: #475569;">
+    <tr>
+      <td style="vertical-align: top; width: 33%;">
+        <div class="label" style="font-weight: 600; color: #0f172a;">Issued:</div>
+        <div style="margin-top: 0.2rem;">{{ completed_date }}</div>
+      </td>
+      <td style="vertical-align: top; width: 33%; text-align: center;">
+        <div class="label" style="font-weight: 600; color: #0f172a;">Certificate ID:</div>
+        <div style="margin-top: 0.2rem;">{{ certificate_id }}</div>
+      </td>
+      <td style="vertical-align: top; width: 33%; text-align: right;">
+        {% if seal_b64 %}
+        <div style="margin-bottom: 0.5rem;">
+            <img src="{{ seal_b64 }}" style="width: 70px; height: 70px; opacity: 0.85;">
+        </div>
+        {% endif %}
+        <div class="label" style="font-weight: 600; color: #0f172a;">Authorised:</div>
+        <div style="margin-top: 0.2rem;">Programme Lead</div>
+        <div>AIT Platform</div>
+      </td>
+    </tr>
+  </table>
 
-    <div>
-      <div class="label">Certificate ID:</div>
-      <div>{{ certificate_id }}</div>
-    </div>
-
-    <div class="sig-block">
-      <div class="label">Authorised</div>
-      <div>Programme Lead</div>
-      <div>AIT Platform</div>
-    </div>
-  </div>
-
-  <div class="disclaimer-block">
+  <div id="footer_content" class="disclaimer-block">
     <div class="disclaimer-heading">Disclaimer</div>
     <div>
       This certificate recognises participation in the AIT Reading Programme.

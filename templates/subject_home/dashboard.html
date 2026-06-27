@@ -17,10 +17,21 @@
         <p class="text-gray-600 mb-8">Congratulations! You have successfully completed this course. Your certificate and diagnostic report have been emailed to you. If you would like to take the course again, you can re-enrol.</p>
         
         <div class="flex flex-col space-y-3">
-            <a href="{{ url_for('home_bp.re_enrol') }}" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none transition-colors">
+            {% if assessment %}
+                {% if assessment.passed %}
+                <a href="{{ url_for('home_bp.report_exit', assessment_id=assessment.id, type='certificate') }}" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none transition-colors pointer-events-auto">
+                    Email / Download Certificate
+                </a>
+                {% else %}
+                <a href="{{ url_for('home_bp.report_exit', assessment_id=assessment.id, type='report') }}" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none transition-colors pointer-events-auto">
+                    Email / Download Report
+                </a>
+                {% endif %}
+            {% endif %}
+            <a href="{{ url_for('home_bp.re_enrol') }}" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none transition-colors pointer-events-auto">
                 Re-Enrol
             </a>
-            <a href="{{ url_for('public_bp.welcome') }}" class="w-full flex justify-center py-3 px-4 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none transition-colors">
+            <a href="{{ url_for('public_bp.welcome') }}" class="w-full flex justify-center py-3 px-4 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none transition-colors pointer-events-auto">
                 Cancel
             </a>
         </div>

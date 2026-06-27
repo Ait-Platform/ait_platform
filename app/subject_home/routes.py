@@ -574,7 +574,7 @@ def finish_report():
         # Generate HTML for Certificate & Diagnostic Report
         from flask import current_app
         import os, base64
-        logo_path = os.path.join(current_app.root_path, 'static', 'images', 'Palm.png')
+        logo_path = os.path.join(current_app.root_path, '..', 'static', 'branding', 'ait_logo.png')
         logo_b64 = ""
         if os.path.exists(logo_path):
             with open(logo_path, "rb") as image_file:
@@ -717,36 +717,35 @@ def final_exam():
                 elif question.chapter_id == 10:
                     section_scores["critical"] += 1
 
-        overall_score = round(
-            (total_correct / 50) * 100
-        )
+        category_counts = {i: 0 for i in range(1, 11)}
+        for q in questions:
+            if q.chapter_id in category_counts:
+                category_counts[q.chapter_id] += 1
+
+        def calc_cat(cat_id, key):
+            c = category_counts.get(cat_id, 0)
+            if c > 0:
+                return round((section_scores[key] / c) * 100)
+            return 0
+
+        overall_score = 0
+        if len(questions) > 0:
+            overall_score = round((total_correct / len(questions)) * 100)
 
         passed = overall_score >= 70
 
         assessment = HomeFinalAssessment(
-
             user_id=current_user.id,
-
-            observation_score=section_scores["observation"] * 20,
-
-            position_score=section_scores["position"] * 20,
-
-            comparison_score=section_scores["comparison"] * 20,
-
-            estimation_score=section_scores["estimation"] * 20,
-
-            measurement_score=section_scores["measurement"] * 20,
-
-            pattern_score=section_scores["pattern"] * 20,
-
-            spatial_score=section_scores["spatial"] * 20,
-
-            logic_score=section_scores["logic"] * 20,
-
-            mathematics_score=section_scores["mathematics"] * 20,
-
-            critical_thinking_score=section_scores["critical"] * 20,
-
+            observation_score=calc_cat(1, "observation"),
+            position_score=calc_cat(2, "position"),
+            comparison_score=calc_cat(3, "comparison"),
+            estimation_score=calc_cat(4, "estimation"),
+            measurement_score=calc_cat(5, "measurement"),
+            pattern_score=calc_cat(6, "pattern"),
+            spatial_score=calc_cat(7, "spatial"),
+            logic_score=calc_cat(8, "logic"),
+            mathematics_score=calc_cat(9, "mathematics"),
+            critical_thinking_score=calc_cat(10, "critical"),
             overall_score=overall_score,
 
             passed=passed

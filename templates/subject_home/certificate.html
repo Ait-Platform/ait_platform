@@ -6,9 +6,9 @@
 
   <style>
     @page {
-      margin: 1cm;
+      margin: 0.8cm;
       border: 4px solid #0033a1;
-      padding: 0.8cm;
+      padding: 0.4cm;
     }
 
     body {
@@ -123,9 +123,12 @@
 
   <div class="statement">
     <p style="margin-bottom: 0.5rem;">This report details your performance across the 10 foundational categories assessed in the HOME Final Examination.</p>
-    <table width="100%" border="0" cellpadding="0" cellspacing="0" style="font-size: 11pt;">
+    <table width="100%" border="0" cellpadding="0" cellspacing="0" style="font-size: 10pt;">
       <tr><td style="font-weight: bold; width: 40%; padding-bottom: 3px;">Status:</td><td style="padding-bottom: 3px;">{% if assessment.passed %}Passed{% else %}Failed{% endif %}</td></tr>
-      <tr><td style="font-weight: bold; padding-bottom: 3px;">Total Score:</td><td style="padding-bottom: 3px;">{{ assessment.overall_score | default(0, true) }}%</td></tr>
+      <tr><td style="font-weight: bold; padding-bottom: 3px;">Section 1 - Practicals:</td><td style="padding-bottom: 3px;">Passed</td></tr>
+      <tr><td style="font-weight: bold; padding-bottom: 3px;">Section 2 - Applied Understanding:</td><td style="padding-bottom: 3px;">100%</td></tr>
+      <tr><td style="font-weight: bold; padding-bottom: 3px;">Section 3 - Theoretical Mastery:</td><td style="padding-bottom: 3px;">100%</td></tr>
+      <tr><td style="font-weight: bold; padding-bottom: 3px;">Final Assessment Score:</td><td style="padding-bottom: 3px;">{{ assessment.overall_score | default(0, true) }}%</td></tr>
       <tr><td style="font-weight: bold; padding-bottom: 3px; vertical-align: top;">Evaluation:</td>
           <td style="padding-bottom: 3px;">
           {% set s = assessment.overall_score | default(0, true) %}
@@ -144,7 +147,7 @@
     </table>
   </div>
 
-  <table class="diagnostic-table" border="0" cellspacing="0" cellpadding="8">
+  <table class="diagnostic-table" border="0" cellspacing="0" cellpadding="4">
     <thead>
       <tr>
         <th style="width: 25%;">Category</th>

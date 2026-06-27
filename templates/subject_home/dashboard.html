@@ -239,13 +239,20 @@
           {% for chapter in section3_chapters %}
               {% set chapter_key = 'chapter_' ~ chapter.chapter_number ~ '_done' %}
               {% set is_locked = false %}
+              
+              {% if chapter.chapter_number == 21 %}
+                  {% if not ns_s1.all_done %}
+                      {% set is_locked = true %}
+                  {% endif %}
+              {% endif %}
+              
               {% set prev_key = 'chapter_' ~ (chapter.chapter_number - 1) ~ '_done' %}
               {% if not session.get(prev_key) %}
                   {% set is_locked = true %}
               {% endif %}
               
               {% set needs_section3 = false %}
-              {% if chapter.chapter_number == 21 and session.get(prev_key) and not has_section3 %}
+              {% if chapter.chapter_number == 21 and not is_locked and not has_section3 %}
                   {% set is_locked = true %}
                   {% set needs_section3 = true %}
               {% endif %}

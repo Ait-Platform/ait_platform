@@ -19,12 +19,12 @@
   <form method="post" class="space-y-4">
     <div>
       <label class="text-sm font-medium">Account name</label>
-      <input disabled class="w-full bg-slate-100" value="{{ account.name }}">
+      <input disabled class="w-full rounded border-2 border-slate-400 bg-slate-100 px-3 py-2 text-sm" value="{{ account.name }}">
     </div>
 
     <div>
       <label class="text-sm font-medium">Type</label>
-      <select name="kind" class="w-full">
+      <select name="kind" class="w-full rounded border-2 border-slate-400 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 px-3 py-2 text-sm" autofocus>
         <option value="asset" {{ 'selected' if account.kind=='asset' }}>Asset</option>
         <option value="liability" {{ 'selected' if account.kind=='liability' }}>Liability</option>
       </select>
@@ -32,10 +32,10 @@
 
     <div>
       <label class="text-sm font-medium">Group</label>
-      <input name="group_label" value="{{ account.group_label or '' }}" class="w-full">
+      <input name="group_label" value="{{ account.group_label or '' }}" class="w-full rounded border-2 border-slate-400 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 px-3 py-2 text-sm">
     </div>
 
-    <button class="btn btn-primary w-full">Save changes</button>
+    <button class="w-full rounded bg-sky-600 text-white px-4 py-2.5 text-sm font-medium hover:bg-sky-700">Save changes</button>
   </form>
     </div>
   </div>

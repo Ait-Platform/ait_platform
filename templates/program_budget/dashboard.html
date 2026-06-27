@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% block flashes %}{% endblock %}
 {% block title %}BudgetCash Dashboard{% endblock %}
 
 {% block content %}
@@ -6,6 +7,7 @@
   <div class="w-full max-w-5xl bg-white rounded-xl shadow-lg overflow-hidden flex flex-col">
     <div class="h-3 bg-amber-500"></div>
     <div class="p-8">
+      {% include "partials/flash_messages.html" %}
 
   
       <!-- Row 1: Title & Action/Back Buttons -->

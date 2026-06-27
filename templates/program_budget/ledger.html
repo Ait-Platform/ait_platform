@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% block flashes %}{% endblock %}
 {% block title %}BudgetCash · Cashbook{% endblock %}
 
 {% block content %}
@@ -6,6 +7,7 @@
   <div class="w-full max-w-5xl bg-white rounded-xl shadow-lg overflow-hidden flex flex-col">
     <div class="h-3 bg-amber-500"></div>
     <div class="p-8">
+      {% include "partials/flash_messages.html" %}
 
 
       <!-- Row 1: Title & Action/Back Buttons -->
@@ -21,7 +23,7 @@
             <a href="{{ url_for('budget_bp.help_guide') }}"
                 class="text-sky-700 hover:underline">Help</a>
             <a href="{{ back_url }}"
-                class="rounded border border-slate-300 px-3 py-1.5 hover:bg-slate-50">
+                class="rounded border border-2 border-slate-400 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 px-3 py-1.5 hover:bg-slate-50">
                 ← Back
             </a>
         </div>
@@ -51,7 +53,7 @@
       <div class="md:col-span-5">
         <label class="block text-xs font-medium text-slate-600 mb-1">Account</label>
         <select id="lookup_account_id"
-                class="w-full rounded border border-slate-300 px-3 py-2 text-sm">
+                class="w-full rounded border-2 border-slate-400 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 px-3 py-2 text-sm" autofocus>
           <option value="">Choose account…</option>
           {% for a in accounts %}
             <option value="{{ a.id }}" {% if account_id and (a.id|string)==(account_id|string) %}selected{% endif %}>
@@ -99,7 +101,7 @@
       <div class="md:col-span-3">
         <label class="block text-xs font-medium text-slate-600 mb-1">Account</label>
         <select id="pay_account_id" name="account_id"
-                class="w-full rounded border border-slate-300 px-3 py-2 text-sm" required>
+                class="w-full rounded border border-2 border-slate-400 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 px-3 py-2 text-sm" required>
           <option value="">Select account…</option>
           {% for a in accounts %}
             <option value="{{ a.id }}">{{ a.kind|title }} · {{ a.name }}</option>
@@ -110,13 +112,13 @@
       <div class="md:col-span-1">
         <label class="block text-xs font-medium text-slate-600 mb-1">Date</label>
         <input name="txn_date" type="date"
-               class="w-full rounded border border-slate-300 px-3 py-2 text-sm" required>
+               class="w-full rounded border border-2 border-slate-400 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 px-3 py-2 text-sm" required>
       </div>
 
       <div class="md:col-span-2">
         <label class="block text-xs font-medium text-slate-600 mb-1">Paid</label>
         <input name="amount" inputmode="decimal" placeholder="e.g. 200.00"
-               class="w-full rounded border border-slate-300 px-3 py-2 text-sm" required>
+               class="w-full rounded border border-2 border-slate-400 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 px-3 py-2 text-sm" required>
       </div>
 
       <div class="md:col-span-6">

@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% block flashes %}{% endblock %}
 {% block title %}BudgetCash · Group types{% endblock %}
 
 {% block content %}
@@ -6,6 +7,7 @@
   <div class="w-full max-w-5xl bg-white rounded-xl shadow-lg overflow-hidden flex flex-col">
     <div class="h-3 bg-amber-500"></div>
     <div class="p-8">
+      {% include "partials/flash_messages.html" %}
 
 
       <!-- Row 1: Title & Action/Back Buttons -->
@@ -15,8 +17,8 @@
             <p class="mt-1 text-slate-600">Used to categorize accounts for reports.</p>
         </div>
         <div class="flex items-center gap-3">
-            <a href="{{ url_for('budget_bp.dashboard') }}"
-               class="rounded border border-slate-300 px-3 py-1.5 hover:bg-slate-50 text-sm">
+            <a href="{{ request.args.get('next') or url_for('budget_bp.dashboard') }}"
+               class="rounded border border-2 border-slate-400 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 px-3 py-1.5 hover:bg-slate-50 text-sm">
               ← Back
             </a>
         </div>
@@ -30,7 +32,7 @@
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
       <input name="label" maxlength="50" placeholder="e.g. Retail, Cards, Utilities"
-             class="w-full rounded border border-slate-300 px-3 py-2 text-sm" required>
+             class="w-full rounded border border-2 border-slate-400 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 px-3 py-2 text-sm" required autofocus>
 
       <button class="rounded bg-sky-600 text-white px-4 py-2.5 text-sm font-medium hover:bg-sky-700">
         Add

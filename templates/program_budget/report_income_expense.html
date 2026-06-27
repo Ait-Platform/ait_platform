@@ -1,11 +1,13 @@
 {% extends "layout.html" %}
-{% block title %}BudgetCash · Income & Expense Statement{% endblock %}
+{% block flashes %}{% endblock %}
+{% block title %}BudgetCash · Income & Expenses{% endblock %}
 
 {% block content %}
 <div class="min-h-screen bg-gray-50 flex flex-col items-center py-10 px-4">
   <div class="w-full max-w-5xl bg-white rounded-xl shadow-lg overflow-hidden flex flex-col">
     <div class="h-3 bg-amber-500"></div>
     <div class="p-8">
+      {% include "partials/flash_messages.html" %}
 
 
       <!-- Row 1: Title & Action/Back Buttons -->

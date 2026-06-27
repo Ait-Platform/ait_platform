@@ -693,40 +693,42 @@ def final_exam():
 
                 total_correct += 1
 
-                if question.chapter_id == 1:
+                if question.chapter_id in [1, 11, 21]:
                     section_scores["observation"] += 1
 
-                elif question.chapter_id == 2:
+                elif question.chapter_id in [2, 12, 22]:
                     section_scores["position"] += 1
 
-                elif question.chapter_id == 3:
+                elif question.chapter_id in [3, 13, 23]:
                     section_scores["comparison"] += 1
 
-                elif question.chapter_id == 4:
+                elif question.chapter_id in [4, 14, 24]:
                     section_scores["estimation"] += 1
 
-                elif question.chapter_id == 5:
+                elif question.chapter_id in [5, 15, 25]:
                     section_scores["measurement"] += 1
 
-                elif question.chapter_id == 6:
+                elif question.chapter_id in [6, 16, 26]:
                     section_scores["pattern"] += 1
 
-                elif question.chapter_id == 7:
+                elif question.chapter_id in [7, 17, 27]:
                     section_scores["spatial"] += 1
 
-                elif question.chapter_id == 8:
+                elif question.chapter_id in [8, 18, 28]:
                     section_scores["logic"] += 1
 
-                elif question.chapter_id == 9:
+                elif question.chapter_id in [9, 19, 29]:
                     section_scores["mathematics"] += 1
 
-                elif question.chapter_id == 10:
+                elif question.chapter_id in [10, 20, 30]:
                     section_scores["critical"] += 1
 
         category_counts = {i: 0 for i in range(1, 11)}
         for q in questions:
-            if q.chapter_id in category_counts:
-                category_counts[q.chapter_id] += 1
+            cat_id = q.chapter_id % 10
+            if cat_id == 0:
+                cat_id = 10
+            category_counts[cat_id] += 1
 
         def calc_cat(cat_id, key):
             c = category_counts.get(cat_id, 0)
@@ -734,24 +736,33 @@ def final_exam():
                 return round((section_scores[key] / c) * 100)
             return 0
 
-        overall_score = 0
-        if len(questions) > 0:
-            overall_score = round((total_correct / len(questions)) * 100)
+        obs_score = calc_cat(1, "observation")
+        pos_score = calc_cat(2, "position")
+        cmp_score = calc_cat(3, "comparison")
+        est_score = calc_cat(4, "estimation")
+        mea_score = calc_cat(5, "measurement")
+        pat_score = calc_cat(6, "pattern")
+        spa_score = calc_cat(7, "spatial")
+        log_score = calc_cat(8, "logic")
+        mat_score = calc_cat(9, "mathematics")
+        cri_score = calc_cat(10, "critical")
+
+        overall_score = round((obs_score + pos_score + cmp_score + est_score + mea_score + pat_score + spa_score + log_score + mat_score + cri_score) / 10.0)
 
         passed = overall_score >= 70
 
         assessment = HomeFinalAssessment(
             user_id=current_user.id,
-            observation_score=calc_cat(1, "observation"),
-            position_score=calc_cat(2, "position"),
-            comparison_score=calc_cat(3, "comparison"),
-            estimation_score=calc_cat(4, "estimation"),
-            measurement_score=calc_cat(5, "measurement"),
-            pattern_score=calc_cat(6, "pattern"),
-            spatial_score=calc_cat(7, "spatial"),
-            logic_score=calc_cat(8, "logic"),
-            mathematics_score=calc_cat(9, "mathematics"),
-            critical_thinking_score=calc_cat(10, "critical"),
+            observation_score=obs_score,
+            position_score=pos_score,
+            comparison_score=cmp_score,
+            estimation_score=est_score,
+            measurement_score=mea_score,
+            pattern_score=pat_score,
+            spatial_score=spa_score,
+            logic_score=log_score,
+            mathematics_score=mat_score,
+            critical_thinking_score=cri_score,
             overall_score=overall_score,
 
             passed=passed

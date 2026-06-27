@@ -629,6 +629,17 @@ def bypass_chapters():
     flash('Chapters bypassed for testing. Final exam is now unlocked.', 'success')
     return redirect(url_for('home_bp.learner_dashboard'))
 
+@home_bp.route('/home/reset_18_20', methods=['GET'])
+@login_required
+def reset_18_20():
+    session.pop('chapter_18_done', None)
+    session.pop('chapter_20_done', None)
+    HomeProgress.query.filter_by(user_id=current_user.id, chapter_number=18).delete()
+    HomeProgress.query.filter_by(user_id=current_user.id, chapter_number=20).delete()
+    db.session.commit()
+    flash('Progress for Chapters 18 and 20 has been reset. You may now retake them.', 'success')
+    return redirect(url_for('home_bp.learner_dashboard'))
+
 @home_bp.route(
 '/final_exam',
 methods=['GET', 'POST']

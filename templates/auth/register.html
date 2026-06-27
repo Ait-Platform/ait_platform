@@ -16,9 +16,16 @@
   <main class="flex items-center justify-center min-h-screen px-4">
     <section class="w-full max-w-md bg-white rounded-2xl shadow-sm ring-1 ring-slate-200 p-6">
       <h1 class="text-2xl font-semibold tracking-tight">Create your account</h1>
-      <p class="mt-1 text-slate-600 text-sm">
+      <p class="mt-1 text-slate-600 text-sm mb-4">
         {{ display_subject|capitalize }} • {{ display_role|capitalize }}
       </p>
+
+      <div class="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-100 flex items-start">
+        <svg class="w-5 h-5 text-blue-500 mt-0.5 mr-2 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        <p class="text-sm text-blue-800">
+          <strong>Note:</strong> Once you have registered, you can access your dashboard anytime by clicking the Login button with the email and password you set here.
+        </p>
+      </div>
 
       {% if banner %}
         <div class="mt-4 rounded-lg px-3 py-2 text-sm ring-1 bg-emerald-50 text-emerald-700 ring-emerald-200">

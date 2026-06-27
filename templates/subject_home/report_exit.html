@@ -12,7 +12,7 @@
             Before we show you your final results, please confirm the email address where you would like us to send your Diagnostic Report. If you have passed, your official Certificate of Completion will also be included!
         </p>
 
-        <form method="POST" action="{{ url_for('home_bp.finish_report') }}">
+        <form method="POST" action="{{ url_for('home_bp.finish_report') }}" onsubmit="document.getElementById('submit-btn').disabled=true; document.getElementById('submit-btn').innerText='Sending... Please wait';">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="assessment_id" value="{{ assessment_id }}">
             <input type="hidden" name="doc_type" value="{{ doc_type }}">
@@ -33,8 +33,9 @@
 
             <div class="flex justify-end">
                 <button 
+                    id="submit-btn"
                     type="submit" 
-                    class="px-6 py-3 bg-purple-600 text-white font-semibold rounded-lg shadow-sm hover:bg-purple-700 transition-colors"
+                    class="px-6 py-3 bg-purple-600 text-white font-semibold rounded-lg shadow-sm hover:bg-purple-700 transition-colors disabled:opacity-75 disabled:cursor-not-allowed"
                 >
                     {% if doc_type == 'certificate' %}Email Certificate & Complete Course{% else %}Send Report{% endif %}
                 </button>

@@ -610,7 +610,7 @@ def finish_report():
             )
             db.session.commit()
             flash("Your Certificate and Diagnostic Report have been emailed to you. Congratulations on completing the course!", "success")
-            return redirect(url_for('auth_bp.bridge_dashboard'))
+            return redirect(url_for('public_bp.welcome'))
         else:
             subject = "Your HOME Diagnostic Report"
             if assessment.passed:
@@ -626,9 +626,9 @@ def finish_report():
                 filename="HOME_Diagnostic_Report.pdf"
             )
             flash("Your diagnostic report has been emailed to you.", "info")
-            return redirect(url_for('home_bp.learner_dashboard'))
+            return redirect(url_for('public_bp.welcome'))
 
-    return redirect(url_for('home_bp.learner_dashboard'))
+    return redirect(url_for('public_bp.welcome'))
 
 @home_bp.route('/home/section2/coming_soon', methods=['GET'])
 @login_required

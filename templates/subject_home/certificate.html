@@ -233,6 +233,11 @@
         <div style="margin-top: 0.2rem;">HOME-{{ assessment.id }}</div>
       </td>
       <td style="vertical-align: top; width: 33%; text-align: right;">
+        {% if seal_b64 %}
+        <div style="margin-bottom: 0.5rem;">
+            <img src="{{ seal_b64 }}" style="width: 70px; height: 70px; opacity: 0.85;">
+        </div>
+        {% endif %}
         <div class="label" style="font-weight: 600; color: #0f172a;">Authorised:</div>
         <div style="margin-top: 0.2rem;">Programme Lead</div>
         <div>AIT Platform</div>

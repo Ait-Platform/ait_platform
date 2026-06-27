@@ -579,8 +579,14 @@ def finish_report():
         if os.path.exists(logo_path):
             with open(logo_path, "rb") as image_file:
                 logo_b64 = "data:image/png;base64," + base64.b64encode(image_file.read()).decode('utf-8')
+                
+        seal_path = os.path.join(current_app.root_path, '..', 'static', 'branding', 'ait_seal.png')
+        seal_b64 = ""
+        if os.path.exists(seal_path):
+            with open(seal_path, "rb") as image_file:
+                seal_b64 = "data:image/png;base64," + base64.b64encode(image_file.read()).decode('utf-8')
         
-        report_html = render_template('subject_home/certificate.html', assessment=assessment, logo_b64=logo_b64)
+        report_html = render_template('subject_home/certificate.html', assessment=assessment, logo_b64=logo_b64, seal_b64=seal_b64)
         out_report = io.BytesIO()
         pisa.CreatePDF(report_html, dest=out_report, encoding="UTF-8")
         report_pdf_bytes = out_report.getvalue()

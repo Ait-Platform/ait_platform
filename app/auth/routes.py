@@ -266,6 +266,54 @@ def register():
 
     # normalize email & check if user exists
     email_norm = email_in.lower()
+    
+    # ---------- resolve quote before existing user check ----------
+    cc = (request.form.get("country") or session.get("country_code") or "ZA").strip().upper()
+    subj_id = subject_id_for(subject)
+    
+    local_cents    = session.get("local_amount_cents") or 0
+    est_zar_cents  = session.get("zar_amount_cents") or 0
+    cur            = session.get("local_currency") or "ZAR"
+    
+    price_id = request.form.get("price_id") or session.get("price_id")
+    if price_id:
+        from app.models.payment import SubjectCountryPrice
+        new_quote_row = SubjectCountryPrice.query.get(price_id)
+        if new_quote_row:
+            cc = new_quote_row.country_code
+            cur = new_quote_row.local_currency
+            local_cents = new_quote_row.local_amount_cents
+            est_zar_cents = new_quote_row.zar_amount_cents
+
+    if not est_zar_cents or est_zar_cents <= 0:
+        if subj_id:
+            local_cents, est_zar_cents, cur = price_for_country(subj_id, cc)
+
+    if not est_zar_cents or est_zar_cents <= 0:
+        est_zar_cents = 5000  # 50.00 ZAR safety net
+
+    _save_reg_ctx(
+        role=role,
+        subject=subject,
+        email=email_norm,
+        full_name=full_name,
+        next_url=next_url,
+    )
+    
+    reg_ctx = session.get("reg_ctx", {})
+    reg_ctx["email_lower"] = email_norm
+    reg_ctx["quote"] = {
+        "country_code":  cc,
+        "currency":      cur,
+        "amount_cents":  int(local_cents or 0),
+        "est_zar_cents": int(est_zar_cents or 0),
+        "version":       "2025-11",
+        "price_id":      price_id,
+    }
+    reg_ctx["bill_cents_zar"] = int(est_zar_cents)
+    session["reg_ctx"] = reg_ctx
+    session.modified = True
+
     from app.models.auth import User
     existing_user = User.query.filter(db.func.lower(User.email) == email_norm).first()
     
@@ -290,6 +338,7 @@ def register():
             session["email"] = email_norm
             session["user_id"] = int(existing_user.id)
             session["user_name"] = existing_user.name or email_norm.split("@")[0]
+            session.pop("just_paid_subject_id", None)
             
             return redirect(url_for("auth_bp.dashboard_info", subject=subject))
         else:
@@ -304,44 +353,7 @@ def register():
 
     # stage user in session (no user row yet)
     staged_password_hash = generate_password_hash(password)
-
-    _save_reg_ctx(
-        role=role,
-        subject=subject,
-        email=email_norm,
-        full_name=full_name,
-        next_url=next_url,
-    )
-    session["reg_ctx"]["email_lower"]   = email_norm
     session["reg_ctx"]["password_hash"] = staged_password_hash
-
-    # ---------- lock a DB-driven parity + ZAR quote into session ----------
-    cc = (request.form.get("country") or session.get("country_code") or "ZA").strip().upper()
-    subj_id = subject_id_for(subject)
-
-    local_cents    = session.get("local_amount_cents") or 0
-    est_zar_cents  = session.get("zar_amount_cents") or 0
-    cur            = session.get("local_currency") or "ZAR"
-
-    if not est_zar_cents or est_zar_cents <= 0:
-        if subj_id:
-            # price_for_country → (local_cents, zar_cents, currency)
-            local_cents, est_zar_cents, cur = price_for_country(subj_id, cc)
-
-    if not est_zar_cents or est_zar_cents <= 0:
-        est_zar_cents = 5000  # 50.00 ZAR safety net
-
-    reg_ctx = session.get("reg_ctx", {})
-    reg_ctx["quote"] = {
-        "country_code":  cc,
-        "currency":      cur,
-        "amount_cents":  int(local_cents or 0),     # local parity price
-        "est_zar_cents": int(est_zar_cents or 0),   # ZAR to bill
-        "version":       "2025-11",
-        "price_id":      request.form.get("price_id") or session.get("price_id"),
-    }
-    reg_ctx["bill_cents_zar"] = int(est_zar_cents)
-    session["reg_ctx"] = reg_ctx
     session.modified = True
 
     session.pop("just_paid_subject_id", None)

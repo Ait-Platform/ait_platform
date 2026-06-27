@@ -18,10 +18,10 @@
 
     .heading {
       text-align: center;
-      font-size: 1.5rem;
+      font-size: 1.4rem;
       font-weight: 700;
       text-transform: uppercase;
-      margin-bottom: 1rem;
+      margin-bottom: 0.5rem;
       color: #0033a1;
     }
 
@@ -29,36 +29,37 @@
       text-align: center;
       font-size: 0.9rem;
       color: #475569;
-      margin-bottom: 1.5rem;
+      margin-bottom: 1rem;
     }
 
     .name-line {
       text-align: center;
-      font-size: 1.25rem;
+      font-size: 1.15rem;
       font-weight: 600;
-      margin-bottom: 1rem;
+      margin-bottom: 0.5rem;
       color: #0f172a;
     }
 
     .statement {
-      font-size: 11pt;
-      line-height: 1.4;
+      font-size: 10pt;
+      line-height: 1.2;
       text-align: left;
       color: #0f172a;
       max-width: 500px;
-      margin: 0 auto 1rem auto;
+      margin: 0 auto 0.5rem auto;
     }
 
     .diagnostic-table {
       width: 100%;
-      margin-top: 0.5rem;
-      margin-bottom: 1rem;
-      font-size: 10pt;
+      margin-top: 0.25rem;
+      margin-bottom: 0.5rem;
+      font-size: 9pt;
+      line-height: 1.1;
     }
 
     .diagnostic-table th, .diagnostic-table td {
       border: none;
-      padding: 0.25rem 0.5rem;
+      padding: 0.15rem 0.25rem;
       text-align: left;
     }
 
@@ -122,15 +123,15 @@
   </div>
 
   <div class="statement">
-    <p style="margin-bottom: 0.5rem;">This report details your performance across the 10 foundational categories assessed in the HOME Final Examination.</p>
-    <table width="100%" border="0" cellpadding="0" cellspacing="0" style="font-size: 10pt;">
-      <tr><td style="font-weight: bold; width: 40%; padding-bottom: 3px;">Status:</td><td style="padding-bottom: 3px;">{% if assessment.passed %}Passed{% else %}Failed{% endif %}</td></tr>
-      <tr><td style="font-weight: bold; padding-bottom: 3px;">Section 1 - Practicals:</td><td style="padding-bottom: 3px;">Passed</td></tr>
-      <tr><td style="font-weight: bold; padding-bottom: 3px;">Section 2 - Applied Understanding:</td><td style="padding-bottom: 3px;">100%</td></tr>
-      <tr><td style="font-weight: bold; padding-bottom: 3px;">Section 3 - Theoretical Mastery:</td><td style="padding-bottom: 3px;">100%</td></tr>
-      <tr><td style="font-weight: bold; padding-bottom: 3px;">Final Assessment Score:</td><td style="padding-bottom: 3px;">{{ assessment.overall_score | default(0, true) }}%</td></tr>
-      <tr><td style="font-weight: bold; padding-bottom: 3px; vertical-align: top;">Evaluation:</td>
-          <td style="padding-bottom: 3px;">
+    <p style="margin-bottom: 0.25rem;">This report details your performance across the 10 foundational categories assessed in the HOME Final Examination.</p>
+    <table width="100%" border="0" cellpadding="0" cellspacing="0" style="font-size: 9.5pt;">
+      <tr><td style="font-weight: bold; width: 40%; padding-bottom: 1px;">Status:</td><td style="padding-bottom: 1px;">{% if assessment.passed %}Passed{% else %}Failed{% endif %}</td></tr>
+      <tr><td style="font-weight: bold; padding-bottom: 1px;">Section 1 - Practicals:</td><td style="padding-bottom: 1px;">Passed</td></tr>
+      <tr><td style="font-weight: bold; padding-bottom: 1px;">Section 2 - Applied Understanding:</td><td style="padding-bottom: 1px;">100%</td></tr>
+      <tr><td style="font-weight: bold; padding-bottom: 1px;">Section 3 - Theoretical Mastery:</td><td style="padding-bottom: 1px;">100%</td></tr>
+      <tr><td style="font-weight: bold; padding-bottom: 1px;">Final Assessment Score:</td><td style="padding-bottom: 1px;">{{ assessment.overall_score | default(0, true) }}%</td></tr>
+      <tr><td style="font-weight: bold; padding-bottom: 1px; vertical-align: top;">Evaluation:</td>
+          <td style="padding-bottom: 1px; line-height: 1.1;">
           {% set s = assessment.overall_score | default(0, true) %}
           {% set learner_name = current_user.name or (current_user.first_name ~ ' ' ~ current_user.last_name) %}
           {% if s >= 90 %}
@@ -147,7 +148,7 @@
     </table>
   </div>
 
-  <table class="diagnostic-table" border="0" cellspacing="0" cellpadding="4">
+  <table class="diagnostic-table" border="0" cellspacing="0" cellpadding="2">
     <thead>
       <tr>
         <th style="width: 25%;">Category</th>

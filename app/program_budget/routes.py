@@ -996,6 +996,7 @@ def price_page():
     from app.models.auth import AuthSubject
     from app.models.payment import RefCountryCurrency
     from app.enrollment.logic import get_quote_for_subject_country
+    from flask import session
     
     subject = AuthSubject.query.filter(db.func.lower(AuthSubject.slug) == 'budget').first()
     if not subject:

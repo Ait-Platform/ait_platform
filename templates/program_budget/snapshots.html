@@ -93,6 +93,7 @@
                   <th class="text-right py-2 px-4 font-medium">Arrears</th>
                   <th class="text-right py-2 px-4 font-medium">Due</th>
                   <th class="text-right py-2 px-4 font-medium">Balance</th>
+                  <th class="text-right py-2 px-4 font-medium">Action</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-slate-100">
@@ -103,6 +104,9 @@
                     <td class="py-2 px-4 text-right">{{ '%.2f'|format((s.arrears_cents|int)/100) }}</td>
                     <td class="py-2 px-4 text-right">{{ '%.2f'|format((s.due_cents|int)/100) }}</td>
                     <td class="py-2 px-4 text-right">{{ '%.2f'|format((s.balance_cents|int)/100) }}</td>
+                    <td class="py-2 px-4 text-right">
+                      <a href="{{ url_for('budget_bp.snapshot_edit', snapshot_id=s.id, next=request.full_path) }}" class="text-violet-600 hover:underline">Edit</a>
+                    </td>
                   </tr>
                 {% endfor %}
               </tbody>

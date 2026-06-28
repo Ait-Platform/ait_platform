@@ -1188,4 +1188,55 @@ def snapshots():
                            snapshots=snapshots,
                            back_url=next_url)
 
+@budget_bp.route("/snapshots/edit/<int:snapshot_id>", methods=["GET", "POST"])
+@login_required
+def snapshot_edit(snapshot_id):
+    next_url = request.args.get("next") or url_for("budget_bp.snapshots")
+    if not next_url.startswith("/"):
+        next_url = url_for("budget_bp.snapshots")
+
+    # Fetch the snapshot and ensure it belongs to the user
+    snap = db.session.execute(text("""
+        SELECT s.id, s.as_at, s.arrears_cents, s.due_cents, s.balance_cents,
+               a.name as account_name
+          FROM bud_snapshot s
+          JOIN bud_account a ON a.id = s.account_id
+         WHERE s.id = :sid AND s.user_id = :uid
+    """), {"sid": snapshot_id, "uid": current_user.id}).mappings().first()
+
+    if not snap:
+        flash("Snapshot not found.", "warning")
+        return redirect(next_url)
+
+    if request.method == "POST":
+        arr_str = (request.form.get("arrears") or "").strip()
+        due_str = (request.form.get("due") or "").strip()
+        bal_str = (request.form.get("balance") or "").strip()
+
+        arr_cents = _to_cents(arr_str) if arr_str else 0
+        due_cents = _to_cents(due_str) if due_str else 0
+        bal_cents = _to_cents(bal_str) if bal_str else 0
+
+        db.session.execute(text("""
+            UPDATE bud_snapshot
+               SET arrears_cents = :arr,
+                   due_cents = :due,
+                   balance_cents = :bal
+             WHERE id = :sid AND user_id = :uid
+        """), {
+            "sid": snapshot_id,
+            "uid": current_user.id,
+            "arr": arr_cents,
+            "due": due_cents,
+            "bal": bal_cents
+        })
+        db.session.commit()
+        flash("Snapshot updated successfully.", "success")
+        return redirect(next_url)
+
+    return render_template("program_budget/snapshot_edit.html", 
+                           snapshot=snap, 
+                           back_url=next_url)
+
+
 

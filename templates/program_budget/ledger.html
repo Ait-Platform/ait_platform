@@ -10,23 +10,31 @@
       {% include "partials/flash_messages.html" %}
 
 
-      <!-- Row 1: Title & Action/Back Buttons -->
-      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 pb-4 border-b border-gray-100 gap-4">
+      <!-- Row 1: Title & Back Button -->
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 pb-2 border-b border-gray-100 gap-4">
         <h1 class="text-2xl md:text-3xl font-bold text-gray-800 flex items-center">
             BudgetCash · Cashbook
         </h1>
-        <div class="flex items-center gap-4 text-sm">
-            <a href="{{ url_for('budget_bp.account_new', next=request.full_path) }}"
-                class="text-sky-700 hover:underline">New account</a>
-            <a href="{{ url_for('budget_bp.report_income_expense') }}"
-                class="text-sky-700 hover:underline">Income statement</a>
-            <a href="{{ url_for('budget_bp.help_guide') }}"
-                class="text-sky-700 hover:underline">Help</a>
-            <a href="{{ back_url }}"
-                class="rounded border border-2 border-slate-400 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 px-3 py-1.5 hover:bg-slate-50">
-                ← Back
-            </a>
-        </div>
+        <a href="{{ back_url }}"
+           class="rounded border border-2 border-slate-400 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 px-3 py-1.5 hover:bg-slate-50 text-sm">
+           ← Back
+        </a>
+      </div>
+
+      <!-- Row 2: Action Buttons -->
+      <div class="flex flex-wrap items-center gap-3 mb-8 text-sm">
+        <a href="{{ url_for('budget_bp.account_new', next=request.full_path) }}"
+           class="rounded bg-sky-600 text-white px-4 py-2 font-medium hover:bg-sky-700 shadow-sm transition-colors">
+           New account
+        </a>
+        <a href="{{ url_for('budget_bp.report_income_expense') }}"
+           class="rounded bg-sky-600 text-white px-4 py-2 font-medium hover:bg-sky-700 shadow-sm transition-colors">
+           Income statement
+        </a>
+        <a href="{{ url_for('budget_bp.help_guide') }}"
+           class="rounded bg-sky-600 text-white px-4 py-2 font-medium hover:bg-sky-700 shadow-sm transition-colors">
+           Help
+        </a>
       </div>
 
 

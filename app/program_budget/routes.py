@@ -477,8 +477,8 @@ def report_income_expense():
          ORDER BY a.name
     """), {
         "uid": current_user.id,
-        "s": start_date,
-        "e": end_date,
+        "s": start_date.strftime("%Y-%m-%d"),
+        "e": end_date.strftime("%Y-%m-%d"),
     }).mappings().all()
 
     # -------- EXPENSES (expense + liability) --------
@@ -493,8 +493,8 @@ def report_income_expense():
          ORDER BY a.name
     """), {
         "uid": current_user.id,
-        "s": start_date,
-        "e": end_date,
+        "s": start_date.strftime("%Y-%m-%d"),
+        "e": end_date.strftime("%Y-%m-%d"),
     }).mappings().all()
 
     income_total_cents  = sum(r["cents"] or 0 for r in income_rows)

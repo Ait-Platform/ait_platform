@@ -267,8 +267,8 @@ def db_tools():
 def db_backup_now():
     """
     Create a PostgreSQL dump using pg_dump and stream it to the browser.
-    - pg_dump: C:\Program Files\PostgreSQL\18\bin\pg_dump.exe
-    - backup dir: D:\backups
+    - pg_dump: C:\\Program Files\\PostgreSQL\\18\\bin\\pg_dump.exe
+    - backup dir: D:\\backups
     """
 
     engine = db.engine

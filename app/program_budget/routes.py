@@ -503,6 +503,418 @@ def report_statement():
     expense_total_cents = sum(r["cents"] or 0 for r in expense_rows)
     net_cents = income_total_cents - expense_total_cents
 
+    return render_template("program_budget/import.html")
+    return redirect(url_for("budget_bp.ledger"))
+
+@budget_bp.get("/about")
+def about():
+    return render_template("program_budget/about.html")
+
+@budget_bp.get("/start")
+@login_required
+def start():
+    return redirect(url_for("budget_bp.import_page"))
+
+@budget_bp.get("/dashboard")
+@login_required
+def dashboard():
+    return render_template("program_budget/dashboard.html")
+
+@budget_bp.get("/next")
+@login_required
+def next_step():
+    return redirect(url_for("budget_bp.import_page"))
+
+@budget_bp.route("/ledger", methods=["GET"])
+@login_required
+def ledger():
+    back_url = _safe_next(request.args.get("next")) or url_for("budget_bp.dashboard")
+    # --- accounts for dropdown (HIDE hidden) ---
+    accounts = db.session.execute(text("""
+        SELECT id, name, kind, code, account_no,
+               COALESCE(arrears_cents,0) AS arrears_cents,
+               COALESCE(balance_cents,0)  AS balance_cents,
+               COALESCE(due_cents,0)      AS due_cents
+          FROM bud_account
+         WHERE user_id = :uid
+           AND is_hidden = false
+         ORDER BY kind, name
+    """), {"uid": current_user.id}).mappings().all()
+
+    # --- lookup selection ---
+    selected = None
+    account_id = request.args.get("account_id", type=int)
+
+    if account_id and str(account_id).isdigit():
+        selected = db.session.execute(text("""
+            SELECT id, name, kind, code, account_no,
+                   COALESCE(arrears_cents,0) AS arrears_cents,
+                   COALESCE(balance_cents,0)  AS balance_cents,
+                   COALESCE(due_cents,0)      AS due_cents
+              FROM bud_account
+             WHERE user_id = :uid
+               AND id = :aid
+             LIMIT 1
+        """), {"uid": current_user.id, "aid": int(account_id)}).mappings().first()
+
+    # --- paid total (to date) for selected ---
+    paid_total_cents = 0
+    if selected:
+        paid_total_cents = db.session.execute(text("""
+            SELECT COALESCE(SUM(l.amount_cents),0)
+              FROM bud_ledger l
+             WHERE l.user_id = :uid
+               AND l.account_id = :aid
+        """), {"uid": current_user.id, "aid": int(selected["id"])}).scalar() or 0
+
+    # --- ledger rows ---
+    rows = db.session.execute(text("""
+        SELECT l.id,
+            l.txn_date,
+            a.name AS account_name,
+            l.amount_cents
+        FROM bud_ledger l
+        JOIN bud_account a ON a.id = l.account_id
+        WHERE l.user_id = :uid
+        ORDER BY l.txn_date DESC, l.id DESC
+        LIMIT 200
+    """), {"uid": current_user.id}).mappings().all()
+
+    return render_template(
+        "program_budget/ledger.html",
+        accounts=accounts,
+        selected=selected,
+        rows=rows,
+        ledger_rows=rows,          # ✅ add this
+        paid_total_cents=int(paid_total_cents),
+        account_id=account_id,     # keep if you want
+        back_url=back_url,
+    )
+
+@budget_bp.route("/ledger/<int:ledger_id>/edit", methods=["GET", "POST"])
+@login_required
+def ledger_edit(ledger_id: int):
+    # Fetch entry (must belong to user)
+    entry = db.session.execute(text("""
+        SELECT l.id, l.account_id, l.txn_date, l.amount_cents
+          FROM bud_ledger l
+         WHERE l.user_id = :uid AND l.id = :lid
+         LIMIT 1
+    """), {"uid": int(current_user.id), "lid": int(ledger_id)}).mappings().first()
+
+    if not entry:
+        flash("Entry not found.", "warning")
+        return redirect(url_for("budget_bp.ledger"))
+
+    # accounts dropdown (hide hidden)
+    accounts = db.session.execute(text("""
+        SELECT id, name, kind
+          FROM bud_account
+         WHERE user_id = :uid AND is_hidden = false
+         ORDER BY kind, name
+    """), {"uid": int(current_user.id)}).mappings().all()
+
+    next_url = (request.values.get("next") or "").strip() or url_for("budget_bp.ledger", account_id=entry["account_id"])
+
+    if request.method == "POST":
+        account_id = (request.form.get("account_id") or "").strip()
+        txn_date = (request.form.get("txn_date") or "").strip()
+        amount = (request.form.get("amount") or "").strip()
+
+        if not (account_id.isdigit() and txn_date and amount):
+            flash("Please choose an account, date, and amount.", "warning")
+            return redirect(next_url)
+
+        try:
+            cents = int(round(float(amount.replace(",", "")) * 100))
+        except Exception:
+            flash("Invalid amount.", "warning")
+            return redirect(next_url)
+
+        try:
+            db.session.execute(text("""
+                UPDATE bud_ledger
+                   SET account_id   = :aid,
+                       txn_date     = :d,
+                       amount_cents = :c
+                 WHERE id = :lid AND user_id = :uid
+            """), {
+                "aid": int(account_id),
+                "d": txn_date,
+                "c": int(cents),
+                "lid": int(ledger_id),
+                "uid": int(current_user.id),
+            })
+            db.session.commit()
+            flash("Entry updated.", "success")
+        except Exception:
+            db.session.rollback()
+            flash("Could not update entry.", "warning")
+
+        return redirect(next_url)
+
+    # prefill amount as 0.00 string
+    amount_str = f'{(int(entry["amount_cents"]) / 100):.2f}'
+
+    return render_template(
+        "program_budget/ledger_edit.html",
+        entry=entry,
+        accounts=accounts,
+        amount_str=amount_str,
+        next_url=next_url,
+    )
+
+@budget_bp.route("/ledger/add", methods=["POST"])
+@login_required
+def ledger_add():
+    account_id = (request.form.get("account_id") or "").strip()
+    txn_date = (request.form.get("txn_date") or "").strip()
+    amount = (request.form.get("amount") or "").strip()
+
+    if not (account_id.isdigit() and txn_date and amount):
+        flash("Please choose an account, date, and amount.", "warning")
+        return redirect(url_for("budget_bp.ledger"))
+
+    try:
+        cents = int(round(float(amount.replace(",", "")) * 100))
+    except Exception:
+        flash("Invalid amount.", "warning")
+        return redirect(url_for("budget_bp.ledger"))
+
+    # ✅ Always show a consistent meaning in the ledger table
+    description = "Paid"
+
+    try:
+        db.session.execute(text("""
+            INSERT INTO bud_ledger (user_id, account_id, txn_date, description, amount_cents)
+            VALUES (:uid, :aid, :d, :desc, :c)
+        """), {
+            "uid": current_user.id,
+            "aid": int(account_id),
+            "d": txn_date,
+            "desc": description,
+            "c": int(cents),
+        })
+        db.session.commit()
+        flash("Payment added.", "success")
+    except Exception:
+        db.session.rollback()
+        flash("Could not add entry.", "warning")
+
+    return redirect(url_for(
+    "budget_bp.ledger",
+    account_id=account_id,
+    next=_safe_next(request.args.get("next")) or url_for("budget_bp.dashboard")
+    ))
+
+@budget_bp.route("/ledger/account/update", methods=["POST"])
+@login_required
+def ledger_account_update():
+    account_id = (request.form.get("account_id") or "").strip()
+    next_url = (request.form.get("next") or "").strip() or url_for("budget_bp.ledger")
+
+    def _to_cents(v: str) -> int:
+        v = (v or "").strip()
+        if not v:
+            return 0
+        return int(round(float(v.replace(",", "")) * 100))
+
+    try:
+        arrears_cents = _to_cents(request.form.get("arrears") or "0")
+        balance_cents = _to_cents(request.form.get("balance") or "0")
+        due_cents = _to_cents(request.form.get("due") or "0")
+    except Exception:
+        flash("Invalid numbers.", "warning")
+        return redirect(next_url)
+
+    if not account_id.isdigit():
+        flash("Invalid account.", "warning")
+        return redirect(next_url)
+
+    try:
+
+        # inside ledger_account_update POST handler, after parsing cents:
+        as_at = (request.form.get("as_at") or "").strip() or None
+
+        db.session.execute(text("""
+        UPDATE bud_account
+            SET arrears_cents = :arrears,
+                balance_cents = :balance,
+                due_cents     = :due,
+                as_at         = :as_at
+        WHERE id = :aid AND user_id = :uid
+        """), {
+        "arrears": arrears_cents,
+        "balance": balance_cents,
+        "due": due_cents,
+        "as_at": as_at,
+        "aid": int(account_id),
+        "uid": int(current_user.id),
+        })
+
+        db.session.execute(text("""
+        INSERT INTO bud_snapshot (user_id, account_id, as_at, arrears_cents, balance_cents, due_cents)
+        VALUES (:uid, :aid, :as_at, :arrears, :balance, :due)
+        """), {
+        "uid": int(current_user.id),
+        "aid": int(account_id),
+        "as_at": as_at,
+        "arrears": arrears_cents,
+        "balance": balance_cents,
+        "due": due_cents,
+        })
+
+
+        db.session.commit()
+        flash("Account details saved.", "success")
+    except Exception:
+        db.session.rollback()
+        flash("Could not save account details.", "warning")
+
+    return redirect(next_url)
+
+@budget_bp.route("/accounts/new", methods=["GET", "POST"])
+@login_required
+def account_new():
+    next_url = request.args.get("next") or url_for("budget_bp.ledger")
+    if not next_url.startswith("/"):
+        next_url = url_for("budget_bp.ledger")
+
+
+    if request.method == "POST":
+        name = (request.form.get("name") or "").strip()
+        kind = (request.form.get("kind") or "").strip().lower()
+        account_no = (request.form.get("account_no") or "").strip() or None
+        #group_label = (request.form.get("group_label") or "").strip() or None
+        group_label = (request.form.get("group_label") or "").strip()
+
+        #is_hidden = (request.form.get("is_hidden") == "1")
+
+        def _slug(s: str) -> str:
+            s = (s or "").strip().lower()
+            out = []
+            prev_dash = False
+            for ch in s:
+                if ch.isalnum():
+                    out.append(ch)
+                    prev_dash = False
+                else:
+                    if not prev_dash:
+                        out.append("-")
+                        prev_dash = True
+            slug = "".join(out).strip("-")
+            return slug or "acct"
+
+        if not name or kind not in ("asset", "liability", "expense", "income"):
+            flash("Please enter a valid name and type.", "warning")
+            return redirect(url_for("budget_bp.account_new", next=next_url))
+
+        code = _slug(name)
+
+        base = code
+        i = 2
+        while db.session.execute(
+            text("SELECT 1 FROM bud_account WHERE user_id=:uid AND code=:code LIMIT 1"),
+            {"uid": current_user.id, "code": code},
+        ).first():
+            code = f"{base}-{i}"
+            i += 1
+
+        if group_label:
+            db.session.execute(text("""
+                INSERT INTO bud_group_type (user_id, label, is_active)
+                VALUES (:uid, :label, true)
+                ON CONFLICT (user_id, label) DO UPDATE SET is_active = true
+            """), {"uid": int(current_user.id), "label": group_label})
+
+        try:
+            db.session.execute(text("""
+                INSERT INTO bud_account (user_id, code, name, kind, account_no, group_label)
+                VALUES (:uid, :code, :name, :kind, :account_no, :group_label)
+            """), {
+                "uid": int(current_user.id),
+                "code": code,
+                "name": name,
+                "kind": kind,
+                "account_no": account_no,
+                "group_label": group_label or "",
+            })
+
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            flash("Account code or name already exists.", "warning")
+            return redirect(url_for("budget_bp.account_new", next=next_url))
+
+        flash("Account created.", "success")
+        return redirect(next_url)
+
+    groups = db.session.execute(text("""
+        SELECT label
+        FROM bud_group_type
+        WHERE user_id = :uid
+        AND is_active = true
+        ORDER BY label
+    """), {"uid": int(current_user.id)}).mappings().all()
+
+    return render_template("program_budget/account_new.html", groups=groups, next_url=next_url)
+
+@budget_bp.route("/reports/statement", methods=["GET"])
+@login_required
+def report_statement():
+    back_url = _safe_next(request.args.get("next")) or url_for("budget_bp.dashboard")
+    period = (request.args.get("period") or "").strip()
+    if not period:
+        period = datetime.now().strftime("%Y-%m")
+
+    try:
+        start_date = datetime.strptime(f"{period}-01", "%Y-%m-%d").date()
+    except ValueError:
+        start_date = datetime.now().date().replace(day=1)
+        period = start_date.strftime("%Y-%m")
+
+    import calendar
+    last_day = calendar.monthrange(start_date.year, start_date.month)[1]
+    end_date = start_date.replace(day=last_day)
+
+    # -------- INCOME --------
+    income_rows = db.session.execute(text("""
+        SELECT a.name, COALESCE(SUM(l.amount_cents), 0) AS cents
+          FROM bud_account a
+          LEFT JOIN bud_ledger l ON a.id = l.account_id 
+                                AND l.txn_date BETWEEN :s AND :e
+         WHERE a.user_id = :uid
+           AND a.kind = 'income'
+           AND COALESCE(a.is_hidden,false) = false
+         GROUP BY a.name
+         ORDER BY a.name
+    """), {
+        "uid": current_user.id,
+        "s": start_date.strftime("%Y-%m-%d"),
+        "e": end_date.strftime("%Y-%m-%d"),
+    }).mappings().all()
+
+    # -------- EXPENSES --------
+    expense_rows = db.session.execute(text("""
+        SELECT a.name, COALESCE(SUM(l.amount_cents), 0) AS cents
+          FROM bud_account a
+          LEFT JOIN bud_ledger l ON a.id = l.account_id 
+                                AND l.txn_date BETWEEN :s AND :e
+         WHERE a.user_id = :uid
+           AND a.kind IN ('expense', 'liability')
+           AND COALESCE(a.is_hidden,false) = false
+         GROUP BY a.name
+         ORDER BY a.name
+    """), {
+        "uid": current_user.id,
+        "s": start_date.strftime("%Y-%m-%d"),
+        "e": end_date.strftime("%Y-%m-%d"),
+    }).mappings().all()
+
+    income_total_cents  = sum(r["cents"] or 0 for r in income_rows)
+    expense_total_cents = sum(r["cents"] or 0 for r in expense_rows)
+    net_cents = income_total_cents - expense_total_cents
+
     # -------- BALANCE SHEET --------
     # Fetch all active accounts
     accounts = db.session.execute(text("""
@@ -548,11 +960,6 @@ def report_statement():
         income_total_cents=int(income_total_cents),
         expense_total_cents=int(expense_total_cents),
         net_cents=int(net_cents),
-        asset_rows=asset_rows,
-        liability_rows=liability_rows,
-        asset_total_cents=asset_total_cents,
-        liability_total_cents=liability_total_cents,
-        net_worth_cents=net_worth_cents,
         back_url=back_url,
     )
 

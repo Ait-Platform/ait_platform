@@ -13,7 +13,7 @@
       <!-- Row 1: Title & Back Button -->
       <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 pb-2 border-b border-gray-100 gap-4">
         <h1 class="text-2xl md:text-3xl font-bold text-gray-800 flex items-center">
-            Financial Statement
+            Financial Statement of {{ current_user.name or current_user.email }} as at {{ period }}
         </h1>
         <a href="{{ back_url }}"
            class="rounded border border-2 border-slate-400 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 px-3 py-1.5 hover:bg-slate-50 text-sm print:hidden">
@@ -33,9 +33,7 @@
           <button type="button" onclick="window.print()" class="rounded bg-slate-600 text-white px-4 py-2 font-medium hover:bg-slate-700 shadow-sm transition-colors">Print</button>
       </div>
 
-  <!-- SECTION 1: INCOME STATEMENT -->
   <div class="mb-12">
-    <h2 class="text-xl font-bold text-slate-800 mb-4 pb-2 border-b border-slate-200">Income Statement ({{ period }})</h2>
     <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
       
       <!-- INCOME -->
@@ -101,72 +99,7 @@
   </div>
 
 
-  <!-- SECTION 2: BALANCE SHEET -->
-  <div>
-    <h2 class="text-xl font-bold text-slate-800 mb-4 pb-2 border-b border-slate-200">Balance Sheet (As at {{ period }})</h2>
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-      
-      <!-- ASSETS -->
-      <div>
-        <div class="font-semibold text-slate-900 mb-3">Assets</div>
-        {% if asset_rows and asset_rows|length %}
-          <div class="border border-slate-200 rounded overflow-hidden">
-            <div class="divide-y divide-slate-200">
-              {% for r in asset_rows %}
-                <div class="flex justify-between px-4 py-3">
-                  <div>{{ r.name }}</div>
-                  <div class="font-medium">{{ '%.2f'|format((r.balance_cents or 0)/100) }}</div>
-                </div>
-              {% endfor %}
-            </div>
-            <div class="flex justify-between px-4 py-3 bg-slate-50 border-t border-slate-200">
-              <div class="font-semibold">Total assets</div>
-              <div class="font-semibold">{{ '%.2f'|format((asset_total_cents or 0)/100) }}</div>
-            </div>
-          </div>
-        {% else %}
-          <div class="text-slate-500">No assets</div>
-          <div class="flex justify-between mt-4 pt-4 border-t border-slate-200 text-sm">
-            <div class="font-semibold">Total assets</div>
-            <div class="font-semibold">{{ '%.2f'|format((asset_total_cents or 0)/100) }}</div>
-          </div>
-        {% endif %}
-      </div>
 
-      <!-- LIABILITIES -->
-      <div>
-        <div class="font-semibold text-slate-900 mb-3">Liabilities</div>
-        {% if liability_rows and liability_rows|length %}
-          <div class="border border-slate-200 rounded overflow-hidden">
-            <div class="divide-y divide-slate-200">
-              {% for r in liability_rows %}
-                <div class="flex justify-between px-4 py-3">
-                  <div>{{ r.name }}</div>
-                  <div class="font-medium">{{ '%.2f'|format((r.balance_cents or 0)/100) }}</div>
-                </div>
-              {% endfor %}
-            </div>
-            <div class="flex justify-between px-4 py-3 bg-slate-50 border-t border-slate-200">
-              <div class="font-semibold">Total liabilities</div>
-              <div class="font-semibold">{{ '%.2f'|format((liability_total_cents or 0)/100) }}</div>
-            </div>
-          </div>
-        {% else %}
-          <div class="text-slate-500">No liabilities</div>
-          <div class="flex justify-between mt-4 pt-4 border-t border-slate-200 text-sm">
-            <div class="font-semibold">Total liabilities</div>
-            <div class="font-semibold">{{ '%.2f'|format((liability_total_cents or 0)/100) }}</div>
-          </div>
-        {% endif %}
-      </div>
-
-    </div>
-
-    <div class="mt-6 rounded border border-slate-200 bg-slate-50 p-4 flex justify-between">
-      <div class="font-semibold text-slate-900">Net worth</div>
-      <div class="font-semibold text-slate-900">{{ '%.2f'|format((net_worth_cents or 0)/100) }}</div>
-    </div>
-  </div>
 
 
     </div>

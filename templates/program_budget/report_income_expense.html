@@ -10,23 +10,27 @@
       {% include "partials/flash_messages.html" %}
 
 
-      <!-- Row 1: Title & Action/Back Buttons -->
-      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 pb-4 border-b border-gray-100 gap-4">
-        <div>
-          <h1 class="text-2xl md:text-3xl font-bold text-gray-800 flex items-center">Income & Expense Statement</h1>
-          <p class="mt-1 text-slate-600">Period: <b>{{ period }}</b></p>
-        </div>
-        <div class="flex flex-wrap items-center gap-3">
+      <!-- Row 1: Title & Back Button -->
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 pb-2 border-b border-gray-100 gap-4">
+        <h1 class="text-2xl md:text-3xl font-bold text-gray-800 flex items-center">
+            Income & Expense Statement
+        </h1>
+        <a href="{{ back_url }}"
+           class="rounded border border-2 border-slate-400 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 px-3 py-1.5 hover:bg-slate-50 text-sm">
+           ← Back
+        </a>
+      </div>
+
+      <!-- Row 2: Action Buttons -->
+      <div class="flex flex-wrap items-center gap-3 mb-8 text-sm">
           <form method="get" action="{{ url_for('budget_bp.report_income_expense') }}" class="flex items-center gap-3 m-0">
             {% if request.args.get('next') %}
               <input type="hidden" name="next" value="{{ request.args.get('next') }}">
             {% endif %}
-            <input type="month" name="period" value="{{ period }}" class="rounded border border-slate-300 px-3 py-2 text-sm">
-            <button class="rounded bg-slate-900 text-white px-4 py-2 text-sm font-medium hover:bg-slate-800">Go</button>
+            <input type="month" name="period" value="{{ period }}" class="rounded border border-2 border-slate-400 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 px-3 py-2 text-sm">
+            <button class="rounded bg-sky-600 text-white px-4 py-2 font-medium hover:bg-sky-700 shadow-sm transition-colors">Go</button>
           </form>
-          <button type="button" onclick="window.print()" class="rounded border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50">Print</button>
-          <a href="{{ back_url }}" class="rounded border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50">← Back</a>
-        </div>
+          <button type="button" onclick="window.print()" class="rounded bg-slate-600 text-white px-4 py-2 font-medium hover:bg-slate-700 shadow-sm transition-colors">Print</button>
       </div>
 
   <div class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-8">

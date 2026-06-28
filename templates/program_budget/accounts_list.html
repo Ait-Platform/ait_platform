@@ -1,0 +1,81 @@
+{% extends "layout.html" %}
+{% block flashes %}{% endblock %}
+{% block title %}BudgetCash · All Accounts{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 flex flex-col items-center py-10 px-4">
+  <div class="w-full max-w-5xl bg-white rounded-xl shadow-lg overflow-hidden flex flex-col">
+    <div class="h-3 bg-amber-500"></div>
+    <div class="p-8">
+      {% include "partials/flash_messages.html" %}
+
+      <!-- Row 1: Title & Action/Back Buttons -->
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 pb-4 border-b border-gray-100 gap-4">
+        <div>
+            <h1 class="text-2xl md:text-3xl font-bold text-gray-800 flex items-center">All Accounts</h1>
+            <p class="mt-1 text-slate-600">A complete view of all your created accounts.</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <a href="{{ url_for('budget_bp.account_new', next=request.full_path) }}" 
+               class="rounded bg-sky-600 text-white px-3 py-1.5 text-sm font-medium hover:bg-sky-700 shadow-sm">
+               + New Account
+            </a>
+            <a href="{{ url_for('budget_bp.ledger') }}"
+               class="rounded border border-2 border-slate-400 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 px-3 py-1.5 hover:bg-slate-50 text-sm">
+              ← Cashbook
+            </a>
+        </div>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm text-left">
+          <thead class="text-xs text-gray-500 uppercase bg-gray-50 border-b border-gray-200">
+            <tr>
+              <th class="px-4 py-3 font-medium">Account Name</th>
+              <th class="px-4 py-3 font-medium">Type</th>
+              <th class="px-4 py-3 font-medium">Group</th>
+              <th class="px-4 py-3 font-medium">Account No</th>
+              <th class="px-4 py-3 font-medium text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-200">
+            {% for a in accounts %}
+              <tr class="hover:bg-gray-50 transition-colors">
+                <td class="px-4 py-3 font-medium text-gray-800">
+                  <a href="{{ url_for('budget_bp.account_detail', account_id=a.id) }}" class="text-sky-600 hover:underline">
+                    {{ a.name }}
+                  </a>
+                  {% if a.is_hidden %}
+                  <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">Hidden</span>
+                  {% endif %}
+                </td>
+                <td class="px-4 py-3 text-gray-600 capitalize">{{ a.kind }}</td>
+                <td class="px-4 py-3 text-gray-600">
+                  {% if a.group_label %}
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                      {{ a.group_label }}
+                    </span>
+                  {% else %}
+                    <span class="text-gray-400">-</span>
+                  {% endif %}
+                </td>
+                <td class="px-4 py-3 text-gray-600">{{ a.account_no or '-' }}</td>
+                <td class="px-4 py-3 text-right">
+                  <a href="{{ url_for('budget_bp.account_detail', account_id=a.id) }}" class="text-sky-600 hover:text-sky-800 text-sm font-medium">View</a>
+                </td>
+              </tr>
+            {% else %}
+              <tr>
+                <td colspan="5" class="px-4 py-8 text-center text-gray-500">
+                  No accounts found.
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}

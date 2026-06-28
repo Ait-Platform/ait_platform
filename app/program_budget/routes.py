@@ -630,11 +630,12 @@ def account_detail(account_id: int):
 @budget_bp.route("/groups", methods=["GET", "POST"])
 @login_required
 def group_types():
+    next_url = request.args.get("next") or request.form.get("next")
     if request.method == "POST":
         label = (request.form.get("label") or "").strip()
         if not label:
             flash("Please enter a group name.", "warning")
-            return redirect(url_for("budget_bp.group_types"))
+            return redirect(url_for("budget_bp.group_types", next=next_url))
 
         try:
             db.session.execute(text("""
@@ -648,7 +649,7 @@ def group_types():
             db.session.rollback()
             flash("Could not save group type.", "warning")
 
-        return redirect(url_for("budget_bp.group_types"))
+        return redirect(url_for("budget_bp.group_types", next=next_url))
 
     groups = db.session.execute(text("""
         SELECT id, label
@@ -658,14 +659,15 @@ def group_types():
          ORDER BY label
     """), {"uid": int(current_user.id)}).mappings().all()
 
-    return render_template("program_budget/group_types.html", groups=groups)
+    return render_template("program_budget/group_types.html", groups=groups, next_url=next_url)
 
 @budget_bp.route("/groups/delete", methods=["POST"])
 @login_required
 def group_type_delete():
+    next_url = request.form.get("next")
     label = (request.form.get("label") or "").strip()
     if not label:
-        return redirect(url_for("budget_bp.group_types"))
+        return redirect(url_for("budget_bp.group_types", next=next_url))
 
     try:
         db.session.execute(text("""
@@ -678,9 +680,9 @@ def group_type_delete():
         flash("Group type removed.", "success")
     except Exception:
         db.session.rollback()
-        flash("Could not remove group type.", "warning")
+        flash("Could not remove group.", "warning")
 
-    return redirect(url_for("budget_bp.group_types"))
+    return redirect(url_for("budget_bp.group_types", next=next_url))
 
 @budget_bp.route("/groups/add", methods=["POST"])
 @login_required
@@ -1252,6 +1254,15 @@ def snapshot_edit(snapshot_id):
     return render_template("program_budget/snapshot_edit.html", 
                            snapshot=snap, 
                            back_url=next_url)
+@budget_bp.route("/accounts/list", methods=["GET"])
+@login_required
+def accounts_list():
+    accounts = db.session.execute(text("""
+        SELECT id, name, kind, account_no, group_label, is_hidden, is_active
+          FROM bud_account
+         WHERE user_id = :uid
+         ORDER BY kind, name
+    """), {"uid": current_user.id}).mappings().all()
 
-
+    return render_template("program_budget/accounts_list.html", accounts=accounts)
 

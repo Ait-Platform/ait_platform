@@ -21,7 +21,6 @@
         </a>
       </div>
 
-      <!-- Row 2: Action Buttons -->
       <div class="flex flex-wrap items-center gap-3 mb-8 text-sm">
         <a href="{{ url_for('budget_bp.snapshots', next=request.full_path) }}"
            class="rounded bg-violet-600 text-white px-4 py-2 font-medium hover:bg-violet-700 shadow-sm transition-colors">
@@ -38,6 +37,14 @@
         <a href="{{ url_for('budget_bp.account_new', next=request.full_path) }}"
            class="rounded bg-sky-600 text-white px-4 py-2 font-medium hover:bg-sky-700 shadow-sm transition-colors">
            New account
+        </a>
+        <a href="{{ url_for('budget_bp.accounts_list', next=request.full_path) }}"
+           class="rounded bg-sky-600 text-white px-4 py-2 font-medium hover:bg-sky-700 shadow-sm transition-colors">
+           Manage accounts
+        </a>
+        <a href="{{ url_for('budget_bp.group_types', next=request.full_path) }}"
+           class="rounded bg-sky-600 text-white px-4 py-2 font-medium hover:bg-sky-700 shadow-sm transition-colors">
+           Manage groups
         </a>
         <a href="{{ url_for('budget_bp.help_guide') }}"
            class="rounded bg-slate-600 text-white px-4 py-2 font-medium hover:bg-slate-700 shadow-sm transition-colors">

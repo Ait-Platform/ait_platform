@@ -411,10 +411,8 @@ def account_new():
         if group_label:
             db.session.execute(text("""
                 INSERT INTO bud_group_type (user_id, label, is_active)
-                SELECT :uid, :label, 1
-                WHERE NOT EXISTS (
-                    SELECT 1 FROM bud_group_type WHERE user_id=:uid AND label=:label
-                )
+                VALUES (:uid, :label, true)
+                ON CONFLICT (user_id, label) DO UPDATE SET is_active = true
             """), {"uid": int(current_user.id), "label": group_label})
 
         try:
@@ -719,10 +717,8 @@ def account_edit(account_id: int):
         if group_label:
             db.session.execute(text("""
                 INSERT INTO bud_group_type (user_id, label, is_active)
-                SELECT :uid, :label, 1
-                WHERE NOT EXISTS (
-                    SELECT 1 FROM bud_group_type WHERE user_id=:uid AND label=:label
-                )
+                VALUES (:uid, :label, true)
+                ON CONFLICT (user_id, label) DO UPDATE SET is_active = true
             """), {"uid": int(current_user.id), "label": group_label})
 
         db.session.execute(text("""
@@ -744,7 +740,7 @@ def account_edit(account_id: int):
     groups = db.session.execute(text("""
         SELECT label
           FROM bud_group_type
-         WHERE user_id = :uid AND is_active = 1
+         WHERE user_id = :uid AND is_active = true
          ORDER BY label
     """), {"uid": current_user.id}).mappings().all()
 

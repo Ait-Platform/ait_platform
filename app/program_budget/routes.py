@@ -447,10 +447,10 @@ def account_new():
 
     return render_template("program_budget/account_new.html", groups=groups, next_url=next_url)
 
-@budget_bp.route("/reports/income-expense", methods=["GET"])
+@budget_bp.route("/reports/statement", methods=["GET"])
 @login_required
-def report_income_expense():
-    back_url = _safe_next(request.args.get("next")) or url_for("budget_bp.dashboard")    
+def report_statement():
+    back_url = _safe_next(request.args.get("next")) or url_for("budget_bp.dashboard")
     period = (request.args.get("period") or "").strip()
     if not period:
         period = datetime.now().strftime("%Y-%m")
@@ -482,7 +482,7 @@ def report_income_expense():
         "e": end_date.strftime("%Y-%m-%d"),
     }).mappings().all()
 
-    # -------- EXPENSES (expense + liability) --------
+    # -------- EXPENSES --------
     expense_rows = db.session.execute(text("""
         SELECT a.name, COALESCE(SUM(l.amount_cents), 0) AS cents
           FROM bud_account a
@@ -503,31 +503,16 @@ def report_income_expense():
     expense_total_cents = sum(r["cents"] or 0 for r in expense_rows)
     net_cents = income_total_cents - expense_total_cents
 
-    return render_template(
-        "program_budget/report_income_expense.html",
-        period=period,
-        income_rows=income_rows,
-        expense_rows=expense_rows,
-        income_total_cents=int(income_total_cents),
-        expense_total_cents=int(expense_total_cents),
-        net_cents=int(net_cents),
-        back_url=back_url,
-    )
-
-@budget_bp.route("/reports/balance-sheet", methods=["GET"])
-@login_required
-def report_balance_sheet():
-    back_url = _safe_next(request.args.get("next")) or url_for("budget_bp.dashboard")
-
+    # -------- BALANCE SHEET --------
     # Fetch all active accounts
     accounts = db.session.execute(text("""
         SELECT id, name, kind
           FROM bud_account
-         WHERE user_id = :uid AND is_active = 1
+         WHERE user_id = :uid AND is_active = 1 AND COALESCE(is_hidden,false) = false
          ORDER BY kind, name
     """), {"uid": current_user.id}).mappings().all()
 
-    # Fetch all snapshots ordered by date descending
+    # Fetch snapshots
     snapshots = db.session.execute(text("""
         SELECT account_id, balance_cents
           FROM bud_snapshot
@@ -535,7 +520,6 @@ def report_balance_sheet():
          ORDER BY as_at DESC
     """), {"uid": current_user.id}).mappings().all()
     
-    # Get latest balance for each account
     latest_balances = {}
     for s in snapshots:
         if s["account_id"] not in latest_balances:
@@ -546,9 +530,7 @@ def report_balance_sheet():
 
     for a in accounts:
         bal = latest_balances.get(a["id"], 0)
-            
         row = {"name": a["name"], "balance_cents": bal}
-        # User defined mapping: asset or income = Assets, liability or expense = Liabilities
         if a["kind"] in ("asset", "income"):
             asset_rows.append(row)
         else:
@@ -559,7 +541,13 @@ def report_balance_sheet():
     net_worth_cents = asset_total_cents - liability_total_cents
 
     return render_template(
-        "program_budget/report_balance_sheet.html",
+        "program_budget/report_statement.html",
+        period=period,
+        income_rows=income_rows,
+        expense_rows=expense_rows,
+        income_total_cents=int(income_total_cents),
+        expense_total_cents=int(expense_total_cents),
+        net_cents=int(net_cents),
         asset_rows=asset_rows,
         liability_rows=liability_rows,
         asset_total_cents=asset_total_cents,

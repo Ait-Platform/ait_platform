@@ -26,13 +26,9 @@
            class="rounded bg-violet-600 text-white px-4 py-2 font-medium hover:bg-violet-700 shadow-sm transition-colors">
            Snapshot history
         </a>
-        <a href="{{ url_for('budget_bp.report_income_expense', next=request.full_path) }}"
+        <a href="{{ url_for('budget_bp.report_statement', next=request.full_path) }}"
            class="rounded bg-emerald-600 text-white px-4 py-2 font-medium hover:bg-emerald-700 shadow-sm transition-colors">
-           Income statement
-        </a>
-        <a href="{{ url_for('budget_bp.report_balance_sheet') }}"
-           class="rounded bg-amber-600 text-white px-4 py-2 font-medium hover:bg-amber-700 shadow-sm transition-colors">
-           Balance sheet
+           Financial statement
         </a>
         <a href="{{ url_for('budget_bp.account_new', next=request.full_path) }}"
            class="rounded bg-sky-600 text-white px-4 py-2 font-medium hover:bg-sky-700 shadow-sm transition-colors">

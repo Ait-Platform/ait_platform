@@ -70,6 +70,13 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3"-->
 
 
+        <a href="{{ url_for('budget_bp.accounts_list', next=url_for('budget_bp.dashboard')) }}"
+            class="block rounded-xl border p-6 shadow-sm transition hover:shadow
+                    bg-blue-50 border-blue-100 hover:bg-blue-100">
+          <div class="font-semibold text-slate-900">List of accounts</div>
+          <div class="mt-1 text-sm text-slate-600">View and manage all your created accounts.</div>
+        </a>
+
         <a href="{{ url_for('budget_bp.report_by_group', next=request.full_path) }}"
           class="block rounded-xl border p-6 shadow-sm transition hover:shadow
                   bg-purple-50 border-purple-100 hover:bg-purple-100">

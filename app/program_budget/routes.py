@@ -1030,8 +1030,16 @@ def price_page():
         return redirect(url_for('public_bp.welcome'))
 
     country_code = (request.args.get("country") or "").strip().upper()
-    if not country_code and current_user.is_authenticated and hasattr(current_user, 'country_code'):
-        country_code = (current_user.country_code or "").strip().upper()
+    if not country_code and current_user.is_authenticated:
+        # Pull from their enrollment record if they have one
+        ent = db.session.execute(text("""
+            SELECT ue.country_code 
+              FROM user_enrollment ue
+              JOIN auth_subject s ON s.id = ue.subject_id
+             WHERE ue.user_id = :uid AND s.slug = 'budget'
+        """), {"uid": current_user.id}).mappings().first()
+        if ent and ent["country_code"]:
+            country_code = ent["country_code"]
 
     if not country_code:
         country_code = session.get("country_code", "")

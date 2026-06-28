@@ -28,3 +28,17 @@ class BudLedger(db.Model):
     created_at = db.Column(db.DateTime, nullable=False, server_default=db.text("CURRENT_TIMESTAMP"))
 
     account = db.relationship("BudAccount")
+
+class BudSnapshot(db.Model):
+    __tablename__ = "bud_snapshot"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, nullable=False, index=True)
+    account_id = db.Column(db.Integer, db.ForeignKey("bud_account.id"), nullable=False, index=True)
+    as_at = db.Column(db.Date, nullable=True)
+    arrears_cents = db.Column(db.Integer, nullable=False, server_default="0")
+    balance_cents = db.Column(db.Integer, nullable=False, server_default="0")
+    due_cents = db.Column(db.Integer, nullable=False, server_default="0")
+    created_at = db.Column(db.DateTime, nullable=False, server_default=db.text("CURRENT_TIMESTAMP"))
+
+    account = db.relationship("BudAccount")

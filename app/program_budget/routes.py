@@ -340,6 +340,18 @@ def ledger_account_update():
         "uid": int(current_user.id),
         })
 
+        db.session.execute(text("""
+        INSERT INTO bud_snapshot (user_id, account_id, as_at, arrears_cents, balance_cents, due_cents)
+        VALUES (:uid, :aid, :as_at, :arrears, :balance, :due)
+        """), {
+        "uid": int(current_user.id),
+        "aid": int(account_id),
+        "as_at": as_at,
+        "arrears": arrears_cents,
+        "balance": balance_cents,
+        "due": due_cents,
+        })
+
 
         db.session.commit()
         flash("Account details saved.", "success")
@@ -496,6 +508,47 @@ def report_income_expense():
         back_url=back_url,
     )
 
+@budget_bp.route("/reports/balance-sheet", methods=["GET"])
+@login_required
+def report_balance_sheet():
+    back_url = _safe_next(request.args.get("next")) or url_for("budget_bp.dashboard")
+
+    # Fetch all accounts that have a non-zero balance
+    accounts = db.session.execute(text("""
+        SELECT name, kind, COALESCE(balance_cents, 0) as balance_cents
+          FROM bud_account
+         WHERE user_id = :uid
+           AND COALESCE(balance_cents, 0) > 0
+           AND is_hidden = false
+         ORDER BY kind, name
+    """), {"uid": current_user.id}).mappings().all()
+
+    asset_rows = []
+    liability_rows = []
+
+    for a in accounts:
+        # User defined mapping:
+        # asset or income = Assets
+        # liability or expense = Liabilities
+        if a["kind"] in ("asset", "income"):
+            asset_rows.append(a)
+        else:
+            liability_rows.append(a)
+
+    asset_total_cents = sum(r["balance_cents"] for r in asset_rows)
+    liability_total_cents = sum(r["balance_cents"] for r in liability_rows)
+    net_worth_cents = asset_total_cents - liability_total_cents
+
+    return render_template(
+        "program_budget/report_balance_sheet.html",
+        asset_rows=asset_rows,
+        liability_rows=liability_rows,
+        asset_total_cents=asset_total_cents,
+        liability_total_cents=liability_total_cents,
+        net_worth_cents=net_worth_cents,
+        back_url=back_url,
+    )
+
 @budget_bp.route("/help", methods=["GET"])
 @login_required
 def help_guide():
@@ -537,11 +590,21 @@ def account_detail(account_id: int):
          ORDER BY label
     """), {"uid": int(current_user.id)}).mappings().all()
 
+    snapshots = db.session.execute(text("""
+        SELECT id, as_at, arrears_cents, balance_cents, due_cents, created_at
+          FROM bud_snapshot
+         WHERE user_id = :uid
+           AND account_id = :aid
+         ORDER BY created_at DESC
+         LIMIT 50
+    """), {"uid": int(current_user.id), "aid": int(account_id)}).mappings().all()
+
     return render_template(
         "program_budget/account_detail.html",
         account=account,
         paid_total_cents=int(paid_total_cents),
         groups=groups,
+        snapshots=snapshots,
         next_url=url_for("budget_bp.ledger"),
     )
 

@@ -49,6 +49,13 @@
           <div class="mt-1 text-sm text-slate-600">Income vs expenses by month.</div>
         </a>
 
+        <a href="{{ url_for('budget_bp.report_balance_sheet') }}"
+            class="block rounded-xl border p-6 shadow-sm transition hover:shadow
+                    bg-teal-50 border-teal-100 hover:bg-teal-100">
+          <div class="font-semibold text-slate-900">Balance sheet</div>
+          <div class="mt-1 text-sm text-slate-600">Snapshot of assets and liabilities.</div>
+        </a>
+
         <a href="{{ url_for('budget_bp.account_new', next=url_for('budget_bp.dashboard')) }}"
             class="block rounded-xl border p-6 shadow-sm transition hover:shadow
                     bg-emerald-50 border-emerald-100 hover:bg-emerald-100">

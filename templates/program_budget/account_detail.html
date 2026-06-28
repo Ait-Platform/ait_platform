@@ -148,6 +148,46 @@
     </div>
   </div>
 
+  </div>
+
+  <!-- HISTORY LIST AREA -->
+  <div class="mt-8 rounded border border-slate-200 bg-white overflow-hidden shadow-sm">
+    <div class="bg-slate-50 px-4 py-3 border-b border-slate-200">
+      <div class="font-semibold text-slate-900">Statement Snapshot History (The List)</div>
+      <p class="text-xs text-slate-500 mt-1">A record of every snapshot captured for this account over time.</p>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-left text-sm whitespace-nowrap">
+        <thead class="bg-slate-50 text-slate-600 border-b border-slate-200">
+          <tr>
+            <th class="px-4 py-2 font-medium">Captured On</th>
+            <th class="px-4 py-2 font-medium">As At Date</th>
+            <th class="px-4 py-2 font-medium text-right">Arrears</th>
+            <th class="px-4 py-2 font-medium text-right">Balance</th>
+            <th class="px-4 py-2 font-medium text-right">Due</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          {% for s in snapshots %}
+          <tr class="hover:bg-slate-50">
+            <td class="px-4 py-2 text-slate-500">{{ s.created_at.strftime('%Y-%m-%d %H:%M') if s.created_at else '—' }}</td>
+            <td class="px-4 py-2 font-medium text-slate-900">{{ s.as_at if s.as_at else '—' }}</td>
+            <td class="px-4 py-2 text-right">{{ '%.2f'|format((s.arrears_cents|int)/100) }}</td>
+            <td class="px-4 py-2 text-right">{{ '%.2f'|format((s.balance_cents|int)/100) }}</td>
+            <td class="px-4 py-2 text-right">{{ '%.2f'|format((s.due_cents|int)/100) }}</td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="5" class="px-4 py-6 text-center text-slate-500 text-sm">
+              No history found for this account yet.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
     </div>
   </div>
 </div>

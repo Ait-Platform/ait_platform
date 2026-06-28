@@ -508,7 +508,6 @@ def report_statement():
     accounts = db.session.execute(text("""
         SELECT id, kind FROM bud_account
          WHERE user_id = :uid AND is_active = 1 AND COALESCE(is_hidden,false) = false
-           AND kind IN ('asset', 'liability')
     """), {"uid": current_user.id}).mappings().all()
 
     snapshots = db.session.execute(text("""
@@ -525,9 +524,10 @@ def report_statement():
     liability_total_cents = 0
     for a in accounts:
         bal = latest_balances.get(a["id"], 0)
-        if a["kind"] == "asset":
+        if a["kind"] in ("asset", "income"):
             asset_total_cents += bal
-        elif a["kind"] == "liability":
+        else:
+            # this covers "liability" and "expense"
             liability_total_cents += bal
 
     net_worth_cents = asset_total_cents - liability_total_cents

@@ -453,20 +453,17 @@ def report_income_expense():
     back_url = _safe_next(request.args.get("next")) or url_for("budget_bp.dashboard")    
     period = (request.args.get("period") or "").strip()
     if not period:
-        period = db.session.execute(
-            text("SELECT to_char(CURRENT_DATE, 'YYYY-MM')")
-        ).scalar()
+        period = datetime.now().strftime("%Y-%m")
 
-    start_date = f"{period}-01"
-    end_date = db.session.execute(
-        text("""
-            SELECT (
-                date_trunc('month', CAST(:d AS date))
-                + INTERVAL '1 month - 1 day'
-            )::date
-        """),
-        {"d": start_date},
-    ).scalar()
+    try:
+        start_date = datetime.strptime(f"{period}-01", "%Y-%m-%d").date()
+    except ValueError:
+        start_date = datetime.now().date().replace(day=1)
+        period = start_date.strftime("%Y-%m")
+
+    import calendar
+    last_day = calendar.monthrange(start_date.year, start_date.month)[1]
+    end_date = start_date.replace(day=last_day)
 
     # -------- INCOME --------
     income_rows = db.session.execute(text("""
@@ -520,27 +517,42 @@ def report_income_expense():
 def report_balance_sheet():
     back_url = _safe_next(request.args.get("next")) or url_for("budget_bp.dashboard")
 
-    # Fetch all accounts that have a non-zero balance
+    # Fetch all active accounts
     accounts = db.session.execute(text("""
-        SELECT name, kind, COALESCE(balance_cents, 0) as balance_cents
+        SELECT id, name, kind
           FROM bud_account
-         WHERE user_id = :uid
-           AND COALESCE(balance_cents, 0) > 0
-           AND is_hidden = false
+         WHERE user_id = :uid AND is_active = 1
          ORDER BY kind, name
     """), {"uid": current_user.id}).mappings().all()
+
+    # Fetch all snapshots ordered by date descending
+    snapshots = db.session.execute(text("""
+        SELECT account_id, balance_cents
+          FROM bud_snapshot
+         WHERE user_id = :uid
+         ORDER BY as_at DESC
+    """), {"uid": current_user.id}).mappings().all()
+    
+    # Get latest balance for each account
+    latest_balances = {}
+    for s in snapshots:
+        if s["account_id"] not in latest_balances:
+            latest_balances[s["account_id"]] = s["balance_cents"]
 
     asset_rows = []
     liability_rows = []
 
     for a in accounts:
-        # User defined mapping:
-        # asset or income = Assets
-        # liability or expense = Liabilities
+        bal = latest_balances.get(a["id"], 0)
+        if bal == 0:
+            continue
+            
+        row = {"name": a["name"], "balance_cents": bal}
+        # User defined mapping: asset or income = Assets, liability or expense = Liabilities
         if a["kind"] in ("asset", "income"):
-            asset_rows.append(a)
+            asset_rows.append(row)
         else:
-            liability_rows.append(a)
+            liability_rows.append(row)
 
     asset_total_cents = sum(r["balance_cents"] for r in asset_rows)
     liability_total_cents = sum(r["balance_cents"] for r in liability_rows)

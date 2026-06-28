@@ -43,10 +43,10 @@
         <div>
           <label class="block text-xs font-medium text-slate-600 mb-1">Type</label>
           <select name="kind" class="w-full rounded border border-2 border-slate-400 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 px-3 py-2 text-sm">
-            <option value="asset"    {% if account.kind == 'asset' %}selected{% endif %}>Asset</option>
-            <option value="liability"{% if account.kind == 'liability' %}selected{% endif %}>Liability</option>
-            <option value="expense"  {% if account.kind == 'expense' %}selected{% endif %}>Expense</option>
-            <option value="income"   {% if account.kind == 'income' %}selected{% endif %}>Income</option>
+            <option value="expense"  {% if account.kind == 'expense' %}selected{% endif %}>Where my money goes (Expense - e.g. Groceries, Subscriptions)</option>
+            <option value="liability"{% if account.kind == 'liability' %}selected{% endif %}>Money I owe (Liability - e.g. Credit Card, Home Loan)</option>
+            <option value="asset"    {% if account.kind == 'asset' %}selected{% endif %}>Money I have (Asset - e.g. Bank Account, Cash)</option>
+            <option value="income"   {% if account.kind == 'income' %}selected{% endif %}>Money coming in / Owed to me (Income/Debtor)</option>
           </select>
         </div>
 

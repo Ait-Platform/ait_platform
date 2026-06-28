@@ -854,10 +854,7 @@ def report_by_group():
     rows = db.session.execute(text(f"""
         WITH sel AS (
             SELECT a.id, a.name, a.kind,
-                COALESCE(a.group_label,'') AS group_label,
-                COALESCE(a.arrears_cents,0) AS arrears_cents,
-                COALESCE(a.balance_cents,0)  AS balance_cents,
-                COALESCE(a.due_cents,0)      AS due_cents
+                COALESCE(a.group_label,'') AS group_label
             FROM bud_account a
             WHERE a.user_id = :uid
             AND COALESCE(a.is_hidden,false) = false
@@ -865,21 +862,48 @@ def report_by_group():
         ),
         month_agg AS (
             SELECT l.account_id,
-                COALESCE(SUM(l.amount_cents),0) AS paid_month_cents,
-                MAX(l.txn_date)                 AS as_at
+                COALESCE(SUM(l.amount_cents),0) AS paid_month_cents
             FROM bud_ledger l
             WHERE l.user_id = :uid
             AND l.txn_date >= :d0
             AND l.txn_date <  :d1
             GROUP BY l.account_id
         )
-        SELECT s.*,
-            COALESCE(m.paid_month_cents,0) AS paid_month_cents,
-            m.as_at
+        SELECT s.id, s.name, s.kind, s.group_label,
+            COALESCE(m.paid_month_cents,0) AS paid_month_cents
         FROM sel s
         LEFT JOIN month_agg m ON m.account_id = s.id
         ORDER BY s.kind, s.name
     """), params).mappings().all()
+
+    # Fetch snapshots to get latest arrears/balance/due
+    snapshots = db.session.execute(text("""
+        SELECT account_id, as_at, arrears_cents, balance_cents, due_cents
+          FROM bud_snapshot
+         WHERE user_id = :uid
+         ORDER BY as_at DESC, id DESC
+    """), {"uid": current_user.id}).mappings().all()
+
+    latest_snaps = {}
+    for s in snapshots:
+        if s["account_id"] not in latest_snaps:
+            latest_snaps[s["account_id"]] = s
+
+    enriched_rows = []
+    for r in rows:
+        snap = latest_snaps.get(r["id"])
+        enriched_rows.append({
+            "id": r["id"],
+            "name": r["name"],
+            "kind": r["kind"],
+            "group_label": r["group_label"],
+            "paid_month_cents": r["paid_month_cents"],
+            "arrears_cents": snap["arrears_cents"] if snap else 0,
+            "balance_cents": snap["balance_cents"] if snap else 0,
+            "due_cents": snap["due_cents"] if snap else 0,
+            "as_at": snap["as_at"] if snap else None,
+        })
+    rows = enriched_rows
 
 
     totals = {

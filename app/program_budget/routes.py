@@ -909,7 +909,7 @@ def budget_entitlement_guard():
 @budget_bp.route("/billing")
 @login_required
 def billing():
-    return render_template("program_budget/billing.html")
+    return redirect(url_for("budget_bp.price_page"))
 
 def _parse_date(s: str) -> date:
     s = (s or "").strip()

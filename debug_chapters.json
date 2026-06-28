@@ -1,0 +1,214 @@
+{
+  "chap18": {
+    "chapter": 18,
+    "image": "chapter8_logic.jpg",
+    "questions": [
+      {
+        "id": 36,
+        "text": "If all cats have tails and Tom is a cat, what does Tom have?",
+        "type": "select",
+        "correct_answer": "Tail",
+        "options": [
+          {
+            "id": 108,
+            "text": "Tail"
+          },
+          {
+            "id": 109,
+            "text": "Wings"
+          },
+          {
+            "id": 110,
+            "text": "Horns"
+          }
+        ]
+      },
+      {
+        "id": 37,
+        "text": "Which clue solves the puzzle?",
+        "type": "select",
+        "correct_answer": "Clue B",
+        "options": [
+          {
+            "id": 111,
+            "text": "Clue B"
+          },
+          {
+            "id": 112,
+            "text": "Clue A"
+          },
+          {
+            "id": 113,
+            "text": "Clue C"
+          }
+        ]
+      },
+      {
+        "id": 38,
+        "text": "Which answer is most logical?",
+        "type": "select",
+        "correct_answer": "Answer A",
+        "options": [
+          {
+            "id": 114,
+            "text": "Answer A"
+          },
+          {
+            "id": 115,
+            "text": "Answer B"
+          },
+          {
+            "id": 116,
+            "text": "Answer C"
+          }
+        ]
+      },
+      {
+        "id": 39,
+        "text": "Which picture does not belong?",
+        "type": "select",
+        "correct_answer": "Picture C",
+        "options": [
+          {
+            "id": 117,
+            "text": "Picture C"
+          },
+          {
+            "id": 118,
+            "text": "Picture A"
+          },
+          {
+            "id": 119,
+            "text": "Picture B"
+          }
+        ]
+      },
+      {
+        "id": 40,
+        "text": "Which statement is true?",
+        "type": "select",
+        "correct_answer": "Statement B",
+        "options": [
+          {
+            "id": 120,
+            "text": "Statement B"
+          },
+          {
+            "id": 121,
+            "text": "Statement A"
+          },
+          {
+            "id": 122,
+            "text": "Statement C"
+          }
+        ]
+      }
+    ]
+  },
+  "chap20": {
+    "chapter": 20,
+    "image": "chapter10_critical_thinking.jpg",
+    "questions": [
+      {
+        "id": 46,
+        "text": "Which solution uses the least water?",
+        "type": "select",
+        "correct_answer": "Option B",
+        "options": [
+          {
+            "id": 138,
+            "text": "Option B"
+          },
+          {
+            "id": 139,
+            "text": "Option A"
+          },
+          {
+            "id": 140,
+            "text": "Option C"
+          }
+        ]
+      },
+      {
+        "id": 47,
+        "text": "Which route is shortest?",
+        "type": "select",
+        "correct_answer": "Route A",
+        "options": [
+          {
+            "id": 141,
+            "text": "Route A"
+          },
+          {
+            "id": 142,
+            "text": "Route B"
+          },
+          {
+            "id": 143,
+            "text": "Route C"
+          }
+        ]
+      },
+      {
+        "id": 48,
+        "text": "Which object best solves the problem?",
+        "type": "select",
+        "correct_answer": "Tool C",
+        "options": [
+          {
+            "id": 144,
+            "text": "Tool C"
+          },
+          {
+            "id": 145,
+            "text": "Tool A"
+          },
+          {
+            "id": 146,
+            "text": "Tool B"
+          }
+        ]
+      },
+      {
+        "id": 49,
+        "text": "Which choice saves the most time?",
+        "type": "select",
+        "correct_answer": "Choice B",
+        "options": [
+          {
+            "id": 147,
+            "text": "Choice B"
+          },
+          {
+            "id": 148,
+            "text": "Choice A"
+          },
+          {
+            "id": 149,
+            "text": "Choice C"
+          }
+        ]
+      },
+      {
+        "id": 50,
+        "text": "Which answer is the best conclusion?",
+        "type": "select",
+        "correct_answer": "Conclusion A",
+        "options": [
+          {
+            "id": 150,
+            "text": "Conclusion A"
+          },
+          {
+            "id": 151,
+            "text": "Conclusion B"
+          },
+          {
+            "id": 152,
+            "text": "Conclusion C"
+          }
+        ]
+      }
+    ]
+  }
+}

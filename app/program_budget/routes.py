@@ -467,12 +467,13 @@ def report_income_expense():
 
     # -------- INCOME --------
     income_rows = db.session.execute(text("""
-        SELECT a.name, SUM(l.amount_cents) AS cents
-          FROM bud_ledger l
-          JOIN bud_account a ON a.id = l.account_id
-         WHERE l.user_id = :uid
-           AND l.txn_date BETWEEN :s AND :e
+        SELECT a.name, COALESCE(SUM(l.amount_cents), 0) AS cents
+          FROM bud_account a
+          LEFT JOIN bud_ledger l ON a.id = l.account_id 
+                                AND l.txn_date BETWEEN :s AND :e
+         WHERE a.user_id = :uid
            AND a.kind = 'income'
+           AND COALESCE(a.is_hidden,false) = false
          GROUP BY a.name
          ORDER BY a.name
     """), {
@@ -483,12 +484,13 @@ def report_income_expense():
 
     # -------- EXPENSES (expense + liability) --------
     expense_rows = db.session.execute(text("""
-        SELECT a.name, SUM(l.amount_cents) AS cents
-          FROM bud_ledger l
-          JOIN bud_account a ON a.id = l.account_id
-         WHERE l.user_id = :uid
-           AND l.txn_date BETWEEN :s AND :e
+        SELECT a.name, COALESCE(SUM(l.amount_cents), 0) AS cents
+          FROM bud_account a
+          LEFT JOIN bud_ledger l ON a.id = l.account_id 
+                                AND l.txn_date BETWEEN :s AND :e
+         WHERE a.user_id = :uid
            AND a.kind IN ('expense', 'liability')
+           AND COALESCE(a.is_hidden,false) = false
          GROUP BY a.name
          ORDER BY a.name
     """), {
@@ -544,8 +546,6 @@ def report_balance_sheet():
 
     for a in accounts:
         bal = latest_balances.get(a["id"], 0)
-        if bal == 0:
-            continue
             
         row = {"name": a["name"], "balance_cents": bal}
         # User defined mapping: asset or income = Assets, liability or expense = Liabilities

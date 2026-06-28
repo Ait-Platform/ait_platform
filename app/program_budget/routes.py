@@ -1117,52 +1117,46 @@ def snapshots():
             flash("Invalid date format.", "warning")
             return redirect(url_for("budget_bp.snapshots", next=next_url))
 
-        # Fetch all user accounts to iterate their inputs
-        accounts = db.session.execute(text("""
-            SELECT id, name
-              FROM bud_account
-             WHERE user_id = :uid AND is_active = 1
-        """), {"uid": current_user.id}).mappings().all()
+        account_id_str = (request.form.get("account_id") or "").strip()
+        arr_str = (request.form.get("arrears") or "").strip()
+        due_str = (request.form.get("due") or "").strip()
+        bal_str = (request.form.get("balance") or "").strip()
 
-        added = 0
-        for acc in accounts:
-            arr_str = (request.form.get(f"arrears_{acc['id']}") or "").strip()
-            due_str = (request.form.get(f"due_{acc['id']}") or "").strip()
-            bal_str = (request.form.get(f"balance_{acc['id']}") or "").strip()
-            
-            # If all are empty, skip
-            if not arr_str and not due_str and not bal_str:
-                continue
-                
-            arr_cents = _to_cents(arr_str) if arr_str else 0
-            due_cents = _to_cents(due_str) if due_str else 0
-            bal_cents = _to_cents(bal_str) if bal_str else 0
+        if not account_id_str:
+            flash("Please select an account.", "warning")
+            return redirect(url_for("budget_bp.snapshots", next=next_url))
 
-            # Delete existing snapshot for this exact date
-            db.session.execute(text("""
-                DELETE FROM bud_snapshot 
-                 WHERE user_id=:uid AND account_id=:aid AND as_at=:dt
-            """), {"uid": current_user.id, "aid": acc["id"], "dt": as_at})
+        # verify account belongs to user
+        acc = db.session.execute(text("SELECT id FROM bud_account WHERE id=:aid AND user_id=:uid"), {"aid": account_id_str, "uid": current_user.id}).scalar()
+        if not acc:
+            flash("Invalid account selected.", "warning")
+            return redirect(url_for("budget_bp.snapshots", next=next_url))
 
-            # Insert new snapshot
-            db.session.execute(text("""
-                INSERT INTO bud_snapshot (user_id, account_id, as_at, arrears_cents, due_cents, balance_cents)
-                VALUES (:uid, :aid, :dt, :arr, :due, :bal)
-            """), {
-                "uid": current_user.id,
-                "aid": acc["id"],
-                "dt": as_at,
-                "arr": arr_cents,
-                "due": due_cents,
-                "bal": bal_cents
-            })
-            added += 1
+        arr_cents = _to_cents(arr_str) if arr_str else 0
+        due_cents = _to_cents(due_str) if due_str else 0
+        bal_cents = _to_cents(bal_str) if bal_str else 0
 
-        if added > 0:
-            db.session.commit()
-            flash(f"Saved snapshots for {added} accounts.", "success")
-        else:
-            flash("No snapshot values entered.", "info")
+        # Delete existing snapshot for this exact date
+        db.session.execute(text("""
+            DELETE FROM bud_snapshot 
+             WHERE user_id=:uid AND account_id=:aid AND as_at=:dt
+        """), {"uid": current_user.id, "aid": acc, "dt": as_at})
+
+        # Insert new snapshot
+        db.session.execute(text("""
+            INSERT INTO bud_snapshot (user_id, account_id, as_at, arrears_cents, due_cents, balance_cents)
+            VALUES (:uid, :aid, :dt, :arr, :due, :bal)
+        """), {
+            "uid": current_user.id,
+            "aid": acc,
+            "dt": as_at,
+            "arr": arr_cents,
+            "due": due_cents,
+            "bal": bal_cents
+        })
+        
+        db.session.commit()
+        flash("Saved snapshot successfully.", "success")
 
         return redirect(url_for("budget_bp.snapshots", next=next_url))
 

@@ -868,43 +868,28 @@ def report_by_group():
             AND l.txn_date >= :d0
             AND l.txn_date <  :d1
             GROUP BY l.account_id
+        ),
+        latest_snaps AS (
+            SELECT account_id, arrears_cents, balance_cents, due_cents, as_at
+            FROM (
+                SELECT account_id, arrears_cents, balance_cents, due_cents, as_at,
+                       ROW_NUMBER() OVER(PARTITION BY account_id ORDER BY as_at DESC, id DESC) as rn
+                FROM bud_snapshot
+                WHERE user_id = :uid
+            ) sub
+            WHERE rn = 1
         )
         SELECT s.id, s.name, s.kind, s.group_label,
-            COALESCE(m.paid_month_cents,0) AS paid_month_cents
+            COALESCE(m.paid_month_cents,0) AS paid_month_cents,
+            COALESCE(sn.arrears_cents, 0) AS arrears_cents,
+            COALESCE(sn.balance_cents, 0) AS balance_cents,
+            COALESCE(sn.due_cents, 0) AS due_cents,
+            sn.as_at
         FROM sel s
         LEFT JOIN month_agg m ON m.account_id = s.id
+        LEFT JOIN latest_snaps sn ON sn.account_id = s.id
         ORDER BY s.kind, s.name
     """), params).mappings().all()
-
-    # Fetch snapshots to get latest arrears/balance/due
-    snapshots = db.session.execute(text("""
-        SELECT account_id, as_at, arrears_cents, balance_cents, due_cents
-          FROM bud_snapshot
-         WHERE user_id = :uid
-         ORDER BY as_at DESC, id DESC
-    """), {"uid": current_user.id}).mappings().all()
-
-    latest_snaps = {}
-    for s in snapshots:
-        if s["account_id"] not in latest_snaps:
-            latest_snaps[s["account_id"]] = s
-
-    enriched_rows = []
-    for r in rows:
-        snap = latest_snaps.get(r["id"])
-        enriched_rows.append({
-            "id": r["id"],
-            "name": r["name"],
-            "kind": r["kind"],
-            "group_label": r["group_label"],
-            "paid_month_cents": r["paid_month_cents"],
-            "arrears_cents": snap["arrears_cents"] if snap else 0,
-            "balance_cents": snap["balance_cents"] if snap else 0,
-            "due_cents": snap["due_cents"] if snap else 0,
-            "as_at": snap["as_at"] if snap else None,
-        })
-    rows = enriched_rows
-
 
     totals = {
         "arrears_cents": sum(int(r["arrears_cents"] or 0) for r in rows),

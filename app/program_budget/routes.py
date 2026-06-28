@@ -1098,3 +1098,94 @@ def price_page():
         country_code=country_code
     )
 
+@budget_bp.route("/snapshots", methods=["GET", "POST"])
+@login_required
+def snapshots():
+    next_url = request.args.get("next") or url_for("budget_bp.ledger")
+    if not next_url.startswith("/"):
+        next_url = url_for("budget_bp.ledger")
+
+    if request.method == "POST":
+        as_at_str = (request.form.get("as_at") or "").strip()
+        if not as_at_str:
+            flash("Please enter a valid date for the snapshot.", "warning")
+            return redirect(url_for("budget_bp.snapshots", next=next_url))
+        
+        try:
+            as_at = datetime.strptime(as_at_str, "%Y-%m-%d").date()
+        except ValueError:
+            flash("Invalid date format.", "warning")
+            return redirect(url_for("budget_bp.snapshots", next=next_url))
+
+        # Fetch all user accounts to iterate their inputs
+        accounts = db.session.execute(text("""
+            SELECT id, name
+              FROM bud_account
+             WHERE user_id = :uid AND is_active = 1
+        """), {"uid": current_user.id}).mappings().all()
+
+        added = 0
+        for acc in accounts:
+            arr_str = (request.form.get(f"arrears_{acc['id']}") or "").strip()
+            due_str = (request.form.get(f"due_{acc['id']}") or "").strip()
+            bal_str = (request.form.get(f"balance_{acc['id']}") or "").strip()
+            
+            # If all are empty, skip
+            if not arr_str and not due_str and not bal_str:
+                continue
+                
+            arr_cents = _to_cents(arr_str) if arr_str else 0
+            due_cents = _to_cents(due_str) if due_str else 0
+            bal_cents = _to_cents(bal_str) if bal_str else 0
+
+            # Delete existing snapshot for this exact date
+            db.session.execute(text("""
+                DELETE FROM bud_snapshot 
+                 WHERE user_id=:uid AND account_id=:aid AND as_at=:dt
+            """), {"uid": current_user.id, "aid": acc["id"], "dt": as_at})
+
+            # Insert new snapshot
+            db.session.execute(text("""
+                INSERT INTO bud_snapshot (user_id, account_id, as_at, arrears_cents, due_cents, balance_cents)
+                VALUES (:uid, :aid, :dt, :arr, :due, :bal)
+            """), {
+                "uid": current_user.id,
+                "aid": acc["id"],
+                "dt": as_at,
+                "arr": arr_cents,
+                "due": due_cents,
+                "bal": bal_cents
+            })
+            added += 1
+
+        if added > 0:
+            db.session.commit()
+            flash(f"Saved snapshots for {added} accounts.", "success")
+        else:
+            flash("No snapshot values entered.", "info")
+
+        return redirect(url_for("budget_bp.snapshots", next=next_url))
+
+    # GET request
+    accounts = db.session.execute(text("""
+        SELECT id, name, kind
+          FROM bud_account
+         WHERE user_id = :uid AND is_active = 1
+         ORDER BY kind, name
+    """), {"uid": current_user.id}).mappings().all()
+
+    snapshots = db.session.execute(text("""
+        SELECT s.id, s.as_at, s.arrears_cents, s.due_cents, s.balance_cents,
+               a.name as account_name
+          FROM bud_snapshot s
+          JOIN bud_account a ON a.id = s.account_id
+         WHERE s.user_id = :uid
+         ORDER BY s.as_at DESC, a.name
+    """), {"uid": current_user.id}).mappings().all()
+
+    return render_template("program_budget/snapshots.html", 
+                           accounts=accounts, 
+                           snapshots=snapshots,
+                           back_url=next_url)
+
+

@@ -18,6 +18,9 @@
         </div>
         <div class="flex flex-wrap items-center gap-3">
           <form method="get" action="{{ url_for('budget_bp.report_income_expense') }}" class="flex items-center gap-3 m-0">
+            {% if request.args.get('next') %}
+              <input type="hidden" name="next" value="{{ request.args.get('next') }}">
+            {% endif %}
             <input type="month" name="period" value="{{ period }}" class="rounded border border-slate-300 px-3 py-2 text-sm">
             <button class="rounded bg-slate-900 text-white px-4 py-2 text-sm font-medium hover:bg-slate-800">Go</button>
           </form>

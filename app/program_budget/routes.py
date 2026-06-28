@@ -991,3 +991,68 @@ def _safe_next(url: str | None) -> str | None:
         return url
     return None
 
+@budget_bp.route('/price')
+def price_page():
+    from app.models.auth import AuthSubject
+    from app.models.payment import RefCountryCurrency
+    from app.enrollment.logic import get_quote_for_subject_country
+    
+    subject = AuthSubject.query.filter(db.func.lower(AuthSubject.slug) == 'budget').first()
+    if not subject:
+        flash("Subject not found.", "warning")
+        return redirect(url_for('public_bp.welcome'))
+
+    country_code = (request.args.get("country") or "").strip().upper()
+    if not country_code and current_user.is_authenticated and hasattr(current_user, 'country_code'):
+        country_code = (current_user.country_code or "").strip().upper()
+
+    if not country_code:
+        country_code = session.get("country_code", "")
+
+    if country_code:
+        session["country_code"] = country_code
+
+    price_ctx = {
+        "has_quote": False,
+        "price_id": None,
+        "country_code": None,
+        "local_amount": None,
+        "local_currency": None,
+        "estimated_zar": None,
+        "fx_rate": None,
+        "is_discount": False,
+    }
+
+    if country_code:
+        row = get_quote_for_subject_country(subject.id, country_code)
+        if row:
+            price_ctx.update({
+                "price_id": row.id,
+                "country_code": row.country_code,
+                "local_amount": row.local_amount_cents,
+                "local_currency": row.local_currency,
+                "estimated_zar": row.zar_amount_cents,
+                "fx_rate": getattr(row, "fx_rate", None),
+                "is_discount": getattr(row, "is_discount", False),
+            })
+            price_ctx["has_quote"] = True
+        else:
+            flash("No pricing found for that country yet.", "warning")
+
+    countries = db.session.execute(
+        text("""
+            SELECT r.alpha2 AS code, r.name
+              FROM ref_country_currency r
+             WHERE (r.is_active IS NULL OR r.is_active::text IN ('1','t','true','TRUE'))
+             ORDER BY r.name
+        """)
+    ).mappings().all()
+
+    return render_template(
+        "program_budget/price.html",
+        subject=subject,
+        countries=countries,
+        price=price_ctx,
+        country_code=country_code
+    )
+

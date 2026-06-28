@@ -408,6 +408,15 @@ def account_new():
             code = f"{base}-{i}"
             i += 1
 
+        if group_label:
+            db.session.execute(text("""
+                INSERT INTO bud_group_type (user_id, label, is_active)
+                SELECT :uid, :label, 1
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM bud_group_type WHERE user_id=:uid AND label=:label
+                )
+            """), {"uid": int(current_user.id), "label": group_label})
+
         try:
             db.session.execute(text("""
                 INSERT INTO bud_account (user_id, code, name, kind, account_no, group_label)
@@ -707,6 +716,15 @@ def account_edit(account_id: int):
             flash("Account type must be Asset or Liability.", "warning")
             return redirect(request.url)
 
+        if group_label:
+            db.session.execute(text("""
+                INSERT INTO bud_group_type (user_id, label, is_active)
+                SELECT :uid, :label, 1
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM bud_group_type WHERE user_id=:uid AND label=:label
+                )
+            """), {"uid": int(current_user.id), "label": group_label})
+
         db.session.execute(text("""
             UPDATE bud_account
                SET kind = :kind,
@@ -723,9 +741,17 @@ def account_edit(account_id: int):
         flash("Account updated.", "success")
         return redirect(url_for("budget_bp.ledger", account_id=account_id))
 
+    groups = db.session.execute(text("""
+        SELECT label
+          FROM bud_group_type
+         WHERE user_id = :uid AND is_active = 1
+         ORDER BY label
+    """), {"uid": current_user.id}).mappings().all()
+
     return render_template(
         "program_budget/account_edit.html",
         account=account,
+        groups=groups,
     )
 
 @budget_bp.route("/accounts/<int:account_id>/meta/update", methods=["POST"])

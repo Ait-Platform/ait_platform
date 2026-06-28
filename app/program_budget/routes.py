@@ -901,7 +901,7 @@ def budget_entitlement_guard():
         return
 
     # Allow access to the billing page itself
-    if request.endpoint == "budget_bp.billing":
+    if request.endpoint in ("budget_bp.billing", "budget_bp.price_page", "budget_bp.about"):
         return
 
     now = datetime.utcnow()

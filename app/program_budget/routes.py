@@ -503,6 +503,32 @@ def report_statement():
     expense_total_cents = sum(r["cents"] or 0 for r in expense_rows)
     net_cents = income_total_cents - expense_total_cents
 
+    
+    # -------- NET WORTH --------
+    accounts = db.session.execute(text("""
+        SELECT id, kind FROM bud_account
+         WHERE user_id = :uid AND is_active = 1 AND COALESCE(is_hidden,false) = false
+           AND kind IN ('asset', 'liability')
+    """), {"uid": current_user.id}).mappings().all()
+
+    snapshots = db.session.execute(text("""
+        SELECT account_id, balance_cents FROM bud_snapshot
+         WHERE user_id = :uid ORDER BY as_at DESC
+    """), {"uid": current_user.id}).mappings().all()
+    
+    latest_balances = {}
+    for s in snapshots:
+        if s["account_id"] not in latest_balances:
+            latest_balances[s["account_id"]] = s["balance_cents"]
+
+    net_worth_cents = 0
+    for a in accounts:
+        bal = latest_balances.get(a["id"], 0)
+        if a["kind"] == "asset":
+            net_worth_cents += bal
+        elif a["kind"] == "liability":
+            net_worth_cents -= bal
+
     return render_template(
         "program_budget/report_statement.html",
         period=period,
@@ -511,6 +537,7 @@ def report_statement():
         income_total_cents=int(income_total_cents),
         expense_total_cents=int(expense_total_cents),
         net_cents=int(net_cents),
+        net_worth_cents=int(net_worth_cents),
         back_url=back_url,
     )
 

@@ -96,6 +96,15 @@
       <div class="font-semibold text-slate-900">Net cash movement</div>
       <div class="font-semibold text-slate-900">{{ '%.2f'|format((net_cents or 0)/100) }}</div>
     </div>
+
+    <!-- NEW: Estimated Current Net Worth based on Snapshots -->
+    <div class="mt-4 rounded border border-sky-200 bg-sky-50 p-4 flex justify-between items-center">
+      <div>
+        <div class="font-bold text-sky-900">Current Net Worth</div>
+        <div class="text-xs text-sky-700 mt-0.5">Calculated from your latest Asset & Liability snapshots</div>
+      </div>
+      <div class="font-bold text-sky-900 text-lg">{{ '%.2f'|format((net_worth_cents or 0)/100) }}</div>
+    </div>
   </div>
 
 

@@ -935,6 +935,17 @@ def budget_entitlement_guard():
 @budget_bp.route("/billing")
 @login_required
 def billing():
+    ent = db.session.execute(text("""
+        SELECT ue.zar_amount_cents
+          FROM user_enrollment ue
+          JOIN auth_subject s ON s.id = ue.subject_id
+         WHERE ue.user_id = :uid AND s.slug = 'budget'
+         ORDER BY ue.id DESC LIMIT 1
+    """), {"uid": current_user.id}).mappings().first()
+
+    if ent and ent["zar_amount_cents"] and int(ent["zar_amount_cents"]) > 0:
+        return redirect(url_for("yoco_bp.yoco_start", email=current_user.email, subject='budget'))
+
     return redirect(url_for("budget_bp.price_page"))
 
 def _parse_date(s: str) -> date:

@@ -98,12 +98,18 @@
     </div>
 
     <!-- NEW: Estimated Current Net Worth based on Snapshots -->
-    <div class="mt-4 rounded border border-sky-200 bg-sky-50 p-4 flex justify-between items-center">
-      <div>
-        <div class="font-bold text-sky-900">Current Net Worth</div>
-        <div class="text-xs text-sky-700 mt-0.5">Calculated from your latest Asset & Liability snapshots</div>
+    <div class="mt-4 rounded border border-sky-200 bg-sky-50 p-4">
+      <div class="flex justify-between items-center mb-3">
+        <div>
+          <div class="font-bold text-sky-900">Current Net Worth</div>
+          <div class="text-xs text-sky-700 mt-0.5">Calculated from your latest Asset & Liability snapshots</div>
+        </div>
+        <div class="font-bold text-sky-900 text-lg">{{ '%.2f'|format((net_worth_cents or 0)/100) }}</div>
       </div>
-      <div class="font-bold text-sky-900 text-lg">{{ '%.2f'|format((net_worth_cents or 0)/100) }}</div>
+      <div class="pt-3 border-t border-sky-200/60 flex justify-between text-sm text-sky-800">
+        <div>Total Assets: <b>{{ '%.2f'|format((asset_total_cents or 0)/100) }}</b></div>
+        <div>Total Liabilities: <b>{{ '%.2f'|format((liability_total_cents or 0)/100) }}</b></div>
+      </div>
     </div>
   </div>
 

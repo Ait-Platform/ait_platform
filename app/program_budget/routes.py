@@ -521,13 +521,16 @@ def report_statement():
         if s["account_id"] not in latest_balances:
             latest_balances[s["account_id"]] = s["balance_cents"]
 
-    net_worth_cents = 0
+    asset_total_cents = 0
+    liability_total_cents = 0
     for a in accounts:
         bal = latest_balances.get(a["id"], 0)
         if a["kind"] == "asset":
-            net_worth_cents += bal
+            asset_total_cents += bal
         elif a["kind"] == "liability":
-            net_worth_cents -= bal
+            liability_total_cents += bal
+
+    net_worth_cents = asset_total_cents - liability_total_cents
 
     return render_template(
         "program_budget/report_statement.html",
@@ -537,6 +540,8 @@ def report_statement():
         income_total_cents=int(income_total_cents),
         expense_total_cents=int(expense_total_cents),
         net_cents=int(net_cents),
+        asset_total_cents=int(asset_total_cents),
+        liability_total_cents=int(liability_total_cents),
         net_worth_cents=int(net_worth_cents),
         back_url=back_url,
     )

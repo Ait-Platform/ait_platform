@@ -65,7 +65,7 @@
           <option value="">Choose account…</option>
           {% for a in accounts %}
             <option value="{{ a.id }}" {% if account_id and (a.id|string)==(account_id|string) %}selected{% endif %}>
-              {{ a.kind|title }} · {{ a.name }}
+              {{ a.name }}
             </option>
           {% endfor %}
         </select>
@@ -112,7 +112,7 @@
                 class="w-full rounded border border-2 border-slate-400 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 px-3 py-2 text-sm" required>
           <option value="">Select account…</option>
           {% for a in accounts %}
-            <option value="{{ a.id }}">{{ a.kind|title }} · {{ a.name }}</option>
+            <option value="{{ a.id }}">{{ a.name }}</option>
           {% endfor %}
         </select>
       </div>

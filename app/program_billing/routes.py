@@ -1906,6 +1906,18 @@ def parse_bill_api():
         load_dotenv(dotenv_path, override=True)
         
         api_key = os.environ.get("GEMINI_API_KEY") or current_app.config.get("GEMINI_API_KEY")
+        
+        # Bulletproof fallback: manually parse .env if still missing
+        if not api_key:
+            try:
+                with open(dotenv_path, 'r', encoding='utf-8') as ef:
+                    for line in ef:
+                        if line.startswith('GEMINI_API_KEY='):
+                            api_key = line.split('=', 1)[1].strip().strip('"').strip("'")
+                            break
+            except Exception:
+                pass
+
         if not api_key:
             return jsonify({"error": "GEMINI_API_KEY is not configured"}), 500
             
@@ -2271,6 +2283,18 @@ def parse_bill_onboarding_api():
         load_dotenv(dotenv_path, override=True)
         
         api_key = os.environ.get("GEMINI_API_KEY") or current_app.config.get("GEMINI_API_KEY")
+        
+        # Bulletproof fallback: manually parse .env if still missing
+        if not api_key:
+            try:
+                with open(dotenv_path, 'r', encoding='utf-8') as ef:
+                    for line in ef:
+                        if line.startswith('GEMINI_API_KEY='):
+                            api_key = line.split('=', 1)[1].strip().strip('"').strip("'")
+                            break
+            except Exception:
+                pass
+
         if not api_key:
             return jsonify({"error": "GEMINI_API_KEY is not configured"}), 500
             

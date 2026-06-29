@@ -503,6 +503,10 @@ def report_statement():
     expense_total_cents = sum(r["cents"] or 0 for r in expense_rows)
     net_cents = income_total_cents - expense_total_cents
 
+    # Hide accounts with 0 amounts
+    income_rows = [r for r in income_rows if r["cents"] != 0]
+    expense_rows = [r for r in expense_rows if r["cents"] != 0]
+
     
     # -------- NET WORTH --------
     accounts = db.session.execute(text("""

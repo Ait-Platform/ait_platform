@@ -50,7 +50,13 @@
         </div>
       </div>
 
-      <div id="aiErrorBox" class="hidden mb-8 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 rounded-r-lg shadow-sm text-sm font-medium"></div>
+      <div id="aiErrorBox" class="hidden mb-8 p-6 bg-red-50 border-l-4 border-red-500 rounded-r-lg shadow-sm">
+        <p id="aiErrorText" class="text-red-700 text-sm font-medium mb-3"></p>
+        <a href="{{ url_for('billing_bp.setup_wizard') }}" class="inline-flex items-center text-sm font-bold text-red-800 bg-red-100 hover:bg-red-200 px-4 py-2 rounded-lg transition">
+          Switch to Manual Setup
+          <svg class="w-4 h-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+        </a>
+      </div>
 
       <!-- Results Form -->
       <form id="onboardingForm" action="{{ url_for('billing_bp.ai_onboarding_process') }}" method="POST" class="hidden opacity-0 transform translate-y-4 transition-all duration-500 ease-out">
@@ -117,22 +123,25 @@
           </div>
         </div>
 
-        <!-- Extracted Meters -->
-        <h3 class="text-xl font-bold text-slate-800 mb-4 flex items-center">
-          <svg class="w-6 h-6 mr-2 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
-          Extracted Meter Baselines
-        </h3>
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-xl font-bold text-slate-800 flex items-center">
+            <svg class="w-6 h-6 mr-2 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+            Review Extracted Meters
+          </h3>
+          <button type="button" onclick="addEmptyMeterRow()" class="text-sm bg-green-50 hover:bg-green-100 text-green-700 font-bold py-1.5 px-3 rounded-lg border border-green-200 transition">+ Add Missing Meter</button>
+        </div>
         
         <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden mb-8">
           <div class="overflow-x-auto">
             <table class="w-full text-left border-collapse">
               <thead>
                 <tr class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200">
-                  <th class="px-6 py-4 font-semibold">Meter No.</th>
-                  <th class="px-6 py-4 font-semibold">Utility</th>
-                  <th class="px-6 py-4 font-semibold text-right">Prev Reading</th>
-                  <th class="px-6 py-4 font-semibold text-right">New Reading</th>
-                  <th class="px-6 py-4 font-semibold text-right">Usage</th>
+                  <th class="px-4 py-4 font-semibold">Meter No.</th>
+                  <th class="px-4 py-4 font-semibold">Utility</th>
+                  <th class="px-4 py-4 font-semibold text-right">Prev Reading</th>
+                  <th class="px-4 py-4 font-semibold text-right">New Reading</th>
+                  <th class="px-4 py-4 font-semibold text-right">Usage</th>
+                  <th class="px-2 py-4 font-semibold text-center"></th>
                 </tr>
               </thead>
               <tbody id="metersList" class="divide-y divide-slate-100 text-sm">
@@ -144,13 +153,16 @@
 
         <div class="flex justify-between items-center bg-slate-50 p-6 rounded-2xl border border-slate-200">
           <div>
-            <p class="text-slate-500 text-sm">Once you click generate, we will create your property and immediately produce your first statement.</p>
-            <p class="text-slate-800 font-bold mt-1">Verify our math matches your bill perfectly!</p>
+            <p class="text-slate-500 text-sm">Review the AI extraction carefully. If it missed a meter, add it above.</p>
+            <p class="text-slate-800 font-bold mt-1">Ready to create your first statement?</p>
           </div>
-          <button type="button" onclick="submitData()" class="px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold rounded-xl shadow-lg hover:shadow-xl hover:from-blue-700 hover:to-indigo-700 transform hover:-translate-y-0.5 transition-all text-lg flex items-center">
-            Generate Initial MetSoa
-            <svg class="w-5 h-5 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
-          </button>
+          <div class="flex items-center space-x-4">
+            <a href="{{ url_for('billing_bp.setup_wizard') }}" class="text-sm font-medium text-slate-500 hover:text-slate-800">Setup Manually Instead</a>
+            <button type="button" onclick="submitData()" class="px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold rounded-xl shadow-lg hover:shadow-xl hover:from-blue-700 hover:to-indigo-700 transform hover:-translate-y-0.5 transition-all text-lg flex items-center">
+              Generate Initial MetSoa
+              <svg class="w-5 h-5 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+            </button>
+          </div>
         </div>
 
       </form>
@@ -224,10 +236,10 @@
               }, 50);
               
           } else {
-              throw new Error(result.error || 'Failed to extract data from the bill.');
+              throw new Error(result.error || 'Failed to extract data from the bill. The image might be blurry or unreadable.');
           }
       } catch (err) {
-          errorBox.textContent = err.message;
+          document.getElementById('aiErrorText').textContent = err.message;
           errorBox.classList.remove('hidden');
       } finally {
           loading.classList.add('hidden');
@@ -247,33 +259,59 @@
       
       if (data.readings && data.readings.length > 0) {
           data.readings.forEach((r, idx) => {
-              const utilColor = (r.utility_type && r.utility_type.toLowerCase() === 'electricity') ? 'text-yellow-600 bg-yellow-100' : 'text-blue-600 bg-blue-100';
-              
-              tbody.innerHTML += `
-                <tr class="hover:bg-slate-50 transition">
-                  <td class="px-6 py-4">
-                    <div class="font-bold text-slate-800">${r.meter_number || 'Unknown'}</div>
-                  </td>
-                  <td class="px-6 py-4">
-                    <span class="px-2.5 py-1 rounded-md text-[10px] font-bold uppercase ${utilColor}">${r.utility_type || 'Unknown'}</span>
-                  </td>
-                  <td class="px-6 py-4 text-right">
-                    <div class="font-mono text-slate-600">${r.previous_reading || 0}</div>
-                    <div class="text-[10px] text-slate-400">${r.previous_date || '-'}</div>
-                  </td>
-                  <td class="px-6 py-4 text-right">
-                    <div class="font-mono font-bold text-slate-800">${r.current_reading || 0}</div>
-                    <div class="text-[10px] text-slate-400">${r.current_date || '-'}</div>
-                  </td>
-                  <td class="px-6 py-4 text-right">
-                    <div class="font-bold text-green-600">${r.usage || 0}</div>
-                  </td>
-                </tr>
-              `;
+              addMeterRow(r);
           });
       } else {
-          tbody.innerHTML = `<tr><td colspan="5" class="px-6 py-8 text-center text-slate-500 italic">No meters detected in this bill.</td></tr>`;
+          addEmptyMeterRow();
       }
+  }
+
+  function addEmptyMeterRow() {
+      addMeterRow({
+          meter_number: '',
+          utility_type: 'electricity',
+          previous_reading: 0,
+          previous_date: '',
+          current_reading: 0,
+          current_date: '',
+          usage: 0
+      });
+  }
+
+  function addMeterRow(r) {
+      const tbody = document.getElementById('metersList');
+      const utilColor = (r.utility_type && r.utility_type.toLowerCase() === 'electricity') ? 'text-yellow-700 bg-yellow-50' : 'text-blue-700 bg-blue-50';
+      const isElec = (r.utility_type||'').toLowerCase() === 'electricity';
+      const isWater = (r.utility_type||'').toLowerCase() === 'water';
+
+      const tr = document.createElement('tr');
+      tr.className = 'hover:bg-slate-50 transition meter-row';
+      tr.innerHTML = `
+        <td class="px-4 py-4">
+          <input type="text" class="meter-num w-full bg-white border border-slate-300 rounded-md px-3 py-2 text-sm font-bold text-slate-800 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition placeholder-slate-400" value="${r.meter_number || ''}" placeholder="Meter No">
+        </td>
+        <td class="px-4 py-4">
+          <select class="meter-type w-full border border-slate-300 rounded-md px-3 py-2 text-xs font-bold uppercase shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition ${utilColor}" onchange="this.className = 'meter-type w-full border border-slate-300 rounded-md px-3 py-2 text-xs font-bold uppercase shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition ' + (this.value==='electricity'?'text-yellow-700 bg-yellow-50':'text-blue-700 bg-blue-50')">
+            <option value="electricity" ${isElec?'selected':''}>ELECTRICITY</option>
+            <option value="water" ${isWater?'selected':''}>WATER</option>
+          </select>
+        </td>
+        <td class="px-4 py-4 text-right">
+          <input type="number" step="any" class="meter-prev w-full text-right bg-white border border-slate-300 rounded-md px-3 py-2 text-sm font-mono shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition" value="${r.previous_reading || 0}">
+          <input type="date" class="meter-prev-date w-full text-right bg-white border border-slate-200 rounded px-2 py-1 text-[10px] mt-1 text-slate-500" value="${r.previous_date || ''}">
+        </td>
+        <td class="px-4 py-4 text-right">
+          <input type="number" step="any" class="meter-curr w-full text-right bg-white border border-slate-300 rounded-md px-3 py-2 text-sm font-mono font-bold shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition" value="${r.current_reading || 0}">
+          <input type="date" class="meter-curr-date w-full text-right bg-white border border-slate-200 rounded px-2 py-1 text-[10px] mt-1 text-slate-500" value="${r.current_date || ''}">
+        </td>
+        <td class="px-4 py-4 text-right">
+          <input type="number" step="any" class="meter-usage w-full text-right bg-white border border-slate-300 rounded-md px-3 py-2 text-sm font-bold text-green-600 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition" value="${r.usage || 0}">
+        </td>
+        <td class="px-2 py-4 text-center">
+          <button type="button" onclick="this.closest('tr').remove()" class="text-red-400 hover:text-red-600 font-bold text-xl leading-none">&times;</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
   }
 
   function submitData() {
@@ -285,6 +323,28 @@
       extractedData.tenant_name = document.getElementById('tenantName').value;
       extractedData.rent_amount = document.getElementById('tenantRent').value;
       extractedData.month = document.getElementById('propMonth').value;
+      
+      // Scrape edited meters from the DOM table
+      const finalReadings = [];
+      document.querySelectorAll('.meter-row').forEach(row => {
+          const mNum = row.querySelector('.meter-num').value.trim();
+          if (mNum) {
+              finalReadings.push({
+                  meter_number: mNum,
+                  utility_type: row.querySelector('.meter-type').value,
+                  previous_reading: row.querySelector('.meter-prev').value,
+                  previous_date: row.querySelector('.meter-prev-date').value,
+                  current_reading: row.querySelector('.meter-curr').value,
+                  current_date: row.querySelector('.meter-curr-date').value,
+                  usage: row.querySelector('.meter-usage').value
+              });
+          }
+      });
+      extractedData.readings = finalReadings;
+      
+      if (finalReadings.length === 0) {
+          if(!confirm("Warning: You have 0 meters configured. Continue anyway?")) return;
+      }
       
       // Pack into payload and submit
       document.getElementById('payloadInput').value = JSON.stringify(extractedData);

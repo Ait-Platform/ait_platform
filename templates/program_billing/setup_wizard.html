@@ -70,33 +70,12 @@
 
         <!-- STEP 2: Property -->
         <div x-show="step === 2" style="display: none;" x-transition.opacity.duration.300ms>
-          <h2 class="text-lg font-semibold text-slate-800 mb-4">2. Property Details</h2>
-
-          <!-- AI Upload Section -->
-          <div class="mb-8 p-6 bg-purple-50 border-2 border-purple-200 border-dashed rounded-xl text-center relative group hover:bg-purple-100 transition">
-            <div class="flex justify-center mb-3">
-              <svg class="w-10 h-10 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-            </div>
-            <h3 class="text-md font-bold text-purple-900 mb-1">AI Bill Auto-Fill</h3>
-            <p class="text-sm text-purple-700 mb-4">Upload a municipality bill to automatically extract property and meter details.</p>
-            
-            <input type="file" id="bill_upload" accept=".pdf,image/*" class="hidden" @change="uploadBill($event)">
-            <button type="button" onclick="document.getElementById('bill_upload').click()" class="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-5 rounded-lg text-sm transition shadow-sm" :disabled="isUploading">
-              <span x-show="!isUploading">Upload Bill</span>
-              <span x-show="isUploading" class="flex items-center">
-                <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                Extracting Data...
-              </span>
-            </button>
-            
-            <div x-show="uploadError" class="mt-3 text-sm text-red-600 font-medium" x-text="uploadError" style="display: none;"></div>
-            <div x-show="uploadSuccess" class="mt-3 text-sm text-green-600 font-medium" x-text="uploadSuccessMsg" style="display: none;"></div>
-            <div x-show="uploadWarning" class="mt-3 text-sm text-orange-800 font-medium bg-orange-100 p-3 rounded-lg border border-orange-300 shadow-sm" style="display: none;">
-              <span class="font-bold">Disclaimer:</span> <span x-text="uploadWarningMsg"></span>
-            </div>
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold text-slate-800">2. Property Details</h2>
+            <span class="text-xs font-bold text-orange-600 bg-orange-100 px-2 py-1 rounded-md uppercase">Manual Entry Mode</span>
           </div>
 
-          <div class="space-y-4 transition-opacity duration-300" :class="{'opacity-50 pointer-events-none': isUploading}">
+          <div class="space-y-4">
             <div>
               <label class="block text-sm font-medium text-slate-700">Property Name (Billing Name)</label>
               <input type="text" name="property_name" autofocus x-model="data.property_name" class="mt-1 block w-full rounded-md border-2 border-slate-300 p-2 shadow-sm focus:border-orange-500 focus:ring-orange-500">
@@ -122,9 +101,9 @@
               <input type="number" step="0.01" name="initial_due_amount" x-model="data.initial_due_amount" class="mt-1 block w-full rounded-md border-2 border-slate-300 p-2 shadow-sm focus:border-orange-500 focus:ring-orange-500">
             </div>
           </div>
-          <div class="mt-8 flex justify-between transition-opacity duration-300" :class="{'opacity-50 pointer-events-none': isUploading}">
-            <button type="button" @click="step--" class="px-6 py-2 bg-slate-200 text-slate-700 font-semibold rounded-lg hover:bg-slate-300 transition" :disabled="isUploading">&larr; Back</button>
-            <button type="button" @click="nextStep()" class="px-6 py-2 bg-orange-500 text-white font-semibold rounded-lg hover:bg-orange-600 transition" :disabled="isUploading">Next: Meters &rarr;</button>
+          <div class="mt-8 flex justify-between">
+            <button type="button" @click="step--" class="px-6 py-2 bg-slate-200 text-slate-700 font-semibold rounded-lg hover:bg-slate-300 transition">&larr; Back</button>
+            <button type="button" @click="nextStep()" class="px-6 py-2 bg-orange-500 text-white font-semibold rounded-lg hover:bg-orange-600 transition">Next: Meters &rarr;</button>
           </div>
         </div>
 
@@ -510,123 +489,9 @@
         window.scrollTo(0,0);
       },
       
-      isUploading: false,
-      uploadError: '',
-      uploadSuccess: false,
-      uploadSuccessMsg: '',
-      uploadWarning: false,
-      uploadWarningMsg: '',
-      
-      async uploadBill(event) {
-        const file = event.target.files[0];
-        if (!file) return;
+      // Core Data
         
-        this.isUploading = true;
-        this.uploadError = '';
-        this.uploadSuccess = false;
-        this.uploadWarning = false;
-        
-        const formData = new FormData();
-        formData.append('bill_file', file);
-        
-        try {
-            const response = await fetch('/api/parse_bill', {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
-                },
-                body: formData
-            });
-            const result = await response.json();
-            
-            if (response.ok) {
-                this.uploadSuccess = true;
-                // Auto-fill fields if they exist in the response
-                if (result.property_name) this.data.property_name = result.property_name;
-                if (result.address) this.data.address = result.address;
-                if (result.metro_account_no) this.data.metro_account_no = result.metro_account_no;
-                if (result.muni_email) this.data.muni_email = result.muni_email;
-                if (result.amount_due) this.data.initial_due_amount = result.amount_due.toString().replace(/[^\d.]/g, '');
-                
-                // Add meters logic
-                let metro_acc = result.metro_account_no || '';
-                
-                let wMeters = [];
-                let eMeters = [];
-                
-                if (result.water_meters && result.water_meters.length > 0) {
-                    wMeters.push(...result.water_meters);
-                }
-                if (result.electricity_meters && result.electricity_meters.length > 0) {
-                    eMeters.push(...result.electricity_meters);
-                }
-                
-                // Fallback: check the "readings" array if it exists (for robustness)
-                if (result.readings && result.readings.length > 0) {
-                    result.readings.forEach(r => {
-                        if (r.meter_number) {
-                            if (r.utility_type === 'water') {
-                                if (!wMeters.includes(r.meter_number)) wMeters.push(r.meter_number);
-                            } else if (r.utility_type === 'electricity') {
-                                if (!eMeters.includes(r.meter_number)) eMeters.push(r.meter_number);
-                            }
-                        }
-                    });
-                }
-                
-                if (wMeters.length > 0) {
-                    this.indWaterMeters = wMeters.map(m => ({
-                        number: m,
-                        bill_number: metro_acc,
-                        pointing_to: 'Main Supply'
-                    }));
-                }
-                
-                if (eMeters.length > 0) {
-                    this.indElecMeters = eMeters.map(m => ({
-                        number: m,
-                        bill_number: metro_acc,
-                        pointing_to: 'Main Supply'
-                    }));
-                }
-                
-                // Pre-fill manual meter entry fields with the account number as a convenience
-                if (metro_acc) {
-                    this.ui.bulk_water_bill = metro_acc;
-                    this.ui.bulk_elec_bill = metro_acc;
-                    
-                    if (this.indWaterMeters.length === 1 && !this.indWaterMeters[0].bill_number) {
-                        this.indWaterMeters[0].bill_number = metro_acc;
-                    }
-                    if (this.indElecMeters.length === 1 && !this.indElecMeters[0].bill_number) {
-                        this.indElecMeters[0].bill_number = metro_acc;
-                    }
-                }
-                
-                // Add rates logic
-                if (result.has_rates === true || result.has_rates === 'true') {
-                    this.data.has_rates = 'yes';
-                    if (result.rates_amount) {
-                        this.data.metro_rates_amount = result.rates_amount.toString().replace(/[^\d.]/g, '');
-                    }
-                }
-                if (wMeters.length === 0 && eMeters.length === 0) {
-                    this.uploadSuccessMsg = "Data extracted! We found your Account Number and details.";
-                    this.uploadWarning = true;
-                    this.uploadWarningMsg = "No meters were detected on this specific bill. Please note that if there are no meters reflecting, this is considered a 'dead account' for MetSoa or Recon purposes. You can manually add meters on the next step if they exist.";
-                } else {
-                    this.uploadSuccessMsg = "Data extracted successfully! Review the fields below.";
-                }
-                
-            } else {
-                this.uploadError = result.error || 'Failed to extract data from the bill.';
-            }
-        } catch (e) {
-            this.uploadError = 'A network error occurred while uploading the bill.';
-        } finally {
-            this.isUploading = false;
-        }
-      },
+
       
       async submitForm() {
         if (!this.data.accepted_terms) {

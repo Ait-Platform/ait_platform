@@ -1929,18 +1929,19 @@ def parse_bill_api():
         model = genai.GenerativeModel('gemini-2.5-flash')
         
         prompt = '''
-        Analyze this municipality bill and extract the following information.
+        Analyze this municipality bill (typically Ethekwini/Durban format) and extract the following information.
         Return the result strictly as a valid JSON object with the following keys:
         - "property_name": The name of the property or owner (string)
         - "address": The full address of the property (string)
         - "metro_account_no": The municipal account number (string). Look for ANY 11-digit number (like 83187242565) anywhere on the document. If you cannot find any 11-digit number, return the exact string "NOT FOUND".
-        - "water_meters": An array of water meter numbers (array of strings). Ethekwini water meters often end with a letter (e.g. 'W' or 'S') or are just numeric. Look under the 'Meter Readings' or 'Water' sections.
-        - "electricity_meters": An array of electricity meter numbers (array of strings). Ethekwini electricity meters often end with a letter (e.g. 'E', 'S', 'X') or are numeric. Look under 'Electricity' or 'Meter Readings'.
+        - "water_meters": An array of water meter numbers (array of strings). Ethekwini water meters often end with a letter (e.g. 'W' or 'S') or are just numeric. Look under the 'Meter Readings' or 'Water' sections. YOU MUST NOT SKIP ANY WATER METERS.
+        - "electricity_meters": An array of electricity meter numbers (array of strings). Ethekwini electricity meters often end with a letter (e.g. 'E', 'S', 'X') or are numeric. Look under 'Electricity' or 'Meter Readings'. YOU MUST NOT SKIP ANY ELECTRICITY METERS.
         - "muni_email": The contact email address for the municipality (string)
         - "has_rates": A boolean (true or false), true if the bill includes a property rates charge (sometimes called property tax or assessment rates)
         - "rates_amount": The monetary amount charged for property rates, excluding currency symbols (string or number)
         - "amount_due": The total initial amount due or balance on the bill (string or number)
-        - "readings": An array of objects, where each object represents a meter reading line and MUST have "meter_number" (string) and "utility_type" ("water" or "electricity").
+        - "readings": An array of objects, where each object represents a meter reading line and MUST have "meter_number" (string) and "utility_type" ("water" or "electricity"). Extract every single meter reading line you can find on the bill.
+        
         If a field is not found, return an empty string or empty array for that key. Do not include markdown formatting like ```json.
         '''
         
@@ -2313,11 +2314,14 @@ def parse_bill_onboarding_api():
         
         prompt = '''
         Analyze this municipality bill and extract BOTH the property details and the specific meter readings.
+        This is typically an Ethekwini (Durban, KZN) municipality bill. 
+        You MUST extract EVERY SINGLE meter reading found on the bill. Do not summarize or skip any meters.
+        
         Return the result strictly as a valid JSON object with the following structure:
         {
           "property_name": "Name of property or owner",
           "address": "Full address",
-          "metro_account_no": "Municipal account number",
+          "metro_account_no": "Municipal account number (usually 11 digits)",
           "muni_email": "Email address for the municipality (if present)",
           "has_rates": true,
           "rates_amount": 123.45,
@@ -2336,6 +2340,9 @@ def parse_bill_onboarding_api():
         }
         
         Rules:
+        - Ethekwini Water meters often end with letters like 'W' or 'S' (e.g. 123456W).
+        - Ethekwini Electricity meters often end with letters like 'E', 'S', or 'X'.
+        - Scan the "Meter Readings", "Electricity", and "Water" sections carefully.
         - If previous_reading is missing but you have current_reading and usage, calculate previous_reading (current - usage).
         - If year is missing in date, infer it based on bill date.
         - Infer utility_type from context (e.g. kWh means electricity, kL means water).

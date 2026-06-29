@@ -420,8 +420,8 @@ def register_decision():
     # 2) Ensure an enrollment row
     enrollment_id = _ensure_enrollment_row(user_id=user_id, subject_slug=subject)
 
-    # ---------- SPECIAL CASE: FREE SUBJECTS (CULTURAL FIRE) ----------
-    if subject == "cultural_fire":
+    # ---------- SPECIAL CASE: FREE SUBJECTS ----------
+    if subject in ("cultural_fire", "billing", "metro_billing"):
         mark_loss_enrollment_free(enrollment_id) # Acts as a generic free marker
         session.pop("reg_ctx", None)
         session.pop("just_paid_subject_id", None)
@@ -443,7 +443,7 @@ def register_decision():
     q = ctx.get("quote")
 
     # ----- COUNTRY PRICE CHECKER INTERCEPT -----
-    if subject not in ("sms", "cultural_fire"):
+    if subject not in ("sms", "cultural_fire", "billing", "metro_billing"):
         from app.enrollment.logic import get_quote_for_subject_country
         from app.models.auth import AuthSubject
         

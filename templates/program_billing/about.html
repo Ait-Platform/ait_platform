@@ -31,9 +31,33 @@
           Designed specifically for the <b>South African billing system</b>, our platform automates utility management for property owners and agents. Simply upload your municipal bill, and our AI instantly extracts your account details, meter numbers, and starting baselines—though complex bulk meters may require brief manual verification. You can configure complex property layouts, from independent units to bulk supplies with multiple sub-meters. Each month, tenants or caretakers can securely submit their readings via a simple email link—eliminating manual data entry.
         </p>
 
-        <p class="leading-relaxed font-bold text-orange-700 bg-orange-50 border-l-4 border-orange-500 p-4 mb-8 rounded-r-lg">
-          Platform Costing: Pricing is based simply on the number of meter readings entered. Up to {{ settings.included_meters }} meters costs R{{ (settings.base_price_cents / 100)|int }}/month. Any additional meter adds a small charge of just R{{ (settings.extra_meter_price_cents / 100)|int }}/month per meter.
-        </p>
+        <div class="leading-relaxed text-orange-800 bg-orange-50 border-l-4 border-orange-500 p-5 mb-8 rounded-r-lg shadow-sm">
+          <h4 class="font-bold text-orange-900 mb-2 flex items-center">
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+            Platform Costing (Pay-to-Unlock)
+          </h4>
+          <p class="mb-3">
+            You can capture properties and enter all meter readings completely for free. 
+            <strong>You only pay when you are ready to generate and unlock the monthly PDF statements.</strong>
+          </p>
+          <p class="mb-2">Pricing is based simply on the number of active meters billed that month:</p>
+          <ul class="list-disc list-inside space-y-1 ml-2 text-sm text-orange-900 mb-4">
+            <li>Base Price (Includes up to {{ settings.included_meters }} meters): <strong>R{{ "%.2f"|format(settings.base_price_cents / 100) }}</strong></li>
+            <li>Additional Meters: <strong>R{{ "%.2f"|format(settings.extra_meter_price_cents / 100) }} per meter</strong></li>
+          </ul>
+          
+          <div class="bg-white/60 p-4 rounded border border-orange-200 text-sm">
+            <strong class="text-orange-900 block mb-1">Example Calculation:</strong> 
+            If you bill {{ settings.included_meters + 1 }} meters in a month, your cost would be:<br>
+            <div class="ml-4 mt-2 font-mono text-orange-900">
+              Basic Price ({{ settings.included_meters }} meters): R{{ "%.2f"|format(settings.base_price_cents / 100) }}<br>
+              + 1 Additional meter: R{{ "%.2f"|format(settings.extra_meter_price_cents / 100) }}<br>
+              <div class="border-t border-orange-300 mt-1 pt-1 font-bold">
+                Total Cost: R{{ "%.2f"|format((settings.base_price_cents + settings.extra_meter_price_cents) / 100) }}
+              </div>
+            </div>
+          </div>
+        </div>
 
         <h3 class="text-xl font-bold text-gray-800 mb-4">Instant, Professional Statements</h3>
         <p class="leading-relaxed mb-4">With a single click, the system automatically generates three distinct, professional PDF statements:</p>

@@ -972,11 +972,16 @@ def ensure_default_budget_accounts(user_id: int):
         return
 
     defaults = [
-        ("Cash", "asset"),
         ("Bank", "asset"),
-        ("Food", "expense"),
+        ("Cash", "asset"),
+        ("Salary", "income"),
+        ("Other Income", "income"),
+        ("Home Loan", "liability"),
+        ("Credit Card", "liability"),
+        ("Groceries", "expense"),
         ("Transport", "expense"),
-        ("Income", "income"),
+        ("Lights & Water", "expense"),
+        ("Entertainment", "expense"),
     ]
 
     for name, kind in defaults:
@@ -1244,3 +1249,46 @@ def accounts_list():
 
     return render_template("program_budget/accounts_list.html", accounts=accounts)
 
+
+@budget_bp.post('/accounts/restore-defaults')
+@login_required
+def restore_defaults():
+    defaults = [
+        ("Bank", "asset"),
+        ("Cash", "asset"),
+        ("Salary", "income"),
+        ("Other Income", "income"),
+        ("Home Loan", "liability"),
+        ("Credit Card", "liability"),
+        ("Groceries", "expense"),
+        ("Transport", "expense"),
+        ("Lights & Water", "expense"),
+        ("Entertainment", "expense"),
+    ]
+    
+    existing_accounts = db.session.execute(
+        text("SELECT lower(name) as lname FROM bud_account WHERE user_id = :uid"),
+        {"uid": current_user.id}
+    ).mappings().all()
+    
+    existing_names = set([r["lname"] for r in existing_accounts])
+    
+    added_count = 0
+    for name, kind in defaults:
+        if name.lower() not in existing_names:
+            db.session.execute(
+                text("""
+                    INSERT INTO bud_account (user_id, name, kind)
+                    VALUES (:uid, :name, :kind)
+                """),
+                {"uid": current_user.id, "name": name, "kind": kind},
+            )
+            added_count += 1
+            
+    if added_count > 0:
+        db.session.commit()
+        flash(f"Restored {added_count} default account(s).", "success")
+    else:
+        flash("You already have all the default accounts.", "info")
+        
+    return redirect(url_for("budget_bp.accounts_list"))

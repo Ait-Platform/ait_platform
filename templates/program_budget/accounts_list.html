@@ -16,12 +16,18 @@
             <p class="mt-1 text-slate-600">A complete view of all your created accounts.</p>
         </div>
         <div class="flex items-center gap-3">
+            <form action="{{ url_for('budget_bp.restore_defaults') }}" method="post" class="m-0">
+              <button type="submit"
+                 class="rounded bg-sky-100 text-sky-700 px-3 py-1.5 text-sm font-medium hover:bg-sky-200 shadow-sm border border-sky-200 transition">
+                 Restore Defaults
+              </button>
+            </form>
             <a href="{{ url_for('budget_bp.account_new', next=request.full_path) }}" 
-               class="rounded bg-sky-600 text-white px-3 py-1.5 text-sm font-medium hover:bg-sky-700 shadow-sm">
+               class="rounded bg-sky-600 text-white px-3 py-1.5 text-sm font-medium hover:bg-sky-700 shadow-sm transition">
                + New Account
             </a>
             <a href="{{ url_for('budget_bp.ledger') }}"
-               class="rounded border border-2 border-slate-400 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 px-3 py-1.5 hover:bg-slate-50 text-sm">
+               class="rounded border border-2 border-slate-400 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 px-3 py-1.5 hover:bg-slate-50 text-sm transition">
               ← Cashbook
             </a>
         </div>

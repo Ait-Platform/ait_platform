@@ -28,11 +28,11 @@
         <h2 class="text-xl font-semibold text-gray-800 border-b pb-2">Why Choose Metro Billing?</h2>
         
         <p class="leading-relaxed mb-4">
-          Our platform automates utility management for property owners and agents. Simply upload your municipal bill, and our AI instantly extracts your account details, meter numbers, and starting baselines. You can configure complex property layouts, from independent units to bulk supplies with multiple sub-meters. Each month, tenants or caretakers can securely submit their readings via a simple email link—eliminating manual data entry.
+          Designed specifically for the <b>South African billing system</b>, our platform automates utility management for property owners and agents. Simply upload your municipal bill, and our AI instantly extracts your account details, meter numbers, and starting baselines—though complex bulk meters may require brief manual verification. You can configure complex property layouts, from independent units to bulk supplies with multiple sub-meters. Each month, tenants or caretakers can securely submit their readings via a simple email link—eliminating manual data entry.
         </p>
 
         <p class="leading-relaxed font-bold text-orange-700 bg-orange-50 border-l-4 border-orange-500 p-4 mb-8 rounded-r-lg">
-          Platform Costing: Pricing is based simply on the number of meter readings entered. Up to 2 meters costs R100/month. Any additional meter adds a small charge of just R15/month per meter.
+          Platform Costing: Pricing is based simply on the number of meter readings entered. Up to {{ settings.included_meters }} meters costs R{{ (settings.base_price_cents / 100)|int }}/month. Any additional meter adds a small charge of just R{{ (settings.extra_meter_price_cents / 100)|int }}/month per meter.
         </p>
 
         <h3 class="text-xl font-bold text-gray-800 mb-4">Instant, Professional Statements</h3>

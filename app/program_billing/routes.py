@@ -27,7 +27,14 @@ billing_bp = Blueprint('billing_bp', __name__)
 
 @billing_bp.route('/billing/about')
 def billing_about():
-    return render_template("program_billing/about.html")
+    from app.models.billing import BilPlatformSettings
+    settings = BilPlatformSettings.query.first()
+    if not settings:
+        settings = BilPlatformSettings(base_price_cents=10000, included_meters=2, extra_meter_price_cents=1500)
+        from app.extensions import db
+        db.session.add(settings)
+        db.session.commit()
+    return render_template("program_billing/about.html", settings=settings)
 
 @billing_bp.route("/billing/dashboard", methods=["GET", "POST"])
 @login_required

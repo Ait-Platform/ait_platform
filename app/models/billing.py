@@ -426,3 +426,10 @@ class BilMetroReadingLog(db.Model):
     billing_period = db.Column(db.String(7), nullable=False) # e.g. '2026-06'
     metro_email = db.Column(db.String(255))
     sent_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class BilPlatformSettings(db.Model):
+    __tablename__ = 'bil_platform_settings'
+    id = db.Column(db.Integer, primary_key=True)
+    base_price_cents = db.Column(db.Integer, default=10000)
+    included_meters = db.Column(db.Integer, default=2)
+    extra_meter_price_cents = db.Column(db.Integer, default=1500)

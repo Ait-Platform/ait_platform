@@ -158,17 +158,18 @@ class Config:
     LOSS_IMPORT_ON_BOOT = _to_bool(os.getenv("LOSS_IMPORT_ON_BOOT"), default=False)
 
     # ------------ Contact form / Mail (Zoho) ------------
-    SMTP_HOST = os.getenv("SMTP_HOST", "smtppro.zoho.com")
-    SMTP_PORT = int(os.getenv("SMTP_PORT", "465"))
-    SMTP_USERNAME = os.getenv("SMTP_USERNAME", "ait@mathwithhands.com")
-    SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "a@2jnqS")
+    # Forced configuration to bypass environment variables causing SSL mismatches
+    SMTP_HOST = "smtppro.zoho.com"
+    SMTP_PORT = 465
+    SMTP_USERNAME = "ait@mathwithhands.com"
+    SMTP_PASSWORD = "a@2jnqS"
 
-    MAIL_SERVER = os.getenv("MAIL_SERVER", SMTP_HOST)
-    MAIL_PORT = int(os.getenv("MAIL_PORT", str(SMTP_PORT)))
-    MAIL_USE_TLS = _to_bool(os.getenv("MAIL_USE_TLS", "0"))
-    MAIL_USE_SSL = _to_bool(os.getenv("MAIL_USE_SSL", "1"))
-    MAIL_USERNAME = os.getenv("MAIL_USERNAME", SMTP_USERNAME)
-    MAIL_PASSWORD = os.getenv("MAIL_PASSWORD", SMTP_PASSWORD)
+    MAIL_SERVER = SMTP_HOST
+    MAIL_PORT = SMTP_PORT
+    MAIL_USE_TLS = False
+    MAIL_USE_SSL = True
+    MAIL_USERNAME = SMTP_USERNAME
+    MAIL_PASSWORD = SMTP_PASSWORD
     MAIL_DEFAULT_SENDER = _parse_sender(
         os.getenv("MAIL_DEFAULT_SENDER"),
         "AIT Support",
@@ -176,7 +177,7 @@ class Config:
     )
 
     MAIL_SUPPRESS_SEND = _to_bool(os.getenv("MAIL_SUPPRESS_SEND", "0"), default=False)
-    CONTACT_TO_EMAIL = os.getenv("CONTACT_TO_EMAIL", "ait@mathwithhands.com")
+    CONTACT_TO_EMAIL = "ait@mathwithhands.com"
 
     # ------------ Misc / Debug / Cookies ------------
     DEBUG_TOOLBAR = _to_bool(os.getenv("DEBUG_TOOLBAR", "false"), default=False)

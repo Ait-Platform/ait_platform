@@ -98,7 +98,14 @@
     </div>
 
     <!-- NEW: Estimated Current Net Worth based on Snapshots -->
-    <div class="mt-4 rounded border border-sky-200 bg-sky-50 p-4">
+    <style>
+      @media print {
+        .print-avoid-break {
+          page-break-inside: avoid;
+        }
+      }
+    </style>
+    <div class="mt-4 rounded border border-sky-200 bg-sky-50 p-4 print-avoid-break">
       <div class="flex justify-between items-center mb-3">
         <div>
           <div class="font-bold text-sky-900">Current Net Worth</div>
@@ -106,9 +113,31 @@
         </div>
         <div class="font-bold text-sky-900 text-lg">{{ '%.2f'|format((net_worth_cents or 0)/100) }}</div>
       </div>
-      <div class="pt-3 border-t border-sky-200/60 flex justify-between text-sm text-sky-800">
-        <div>Total Assets: <b>{{ '%.2f'|format((asset_total_cents or 0)/100) }}</b></div>
-        <div>Total Liabilities: <b>{{ '%.2f'|format((liability_total_cents or 0)/100) }}</b></div>
+      <div class="pt-3 border-t border-sky-200/60 flex flex-col gap-2 text-sm text-sky-800">
+        <div>
+          <div class="flex justify-between font-bold">
+            <span>Total Assets</span>
+            <span>{{ '%.2f'|format((asset_total_cents or 0)/100) }}</span>
+          </div>
+          {% for r in asset_rows %}
+          <div class="flex justify-between text-xs text-sky-700 mt-1 pl-2 border-l-2 border-sky-200">
+            <span>{{ r.name }}</span>
+            <span>{{ '%.2f'|format((r.cents or 0)/100) }}</span>
+          </div>
+          {% endfor %}
+        </div>
+        <div class="mt-2">
+          <div class="flex justify-between font-bold">
+            <span>Total Liabilities</span>
+            <span>{{ '%.2f'|format((liability_total_cents or 0)/100) }}</span>
+          </div>
+          {% for r in liability_rows %}
+          <div class="flex justify-between text-xs text-sky-700 mt-1 pl-2 border-l-2 border-sky-200">
+            <span>{{ r.name }}</span>
+            <span>{{ '%.2f'|format((r.cents or 0)/100) }}</span>
+          </div>
+          {% endfor %}
+        </div>
       </div>
     </div>
   </div>

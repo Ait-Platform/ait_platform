@@ -526,13 +526,21 @@ def report_statement():
 
     asset_total_cents = 0
     liability_total_cents = 0
+    asset_rows = []
+    liability_rows = []
     for a in accounts:
         bal = latest_balances.get(a["id"], 0)
+        if bal == 0:
+            continue
+            
+        row = {"name": a["name"], "cents": bal}
         if a["kind"] in ("asset", "income"):
             asset_total_cents += bal
+            asset_rows.append(row)
         else:
             # this covers "liability" and "expense"
             liability_total_cents += bal
+            liability_rows.append(row)
 
     net_worth_cents = asset_total_cents - liability_total_cents
 
@@ -547,6 +555,8 @@ def report_statement():
         asset_total_cents=int(asset_total_cents),
         liability_total_cents=int(liability_total_cents),
         net_worth_cents=int(net_worth_cents),
+        asset_rows=asset_rows,
+        liability_rows=liability_rows,
         back_url=back_url,
     )
 
@@ -978,14 +988,22 @@ def ensure_default_budget_accounts(user_id: int):
     defaults = [
         ("Bank", "asset"),
         ("Cash", "asset"),
+        ("Savings", "asset"),
         ("Salary", "income"),
+        ("Side Hustle", "income"),
         ("Other Income", "income"),
         ("Home Loan", "liability"),
+        ("Vehicle Loan", "liability"),
         ("Credit Card", "liability"),
+        ("Personal Loan", "liability"),
         ("Groceries", "expense"),
         ("Transport", "expense"),
         ("Lights & Water", "expense"),
         ("Entertainment", "expense"),
+        ("School Fees", "expense"),
+        ("Insurance", "expense"),
+        ("Medical", "expense"),
+        ("Clothing", "expense"),
     ]
 
     for name, kind in defaults:
@@ -1260,14 +1278,22 @@ def restore_defaults():
     defaults = [
         ("Bank", "asset"),
         ("Cash", "asset"),
+        ("Savings", "asset"),
         ("Salary", "income"),
+        ("Side Hustle", "income"),
         ("Other Income", "income"),
         ("Home Loan", "liability"),
+        ("Vehicle Loan", "liability"),
         ("Credit Card", "liability"),
+        ("Personal Loan", "liability"),
         ("Groceries", "expense"),
         ("Transport", "expense"),
         ("Lights & Water", "expense"),
         ("Entertainment", "expense"),
+        ("School Fees", "expense"),
+        ("Insurance", "expense"),
+        ("Medical", "expense"),
+        ("Clothing", "expense"),
     ]
     
     existing_accounts = db.session.execute(

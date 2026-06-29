@@ -126,10 +126,6 @@ class Config:
       app.config.from_object("config.Config")
     """
 
-    # ------------ Gemini API Key (Hardcoded Fallback) ------------
-    # Split into two strings to bypass GitHub secret push protection
-    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "AQ.Ab8" + "RN6JzgQZy2fsFvnTlVQ92VAtPNxZlDZpI1Lz0ff3cXCn15A")
-
     # ------------ Core / Security ------------
     SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret")
     MAINTENANCE_MODE = int(os.getenv("MAINTENANCE_MODE", "0"))

@@ -1,0 +1,48 @@
+{% extends "layout.html" %}
+{% block title %}BudgetCash · Support Request{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 flex flex-col items-center py-10 px-4">
+  <div class="w-full max-w-2xl bg-white rounded-xl shadow-lg overflow-hidden flex flex-col">
+    <div class="h-3 bg-teal-500"></div>
+    <div class="p-8">
+      {% include "partials/flash_messages.html" %}
+
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <h1 class="text-2xl font-bold text-gray-800">Email Support</h1>
+          <p class="mt-1 text-slate-600">Can't find what you need? Send us a message and we will respond within 24 hours.</p>
+        </div>
+        <a href="{{ url_for('budget_bp.dashboard') }}" class="text-sm text-slate-500 hover:text-slate-800 border border-slate-300 px-3 py-1.5 rounded">
+          ← Back
+        </a>
+      </div>
+
+      <form method="POST" action="{{ url_for('budget_bp.support_request') }}" class="space-y-5">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">Subject</label>
+          <input type="text" name="subject" required
+                 class="w-full border-slate-300 rounded focus:border-teal-500 focus:ring-teal-500 px-3 py-2 border shadow-sm"
+                 placeholder="e.g. Need help creating a specific account">
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">Message</label>
+          <textarea name="message" rows="6" required
+                    class="w-full border-slate-300 rounded focus:border-teal-500 focus:ring-teal-500 px-3 py-2 border shadow-sm"
+                    placeholder="Please include as much detail as possible..."></textarea>
+        </div>
+
+        <div class="pt-2">
+          <button type="submit" class="w-full rounded bg-teal-600 text-white px-4 py-2 font-medium hover:bg-teal-700 shadow-sm transition">
+            Send Message
+          </button>
+        </div>
+      </form>
+      
+    </div>
+  </div>
+</div>
+{% endblock %}

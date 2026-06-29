@@ -158,25 +158,25 @@ class Config:
     LOSS_IMPORT_ON_BOOT = _to_bool(os.getenv("LOSS_IMPORT_ON_BOOT"), default=False)
 
     # ------------ Contact form / Mail (Zoho) ------------
-    SMTP_HOST = os.getenv("SMTP_HOST", "smtp.zoho.com")
-    SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
-    SMTP_USERNAME = os.getenv("SMTP_USERNAME", "info@mathwithhands.com")
-    SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
+    SMTP_HOST = os.getenv("SMTP_HOST", "smtppro.zoho.com")
+    SMTP_PORT = int(os.getenv("SMTP_PORT", "465"))
+    SMTP_USERNAME = os.getenv("SMTP_USERNAME", "ait@mathwithhands.com")
+    SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "a@2jnqS")
 
     MAIL_SERVER = os.getenv("MAIL_SERVER", SMTP_HOST)
     MAIL_PORT = int(os.getenv("MAIL_PORT", str(SMTP_PORT)))
-    MAIL_USE_TLS = _to_bool(os.getenv("MAIL_USE_TLS", "1"))
-    MAIL_USE_SSL = _to_bool(os.getenv("MAIL_USE_SSL", "0"))
+    MAIL_USE_TLS = _to_bool(os.getenv("MAIL_USE_TLS", "0"))
+    MAIL_USE_SSL = _to_bool(os.getenv("MAIL_USE_SSL", "1"))
     MAIL_USERNAME = os.getenv("MAIL_USERNAME", SMTP_USERNAME)
     MAIL_PASSWORD = os.getenv("MAIL_PASSWORD", SMTP_PASSWORD)
     MAIL_DEFAULT_SENDER = _parse_sender(
         os.getenv("MAIL_DEFAULT_SENDER"),
-        "AIT Platform",
+        "AIT Support",
         MAIL_USERNAME,
     )
 
     MAIL_SUPPRESS_SEND = _to_bool(os.getenv("MAIL_SUPPRESS_SEND", "0"), default=False)
-    CONTACT_TO_EMAIL = os.getenv("CONTACT_TO_EMAIL", MAIL_USERNAME)
+    CONTACT_TO_EMAIL = os.getenv("CONTACT_TO_EMAIL", "ait@mathwithhands.com")
 
     # ------------ Misc / Debug / Cookies ------------
     DEBUG_TOOLBAR = _to_bool(os.getenv("DEBUG_TOOLBAR", "false"), default=False)

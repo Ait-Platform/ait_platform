@@ -987,10 +987,10 @@ def ensure_default_budget_accounts(user_id: int):
     for name, kind in defaults:
         db.session.execute(
             text("""
-                INSERT INTO bud_account (user_id, name, kind)
-                VALUES (:uid, :name, :kind)
+                INSERT INTO bud_account (user_id, name, kind, code)
+                VALUES (:uid, :name, :kind, :code)
             """),
-            {"uid": user_id, "name": name, "kind": kind},
+            {"uid": user_id, "name": name, "kind": kind, "code": _slug(name)},
         )
 
     db.session.commit()
@@ -1278,10 +1278,10 @@ def restore_defaults():
         if name.lower() not in existing_names:
             db.session.execute(
                 text("""
-                    INSERT INTO bud_account (user_id, name, kind)
-                    VALUES (:uid, :name, :kind)
+                    INSERT INTO bud_account (user_id, name, kind, code)
+                    VALUES (:uid, :name, :kind, :code)
                 """),
-                {"uid": current_user.id, "name": name, "kind": kind},
+                {"uid": current_user.id, "name": name, "kind": kind, "code": _slug(name)},
             )
             added_count += 1
             

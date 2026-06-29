@@ -433,3 +433,14 @@ class BilPlatformSettings(db.Model):
     base_price_cents = db.Column(db.Integer, default=10000)
     included_meters = db.Column(db.Integer, default=2)
     extra_meter_price_cents = db.Column(db.Integer, default=1500)
+
+class BilStatementPayment(db.Model):
+    __tablename__ = 'bil_statement_payment'
+    id = db.Column(db.Integer, primary_key=True)
+    manager_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    month = db.Column(db.String(7), nullable=False)  # 'YYYY-MM'
+    meters_billed = db.Column(db.Integer, nullable=False, default=0)
+    amount_paid_cents = db.Column(db.Integer, nullable=False, default=0)
+    paid_at = db.Column(db.DateTime, default=func.now())
+    
+    __table_args__ = (db.UniqueConstraint('manager_id', 'month', name='uq_manager_month_payment'),)

@@ -53,6 +53,9 @@ def start():
     if subject == "spv_registration":
         amount_cents = 10000
         
+    if subject == "metro_billing":
+        amount_cents = int(session.get("metro_billing_amount_cents", 0))
+        
     if amount_cents <= 0:
         u = User.query.filter_by(email=email).first()
         if u:
@@ -441,6 +444,25 @@ def success():
                 db.session.add(part)
 
         db.session.commit()
+
+    # Process Metro Billing Payment
+    if subject.lower() == "metro_billing":
+        from app.models.billing import BilStatementPayment
+        metro_month = session.get("metro_billing_month")
+        metro_meters = session.get("metro_billing_meters", 0)
+        if metro_month:
+            payment = BilStatementPayment.query.filter_by(manager_id=u.id, month=metro_month).first()
+            if not payment:
+                payment = BilStatementPayment(
+                    manager_id=u.id, 
+                    month=metro_month, 
+                    meters_billed=int(metro_meters),
+                    amount_paid_cents=int(amount_cents if 'amount_cents' in locals() else session.get("metro_billing_amount_cents", 0))
+                )
+                db.session.add(payment)
+            else:
+                payment.amount_paid_cents += int(amount_cents if 'amount_cents' in locals() else session.get("metro_billing_amount_cents", 0))
+            db.session.commit()
 
     # 4.5) Update YocoPayment record
     pending = YocoPayment.query.filter_by(email=email, subject_slug=subject, status="pending").order_by(YocoPayment.id.desc()).first()

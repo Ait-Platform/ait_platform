@@ -25,6 +25,47 @@ from app.program_billing.helpers import get_dashboard_data
 
 billing_bp = Blueprint('billing_bp', __name__)
 
+@billing_bp.route('/billing/checkout/<month>', methods=['GET'])
+@login_required
+def billing_checkout(month):
+    from app.models.billing import BilStatementPayment, BilProperty, BilSectionalUnit, BilMeter, BilPlatformSettings
+    # Check if already paid
+    payment = BilStatementPayment.query.filter_by(manager_id=current_user.id, month=month).first()
+    if payment and payment.amount_paid_cents > 0:
+        flash("You have already unlocked statements for this month.", "info")
+        return redirect(url_for('billing_bp.learner_dashboard'))
+        
+    # Calculate meters
+    props = BilProperty.query.filter_by(manager_id=current_user.id).all()
+    prop_ids = [p.id for p in props]
+    
+    if not prop_ids:
+        flash("You have no properties to bill.", "warning")
+        return redirect(url_for('billing_bp.learner_dashboard'))
+        
+    units = BilSectionalUnit.query.filter(BilSectionalUnit.property_id.in_(prop_ids)).all()
+    unit_ids = [u.id for u in units]
+    
+    meters = BilMeter.query.filter(BilMeter.sectional_unit_id.in_(unit_ids)).all()
+    meter_count = len(meters)
+    
+    settings = BilPlatformSettings.query.first()
+    if not settings:
+        settings = BilPlatformSettings(base_price_cents=10000, included_meters=2, extra_meter_price_cents=1500)
+        db.session.add(settings)
+        db.session.commit()
+        
+    cost_cents = settings.base_price_cents
+    if meter_count > settings.included_meters:
+        extra_meters = meter_count - settings.included_meters
+        cost_cents += extra_meters * settings.extra_meter_price_cents
+        
+    session["metro_billing_month"] = month
+    session["metro_billing_meters"] = meter_count
+    session["metro_billing_amount_cents"] = cost_cents
+    
+    return render_template("program_billing/checkout_summary.html", month=month, meter_count=meter_count, cost_cents=cost_cents, settings=settings)
+
 @billing_bp.route('/billing/about')
 def billing_about():
     from app.models.billing import BilPlatformSettings
@@ -1750,9 +1791,23 @@ def metsoa(tenant_id, month):
     tenant = BilTenant.query.get(tenant_id)
     if not tenant:
         flash("Tenant not found", "danger")
-        return redirect(url_for("billing.admin_dashboard"))
+        return redirect(url_for("billing_bp.learner_dashboard"))
 
     prop = BilProperty.query.get(tenant.sectional_unit.property_id) if tenant.sectional_unit and tenant.sectional_unit.property_id else None
+    
+    if prop:
+        manager_id = prop.manager_id
+        from app.models.billing import BilStatementPayment
+        payment = BilStatementPayment.query.filter_by(manager_id=manager_id, month=month).first()
+        if not payment or payment.amount_paid_cents <= 0:
+            if current_user.id == manager_id:
+                flash(f"Please unlock statements for {month} before viewing or generating PDFs.", "warning")
+                return redirect(url_for('billing_bp.billing_checkout', month=month))
+            elif current_user.has_role('admin'):
+                flash(f"Notice: Manager has not paid for {month} statements.", "info")
+            else:
+                flash("Your manager has not unlocked statements for this month yet.", "danger")
+                return redirect(url_for("public_bp.welcome"))
 
     elec_rows, elec_total = build_electrical_rows(tenant.sectional_unit_id, month)
     water_meters, water_total = build_water_rows(tenant.sectional_unit_id, month)
@@ -2070,6 +2125,20 @@ def metsoa_pdf(tenant_id, month):
         abort(404)
 
     prop = BilProperty.query.get(tenant.sectional_unit.property_id) if tenant.sectional_unit and tenant.sectional_unit.property_id else None
+
+    if prop:
+        manager_id = prop.manager_id
+        from app.models.billing import BilStatementPayment
+        payment = BilStatementPayment.query.filter_by(manager_id=manager_id, month=month).first()
+        if not payment or payment.amount_paid_cents <= 0:
+            if current_user.id == manager_id:
+                flash(f"Please unlock statements for {month} before generating PDFs.", "warning")
+                return redirect(url_for('billing_bp.billing_checkout', month=month))
+            elif current_user.has_role('admin'):
+                pass
+            else:
+                flash("Your manager has not unlocked statements for this month yet.", "danger")
+                return redirect(url_for("public_bp.welcome"))
 
     elec_rows, elec_total = build_electrical_rows(tenant.sectional_unit_id, month)
     water_meters, water_total = build_water_rows(tenant.sectional_unit_id, month)

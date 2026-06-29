@@ -1899,7 +1899,9 @@ def parse_bill_api():
         import google.generativeai as genai
         import os
         import json
+        from dotenv import load_dotenv
         
+        load_dotenv()
         api_key = os.environ.get("GEMINI_API_KEY")
         if not api_key:
             return jsonify({"error": "GEMINI_API_KEY is not configured"}), 500
@@ -2259,7 +2261,9 @@ def parse_bill_onboarding_api():
         import google.generativeai as genai
         import os
         import json
+        from dotenv import load_dotenv
         
+        load_dotenv()
         api_key = os.environ.get("GEMINI_API_KEY")
         if not api_key:
             return jsonify({"error": "GEMINI_API_KEY is not configured"}), 500

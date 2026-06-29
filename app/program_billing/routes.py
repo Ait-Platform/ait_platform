@@ -511,15 +511,6 @@ def delete_consumption(consumption_id):
         
     abort(404)
 
-@billing_bp.route("/dashboard/tenant")
-@login_required
-def tenant_dashboard():
-    # Only allow tenants
-    if not current_user.has_role('tenant'):
-        flash("Access denied", "danger")
-        return redirect(url_for("public_bp.welcome"))
-    data = get_dashboard_data()
-    return render_template("program_billing/tenant_dashboard.html", data=data)
 
 
 

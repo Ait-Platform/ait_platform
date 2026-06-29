@@ -1900,9 +1900,12 @@ def parse_bill_api():
         import os
         import json
         from dotenv import load_dotenv
+        from flask import current_app
         
-        load_dotenv()
-        api_key = os.environ.get("GEMINI_API_KEY")
+        dotenv_path = os.path.join(current_app.root_path, '..', '.env')
+        load_dotenv(dotenv_path, override=True)
+        
+        api_key = os.environ.get("GEMINI_API_KEY") or current_app.config.get("GEMINI_API_KEY")
         if not api_key:
             return jsonify({"error": "GEMINI_API_KEY is not configured"}), 500
             
@@ -2262,9 +2265,12 @@ def parse_bill_onboarding_api():
         import os
         import json
         from dotenv import load_dotenv
+        from flask import current_app
         
-        load_dotenv()
-        api_key = os.environ.get("GEMINI_API_KEY")
+        dotenv_path = os.path.join(current_app.root_path, '..', '.env')
+        load_dotenv(dotenv_path, override=True)
+        
+        api_key = os.environ.get("GEMINI_API_KEY") or current_app.config.get("GEMINI_API_KEY")
         if not api_key:
             return jsonify({"error": "GEMINI_API_KEY is not configured"}), 500
             

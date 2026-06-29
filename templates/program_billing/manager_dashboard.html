@@ -25,26 +25,87 @@
         </div>
       </div>
 
-      <!-- Quick Actions -->
-      <div class="mb-4">
-        <a href="{{ url_for('billing_bp.ai_onboarding') }}" class="w-full bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 font-bold py-3 px-5 rounded-xl shadow-sm transition flex items-center justify-center text-sm">
-          <svg class="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-          Use AI to extract your details from your Municipal Bill
-        </a>
-      </div>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-8 border-b border-slate-100 pb-6">
-        <a href="{{ url_for('billing_bp.setup_wizard') }}" class="bg-orange-50 hover:bg-orange-100 border border-orange-200 text-orange-700 font-bold py-2.5 px-5 rounded-xl shadow-sm transition flex items-center justify-center text-sm">
-          <svg class="w-5 h-5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-          Manual Setup
-        </a>
-        <a href="{{ url_for('billing_bp.muni_recon_email') }}" class="bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold py-2.5 px-5 rounded-xl shadow-sm transition flex items-center justify-center text-sm">
-          <svg class="w-5 h-5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
-          Email Metro Readings
-        </a>
-        <a href="{{ url_for('billing_bp.muni_recon_statement') }}" class="bg-teal-50 hover:bg-teal-100 border border-teal-200 text-teal-700 font-bold py-2.5 px-5 rounded-xl shadow-sm transition flex items-center justify-center text-sm">
-          <svg class="w-5 h-5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-          Metro Reconciliation
-        </a>
+      <!-- Quick Actions (Alpine Component for Modal) -->
+      <div x-data="addPropertyModal()" class="mb-8 border-b border-slate-100 pb-6 relative">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <button @click="open = true" class="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold py-3 px-5 rounded-xl shadow-sm transition flex items-center justify-center text-sm col-span-1 md:col-span-1">
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+            Add New Property
+          </button>
+          
+          <a href="{{ url_for('billing_bp.muni_recon_email') }}" class="bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold py-3 px-5 rounded-xl shadow-sm transition flex items-center justify-center text-sm">
+            <svg class="w-5 h-5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+            Email Metro Readings
+          </a>
+          <a href="{{ url_for('billing_bp.muni_recon_statement') }}" class="bg-teal-50 hover:bg-teal-100 border border-teal-200 text-teal-700 font-bold py-3 px-5 rounded-xl shadow-sm transition flex items-center justify-center text-sm">
+            <svg class="w-5 h-5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            Metro Reconciliation
+          </a>
+        </div>
+
+        <!-- Add Property Modal -->
+        <div x-show="open" style="display: none;" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900 bg-opacity-50 backdrop-blur-sm px-4" x-transition>
+          <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden" @click.away="open = false">
+            <div class="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4 flex justify-between items-center">
+              <h3 class="text-white font-bold text-xl">Property Architect</h3>
+              <button @click="open = false" class="text-white hover:text-blue-100 text-2xl leading-none">&times;</button>
+            </div>
+            
+            <div class="p-8">
+              <!-- Step 1: Structure -->
+              <div x-show="step === 1" x-transition>
+                <h4 class="text-lg font-bold text-slate-800 mb-4">Define the Structure</h4>
+                
+                <div class="mb-6">
+                  <label class="block text-sm font-bold text-slate-700 mb-2">How many distinct municipal bills make up this property?</label>
+                  <input type="number" min="1" x-model.number="bills" class="w-full border-2 border-slate-200 rounded-lg px-4 py-3 text-lg font-bold text-slate-800 focus:border-blue-500 focus:ring-blue-500 transition">
+                  <p class="text-xs text-slate-500 mt-1">If this property receives multiple municipal bills, enter the total number here.</p>
+                </div>
+                
+                <div class="mb-8">
+                  <label class="block text-sm font-bold text-slate-700 mb-2">How many tenants (or distinct units) will be billed?</label>
+                  <input type="number" min="1" x-model.number="tenants" class="w-full border-2 border-slate-200 rounded-lg px-4 py-3 text-lg font-bold text-slate-800 focus:border-blue-500 focus:ring-blue-500 transition">
+                  <p class="text-xs text-slate-500 mt-1">Enter the number of tenants you plan to bill. Do not include the Owner/Common Area.</p>
+                </div>
+
+                <div class="flex justify-end">
+                  <button @click="nextStep()" class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition shadow-sm">Continue &rarr;</button>
+                </div>
+              </div>
+
+              <!-- Step 2: Path Choice -->
+              <div x-show="step === 2" style="display: none;" x-transition>
+                <h4 class="text-lg font-bold text-slate-800 mb-4">Choose Setup Method</h4>
+                <p class="text-sm text-slate-600 mb-6">Based on your structure <span class="font-bold bg-slate-100 px-2 py-1 rounded" x-text="bills + ' Bill(s), ' + tenants + ' Tenant(s)'"></span>, choose how you want to proceed:</p>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <!-- AI Path -->
+                  <a :href="'{{ url_for('billing_bp.ai_onboarding') }}?bills=' + bills + '&tenants=' + tenants" class="p-6 border-2 border-blue-200 bg-blue-50 hover:bg-blue-100 rounded-xl transition text-center group cursor-pointer block relative">
+                    <div class="absolute top-3 right-3 text-xs font-bold text-blue-700 bg-blue-200 px-2 py-1 rounded uppercase">Recommended</div>
+                    <div class="w-12 h-12 bg-white rounded-full mx-auto mb-3 flex items-center justify-center shadow-sm group-hover:scale-110 transition text-blue-600">
+                      <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                    </div>
+                    <h5 class="font-bold text-slate-800 mb-1">AI Property Architect</h5>
+                    <p class="text-xs text-slate-500">Upload your bills and let the AI extract all meters instantly. You simply map them to your tenants.</p>
+                  </a>
+                  
+                  <!-- Manual Path -->
+                  <a href="{{ url_for('billing_bp.setup_wizard') }}" class="p-6 border-2 border-slate-200 bg-slate-50 hover:bg-slate-100 rounded-xl transition text-center group cursor-pointer block">
+                    <div class="w-12 h-12 bg-white rounded-full mx-auto mb-3 flex items-center justify-center shadow-sm group-hover:scale-110 transition text-slate-600">
+                      <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                    </div>
+                    <h5 class="font-bold text-slate-800 mb-1">Manual Setup</h5>
+                    <p class="text-xs text-slate-500">Manually type in all property details and add your meters step-by-step.</p>
+                  </a>
+                </div>
+
+                <div class="mt-8">
+                  <button @click="step = 1" class="text-sm text-slate-500 hover:text-slate-800">&larr; Back</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Property Data Table -->
@@ -141,6 +202,20 @@ function confirmDelete(event, propertyName) {
   } else {
     if (confirmation !== null) {
       alert("Property name did not match. Deletion canceled.");
+    }
+  }
+}
+
+function addPropertyModal() {
+  return {
+    open: false,
+    step: 1,
+    bills: 1,
+    tenants: 1,
+    nextStep() {
+      if (this.bills < 1) this.bills = 1;
+      if (this.tenants < 1) this.tenants = 1;
+      this.step = 2;
     }
   }
 }

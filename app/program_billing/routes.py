@@ -2266,12 +2266,15 @@ def parse_readings_api():
 @billing_bp.route("/api/parse_bill_onboarding", methods=["POST"])
 @login_required
 def parse_bill_onboarding_api():
-    if 'bill_file' not in request.files:
+    if 'bill_files' not in request.files and 'bill_file' not in request.files:
         return jsonify({"error": "No file uploaded"}), 400
         
-    file = request.files['bill_file']
-    if file.filename == '':
-        return jsonify({"error": "No selected file"}), 400
+    files = request.files.getlist('bill_files')
+    if not files:
+        files = request.files.getlist('bill_file')
+        
+    if not files or files[0].filename == '':
+        return jsonify({"error": "No selected file(s)"}), 400
         
     try:
         import google.generativeai as genai
@@ -2301,21 +2304,28 @@ def parse_bill_onboarding_api():
             
         genai.configure(api_key=api_key)
         
-        file_bytes = file.read()
-        mime_type = file.mimetype
-        if mime_type == 'application/pdf':
-            pass
-        elif mime_type in ['image/jpeg', 'image/png']:
-            pass
-        else:
+        prompt_parts = []
+        for file in files:
+            file_bytes = file.read()
+            mime_type = file.mimetype
+            if mime_type == 'application/pdf':
+                pass
+            elif mime_type in ['image/jpeg', 'image/png']:
+                pass
+            else:
+                continue
+            prompt_parts.append({'mime_type': mime_type, 'data': file_bytes})
+            
+        if not prompt_parts:
             return jsonify({"error": "Unsupported file type. Please upload a PDF, JPG, or PNG."}), 400
             
         model = genai.GenerativeModel('gemini-2.5-flash')
         
         prompt = '''
-        Analyze this municipality bill and extract BOTH the property details and the specific meter readings.
+        Analyze the provided municipality bill(s). There may be multiple files/images belonging to the same property.
+        Extract BOTH the property details (finding the most common or 'Master' details) and the specific meter readings across ALL bills.
         This is typically an Ethekwini (Durban, KZN) municipality bill. 
-        You MUST extract EVERY SINGLE meter reading found on the bill. Do not summarize or skip any meters.
+        You MUST extract EVERY SINGLE meter reading found across ALL the bills. Do not summarize or skip any meters.
         
         Return the result strictly as a valid JSON object with the following structure:
         {
@@ -2350,10 +2360,8 @@ def parse_bill_onboarding_api():
         - Do not include markdown formatting like ```json.
         '''
         
-        response = model.generate_content([
-            {'mime_type': mime_type, 'data': file_bytes},
-            prompt
-        ])
+        prompt_parts.append(prompt)
+        response = model.generate_content(prompt_parts)
         
         text_response = response.text.strip()
         if text_response.startswith('```json'):
@@ -2398,64 +2406,52 @@ def ai_onboarding_process():
         db.session.add(prop)
         db.session.flush()
         
-        # 2. Create Default Unit
-        unit = BilSectionalUnit(
-            property_id=prop.id,
-            name=f"{prop_name} - Main Unit (Prop {prop.id})"
-        )
-        db.session.add(unit)
+        # 2. Setup Units & Tenants Map
+        unit_map = {}
+        tenant_map = {}
+        
+        # 2a. Owner Account (Default)
+        owner_unit = BilSectionalUnit(property_id=prop.id, name=f"{prop_name} - Owner/Common")
+        db.session.add(owner_unit)
         db.session.flush()
+        unit_map["owner"] = owner_unit.id
         
-        # 3. Create Tenant (Owner as Tenant fallback)
-        tenant_name = data.get("tenant_name", "").strip()
-        if not tenant_name:
-            tenant_name = "Owner Account (Vacant)"
-        tenant = BilTenant(
-            name=tenant_name,
-            email=data.get("tenant_email"),
-            email_statements=bool(data.get("email_statements")),
-            sectional_unit_id=unit.id
-        )
-        db.session.add(tenant)
+        owner_tenant = BilTenant(name="Owner Account", sectional_unit_id=owner_unit.id)
+        db.session.add(owner_tenant)
         db.session.flush()
+        tenant_map["owner"] = owner_tenant.id
+        db.session.add(BilLease(tenant_id=owner_tenant.id, sectional_unit_id=owner_unit.id, rent_amount=0))
         
-        rent_amount = data.get("rent_amount")
-        lease = BilLease(
-            tenant_id=tenant.id,
-            sectional_unit_id=unit.id,
-            rent_amount=float(rent_amount) if rent_amount else 0.0
-        )
-        db.session.add(lease)
-        
-        # 4. Create Meters and initial readings (baselines)
-        month = data.get("month")
-        if not month:
-            from datetime import datetime
-            month = datetime.now().strftime("%Y-%m")
-        for m_data in data.get("readings", []):
-            # Create Meter
-            meter = BilMeter(
-                meter_number=m_data.get("meter_number"),
-                utility_type=m_data.get("utility_type") or "water",
-                sectional_unit_id=unit.id,
-                pointing_to="Entire Property",
-                municipal_bill_number=data.get("metro_account_no")
-            )
-            db.session.add(meter)
+        # 2b. Dynamic Tenants
+        for t_data in data.get("tenants", []):
+            tid = t_data.get("id")
+            tname = t_data.get("name", "").strip() or f"Tenant {tid}"
+            rent = float(t_data.get("rent") or 0.0)
+            
+            t_unit = BilSectionalUnit(property_id=prop.id, name=f"Unit {tid.upper()}")
+            db.session.add(t_unit)
             db.session.flush()
+            unit_map[tid] = t_unit.id
             
-            # Create Consumption (Baseline)
-            from datetime import datetime
+            t_tenant = BilTenant(name=tname, sectional_unit_id=t_unit.id)
+            db.session.add(t_tenant)
+            db.session.flush()
+            tenant_map[tid] = t_tenant.id
+            db.session.add(BilLease(tenant_id=t_tenant.id, sectional_unit_id=t_unit.id, rent_amount=rent))
             
-            # Parse dates safely
+        # 3. Create Meters and initial readings (baselines)
+        month = data.get("month")
+        from datetime import datetime
+        if not month:
+            month = datetime.now().strftime("%Y-%m")
+            
+        def _add_baseline(meter, m_data):
             last_date_str = m_data.get("previous_date")
             new_date_str = m_data.get("current_date")
-            
             try:
                 last_date = datetime.strptime(last_date_str, "%Y-%m-%d").date() if last_date_str else datetime.utcnow().date()
             except:
                 last_date = datetime.utcnow().date()
-                
             try:
                 new_date = datetime.strptime(new_date_str, "%Y-%m-%d").date() if new_date_str else datetime.utcnow().date()
             except:
@@ -2469,7 +2465,7 @@ def ai_onboarding_process():
                 usage = new_read - last_read
             
             days = (new_date - last_date).days
-            if days <= 0: days = 30 # fallback
+            if days <= 0: days = 30
             
             cons = BilConsumption(
                 meter_id=meter.id,
@@ -2483,6 +2479,47 @@ def ai_onboarding_process():
                 consumption=usage
             )
             db.session.add(cons)
+
+        bulk_meters = {} # utility_type -> meter.id
+        
+        # PASS 1: Bulk Meters
+        for m_data in data.get("readings", []):
+            if m_data.get("is_bulk"):
+                assign_to = m_data.get("assign_to", "owner")
+                u_id = unit_map.get(assign_to, owner_unit.id)
+                u_type = (m_data.get("utility_type") or "water").lower()
+                
+                meter = BilMeter(
+                    meter_number=m_data.get("meter_number"),
+                    utility_type=u_type,
+                    sectional_unit_id=u_id,
+                    pointing_to="Entire Property",
+                    municipal_bill_number=data.get("metro_account_no")
+                )
+                db.session.add(meter)
+                db.session.flush()
+                bulk_meters[u_type] = meter.id
+                _add_baseline(meter, m_data)
+                
+        # PASS 2: Sub / Independent Meters
+        for m_data in data.get("readings", []):
+            if not m_data.get("is_bulk"):
+                assign_to = m_data.get("assign_to", "owner")
+                u_id = unit_map.get(assign_to, owner_unit.id)
+                u_type = (m_data.get("utility_type") or "water").lower()
+                parent_id = bulk_meters.get(u_type)
+                
+                meter = BilMeter(
+                    meter_number=m_data.get("meter_number"),
+                    utility_type=u_type,
+                    sectional_unit_id=u_id,
+                    parent_meter_id=parent_id,
+                    pointing_to=None,
+                    municipal_bill_number=data.get("metro_account_no")
+                )
+                db.session.add(meter)
+                db.session.flush()
+                _add_baseline(meter, m_data)
             
         db.session.commit()
         
@@ -2521,8 +2558,10 @@ def ai_onboarding_process():
                     db.session.add(cycle)
             db.session.commit()
                     
-        flash("Property successfully set up and baseline established!", "success")
-        return redirect(url_for("billing_bp.metsoa", tenant_id=tenant.id, month=month))
+        flash("Property successfully set up and baselines established!", "success")
+        
+        # Redirect to the Owner metsoa by default as the dashboard root
+        return redirect(url_for("billing_bp.metsoa", tenant_id=tenant_map["owner"], month=month))
         
     except Exception as e:
         db.session.rollback()

@@ -162,7 +162,7 @@ class Config:
     SMTP_HOST = "smtppro.zoho.com"
     SMTP_PORT = 465
     SMTP_USERNAME = "ait@mathwithhands.com"
-    SMTP_PASSWORD = "a@2jnqS"
+    SMTP_PASSWORD = "b9F0ncVdzL9g"
 
     MAIL_SERVER = SMTP_HOST
     MAIL_PORT = SMTP_PORT

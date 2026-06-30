@@ -58,10 +58,19 @@ def price_page():
                 "estimated_zar": row.zar_amount_cents,
                 "fx_rate": getattr(row, "fx_rate", None),
                 "is_discount": getattr(row, "is_discount", False),
-                "has_quote": True,
             })
+            price_ctx["has_quote"] = True
+        else:
+            flash("No pricing found for that country yet.", "warning")
 
-    return render_template("program_mechanic/price.html", price=price_ctx, subject=subject)
+    countries = db.session.execute(
+        text("""
+            SELECT r.alpha2 AS code, r.name
+              FROM ref_country_currency r
+        """)
+    ).mappings().all()
+
+    return render_template("program_mechanic/price.html", price=price_ctx, subject=subject, countries=countries)
 
 @mechanic_bp.route("/mechanic/dashboard")
 @login_required

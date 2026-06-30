@@ -1,67 +1,124 @@
 {% extends "layout.html" %}
+{% block title %}Price · Mechanic CRM{% endblock %}
 
 {% block content %}
-<div class="min-h-screen bg-gray-50 flex flex-col items-center py-10 px-4">
-  
-  <div class="w-full max-w-4xl bg-white rounded-xl shadow-lg overflow-hidden flex flex-col">
-    
-    <div class="h-3 bg-indigo-600"></div>
-    
-    <div class="p-8">
-      
-      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 pb-4 border-b border-gray-100 gap-4">
-        <h1 class="text-2xl md:text-3xl font-bold text-gray-800 flex items-center">
-          <span class="mr-2"></span> Choose Your Plan
-        </h1>
-        <a href="{{ url_for('mechanic_bp.about') }}" class="inline-flex items-center text-sm font-medium text-gray-500 hover:text-indigo-600 transition-colors">
-          <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
-          Back
-        </a>
-      </div>
-      
-      <div class="max-w-xl mx-auto space-y-6">
-        <p class="text-center text-gray-600 mb-8">
-          Start your free trial today. No commitment required.
+<div class="mx-auto max-w-4xl mt-10 px-4">
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+    {# -----------------------------
+       LEFT TILE: Country + Local Price
+       ----------------------------- #}
+    <div class="bg-white rounded-xl shadow overflow-hidden flex flex-col">
+      <div class="h-2 bg-indigo-600"></div>
+      <div class="p-6 flex-1">
+        {% include "partials/flash_messages.html" %}
+        
+        <div class="flex items-center justify-between">
+          <h1 class="text-lg font-semibold text-slate-800">Check Your Premium Rate</h1>
+          <div class="text-xs text-slate-500">Mechanic CRM</div>
+        </div>
+
+        <p class="mt-2 text-sm text-slate-600">
+          We use value-based parity pricing. Check your localized cost before you start your free trial.
         </p>
 
-        <div class="border border-indigo-100 bg-indigo-50/50 rounded-xl p-6 text-center space-y-4 shadow-sm">
-          <h2 class="text-xl font-bold text-indigo-900">Mechanic CRM Monthly</h2>
-          
-          {% if price and price.has_quote %}
-            <div class="text-3xl font-black text-indigo-700">
-              {{ price.local_currency }}{{ "%.2f"|format(price.local_amount / 100) }} <span class="text-lg font-medium text-gray-500">/ mo</span>
+        <div class="mt-5">
+          <label class="block text-sm font-medium text-slate-700 mb-2">Select Your Country</label>
+          <form id="countryForm" method="get" action="{{ url_for('mechanic_bp.price_page') }}">
+            <select name="country"
+                    onchange="this.form.submit()"
+                    class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200">
+              <option value="" {% if not price.has_quote %}selected{% endif %}>Select your country</option>
+              {% for c in countries %}
+                <option value="{{ c.code }}" {% if price.country_code == c.code %}selected{% endif %}>
+                  {{ c.name }}
+                </option>
+              {% endfor %}
+            </select>
+          </form>
+          <p class="mt-2 text-xs text-slate-500">
+            Don’t see your country? Choose any country that uses your currency.
+          </p>
+        </div>
+
+        {% set has_quote = price and price.has_quote %}
+        {% set disabled_class = '' if has_quote else 'opacity-50' %}
+
+        <div class="mt-6">
+          <div class="text-sm font-medium text-slate-700 mb-2">Mechanic CRM Monthly Price</div>
+          <div class="flex items-center gap-2 {{ disabled_class }}">
+            <div class="flex-1 rounded-lg border bg-slate-50 px-3 py-2 text-right text-sm text-slate-800">
+              {% if has_quote and price.local_amount is not none %}
+                {{ '%.2f' % (price.local_amount / 100) }}
+              {% else %}
+                —
+              {% endif %}
             </div>
-          {% else %}
-            <div class="text-3xl font-black text-indigo-700">
-              Trial <span class="text-lg font-medium text-gray-500">Only</span>
+            <div class="rounded-lg border px-3 py-2 text-sm text-slate-700">
+              {{ price.local_currency if has_quote else '—' }}
             </div>
+          </div>
+          {% if has_quote and price.is_discount %}
+            <p class="mt-2 text-xs text-indigo-600">Regional parity discount applied.</p>
           {% endif %}
-          
-          <ul class="text-sm text-gray-600 space-y-2 mt-4 text-left inline-block">
-            <li class="flex items-center gap-2"><svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Full Dashboard Access</li>
-            <li class="flex items-center gap-2"><svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Unlimited Job Cards</li>
-            <li class="flex items-center gap-2"><svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Client & Vehicle Management</li>
-            <li class="flex items-center gap-2"><svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Invoicing System</li>
-          </ul>
         </div>
       </div>
-
     </div>
-    
-    <div class="bg-gray-50 p-6 border-t border-gray-100 flex flex-col sm:flex-row justify-between items-center gap-4">
-      <a href="{{ url_for('mechanic_bp.about') }}" class="rounded-lg border px-4 py-2 text-sm hover:bg-slate-50 w-full sm:w-auto text-center font-medium text-gray-600">
-        Back to Info
-      </a>
 
-      {% if price and price.has_quote %}
-        <a href="{{ url_for('yoco_bp.yoco_start', email=current_user.email if current_user.is_authenticated else '', subject='mechanic') }}" class="inline-flex items-center justify-center rounded bg-indigo-600 px-6 py-2 text-sm font-semibold text-white hover:bg-indigo-700 shadow-sm transition-colors w-full sm:w-auto">
-          Start Free Trial
-        </a>
-      {% else %}
-        <a href="{{ url_for('auth_bp.register', role='user', subject='mechanic', plan='trial', next=url_for('auth_bp.bridge_dashboard'), price_id=price.price_id if price else None) }}" class="inline-flex items-center justify-center rounded bg-indigo-600 px-6 py-2 text-sm font-semibold text-white hover:bg-indigo-700 shadow-sm transition-colors w-full sm:w-auto">
-          Start Free Trial
-        </a>
-      {% endif %}
+    {# -----------------------------
+       RIGHT TILE: Free Trial
+       ----------------------------- #}
+    <div class="bg-white rounded-xl shadow overflow-hidden flex flex-col">
+      <div class="h-2 bg-indigo-600"></div>
+      <div class="p-6 flex flex-col justify-between flex-1">
+        <div>
+          <div class="flex items-center justify-between">
+            <h2 class="text-lg font-semibold text-slate-800">14-Day Free Trial</h2>
+            <div class="text-xs font-bold text-indigo-600 uppercase">Start Now</div>
+          </div>
+
+          <div class="mt-4 p-4 bg-indigo-50 rounded border border-indigo-100">
+            <p class="text-sm text-indigo-800 mb-2 font-medium">What's included?</p>
+            <ul class="list-disc list-inside text-sm text-indigo-700 space-y-1">
+              <li>Full Dashboard Access</li>
+              <li>Unlimited Job Cards</li>
+              <li>Client & Vehicle Management</li>
+              <li>Invoicing System</li>
+            </ul>
+          </div>
+          
+          <div class="mt-4">
+             <p class="text-xs text-slate-500 leading-relaxed">
+               Start your trial to explore Mechanic CRM. If you choose to continue after the trial expires, the rate calculated on the left will be securely locked in for your account.
+             </p>
+          </div>
+        </div>
+
+        <div class="mt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <a href="{{ url_for('mechanic_bp.about') }}"
+             class="rounded-lg border px-4 py-2 text-sm hover:bg-slate-50 w-full sm:w-auto text-center">
+            ← Back to Info
+          </a>
+
+          {% if has_quote %}
+            {% if current_user.is_authenticated %}
+              <a href="{{ url_for('yoco_bp.yoco_start', email=current_user.email, subject='mechanic') }}"
+                 class="inline-flex items-center justify-center rounded bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 shadow-sm transition-colors w-full sm:w-auto">
+                Start Free Trial
+              </a>
+            {% else %}
+              <a href="{{ url_for('auth_bp.register', role='user', subject='mechanic', plan='trial', next=url_for('auth_bp.bridge_dashboard'), price_id=price.price_id) }}"
+                 class="inline-flex items-center justify-center rounded bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 shadow-sm transition-colors w-full sm:w-auto">
+                Start Free Trial
+              </a>
+            {% endif %}
+          {% else %}
+            <button type="button" class="rounded bg-indigo-600 px-4 py-2 text-sm font-semibold text-white opacity-50 cursor-not-allowed w-full sm:w-auto" disabled>
+              Select Country First
+            </button>
+          {% endif %}
+        </div>
+      </div>
     </div>
 
   </div>

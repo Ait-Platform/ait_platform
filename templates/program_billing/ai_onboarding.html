@@ -488,11 +488,11 @@ document.addEventListener('alpine:init', () => {
     
     approveSingleBill() {
       // Prevent Duplicate Uploads
-      const accountNo = this.currentExtractedData.metro_account_no;
-      if (accountNo) {
-        const isDuplicate = this.allBills.some(b => b.metro_account_no === accountNo);
+      const checkAccountNo = this.currentExtractedData.metro_account_no;
+      if (checkAccountNo) {
+        const isDuplicate = this.allBills.some(b => b.metro_account_no === checkAccountNo);
         if (isDuplicate) {
-          alert("DUPLICATE DETECTED: You have already uploaded a bill for Account No " + accountNo + " in this session! Please cancel or upload a different bill to avoid duplicate meters.");
+          alert("DUPLICATE DETECTED: You have already uploaded a bill for Account No " + checkAccountNo + " in this session! Please cancel or upload a different bill to avoid duplicate meters.");
           return; 
         }
       }

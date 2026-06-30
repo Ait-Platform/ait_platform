@@ -12,7 +12,11 @@
     <div class="p-10">
       <!-- HEADER -->
       <div class="relative mb-8 text-center" x-show="view !== 'success'">
-        <div class="absolute right-0 top-0">
+        <div class="absolute right-0 top-0 flex space-x-2">
+          <button @click="showSavedBillsModal = true" x-show="allBills.length > 0" class="inline-flex items-center text-sm font-medium text-blue-600 hover:text-blue-800 transition bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg border border-blue-200 shadow-sm">
+            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+            View Saved Bills (<span x-text="allBills.length"></span>)
+          </button>
           <a href="{{ url_for('billing_bp.learner_dashboard') }}" class="inline-flex items-center text-sm font-medium text-slate-500 hover:text-slate-800 transition bg-slate-50 hover:bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm">
             <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
             Cancel
@@ -424,7 +428,7 @@ document.addEventListener('alpine:init', () => {
     editBillIdx: null,
     
     init() {
-      const saved = sessionStorage.getItem('ait_onboarding_' + this.currentProperty);
+      const saved = localStorage.getItem('ait_onboarding_' + this.currentProperty);
       if (saved) {
         try {
           const state = JSON.parse(saved);
@@ -457,7 +461,7 @@ document.addEventListener('alpine:init', () => {
         allBills: this.allBills,
         allMeters: this.allMeters
       };
-      sessionStorage.setItem('ait_onboarding_' + this.currentProperty, JSON.stringify(state));
+      localStorage.setItem('ait_onboarding_' + this.currentProperty, JSON.stringify(state));
     },
     
     handleDrop(e) {
@@ -616,7 +620,7 @@ document.addEventListener('alpine:init', () => {
         });
 
         if (response.ok) {
-          sessionStorage.removeItem('ait_onboarding_' + this.currentProperty);
+          localStorage.removeItem('ait_onboarding_' + this.currentProperty);
           this.view = 'success';
         } else {
           const err = await response.json();

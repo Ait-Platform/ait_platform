@@ -512,6 +512,7 @@ def create_app(test_config=None):
     app.register_blueprint(reports_bp)
     app.register_blueprint(pdf_bp)
     app.register_blueprint(cultural_bp)
+    app.register_blueprint(mechanic_bp)
     app.register_blueprint(spv_bp)
     app.register_blueprint(adv_math_bp)
     app.register_blueprint(practice_crm_bp, url_prefix="/practice-crm")

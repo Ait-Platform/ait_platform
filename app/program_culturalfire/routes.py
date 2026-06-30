@@ -774,66 +774,7 @@ def talent_group_dashboard(group_id):
 @cultural_bp.route("/parent/dashboard/<int:enrollment_id>", methods=["GET"], endpoint="parent_dashboard")
 @login_required
 def parent_dashboard(enrollment_id):
-    cfi_subject = AuthSubject.query.filter_by(slug="cultural_fire").first_or_404()
-
-    # Get the parent’s enrollment record
-    enrollment = UserEnrollment.query.get_or_404(enrollment_id)
-
-    links = CfiParent.query.filter_by(parent_id=current_user.id).all()
-    children = []
-
-    for link in links:
-        child_enrollment = (
-            UserEnrollment.query
-            .filter_by(user_id=link.child_id, subject_id=cfi_subject.id)
-            .first()
-        )
-        if not child_enrollment:
-            continue
-
-        biodata = CfiBiodata.query.filter_by(user_id=link.child_id).first()
-
-        talents = (
-            CfiTalentSubmission.query
-            .filter_by(user_id=link.child_id)
-            .order_by(CfiTalentSubmission.id.asc())
-            .all()
-        )
-
-        groups = (
-            CfiGroup.query
-            .join(CfiGroupMember, CfiGroupMember.group_id == CfiGroup.id)
-            .filter(CfiGroupMember.enrollment.has(user_id=link.child_id))
-            .all()
-        )
-
-        group_data = []
-        for g in groups:
-            group_data.append({
-                "id": g.id,
-                "name": g.name,
-                "members": g.members,
-                "submission_id": g.submission_id
-            })
-
-        children.append({
-            "user": child_enrollment.user,
-            "biodata": biodata,
-            "status": child_enrollment.status,
-            "subject": child_enrollment.subject,
-            "talents": talents,
-            "groups": groups,
-            "permission_granted": link.permission_granted
-        })
-
-    form = PermissionForm()
-    return render_template(
-        "program_culturefire/parent_dashboard.html", 
-        children=children, 
-        form=form,
-        enrollment=enrollment,   # pass the parent’s enrollment object
-        calculate_age_from_dob=calculate_age_from_dob
-    )
+    return redirect(url_for('cultural_bp.stakeholder_dashboard', enrollment_id=enrollment_id))
 
 @cultural_bp.route("/parent/add", methods=["GET", "POST"], endpoint="parent_add_participant")
 def parent_add_participant():
@@ -864,7 +805,7 @@ def parent_add_participant():
         db.session.commit()
 
         flash("Participant linked successfully!", "success")
-        return redirect(url_for("cultural_bp.parent_dashboard"))
+        return redirect(url_for("cultural_bp.stakeholder_dashboard"))
 
     return render_template(
         "program_culturefire/parent_add_participant.html",
@@ -892,7 +833,7 @@ def toggle_permission():
         db.session.commit()
         flash(f"Permission {action}ed for {talent.talent_name}", "success")
 
-    return redirect(url_for("cultural_bp.parent_dashboard"))
+    return redirect(url_for("cultural_bp.stakeholder_dashboard"))
 
 @cultural_bp.route("/parent/update_biodata/<int:child_id>", methods=["GET", "POST"])
 @login_required
@@ -904,7 +845,7 @@ def parent_update_biodata(child_id):
         form.populate_obj(biodata)
         db.session.commit()
         flash("Bio data updated successfully.", "success")
-        return redirect(url_for("cultural_bp.parent_dashboard"))
+        return redirect(url_for("cultural_bp.stakeholder_dashboard"))
 
     return render_template("program_culturefire/parent_update_biodata.html", form=form, child_id=child_id)
 
@@ -913,25 +854,8 @@ def parent_update_biodata(child_id):
 @cultural_bp.route("/sponsor/dashboard")
 @login_required
 def sponsor_dashboard():
-    enrollment = UserEnrollment.query.filter_by(user_id=current_user.id).first()
+    return redirect(url_for('cultural_bp.stakeholder_dashboard'))
 
-    sponsorships = (
-        db.session.query(CfiSponsorship)
-        .outerjoin(UserEnrollment, CfiSponsorship.participant_id == UserEnrollment.id)
-        .outerjoin(CfiBiodata, UserEnrollment.biodata_id == CfiBiodata.id)
-        .outerjoin(CfiShow, CfiSponsorship.show_id == CfiShow.id)
-        .filter(CfiSponsorship.user_id == current_user.id)
-        .order_by(CfiSponsorship.created_at.desc())
-        .all()
-    )
-
-    return render_template(
-        "program_culturefire/sponsor_dashboard.html",
-        sponsorships=sponsorships,
-        enrollment_id=enrollment.id if enrollment else None
-    )
-
-# routes.py
 @cultural_bp.route("/sponsor/create/<int:enrollment_id>", methods=["GET", "POST"])
 @login_required
 def sponsor_create(enrollment_id):
@@ -1071,26 +995,7 @@ def sponsor_checkout(id):
 @cultural_bp.route("/supporter/dashboard/<int:enrollment_id>")
 @login_required
 def supporter_dashboard(enrollment_id):
-    # Get the enrollment object
-    enrollment = UserEnrollment.query.get_or_404(enrollment_id)
-
-    supporters = (
-        db.session.query(CfiSupporter, UserEnrollment, CfiBiodata, CfiShow)
-        .outerjoin(UserEnrollment, CfiSupporter.participant_id == UserEnrollment.id)
-        .outerjoin(CfiBiodata, UserEnrollment.biodata_id == CfiBiodata.id)
-        .outerjoin(CfiShow, CfiSupporter.show_id == CfiShow.id)  # if you have a show_id field
-        .filter(CfiSupporter.user_id == current_user.id)
-        .all()
-    )
-
-    form = SupporterForm()
-    return render_template(
-        "program_culturefire/supporter_dashboard.html",
-        supporters=supporters,
-        enrollment=enrollment,   # pass the object, not just the id
-        enrollment_id=enrollment.id,   # add this line
-        form=form
-    )
+    return redirect(url_for('cultural_bp.stakeholder_dashboard', enrollment_id=enrollment_id))
 
 @cultural_bp.route("/supporter/create/<int:enrollment_id>", methods=["GET", "POST"])
 @login_required
@@ -2310,3 +2215,76 @@ def wallet_topup():
     
     # Route to checkout via Yoco
     return redirect(url_for("peach_bp.checkout"))  # Handles Yoco
+
+
+@cultural_bp.route("/stakeholder/dashboard")
+@cultural_bp.route("/stakeholder/dashboard/<int:enrollment_id>")
+@login_required
+def stakeholder_dashboard(enrollment_id=None):
+    cfi_subject = AuthSubject.query.filter_by(slug="cultural_fire").first_or_404()
+    
+    enrollment = None
+    if enrollment_id:
+        enrollment = UserEnrollment.query.get_or_404(enrollment_id)
+    else:
+        enrollment = UserEnrollment.query.filter_by(user_id=current_user.id, subject_id=cfi_subject.id).first()
+
+    # --- PARENT DATA ---
+    links = CfiParent.query.filter_by(parent_id=current_user.id).all()
+    children = []
+    for link in links:
+        child_enrollment = UserEnrollment.query.filter_by(user_id=link.child_id, subject_id=cfi_subject.id).first()
+        if not child_enrollment: continue
+        biodata = CfiBiodata.query.filter_by(user_id=link.child_id).first()
+        talents = CfiTalentSubmission.query.filter_by(user_id=link.child_id).order_by(CfiTalentSubmission.id.asc()).all()
+        groups = CfiGroup.query.join(CfiGroupMember, CfiGroupMember.group_id == CfiGroup.id).filter(CfiGroupMember.enrollment.has(user_id=link.child_id)).all()
+
+        children.append({
+            "user": child_enrollment.user,
+            "biodata": biodata,
+            "status": child_enrollment.status,
+            "subject": child_enrollment.subject,
+            "talents": talents,
+            "groups": groups,
+            "permission_granted": link.permission_granted,
+            "consent": getattr(link, 'consent', False),
+            "link_id": link.id
+        })
+
+    # --- SPONSOR DATA ---
+    sponsorships = (
+        db.session.query(CfiSponsorship)
+        .outerjoin(UserEnrollment, CfiSponsorship.participant_id == UserEnrollment.id)
+        .outerjoin(CfiBiodata, UserEnrollment.biodata_id == CfiBiodata.id)
+        .outerjoin(CfiShow, CfiSponsorship.show_id == CfiShow.id)
+        .filter(CfiSponsorship.user_id == current_user.id)
+        .order_by(CfiSponsorship.created_at.desc())
+        .all()
+    )
+
+    # --- SUPPORTER DATA ---
+    supporters = (
+        db.session.query(CfiSupporter, UserEnrollment, CfiBiodata, CfiShow)
+        .outerjoin(UserEnrollment, CfiSupporter.participant_id == UserEnrollment.id)
+        .outerjoin(CfiBiodata, UserEnrollment.biodata_id == CfiBiodata.id)
+        .outerjoin(CfiShow, CfiSupporter.show_id == CfiShow.id)
+        .filter(CfiSupporter.user_id == current_user.id)
+        .all()
+    )
+
+    form = PermissionForm()
+    sponsor_form = SponsorForm()
+    supporter_form = SupporterForm()
+
+    return render_template(
+        "program_culturefire/stakeholder_dashboard.html",
+        children=children,
+        sponsorships=sponsorships,
+        supporters=supporters,
+        form=form,
+        sponsor_form=sponsor_form,
+        supporter_form=supporter_form,
+        enrollment=enrollment,
+        enrollment_id=enrollment.id if enrollment else None,
+        calculate_age_from_dob=calculate_age_from_dob
+    )

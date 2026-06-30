@@ -1921,7 +1921,7 @@ def parse_bill_api():
         file_bytes = file.read()
         mime_type = file.content_type
         
-        model = genai.GenerativeModel('gemini-2.5-flash')
+        model = genai.GenerativeModel('gemini-1.5-flash')
         
         prompt = '''
         Analyze this municipality bill (typically Ethekwini/Durban format) and extract the following information.
@@ -2219,7 +2219,7 @@ def parse_readings_api():
         else:
             return jsonify({"error": "Unsupported file type. Please upload a PDF, JPG, or PNG."}), 400
             
-        model = genai.GenerativeModel('gemini-2.5-flash')
+        model = genai.GenerativeModel('gemini-1.5-flash')
         
         prompt = '''
         Analyze this municipality bill and extract the specific meter readings for every meter found on the bill.
@@ -2314,7 +2314,7 @@ def parse_bill_onboarding_api():
         if not prompt_parts:
             return jsonify({"error": "Unsupported file type. Please upload a PDF, JPG, or PNG."}), 400
             
-        model = genai.GenerativeModel('gemini-2.5-flash')
+        model = genai.GenerativeModel('gemini-1.5-flash')
         
         prompt = f'''
         Analyze the provided municipality bill(s). There may be multiple files/images belonging to the same property.

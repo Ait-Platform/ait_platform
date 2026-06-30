@@ -80,15 +80,44 @@
         <div class="bg-blue-50 rounded-xl p-6 mb-6 flex justify-between items-center border border-blue-100">
           <div>
             <h3 class="font-bold text-blue-800 text-lg">Verify Extracted Data (Bill <span x-text="currentBillIndex"></span>)</h3>
-            <p class="text-blue-600 text-sm mt-1">Please check the meters extracted from this specific bill.</p>
+            <p class="text-blue-600 text-sm mt-1">Please review the property details and meters extracted from this specific bill.</p>
           </div>
-          <div class="text-right">
-            <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Municipal Account</p>
-            <input type="text" x-model="currentExtractedData.metro_account_no" class="bg-white border border-slate-200 rounded px-3 py-1 font-mono text-sm shadow-sm w-48 text-right outline-none focus:border-blue-500" placeholder="Account No">
+        </div>
+
+        <!-- Property Details for Current Bill -->
+        <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden mb-6">
+          <div class="bg-slate-50 border-b border-slate-200 px-6 py-4">
+            <h3 class="font-bold text-slate-800 text-sm uppercase tracking-wide">Bill Details</h3>
+          </div>
+          <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Account Name / Owner</label>
+              <input type="text" x-model="currentExtractedData.property_name" class="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Municipal Account No</label>
+              <input type="text" x-model="currentExtractedData.metro_account_no" class="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-800 font-mono focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+            <div class="md:col-span-2">
+              <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Address</label>
+              <input type="text" x-model="currentExtractedData.address" class="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Rates Amount (R)</label>
+              <input type="number" step="any" x-model="currentExtractedData.rates_amount" class="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-800 font-mono focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Total Amount Due (R)</label>
+              <input type="number" step="any" x-model="currentExtractedData.amount_due" class="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-800 font-mono focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
           </div>
         </div>
         
+        <!-- Meters for Current Bill -->
         <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden mb-8">
+          <div class="bg-slate-50 border-b border-slate-200 px-6 py-4">
+            <h3 class="font-bold text-slate-800 text-sm uppercase tracking-wide">Meters on this Bill</h3>
+          </div>
           <div class="overflow-x-auto">
             <table class="w-full text-left border-collapse">
               <thead>
@@ -178,6 +207,42 @@
           </div>
         </div>
         
+        <!-- Extracted Bills Summary Board -->
+        <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden mb-8">
+          <div class="bg-slate-50 border-b border-slate-200 px-6 py-4 flex items-center justify-between">
+            <h3 class="font-bold text-slate-800 flex items-center">
+              <svg class="w-5 h-5 mr-2 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+              Extracted Bills Overview
+            </h3>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-slate-100 text-slate-600 text-[11px] uppercase tracking-wider border-b border-slate-200">
+                  <th class="px-4 py-3 font-semibold">Bill No.</th>
+                  <th class="px-4 py-3 font-semibold">Account No.</th>
+                  <th class="px-4 py-3 font-semibold">Name / Owner</th>
+                  <th class="px-4 py-3 font-semibold text-right">Rates (R)</th>
+                  <th class="px-4 py-3 font-semibold text-center">Actions</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100 text-sm">
+                <template x-for="(bill, idx) in allBills" :key="idx">
+                  <tr class="hover:bg-slate-50">
+                    <td class="px-4 py-3 font-bold text-slate-700" x-text="'Bill ' + (idx+1)"></td>
+                    <td class="px-4 py-3 font-mono text-slate-800" x-text="bill.metro_account_no || 'N/A'"></td>
+                    <td class="px-4 py-3 text-slate-600" x-text="bill.property_name || 'N/A'"></td>
+                    <td class="px-4 py-3 text-right font-mono text-slate-600" x-text="bill.rates_amount || '0.00'"></td>
+                    <td class="px-4 py-3 text-center">
+                      <button @click="editBillIdx = idx; isEditingBill = true" class="text-xs font-bold text-blue-600 hover:text-blue-800 bg-blue-50 px-2 py-1 rounded transition border border-blue-200">Edit Details</button>
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
         <!-- Meters Board -->
         <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden mb-8">
           <div class="bg-slate-50 border-b border-slate-200 px-6 py-4 flex items-center justify-between">
@@ -257,6 +322,37 @@
         </div>
       </div>
 
+      <!-- EDIT BILL MODAL -->
+      <div x-show="isEditingBill" style="display:none;" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900 bg-opacity-50 backdrop-blur-sm px-4" x-transition>
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden" @click.away="isEditingBill = false">
+          <div class="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4 flex justify-between items-center">
+            <h3 class="text-white font-bold text-lg">Edit Bill Details</h3>
+            <button @click="isEditingBill = false" class="text-white hover:text-blue-100 text-2xl leading-none">&times;</button>
+          </div>
+          <div class="p-6 space-y-4" x-show="editBillIdx !== null">
+            <div>
+              <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Account Number</label>
+              <input type="text" x-model="allBills[editBillIdx].metro_account_no" class="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 font-mono">
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Name / Owner</label>
+              <input type="text" x-model="allBills[editBillIdx].property_name" class="w-full bg-white border border-slate-300 rounded-lg px-3 py-2">
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Address</label>
+              <input type="text" x-model="allBills[editBillIdx].address" class="w-full bg-white border border-slate-300 rounded-lg px-3 py-2">
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Rates Amount (R)</label>
+              <input type="number" step="any" x-model="allBills[editBillIdx].rates_amount" class="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 font-mono">
+            </div>
+          </div>
+          <div class="px-6 py-4 bg-slate-50 border-t border-slate-200 flex justify-end">
+            <button @click="isEditingBill = false" class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-sm">Save & Close</button>
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
 </div>
@@ -278,11 +374,15 @@ document.addEventListener('alpine:init', () => {
       month: '{{ current_month }}'
     },
     statementProfiles: [],
+    allBills: [], // Array to hold full bill details
     allMeters: [], 
     
     currentExtractedData: null,
     isExtracting: false,
     errorMessage: '',
+    
+    isEditingBill: false,
+    editBillIdx: null,
     
     init() {
       if (this.statements === 1) {
@@ -352,6 +452,10 @@ document.addEventListener('alpine:init', () => {
     },
     
     approveSingleBill() {
+      // 1. Save full bill details
+      this.allBills.push(JSON.parse(JSON.stringify(this.currentExtractedData)));
+
+      // 2. Extract and tag meters
       const accountNo = this.currentExtractedData.metro_account_no || ('Bill ' + this.currentBillIndex);
       
       (this.currentExtractedData.readings || []).forEach(m => {
@@ -360,7 +464,7 @@ document.addEventListener('alpine:init', () => {
           accountNo: accountNo,
           is_bulk: false,
           linked_to_bulk: false,
-          assign_to: this.statements === 1 ? 'owner' : 'owner'
+          assign_to: 'owner'
         });
       });
       
@@ -386,6 +490,7 @@ document.addEventListener('alpine:init', () => {
           id: s.id,
           name: s.name || ''
         })),
+        bills: this.allBills,
         readings: this.allMeters
       };
 

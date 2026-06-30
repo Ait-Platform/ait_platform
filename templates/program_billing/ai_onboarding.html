@@ -19,7 +19,12 @@
           </a>
         </div>
         
-        <h1 class="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 tracking-tight mb-2 pr-20" x-text="view === 'collation' ? 'Master Collation Board' : 'Property Architect'"></h1>
+        <div class="flex items-center justify-center mb-2 pr-20">
+          <h1 class="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 tracking-tight" x-text="view === 'collation' ? 'Master Collation Board' : 'Property Architect'"></h1>
+          <span x-show="totalProperties > 1" class="ml-4 px-3 py-1 bg-indigo-100 text-indigo-700 font-bold text-xs rounded-full shadow-sm border border-indigo-200">
+            Portfolio: Unit <span x-text="currentProperty"></span> of <span x-text="totalProperties"></span>
+          </span>
+        </div>
         
         <!-- Progress Bar for sequential upload -->
         <div class="max-w-md mx-auto mt-6" x-show="view === 'upload' || view === 'verify_single'">
@@ -310,14 +315,23 @@
         <div class="w-24 h-24 bg-green-100 text-green-500 rounded-full flex items-center justify-center mx-auto mb-6">
           <svg class="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
         </div>
-        <h2 class="text-3xl font-bold text-slate-800 mb-4">Architecture Saved Successfully!</h2>
-        <p class="text-slate-500 text-lg mb-10 max-w-lg mx-auto">All properties, statements, and meter linkages have been successfully built in your database.</p>
+        <h2 class="text-3xl font-bold text-slate-800 mb-4" x-text="totalProperties > 1 && currentProperty === totalProperties ? 'Portfolio Complete!' : 'Architecture Saved Successfully!'"></h2>
+        <p class="text-slate-500 text-lg mb-10 max-w-lg mx-auto">
+          <span x-show="totalProperties === 1">All properties, statements, and meter linkages have been successfully built in your database.</span>
+          <span x-show="totalProperties > 1 && currentProperty < totalProperties">You have successfully saved Unit <span x-text="currentProperty"></span>.</span>
+          <span x-show="totalProperties > 1 && currentProperty === totalProperties">Amazing! You have successfully digitized all <span x-text="totalProperties"></span> units in this portfolio.</span>
+        </p>
         
         <div class="bg-blue-50 border border-blue-100 rounded-2xl p-8 max-w-xl mx-auto mb-8 shadow-sm">
-          <h3 class="font-bold text-blue-900 mb-4">Do you want to add another unit/property for this portfolio?</h3>
+          <h3 class="font-bold text-blue-900 mb-4" x-text="currentProperty < totalProperties ? 'Ready for the next one?' : 'What would you like to do next?'"></h3>
           <div class="flex space-x-4 justify-center">
-            <a href="{{ url_for('billing_bp.learner_dashboard') }}#add-property-section" class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-sm transition">Yes, Add Next Unit / Property</a>
-            <a href="{{ url_for('billing_bp.learner_dashboard') }}" class="px-6 py-3 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold rounded-xl shadow-sm transition">No, Return to Dashboard</a>
+            <a x-show="currentProperty < totalProperties" :href="'{{ url_for('billing_bp.learner_dashboard') }}?total_properties=' + totalProperties + '&current_property=' + (currentProperty + 1) + '#add-property-section'" class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-sm transition">
+              Proceed to Unit <span x-text="currentProperty + 1"></span> Setup
+            </a>
+            
+            <a x-show="totalProperties === 1" href="{{ url_for('billing_bp.learner_dashboard') }}#add-property-section" class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-sm transition">Add Another Property</a>
+            
+            <a href="{{ url_for('billing_bp.learner_dashboard') }}" class="px-6 py-3 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold rounded-xl shadow-sm transition">Return to Dashboard</a>
           </div>
         </div>
       </div>
@@ -365,6 +379,8 @@ document.addEventListener('alpine:init', () => {
     statements: parseInt(new URLSearchParams(window.location.search).get('tenants') || 1),
     isBulk: new URLSearchParams(window.location.search).get('is_bulk') || 'no',
     subMetersExpected: parseInt(new URLSearchParams(window.location.search).get('sub_meters') || 0),
+    totalProperties: parseInt(new URLSearchParams(window.location.search).get('total_properties') || 1),
+    currentProperty: parseInt(new URLSearchParams(window.location.search).get('current_property') || 1),
     
     currentBillIndex: 1,
     view: 'upload', 

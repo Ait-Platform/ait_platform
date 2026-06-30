@@ -77,7 +77,7 @@ def billing_about():
         db.session.commit()
     return render_template("program_billing/about.html", settings=settings)
 
-@billing_bp.route("/billing/dashboard", methods=["GET", "POST"])
+@billing_bp.route("/billing/dashboard", methods=["GET", "POST"])`n@billing_bp.route("/billing/home", endpoint="subject_home")
 @login_required
 def learner_dashboard():
     if request.method == "POST":

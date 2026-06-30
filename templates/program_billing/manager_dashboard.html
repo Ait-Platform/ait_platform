@@ -127,7 +127,7 @@
             <thead>
               <tr class="bg-slate-50 text-slate-500 text-sm uppercase tracking-wider border-b border-slate-200">
                 <th class="px-6 py-4 font-semibold">Property</th>
-                <th class="px-6 py-4 font-semibold">Tenant</th>
+                <th class="px-6 py-4 font-semibold">Owner</th>
                 <th class="px-6 py-4 font-semibold">Meter Linked</th>
                 <th class="px-6 py-4 font-semibold text-right">Actions</th>
               </tr>
@@ -144,7 +144,7 @@
                     {% if row.tenant_name %}
                       <div class="font-medium text-slate-800">{{ row.tenant_name }}</div>
                     {% else %}
-                      <span class="text-xs text-orange-500 font-semibold bg-orange-100 px-2 py-1 rounded-full">No Tenant</span>
+                      <span class="text-xs text-orange-500 font-semibold bg-orange-100 px-2 py-1 rounded-full">No Owner</span>
                     {% endif %}
                   </td>
                   <td class="px-6 py-4">
@@ -162,7 +162,7 @@
                       
                       {% if row.tenant_id %}
                       <!-- Document Buttons -->
-                      <button data-url="{{ url_for('admin_bp.tenant_ledger', tenant_id=row.tenant_id) }}" onclick="openStatement(this.getAttribute('data-url'))" class="text-sm border border-slate-300 text-slate-700 hover:bg-slate-100 font-medium py-1.5 px-3 rounded-lg transition" title="Tenant Ledger">Ledger</button>
+                      <button data-url="{{ url_for('admin_bp.tenant_ledger', tenant_id=row.tenant_id) }}" onclick="openStatement(this.getAttribute('data-url'))" class="text-sm border border-slate-300 text-slate-700 hover:bg-slate-100 font-medium py-1.5 px-3 rounded-lg transition" title="Owner Ledger">Ledger</button>
                       {% endif %}
 
                       <form action="{{ url_for('billing_bp.delete_property', property_id=row.property_id) }}" method="POST" class="inline ml-2" data-name="{{ row.property_name }}" onsubmit="return confirmDelete(event, this.getAttribute('data-name'))">

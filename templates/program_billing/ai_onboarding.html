@@ -424,6 +424,21 @@ document.addEventListener('alpine:init', () => {
     editBillIdx: null,
     
     init() {
+      const saved = sessionStorage.getItem('ait_onboarding_' + this.currentProperty);
+      if (saved) {
+        try {
+          const state = JSON.parse(saved);
+          this.currentBillIndex = state.currentBillIndex || 1;
+          this.view = state.view || 'upload';
+          if(state.masterPropertyDetails) this.masterPropertyDetails = state.masterPropertyDetails;
+          if(state.statementProfiles && state.statementProfiles.length > 0) this.statementProfiles = state.statementProfiles;
+          if(state.allBills) this.allBills = state.allBills;
+          if(state.allMeters) this.allMeters = state.allMeters;
+          
+          if(this.statementProfiles.length > 0) return; // Restored successfully
+        } catch(e) {}
+      }
+
       if (this.statements === 1) {
         this.statementProfiles.push({ id: 't1', name: '' });
       } else {
@@ -431,6 +446,18 @@ document.addEventListener('alpine:init', () => {
           this.statementProfiles.push({ id: 't'+i, name: '' });
         }
       }
+    },
+    
+    saveState() {
+      const state = {
+        currentBillIndex: this.currentBillIndex,
+        view: this.view,
+        masterPropertyDetails: this.masterPropertyDetails,
+        statementProfiles: this.statementProfiles,
+        allBills: this.allBills,
+        allMeters: this.allMeters
+      };
+      sessionStorage.setItem('ait_onboarding_' + this.currentProperty, JSON.stringify(state));
     },
     
     handleDrop(e) {
@@ -557,6 +584,7 @@ document.addEventListener('alpine:init', () => {
       } else {
         this.view = 'collation';
       }
+      this.saveState();
     },
     
     async submitToDatabase() {
@@ -588,6 +616,7 @@ document.addEventListener('alpine:init', () => {
         });
 
         if (response.ok) {
+          sessionStorage.removeItem('ait_onboarding_' + this.currentProperty);
           this.view = 'success';
         } else {
           const err = await response.json();

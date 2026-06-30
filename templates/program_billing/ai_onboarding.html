@@ -166,7 +166,7 @@
         
         <div class="flex justify-end border-t border-slate-100 pt-6">
           <button @click="approveSingleBill()" class="px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold rounded-xl shadow-lg hover:shadow-xl hover:from-blue-700 hover:to-indigo-700 transition-all text-lg flex items-center">
-            <span x-text="currentBillIndex < totalBills ? 'Approve & Next Bill' : 'Approve & Go to Collation Board'"></span>
+            <span x-text="currentBillIndex < totalBills ? 'Next Bill' : 'Next: Go to Collation Board'"></span>
             <svg class="w-5 h-5 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
           </button>
         </div>

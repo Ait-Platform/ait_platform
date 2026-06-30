@@ -45,6 +45,13 @@ class BilProperty(db.Model):
         nullable=True
     )
 
+    # Onboarding Status & Progress
+    onboarding_status = db.Column(db.String(50), default='completed') # e.g. draft_extracting, draft_collating, draft_readings, completed
+    expected_bills = db.Column(db.Integer, default=1)
+    expected_tenants = db.Column(db.Integer, default=1)
+    is_bulk_metered = db.Column(db.Integer, default=0)
+    expected_sub_meters = db.Column(db.Integer, default=0)
+
     sectional_units = db.relationship('BilSectionalUnit', backref='property', lazy=True)
     manager = db.relationship('User', backref='managed_properties')
 

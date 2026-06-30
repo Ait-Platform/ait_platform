@@ -97,3 +97,4 @@ cairosvg
 python-slugify
 
 google-generativeai
+google-genai==2.8.0

@@ -480,6 +480,7 @@ def create_app(test_config=None):
     from app.reports.routes import reports_bp
     from app.pdf.routes import pdf_bp
     from app.program_culturalfire.routes import cultural_bp
+    from app.program_mechanic import mechanic_bp
     from app.program_spv.routes import spv_bp
     from app.program_adv_math.routes import adv_math_bp
     from app.program_practice_crm.routes import practice_crm_bp

@@ -62,21 +62,24 @@
 
             <!-- Step 1: Structure -->
             <div x-show="step === 1" x-transition>
-              <h4 class="text-lg font-bold text-slate-800 mb-4">Step 1: Define the Property</h4>
               
-              <div class="mb-6" x-show="current_property === 1">
+              <div class="mb-8 border-b border-slate-200 pb-8" x-show="current_property === 1">
+                <h4 class="text-lg font-bold text-slate-800 mb-4">Step 1: Portfolio Size</h4>
                 <label class="block text-sm font-bold text-slate-700 mb-2">How many properties/units are you digitizing in this batch?</label>
                 <input type="number" min="1" x-model.number="total_properties" class="w-full border-2 border-slate-200 rounded-lg px-4 py-3 text-lg font-bold text-slate-800 focus:border-blue-500 focus:ring-blue-500 transition">
                 <p class="text-xs text-slate-500 mt-1">If this is part of a large complex or portfolio, we will track your progress.</p>
               </div>
 
-              <div class="mb-6">
-                <label class="block text-sm font-bold text-slate-700 mb-2">Is this a Bulk Metered property?</label>
-                <select x-model="is_bulk" class="w-full border-2 border-slate-200 rounded-lg px-4 py-3 text-lg font-bold text-slate-800 focus:border-blue-500 focus:ring-blue-500 transition">
-                  <option value="yes">Yes, it has a main bulk meter and sub-meters</option>
-                  <option value="no">No, just standard individual meters</option>
-                </select>
-              </div>
+              <div>
+                <h4 class="text-lg font-bold text-slate-800 mb-4" x-text="total_properties > 1 ? (current_property === 1 ? 'Step 2: Define Structure for Unit 1' : 'Define Structure for Unit ' + current_property) : 'Step 1: Define the Property'"></h4>
+                
+                <div class="mb-6">
+                  <label class="block text-sm font-bold text-slate-700 mb-2">Is this a Bulk Metered property?</label>
+                  <select x-model="is_bulk" class="w-full border-2 border-slate-200 rounded-lg px-4 py-3 text-lg font-bold text-slate-800 focus:border-blue-500 focus:ring-blue-500 transition">
+                    <option value="yes">Yes, it has a main bulk meter and sub-meters</option>
+                    <option value="no">No, just standard individual meters</option>
+                  </select>
+                </div>
 
               <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                 <div>
@@ -103,7 +106,7 @@
 
             <!-- Step 2: Path Choice -->
             <div x-show="step === 2" style="display: none;" x-transition>
-              <h4 class="text-lg font-bold text-slate-800 mb-4">Step 2: Choose Setup Method</h4>
+              <h4 class="text-lg font-bold text-slate-800 mb-4" x-text="total_properties > 1 ? 'Choose Setup Method for Unit ' + current_property : 'Step 2: Choose Setup Method'"></h4>
               <p class="text-sm text-slate-600 mb-6">Based on your structure <span class="font-bold bg-slate-100 px-2 py-1 rounded" x-text="bills + ' Bill(s), ' + tenants + ' Tenant(s)'"></span>, choose how you want to proceed:</p>
 
               <div class="grid grid-cols-1 md:grid-cols-2 gap-6">

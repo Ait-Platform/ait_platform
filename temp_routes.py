@@ -1901,8 +1901,7 @@ def parse_bill_api():
         return jsonify({"error": "No file selected"}), 400
         
     try:
-        from google import genai
-        from google.genai import types
+        import google.generativeai as genai
         import os
         import json
         from dotenv import load_dotenv
@@ -1927,12 +1926,12 @@ def parse_bill_api():
         if not api_key:
             return jsonify({"error": "GEMINI_API_KEY is not configured"}), 500
             
-        client = genai.Client(api_key=api_key)
+        genai.configure(api_key=api_key)
         
         file_bytes = file.read()
         mime_type = file.content_type
         
-        
+        model = genai.GenerativeModel('gemini-1.5-flash')
         
         prompt = '''
         Analyze this municipality bill (typically Ethekwini/Durban format) and extract the following information.
@@ -1951,11 +1950,10 @@ def parse_bill_api():
         If a field is not found, return an empty string or empty array for that key. Do not include markdown formatting like ```json.
         '''
         
-        response = client.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=[types.Part.from_bytes(data=file_bytes, mime_type=mime_type), prompt],
-            config=types.GenerateContentConfig(response_mime_type="application/json")
-        )
+        response = model.generate_content([
+            {'mime_type': mime_type, 'data': file_bytes},
+            prompt
+        ], generation_config={"response_mime_type": "application/json"})
         
         text_response = response.text.strip()
         if text_response.startswith('```json'):
@@ -2221,8 +2219,7 @@ def parse_readings_api():
         return jsonify({"error": "No selected file"}), 400
         
     try:
-        from google import genai
-        from google.genai import types
+        import google.generativeai as genai
         file_bytes = file.read()
         
         mime_type = file.mimetype
@@ -2233,7 +2230,7 @@ def parse_readings_api():
         else:
             return jsonify({"error": "Unsupported file type. Please upload a PDF, JPG, or PNG."}), 400
             
-        
+        model = genai.GenerativeModel('gemini-1.5-flash')
         
         prompt = '''
         Analyze this municipality bill and extract the specific meter readings for every meter found on the bill.
@@ -2251,10 +2248,10 @@ def parse_readings_api():
         Do not include markdown formatting like ```json.
         '''
         
-        response = client.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=[types.Part.from_bytes(data=file_bytes, mime_type=mime_type), prompt]
-        )
+        response = model.generate_content([
+            {'mime_type': mime_type, 'data': file_bytes},
+            prompt
+        ])
         
         text_response = response.text.strip()
         if text_response.startswith('```json'):
@@ -2265,6 +2262,35 @@ def parse_readings_api():
         import json
         data = json.loads(text_response.strip())
         
+        try:
+            from app.models.billing import BilExtractionLog
+            from flask_login import current_user
+            
+            if current_user.is_authenticated:
+                # Helper to safely parse float
+                def _safe_float(val):
+                    try:
+                        return float(val) if val is not None else 0.0
+                    except (ValueError, TypeError):
+                        return 0.0
+                        
+                log_entry = BilExtractionLog(
+                    manager_id=current_user.id,
+                    property_name=data.get("property_name"),
+                    address=data.get("address"),
+                    metro_account_no=data.get("metro_account_no"),
+                    muni_email=data.get("muni_email"),
+                    has_rates=bool(data.get("has_rates")),
+                    rates_amount=_safe_float(data.get("rates_amount")),
+                    amount_due=_safe_float(data.get("amount_due")),
+                    raw_json=data
+                )
+                from app.extensions import db
+                db.session.add(log_entry)
+                db.session.commit()
+        except Exception as inner_e:
+            import logging
+            logging.error(f"Failed to save BilExtractionLog: {inner_e}")
         
         return jsonify(data)
         
@@ -2287,8 +2313,7 @@ def parse_bill_onboarding_api():
         return jsonify({"error": "No selected file(s)"}), 400
         
     try:
-        from google import genai
-        from google.genai import types
+        import google.generativeai as genai
         import os
         import json
         from dotenv import load_dotenv
@@ -2313,7 +2338,7 @@ def parse_bill_onboarding_api():
         if not api_key:
             return jsonify({"error": "GEMINI_API_KEY is not configured"}), 500
             
-        client = genai.Client(api_key=api_key)
+        genai.configure(api_key=api_key)
         
         prompt_parts = []
         for file in files:
@@ -2325,12 +2350,12 @@ def parse_bill_onboarding_api():
                 pass
             else:
                 continue
-            prompt_parts.append(types.Part.from_bytes(data=file_bytes, mime_type=mime_type))
+            prompt_parts.append({'mime_type': mime_type, 'data': file_bytes})
             
         if not prompt_parts:
             return jsonify({"error": "Unsupported file type. Please upload a PDF, JPG, or PNG."}), 400
             
-        
+        model = genai.GenerativeModel('gemini-1.5-flash')
         
         prompt = f'''
         Analyze the provided municipality bill(s). There may be multiple files/images belonging to the same property.
@@ -2375,7 +2400,7 @@ def parse_bill_onboarding_api():
         '''
         
         prompt_parts.append(prompt)
-        response = client.models.generate_content(model='gemini-2.5-flash', contents=prompt_parts)
+        response = model.generate_content(prompt_parts)
         
         text_response = response.text.strip()
         if text_response.startswith('```json'):
@@ -2385,6 +2410,35 @@ def parse_bill_onboarding_api():
             
         data = json.loads(text_response.strip())
         
+        try:
+            from app.models.billing import BilExtractionLog
+            from flask_login import current_user
+            
+            if current_user.is_authenticated:
+                # Helper to safely parse float
+                def _safe_float(val):
+                    try:
+                        return float(val) if val is not None else 0.0
+                    except (ValueError, TypeError):
+                        return 0.0
+                        
+                log_entry = BilExtractionLog(
+                    manager_id=current_user.id,
+                    property_name=data.get("property_name"),
+                    address=data.get("address"),
+                    metro_account_no=data.get("metro_account_no"),
+                    muni_email=data.get("muni_email"),
+                    has_rates=bool(data.get("has_rates")),
+                    rates_amount=_safe_float(data.get("rates_amount")),
+                    amount_due=_safe_float(data.get("amount_due")),
+                    raw_json=data
+                )
+                from app.extensions import db
+                db.session.add(log_entry)
+                db.session.commit()
+        except Exception as inner_e:
+            import logging
+            logging.error(f"Failed to save BilExtractionLog: {inner_e}")
         
         return jsonify(data)
         
@@ -2551,3 +2605,4 @@ def ai_onboarding_process():
         import traceback
         traceback.print_exc()
         return jsonify({"error": f"An error occurred during setup: {str(e)}"}), 500
+

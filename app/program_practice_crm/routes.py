@@ -17,7 +17,7 @@ def log_audit(enquiry_id, user_id, action):
 
 @practice_crm_bp.route("/about")
 def about():
-    """Welcome / Sales page for Practice CRM"""
+    """Welcome / Sales page for Medical Practice Customer Relation Management"""
     return render_template("program_practice_crm/about.html")
 
 @practice_crm_bp.route("/migrate_db")

@@ -80,11 +80,6 @@ def billing_about():
 @billing_bp.route("/billing/dashboard", methods=["GET", "POST"])
 @login_required
 def learner_dashboard():
-    # Check if they have any properties set up
-    has_property = BilProperty.query.filter_by(manager_id=current_user.id).first()
-    if not has_property:
-        return redirect(url_for("billing_bp.setup_wizard"))
-
     if request.method == "POST":
         # Create property + unit in one go
         prop = BilProperty(

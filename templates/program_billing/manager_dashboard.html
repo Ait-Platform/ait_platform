@@ -57,6 +57,14 @@
                 <h4 class="text-lg font-bold text-slate-800 mb-4">Define the Structure</h4>
                 
                 <div class="mb-6">
+                  <label class="block text-sm font-bold text-slate-700 mb-2">Is this a Bulk Metered property?</label>
+                  <select x-model="is_bulk" class="w-full border-2 border-slate-200 rounded-lg px-4 py-3 text-lg font-bold text-slate-800 focus:border-blue-500 focus:ring-blue-500 transition">
+                    <option value="yes">Yes, it has a main bulk meter and sub-meters</option>
+                    <option value="no">No, just standard individual meters</option>
+                  </select>
+                </div>
+
+                <div class="mb-6">
                   <label class="block text-sm font-bold text-slate-700 mb-2">How many distinct municipal bills make up this property?</label>
                   <input type="number" min="1" x-model.number="bills" class="w-full border-2 border-slate-200 rounded-lg px-4 py-3 text-lg font-bold text-slate-800 focus:border-blue-500 focus:ring-blue-500 transition">
                   <p class="text-xs text-slate-500 mt-1">If this property receives multiple municipal bills, enter the total number here.</p>
@@ -212,6 +220,7 @@ function addPropertyModal() {
     step: 1,
     bills: 1,
     tenants: 1,
+    is_bulk: 'no',
     nextStep() {
       if (this.bills < 1) this.bills = 1;
       if (this.tenants < 1) this.tenants = 1;

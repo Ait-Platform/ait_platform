@@ -4,7 +4,7 @@ from datetime import datetime
 class MechClient(db.Model):
     __tablename__ = 'mech_clients'
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True) # Optional linking to main auth
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True) # Optional linking to main auth
     name = db.Column(db.String(150), nullable=False)
     phone = db.Column(db.String(50))
     email = db.Column(db.String(150))

@@ -2316,12 +2316,15 @@ def parse_bill_onboarding_api():
             
         model = genai.GenerativeModel('gemini-2.5-flash')
         
-        prompt = '''
+        prompt = f'''
         Analyze the provided municipality bill(s). There may be multiple files/images belonging to the same property.
         Extract BOTH the property details (finding the most common or 'Master' details) and the specific meter readings across ALL bills.
         This is typically an Ethekwini (Durban, KZN) municipality bill. 
         You MUST extract EVERY SINGLE meter reading found across ALL the bills. Do not summarize or skip any meters.
         
+        CRITICAL INSTRUCTION: The user has specified that there are {request.form.get("sub_meters", "several")} sub-meters linked to a bulk meter. 
+        Please ensure you extract ALL meters perfectly.
+        ''' + '''
         Return the result strictly as a valid JSON object with the following structure:
         {
           "property_name": "Name of property or owner",

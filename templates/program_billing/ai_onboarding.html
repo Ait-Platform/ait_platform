@@ -267,6 +267,10 @@
       for (let i = 0; i < files.length; i++) {
           formData.append('bill_files', files[i]);
       }
+      const subMeters = new URLSearchParams(window.location.search).get('sub_meters');
+      if (subMeters) {
+          formData.append('sub_meters', subMeters);
+      }
 
       try {
           const csrfToken = document.querySelector('input[name="csrf_token"]').value;

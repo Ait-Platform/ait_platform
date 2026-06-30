@@ -27,7 +27,7 @@
           <form id="countryForm" method="get" action="{{ url_for('mechanic_bp.price_page') }}">
             <select name="country"
                     onchange="this.form.submit()"
-                    class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200">
+                    class="w-full rounded-lg border-2 border-indigo-400 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
               <option value="" {% if not price.has_quote %}selected{% endif %}>Select your country</option>
               {% for c in countries %}
                 <option value="{{ c.code }}" {% if price.country_code == c.code %}selected{% endif %}>

@@ -79,9 +79,9 @@
           <p class="text-red-700 text-sm font-medium mb-1" x-text="errorMessage"></p>
         </div>
 
-        <div class="mt-6 text-center" x-show="currentBillIndex > 1 && currentBillIndex <= totalBills">
-          <button @click="skipToCollation()" class="text-sm font-bold text-slate-500 hover:text-blue-600 transition underline decoration-slate-300 hover:decoration-blue-400 underline-offset-4">
-            Missing a bill? Skip remaining uploads and proceed to Collation
+        <div class="mt-6 text-center" x-show="currentBillIndex <= totalBills">
+          <button @click="enterManualBill()" class="text-sm font-bold text-slate-500 hover:text-blue-600 transition underline decoration-slate-300 hover:decoration-blue-400 underline-offset-4">
+            Missing this bill? Enter it manually to continue your setup
           </button>
         </div>
       </div>
@@ -473,10 +473,17 @@ document.addEventListener('alpine:init', () => {
       });
     },
     
-    skipToCollation() {
-      if (confirm("Are you sure you want to skip the remaining bills? You will proceed to the Collation Board with the bills you have already uploaded.")) {
-        this.view = 'collation';
-      }
+    enterManualBill() {
+      this.currentExtractedData = {
+        property_name: '',
+        metro_account_no: '',
+        address: '',
+        rates_amount: 0,
+        amount_due: 0,
+        readings: []
+      };
+      this.errorMessage = '';
+      this.view = 'verify_single';
     },
     
     approveSingleBill() {

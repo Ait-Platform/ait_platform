@@ -63,7 +63,7 @@
             <p class="text-slate-500 mt-2">Supports PDF, JPG, and PNG files.</p>
           </div>
 
-          <div x-show="isExtracting" class="text-center flex flex-col items-center justify-center w-full h-full absolute inset-0 bg-white/90 rounded-2xl z-10 backdrop-blur-sm">
+          <div x-show="isExtracting && !isRateLimited" class="text-center flex flex-col items-center justify-center w-full h-full absolute inset-0 bg-white/90 rounded-2xl z-10 backdrop-blur-sm">
             <div class="relative w-24 h-24 mb-6">
               <svg class="animate-spin w-full h-full text-blue-200" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -72,6 +72,21 @@
             </div>
             <h3 class="text-xl font-bold text-slate-800 animate-pulse">AI is extracting Bill <span x-text="currentBillIndex"></span>...</h3>
             <p class="text-sm text-slate-500 mt-2">Reading meters and consumption data.</p>
+          </div>
+
+          <!-- Rate Limit Waiting Screen -->
+          <div x-show="isRateLimited" class="text-center flex flex-col items-center justify-center w-full h-full absolute inset-0 bg-white/95 rounded-2xl z-20 backdrop-blur-md">
+            <div class="relative w-24 h-24 mb-6">
+              <svg class="animate-spin w-full h-full text-indigo-200" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="#4F46E5" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <div class="absolute inset-0 flex items-center justify-center">
+                <span class="text-xl font-bold text-indigo-700" x-text="rateLimitCountdown"></span>
+              </div>
+            </div>
+            <h3 class="text-xl font-bold text-slate-800 animate-pulse">Syncing to Master Node...</h3>
+            <p class="text-sm text-slate-500 mt-2 max-w-sm mx-auto">Please wait while we establish a secure connection to process your documents. Your upload will automatically resume shortly.</p>
           </div>
         </div>
 
@@ -401,6 +416,8 @@ document.addEventListener('alpine:init', () => {
     
     currentExtractedData: null,
     isExtracting: false,
+    isRateLimited: false,
+    rateLimitCountdown: 0,
     errorMessage: '',
     
     isEditingBill: false,
@@ -457,6 +474,26 @@ document.addEventListener('alpine:init', () => {
           throw new Error(result.error || 'Failed to extract data');
         }
       } catch(err) {
+        if (err.message && err.message.includes('429')) {
+          this.isExtracting = false;
+          this.isRateLimited = true;
+          this.rateLimitCountdown = 50;
+          this.errorMessage = '';
+          
+          const interval = setInterval(() => {
+            this.rateLimitCountdown--;
+            if (this.rateLimitCountdown <= 0) {
+              clearInterval(interval);
+              this.isRateLimited = false;
+              // Auto retry the upload
+              if (files && files.length > 0) {
+                this.handleFileSelect({ target: { files: files } });
+              }
+            }
+          }, 1000);
+          return; // Skip normal error handling and clear file input
+        }
+        
         this.errorMessage = err.message || 'An error occurred during extraction';
         this.isExtracting = false;
       }

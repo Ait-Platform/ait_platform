@@ -2384,15 +2384,11 @@ def ai_onboarding():
 @billing_bp.route("/billing/onboarding/process", methods=["POST"])
 @login_required
 def ai_onboarding_process():
-    payload_str = request.form.get("payload")
-    if not payload_str:
-        flash("Invalid payload", "danger")
-        return redirect(url_for("billing_bp.ai_onboarding"))
+    data = request.json
+    if not data:
+        return jsonify({"error": "Invalid JSON payload"}), 400
         
     try:
-        import json
-        data = json.loads(payload_str)
-        
         # 1. Create Property
         prop_name = data.get("property_name", "").strip() or "New Property"
         prop = BilProperty(
@@ -2423,7 +2419,8 @@ def ai_onboarding_process():
         # 2b. Dynamic Tenants
         for t_data in data.get("tenants", []):
             tid = t_data.get("id")
-            tname = t_data.get("name", "").strip() or f"Tenant {tid}"
+            if not tid: continue
+            tname = t_data.get("name", "").strip() or f"Statement {tid}"
             rent = float(t_data.get("rent") or 0.0)
             
             t_unit = BilSectionalUnit(property_id=prop.id, name=f"Unit {tid.upper()}")
@@ -2492,7 +2489,7 @@ def ai_onboarding_process():
                     utility_type=u_type,
                     sectional_unit_id=u_id,
                     pointing_to="Entire Property",
-                    municipal_bill_number=data.get("metro_account_no")
+                    municipal_bill_number=m_data.get("accountNo")
                 )
                 db.session.add(meter)
                 db.session.flush()
@@ -2505,7 +2502,10 @@ def ai_onboarding_process():
                 assign_to = m_data.get("assign_to", "owner")
                 u_id = unit_map.get(assign_to, owner_unit.id)
                 u_type = (m_data.get("utility_type") or "water").lower()
-                parent_id = bulk_meters.get(u_type)
+                
+                parent_id = None
+                if m_data.get("linked_to_bulk"):
+                    parent_id = bulk_meters.get(u_type)
                 
                 meter = BilMeter(
                     meter_number=m_data.get("meter_number"),
@@ -2513,7 +2513,7 @@ def ai_onboarding_process():
                     sectional_unit_id=u_id,
                     parent_meter_id=parent_id,
                     pointing_to=None,
-                    municipal_bill_number=data.get("metro_account_no")
+                    municipal_bill_number=m_data.get("accountNo")
                 )
                 db.session.add(meter)
                 db.session.flush()
@@ -2521,49 +2521,15 @@ def ai_onboarding_process():
             
         db.session.commit()
         
-        # Sync Municipality Accounts and capture AI metrics
+        # Sync Municipality Accounts
         from app.program_billing.helpers import sync_muni_accounts
-        from app.models.billing import BilMuniAccount, BilMuniCycleTotals, RefMuniOwner
         sync_muni_accounts()
         
-        muni_email = data.get("muni_email")
-        initial_due = data.get("initial_due_amount")
-        bill_no = data.get("metro_account_no")
-        
-        if bill_no:
-            acc = BilMuniAccount.query.filter_by(account_number=bill_no).first()
-            if not acc:
-                owner = RefMuniOwner.query.filter_by(name="Unknown Owner").first()
-                if not owner:
-                    owner = RefMuniOwner(name="Unknown Owner")
-                    db.session.add(owner)
-                    db.session.flush()
-                acc = BilMuniAccount(account_number=bill_no, owner_id=owner.id)
-                db.session.add(acc)
-                db.session.flush()
-                
-            if muni_email:
-                acc.muni_email = muni_email
-            if initial_due:
-                cycle = BilMuniCycleTotals.query.filter_by(account_id=acc.id, period=month).first()
-                if not cycle:
-                    cycle = BilMuniCycleTotals(
-                        account_id=acc.id,
-                        period=month,
-                        balance=float(initial_due),
-                        due=float(initial_due)
-                    )
-                    db.session.add(cycle)
-            db.session.commit()
-                    
-        flash("Property successfully set up and baselines established!", "success")
-        
-        # Redirect to the Owner metsoa by default as the dashboard root
-        return redirect(url_for("billing_bp.metsoa", tenant_id=tenant_map["owner"], month=month))
+        # Return success as JSON since Alpine fetch is expecting it
+        return jsonify({"success": True, "property_id": prop.id})
         
     except Exception as e:
         db.session.rollback()
         import traceback
         traceback.print_exc()
-        flash(f"An error occurred during setup: {str(e)}", "danger")
-        return redirect(url_for("billing_bp.ai_onboarding"))
+        return jsonify({"error": f"An error occurred during setup: {str(e)}"}), 500

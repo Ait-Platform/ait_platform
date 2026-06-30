@@ -434,6 +434,13 @@ document.addEventListener('alpine:init', () => {
           const state = JSON.parse(saved);
           this.currentBillIndex = state.currentBillIndex || 1;
           this.view = state.view || 'upload';
+          
+          if(state.totalBills) this.totalBills = state.totalBills;
+          if(state.statements) this.statements = state.statements;
+          if(state.isBulk) this.isBulk = state.isBulk;
+          if(state.subMetersExpected !== undefined) this.subMetersExpected = state.subMetersExpected;
+          if(state.totalProperties) this.totalProperties = state.totalProperties;
+          
           if(state.masterPropertyDetails) this.masterPropertyDetails = state.masterPropertyDetails;
           if(state.statementProfiles && state.statementProfiles.length > 0) this.statementProfiles = state.statementProfiles;
           if(state.allBills) this.allBills = state.allBills;
@@ -454,6 +461,12 @@ document.addEventListener('alpine:init', () => {
     
     saveState() {
       const state = {
+        totalBills: this.totalBills,
+        statements: this.statements,
+        isBulk: this.isBulk,
+        subMetersExpected: this.subMetersExpected,
+        totalProperties: this.totalProperties,
+        
         currentBillIndex: this.currentBillIndex,
         view: this.view,
         masterPropertyDetails: this.masterPropertyDetails,

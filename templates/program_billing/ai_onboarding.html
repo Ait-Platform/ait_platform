@@ -78,6 +78,12 @@
         <div x-show="errorMessage" class="mb-8 p-6 bg-red-50 border-l-4 border-red-500 rounded-r-lg shadow-sm">
           <p class="text-red-700 text-sm font-medium mb-1" x-text="errorMessage"></p>
         </div>
+
+        <div class="mt-6 text-center" x-show="currentBillIndex > 1 && currentBillIndex <= totalBills">
+          <button @click="skipToCollation()" class="text-sm font-bold text-slate-500 hover:text-blue-600 transition underline decoration-slate-300 hover:decoration-blue-400 underline-offset-4">
+            Missing a bill? Skip remaining uploads and proceed to Collation
+          </button>
+        </div>
       </div>
 
       <!-- VIEW 2: VERIFY SINGLE BILL -->
@@ -467,7 +473,23 @@ document.addEventListener('alpine:init', () => {
       });
     },
     
+    skipToCollation() {
+      if (confirm("Are you sure you want to skip the remaining bills? You will proceed to the Collation Board with the bills you have already uploaded.")) {
+        this.view = 'collation';
+      }
+    },
+    
     approveSingleBill() {
+      // Prevent Duplicate Uploads
+      const accountNo = this.currentExtractedData.metro_account_no;
+      if (accountNo) {
+        const isDuplicate = this.allBills.some(b => b.metro_account_no === accountNo);
+        if (isDuplicate) {
+          alert("DUPLICATE DETECTED: You have already uploaded a bill for Account No " + accountNo + " in this session! Please cancel or upload a different bill to avoid duplicate meters.");
+          return; 
+        }
+      }
+
       // 1. Save full bill details
       this.allBills.push(JSON.parse(JSON.stringify(this.currentExtractedData)));
 

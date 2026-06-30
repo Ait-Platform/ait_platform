@@ -1,17 +1,14 @@
 import psycopg2
-import os
 
 db_url = "postgres://ait_platform_db_user:b5LcEVWQeG0JyI6Vklo7zaQBZ1zsAfqj@dpg-d4bkqsf5r7bs73989ia0-a.oregon-postgres.render.com:5432/ait_platform_db"
 
 try:
     conn = psycopg2.connect(db_url)
     cur = conn.cursor()
-    cur.execute('''
-        ALTER TABLE bil_property 
-        ADD COLUMN IF NOT EXISTS enrollment_id INTEGER REFERENCES "user_enrollment"(id);
-    ''')
-    conn.commit()
-    print("Added enrollment_id to bil_property.")
+    
+    cur.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'subject_country_price';")
+    print(cur.fetchall())
+        
     cur.close()
     conn.close()
 except Exception as e:

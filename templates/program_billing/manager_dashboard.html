@@ -8,152 +8,126 @@
     <!-- Top Strip -->
     <div class="h-2 w-full bg-orange-500"></div>
 
-    <div class="p-8">
-      <div class="flex flex-col md:flex-row md:justify-between md:items-start mb-8" x-data="{
-        hasDraft: false,
-        draftPropId: 1,
-        checkDraft() {
-          for(let i=0; i<localStorage.length; i++) {
-            let key = localStorage.key(i);
-            if(key.startsWith('ait_onboarding_')) {
-              this.hasDraft = true;
-              this.draftPropId = key.replace('ait_onboarding_', '');
-              break;
-            }
-          }
-        }
-      }" x-init="checkDraft()">
-        <!-- Header -->
-        <div class="mb-4 md:mb-0">
+      <div class="mb-8 w-full flex flex-col md:flex-row md:justify-between md:items-start">
+        <div>
           <h1 class="text-3xl font-extrabold text-slate-800 tracking-tight">Billing Dashboard</h1>
-          <p class="text-slate-500 mt-2">Manage your properties, meters, and utility billing.</p>
-          
-          <template x-if="hasDraft">
-            <a :href="'{{ url_for('billing_bp.ai_onboarding') }}?current_property=' + draftPropId" class="mt-4 inline-flex items-center px-4 py-2 bg-orange-100 text-orange-700 font-bold rounded-lg shadow-sm border border-orange-200 hover:bg-orange-200 transition">
-              <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-              Resume Draft AI Uploads
-            </a>
-          </template>
-        </div>
-        
-        <!-- Header Actions -->
-        <div class="flex flex-col items-end space-y-4">
-          <a href="{{ url_for('auth_bp.bridge_dashboard') }}" class="inline-flex items-center text-sm font-medium text-slate-500 hover:text-slate-800 transition">
-            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
-            Back to Bridge
-          </a>
+          <p class="text-slate-500 mt-2">Follow the tile sequence below to onboard a new property.</p>
         </div>
       </div>
 
-      <!-- Quick Actions (Alpine Component for Modal) -->
-      <!-- Quick Actions / Setup Inline Block -->
-      <div x-data="addPropertyModal()" class="mb-8 relative">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
-          <a href="{{ url_for('billing_bp.muni_recon_email') }}" class="bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold py-3 px-5 rounded-xl shadow-sm transition flex items-center justify-center text-sm">
-            <svg class="w-5 h-5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
-            Email Metro Readings
-          </a>
-          <a href="{{ url_for('billing_bp.muni_recon_statement') }}" class="bg-teal-50 hover:bg-teal-100 border border-teal-200 text-teal-700 font-bold py-3 px-5 rounded-xl shadow-sm transition flex items-center justify-center text-sm">
-            <svg class="w-5 h-5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-            Metro Reconciliation
-          </a>
-        </div>
-
-        <!-- Inline Property Architect -->
-        <div id="add-property-section" class="bg-white rounded-2xl shadow-sm border border-blue-100 overflow-hidden mb-8 scroll-mt-6">
-          <div class="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4 flex justify-between items-center">
-            <h3 class="text-white font-bold text-xl flex items-center">
-              <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-              Add New Property
-            </h3>
-          </div>
+      <div class="mb-8 w-full">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           
-          <div class="p-8">
-            <!-- Portfolio Progress Banner -->
-            <div x-show="total_properties > 1" class="bg-indigo-50 border border-indigo-200 rounded-lg p-4 mb-6 flex items-center" style="display: none;">
-              <div class="bg-indigo-100 text-indigo-700 font-bold rounded-full h-10 w-10 flex items-center justify-center mr-4">
-                <span x-text="current_property"></span>
-              </div>
-              <div>
-                <h4 class="font-bold text-indigo-900">Portfolio Digitization in Progress</h4>
-                <p class="text-sm text-indigo-700">You are setting up structure for <span class="font-bold">Unit <span x-text="current_property"></span> of <span x-text="total_properties"></span></span>.</p>
-              </div>
-            </div>
-
-            <!-- Step 1: Structure -->
-            <div x-show="step === 1" x-transition>
-              
-              <div class="mb-8 border-b border-slate-200 pb-8" x-show="current_property === 1">
-                <h4 class="text-lg font-bold text-slate-800 mb-4">Step 1: Portfolio Size</h4>
-                <label class="block text-sm font-bold text-slate-700 mb-2">How many properties/units are you digitizing in this batch?</label>
-                <input type="number" min="1" x-model.number="total_properties" class="w-full border-2 border-slate-200 rounded-lg px-4 py-3 text-lg font-bold text-slate-800 focus:border-blue-500 focus:ring-blue-500 transition">
-                <p class="text-xs text-slate-500 mt-1">If this is part of a large complex or portfolio, we will track your progress.</p>
-              </div>
-
-                <h4 class="text-lg font-bold text-slate-800 mb-4" x-text="total_properties > 1 ? (current_property === 1 ? 'Step 2: Define Structure for Unit 1' : 'Define Structure for Unit ' + current_property) : 'Step 1: Define the Property'"></h4>
-                
-                <div class="mb-6">
-                  <label class="block text-sm font-bold text-slate-700 mb-2">Is this a Bulk Metered property?</label>
-                  <select x-model="is_bulk" class="w-full border-2 border-slate-200 rounded-lg px-4 py-3 text-lg font-bold text-slate-800 focus:border-blue-500 focus:ring-blue-500 transition">
-                    <option value="yes">Yes, it has a main bulk meter and sub-meters</option>
-                    <option value="no">No, just standard individual meters</option>
-                  </select>
-                </div>
-
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                <div>
-                  <label class="block text-sm font-bold text-slate-700 mb-2">How many distinct municipal bills?</label>
-                  <input type="number" min="1" x-model.number="bills" class="w-full border-2 border-slate-200 rounded-lg px-4 py-3 text-lg font-bold text-slate-800 focus:border-blue-500 focus:ring-blue-500 transition">
-                  <p class="text-xs text-slate-500 mt-1">Total physical bills you receive.</p>
-                </div>
-                <div>
-                  <label class="block text-sm font-bold text-slate-700 mb-2">How many statements are required?</label>
-                  <input type="number" min="1" x-model.number="tenants" class="w-full border-2 border-slate-200 rounded-lg px-4 py-3 text-lg font-bold text-slate-800 focus:border-blue-500 focus:ring-blue-500 transition">
-                  <p class="text-xs text-slate-500 mt-1">Do not include the Owner/Common Area statement.</p>
-                </div>
-                <div x-show="is_bulk === 'yes'" class="md:col-span-2">
-                  <label class="block text-sm font-bold text-slate-700 mb-2">How many meters are linked to the bulk meter?</label>
-                  <input type="number" min="0" x-model.number="sub_meters" class="w-full border-2 border-slate-200 rounded-lg px-4 py-3 text-lg font-bold text-slate-800 focus:border-blue-500 focus:ring-blue-500 transition">
-                  <p class="text-xs text-slate-500 mt-1">Number of sub-meters whose consumption should be deducted from the main bulk meter.</p>
-                </div>
-              </div>
-
-              <div class="flex justify-start">
-                <button type="button" @click="nextStep()" class="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition shadow-sm text-lg">Continue to Setup &rarr;</button>
-              </div>
-            </div>
-
-            <!-- Step 2: Path Choice -->
-            <div x-show="step === 2" style="display: none;" x-transition>
-              <h4 class="text-lg font-bold text-slate-800 mb-4" x-text="total_properties > 1 ? 'Choose Setup Method for Unit ' + current_property : 'Step 2: Choose Setup Method'"></h4>
-              <p class="text-sm text-slate-600 mb-6">Based on your structure <span class="font-bold bg-slate-100 px-2 py-1 rounded" x-text="bills + ' Bill(s), ' + tenants + ' Tenant(s)'"></span>, choose how you want to proceed:</p>
-
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- AI Path -->
-                <a :href="'{{ url_for('billing_bp.ai_onboarding') }}?bills=' + bills + '&tenants=' + tenants + '&is_bulk=' + is_bulk + '&sub_meters=' + sub_meters + '&total_properties=' + total_properties + '&current_property=' + current_property" class="p-8 border-2 border-blue-400 bg-blue-50 hover:bg-blue-100 rounded-xl transition text-center group cursor-pointer block relative shadow-sm hover:shadow-md">
-                  <div class="absolute top-3 right-3 text-xs font-bold text-white bg-blue-600 px-3 py-1 rounded uppercase shadow-sm">Recommended</div>
-                  <div class="w-16 h-16 bg-white rounded-full mx-auto mb-4 flex items-center justify-center shadow-sm group-hover:scale-110 transition text-blue-600">
-                    <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                  </div>
-                  <h5 class="font-bold text-slate-800 mb-2 text-xl">Use AI Property Architect</h5>
-                  <p class="text-sm text-slate-500">Upload your bills and let the AI extract all meters instantly. You simply map them to your tenants.</p>
-                </a>
-                
-                <!-- Manual Path -->
-                <a href="{{ url_for('billing_bp.setup_wizard') }}" class="p-8 border-2 border-slate-200 bg-slate-50 hover:bg-slate-100 rounded-xl transition text-center group cursor-pointer block shadow-sm hover:shadow-md">
-                  <div class="w-16 h-16 bg-white rounded-full mx-auto mb-4 flex items-center justify-center shadow-sm group-hover:scale-110 transition text-slate-600">
-                    <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-                  </div>
-                  <h5 class="font-bold text-slate-800 mb-2 text-xl">Manual Setup</h5>
-                  <p class="text-sm text-slate-500">Manually type in all property details and add your meters step-by-step.</p>
-                </a>
-              </div>
-
-              <div class="mt-8">
-                <button @click="step = 1" class="text-sm font-bold text-slate-500 hover:text-slate-800 transition">&larr; Back to Structure</button>
-              </div>
-            </div>
+          <!-- Tile 1: Setup Properties -->
+          {% if draft_property %}
+          <div class="block rounded-xl border p-6 shadow-sm bg-slate-50 border-slate-200 opacity-75 cursor-not-allowed">
+            <div class="font-semibold text-slate-900">1. Setup Properties</div>
+            <div class="mt-1 text-sm text-slate-600">Locked. You must finish setting up '{{ draft_property.name }}' first.</div>
           </div>
+          {% else %}
+          <button onclick="document.getElementById('setupModal').classList.remove('hidden')" class="text-left block rounded-xl border p-6 shadow-sm transition hover:shadow bg-blue-50 border-blue-100 hover:bg-blue-100 group">
+            <div class="font-semibold text-slate-900 group-hover:text-blue-700">1. Setup Properties</div>
+            <div class="mt-1 text-sm text-slate-600">Answer 3 questions to initiate a new property setup.</div>
+          </button>
+          {% endif %}
+          
+          <!-- Tile 2: View Extraction -->
+          {% if draft_property and draft_property.onboarding_status in ['draft_extracting', 'draft_collating'] %}
+          <a href="{{ url_for('billing_bp.ai_onboarding') }}?property_id={{ draft_property.id }}" class="block rounded-xl border p-6 shadow-sm transition hover:shadow bg-indigo-50 border-indigo-100 hover:bg-indigo-100 group">
+            <div class="font-semibold text-slate-900 group-hover:text-indigo-700">2. View Extraction</div>
+            <div class="mt-1 text-sm text-slate-600">Upload bills. ({{ uploaded_bills }} / {{ draft_property.expected_bills }} uploaded).</div>
+          </a>
+          {% else %}
+          <div class="block rounded-xl border p-6 shadow-sm bg-slate-50 border-slate-200 opacity-75 cursor-not-allowed">
+            <div class="font-semibold text-slate-900">2. View Extraction</div>
+            <div class="mt-1 text-sm text-slate-600">Locked until a property setup is initiated.</div>
+          </div>
+          {% endif %}
+
+          <!-- Tile 3: Collation and Editing -->
+          {% if draft_property and draft_property.onboarding_status == 'draft_collating' %}
+          <a href="{{ url_for('billing_bp.ai_onboarding') }}?property_id={{ draft_property.id }}&view=collation" class="block rounded-xl border p-6 shadow-sm transition hover:shadow bg-purple-50 border-purple-100 hover:bg-purple-100 group">
+            <div class="font-semibold text-slate-900 group-hover:text-purple-700">3. Collation and Editing</div>
+            <div class="mt-1 text-sm text-slate-600">Map your uploaded meters to your tenants.</div>
+          </a>
+          {% else %}
+          <div class="block rounded-xl border p-6 shadow-sm bg-slate-50 border-slate-200 opacity-75 cursor-not-allowed">
+            <div class="font-semibold text-slate-900">3. Collation and Editing</div>
+            <div class="mt-1 text-sm text-slate-600">Locked until all expected bills are extracted.</div>
+          </div>
+          {% endif %}
+
+          <!-- Tile 4: Enter Readings (MetSOA) -->
+          {% if draft_property and draft_property.onboarding_status in ['draft_readings', 'draft_financials'] %}
+          <a href="{{ url_for('billing_bp.input_readings', property_id=draft_property.id) }}" class="block rounded-xl border p-6 shadow-sm transition hover:shadow bg-orange-50 border-orange-100 hover:bg-orange-100 group">
+            <div class="font-semibold text-slate-900 group-hover:text-orange-700">4. Enter Readings</div>
+            <div class="mt-1 text-sm text-slate-600">Enter meter readings manually or by AI.</div>
+          </a>
+          {% else %}
+          <div class="block rounded-xl border p-6 shadow-sm bg-slate-50 border-slate-200 opacity-75 cursor-not-allowed">
+            <div class="font-semibold text-slate-900">4. Enter Readings</div>
+            <div class="mt-1 text-sm text-slate-600">Locked until collation is complete.</div>
+          </div>
+          {% endif %}
+
+          <!-- Tile 5: Financial Requirements -->
+          {% if draft_property and draft_property.onboarding_status == 'draft_financials' %}
+          <a href="{{ url_for('billing_bp.edit_property', property_id=draft_property.id) }}?onboarding=complete" class="block rounded-xl border p-6 shadow-sm transition hover:shadow bg-pink-50 border-pink-100 hover:bg-pink-100 group">
+            <div class="font-semibold text-slate-900 group-hover:text-pink-700">5. Financial Requirements</div>
+            <div class="mt-1 text-sm text-slate-600">Setup leases, deposits, and target recovery.</div>
+          </a>
+          {% else %}
+          <div class="block rounded-xl border p-6 shadow-sm bg-slate-50 border-slate-200 opacity-75 cursor-not-allowed">
+            <div class="font-semibold text-slate-900">5. Financial Requirements</div>
+            <div class="mt-1 text-sm text-slate-600">Locked until readings are finalized.</div>
+          </div>
+          {% endif %}
+
+          <!-- Tile 6: Help -->
+          <a href="#" class="block rounded-xl border p-6 shadow-sm transition hover:shadow bg-emerald-50 border-emerald-100 hover:bg-emerald-100 group">
+            <div class="font-semibold text-slate-900 group-hover:text-emerald-700">Help / Guide</div>
+            <div class="mt-1 text-sm text-slate-600">Learn how our unique bill combination system works.</div>
+          </a>
+
+        </div>
+      </div>
+
+      <!-- Setup Modal -->
+      <div id="setupModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900 bg-opacity-50">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden relative">
+          <div class="px-6 py-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
+            <h3 class="font-bold text-slate-800 text-lg">Setup Property Details</h3>
+            <button onclick="document.getElementById('setupModal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 text-2xl leading-none">&times;</button>
+          </div>
+          <form action="/billing/onboarding/start_setup" method="POST" class="p-6">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="mb-4">
+              <label class="block text-sm font-bold text-slate-700 mb-2">Property Name</label>
+              <input type="text" name="property_name" required class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+            </div>
+            <div class="mb-4">
+              <label class="block text-sm font-bold text-slate-700 mb-2">How many distinct physical bills do you expect to upload?</label>
+              <input type="number" name="bills" min="1" value="1" required class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+            </div>
+            <div class="mb-4">
+              <label class="block text-sm font-bold text-slate-700 mb-2">How many tenants/statements are required?</label>
+              <input type="number" name="tenants" min="1" value="1" required class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+            </div>
+            <div class="mb-4">
+              <label class="block text-sm font-bold text-slate-700 mb-2">Is this a Bulk Metered property?</label>
+              <select name="is_bulk" class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                <option value="no">No, just standard individual meters</option>
+                <option value="yes">Yes, it has a main bulk meter and sub-meters</option>
+              </select>
+            </div>
+            <div class="mb-6">
+              <label class="block text-sm font-bold text-slate-700 mb-2">If Bulk, how many sub-meters are linked?</label>
+              <input type="number" name="sub_meters" min="0" value="0" class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+            </div>
+            <div class="flex justify-end">
+              <button type="submit" class="px-6 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition">Initialize Setup</button>
+            </div>
+          </form>
         </div>
       </div>
 

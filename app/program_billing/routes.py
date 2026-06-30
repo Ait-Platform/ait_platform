@@ -2410,6 +2410,18 @@ def parse_bill_onboarding_api():
                 )
                 from app.extensions import db
                 db.session.add(log_entry)
+                
+                # Check if we should upgrade the draft property to collation
+                prop_id = request.form.get("property_id")
+                if prop_id:
+                    draft = BilProperty.query.get(prop_id)
+                    if draft and draft.onboarding_status == 'draft_extracting':
+                        count = BilExtractionLog.query.filter_by(property_name=draft.name).count()
+                        # We count the current one too because it's in the session but maybe not returned by count yet?
+                        # Actually we can just do count + 1
+                        if count + 1 >= draft.expected_bills:
+                            draft.onboarding_status = 'draft_collating'
+                            
                 db.session.commit()
         except Exception as inner_e:
             import logging
@@ -2425,7 +2437,14 @@ def parse_bill_onboarding_api():
 @billing_bp.route("/billing/onboarding", methods=["GET"])
 @login_required
 def ai_onboarding():
-    return render_template("program_billing/ai_onboarding.html")
+    property_id = request.args.get('property_id')
+    draft_property = None
+    if property_id:
+        draft_property = BilProperty.query.get(property_id)
+        if draft_property and draft_property.manager_id != current_user.id:
+            from flask import abort
+            abort(403)
+    return render_template("program_billing/ai_onboarding.html", draft_property=draft_property)
 
 @billing_bp.route("/billing/onboarding/process", methods=["POST"])
 @login_required
@@ -2435,24 +2454,24 @@ def ai_onboarding_process():
         return jsonify({"error": "Invalid JSON payload"}), 400
         
     try:
-        # 1. Create Property
-        prop_name = data.get("property_name", "").strip() or "New Property"
-        prop = BilProperty(
-            name=prop_name,
-            address=data.get("address"),
-            manager_id=current_user.id,
-            enrollment_id=_get_billing_enrollment_id(current_user.id),
-            metro_rates_amount=float(data.get("rates_amount") or 0.0)
-        )
-        db.session.add(prop)
-        db.session.flush()
+        property_id = data.get("property_id")
+        if not property_id:
+            return jsonify({"error": "Missing property_id. You must start a setup from the dashboard first."}), 400
+            
+        prop = BilProperty.query.get(property_id)
+        if not prop or prop.manager_id != current_user.id:
+            return jsonify({"error": "Property not found or unauthorized"}), 403
+            
+        # 1. Update Property Details
+        prop.address = data.get("address") or prop.address
+        prop.metro_rates_amount = float(data.get("rates_amount") or 0.0)
         
         # 2. Setup Units & Tenants Map
         unit_map = {}
         tenant_map = {}
         
         # 2a. Owner Account (Default)
-        owner_unit = BilSectionalUnit(property_id=prop.id, name=f"{prop_name} - Owner/Common")
+        owner_unit = BilSectionalUnit(property_id=prop.id, name=f"{prop.name} - Owner/Common")
         db.session.add(owner_unit)
         db.session.flush()
         unit_map["owner"] = owner_unit.id
@@ -2566,6 +2585,9 @@ def ai_onboarding_process():
                 db.session.flush()
                 _add_baseline(meter, m_data)
             
+        # Advance the onboarding status to the next tile!
+        prop.onboarding_status = 'draft_readings'
+        
         db.session.commit()
         
         # Sync Municipality Accounts
@@ -2580,3 +2602,40 @@ def ai_onboarding_process():
         import traceback
         traceback.print_exc()
         return jsonify({"error": f"An error occurred during setup: {str(e)}"}), 500
+
+@billing_bp.route("/billing/onboarding/start_setup", methods=["POST"])
+@login_required
+def onboarding_start_setup():
+    # Only allow if no drafts exist
+    existing = BilProperty.query.filter(
+        BilProperty.manager_id == current_user.id,
+        BilProperty.onboarding_status.like('draft_%')
+    ).first()
+    
+    if existing:
+        flash("You already have an onboarding in progress. Please finish it first.", "error")
+        return redirect(url_for('billing_bp.learner_dashboard'))
+        
+    prop_name = request.form.get("property_name", "Draft Property")
+    bills = int(request.form.get("bills", 1))
+    tenants = int(request.form.get("tenants", 1))
+    is_bulk = request.form.get("is_bulk", "no")
+    sub_meters = int(request.form.get("sub_meters", 0))
+    
+    prop = BilProperty(
+        name=prop_name,
+        manager_id=current_user.id,
+        enrollment_id=_get_billing_enrollment_id(current_user.id),
+        onboarding_status='draft_extracting',
+        expected_bills=bills,
+        expected_tenants=tenants,
+        is_bulk_metered=(1 if is_bulk == 'yes' else 0),
+        expected_sub_meters=sub_meters
+    )
+    
+    from app.extensions import db
+    db.session.add(prop)
+    db.session.commit()
+    
+    flash("Setup initialized! You can now proceed to View Extraction.", "success")
+    return redirect(url_for('billing_bp.learner_dashboard'))

@@ -100,7 +100,7 @@
               </div>
 
               <div class="flex justify-start">
-                <button @click="nextStep()" class="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition shadow-sm text-lg">Continue to Setup &rarr;</button>
+                <button type="button" @click="nextStep()" class="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition shadow-sm text-lg">Continue to Setup &rarr;</button>
               </div>
             </div>
 
@@ -262,12 +262,17 @@ function addPropertyModal() {
     },
     
     nextStep() {
+      this.bills = parseInt(this.bills) || 1;
+      this.tenants = parseInt(this.tenants) || 1;
+      this.sub_meters = parseInt(this.sub_meters) || 0;
+      this.total_properties = parseInt(this.total_properties) || 1;
+
       if (this.bills < 1) this.bills = 1;
       if (this.tenants < 1) this.tenants = 1;
       if (this.sub_meters < 0) this.sub_meters = 0;
       if (this.total_properties < 1) this.total_properties = 1;
       
-      if (this.is_bulk === 'yes' && this.sub_meters === 0) {
+      if (this.is_bulk === 'yes' && this.sub_meters <= 0) {
         alert("If this is a Bulk Metered property, you must have at least 1 sub-meter linked to the bulk meter. Please enter the correct number of linked meters.");
         return;
       }

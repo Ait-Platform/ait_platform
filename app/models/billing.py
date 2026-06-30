@@ -452,3 +452,17 @@ class BilStatementPayment(db.Model):
     paid_at = db.Column(db.DateTime, default=func.now())
     
     __table_args__ = (db.UniqueConstraint('manager_id', 'month', name='uq_manager_month_payment'),)
+
+class BilExtractionLog(db.Model):
+    __tablename__ = 'bil_extraction_log'
+    id = db.Column(db.Integer, primary_key=True)
+    manager_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    property_name = db.Column(db.String(255), nullable=True)
+    address = db.Column(db.Text, nullable=True)
+    metro_account_no = db.Column(db.String(100), nullable=True)
+    muni_email = db.Column(db.String(255), nullable=True)
+    has_rates = db.Column(db.Boolean, default=False)
+    rates_amount = db.Column(db.Float, default=0.0)
+    amount_due = db.Column(db.Float, default=0.0)
+    raw_json = db.Column(db.JSON, nullable=True)
+    created_at = db.Column(db.DateTime, default=func.now())

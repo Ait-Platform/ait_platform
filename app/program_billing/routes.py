@@ -23,6 +23,13 @@ import time
 from app.auth.forms import RegisterForm, ManagerPropertyForm, TenancyForm
 from app.program_billing.helpers import get_dashboard_data
 
+def _get_billing_enrollment_id(user_id):
+    from app.models.auth import UserEnrollment, AuthSubject
+    subj = AuthSubject.query.filter_by(slug='billing').first()
+    if not subj: return None
+    enr = UserEnrollment.query.filter_by(user_id=user_id, subject_id=subj.id).first()
+    return enr.id if enr else None
+
 billing_bp = Blueprint('billing_bp', __name__)
 
 @billing_bp.route('/billing/checkout/<month>', methods=['GET'])
@@ -77,7 +84,8 @@ def billing_about():
         db.session.commit()
     return render_template("program_billing/about.html", settings=settings)
 
-@billing_bp.route("/billing/dashboard", methods=["GET", "POST"])`n@billing_bp.route("/billing/home", endpoint="subject_home")
+@billing_bp.route("/billing/dashboard", methods=["GET", "POST"])
+@billing_bp.route("/billing/home", endpoint="subject_home")
 @login_required
 def learner_dashboard():
     if request.method == "POST":
@@ -86,7 +94,8 @@ def learner_dashboard():
             name=request.form["property_name"],
             address=request.form["address"],
             description=request.form.get("description"),
-            manager_id=current_user.id
+            manager_id=current_user.id,
+            enrollment_id=_get_billing_enrollment_id(current_user.id)
         )
         db.session.add(prop)
         db.session.flush()
@@ -935,7 +944,8 @@ def muni_recon_email_send():
             name=request.form["property_name"],
             address=request.form["address"],
             description=request.form.get("description"),
-            manager_id=current_user.id
+            manager_id=current_user.id,
+            enrollment_id=_get_billing_enrollment_id(current_user.id)
         )
         db.session.add(prop)
         db.session.flush()
@@ -1988,6 +1998,7 @@ def setup_submit():
             name=prop_name,
             address=data.get("address"),
             manager_id=current_user.id,
+            enrollment_id=_get_billing_enrollment_id(current_user.id),
             metro_arrangement_amount=float(data.get("metro_arrangement_amount") or 0.0),
             metro_arrangement_duration=int(data.get("metro_arrangement_duration") or 0),
             metro_rates_amount=float(data.get("metro_rates_amount") or 0.0)
@@ -2395,6 +2406,7 @@ def ai_onboarding_process():
             name=prop_name,
             address=data.get("address"),
             manager_id=current_user.id,
+            enrollment_id=_get_billing_enrollment_id(current_user.id),
             metro_rates_amount=float(data.get("rates_amount") or 0.0)
         )
         db.session.add(prop)

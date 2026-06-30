@@ -38,6 +38,14 @@ class BilProperty(db.Model):
         nullable=True
     )
 
+    # Link to the user enrollment record
+    enrollment_id = db.Column(
+        db.Integer,
+        db.ForeignKey('user_enrollment.id'),
+        nullable=True
+    )
+
+    sectional_units = db.relationship('BilSectionalUnit', backref='property', lazy=True)
     manager = db.relationship('User', backref='managed_properties')
 
 class BilMeter(db.Model):

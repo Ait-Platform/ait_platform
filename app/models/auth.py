@@ -156,6 +156,9 @@ class UserEnrollment(db.Model):
     # 🔹 Back-populates talent submissions
     talent_submissions = db.relationship("CfiTalentSubmission", back_populates="user_enrollment", cascade="all, delete-orphan")
 
+    # Link to billing properties
+    billing_properties = db.relationship("BilProperty", backref="enrollment", cascade="all, delete-orphan")
+
     status = db.Column(db.String, nullable=False, default="pending _payment")
 
     country_code = db.Column(db.String(2), nullable=True)

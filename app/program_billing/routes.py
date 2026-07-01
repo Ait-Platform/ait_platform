@@ -84,6 +84,20 @@ def billing_about():
         db.session.commit()
     return render_template("program_billing/about.html", settings=settings)
 
+@billing_bp.route('/billing/price')
+def billing_price():
+    from app.models.billing import BilPlatformSettings
+    settings = BilPlatformSettings.query.first()
+    if not settings:
+        settings = BilPlatformSettings(
+            base_price_cents=10000,
+            included_meters=2,
+            extra_meter_price_cents=2000
+        )
+        db.session.add(settings)
+        db.session.commit()
+    return render_template("program_billing/price.html", settings=settings)
+
 @billing_bp.route("/billing/dashboard", methods=["GET", "POST"])
 @billing_bp.route("/billing/home", endpoint="subject_home")
 @login_required

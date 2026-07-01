@@ -638,7 +638,8 @@ def register_decision():
             ue = db.session.get(UserEnrollment, enrollment_id)
             if ue:
                 ue.status = "active"
-                ue.trial_end = datetime.utcnow() + timedelta(days=float(subj_obj.trial_days))
+                # Set trial period to 15 minutes for testing
+                ue.trial_end = datetime.utcnow() + timedelta(minutes=15)
                 db.session.commit()
             return redirect(url_for("auth_bp.bridge_dashboard"))
 

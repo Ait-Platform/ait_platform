@@ -75,7 +75,7 @@ def bridge_dashboard():
 
         for subj in subjects:
             # We don't want these subjects showing up as a separate tile on the bridge
-            if subj.slug in ['home_premium', 'hds', 'practice_crm', 'mechanic']:
+            if subj.slug in ['home_premium', 'hds', 'practice_crm']:
                 continue
 
             enrollment = enrollments.get(subj.id)

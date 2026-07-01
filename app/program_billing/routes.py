@@ -2651,5 +2651,5 @@ def onboarding_start_setup():
     db.session.add(prop)
     db.session.commit()
     
-    flash("Setup initialized! You can now proceed to View Extraction.", "success")
+    flash(f"Setup initialized for '{prop_name}' (Expects {bills} bill{'s' if bills != 1 else ''}). You can now proceed to View Extraction.", "success")
     return redirect(url_for('billing_bp.learner_dashboard'))

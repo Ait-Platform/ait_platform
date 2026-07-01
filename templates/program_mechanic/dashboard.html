@@ -1,229 +1,140 @@
 {% extends 'base.html' %}
 {% block content %}
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-  <div class="md:flex md:items-center md:justify-between mb-8">
-    <div class="flex-1 min-w-0">
-      <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">Mechanic CRM Dashboard</h2>
-    </div>
-  </div>
+<div class="min-h-screen bg-slate-50 py-10 px-4 flex flex-col items-center">
+  <div class="w-full max-w-5xl bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+    
+    <!-- Top Strip -->
+    <div class="h-2 w-full bg-indigo-500"></div>
 
-  {% if active_shop %}
-    <div class="bg-indigo-50 border-l-4 border-indigo-400 p-4 mb-8 rounded-md shadow-sm">
-      <div class="flex">
-        <div class="flex-shrink-0">
-          <svg class="h-5 w-5 text-indigo-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-          </svg>
-        </div>
-        <div class="ml-3">
-          <p class="text-sm text-indigo-700">
-            Active Profile: <strong>{{ active_shop.business_name }}</strong>
-          </p>
-        </div>
+    <div class="mb-8 w-full px-6 pt-6 flex flex-col md:flex-row md:justify-between md:items-start">
+      <div>
+        <h1 class="text-3xl font-extrabold text-slate-800 tracking-tight">Mechanic CRM Dashboard</h1>
+        <p class="text-slate-500 mt-2">Manage your shop, quotes, and workflow below.</p>
       </div>
     </div>
-  {% endif %}
 
-  <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-    <!-- Tile 1: Shop Setup / AI Upload -->
-    {% if not draft_shop and not active_shop %}
-      <div class="bg-white overflow-hidden shadow rounded-lg hover:shadow-md transition cursor-pointer" onclick="document.getElementById('setup-modal').classList.remove('hidden')">
-        <div class="p-5">
-          <div class="flex items-center">
-            <div class="flex-shrink-0 bg-indigo-500 rounded-md p-3">
-              <svg class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-              </svg>
-            </div>
-            <div class="ml-5 w-0 flex-1">
-              <dl>
-                <dt class="text-sm font-medium text-gray-500 truncate">Tile 1</dt>
-                <dd class="text-lg font-medium text-gray-900">Setup Shop Details</dd>
-              </dl>
-            </div>
-          </div>
-        </div>
-        <div class="bg-gray-50 px-5 py-3 border-t border-gray-200">
-          <div class="text-sm text-indigo-700 font-medium">Click to upload template via AI</div>
-        </div>
-      </div>
-    {% else %}
-      <div class="bg-gray-100 overflow-hidden shadow rounded-lg opacity-60">
-        <div class="p-5">
-          <div class="flex items-center">
-            <div class="flex-shrink-0 bg-gray-400 rounded-md p-3">
-              <svg class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-              </svg>
-            </div>
-            <div class="ml-5 w-0 flex-1">
-              <dl>
-                <dt class="text-sm font-medium text-gray-500 truncate">Tile 1</dt>
-                <dd class="text-lg font-medium text-gray-900">Setup Shop Details</dd>
-              </dl>
-            </div>
-          </div>
-        </div>
-        <div class="bg-gray-50 px-5 py-3 border-t border-gray-200 text-sm text-gray-500">Locked</div>
-      </div>
-    {% endif %}
-
-    <!-- Tile 2: Review Extraction -->
-    {% if draft_shop and draft_shop.onboarding_status == 'draft_review' %}
-      <div class="bg-white overflow-hidden shadow rounded-lg hover:shadow-md transition cursor-pointer" onclick="document.getElementById('review-modal').classList.remove('hidden')">
-        <div class="p-5">
-          <div class="flex items-center">
-            <div class="flex-shrink-0 bg-blue-500 rounded-md p-3">
-              <svg class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-            </div>
-            <div class="ml-5 w-0 flex-1">
-              <dl>
-                <dt class="text-sm font-medium text-gray-500 truncate">Tile 2</dt>
-                <dd class="text-lg font-medium text-gray-900">Review AI Extraction</dd>
-              </dl>
-            </div>
-          </div>
-        </div>
-        <div class="bg-gray-50 px-5 py-3 border-t border-gray-200">
-          <div class="text-sm text-blue-700 font-medium">Verify business details</div>
-        </div>
-      </div>
-    {% else %}
-      <div class="bg-gray-100 overflow-hidden shadow rounded-lg opacity-60">
-        <div class="p-5">
-          <div class="flex items-center">
-            <div class="flex-shrink-0 bg-gray-400 rounded-md p-3">
-              <svg class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-              </svg>
-            </div>
-            <div class="ml-5 w-0 flex-1">
-              <dl>
-                <dt class="text-sm font-medium text-gray-500 truncate">Tile 2</dt>
-                <dd class="text-lg font-medium text-gray-900">Review AI Extraction</dd>
-              </dl>
-            </div>
-          </div>
-        </div>
-        <div class="bg-gray-50 px-5 py-3 border-t border-gray-200 text-sm text-gray-500">Locked</div>
-      </div>
-    {% endif %}
-
-    <!-- Tile 3: Create Quote (Intake) -->
     {% if active_shop %}
-      <a href="{{ url_for('mechanic_bp.new_quote') }}" class="bg-white overflow-hidden shadow rounded-lg hover:shadow-md transition block">
-        <div class="p-5">
-          <div class="flex items-center">
-            <div class="flex-shrink-0 bg-green-500 rounded-md p-3">
-              <svg class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-              </svg>
-            </div>
-            <div class="ml-5 w-0 flex-1">
-              <dl>
-                <dt class="text-sm font-medium text-gray-500 truncate">Tile 3</dt>
-                <dd class="text-lg font-medium text-gray-900">Create Quote</dd>
-              </dl>
-            </div>
+      <div class="mx-6 mb-8 bg-indigo-50 border-l-4 border-indigo-400 p-4 rounded-md shadow-sm">
+        <div class="flex">
+          <div class="flex-shrink-0">
+            <svg class="h-5 w-5 text-indigo-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+            </svg>
+          </div>
+          <div class="ml-3">
+            <p class="text-sm text-indigo-700">
+              Active Profile: <strong>{{ active_shop.business_name }}</strong>
+            </p>
           </div>
         </div>
-        <div class="bg-gray-50 px-5 py-3 border-t border-gray-200">
-          <div class="text-sm text-green-700 font-medium">Add Customer & Select Parts</div>
-        </div>
-      </a>
-    {% else %}
-      <div class="bg-gray-100 overflow-hidden shadow rounded-lg opacity-60">
-        <div class="p-5">
-          <div class="flex items-center">
-            <div class="flex-shrink-0 bg-gray-400 rounded-md p-3">
-              <svg class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-              </svg>
-            </div>
-            <div class="ml-5 w-0 flex-1">
-              <dl>
-                <dt class="text-sm font-medium text-gray-500 truncate">Tile 3</dt>
-                <dd class="text-lg font-medium text-gray-900">Create Quote</dd>
-              </dl>
-            </div>
-          </div>
-        </div>
-        <div class="bg-gray-50 px-5 py-3 border-t border-gray-200 text-sm text-gray-500">Requires Shop Profile</div>
       </div>
     {% endif %}
+
+    <div class="mb-8 w-full px-6">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        
+        <!-- Tile 1: Shop Setup / AI Upload -->
+        {% if not draft_shop and not active_shop %}
+          <button onclick="document.getElementById('setup-modal').classList.remove('hidden')" class="text-left block rounded-xl border p-6 shadow-sm transition hover:shadow bg-blue-50 border-blue-100 hover:bg-blue-100 group">
+            <div class="font-semibold text-slate-900 group-hover:text-blue-700">1. Setup Shop Details</div>
+            <div class="mt-1 text-sm text-slate-600">Click to upload quote/invoice template via AI.</div>
+          </button>
+        {% else %}
+          <div class="block rounded-xl border p-6 shadow-sm bg-slate-50 border-slate-200 opacity-75 cursor-not-allowed">
+            <div class="font-semibold text-slate-900">1. Setup Shop Details</div>
+            <div class="mt-1 text-sm text-slate-600">Locked or already completed.</div>
+          </div>
+        {% endif %}
+
+        <!-- Tile 2: Review Extraction -->
+        {% if draft_shop and draft_shop.onboarding_status == 'draft_review' %}
+          <button onclick="document.getElementById('review-modal').classList.remove('hidden')" class="text-left block rounded-xl border p-6 shadow-sm transition hover:shadow bg-indigo-50 border-indigo-100 hover:bg-indigo-100 group">
+            <div class="font-semibold text-slate-900 group-hover:text-indigo-700">2. Review AI Extraction</div>
+            <div class="mt-1 text-sm text-slate-600">Verify your extracted business details.</div>
+          </button>
+        {% else %}
+          <div class="block rounded-xl border p-6 shadow-sm bg-slate-50 border-slate-200 opacity-75 cursor-not-allowed">
+            <div class="font-semibold text-slate-900">2. Review AI Extraction</div>
+            <div class="mt-1 text-sm text-slate-600">Locked until a template is uploaded.</div>
+          </div>
+        {% endif %}
+
+        <!-- Tile 3: Create Quote (Intake) -->
+        {% if active_shop %}
+          <a href="{{ url_for('mechanic_bp.new_quote') }}" class="block rounded-xl border p-6 shadow-sm transition hover:shadow bg-green-50 border-green-100 hover:bg-green-100 group">
+            <div class="font-semibold text-slate-900 group-hover:text-green-700">3. Create Quote</div>
+            <div class="mt-1 text-sm text-slate-600">Add Customer & Select Parts for a new quote.</div>
+          </a>
+        {% else %}
+          <div class="block rounded-xl border p-6 shadow-sm bg-slate-50 border-slate-200 opacity-75 cursor-not-allowed">
+            <div class="font-semibold text-slate-900">3. Create Quote</div>
+            <div class="mt-1 text-sm text-slate-600">Requires an active Shop Profile to start quoting.</div>
+          </div>
+        {% endif %}
+      </div>
+    </div>
   </div>
 
   <!-- Setup Modal (Tile 1) -->
-  <div id="setup-modal" class="fixed inset-0 z-10 hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-      <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onclick="document.getElementById('setup-modal').classList.add('hidden')"></div>
-      <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-        <form action="{{ url_for('mechanic_bp.onboarding_start') }}" method="POST" enctype="multipart/form-data">
-          <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-            <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">Upload Shop / Quote Template</h3>
-            <div class="mt-2 text-sm text-gray-500">
-              <p>Upload a PDF of your existing quotes or invoices. Our AI will automatically extract your business details, logo, and terms & conditions.</p>
-              <input type="file" name="template_file" class="mt-4 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" accept=".pdf,.png,.jpg">
-            </div>
-          </div>
-          <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-            <button type="submit" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 sm:ml-3 sm:w-auto sm:text-sm">
-              Process with AI
-            </button>
-            <button type="button" onclick="document.getElementById('setup-modal').classList.add('hidden')" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
-              Cancel
-            </button>
-          </div>
-        </form>
+  <div id="setup-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-slate-900 bg-opacity-50 p-4 sm:p-6" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-y-auto max-h-[90vh] relative">
+      <div class="px-6 py-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
+        <h3 class="font-bold text-slate-800 text-lg" id="modal-title">Upload Shop / Quote Template</h3>
+        <button onclick="document.getElementById('setup-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 text-2xl leading-none">&times;</button>
       </div>
+      <form action="{{ url_for('mechanic_bp.onboarding_start') }}" method="POST" enctype="multipart/form-data">
+        <div class="p-6">
+          <p class="text-sm text-slate-500">Upload a PDF of your existing quotes or invoices. Our AI will automatically extract your business details, logo, and terms & conditions.</p>
+          <input type="file" name="template_file" class="mt-4 block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" accept=".pdf,.png,.jpg">
+        </div>
+        <div class="bg-slate-50 px-6 py-4 border-t border-slate-200 flex justify-end gap-3">
+          <button type="button" onclick="document.getElementById('setup-modal').classList.add('hidden')" class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">Cancel</button>
+          <button type="submit" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 shadow-sm transition">Process with AI</button>
+        </div>
+      </form>
     </div>
   </div>
 
   <!-- Review Modal (Tile 2) -->
   {% if draft_shop and draft_shop.onboarding_status == 'draft_review' %}
-  <div id="review-modal" class="fixed inset-0 z-10 hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-      <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onclick="document.getElementById('review-modal').classList.add('hidden')"></div>
-      <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-xl sm:w-full">
-        <form action="{{ url_for('mechanic_bp.onboarding_process') }}" method="POST">
-          <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-            <h3 class="text-lg leading-6 font-medium text-gray-900">Review AI Extraction</h3>
-            <p class="text-sm text-gray-500 mt-1">Please verify the details extracted from your template.</p>
-            <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div class="col-span-2">
-                <label class="block text-sm font-medium text-gray-700">Business Name</label>
-                <input type="text" name="business_name" value="{{ draft_shop.business_name }}" class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
-              </div>
-              <div class="col-span-2">
-                <label class="block text-sm font-medium text-gray-700">Address</label>
-                <input type="text" name="address" value="{{ draft_shop.address }}" class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-700">Phone</label>
-                <input type="text" name="phone" value="{{ draft_shop.phone }}" class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-700">Email</label>
-                <input type="email" name="email" value="{{ draft_shop.email }}" class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
-              </div>
-              <div class="col-span-2">
-                <label class="block text-sm font-medium text-gray-700">Terms and Conditions</label>
-                <textarea name="terms_and_conditions" rows="3" class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">{{ draft_shop.terms_and_conditions }}</textarea>
-              </div>
+  <div id="review-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-slate-900 bg-opacity-50 p-4 sm:p-6" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-xl overflow-y-auto max-h-[90vh] relative">
+      <div class="px-6 py-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
+        <h3 class="font-bold text-slate-800 text-lg">Review AI Extraction</h3>
+        <button onclick="document.getElementById('review-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 text-2xl leading-none">&times;</button>
+      </div>
+      <form action="{{ url_for('mechanic_bp.onboarding_process') }}" method="POST">
+        <div class="p-6 space-y-4">
+          <p class="text-sm text-slate-500 mb-4">Please verify the details extracted from your template.</p>
+          
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="sm:col-span-2">
+              <label class="block text-sm font-medium text-slate-700">Business Name</label>
+              <input type="text" name="business_name" value="{{ draft_shop.business_name }}" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+            </div>
+            <div class="sm:col-span-2">
+              <label class="block text-sm font-medium text-slate-700">Address</label>
+              <input type="text" name="address" value="{{ draft_shop.address }}" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700">Phone</label>
+              <input type="text" name="phone" value="{{ draft_shop.phone }}" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700">Email</label>
+              <input type="email" name="email" value="{{ draft_shop.email }}" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+            </div>
+            <div class="sm:col-span-2">
+              <label class="block text-sm font-medium text-slate-700">Terms and Conditions</label>
+              <textarea name="terms_and_conditions" rows="3" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">{{ draft_shop.terms_and_conditions }}</textarea>
             </div>
           </div>
-          <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-            <button type="submit" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 sm:ml-3 sm:w-auto sm:text-sm">
-              Save Profile
-            </button>
-            <button type="button" onclick="document.getElementById('review-modal').classList.add('hidden')" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
-              Cancel
-            </button>
-          </div>
-        </form>
-      </div>
+        </div>
+        <div class="bg-slate-50 px-6 py-4 border-t border-slate-200 flex justify-end gap-3">
+          <button type="button" onclick="document.getElementById('review-modal').classList.add('hidden')" class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">Cancel</button>
+          <button type="submit" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 shadow-sm transition">Save Profile</button>
+        </div>
+      </form>
     </div>
   </div>
   {% endif %}

@@ -1,5 +1,5 @@
 {% macro link_for(subject_slug, real_endpoint) %}
-  {% set allowed = ['loss'] %}
+  {% set allowed = ['loss', 'hds', 'spv', 'adv_math', 'mechanic', 'billing', 'reading', 'home'] %}
 
   {% if subject_slug in allowed %}
     <a href="{{ real_endpoint }}"

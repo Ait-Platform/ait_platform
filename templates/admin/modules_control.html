@@ -35,6 +35,7 @@
       
       <!-- Module Visibility & Environment -->
       <form method="POST" action="{{ url_for('admin_bp.modules_control') }}" class="mb-8">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden mt-8">
           <div class="bg-slate-50 border-b border-slate-200 px-6 py-4">
             <h3 class="text-lg font-semibold text-slate-800">Platform Modules Control</h3>

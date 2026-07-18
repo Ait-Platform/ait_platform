@@ -11,6 +11,9 @@ from . import admin_bp
 #admin_bp = Blueprint("admin_bp", __name__, url_prefix="/admin")
 from sqlalchemy import select, func
 from flask_login import current_user
+import uuid
+from app.models.payment import VoucherToken
+from app.models.auth import AuthSubject
 
 # subjects you support in admin
 ALLOWED_SUBJECTS = {"reading", "home", "loss", "billing", "adv_math", "spv"}  # extend as needed

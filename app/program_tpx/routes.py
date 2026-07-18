@@ -25,6 +25,7 @@ def register_choice():
 
 @tpx_bp.route("/pricing")
 def pricing():
+    from flask import request, render_template
     from app.payments.pricing import price_for_country
     from app.models.auth import AuthSubject
     

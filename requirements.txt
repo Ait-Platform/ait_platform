@@ -102,7 +102,6 @@ pyparsing==3.2.5
 pypdf==6.1.0
 PyPDF2==3.0.1
 pyphen==0.17.2
-pypiwin32==223
 pytest==9.1.1
 python-bidi==0.6.6
 python-dateutil==2.9.0.post0

@@ -71,7 +71,27 @@ def welcome():
     from sqlalchemy import text
     from app.extensions import db
     settings = {}
-    rows = db.session.execute(text("SELECT key, value FROM system_settings")).fetchall()
+    try:
+        rows = db.session.execute(text("SELECT key, value FROM system_settings")).fetchall()
+    except Exception:
+        db.session.rollback()
+        # Fallback to create table if missing (solves Render deploy without migrations)
+        try:
+            db.session.execute(text('''
+                CREATE TABLE IF NOT EXISTS system_settings (
+                    key VARCHAR(255) PRIMARY KEY,
+                    value VARCHAR(255) NOT NULL,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            '''))
+            db.session.execute(text("INSERT INTO system_settings (key, value) VALUES ('mechanic_quote_cents', '500') ON CONFLICT DO NOTHING"))
+            db.session.execute(text("INSERT INTO system_settings (key, value) VALUES ('mechanic_invoice_cents', '1000') ON CONFLICT DO NOTHING"))
+            db.session.commit()
+            rows = db.session.execute(text("SELECT key, value FROM system_settings")).fetchall()
+        except Exception:
+            db.session.rollback()
+            rows = []
+            
     for row in rows:
         settings[row[0]] = row[1]
     

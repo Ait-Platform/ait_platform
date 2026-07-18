@@ -29,7 +29,7 @@ def pricing():
     from app.payments.pricing import price_for_country
     from app.models.auth import AuthSubject
     
-    country_code = request.headers.get("CF-IPCountry", "ZA")
+    country_code = request.args.get('country') or request.headers.get("CF-IPCountry", "ZA")
     tpx_subject = AuthSubject.query.filter_by(slug='tpx').first()
     
     display_price = "ZAR 100"

@@ -1,24 +1,33 @@
 {% extends "layout.html" %}
 {% block flashes %}{% endblock %}
 {% block content %}
-<div class="p-6">
+<div class="mx-auto max-w-7xl mt-8 px-4 mb-10">
+  <div class="bg-white rounded-xl shadow overflow-hidden border border-gray-200">
+    <!-- Color Strip Matching Welcome Page -->
+    <div class="h-2 bg-pink-500 w-full"></div>
 
-  <!-- Tile -->
-  <div class="bg-white shadow-lg rounded-lg overflow-hidden mb-8">
-    <!-- Color Strip -->
-    <div class="h-2 bg-purple-600"></div>
+    <!-- Row 1: Title Left, Back Button Right -->
+    <div class="flex justify-between items-center px-6 py-4 border-b bg-gray-50">
+      <h1 class="text-2xl font-bold text-gray-800">Judge Dashboard</h1>
+      {% if back_enrollment_id %}
+        <a href="{{ url_for('cultural_bp.talent_dashboard', enrollment_id=back_enrollment_id) }}" 
+           class="bg-gray-200 text-gray-700 px-4 py-2 rounded border border-gray-300 hover:bg-gray-300 font-semibold transition">
+           Back
+        </a>
+      {% else %}
+        <a href="{{ url_for('bridge_bp.bridge') }}" 
+           class="bg-gray-200 text-gray-700 px-4 py-2 rounded border border-gray-300 hover:bg-gray-300 font-semibold transition">
+           Back
+        </a>
+      {% endif %}
+    </div>
 
-    <!-- Header Row -->
-    <div class="flex justify-between items-start p-6 border-b border-gray-100">
-      <h1 class="text-2xl font-bold text-gray-800 mt-2">Judge Dashboard</h1>
-      <div class="flex flex-col items-end space-y-2">
-        {% if back_enrollment_id %}
-          <a href="{{ url_for('cultural_bp.talent_dashboard', enrollment_id=back_enrollment_id) }}" class="bg-gray-200 text-gray-800 px-4 py-2 rounded hover:bg-gray-300 transition-colors w-full text-center">Back to Talent Dashboard</a>
-        {% else %}
-          <a href="{{ url_for('bridge_bp.bridge') }}" class="bg-gray-200 text-gray-800 px-4 py-2 rounded hover:bg-gray-300 transition-colors w-full text-center">Back to Bridge</a>
-        {% endif %}
-        <a href="{{ url_for('cultural_bp.showcase_dashboard') }}" class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 transition-colors w-full text-center">Showcase</a>
-      </div>
+    <!-- Row 2: Right Aligned Buttons -->
+    <div class="flex items-center justify-end space-x-2 px-4 py-3 border-b bg-gray-50 flex-wrap gap-y-2">
+        <a href="{{ url_for('cultural_bp.showcase_dashboard') }}" 
+           class="bg-indigo-600 text-white px-3 py-1 rounded hover:bg-indigo-700 shadow-sm transition-transform hover:-translate-y-0.5">
+           Showcase
+        </a>
     </div>
 
     <div class="p-6">

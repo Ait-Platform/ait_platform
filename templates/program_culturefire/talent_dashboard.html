@@ -9,7 +9,7 @@
 <div class="mx-auto max-w-7xl mt-8 px-4 mb-10">
   <div class="bg-white rounded-xl shadow overflow-hidden border border-gray-200">
     <!-- Color Strip Matching Welcome Page -->
-    <div class="h-2 bg-gradient-to-r from-blue-500 to-purple-600 w-full"></div>
+    <div class="h-2 bg-pink-500 w-full"></div>
 
     <!-- Row 1: Title Left, Back Button Right -->
     <div class="flex justify-between items-center px-6 py-4 border-b bg-gray-50">
@@ -20,7 +20,7 @@
       </a>
     </div>
 
-  <!-- Navigation Row -->
+  <!-- Row 2: Right Aligned Buttons -->
   <div class="flex items-center justify-end space-x-2 px-4 py-3 border-b bg-gray-50 flex-wrap gap-y-2">
     {% if pageant_category_id %}
     <a href="{{ url_for('cultural_bp.pageant_dashboard', enrollment_id=enrollment.id, category_id=pageant_category_id) }}" 
@@ -43,10 +43,6 @@
     <a href="{{ url_for('cultural_bp.advertiser_dashboard') }}" 
        class="bg-blue-800 text-white px-3 py-1 rounded hover:bg-blue-900 shadow-sm transition-transform hover:-translate-y-0.5">
        Advertisers
-    </a>
-    <a href="{{ url_for('cultural_bp.live_results_list', origin='talent', enrollment_id=enrollment.id) }}" 
-       class="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600 shadow-sm transition-transform hover:-translate-y-0.5">
-       Results
     </a>
     <a href="{{ url_for('cultural_bp.live_results_list', origin='talent', enrollment_id=enrollment.id) }}" 
        class="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600 shadow-sm transition-transform hover:-translate-y-0.5">
@@ -79,13 +75,12 @@
   {% include "partials/flash_messages.html" %}
 
   <!-- Help Guide -->
-  <div class="px-4 py-2 bg-gray-50 border-b text-sm text-gray-600">
+  <div class="px-6 py-3 bg-white border-b text-sm text-gray-600">
     Select a category and complete each step. 
     <strong>Details must be filled in for the item to reach showcase level.</strong>
   </div>
 
-
-<div class="px-4 py-6 bg-white border-b shadow-sm mb-4">
+<div class="px-6 py-6 bg-white border-b shadow-sm mb-4">
         <form method="GET" action="{{ url_for('cultural_bp.talent_dashboard', enrollment_id=enrollment.id) }}" class="flex items-end gap-3 flex-wrap">
           
           <!-- Category Select -->
@@ -93,7 +88,8 @@
             <label class="block text-sm font-semibold text-gray-700 mb-1">Select Category</label>
             <select name="category_id" 
                     onchange="this.form.submit()"
-                    class="block w-full border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500 text-sm py-2 px-3 shadow-sm">
+                    autofocus
+                    class="block w-full border-2 border-indigo-300 rounded focus:ring-indigo-500 focus:border-indigo-500 text-sm py-2 px-3 shadow-sm outline-none">
               <option value="">-- Choose Category --</option>
               {% for cat in categories %}
                 {% if cat.name != 'Pageant' %}

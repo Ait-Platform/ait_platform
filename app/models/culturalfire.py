@@ -29,6 +29,47 @@ class CfiTokenTransaction(db.Model):
     description = db.Column(db.String(255), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+class CfiAward(db.Model):
+    __tablename__ = "cfi_award"
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    show_id = db.Column(db.Integer, db.ForeignKey("cfi_shows.id"), nullable=True)
+    award_type = db.Column(db.String(50), nullable=False, default="Milestone") # 'Milestone' or 'Pageant'
+    title = db.Column(db.String(100), nullable=False) # e.g. 'Silver Award', 'Beautiful Eyes'
+    description = db.Column(db.String(255), nullable=True)
+    earned_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    user = db.relationship("User", backref="cfi_awards")
+    show = db.relationship("CfiShow", backref="cfi_show_awards")
+
+class CfiPageantQuestion(db.Model):
+    __tablename__ = "cfi_pageant_question"
+    id = db.Column(db.Integer, primary_key=True)
+    question_text = db.Column(db.Text, nullable=False)
+
+class CfiQuestionAssignment(db.Model):
+    __tablename__ = "cfi_question_assignment"
+    id = db.Column(db.Integer, primary_key=True)
+    show_id = db.Column(db.Integer, db.ForeignKey("cfi_shows.id"), nullable=False)
+    segment_item_id = db.Column(db.Integer, db.ForeignKey("cfi_segment_items.id"), nullable=False)
+    question_id = db.Column(db.Integer, db.ForeignKey("cfi_pageant_question.id"), nullable=False)
+    
+    show = db.relationship("CfiShow", backref="assigned_questions")
+    segment_item = db.relationship("CfiSegmentItem", backref="assigned_question")
+    question = db.relationship("CfiPageantQuestion")
+
+class CfiShowAd(db.Model):
+    __tablename__ = "cfi_show_ad"
+    id = db.Column(db.Integer, primary_key=True)
+    show_id = db.Column(db.Integer, db.ForeignKey("cfi_shows.id"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    video_url = db.Column(db.String(255), nullable=False)
+    position_index = db.Column(db.Integer, nullable=False, default=0) # index of act after which ad plays
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    show = db.relationship("CfiShow", backref="ads")
+    user = db.relationship("User", backref="cfi_ads")
+
 
 class CfiTalentCategory(db.Model):
     __tablename__ = "cfi_talent_categories"
@@ -96,9 +137,13 @@ class CfiBiodata(db.Model):
     phone = db.Column(db.String(20), nullable=False)
 
     address_line = db.Column(db.String(255))
+    
+    # Minor Consent Tracking
+    parent_email = db.Column(db.String(150), nullable=True)
+    parent_consent_status = db.Column(db.String(50), nullable=True) # pending, granted
+    parent_consent_token = db.Column(db.String(100), nullable=True)
 
-
-    age = db.Column(db.Integer, nullable=True)
+    # Added dynamically: age, grade, school_name, cell_number, nullable=True)
     grade = db.Column(db.String(50), nullable=True)
     school = db.Column(db.String(255), nullable=True)
     
@@ -509,4 +554,53 @@ class CfiShowcaseVote(db.Model):
     segment_item_id = db.Column(db.Integer, db.ForeignKey('cfi_segment_items.id'), nullable=True)
     score = db.Column(db.Integer, default=0, nullable=False)
     created_at = db.Column(db.DateTime, default=db.func.now())
+    
+    submission = db.relationship('CfiTalentSubmission')
+    segment_item = db.relationship('CfiSegmentItem')
 
+class CfiJudgeScore(db.Model):
+    __tablename__ = 'cfi_judge_scores'
+    id = db.Column(db.Integer, primary_key=True)
+    vote_id = db.Column(db.Integer, db.ForeignKey('cfi_showcase_votes.id'), nullable=False)
+    criterion_name = db.Column(db.String(100), nullable=False)
+    score = db.Column(db.Integer, default=0, nullable=False)
+    
+    vote = db.relationship('CfiShowcaseVote', backref=db.backref('criteria_scores', lazy=True, cascade='all, delete-orphan'))
+
+class CfiMcAssignment(db.Model):
+    __tablename__ = "cfi_mc_assignment"
+    id = db.Column(db.Integer, primary_key=True)
+    mc_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    show_id = db.Column(db.Integer, db.ForeignKey('cfi_shows.id'))
+    assigned_at = db.Column(db.DateTime, default=datetime.utcnow)
+    enrollment_id = db.Column(db.Integer, db.ForeignKey('user_enrollment.id'), nullable=True)
+    pageant_segment_id = db.Column(db.Integer, db.ForeignKey('cfi_pageant_segments.id'), nullable=True)
+    
+    show = db.relationship("CfiShow", backref="mc_assignments")
+    mc = db.relationship("User", backref="mc_assignments")
+    pageant_segment = db.relationship("CfiPageantSegment")
+
+class CfiMcRecording(db.Model):
+    __tablename__ = 'cfi_mc_recordings'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    show_id = db.Column(db.Integer, db.ForeignKey('cfi_shows.id'), nullable=True)
+    recording_type = db.Column(db.String(50), nullable=True) # 'show_intro', 'act_intro', 'show_outro'
+    submission_id = db.Column(db.Integer, db.ForeignKey('cfi_talent_submission.id'), nullable=True)
+    segment_item_id = db.Column(db.Integer, db.ForeignKey('cfi_segment_items.id'), nullable=True)
+    media_url = db.Column(db.String(500), nullable=False)
+    created_at = db.Column(db.DateTime, default=db.func.now())
+
+
+
+class CfiVoucher(db.Model):
+    __tablename__ = 'cfi_voucher'
+
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(50), unique=True, nullable=False)
+    tokens = db.Column(db.Integer, default=200)
+    is_used = db.Column(db.Boolean, default=False)
+    created_by_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    used_by_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    used_at = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())

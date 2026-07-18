@@ -1,0 +1,58 @@
+{% extends "admin/layout.html" %}
+{% block title %}Admin - Support Messages{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Support Messages</h2>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+            {% if messages %}
+                <div class="accordion" id="messagesAccordion">
+                {% for msg in messages %}
+                    <div class="card mb-2">
+                        <div class="card-header" id="heading{{ msg.id }}">
+                            <h2 class="mb-0">
+                                <button class="btn btn-link btn-block text-left {{ 'font-weight-bold text-dark' if not msg.is_read else 'text-muted' }}" type="button" data-toggle="collapse" data-target="#collapse{{ msg.id }}" aria-expanded="true" aria-controls="collapse{{ msg.id }}">
+                                    <div class="d-flex justify-content-between">
+                                        <span>User {{ msg.user_id }} - Subject: {{ msg.subject|capitalize }}</span>
+                                        <span>{{ msg.created_at.strftime('%Y-%m-%d %H:%M') }} {% if not msg.reply %}<span class="badge badge-warning ml-2">Needs Reply</span>{% endif %}</span>
+                                    </div>
+                                </button>
+                            </h2>
+                        </div>
+
+                        <div id="collapse{{ msg.id }}" class="collapse" aria-labelledby="heading{{ msg.id }}" data-parent="#messagesAccordion">
+                            <div class="card-body">
+                                <p class="mb-4 whitespace-pre-line">{{ msg.message }}</p>
+                                
+                                <hr>
+                                
+                                {% if msg.reply %}
+                                    <h6>Your Reply:</h6>
+                                    <p class="text-primary whitespace-pre-line">{{ msg.reply }}</p>
+                                {% else %}
+                                    <form method="POST" action="{{ url_for('admin_bp.view_messages') }}">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <input type="hidden" name="msg_id" value="{{ msg.id }}">
+                                        <div class="form-group">
+                                            <label>Send a Reply</label>
+                                            <textarea name="reply" class="form-control" rows="3" required></textarea>
+                                        </div>
+                                        <button type="submit" class="btn btn-success btn-sm">Send Reply</button>
+                                    </form>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+                </div>
+            {% else %}
+                <p class="text-muted text-center py-5">No messages found.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

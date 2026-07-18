@@ -75,7 +75,7 @@ def bridge_dashboard():
 
         for subj in subjects:
             # We don't want these subjects showing up as a separate tile on the bridge
-            if subj.slug in ['home_premium', 'hds', 'practice_crm']:
+            if subj.slug in ['home_premium']:
                 continue
 
             enrollment = enrollments.get(subj.id)
@@ -118,6 +118,17 @@ def bridge_dashboard():
                         "href": url_for("modes_bp.modes_checkpoint_route", subject_slug=subj.slug)
                     })
 
+                case ("trial", "free"):
+                    ensure_free_enrollment(session["user_id"], subj.slug)
+                    tiles.append({
+                        "subject": subj,
+                        "slug": subj.slug,
+                        "name": subj.name,
+                        "access_level": "enrolled",
+                        "message": "Your free trial program is active.",
+                        "href": url_for("modes_bp.modes_checkpoint_route", subject_slug=subj.slug)
+                    })
+
                 case ("trial", "paid"):
                     tiles.append({
                         "subject": subj,
@@ -144,7 +155,7 @@ def bridge_dashboard():
                         "subject": subj,
                         "slug": subj.slug,
                         "name": subj.name,
-                        "href": url_for("payment_bp.checkout_review", subject=subj.slug)
+                        "href": url_for("payment_bp.pricing_base", subject=subj.slug)
                     })
 
     return render_template("auth/bridge_dashboard.html", user=user, subjects=tiles)

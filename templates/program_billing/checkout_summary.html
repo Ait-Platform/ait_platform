@@ -1,6 +1,6 @@
-{% extends "base.html" %}
+{% extends "layout.html" %}
 
-{% block title %}Checkout - Metro Billing{% endblock %}
+{% block title %}Unlock Statements - Metro Billing{% endblock %}
 
 {% block content %}
 <div class="max-w-2xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
@@ -31,12 +31,12 @@
         <h4 class="text-sm font-semibold text-slate-900 tracking-wide uppercase">Cost Breakdown</h4>
         <ul class="mt-4 space-y-3 text-sm text-slate-600">
           <li class="flex justify-between items-center">
-            <span>Base Platform Fee (Includes up to {{ settings.included_meters }} meters)</span>
+            <span>Base Generation Fee (includes up to {{ settings.included_meters }} meters)</span>
             <span class="font-medium text-slate-900">R{{ "%.2f"|format(settings.base_price_cents / 100) }}</span>
           </li>
           {% if meter_count > settings.included_meters %}
           <li class="flex justify-between items-center">
-            <span>Additional Meters ({{ meter_count - settings.included_meters }} @ R{{ "%.2f"|format(settings.extra_meter_price_cents / 100) }} each)</span>
+            <span>Extra Meters ({{ meter_count - settings.included_meters }} @ R{{ "%.2f"|format(settings.extra_meter_price_cents / 100) }} each)</span>
             <span class="font-medium text-slate-900">R{{ "%.2f"|format((meter_count - settings.included_meters) * settings.extra_meter_price_cents / 100) }}</span>
           </li>
           {% endif %}
@@ -44,22 +44,48 @@
       </div>
 
       <div class="border-t border-slate-200 pt-6 flex items-center justify-between">
-        <span class="text-lg font-bold text-slate-900">Total Due</span>
+        <span class="text-lg font-bold text-slate-900">Total Tokens Needed</span>
         <span class="text-3xl font-black text-orange-600">R{{ "%.2f"|format(cost_cents / 100) }}</span>
       </div>
 
+      <!-- Account Balance -->
+      <div class="bg-slate-50 rounded-xl p-4 border border-slate-200 flex justify-between items-center mt-6">
+        {% if is_trial %}
+        <div>
+          <h4 class="text-sm font-bold text-slate-900">Trial Active</h4>
+          <p class="text-xs text-slate-500">You are currently in your 30-day trial period. Usage will be recorded on your shadow bill.</p>
+        </div>
+        <div class="text-lg font-bold text-green-600">FREE</div>
+        {% else %}
+        <div>
+          <h4 class="text-sm font-bold text-slate-900">Wallet Balance</h4>
+          <p class="text-xs text-slate-500">Available tokens for platform usage</p>
+        </div>
+        <div class="text-lg font-bold text-slate-900">R{{ "%.2f"|format(main_prop.wallet_balance_cents / 100) }}</div>
+        {% endif %}
+      </div>
+
       <div class="pt-4">
-        <form action="{{ url_for('yoco_bp.yoco_start') }}" method="POST">
-          <input type="hidden" name="subject" value="metro_billing">
-          <input type="hidden" name="email" value="{{ current_user.email }}">
+        {% if is_trial or main_prop.wallet_balance_cents >= cost_cents %}
+        <form action="{{ url_for('billing_bp.billing_unlock', month=month) }}" method="POST">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
           <button type="submit" class="w-full bg-slate-900 text-white rounded-xl py-4 font-bold text-lg hover:bg-slate-800 transition-colors shadow-lg shadow-slate-900/20 flex items-center justify-center">
             <svg class="h-5 w-5 mr-2 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
-            Pay & Unlock Statements
+            Unlock Statements
           </button>
         </form>
+        {% else %}
+        <div class="bg-red-50 text-red-600 p-4 rounded-xl text-center mb-4 text-sm font-semibold border border-red-100">
+          Insufficient tokens to unlock this month.
+        </div>
+        <a href="{{ url_for('billing_bp.learner_dashboard') }}" class="w-full block text-center bg-indigo-600 text-white rounded-xl py-4 font-bold text-lg hover:bg-indigo-700 transition-colors shadow-lg">
+          Top Up Tokens
+        </a>
+        {% endif %}
+        
         <p class="mt-4 text-center text-xs text-slate-500 flex items-center justify-center">
           <svg class="h-4 w-4 mr-1 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
-          Secure payment via Yoco. You will not be charged again for this month.
+          You will not be charged again for this month.
         </p>
       </div>
 

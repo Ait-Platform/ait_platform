@@ -1,0 +1,128 @@
+def bridge_dashboard():
+    current_app.logger.info(
+        "BRIDGE entry: host=%s auth=%s uid=%s",
+        request.host,
+        getattr(current_user, "is_authenticated", False),
+        getattr(current_user, "id", None),
+    )
+
+    # Resolve email once
+    email = (session.get("email") or "").lower()
+    user_obj = None
+
+    if not email and getattr(current_user, "is_authenticated", False):
+        try:
+            u = User.query.get(int(getattr(current_user, "id", 0)))
+            if u and u.email:
+                email = u.email.lower()
+                session["email"] = email
+            user_obj = u
+        except Exception:
+            pass
+    if not email:
+        qemail = (request.args.get("email") or "").strip().lower()
+        if qemail:
+            email = qemail
+            session["email"] = email
+    if not email:
+        return redirect(url_for("auth_bp.login"))
+    
+    # ✅ SMS sieve at BRIDGE level: if this email has an active SMS role, skip Bridge
+    sms_ok = SmsApprovedUser.query.filter_by(email=email, active=True).first()
+    if sms_ok:
+        return redirect(url_for("sms_bp.sms_entry"))
+
+    # If we didn't get user_obj above, resolve it by email
+    if user_obj is None:
+        user_obj = User.query.filter_by(email=email).first()
+
+    # 🔹 NEW: build enrollment map for this user from user_enrollment
+    enroll_map = {}
+    if user_obj:
+        # Removed auto-enrollment in cultural_fire
+
+        rows_en = db.session.execute(
+            text("""
+                SELECT subject_id, status
+                  FROM user_enrollment
+                 WHERE user_id = :uid
+            """),
+            {"uid": user_obj.id},
+        ).mappings().all()
+        enroll_map = {r["subject_id"]: r["status"] for r in rows_en}
+
+    # One-time focus from Stripe success
+    open_sid = session.pop("just_paid_subject_id", None)
+    if open_sid:
+        try:
+            paid_subj = db.session.scalar(text("SELECT parent_subject_id FROM auth_subject WHERE id = :sid"), {"sid": open_sid})
+            if paid_subj:
+                open_sid = paid_subj
+        except Exception as e:
+            current_app.logger.error(f"Failed to map parent sid: {e}")
+
+    base_sql = BRIDGE_QUERY.strip()
+    # drop a trailing semicolon so we can reuse / modify the text safely
+    if base_sql.endswith(";"):
+        base_sql = base_sql[:-1]
+
+    params = {"email": email}
+
+    if open_sid is not None:
+        # check if base_sql already has a WHERE clause
+        if "WHERE" in base_sql.upper():
+            filtered_sql = base_sql.replace(
+                "ORDER BY s.name",
+                "AND s.id = :open_sid ORDER BY s.name"
+            )
+        else:
+            filtered_sql = base_sql.replace(
+                "ORDER BY s.name",
+                "WHERE s.id = :open_sid ORDER BY s.name"
+            )
+
+        sql = sa_text(filtered_sql)
+        params["open_sid"] = int(open_sid)
+        rows = db.session.execute(sql, params).fetchall()
+
+        # Fallback to full list if the filter returns nothing
+        if not rows:
+            rows = db.session.execute(sa_text(base_sql), {"email": email}).fetchall()
+    else:
+        rows = db.session.execute(sa_text(base_sql), params).fetchall()
+
+    # The user requested that locked subjects are never shown on the bridge
+    # We also strictly hide sub-programs like hds and practice_crm from the learner bridge
+    rows = [
+        r for r in rows 
+        if getattr(r, 'access_level', '') != 'locked'
+        and not (getattr(r, 'slug', '') in ('home_premium',) and getattr(r, 'access_level', '') != 'admin')
+    ]
+
+    banner = session.pop("payment_banner", None)
+    
+    # Bypass bridge dashboard if they only have 1 enrollment AND it is completed
+    force_bridge = request.args.get('force') == '1'
+    is_admin = any(getattr(r, 'access_level', '') == 'admin' for r in rows)
+    enrolled_tiles = [r for r in rows if getattr(r, 'access_level', '') == 'enrolled']
+    
+    if len(enrolled_tiles) == 1 and not is_admin and not force_bridge:
+        s = enrolled_tiles[0]
+        uid = current_user.id
+        enr_status = db.session.execute(
+            text("SELECT status FROM user_enrollment WHERE user_id = :uid AND subject_id = :sid LIMIT 1"),
+            {"uid": uid, "sid": s.id}
+        ).scalar()
+        if enr_status == 'completed':
+            slug = getattr(s, 'slug', '').lower()
+            return redirect(url_for('auth_bp.learner_subject_dashboard', subject=slug))
+    
+    return render_template(
+        "auth/bridge_dashboard.html",
+        subjects=rows,
+        banner=banner,
+        enroll_map=enroll_map,   # 🔹 pass enrollment info into template
+    )
+
+@login_required
+@auth_bp.route("/dashboard/learn/<subject>", methods=["GET"])

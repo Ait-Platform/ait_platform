@@ -329,3 +329,32 @@ class AuthBaton(db.Model):
     zar_amount_cents = db.Column(db.Integer)
     status = db.Column(db.String(50), default="locked")
     created_at = db.Column(db.DateTime, default=db.func.now())
+
+class DirectMessage(db.Model):
+    __tablename__ = 'direct_message'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    subject = db.Column(db.String(255), nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    reply = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=db.func.now())
+    is_read = db.Column(db.Boolean, default=False)
+    
+    user = db.relationship('User')
+
+class UserWalletTransaction(db.Model):
+    __tablename__ = "user_wallet_transaction"
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    amount_cents = db.Column(db.Integer, nullable=False) # positive for top-up, negative for spend
+    currency = db.Column(db.String(10), default="ZAR")
+    description = db.Column(db.String(255))
+    created_at = db.Column(db.DateTime, default=db.func.now())
+    
+class UserUnlockedTopic(db.Model):
+    __tablename__ = "user_unlocked_topic"
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    subject_slug = db.Column(db.String(255), nullable=False) # e.g., grade_12_math
+    topic_id = db.Column(db.String(255), nullable=False) # e.g., equations_linear
+    unlocked_at = db.Column(db.DateTime, default=db.func.now())

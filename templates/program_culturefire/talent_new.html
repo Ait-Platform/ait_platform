@@ -21,7 +21,7 @@
       <!-- Category -->
       <div>
         <label class="block text-sm font-medium text-slate-700">Category</label>
-          <select name="category_id" class="mt-1 block w-full border rounded p-2" required>
+          <select name="category_id" class="mt-1 block w-full border-2 border-slate-400 rounded p-2 focus:border-green-600 focus:ring-green-600" required autofocus>
               <option value="">Select category</option>
               {% for cat in categories %}
                   <option value="{{ cat.id }}" {% if cat.id == selected_category_id %}selected{% endif %}>{{ cat.name }}</option>
@@ -33,14 +33,14 @@
       <!-- Custom Talent (only if "Other") -->
       <div id="customTalentField" style="display:none;">
         <label class="block text-sm font-medium text-slate-700">Custom Talent</label>
-        <input type="text" name="custom_talent" class="mt-1 block w-full border rounded p-2"
+        <input type="text" name="custom_talent" class="mt-1 block w-full border-2 border-slate-400 rounded p-2 focus:border-green-600 focus:ring-green-600"
                placeholder="Describe your talent">
       </div>
 
       <!-- Talent Name (short tagline) -->
       <div>
         <label class="block text-sm font-medium text-slate-700">Talent Name</label>
-        <input type="text" name="talent_name" class="mt-1 block w-full border rounded p-2"
+        <input type="text" name="talent_name" class="mt-1 block w-full border-2 border-slate-400 rounded p-2 focus:border-green-600 focus:ring-green-600"
                placeholder="Give your talent a short title">
       </div>
 
@@ -50,7 +50,7 @@
         <p class="text-slate-500 text-sm mb-2">
           Please upload only your own original work. Do not submit TikTok, YouTube, or other third‑party content.
         </p>
-        <input type="file" name="talent_files" multiple class="mt-1 block w-full">
+        <input type="file" name="talent_files" multiple class="mt-1 block w-full border-2 border-slate-400 rounded p-1 focus:border-green-600 focus:ring-green-600">
       </div>
 
       <!-- Submit -->

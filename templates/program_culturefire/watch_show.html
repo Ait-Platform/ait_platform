@@ -48,11 +48,27 @@
           <span id="currentTitle" class="font-medium text-lg">Not playing</span>
           
           {% if is_judge %}
-          <div id="scoreContainer" class="hidden flex items-center space-x-3">
-            <label for="scoreInput" class="font-semibold text-gray-300 text-lg">Score:</label>
-            <input type="number" id="scoreInput" min="1" max="10" class="w-20 px-3 py-2 text-black rounded font-bold text-center text-lg" placeholder="/10">
-            <span id="scoreMaxLabel" class="text-sm text-gray-400">/ 10</span>
-            <button id="btnVote" onclick="voteItem()" class="bg-purple-600 text-white px-5 py-2 rounded hover:bg-purple-700 font-bold shadow-lg transition text-lg">Submit Score</button>
+          <div id="scoreContainer" class="hidden flex flex-col space-y-2 py-2">
+            <div id="scoreForm">
+              <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+                {% for crit in judge_criteria %}
+                <div class="flex flex-col items-center bg-gray-700 p-2 rounded">
+                  <label class="text-xs text-gray-300 font-semibold mb-1 text-center h-8 flex items-center">{{ crit.label }}</label>
+                  <input type="number" id="{{ crit.id }}" min="1" max="10" class="w-16 px-2 py-1 text-black rounded font-bold text-center judge-score-input outline outline-2 outline-gray-400 focus:outline-blue-500" placeholder="/10" onchange="calculateTotalScore()">
+                </div>
+                {% endfor %}
+              </div>
+              <div class="flex justify-between items-center mt-2 border-t border-gray-600 pt-2">
+                <div class="text-lg font-bold text-yellow-400">Total: <span id="totalScore">0</span> / 50</div>
+                <button id="btnVote" onclick="voteItem()" class="bg-purple-600 text-white px-5 py-2 rounded hover:bg-purple-700 font-bold shadow-lg transition text-sm">Submit Score</button>
+              </div>
+            </div>
+          </div>
+          <div id="alreadyScoredWarning" class="hidden py-2">
+            <span class="text-green-400 italic font-semibold border border-green-400 rounded px-3 py-1">You have already scored this performance.</span>
+          </div>
+          <div id="ownSubmissionWarning" class="hidden py-2">
+            <span class="text-yellow-400 italic font-semibold border border-yellow-400 rounded px-3 py-1">You cannot score your own submission</span>
           </div>
           {% else %}
           <span class="text-gray-400 italic text-xs">Judging Panel Only</span>
@@ -141,26 +157,50 @@ function loadItem(index) {
   
   // Show score container if judge
   const scoreContainer = document.getElementById('scoreContainer');
+  const ownSubmissionWarning = document.getElementById('ownSubmissionWarning');
+  const alreadyScoredWarning = document.getElementById('alreadyScoredWarning');
+  const scoreForm = document.getElementById('scoreForm');
+  
   if (scoreContainer) {
-    scoreContainer.classList.remove('hidden');
-    const scoreInput = document.getElementById('scoreInput');
-    const scoreMaxLabel = document.getElementById('scoreMaxLabel');
-    // Check if it's a talent segment or regular
-    const isTalent = (submissions[index].segment_type === 'talent' || '{{ show.category_item.name }}' !== 'Pageant');
-    const maxScore = isTalent ? 20 : 10;
-    scoreInput.max = maxScore;
-    scoreMaxLabel.textContent = '/ ' + maxScore;
-    scoreInput.value = ''; // clear previous
+    if (submissions[index].item_type === 'mc') {
+      scoreContainer.classList.add('hidden');
+      if (ownSubmissionWarning) ownSubmissionWarning.classList.add('hidden');
+      if (alreadyScoredWarning) alreadyScoredWarning.classList.add('hidden');
+    } else if (submissions[index].user_id == {{ current_user.id }}) {
+      scoreContainer.classList.add('hidden');
+      if (ownSubmissionWarning) ownSubmissionWarning.classList.remove('hidden');
+      if (alreadyScoredWarning) alreadyScoredWarning.classList.add('hidden');
+    } else {
+      scoreContainer.classList.remove('hidden');
+      if (ownSubmissionWarning) ownSubmissionWarning.classList.add('hidden');
+      
+      // Check if already voted
+      if (submissions[index].has_voted) {
+        if (scoreForm) scoreForm.classList.add('hidden');
+        if (alreadyScoredWarning) alreadyScoredWarning.classList.remove('hidden');
+      } else {
+        if (scoreForm) scoreForm.classList.remove('hidden');
+        if (alreadyScoredWarning) alreadyScoredWarning.classList.add('hidden');
+        document.querySelectorAll('.judge-score-input').forEach(inp => inp.value = '');
+        calculateTotalScore();
+      }
+    }
   }
 
   updateButtons();
   
-  // Disable next button for 15 seconds
+  // Disable next button for 15 seconds OR if judge hasn't voted
   btnNext.disabled = true;
   btnNext.classList.add('opacity-40', 'cursor-not-allowed');
   if (nextDelayTimeout) clearTimeout(nextDelayTimeout);
   
   nextDelayTimeout = setTimeout(() => {
+    // If user is a judge and hasn't voted, keep next button disabled
+    {% if is_judge %}
+    if (submissions[currentIndex].item_type === 'act' && !submissions[currentIndex].has_voted && submissions[currentIndex].user_id != {{ current_user.id }}) {
+      return;
+    }
+    {% endif %}
     updateButtons();
   }, 15000);
 }
@@ -220,14 +260,44 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 });
 
+function calculateTotalScore() {
+  let total = 0;
+  const inputs = document.querySelectorAll('.judge-score-input');
+  inputs.forEach(inp => {
+    let val = parseInt(inp.value);
+    if (!isNaN(val)) total += val;
+  });
+  const totalScoreSpan = document.getElementById('totalScore');
+  if (totalScoreSpan) {
+    totalScoreSpan.textContent = total;
+  }
+}
+
 function voteItem() {
   if (currentIndex === -1) return;
   const subId = submissions[currentIndex].id;
-  const scoreInput = document.getElementById('scoreInput');
-  const score = scoreInput ? parseInt(scoreInput.value) : 0;
   
-  if (!score || score < 1 || (score > 10 && scoreInput.max == 10) || score > 20) {
-    alert("Please enter a valid score between 1 and " + (scoreInput ? scoreInput.max : 10));
+  const inputs = document.querySelectorAll('.judge-score-input');
+  let critScores = [];
+  let total = 0;
+  let isValid = true;
+  
+  inputs.forEach(inp => {
+    let val = parseInt(inp.value);
+    if (isNaN(val) || val < 1 || val > 10) {
+      isValid = false;
+    } else {
+      critScores.push(val);
+      total += val;
+    }
+  });
+  
+  if (!isValid || critScores.length !== 5) {
+    alert("Please enter a valid score between 1 and 10 for all 5 criteria.");
+    return;
+  }
+  
+  if (!confirm("Are you sure you want to submit these scores?\n\nOnce submitted, scores cannot be edited. You must submit your score to continue to the next video.")) {
     return;
   }
   
@@ -240,14 +310,22 @@ function voteItem() {
     body: JSON.stringify({ 
       submission_id: subId,
       type: '{{ "pageant" if show.category_item and show.category_item.name == "Pageant" else "talent" }}',
-      score: score
+      score: total,
+      crit1: critScores[0],
+      crit2: critScores[1],
+      crit3: critScores[2],
+      crit4: critScores[3],
+      crit5: critScores[4]
     })
   })
   .then(res => res.json()).then(data => {
     if(data.success) {
       alert("Score recorded successfully!");
+      submissions[currentIndex].has_voted = true;
       if (currentIndex < submissions.length - 1) {
         nextItem();
+      } else {
+        loadItem(currentIndex); // reload to show already voted state
       }
     } else {
       alert("Error: " + data.message);
@@ -256,6 +334,8 @@ function voteItem() {
     alert("Error recording score");
   });
 }
+
+
 
 function updateButtons() {
   btnPrev.disabled = currentIndex <= 0;

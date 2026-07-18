@@ -1,0 +1,165 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="max-w-5xl mx-auto px-4 py-8">
+  <div class="bg-white shadow-lg rounded-xl overflow-hidden border border-gray-100">
+    <div class="h-3 bg-gradient-to-r from-indigo-500 to-purple-600"></div>
+
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between px-6 py-6 border-b border-gray-100">
+      <div class="mb-4 sm:mb-0">
+        <h1 class="text-3xl font-extrabold text-gray-900 tracking-tight">Showcase</h1>
+        <p class="text-gray-500 font-medium mt-1">Program</p>
+        <p class="text-indigo-600 font-bold mt-1">{{ show.title }}</p>
+      </div>
+      <div class="flex gap-3">
+        {% if origin == 'judge' %}
+        <a href="{{ url_for('cultural_bp.judge_dashboard') }}" class="bg-gray-100 text-gray-700 px-5 py-2.5 rounded-lg font-semibold hover:bg-gray-200 transition-colors shadow-sm">
+          ← Back
+        </a>
+        {% elif origin == 'mc' %}
+        <a href="{{ url_for('cultural_bp.mc_dashboard', enrollment_id=enrollment_id) }}" class="bg-gray-100 text-gray-700 px-5 py-2.5 rounded-lg font-semibold hover:bg-gray-200 transition-colors shadow-sm">
+          ← Back
+        </a>
+        {% else %}
+        <a href="{{ url_for('cultural_bp.showcase_dashboard', enrollment_id=enrollment_id) }}" class="bg-gray-100 text-gray-700 px-5 py-2.5 rounded-lg font-semibold hover:bg-gray-200 transition-colors shadow-sm">
+          ← Back
+        </a>
+        {% endif %}
+        
+        <a href="{{ url_for('cultural_bp.watch_show', show_id=show.id, origin=origin, enrollment_id=enrollment_id) }}" class="bg-indigo-600 text-white px-6 py-2.5 rounded-lg font-bold hover:bg-indigo-700 shadow-md flex items-center transition-transform transform hover:-translate-y-0.5">
+          <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20"><path d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" fill-rule="evenodd"></path></svg>
+          Watch Show
+        </a>
+      </div>
+    </div>
+
+    <!-- Info -->
+    <div class="px-6 py-6 bg-slate-50 border-b border-gray-100">
+      <p class="text-gray-700 text-lg leading-relaxed">{{ show.description or 'Join us for an amazing showcase of talent and passion in this event!' }}</p>
+      <div class="mt-5 flex flex-wrap gap-x-8 gap-y-4 text-sm text-gray-600">
+        <div class="flex items-center">
+          <svg class="w-5 h-5 mr-2 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+          <strong>Status:</strong> <span class="ml-1 capitalize text-gray-900 font-medium">{{ show.status }}</span>
+        </div>
+        <div class="flex items-center">
+          <svg class="w-5 h-5 mr-2 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+          <strong>Start Date:</strong> <span class="ml-1 text-gray-900 font-medium">{{ show.start_date.strftime('%B %d, %Y') if show.start_date else 'TBD' }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Participants List -->
+    <div class="px-6 py-8">
+      <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+        <svg class="w-6 h-6 mr-2 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+        Featured Participants
+      </h2>
+
+      {% if submissions_by_segment %}
+        <!-- Pageant Layout -->
+        <div class="space-y-10">
+        {% for segment, items in submissions_by_segment.items() %}
+          <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+            <div class="bg-slate-50 px-5 py-3 border-b border-gray-100 flex items-center justify-between">
+              <h3 class="text-lg font-bold text-indigo-800">{{ segment }}</h3>
+              <span class="text-sm font-medium text-gray-500 bg-gray-200 px-2.5 py-0.5 rounded-full">{{ items|length }} Participant{{ 's' if items|length != 1 else '' }}</span>
+            </div>
+            
+            <div class="p-5">
+              {% if items %}
+              <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
+                {% for item in items %}
+                <div class="group relative bg-white border border-gray-100 rounded-lg p-4 hover:border-indigo-300 hover:shadow-md transition-all">
+                  <div class="absolute top-4 right-4 text-indigo-200 group-hover:text-indigo-400 transition-colors">
+                    <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z"></path><path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"></path></svg>
+                  </div>
+                  <h4 class="font-bold text-gray-900 text-lg mb-1 pr-8 truncate">{{ item.talent_name or "Untitled Act" }}</h4>
+                  <p class="text-sm text-gray-600 mb-3 truncate">By {{ item.user_enrollment.biodata.full_name if item.user_enrollment and item.user_enrollment.biodata else (item.user_enrollment.user.name if item.user_enrollment and item.user_enrollment.user else 'Unknown Participant') }}</p>
+                  
+                  <div class="flex flex-wrap gap-2 mt-2">
+                    {% if item.user_enrollment and item.user_enrollment.country_code %}
+                      <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-green-50 text-green-700">
+                        {{ item.user_enrollment.country_code }}
+                      </span>
+                    {% endif %}
+                    {% if item.user_enrollment and item.user_enrollment.biodata and item.user_enrollment.biodata.gender %}
+                      <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-blue-50 text-blue-700">
+                        {{ item.user_enrollment.biodata.gender.title() }}
+                      </span>
+                    {% endif %}
+                    {% if item.user_enrollment and item.user_enrollment.biodata and item.user_enrollment.biodata.age_calc %}
+                      <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-indigo-50 text-indigo-700">
+                        Age: {{ item.user_enrollment.biodata.age_calc }}
+                      </span>
+                    {% endif %}
+                  </div>
+                </div>
+                {% endfor %}
+              </div>
+              {% else %}
+              <div class="text-center py-6 text-gray-500 italic bg-gray-50 rounded border border-dashed border-gray-200">
+                No submissions for this segment yet.
+              </div>
+              {% endif %}
+            </div>
+          </div>
+        {% endfor %}
+        </div>
+      {% elif submissions %}
+        <!-- Standard Talent Layout -->
+        <div class="overflow-x-auto bg-white rounded-xl shadow-sm border border-gray-200">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-indigo-50 text-indigo-900 text-sm border-b border-indigo-100">
+                <th class="px-6 py-4 font-bold w-16">Item</th>
+                <th class="px-6 py-4 font-bold">Talent</th>
+                <th class="px-6 py-4 font-bold">Participant</th>
+                <th class="px-6 py-4 font-bold">Country</th>
+                <th class="px-6 py-4 font-bold">Gender</th>
+                <th class="px-6 py-4 font-bold">Age</th>
+                <th class="px-6 py-4 font-bold">Group Name</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+              {% for sub in submissions %}
+              <tr class="hover:bg-slate-50 transition-colors">
+                <td class="px-6 py-4 text-sm font-semibold text-gray-500">{{ loop.index }}</td>
+                <td class="px-6 py-4 text-sm font-bold text-gray-900">{{ sub.talent_name or sub.custom_talent or "Untitled Act" }}</td>
+                <td class="px-6 py-4 text-sm text-gray-600">
+                  {{ sub.user_enrollment.biodata.full_name if sub.user_enrollment and sub.user_enrollment.biodata else (sub.user_enrollment.user.name if sub.user_enrollment and sub.user_enrollment.user else 'Unknown Participant') }}
+                </td>
+                <td class="px-6 py-4 text-sm text-gray-600">
+                  {{ sub.user_enrollment.country_code or 'Unknown' }}
+                </td>
+                <td class="px-6 py-4 text-sm text-gray-600">
+                  {{ sub.user_enrollment.biodata.gender.title() if sub.user_enrollment and sub.user_enrollment.biodata and sub.user_enrollment.biodata.gender else 'Unknown' }}
+                </td>
+                <td class="px-6 py-4 text-sm text-gray-600">
+                  {{ sub.user_enrollment.biodata.age_calc if sub.user_enrollment and sub.user_enrollment.biodata and sub.user_enrollment.biodata.age_calc else 'Unknown' }}
+                </td>
+                <td class="px-6 py-4 text-sm text-gray-500">
+                  {% if sub.group_members and sub.group_members|length > 0 %}
+                    Group ({{ sub.group_members|length }})
+                  {% else %}
+                    -
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="text-center py-16 bg-slate-50 rounded-xl border-2 border-dashed border-gray-200">
+          <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-indigo-100 text-indigo-500 mb-4">
+            <svg class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+          </div>
+          <h3 class="mt-2 text-lg font-bold text-gray-900">No acts found</h3>
+          <p class="mt-1 text-md text-gray-500 max-w-sm mx-auto">This show is currently empty. Check back later when participants upload their videos!</p>
+        </div>
+      {% endif %}
+
+    </div>
+  </div>
+</div>
+{% endblock %}

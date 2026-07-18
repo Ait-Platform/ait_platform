@@ -1,0 +1,20 @@
+1076:             managed_by_user_id=current_user.id
+1077:         )
+1078: 
+1079:         try:
+1080:             db.session.add(new_property)
+1081:             db.session.commit()
+1082:             flash("✅ Property onboarded successfully!", "success")
+1083:             return redirect(url_for("define_units", property_id=new_property.id))
+1084:         except Exception as e:
+1085:         try:
+1086:             db.session.rollback()
+1087:         except:
+1088:             pass
+1089:             print(f"💥 Property creation failed: {e}")
+1090:             flash("There was an error onboarding the property.", "danger")
+1091: 
+1092:     return render_template("onboard_property.html", form=form)
+1093: 
+1094: def generate_consumption_records_from_readings(month):
+1095:     """

@@ -1,6 +1,10 @@
-import psycopg2
-conn = psycopg2.connect('postgresql://ait_local:temp1234@localhost:5432/ait_local_db')
-cur = conn.cursor()
-cur.execute("UPDATE auth_subject SET pay_endpoint = 'yoco_bp.yoco_start' WHERE pay_endpoint = 'payment_bp.checkout_review';")
-conn.commit()
-print('Rows updated:', cur.rowcount)
+from app import create_app
+from app.extensions import db
+from sqlalchemy import text
+
+app = create_app()
+with app.app_context():
+    db.session.execute(text("UPDATE auth_subject SET enroll_policy = 'manual' WHERE id IN (22, 23, 24)"))
+    db.session.execute(text("DELETE FROM user_enrollment WHERE user_id = 515 AND subject_id IN (22, 23, 24)"))
+    db.session.commit()
+    print("Done")

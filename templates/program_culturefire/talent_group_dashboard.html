@@ -1,4 +1,6 @@
 {% extends "layout.html" %}
+{% block flashes %}{% endblock %}
+
 {% block content %}
 
 <div class="max-w-5xl mx-auto bg-white shadow rounded-lg overflow-hidden">
@@ -12,6 +14,10 @@
        class="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-gray-600 rounded hover:bg-gray-700">
       Back
     </a>
+  </div>
+
+  <div class="px-6 pt-4">
+    {% include "partials/flash_messages.html" %}
   </div>
 
 <!-- Talent + Group info -->

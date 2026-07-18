@@ -1,0 +1,230 @@
+{% extends "layout.html" %}
+{% block title %}Admin - Platform Pricing{% endblock %}
+{% block flashes %}{% endblock %}
+
+{% block content %}
+<div class="p-10 max-w-5xl mx-auto">
+  <!-- Standardized Tile -->
+  <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+    <!-- Top color strip -->
+    <div class="h-2 w-full bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-500"></div>
+    
+    <!-- Row 1: Header -->
+    <div class="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+      <div>
+        <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight">Platform Pricing</h1>
+        <p class="text-sm text-slate-500 mt-1">Manage global platform fees across all modules.</p>
+      </div>
+      <a href="{{ url_for('admin_bp.subject_dashboard', subject='admin_secure') }}" class="inline-flex items-center text-sm font-medium text-slate-500 hover:text-slate-800 transition bg-white hover:bg-slate-50 px-4 py-2 rounded-lg border border-slate-200 shadow-sm">
+        <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+        Back to Secure Setup
+      </a>
+    </div>
+
+    <!-- Inner Content -->
+    <div class="p-8">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          {% for category, message in messages %}
+            <div class="mb-6 rounded-lg p-4 {% if category == 'error' %}bg-red-50 text-red-800 border border-red-200{% else %}bg-green-50 text-green-800 border border-green-200{% endif %}">
+              {{ message }}
+            </div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
+
+      <div class="space-y-8">
+        
+        <!-- Mechanic CRM -->
+        <form method="POST" action="{{ url_for('admin_bp.global_settings') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="bg-blue-50 rounded-xl border border-blue-200 p-6">
+            <h2 class="text-lg font-semibold text-blue-800 mb-4 flex items-center justify-between">
+              Mechanic CRM Pricing
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Quote Generation Cost</label>
+                <div class="relative rounded-md shadow-sm">
+                  <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                    <span class="text-slate-500 sm:text-sm">R</span>
+                  </div>
+                  <input type="number" step="0.01" class="w-full rounded-md border-2 border-slate-400 outline-none pl-7 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 py-2 text-sm bg-white" 
+                         value="{{ "%.2f"|format(settings.get('mechanic_quote_cents', '500')|float / 100) }}" 
+                         onchange="document.getElementById('hidden_mechanic_quote_cents').value = Math.round(this.value * 100);"  required autofocus>
+                </div>
+                <input type="hidden" name="mechanic_quote_cents" id="hidden_mechanic_quote_cents" value="{{ settings.get('mechanic_quote_cents', '500') }}">
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Invoice Generation Cost</label>
+                <div class="relative rounded-md shadow-sm">
+                  <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                    <span class="text-slate-500 sm:text-sm">R</span>
+                  </div>
+                  <input type="number" step="0.01" class="w-full rounded-md border-2 border-slate-400 outline-none pl-7 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 py-2 text-sm bg-white" 
+                         value="{{ "%.2f"|format(settings.get('mechanic_invoice_cents', '1000')|float / 100) }}" 
+                         onchange="document.getElementById('hidden_mechanic_invoice_cents').value = Math.round(this.value * 100);"  required>
+                </div>
+                <input type="hidden" name="mechanic_invoice_cents" id="hidden_mechanic_invoice_cents" value="{{ settings.get('mechanic_invoice_cents', '1000') }}">
+              </div>
+            </div>
+            <div class="mt-6 flex justify-end">
+              <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg text-sm shadow-sm transition">
+                Update Mechanic Pricing
+              </button>
+            </div>
+          </div>
+        </form>
+
+        <!-- Practice CRM -->
+        <form method="POST" action="{{ url_for('admin_bp.global_settings') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="bg-rose-50 rounded-xl border border-rose-200 p-6">
+            <h2 class="text-lg font-semibold text-rose-800 mb-4 flex items-center justify-between">
+              Practice (Healthcare CRM) Pricing
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">New Enquiry Cost</label>
+                <div class="relative rounded-md shadow-sm">
+                  <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                    <span class="text-slate-500 sm:text-sm">R</span>
+                  </div>
+                  <input type="number" step="0.01" class="w-full rounded-md border-2 border-slate-400 outline-none pl-7 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 py-2 text-sm bg-white" 
+                         value="{{ "%.2f"|format(settings.get('practice_enquiry_cents', '500')|float / 100) }}" 
+                         onchange="document.getElementById('hidden_practice_enquiry_cents').value = Math.round(this.value * 100);"  required>
+                </div>
+                <input type="hidden" name="practice_enquiry_cents" id="hidden_practice_enquiry_cents" value="{{ settings.get('practice_enquiry_cents', '500') }}">
+              </div>
+            </div>
+            <div class="mt-6 flex justify-end">
+              <button type="submit" class="bg-rose-600 hover:bg-rose-700 text-white font-medium py-2 px-4 rounded-lg text-sm shadow-sm transition">
+                Update Practice Pricing
+              </button>
+            </div>
+          </div>
+        </form>
+
+        <!-- Metro Billing -->
+        <form method="POST" action="{{ url_for('admin_bp.global_settings') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="bg-indigo-50 rounded-xl border border-indigo-200 p-6">
+            <h2 class="text-lg font-semibold text-indigo-800 mb-4 flex items-center justify-between">
+              Metro Billing Pricing
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+              <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Statement Gen Cost</label>
+                <div class="relative rounded-md shadow-sm">
+                  <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                    <span class="text-slate-500 sm:text-sm">R</span>
+                  </div>
+                  <input type="number" step="0.01" class="w-full rounded-md border-2 border-slate-400 outline-none pl-7 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 py-2 text-sm bg-white" 
+                         value="{{ "%.2f"|format(settings.get('billing_statement_cents', '500')|float / 100) }}" 
+                         onchange="document.getElementById('hidden_billing_statement_cents').value = Math.round(this.value * 100);"  required>
+                </div>
+                <input type="hidden" name="billing_statement_cents" id="hidden_billing_statement_cents" value="{{ settings.get('billing_statement_cents', '500') }}">
+              </div>
+            </div>
+            <div class="border-t border-indigo-200/50 pt-6">
+              <h3 class="text-sm font-semibold text-indigo-700 mb-4">Metro Billing Platform Fees</h3>
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                  <label class="block text-sm font-medium text-slate-700 mb-1">Base Price (Rands)</label>
+                  <input type="number" step="0.01" name="bil_base_price" value="{{ "%.2f"|format(bil_settings.base_price_cents / 100) }}" class="w-full rounded-md border-2 border-slate-400 outline-none shadow-sm focus:border-indigo-500 focus:ring-indigo-500 px-3 py-2 text-sm bg-white" required>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-slate-700 mb-1">Included Meters</label>
+                  <input type="number" step="1" name="bil_included_meters" value="{{ bil_settings.included_meters }}" class="w-full rounded-md border-2 border-slate-400 outline-none shadow-sm focus:border-indigo-500 focus:ring-indigo-500 px-3 py-2 text-sm bg-white" required>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-slate-700 mb-1">Price per Extra Meter (Rands)</label>
+                  <input type="number" step="0.01" name="bil_extra_meter_price" value="{{ "%.2f"|format(bil_settings.extra_meter_price_cents / 100) }}" class="w-full rounded-md border-2 border-slate-400 outline-none shadow-sm focus:border-indigo-500 focus:ring-indigo-500 px-3 py-2 text-sm bg-white" required>
+                </div>
+              </div>
+            </div>
+            <div class="mt-6 flex justify-end">
+              <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-lg text-sm shadow-sm transition">
+                Update Billing Pricing
+              </button>
+            </div>
+          </div>
+        </form>
+
+        <!-- HDS -->
+        <form method="POST" action="{{ url_for('admin_bp.global_settings') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="bg-teal-50 rounded-xl border border-teal-200 p-6">
+            <h2 class="text-lg font-semibold text-teal-800 mb-4 flex items-center justify-between">
+              Healthcare Data Switch (HDS)
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Monthly Subscription</label>
+                <div class="relative rounded-md shadow-sm">
+                  <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                    <span class="text-slate-500 sm:text-sm">R</span>
+                  </div>
+                  <input type="number" step="0.01" class="w-full rounded-md border-2 border-slate-400 outline-none pl-7 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 py-2 text-sm bg-white" 
+                         value="{{ "%.2f"|format(settings.get('hds_subscription_cents', '15000')|float / 100) }}" 
+                         onchange="document.getElementById('hidden_hds_subscription_cents').value = Math.round(this.value * 100);"  required>
+                </div>
+                <input type="hidden" name="hds_subscription_cents" id="hidden_hds_subscription_cents" value="{{ settings.get('hds_subscription_cents', '15000') }}">
+              </div>
+            </div>
+            <div class="mt-6 flex justify-end">
+              <button type="submit" class="bg-teal-600 hover:bg-teal-700 text-white font-medium py-2 px-4 rounded-lg text-sm shadow-sm transition">
+                Update HDS Pricing
+              </button>
+            </div>
+          </div>
+        </form>
+
+        <!-- Grade 12 Math -->
+        <form method="POST" action="{{ url_for('admin_bp.global_settings') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="bg-emerald-50 rounded-xl border border-emerald-200 p-6">
+            <h2 class="text-lg font-semibold text-emerald-800 mb-4 flex items-center justify-between">
+              Grade 12 Math Pricing
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Registration Fee</label>
+                <div class="relative rounded-md shadow-sm">
+                  <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                    <span class="text-slate-500 sm:text-sm">R</span>
+                  </div>
+                  <input type="number" step="0.01" class="w-full rounded-md border-2 border-slate-400 outline-none pl-7 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 py-2 text-sm bg-white" 
+                         value="{{ "%.2f"|format(settings.get('adv_math_registration_cents', '10000')|float / 100) }}" 
+                         onchange="document.getElementById('hidden_adv_math_registration_cents').value = Math.round(this.value * 100);"  required>
+                </div>
+                <input type="hidden" name="adv_math_registration_cents" id="hidden_adv_math_registration_cents" value="{{ settings.get('adv_math_registration_cents', '10000') }}">
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Sub-topic Purchase</label>
+                <div class="relative rounded-md shadow-sm">
+                  <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                    <span class="text-slate-500 sm:text-sm">R</span>
+                  </div>
+                  <input type="number" step="0.01" class="w-full rounded-md border-2 border-slate-400 outline-none pl-7 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 py-2 text-sm bg-white" 
+                         value="{{ "%.2f"|format(settings.get('adv_math_subtopic_cents', '6000')|float / 100) }}" 
+                         onchange="document.getElementById('hidden_adv_math_subtopic_cents').value = Math.round(this.value * 100);"  required>
+                </div>
+                <input type="hidden" name="adv_math_subtopic_cents" id="hidden_adv_math_subtopic_cents" value="{{ settings.get('adv_math_subtopic_cents', '6000') }}">
+              </div>
+            </div>
+            <div class="mt-6 flex justify-end">
+              <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2 px-4 rounded-lg text-sm shadow-sm transition">
+                Update Math Pricing
+              </button>
+            </div>
+          </div>
+        </form>
+      
+
+
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

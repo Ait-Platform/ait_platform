@@ -1,0 +1,72 @@
+{% extends "layout.html" %}
+{% block title %}Pricing · Healthcare Data Switch{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-3xl mt-10 px-4 mb-20">
+  <div class="bg-white rounded-xl shadow-lg overflow-hidden flex flex-col">
+    <div class="h-3 bg-fuchsia-600"></div>
+    <div class="p-8">
+      {% include "partials/flash_messages.html" %}
+      
+      <div class="flex items-center justify-between border-b pb-4 mb-6">
+        <h1 class="text-2xl font-bold text-slate-800">Subscription Pricing</h1>
+        <div class="flex items-center gap-3">
+          <div class="text-sm font-semibold text-fuchsia-600 bg-fuchsia-50 px-3 py-1 rounded">South Africa Exclusive</div>
+          <a href="{{ url_for('hds_bp.about') }}" class="inline-flex items-center justify-center rounded-md bg-white px-3 py-1 text-sm font-semibold text-slate-700 shadow-sm ring-1 ring-inset ring-slate-300 hover:bg-slate-50 transition">
+            <i class="fas fa-arrow-left mr-1.5"></i> Back
+          </a>
+        </div>
+      </div>
+
+      <p class="text-slate-600 leading-relaxed mb-8">
+        The Healthcare Data Switch (HDS) is available on a simple monthly subscription specifically for South African organizations.
+      </p>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div class="bg-slate-50 border border-slate-200 rounded-xl p-6 text-center">
+          <h2 class="text-slate-500 text-sm font-bold uppercase tracking-wider mb-2">Free Trial</h2>
+          <div class="text-3xl font-extrabold text-slate-800 mb-1">30 Days</div>
+          <p class="text-xs text-slate-500">Test the full platform for free</p>
+        </div>
+
+        <div class="bg-fuchsia-50 border border-fuchsia-200 rounded-xl p-6 text-center relative overflow-hidden">
+          <h2 class="text-fuchsia-700 text-sm font-bold uppercase tracking-wider mb-2">Monthly Subscription</h2>
+          <div class="mt-4 flex items-baseline justify-center text-3xl font-bold text-fuchsia-600">
+            R{{ "%.2f"|format(hds_cents / 100) }}
+            <span class="text-lg font-normal text-slate-500 ml-1">/mo</span>
+          </div>
+          <div class="absolute -right-4 -bottom-4 text-fuchsia-100 opacity-50">
+            <svg class="w-24 h-24" fill="currentColor" viewBox="0 0 20 20"><path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4z"/><path fill-rule="evenodd" d="M18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z" clip-rule="evenodd"/></svg>
+          </div>
+        </div>
+      </div>
+      
+      <div class="bg-gray-50 rounded-lg p-5 border border-gray-100 mb-8">
+        <h3 class="text-sm font-bold text-gray-800 mb-2">What's included:</h3>
+        <ul class="list-disc list-inside text-sm text-gray-600 space-y-1">
+          <li>Full access to HDS for your entire organization.</li>
+          <li>Securely switch, manage, and track healthcare claims.</li>
+          <li>Seamless data transactions.</li>
+        </ul>
+      </div>
+
+      <div class="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 pt-6 border-t border-slate-100">
+        <a href="{{ url_for('hds_bp.about') }}" class="text-sm text-slate-500 hover:text-slate-800 font-medium transition-colors">
+          &larr; Back to Course Info
+        </a>
+        
+        {% if current_user.is_authenticated %}
+          <a href="{{ url_for('hds_bp.dashboard') }}" class="w-full sm:w-auto rounded bg-fuchsia-600 px-8 py-3 text-sm font-bold text-white hover:bg-fuchsia-700 shadow-md transition-all text-center">
+            Go to Dashboard
+          </a>
+        {% else %}
+          <a href="{{ url_for('auth_bp.register', role='user', subject='hds', next=url_for('auth_bp.bridge_dashboard')) }}" class="w-full sm:w-auto rounded bg-fuchsia-600 px-8 py-3 text-sm font-bold text-white hover:bg-fuchsia-700 shadow-md transition-all text-center">
+            Register Now
+          </a>
+        {% endif %}
+      </div>
+      
+    </div>
+  </div>
+</div>
+{% endblock %}

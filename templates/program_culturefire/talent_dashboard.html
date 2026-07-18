@@ -6,29 +6,47 @@
 {% block flashes %}{% endblock %}
 
 {% block content %}
-<div class="max-w-5xl mx-auto mt-6 bg-white shadow rounded-lg overflow-hidden">
+<div class="mx-auto max-w-7xl mt-8 px-4 mb-10">
+  <div class="bg-white rounded-xl shadow overflow-hidden border border-gray-200">
+    <!-- Color Strip Matching Welcome Page -->
+    <div class="h-2 bg-gradient-to-r from-blue-500 to-purple-600 w-full"></div>
 
-  <!-- Color stripe -->
-  <div class="h-2 bg-blue-600"></div>
-
-  <!-- Header -->
-  <div class="flex justify-between items-center px-4 py-3 border-b">
-    <h1 class="text-lg font-semibold text-gray-800">Talent Dashboard</h1>
-    <a href="{{ url_for('bridge_bp.bridge') }}" 
-       class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">
-       Back
-    </a>
-  </div>
+    <!-- Row 1: Title Left, Back Button Right -->
+    <div class="flex justify-between items-center px-6 py-4 border-b bg-gray-50">
+      <h1 class="text-2xl font-bold text-gray-800">Talent Dashboard</h1>
+      <a href="{{ url_for('bridge_bp.bridge') }}" 
+         class="bg-gray-200 text-gray-700 px-4 py-2 rounded border border-gray-300 hover:bg-gray-300 font-semibold transition">
+         Back
+      </a>
+    </div>
 
   <!-- Navigation Row -->
-  <div class="flex items-center justify-end space-x-2 px-4 py-3 border-b bg-gray-50">
-    <a href="{{ url_for('cultural_bp.judge_dashboard') }}" 
-       class="bg-indigo-600 text-white px-3 py-1 rounded hover:bg-indigo-700 shadow-sm transition-transform hover:-translate-y-0.5">
-       Judges
+  <div class="flex items-center justify-end space-x-2 px-4 py-3 border-b bg-gray-50 flex-wrap gap-y-2">
+    {% if pageant_category_id %}
+    <a href="{{ url_for('cultural_bp.pageant_dashboard', enrollment_id=enrollment.id, category_id=pageant_category_id) }}" 
+       class="bg-pink-600 text-white px-3 py-1 rounded hover:bg-pink-700 shadow-sm transition-transform hover:-translate-y-0.5">
+       Pageant
+    </a>
+    {% endif %}
+    <a href="{{ url_for('cultural_bp.mc_dashboard', enrollment_id=enrollment.id) }}" 
+       class="bg-teal-600 text-white px-3 py-1 rounded hover:bg-teal-700 shadow-sm transition-transform hover:-translate-y-0.5">
+       Master of Ceremony
     </a>
     <a href="{{ url_for('cultural_bp.showcase_dashboard', origin='talent', enrollment_id=enrollment.id) }}" 
        class="bg-purple-600 text-white px-3 py-1 rounded hover:bg-purple-700 shadow-sm transition-transform hover:-translate-y-0.5">
        Showcase
+    </a>
+    <a href="{{ url_for('cultural_bp.judge_dashboard', origin='talent_dashboard', enrollment_id=enrollment.id) }}" 
+       class="bg-indigo-600 text-white px-3 py-1 rounded hover:bg-indigo-700 shadow-sm transition-transform hover:-translate-y-0.5">
+       Judges
+    </a>
+    <a href="{{ url_for('cultural_bp.advertiser_dashboard') }}" 
+       class="bg-blue-800 text-white px-3 py-1 rounded hover:bg-blue-900 shadow-sm transition-transform hover:-translate-y-0.5">
+       Advertisers
+    </a>
+    <a href="{{ url_for('cultural_bp.live_results_list', origin='talent', enrollment_id=enrollment.id) }}" 
+       class="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600 shadow-sm transition-transform hover:-translate-y-0.5">
+       Results
     </a>
     <a href="{{ url_for('cultural_bp.live_results_list', origin='talent', enrollment_id=enrollment.id) }}" 
        class="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600 shadow-sm transition-transform hover:-translate-y-0.5">
@@ -38,6 +56,22 @@
        class="bg-emerald-500 text-white px-3 py-1 rounded hover:bg-emerald-600 shadow-sm flex items-center gap-2 transition-transform hover:-translate-y-0.5">
        <span class="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
        Live
+    </a>
+    <a href="{{ url_for('cultural_bp.wallet_dashboard', origin='talent', enrollment_id=enrollment.id) }}" 
+       class="bg-orange-500 text-white px-3 py-1 rounded hover:bg-orange-600 shadow-sm transition-transform hover:-translate-y-0.5">
+       Wallet
+    </a>
+    <a href="{{ url_for('cultural_bp.wallet_transfer_page') }}" 
+       class="bg-teal-600 text-white px-3 py-1 rounded hover:bg-teal-700 shadow-sm transition-transform hover:-translate-y-0.5">
+       Transfer Tokens
+    </a>
+    <a href="{{ url_for('cultural_bp.view_award') }}" 
+       class="bg-pink-500 text-white px-3 py-1 rounded hover:bg-pink-600 shadow-sm transition-transform hover:-translate-y-0.5">
+       Awards
+    </a>
+    <a href="{{ url_for('cultural_bp.biodata_edit', enrollment_id=enrollment.id) }}" 
+       class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 shadow-sm transition-transform hover:-translate-y-0.5">
+       Update Biodata
     </a>
   </div>
 
@@ -52,17 +86,25 @@
 
 
 <div class="px-4 py-6 bg-white border-b shadow-sm mb-4">
-  <form method="GET" action="{{ url_for('cultural_bp.talent_select', enrollment_id=enrollment.id) }}">
-      <label for="category" class="font-semibold text-gray-800">Select Category:</label>
-      <select id="category" name="category_id" class="ml-2 border-2 border-indigo-500 rounded p-2 focus:ring focus:ring-indigo-200" data-base-url="{{ url_for('cultural_bp.talent_select', enrollment_id=enrollment.id) }}">
-          <option value="">-- Choose Category --</option>
-          {% for cat in categories %}
-              <option value="{{ cat.id }}" {% if cat.id == selected_category_id %}selected{% endif %}>
-                  {{ cat.name }}
-              </option>
-          {% endfor %}
-      </select>
-  </form>
+        <form method="GET" action="{{ url_for('cultural_bp.talent_dashboard', enrollment_id=enrollment.id) }}" class="flex items-end gap-3 flex-wrap">
+          
+          <!-- Category Select -->
+          <div class="flex-1 min-w-[200px]">
+            <label class="block text-sm font-semibold text-gray-700 mb-1">Select Category</label>
+            <select name="category_id" 
+                    onchange="this.form.submit()"
+                    class="block w-full border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500 text-sm py-2 px-3 shadow-sm">
+              <option value="">-- Choose Category --</option>
+              {% for cat in categories %}
+                {% if cat.name != 'Pageant' %}
+                <option value="{{ cat.id }}" {% if cat.id == selected_category_id %}selected{% endif %}>
+                    {{ cat.name }}
+                </option>
+                {% endif %}
+              {% endfor %}
+            </select>
+          </div>
+        </form>
 </div>
 
   {% if selected_category and selected_category.name == "Pageant" %}
@@ -179,5 +221,6 @@
       {% endif %}
     </div>
   </div>
+</div>
 </div>
 {% endblock %}

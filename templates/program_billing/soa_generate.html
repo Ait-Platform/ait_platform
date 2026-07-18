@@ -1,0 +1,69 @@
+{% extends "layout.html" %}
+{% block title %}Generate SOAs{% endblock %}
+{% block flashes %}{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 lg:px-8 font-sans">
+  <div class="max-w-7xl mx-auto space-y-8">
+    
+    <div class="bg-white rounded-xl shadow overflow-hidden border border-slate-200">
+      {% include "partials/flash_messages.html" %}
+      <div class="h-2 bg-green-500"></div>
+      
+      <div class="p-8">
+        <div class="flex items-center justify-between mb-8 pb-6 border-b border-slate-200">
+          <div>
+            <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">Generate SOAs</h1>
+            <p class="text-slate-500 mt-2">Property: <strong>{{ property.name }}</strong> | Month: <strong>{{ month }}</strong></p>
+          </div>
+          <a href="{{ url_for('billing_bp.soa_dashboard') }}" class="inline-flex items-center px-4 py-2 bg-slate-100 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-200 transition">
+            <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+            Back to SOA Hub
+          </a>
+        </div>
+
+        <div class="overflow-x-auto rounded-lg border border-slate-200">
+          <table class="w-full text-left border-collapse min-w-max">
+            <thead>
+              <tr class="bg-slate-50 text-slate-500 text-xs font-semibold uppercase tracking-wider border-b border-slate-200">
+                <th class="px-6 py-4">Tenant Name</th>
+                <th class="px-6 py-4">Status</th>
+                <th class="px-6 py-4 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+            {% for tenant in tenants %}
+            <tr class="hover:bg-slate-50 transition duration-150">
+              <td class="px-6 py-4 font-bold text-slate-800">{{ tenant.name }}</td>
+              <td class="px-6 py-4">
+                {% if tenant.is_active %}
+                  <span class="px-2.5 py-1 text-xs font-bold uppercase rounded-full bg-green-100 text-green-800 border border-green-200">Active</span>
+                {% else %}
+                  <span class="px-2.5 py-1 text-xs font-bold uppercase rounded-full bg-slate-100 text-slate-600 border border-slate-200">Inactive</span>
+                {% endif %}
+              </td>
+              <td class="px-6 py-4 text-right space-x-2">
+                <a href="{{ url_for('billing_bp.generate_soa', tenant_id=tenant.id, month=month, view='html') }}" target="_blank" class="inline-flex items-center px-3 py-1.5 bg-white border border-slate-300 rounded-md text-sm font-medium text-slate-700 hover:bg-slate-50 transition shadow-sm">
+                  Preview HTML
+                </a>
+                <a href="{{ url_for('billing_bp.generate_soa', tenant_id=tenant.id, month=month) }}" class="inline-flex items-center px-3 py-1.5 bg-green-600 border border-transparent rounded-md text-sm font-medium text-white hover:bg-green-700 transition shadow-sm">
+                  Generate PDF
+                </a>
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="3" class="px-6 py-12 text-center text-slate-500">
+                No tenants found for this property.
+              </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

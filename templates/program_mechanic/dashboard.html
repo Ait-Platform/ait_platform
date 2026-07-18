@@ -11,6 +11,20 @@
         <h1 class="text-3xl font-extrabold text-slate-800 tracking-tight">Mechanic CRM Dashboard</h1>
         <p class="text-slate-500 mt-2">Manage your shop, quotes, and workflow below.</p>
       </div>
+      <div class="mt-4 md:mt-0 flex items-center gap-4">
+        {% if active_shop %}
+        <div class="bg-indigo-50 border border-indigo-100 rounded-lg px-4 py-2 flex items-center gap-3">
+          <i class="fas fa-wallet text-indigo-500 text-xl"></i>
+          <div>
+            <div class="text-xs text-indigo-600 font-semibold uppercase tracking-wider">Wallet Balance</div>
+            <div class="text-lg font-bold text-slate-900">R {{ "%.2f"|format(active_shop.wallet_balance_cents / 100) }}</div>
+          </div>
+        </div>
+        <a href="{{ url_for('mechanic_bp.topup') }}" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-3 rounded-lg text-sm font-semibold shadow-sm transition">
+          Top Up
+        </a>
+        {% endif %}
+      </div>
     </div>
 
     {% if active_shop %}

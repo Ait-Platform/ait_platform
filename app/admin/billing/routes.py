@@ -49,6 +49,8 @@ def billing_units():
 def billing_meters():
     return render_template("admin/billing/meters.html")
 
+
+
 @admin_bp.route("/billing/tariffs", methods=["GET", "POST"], endpoint="billing_tariffs")
 def billing_tariffs():
     from app.models.billing import BilPlatformSettings
@@ -60,14 +62,8 @@ def billing_tariffs():
 
     if request.method == "POST":
         action = request.form.get('action')
-        if action == 'update_platform_settings':
-            settings.base_price_cents = int(float(request.form.get('base_price') or 100) * 100)
-            settings.included_meters = int(request.form.get('included_meters') or 2)
-            settings.extra_meter_price_cents = int(float(request.form.get('extra_meter_price') or 15) * 100)
-            db.session.commit()
-            flash('Platform settings updated successfully', 'success')
-
-        elif action == 'add':
+        
+        if action == 'add':
             new_tariff = BilTariff(
                 utility_type=request.form.get('utility_type'),
                 code=request.form.get('code'),

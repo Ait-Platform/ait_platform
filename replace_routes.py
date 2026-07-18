@@ -1,122 +1,133 @@
-import sys
+import re
 
-new_route = '''@budget_bp.route("/reports/statement", methods=["GET"])
+with open('app/program_billing/routes.py', 'r', encoding='utf-8') as f:
+    text = f.read()
+
+replacement_metsoa = '''
+@billing_bp.route('/metsoa/<int:property_id>/<month>', methods=['GET'])
 @login_required
-def report_statement():
-    back_url = _safe_next(request.args.get("next")) or url_for("budget_bp.dashboard")
-    period = (request.args.get("period") or "").strip()
-    if not period:
-        period = datetime.now().strftime("%Y-%m")
-
-    try:
-        start_date = datetime.strptime(f"{period}-01", "%Y-%m-%d").date()
-    except ValueError:
-        start_date = datetime.now().date().replace(day=1)
-        period = start_date.strftime("%Y-%m")
-
-    import calendar
-    last_day = calendar.monthrange(start_date.year, start_date.month)[1]
-    end_date = start_date.replace(day=last_day)
-
-    # -------- INCOME --------
-    income_rows = db.session.execute(text("""
-        SELECT a.name, COALESCE(SUM(l.amount_cents), 0) AS cents
-          FROM bud_account a
-          LEFT JOIN bud_ledger l ON a.id = l.account_id 
-                                AND l.txn_date BETWEEN :s AND :e
-         WHERE a.user_id = :uid
-           AND a.kind = 'income'
-           AND COALESCE(a.is_hidden,false) = false
-         GROUP BY a.name
-         ORDER BY a.name
-    """), {
-        "uid": current_user.id,
-        "s": start_date.strftime("%Y-%m-%d"),
-        "e": end_date.strftime("%Y-%m-%d"),
-    }).mappings().all()
-
-    # -------- EXPENSES --------
-    expense_rows = db.session.execute(text("""
-        SELECT a.name, COALESCE(SUM(l.amount_cents), 0) AS cents
-          FROM bud_account a
-          LEFT JOIN bud_ledger l ON a.id = l.account_id 
-                                AND l.txn_date BETWEEN :s AND :e
-         WHERE a.user_id = :uid
-           AND a.kind IN ('expense', 'liability')
-           AND COALESCE(a.is_hidden,false) = false
-         GROUP BY a.name
-         ORDER BY a.name
-    """), {
-        "uid": current_user.id,
-        "s": start_date.strftime("%Y-%m-%d"),
-        "e": end_date.strftime("%Y-%m-%d"),
-    }).mappings().all()
-
-    income_total_cents  = sum(r["cents"] or 0 for r in income_rows)
-    expense_total_cents = sum(r["cents"] or 0 for r in expense_rows)
-    net_cents = income_total_cents - expense_total_cents
-
-    # -------- BALANCE SHEET --------
-    # Fetch all active accounts
-    accounts = db.session.execute(text("""
-        SELECT id, name, kind
-          FROM bud_account
-         WHERE user_id = :uid AND is_active = 1 AND COALESCE(is_hidden,false) = false
-         ORDER BY kind, name
-    """), {"uid": current_user.id}).mappings().all()
-
-    # Fetch snapshots
-    snapshots = db.session.execute(text("""
-        SELECT account_id, balance_cents
-          FROM bud_snapshot
-         WHERE user_id = :uid
-         ORDER BY as_at DESC
-    """), {"uid": current_user.id}).mappings().all()
-    
-    latest_balances = {}
-    for s in snapshots:
-        if s["account_id"] not in latest_balances:
-            latest_balances[s["account_id"]] = s["balance_cents"]
-
-    asset_rows = []
-    liability_rows = []
-
-    for a in accounts:
-        bal = latest_balances.get(a["id"], 0)
-        row = {"name": a["name"], "balance_cents": bal}
-        if a["kind"] in ("asset", "income"):
-            asset_rows.append(row)
+def metsoa(property_id, month):
+    from app.models.billing import BilProperty
+    prop = BilProperty.query.get_or_404(property_id)
+    if prop.manager_id != current_user.id and not current_user.has_role('admin'):
+        abort(403)
+        
+    manager_id = prop.manager_id
+    from app.models.billing import BilStatementPayment
+    payment = BilStatementPayment.query.filter_by(manager_id=manager_id, month=month).first()
+    if not payment or payment.amount_paid_cents <= 0:
+        if current_user.id == manager_id:
+            flash(f"Please unlock statements for {month} before viewing or generating PDFs.", "warning")
+            return redirect(url_for('billing_bp.billing_checkout', month=month))
+        elif current_user.has_role('admin'):
+            flash(f"Notice: Manager has not paid for {month} statements.", "info")
         else:
-            liability_rows.append(row)
+            flash("Your manager has not unlocked statements for this month yet.", "danger")
+            return redirect(url_for("public_bp.welcome"))
 
-    asset_total_cents = sum(r["balance_cents"] for r in asset_rows)
-    liability_total_cents = sum(r["balance_cents"] for r in liability_rows)
-    net_worth_cents = asset_total_cents - liability_total_cents
-
-    return render_template(
-        "program_budget/report_statement.html",
-        period=period,
-        income_rows=income_rows,
-        expense_rows=expense_rows,
-        income_total_cents=int(income_total_cents),
-        expense_total_cents=int(expense_total_cents),
-        net_cents=int(net_cents),
-        asset_rows=asset_rows,
-        liability_rows=liability_rows,
-        asset_total_cents=asset_total_cents,
-        liability_total_cents=liability_total_cents,
-        net_worth_cents=net_worth_cents,
-        back_url=back_url,
-    )
-
+    elec_rows, elec_total = build_electrical_rows(prop.id, month)
+    water_meters, water_total = build_water_rows(prop.id, month)
+    
+    grand_total = round(elec_total + water_total, 2)
+    
+    return render_template("program_billing/metsoa.html", 
+                           tenant=None, 
+                           property=prop,
+                           month=month,
+                           elec_rows=elec_rows,
+                           elec_total=elec_total,
+                           water_meters=water_meters,
+                           water_total=water_total,
+                           grand_total=grand_total)
 '''
 
-with open('app/program_budget/routes.py', 'r', encoding='utf-8') as f:
-    lines = f.readlines()
+start1 = text.find("@billing_bp.route('/metsoa/<int:tenant_id>/<month>', methods=['GET'])")
+if start1 != -1:
+    end1 = text.find("@billing_bp.route", start1 + 10)
+    text = text[:start1] + replacement_metsoa.strip() + "\n\n" + text[end1:]
 
-with open('app/program_budget/routes.py', 'w', encoding='utf-8') as f:
-    f.writelines(lines[:449])
-    f.write(new_route)
-    f.writelines(lines[570:])
+replacement_metsoa_pdf = '''
+@billing_bp.route("/metsoa/<int:property_id>/<month>/pdf")
+@login_required
+def metsoa_pdf(property_id, month):
+    from app.models.billing import BilProperty
+    import tempfile
+    
+    prop = BilProperty.query.get_or_404(property_id)
 
-print('Successfully replaced lines 450-570')
+    if prop:
+        manager_id = prop.manager_id
+        from app.models.billing import BilStatementPayment
+        payment = BilStatementPayment.query.filter_by(manager_id=manager_id, month=month).first()
+        if not payment or payment.amount_paid_cents <= 0:
+            if current_user.id == manager_id:
+                flash(f"Please unlock statements for {month} before generating PDFs.", "warning")
+                return redirect(url_for('billing_bp.billing_checkout', month=month))
+            elif current_user.has_role('admin'):
+                pass
+            else:
+                flash("Your manager has not unlocked statements for this month yet.", "danger")
+                return redirect(url_for("public_bp.welcome"))
+
+    elec_rows, elec_total = build_electrical_rows(prop.id, month)
+    water_meters, water_total = build_water_rows(prop.id, month)
+    
+    grand_total = round(elec_total + water_total, 2)
+    
+    data = {
+        "tenant": None,
+        "property": prop,
+        "month": month,
+        "electricity": {
+            "rows": elec_rows,
+            "subtotal": elec_total
+        },
+        "water": {
+            "meters": water_meters,
+            "total": water_total
+        },
+        "grand_total": grand_total
+    }
+
+    html_string = render_template("program_billing/metsoa.html", **data)
+    
+    # Hide PDF button in PDF itself
+    html_string = html_string.replace('href="{{ url_for(\\'billing_bp.metsoa_pdf\\', property_id=property.id, month=month) }}"', 'style="display:none;"')
+    
+    with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as tmp:
+        pdf_path = tmp.name
+
+    try:
+        from playwright.sync_api import sync_playwright
+        with sync_playwright() as p:
+            browser = p.chromium.launch()
+            page = browser.new_page()
+            page.set_content(html_string, wait_until="networkidle")
+            page.pdf(
+                path=pdf_path, 
+                format="A4", 
+                print_background=True,
+                display_header_footer=True,
+                header_template="<span></span>",
+                footer_template="<div style='width: 100%; text-align: center; font-size: 10px; color: #6b7280; padding-bottom: 10px;'>Page <span class='pageNumber'></span> of <span class='totalPages'></span></div>",
+                margin={"top": "40px", "bottom": "60px", "left": "30px", "right": "30px"}
+            )
+            browser.close()
+            
+        return send_file(pdf_path, as_attachment=True, download_name=f"{month}-MetSoa-{prop.name}.pdf")
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        flash("Failed to generate PDF.", "danger")
+        return redirect(url_for('billing_bp.metsoa', property_id=prop.id, month=month))
+'''
+
+start2 = text.find('@billing_bp.route("/metsoa/<int:tenant_id>/<month>/pdf")')
+if start2 != -1:
+    end2 = text.find("\n\n", text.find("return redirect(url_for('billing_bp.metsoa'", start2))
+    text = text[:start2] + replacement_metsoa_pdf.strip() + text[end2:]
+
+with open('app/program_billing/routes.py', 'w', encoding='utf-8') as f:
+    f.write(text)
+
+print('Updated routes for real.')

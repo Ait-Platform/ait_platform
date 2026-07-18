@@ -1,0 +1,306 @@
+{% extends "layout.html" %}
+{% block title %}Architecture Summary - {{ property.name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto py-8 px-4 sm:px-6 lg:px-8 print:py-0 print:px-0">
+    <div class="flex justify-between items-end mb-8 print:mb-4">
+        <div>
+            <h1 class="text-3xl font-extrabold text-slate-900">Global Architecture Summary</h1>
+            <p class="text-slate-500 mt-2">Master configuration for {{ property.name }}</p>
+        </div>
+        <div class="print:hidden flex space-x-3">
+            <a href="{{ url_for('billing_bp.property_portfolio') }}" class="px-4 py-2 bg-slate-100 text-slate-700 font-bold rounded-lg border border-slate-300 shadow-sm hover:bg-slate-200 transition flex items-center space-x-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                <span>Back</span>
+            </a>
+            <button onclick="window.print()" class="px-4 py-2 bg-white text-slate-700 font-bold rounded-lg border border-slate-300 shadow-sm hover:bg-slate-50 transition flex items-center space-x-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                <span>Print</span>
+            </button>
+            <a href="{{ url_for('billing_bp.email_architecture_summary', property_id=property.id) }}" class="px-4 py-2 bg-indigo-600 text-white font-bold rounded-lg shadow-sm hover:bg-indigo-700 transition flex items-center space-x-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                <span>Email</span>
+            </a>
+        </div>
+    </div>
+
+    <div class="space-y-6 print:space-y-4">
+        <!-- Step 1: Property -->
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden print:border-b print:shadow-none">
+            <div class="bg-slate-50 px-6 py-3 border-b border-slate-200">
+                <h2 class="text-lg font-bold text-slate-800">Property Details</h2>
+            </div>
+            <div class="p-6">
+                <div class="grid grid-cols-1 gap-4">
+                    <div><span class="text-slate-500 text-sm">Property Name:</span><div class="font-medium">{{ property.name }}</div></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 2: Accounts and Meters Map -->
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden print:border-b print:shadow-none">
+            <div class="bg-slate-50 px-6 py-3 border-b border-slate-200 flex justify-between items-center">
+                <h2 class="text-lg font-bold text-slate-800">Accounts and Meters Structure</h2>
+            </div>
+            <div class="p-0">
+                <table class="min-w-full divide-y divide-slate-200 text-sm">
+                    <thead class="bg-slate-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase">Account Number</th>
+                            <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase">Water Meters</th>
+                            <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase">Electrical Meters</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-200 bg-white">
+                        {% for acc in accounts %}
+                        <tr>
+                            <td class="px-6 py-4 font-bold text-indigo-700 align-top">
+                                {{ acc.account_number }}
+                                {% if acc.is_bulk_account %}
+                                    <span class="block mt-1 text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-bold uppercase w-max border border-amber-300">Bulk Master</span>
+                                {% endif %}
+                            </td>
+                            
+                            {# Filter meters for this account from precomputed map #}
+                            {% set acc_w_meters = account_meters[acc.account_number]['water'] %}
+                            {% set acc_e_meters = account_meters[acc.account_number]['elec'] %}
+                            
+                            <td class="px-6 py-4 align-top">
+                                {% if acc_w_meters|length > 0 %}
+                                    <div class="space-y-1">
+                                    {% for m in acc_w_meters %}
+                                        <div class="inline-flex items-center px-2 py-1 bg-sky-50 text-sky-700 border border-sky-200 rounded text-xs font-medium mr-2 mb-1 shadow-sm">
+                                            <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"></path></svg>
+                                            {{ m.meter_number }}
+                                        </div>
+                                    {% endfor %}
+                                    </div>
+                                {% else %}
+                                    <span class="text-slate-400 italic text-xs">No water meter linked</span>
+                                {% endif %}
+                            </td>
+                            
+                            <td class="px-6 py-4 align-top">
+                                {% if acc_e_meters|length > 0 %}
+                                    <div class="space-y-1">
+                                    {% for m in acc_e_meters %}
+                                        <div class="inline-flex items-center px-2 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded text-xs font-medium mr-2 mb-1 shadow-sm">
+                                            <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                                            {{ m.meter_number }}
+                                        </div>
+                                    {% endfor %}
+                                    </div>
+                                {% else %}
+                                    <span class="text-slate-400 italic text-xs">No electrical meter linked</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        {# Unlinked / Exceptional Meters #}
+        {% set unlinked_meters = [] %}
+        {% for m in meters if not m.municipal_bill_number %}
+            {% set _ = unlinked_meters.append(m) %}
+        {% endfor %}
+        
+        {% if unlinked_meters|length > 0 %}
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden print:border-b print:shadow-none mt-6">
+            <div class="bg-rose-50 px-6 py-3 border-b border-rose-100 flex justify-between items-center">
+                <h2 class="text-lg font-bold text-rose-800">Exceptions (Unlinked Meters)</h2>
+            </div>
+            <div class="p-4 flex flex-wrap gap-2">
+                {% for m in unlinked_meters %}
+                    <span class="px-3 py-1 bg-white text-rose-700 font-medium rounded-lg border border-rose-300 shadow-sm text-sm">
+                        {{ m.meter_number }} ({{ m.utility_type }})
+                    </span>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Step 8: Readings -->
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden print:border-b print:shadow-none">
+            <div class="bg-slate-50 px-6 py-3 border-b border-slate-200">
+                <h2 class="text-lg font-bold text-slate-800">Initial Readings</h2>
+            </div>
+            <div class="p-0">
+                <table class="min-w-full divide-y divide-slate-200">
+                    <thead class="bg-slate-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase">Meter Number</th>
+                            <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase">Type</th>
+                            <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase">Initial Reading</th>
+                            <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase">Date</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-200 bg-white">
+                        {% for m in bulk_water + bulk_elec + sub_water + sub_elec %}
+                            {% if m.readings|length > 0 %}
+                            <tr>
+                                <td class="px-6 py-3 font-medium">{{ m.meter_number }}</td>
+                                <td class="px-6 py-3 text-slate-500 text-sm capitalize">{{ m.utility_type }}</td>
+                                <td class="px-6 py-3 font-mono">{{ m.readings[0].reading_value }}</td>
+                                <td class="px-6 py-3 text-slate-500">{{ m.readings[0].reading_date.strftime('%Y-%m-%d') }}</td>
+                            </tr>
+                            {% endif %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Step 9: Arrears -->
+        {% set ns_arr = namespace(has=false) %}
+        {% for a in accounts if a.arrears_amount and a.arrears_amount > 0 %}
+            {% set ns_arr.has = true %}
+        {% endfor %}
+        {% if ns_arr.has %}
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden print:border-b print:shadow-none">
+            <div class="bg-rose-50 px-6 py-3 border-b border-rose-100">
+                <h2 class="text-lg font-bold text-rose-800">Arrears</h2>
+            </div>
+            <div class="p-0">
+                <table class="min-w-full divide-y divide-slate-200">
+                    <thead class="bg-slate-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase">Account Number</th>
+                            <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase">Amount</th>
+                            <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase">Date Captured</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-200 bg-white">
+                        {% for acc in accounts if acc.arrears_amount and acc.arrears_amount > 0 %}
+                        <tr>
+                            <td class="px-6 py-3 font-medium">{{ acc.account_number }}</td>
+                            <td class="px-6 py-3 text-rose-600 font-bold">R {{ "%.2f"|format(acc.arrears_amount) }}</td>
+                            <td class="px-6 py-3 text-slate-500">{{ acc.arrears_date.strftime('%Y-%m-%d') if acc.arrears_date else '-' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Step 10: Rates -->
+        {% set ns_rates = namespace(has=false) %}
+        {% for a in accounts if a.rates_amount and a.rates_amount > 0 %}
+            {% set ns_rates.has = true %}
+        {% endfor %}
+        {% if ns_rates.has %}
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden print:border-b print:shadow-none">
+            <div class="bg-slate-50 px-6 py-3 border-b border-slate-200">
+                <h2 class="text-lg font-bold text-slate-800">Rates</h2>
+            </div>
+            <div class="p-0 overflow-x-auto">
+                <table class="min-w-full divide-y divide-slate-200 text-sm">
+                    <tbody class="bg-white">
+                        {% for acc in accounts if acc.rates_amount and acc.rates_amount > 0 %}
+                        <tr class="bg-slate-100 border-t-4 border-slate-300">
+                            <td colspan="4" class="px-6 py-2 font-bold text-slate-800">Account: {{ acc.account_number }}</td>
+                        </tr>
+                        <tr>
+                            <td class="px-6 py-3 border-r border-slate-100"><span class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Reference</span>{{ acc.rates_reference or '-' }}</td>
+                            <td class="px-6 py-3 border-r border-slate-100"><span class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Erf Details</span>{{ acc.rates_erf_details or '-' }}</td>
+                            <td class="px-6 py-3 border-r border-slate-100"><span class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Category</span>{{ acc.rates_property_category or '-' }}</td>
+                            <td class="px-6 py-3"><span class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Market Val</span><span class="font-medium text-slate-700">R {{ "{:,.0f}".format(acc.rates_market_value or 0).replace(',', ' ') }}</span></td>
+                        </tr>
+                        <tr class="bg-slate-50">
+                            <td class="px-6 py-3 border-r border-slate-100"><span class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Rateable Val</span><span class="font-medium text-slate-700">R {{ "{:,.0f}".format(acc.rates_rateable_value or 0).replace(',', ' ') }}</span></td>
+                            <td class="px-6 py-3 border-r border-slate-100"><span class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Gen. Randage</span>{{ "%.4f"|format(acc.rates_general_randage or 0) }}</td>
+                            <td class="px-6 py-3 border-r border-slate-100"><span class="block text-[10px] font-bold text-slate-400 uppercase mb-1">SRA Randage</span>{{ "%.4f"|format(acc.rates_sra_randage or 0) }}</td>
+                            <td class="px-6 py-3"><span class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Deferred</span><span class="font-medium text-rose-600">R {{ "%.2f"|format(acc.rates_deferred or 0) }}</span></td>
+                        </tr>
+                        <tr>
+                            <td class="px-6 py-3 border-r border-slate-100"><span class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Gen. Monthly</span><span class="font-medium text-slate-700">R {{ "%.2f"|format(acc.rates_general_monthly or 0) }}</span></td>
+                            <td class="px-6 py-3 border-r border-slate-100"><span class="block text-[10px] font-bold text-slate-400 uppercase mb-1">SRA Monthly</span><span class="font-medium text-slate-700">R {{ "%.2f"|format(acc.rates_sra_monthly or 0) }}</span></td>
+                            <td colspan="2" class="px-6 py-3 bg-blue-50 text-blue-900 border-t border-blue-100">
+                                <span class="block text-[10px] font-bold text-blue-500 uppercase mb-1">Total Amount</span>
+                                <span class="text-lg font-bold">R {{ "%.2f"|format(acc.rates_amount) }}</span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Step 11: Arrangements -->
+        {% set ns_arrg = namespace(has=false) %}
+        {% for a in accounts if a.ca_agreement_amount and a.ca_agreement_amount > 0 %}
+            {% set ns_arrg.has = true %}
+        {% endfor %}
+        {% if ns_arrg.has %}
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden print:border-b print:shadow-none">
+            <div class="bg-emerald-50 px-6 py-3 border-b border-emerald-100">
+                <h2 class="text-lg font-bold text-emerald-800">Credit Arrangements</h2>
+            </div>
+            <div class="p-0 overflow-x-auto">
+                <table class="min-w-full divide-y divide-slate-200 text-sm">
+                    <thead class="bg-slate-50">
+                        <tr>
+                            <th class="px-4 py-3 text-left font-bold text-slate-500 uppercase whitespace-nowrap">Account</th>
+                            <th class="px-4 py-3 text-left font-bold text-slate-500 uppercase whitespace-nowrap">Contract No.</th>
+                            <th class="px-4 py-3 text-left font-bold text-slate-500 uppercase whitespace-nowrap">Agreement Amt</th>
+                            <th class="px-4 py-3 text-left font-bold text-slate-500 uppercase whitespace-nowrap">Installments Raised</th>
+                            <th class="px-4 py-3 text-left font-bold text-slate-500 uppercase whitespace-nowrap">Installment Amt</th>
+                            <th class="px-4 py-3 text-left font-bold text-slate-500 uppercase whitespace-nowrap">Amount Owing</th>
+                            <th class="px-4 py-3 text-left font-bold text-slate-500 uppercase whitespace-nowrap">Periods Left</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-200 bg-white">
+                        {% for acc in accounts if acc.ca_agreement_amount and acc.ca_agreement_amount > 0 %}
+                        <tr>
+                            <td class="px-4 py-3 font-medium whitespace-nowrap">{{ acc.account_number }}</td>
+                            <td class="px-4 py-3 whitespace-nowrap">{{ acc.ca_contract_number or '-' }}</td>
+                            <td class="px-4 py-3 text-emerald-600 font-bold whitespace-nowrap">R {{ "%.2f"|format(acc.ca_agreement_amount) }}</td>
+                            <td class="px-4 py-3 whitespace-nowrap">R {{ "%.2f"|format(acc.ca_installments_raised or 0) }}</td>
+                            <td class="px-4 py-3 whitespace-nowrap">R {{ "%.2f"|format(acc.ca_installment_amount or 0) }}</td>
+                            <td class="px-4 py-3 whitespace-nowrap">R {{ "%.2f"|format(acc.ca_amount_owing or 0) }}</td>
+                            <td class="px-4 py-3 whitespace-nowrap">{{ acc.ca_remaining_periods }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+<!-- Step 12: Owners -->
+        {% if owners|length > 0 %}
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden print:border-b print:shadow-none">
+            <div class="bg-indigo-50 px-6 py-3 border-b border-indigo-100">
+                <h2 class="text-lg font-bold text-indigo-800">Owners</h2>
+            </div>
+            <div class="p-0">
+                <table class="min-w-full divide-y divide-slate-200">
+                    <thead class="bg-slate-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase">Owner Name</th>
+                            <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase">Email</th>
+                            <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase">Address</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-200 bg-white">
+                        {% for o in owners %}
+                        <tr>
+                            <td class="px-6 py-3 font-medium text-indigo-800">{{ o.name }}</td>
+                            <td class="px-6 py-3 text-slate-500">{{ o.email_address or '-' }}</td>
+                            <td class="px-6 py-3 text-slate-500">{{ o.address or '-' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+        
+    </div>
+</div>
+
+
+{% endblock %}

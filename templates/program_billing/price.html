@@ -1,93 +1,88 @@
 {% extends "layout.html" %}
-{% block title %}Pricing · Metro Billing{% endblock %}
+{% block title %}Pricing & Wallet - Metro Billing{% endblock %}
 
 {% block content %}
-<div class="mx-auto max-w-4xl mt-10 px-4">
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<div class="max-w-4xl mx-auto px-4 py-8">
 
-    {# -----------------------------
-       LEFT TILE: Costing Breakdown
-       ----------------------------- #}
-    <div class="bg-white rounded-xl shadow overflow-hidden flex flex-col">
-      <div class="h-2 bg-orange-500"></div>
-      <div class="p-6 flex-1">
-        
-        <div class="flex items-center justify-between">
-          <h1 class="text-lg font-semibold text-slate-800">Platform Costing</h1>
-          <div class="text-xs text-slate-500">Metro Billing</div>
-        </div>
+  <!-- Single Main Tile -->
+  <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+    <!-- Color strip on top -->
+    <div class="h-2 bg-orange-600"></div>
 
-        <p class="mt-2 text-sm text-slate-600 mb-5">
-          You can capture properties and enter all meter readings completely for free. 
-          <strong>You only pay when you are ready to generate and unlock the monthly PDF statements.</strong>
+    <div class="p-6 md:p-8 space-y-6">
+      <!-- First Row: Title & Back Button -->
+      <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+        <h1 class="text-2xl md:text-3xl font-bold text-slate-900">Pricing & Wallet</h1>
+        <a href="{{ url_for('billing_bp.billing_about') }}"
+           class="inline-flex items-center gap-2 rounded border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition">
+          <span>+?</span><span>Back to Info</span>
+        </a>
+      </div>
+
+      <!-- Content Body -->
+      <div>
+        <p class="text-slate-600 leading-relaxed mb-6">
+          Metro Billing operates on a transparent, <strong>pay-as-you-go</strong> model. No expensive monthly subscriptions. You can capture properties and enter all meter readings completely for free. You only pay when you are ready to generate and unlock the monthly PDF statements.
         </p>
 
-        <div class="mt-5 p-4 bg-orange-50 rounded-lg border border-orange-100">
-          <p class="text-sm text-orange-900 mb-3 font-medium">Pricing is based simply on active meters billed:</p>
-          <ul class="list-disc list-inside space-y-2 text-sm text-orange-800">
-            <li>Base Price (Includes up to {{ settings.included_meters }} meters): <strong class="float-right">R{{ "%.2f"|format(settings.base_price_cents / 100) }}</strong></li>
-            <li>Additional Meters: <strong class="float-right">R{{ "%.2f"|format(settings.extra_meter_price_cents / 100) }} / ea</strong></li>
-          </ul>
-        </div>
+        <!-- Pricing Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+          
+          <!-- Registration -->
+          <div class="bg-slate-50 rounded-2xl p-6 border border-slate-100 flex flex-col justify-between h-full">
+            <div>
+              <span class="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full font-bold mb-3 uppercase tracking-wide">30-Day Free Trial</span>
+              <div class="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center text-orange-600 mb-4">
+                <i class="fas fa-building text-xl"></i>
+              </div>
+              <h3 class="text-lg font-bold text-slate-900 mb-2">Once-Off Registration</h3>
+              <p class="text-slate-600 text-sm leading-relaxed">
+                Unlock full access to the Metro Billing platform with a single registration fee. This gets your property management set up and ready immediately.
+              </p>
+            </div>
+              <div class="mt-6">
+                <span class="text-2xl font-bold text-orange-600">R {{ "%.2f"|format(settings.base_price_cents / 100) }}</span>
+                <span class="text-slate-500 text-sm ml-1">once-off</span>
+              </div>
+          </div>
 
-        <div class="mt-6 bg-slate-50 p-4 rounded-lg border border-slate-200 text-sm">
-          <strong class="text-slate-800 block mb-2">Example Calculation:</strong> 
-          <span class="text-slate-600">If you bill {{ settings.included_meters + 1 }} meters in a month, your cost would be:</span>
-          <div class="mt-3 font-mono text-slate-700 space-y-1">
-            <div class="flex justify-between"><span>Basic ({{ settings.included_meters }} meters):</span> <span>R{{ "%.2f"|format(settings.base_price_cents / 100) }}</span></div>
-            <div class="flex justify-between"><span>+ 1 Additional:</span> <span>R{{ "%.2f"|format(settings.extra_meter_price_cents / 100) }}</span></div>
-            <div class="border-t border-slate-300 mt-2 pt-2 font-bold text-orange-600 flex justify-between">
-              <span>Total Cost:</span> <span>R{{ "%.2f"|format((settings.base_price_cents + settings.extra_meter_price_cents) / 100) }}</span>
+          <!-- Micro-transactions -->
+          <div class="bg-slate-50 rounded-2xl p-6 border border-slate-100 flex flex-col justify-between h-full">
+            <div>
+              <span class="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full font-bold mb-3 uppercase tracking-wide">30-Day Free Trial</span>
+              <div class="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center text-orange-600 mb-4">
+                <i class="fas fa-file-invoice text-xl"></i>
+              </div>
+              <h3 class="text-lg font-bold text-slate-900 mb-2">Prepaid Wallet Usage</h3>
+              <p class="text-slate-600 text-sm leading-relaxed">
+                Top up your internal wallet. We only deduct tokens when you actively generate statements for your tenants. 
+                <br><br>
+                • <strong>Statement Generation:</strong> <span class="inline-flex items-center rounded-md bg-indigo-50 px-2 py-0.5 text-sm font-bold text-indigo-700 ring-1 ring-inset ring-indigo-700/10 shadow-sm mx-1">R{{ "%.2f"|format(settings.extra_meter_price_cents / 100) }}</span> per statement.
+              </p>
+            </div>
+            <div class="mt-6">
+              <span class="text-2xl font-bold text-orange-600">Pay-As-You-Go</span>
             </div>
           </div>
+
         </div>
 
-      </div>
-    </div>
-
-    {# -----------------------------
-       RIGHT TILE: Free Setup & Register
-       ----------------------------- #}
-    <div class="bg-white rounded-xl shadow overflow-hidden flex flex-col">
-      <div class="h-2 bg-orange-500"></div>
-      <div class="p-6 flex flex-col justify-between flex-1">
-        <div>
-          <div class="flex items-center justify-between">
-            <h2 class="text-lg font-semibold text-slate-800">Get Started for Free</h2>
-            <div class="text-xs font-bold text-orange-600 uppercase">Start Now</div>
-          </div>
-
-          <div class="mt-4 p-4 bg-orange-50 rounded border border-orange-100">
-            <p class="text-sm text-orange-900 mb-2 font-medium">What's included in free access?</p>
-            <ul class="list-disc list-inside text-sm text-orange-700 space-y-1">
-              <li>Full Property & Layout Setup</li>
-              <li>AI Bill Extraction</li>
-              <li>Tenant Collation</li>
-              <li>Meter Reading Input</li>
-            </ul>
-          </div>
+        <!-- CTA -->
+        <div class="border-t border-slate-100 pt-8 text-center">
+          <h4 class="text-lg font-bold text-slate-900 mb-4">Ready to automate your billing?</h4>
           
-          <div class="mt-4">
-             <p class="text-xs text-slate-500 leading-relaxed">
-               Start managing your properties immediately. Only pay at the end of your billing cycle when you need to download and email the final statements to tenants and landlords.
-             </p>
-          </div>
+          <a href="{{ url_for('auth_bp.register', subject='billing', next=url_for('billing_bp.learner_dashboard')) }}"
+             class="inline-block bg-orange-600 text-white py-3 px-8 rounded-xl font-bold text-lg hover:bg-orange-700 transition shadow-sm">Register to start your free trial</a>
+          
+          <p class="text-sm text-slate-500 mt-4">
+            Once registered, simply 
+            <a href="{{ url_for('auth_bp.login', next=url_for('billing_bp.learner_dashboard')) }}" class="text-orange-600 font-semibold hover:underline">log in to your dashboard</a>.
+          </p>
         </div>
 
-        <div class="mt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <a href="{{ url_for('billing_bp.billing_about') }}"
-             class="rounded-lg border px-4 py-2 text-sm hover:bg-slate-50 w-full sm:w-auto text-center">
-            ← Back to Info
-          </a>
-
-          <a href="{{ url_for('auth_bp.start_registration', subject='billing') }}"
-             class="inline-flex items-center justify-center rounded bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600 shadow-sm transition-colors w-full sm:w-auto">
-            Register Now
-          </a>
-        </div>
       </div>
     </div>
-
   </div>
+
 </div>
 {% endblock %}

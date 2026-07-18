@@ -71,7 +71,18 @@ def billing_checkout(month):
     session["metro_billing_meters"] = meter_count
     session["metro_billing_amount_cents"] = cost_cents
     
-    return render_template("program_billing/checkout_summary.html", month=month, meter_count=meter_count, cost_cents=cost_cents, settings=settings)
+    main_prop = props[0] if props else None
+    from datetime import datetime
+    # Hardcode trial to True for testing
+    is_trial = True
+    
+    return render_template("program_billing/checkout_summary.html", 
+                           month=month, 
+                           meter_count=meter_count, 
+                           cost_cents=cost_cents, 
+                           settings=settings,
+                           main_prop=main_prop,
+                           is_trial=is_trial)
 
 @billing_bp.route('/billing/about')
 def billing_about():
@@ -98,15 +109,20 @@ def billing_price():
         db.session.commit()
     return render_template("program_billing/price.html", settings=settings)
 
-@billing_bp.route("/billing/dashboard", methods=["GET", "POST"])
-@billing_bp.route("/billing/home", endpoint="subject_home")
+@billing_bp.route("/billing/portfolio", methods=["GET", "POST"])
 @login_required
-def learner_dashboard():
+def property_portfolio():
+
+    tenant_id = None
+    if units and units[0].tenants:
+        tenant_id = units[0].tenants[0].id
+
     if request.method == "POST":
+        from app.models.billing import BilProperty, BilSectionalUnit
         # Create property + unit in one go
         prop = BilProperty(
             name=request.form["property_name"],
-            address=request.form["address"],
+            address=request.form.get("address", ""),
             description=request.form.get("description"),
             manager_id=current_user.id,
             enrollment_id=_get_billing_enrollment_id(current_user.id)
@@ -116,15 +132,24 @@ def learner_dashboard():
 
         unit = BilSectionalUnit(
             property_id=prop.id,
-            unit_number=request.form["unit_number"]
+            unit_number=request.form.get("unit_number", "1")
         )
         db.session.add(unit)
         db.session.commit()
 
         flash("Property and unit added successfully!", "success")
-        return redirect(url_for("billing_bp.learner_dashboard"))
+        return redirect(url_for("billing_bp.property_portfolio"))
 
-    # Normal GET → show dashboard data
+    # Normal GET show dashboard data
+    data = get_dashboard_data()
+
+    return render_template("program_billing/property_portfolio.html", data=data)
+
+@billing_bp.route("/billing/dashboard", methods=["GET"])
+@billing_bp.route("/billing/home", endpoint="subject_home", methods=["GET"])
+@login_required
+def learner_dashboard():
+    # Normal GET show dashboard data
     data = get_dashboard_data()
 
     return render_template("program_billing/manager_dashboard.html", data=data)
@@ -165,7 +190,7 @@ def delete_property(property_id):
         db.session.rollback()
         flash(f"Error deleting property: {e}", "danger")
         
-    return redirect(url_for("billing_bp.learner_dashboard"))
+    return redirect(url_for("billing_bp.property_portfolio"))
 
 @billing_bp.route("/billing/property/<int:property_id>/view", methods=["GET"])
 @login_required
@@ -176,7 +201,7 @@ def view_property(property_id):
         
     units = BilSectionalUnit.query.filter_by(property_id=prop.id).all()
     # Simple rendering, we can pass property and units
-    return render_template("program_billing/view_property.html", property=prop, units=units)
+    return render_template("program_billing/view_property.html", property=prop, account_meters=account_meters, units=units)
 
 @billing_bp.route("/billing/property/<int:property_id>/edit", methods=["GET", "POST"])
 @login_required
@@ -195,6 +220,11 @@ def edit_property(property_id):
         if tenant:
             lease = BilLease.query.filter_by(tenant_id=tenant.id).first()
             
+
+    tenant_id = None
+    if units and units[0].tenants:
+        tenant_id = units[0].tenants[0].id
+
     if request.method == "POST":
         prop.name = request.form.get("property_name")
         prop.address = request.form.get("address")
@@ -280,23 +310,48 @@ def edit_property(property_id):
         flash("Property settings updated!", "success")
         return redirect(url_for("billing_bp.learner_dashboard"))
         
-    return render_template("program_billing/edit_property.html", property=prop, tenant=tenant, lease=lease, units=units)
+    return render_template("program_billing/edit_property.html", property=prop, account_meters=account_meters, tenant=tenant, lease=lease, units=units)
 
 @billing_bp.route("/billing/property/<int:property_id>/input_readings", methods=["GET", "POST"])
 @login_required
-def input_readings(property_id):
+def property_hub(property_id):
     prop = BilProperty.query.get_or_404(property_id)
     if prop.manager_id != current_user.id and not current_user.has_role('admin'):
         abort(403)
         
     units = BilSectionalUnit.query.filter_by(property_id=prop.id).all()
+    
+    # Collect all meters attached to any unit in this property
     all_meters = []
-    if units:
-        all_meters = units[0].meters
+    for u in units:
+        all_meters.extend(u.meters)
+        
+    # Also collect master meters by municipal account numbers
+    from app.models.billing import BilMuniAccount, BilMeter
+    muni_accounts = BilMuniAccount.query.filter_by(property_id=prop.id).all()
+    muni_acc_numbers = [acc.account_number for acc in muni_accounts if acc.account_number]
+    
+    if muni_acc_numbers:
+        muni_meters = BilMeter.query.filter(BilMeter.municipal_bill_number.in_(muni_acc_numbers)).all()
+        for m in muni_meters:
+            if m not in all_meters:
+                all_meters.append(m)
+                
+    # Also grab meters directly mapped by water_meter_id / elec_meter_id if any exist
+    for acc in muni_accounts:
+        if acc.water_meter and acc.water_meter not in all_meters:
+            all_meters.append(acc.water_meter)
+        if acc.elec_meter and acc.elec_meter not in all_meters:
+            all_meters.append(acc.elec_meter)
         
     from datetime import datetime
     import calendar
     
+
+    tenant_id = None
+    if units and units[0].tenants:
+        tenant_id = units[0].tenants[0].id
+
     if request.method == "POST":
         reading_month = request.form.get("reading_month")
         if not reading_month:
@@ -437,73 +492,12 @@ def input_readings(property_id):
             'last_date': last_date
         })
         
-    return render_template("program_billing/input_readings.html", 
+    return render_template("program_billing/property_hub.html",
+                           tenant_id=tenant_id, 
                            property=prop, 
                            meters_data=meters_data,
                            current_month=current_month,
                            current_date=current_date)
-
-@billing_bp.route("/billing/property/<int:property_id>/hub", methods=["GET"])
-@login_required
-def property_hub(property_id):
-    prop = BilProperty.query.get_or_404(property_id)
-    if prop.manager_id != current_user.id and not current_user.has_role('admin'):
-        abort(403)
-        
-    units = BilSectionalUnit.query.filter_by(property_id=prop.id).all()
-    all_meters = units[0].meters if units else []
-    
-    tenant_id = None
-    if units and units[0].tenants:
-        tenant_id = units[0].tenants[0].id
-        
-    from datetime import datetime
-    passed_date = request.args.get('date')
-    if passed_date:
-        try:
-            selected_date = datetime.strptime(passed_date, "%Y-%m-%d").date()
-            selected_month = selected_date.strftime("%Y-%m")
-        except ValueError:
-            selected_date = datetime.now().date()
-            selected_month = selected_date.strftime("%Y-%m")
-    else:
-        selected_date = datetime.now().date()
-        selected_month = selected_date.strftime("%Y-%m")
-        
-    # Build meter data for the table
-    meter_rows = []
-    for m in all_meters:
-        # Get the latest reading strictly before the selected date (to act as the baseline)
-        prev_reading = BilMeterReading.query.filter(
-            BilMeterReading.meter_id == m.id,
-            BilMeterReading.reading_date < selected_date
-        ).order_by(BilMeterReading.reading_date.desc()).first()
-        
-        # Check if there is a consumption record for the selected month
-        current_consumption = BilConsumption.query.filter_by(
-            meter_id=m.id,
-            month=selected_month
-        ).first()
-        
-        # Also check if there's just a reading ON the selected date
-        current_reading = BilMeterReading.query.filter_by(
-            meter_id=m.id,
-            reading_date=selected_date
-        ).first()
-        
-        meter_rows.append({
-            'meter': m,
-            'prev_reading': prev_reading,
-            'current_reading': current_reading,
-            'current_consumption': current_consumption
-        })
-        
-    return render_template("program_billing/property_hub.html", 
-                           property=prop, 
-                           meter_rows=meter_rows,
-                           tenant_id=tenant_id,
-                           selected_date=selected_date.strftime("%Y-%m-%d"),
-                           selected_month=selected_month)
 
 @billing_bp.route("/billing/consumption/<int:consumption_id>/delete", methods=["POST"])
 @login_required
@@ -808,6 +802,11 @@ def muni_recon_edit():
 def muni_recon_email():
     from app.models.billing import BilMuniAccount, BilMeter, BilConsumption
     
+
+    tenant_id = None
+    if units and units[0].tenants:
+        tenant_id = units[0].tenants[0].id
+
     if request.method == "POST":
         account_number = request.form.get("account_number")
         month = request.form.get("month")
@@ -952,6 +951,11 @@ def muni_recon_email_send():
         flash("Access denied", "danger")
         return redirect(url_for("public_bp.welcome"))
 
+
+    tenant_id = None
+    if units and units[0].tenants:
+        tenant_id = units[0].tenants[0].id
+
     if request.method == "POST":
         # Create property + unit in one go
         prop = BilProperty(
@@ -1079,7 +1083,10 @@ def onboard_property():
             flash("✅ Property onboarded successfully!", "success")
             return redirect(url_for("define_units", property_id=new_property.id))
         except Exception as e:
-            db.session.rollback()
+            try:
+                db.session.rollback()
+            except:
+                pass
             print(f"💥 Property creation failed: {e}")
             flash("There was an error onboarding the property.", "danger")
 
@@ -1293,7 +1300,7 @@ def calculate_ws_sd_total(meter_id, month):
         "due": total
     }
 
-def build_ws_sd_rows_for_meter(meter_id, month):
+def build_ws_sd_rows_for_meter(meter_id, month, adjusted_consumption=None):
     # Step 1: Pull the meter object
     meter = BilMeter.query.get(meter_id)
     if not meter:
@@ -1304,7 +1311,10 @@ def build_ws_sd_rows_for_meter(meter_id, month):
     if not record:
         return None  # Handle missing data
 
-    consumption = record.consumption
+    if adjusted_consumption is not None:
+        consumption = adjusted_consumption
+    else:
+        consumption = record.consumption
     days = record.days
 
     # Step 3: Tiered WS breakdown
@@ -1492,21 +1502,67 @@ def build_raw_water_row(meter_id, month):
         "due": ""
     }]
 
-def build_electrical_rows(tenant_id, month):
+def get_all_property_meters(property_id):
+    from app.models.billing import BilProperty, BilSectionalUnit, BilMuniAccount, BilMeter
+    units = BilSectionalUnit.query.filter_by(property_id=property_id).all()
+    all_meters = []
+    for u in units:
+        all_meters.extend(u.meters)
+        
+    muni_accounts = BilMuniAccount.query.filter_by(property_id=property_id).all()
+    muni_acc_numbers = [acc.account_number for acc in muni_accounts if acc.account_number]
+    if muni_acc_numbers:
+        muni_meters = BilMeter.query.filter(BilMeter.municipal_bill_number.in_(muni_acc_numbers)).all()
+        for m in muni_meters:
+            if m not in all_meters:
+                all_meters.append(m)
+                
+    for acc in muni_accounts:
+        if acc.water_meter and acc.water_meter not in all_meters:
+            all_meters.append(acc.water_meter)
+        if acc.elec_meter and acc.elec_meter not in all_meters:
+            all_meters.append(acc.elec_meter)
+            
+    return all_meters
+
+def build_electrical_rows(property_id, month, is_exception=False, filter_meter_ids=None):
     rows = []
     total_due = 0
 
-    linked_meter_ids = [m.id for m in BilMeter.query.filter_by(sectional_unit_id=tenant_id).all()]
-    meter_types = {m.id: m.utility_type for m in BilMeter.query.filter(BilMeter.id.in_(linked_meter_ids)).all()}
+    meters = get_all_property_meters(property_id)
+    if is_exception:
+        active_meter_ids = [m.id for m in meters if (m.status or 'active').lower() != 'active']
+    else:
+        active_meter_ids = [m.id for m in meters if (m.status or 'active').lower() == 'active']
+    meter_types = {m.id: m.utility_type for m in meters}
+    
+    # Pre-calculate sub-meter deductions for bulk meters
     records = BilConsumption.query.filter_by(month=month).all()
+    bulk_deductions = {}
+    for r in records:
+        m = next((meter for meter in meters if meter.id == r.meter_id), None)
+        if m and m.parent_meter_id:
+            bulk_deductions[m.parent_meter_id] = bulk_deductions.get(m.parent_meter_id, 0) + r.consumption
+            
+    linked_meter_ids = [m.id for m in meters]
     tenant_records = [r for r in records if r.meter_id in linked_meter_ids]
 
     rate_obj = BilTariff.query.filter_by(utility_type="electricity").first()
     rate = rate_obj.rate if rate_obj else 0
 
     for r in tenant_records:
-        if meter_types.get(r.meter_id) == "electricity":
-            due = round(r.consumption * rate, 2)
+        if r.meter_id not in active_meter_ids:
+            continue
+        if filter_meter_ids is not None and r.meter_id not in filter_meter_ids:
+            continue
+        if filter_meter_ids is not None and r.meter_id not in filter_meter_ids:
+            continue
+            
+        if (meter_types.get(r.meter_id) or "").lower() in ["electricity", "electrical"]:
+            adj_cons = r.consumption - bulk_deductions.get(r.meter_id, 0)
+            adj_cons = max(0, adj_cons)
+            
+            due = round(adj_cons * rate, 2)
             total_due += due
             rows.append({
                 "meter_number": r.meter_number,
@@ -1516,7 +1572,7 @@ def build_electrical_rows(tenant_id, month):
                 "new_read": r.new_read,
                 "days": r.days,
                 "avg": 0, # Placeholder
-                "consumption": r.consumption,
+                "consumption": adj_cons,
                 "rate": rate,
                 "due": due
             })
@@ -1563,18 +1619,40 @@ def get_tariff_for_sd(meter_id, month):
         {"start": 1001, "label": "1KL-1,5KL/29Days", "multiplier": 999.0, "rate": 27.38}
     ]
 
-def build_water_rows(tenant_id, month):
+def build_water_rows(property_id, month, is_exception=False, filter_meter_ids=None):
     water_meters = []
     total_water_due = 0
 
-    linked_meter_ids = [m.id for m in BilMeter.query.filter_by(sectional_unit_id=tenant_id).all()]
-    meter_types = {m.id: m.utility_type for m in BilMeter.query.filter(BilMeter.id.in_(linked_meter_ids)).all()}
+    meters = get_all_property_meters(property_id)
+    if is_exception:
+        active_meter_ids = [m.id for m in meters if (m.status or 'active').lower() != 'active']
+    else:
+        active_meter_ids = [m.id for m in meters if (m.status or 'active').lower() == 'active']
+    meter_types = {m.id: m.utility_type for m in meters}
+    
+    # Pre-calculate sub-meter deductions for bulk meters
     records = BilConsumption.query.filter_by(month=month).all()
+    bulk_deductions = {}
+    for r in records:
+        m = next((meter for meter in meters if meter.id == r.meter_id), None)
+        if m and m.parent_meter_id:
+            bulk_deductions[m.parent_meter_id] = bulk_deductions.get(m.parent_meter_id, 0) + r.consumption
+            
+    linked_meter_ids = [m.id for m in meters]
     tenant_records = [r for r in records if r.meter_id in linked_meter_ids]
 
     for r in tenant_records:
-        if meter_types.get(r.meter_id) == "water":
+        if r.meter_id not in active_meter_ids:
+            continue
+        if filter_meter_ids is not None and r.meter_id not in filter_meter_ids:
+            continue
+        if filter_meter_ids is not None and r.meter_id not in filter_meter_ids:
+            continue
+            
+        if (meter_types.get(r.meter_id) or "").lower() == "water":
             meter_id = r.meter_id
+            adj_cons = r.consumption - bulk_deductions.get(r.meter_id, 0)
+            adj_cons = max(0, adj_cons)
             
             summary = {
                 "meter_number": r.meter_number,
@@ -1583,13 +1661,13 @@ def build_water_rows(tenant_id, month):
                 "last_read": r.last_read,
                 "new_read": r.new_read,
                 "days": f"{r.days} KL/day",
-                "avg": round(r.consumption / r.days, 1) if r.days else 0,
-                "consumption": r.consumption,
+                "avg": round(adj_cons / r.days, 1) if r.days else 0,
+                "consumption": adj_cons,
                 "rate": "",
                 "due": ""
             }
             
-            details = build_ws_sd_rows_for_meter(meter_id, month)
+            details = build_ws_sd_rows_for_meter(meter_id, month, adjusted_consumption=adj_cons)
             if details:
                 details["summary"] = summary
                 water_meters.append(details)
@@ -1794,17 +1872,14 @@ def _auto_post_to_ledger(tenant_id, month, grand_total, tenant, elec_rows=None):
 
     db.session.commit()
 
-@billing_bp.route('/metsoa/<int:tenant_id>/<month>', methods=['GET'])
 
+@billing_bp.route("/billing/utilities/<int:property_id>/exception_metsoa/<month>")
 @login_required
-def metsoa(tenant_id, month):
-    tenant = BilTenant.query.get(tenant_id)
-    if not tenant:
-        flash("Tenant not found", "danger")
-        return redirect(url_for("billing_bp.learner_dashboard"))
-
-    prop = BilProperty.query.get(tenant.sectional_unit.property_id) if tenant.sectional_unit and tenant.sectional_unit.property_id else None
+def exception_metsoa(property_id, month):
+    from app.models.billing import BilProperty
     
+    prop = BilProperty.query.get_or_404(property_id)
+
     if prop:
         manager_id = prop.manager_id
         from app.models.billing import BilStatementPayment
@@ -1814,21 +1889,18 @@ def metsoa(tenant_id, month):
                 flash(f"Please unlock statements for {month} before viewing or generating PDFs.", "warning")
                 return redirect(url_for('billing_bp.billing_checkout', month=month))
             elif current_user.has_role('admin'):
-                flash(f"Notice: Manager has not paid for {month} statements.", "info")
+                pass
             else:
                 flash("Your manager has not unlocked statements for this month yet.", "danger")
                 return redirect(url_for("public_bp.welcome"))
 
-    elec_rows, elec_total = build_electrical_rows(tenant.sectional_unit_id, month)
-    water_meters, water_total = build_water_rows(tenant.sectional_unit_id, month)
+    elec_rows, elec_total = build_electrical_rows(prop.id, month, is_exception=True)
+    water_meters, water_total = build_water_rows(prop.id, month, is_exception=True)
     
     grand_total = round(elec_total + water_total, 2)
     
-    # Auto-post to ledger
-    _auto_post_to_ledger(tenant_id, month, grand_total, tenant, elec_rows)
-    
     data = {
-        "tenant": tenant,
+        "tenant": None,
         "property": prop,
         "month": month,
         "electricity": {
@@ -1842,26 +1914,133 @@ def metsoa(tenant_id, month):
         "grand_total": grand_total
     }
 
+    return render_template("program_billing/exception_metsoa.html", **data)
+
+@billing_bp.route("/billing/utilities/<int:property_id>/exception_metsoa/<month>/email", methods=["POST"])
+@login_required
+def email_exception_metsoa(property_id, month):
+    from app.models.billing import BilProperty
+    from flask import request
+    from app.utils.mailer import send_pdf_email
+    import tempfile
+    import os
+    
+    data_req = request.get_json()
+    email = data_req.get("email") if data_req else None
+    if not email:
+        return {"success": False, "error": "Email address is required"}, 400
+        
+    prop = BilProperty.query.get_or_404(property_id)
+    if prop.manager_id != current_user.id and not current_user.has_role('admin'):
+        return {"success": False, "error": "Unauthorized"}, 403
+
+    elec_rows, elec_total = build_electrical_rows(prop.id, month, is_exception=True)
+    water_meters, water_total = build_water_rows(prop.id, month, is_exception=True)
+    
+    grand_total = round(elec_total + water_total, 2)
+    
+    data = {
+        "tenant": None,
+        "property": prop,
+        "month": month,
+        "electricity": {
+            "rows": elec_rows,
+            "subtotal": elec_total
+        },
+        "water": {
+            "meters": water_meters,
+            "total": water_total
+        },
+        "grand_total": grand_total
+    }
+
+    html_string = render_template("program_billing/exception_metsoa.html", **data)
+    
+    # Hide the action buttons in the PDF
+    html_string = html_string.replace('class="print:hidden', 'style="display:none;"')
+    
+    with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as tmp:
+        pdf_path = tmp.name
+
+    try:
+        from playwright.sync_api import sync_playwright
+        with sync_playwright() as p:
+            browser = p.chromium.launch()
+            page = browser.new_page()
+            page.set_content(html_string, wait_until="networkidle")
+            page.pdf(
+                path=pdf_path, 
+                format="A4", 
+                print_background=True,
+                display_header_footer=True,
+                header_template="<span></span>",
+                footer_template="<div style='width: 100%; text-align: center; font-size: 10px; color: #6b7280; padding-bottom: 10px;'>Page <span class='pageNumber'></span> of <span class='totalPages'></span></div>",
+                margin={"top": "30px", "bottom": "40px", "left": "10px", "right": "10px"}
+            )
+            browser.close()
+            
+        with open(pdf_path, 'rb') as f_pdf:
+            pdf_bytes = f_pdf.read()
+            
+        os.remove(pdf_path)
+            
+        subject = f"Exception METSOA Review - {prop.name} - {month}"
+        body = f"Hello,\n\nPlease find the Exception METSOA statement for {prop.name} for the billing month of {month} attached as a PDF.\n\nRegards,\nAIT Platform"
+        
+        success = send_pdf_email(email, subject, body, pdf_bytes, filename=f"{month}-Exception-MetSoa-{prop.name}.pdf")
+        if success:
+            return {"success": True}
+        else:
+            return {"success": False, "error": "Mailer returned false."}
+            
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        if os.path.exists(pdf_path):
+            os.remove(pdf_path)
+        return {"success": False, "error": str(e)}
+
+@billing_bp.route('/metsoa/<int:property_id>/<month>', methods=['GET'])
+@login_required
+def metsoa(property_id, month):
+    from app.models.billing import BilProperty
+    prop = BilProperty.query.get_or_404(property_id)
+    if prop.manager_id != current_user.id and not current_user.has_role('admin'):
+        abort(403)
+        
+    manager_id = prop.manager_id
+    from app.models.billing import BilStatementPayment
+    payment = BilStatementPayment.query.filter_by(manager_id=manager_id, month=month).first()
+    if not payment or payment.amount_paid_cents <= 0:
+        if current_user.id == manager_id:
+            flash(f"Please unlock statements for {month} before viewing or generating PDFs.", "warning")
+            return redirect(url_for('billing_bp.billing_checkout', month=month))
+        elif current_user.has_role('admin'):
+            flash(f"Notice: Manager has not paid for {month} statements.", "info")
+        else:
+            flash("Your manager has not unlocked statements for this month yet.", "danger")
+            return redirect(url_for("public_bp.welcome"))
+
+    elec_rows, elec_total = build_electrical_rows(prop.id, month)
+    water_meters, water_total = build_water_rows(prop.id, month)
+    
+    grand_total = round(elec_total + water_total, 2)
+    
+    data = {
+        "tenant": None,
+        "property": prop,
+        "month": month,
+        "electricity": {
+            "rows": elec_rows,
+            "subtotal": elec_total
+        },
+        "water": {
+            "meters": water_meters,
+            "total": water_total
+        },
+        "grand_total": grand_total
+    }
     return render_template("program_billing/metsoa.html", **data)
-
-def get_mapped_tenant_by_id(tenant_id):
-    user = db.session.query(User).filter_by(id=tenant_id).first()
-    if not user:
-        return []
-
-    sectional_unit = db.session.query(BilSectionalUnit).filter_by(user_id=user.id).first()
-    if not sectional_unit:
-        return []
-
-    property_ = db.session.query(BilProperty).filter_by(id=sectional_unit.property_id).first()
-    if not property_:
-        return []
-
-    return [{
-        "username": user.name,
-        "sectional_unit_name": sectional_unit.unit_number,
-        "property_name": property_.name
-    }]
 
 @billing_bp.route('/tenant/<int:tenant_id>')
 def tenant_mapping(tenant_id):
@@ -1988,10 +2167,230 @@ def parse_bill_api():
     except Exception as e:
         return jsonify({"error": f"Failed to parse bill: {str(e)}"}), 500
 
+def build_wizard_data_from_db(property_id):
+    from app.models.billing import BilMuniAccount, BilMeter, RefMuniOwner
+    wizardData = {
+        'accounts': [],
+        'bulkWater': [],
+        'bulkElec': [],
+        'subWater': [],
+        'subElec': [],
+        'exceptions': [],
+        'mapping': [],
+        'arrears': [],
+        'rates': [],
+        'arrangements': [],
+        'owners': [],
+        'propertyMap': {}
+    }
+    
+    accounts = BilMuniAccount.query.filter_by(property_id=property_id).order_by(BilMuniAccount.id).all()
+    if not accounts:
+        return None
+        
+    acc_map = {}
+    bulk_acc_num = None
+    
+    for i, acc in enumerate(accounts):
+        acc_id_str = f"acc_{i}"
+        acc_map[acc.account_number] = acc_id_str
+        if acc.is_bulk_account:
+            bulk_acc_num = acc.account_number
+            
+        wizardData['accounts'].append({
+            'id': acc_id_str,
+            'number': acc.account_number,
+            'owner': '', # Handled in owners section
+            'isBulk': acc.is_bulk_account
+        })
+        
+        # Arrears
+        if getattr(acc, 'arrears_amount', None) or getattr(acc, 'arrears_date', None):
+            wizardData['arrears'].append({
+                'account_id': acc_id_str,
+                'amount': acc.arrears_amount or 0.0,
+                'date': acc.arrears_date.strftime("%Y-%m-%d") if acc.arrears_date else '',
+                'charge_to': acc.arrears_charge_to or 'owner'
+            })
+            
+        # Rates
+        if acc.rates_date:
+            wizardData['rates'].append({
+                'account_id': acc_id_str,
+                'amount': acc.rates_amount or 0.0,
+                'date': acc.rates_date.strftime("%Y-%m-%d") if acc.rates_date else '',
+                'charge_to': acc.rates_charge_to or 'owner',
+                'reference': acc.rates_reference or '',
+                'erf_details': acc.rates_erf_details or '',
+                'property_category': acc.rates_property_category or '',
+                'market_value': acc.rates_market_value or 0.0,
+                'rateable_value': acc.rates_rateable_value or 0.0,
+                'general_randage': acc.rates_general_randage or 0.0,
+                'sra_randage': acc.rates_sra_randage or 0.0,
+                'deferred': acc.rates_deferred or 0.0,
+                'sra_monthly': acc.rates_sra_monthly or 0.0,
+                'general_monthly': acc.rates_general_monthly or 0.0
+            })
+            
+        # Arrangements
+        if acc.arrangement_date:
+            wizardData['arrangements'].append({
+                'account_id': acc_id_str,
+                'charge_to': acc.arrangement_charge_to or 'owner',
+                'contract_number': acc.ca_contract_number or '',
+                'agreement_amount': acc.ca_agreement_amount or 0.0,
+                'installments_raised': acc.ca_installments_raised or 0.0,
+                'installment_amount': acc.ca_installment_amount or 0.0,
+                'amount_owing': acc.ca_amount_owing or 0.0,
+                'remaining_periods': acc.ca_remaining_periods or 0,
+                'date': acc.arrangement_date.strftime("%Y-%m-%d") if acc.arrangement_date else ''
+            })
+            
+        # Owners
+        if acc.owner_id:
+            owner = db.session.get(RefMuniOwner, acc.owner_id)
+            if owner:
+                wizardData['owners'].append({
+                    'account_id': acc_id_str,
+                    'name': owner.name or '',
+                    'email': acc.muni_email or '',
+                    'address': acc.owner_address or ''
+                })
+
+    acc_nums = [a.account_number for a in accounts if a.account_number]
+    meters = BilMeter.query.filter(BilMeter.municipal_bill_number.in_(acc_nums)).all()
+    
+    bw_count = 0
+    be_count = 0
+    sw_count = 0
+    se_count = 0
+    
+    mapping_dict = {acc['id']: {'account_id': acc['id'], 'water': '', 'elec': ''} for acc in wizardData['accounts'] if not acc['isBulk']}
+    
+    db_to_ui_meter = {}
+    
+    for m in meters:
+        if m.status == 'stolen':
+            continue
+            
+        u = (m.utility_type or '').lower()
+        is_bulk = (m.municipal_bill_number == bulk_acc_num)
+        
+        m_id = ""
+        if 'water' in u:
+            if is_bulk:
+                m_id = f"bulk-water_{bw_count}"
+                wizardData['bulkWater'].append({'id': m_id, 'number': m.meter_number})
+                bw_count += 1
+            else:
+                m_id = f"sub-water_{sw_count}"
+                wizardData['subWater'].append({'id': m_id, 'number': m.meter_number})
+                sw_count += 1
+        else:
+            if is_bulk:
+                m_id = f"bulk-elec_{be_count}"
+                wizardData['bulkElec'].append({'id': m_id, 'number': m.meter_number})
+                be_count += 1
+            else:
+                m_id = f"sub-elec_{se_count}"
+                wizardData['subElec'].append({'id': m_id, 'number': m.meter_number})
+                se_count += 1
+                
+        db_to_ui_meter[m.id] = m_id
+        
+        # Mapping
+        if not is_bulk and m.municipal_bill_number in acc_map:
+            acc_id = acc_map[m.municipal_bill_number]
+            if acc_id in mapping_dict:
+                if 'water' in u:
+                    mapping_dict[acc_id]['water'] = m_id
+                else:
+                    mapping_dict[acc_id]['elec'] = m_id
+
+    # Now add exceptions
+    for m in meters:
+        if m.status == 'stolen':
+            rep_m = next((rm for rm in meters if rm.replacement_for_meter_id == m.id), None)
+            if rep_m and rep_m.id in db_to_ui_meter:
+                wizardData['exceptions'].append({
+                    'stolen_num': m.meter_number,
+                    'replacement_id': db_to_ui_meter[rep_m.id],
+                    'date_stolen': m.date_stolen.strftime('%Y-%m-%d') if m.date_stolen else '',
+                    'date_replaced': m.date_replaced.strftime('%Y-%m-%d') if m.date_replaced else ''
+                })
+
+    wizardData['mapping'] = list(mapping_dict.values())
+
+    wizardData['propertyMap'] = {
+        'accounts': len(accounts),
+        'water': bw_count + sw_count,
+        'elec': be_count + se_count,
+        'bulkWater': bw_count > 0,
+        'bulkElec': be_count > 0,
+        'owners': len(set([o['name'] for o in wizardData['owners'] if o['name']])) or 1,
+        'addresses': len(set([o['address'] for o in wizardData['owners'] if o['address']])) or 1
+    }
+    
+    # Extract Initial Readings
+    from app.models.billing import BilMeterReading
+    wizardData['initialReadings'] = []
+    
+    active_meter_ids = [m.id for m in meters if m.status != 'stolen']
+    if active_meter_ids:
+        readings = BilMeterReading.query.filter(BilMeterReading.meter_id.in_(active_meter_ids)).all()
+        meter_id_to_num = {m.id: m.meter_number for m in meters if m.status != 'stolen'}
+        
+        meter_readings = {}
+        for r in readings:
+            if r.meter_id in meter_id_to_num:
+                m_num = meter_id_to_num[r.meter_id]
+                # Keep earliest reading
+                if m_num not in meter_readings or (r.reading_date and meter_readings[m_num]['date_obj'] and r.reading_date < meter_readings[m_num]['date_obj']):
+                    meter_readings[m_num] = {
+                        'value': r.reading_value,
+                        'date': r.reading_date.strftime('%Y-%m-%d') if r.reading_date else '',
+                        'date_obj': r.reading_date
+                    }
+                    
+        for m_num, rd in meter_readings.items():
+            wizardData['initialReadings'].append({
+                'meter_number': m_num,
+                'value': rd['value'],
+                'date': rd['date']
+            })
+    
+    return wizardData
+
 @billing_bp.route("/billing/setup", methods=["GET"])
 @login_required
 def setup_wizard():
-    return render_template("program_billing/setup_wizard.html")
+    property_id = request.args.get('property_id')
+    if not property_id:
+        flash("Missing property ID", "error")
+        return redirect(url_for('billing_bp.learner_dashboard'))
+    from app.models import BilProperty
+    property = BilProperty.query.get_or_404(property_id)
+    if property.manager_id != current_user.id:
+        from flask import abort
+        abort(403)
+        
+    from app.models.billing import BilArchitectureDraft, BilMuniAccount
+    import json
+    
+    # Check if accounts exist for this property (meaning it was already saved/finalised)
+    accounts_exist = BilMuniAccount.query.filter_by(property_id=property.id).first()
+    
+    if accounts_exist:
+        # Rehydrate dynamically from SQL tables
+        draft_json = build_wizard_data_from_db(property.id)
+    else:
+        # Unfinalised property, fall back to draft JSON
+        draft_record = BilArchitectureDraft.query.filter_by(property_id=property.id).first()
+        draft_json = draft_record.draft_json if draft_record else None
+    
+    return render_template("program_billing/setup_wizard.html", 
+        property=property,
+        draft_json=json.dumps(draft_json) if draft_json else 'null')
 
 @billing_bp.route("/billing/setup/submit", methods=["POST"])
 @login_required
@@ -2148,39 +2547,32 @@ def setup_submit():
         flash(f"An error occurred during setup: {str(e)}", "danger")
         return redirect(url_for("billing_bp.setup_wizard"))
 
-@billing_bp.route("/metsoa/<int:tenant_id>/<month>/pdf")
+
+@billing_bp.route("/billing/utilities/<int:property_id>/metsoa/<month>/email", methods=["POST"])
 @login_required
-def metsoa_pdf(tenant_id, month):
-    tenant = BilTenant.query.get(tenant_id)
-    if not tenant:
-        abort(404)
+def email_metsoa(property_id, month):
+    from app.models.billing import BilProperty
+    from flask import request
+    from app.utils.mailer import send_pdf_email
+    import tempfile
+    import os
+    
+    data_req = request.get_json()
+    email = data_req.get("email") if data_req else None
+    if not email:
+        return {"success": False, "error": "Email address is required"}, 400
+        
+    prop = BilProperty.query.get_or_404(property_id)
+    if prop.manager_id != current_user.id and not current_user.has_role('admin'):
+        return {"success": False, "error": "Unauthorized"}, 403
 
-    prop = BilProperty.query.get(tenant.sectional_unit.property_id) if tenant.sectional_unit and tenant.sectional_unit.property_id else None
-
-    if prop:
-        manager_id = prop.manager_id
-        from app.models.billing import BilStatementPayment
-        payment = BilStatementPayment.query.filter_by(manager_id=manager_id, month=month).first()
-        if not payment or payment.amount_paid_cents <= 0:
-            if current_user.id == manager_id:
-                flash(f"Please unlock statements for {month} before generating PDFs.", "warning")
-                return redirect(url_for('billing_bp.billing_checkout', month=month))
-            elif current_user.has_role('admin'):
-                pass
-            else:
-                flash("Your manager has not unlocked statements for this month yet.", "danger")
-                return redirect(url_for("public_bp.welcome"))
-
-    elec_rows, elec_total = build_electrical_rows(tenant.sectional_unit_id, month)
-    water_meters, water_total = build_water_rows(tenant.sectional_unit_id, month)
+    elec_rows, elec_total = build_electrical_rows(prop.id, month)
+    water_meters, water_total = build_water_rows(prop.id, month)
     
     grand_total = round(elec_total + water_total, 2)
     
-    # Auto-post to ledger
-    _auto_post_to_ledger(tenant_id, month, grand_total, tenant, elec_rows)
-    
     data = {
-        "tenant": tenant,
+        "tenant": None,
         "property": prop,
         "month": month,
         "electricity": {
@@ -2196,6 +2588,9 @@ def metsoa_pdf(tenant_id, month):
 
     html_string = render_template("program_billing/metsoa.html", **data)
     
+    # Hide the action buttons in the PDF
+    html_string = html_string.replace('class="print:hidden', 'style="display:none;"')
+    
     with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as tmp:
         pdf_path = tmp.name
 
@@ -2204,7 +2599,6 @@ def metsoa_pdf(tenant_id, month):
         with sync_playwright() as p:
             browser = p.chromium.launch()
             page = browser.new_page()
-            # Wait for Tailwind CDN and other assets to load
             page.set_content(html_string, wait_until="networkidle")
             page.pdf(
                 path=pdf_path, 
@@ -2213,16 +2607,104 @@ def metsoa_pdf(tenant_id, month):
                 display_header_footer=True,
                 header_template="<span></span>",
                 footer_template="<div style='width: 100%; text-align: center; font-size: 10px; color: #6b7280; padding-bottom: 10px;'>Page <span class='pageNumber'></span> of <span class='totalPages'></span></div>",
-                margin={"top": "40px", "bottom": "60px", "left": "30px", "right": "30px"}
+                margin={"top": "30px", "bottom": "40px", "left": "10px", "right": "10px"}
             )
             browser.close()
             
-        return send_file(pdf_path, as_attachment=True, download_name=f"{month}-MetSoa.pdf")
+        with open(pdf_path, 'rb') as f_pdf:
+            pdf_bytes = f_pdf.read()
+            
+        os.remove(pdf_path)
+            
+        subject = f"METSOA Review - {prop.name} - {month}"
+        body = f"Hello,\n\nPlease find the METSOA statement for {prop.name} for the billing month of {month} attached as a PDF.\n\nRegards,\nAIT Platform"
+        
+        success = send_pdf_email(email, subject, body, pdf_bytes, filename=f"{month}-MetSoa-{prop.name}.pdf")
+        if success:
+            return {"success": True}
+        else:
+            return {"success": False, "error": "Mailer returned false."}
+            
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        if os.path.exists(pdf_path):
+            os.remove(pdf_path)
+        return {"success": False, "error": str(e)}
+
+@billing_bp.route("/metsoa/<int:property_id>/<month>/pdf")
+@login_required
+def metsoa_pdf(property_id, month):
+    from app.models.billing import BilProperty
+    import tempfile
+    
+    prop = BilProperty.query.get_or_404(property_id)
+
+    if prop:
+        manager_id = prop.manager_id
+        from app.models.billing import BilStatementPayment
+        payment = BilStatementPayment.query.filter_by(manager_id=manager_id, month=month).first()
+        if not payment or payment.amount_paid_cents <= 0:
+            if current_user.id == manager_id:
+                flash(f"Please unlock statements for {month} before generating PDFs.", "warning")
+                return redirect(url_for('billing_bp.billing_checkout', month=month))
+            elif current_user.has_role('admin'):
+                pass
+            else:
+                flash("Your manager has not unlocked statements for this month yet.", "danger")
+                return redirect(url_for("public_bp.welcome"))
+
+    elec_rows, elec_total = build_electrical_rows(prop.id, month)
+    water_meters, water_total = build_water_rows(prop.id, month)
+    
+    grand_total = round(elec_total + water_total, 2)
+    
+    data = {
+        "tenant": None,
+        "property": prop,
+        "month": month,
+        "electricity": {
+            "rows": elec_rows,
+            "subtotal": elec_total
+        },
+        "water": {
+            "meters": water_meters,
+            "total": water_total
+        },
+        "grand_total": grand_total
+    }
+
+    html_string = render_template("program_billing/metsoa.html", **data)
+    
+    # Hide PDF button in PDF itself
+    html_string = html_string.replace('href="{{ url_for(\'billing_bp.metsoa_pdf\', property_id=property.id, month=month) }}"', 'style="display:none;"')
+    
+    with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as tmp:
+        pdf_path = tmp.name
+
+    try:
+        from playwright.sync_api import sync_playwright
+        with sync_playwright() as p:
+            browser = p.chromium.launch()
+            page = browser.new_page()
+            page.set_content(html_string, wait_until="networkidle")
+            page.pdf(
+                path=pdf_path, 
+                format="A4", 
+                print_background=True,
+                display_header_footer=True,
+                header_template="<span></span>",
+                footer_template="<div style='width: 100%; text-align: center; font-size: 10px; color: #6b7280; padding-bottom: 10px;'>Page <span class='pageNumber'></span> of <span class='totalPages'></span></div>",
+                margin={"top": "30px", "bottom": "40px", "left": "10px", "right": "10px"}
+            )
+            browser.close()
+            
+        return send_file(pdf_path, as_attachment=True, download_name=f"{month}-MetSoa-{prop.name}.pdf")
     except Exception as e:
         import traceback
         traceback.print_exc()
         flash("Failed to generate PDF.", "danger")
-        return redirect(url_for('billing_bp.metsoa', tenant_id=tenant_id, month=month))
+        return redirect(url_for('billing_bp.metsoa', property_id=prop.id, month=month))
 
 @billing_bp.route("/api/parse_readings", methods=["POST"])
 @login_required
@@ -2620,21 +3102,23 @@ def ai_onboarding_process():
 @billing_bp.route("/billing/onboarding/start_setup", methods=["POST"])
 @login_required
 def onboarding_start_setup():
-    # Only allow if no drafts exist
-    existing = BilProperty.query.filter(
+    from app.extensions import db
+    prop_name = request.form.get("property_name", "Draft Property").strip().title()
+
+    # Check for duplicate property name (case-insensitive)
+    existing_name = BilProperty.query.filter(
         BilProperty.manager_id == current_user.id,
-        BilProperty.onboarding_status.like('draft_%')
+        db.func.lower(BilProperty.name) == prop_name.lower()
     ).first()
-    
-    if existing:
-        flash("You already have an onboarding in progress. Please finish it first.", "error")
+
+    if existing_name:
+        flash(f"You already have a property named '{prop_name}'. Please choose a different name.", "error")
         return redirect(url_for('billing_bp.learner_dashboard'))
-        
-    prop_name = request.form.get("property_name", "Draft Property")
-    bills = int(request.form.get("bills", 1))
-    tenants = int(request.form.get("tenants", 1))
-    is_bulk = request.form.get("is_bulk", "no")
-    sub_meters = int(request.form.get("sub_meters", 0))
+
+    bills = 1
+    tenants = 1
+    is_bulk = "no"
+    sub_meters = 0
     
     prop = BilProperty(
         name=prop_name,
@@ -2651,5 +3135,1036 @@ def onboarding_start_setup():
     db.session.add(prop)
     db.session.commit()
     
-    flash(f"Setup initialized for '{prop_name}' (Expects {bills} bill{'s' if bills != 1 else ''}). You can now proceed to View Extraction.", "success")
-    return redirect(url_for('billing_bp.learner_dashboard'))
+    flash(f"Setup initialized for '{prop_name}'. You can now proceed with the Setup Wizard.", "success")
+    return redirect(url_for('billing_bp.setup_wizard', property_id=prop.id))
+
+
+
+# === RESTORED WIZARD ROUTES ===
+
+@billing_bp.route('/save_architecture_draft/<int:property_id>', methods=['POST'])
+@login_required
+def save_architecture_draft(property_id):
+    from app.models.billing import BilArchitectureDraft
+    prop = BilProperty.query.get_or_404(property_id)
+    if prop.manager_id != current_user.id:
+        return jsonify({"error": "Unauthorized"}), 403
+
+    data = request.json
+    draft = BilArchitectureDraft.query.filter_by(property_id=prop.id).first()
+    if not draft:
+        draft = BilArchitectureDraft(property_id=prop.id)
+        from app.extensions import db
+        db.session.add(draft)
+    
+    draft.draft_json = data
+    from app.extensions import db
+    db.session.commit()
+    
+    return jsonify({"status": "success"})
+
+@billing_bp.route("/billing/onboarding/save_global_architecture/<int:property_id>", methods=["POST"])
+@login_required
+def save_global_architecture(property_id):
+    try:
+        from app.models.billing import BilArchitectureDraft
+        prop = BilProperty.query.get_or_404(property_id)
+        if prop.manager_id != current_user.id:
+            return jsonify({"error": "Unauthorized"}), 403
+
+        data = request.json
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+
+        from app.extensions import db
+        from app.models.billing import BilMuniAccount, RefMuniOwner, BilMeter
+        from datetime import datetime
+        
+        # 1. Clean up old architecture
+        old_accounts = BilMuniAccount.query.filter_by(property_id=prop.id).all()
+        old_acc_nums = [a.account_number for a in old_accounts if a.account_number]
+        
+        if old_acc_nums:
+            old_meters = BilMeter.query.filter(BilMeter.municipal_bill_number.in_(old_acc_nums)).all()
+            old_meter_ids = [m.id for m in old_meters]
+            if old_meter_ids:
+                from app.models.billing import BilMeterReading, BilConsumption
+                BilMeterReading.query.filter(BilMeterReading.meter_id.in_(old_meter_ids)).delete(synchronize_session=False)
+                BilConsumption.query.filter(BilConsumption.meter_id.in_(old_meter_ids)).delete(synchronize_session=False)
+                BilMeter.query.filter(BilMeter.id.in_(old_meter_ids)).delete(synchronize_session=False)
+                
+        BilMuniAccount.query.filter_by(property_id=prop.id).delete(synchronize_session=False)
+
+        # 2. Process Owners
+        owner_map = {} # acc.id (e.g. 'acc_0') -> owner_obj.id
+        owner_data_map = {} # acc.id -> {'email': ..., 'address': ...}
+        for o_data in data.get('owners', []):
+            name = o_data.get('name', '').strip().title()
+            acc_id = o_data.get('account_id')
+            email = o_data.get('email', '').strip()
+            address = o_data.get('address', '').strip()
+            if name and acc_id:
+                owner = RefMuniOwner.query.filter_by(name=name).first()
+                if not owner:
+                    owner = RefMuniOwner(name=name)
+                    db.session.add(owner)
+                    db.session.flush()
+                owner_map[acc_id] = owner.id
+                owner_data_map[acc_id] = {'email': email, 'address': address}
+
+        # 3. Process Accounts & attach rates/arrears/arrangements
+        acc_obj_map = {} # acc.id -> BilMuniAccount
+        for a_data in data.get('accounts', []):
+            acc_num = a_data.get('number', '').strip()
+            acc_id = a_data.get('id')
+            if acc_num and acc_id:
+                acc = BilMuniAccount(
+                    property_id=prop.id,
+                    account_number=acc_num,
+                    is_bulk_account=True if a_data.get('isBulk') else False
+                )
+                if acc_id in owner_map:
+                    acc.owner_id = owner_map[acc_id]
+                if acc_id in owner_data_map:
+                    acc.muni_email = owner_data_map[acc_id].get('email')
+                    acc.owner_address = owner_data_map[acc_id].get('address')
+                db.session.add(acc)
+                acc_obj_map[acc_id] = acc
+        
+        db.session.flush()
+
+        # Attach Rates
+        for r in data.get('rates', []):
+            acc = acc_obj_map.get(r.get('account_id'))
+            if acc:
+                acc.rates_amount = float(r.get('amount') or 0.0)
+                if r.get('date'):
+                    acc.rates_date = datetime.strptime(r.get('date'), '%Y-%m-%d').date()
+                acc.rates_charge_to = r.get('charge_to', 'owner')
+                acc.rates_reference = r.get('reference', '')
+                acc.rates_erf_details = r.get('erf_details', '')
+                acc.rates_property_category = r.get('property_category', '')
+                acc.rates_market_value = float(r.get('market_value') or 0.0)
+                acc.rates_rateable_value = float(r.get('rateable_value') or 0.0)
+                acc.rates_general_randage = float(r.get('general_randage') or 0.0)
+                acc.rates_sra_randage = float(r.get('sra_randage') or 0.0)
+                acc.rates_deferred = float(r.get('deferred') or 0.0)
+                acc.rates_sra_monthly = float(r.get('sra_monthly') or 0.0)
+                acc.rates_general_monthly = float(r.get('general_monthly') or 0.0)
+
+        # Attach Arrears
+        for a in data.get('arrears', []):
+            acc = acc_obj_map.get(a.get('account_id'))
+            if acc:
+                acc.arrears_amount = float(a.get('amount') or 0.0)
+                if a.get('date'):
+                    acc.arrears_date = datetime.strptime(a.get('date'), '%Y-%m-%d').date()
+                acc.arrears_charge_to = a.get('charge_to', 'owner')
+                
+        # Attach Arrangements
+        for arg in data.get('arrangements', []):
+            acc = acc_obj_map.get(arg.get('account_id'))
+            if acc:
+                acc.arrangement_contract_number = arg.get('contract_number', '')
+                acc.arrangement_charge_to = arg.get('charge_to', 'owner')
+                acc.arrangement_agreement_amount = float(arg.get('agreement_amount') or 0.0)
+                acc.arrangement_installments_raised = float(arg.get('installments_raised') or 0.0)
+                acc.arrangement_installment_amount = float(arg.get('installment_amount') or 0.0)
+                acc.arrangement_amount_owing = float(arg.get('amount_owing') or 0.0)
+                acc.arrangement_remaining_periods = int(arg.get('remaining_periods') or 0)
+                if arg.get('date'):
+                    acc.arrangement_date = datetime.strptime(arg.get('date'), '%Y-%m-%d').date()
+
+        # 4. Process Meters
+        # Extract meters and map them properly from frontend payload
+        raw_meters = []
+        for u_type, key in [('Water', 'bulkWater'), ('Electrical', 'bulkElec'), ('Water', 'subWater'), ('Electrical', 'subElec')]:
+            for m_item in data.get(key, []):
+                m_item['u_type'] = u_type
+                m_item['is_bulk'] = key.startswith('bulk')
+                raw_meters.append(m_item)
+                
+        # Build account map
+        acc_map = { a.get('id'): a.get('number', '').strip() for a in data.get('accounts', []) }
+        
+        # Find the bulk account
+        bulk_acc_num = ''
+        for a in data.get('accounts', []):
+            if a.get('isBulk'):
+                bulk_acc_num = a.get('number', '').strip()
+                break
+        if not bulk_acc_num and data.get('accounts'):
+            bulk_acc_num = data.get('accounts')[0].get('number', '').strip()
+        
+        # Build meter-to-account map { meter_id: account_number }
+        meter_acc = {}
+        for mp in data.get('mapping', []):
+            acc_id = mp.get('account_id')
+        for m_item in data.get('bulkWater', []):
+            meter_acc[m_item.get('id')] = bulk_acc_num
+        for m_item in data.get('bulkElec', []):
+            meter_acc[m_item.get('id')] = bulk_acc_num
+            
+        # For sub meters, read from mapping
+        for m_map in data.get('mapping', []):
+            acc_id = m_map.get('account_id')
+            w_id = m_map.get('water')
+            e_id = m_map.get('elec')
+            if acc_id in acc_map:
+                if w_id:
+                    meter_acc[w_id] = acc_map[acc_id]
+                if e_id:
+                    meter_acc[e_id] = acc_map[acc_id]
+                    
+        # Fallback if mapping is empty (like when only 1 account)
+        if len(acc_map) == 1:
+            only_acc_num = list(acc_map.values())[0]
+            for m_item in data.get('subWater', []):
+                meter_acc[m_item.get('id')] = only_acc_num
+            for m_item in data.get('subElec', []):
+                meter_acc[m_item.get('id')] = only_acc_num
+    
+        active_meters_map = {}
+                
+        for m_data in raw_meters:
+            m_num = m_data.get('number', '').strip()
+            m_id = m_data.get('id')
+            u_type = m_data.get('u_type')
+            
+            # Determine account number
+            acc_num = bulk_acc_num if m_data.get('is_bulk') else meter_acc.get(m_id, '')
+            
+            if m_num and acc_num:
+                meter = BilMeter(
+                    meter_number=m_num,
+                    utility_type=u_type,
+                    municipal_bill_number=acc_num
+                )
+                db.session.add(meter)
+                db.session.flush() # get meter.id
+                active_meters_map[m_id] = meter
+                
+                initial_readings = data.get('initialReadings', [])
+                for r_data in initial_readings:
+                    if str(r_data.get('meter_number', '')) == str(m_num):
+                        from datetime import datetime
+                        from app.models.billing import BilMeterReading
+                        rd_date = r_data.get('date')
+                        rd_val = r_data.get('value')
+                        if rd_date and rd_val is not None:
+                            try:
+                                parsed_date = datetime.strptime(rd_date, '%Y-%m-%d').date()
+                                reading = BilMeterReading(
+                                    meter_id=meter.id,
+                                    reading_date=parsed_date,
+                                    reading_value=float(rd_val)
+                                )
+                                db.session.add(reading)
+                            except:
+                                pass
+
+        # Handle Exceptions (Stolen Meters)
+        for exc in data.get('exceptions', []):
+            s_num = exc.get('stolen_num', '').strip()
+            r_id = exc.get('replacement_id', '')
+            d_stolen = exc.get('date_stolen')
+            d_replaced = exc.get('date_replaced')
+            
+            if s_num and r_id in active_meters_map:
+                rep_meter = active_meters_map[r_id]
+                
+                from datetime import datetime
+                try:
+                    parsed_ds = datetime.strptime(d_stolen, '%Y-%m-%d').date() if d_stolen else None
+                    parsed_dr = datetime.strptime(d_replaced, '%Y-%m-%d').date() if d_replaced else None
+                except:
+                    parsed_ds = None
+                    parsed_dr = None
+                    
+                stolen_meter = BilMeter(
+                    meter_number=s_num,
+                    utility_type=rep_meter.utility_type,
+                    municipal_bill_number=rep_meter.municipal_bill_number,
+                    status='stolen',
+                    date_stolen=parsed_ds,
+                    date_replaced=parsed_dr
+                )
+                db.session.add(stolen_meter)
+                db.session.flush()
+                
+                rep_meter.replacement_for_meter_id = stolen_meter.id
+
+        prop.onboarding_status = 'draft_manual'
+        
+        # Save Draft JSON so frontend wizard can restore it!
+        from app.models.billing import BilArchitectureDraft
+        draft = BilArchitectureDraft.query.filter_by(property_id=prop.id).first()
+        if not draft:
+            draft = BilArchitectureDraft(property_id=prop.id)
+            db.session.add(draft)
+        draft.draft_json = data
+        
+        db.session.commit()
+        return jsonify({"message": "Architecture saved successfully!"}), 200
+        
+    except Exception as e:
+        from app.extensions import db
+        import traceback
+        try:
+            db.session.rollback()
+        except:
+            pass
+        print("SAVE GLOBAL ARCHITECTURE ERROR:", str(e))
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+@billing_bp.route('/property/<int:property_id>/email_architecture_summary', methods=['GET', 'POST'])
+@login_required
+def email_architecture_summary(property_id):
+    flash("Email feature coming soon!", "info")
+    return redirect(url_for('billing_bp.architecture_summary', property_id=property_id))
+
+@billing_bp.route('/property/<int:property_id>/architecture_summary')
+@login_required
+def architecture_summary(property_id):
+    prop = BilProperty.query.get_or_404(property_id)
+    if prop.manager_id != current_user.id:
+        flash("Unauthorized access.", "error")
+        return redirect(url_for('billing_bp.learner_dashboard'))
+    
+    # Gather data for summary
+    from app.models.billing import BilMuniAccount, BilMeter, RefMuniOwner
+    accounts = BilMuniAccount.query.filter_by(property_id=prop.id).all()
+    
+    acc_nums = [a.account_number for a in accounts if a.account_number]
+    if acc_nums:
+        meters = BilMeter.query.filter(BilMeter.municipal_bill_number.in_(acc_nums)).all()
+    else:
+        meters = []
+        
+    account_meters = {}
+    for acc in accounts:
+        if acc.account_number:
+            account_meters[acc.account_number] = {
+                'water': [m for m in meters if m.municipal_bill_number == acc.account_number and 'water' in (m.utility_type or '').lower()],
+                'elec': [m for m in meters if m.municipal_bill_number == acc.account_number and 'elec' in (m.utility_type or '').lower()]
+            }
+
+    bulk_water = []
+    bulk_elec = []
+    sub_water = []
+    sub_elec = []
+    exceptions = [] # Exceptions not fully implemented in db yet
+    
+    owner_ids = list(set([a.owner_id for a in accounts if a.owner_id]))
+    if owner_ids:
+        owners = RefMuniOwner.query.filter(RefMuniOwner.id.in_(owner_ids)).all()
+    else:
+        owners = []
+    
+    # Extract unique owners
+    owner_map = {}
+    for acc in accounts:
+        if acc.owner:
+            owner_map[acc.owner.name] = {
+                'name': acc.owner.name,
+                'email_address': acc.muni_email or '-',
+                'address': acc.owner_address or '-'
+            }
+    owners = list(owner_map.values())
+    
+    for m in meters:
+        # Determine bulk vs sub
+        acc = next((a for a in accounts if a.account_number == m.municipal_bill_number), None)
+        is_bulk = acc.is_bulk_account if acc else False
+        
+        if 'water' in (m.utility_type or '').lower():
+            if is_bulk:
+                bulk_water.append(m)
+            else:
+                sub_water.append(m)
+        else:
+            if is_bulk:
+                bulk_elec.append(m)
+            else:
+                sub_elec.append(m)
+
+    return render_template('program_billing/architecture_summary.html', 
+                           property=prop, account_meters=account_meters, 
+                           accounts=accounts,
+                           bulk_water=bulk_water,
+                           bulk_elec=bulk_elec,
+                           sub_water=sub_water,
+                           sub_elec=sub_elec,
+                           exceptions=exceptions,
+                           owners=owners)
+
+@billing_bp.route("/api/save_reading", methods=["POST"])
+@login_required
+def save_reading():
+    from app.models import BilMeter, BilConsumption
+    data = request.json
+    meter_id = data.get("meter_id")
+    reading_month = data.get("reading_month")
+    
+    if not meter_id or not reading_month:
+        return {"success": False, "error": "Missing meter_id or reading_month"}, 400
+        
+    m = BilMeter.query.get(meter_id)
+    if not m:
+        return {"success": False, "error": "Meter not found"}, 404
+        
+    if data.get("estimated_consumption") is not None:
+        est_cons = float(data.get("estimated_consumption"))
+        date_str = data.get("date")
+        from datetime import datetime
+        new_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+        
+        BilConsumption.query.filter_by(meter_id=m.id, month=reading_month).delete()
+        
+        cons_obj = BilConsumption(
+            meter_id=m.id,
+            meter_number=m.meter_number,
+            last_date=new_date,
+            new_date=new_date,
+            last_read=0,
+            new_read=0,
+            days=30,
+            consumption=est_cons,
+            month=reading_month
+        )
+        from app.extensions import db
+        db.session.add(cons_obj)
+        db.session.commit()
+        return {"success": True, "message": "Saved"}
+        
+    # Standard reading save logic
+    from datetime import datetime
+    new_date = datetime.strptime(data.get("date"), "%Y-%m-%d").date()
+    new_reading = float(data.get("reading"))
+    
+    BilConsumption.query.filter_by(meter_id=m.id, month=reading_month).delete()
+    
+    prev_reading = data.get("prev_reading")
+    prev_date_str = data.get("prev_date")
+    
+    if prev_reading is not None and prev_reading != "":
+        prev_reading = float(prev_reading)
+        if prev_date_str:
+            prev_date = datetime.strptime(prev_date_str, "%Y-%m-%d").date()
+        else:
+            from dateutil.relativedelta import relativedelta
+            prev_date = new_date - relativedelta(days=30)
+    else:
+        # Query the database for the most recent reading before new_date
+        from app.models.billing import BilMeterReading
+        last_r = BilMeterReading.query.filter(
+            BilMeterReading.meter_id == m.id,
+            BilMeterReading.reading_date < new_date
+        ).order_by(BilMeterReading.reading_date.desc()).first()
+        
+        if last_r:
+            prev_reading = last_r.reading_value
+            prev_date = last_r.reading_date
+        else:
+            prev_reading = 0
+            from dateutil.relativedelta import relativedelta
+            prev_date = new_date - relativedelta(days=30)
+        
+    days = (new_date - prev_date).days
+    if days == 0: days = 30
+    
+    cons_val = new_reading - prev_reading
+    if cons_val < 0: cons_val = 0
+    
+    cons_obj = BilConsumption(
+        meter_id=m.id,
+        meter_number=m.meter_number,
+        last_date=prev_date,
+        new_date=new_date,
+        last_read=prev_reading,
+        new_read=new_reading,
+        days=days,
+        consumption=cons_val,
+        month=reading_month
+    )
+    
+    from app.extensions import db
+    db.session.add(cons_obj)
+    db.session.commit()
+    return {"success": True, "message": "Saved"}
+
+
+@billing_bp.route("/meter_exceptions/<int:property_id>", methods=["GET"])
+@login_required
+def meter_exceptions(property_id):
+    from app.models.billing import BilProperty, BilMeter
+    prop = BilProperty.query.get_or_404(property_id)
+    if prop.manager_id != current_user.id and not current_user.has_role('admin'):
+        from flask import abort
+        abort(403)
+        
+    all_meters = get_all_property_meters(property_id)
+    # Filter for non-active meters (like stolen)
+    exception_meters = [m for m in all_meters if (m.status or 'active').lower() != 'active']
+    
+    # We want to find the replacement meter for each exception meter
+    # Replacement meter points to the stolen meter via replacement_for_meter_id
+    replacement_map = {}
+    for ex in exception_meters:
+        rep = BilMeter.query.filter_by(replacement_for_meter_id=ex.id).first()
+        replacement_map[ex.id] = rep
+        
+    return render_template("program_billing/meter_exceptions.html", 
+                           property=prop, 
+                           exception_meters=exception_meters,
+                           replacement_map=replacement_map)
+
+
+@billing_bp.route("/billing/utilities", methods=["GET", "POST"])
+@login_required
+def utilities_hub():
+    from app.models.billing import BilProperty
+    from datetime import datetime
+    
+    properties = BilProperty.query.filter_by(manager_id=current_user.id).all()
+    current_month = datetime.now().strftime("%Y-%m")
+    
+    if request.method == "POST":
+        property_id = request.form.get("property_id")
+        month = request.form.get("billing_month")
+        action = request.form.get("action")
+        
+        if not property_id or not month:
+            flash("Please select both a property and a month.", "warning")
+            return redirect(url_for("billing_bp.utilities_hub"))
+            
+        if action == "consumption":
+            return redirect(url_for("billing_bp.consumption_review", property_id=property_id, month=month))
+        elif action == "metsoa":
+            return redirect(url_for("billing_bp.metsoa", property_id=property_id, month=month))
+        elif action == "exceptions":
+            return redirect(url_for("billing_bp.exception_metsoa", property_id=property_id, month=month))
+
+    return render_template("program_billing/utilities_hub.html", properties=properties, current_month=current_month)
+
+@billing_bp.route("/billing/utilities/<int:property_id>/consumption/<month>")
+@login_required
+def consumption_review(property_id, month):
+    from app.models.billing import BilProperty, BilSectionalUnit, BilMuniAccount, BilMeter, BilConsumption
+    prop = BilProperty.query.get_or_404(property_id)
+    if prop.manager_id != current_user.id and not current_user.has_role('admin'):
+        abort(403)
+        
+    units = BilSectionalUnit.query.filter_by(property_id=prop.id).all()
+    all_meters = []
+    for u in units:
+        all_meters.extend(u.meters)
+        
+    muni_accounts = BilMuniAccount.query.filter_by(property_id=prop.id).all()
+    muni_acc_numbers = [acc.account_number for acc in muni_accounts if acc.account_number]
+    if muni_acc_numbers:
+        muni_meters = BilMeter.query.filter(BilMeter.municipal_bill_number.in_(muni_acc_numbers)).all()
+        for m in muni_meters:
+            if m not in all_meters:
+                all_meters.append(m)
+                
+    for acc in muni_accounts:
+        if acc.water_meter and acc.water_meter not in all_meters:
+            all_meters.append(acc.water_meter)
+        if acc.elec_meter and acc.elec_meter not in all_meters:
+            all_meters.append(acc.elec_meter)
+            
+    # Get consumption records for these meters for this month
+    meter_ids = [m.id for m in all_meters]
+    if meter_ids:
+        consumptions = BilConsumption.query.filter(
+            BilConsumption.meter_id.in_(meter_ids),
+            BilConsumption.month == month
+        ).all()
+    else:
+        consumptions = []
+    
+    cons_map = {c.meter_id: c for c in consumptions}
+    
+    data = []
+    for m in all_meters:
+        c = cons_map.get(m.id)
+        data.append({
+            'meter': m,
+            'consumption': c
+        })
+        
+    return render_template("program_billing/consumption_table.html", property=prop, month=month, data=data)
+
+
+@billing_bp.route("/billing/soa", methods=["GET", "POST"])
+@login_required
+def soa_dashboard():
+    from app.models.billing import BilProperty
+    from datetime import datetime
+    
+    properties = BilProperty.query.filter_by(manager_id=current_user.id).all()
+    current_month = datetime.now().strftime("%Y-%m")
+    
+    if request.method == "POST":
+        property_id = request.form.get("property_id")
+        month = request.form.get("month")
+        action = request.form.get("action")
+        
+        if not property_id or not month:
+            flash("Please select both a property and a month.", "warning")
+            return redirect(url_for("billing_bp.soa_dashboard"))
+            
+        if action == "charge_map":
+            return redirect(url_for("billing_bp.soa_map_view", property_id=property_id, month=month))
+        elif action == "tenants":
+            return redirect(url_for("billing_bp.soa_tenants_view", property_id=property_id, month=month))
+        elif action == "generate_soa":
+            return redirect(url_for("billing_bp.soa_generate_view", property_id=property_id, month=month))
+            
+    return render_template("program_billing/soa_dashboard.html", properties=properties, current_month=current_month)
+
+@billing_bp.route("/billing/soa/map/<int:property_id>/<month>", methods=["GET"])
+@login_required
+def soa_map_view(property_id, month):
+    from app.models.billing import BilProperty, BilMuniAccount
+    prop = BilProperty.query.get_or_404(property_id)
+    if prop.manager_id != current_user.id and not current_user.has_role('admin'):
+        abort(403)
+    muni_accounts = BilMuniAccount.query.filter_by(property_id=prop.id).all()
+    
+    selected_account_id = request.args.get('account_id')
+    selected_account = None
+    if selected_account_id:
+        selected_account = BilMuniAccount.query.filter_by(id=selected_account_id, property_id=prop.id).first()
+        
+    return render_template("program_billing/soa_map.html", property=prop, month=month, muni_accounts=muni_accounts, selected_account=selected_account)
+
+@billing_bp.route("/billing/soa/tenants/<int:property_id>/<month>", methods=["GET"])
+@login_required
+def soa_tenants_view(property_id, month):
+    from app.models.billing import BilProperty, BilSectionalUnit
+    prop = BilProperty.query.get_or_404(property_id)
+    if prop.manager_id != current_user.id and not current_user.has_role('admin'):
+        abort(403)
+    units = BilSectionalUnit.query.filter_by(property_id=prop.id).all()
+    tenants = []
+    for u in units:
+        tenants.extend(u.tenants)
+    return render_template("program_billing/soa_tenants.html", property=prop, month=month, tenants=tenants)
+
+@billing_bp.route("/billing/soa/generate/<int:property_id>/<month>", methods=["GET"])
+@login_required
+def soa_generate_view(property_id, month):
+    from app.models.billing import BilProperty, BilSectionalUnit
+    prop = BilProperty.query.get_or_404(property_id)
+    if prop.manager_id != current_user.id and not current_user.has_role('admin'):
+        abort(403)
+    units = BilSectionalUnit.query.filter_by(property_id=prop.id).all()
+    tenants = []
+    for u in units:
+        tenants.extend(u.tenants)
+    return render_template("program_billing/soa_generate.html", property=prop, month=month, tenants=tenants)
+
+
+@billing_bp.route("/billing/soa/map/update", methods=["POST"])
+@login_required
+def update_soa_map():
+    from app.models.billing import BilMuniAccount
+    from app.extensions import db
+    
+    account_id = request.form.get("account_id")
+    property_id = request.form.get("property_id")
+    month = request.form.get("month")
+    
+    if not account_id:
+        flash("Invalid account ID.", "danger")
+        return redirect(url_for('billing_bp.soa_dashboard'))
+        
+    acc = BilMuniAccount.query.get_or_404(account_id)
+    from app.models.billing import BilProperty
+    prop = BilProperty.query.get(acc.property_id) if acc.property_id else None
+    if prop and prop.manager_id != current_user.id and not current_user.has_role('admin'):
+        abort(403)
+        
+    acc.arrears_charge_to = request.form.get("arrears_charge_to", "owner")
+    acc.rates_charge_to = request.form.get("rates_charge_to", "owner")
+    acc.arrangement_charge_to = request.form.get("arrangement_charge_to", "owner")
+    
+    # Save the input amounts
+    try:
+        acc.rates_amount = float(request.form.get("rates_amount") or 0.0)
+    except:
+        pass
+    try:
+        acc.arrears_amount = float(request.form.get("arrears_amount") or 0.0)
+    except:
+        pass
+    try:
+        acc.ca_installment_amount = float(request.form.get("ca_installment_amount") or 0.0)
+    except:
+        pass
+        
+    db.session.commit()
+    flash("SOA Map recorded successfully.", "success")
+    return redirect(url_for("billing_bp.soa_map_view", property_id=property_id, month=month, account_id=account_id))
+
+
+@billing_bp.route("/billing/soa/tenant/<int:tenant_id>/edit", methods=["GET", "POST"])
+@login_required
+def edit_tenant_soa(tenant_id):
+    from app.models.billing import BilTenant
+    from app.extensions import db
+    from datetime import datetime
+    
+    tenant = BilTenant.query.get_or_404(tenant_id)
+    
+    # Very basic validation that the user owns the property
+    if tenant.sectional_unit and tenant.sectional_unit.property:
+        if tenant.sectional_unit.property.manager_id != current_user.id and not current_user.has_role('admin'):
+            abort(403)
+            
+    if request.method == "POST":
+        tenant.address = request.form.get("address")
+        
+        ds = request.form.get("date_started")
+        if ds:
+            tenant.date_started = datetime.strptime(ds, "%Y-%m-%d").date()
+            
+        dt = request.form.get("date_terminated")
+        if dt:
+            tenant.date_terminated = datetime.strptime(dt, "%Y-%m-%d").date()
+        else:
+            tenant.date_terminated = None
+            
+        is_active = request.form.get("is_active") == "on"
+        tenant.is_active = is_active
+        
+        db.session.commit()
+        flash("Tenant SOA Configuration updated.", "success")
+        return redirect(url_for("billing_bp.soa_dashboard"))
+        
+    return render_template("program_billing/edit_tenant_soa.html", tenant=tenant)
+
+@billing_bp.route("/billing/soa/tenant/<int:tenant_id>/<month>/email", methods=["POST"])
+@login_required
+def email_soa(tenant_id, month):
+    from app.models.billing import BilTenant, BilMuniAccount
+    import tempfile
+    import os
+    from flask import send_file, request
+    from app.utils.mailer import send_pdf_email
+    
+    tenant = BilTenant.query.get_or_404(tenant_id)
+    
+    data_req = request.get_json()
+    email = data_req.get("email") if data_req else None
+    if not email:
+        return {"success": False, "error": "Email address is required"}, 400
+        
+    prop = tenant.sectional_unit.property
+    
+    tenant_meter_ids = [m.id for m in tenant.sectional_unit.meters]
+    
+    elec_rows, elec_total = build_electrical_rows(prop.id, month, filter_meter_ids=tenant_meter_ids)
+    water_meters, water_total = build_water_rows(prop.id, month, filter_meter_ids=tenant_meter_ids)
+    
+    # Calculate mapped charges
+    muni_accounts = BilMuniAccount.query.filter_by(property_id=prop.id).all()
+    
+    mapped_charges = []
+    mapped_total = 0.0
+    
+    for acc in muni_accounts:
+        if acc.rates_charge_to == 'tenant':
+            val = acc.rates_amount if acc.rates_amount and acc.rates_amount > 0 else round((acc.rates_general_monthly or 0) + (acc.rates_sra_monthly or 0), 2)
+            if val > 0:
+                mapped_charges.append({"description": "Rates & SRA", "amount": val})
+                mapped_total += val
+                
+        if acc.arrears_charge_to == 'tenant':
+            if acc.arrears_amount and acc.arrears_amount > 0:
+                mapped_charges.append({"description": "Arrears", "amount": acc.arrears_amount})
+                mapped_total += acc.arrears_amount
+                
+        if acc.arrangement_charge_to == 'tenant':
+            if acc.ca_installment_amount and acc.ca_installment_amount > 0:
+                mapped_charges.append({"description": "Arrangement Installment", "amount": acc.ca_installment_amount})
+                mapped_total += acc.ca_installment_amount
+                
+    grand_total = round(elec_total + water_total + mapped_total, 2)
+    
+    data = {
+        "tenant": tenant,
+        "property": prop,
+        "month": month,
+        "electricity": {
+            "rows": elec_rows,
+            "subtotal": elec_total
+        },
+        "water": {
+            "meters": water_meters,
+            "total": water_total
+        },
+        "mapped_charges": mapped_charges,
+        "mapped_total": mapped_total,
+        "grand_total": grand_total
+    }
+    
+    html_string = render_template("program_billing/soa_document.html", **data)
+    
+    # Hide the action buttons in the PDF
+    html_string = html_string.replace('class="print:hidden', 'style="display:none;"')
+    
+    with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as tmp:
+        pdf_path = tmp.name
+
+    try:
+        from playwright.sync_api import sync_playwright
+        with sync_playwright() as p:
+            browser = p.chromium.launch()
+            page = browser.new_page()
+            page.set_content(html_string, wait_until="networkidle")
+            page.pdf(
+                path=pdf_path, 
+                format="A4", 
+                print_background=True,
+                display_header_footer=True,
+                header_template="<span></span>",
+                footer_template="<div style='width: 100%; text-align: center; font-size: 10px; color: #6b7280; padding-bottom: 10px;'>Page <span class='pageNumber'></span> of <span class='totalPages'></span></div>",
+                margin={"top": "30px", "bottom": "40px", "left": "20px", "right": "20px"}
+            )
+            browser.close()
+            
+        with open(pdf_path, 'rb') as f_pdf:
+            pdf_bytes = f_pdf.read()
+            
+        os.remove(pdf_path)
+            
+        subject = f"Statement of Account - {tenant.name} - {month}"
+        body = f"Hello {tenant.name},\n\nPlease find your Statement of Account for the billing month of {month} attached as a PDF.\n\nRegards,\n{prop.name} Management"
+        
+        success = send_pdf_email(email, subject, body, pdf_bytes, filename=f"SOA_{tenant.name.replace(' ', '_')}_{month}.pdf")
+        if success:
+            return {"success": True}
+        else:
+            return {"success": False, "error": "Mailer returned false."}
+            
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        if os.path.exists(pdf_path):
+            os.remove(pdf_path)
+        return {"success": False, "error": str(e)}
+
+@billing_bp.route("/billing/soa/tenant/<int:tenant_id>/generate", methods=["GET"])
+@login_required
+def generate_soa(tenant_id):
+    from app.models.billing import BilTenant, BilMuniAccount
+    import tempfile
+    import os
+    from flask import send_file
+    
+    tenant = BilTenant.query.get_or_404(tenant_id)
+    month = request.args.get("month")
+    
+    if not month:
+        flash("Month is required.", "danger")
+        return redirect(url_for("billing_bp.soa_dashboard"))
+        
+    prop = tenant.sectional_unit.property
+    
+    tenant_meter_ids = [m.id for m in tenant.sectional_unit.meters]
+    
+    elec_rows, elec_total = build_electrical_rows(prop.id, month, filter_meter_ids=tenant_meter_ids)
+    water_meters, water_total = build_water_rows(prop.id, month, filter_meter_ids=tenant_meter_ids)
+    
+    # Calculate mapped charges
+    muni_accounts = BilMuniAccount.query.filter_by(property_id=prop.id).all()
+    
+    mapped_charges = []
+    mapped_total = 0.0
+    
+    for acc in muni_accounts:
+        if acc.rates_charge_to == 'tenant':
+            val = acc.rates_amount if acc.rates_amount and acc.rates_amount > 0 else round((acc.rates_general_monthly or 0) + (acc.rates_sra_monthly or 0), 2)
+            if val > 0:
+                mapped_charges.append({"description": "Rates & SRA", "amount": val})
+                mapped_total += val
+                
+        if acc.arrears_charge_to == 'tenant':
+            if acc.arrears_amount and acc.arrears_amount > 0:
+                mapped_charges.append({"description": "Arrears", "amount": acc.arrears_amount})
+                mapped_total += acc.arrears_amount
+                
+        if acc.arrangement_charge_to == 'tenant':
+            if acc.ca_installment_amount and acc.ca_installment_amount > 0:
+                mapped_charges.append({"description": "Arrangement Installment", "amount": acc.ca_installment_amount})
+                mapped_total += acc.ca_installment_amount
+                
+    grand_total = round(elec_total + water_total + mapped_total, 2)
+    
+    data = {
+        "tenant": tenant,
+        "property": prop,
+        "month": month,
+        "electricity": {
+            "rows": elec_rows,
+            "subtotal": elec_total
+        },
+        "water": {
+            "meters": water_meters,
+            "total": water_total
+        },
+        "mapped_charges": mapped_charges,
+        "mapped_total": mapped_total,
+        "grand_total": grand_total
+    }
+    
+    html_string = render_template("program_billing/soa_document.html", **data)
+    
+    # If the user clicks print in the browser
+    if request.args.get("view") == "html":
+        return html_string
+        
+    with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as tmp:
+        pdf_path = tmp.name
+
+    try:
+        from playwright.sync_api import sync_playwright
+        with sync_playwright() as p:
+            browser = p.chromium.launch()
+            page = browser.new_page()
+            page.set_content(html_string, wait_until="networkidle")
+            page.pdf(
+                path=pdf_path, 
+                format="A4", 
+                print_background=True,
+                display_header_footer=True,
+                header_template="<span></span>",
+                footer_template="<div style='width: 100%; text-align: center; font-size: 10px; color: #6b7280; padding-bottom: 10px;'>Page <span class='pageNumber'></span> of <span class='totalPages'></span></div>",
+                margin={"top": "30px", "bottom": "40px", "left": "20px", "right": "20px"}
+            )
+            browser.close()
+            
+        return send_file(pdf_path, as_attachment=True, download_name=f"SOA_{tenant.name.replace(' ', '_')}_{month}.pdf")
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        flash(f"Failed to generate SOA: {str(e)}", "danger")
+        return redirect(url_for('billing_bp.soa_dashboard', property_id=prop.id, month=month))
+
+
+
+@billing_bp.route("/billing/utilities/<int:property_id>/consumption/<month>/email", methods=["POST"])
+@login_required
+def email_consumption(property_id, month):
+    from app.models.billing import BilProperty, BilSectionalUnit, BilMuniAccount, BilMeter, BilConsumption
+    from app.utils.mailer import send_pdf_email
+    from app.utils.pdf_render import html_to_pdf_bytes
+    from flask import request, current_app, render_template
+    
+    data = request.get_json()
+    email = data.get("email") if data else None
+    
+    if not email:
+        return {"success": False, "error": "Email address is required"}, 400
+        
+    prop = BilProperty.query.get_or_404(property_id)
+    if prop.manager_id != current_user.id and not current_user.has_role('admin'):
+        return {"success": False, "error": "Unauthorized"}, 403
+        
+    units = BilSectionalUnit.query.filter_by(property_id=prop.id).all()
+    all_meters = []
+    for u in units:
+        all_meters.extend(u.meters)
+        
+    muni_accounts = BilMuniAccount.query.filter_by(property_id=prop.id).all()
+    muni_acc_numbers = [acc.account_number for acc in muni_accounts if acc.account_number]
+    if muni_acc_numbers:
+        muni_meters = BilMeter.query.filter(BilMeter.municipal_bill_number.in_(muni_acc_numbers)).all()
+        for m in muni_meters:
+            if m not in all_meters:
+                all_meters.append(m)
+                
+    for acc in muni_accounts:
+        if acc.water_meter and acc.water_meter not in all_meters:
+            all_meters.append(acc.water_meter)
+        if acc.elec_meter and acc.elec_meter not in all_meters:
+            all_meters.append(acc.elec_meter)
+            
+    meter_ids = [m.id for m in all_meters]
+    if meter_ids:
+        consumptions = BilConsumption.query.filter(
+            BilConsumption.meter_id.in_(meter_ids),
+            BilConsumption.month == month
+        ).all()
+    else:
+        consumptions = []
+    
+    cons_map = {c.meter_id: c for c in consumptions}
+    
+    data = []
+    for m in all_meters:
+        c = cons_map.get(m.id)
+        data.append({
+            'meter': m,
+            'consumption': c
+        })
+        
+    html = render_template("program_billing/consumption_table_pdf.html", property=prop, month=month, data=data)
+    
+    try:
+        pdf_bytes = html_to_pdf_bytes(html, orientation="Landscape")
+    except Exception as e:
+        return {"success": False, "error": "Failed to generate PDF: " + str(e)}
+        
+    subject = f"Consumption Review - {prop.name} - {month}"
+    body = f"Hello,\n\nPlease find the consumption review for {prop.name} for the billing month of {month} attached as a PDF.\n\nRegards,\nAIT Platform"
+    
+    try:
+        success = send_pdf_email(email, subject, body, pdf_bytes, filename=f"Consumption_Review_{prop.name}_{month}.pdf")
+        if success:
+            return {"success": True}
+        else:
+            return {"success": False, "error": "Mailer returned false."}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+@billing_bp.route("/billing/checkout/<month>/unlock", methods=["POST"])
+@login_required
+def billing_unlock(month):
+    from app.models.billing import BilStatementPayment, BilProperty
+    
+    # Check if already paid
+    payment = BilStatementPayment.query.filter_by(manager_id=current_user.id, month=month).first()
+    if payment and payment.amount_paid_cents > 0:
+        flash("You have already unlocked statements for this month.", "info")
+        return redirect(url_for('billing_bp.utilities_hub'))
+        
+    cost_cents = session.get("metro_billing_amount_cents", 0)
+    meters_billed = session.get("metro_billing_meters", 0)
+    
+    # Check trial
+    is_trial = True # Hardcoded for testing
+    
+    if not is_trial:
+        main_prop = BilProperty.query.filter_by(manager_id=current_user.id).first()
+        if not main_prop or main_prop.wallet_balance_cents < cost_cents:
+            flash("Insufficient tokens to unlock.", "danger")
+            return redirect(url_for('billing_bp.billing_checkout', month=month))
+        # Deduct
+        main_prop.wallet_balance_cents -= cost_cents
+        db.session.add(main_prop)
+    
+    new_payment = BilStatementPayment(
+        manager_id=current_user.id,
+        month=month,
+        meters_billed=meters_billed,
+        amount_paid_cents=cost_cents if not is_trial else 1 # Just needs to be > 0
+    )
+    db.session.add(new_payment)
+    db.session.commit()
+    
+    flash(f"Successfully unlocked statements for {month}!", "success")
+    return redirect(url_for('billing_bp.utilities_hub'))

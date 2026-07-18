@@ -20,9 +20,19 @@
   <form method="POST" enctype="multipart/form-data">
     {{ form.hidden_tag() }}
 
-    <!-- Upload new video -->
-    <label for="talent_files">Upload Video</label>
-    <input type="file" id="talent_files" name="talent_files" accept="video/*">
+    <!-- Replace video -->
+    <div class="mb-6 p-4 border-2 border-indigo-200 rounded-xl bg-indigo-50/50">
+      <label for="talent_files" class="block text-sm font-medium text-slate-800 mb-2">
+        Replace Video <span class="text-slate-500 font-normal">(Select a new file to change your video)</span>
+      </label>
+      <input type="file" id="talent_files" name="talent_files" accept="video/*" 
+             class="block w-full text-sm text-slate-500
+                    file:mr-4 file:py-2 file:px-4
+                    file:rounded-full file:border-0
+                    file:text-sm file:font-semibold
+                    file:bg-indigo-50 file:text-indigo-700
+                    hover:file:bg-indigo-100">
+    </div>
 
     <!-- Current video from DB -->
     {% if talent.files %}

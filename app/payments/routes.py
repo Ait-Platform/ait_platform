@@ -132,7 +132,7 @@ def pricing_index():
                 INSERT INTO subject_country_price
                     (subject_id, country_code, local_amount_cents, zar_amount_cents, is_active)
                 VALUES
-                    (:sid, :cc, :local, :zar, 1)
+                    (:sid, :cc, :local, :zar, TRUE)
                 ON CONFLICT (subject_id, country_code)
                 DO UPDATE SET
                     local_amount_cents = EXCLUDED.local_amount_cents,
@@ -155,7 +155,7 @@ def pricing_index():
                 country_code,
                 local_amount_cents,
                 zar_amount_cents,
-                COALESCE(is_active, 1) AS is_active
+                COALESCE(is_active, TRUE) AS is_active
             FROM subject_country_price
             WHERE subject_id = :sid
             ORDER BY country_code ASC

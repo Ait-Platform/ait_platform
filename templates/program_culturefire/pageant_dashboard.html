@@ -1,0 +1,95 @@
+{% extends "layout.html" %}
+
+{% block title %}Pageant Dashboard{% endblock %}
+{% block heading %}Pageant Dashboard{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-5xl mt-8 px-4 mb-10">
+  <div class="bg-white rounded-xl shadow overflow-hidden border border-gray-200">
+    <!-- Color Strip Matching Welcome Page -->
+    <div class="h-2 bg-gradient-to-r from-blue-500 to-purple-600 w-full"></div>
+
+    <!-- Row 1: Title Left, Back Button Right -->
+    <div class="flex justify-between items-center px-6 py-4 border-b bg-gray-50">
+      <div>
+        <h1 class="text-2xl font-bold text-gray-800">Pageant Dashboard</h1>
+        <p class="text-sm text-gray-500 mt-1">Show: {{ show.title }}</p>
+      </div>
+      <a href="{{ url_for('cultural_bp.talent_dashboard', enrollment_id=enrollment.id) }}" 
+         class="bg-gray-200 text-gray-700 px-4 py-2 rounded border border-gray-300 hover:bg-gray-300 font-semibold transition">
+         Back to Talent Dashboard
+      </a>
+    </div>
+
+    <!-- Row 2: Secondary Navigation -->
+    <div class="flex items-center justify-end space-x-2 px-4 py-3 border-b bg-gray-50 flex-wrap gap-y-2">
+      <a href="{{ url_for('cultural_bp.showcase_dashboard', origin='talent', enrollment_id=enrollment.id) }}" 
+         class="bg-purple-600 text-white px-3 py-1 rounded hover:bg-purple-700 shadow-sm transition-transform hover:-translate-y-0.5 text-sm">
+         Showcase
+      </a>
+      <a href="{{ url_for('cultural_bp.live_results_list', origin='talent', enrollment_id=enrollment.id) }}" 
+         class="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600 shadow-sm transition-transform hover:-translate-y-0.5 text-sm">
+         Results
+      </a>
+    </div>
+
+    <!-- Flash Messages -->
+    <div class="px-6 py-4">
+      {% include "partials/flash_messages.html" %}
+    </div>
+
+    <!-- Main Content -->
+    <div class="px-6 pb-8">
+      <div class="mb-6">
+        <h2 class="text-xl font-bold text-gray-800">Pageant Segments</h2>
+        <p class="text-gray-600 text-sm mt-1">
+          Select a segment below to upload your performance video. You must complete all required segments for your showcase.
+        </p>
+      </div>
+
+      <div class="grid gap-4">
+        {% for segment in segments %}
+          {% set ns = namespace(completed=false, video_url=None) %}
+          {% for sub in submissions %}
+            {% if sub.segment_type == segment.name %}
+              {% set ns.completed = true %}
+              {% set ns.video_url = sub.video_url %}
+            {% endif %}
+          {% endfor %}
+
+          <div class="flex items-center justify-between p-5 border {% if ns.completed %}border-green-300 bg-green-50{% else %}border-gray-200 bg-white{% endif %} rounded-lg shadow-sm transition hover:shadow-md">
+            <div>
+              <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+                {{ segment.name }}
+                {% if ns.completed %}
+                  <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                {% endif %}
+              </h3>
+              {% if ns.completed %}
+                <p class="text-xs text-green-600 font-semibold mt-1">Status: Uploaded</p>
+              {% else %}
+                <p class="text-xs text-gray-500 mt-1">Status: Pending Video Upload</p>
+              {% endif %}
+            </div>
+
+            <div>
+              {% if ns.completed %}
+                <a href="{{ url_for('cultural_bp.segment_form', enrollment_id=enrollment.id, show_id=show.id, category_id=category.id, segment_id=segment.id) }}" 
+                   class="bg-blue-100 text-blue-700 px-4 py-2 rounded font-semibold hover:bg-blue-200 transition text-sm">
+                   Update Video
+                </a>
+              {% else %}
+                <a href="{{ url_for('cultural_bp.segment_form', enrollment_id=enrollment.id, show_id=show.id, category_id=category.id, segment_id=segment.id) }}" 
+                   class="bg-blue-600 text-white px-4 py-2 rounded font-semibold hover:bg-blue-700 transition shadow-sm text-sm">
+                   Upload Video
+                </a>
+              {% endif %}
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}

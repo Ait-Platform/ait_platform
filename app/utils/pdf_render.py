@@ -13,11 +13,12 @@ def _find_wkhtml() -> str | None:
             return p
     return None
 
-def html_to_pdf_bytes(html: str, base_url: str | None = None) -> bytes:
+def html_to_pdf_bytes(html: str, base_url: str | None = None, orientation: str = "Portrait") -> bytes:
     # Try WeasyPrint on non-Windows; your error is Windows-specific.
     if sys.platform != "win32":
         try:
             from weasyprint import HTML  # lazy import
+            # Weasyprint orientation is set in CSS usually, but ignore for now
             return HTML(string=html, base_url=base_url).write_pdf()
         except Exception:
             pass
@@ -31,8 +32,10 @@ def html_to_pdf_bytes(html: str, base_url: str | None = None) -> bytes:
         "enable-local-file-access": None,  # allow CSS/assets
         "print-media-type": None,
         "quiet": None,
-        # "page-size": "A4",
-        # "margin-top": "12mm", "margin-right": "12mm",
-        # "margin-bottom": "12mm", "margin-left": "12mm",
+        "orientation": orientation,
+        "margin-top": "10mm",
+        "margin-right": "10mm",
+        "margin-bottom": "10mm",
+        "margin-left": "10mm",
     }
     return pdfkit.from_string(html, False, configuration=cfg, options=options)

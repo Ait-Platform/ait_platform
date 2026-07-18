@@ -1,0 +1,96 @@
+{% extends "layout.html" %}
+{% block title %}Meter Exceptions - {{ property.name }}{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 lg:px-8 font-sans">
+  <div class="max-w-6xl mx-auto space-y-8">
+    
+    <div class="bg-white rounded-xl shadow overflow-hidden border border-slate-200">
+      {% include "partials/flash_messages.html" %}
+      <div class="h-2 bg-red-500"></div>
+      
+      <div class="p-8">
+        <div class="flex items-center justify-between mb-8 pb-6 border-b border-slate-200">
+          <div>
+            <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">Meter Exceptions</h1>
+            <p class="text-slate-500 mt-2">Historical log of replaced, stolen, or otherwise non-active meters for <strong>{{ property.name }}</strong>.</p>
+          </div>
+          <a href="{{ url_for('billing_bp.utilities_hub') }}" class="inline-flex items-center px-4 py-2 bg-slate-100 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-200 transition">
+            <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+            Back to Utilities Hub
+          </a>
+        </div>
+
+        {% if exception_meters %}
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-slate-200">
+            <thead class="bg-slate-50">
+              <tr>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Exception Meter</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Utility Type</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Status</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Date Logged</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Replaced By</th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-slate-200">
+              {% for meter in exception_meters %}
+              {% set rep = replacement_map.get(meter.id) %}
+              <tr class="hover:bg-slate-50 transition">
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <div class="text-sm font-bold text-slate-900">{{ meter.meter_number }}</div>
+                  <div class="text-xs text-slate-500">ID: {{ meter.id }}</div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-slate-100 text-slate-800">
+                    {{ meter.utility_type }}
+                  </span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  {% if meter.status|lower == 'stolen' %}
+                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800 capitalize">
+                      {{ meter.status }}
+                    </span>
+                  {% else %}
+                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800 capitalize">
+                      {{ meter.status }}
+                    </span>
+                  {% endif %}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                  {% if meter.date_stolen %}
+                    {{ meter.date_stolen.strftime('%Y-%m-%d') }}
+                  {% else %}
+                    -
+                  {% endif %}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-900">
+                  {% if rep %}
+                    <span class="font-bold text-green-700">{{ rep.meter_number }}</span>
+                    {% if meter.date_replaced %}
+                      <div class="text-xs text-slate-500">on {{ meter.date_replaced.strftime('%Y-%m-%d') }}</div>
+                    {% endif %}
+                  {% else %}
+                    <span class="text-slate-400 italic">No replacement linked</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="text-center py-16 bg-slate-50 rounded-lg border-2 border-dashed border-slate-300">
+          <svg class="mx-auto h-12 w-12 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <h3 class="mt-2 text-sm font-bold text-slate-900">No Meter Exceptions</h3>
+          <p class="mt-1 text-sm text-slate-500">There are currently no stolen or replaced meters recorded for this property.</p>
+        </div>
+        {% endif %}
+
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

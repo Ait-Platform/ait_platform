@@ -1,0 +1,62 @@
+{% extends "layout.html" %}
+{% block title %}Edit Tenant Configuration{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 lg:px-8 font-sans">
+  <div class="max-w-2xl mx-auto space-y-8">
+    
+    {% include "partials/flash_messages.html" %}
+
+    <div class="bg-white rounded-xl shadow overflow-hidden border border-slate-200">
+      <div class="h-2 bg-purple-500"></div>
+      
+      <div class="p-8">
+        <div class="flex items-center justify-between mb-8 pb-6 border-b border-slate-200">
+          <div>
+            <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">Edit Tenant</h1>
+            <p class="text-slate-500 mt-2">Configure SOA details for <strong>{{ tenant.name }}</strong></p>
+          </div>
+          <a href="{{ url_for('billing_bp.soa_dashboard') }}" class="inline-flex items-center px-4 py-2 bg-slate-100 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-200 transition">
+            <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+            Back
+          </a>
+        </div>
+
+        <form method="POST" action="{{ url_for('billing_bp.edit_tenant_soa', tenant_id=tenant.id) }}" class="space-y-6">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+          
+          <div>
+            <label for="address" class="block text-sm font-bold text-slate-700 mb-2">Forwarding Address</label>
+            <textarea name="address" id="address" rows="3" class="block w-full pl-3 pr-3 py-2 text-base border-2 border-slate-300 focus:outline-none focus:ring-purple-500 focus:border-purple-500 sm:text-sm rounded-lg shadow-sm">{{ tenant.address or '' }}</textarea>
+            <p class="mt-1 text-xs text-slate-400">Used for correspondence or arrear statements.</p>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label for="date_started" class="block text-sm font-bold text-slate-700 mb-2">Date Started</label>
+              <input type="date" name="date_started" id="date_started" value="{{ tenant.date_started.strftime('%Y-%m-%d') if tenant.date_started else '' }}" class="block w-full pl-3 pr-3 py-2 text-base border-2 border-slate-300 focus:outline-none focus:ring-purple-500 focus:border-purple-500 sm:text-sm rounded-lg shadow-sm">
+            </div>
+
+            <div>
+              <label for="date_terminated" class="block text-sm font-bold text-slate-700 mb-2">Date Terminated</label>
+              <input type="date" name="date_terminated" id="date_terminated" value="{{ tenant.date_terminated.strftime('%Y-%m-%d') if tenant.date_terminated else '' }}" class="block w-full pl-3 pr-3 py-2 text-base border-2 border-slate-300 focus:outline-none focus:ring-purple-500 focus:border-purple-500 sm:text-sm rounded-lg shadow-sm">
+            </div>
+          </div>
+
+          <div class="flex items-center space-x-3 pt-4 border-t border-slate-200">
+            <input type="checkbox" name="is_active" id="is_active" {% if tenant.is_active %}checked{% endif %} class="h-5 w-5 text-purple-600 focus:ring-purple-500 border-slate-300 rounded">
+            <label for="is_active" class="block text-sm font-bold text-slate-700">Tenant is Active</label>
+          </div>
+
+          <div class="pt-6">
+            <button type="submit" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-bold text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition">
+              Save Configuration
+            </button>
+          </div>
+        </form>
+
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

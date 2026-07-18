@@ -51,10 +51,6 @@
             <h2 class="text-2xl font-bold text-slate-800">Linked Wards & Children</h2>
             <p class="text-slate-500">As a parent or legal guardian, you must grant explicit consent for your minor wards to participate.</p>
           </div>
-          <a href="{{ url_for('cultural_bp.parent_add_participant') }}" class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center">
-            <svg class="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-            Link Child Profile
-          </a>
         </div>
 
         {% if children %}
@@ -165,7 +161,8 @@
                       <input type="hidden" name="item_id" value="{{ child.talents[0].id if child.talents else child.user.id }}">
                       <input type="hidden" name="item_type" value="talent">
                       
-                      {% if child.permission_granted %}
+                      {% set has_permission = child.talents and child.talents[0].permission_granted %}
+                      {% if has_permission %}
                         <input type="hidden" name="action" value="revoke">
                         <button type="submit" class="px-5 py-2.5 bg-white border-2 border-red-200 text-red-600 font-bold rounded-xl hover:bg-red-50 hover:border-red-300 transition-colors shadow-sm focus:ring-2 focus:ring-red-500 outline-none">Revoke Consent</button>
                       {% else %}

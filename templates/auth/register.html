@@ -13,9 +13,9 @@
   {% set display_subject = (subject or display_subject or 'loss') %}
   {% set display_role    = (role or display_role or 'learner') %}
 
-  <main class="flex items-center justify-center min-h-screen px-4">
+  <main class="flex flex-col items-center justify-center min-h-screen px-4 py-8">
     <section class="w-full max-w-md bg-white rounded-2xl shadow-sm ring-1 ring-slate-200 p-6">
-      <h1 class="text-2xl font-semibold tracking-tight">Create your account</h1>
+      <h1 class="text-2xl font-semibold tracking-tight">Register</h1>
       <p class="mt-1 text-slate-600 text-sm mb-4">
         {{ display_subject|capitalize }} • {{ display_role|capitalize }}
       </p>
@@ -79,7 +79,7 @@
 
         <button type="submit"
           class="w-full inline-flex items-center justify-center rounded-xl bg-sky-600 text-white px-4 py-2.5 text-sm font-medium shadow-sm hover:bg-sky-700">
-          Continue
+          Register
         </button>
       </form>
       

@@ -30,6 +30,7 @@ class BilProperty(db.Model):
     metro_arrangement_amount = db.Column(db.Float, default=0.0)
     metro_arrangement_duration = db.Column(db.Integer, default=0)
     metro_rates_amount = db.Column(db.Float, default=0.0)
+    metro_valuation = db.Column(db.Float, default=0.0)
 
     # 👤 Link to the manager who owns this property
     manager_id = db.Column(
@@ -37,6 +38,10 @@ class BilProperty(db.Model):
         db.ForeignKey('user.id'),
         nullable=True
     )
+
+    wallet_balance_cents = db.Column(db.Integer, default=0, nullable=False)
+    trial_ends_at = db.Column(db.DateTime, nullable=True)
+    shadow_spent_cents = db.Column(db.Integer, default=0, nullable=False)
 
     # Link to the user enrollment record
     enrollment_id = db.Column(
@@ -48,10 +53,19 @@ class BilProperty(db.Model):
     # Onboarding Status & Progress
     onboarding_status = db.Column(db.String(50), default='completed') # e.g. draft_extracting, draft_collating, draft_readings, completed
     expected_bills = db.Column(db.Integer, default=1)
+    expected_water_meters = db.Column(db.Integer, default=0)
+    expected_elec_meters = db.Column(db.Integer, default=0)
     expected_tenants = db.Column(db.Integer, default=1)
     is_bulk_metered = db.Column(db.Integer, default=0)
+    is_bulk_water = db.Column(db.Boolean, default=False)
+    is_bulk_elec = db.Column(db.Boolean, default=False)
     expected_sub_meters = db.Column(db.Integer, default=0)
-
+    expected_owners = db.Column(db.Integer, default=1)
+    expected_addresses = db.Column(db.Integer, default=1)
+    
+    # Archiving
+    is_archived = db.Column(db.Boolean, default=False)
+    
     sectional_units = db.relationship('BilSectionalUnit', backref='property', lazy=True)
     manager = db.relationship('User', backref='managed_properties')
 
@@ -63,11 +77,15 @@ class BilMeter(db.Model):
     meter_number = db.Column(db.String(50), nullable=False)
     utility_type = db.Column(db.String(50), nullable=False)  # ✅ Add this line
     parent_meter_id = db.Column(db.Integer, db.ForeignKey('bil_meter.id'), nullable=True)
+    replacement_for_meter_id = db.Column(db.Integer, db.ForeignKey('bil_meter.id'), nullable=True)
     pointing_to = db.Column(db.String(100), nullable=True)
     municipal_bill_number = db.Column(db.String(100), nullable=True)
+    status = db.Column(db.String(50), default="active")
+    date_stolen = db.Column(db.Date, nullable=True)
+    date_replaced = db.Column(db.Date, nullable=True)
 
     # BilMeter
-    sectional_unit_id = db.Column(db.Integer, db.ForeignKey('bil_sectional_unit.id'), nullable=False)
+    sectional_unit_id = db.Column(db.Integer, db.ForeignKey('bil_sectional_unit.id'), nullable=True)
     sectional_unit = db.relationship("BilSectionalUnit", back_populates="meters")
 
 
@@ -253,6 +271,11 @@ class BilTenant(db.Model):
     bank_detail_id = db.Column(db.Integer, db.ForeignKey('bil_bank_detail.id'), nullable=True)
     bank_detail = db.relationship("BilBankDetail")
 
+    address              = db.Column(db.String(500))
+    date_started         = db.Column(db.Date)
+    date_terminated      = db.Column(db.Date, nullable=True)
+    is_active            = db.Column(db.Boolean, default=True, nullable=False)
+
     notes                = db.Column(db.Text)
 
     leases = db.relationship(
@@ -380,15 +403,52 @@ class RefMuniOwner(db.Model):
 class BilMuniAccount(db.Model):
     __tablename__ = "bil_muni_account"
     id = db.Column(db.Integer, primary_key=True)
-    account_number = db.Column(db.String(50), nullable=False, unique=True)
-    owner_id = db.Column(db.Integer, db.ForeignKey('ref_muni_owner.id', ondelete='RESTRICT'), nullable=False)
+    property_id = db.Column(db.Integer, db.ForeignKey('bil_property.id', ondelete='CASCADE'), nullable=True) # Added for wizard workflow
+    account_number = db.Column(db.String(50), nullable=True)
+    is_bulk_account = db.Column(db.Boolean, default=False) # Changed to True since it can be partially saved
+    owner_id = db.Column(db.Integer, db.ForeignKey('ref_muni_owner.id', ondelete='RESTRICT'), nullable=True) # Changed to True
     muni_email = db.Column(db.String(255))
+    owner_address = db.Column(db.String(500))
     water_meter_id = db.Column(db.Integer, db.ForeignKey('bil_meter.id', ondelete='SET NULL'))
     elec_meter_id = db.Column(db.Integer, db.ForeignKey('bil_meter.id', ondelete='SET NULL'))
+    
+    water_meter = db.relationship('BilMeter', foreign_keys=[water_meter_id])
+    elec_meter = db.relationship('BilMeter', foreign_keys=[elec_meter_id])
+    owner = db.relationship('RefMuniOwner', foreign_keys=[owner_id])
     muni_water_meter_no = db.Column(db.String(50))
     muni_water_ref = db.Column(db.String(50))
     muni_elec_meter_no = db.Column(db.String(50))
     muni_elec_ref = db.Column(db.String(50))
+    
+    # Financials / Rates / Arrears for this specific account
+    rates_reference = db.Column(db.String(100))
+    rates_erf_details = db.Column(db.String(255))
+    rates_property_category = db.Column(db.String(100))
+    rates_market_value = db.Column(db.Float, default=0.0)
+    rates_rateable_value = db.Column(db.Float, default=0.0)
+    rates_general_randage = db.Column(db.Float, default=0.0)
+    rates_sra_randage = db.Column(db.Float, default=0.0)
+    rates_deferred = db.Column(db.Float, default=0.0)
+    rates_sra_monthly = db.Column(db.Float, default=0.0)
+    rates_general_monthly = db.Column(db.Float, default=0.0)
+
+    valuation = db.Column(db.Float, default=0.0)
+    arrears_amount = db.Column(db.Float, default=0.0)
+    arrears_date = db.Column(db.Date)
+    arrears_charge_to = db.Column(db.String(20), default='owner') # 'owner' or 'tenant'
+    rates_amount = db.Column(db.Float, default=0.0)
+    rates_date = db.Column(db.Date)
+    rates_charge_to = db.Column(db.String(20), default='owner') # 'owner' or 'tenant'
+    
+    # Credit Authority Arrangement Fields
+    arrangement_date = db.Column(db.Date)
+    arrangement_charge_to = db.Column(db.String(20), default='owner') # 'owner' or 'tenant'
+    ca_contract_number = db.Column(db.String(100))
+    ca_agreement_amount = db.Column(db.Float, default=0.0)
+    ca_installments_raised = db.Column(db.Float, default=0.0)
+    ca_installment_amount = db.Column(db.Float, default=0.0)
+    ca_amount_owing = db.Column(db.Float, default=0.0)
+    ca_remaining_periods = db.Column(db.Integer, default=0)
 
 class BilMuniCycleTotals(db.Model):
     __tablename__ = "bil_muni_cycle_totals"
@@ -473,3 +533,10 @@ class BilExtractionLog(db.Model):
     amount_due = db.Column(db.Float, default=0.0)
     raw_json = db.Column(db.JSON, nullable=True)
     created_at = db.Column(db.DateTime, default=func.now())
+
+class BilArchitectureDraft(db.Model):
+    __tablename__ = 'bil_architecture_draft'
+    id = db.Column(db.Integer, primary_key=True)
+    property_id = db.Column(db.Integer, db.ForeignKey('bil_property.id', ondelete='CASCADE'), nullable=False, unique=True)
+    draft_json = db.Column(db.JSON, nullable=True)
+    updated_at = db.Column(db.DateTime, default=func.now(), onupdate=func.now())

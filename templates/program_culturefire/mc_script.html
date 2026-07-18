@@ -1,0 +1,182 @@
+{% extends "layout.html" %}
+{% block flashes %}{% endblock %}
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-8">
+  <div class="bg-white shadow-xl rounded-xl overflow-hidden border border-gray-100 mb-8">
+    <div class="h-3 bg-gradient-to-r from-purple-600 to-indigo-600"></div>
+    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between px-6 py-6 border-b border-gray-100">
+      <div>
+        <h1 class="text-3xl font-extrabold text-gray-900 tracking-tight">Master of Ceremony Script</h1>
+        <p class="text-indigo-600 font-bold mt-1">{{ show.title }}</p>
+      </div>
+      <div class="flex gap-3 mt-4 sm:mt-0">
+        <a href="{{ url_for('cultural_bp.mc_dashboard') }}" class="bg-gray-100 text-gray-700 px-5 py-2.5 rounded-lg font-semibold hover:bg-gray-200 transition-colors shadow-sm">
+          ← Back to Dashboard
+        </a>
+      </div>
+    </div>
+
+    <!-- Flash Messages -->
+    <div class="px-6 py-2">
+      {% include "partials/flash_messages.html" %}
+    </div>
+
+    <div class="px-6 py-4 bg-purple-50 text-purple-800 rounded-lg mx-6 mb-6">
+      <p class="font-medium flex items-center">
+        <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        Upload your videos using your phone's camera below. The show's player will automatically insert your clips in sequence!
+      </p>
+    </div>
+
+    <div class="px-6 py-6 border-t border-gray-100">
+      <h2 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2">Part 1: Show Intro</h2>
+      {% set show_intro = recordings | selectattr('recording_type', 'equalto', 'show_intro') | first %}
+      <div class="bg-slate-50 p-5 rounded-lg border border-gray-200 mb-8 flex justify-between items-center flex-wrap gap-4">
+        <div>
+          <h3 class="font-semibold text-gray-900">Welcome & Self-Introduction</h3>
+          <p class="text-sm text-gray-500">Welcome the audience, introduce yourself, and hype up the show.</p>
+          {% if show_intro %}
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 mt-2">
+              <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
+              Video Uploaded
+            </span>
+          {% else %}
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 mt-2">Missing Video</span>
+          {% endif %}
+        </div>
+        <div>
+          <form class="mc-upload-form" enctype="multipart/form-data">
+            <input type="hidden" name="recording_type" value="show_intro">
+            <input type="hidden" name="type" value="{% if show.category_item and show.category_item.name == 'Pageant' %}pageant{% else %}talent{% endif %}">
+            <div class="flex items-center gap-2">
+              <input type="file" name="file" accept="video/*,audio/*" capture="environment" required class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100">
+              <button type="submit" class="bg-purple-600 text-white px-4 py-2 rounded-full font-bold hover:bg-purple-700 transition shadow-sm text-sm whitespace-nowrap">Upload</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <h2 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2">Part 2: Act Intros</h2>
+      <div class="space-y-6 mb-8">
+        {% for sub in submissions %}
+          {% if show.category_item and show.category_item.name == "Pageant" %}
+            {% set act_intro = recordings | selectattr('segment_item_id', 'equalto', sub.id) | first %}
+          {% else %}
+            {% set act_intro = recordings | selectattr('submission_id', 'equalto', sub.id) | first %}
+          {% endif %}
+          <div class="bg-white p-5 rounded-lg border border-gray-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+              <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Act {{ loop.index }}</span>
+              {% if show.category_item and show.category_item.name == "Pageant" %}
+                <h3 class="font-bold text-gray-900 text-lg">{{ sub.title or "Untitled" }} <span class="text-indigo-600 text-sm">({{ sub.segment_type.replace('_', ' ').title() }})</span></h3>
+                <p class="text-sm text-gray-600">Participant: {{ sub.enrollment.biodata.full_name if sub.enrollment and sub.enrollment.biodata else (sub.enrollment.user.name if sub.enrollment and sub.enrollment.user else 'Unknown') }}</p>
+                {% if sub.id in assigned_questions and assigned_questions[sub.id] and ('q' in sub.segment_type.lower() or 'answer' in sub.segment_type.lower()) %}
+                  <div class="mt-3 bg-blue-50 p-3 rounded-lg border border-blue-100">
+                    <span class="text-xs font-bold text-blue-800 uppercase tracking-wider block mb-1">Assigned Q&A Question</span>
+                    <p class="text-blue-900 font-medium italic">"{{ assigned_questions[sub.id] }}"</p>
+                  </div>
+                {% endif %}
+              {% else %}
+                <h3 class="font-bold text-gray-900 text-lg">{{ sub.talent_name or sub.custom_talent or "Untitled Act" }}</h3>
+                <p class="text-sm text-gray-600">Participant: {{ sub.user_enrollment.biodata.full_name if sub.user_enrollment and sub.user_enrollment.biodata else (sub.user_enrollment.user.name if sub.user_enrollment and sub.user_enrollment.user else 'Unknown') }}</p>
+              {% endif %}
+              
+              {% if act_intro %}
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 mt-2">
+                  <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
+                  Video Uploaded
+                </span>
+              {% else %}
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 mt-2">Missing Video</span>
+              {% endif %}
+            </div>
+            
+            <div class="w-full md:w-auto">
+              <form class="mc-upload-form" enctype="multipart/form-data">
+                <input type="hidden" name="recording_type" value="act_intro">
+                <input type="hidden" name="submission_id" value="{{ sub.id }}">
+                <input type="hidden" name="type" value="{% if show.category_item and show.category_item.name == 'Pageant' %}pageant{% else %}talent{% endif %}">
+                <div class="flex flex-col sm:flex-row items-center gap-2">
+                  <input type="file" name="file" accept="video/*,audio/*" capture="environment" required class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+                  <button type="submit" class="w-full sm:w-auto bg-indigo-600 text-white px-4 py-2 rounded-full font-bold hover:bg-indigo-700 transition shadow-sm text-sm">Upload</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+
+      <h2 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2">Part 3: Show Outro</h2>
+      {% set show_outro = recordings | selectattr('recording_type', 'equalto', 'show_outro') | first %}
+      <div class="bg-slate-50 p-5 rounded-lg border border-gray-200 mb-4 flex justify-between items-center flex-wrap gap-4">
+        <div>
+          <h3 class="font-semibold text-gray-900">Farewell & Outro</h3>
+          <p class="text-sm text-gray-500">Thank the audience, wrap up the show.</p>
+          {% if show_outro %}
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 mt-2">
+              <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
+              Video Uploaded
+            </span>
+          {% else %}
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 mt-2">Missing Video</span>
+          {% endif %}
+        </div>
+        <div>
+          <form class="mc-upload-form" enctype="multipart/form-data">
+            <input type="hidden" name="recording_type" value="show_outro">
+            <input type="hidden" name="type" value="{% if show.category_item and show.category_item.name == 'Pageant' %}pageant{% else %}talent{% endif %}">
+            <div class="flex items-center gap-2">
+              <input type="file" name="file" accept="video/*,audio/*" capture="environment" required class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-gray-200 file:text-gray-700 hover:file:bg-gray-300">
+              <button type="submit" class="bg-gray-800 text-white px-4 py-2 rounded-full font-bold hover:bg-gray-900 transition shadow-sm text-sm whitespace-nowrap">Upload</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const forms = document.querySelectorAll(".mc-upload-form");
+  forms.forEach(form => {
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const btn = form.querySelector('button[type="submit"]');
+      const originalText = btn.innerText;
+      btn.innerText = "Uploading...";
+      btn.disabled = true;
+      
+      const formData = new FormData(form);
+      formData.append("csrf_token", "{{ csrf_token() }}");
+
+      try {
+        const resp = await fetch("{{ url_for('cultural_bp.upload_mc_recording', show_id=show.id) }}", {
+          method: "POST",
+          body: formData
+        });
+        const result = await resp.json();
+        if(result.success) {
+          const currentUploads = {{ recordings|length }};
+          const requiredUploads = {{ submissions|length + 2 }};
+          if (currentUploads + 1 >= requiredUploads) {
+            window.location.href = "{{ url_for('cultural_bp.mc_dashboard') }}";
+          } else {
+            window.location.reload();
+          }
+        } else {
+          alert("Error: " + result.message);
+          btn.innerText = originalText;
+          btn.disabled = false;
+        }
+      } catch (err) {
+        console.error(err);
+        alert("Upload failed.");
+        btn.innerText = originalText;
+        btn.disabled = false;
+      }
+    });
+  });
+});
+</script>
+{% endblock %}

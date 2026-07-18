@@ -1,0 +1,10 @@
+1076:         try:
+1077:             db.session.add(new_property)
+1078:             db.session.commit()
+1079:             flash("✅ Property onboarded successfully!", "success")
+1080:             return redirect(url_for("define_units", property_id=new_property.id))
+1081:         except Exception as e:
+1082:         db.session.rollback()
+1083:             print(f"💥 Property creation failed: {e}")
+1084:             flash("There was an error onboarding the property.", "danger")
+1085: 

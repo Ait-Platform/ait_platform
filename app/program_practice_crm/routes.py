@@ -1,5 +1,7 @@
-from flask import render_template, request, redirect, url_for, flash, abort
+
+from flask import render_template, request, redirect, url_for, flash, abort, session
 from flask_login import current_user, login_required
+from sqlalchemy import text
 from app.extensions import db
 from datetime import datetime, timedelta
 from app.models.auth import User
@@ -19,6 +21,72 @@ def log_audit(enquiry_id, user_id, action):
 def about():
     """Welcome / Sales page for Medical Practice Customer Relation Management"""
     return render_template("program_practice_crm/about.html")
+
+@practice_crm_bp.route("/price")
+def price_page():
+    from app.models.auth import AuthSubject
+    from app.enrollment.logic import get_quote_for_subject_country
+    
+    subject = AuthSubject.query.filter(db.func.lower(AuthSubject.slug) == 'practice_crm').first()
+    if not subject:
+        flash("Subject not found.", "warning")
+        return redirect(url_for('public_bp.welcome'))
+
+    country_code = (request.args.get("country") or "").strip().upper()
+    if not country_code and current_user.is_authenticated:
+        ent = db.session.execute(text("""
+            SELECT ue.country_code 
+              FROM user_enrollment ue
+              JOIN auth_subject s ON s.id = ue.subject_id
+             WHERE ue.user_id = :uid AND s.slug = 'practice_crm'
+        """), {"uid": current_user.id}).mappings().first()
+        if ent and ent["country_code"]:
+            country_code = ent["country_code"]
+
+    if not country_code:
+        country_code = session.get("country_code", "")
+
+    if country_code:
+        session["country_code"] = country_code
+
+    price_ctx = {
+        "has_quote": False,
+        "price_id": None,
+        "country_code": None,
+        "local_amount": None,
+        "local_currency": None,
+        "estimated_zar": None,
+        "fx_rate": None,
+        "is_discount": False,
+    }
+
+    if country_code:
+        row = get_quote_for_subject_country(subject.id, country_code)
+        if row:
+            price_ctx.update({
+                "price_id": row.id,
+                "country_code": row.country_code,
+                "local_amount": row.local_amount_cents,
+                "local_currency": row.local_currency,
+                "estimated_zar": row.zar_amount_cents,
+                "fx_rate": getattr(row, "fx_rate", None),
+                "is_discount": getattr(row, "is_discount", False),
+            })
+            price_ctx["has_quote"] = True
+        else:
+            flash("No pricing found for that country yet.", "warning")
+
+    countries = db.session.execute(
+        text("""
+            SELECT r.alpha2 AS code, r.name
+              FROM ref_country_currency r
+        """)
+    ).mappings().all()
+
+    val = db.session.execute(text("SELECT value FROM system_settings WHERE key = 'practice_enquiry_cents'")).scalar()
+    enquiry_cents = int(float(val)) if val else 500
+
+    return render_template("program_practice_crm/price.html", price=price_ctx, subject=subject, countries=countries, enquiry_cents=enquiry_cents)
 
 @practice_crm_bp.route("/migrate_db")
 def migrate_db():
@@ -287,6 +355,25 @@ def search_patients():
 @login_required
 def new_enquiry():
     practice_id = request.form.get('practice_id')
+    
+    # Billing logic
+    practice = CrmPractice.query.get(practice_id)
+    if not practice:
+        flash("Practice not found.", "error")
+        return redirect(url_for('practice_crm_bp.pipeline'))
+        
+    from sqlalchemy import text
+    setting = db.session.execute(text("SELECT value FROM system_settings WHERE key = 'practice_enquiry_cents'")).fetchone()
+    enquiry_cost = int(setting[0]) if setting else 500
+    
+    if practice.trial_ends_at and datetime.utcnow() < practice.trial_ends_at:
+        practice.shadow_spent_cents += enquiry_cost
+    else:
+        if practice.wallet_balance_cents < enquiry_cost:
+            flash("Insufficient tokens. Please top up or pay your registration fee.", "warning")
+            return redirect(url_for('practice_crm_bp.mock_bill'))
+        practice.wallet_balance_cents -= enquiry_cost
+
     patient_name = request.form.get('patient_name')
     patient_id_no = request.form.get('patient_id_no')
     phone = request.form.get('phone')
@@ -396,3 +483,24 @@ def enquiry_audit(id):
         .filter(CrmAuditLog.enquiry_id == id)\
         .order_by(CrmAuditLog.timestamp.asc()).all()
     return render_template("program_practice_crm/audit.html", enquiry=enquiry, audits=audits)
+
+@practice_crm_bp.route('/mock_bill')
+@login_required
+def mock_bill():
+    practice = CrmPractice.query.filter_by(owner_id=current_user.id).first()
+    if not practice:
+        return redirect(url_for('public_bp.welcome'))
+    return render_template('program_practice_crm/mock_bill.html', practice=practice)
+    
+@practice_crm_bp.route('/topup')
+@login_required
+def topup():
+    practice = CrmPractice.query.filter_by(owner_id=current_user.id).first()
+    if not practice:
+        return redirect(url_for('public_bp.welcome'))
+    # Dummy topup for now, similar to mechanic
+    practice.wallet_balance_cents += 50000  # R500
+    db.session.commit()
+    flash('Successfully topped up wallet with R500', 'success')
+    return redirect(url_for('practice_crm_bp.pipeline'))
+

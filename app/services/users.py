@@ -45,6 +45,6 @@ def _ensure_or_create_user_from_session(ctx: dict) -> int:
         {"e": email},
     ).scalar())
 
-    db.session.flush()
+    db.session.commit()
 
     return new_id

@@ -11,13 +11,19 @@
     <div class="p-8 space-y-8">
       
       <!-- Row 2: Titles & Investor Name -->
-      <div class="border-b border-slate-100 pb-6">
-        <h2 class="text-3xl font-bold text-slate-900 tracking-tight">Investor Dashboard</h2>
-        <p class="text-lg text-slate-500 mt-2">
-          Investor Profile: <span class="font-bold text-slate-800">{{ current_user.name or current_user.email.split('@')[0] | title }}</span>
-          <span class="mx-3 text-slate-300">|</span>
-          Public Ledger Name: <span class="font-bold text-emerald-600">{{ user_pseudonym }}</span>
-        </p>
+      <div class="flex items-start justify-between border-b border-slate-100 pb-6">
+        <div>
+          <h2 class="text-3xl font-bold text-slate-900 tracking-tight">Investor Dashboard</h2>
+          <p class="text-lg text-slate-500 mt-2">
+            Investor Profile: <span class="font-bold text-slate-800">{{ current_user.name or current_user.email.split('@')[0] | title }}</span>
+            <span class="mx-3 text-slate-300">|</span>
+            Public Ledger Name: <span class="font-bold text-emerald-600">{{ user_pseudonym }}</span>
+          </p>
+        </div>
+        <a href="{{ url_for('auth_bp.bridge_dashboard') }}"
+           class="inline-flex items-center gap-2 rounded border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition shrink-0">
+          <span>←</span><span>Back to Bridge</span>
+        </a>
       </div>
 
       <!-- Row 3: Account Actions -->

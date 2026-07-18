@@ -1,0 +1,86 @@
+{% extends "layout.html" %}
+{% block title %}Mechanic CRM - Top Up Wallet{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto px-4 py-8">
+
+  <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+    <!-- Color strip on top -->
+    <div class="h-2 bg-indigo-600"></div>
+
+    <div class="p-6 md:p-8 space-y-6">
+      <!-- First Row: Title & Back Button -->
+      <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+        <h1 class="text-2xl md:text-3xl font-bold text-slate-900">Top Up Wallet</h1>
+        <a href="{{ url_for('mechanic_bp.mechanic_dashboard') }}"
+           class="inline-flex items-center gap-2 rounded border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition">
+          <span>←</span><span>Back to Dashboard</span>
+        </a>
+      </div>
+
+      <!-- Current Balance -->
+      <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-6 text-center">
+        <p class="text-sm font-bold text-indigo-600 uppercase tracking-wider mb-1">Current Balance</p>
+        <p class="text-4xl font-extrabold text-slate-900">R {{ "%.2f"|format(active_shop.wallet_balance_cents / 100) }}</p>
+      </div>
+
+      <!-- Top Up Options -->
+      <div>
+        <h3 class="text-lg font-bold text-slate-900 mb-4">Select a Top-Up Bundle</h3>
+        <p class="text-slate-600 text-sm mb-6">Choose how much credit you want to add to your wallet. Credits are deducted automatically when generating quotes (R5) and invoices (R10).</p>
+
+        <form method="POST" action="{{ url_for('mechanic_bp.process_topup') }}" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          
+          <!-- R50 Bundle -->
+          <label class="relative border-2 border-slate-200 rounded-xl p-4 cursor-pointer hover:border-indigo-400 transition group flex flex-col items-center text-center">
+            <input type="radio" name="amount_cents" value="5000" class="peer sr-only" required>
+            <div class="absolute inset-0 rounded-xl border-2 border-transparent peer-checked:border-indigo-600 peer-checked:bg-indigo-50/50 pointer-events-none transition"></div>
+            <div class="relative z-10">
+              <span class="block text-2xl font-bold text-slate-900 group-hover:text-indigo-600 transition mb-1">R 50</span>
+              <span class="block text-xs text-slate-500">10 Quotes or 5 Invoices</span>
+            </div>
+            <div class="absolute top-3 right-3 text-indigo-600 opacity-0 peer-checked:opacity-100 transition">
+              <i class="fas fa-check-circle"></i>
+            </div>
+          </label>
+
+          <!-- R100 Bundle -->
+          <label class="relative border-2 border-slate-200 rounded-xl p-4 cursor-pointer hover:border-indigo-400 transition group flex flex-col items-center text-center">
+            <input type="radio" name="amount_cents" value="10000" class="peer sr-only" required checked>
+            <div class="absolute inset-0 rounded-xl border-2 border-transparent peer-checked:border-indigo-600 peer-checked:bg-indigo-50/50 pointer-events-none transition"></div>
+            <div class="relative z-10">
+              <span class="block text-2xl font-bold text-slate-900 group-hover:text-indigo-600 transition mb-1">R 100</span>
+              <span class="block text-xs text-slate-500">20 Quotes or 10 Invoices</span>
+            </div>
+            <div class="absolute top-3 right-3 text-indigo-600 opacity-0 peer-checked:opacity-100 transition">
+              <i class="fas fa-check-circle"></i>
+            </div>
+          </label>
+
+          <!-- R200 Bundle -->
+          <label class="relative border-2 border-slate-200 rounded-xl p-4 cursor-pointer hover:border-indigo-400 transition group flex flex-col items-center text-center">
+            <input type="radio" name="amount_cents" value="20000" class="peer sr-only" required>
+            <div class="absolute inset-0 rounded-xl border-2 border-transparent peer-checked:border-indigo-600 peer-checked:bg-indigo-50/50 pointer-events-none transition"></div>
+            <div class="relative z-10">
+              <span class="block text-2xl font-bold text-slate-900 group-hover:text-indigo-600 transition mb-1">R 200</span>
+              <span class="block text-xs text-slate-500">40 Quotes or 20 Invoices</span>
+            </div>
+            <div class="absolute top-3 right-3 text-indigo-600 opacity-0 peer-checked:opacity-100 transition">
+              <i class="fas fa-check-circle"></i>
+            </div>
+          </label>
+
+          <div class="col-span-full mt-6">
+            <button type="submit" class="w-full bg-indigo-600 text-white font-bold text-lg py-3 rounded-xl shadow-sm hover:bg-indigo-700 transition flex items-center justify-center gap-2">
+              <i class="fas fa-lock text-sm opacity-80"></i> Proceed to Secure Payment
+            </button>
+          </div>
+        </form>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+{% endblock %}

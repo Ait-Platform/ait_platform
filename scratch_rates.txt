@@ -1,0 +1,392 @@
+  function buildRatesDashboard() {
+    const container = document.getElementById('rates-container');
+    container.innerHTML = '';
+    wizardData.accounts.forEach(acc => {
+      if(!acc.number) return;
+      const savedRate = (wizardData.rates && wizardData.rates.find(x => x.account_id === acc.id)) || { amount: 0, charge_to: 'owner' };
+      
+      let cardColor = acc.isBulk ? 'bg-amber-50 border-amber-300' : 'bg-sky-50 border-sky-300';
+      let isChecked = savedRate.amount > 0;
+      let detailsClass = isChecked ? '' : 'hidden';
+      
+      container.innerHTML += `
+        <div class="p-3 border rounded-lg shadow-sm rate-card ${cardColor}" data-acc-id="${acc.id}">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-slate-800 text-base">${acc.number} ${acc.isBulk ? '<span class="text-[10px] bg-amber-200 text-amber-800 px-2 py-0.5 rounded ml-2 font-bold uppercase border border-amber-300 shadow-sm">Bulk</span>' : '<span class="text-[10px] bg-sky-200 text-sky-800 px-2 py-0.5 rounded ml-2 font-bold uppercase border border-sky-300 shadow-sm">Sub</span>'}</span>
+            <label class="flex items-center space-x-2 text-sm font-bold text-slate-700 cursor-pointer bg-white px-3 py-1.5 border border-slate-300 rounded shadow-sm hover:bg-slate-50 transition">
+              <input type="checkbox" class="rate-toggle rounded border-slate-400 text-blue-600 focus:ring-blue-500" ${isChecked ? 'checked' : ''} onchange="toggleRates(this, '${acc.id}')">
+              <span>Has Rates?</span>
+            </label>
+          </div>
+          <div class="rate-details mt-4 pt-4 border-t border-slate-200/60 ${detailsClass}">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">Rates Amount (R)</label>
+                <div class="relative">
+                  <span class="absolute left-3 top-2 text-slate-500 font-bold">R</span>
+                  <input type="number" class="rate-amount w-full rounded border border-slate-400 pl-8 pr-3 py-1.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 shadow-inner transition bg-white" value="${savedRate.amount || ''}" onchange="triggerAutoSave()" step="0.01">
+                </div>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">Date Captured</label>
+                <input type="date" class="rate-date w-full rounded border border-slate-400 px-3 py-1.5 text-sm outline-none focus:border-blue-500 shadow-inner bg-white" value="${savedRate.date || ''}" onchange="triggerAutoSave()">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">Charge To</label>
+                <select class="rate-charge w-full rounded border border-slate-400 px-3 py-1.5 text-sm outline-none focus:border-blue-500 shadow-inner bg-white" onchange="triggerAutoSave()">
+                  <option value="owner" ${savedRate.charge_to === 'owner' ? 'selected' : ''}>Owner</option>
+                  <option value="tenant" ${savedRate.charge_to === 'tenant' ? 'selected' : ''}>Tenant</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    });
+  }
+
+  function gatherRates(silent=false) {
+    if (currentStep < 10) return true;
+    wizardData.rates = [];
+    let isValid = true;
+    document.querySelectorAll('.rate-card').forEach(card => {
+      const toggle = card.querySelector('.rate-toggle');
+      if (toggle && toggle.checked) {
+        const dateVal = card.querySelector('.rate-date').value;
+        if (!dateVal) isValid = false;
+        wizardData.rates.push({
+          account_id: card.dataset.accId,
+          amount: parseFloat(card.querySelector('.rate-amount').value) || 0,
+          date: dateVal,
+          charge_to: card.querySelector('.rate-charge').value || 'owner'
+        });
+      }
+    });
+    if (!silent && !isValid) {
+      alert("Please ensure all checked Rates have a 'Date Captured' before proceeding.");
+      return false;
+    }
+    return true;
+  }
+
+  // --- ARRANGEMENTS (STEP 11) ---
+  window.toggleArrangement = function(checkbox, accId) {
+    const card = checkbox.closest('.arg-card');
+    const details = card.querySelector('.arg-details');
+    if (checkbox.checked) {
+      details.classList.remove('hidden');
+      const input = details.querySelector('.arg-contract');
+      if (input) input.focus();
+    } else {
+      details.classList.add('hidden');
+      details.querySelectorAll('input').forEach(i => i.value = '');
+    }
+    triggerAutoSave();
+  };
+
+  function buildArrangementsDashboard() {
+    const container = document.getElementById('arrangements-container');
+    container.innerHTML = '';
+    wizardData.accounts.forEach(acc => {
+      if(!acc.number) return;
+      const savedArg = (wizardData.arrangements && wizardData.arrangements.find(x => x.account_id === acc.id)) || { 
+        contract_number: '', charge_to: 'owner', agreement_amount: 0, installments_raised: 0, installment_amount: 0, amount_owing: 0, remaining_periods: 0 
+      };
+      
+      let cardColor = acc.isBulk ? 'bg-amber-50 border-amber-300' : 'bg-sky-50 border-sky-300';
+      let isChecked = (savedArg.agreement_amount > 0 || savedArg.contract_number !== '');
+      let detailsClass = isChecked ? '' : 'hidden';
+      
+      container.innerHTML += `
+        <div class="p-3 border rounded-lg shadow-sm arg-card ${cardColor}" data-acc-id="${acc.id}">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-slate-800 text-base">${acc.number} ${acc.isBulk ? '<span class="text-[10px] bg-amber-200 text-amber-800 px-2 py-0.5 rounded ml-2 font-bold uppercase border border-amber-300 shadow-sm">Bulk</span>' : '<span class="text-[10px] bg-sky-200 text-sky-800 px-2 py-0.5 rounded ml-2 font-bold uppercase border border-sky-300 shadow-sm">Sub</span>'}</span>
+            <label class="flex items-center space-x-2 text-sm font-bold text-slate-700 cursor-pointer bg-white px-3 py-1.5 border border-slate-300 rounded shadow-sm hover:bg-slate-50 transition">
+              <input type="checkbox" class="arg-toggle rounded border-slate-400 text-blue-600 focus:ring-blue-500" ${isChecked ? 'checked' : ''} onchange="toggleArrangement(this, '${acc.id}')">
+              <span>Has Payment Arrangement?</span>
+            </label>
+          </div>
+          <div class="arg-details mt-4 pt-4 border-t border-slate-200/60 ${detailsClass}">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">Contract Number</label>
+                <input type="text" class="arg-contract w-full rounded border border-slate-400 px-3 py-1.5 text-sm outline-none focus:border-blue-500 shadow-inner bg-white" value="${savedArg.contract_number || ''}" onchange="triggerAutoSave()">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">Charge To</label>
+                <select class="arg-charge w-full rounded border border-slate-400 px-3 py-1.5 text-sm outline-none focus:border-blue-500 shadow-inner bg-white" onchange="triggerAutoSave()">
+                  <option value="owner" ${savedArg.charge_to === 'owner' ? 'selected' : ''}>Owner</option>
+                  <option value="tenant" ${savedArg.charge_to === 'tenant' ? 'selected' : ''}>Tenant</option>
+                </select>
+              </div>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-3">
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">Agreement Amt (R)</label>
+                <input type="number" class="arg-agree-amt w-full rounded border border-slate-400 px-3 py-1.5 text-sm outline-none focus:border-blue-500 shadow-inner bg-white" value="${savedArg.agreement_amount || ''}" onchange="triggerAutoSave()" step="0.01">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">Installments Raised (R)</label>
+                <input type="number" class="arg-raised w-full rounded border border-slate-400 px-3 py-1.5 text-sm outline-none focus:border-blue-500 shadow-inner bg-white" value="${savedArg.installments_raised || ''}" onchange="triggerAutoSave()" step="0.01">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">Installment Amt (R)</label>
+                <input type="number" class="arg-instl-amt w-full rounded border border-slate-400 px-3 py-1.5 text-sm outline-none focus:border-blue-500 shadow-inner bg-white" value="${savedArg.installment_amount || ''}" onchange="triggerAutoSave()" step="0.01">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">Amount Owing (R)</label>
+                <input type="number" class="arg-owing w-full rounded border border-slate-400 px-3 py-1.5 text-sm outline-none focus:border-blue-500 shadow-inner bg-white" value="${savedArg.amount_owing || ''}" onchange="triggerAutoSave()" step="0.01">
+              </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mt-3">
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">Remaining Periods</label>
+                <input type="number" class="arg-periods w-full rounded border border-slate-400 px-3 py-1.5 text-sm outline-none focus:border-blue-500 shadow-inner bg-white" value="${savedArg.remaining_periods || ''}" onchange="triggerAutoSave()" step="1">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">Date Captured</label>
+                <input type="date" class="arg-date w-full rounded border border-slate-400 px-3 py-1.5 text-sm outline-none focus:border-blue-500 shadow-inner bg-white" value="${savedArg.date || ''}" onchange="triggerAutoSave()">
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    });
+  }
+
+  function gatherArrangements(silent=false) {
+    if (currentStep < 11) return true;
+    wizardData.arrangements = [];
+    let isValid = true;
+    document.querySelectorAll('.arg-card').forEach(card => {
+      const toggle = card.querySelector('.arg-toggle');
+      if (toggle && toggle.checked) {
+        const dateVal = card.querySelector('.arg-date').value;
+        if (!dateVal) isValid = false;
+        wizardData.arrangements.push({
+          account_id: card.dataset.accId,
+          charge_to: card.querySelector('.arg-charge').value || 'owner',
+          contract_number: card.querySelector('.arg-contract').value || '',
+          agreement_amount: parseFloat(card.querySelector('.arg-agree-amt').value) || 0,
+          installments_raised: parseFloat(card.querySelector('.arg-raised').value) || 0,
+          installment_amount: parseFloat(card.querySelector('.arg-instl-amt').value) || 0,
+          amount_owing: parseFloat(card.querySelector('.arg-owing').value) || 0,
+          remaining_periods: parseInt(card.querySelector('.arg-periods').value) || 0,
+          date: dateVal
+        });
+      }
+    });
+    if (!silent && !isValid) {
+      alert("Please ensure all checked Arrangements have a 'Date Captured' before proceeding.");
+      return false;
+    }
+    return true;
+  }
+
+  let masterOwners = [];
+  let masterAddresses = [];
+
+  // --- OWNERS (STEP 12) ---
+  function buildOwnersDashboard() {
+    const masterContainer = document.getElementById('owners-master-container');
+    const addressContainer = document.getElementById('addresses-master-container');
+    const assignmentContainer = document.getElementById('owners-assignment-container');
+    masterContainer.innerHTML = '';
+    addressContainer.innerHTML = '';
+    assignmentContainer.innerHTML = '';
+    
+    // Extract unique owners and addresses from wizardData.owners
+    masterOwners = [];
+    masterAddresses = [];
+    if (wizardData.owners && wizardData.owners.length > 0) {
+        let uniqueOwnersKeys = new Set();
+        let uniqueAddrKeys = new Set();
+        wizardData.owners.forEach(o => {
+            let ownerKey = (o.name || '') + '|' + (o.email || '');
+            if (!uniqueOwnersKeys.has(ownerKey) && (o.name || o.email)) {
+                uniqueOwnersKeys.add(ownerKey);
+                masterOwners.push({ name: o.name || '', email: o.email || '' });
+            }
+            
+            let addrKey = (o.address || '');
+            if (!uniqueAddrKeys.has(addrKey) && o.address) {
+                uniqueAddrKeys.add(addrKey);
+                masterAddresses.push({ address: o.address || '' });
+            }
+        });
+    }
+    
+    // Pad to expected counts
+    while (masterOwners.length < EXPECTED_OWNERS) {
+        masterOwners.push({ name: '', email: '' });
+    }
+    while (masterAddresses.length < EXPECTED_ADDRESSES) {
+        masterAddresses.push({ address: '' });
+    }
+
+    renderMasterOwners();
+    renderMasterAddresses();
+    renderOwnerAssignments();
+  }
+
+  window.addOwnerRow = function() {
+    masterOwners.push({ name: '', email: '' });
+    renderMasterOwners();
+    renderOwnerAssignments(); // update dropdowns
+  };
+
+  window.addAddressRow = function() {
+    masterAddresses.push({ address: '' });
+    renderMasterAddresses();
+    renderOwnerAssignments(); // update dropdowns
+  };
+
+  window.updateMasterOwner = function(index, field, value) {
+    masterOwners[index][field] = value;
+    renderOwnerAssignments();
+    triggerAutoSave();
+  };
+
+  window.updateMasterAddress = function(index, value) {
+    masterAddresses[index].address = value;
+    renderOwnerAssignments();
+    triggerAutoSave();
+  };
+
+  function renderMasterOwners() {
+    const masterContainer = document.getElementById('owners-master-container');
+    masterContainer.innerHTML = '';
+    masterOwners.forEach((own, idx) => {
+        masterContainer.innerHTML += `
+          <div class="flex space-x-3 owner-master-row" data-idx="${idx}">
+            <input type="text" class="w-1/2 rounded border border-slate-400 bg-white px-3 py-1.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 shadow-inner transition" placeholder="Owner Name" value="${own.name}" oninput="updateMasterOwner(${idx}, 'name', this.value)">
+            <input type="email" class="w-1/2 rounded border border-slate-400 bg-white px-3 py-1.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 shadow-inner transition" placeholder="Owner Email" value="${own.email}" oninput="updateMasterOwner(${idx}, 'email', this.value)">
+          </div>
+        `;
+    });
+  }
+
+  function renderMasterAddresses() {
+    const addressContainer = document.getElementById('addresses-master-container');
+    addressContainer.innerHTML = '';
+    masterAddresses.forEach((addr, idx) => {
+        addressContainer.innerHTML += `
+          <div class="flex space-x-3 address-master-row" data-idx="${idx}">
+            <input type="text" class="w-full rounded border border-slate-400 bg-white px-3 py-1.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 shadow-inner transition" placeholder="Billing Address" value="${addr.address}" oninput="updateMasterAddress(${idx}, this.value)">
+          </div>
+        `;
+    });
+  }
+
+  function renderOwnerAssignments() {
+    const assignmentContainer = document.getElementById('owners-assignment-container');
+    assignmentContainer.innerHTML = '';
+    
+    wizardData.accounts.forEach(acc => {
+      if(!acc.number) return;
+      
+      const savedOwn = (wizardData.owners && wizardData.owners.find(x => x.account_id === acc.id));
+      let selectedOwnerIdx = -1;
+      let selectedAddrIdx = -1;
+      if (savedOwn) {
+          selectedOwnerIdx = masterOwners.findIndex(m => m.name === savedOwn.name && m.email === savedOwn.email);
+          if (PROPERTY_ADDRESS.trim() !== '' && savedOwn.address === PROPERTY_ADDRESS) {
+              selectedAddrIdx = -2;
+          } else {
+              selectedAddrIdx = masterAddresses.findIndex(m => m.address === savedOwn.address);
+          }
+      }
+      
+      let cardColor = acc.isBulk ? 'bg-amber-50 border-amber-300' : 'bg-sky-50 border-sky-300';
+      
+      let ownerOptionsHtml = '<option value="-1">-- Select Owner --</option>';
+      masterOwners.forEach((m, idx) => {
+          let label = m.name || `Owner ${idx + 1}`;
+          ownerOptionsHtml += `<option value="${idx}" ${selectedOwnerIdx === idx ? 'selected' : ''}>${label}</option>`;
+      });
+
+      let addrOptionsHtml = '<option value="-1">-- Select Address --</option>';
+      if (PROPERTY_ADDRESS.trim() !== '') {
+          addrOptionsHtml += `<option value="-2" ${selectedAddrIdx === -2 ? 'selected' : ''}>Use Property Physical Address</option>`;
+      }
+      masterAddresses.forEach((m, idx) => {
+          let label = m.address || `Address ${idx + 1}`;
+          addrOptionsHtml += `<option value="${idx}" ${selectedAddrIdx === idx ? 'selected' : ''}>${label}</option>`;
+      });
+
+      assignmentContainer.innerHTML += `
+        <div class="flex items-center justify-between p-3 border rounded-lg shadow-sm own-assign-card ${cardColor}" data-acc-id="${acc.id}">
+          <span class="font-bold text-slate-800 w-1/4">${acc.number} ${acc.isBulk ? '<span class="text-[10px] bg-amber-200 text-amber-800 px-2 py-0.5 rounded ml-2 font-bold uppercase border border-amber-300 shadow-sm">Bulk</span>' : '<span class="text-[10px] bg-sky-200 text-sky-800 px-2 py-0.5 rounded ml-2 font-bold uppercase border border-sky-300 shadow-sm">Sub</span>'}</span>
+          <div class="w-3/4 flex space-x-2">
+            <select class="own-assign-select-owner w-1/2 rounded border border-slate-400 bg-white px-3 py-1.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 shadow-inner transition" onchange="triggerAutoSave()">
+                ${ownerOptionsHtml}
+            </select>
+            <select class="own-assign-select-addr w-1/2 rounded border border-slate-400 bg-white px-3 py-1.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 shadow-inner transition" onchange="triggerAutoSave()">
+                ${addrOptionsHtml}
+            </select>
+          </div>
+        </div>
+      `;
+    });
+  }
+
+  function gatherOwners() {
+    if (currentStep < 12) return true;
+    wizardData.owners = [];
+    document.querySelectorAll('.own-assign-card').forEach(card => {
+      let accId = card.dataset.accId;
+      let ownerSelect = card.querySelector('.own-assign-select-owner');
+      let addrSelect = card.querySelector('.own-assign-select-addr');
+      let oIdx = parseInt(ownerSelect.value);
+      let aIdx = parseInt(addrSelect.value);
+      
+      let oName = '', oEmail = '', oAddr = '';
+      if (oIdx >= 0 && masterOwners[oIdx]) {
+          oName = masterOwners[oIdx].name;
+          oEmail = masterOwners[oIdx].email;
+      }
+      if (aIdx === -2) {
+          oAddr = PROPERTY_ADDRESS;
+      } else if (aIdx >= 0 && masterAddresses[aIdx]) {
+          oAddr = masterAddresses[aIdx].address;
+      }
+      
+      wizardData.owners.push({
+          account_id: accId,
+          name: oName,
+          email: oEmail,
+          address: oAddr
+      });
+    });
+    return true;
+  }
+
+  async function saveArchitecture() {
+    if(!gatherMapping() || !gatherInitialReadings() || !gatherArrears() || !gatherRates() || !gatherArrangements() || !gatherOwners()) {
+      return; // Do not save if validation fails on the final page
+    }
+    console.log("Saving Architecture:", wizardData);
+    
+    try {
+      const response = await fetch("{{ url_for('billing_bp.save_global_architecture', property_id=property.id) }}", {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify(wizardData)
+      });
+      
+      if (response.ok) {
+        // Clear draft on successful save!
+        window.location.href = "{{ url_for('billing_bp.architecture_summary', property_id=property.id) }}?from_wizard=1";
+      } else {
+        const errData = await response.json();
+        alert("Server Error: " + (errData.error || "Please ensure all data is valid."));
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Network error: " + e.message);
+    }
+  }
+</script>

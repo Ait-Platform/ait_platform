@@ -1,0 +1,104 @@
+{% extends "layout.html" %}
+
+{% block title %}Update Biodata{% endblock %}
+{% block heading %}Update Biodata{% endblock %}
+
+{% block flashes %}{% endblock %}
+
+{% block content %}
+<div class="max-w-xl mx-auto mt-8 bg-white shadow-xl border-t-4 {% if is_forced %}border-orange-500{% else %}border-indigo-600{% endif %} rounded-lg p-6">
+  
+  {% include "partials/flash_messages.html" %}
+
+  <!-- Header row -->
+  <div class="flex justify-between items-center mb-6">
+    <h2 class="text-xl font-semibold">Your Biodata</h2>
+    {% if is_forced %}
+      <a href="{{ url_for('auth_bp.bridge_dashboard') }}"
+         class="px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 transition text-sm font-semibold">
+        Cancel & Leave
+      </a>
+    {% else %}
+      <a href="{{ url_for('cultural_bp.talent_dashboard', enrollment_id=enrollment.id) }}"
+         class="px-3 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition text-sm">
+        &larr; Back
+      </a>
+    {% endif %}
+  </div>
+
+  {% set border_class = "border-orange-400 focus:ring-orange-200 focus:border-orange-600 bg-orange-50" if is_forced else "border-indigo-400 focus:ring-indigo-200 focus:border-indigo-600" %}
+
+  <form method="post" class="space-y-4">
+    {{ form.hidden_tag() }}
+
+    <div>
+      {{ form.full_name.label(class="block text-gray-800 font-bold mb-1") }}
+      {{ form.full_name(class="w-full border-2 rounded-lg px-4 py-3 focus:outline-none focus:ring-4 shadow-sm transition-all text-gray-900 " ~ border_class) }}
+      {% for error in form.full_name.errors %}
+        <span class="text-red-500 text-sm font-semibold">{{ error }}</span>
+      {% endfor %}
+    </div>
+
+    <div>
+      {{ form.dob.label(class="block text-gray-800 font-bold mb-1") }}
+      {{ form.dob(class="w-full border-2 rounded-lg px-4 py-3 focus:outline-none focus:ring-4 shadow-sm transition-all text-gray-900 " ~ border_class, type="date") }}
+      {% for error in form.dob.errors %}
+        <span class="text-red-500 text-sm font-semibold">{{ error }}</span>
+      {% endfor %}
+    </div>
+
+    <div>
+      {{ form.gender.label(class="block text-gray-800 font-bold mb-1") }}
+      {{ form.gender(class="w-full border-2 rounded-lg px-4 py-3 focus:outline-none focus:ring-4 shadow-sm transition-all text-gray-900 " ~ border_class) }}
+      {% for error in form.gender.errors %}
+        <span class="text-red-500 text-sm font-semibold">{{ error }}</span>
+      {% endfor %}
+    </div>
+
+    <div id="parent-email-wrapper" style="display: none;">
+      {{ form.parent_email.label(class="block text-gray-800 font-bold mb-1") }}
+      {{ form.parent_email(class="w-full border-2 rounded-lg px-4 py-3 focus:outline-none focus:ring-4 shadow-sm transition-all text-gray-900 " ~ border_class, placeholder="Only required if under 18") }}
+      {% for error in form.parent_email.errors %}
+        <span class="text-red-500 text-sm font-semibold">{{ error }}</span>
+      {% endfor %}
+      <p class="text-xs text-gray-500 mt-1">If you are under 18, your parent/guardian must approve your registration via email.</p>
+    </div>
+
+    <div class="pt-6">
+      {{ form.submit(class="w-full bg-blue-600 text-white font-semibold py-2 px-4 rounded hover:bg-blue-700 transition cursor-pointer") }}
+    </div>
+  </form>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const dobInput = document.getElementById('dob');
+    const parentWrapper = document.getElementById('parent-email-wrapper');
+
+    function checkAge() {
+      if (!dobInput.value) {
+        parentWrapper.style.display = 'none';
+        return;
+      }
+      
+      const dobDate = new Date(dobInput.value);
+      const today = new Date();
+      let age = today.getFullYear() - dobDate.getFullYear();
+      const m = today.getMonth() - dobDate.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < dobDate.getDate())) {
+        age--;
+      }
+
+      if (age < 18) {
+        parentWrapper.style.display = 'block';
+      } else {
+        parentWrapper.style.display = 'none';
+      }
+    }
+
+    dobInput.addEventListener('change', checkAge);
+    // Run on load in case the form was pre-filled or failed validation
+    checkAge();
+  });
+</script>
+{% endblock %}

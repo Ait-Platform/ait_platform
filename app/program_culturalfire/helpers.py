@@ -265,7 +265,7 @@ def all_segments_filled(show):
 
 
 def charge_tokens(user_id, amount, description):
-    from app.models.culturalfire import CfiWallet, CfiTokenTransaction
+    from app.models.culturalfire import CfiWallet, CfiTokenTransaction, CfiAward
     from app.extensions import db
     wallet = CfiWallet.query.filter_by(user_id=user_id).first()
     if not wallet or wallet.balance < amount:
@@ -273,6 +273,69 @@ def charge_tokens(user_id, amount, description):
     wallet.balance -= amount
     txn = CfiTokenTransaction(wallet_id=wallet.id, amount=-amount, description=description)
     db.session.add(txn)
+    db.session.flush()
+    
+    # Milestone Award logic based on cumulative tokens spent
+    total_spent_val = db.session.query(db.func.sum(CfiTokenTransaction.amount)).filter(
+        CfiTokenTransaction.wallet_id == wallet.id, 
+        CfiTokenTransaction.amount < 0
+    ).scalar() or 0
+    total_spent = abs(total_spent_val)
+    
+    thresholds = {
+        1000: ('Silver Award', 'Reached 1,000 tokens spent in the Culture Fire community!'),
+        2500: ('Gold Award', 'Reached 2,500 tokens spent in the Culture Fire community!'),
+        5000: ('Platinum Award', 'Reached 5,000 tokens spent in the Culture Fire community!')
+    }
+    
+    existing_milestones = CfiAward.query.filter_by(user_id=user_id, award_type='Milestone').all()
+    existing_titles = [a.title for a in existing_milestones]
+    
+    for threshold, (title, desc) in thresholds.items():
+        if total_spent >= threshold and title not in existing_titles:
+            award = CfiAward(user_id=user_id, award_type='Milestone', title=title, description=desc)
+            db.session.add(award)
+            
     db.session.commit()
     return True
 
+
+def assign_questions_for_show(show_id):
+    from app.models.culturalfire import CfiShow, CfiSegmentItem, CfiPageantQuestion, CfiQuestionAssignment
+    from app.extensions import db
+    import random
+    
+    show = CfiShow.query.get(show_id)
+    if not show or not show.category_item or show.category_item.name != 'Pageant':
+        return
+        
+    # Get all contestants (segment items)
+    items = CfiSegmentItem.query.filter_by(show_id=show_id).all()
+    if not items:
+        return
+        
+    # Get already assigned questions for this show
+    assignments = CfiQuestionAssignment.query.filter_by(show_id=show_id).all()
+    assigned_item_ids = {a.segment_item_id for a in assignments}
+    assigned_q_ids = {a.question_id for a in assignments}
+    
+    unassigned_items = [i for i in items if i.id not in assigned_item_ids]
+    if not unassigned_items:
+        return # All assigned
+        
+    all_questions = CfiPageantQuestion.query.all()
+    available_qs = [q for q in all_questions if q.id not in assigned_q_ids]
+    
+    # If we run out of questions, just recycle them (though 20 should be enough for a single show)
+    if len(available_qs) < len(unassigned_items):
+        available_qs = list(all_questions)
+        random.shuffle(available_qs)
+    else:
+        random.shuffle(available_qs)
+        
+    for item in unassigned_items:
+        q = available_qs.pop(0)
+        assignment = CfiQuestionAssignment(show_id=show_id, segment_item_id=item.id, question_id=q.id)
+        db.session.add(assignment)
+        
+    db.session.commit()

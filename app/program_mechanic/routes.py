@@ -4,6 +4,7 @@ from sqlalchemy import text
 from app.extensions import db
 from . import mechanic_bp
 from app.models.mechanic import MechClient, MechVehicle, MechJobCard, MechInvoice
+from datetime import datetime, timedelta
 
 @mechanic_bp.route("/mechanic/about")
 def about():
@@ -70,9 +71,46 @@ def price_page():
         """)
     ).mappings().all()
 
-    return render_template("program_mechanic/price.html", price=price_ctx, subject=subject, countries=countries)
+    val_quote = db.session.execute(text("SELECT value FROM system_settings WHERE key = 'mechanic_quote_cents'")).scalar()
+    quote_cents = int(float(val_quote)) if val_quote else 500
+
+    val_invoice = db.session.execute(text("SELECT value FROM system_settings WHERE key = 'mechanic_invoice_cents'")).scalar()
+    invoice_cents = int(float(val_invoice)) if val_invoice else 1000
+
+    return render_template("program_mechanic/price.html", price=price_ctx, subject=subject, countries=countries, quote_cents=quote_cents, invoice_cents=invoice_cents)
 
 from app.models.mechanic import MechShop, MechCatalogPart
+
+@mechanic_bp.route("/mechanic/topup")
+@login_required
+def topup():
+    active_shop = MechShop.query.filter_by(user_id=current_user.id, onboarding_status='active').first()
+    if not active_shop:
+        flash("You need an active shop to top up.", "warning")
+        return redirect(url_for('mechanic_bp.mechanic_dashboard'))
+    return render_template("program_mechanic/topup.html", active_shop=active_shop)
+
+@mechanic_bp.route("/mechanic/process_topup", methods=["POST"])
+@login_required
+def process_topup():
+    amount_cents = request.form.get("amount_cents")
+    if not amount_cents or int(amount_cents) < 5000:
+        flash("Invalid top up amount.", "danger")
+        return redirect(url_for('mechanic_bp.topup'))
+    
+    session["mechanic_topup_amount_cents"] = int(amount_cents)
+    
+    return redirect(url_for('yoco_bp.yoco_start', subject='mechanic_topup', email=current_user.email, next_url=url_for('mechanic_bp.mechanic_dashboard')))
+
+
+@mechanic_bp.route("/mechanic/mock_bill")
+@login_required
+def mock_bill():
+    active_shop = MechShop.query.filter_by(user_id=current_user.id, onboarding_status='active').first()
+    if not active_shop:
+        return redirect(url_for('mechanic_bp.mechanic_dashboard'))
+    return render_template("program_mechanic/mock_bill.html", shop=active_shop)
+
 
 @mechanic_bp.route("/mechanic/dashboard")
 @login_required
@@ -126,7 +164,8 @@ def onboarding_start():
             phone="555-1234",
             email="extracted@example.com",
             terms_and_conditions="Payment strictly within 30 days.",
-            onboarding_status='draft_review'
+            onboarding_status='draft_review',
+            trial_ends_at=datetime.utcnow() + timedelta(days=30)
         )
         db.session.add(draft_shop)
         db.session.commit()
@@ -166,9 +205,35 @@ def job_card_detail(id):
     job_card = MechJobCard.query.get_or_404(id)
     return render_template("program_mechanic/job_card.html", job_card=job_card)
 
-@mechanic_bp.route("/mechanic/invoice/<int:id>")
+@mechanic_bp.route("/mechanic/invoice/<int:id>", methods=["GET", "POST"])
 @login_required
 def generate_invoice(id):
+    active_shop = MechShop.query.filter_by(user_id=current_user.id, onboarding_status='active').first()
+    if not active_shop:
+        flash("You must complete your shop setup first.", "warning")
+        return redirect(url_for("mechanic_bp.mechanic_dashboard"))
+
+    if request.method == "POST":
+        setting = db.session.execute(text("SELECT value FROM system_settings WHERE key = 'mechanic_invoice_cents'")).fetchone()
+        invoice_cost = int(setting[0]) if setting else 1000
+
+        if active_shop.trial_ends_at and datetime.utcnow() < active_shop.trial_ends_at:
+            # IN TRIAL: Shadow Billing
+            active_shop.shadow_spent_cents += invoice_cost
+            db.session.commit()
+            flash(f"Invoice generated successfully! (Shadow Billed R{invoice_cost/100:.2f})", "success")
+        else:
+            # TRIAL EXPIRED or NO TRIAL: Real Wallet
+            if active_shop.wallet_balance_cents < invoice_cost:
+                flash("Insufficient tokens. Please top up or pay your registration fee.", "warning")
+                return redirect(url_for("mechanic_bp.mock_bill"))
+                
+            active_shop.wallet_balance_cents -= invoice_cost
+            db.session.commit()
+            flash(f"Invoice generated successfully! (R{invoice_cost/100:.2f} deducted)", "success")
+            
+        return redirect(url_for("mechanic_bp.job_card_detail", id=id))
+
     # Logic to calculate totals from labor/parts and generate MechInvoice
     job_card = MechJobCard.query.get_or_404(id)
     return render_template("program_mechanic/invoice_view.html", job_card=job_card)
@@ -189,6 +254,20 @@ def new_quote():
     ).all()
     
     if request.method == "POST":
+        setting = db.session.execute(text("SELECT value FROM system_settings WHERE key = 'mechanic_quote_cents'")).fetchone()
+        quote_cost = int(setting[0]) if setting else 500
+
+        if active_shop.trial_ends_at and datetime.utcnow() < active_shop.trial_ends_at:
+            # IN TRIAL: Shadow Billing
+            active_shop.shadow_spent_cents += quote_cost
+        else:
+            # TRIAL EXPIRED or NO TRIAL: Real Wallet
+            if active_shop.wallet_balance_cents < quote_cost:
+                flash("Insufficient tokens. Please top up or pay your registration fee.", "warning")
+                return redirect(url_for("mechanic_bp.mock_bill"))
+                
+            active_shop.wallet_balance_cents -= quote_cost
+        
         customer_name = request.form.get("customer_name")
         vehicle_reg = request.form.get("vehicle_reg")
         # In a real app, we'd save this to MechJobCard and MechClient.
@@ -211,3 +290,21 @@ def new_quote():
         return redirect(url_for("mechanic_bp.mechanic_dashboard"))
         
     return render_template("program_mechanic/quote_form.html", catalog_parts=catalog_parts, shop=active_shop)
+
+from app.models.auth import DirectMessage
+
+@mechanic_bp.route('/mechanic/messages', methods=['GET', 'POST'])
+@login_required
+def messages():
+    if request.method == 'POST':
+        message_text = request.form.get('message')
+        if message_text:
+            new_msg = DirectMessage(user_id=current_user.id, subject='mechanic', message=message_text)
+            db.session.add(new_msg)
+            db.session.commit()
+            flash('Message sent to Admin', 'success')
+        return redirect(url_for('mechanic_bp.messages'))
+    
+    msgs = DirectMessage.query.filter_by(user_id=current_user.id, subject='mechanic').order_by(DirectMessage.created_at.desc()).all()
+    return render_template('program_mechanic/messages.html', messages=msgs)
+

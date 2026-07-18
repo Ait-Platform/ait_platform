@@ -11,16 +11,7 @@
   <!-- Row 1: Header -->
   <div class="px-6 py-4 flex items-center justify-between border-b">
     <h1 class="text-xl font-semibold">Results Dashboard</h1>
-    {% if not enrollment_id %}
-        {% set back_route = url_for('auth_bp.bridge_dashboard') %}
-    {% elif origin == 'sponsor' %}
-        {% set back_route = url_for('cultural_bp.sponsor_dashboard', enrollment_id=enrollment_id) %}
-    {% elif origin in ['talent', 'parent', 'supporter'] %}
-        {% set back_route = url_for('cultural_bp.' + origin + '_dashboard', enrollment_id=enrollment_id) %}
-    {% else %}
-        {% set back_route = url_for('cultural_bp.cultural_fire_home') %}
-    {% endif %}
-    <a href="{{ back_route }}" class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">
+    <a href="javascript:history.back()" class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">
       Back
     </a>
   </div>
@@ -36,9 +27,15 @@
             <h2 class="text-lg font-bold text-gray-800">{{ show.title }}</h2>
             <p class="text-sm text-gray-500">{{ show.category_item.name if show.category_item else 'General' }}</p>
           </div>
-          <a href="{{ url_for('cultural_bp.pageant_results', show_id=show.id, origin=origin, enrollment_id=enrollment_id) }}" class="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600 font-medium">
-            View Results
-          </a>
+          {% if show.category_item and show.category_item.name == "Pageant" %}
+            <a href="{{ url_for('cultural_bp.pageant_results', show_id=show.id, origin=origin, enrollment_id=enrollment_id) }}" class="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600 font-medium">
+              View Results
+            </a>
+          {% else %}
+            <a href="{{ url_for('cultural_bp.admin_scores', show_id=show.id, origin=origin, enrollment_id=enrollment_id) }}" class="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600 font-medium">
+              View Results
+            </a>
+          {% endif %}
         </div>
         {% endfor %}
       </div>

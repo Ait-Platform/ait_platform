@@ -99,6 +99,17 @@ def get_math_progress(user_id, enrollment_id):
 def about():
     return render_template("program_adv_math/about.html")
 
+@adv_math_bp.route("/price")
+def price_page():
+    from sqlalchemy import text
+    val_reg = db.session.execute(text("SELECT value FROM system_settings WHERE key = 'adv_math_registration_cents'")).scalar()
+    reg_cents = int(float(val_reg)) if val_reg else 10000
+
+    val_sub = db.session.execute(text("SELECT value FROM system_settings WHERE key = 'adv_math_subtopic_cents'")).scalar()
+    sub_cents = int(float(val_sub)) if val_sub else 6000
+
+    return render_template("program_adv_math/price.html", reg_cents=reg_cents, sub_cents=sub_cents)
+
 @adv_math_bp.route("/register", methods=["GET", "POST"])
 def register():
     if request.method == "POST":
@@ -139,7 +150,14 @@ def payflow():
             flash("You are already enrolled in Advanced Mathematics.", "info")
             return redirect(url_for("adv_math_bp.dashboard"))
 
-    return render_template("program_adv_math/payflow.html", subject=subj)
+    from sqlalchemy import text
+    val_reg = db.session.execute(text("SELECT value FROM system_settings WHERE key = 'adv_math_registration_cents'")).scalar()
+    reg_cents = int(float(val_reg)) if val_reg else 10000
+
+    val_sub = db.session.execute(text("SELECT value FROM system_settings WHERE key = 'adv_math_subtopic_cents'")).scalar()
+    sub_cents = int(float(val_sub)) if val_sub else 6000
+
+    return render_template("program_adv_math/payflow.html", subject=subj, reg_cents=reg_cents, sub_cents=sub_cents)
 
 @adv_math_bp.route("/enroll/free", methods=["POST"])
 @login_required

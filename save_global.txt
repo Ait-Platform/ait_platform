@@ -1,0 +1,92 @@
+def save_global_architecture(property_id):
+    from app.models.billing import BilArchitectureDraft
+    prop = BilProperty.query.get_or_404(property_id)
+    if prop.manager_id != current_user.id:
+        return jsonify({"error": "Unauthorized"}), 403
+
+    data = request.json
+    if not data:
+        return jsonify({"error": "No data provided"}), 400
+
+    from app.extensions import db
+    from app.models import BilMuniAccount, RefMuniOwner, BilMeter
+    
+    try:
+        # Process global payload (owners, accounts, meters)
+        owners_data = data.get('owners', [])
+        accounts_data = data.get('accounts', [])
+        meters_data = data.get('meters', [])
+
+        # Idempotent Cleanup: Wipe existing structure for this property
+        old_accounts = BilMuniAccount.query.filter_by(property_id=prop.id).all()
+        old_acc_nums = [a.account_number for a in old_accounts if a.account_number]
+        
+        if old_acc_nums:
+            old_meters = BilMeter.query.filter(BilMeter.municipal_bill_number.in_(old_acc_nums)).all()
+            old_meter_ids = [m.id for m in old_meters]
+            if old_meter_ids:
+                from app.models.billing import BilMeterReading, BilConsumption
+                BilMeterReading.query.filter(BilMeterReading.meter_id.in_(old_meter_ids)).delete(synchronize_session=False)
+                BilConsumption.query.filter(BilConsumption.meter_id.in_(old_meter_ids)).delete(synchronize_session=False)
+                BilMeter.query.filter(BilMeter.id.in_(old_meter_ids)).delete(synchronize_session=False)
+                
+        BilMuniAccount.query.filter_by(property_id=prop.id).delete(synchronize_session=False)
+
+        # Process Owners
+        owner_map = {}
+        for o_data in owners_data:
+            name = o_data.get('name', '').strip()
+            if name:
+                owner = RefMuniOwner.query.filter_by(name=name).first()
+                if not owner:
+                    owner = RefMuniOwner(name=name)
+                    db.session.add(owner)
+                    db.session.flush()
+                owner_map[o_data.get('id')] = owner.id
+
+        # Process Accounts
+        for acc_data in accounts_data:
+            acc_num = acc_data.get('account_number', '').strip()
+            if acc_num:
+                acc = BilMuniAccount.query.filter_by(account_number=acc_num, property_id=prop.id).first()
+                if not acc:
+                    acc = BilMuniAccount(
+                        property_id=prop.id,
+                        account_number=acc_num,
+                        is_bulk_account=(1 if acc_data.get('is_bulk') else 0)
+                    )
+                    db.session.add(acc)
+                
+                temp_owner_id = acc_data.get('owner_id')
+                if temp_owner_id in owner_map:
+                    acc.owner_id = owner_map[temp_owner_id]
+                
+                db.session.flush()
+
+        # Process Meters
+        for m_data in meters_data:
+            m_num = m_data.get('meter_number', '').strip()
+            if m_num:
+                meter = BilMeter.query.filter_by(meter_number=m_num).first()
+                if not meter:
+                    meter = BilMeter(
+                        meter_number=m_num,
+                        utility_type=m_data.get('utility_type'),
+                        municipal_bill_number=m_data.get('account_number')
+                    )
+                    db.session.add(meter)
+
+        prop.onboarding_status = 'draft_manual'
+        
+        # Keep the draft! We don't delete BilArchitectureDraft so the wizard remains perfectly editable
+        
+        db.session.commit()
+        return jsonify({"message": "Architecture saved successfully!"}), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        import traceback
+        return jsonify({"error": str(e) + " | " + traceback.format_exc()}), 500
+
+@billing_bp.route('/property/<int:property_id>/architecture_summary')
+@login_required

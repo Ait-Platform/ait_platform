@@ -8,15 +8,16 @@
     <div class="h-2 bg-purple-600"></div>
 
     <!-- Header Row -->
-    <div class="flex justify-between items-center p-6 border-b border-gray-100">
-      <h1 class="text-2xl font-bold text-gray-800">Judge Dashboard</h1>
-      {% if back_origin %}
-        <a href="{{ url_for('cultural_bp.showcase_dashboard') }}"
-           class="bg-gray-200 text-gray-800 px-4 py-2 rounded hover:bg-gray-300 transition-colors">Back to Showcase</a>
-      {% else %}
-        <a href="{{ url_for('bridge_bp.bridge') }}"
-           class="bg-gray-200 text-gray-800 px-4 py-2 rounded hover:bg-gray-300 transition-colors">Back to Bridge</a>
-      {% endif %}
+    <div class="flex justify-between items-start p-6 border-b border-gray-100">
+      <h1 class="text-2xl font-bold text-gray-800 mt-2">Judge Dashboard</h1>
+      <div class="flex flex-col items-end space-y-2">
+        {% if back_enrollment_id %}
+          <a href="{{ url_for('cultural_bp.talent_dashboard', enrollment_id=back_enrollment_id) }}" class="bg-gray-200 text-gray-800 px-4 py-2 rounded hover:bg-gray-300 transition-colors w-full text-center">Back to Talent Dashboard</a>
+        {% else %}
+          <a href="{{ url_for('bridge_bp.bridge') }}" class="bg-gray-200 text-gray-800 px-4 py-2 rounded hover:bg-gray-300 transition-colors w-full text-center">Back to Bridge</a>
+        {% endif %}
+        <a href="{{ url_for('cultural_bp.showcase_dashboard') }}" class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 transition-colors w-full text-center">Showcase</a>
+      </div>
     </div>
 
     <div class="p-6">
@@ -24,45 +25,7 @@
       {% include "partials/flash_messages.html" %}
 
       <!-- Purchase State -->
-      {% if state == 'purchase' %}
-      <div class="max-w-2xl mx-auto text-center py-10">
-        <div class="mb-6 flex justify-center">
-          <div class="bg-purple-100 p-4 rounded-full">
-            <svg class="w-16 h-16 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path>
-            </svg>
-          </div>
-        </div>
-        <h2 class="text-3xl font-bold text-gray-800 mb-4">Become a Paid Judge</h2>
-        <p class="text-gray-600 mb-8 text-lg">
-          Join our exclusive panel of judges. To maintain quality and commitment, a small application fee is required.
-          Upon payment, you'll receive a Judge Application Token that you can use to select and judge an active show!
-        </p>
-        
-        <div class="flex flex-col sm:flex-row justify-center gap-4 text-left mb-10 max-w-md mx-auto">
-          <ul class="space-y-3 text-gray-700">
-            <li class="flex items-center">
-              <svg class="w-5 h-5 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-              Support emerging talent globally
-            </li>
-            <li class="flex items-center">
-              <svg class="w-5 h-5 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-              Choose which show you want to judge
-            </li>
-            <li class="flex items-center">
-              <svg class="w-5 h-5 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-              Transparent FIFO Selection process
-            </li>
-          </ul>
-        </div>
-
-        <a href="{{ url_for('quote_bp.quote', subject=subject.slug) }}" class="inline-block bg-purple-600 hover:bg-purple-700 text-white text-lg font-semibold py-3 px-8 rounded-full shadow-lg transition-transform transform hover:-translate-y-1">
-          Purchase Application Token
-        </a>
-      </div>
-
-      <!-- Assigned State -->
-      {% elif state == 'assigned' %}
+      
       <div class="mb-6">
         <h2 class="text-2xl font-semibold text-gray-800">Your Active Assignments</h2>
       </div>
@@ -113,19 +76,112 @@
       </div>
 
       <!-- Selection State -->
-      {% elif state == 'selection' %}
-      <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-8 flex items-center">
-        <div class="bg-blue-100 p-2 rounded-full mr-4 text-blue-600">
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"></path></svg>
-        </div>
-        <div>
-          <h4 class="text-blue-800 font-bold text-lg">You have {{ tokens }} unused Application Token(s)</h4>
-          <p class="text-blue-600 text-sm m-0">Select a show below to claim your spot on the judging panel.</p>
-        </div>
+      <!-- Historical Scores -->
+      <div class="mb-6 mt-10">
+        <h2 class="text-2xl font-semibold text-gray-800">Your Submitted Scores</h2>
+        <p class="text-gray-600 text-sm">A read-only log of the scores you have successfully submitted.</p>
       </div>
       
-      <div class="mb-4">
-        <h3 class="text-xl font-semibold text-gray-800">Available Shows</h3>
+      {% if historical_scores %}
+      <div class="overflow-x-auto bg-white rounded-xl shadow-sm border border-gray-200 mb-10">
+        <table class="w-full text-left border-collapse">
+          <thead>
+            <tr class="bg-gray-50 border-b border-gray-200 text-gray-600 text-sm uppercase tracking-wider">
+              <th class="py-4 px-6 font-semibold">Date</th>
+              <th class="py-4 px-6 font-semibold">Performance</th>
+              <th class="py-4 px-6 font-semibold">Breakdown</th>
+              <th class="py-4 px-6 font-semibold text-center">Total Score</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-100">
+            {% for vote in historical_scores %}
+            <tr class="hover:bg-gray-50 transition-colors">
+              <td class="py-4 px-6 text-gray-500 text-sm">{{ vote.created_at.strftime('%d %b %Y, %H:%M') }}</td>
+              <td class="py-4 px-6 text-gray-800 font-medium">
+                {% if vote.segment_item %}
+                  {{ vote.segment_item.title or "Untitled" }} <span class="text-xs text-gray-400">({{ vote.segment_item.segment_type }})</span>
+                {% elif vote.submission %}
+                  {{ vote.submission.talent_name or vote.submission.custom_talent or "Untitled" }}
+                {% else %}
+                  Unknown Performance
+                {% endif %}
+              </td>
+              <td class="py-4 px-6 text-xs text-gray-600">
+                {% if vote.criteria_scores %}
+                  <ul class="list-disc pl-4">
+                    {% for c in vote.criteria_scores %}
+                      <li>{{ c.criterion_name }}: <strong>{{ c.score }}</strong></li>
+                    {% endfor %}
+                  </ul>
+                {% else %}
+                  <span class="italic text-gray-400">No criteria recorded</span>
+                {% endif %}
+              </td>
+              <td class="py-4 px-6 text-center">
+                <span class="bg-blue-100 text-blue-800 font-bold px-3 py-1 rounded-full">{{ vote.score }} / 50</span>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="py-6 px-4 bg-gray-50 rounded-xl border border-gray-200 text-center mb-10">
+        <p class="text-gray-500">You have not submitted any scores yet.</p>
+      </div>
+      {% endif %}
+
+      <!-- Judging Guide -->
+      <div class="bg-indigo-50 border border-indigo-200 rounded-xl p-6 mb-10">
+        <h3 class="text-xl font-bold text-indigo-900 mb-3 flex items-center">
+          <svg class="w-6 h-6 mr-2 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+          Judging Guide & Rules
+        </h3>
+        <ul class="list-disc pl-5 text-indigo-800 space-y-2 text-sm mb-6">
+          <li><strong>Score Once:</strong> Once you submit a score for a performance, it is permanently locked. You will be warned before submission. You cannot edit scores after they are submitted.</li>
+          <li><strong>Mandatory Scoring:</strong> You must submit a score for the current video before the system will allow you to skip to the next video in the show.</li>
+          <li><strong>Point System:</strong> Rate each criterion on a scale of 1 to 10 (10 being perfect). The system will automatically tally your final score out of 50.</li>
+        </ul>
+
+        <h4 class="text-lg font-bold text-indigo-900 mb-2 border-t border-indigo-200 pt-4">Criteria Glossary</h4>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-indigo-800">
+          <div class="bg-white p-3 rounded shadow-sm border border-indigo-100">
+            <h5 class="font-bold border-b border-indigo-50 mb-1 pb-1">🎤 Singing / General</h5>
+            <ul class="space-y-1">
+              <li><strong>Pitch / Intonation:</strong> Hitting the correct notes without being sharp or flat.</li>
+              <li><strong>Vocal Quality:</strong> Tone, breath control, and clarity of voice.</li>
+              <li><strong>Rhythm / Timing:</strong> Staying on beat with the music.</li>
+              <li><strong>Stage Presence:</strong> Charisma, eye contact, and audience connection.</li>
+              <li><strong>Creativity:</strong> Originality or unique arrangement of the piece.</li>
+            </ul>
+          </div>
+          <div class="bg-white p-3 rounded shadow-sm border border-indigo-100">
+            <h5 class="font-bold border-b border-indigo-50 mb-1 pb-1">💃 Dancing</h5>
+            <ul class="space-y-1">
+              <li><strong>Technique:</strong> Proper execution of movements, posture, and alignment.</li>
+              <li><strong>Rhythm / Timing:</strong> Synchronization with the music's beat.</li>
+              <li><strong>Choreography:</strong> Complexity and structural flow of the routine.</li>
+              <li><strong>Stage Presence:</strong> Energy, confidence, and projection to the audience.</li>
+              <li><strong>Expression:</strong> Emotion and storytelling through movement.</li>
+            </ul>
+          </div>
+          <div class="bg-white p-3 rounded shadow-sm border border-indigo-100">
+            <h5 class="font-bold border-b border-indigo-50 mb-1 pb-1">👑 Pageants</h5>
+            <ul class="space-y-1">
+              <li><strong>Confidence / Poise:</strong> Grace under pressure and self-assurance.</li>
+              <li><strong>Walk / Posture:</strong> Elegance, balance, and physical carriage.</li>
+              <li><strong>Outfit / Presentation:</strong> Suitability, fit, and overall styling.</li>
+              <li><strong>Personality:</strong> Charm, likability, and natural flair.</li>
+              <li><strong>Overall Impression:</strong> The complete package and final takeaway.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Selection State -->
+      <div class="mb-4 mt-8 pt-8 border-t border-gray-200">
+        <h3 class="text-xl font-semibold text-gray-800">Claim New Shows</h3>
+        <p class="text-gray-600 text-sm">Select a new show below to claim your spot on the judging panel. (Costs 10 Tokens per show)</p>
       </div>
       
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -161,14 +217,14 @@
           </div>
           {% endfor %}
         {% else %}
-          <div class="col-span-full py-12 text-center bg-gray-50 rounded-xl border border-gray-200">
-            <svg class="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-            <h4 class="text-xl font-medium text-gray-700 mb-2">No shows are currently available</h4>
-            <p class="text-gray-500">All active shows have reached their judge capacity or there are none scheduled. Please check back later.</p>
-          </div>
+        <div class="col-span-full py-12 px-4 bg-gray-50 rounded-xl border border-gray-200 text-center">
+          <svg class="w-12 h-12 text-gray-400 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path></svg>
+          <h4 class="text-lg font-bold text-gray-700 mb-1">No New Shows Available</h4>
+          <p class="text-gray-500 max-w-md mx-auto">All active shows have reached their judge capacity, or you are already assigned to them. Please check back later for new shows.</p>
+        </div>
         {% endif %}
       </div>
-      {% endif %}
+      
     </div>
   </div>
 </div>

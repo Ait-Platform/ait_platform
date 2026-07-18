@@ -1,0 +1,122 @@
+{% extends "layout.html" %}
+{% block title %}Culture Fire Awards{% endblock %}
+
+{% block content %}
+<div class="p-6">
+  <!-- Tile -->
+  <div class="bg-white shadow-lg rounded-lg overflow-hidden mb-8 max-w-5xl mx-auto">
+    <!-- Color Strip -->
+    <div class="h-2 bg-pink-500"></div>
+
+    <!-- Header Row -->
+    <div class="flex justify-between items-center p-6 border-b border-gray-100">
+      <!-- Left: Title -->
+      <h1 class="text-2xl font-bold text-gray-800">Culture Fire Awards</h1>
+
+      <!-- Right: Back button -->
+      <a href="{{ url_for('cultural_bp.cultural_fire_router') }}" class="bg-gray-300 text-gray-800 px-4 py-2 rounded hover:bg-gray-400 transition-colors">Back</a>
+    </div>
+
+    <!-- Content -->
+    <div class="p-6">
+      
+      {% if awards %}
+        <div class="flex justify-end mb-6">
+          <button onclick="window.print()" class="bg-indigo-600 text-white px-4 py-2 rounded shadow hover:bg-indigo-700 transition flex items-center gap-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+            Print Awards
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        {% for award in awards %}
+          {% set bg_color = "bg-gradient-to-br from-indigo-500 to-pink-500" %}
+          {% set border_color = "border-indigo-200" %}
+          {% set text_color = "text-indigo-700" %}
+          
+          {% if 'Gold' in award.title %}
+            {% set bg_color = "bg-gradient-to-br from-yellow-400 to-yellow-600" %}
+            {% set border_color = "border-yellow-300" %}
+            {% set text_color = "text-yellow-700" %}
+          {% elif 'Platinum' in award.title %}
+            {% set bg_color = "bg-gradient-to-br from-slate-400 to-slate-600" %}
+            {% set border_color = "border-slate-300" %}
+            {% set text_color = "text-slate-700" %}
+          {% elif award.award_type == 'Pageant' %}
+            {% set bg_color = "bg-gradient-to-br from-rose-400 to-rose-600" %}
+            {% set border_color = "border-rose-200" %}
+            {% set text_color = "text-rose-700" %}
+          {% endif %}
+
+          <div class="certificate bg-white p-8 rounded-xl shadow-md border-8 border-double {{ border_color }} relative overflow-hidden flex flex-col justify-between" style="min-height: 450px;">
+            <div class="text-center relative z-10 space-y-6">
+              <div class="flex justify-center mb-4">
+                <div class="w-16 h-16 {{ bg_color }} rounded-full flex items-center justify-center shadow-lg">
+                  <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
+                </div>
+              </div>
+
+              <div>
+                <h1 class="text-2xl font-serif text-gray-900 tracking-wider uppercase">{{ award.title }}</h1>
+                <p class="text-sm text-gray-500 mt-2 font-light tracking-widest uppercase">Official Recognition</p>
+              </div>
+
+              <div class="py-4 border-y-2 border-dashed border-gray-200 my-4 flex-grow">
+                <p class="text-gray-600 mb-2 italic text-sm">This award is proudly presented to</p>
+                <h2 class="text-2xl font-bold {{ text_color }} font-serif my-2">{{ current_user.name or current_user.email }}</h2>
+                <p class="text-gray-700 text-sm leading-relaxed mx-auto mt-4">
+                  {{ award.description or 'for outstanding participation in the Culture Fire community.' }}
+                </p>
+              </div>
+
+              <div class="flex justify-between items-end px-4 mt-6">
+                <div class="text-center">
+                  <div class="border-b-2 border-gray-400 w-24 mb-1"></div>
+                  <p class="text-xs text-gray-500 font-bold uppercase">Date</p>
+                  <p class="text-xs text-gray-700 font-serif">{{ award.earned_at.strftime('%B %d, %Y') }}</p>
+                </div>
+                
+                <div class="text-center">
+                  <div class="border-b-2 border-gray-400 w-24 mb-1"></div>
+                  <p class="text-xs text-gray-500 font-bold uppercase">Culture Fire</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+        </div>
+
+      {% else %}
+        <div class="text-center py-16 bg-slate-50 rounded-xl border border-gray-200">
+          <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-pink-100 text-pink-500 mb-4">
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+          </div>
+          <h2 class="text-xl font-bold text-gray-800">You have not earned any awards yet.</h2>
+          <p class="text-gray-500 mt-2">Participate in shows or accumulate tokens spent to unlock milestone and pageant awards!</p>
+        </div>
+      {% endif %}
+
+    </div>
+  </div>
+</div>
+
+<style>
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .certificate, .certificate * {
+    visibility: visible;
+  }
+  .grid {
+    display: block !important;
+  }
+  .certificate {
+    page-break-after: always;
+    width: 100%;
+    margin-bottom: 20px;
+    box-shadow: none !important;
+  }
+}
+</style>
+{% endblock %}

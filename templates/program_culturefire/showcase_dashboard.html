@@ -13,17 +13,20 @@
       <h1 class="text-2xl font-bold text-gray-800">Showcase Dashboard</h1>
 
       <!-- Right: Back button -->
-      {% if origin == 'talent' %}
+      {% if origin == 'talent' and enrollment_id %}
         <a href="{{ url_for('cultural_bp.talent_dashboard', enrollment_id=enrollment_id) }}"
            class="bg-gray-300 text-gray-800 px-4 py-2 rounded hover:bg-gray-400">Back</a>
-      {% elif origin == 'parent' %}
+      {% elif origin == 'parent' and enrollment_id %}
         <a href="{{ url_for('cultural_bp.parent_dashboard', enrollment_id=enrollment_id) }}"
            class="bg-gray-300 text-gray-800 px-4 py-2 rounded hover:bg-gray-400">Back</a>
-      {% elif origin == 'supporter' %}
+      {% elif origin == 'supporter' and enrollment_id %}
         <a href="{{ url_for('cultural_bp.supporter_dashboard', enrollment_id=enrollment_id) }}"
            class="bg-gray-300 text-gray-800 px-4 py-2 rounded hover:bg-gray-400">Back</a>
-      {% elif origin == 'sponsor' %}
+      {% elif origin == 'sponsor' and enrollment_id %}
         <a href="{{ url_for('cultural_bp.sponsor_dashboard', enrollment_id=enrollment_id) }}"
+           class="bg-gray-300 text-gray-800 px-4 py-2 rounded hover:bg-gray-400">Back</a>
+      {% else %}
+        <a href="{{ url_for('cultural_bp.cultural_fire_router') }}"
            class="bg-gray-300 text-gray-800 px-4 py-2 rounded hover:bg-gray-400">Back</a>
       {% endif %}
     </div>
@@ -75,10 +78,6 @@
                 <span class="bg-gray-100 text-gray-500 px-3 py-1 rounded border border-gray-300 text-sm flex items-center">
                   Participant
                 </span>
-              {% else %}
-                <a href="{{ url_for('cultural_bp.judge_dashboard', target_show_id=show.id, origin=origin, enrollment_id=enrollment_id) }}" class="bg-purple-600 text-white px-3 py-1 rounded hover:bg-purple-700 transition-colors shadow-sm inline-block text-center">
-                  Become a Judge
-                </a>
               {% endif %}
             </td>
           </tr>

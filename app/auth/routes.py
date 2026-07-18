@@ -160,13 +160,15 @@ def register():
         if "/sms" in n_url_lower:
             return "sms"
         if "/spv" in n_url_lower or "/portfolio" in n_url_lower:
-            return "spv_registration"
+            return "spv"
         if "/reading" in n_url_lower:
             return "reading"
         if "/cultural-fire" in n_url_lower or "/culturefire" in n_url_lower:
             return "cultural_fire"
         if "/budget" in n_url_lower:
             return "budget"
+        if "/tpx" in n_url_lower:
+            return "tpx"
         return subj or "loss"
 
     # ---------- GET ----------
@@ -184,7 +186,8 @@ def register():
         if getattr(current_user, "is_authenticated", False):
             return redirect(url_for("auth_bp.dashboard_info", subject=subject))
 
-        _save_reg_ctx(role, subject, "", "", next_url)
+        country_code = request.args.get("country_code")
+        _save_reg_ctx(role, subject, "", "", next_url, country_code=country_code)
         
         # Pull quote baton from session if it matches this subject
         if session.get("subject_slug") == subject and session.get("zar_amount_cents"):
@@ -299,6 +302,9 @@ def register():
         full_name=full_name,
         next_url=next_url,
     )
+    
+    voucher = (request.form.get("voucher") or "").strip()
+    session["reg_ctx"]["voucher"] = voucher
     
     reg_ctx = session.get("reg_ctx", {})
     reg_ctx["email_lower"] = email_norm
@@ -420,13 +426,112 @@ def register_decision():
     # 2) Ensure an enrollment row
     enrollment_id = _ensure_enrollment_row(user_id=user_id, subject_slug=subject)
 
-    # ---------- SPECIAL CASE: FREE SUBJECTS ----------
-    if subject in ("cultural_fire", "billing", "metro_billing"):
-        mark_loss_enrollment_free(enrollment_id) # Acts as a generic free marker
-        session.pop("reg_ctx", None)
-        session.pop("just_paid_subject_id", None)
-        return redirect(url_for("auth_bp.bridge_dashboard"))
+    # ---------- SPECIAL CASE: FREE SUBJECTS OR VOUCHER ----------
+    if subject in ("billing", "metro_billing") or (subject in ("cultural_fire", "culturalfire") and (ctx.get("voucher") or session.get("pending_voucher"))):
+        # Check for voucher bypass
+        voucher = ctx.get("voucher") or session.pop("pending_voucher", None)
+        if voucher and subject in ("cultural_fire", "culturalfire"):
+            from app.models.culturalfire import CfiVoucher
+            v_obj = CfiVoucher.query.filter_by(code=voucher, is_used=False).first()
+            if v_obj:
+                v_obj.is_used = True
+                v_obj.used_by_user_id = user_id
+                v_obj.used_at = datetime.utcnow()
+                db.session.commit()
+                
+                # Add tokens to wallet
+                from app.models.culturalfire import CfiWallet, CfiTokenTransaction
+                wallet = CfiWallet.query.filter_by(user_id=user_id).first()
+                if not wallet:
+                    wallet = CfiWallet(user_id=user_id, balance=0)
+                    db.session.add(wallet)
+                    db.session.flush()
+                wallet.balance += v_obj.tokens
+                
+                txn = CfiTokenTransaction(
+                    wallet_id=wallet.id,
+                    amount=v_obj.tokens,
+                    transaction_type="voucher_topup",
+                    description=f"Redeemed voucher {voucher}"
+                )
+                db.session.add(txn)
+                db.session.commit()
+                
+                flash(f"Voucher applied successfully! {v_obj.tokens} tokens added to your wallet.", "success")
+                
+                # Activate enrollment and bypass payment
+                mark_loss_enrollment_free(enrollment_id)
+                session.pop("reg_ctx", None)
+                session.pop("just_paid_subject_id", None)
+                
+                # Create default biodata if needed
+                from app.models.culturalfire import CfiBiodata
+                record = CfiBiodata.query.filter_by(user_id=user_id).first()
+                if not record:
+                    record = CfiBiodata(user_id=user_id, role="participant")
+                    db.session.add(record)
+                    db.session.commit()
+                
+                return redirect(url_for("cultural_bp.cultural_fire_router"))
+            else:
+                flash("Invalid or expired voucher code.", "danger")
+                # Don't bypass payment! Just let it fall through to the Yoco redirect below.
+
+        if subject in ("billing", "metro_billing"):
+            mark_loss_enrollment_free(enrollment_id) # Acts as a generic free marker
+            session.pop("reg_ctx", None)
+            session.pop("just_paid_subject_id", None)
+            return redirect(url_for("auth_bp.bridge_dashboard"))
     # ---------- END FREE SPECIAL CASE ----------
+
+
+    # ---------- SPECIAL CASE: MECHANIC FLAT ZAR REGISTRATION ----------
+    if subject == "mechanic":
+        # BYPASS YOCO ON INITIAL REGISTRATION (30-DAY TRIAL SHADOW BILLING)
+        ctx["quote"] = {
+            "country_code": "ZA",
+            "currency": "ZAR",
+            "amount_cents": 0,
+            "zar_amount_cents": 0,
+            "est_zar_cents": 0,
+            "version": "2026-mechanic-trial",
+        }
+        
+    if subject == "mechanic_registration":
+        # POST-TRIAL REGISTRATION FEE
+        ctx["quote"] = {
+            "country_code": "ZA",
+            "currency": "ZAR",
+            "amount_cents": 10000,
+            "zar_amount_cents": 10000,
+            "est_zar_cents": 10000,
+            "version": "2026-mechanic-reg",
+        }
+    # ---------- END MECHANIC SPECIAL CASE ----------
+
+    # ---------- SPECIAL CASE: PRACTICE (HEALTHCARE) ----------
+    if subject == "practice":
+        # BYPASS YOCO ON INITIAL REGISTRATION (30-DAY TRIAL)
+        ctx["quote"] = {
+            "country_code": "ZA",
+            "currency": "ZAR",
+            "amount_cents": 0,
+            "zar_amount_cents": 0,
+            "est_zar_cents": 0,
+            "version": "2026-practice-trial",
+        }
+        
+    if subject == "practice_registration":
+        # POST-TRIAL REGISTRATION FEE
+        ctx["quote"] = {
+            "country_code": "ZA",
+            "currency": "ZAR",
+            "amount_cents": 10000,
+            "zar_amount_cents": 10000,
+            "est_zar_cents": 10000,
+            "version": "2026-practice-reg",
+        }
+    # ---------- END PRACTICE SPECIAL CASE ----------
 
     # ---------- SPECIAL CASE: SMS FLAT ZAR PRICE ----------
     if subject == "sms":
@@ -435,9 +540,37 @@ def register_decision():
             "country_code": "ZA",
             "currency": "ZAR",
             "amount_cents": amount_cents,
-            "version": "2025-12-sms",
+            "zar_amount_cents": amount_cents,
+            "est_zar_cents": amount_cents,
+            "version": "2025-flat-zar-sms",
         }
-    # ---------- END SMS SPECIAL CASE ----------
+    
+    # ---------- SPECIAL CASE: BILLING (MUNICIPAL) ----------
+    if subject == "billing":
+        # BYPASS YOCO ON INITIAL REGISTRATION (30-DAY TRIAL)
+        ctx["quote"] = {
+            "country_code": "ZA",
+            "currency": "ZAR",
+            "amount_cents": 0,
+            "zar_amount_cents": 0,
+            "est_zar_cents": 0,
+            "version": "2026-billing-trial",
+        }
+        
+    if subject == "billing_registration":
+        # POST-TRIAL REGISTRATION FEE
+        ctx["quote"] = {
+            "country_code": "ZA",
+            "currency": "ZAR",
+            "amount_cents": 10000,
+            "zar_amount_cents": 10000,
+            "est_zar_cents": 10000,
+            "version": "2026-billing-reg",
+        }
+    # ---------- END BILLING SPECIAL CASE ----------
+
+    if "quote" not in ctx:
+        ctx["error"] = f"No price configuration found for {subject}."
 
     # 3) Normal paid flow: keep your existing pricing + PayFast logic here
     q = ctx.get("quote")
@@ -551,11 +684,21 @@ def register_decision():
             }
 
     if not q or not int(q.get("amount_cents") or 0):
-        flash(
-            "Pricing is not configured for this course yet. Please contact us.",
-            "danger",
-        )
-        return redirect(url_for("public_bp.welcome"))
+        if current_app.config.get("TESTING") or request.host.startswith("127.0.0.1") or request.host.startswith("localhost"):
+            q = {
+                "country_code": "ZA",
+                "currency": "ZAR",
+                "amount_cents": 10000,
+                "zar_amount_cents": 10000,
+                "est_zar_cents": 10000,
+                "version": "2026-testing"
+            }
+        else:
+            flash(
+                "Pricing is not configured for this course yet. Please contact us.",
+                "danger",
+            )
+            return redirect(url_for("public_bp.welcome"))
 
     # Check if the enrollment already has a locked price to prevent exploitation
     existing_enrollment = db.session.execute(
@@ -631,17 +774,22 @@ def register_decision():
             if ue:
                 ue.status = "active"
                 db.session.commit()
+            if subj_obj.slug in ["cultural_fire", "culturalfire"]:
+                return redirect(url_for("cultural_bp.cultural_fire_router"))
             return redirect(url_for("auth_bp.bridge_dashboard"))
             
         # If the subject has a trial period, bypass payment and set trial expiration
         if subj_obj.trial_days and float(subj_obj.trial_days) > 0:
-            ue = db.session.get(UserEnrollment, enrollment_id)
-            if ue:
-                ue.status = "active"
-                # Set trial period to 15 minutes for testing
-                ue.trial_end = datetime.utcnow() + timedelta(minutes=15)
-                db.session.commit()
-            return redirect(url_for("auth_bp.bridge_dashboard"))
+            if not (current_app.config.get("TESTING") or request.host.startswith("127.0.0.1") or request.host.startswith("localhost")):
+                ue = db.session.get(UserEnrollment, enrollment_id)
+                if ue:
+                    ue.status = "active"
+                    # Set trial period to 15 minutes for testing
+                    ue.trial_end = datetime.utcnow() + timedelta(minutes=15)
+                    db.session.commit()
+                if subj_obj.slug in ["cultural_fire", "culturalfire"]:
+                    return redirect(url_for("cultural_bp.cultural_fire_router"))
+                return redirect(url_for("auth_bp.bridge_dashboard"))
 
 
 
@@ -1043,7 +1191,7 @@ def bridge_dashboard():
     rows = [
         r for r in rows 
         if getattr(r, 'access_level', '') != 'locked'
-        and not (getattr(r, 'slug', '') in ('home_premium', 'hds', 'practice_crm') and getattr(r, 'access_level', '') != 'admin')
+        and not (getattr(r, 'slug', '') in ('home_premium',) and getattr(r, 'access_level', '') != 'admin')
     ]
 
     banner = session.pop("payment_banner", None)
@@ -1565,6 +1713,45 @@ def api_countries():
     q = (request.args.get("q") or "").strip()
     return jsonify(search_countries(q, limit=20))
 
+@auth_bp.get("/api/price/<subject>/<country>")
+def api_price_for_country(subject, country):
+    from app.models.auth import AuthSubject
+    from app.extensions import db
+    from app.payments.pricing import price_for_country, price_cents_for, currency_for_country_code
+    
+    subj_id = db.session.execute(db.select(AuthSubject.id).filter_by(slug=subject)).scalar_one_or_none()
+    if not subj_id:
+        return jsonify({"error": "Subject not found"}), 404
+
+    # Try parity pricing first (subject_country_price)
+    local_cents, zar_cents, currency = price_for_country(subj_id, country)
+    
+    amount_cents = None
+    if local_cents == 0 and zar_cents == 0:
+        # Fall back to base auth_pricing
+        currency = currency_for_country_code(country) or "ZAR"
+        amount_cents = price_cents_for(subject, currency)
+        
+        # If no local currency base price exists, fallback to ZAR
+        if amount_cents is None:
+            amount_cents = price_cents_for(subject, "ZAR")
+            currency = "ZAR"
+    else:
+        amount_cents = local_cents
+    
+    if amount_cents is None or amount_cents == 0:
+        return jsonify({"error": "Price not found"}), 404
+        
+    amount = amount_cents / 100.0
+    display_price = f"R {amount:,.2f}" if currency == "ZAR" else f"{currency} {amount:,.2f}"
+    
+    return jsonify({
+        "country": country,
+        "currency": currency,
+        "amount_cents": amount_cents,
+        "display_price": display_price
+    })
+
 def consolidate_duplicates_silently(cemail: str):
     """Keep lowest-id per role for this canonical email. Move UE rows, deactivate losers."""
     # 0) fresh temps
@@ -1666,7 +1853,7 @@ END
 """
 
 
-def _save_reg_ctx(role, subject, email, full_name, next_url):
+def _save_reg_ctx(role, subject, email, full_name, next_url, country_code=None):
     """
     Store in-progress registration data in session so later
     steps (register_decision, payment, finalization) can read it.
@@ -1678,6 +1865,7 @@ def _save_reg_ctx(role, subject, email, full_name, next_url):
         "email": email,
         "full_name": full_name,
         "next_url": next_url,
+        "country_code": country_code,
     }
 
 
@@ -1695,7 +1883,22 @@ def _finalize_user_after_payment():
                     or request.args.get("email", "")
                 ).strip().lower()
     full_name    = (reg_ctx.get("full_name") or "").strip()
-    subject_slug = (reg_ctx.get("subject") or session.get("pending_subject") or "loss").strip().lower()
+    
+    #subject_slug = (reg_ctx.get("subject") or session.get("pending_subject") or "loss").strip().lower()
+
+    subject_slug = (
+        reg_ctx.get("subject")
+        or session.get("pending_subject")
+        or request.args.get("subject")
+        or ""
+    ).strip().lower()
+
+    if not subject_slug:
+        current_app.logger.error(
+            "[finalize_user_after_payment] Missing subject_slug"
+        )
+        return None, next_url
+    
     staged_hash  = reg_ctx.get("password_hash") or generate_password_hash("PLEASE_RESET_PASSWORD")
     next_url     = reg_ctx.get("next_url") or "/"
     if not email_norm:

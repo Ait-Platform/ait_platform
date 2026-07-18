@@ -20,15 +20,15 @@
         
         <div class="flex items-center justify-between">
           <h1 class="text-lg font-semibold text-slate-800">Price</h1>
-          <div class="text-xs text-slate-500">Value-based parity pricing</div>
+          <div class="text-base text-slate-800 font-medium">Value-based parity pricing</div>
         </div>
 
-        <p class="mt-2 text-sm text-slate-600">
+        <p class="mt-2 text-base text-slate-800 font-medium">
           Select your country to see your local price.
         </p>
 
         <div class="mt-5">
-          <label class="block text-sm font-medium text-slate-700 mb-2">Country</label>
+          <label class="block text-base font-bold text-slate-800 mb-2">Country</label>
 
           <form id="countryForm" method="get" action="{{ url_for('quote_bp.quote') }}">
             <input type="hidden" name="subject" value="{{ subject_slug }}">
@@ -36,7 +36,7 @@
 
             <select name="country"
                     onchange="this.form.submit()"
-                    class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200">
+                    class="w-full rounded-lg border-2 border-sky-500 bg-white px-3 py-2 text-base text-slate-900 focus:outline-none focus:border-sky-600 focus:ring-2 focus:ring-sky-500 shadow-sm transition-colors">
               <option value="" {% if not price.has_quote %}selected{% endif %}>Select your country</option>
               {% for c in countries %}
                 <option value="{{ c.code }}" {% if price.country_code == c.code %}selected{% endif %}>
@@ -46,7 +46,7 @@
             </select>
           </form>
 
-          <p class="mt-2 text-xs text-slate-500">
+          <p class="mt-2 text-base text-slate-800 font-medium">
             Don’t see your country? Choose any country that uses your currency.
           </p>
         </div>
@@ -54,23 +54,43 @@
         {% set has_quote = price and price.has_quote %}
         {% set disabled_class = '' if has_quote else 'opacity-50' %}
 
+        {% if has_quote %}
+        <div class="mt-4 bg-amber-50 border-l-4 border-amber-500 p-4 rounded shadow-sm">
+          <div class="flex items-start">
+            <div class="flex-shrink-0">
+              <svg class="h-5 w-5 text-amber-500" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+              </svg>
+            </div>
+            <div class="ml-3">
+              <p class="text-sm text-amber-800 font-bold">
+                You picked {% for c in countries %}{% if price.country_code == c.code %}{{ c.name }}{% endif %}{% endfor %}. Is that correct?
+              </p>
+              <p class="mt-1 text-xs text-amber-700">
+                Please ensure you have selected your actual country of residence.
+              </p>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+
         <div class="mt-6">
-          <div class="text-sm font-medium text-slate-700 mb-2">Price (your currency)</div>
+          <div class="text-base font-bold text-slate-800 mb-2">Price (your currency)</div>
           <div class="flex items-center gap-2 {{ disabled_class }}">
-            <div class="flex-1 rounded-lg border bg-slate-50 px-3 py-2 text-right text-sm text-slate-800">
+            <div class="flex-1 rounded-lg border bg-slate-50 px-3 py-2 text-right text-base text-slate-900">
               {% if has_quote and price.local_amount is not none %}
                 {{ '%.2f' % (price.local_amount / 100) }}
               {% else %}
                 —
               {% endif %}
             </div>
-            <div class="rounded-lg border px-3 py-2 text-sm text-slate-700">
+            <div class="rounded-lg border px-3 py-2 text-base text-slate-800">
               {{ price.local_currency if has_quote else '—' }}
             </div>
           </div>
 
           {% if has_quote and price.is_discount %}
-            <p class="mt-2 text-xs text-emerald-600">10% discount already applied.</p>
+            <p class="mt-2 text-sm font-bold text-emerald-700">10% discount already applied.</p>
           {% endif %}
         </div>
       </div>
@@ -87,23 +107,23 @@
         <div>
           <div class="flex items-center justify-between">
             <h2 class="text-lg font-semibold text-slate-800">Checkout</h2>
-            <div class="text-xs text-slate-500">{{ subject_slug|capitalize }}</div>
+            <div class="text-base text-slate-800 font-medium">{{ subject_slug|capitalize }}</div>
           </div>
 
           <div class="mt-5">
-            <div class="text-sm font-medium text-slate-700 mb-2">Estimated charge (in ZAR)</div>
+            <div class="text-base font-bold text-slate-800 mb-2">Estimated charge (in ZAR)</div>
             <div class="flex items-center gap-2 {{ disabled_class }}">
-              <div class="flex-1 rounded-lg border bg-white px-3 py-2 text-right text-sm text-slate-800">
+              <div class="flex-1 rounded-lg border bg-white px-3 py-2 text-right text-base text-slate-900">
                 {% if has_quote and price.estimated_zar is not none %}
                   {{ '%.2f' % (price.estimated_zar / 100) }}
                 {% else %}
                   —
                 {% endif %}
               </div>
-              <div class="rounded-lg border px-3 py-2 text-sm text-slate-700">ZAR</div>
+              <div class="rounded-lg border px-3 py-2 text-base text-slate-800">ZAR</div>
             </div>
 
-            <p class="mt-2 text-xs text-slate-500">
+            <p class="mt-2 text-base text-slate-800 font-medium">
               {% if has_quote %}
                 Charged in ZAR at checkout (platform parity pricing applied).
               {% else %}
@@ -117,8 +137,8 @@
         {% set reg_next = url_for('auth_bp.bridge_dashboard') %}
 
         <div class="mt-6 flex items-center justify-between gap-3">
-          <a href="{{ next_url if next_url else url_for('public_bp.welcome') }}"
-             class="rounded-lg border px-4 py-2 text-sm hover:bg-slate-50">
+          <a href="javascript:history.back()"
+             class="rounded-lg border px-4 py-2 text-base font-medium hover:bg-slate-100">
             ← Back
           </a>
 
@@ -126,7 +146,7 @@
             {% if can_act %}
               {% if current_user.is_authenticated %}
                 <a href="{{ url_for('yoco_bp.yoco_start', email=current_user.email, subject=subject_slug) }}"
-                  class="inline-flex items-center justify-center rounded bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-700 shadow-sm transition-colors">
+                  class="inline-flex items-center justify-center rounded bg-sky-600 px-4 py-2 text-base font-bold text-white hover:bg-sky-700 shadow-sm transition-colors">
                   Start free {{ trial_days }}-day trial
                 </a>
               {% else %}
@@ -136,13 +156,13 @@
                                     plan='trial',
                                     next=reg_next,
                                     price_id=price.price_id) }}"
-                   class="inline-flex items-center justify-center rounded bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-700 shadow-sm transition-colors">
+                   class="inline-flex items-center justify-center rounded bg-sky-600 px-4 py-2 text-base font-bold text-white hover:bg-sky-700 shadow-sm transition-colors">
                   Start free {{ trial_days }}-day trial
                 </a>
               {% endif %}
             {% else %}
               <button type="button"
-                      class="rounded bg-sky-600 px-4 py-2 text-sm font-semibold text-white opacity-50 cursor-not-allowed"
+                      class="rounded bg-sky-600 px-4 py-2 text-base font-bold text-white opacity-50 cursor-not-allowed"
                       disabled>
                 Start free {{ trial_days }}-day trial
               </button>
@@ -151,7 +171,7 @@
             {% if can_act %}
               {% if current_user.is_authenticated %}
                 <a href="{{ url_for('yoco_bp.yoco_start', email=current_user.email, subject=subject_slug) }}"
-                  class="inline-flex items-center justify-center rounded bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 shadow-sm transition-colors">
+                  class="inline-flex items-center justify-center rounded bg-emerald-600 px-4 py-2 text-base font-bold text-white hover:bg-emerald-700 shadow-sm transition-colors">
                   Buy now
                 </a>
               {% else %}
@@ -161,13 +181,13 @@
                                     plan='paid',
                                     next=reg_next,
                                     price_id=price.price_id) }}"
-                  class="inline-flex items-center justify-center rounded bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 shadow-sm transition-colors">
+                  class="inline-flex items-center justify-center rounded bg-emerald-600 px-4 py-2 text-base font-bold text-white hover:bg-emerald-700 shadow-sm transition-colors">
                   Buy now
                 </a>
               {% endif %}
             {% else %}
               <button type="button"
-                      class="rounded bg-emerald-600 px-4 py-2 text-sm font-semibold text-white opacity-50 cursor-not-allowed"
+                      class="rounded bg-emerald-600 px-4 py-2 text-base font-bold text-white opacity-50 cursor-not-allowed"
                       disabled>
                 Buy now
               </button>
@@ -176,14 +196,14 @@
             {% if current_user.is_authenticated %}
               {% if is_upgrade %}
                 <a href="{{ url_for('yoco_bp.yoco_start', email=current_user.email, subject=subject_slug) }}" 
-                   class="inline-flex items-center justify-center rounded bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 shadow-sm transition-colors">
+                   class="inline-flex items-center justify-center rounded bg-emerald-600 px-4 py-2 text-base font-bold text-white hover:bg-emerald-700 shadow-sm transition-colors">
                   Proceed to Payment
                 </a>
               {% else %}
                 <form action="{{ url_for('auth_bp.register_decision', subject=subject_slug) }}" method="POST" class="inline">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button type="submit" class="inline-flex items-center justify-center rounded bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 shadow-sm transition-colors">
-                    Start now
+                  <button type="submit" class="inline-flex items-center justify-center rounded bg-emerald-600 px-4 py-2 text-base font-bold text-white hover:bg-emerald-700 shadow-sm transition-colors">
+                    Register and Start
                   </button>
                 </form>
               {% endif %}
@@ -193,12 +213,27 @@
                                   subject=subject_slug,
                                   plan='free',
                                   next=reg_next) }}"
-                 class="inline-flex items-center justify-center rounded bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 shadow-sm transition-colors">
-                Start now
+                 class="inline-flex items-center justify-center rounded bg-emerald-600 px-4 py-2 text-base font-bold text-white hover:bg-emerald-700 shadow-sm transition-colors">
+                Register and Start
               </a>
             {% endif %}
           {% endif %}
         </div>
+        
+        <!-- Voucher Block -->
+        <div class="mt-8 pt-6 border-t border-slate-200">
+          <div class="text-base font-bold text-slate-800 mb-3">Have a Sponsor Voucher?</div>
+          <form action="{{ url_for('cultural_bp.redeem_voucher') }}" method="POST" class="flex gap-2">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="text" name="voucher_code" placeholder="Enter voucher code" required
+                   class="flex-1 rounded-lg border-2 border-indigo-200 px-3 py-2 text-base focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-300">
+            <button type="submit" class="rounded-lg bg-indigo-600 px-6 py-2 text-base font-bold text-white hover:bg-indigo-700 shadow-md transition-colors whitespace-nowrap">
+              Redeem
+            </button>
+          </form>
+          <p class="mt-2 text-sm text-slate-600 font-medium">Redeeming a valid voucher will bypass the checkout process entirely.</p>
+        </div>
+
       </div>
     </div>
 

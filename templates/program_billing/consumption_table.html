@@ -1,0 +1,130 @@
+{% extends "layout.html" %}
+{% block title %}Consumption Review{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 lg:px-8 font-sans">
+  <div class="max-w-7xl mx-auto space-y-8">
+    
+    <div class="bg-white rounded-xl shadow overflow-hidden border border-slate-200">
+      <div class="h-2 bg-green-500"></div>
+      
+      <div class="p-8">
+        <div class="flex items-center justify-between mb-8 pb-6 border-b border-slate-200">
+          <div>
+            <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">Consumption Review</h1>
+            <p class="text-slate-500 mt-2">Property: <strong>{{ property.name }}</strong> | Month: <strong>{{ month }}</strong></p>
+          </div>
+          <a href="{{ url_for('billing_bp.utilities_hub') }}" class="inline-flex items-center px-4 py-2 bg-slate-100 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-200 transition">
+            <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+            Back to Utilities Hub
+          </a>
+        </div>
+
+        <div class="flex justify-end space-x-3 mb-6">
+          <button onclick="window.print()" class="inline-flex items-center px-4 py-2 bg-slate-100 text-slate-700 text-sm font-semibold rounded-lg hover:bg-slate-200 transition border border-slate-300 shadow-sm">
+            <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+            Print
+          </button>
+          <button onclick="sendEmail()" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition shadow-sm">
+            <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+            Email
+          </button>
+        </div>
+
+
+        <div class="overflow-x-auto rounded-lg border border-slate-200">
+          <table class="w-full text-left border-collapse min-w-max">
+            <thead>
+              <tr class="bg-slate-50 text-slate-500 text-xs font-semibold uppercase tracking-wider border-b border-slate-200">
+                <th class="px-6 py-4">Meter Number</th>
+                <th class="px-6 py-4">Utility Type</th>
+                <th class="px-6 py-4 text-right">Previous Reading</th>
+                <th class="px-6 py-4 text-right">New Reading</th>
+                <th class="px-6 py-4 text-center">Days</th>
+                <th class="px-6 py-4 text-right font-bold text-green-700">Total Cons.</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+            {% for item in data %}
+            <tr class="hover:bg-slate-50 transition duration-150">
+              <td class="px-6 py-4">
+                <div class="font-bold text-slate-800">{{ item.meter.meter_number }}</div>
+                {% if item.meter.pointing_to %}
+                  <div class="text-[10px] uppercase font-bold text-slate-400 mt-0.5">{{ item.meter.pointing_to }}</div>
+                {% endif %}
+              </td>
+              <td class="px-6 py-4">
+                <span class="px-2 py-1 text-xs font-bold uppercase rounded-md shadow-sm border 
+                  {% if item.meter.utility_type == 'water' %}bg-blue-100 text-blue-700 border-blue-200
+                  {% else %}bg-yellow-100 text-yellow-700 border-yellow-200{% endif %}">
+                  {{ item.meter.utility_type }}
+                </span>
+              </td>
+              <td class="px-6 py-4 text-right">
+                {% if item.consumption %}
+                  <div class="text-sm font-mono text-slate-800">{{ item.consumption.last_read | int }}</div>
+                  <div class="text-[10px] text-slate-400">{{ item.consumption.last_date.strftime('%Y-%m-%d') if item.consumption.last_date else '' }}</div>
+                {% else %}
+                  <span class="text-slate-400">-</span>
+                {% endif %}
+              </td>
+              <td class="px-6 py-4 text-right">
+                {% if item.consumption %}
+                  <div class="text-sm font-mono text-slate-800">{{ item.consumption.new_read | int }}</div>
+                  <div class="text-[10px] text-slate-400">{{ item.consumption.new_date.strftime('%Y-%m-%d') if item.consumption.new_date else '' }}</div>
+                {% else %}
+                  <span class="text-slate-400">-</span>
+                {% endif %}
+              </td>
+              <td class="px-6 py-4 text-center text-slate-600">
+                {{ item.consumption.days if item.consumption else '-' }}
+              </td>
+              <td class="px-6 py-4 text-right font-bold text-lg text-green-700">
+                {{ item.consumption.consumption if item.consumption else 'Missing' }}
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="6" class="px-6 py-12 text-center text-slate-500">
+                No meters found for this property.
+              </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function sendEmail() {
+    const email = prompt("Enter email address to send this consumption review to:", "{{ current_user.email }}");
+    if (!email) return;
+    
+    try {
+        const response = await fetch("{{ url_for('billing_bp.email_consumption', property_id=property.id, month=month) }}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({ email: email })
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            alert("Email sent successfully to " + email);
+        } else {
+            alert("Failed to send email: " + result.error);
+        }
+    } catch(err) {
+        alert("Error sending email.");
+    }
+}
+</script>
+{% endblock %}

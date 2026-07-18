@@ -1,0 +1,105 @@
+{% extends "layout.html" %}
+{% block title %}Admin - Platform Modules Control{% endblock %}
+{% block flashes %}{% endblock %}
+
+{% block content %}
+<div class="p-10 max-w-5xl mx-auto">
+  <!-- Standardized Tile -->
+  <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+    <!-- Top color strip -->
+    <div class="h-2 w-full bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-500"></div>
+    
+    <!-- Row 1: Header -->
+    <div class="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+      <div>
+        <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight">Platform Modules Control</h1>
+        <p class="text-sm text-slate-500 mt-1">Manage visibility on the Welcome page and Yoco Payment mode for each program.</p>
+      </div>
+      <a href="{{ url_for('admin_bp.subject_dashboard', subject='admin_secure') }}" class="inline-flex items-center text-sm font-medium text-slate-500 hover:text-slate-800 transition bg-white hover:bg-slate-50 px-4 py-2 rounded-lg border border-slate-200 shadow-sm">
+        <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+        Back to Secure Setup
+      </a>
+    </div>
+
+    <!-- Inner Content -->
+    <div class="p-8">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          {% for category, message in messages %}
+            <div class="mb-6 rounded-lg p-4 {% if category == 'error' %}bg-red-50 text-red-800 border border-red-200{% else %}bg-green-50 text-green-800 border border-green-200{% endif %}">
+              {{ message }}
+            </div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
+      
+      <!-- Module Visibility & Environment -->
+      <form method="POST" action="{{ url_for('admin_bp.modules_control') }}" class="mb-8">
+        <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden mt-8">
+          <div class="bg-slate-50 border-b border-slate-200 px-6 py-4">
+            <h3 class="text-lg font-semibold text-slate-800">Platform Modules Control</h3>
+            <p class="text-sm text-slate-500 mt-1">Manage visibility on the Welcome page and Yoco Payment mode for each program.</p>
+          </div>
+          <div class="p-6">
+            <div class="overflow-x-auto">
+              
+
+<table class="min-w-full divide-y divide-slate-200">
+  <thead class="bg-slate-50">
+    <tr>
+      <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">No.</th>
+      <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Module (Slug)</th>
+      <th class="px-4 py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">Visible on Welcome?</th>
+      <th class="px-4 py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">Sandbox Mode?</th>
+      <th class="px-4 py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">Actions</th>
+    </tr>
+  </thead>
+  <tbody class="divide-y divide-slate-100 bg-white">
+    {% set slugs = ['loss', 'reading', 'home', 'tutor', 'budget', 'billing', 'cultural_fire', 'practice_crm', 'hds', 'receptionist', 'spv', 'adv_math', 'mechanic'] %}
+    {% for s in slugs %}
+    <tr class="hover:bg-slate-50 transition-colors">
+      <td class="px-4 py-3 text-sm text-slate-500 font-medium">{{ loop.index }}</td>
+      <td class="px-4 py-3 text-sm font-bold text-slate-800 capitalize">{{ s | replace('_', ' ') }}</td>
+      
+      <!-- Visibility Checkbox -->
+      <td class="px-4 py-3 text-center">
+        <label class="inline-flex items-center cursor-pointer justify-center">
+          <input type="hidden" name="visibility_{{ s }}" id="vis_{{ s }}" value="{{ settings.get('visibility_'~s, 'visible') }}">
+          <input type="checkbox" class="form-checkbox h-5 w-5 text-emerald-500 rounded border-2 border-slate-300 focus:ring-emerald-500 outline-none transition duration-150 cursor-pointer"
+                 onchange="document.getElementById('vis_{{ s }}').value = this.checked ? 'visible' : 'hidden';"
+                 {% if settings.get('visibility_'~s, 'visible') == 'visible' %}checked{% endif %}>
+        </label>
+      </td>
+
+      <!-- Sandbox Checkbox -->
+      <td class="px-4 py-3 text-center">
+        <label class="inline-flex items-center cursor-pointer justify-center">
+          <input type="hidden" name="yoco_mode_{{ s }}" id="yoco_{{ s }}" value="{{ settings.get('yoco_mode_'~s, 'sandbox') }}">
+          <input type="checkbox" class="form-checkbox h-5 w-5 text-amber-500 rounded border-2 border-slate-300 focus:ring-amber-500 outline-none transition duration-150 cursor-pointer"
+                 onchange="document.getElementById('yoco_{{ s }}').value = this.checked ? 'sandbox' : 'live';"
+                 {% if settings.get('yoco_mode_'~s, 'sandbox') == 'sandbox' %}checked{% endif %}>
+        </label>
+      </td>
+
+      <!-- Action Button -->
+      <td class="px-4 py-3 text-center">
+        <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-1.5 px-3 rounded text-xs shadow-sm transition">
+          Save
+        </button>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+
+            </div>
+            
+            
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

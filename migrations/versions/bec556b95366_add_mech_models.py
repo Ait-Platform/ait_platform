@@ -41,11 +41,12 @@ def upgrade() -> None:
                existing_type=sa.INTEGER(),
                server_default=None,
                existing_nullable=True)
-    op.alter_column('auth_approved_admin', 'active',
-               existing_type=sa.INTEGER(),
-               server_default=None,
-               type_=sa.Boolean(),
-               nullable=True)
+    # op.alter_column('auth_approved_admin', 'active',
+        #       existing_type=sa.INTEGER(),
+        #       server_default=None,
+        #       type_=sa.Boolean(),
+        #       postgresql_using='active::boolean',
+        #       nullable=True)
     op.alter_column('auth_payment_log', 'program',
                existing_type=sa.VARCHAR(length=100),
                type_=sa.String(length=255),
@@ -117,25 +118,25 @@ def upgrade() -> None:
                existing_nullable=True)
     op.drop_index(op.f('ix_auth_subject_is_active'), table_name='auth_subject')
     op.drop_index(op.f('ix_auth_subject_sort_order'), table_name='auth_subject')
-    op.alter_column('auth_subscriptions', 'valid_until',
-               existing_type=postgresql.TIMESTAMP(),
-               nullable=False)
-    op.alter_column('auth_subscriptions', 'auto_renew',
-               existing_type=sa.BOOLEAN(),
-               server_default=None,
-               existing_nullable=True)
-    op.alter_column('auth_subscriptions', 'created_at',
-               existing_type=postgresql.TIMESTAMP(),
-               server_default=None,
-               existing_nullable=True)
-    op.alter_column('auth_subscriptions', 'updated_at',
-               existing_type=postgresql.TIMESTAMP(),
-               server_default=None,
-               existing_nullable=True)
-    op.drop_index(op.f('idx_auth_subscriptions_user_program'), table_name='auth_subscriptions')
-    op.drop_constraint(op.f('auth_subscriptions_enrollment_id_fkey'), 'auth_subscriptions', type_='foreignkey')
-    op.create_foreign_key(None, 'auth_subscriptions', 'user', ['user_id'], ['id'])
-    op.drop_column('auth_subscriptions', 'enrollment_id')
+#     op.alter_column('auth_subscriptions', 'valid_until',
+#                existing_type=postgresql.TIMESTAMP(),
+#                nullable=False)
+#     op.alter_column('auth_subscriptions', 'auto_renew',
+#                existing_type=sa.BOOLEAN(),
+#                server_default=None,
+#                existing_nullable=True)
+#     op.alter_column('auth_subscriptions', 'created_at',
+#                existing_type=postgresql.TIMESTAMP(),
+#                server_default=None,
+#                existing_nullable=True)
+#     op.alter_column('auth_subscriptions', 'updated_at',
+#                existing_type=postgresql.TIMESTAMP(),
+#                server_default=None,
+#                existing_nullable=True)
+#     op.drop_index(op.f('idx_auth_subscriptions_user_program'), table_name='auth_subscriptions')
+#     op.drop_constraint(op.f('auth_subscriptions_enrollment_id_fkey'), 'auth_subscriptions', type_='foreignkey')
+#     op.create_foreign_key(None, 'auth_subscriptions', 'user', ['user_id'], ['id'])
+#     op.drop_column('auth_subscriptions', 'enrollment_id')
     op.drop_index(op.f('idx_bil_consumption_meter_id'), table_name='bil_consumption')
     op.drop_index(op.f('idx_bil_consumption_month'), table_name='bil_consumption')
     op.alter_column('bil_lease', 'tenant_arrangement_charge',
@@ -225,19 +226,19 @@ def upgrade() -> None:
     op.drop_index(op.f('idx_bil_tenant_phone'), table_name='bil_tenant')
     op.drop_index(op.f('idx_bil_tenant_sectional_unit_id'), table_name='bil_tenant')
     op.create_foreign_key(None, 'bil_tenant', 'bil_bank_detail', ['bank_detail_id'], ['id'])
-    op.drop_constraint(op.f('bud_account_user_id_code_key'), 'bud_account', type_='unique')
-    op.drop_index(op.f('ix_bud_account_user_active'), table_name='bud_account')
-    op.drop_index(op.f('ix_bud_account_user_group'), table_name='bud_account')
-    op.drop_index(op.f('ix_bud_account_user_hidden'), table_name='bud_account')
-    op.drop_constraint(op.f('uq_bud_account_user_name'), 'bud_account', type_='unique')
-    op.create_index(op.f('ix_bud_account_user_id'), 'bud_account', ['user_id'], unique=False)
-    op.drop_column('bud_account', 'balance_cents')
-    op.drop_column('bud_account', 'due_cents')
-    op.drop_column('bud_account', 'arrears_cents')
-    op.drop_column('bud_account', 'group_label')
-    op.drop_column('bud_account', 'is_hidden')
-    op.drop_column('bud_account', 'account_no')
-    op.drop_column('bud_account', 'as_at')
+#     op.drop_constraint(op.f('bud_account_user_id_code_key'), 'bud_account', type_='unique')
+#     op.drop_index(op.f('ix_bud_account_user_active'), table_name='bud_account')
+#     op.drop_index(op.f('ix_bud_account_user_group'), table_name='bud_account')
+#     op.drop_index(op.f('ix_bud_account_user_hidden'), table_name='bud_account')
+#     op.drop_constraint(op.f('uq_bud_account_user_name'), 'bud_account', type_='unique')
+#     op.create_index(op.f('ix_bud_account_user_id'), 'bud_account', ['user_id'], unique=False)
+#     op.drop_column('bud_account', 'balance_cents')
+#     op.drop_column('bud_account', 'due_cents')
+#     op.drop_column('bud_account', 'arrears_cents')
+#     op.drop_column('bud_account', 'group_label')
+#     op.drop_column('bud_account', 'is_hidden')
+#     op.drop_column('bud_account', 'account_no')
+#     op.drop_column('bud_account', 'as_at')
     op.drop_index(op.f('ix_bud_ledger_user_date'), table_name='bud_ledger')
     op.create_index(op.f('ix_bud_ledger_account_id'), 'bud_ledger', ['account_id'], unique=False)
     op.create_index(op.f('ix_bud_ledger_txn_date'), 'bud_ledger', ['txn_date'], unique=False)
@@ -762,7 +763,7 @@ def downgrade() -> None:
     op.add_column('user_enrollment', sa.Column('email_error', sa.TEXT(), autoincrement=False, nullable=True))
     op.add_column('user_enrollment', sa.Column('email_status', sa.TEXT(), server_default=sa.text("'pending'::text"), autoincrement=False, nullable=True))
     op.drop_constraint(None, 'user_enrollment', type_='foreignkey')
-    op.create_foreign_key(op.f('user_enrollment_subscription_id_fkey'), 'user_enrollment', 'auth_subscriptions', ['subscription_id'], ['id'])
+#     op.create_foreign_key(op.f('user_enrollment_subscription_id_fkey'), 'user_enrollment', 'auth_subscriptions', ['subscription_id'], ['id'])
     op.create_foreign_key(op.f('user_enrollment_user_id_fkey'), 'user_enrollment', 'user', ['user_id'], ['id'], ondelete='CASCADE')
     op.create_unique_constraint(op.f('uq_user_enrollment_user_subject'), 'user_enrollment', ['user_id', 'subject_id'], postgresql_nulls_not_distinct=False)
     op.alter_column('user_enrollment', 'biodata_id',
@@ -1250,19 +1251,19 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_bud_ledger_txn_date'), table_name='bud_ledger')
     op.drop_index(op.f('ix_bud_ledger_account_id'), table_name='bud_ledger')
     op.create_index(op.f('ix_bud_ledger_user_date'), 'bud_ledger', ['user_id', sa.literal_column('txn_date DESC'), sa.literal_column('id DESC')], unique=False)
-    op.add_column('bud_account', sa.Column('as_at', sa.DATE(), autoincrement=False, nullable=True))
-    op.add_column('bud_account', sa.Column('account_no', sa.TEXT(), autoincrement=False, nullable=True))
-    op.add_column('bud_account', sa.Column('is_hidden', sa.BOOLEAN(), server_default=sa.text('false'), autoincrement=False, nullable=False))
-    op.add_column('bud_account', sa.Column('group_label', sa.TEXT(), autoincrement=False, nullable=True))
-    op.add_column('bud_account', sa.Column('arrears_cents', sa.BIGINT(), server_default=sa.text('0'), autoincrement=False, nullable=False))
-    op.add_column('bud_account', sa.Column('due_cents', sa.BIGINT(), server_default=sa.text('0'), autoincrement=False, nullable=False))
-    op.add_column('bud_account', sa.Column('balance_cents', sa.BIGINT(), server_default=sa.text('0'), autoincrement=False, nullable=False))
-    op.drop_index(op.f('ix_bud_account_user_id'), table_name='bud_account')
-    op.create_unique_constraint(op.f('uq_bud_account_user_name'), 'bud_account', ['user_id', 'name'], postgresql_nulls_not_distinct=False)
-    op.create_index(op.f('ix_bud_account_user_hidden'), 'bud_account', ['user_id', 'is_hidden'], unique=False)
-    op.create_index(op.f('ix_bud_account_user_group'), 'bud_account', ['user_id', 'group_label'], unique=False)
-    op.create_index(op.f('ix_bud_account_user_active'), 'bud_account', ['user_id', 'is_active', 'id'], unique=False)
-    op.create_unique_constraint(op.f('bud_account_user_id_code_key'), 'bud_account', ['user_id', 'code'], postgresql_nulls_not_distinct=False)
+#     op.add_column('bud_account', sa.Column('as_at', sa.DATE(), autoincrement=False, nullable=True))
+#     op.add_column('bud_account', sa.Column('account_no', sa.TEXT(), autoincrement=False, nullable=True))
+#     op.add_column('bud_account', sa.Column('is_hidden', sa.BOOLEAN(), server_default=sa.text('false'), autoincrement=False, nullable=False))
+#     op.add_column('bud_account', sa.Column('group_label', sa.TEXT(), autoincrement=False, nullable=True))
+#     op.add_column('bud_account', sa.Column('arrears_cents', sa.BIGINT(), server_default=sa.text('0'), autoincrement=False, nullable=False))
+#     op.add_column('bud_account', sa.Column('due_cents', sa.BIGINT(), server_default=sa.text('0'), autoincrement=False, nullable=False))
+#     op.add_column('bud_account', sa.Column('balance_cents', sa.BIGINT(), server_default=sa.text('0'), autoincrement=False, nullable=False))
+#     op.drop_index(op.f('ix_bud_account_user_id'), table_name='bud_account')
+#     op.create_unique_constraint(op.f('uq_bud_account_user_name'), 'bud_account', ['user_id', 'name'], postgresql_nulls_not_distinct=False)
+#     op.create_index(op.f('ix_bud_account_user_hidden'), 'bud_account', ['user_id', 'is_hidden'], unique=False)
+#     op.create_index(op.f('ix_bud_account_user_group'), 'bud_account', ['user_id', 'group_label'], unique=False)
+#     op.create_index(op.f('ix_bud_account_user_active'), 'bud_account', ['user_id', 'is_active', 'id'], unique=False)
+#     op.create_unique_constraint(op.f('bud_account_user_id_code_key'), 'bud_account', ['user_id', 'code'], postgresql_nulls_not_distinct=False)
     op.drop_constraint(None, 'bil_tenant', type_='foreignkey')
     op.create_index(op.f('idx_bil_tenant_sectional_unit_id'), 'bil_tenant', ['sectional_unit_id'], unique=False)
     op.create_index(op.f('idx_bil_tenant_phone'), 'bil_tenant', ['phone'], unique=False)
@@ -1352,26 +1353,26 @@ def downgrade() -> None:
                existing_nullable=True)
     op.create_index(op.f('idx_bil_consumption_month'), 'bil_consumption', ['month'], unique=False)
     op.create_index(op.f('idx_bil_consumption_meter_id'), 'bil_consumption', ['meter_id'], unique=False)
-    op.add_column('auth_subscriptions', sa.Column('enrollment_id', sa.INTEGER(), autoincrement=False, nullable=True))
-    op.drop_constraint(None, 'auth_subscriptions', type_='foreignkey')
-    op.create_foreign_key(op.f('auth_subscriptions_enrollment_id_fkey'), 'auth_subscriptions', 'user_enrollment', ['enrollment_id'], ['id'])
-    op.create_index(op.f('idx_auth_subscriptions_user_program'), 'auth_subscriptions', ['user_id', 'program'], unique=False)
-    op.alter_column('auth_subscriptions', 'updated_at',
-               existing_type=postgresql.TIMESTAMP(),
-               server_default=sa.text('now()'),
-               existing_nullable=True)
-    op.alter_column('auth_subscriptions', 'created_at',
-               existing_type=postgresql.TIMESTAMP(),
-               server_default=sa.text('now()'),
-               existing_nullable=True)
-    op.alter_column('auth_subscriptions', 'auto_renew',
-               existing_type=sa.BOOLEAN(),
-               server_default=sa.text('true'),
-               existing_nullable=True)
-    op.alter_column('auth_subscriptions', 'valid_until',
-               existing_type=postgresql.TIMESTAMP(),
-               nullable=True)
-    op.create_index(op.f('ix_auth_subject_sort_order'), 'auth_subject', ['sort_order'], unique=False)
+#     op.add_column('auth_subscriptions', sa.Column('enrollment_id', sa.INTEGER(), autoincrement=False, nullable=True))
+#     op.drop_constraint(None, 'auth_subscriptions', type_='foreignkey')
+#     op.create_foreign_key(op.f('auth_subscriptions_enrollment_id_fkey'), 'auth_subscriptions', 'user_enrollment', ['enrollment_id'], ['id'])
+#     op.create_index(op.f('idx_auth_subscriptions_user_program'), 'auth_subscriptions', ['user_id', 'program'], unique=False)
+#     op.alter_column('auth_subscriptions', 'updated_at',
+#                existing_type=postgresql.TIMESTAMP(),
+#                server_default=sa.text('now()'),
+#                existing_nullable=True)
+#     op.alter_column('auth_subscriptions', 'created_at',
+#                existing_type=postgresql.TIMESTAMP(),
+#                server_default=sa.text('now()'),
+#                existing_nullable=True)
+#     op.alter_column('auth_subscriptions', 'auto_renew',
+#                existing_type=sa.BOOLEAN(),
+#                server_default=sa.text('true'),
+#                existing_nullable=True)
+#     op.alter_column('auth_subscriptions', 'valid_until',
+#                existing_type=postgresql.TIMESTAMP(),
+#                nullable=True)
+#     op.create_index(op.f('ix_auth_subject_sort_order'), 'auth_subject', ['sort_order'], unique=False)
     op.create_index(op.f('ix_auth_subject_is_active'), 'auth_subject', ['is_active'], unique=False)
     op.alter_column('auth_subject', 'admin_start_endpoint',
                existing_type=sa.String(length=128),

@@ -11,9 +11,9 @@
         &larr; Back
       </button>
       <div class="flex gap-4">
-        <a href="{{ url_for('billing_bp.metsoa_pdf', tenant_id=tenant.id, month=month) }}" class="bg-blue-600 hover:bg-blue-700 font-bold py-2 px-4 rounded shadow transition text-sm flex items-center">
-          Download PDF
-        </a>
+        <button onclick="sendMetsoaEmail()" class="bg-blue-600 hover:bg-blue-700 font-bold py-2 px-4 rounded shadow transition text-sm flex items-center">
+          Email METSOA
+        </button>
         <button onclick="window.print()" class="bg-slate-600 hover:bg-slate-700 font-bold py-2 px-4 rounded shadow transition text-sm flex items-center">
           Print
         </button>
@@ -28,12 +28,12 @@
       
       <div class="grid grid-cols-2 gap-4 mb-4 text-base">
         <div>
-          <div class="flex"><span class="w-24 font-semibold">Customer</span><span>{{ tenant.name }}</span></div>
-          <div class="flex"><span class="w-24 font-semibold">Email</span><span>{{ tenant.email or '' }}</span></div>
+          <div class="flex"><span class="w-24 font-semibold">Customer</span><span></span></div>
+          <div class="flex"><span class="w-24 font-semibold">Email</span><span></span></div>
         </div>
         <div>
           <div class="flex"><span class="w-24 font-semibold">Date</span><span>{{ month|replace('-', '/') }}/29</span></div>
-          <div class="flex"><span class="w-24 font-semibold">Address</span><span>{{ property.name if property else 'Unknown Property' }}</span></div>
+          <div class="flex"><span class="w-24 font-semibold">Address</span><span></span></div>
         </div>
       </div>
       
@@ -242,4 +242,35 @@
     }
   }
 </style>
+
+<script>
+function sendMetsoaEmail() {
+    const email = prompt("Enter email address to send this METSOA to:", "{{ current_user.email }}");
+    if (!email) return;
+    
+    try {
+        fetch("{{ url_for('billing_bp.email_metsoa', property_id=property.id, month=month) }}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({ email: email })
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                alert("METSOA emailed successfully to " + email);
+            } else {
+                alert("Failed to send email: " + result.error);
+            }
+        })
+        .catch(err => {
+            alert("Error sending email.");
+        });
+    } catch(err) {
+        alert("Error sending email.");
+    }
+}
+</script>
 {% endblock %}

@@ -4,7 +4,7 @@ from wtforms import (DateField, HiddenField, IntegerField, SelectField,
     TextAreaField, SubmitField, 
     SelectMultipleField
 )
-from wtforms.validators import DataRequired, Length, Optional, URL
+from wtforms.validators import DataRequired, Length, Optional, URL, Email
 from flask_wtf.file import FileAllowed, MultipleFileField
 from flask_wtf.file import FileAllowed, FileRequired, FileField
 
@@ -17,14 +17,9 @@ class RoleForm(FlaskForm):
     pass
 
 class EnrollmentStep1Form(FlaskForm):
-    full_name = StringField("Full Name", validators=[DataRequired()])
-    dob = DateField("Date of Birth", format="%Y-%m-%d", validators=[Optional()])
-    id_number = StringField("ID Number (optional)", validators=[Optional()])
-    #email = StringField("Email", validators=[DataRequired(), Email()])
-    phone = StringField("Phone", validators=[DataRequired()])
-    #institution = StringField("Institution / School / Company", validators=[DataRequired()])
-    #emergency_contact = StringField("Emergency Contact (Next of Kin)", validators=[DataRequired()])
-    #emergency_phone = StringField("Emergency Contact Phone", validators=[DataRequired()])
+    full_name = StringField("Stage Name / Pseudonym", validators=[DataRequired()])
+    dob = DateField("Date of Birth", format="%Y-%m-%d", validators=[DataRequired()])
+    parent_email = StringField("Parent/Guardian Email", validators=[Optional(), Email()])
     submit = SubmitField("Continue to Talent Selection")
 
 class EnrollmentStep2Form(FlaskForm):
@@ -34,35 +29,29 @@ class EnrollmentStep2Form(FlaskForm):
         ("other","Other")
     ], validators=[DataRequired()])
 
-    city = StringField("City", validators=[DataRequired()])
+    city = StringField("City", validators=[Optional()])
 
-    province = SelectField("Province", choices=[
-        ("kzn","KwaZulu-Natal"),
-        ("gp","Gauteng"),
-        ("wc","Western Cape"),
-        ("ec","Eastern Cape"),
-        ("lp","Limpopo"),
-        ("nw","North West"),
-        ("fs","Free State"),
-        ("mp","Mpumalanga"),
-        ("nc","Northern Cape")
-    ], validators=[DataRequired()])
+    province = StringField("Province", validators=[Optional()])
 
-    address_line = StringField("Address", validators=[DataRequired()])
-    occupation = StringField("Occupation", validators=[DataRequired()])
-    highest_qualification = StringField("Highest Qualification", validators=[DataRequired()])
+    #address_line = StringField("Address", validators=[DataRequired()])
+    #occupation = StringField("Occupation", validators=[DataRequired()])
+    #highest_qualification = StringField("Highest Qualification", validators=[DataRequired()])
     submit = SubmitField("Continue")
 
 class EnrollmentStep3Form(FlaskForm):
     pledge = BooleanField("I agree to the pledge", validators=[DataRequired()])
-    role = SelectField("Role", choices=[
-        ("participant","Participant"),
-        ("parent","Parent"),
-        ("sponsor","Sponsor"),
-        ("supporter","Supporter")
-        
-    ], validators=[DataRequired()])
     submit = SubmitField("Finish")
+
+class UpdateBiodataForm(FlaskForm):
+    full_name = StringField("Stage Name / Pseudonym", validators=[DataRequired()])
+    dob = DateField("Date of Birth", format="%Y-%m-%d", validators=[Optional()])
+    gender = SelectField("Gender", choices=[
+        ("male","Male"),
+        ("female","Female"),
+        ("other","Other")
+    ], validators=[DataRequired()])
+    parent_email = StringField("Parent/Guardian Email", validators=[Optional()])
+    submit = SubmitField("Save Changes")
 
 class BiodataForm(FlaskForm):
     full_name = StringField("Full Name", validators=[DataRequired()])

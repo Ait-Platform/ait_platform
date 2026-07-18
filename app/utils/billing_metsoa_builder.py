@@ -216,7 +216,7 @@ def _calc_ws_sd_for_meter(meter_id, month_str, cons_kl, days, tariffs, map_rows)
         "sd_fixed": sd_fixed,
     }
 
-def _get_consumption_rows(tenant_id, month_str):
+def _get_consumption_rows(property_id, month_str):
     return db.session.execute(text("""
       SELECT
         c.meter_id                         AS meter_id,
@@ -231,17 +231,16 @@ def _get_consumption_rows(tenant_id, month_str):
       FROM bil_consumption c
       JOIN bil_meter m ON m.id = c.meter_id
       JOIN bil_sectional_unit su ON su.id = m.sectional_unit_id
-      JOIN bil_tenant t ON t.sectional_unit_id = su.id AND t.id = :tid
-      WHERE c.month = :m
+      WHERE su.property_id = :pid AND c.month = :m
       ORDER BY CASE WHEN LOWER(m.utility_type) LIKE 'elec%%' THEN 0 ELSE 1 END,
                m.meter_number
-    """), {"tid": tenant_id, "m": month_str}).mappings().all()
+    """), {"pid": property_id, "m": month_str}).mappings().all()
 
 def _get_electric_rate(tariffs):
     t = tariffs.get("ElecRate")
     return float(t["rate"]) if t else None
 
-def build_metsoa_payload(tenant_id, month_str):
+def build_metsoa_payload(property_id, month_str):
     """
     Single pass over consumption rows:
       - Build Page 1 rows (electricity with due; water with WS/SD/WTR rows)
@@ -249,7 +248,7 @@ def build_metsoa_payload(tenant_id, month_str):
     Returns: (page1_dict, page2_dict)
     """
     tariffs = _tariffs_by_code(month_str)
-    base = _get_consumption_rows(tenant_id, month_str)
+    base = _get_consumption_rows(property_id, month_str)
     map_cache = {}  # meter_id -> map rows
 
     elec_rows, elec_total = [], 0.0

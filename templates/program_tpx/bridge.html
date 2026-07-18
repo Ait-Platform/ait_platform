@@ -1,0 +1,245 @@
+{% extends "layout.html" %}
+
+{% block content %}
+
+<div class="max-w-6xl mx-auto px-4 py-6">
+
+    <div class="bg-white rounded-xl shadow-xl overflow-hidden">
+
+        <!-- TPX Colour Strip -->
+        <div class="h-3 bg-pink-600"></div>
+
+        <div class="p-6">
+
+            <!-- ========================================= -->
+            <!-- ROW 1 -->
+            <!-- ========================================= -->
+
+            <div class="flex justify-between items-center mb-6">
+
+                <h1 class="text-3xl font-bold text-gray-800">
+
+                    Welcome to TPX
+
+                </h1>
+
+                <a href="{{ url_for('home_bp.index') }}"
+                   class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700">
+
+                    Exit
+
+                </a>
+
+            </div>
+
+            <!-- ========================================= -->
+            <!-- SUCCESS -->
+            <!-- ========================================= -->
+
+            <div class="rounded-xl bg-pink-50 border border-pink-200 p-8 mb-10 text-center">
+
+                <div class="text-6xl mb-4">
+                    🎉
+                </div>
+
+                <h2 class="text-3xl font-bold text-pink-700 mb-4">
+
+                    Registration Successful
+
+                </h2>
+
+                <p class="text-gray-700 text-lg leading-8">
+
+                    Welcome to the Talent Passport Exchange.
+
+                    Your professional registration has been activated.
+
+                    You can now begin building your Employment Passport and
+                    exploring employment opportunities.
+
+                </p>
+
+            </div>
+
+            <!-- ========================================= -->
+            <!-- WHAT NEXT -->
+            <!-- ========================================= -->
+
+            <div class="mb-8">
+
+                <h2 class="text-2xl font-semibold text-pink-700">
+
+                    What would you like to do?
+
+                </h2>
+
+            </div>
+
+            <!-- ========================================= -->
+            <!-- ACTION CARDS -->
+            <!-- ========================================= -->
+
+            <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+
+                <!-- Passport -->
+
+                <a href="{{ url_for('tpx_bp.passport') }}"
+                   class="border rounded-xl p-6 hover:shadow-lg hover:border-pink-500 transition">
+
+                    <div class="text-5xl text-center mb-4">
+                        🛂
+                    </div>
+
+                    <h3 class="text-xl font-semibold text-center text-pink-700 mb-3">
+
+                        My Employment Passport
+
+                    </h3>
+
+                    <p class="text-center text-gray-600">
+
+                        Build your professional profile.
+
+                    </p>
+
+                </a>
+
+                <!-- CV -->
+
+                <a href="{{ url_for('tpx_bp.documents') }}"
+                   class="border rounded-xl p-6 hover:shadow-lg hover:border-pink-500 transition">
+
+                    <div class="text-5xl text-center mb-4">
+                        📄
+                    </div>
+
+                    <h3 class="text-xl font-semibold text-center text-pink-700 mb-3">
+
+                        Upload Documents
+
+                    </h3>
+
+                    <p class="text-center text-gray-600">
+
+                        Upload your CV and certificates.
+
+                    </p>
+
+                </a>
+
+                <!-- Jobs -->
+
+                <a href="{{ url_for('tpx_bp.jobs') }}"
+                   class="border rounded-xl p-6 hover:shadow-lg hover:border-pink-500 transition">
+
+                    <div class="text-5xl text-center mb-4">
+                        💼
+                    </div>
+
+                    <h3 class="text-xl font-semibold text-center text-pink-700 mb-3">
+
+                        Browse Jobs
+
+                    </h3>
+
+                    <p class="text-center text-gray-600">
+
+                        Search available opportunities.
+
+                    </p>
+
+                </a>
+
+                <!-- Skills -->
+
+                <a href="{{ url_for('tpx_bp.skills') }}"
+                   class="border rounded-xl p-6 hover:shadow-lg hover:border-pink-500 transition">
+
+                    <div class="text-5xl text-center mb-4">
+                        🎓
+                    </div>
+
+                    <h3 class="text-xl font-semibold text-center text-pink-700 mb-3">
+
+                        Add Skills
+
+                    </h3>
+
+                    <p class="text-center text-gray-600">
+
+                        Strengthen your Employment Passport.
+
+                    </p>
+
+                </a>
+
+            </div>
+
+            <!-- ========================================= -->
+            <!-- PASSPORT STRENGTH -->
+            <!-- ========================================= -->
+
+            <div class="mt-10 border rounded-xl p-6">
+
+                <div class="flex justify-between mb-2">
+
+                    <span class="font-semibold">
+
+                        Employment Passport Progress
+
+                    </span>
+
+                    <span>
+
+                        10%
+
+                    </span>
+
+                </div>
+
+                <div class="w-full bg-gray-200 rounded-full h-4">
+
+                    <div class="bg-pink-600 h-4 rounded-full"
+                         style="width:10%">
+
+                    </div>
+
+                </div>
+
+                <p class="text-gray-600 mt-4">
+
+                    Complete your Employment Passport to improve your visibility
+                    to employers.
+
+                </p>
+
+            </div>
+
+            <!-- ========================================= -->
+            <!-- FOOTER -->
+            <!-- ========================================= -->
+
+            <div class="mt-10 rounded-xl bg-pink-600 text-white p-8 text-center">
+
+                <h2 class="text-3xl font-bold mb-3">
+
+                    Build Your Future.
+
+                </h2>
+
+                <p>
+
+                    Every qualification, every skill and every achievement
+                    strengthens your Employment Passport.
+
+                </p>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}

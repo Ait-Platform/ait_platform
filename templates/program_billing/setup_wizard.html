@@ -1,608 +1,1645 @@
 {% extends "layout.html" %}
-{% block title %}Property Setup Wizard{% endblock %}
+
+{% block title %}Global Architecture Setup{% endblock %}
+{% block flashes %}{% endblock %}
 
 {% block content %}
-<div class="min-h-screen bg-slate-50 py-10 px-4 flex flex-col items-center">
-  <div class="w-full max-w-3xl bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden" x-data="setupWizard()">
-    
+<div class="max-w-6xl mx-auto px-4 py-4">
+  <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden min-h-[70vh] flex flex-col">
     <!-- Top Strip -->
     <div class="h-2 w-full bg-orange-500"></div>
-
-    <div class="p-8">
-      <div class="flex items-center justify-between mb-2">
-        <h1 class="text-2xl font-bold text-slate-800">Metro Billing Setup Wizard</h1>
-        <a href="{{ url_for('auth_bp.bridge_dashboard') }}" class="inline-flex items-center text-sm font-medium text-slate-500 hover:text-slate-800 transition">
-          <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
-          Back to Dashboard
+    <!-- Header -->
+    <div class="bg-white px-8 pt-6 pb-2 flex flex-col gap-2">
+      {% include "partials/flash_messages.html" %}
+      <!-- Row 1 -->
+      <div class="flex justify-between items-start">
+        <div>
+          <h1 class="text-xl font-extrabold text-slate-800 leading-tight">Architecture Mapping</h1>
+          <p class="text-xs text-slate-500 leading-tight">Property: <span class="font-bold text-slate-700">{{ property.name }}</span></p>
+        </div>
+        <a href="{{ url_for('billing_bp.property_portfolio') }}" class="inline-flex items-center space-x-2 bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 font-semibold py-2 px-4 rounded-lg transition shadow-sm text-sm">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+          <span>Back</span>
         </a>
       </div>
-      <p class="text-slate-500 mb-8">Set up your property, complex meter hierarchies, and initial tenant to generate accurate municipal utility bills.</p>
+      
+      <!-- Row 2 -->
+      <div class="grid grid-cols-4 md:grid-cols-6 gap-2 text-[11px] w-full text-center">
+          <span id="step-1-badge" class="px-2 py-1 rounded-full font-bold bg-blue-100 text-blue-700 whitespace-nowrap">1. Property</span>
+          <span id="step-2-badge" class="px-2 py-1 rounded-full font-bold bg-slate-100 text-slate-400 whitespace-nowrap">2. Accounts</span>
+          <span id="step-3-badge" class="px-2 py-1 rounded-full font-bold bg-slate-100 text-slate-400 whitespace-nowrap">3. Bulk Water</span>
+          <span id="step-4-badge" class="px-2 py-1 rounded-full font-bold bg-slate-100 text-slate-400 whitespace-nowrap">4. Bulk Elec</span>
+          <span id="step-5-badge" class="px-2 py-1 rounded-full font-bold bg-slate-100 text-slate-400 whitespace-nowrap">5. Sub Meters</span>
+          <span id="step-6-badge" class="px-2 py-1 rounded-full font-bold bg-slate-100 text-slate-400 whitespace-nowrap">6. Exceptions</span>
+          <span id="step-7-badge" class="px-2 py-1 rounded-full font-bold bg-slate-100 text-slate-400 whitespace-nowrap">7. Mapping</span>
+          <span id="step-8-badge" class="px-2 py-1 rounded-full font-bold bg-slate-100 text-slate-400 whitespace-nowrap">8. Readings</span>
+          <span id="step-9-badge" class="px-2 py-1 rounded-full font-bold bg-slate-100 text-slate-400 whitespace-nowrap">9. Arrears</span>
+          <span id="step-10-badge" class="px-2 py-1 rounded-full font-bold bg-slate-100 text-slate-400 whitespace-nowrap">10. Arrangements</span>
+          <span id="step-11-badge" class="px-2 py-1 rounded-full font-bold bg-slate-100 text-slate-400 whitespace-nowrap">11. Rates</span>
+          <span id="step-12-badge" class="px-2 py-1 rounded-full font-bold bg-slate-100 text-slate-400 whitespace-nowrap">12. Owners</span>
+        </div>
+    </div>
 
-      <!-- Step Indicators -->
-      <div class="flex items-center justify-between px-2 py-4 bg-orange-50 border-b overflow-x-auto mb-8 rounded-lg">
-        <template x-for="i in 8">
-          <div class="flex flex-col items-center min-w-[50px] mx-1">
-            <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm"
-                 :class="step >= i ? 'bg-orange-500 text-white' : 'bg-orange-200 text-orange-700'">
-              <span x-text="i"></span>
-            </div>
-            <div class="text-[10px] mt-1 font-medium whitespace-nowrap"
-                 :class="step >= i ? 'text-orange-700' : 'text-orange-400'">
-              <span x-show="i === 1">Terms</span>
-              <span x-show="i === 2">Property</span>
-              <span x-show="i === 3">Meters</span>
-              <span x-show="i === 4">Tenant</span>
-              <span x-show="i === 5">T. Arrears</span>
-              <span x-show="i === 6">M. Arrears</span>
-              <span x-show="i === 7">Rates</span>
-              <span x-show="i === 8">Agent</span>
-            </div>
+    <!-- Wizard Steps Container -->
+    <div class="px-8 pt-3 pb-6 flex-grow">
+      
+      <!-- STEP 1: PROPERTY MAP -->
+      <div id="step-1" class="wizard-step">
+        <h2 class="text-lg font-bold text-slate-800 mb-1">Step 1: Property Setup Map</h2>
+        <p class="text-xs text-slate-600 mb-4">Review and adjust the architectural totals for this property. Any changes here will instantly update the locked rows in subsequent steps.</p>
+        
+        <div class="grid grid-cols-2 gap-6 w-full max-w-3xl mx-auto">
+            <div>
+            <label class="block text-sm font-bold text-slate-700 mb-1">Total METSOAs (Utility Statements)</label>
+            <input type="number" id="pm_accounts" value="{{ property.expected_bills|default(8) }}" min="1" autofocus class="w-full border border-slate-400 shadow-inner bg-white rounded px-3 py-2 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition">
+            <p class="text-xs text-slate-500 mt-1">The number of Metro Statements of Account required for this property.</p>
           </div>
-        </template>
+            <div></div> <!-- Spacer -->
+            
+            <div>
+                <label class="block text-sm font-bold text-slate-700 mb-1">Total Water Meters</label>
+                <input type="number" id="pm_water" value="{{ property.expected_water_meters|default(0) }}" min="0" class="w-full border border-slate-400 shadow-inner bg-white rounded px-3 py-2 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition">
+            </div>
+            <div>
+                <label class="block text-sm font-bold text-slate-700 mb-1">Total Electrical Meters</label>
+                <input type="number" id="pm_elec" value="{{ property.expected_elec_meters|default(0) }}" min="0" class="w-full border border-slate-400 shadow-inner bg-white rounded px-3 py-2 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition">
+            </div>
+            
+            <div>
+                <label class="block text-sm font-bold text-slate-700 mb-1">Master Bulk Water?</label>
+                <select id="pm_bulk_water" class="w-full border border-slate-400 shadow-inner bg-white rounded px-3 py-2 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition">
+                    <option value="no" {% if not property.is_bulk_water %}selected{% endif %}>No</option>
+                    <option value="yes" {% if property.is_bulk_water %}selected{% endif %}>Yes</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-bold text-slate-700 mb-1">Master Bulk Electrical?</label>
+                <select id="pm_bulk_elec" class="w-full border border-slate-400 shadow-inner bg-white rounded px-3 py-2 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition">
+                    <option value="no" {% if not property.is_bulk_elec %}selected{% endif %}>No</option>
+                    <option value="yes" {% if property.is_bulk_elec %}selected{% endif %}>Yes</option>
+                </select>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-bold text-slate-700 mb-1">Total Unique Owners</label>
+                <input type="number" id="pm_owners" value="{{ property.expected_owners|default(1) }}" min="1" class="w-full border border-slate-400 shadow-inner bg-white rounded px-3 py-2 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition">
+            </div>
+            <div>
+                <label class="block text-sm font-bold text-slate-700 mb-1">Total Unique Addresses</label>
+                <input type="number" id="pm_addresses" value="{{ property.expected_addresses|default(1) }}" min="1" class="w-full border border-slate-400 shadow-inner bg-white rounded px-3 py-2 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition">
+            </div>
+        </div>
       </div>
 
-      <form id="setupForm" action="{{ url_for('billing_bp.setup_submit') }}" method="POST">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-        <input type="hidden" id="hidden_payload" name="payload"/>
+      <!-- STEP 2: ACCOUNTS -->
+      <div id="step-2" class="wizard-step hidden">
+        <h2 class="text-xl font-bold text-slate-800 mb-2">Step 2: Account Registry</h2>
+        <p class="text-sm text-slate-600 mb-6">Enter all the Municipal Account Numbers for this property. Select exactly one account as the <strong>Bulk Account</strong>.</p>
         
-        <!-- STEP 1: Disclaimer -->
-        <div x-show="step === 1" x-transition.opacity.duration.300ms class="space-y-6">
-          <div class="text-center">
-            <h2 class="text-2xl font-bold text-slate-800">Important Disclaimer</h2>
-            <p class="text-slate-500 mt-2">Please read and acknowledge the following terms before proceeding.</p>
+        <div class="bg-slate-50 rounded-xl border border-slate-200 p-4 mb-4">
+          <div class="grid grid-cols-12 gap-4 text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 px-2">
+            <div class="col-span-12 bulk-col-adj">Account Number</div>
+            <div class="col-span-2 text-center bulk-col hidden">Is Bulk?</div>
           </div>
-          
-          <div class="bg-orange-50 border border-orange-200 rounded-xl p-6 text-orange-800 text-sm leading-relaxed space-y-4">
-            <p><strong>Mimicking the Metro Bill:</strong> This platform is designed to mimic municipal bills based on the input data you provide. Our goal is to create structurally identical statements to help you pass accurate charges down to your tenants.</p>
-            <p><strong>Verification Liability:</strong> We cannot be held responsible for billing errors, miscalculations, or data entry mistakes. It is strictly the duty of the Owner or Agent to verify all statements generated by this app before issuing them to tenants. For this reason, all statements will be sent to the Owner/Agent first.</p>
-            <p><strong>Data Accuracy:</strong> The Owner/Agent is solely responsible for the accurate input of all meter readings, property rates, arrangements, and baseline tariffs.</p>
-          </div>
-          
-          <label class="flex items-center space-x-3 p-4 border rounded-xl hover:bg-slate-50 cursor-pointer transition">
-            <input type="checkbox" x-model="data.accepted_terms" class="form-checkbox h-5 w-5 text-orange-500 border-slate-300 rounded focus:ring-orange-500">
-            <span class="text-slate-700 font-medium text-sm">I have read, understood, and agree to verify all generated statements before distributing them.</span>
-          </label>
-
-          <div class="mt-8 flex justify-end">
-            <button type="button" :disabled="!data.accepted_terms" @click="nextStep()" class="px-6 py-2 bg-orange-500 text-white font-semibold rounded-lg hover:bg-orange-600 transition disabled:opacity-50">I Agree. Next &rarr;</button>
+          <div id="accounts-container" class="space-y-3">
+            <!-- Populated by JS based on expected_bills -->
           </div>
         </div>
+      </div>
 
-        <!-- STEP 2: Property -->
-        <div x-show="step === 2" style="display: none;" x-transition.opacity.duration.300ms>
-          <div class="flex items-center justify-between mb-4">
-            <h2 class="text-lg font-semibold text-slate-800">2. Property Details</h2>
-            <span class="text-xs font-bold text-orange-600 bg-orange-100 px-2 py-1 rounded-md uppercase">Manual Entry Mode</span>
-          </div>
+      <!-- STEP 3: BULK WATER -->
+      <div id="step-3" class="wizard-step hidden">
+        <div class="flex justify-between items-center mb-2">
+            <h2 class="text-xl font-bold text-slate-800">Step 3: Bulk Water Registry</h2>
+        </div>
+        <p class="text-sm text-slate-600 mb-6">Enter the master bulk water meter numbers for the entire property. These are strictly locked based on the Property Map.</p>
+        
+        <div class="max-w-md mx-auto bg-sky-50 rounded-xl border border-sky-200 p-4">
+            <h3 class="font-bold text-sky-800 mb-3 text-sm flex items-center"><span class="w-2 h-2 rounded-full bg-sky-500 mr-2"></span>Bulk Water Meter</h3>
+            <div id="bulk-water-container" class="space-y-3"></div>
+        </div>
+      </div>
 
-          <div class="space-y-4">
-            <div>
-              <label class="block text-sm font-medium text-slate-700">Property Name (Billing Name)</label>
-              <input type="text" name="property_name" autofocus x-model="data.property_name" class="mt-1 block w-full rounded-md border-2 border-slate-300 p-2 shadow-sm focus:border-orange-500 focus:ring-orange-500">
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-slate-700">Property Address</label>
-              <input type="text" name="address" x-model="data.address" class="mt-1 block w-full rounded-md border-2 border-slate-300 p-2 shadow-sm focus:border-orange-500 focus:ring-orange-500">
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-slate-700">Landlord / Owner Name</label>
-              <input type="text" name="landlord_name" x-model="data.landlord_name" class="mt-1 block w-full rounded-md border-2 border-slate-300 p-2 shadow-sm focus:border-orange-500 focus:ring-orange-500">
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-slate-700">Metro Account Number</label>
-              <input type="text" name="metro_account_no" x-model="data.metro_account_no" class="mt-1 block w-full rounded-md border-2 border-slate-300 p-2 shadow-sm focus:border-orange-500 focus:ring-orange-500">
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-slate-700">Metro Email Address</label>
-              <input type="email" name="muni_email" x-model="data.muni_email" placeholder="e.g. statement@ethekwini.gov.za" class="mt-1 block w-full rounded-md border-2 border-slate-300 p-2 shadow-sm focus:border-orange-500 focus:ring-orange-500">
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-slate-700">Initial Amount Due (from Metro Bill)</label>
-              <input type="number" step="0.01" name="initial_due_amount" x-model="data.initial_due_amount" class="mt-1 block w-full rounded-md border-2 border-slate-300 p-2 shadow-sm focus:border-orange-500 focus:ring-orange-500">
-            </div>
+      <!-- STEP 4: BULK ELECTRICAL -->
+      <div id="step-4" class="wizard-step hidden">
+        <div class="flex justify-between items-center mb-2">
+            <h2 class="text-xl font-bold text-slate-800">Step 4: Bulk Electrical Registry</h2>
+        </div>
+        <p class="text-sm text-slate-600 mb-6">Enter the master bulk electrical meter numbers for the entire property. These are strictly locked based on the Property Map.</p>
+        
+        <div class="max-w-md mx-auto bg-indigo-50 rounded-xl border border-indigo-200 p-4">
+            <h3 class="font-bold text-indigo-800 mb-3 text-sm flex items-center"><span class="w-2 h-2 rounded-full bg-indigo-500 mr-2"></span>Bulk Electrical Meter</h3>
+            <div id="bulk-elec-container" class="space-y-3"></div>
+        </div>
+      </div>
+
+      <!-- STEP 5: SUB METERS -->
+      <div id="step-5" class="wizard-step hidden">
+        <div class="flex justify-between items-center mb-2">
+            <h2 class="text-xl font-bold text-slate-800">Step 5: Sub-Meters Registry</h2>
+        </div>
+        <p class="text-sm text-slate-600 mb-6">These rows are strictly locked based on the Total Water and Total Electric meters defined in your Property Map. <strong class="text-blue-700 block mt-1"><svg class="w-4 h-4 inline-block mb-0.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>Logic: Total Meters - Master Bulk Meter = Remaining Sub-Meters</strong></p>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="bg-sky-50 rounded-xl border border-sky-200 p-4">
+            <h3 class="font-bold text-sky-800 mb-3 text-sm flex items-center"><span class="w-2 h-2 rounded-full bg-sky-500 mr-2"></span>Sub Water Meters</h3>
+            <div id="sub-water-container" class="space-y-3"></div>
           </div>
-          <div class="mt-8 flex justify-between">
-            <button type="button" @click="step--" class="px-6 py-2 bg-slate-200 text-slate-700 font-semibold rounded-lg hover:bg-slate-300 transition">&larr; Back</button>
-            <button type="button" @click="nextStep()" class="px-6 py-2 bg-orange-500 text-white font-semibold rounded-lg hover:bg-orange-600 transition">Next: Meters &rarr;</button>
+          <div class="bg-indigo-50 rounded-xl border border-indigo-200 p-4">
+            <h3 class="font-bold text-indigo-800 mb-3 text-sm flex items-center"><span class="w-2 h-2 rounded-full bg-indigo-500 mr-2"></span>Sub Electric Meters</h3>
+            <div id="sub-elec-container" class="space-y-3"></div>
           </div>
         </div>
+      </div>
 
-        <!-- STEP 3: Meters -->
-        <div x-show="step === 3" style="display: none;" x-transition.opacity.duration.300ms>
-          <h2 class="text-lg font-semibold text-slate-800 mb-4">3. Meter Configuration</h2>
-          <p class="text-sm text-slate-600 mb-6">Let's map out exactly how the meters are structured on this property.</p>
-          
-          <!-- WATER METERS -->
-          <div class="mb-8 p-6 bg-blue-50 border-2 border-blue-200 rounded-lg">
-            <h3 class="text-md font-bold text-blue-800 mb-4">Water Meters</h3>
-            
-            <div class="mb-4">
-              <label class="block text-sm font-semibold text-blue-900 mb-2">Does this property have a Bulk Water Meter which feeds water to other meters?</label>
-              <div class="flex space-x-4">
-                <label class="flex items-center space-x-2">
-                  <input type="radio" name="has_bulk_water" value="yes" x-model="ui.has_bulk_water" class="text-orange-500 focus:ring-orange-500">
-                  <span class="text-blue-800">Yes, there is a Bulk Water Meter</span>
-                </label>
-                <label class="flex items-center space-x-2">
-                  <input type="radio" name="has_bulk_water" value="no" x-model="ui.has_bulk_water" class="text-orange-500 focus:ring-orange-500">
-                  <span class="text-blue-800">No, just independent meters</span>
-                </label>
-              </div>
+      <!-- STEP 6: EXCEPTIONAL CASES -->
+      <div id="step-6" class="wizard-step hidden">
+        <h2 class="text-xl font-bold text-slate-800 mb-2">Step 6: Exceptional Cases (Stolen Meters)</h2>
+        <p class="text-sm text-slate-600 mb-6">List any Stolen Municipal Meters here, and select which new Sub-Meter physically replaced it.</p>
+        
+        <div class="bg-rose-50 rounded-xl border border-rose-200 p-4 max-w-3xl">
+          <div id="exceptions-container" class="space-y-3"></div>
+          <button type="button" onclick="addExceptionRow()" class="mt-4 text-sm font-bold text-rose-700 hover:text-rose-900 flex items-center">
+            + Add Exception Link
+          </button>
+        </div>
+      </div>
+
+      <!-- STEP 7: MAPPING -->
+      <div id="step-7" class="wizard-step hidden">
+        <h2 class="text-xl font-bold text-slate-800 mb-2">Step 7: The Mapping Dashboard</h2>
+        <p class="text-sm text-slate-600 mb-6">Because you defined your Bulk and Exception meters explicitly, the system already knows what to do with them! You only need to link your Sub-Meters to your Sub-Accounts.</p>
+        
+        <div id="mapping-container" class="space-y-6">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <div id="step-8" class="wizard-step hidden">
+        <h2 class="text-xl font-bold text-slate-800 mb-2">Step 8: Initial Readings</h2>
+        <p class="text-sm text-slate-600 mb-6">Enter the starting baseline reading and date for every meter.</p>
+        <div id="readings-container" class="space-y-3"></div>
+      </div>
+
+      <div id="step-9" class="wizard-step hidden">
+        <h2 class="text-xl font-bold text-slate-800 mb-2">Step 9: Arrears</h2>
+        <p class="text-sm text-slate-600 mb-6">Enter any outstanding arrears for each account.</p>
+        <div id="arrears-container" class="space-y-3"></div>
+      </div>
+
+      <div id="step-10" class="wizard-step hidden">
+        <h2 class="text-xl font-bold text-slate-800 mb-2">Step 10: Payment Arrangements</h2>
+        <p class="text-sm text-slate-600 mb-6">Enter any payment arrangements (amount and duration in months) for each account.</p>
+        <div id="arrangements-container" class="space-y-3"></div>
+      </div>
+
+      <div id="step-11" class="wizard-step hidden">
+        <h2 class="text-xl font-bold text-slate-800 mb-2">Step 11: Rates</h2>
+        <p class="text-sm text-slate-600 mb-2">Enter any rates for each account (if applicable).</p>
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-6">
+          <p class="text-sm text-blue-800"><i class="fas fa-info-circle mr-1"></i><strong>Note:</strong> This section is for your records. Setting a baseline will help generate accurate monthly financials.</p>
+        </div>
+        <div id="rates-container" class="space-y-3"></div>
+      </div>
+
+      <div id="step-12" class="wizard-step hidden">
+        <h2 class="text-xl font-bold text-slate-800 mb-2">Step 12: Owner Details</h2>
+        <p class="text-sm text-slate-600 mb-6">Create owner profiles and addresses, then assign them to accounts.</p>
+        
+        <div class="mb-6 bg-slate-50 p-4 rounded-xl border border-slate-200">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-bold text-slate-700">1. Master Owners List (Names & Emails)</h3>
+                <button type="button" onclick="addOwnerRow()" class="text-xs bg-blue-100 text-blue-700 px-3 py-1 rounded font-bold hover:bg-blue-200 transition shadow-sm border border-blue-200">+ Add Owner</button>
+            </div>
+            <div id="owners-master-container" class="space-y-2 mb-6">
+                <!-- Master owner rows generated here -->
             </div>
 
-            <!-- If YES Bulk Water -->
-            <div x-show="ui.has_bulk_water === 'yes'" class="space-y-4 pt-4 border-t border-blue-200">
-              <div class="grid grid-cols-2 gap-4">
-                <div>
-                  <label class="block text-sm font-medium text-blue-900">Bulk Water Meter Number</label>
-                  <input type="text" x-model="ui.bulk_water_meter" class="mt-1 block w-full rounded-md border-2 border-blue-300 p-2 shadow-sm focus:border-orange-500 focus:ring-orange-500">
-                </div>
-                <div>
-                  <label class="block text-sm font-medium text-blue-900">Municipal Bill Number</label>
-                  <input type="text" x-model="ui.bulk_water_bill" class="mt-1 block w-full rounded-md border-2 border-blue-300 p-2 shadow-sm focus:border-orange-500 focus:ring-orange-500" placeholder="e.g. 12345678">
-                </div>
-              </div>
-              
-              <div class="pt-4">
-                <label class="block text-sm font-semibold text-blue-900 mb-2">Sub-Meters Linked to this Bulk Meter</label>
-                <template x-for="(meter, index) in subWaterMeters" :key="index">
-                  <div class="flex space-x-2 mb-2 items-center">
-                    <input type="text" placeholder="Meter Number" x-model="meter.number" class="w-1/2 rounded-md border-2 border-slate-300 p-2 shadow-sm">
-                    <input type="text" placeholder="Where is it pointing? (e.g. Flat 1)" x-model="meter.pointing_to" class="w-1/2 rounded-md border-2 border-slate-300 p-2 shadow-sm">
-                    <button type="button" @click="subWaterMeters.splice(index, 1)" class="text-red-500 hover:text-red-700 font-bold">&times;</button>
-                  </div>
-                </template>
-                <button type="button" @click="subWaterMeters.push({number: '', pointing_to: ''})" class="text-sm text-blue-700 hover:text-blue-900 font-semibold">+ Add Linked Sub-Meter</button>
-              </div>
+            <div class="flex justify-between items-center mb-4 pt-4 border-t border-slate-200">
+                <h3 class="font-bold text-slate-700">2. Master Addresses List</h3>
+                <button type="button" onclick="addAddressRow()" class="text-xs bg-blue-100 text-blue-700 px-3 py-1 rounded font-bold hover:bg-blue-200 transition shadow-sm border border-blue-200">+ Add Address</button>
             </div>
-
-            <!-- Independent Water Meters -->
-            <div class="pt-6 border-t border-blue-200 mt-6">
-              <label class="block text-sm font-semibold text-blue-900 mb-2" x-text="ui.has_bulk_water === 'yes' ? 'Additional Independent Water Meters (Not linked to bulk)' : 'Independent Water Meters'"></label>
-              <template x-for="(meter, index) in indWaterMeters" :key="index">
-                <div class="flex space-x-2 mb-2 items-center">
-                  <input type="text" placeholder="Meter Number" x-model="meter.number" class="w-1/3 rounded-md border-2 border-slate-300 p-2 shadow-sm">
-                  <input type="text" placeholder="Municipal Bill Number" x-model="meter.bill_number" class="w-1/3 rounded-md border-2 border-slate-300 p-2 shadow-sm">
-                  <input type="text" placeholder="Where is it pointing?" x-model="meter.pointing_to" class="w-1/3 rounded-md border-2 border-slate-300 p-2 shadow-sm">
-                  <button type="button" @click="indWaterMeters.splice(index, 1)" class="text-red-500 hover:text-red-700 font-bold">&times;</button>
-                </div>
-              </template>
-              <button type="button" @click="indWaterMeters.push({number: '', bill_number: data.metro_account_no, pointing_to: ''})" class="text-sm text-blue-700 hover:text-blue-900 font-semibold">+ Add Independent Water Meter</button>
+            <div id="addresses-master-container" class="space-y-2">
+                <!-- Master address rows generated here -->
             </div>
-          </div>
-
-          <!-- ELECTRIC METERS -->
-          <div class="p-6 bg-yellow-50 border-2 border-yellow-200 rounded-lg">
-            <h3 class="text-md font-bold text-yellow-800 mb-4">Electric Meters</h3>
-            
-            <div class="mb-4">
-              <label class="block text-sm font-semibold text-yellow-900 mb-2">Does this property have a Bulk Electric Meter which feeds to sub-meters?</label>
-              <div class="flex space-x-4">
-                <label class="flex items-center space-x-2">
-                  <input type="radio" name="has_bulk_elec" value="yes" x-model="ui.has_bulk_elec" class="text-orange-500 focus:ring-orange-500">
-                  <span class="text-yellow-800">Yes, there is a Bulk Electric Meter</span>
-                </label>
-                <label class="flex items-center space-x-2">
-                  <input type="radio" name="has_bulk_elec" value="no" x-model="ui.has_bulk_elec" class="text-orange-500 focus:ring-orange-500">
-                  <span class="text-yellow-800">No, just independent meters</span>
-                </label>
-              </div>
-            </div>
-
-            <!-- If YES Bulk Electric -->
-            <div x-show="ui.has_bulk_elec === 'yes'" class="space-y-4 pt-4 border-t border-yellow-200">
-              <div class="grid grid-cols-2 gap-4">
-                <div>
-                  <label class="block text-sm font-medium text-yellow-900">Bulk Electric Meter Number</label>
-                  <input type="text" x-model="ui.bulk_elec_meter" class="mt-1 block w-full rounded-md border-2 border-yellow-300 p-2 shadow-sm focus:border-orange-500 focus:ring-orange-500">
-                </div>
-                <div>
-                  <label class="block text-sm font-medium text-yellow-900">Municipal Bill Number</label>
-                  <input type="text" x-model="ui.bulk_elec_bill" class="mt-1 block w-full rounded-md border-2 border-yellow-300 p-2 shadow-sm focus:border-orange-500 focus:ring-orange-500" placeholder="e.g. 12345678">
-                </div>
-              </div>
-              
-              <div class="pt-4">
-                <label class="block text-sm font-semibold text-yellow-900 mb-2">Sub-Meters Linked to this Bulk Meter</label>
-                <template x-for="(meter, index) in subElecMeters" :key="index">
-                  <div class="flex space-x-2 mb-2 items-center">
-                    <input type="text" placeholder="Meter Number" x-model="meter.number" class="w-1/2 rounded-md border-2 border-slate-300 p-2 shadow-sm">
-                    <input type="text" placeholder="Where is it pointing? (e.g. Flat 1)" x-model="meter.pointing_to" class="w-1/2 rounded-md border-2 border-slate-300 p-2 shadow-sm">
-                    <button type="button" @click="subElecMeters.splice(index, 1)" class="text-red-500 hover:text-red-700 font-bold">&times;</button>
-                  </div>
-                </template>
-                <button type="button" @click="subElecMeters.push({number: '', pointing_to: ''})" class="text-sm text-yellow-700 hover:text-yellow-900 font-semibold">+ Add Linked Sub-Meter</button>
-              </div>
-            </div>
-
-            <!-- Independent Electric Meters -->
-            <div class="pt-6 border-t border-yellow-200 mt-6">
-              <label class="block text-sm font-semibold text-yellow-900 mb-2" x-text="ui.has_bulk_elec === 'yes' ? 'Additional Independent Electric Meters (Not linked to bulk)' : 'Independent Electric Meters'"></label>
-              <template x-for="(meter, index) in indElecMeters" :key="index">
-                <div class="flex space-x-2 mb-2 items-center">
-                  <input type="text" placeholder="Meter Number" x-model="meter.number" class="w-1/3 rounded-md border-2 border-slate-300 p-2 shadow-sm">
-                  <input type="text" placeholder="Municipal Bill Number" x-model="meter.bill_number" class="w-1/3 rounded-md border-2 border-slate-300 p-2 shadow-sm">
-                  <input type="text" placeholder="Where is it pointing?" x-model="meter.pointing_to" class="w-1/3 rounded-md border-2 border-slate-300 p-2 shadow-sm">
-                  <button type="button" @click="indElecMeters.splice(index, 1)" class="text-red-500 hover:text-red-700 font-bold">&times;</button>
-                </div>
-              </template>
-              <button type="button" @click="indElecMeters.push({number: '', bill_number: data.metro_account_no, pointing_to: ''})" class="text-sm text-yellow-700 hover:text-yellow-900 font-semibold">+ Add Independent Electric Meter</button>
-            </div>
-          </div>
-
-          <div class="mt-8 flex justify-between">
-            <button type="button" @click="step--" class="px-6 py-2 bg-slate-200 text-slate-700 font-semibold rounded-lg hover:bg-slate-300 transition">&larr; Back</button>
-            <button type="button" @click="nextStep()" class="px-6 py-2 bg-orange-500 text-white font-semibold rounded-lg hover:bg-orange-600 transition">Next: Tenant &rarr;</button>
-          </div>
         </div>
 
-        <!-- STEP 4: Tenant -->
-        <div x-show="step === 4" style="display: none;" x-transition.opacity.duration.300ms>
-          <h2 class="text-lg font-semibold text-slate-800 mb-4">4. Initial Tenant Setup (Optional)</h2>
-          <p class="text-sm text-slate-600 mb-6">Set up your first tenant and assign their meters to enable dual-statement generation. Leave blank if vacant.</p>
-
-          <div class="space-y-4">
-            <div>
-              <label class="block text-sm font-medium text-slate-700">Tenant Full Name</label>
-              <input type="text" x-model="data.tenant_name" class="mt-1 block w-full rounded-md border-2 border-slate-300 p-2 shadow-sm focus:border-orange-500 focus:ring-orange-500">
+        <div>
+            <h3 class="font-bold text-slate-700 mb-3 px-1">3. Assign to Accounts</h3>
+            <div id="owners-assignment-container" class="space-y-3">
+                <!-- Account dropdowns generated here -->
             </div>
-            <div x-show="data.tenant_name.trim() !== ''" style="display: none;" x-transition>
-              <label class="block text-sm font-medium text-slate-700">Tenant Email (For Billing Copies)</label>
-              <input type="email" x-model="data.tenant_email" class="mt-1 block w-full rounded-md border-2 border-slate-300 p-2 shadow-sm focus:border-orange-500 focus:ring-orange-500">
-              
-              <div class="mt-3 flex items-center">
-                <input type="checkbox" id="email_statements" x-model="data.email_statements" class="h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300 rounded">
-                <label for="email_statements" class="ml-2 block text-sm text-slate-700">
-                  Automatically email monthly statements to this tenant
-                </label>
-              </div>
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-slate-700">Rent Amount (ZAR)</label>
-              <input type="number" step="0.01" x-model="data.rent_amount" class="mt-1 block w-full rounded-md border-2 border-slate-300 p-2 shadow-sm focus:border-orange-500 focus:ring-orange-500" placeholder="e.g. 8500.00">
-            </div>
-          </div>
-
-          <div class="mt-8 flex justify-between">
-            <button type="button" @click="step--" class="px-6 py-2 bg-slate-200 text-slate-700 font-semibold rounded-lg hover:bg-slate-300 transition">&larr; Back</button>
-            <button type="button" @click="nextStep()" class="px-6 py-2 bg-orange-500 text-white font-semibold rounded-lg hover:bg-orange-600 transition">Next: Tenant Arrears &rarr;</button>
-          </div>
         </div>
+      </div>
 
-        <!-- STEP 5: Tenant Arrears -->
-        <div x-show="step === 5" style="display: none;" x-transition.opacity.duration.300ms class="space-y-6">
-          <div class="text-center">
-            <h2 class="text-2xl font-bold text-slate-800">5. Tenant Arrears</h2>
-            <p class="text-slate-500 mt-2">Does this tenant have historical unpaid debt?</p>
-          </div>
-          
-          <div x-show="data.tenant_name.trim() !== ''" class="space-y-4">
-            <label class="block text-sm font-medium text-slate-700">Does the tenant have arrears?</label>
-            <select x-model="data.has_tenant_arrears" class="w-full border border-slate-300 rounded-xl p-3 focus:ring-2 focus:ring-orange-500 outline-none">
-              <option value="no">No</option>
-              <option value="yes">Yes</option>
-            </select>
-            
-            <template x-if="data.has_tenant_arrears === 'yes'">
-              <div class="space-y-4 border rounded-xl p-4 bg-slate-50 mt-4">
-                <div>
-                  <label class="block text-sm font-medium text-slate-700 mb-1">Total Historical Debt (ZAR)</label>
-                  <input type="number" x-model="data.tenant_arrears_total" class="w-full border border-slate-300 rounded-xl p-3 focus:ring-2 focus:ring-orange-500 outline-none" placeholder="e.g. 44000">
-                </div>
-                <div>
-                  <label class="block text-sm font-medium text-slate-700 mb-1">Monthly Repayment Installment (ZAR/month)</label>
-                  <input type="number" x-model="data.tenant_arrears_installment" class="w-full border border-orange-300 bg-white rounded-xl p-3 focus:ring-2 focus:ring-orange-500 outline-none" placeholder="e.g. 1000">
-                  <p class="text-xs text-slate-500 mt-1">This amount will be added to their monthly statement until the debt is cleared.</p>
-                </div>
-              </div>
-            </template>
-          </div>
+    </div>
 
-          <!-- Skip Step 5 if no tenant -->
-          <div x-show="data.tenant_name.trim() === ''" class="space-y-6 text-center py-10">
-              <h2 class="text-xl font-bold text-slate-800">No Tenant Configured</h2>
-              <p class="text-slate-500 mt-2">You left the tenant blank, so there are no tenant arrears to configure.</p>
-          </div>
-
-          <div class="mt-8 flex justify-between">
-            <button type="button" @click="step--" class="px-6 py-2 bg-slate-200 text-slate-700 font-semibold rounded-lg hover:bg-slate-300 transition">&larr; Back</button>
-            <button type="button" @click="nextStep()" class="px-6 py-2 bg-orange-500 text-white font-semibold rounded-lg hover:bg-orange-600 transition">Next: Metro Arrears &rarr;</button>
-          </div>
-        </div>
-
-        <!-- STEP 6: Metro Arrears -->
-        <div x-show="step === 6" style="display: none;" x-transition.opacity.duration.300ms class="space-y-6">
-          <div class="text-center">
-            <h2 class="text-2xl font-bold text-slate-800">6. Municipal Arrangements</h2>
-            <p class="text-slate-500 mt-2">Do you have an arrears or payment arrangement with the Metro?</p>
-          </div>
-          
-          <div class="space-y-4">
-            <label class="block text-sm font-medium text-slate-700">Do you have an arrangement?</label>
-            <select x-model="data.has_arrangement" class="w-full border border-slate-300 rounded-xl p-3 focus:ring-2 focus:ring-orange-500 outline-none">
-              <option value="no">No</option>
-              <option value="yes">Yes</option>
-            </select>
-            
-            <template x-if="data.has_arrangement === 'yes'">
-              <div class="space-y-4 border rounded-xl p-4 bg-slate-50 mt-4">
-                <div>
-                  <label class="block text-sm font-medium text-slate-700 mb-1">Total Installment Billed by Metro (ZAR/month)</label>
-                  <input type="number" x-model="data.metro_arrangement_amount" class="w-full border border-slate-300 rounded-xl p-3 focus:ring-2 focus:ring-orange-500 outline-none" placeholder="e.g. 500">
-                </div>
-                <div>
-                  <label class="block text-sm font-medium text-slate-700 mb-1">Remaining Duration (Months)</label>
-                  <input type="number" x-model="data.metro_arrangement_duration" class="w-full border border-slate-300 rounded-xl p-3 focus:ring-2 focus:ring-orange-500 outline-none" placeholder="e.g. 6">
-                </div>
-                <div x-show="data.tenant_name.trim() !== ''">
-                  <label class="block text-sm font-medium text-slate-700 mb-1">Amount to charge the Tenant (ZAR/month) (Optional)</label>
-                  <input type="number" x-model="data.tenant_arrangement_charge" class="w-full border border-orange-300 bg-white rounded-xl p-3 focus:ring-2 focus:ring-orange-500 outline-none" placeholder="e.g. 500">
-                  <p class="text-xs text-slate-500 mt-1">Leave blank if the tenant does not pay for this arrangement.</p>
-                </div>
-              </div>
-            </template>
-          </div>
-
-          <div class="mt-8 flex justify-between">
-            <button type="button" @click="step--" class="px-6 py-2 bg-slate-200 text-slate-700 font-semibold rounded-lg hover:bg-slate-300 transition">&larr; Back</button>
-            <button type="button" @click="nextStep()" class="px-6 py-2 bg-orange-500 text-white font-semibold rounded-lg hover:bg-orange-600 transition">Next: Property Rates &rarr;</button>
-          </div>
-        </div>
-
-        <!-- STEP 7: Rates -->
-        <div x-show="step === 7" style="display: none;" x-transition.opacity.duration.300ms class="space-y-6">
-          <div class="text-center">
-            <h2 class="text-2xl font-bold text-slate-800">7. Property Rates</h2>
-            <p class="text-slate-500 mt-2">Are property rates included on your metro bill?</p>
-          </div>
-          
-          <div class="space-y-4">
-            <label class="block text-sm font-medium text-slate-700">Do you pay property rates?</label>
-            <select x-model="data.has_rates" class="w-full border border-slate-300 rounded-xl p-3 focus:ring-2 focus:ring-orange-500 outline-none">
-              <option value="no">No</option>
-              <option value="yes">Yes</option>
-            </select>
-            
-            <template x-if="data.has_rates === 'yes'">
-              <div class="space-y-4 border rounded-xl p-4 bg-slate-50 mt-4">
-                <div>
-                  <label class="block text-sm font-medium text-slate-700 mb-1">Total Rates Billed by Metro (ZAR/month)</label>
-                  <input type="number" x-model="data.metro_rates_amount" class="w-full border border-slate-300 rounded-xl p-3 focus:ring-2 focus:ring-orange-500 outline-none" placeholder="e.g. 1500">
-                </div>
-                <div x-show="data.tenant_name.trim() !== ''">
-                  <label class="block text-sm font-medium text-slate-700 mb-1">Amount to charge the Tenant (ZAR/month) (Optional)</label>
-                  <input type="number" x-model="data.tenant_rates_charge" class="w-full border border-orange-300 bg-white rounded-xl p-3 focus:ring-2 focus:ring-orange-500 outline-none" placeholder="e.g. 1500">
-                  <p class="text-xs text-slate-500 mt-1">Leave blank if the tenant does not pay for the rates.</p>
-                </div>
-              </div>
-            </template>
-          </div>
-
-          <div class="mt-8 flex justify-between">
-            <button type="button" @click="step--" class="px-6 py-2 bg-slate-200 text-slate-700 font-semibold rounded-lg hover:bg-slate-300 transition">&larr; Back</button>
-            <button type="button" @click="nextStep()" class="px-6 py-2 bg-orange-500 text-white font-semibold rounded-lg hover:bg-orange-600 transition">Next: Agent Fees &rarr;</button>
-          </div>
-        </div>
-
-        <!-- STEP 8: Agent Fees -->
-        <div x-show="step === 8" style="display: none;" x-transition.opacity.duration.300ms class="space-y-6">
-          <div class="text-center">
-            <h2 class="text-2xl font-bold text-slate-800">8. Agent & Admin Fees</h2>
-            <p class="text-slate-500 mt-2">Are you an agent managing this property?</p>
-          </div>
-          
-          <div class="space-y-4">
-            <label class="block text-sm font-medium text-slate-700">Do you charge a monthly admin or platform fee?</label>
-            <select x-model="data.has_agent_fee" class="w-full border border-slate-300 rounded-xl p-3 focus:ring-2 focus:ring-orange-500 outline-none">
-              <option value="no">No</option>
-              <option value="yes">Yes</option>
-            </select>
-            
-            <template x-if="data.has_agent_fee === 'yes'">
-              <div class="space-y-4 border rounded-xl p-4 bg-slate-50 mt-4">
-                <div>
-                  <label class="block text-sm font-medium text-slate-700 mb-1">Who pays the admin fee?</label>
-                  <select x-model="data.agent_fee_target" class="w-full border border-orange-300 bg-white rounded-xl p-3 focus:ring-2 focus:ring-orange-500 outline-none">
-                    <option value="owner">The Landlord pays it (Deducted from the Landlord's final payout)</option>
-                    <option value="tenant">The Tenant pays it (Added as a charge on the Tenant's statement)</option>
-                  </select>
-                </div>
-              </div>
-            </template>
-          </div>
-
-          <input type="hidden" name="payload" :value="JSON.stringify(compilePayload())">
-
-          <div class="mt-8 flex justify-between">
-            <button type="button" @click="step--" class="px-6 py-2 bg-slate-200 text-slate-700 font-semibold rounded-lg hover:bg-slate-300 transition">&larr; Back</button>
-            <button type="button" @click="submitForm()" class="px-6 py-2 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 transition" :disabled="isSubmitting">
-              <span x-show="!isSubmitting">Complete Setup &rarr;</span>
-              <span x-show="isSubmitting">Processing...</span>
-            </button>
-          </div>
-        </div>
-
-      </form>
+    <!-- Footer Controls -->
+    <div class="bg-slate-50 px-8 py-5 border-t border-slate-200 flex justify-between items-center">
+      <div>
+         <span id="autosave-indicator" class="text-xs text-emerald-600 font-bold opacity-0 transition-opacity">Draft auto-saved!</span>
+      </div>
+      <div class="flex space-x-3">
+        <button type="button" id="btn-prev" onclick="prevStep()" class="hidden px-6 py-2 border border-slate-300 text-slate-600 font-bold rounded-lg hover:bg-slate-100 transition">Back</button>
+        <button type="button" id="btn-next" onclick="nextStep()" class="px-8 py-2 bg-blue-600 text-white font-bold rounded-lg shadow-sm hover:bg-blue-700 transition">Next Step</button>
+        <button type="button" id="btn-save" onclick="saveArchitecture()" class="hidden px-8 py-2 bg-emerald-600 text-white font-bold rounded-lg shadow-sm hover:bg-emerald-700 transition">Save &amp; Finalize Architecture</button>
+      </div>
     </div>
   </div>
 </div>
 
-<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 <script>
-  function setupWizard() {
-    return {
-      step: 1,
-      isSubmitting: false,
-      
-      // UI State for Step 3 (Meters)
-      ui: {
-        has_bulk_water: 'no',
-        bulk_water_meter: '',
-        bulk_water_bill: '',
-        has_bulk_elec: 'no',
-        bulk_elec_meter: '',
-        bulk_elec_bill: ''
-      },
-      
-      // Meter Arrays
-      subWaterMeters: [],
-      indWaterMeters: [{number: '', bill_number: '', pointing_to: ''}],
-      
-      subElecMeters: [],
-      indElecMeters: [{number: '', bill_number: '', pointing_to: ''}],
+  let currentStep = 1;
+  const TOTAL_STEPS = 12;
+  
+  let EXPECTED_ACCOUNTS = {{ property.expected_bills|default(8) }};
+  let EXPECTED_WATER = {{ property.expected_water_meters|default(0) }};
+  let EXPECTED_ELEC = {{ property.expected_elec_meters|default(0) }};
+  let EXPECTED_OWNERS = {{ property.expected_owners|default(1) }};
+  let EXPECTED_ADDRESSES = {{ property.expected_addresses|default(1) }};
+  let IS_BULK_WATER = {{ 'true' if property.is_bulk_water else 'false' }};
+  let IS_BULK_ELEC = {{ 'true' if property.is_bulk_elec else 'false' }};
+  const PROPERTY_ADDRESS = "{{ property.address|default('', true) }}";
+  
+  let EXPECTED_BULK_WATER = IS_BULK_WATER && EXPECTED_WATER > 0 ? 1 : 0;
+  let EXPECTED_SUB_WATER = Math.max(0, EXPECTED_WATER - EXPECTED_BULK_WATER);
+  
+  let EXPECTED_BULK_ELEC = IS_BULK_ELEC && EXPECTED_ELEC > 0 ? 1 : 0;
+  let EXPECTED_SUB_ELEC = Math.max(0, EXPECTED_ELEC - EXPECTED_BULK_ELEC);
 
-      // Core Data
-      data: {
-        accepted_terms: false,
-        property_name: '',
-        address: '',
-        landlord_name: '',
-        metro_account_no: '',
-        muni_email: '',
-        initial_due_amount: '',
-        tenant_name: '',
-        tenant_email: '',
-        email_statements: false,
-        rent_amount: '',
-        tenant_meters: [], // Stores temp_ids
-        
-        has_tenant_arrears: 'no',
-        tenant_arrears_total: '',
-        tenant_arrears_installment: '',
-        
-        has_arrangement: 'no',
-        metro_arrangement_amount: '',
-        metro_arrangement_duration: '',
-        tenant_arrangement_charge: '',
-        
-        has_rates: 'no',
-        metro_rates_amount: '',
-        tenant_rates_charge: '',
-        
-        has_agent_fee: 'no',
-        agent_fee_amount: '',
-        agent_fee_target: 'owner'
-      },
-      
-      nextStep() {
-        this.step++;
-        window.scrollTo(0,0);
-      },
-      
-      // Core Data
-        
+  // Data stores
+  let wizardData = {
+    accounts: [],
+    bulkWater: [],
+    bulkElec: [],
+    subWater: [],
+    subElec: [],
+    exceptions: [],
+    mapping: [],
+    rates: [],
+    propertyMap: {}
+  };
 
+  
+  
+  function updateBulkVisibility() {
+      const bw = document.getElementById('pm_bulk_water').value === 'yes';
+      const be = document.getElementById('pm_bulk_elec').value === 'yes';
+      const showBulk = bw || be;
       
-      async submitForm() {
-        if (!this.data.accepted_terms) {
-            alert("You must accept the terms to continue.");
-            return;
-        }
-        
-        this.isSubmitting = true;
-        try {
-            const payload = this.compilePayload();
-            document.getElementById('hidden_payload').value = JSON.stringify(payload);
-            document.getElementById('setupForm').submit();
-        } catch(e) {
-            alert("An error occurred submitting the form: " + e.message);
-            this.isSubmitting = false;
-        }
-      },
-      
-      compileMeters() {
-        let compiled = [];
-        let tempIdCounter = 1;
-        
-        // Water
-        if (this.ui.has_bulk_water === 'yes' && this.ui.bulk_water_meter.trim()) {
-            compiled.push({
-                temp_id: 'bulk_water',
-                number: this.ui.bulk_water_meter,
-                municipal_bill_number: this.ui.bulk_water_bill,
-                type: 'water',
-                hierarchy: 'bulk',
-                parent_id: null,
-                pointing_to: 'Main Supply'
-            });
-            this.subWaterMeters.forEach(m => {
-                if(m.number.trim()) {
-                    compiled.push({
-                        temp_id: 'sub_water_' + (tempIdCounter++),
-                        number: m.number,
-                        municipal_bill_number: '',
-                        type: 'water',
-                        hierarchy: 'sub',
-                        parent_id: 'bulk_water',
-                        pointing_to: m.pointing_to
-                    });
-                }
-            });
-        }
-        
-        this.indWaterMeters.forEach(m => {
-            if(m.number.trim()) {
-                compiled.push({
-                    temp_id: 'ind_water_' + (tempIdCounter++),
-                    number: m.number,
-                    municipal_bill_number: m.bill_number,
-                    type: 'water',
-                    hierarchy: 'independent',
-                    parent_id: null,
-                    pointing_to: m.pointing_to
-                });
-            }
-        });
+      document.querySelectorAll('.bulk-col').forEach(el => {
+          if (showBulk) el.classList.remove('hidden');
+          else el.classList.add('hidden');
+      });
+      document.querySelectorAll('.bulk-col-adj').forEach(el => {
+          if (showBulk) {
+              el.classList.remove('col-span-12');
+              el.classList.add('col-span-10');
+          } else {
+              el.classList.remove('col-span-10');
+              el.classList.add('col-span-12');
+          }
+      });
+  }
 
-        // Electricity
-        if (this.ui.has_bulk_elec === 'yes' && this.ui.bulk_elec_meter.trim()) {
-            compiled.push({
-                temp_id: 'bulk_elec',
-                number: this.ui.bulk_elec_meter,
-                municipal_bill_number: this.ui.bulk_elec_bill,
-                type: 'electricity',
-                hierarchy: 'bulk',
-                parent_id: null,
-                pointing_to: 'Main Supply'
-            });
-            this.subElecMeters.forEach(m => {
-                if(m.number.trim()) {
-                    compiled.push({
-                        temp_id: 'sub_elec_' + (tempIdCounter++),
-                        number: m.number,
-                        municipal_bill_number: '',
-                        type: 'electricity',
-                        hierarchy: 'sub',
-                        parent_id: 'bulk_elec',
-                        pointing_to: m.pointing_to
-                    });
-                }
-            });
-        }
-        
-        this.indElecMeters.forEach(m => {
-            if(m.number.trim()) {
-                compiled.push({
-                    temp_id: 'ind_elec_' + (tempIdCounter++),
-                    number: m.number,
-                    municipal_bill_number: m.bill_number,
-                    type: 'electricity',
-                    hierarchy: 'independent',
-                    parent_id: null,
-                    pointing_to: m.pointing_to
-                });
-            }
-        });
-        
-        return compiled;
-      },
-      
-      compilePayload() {
-        return {
-          ...this.data,
-          meters: this.compileMeters()
-        };
+  function gatherPropertyMap() {
+    EXPECTED_ACCOUNTS = parseInt(document.getElementById('pm_accounts').value) || 0;
+    EXPECTED_WATER = parseInt(document.getElementById('pm_water').value) || 0;
+    EXPECTED_ELEC = parseInt(document.getElementById('pm_elec').value) || 0;
+    EXPECTED_OWNERS = parseInt(document.getElementById('pm_owners').value) || 1;
+    EXPECTED_ADDRESSES = parseInt(document.getElementById('pm_addresses').value) || 1;
+    IS_BULK_WATER = document.getElementById('pm_bulk_water').value === 'yes';
+    IS_BULK_ELEC = document.getElementById('pm_bulk_elec').value === 'yes';
+
+    EXPECTED_BULK_WATER = IS_BULK_WATER && EXPECTED_WATER > 0 ? 1 : 0;
+    EXPECTED_SUB_WATER = Math.max(0, EXPECTED_WATER - EXPECTED_BULK_WATER);
+    EXPECTED_BULK_ELEC = IS_BULK_ELEC && EXPECTED_ELEC > 0 ? 1 : 0;
+    EXPECTED_SUB_ELEC = Math.max(0, EXPECTED_ELEC - EXPECTED_BULK_ELEC);
+
+    wizardData.propertyMap = {
+        accounts: EXPECTED_ACCOUNTS,
+        water: EXPECTED_WATER,
+        elec: EXPECTED_ELEC,
+        bulkWater: IS_BULK_WATER,
+        bulkElec: IS_BULK_ELEC,
+        owners: EXPECTED_OWNERS,
+        addresses: EXPECTED_ADDRESSES
+    };
+
+    recalculateRows();
+      updateBulkVisibility();
+    return true;
+  }
+
+  function adjustContainer(containerId, expectedCount, rowGenFunc) {
+      const container = document.getElementById(containerId);
+      if (!container) return;
+      while (container.children.length < expectedCount) {
+          rowGenFunc(containerId);
       }
+      while (container.children.length > expectedCount) {
+          container.lastChild.remove();
+      }
+  }
+
+  function recalculateRows() {
+      adjustContainer('accounts-container', EXPECTED_ACCOUNTS, () => addAccountRow());
+      adjustContainer('bulk-water-container', EXPECTED_BULK_WATER, () => addMeterRow('bulk-water'));
+      adjustContainer('bulk-elec-container', EXPECTED_BULK_ELEC, () => addMeterRow('bulk-elec'));
+      adjustContainer('sub-water-container', EXPECTED_SUB_WATER, () => addMeterRow('sub-water'));
+      adjustContainer('sub-elec-container', EXPECTED_SUB_ELEC, () => addMeterRow('sub-elec'));
+  }
+
+  // Initialization
+  document.addEventListener('DOMContentLoaded', () => {
+    loadDraft();
+    updateLiveCounters();
+    
+    // Attach autosave listeners to all inputs
+    
+    // Attach autosave listeners to all inputs
+    document.getElementById('step-1').addEventListener('input', triggerAutoSave);
+    document.getElementById('pm_bulk_water').addEventListener('change', updateBulkVisibility);
+    document.getElementById('pm_bulk_elec').addEventListener('change', updateBulkVisibility);
+
+    document.getElementById('step-2').addEventListener('input', triggerAutoSave);
+    document.getElementById('step-3').addEventListener('input', triggerAutoSave);
+    document.getElementById('step-4').addEventListener('input', triggerAutoSave);
+    document.getElementById('step-5').addEventListener('input', triggerAutoSave);
+    
+    // For radio buttons / selects
+    document.getElementById('step-1').addEventListener('change', triggerAutoSave);
+    document.getElementById('step-4').addEventListener('change', triggerAutoSave);
+    document.getElementById('step-5').addEventListener('change', triggerAutoSave);
+  });
+
+  function updateBadges() {
+    for(let i=1; i<=TOTAL_STEPS; i++) {
+      const badge = document.getElementById(`step-${i}-badge`);
+      if (i === currentStep) {
+        badge.className = "px-2 py-1 rounded-full font-bold bg-blue-100 text-blue-700";
+      } else if (i < currentStep) {
+        badge.className = "px-2 py-1 rounded-full font-bold bg-emerald-100 text-emerald-700";
+        badge.innerHTML = `✓ ${i}`;
+      } else {
+        badge.className = "px-2 py-1 rounded-full font-bold bg-slate-100 text-slate-400";
+        // restore label
+        const labels = ['1. Property', '2. Accounts', '3. Bulk Water', '4. Bulk Elec', '5. Sub Meters', '6. Exceptions', '7. Mapping', '8. Readings', '9. Arrears', '10. Arrangements', '11. Rates', '12. Owners'];
+        badge.innerHTML = labels[i-1];
+      }
+    }
+  }
+
+  function showStep(step) {
+    document.querySelectorAll('.wizard-step').forEach(el => el.classList.add('hidden'));
+    document.querySelectorAll('.step-content').forEach(el => el.classList.add('hidden'));
+    
+    const stepEl = document.getElementById(`step-${step}`);
+    if (stepEl) stepEl.classList.remove('hidden');
+    
+    document.getElementById('btn-prev').classList.toggle('hidden', step === 1);
+    
+    if (step === TOTAL_STEPS) {
+      document.getElementById('btn-next').classList.add('hidden');
+      document.getElementById('btn-save').classList.remove('hidden');
+    } else {
+      document.getElementById('btn-next').classList.remove('hidden');
+      document.getElementById('btn-save').classList.add('hidden');
+      
+      const nextBtn = document.getElementById('btn-next');
+      let isSkip = false;
+      if (step === 3 && EXPECTED_BULK_WATER === 0) isSkip = true;
+      if (step === 4 && EXPECTED_BULK_ELEC === 0) isSkip = true;
+      if (step === 5 && EXPECTED_SUB_WATER === 0 && EXPECTED_SUB_ELEC === 0) isSkip = true;
+      
+      if (isSkip) {
+        nextBtn.innerHTML = 'Skip <i class="fas fa-forward ml-2"></i>';
+      } else {
+        nextBtn.innerHTML = 'Next Step <i class="fas fa-arrow-right ml-2"></i>';
+      }
+    }
+
+    if(step === 6) updateExceptionDropdowns();
+    if(step === 7) buildMappingDashboard();
+    if(step === 8) buildReadingsDashboard();
+    if(step === 9) buildArrearsDashboard();
+    if(step === 10) buildArrangementsDashboard();
+    if(step === 11) buildRatesDashboard();
+    if(step === 12) buildOwnersDashboard();
+    
+    updateBadges();
+  }
+
+  function validateGlobalMeters() {
+    const allMeters = [
+        ...(wizardData.bulkWater || []),
+        ...(wizardData.bulkElec || []),
+        ...(wizardData.subWater || []),
+        ...(wizardData.subElec || [])
+    ];
+    
+    const seen = new Set();
+    for (let m of allMeters) {
+        if (!m.number) continue; // skip empty
+        if (seen.has(m.number.toLowerCase())) {
+            alert("Duplicate meter number found: " + m.number + ". Every meter must have a globally unique identifier!");
+            return false;
+        }
+        seen.add(m.number.toLowerCase());
+    }
+    return true;
+  }
+
+  function getAccountBadge(acc) {
+      if (!IS_BULK_WATER && !IS_BULK_ELEC) return ''; 
+      if (acc.isBulk) return '<span class="text-[10px] bg-amber-200 text-amber-800 px-2 py-0.5 rounded ml-2 font-bold uppercase border border-amber-300 shadow-sm">Bulk</span>';
+      return '<span class="text-[10px] bg-sky-200 text-sky-800 px-2 py-0.5 rounded ml-2 font-bold uppercase border border-sky-300 shadow-sm">Sub</span>';
+  }
+  
+  function nextStep() {
+    if (currentStep === 1) { if (!gatherPropertyMap()) return; }
+    if (currentStep === 2) { if (!gatherAccounts()) return; }
+    if (currentStep === 3) { if(!gatherMeters('bulk-water')) return; }
+    if (currentStep === 4) { if(!gatherMeters('bulk-elec')) return; }
+    if (currentStep === 5) { 
+        if(!gatherMeters('sub-water')) return; 
+        if(!gatherMeters('sub-elec')) return; 
+    }
+    
+    // Global Meter Validation (Only block when finishing all meter steps)
+    if (currentStep === 5) {
+        if (!validateGlobalMeters()) return;
+    }
+
+    if (currentStep === 6) { gatherExceptions(); }
+    if (currentStep === 7) { gatherMapping(); }
+    if (currentStep === 8) { if (!gatherInitialReadings()) return; }
+    if (currentStep === 9) { if (!gatherArrears()) return; }
+    if (currentStep === 10) { if (!gatherArrangements()) return; }
+    if (currentStep === 11) { if (!gatherRates()) return; }
+    if (currentStep === 12) { gatherOwners(); }
+
+    triggerAutoSave();
+
+    if (currentStep < TOTAL_STEPS) {
+      currentStep++;
+      showStep(currentStep);
+    }
+  }
+
+  function prevStep() {
+    triggerAutoSave();
+    if (currentStep > 1) {
+      currentStep--;
+      showStep(currentStep);
+    }
+  }
+
+  // --- AUTO-SAVE LOGIC ---
+  let saveTimeout = null;
+  let isSaving = false;
+  let savePending = false;
+  
+  async function performAutoSave() {
+    if (isSaving) {
+        savePending = true;
+        return;
+    }
+    isSaving = true;
+    try {
+        const r = await fetch("{{ url_for('billing_bp.save_architecture_draft', property_id=property.id) }}", {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}' },
+            body: JSON.stringify(wizardData)
+        });
+        if(r.ok) {
+            const ind = document.getElementById('autosave-indicator');
+            ind.classList.remove('opacity-0');
+            setTimeout(() => ind.classList.add('opacity-0'), 2000);
+        }
+    } catch(e) {
+        console.error(e);
+    } finally {
+        isSaving = false;
+        if (savePending) {
+            savePending = false;
+            performAutoSave();
+        }
+    }
+  }
+
+  function triggerAutoSave() {
+    if(saveTimeout) clearTimeout(saveTimeout);
+    saveTimeout = setTimeout(() => {
+      // Only gather from the active step to prevent wiping data from other steps!
+      if (currentStep === 1) gatherPropertyMap(true);
+      else if (currentStep === 2) gatherAccounts(true);
+      else if (currentStep === 3) gatherMeters('bulk-water', true);
+      else if (currentStep === 4) gatherMeters('bulk-elec', true);
+      else if (currentStep === 5) { gatherMeters('sub-water', true); gatherMeters('sub-elec', true); }
+      else if (currentStep === 6) gatherExceptions(true);
+      else if (currentStep === 7) gatherMapping(true);
+      else if (currentStep === 8) gatherInitialReadings(true);
+      else if (currentStep === 9) gatherArrears(true);
+      else if (currentStep === 10) gatherArrangements(true);
+      else if (currentStep === 11) gatherRates(true);
+      else if (currentStep === 12) gatherOwners(true);
+      
+      performAutoSave();
+    }, 1000);
+  }
+
+  function loadDraft() {
+    const saved = {{ draft_json|safe }};
+    if (saved && saved.accounts) {
+      try {
+        wizardData = saved;
+        
+        // Restore Property Map Inputs
+        if (wizardData.propertyMap && Object.keys(wizardData.propertyMap).length > 0) {
+            document.getElementById('pm_accounts').value = wizardData.propertyMap.accounts || 1;
+            document.getElementById('pm_water').value = wizardData.propertyMap.water || 0;
+            document.getElementById('pm_elec').value = wizardData.propertyMap.elec || 0;
+            document.getElementById('pm_owners').value = wizardData.propertyMap.owners || 1;
+            document.getElementById('pm_addresses').value = wizardData.propertyMap.addresses || 1;
+            document.getElementById('pm_bulk_water').value = wizardData.propertyMap.bulkWater ? 'yes' : 'no';
+            document.getElementById('pm_bulk_elec').value = wizardData.propertyMap.bulkElec ? 'yes' : 'no';
+            
+            // Recalculate globals based on restored inputs
+            EXPECTED_ACCOUNTS = wizardData.propertyMap.accounts || 1;
+            EXPECTED_WATER = wizardData.propertyMap.water || 0;
+            EXPECTED_ELEC = wizardData.propertyMap.elec || 0;
+            EXPECTED_OWNERS = wizardData.propertyMap.owners || 1;
+            EXPECTED_ADDRESSES = wizardData.propertyMap.addresses || 1;
+            IS_BULK_WATER = wizardData.propertyMap.bulkWater || false;
+            IS_BULK_ELEC = wizardData.propertyMap.bulkElec || false;
+            
+            EXPECTED_BULK_WATER = IS_BULK_WATER && EXPECTED_WATER > 0 ? 1 : 0;
+            EXPECTED_SUB_WATER = Math.max(0, EXPECTED_WATER - EXPECTED_BULK_WATER);
+            EXPECTED_BULK_ELEC = IS_BULK_ELEC && EXPECTED_ELEC > 0 ? 1 : 0;
+            EXPECTED_SUB_ELEC = Math.max(0, EXPECTED_ELEC - EXPECTED_BULK_ELEC);
+            
+            if(typeof updateBulkVisibility === 'function') updateBulkVisibility();
+        }
+        
+        // Restore Accounts
+        if(wizardData.accounts.length === 0) {
+            for(let i=0; i<EXPECTED_ACCOUNTS; i++) addAccountRow();
+        } else {
+            wizardData.accounts.forEach(acc => {
+                addAccountRow(acc.number, acc.owner, acc.isBulk);
+            });
+        }
+
+        // Strict Meter Row Generation
+        const bwList = wizardData.bulkWater || [];
+        for(let i=0; i<EXPECTED_BULK_WATER; i++) {
+            addMeterRow('bulk-water', i < bwList.length ? bwList[i].number : "");
+        }
+        
+        const beList = wizardData.bulkElec || [];
+        for(let i=0; i<EXPECTED_BULK_ELEC; i++) {
+            addMeterRow('bulk-elec', i < beList.length ? beList[i].number : "");
+        }
+        
+        const swList = wizardData.subWater || [];
+        for(let i=0; i<EXPECTED_SUB_WATER; i++) {
+            addMeterRow('sub-water', i < swList.length ? swList[i].number : "");
+        }
+        
+        const seList = wizardData.subElec || [];
+        for(let i=0; i<EXPECTED_SUB_ELEC; i++) {
+            addMeterRow('sub-elec', i < seList.length ? seList[i].number : "");
+        }
+
+        // Restore Exceptions
+        if(wizardData.exceptions) wizardData.exceptions.forEach(exc => addExceptionRow(exc.stolen_num, exc.replacement_id, exc.date_stolen || '', exc.date_replaced || ''));
+
+      } catch(e) {
+        console.error("Draft load failed", e);
+        initializeBlank();
+      }
+    } else {
+      initializeBlank();
+    }
+  }
+
+  function initializeBlank() {
+      for(let i=0; i<EXPECTED_ACCOUNTS; i++) addAccountRow();
+      const firstRadio = document.querySelector('input[name="bulk_idx"]');
+      if (firstRadio) firstRadio.checked = true;
+
+      for(let i=0; i<EXPECTED_BULK_WATER; i++) addMeterRow('bulk-water');
+      for(let i=0; i<EXPECTED_BULK_ELEC; i++) addMeterRow('bulk-elec');
+      for(let i=0; i<EXPECTED_SUB_WATER; i++) addMeterRow('sub-water');
+      for(let i=0; i<EXPECTED_SUB_ELEC; i++) addMeterRow('sub-elec');
+      
+      addExceptionRow();
+  }
+
+
+  window.formatNumberSpace = function(val) {
+    if(val === undefined || val === null || val === '') return '';
+    let raw = String(val).replace(/[^\d.]/g, '');
+    if(!raw) return '';
+    let parts = raw.split('.');
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+    return parts.join('.');
+  }
+  
+  window.parseAmount = function(val) {
+    if(val === undefined || val === null || val === '') return 0;
+    return parseFloat(String(val).replace(/[^\d.-]/g, '')) || 0;
+  }
+
+  // --- STEP 1: ACCOUNTS ---
+  function addAccountRow(accNum="", ownerName="", isBulk=false) {
+    if (!IS_BULK_WATER && !IS_BULK_ELEC) isBulk = false;
+    const container = document.getElementById('accounts-container');
+    const idx = container.children.length;
+    const rowColor = (idx % 2 === 0) ? 'bg-sky-50' : 'bg-white';
+    const row = document.createElement('div');
+    row.className = `grid grid-cols-12 gap-4 items-center p-2 rounded-lg border border-slate-200 shadow-sm acc-row ${rowColor}`;
+    row.innerHTML = `
+      <div class="col-span-12 bulk-col-adj">
+        <input type="text" class="acc-num w-full rounded border-2 border-blue-500 px-3 py-1.5 text-sm focus:border-blue-500 outline-none" placeholder="Account Number" value="${accNum}">
+      </div>
+      <div class="col-span-2 flex justify-center items-center bulk-col hidden">
+        <input type="radio" name="bulk_idx" value="${idx}" class="w-4 h-4 text-blue-600 focus:ring-blue-500 cursor-pointer" ${isBulk ? 'checked' : ''}>
+      </div>
+    `;
+    container.appendChild(row);
+  }
+
+  function gatherAccounts(silent=false) {
+    wizardData.accounts = [];
+    const rows = document.querySelectorAll('.acc-row');
+    let hasBulk = false;
+    let accNumbers = new Set();
+    let hasDuplicate = false;
+    
+    rows.forEach((row, i) => {
+      const accNum = row.querySelector('.acc-num').value.trim();
+      const owner = "";
+      const bulkRadio = row.querySelector('input[name="bulk_idx"]');
+      const isBulk = bulkRadio ? bulkRadio.checked : false;
+      if (isBulk) hasBulk = true;
+      
+      if (accNum !== "") {
+        if (accNumbers.has(accNum)) {
+          hasDuplicate = true;
+        }
+        accNumbers.add(accNum);
+      }
+      
+      wizardData.accounts.push({ id: `acc_${i}`, number: accNum, owner: owner, isBulk: isBulk });
+    });
+
+    if (!silent) {
+      if (wizardData.accounts.length === 0) { alert("Please enter accounts."); return false; }
+      if ((IS_BULK_WATER || IS_BULK_ELEC) && !hasBulk) { alert("Please select exactly one Bulk Account."); return false; }
+      if (hasDuplicate) { alert("Duplicate account numbers found! Each account must be unique. Please correct this before proceeding."); return false; }
+    }
+    return true;
+  }
+
+  // --- STEP 2 & 3: METERS ---
+  function addMeterRow(containerId, val="") {
+    const container = document.getElementById(containerId + '-container');
+    const idx = container.children.length;
+    const rowColor = (idx % 2 === 0) ? 'bg-sky-50' : 'bg-white';
+    const row = document.createElement('div');
+    row.className = `flex items-center space-x-3 p-2 rounded-lg border border-slate-200 shadow-sm meter-row ${rowColor}`;
+    row.innerHTML = `
+      <div class="flex-grow">
+        <input type="text" class="meter-num w-full rounded border-2 border-blue-500 px-3 py-1.5 text-sm focus:border-blue-500 outline-none" placeholder="Meter Number" value="${val}">
+      </div>
+    `;
+    container.appendChild(row);
+  }
+
+  function gatherMeters(containerId, silent=false) {
+    const container = document.getElementById(containerId + '-container');
+    if (!container) return true;
+    
+    const rows = container.querySelectorAll('.meter-row');
+    const list = [];
+    let hasBlank = false;
+    
+    rows.forEach((row, i) => {
+      const num = row.querySelector('.meter-num').value.trim();
+      if (!num) hasBlank = true;
+      list.push({ id: `${containerId}_${i}`, number: num });
+    });
+    
+    if (!silent && hasBlank && rows.length > 0) {
+      alert("Please fill in all meter numbers. You cannot leave a meter slot blank.");
+      return false;
+    }
+    
+    if(containerId === 'bulk-water') wizardData.bulkWater = list;
+    if(containerId === 'bulk-elec') wizardData.bulkElec = list;
+    if(containerId === 'sub-water') wizardData.subWater = list;
+    if(containerId === 'sub-elec') wizardData.subElec = list;
+    
+    return true;
+  }
+
+  // --- STEP 4: EXCEPTIONS ---
+  function addExceptionRow(stolenNum="", repId="", dateStolen="", dateReplaced="") {
+    const container = document.getElementById('exceptions-container');
+    const idx = container.children.length;
+    const rowColor = (idx % 2 === 0) ? 'bg-rose-50' : 'bg-white';
+    const row = document.createElement('div');
+    row.className = `flex items-center space-x-4 p-3 rounded-lg border border-rose-200 shadow-sm exc-row ${rowColor}`;
+    
+    row.innerHTML = `
+      <div class="flex-1">
+        <label class="block text-[10px] font-bold text-rose-800 uppercase mb-1">Stolen Municipal Meter No.</label>
+        <input type="text" class="exc-stolen-num w-full" onchange="triggerAutoSave()" rounded border-rose-300 px-2 py-1.5 text-xs outline-none" placeholder="e.g. CEL884" value="${stolenNum}">
+      </div>
+      <div class="w-32">
+        <label class="block text-[10px] font-bold text-rose-800 uppercase mb-1">Date Stolen</label>
+        <input type="date" class="exc-date-stolen w-full" onchange="triggerAutoSave()" rounded border-rose-300 px-2 py-1.5 text-xs outline-none" value="${dateStolen}">
+      </div>
+      <div class="flex items-center pt-5 px-2 hidden md:block">
+        <svg class="w-5 h-5 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+      </div>
+      <div class="flex-1">
+        <label class="block text-[10px] font-bold text-emerald-800 uppercase mb-1">Replaced By (Sub-Meter)</label>
+        <select class="exc-replacement-id w-full" onchange="triggerAutoSave()" rounded border-emerald-300 px-2 py-1.5 text-xs outline-none bg-white" data-selected="${repId}">
+          <!-- Options populated by updateExceptionDropdowns() -->
+        </select>
+      </div>
+      <div class="w-32">
+        <label class="block text-[10px] font-bold text-emerald-800 uppercase mb-1">Date Replaced</label>
+        <input type="date" class="exc-date-replaced w-full" onchange="triggerAutoSave()" rounded border-emerald-300 px-2 py-1.5 text-xs outline-none" value="${dateReplaced}">
+      </div>
+      <button type="button" onclick="this.closest('.exc-row').remove(); triggerAutoSave();" class="mt-5 text-slate-400 hover:text-red-500">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+      </button>
+    `;
+    container.appendChild(row);
+    updateExceptionDropdowns();
+  }
+
+  function updateExceptionDropdowns() {
+    let opts = '<option value="">Select Sub-Meter...</option>';
+    wizardData.subWater.forEach(m => opts += `<option value="${m.id}">${m.number} (Water)</option>`);
+    wizardData.subElec.forEach(m => opts += `<option value="${m.id}">${m.number} (Elec)</option>`);
+    
+    document.querySelectorAll('.exc-replacement-id').forEach(sel => {
+      const val = sel.value || sel.dataset.selected;
+      sel.innerHTML = opts;
+      if (val) sel.value = val;
+    });
+  }
+
+  function gatherExceptions() {
+    wizardData.exceptions = [];
+    document.querySelectorAll('.exc-row').forEach(row => {
+      const stolenNum = row.querySelector('.exc-stolen-num').value.trim();
+      const repId = row.querySelector('.exc-replacement-id').value;
+      const dateStolen = row.querySelector('.exc-date-stolen').value;
+      const dateReplaced = row.querySelector('.exc-date-replaced').value;
+      
+      if(stolenNum && repId) {
+        wizardData.exceptions.push({ 
+          stolen_num: stolenNum, 
+          replacement_id: repId,
+          date_stolen: dateStolen,
+          date_replaced: dateReplaced
+        });
+      }
+    });
+  }
+
+  // --- STEP 5: MAPPING ---
+
+  function refreshDropdownExclusivity() {
+      // Handle Water Dropdowns
+      const waterSelects = document.querySelectorAll('.map-sub-water');
+      const selectedWater = Array.from(waterSelects).map(s => s.value).filter(v => v !== "");
+      
+      waterSelects.forEach(sel => {
+          Array.from(sel.options).forEach(opt => {
+              if (opt.value === "") return;
+              if (selectedWater.includes(opt.value) && sel.value !== opt.value) {
+                  opt.disabled = true;
+                  opt.style.display = 'none'; // visually hide
+              } else {
+                  opt.disabled = false;
+                  opt.style.display = ''; // restore
+              }
+          });
+      });
+
+      // Handle Elec Dropdowns
+      const elecSelects = document.querySelectorAll('.map-sub-elec');
+      const selectedElec = Array.from(elecSelects).map(s => s.value).filter(v => v !== "");
+      
+      elecSelects.forEach(sel => {
+          Array.from(sel.options).forEach(opt => {
+              if (opt.value === "") return;
+              if (selectedElec.includes(opt.value) && sel.value !== opt.value) {
+                  opt.disabled = true;
+                  opt.style.display = 'none';
+              } else {
+                  opt.disabled = false;
+                  opt.style.display = '';
+              }
+          });
+      });
+  }
+
+  function buildMappingDashboard() {
+    const container = document.getElementById('mapping-container');
+    container.innerHTML = ''; 
+
+    let wOpts = '<option value="">-- No Water Meter --</option>';
+    wizardData.subWater.forEach(m => wOpts += `<option value="${m.id}">${m.number}</option>`);
+
+    let eOpts = '<option value="">-- No Elec Meter --</option>';
+    wizardData.subElec.forEach(m => eOpts += `<option value="${m.id}">${m.number}</option>`);
+
+    wizardData.accounts.forEach(acc => {
+      if(!acc.number) return; // Skip empty rows
+
+      const card = document.createElement('div');
+      card.className = `p-5 rounded-xl border-2 ${acc.isBulk ? 'bg-amber-50 border-amber-300' : 'bg-white border-slate-200'} shadow-sm map-card`;
+      card.dataset.accId = acc.id;
+
+      if (acc.isBulk) {
+        // Bulk mapping is automatic based on Steps 2!
+        card.innerHTML = `
+          <div class="flex justify-between items-center mb-2">
+            <h3 class="font-bold text-lg text-slate-800">${acc.number} <span class="ml-2 px-2 py-0.5 bg-amber-200 text-amber-800 text-xs rounded-full uppercase">Bulk Account</span></h3>
+          </div>
+          <div class="bg-amber-100 p-3 rounded text-sm text-amber-800 font-medium">
+             <svg class="w-4 h-4 inline-block mr-1 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+             Auto-Mapped! The ${wizardData.bulkWater.length} Bulk Water and ${wizardData.bulkElec.length} Bulk Electric meters you defined are automatically linked to this account.
+          </div>
+        `;
+      } else {
+        // Sub mapping
+        // Check if we have saved mapping for this
+        const savedMap = wizardData.mapping.find(x => x.account_id === acc.id) || { water: '', elec: '' };
+
+        card.innerHTML = `
+          <div class="flex justify-between items-center mb-4 pb-2 border-b border-slate-100">
+            <h3 class="font-bold text-lg text-slate-800">${acc.number}</h3>
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-bold text-sky-700 mb-1">Sub Water Meter</label>
+              <select class="map-sub-water w-full rounded border-slate-300 px-3 py-2 text-sm focus:border-sky-500 bg-white" style="border-width:1px;" data-saved="${savedMap.water}" onchange="refreshDropdownExclusivity(); triggerAutoSave();">
+                ${wOpts}
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-indigo-700 mb-1">Sub Electric Meter</label>
+              <select class="map-sub-elec w-full rounded border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 bg-white" style="border-width:1px;" data-saved="${savedMap.elec}" onchange="refreshDropdownExclusivity(); triggerAutoSave();">
+                ${eOpts}
+              </select>
+            </div>
+          </div>
+        `;
+      }
+      container.appendChild(card);
+    });
+
+    // Apply saved selections
+    document.querySelectorAll('.map-sub-water').forEach(sel => { if(sel.dataset.saved) sel.value = sel.dataset.saved; });
+    document.querySelectorAll('.map-sub-elec').forEach(sel => { if(sel.dataset.saved) sel.value = sel.dataset.saved; });
+    
+    // Filter dropdowns to remove already mapped meters
+    refreshDropdownExclusivity();
+  }
+
+  function gatherMapping() {
+    const container = document.getElementById('mapping-container');
+    if (!container || container.children.length === 0) return true; // Protect mapping data from being wiped before dashboard is built
+    
+    wizardData.mapping = [];
+    document.querySelectorAll('.map-card').forEach(card => {
+      const accId = card.dataset.accId;
+      const isBulk = wizardData.accounts.find(a => a.id === accId)?.isBulk;
+      
+      if (!isBulk) {
+        wizardData.mapping.push({
+          account_id: accId,
+          water: card.querySelector('.map-sub-water')?.value || '',
+          elec: card.querySelector('.map-sub-elec')?.value || ''
+        });
+      }
+    });
+    return true;
+  }
+
+
+  
+  // --- INITIAL READINGS (STEP 8) ---
+  function buildReadingsDashboard() {
+    const container = document.getElementById('readings-container');
+    container.innerHTML = '';
+    
+    const allMeters = [
+        ...(wizardData.bulkWater || []).map(m => ({ ...m, type: 'Bulk Water' })),
+        ...(wizardData.bulkElec || []).map(m => ({ ...m, type: 'Bulk Elec' })),
+        ...(wizardData.subWater || []).map(m => ({ ...m, type: 'Sub Water' })),
+        ...(wizardData.subElec || []).map(m => ({ ...m, type: 'Sub Elec' }))
+    ];
+    
+    wizardData.initialReadings = wizardData.initialReadings || [];
+    
+    if (allMeters.length === 0) {
+      container.innerHTML = '<div class="p-4 text-slate-500 italic">No meters defined in architecture.</div>';
+      return;
+    }
+    
+    allMeters.forEach(m => {
+      if(!m.number) return;
+      const savedReading = wizardData.initialReadings.find(x => x.meter_number === m.number) || { value: '', date: '' };
+      
+      let badgeColor = m.type.includes('Water') ? 'bg-sky-100 text-sky-800' : 'bg-indigo-100 text-indigo-800';
+      if (m.type.includes('Bulk')) badgeColor += ' border border-amber-300 shadow-sm';
+      
+      let cardColor = 'bg-white border-slate-200';
+      if (m.type === 'Bulk Water') cardColor = 'bg-sky-50 border-sky-300';
+      else if (m.type === 'Sub Water') cardColor = 'bg-slate-50 border-sky-200';
+      else if (m.type === 'Bulk Elec') cardColor = 'bg-amber-50 border-amber-300';
+      else if (m.type === 'Sub Elec') cardColor = 'bg-slate-50 border-indigo-200';
+      
+      container.innerHTML += `
+        <div class="flex items-center justify-between p-3 border rounded-lg shadow-sm read-card ${cardColor}" data-meter-num="${m.number}">
+          <div class="w-1/3 flex flex-col">
+            <span class="font-bold text-slate-800 text-base">${m.number}</span>
+            <span class="text-[10px] uppercase font-bold px-2 py-0.5 mt-1 rounded inline-block w-max ${badgeColor}">${m.type}</span>
+          </div>
+          <div class="w-1/3 px-2">
+            <label class="block text-[10px] uppercase font-bold text-slate-700 mb-1">Starting Reading</label>
+            <input type="number" class="read-value w-full rounded border border-slate-400 bg-white px-3 py-1.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 shadow-inner transition" value="${savedReading.value}" onchange="triggerAutoSave()" step="0.01">
+          </div>
+          <div class="w-1/3 pl-2">
+            <label class="block text-[10px] uppercase font-bold text-slate-700 mb-1">Reading Date</label>
+            <input type="date" class="read-date w-full rounded border border-slate-400 bg-white px-3 py-1.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 shadow-inner transition" value="${savedReading.date}" onchange="triggerAutoSave()">
+          </div>
+        </div>
+      `;
+    });
+
+    setTimeout(() => {
+        const firstInput = container.querySelector('.read-value');
+        if (firstInput) firstInput.focus();
+    }, 100);
+  }
+  
+  function gatherInitialReadings(silent=false) {
+    if (currentStep < 8) return true;
+    wizardData.initialReadings = [];
+    let isValid = true;
+    document.querySelectorAll('.read-card').forEach(card => {
+      const dateVal = card.querySelector('.read-date').value;
+      if (!dateVal) isValid = false;
+      wizardData.initialReadings.push({
+        meter_number: card.dataset.meterNum,
+        value: parseFloat(card.querySelector('.read-value').value), // Can be NaN if empty
+        date: dateVal
+      });
+    });
+    if (!silent && !isValid) {
+      alert("Please ensure all readings have a 'Date Captured' before proceeding.");
+      return false;
+    }
+    return true;
+  }
+
+  // --- ARREARS (STEP 9) ---
+  window.toggleArrears = function(checkbox, accId) {
+    const card = checkbox.closest('.arr-card');
+    const details = card.querySelector('.arr-details');
+    if (checkbox.checked) {
+      details.classList.remove('hidden');
+      const input = details.querySelector('.arr-amount');
+      if (input) input.focus();
+    } else {
+      details.classList.add('hidden');
+      details.querySelector('.arr-amount').value = '';
+    }
+    triggerAutoSave();
+  };
+
+  function buildArrearsDashboard() {
+    const container = document.getElementById('arrears-container');
+    container.innerHTML = '';
+    wizardData.accounts.forEach(acc => {
+      if(!acc.number) return;
+      const arrFound = wizardData.arrears && wizardData.arrears.find(x => x.account_id === acc.id);
+      const savedArr = arrFound || { amount: 0, charge_to: 'owner' };
+      
+      let cardColor = acc.isBulk ? 'bg-amber-50 border-amber-300' : 'bg-sky-50 border-sky-300';
+      let isChecked = !!arrFound;
+      let detailsClass = isChecked ? '' : 'hidden';
+      
+      container.innerHTML += `
+        <div class="p-3 border rounded-lg shadow-sm arr-card ${cardColor}" data-acc-id="${acc.id}">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-slate-800 text-base">${acc.number} ${getAccountBadge(acc)}</span>
+            <label class="flex items-center space-x-2 text-sm font-bold text-slate-700 cursor-pointer bg-white px-3 py-1.5 border border-slate-300 rounded shadow-sm hover:bg-slate-50 transition">
+              <input type="checkbox" class="arr-toggle rounded border-slate-400 text-blue-600 focus:ring-blue-500" ${isChecked ? 'checked' : ''} onchange="toggleArrears(this, '${acc.id}')">
+              <span>Has Arrears?</span>
+            </label>
+          </div>
+          <div class="arr-details mt-4 pt-4 border-t border-slate-200/60 ${detailsClass}">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">Arrears Amount (R)</label>
+                <div class="relative">
+                  <span class="absolute left-3 top-2 text-slate-500 font-bold">R</span>
+                  <input type="text" class="arr-amount w-full rounded border border-slate-400 pl-8 pr-3 py-1.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 shadow-inner transition bg-white" value="${savedArr.amount ? formatNumberSpace(savedArr.amount) : ''}" oninput="this.value=formatNumberSpace(this.value)" onchange="triggerAutoSave()">
+                </div>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">Date Captured</label>
+                <input type="date" class="arr-date w-full rounded border border-slate-400 px-3 py-1.5 text-sm outline-none focus:border-blue-500 shadow-inner bg-white" value="${savedArr.date || ''}" onchange="triggerAutoSave()">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">Charge To</label>
+                <select class="arr-charge w-full rounded border border-slate-400 px-3 py-1.5 text-sm outline-none focus:border-blue-500 shadow-inner bg-white" onchange="triggerAutoSave()">
+                  <option value="owner" ${savedArr.charge_to === 'owner' ? 'selected' : ''}>Owner</option>
+                  <option value="tenant" ${savedArr.charge_to === 'tenant' ? 'selected' : ''}>Tenant</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+      // Trigger initial calculation to render the millions labels
+      setTimeout(() => calcRates(acc.id), 50);
+    });
+  }
+
+  function gatherArrears(silent=false) {
+    if (currentStep < 9) return true;
+    wizardData.arrears = [];
+    let isValid = true;
+    document.querySelectorAll('.arr-card').forEach(card => {
+      const toggle = card.querySelector('.arr-toggle');
+      if (toggle && toggle.checked) {
+        const dateVal = card.querySelector('.arr-date').value;
+        if (!dateVal) isValid = false;
+        wizardData.arrears.push({
+          account_id: card.dataset.accId,
+          amount: parseAmount(card.querySelector('.arr-amount').value) || 0,
+          date: dateVal,
+          charge_to: card.querySelector('.arr-charge').value || 'owner'
+        });
+      }
+    });
+    if (!silent && !isValid) {
+      alert("Please ensure all checked Arrears have a 'Date Captured' before proceeding.");
+      return false;
+    }
+    return true;
+  }
+
+  // --- RATES (STEP 10) ---
+  window.toggleRates = function(checkbox, accId) {
+    const card = checkbox.closest('.rate-card');
+    const details = card.querySelector('.rate-details');
+    if (checkbox.checked) {
+      details.classList.remove('hidden');
+      const input = details.querySelector('.rate-amount');
+      if (input) input.focus();
+    } else {
+      details.classList.add('hidden');
+      details.querySelector('.rate-amount').value = '';
+    }
+    triggerAutoSave();
+  };
+
+  function buildRatesDashboard() {
+    const container = document.getElementById('rates-container');
+    container.innerHTML = '';
+    wizardData.accounts.forEach(acc => {
+      if(!acc.number) return;
+      const rateFound = wizardData.rates && wizardData.rates.find(x => x.account_id === acc.id);
+      const savedRate = rateFound || { amount: 0, charge_to: 'owner', reference: '', erf_details: '', property_category: '', market_value: 0, rateable_value: 0, general_randage: 0, sra_randage: 0, deferred: 0, sra_monthly: 0, general_monthly: 0 };
+      
+      let cardColor = acc.isBulk ? 'bg-amber-50 border-amber-300' : 'bg-sky-50 border-sky-300';
+      let isChecked = !!rateFound;
+      let detailsClass = isChecked ? '' : 'hidden';
+      
+      container.innerHTML += `
+        <div class="p-3 border rounded-lg shadow-sm rate-card ${cardColor}" data-acc-id="${acc.id}">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-slate-800 text-base">${acc.number} ${getAccountBadge(acc)}</span>
+            <label class="flex items-center space-x-2 text-sm font-bold text-slate-700 cursor-pointer bg-white px-3 py-1.5 border border-slate-300 rounded shadow-sm hover:bg-slate-50 transition">
+              <input type="checkbox" class="rate-toggle rounded border-slate-400 text-blue-600 focus:ring-blue-500" ${isChecked ? 'checked' : ''} onchange="toggleRates(this, '${acc.id}')">
+              <span>Has Rates?</span>
+            </label>
+          </div>
+          
+          <div class="rate-details mt-4 pt-4 border-t border-slate-200/60 ${detailsClass}">
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">Reference</label>
+                <input type="text" class="rate-reference w-full rounded capitalize border border-slate-400 px-3 py-1.5 text-sm bg-white" value="${savedRate.reference || ''}" onchange="triggerAutoSave()">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">Erf Details</label>
+                <input type="text" class="rate-erf w-full rounded capitalize border border-slate-400 px-3 py-1.5 text-sm bg-white" value="${savedRate.erf_details || ''}" onchange="triggerAutoSave()">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">Property Category</label>
+                <input type="text" class="rate-category w-full rounded capitalize border border-slate-400 px-3 py-1.5 text-sm bg-white" value="${savedRate.property_category || ''}" onchange="triggerAutoSave()">
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+              <div>
+                <label class="flex justify-between items-end mb-1">
+                  <span class="block text-xs font-bold text-slate-600">Market Value (R)</span>
+                  <span id="mv-disp-${acc.id}" class="text-[10px] font-bold text-blue-600"></span>
+                </label>
+                <input type="text" id="mv-${acc.id}" class="rate-market-value w-full rounded border border-slate-400 px-3 py-1.5 text-sm bg-white" value="${savedRate.market_value ? formatNumberSpace(savedRate.market_value) : ''}" oninput="this.value=formatNumberSpace(this.value); calcRates('${acc.id}')" onchange="triggerAutoSave()" step="0.01">
+              </div>
+              <div>
+                <label class="flex justify-between items-end mb-1">
+                  <span class="block text-xs font-bold text-slate-600">Rateable Value (R)</span>
+                  <span id="rv-disp-${acc.id}" class="text-[10px] font-bold text-blue-600"></span>
+                </label>
+                <input type="text" id="rv-${acc.id}" class="rate-rateable-value w-full rounded border border-slate-400 px-3 py-1.5 text-sm bg-white" value="${savedRate.rateable_value ? formatNumberSpace(savedRate.rateable_value) : ''}" oninput="this.value=formatNumberSpace(this.value); calcRates('${acc.id}')" onchange="triggerAutoSave()" step="0.01">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">Gen. Randage (c/R)</label>
+                <input type="number" id="gr-${acc.id}" class="rate-gen-randage w-full rounded border border-slate-400 px-3 py-1.5 text-sm bg-white" value="${savedRate.general_randage || ''}" oninput="calcRates('${acc.id}')" onchange="triggerAutoSave()" step="0.0001">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">SRA Randage (c/R)</label>
+                <input type="number" id="sr-${acc.id}" class="rate-sra-randage w-full rounded border border-slate-400 px-3 py-1.5 text-sm bg-white" value="${savedRate.sra_randage || ''}" oninput="calcRates('${acc.id}')" onchange="triggerAutoSave()" step="0.0001">
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4 bg-slate-100 p-3 rounded border border-slate-300 shadow-inner">
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Deferred Rates (R)</label>
+                <input type="number" id="def-${acc.id}" class="rate-deferred w-full rounded border border-slate-400 px-3 py-1.5 text-sm bg-white font-bold" value="${savedRate.deferred || ''}" oninput="calcRates('${acc.id}')" onchange="triggerAutoSave()" step="0.01">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">General Monthly (R)</label>
+                <input type="number" id="gm-${acc.id}" class="rate-gen-monthly w-full rounded border border-slate-400 px-3 py-1.5 text-sm bg-white font-bold text-blue-700" value="${savedRate.general_monthly || ''}" onchange="triggerAutoSave()" step="0.01" readonly>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">SRA Monthly (R)</label>
+                <input type="number" id="sm-${acc.id}" class="rate-sra-monthly w-full rounded border border-slate-400 px-3 py-1.5 text-sm bg-white font-bold text-blue-700" value="${savedRate.sra_monthly || ''}" onchange="triggerAutoSave()" step="0.01" readonly>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Total Rates (R)</label>
+                <input type="number" id="tm-${acc.id}" class="rate-amount w-full rounded border border-slate-400 px-3 py-1.5 text-sm bg-white font-bold text-blue-700" value="${savedRate.amount || ''}" onchange="triggerAutoSave()" step="0.01" readonly>
+              </div>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">Date Applied</label>
+                <input type="date" class="rate-date w-full rounded border border-slate-400 px-3 py-1.5 text-sm bg-white" value="${savedRate.date || ''}" onchange="triggerAutoSave()">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">Charge To</label>
+                <select class="rate-charge w-full rounded border border-slate-400 px-3 py-1.5 text-sm bg-white" onchange="triggerAutoSave()">
+                  <option value="owner" ${savedRate.charge_to === 'owner' ? 'selected' : ''}>Owner</option>
+                  <option value="tenant" ${savedRate.charge_to === 'tenant' ? 'selected' : ''}>Tenant</option>
+                </select>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      `;
+      // Trigger initial calculation to render the millions labels
+      setTimeout(() => calcRates(acc.id), 50);
+    });
+  }
+  
+  window.calcRates = function(accId) {
+    const mv = parseAmount(document.getElementById('mv-'+accId).value) || 0;
+    const rv = parseAmount(document.getElementById('rv-'+accId).value) || 0;
+    const gr = parseAmount(document.getElementById('gr-'+accId).value) || 0;
+    const sr = parseAmount(document.getElementById('sr-'+accId).value) || 0;
+    const def = parseAmount(document.getElementById('def-'+accId).value) || 0;
+    
+    // Format Display for Millions
+    const mvDisp = document.getElementById('mv-disp-'+accId);
+    if(mvDisp) {
+        if(mv > 0) mvDisp.innerText = `R ${(mv / 1000000).toFixed(2)}m`;
+        else mvDisp.innerText = '';
+    }
+    
+    const rvDisp = document.getElementById('rv-disp-'+accId);
+    if(rvDisp) {
+        if(rv > 0) rvDisp.innerText = `R ${(rv / 1000000).toFixed(2)}m`;
+        else rvDisp.innerText = '';
+    }
+    
+    // Convert c/R to decimal for formula
+    // e.g. 1.437 c/R = 0.01437
+    const grDec = gr / 100;
+    const srDec = sr / 100;
+    
+    const genMonthly = (rv * grDec) / 12;
+    const sraMonthly = (mv * srDec) / 12;
+    const total = genMonthly + sraMonthly + def;
+    
+    document.getElementById('gm-'+accId).value = genMonthly.toFixed(2);
+    document.getElementById('sm-'+accId).value = sraMonthly.toFixed(2);
+    document.getElementById('tm-'+accId).value = total.toFixed(2);
+  }
+
+  function gatherRates(silent=false) {
+    if (currentStep < 10) return true;
+    wizardData.rates = [];
+    let valid = true;
+    document.querySelectorAll('.rate-card').forEach(card => {
+      const isChecked = card.querySelector('.rate-toggle').checked;
+      if(isChecked) {
+        const accId = card.getAttribute('data-acc-id');
+        
+        const reference = card.querySelector('.rate-reference').value;
+        const erf_details = card.querySelector('.rate-erf').value;
+        const property_category = card.querySelector('.rate-category').value;
+        const market_value = parseAmount(card.querySelector('.rate-market-value').value) || 0;
+        const rateable_value = parseAmount(card.querySelector('.rate-rateable-value').value) || 0;
+        const general_randage = parseAmount(card.querySelector('.rate-gen-randage').value) || 0;
+        const sra_randage = parseAmount(card.querySelector('.rate-sra-randage').value) || 0;
+        const deferred = parseAmount(card.querySelector('.rate-deferred').value) || 0;
+        const sra_monthly = parseAmount(card.querySelector('.rate-sra-monthly').value) || 0;
+        const general_monthly = parseAmount(card.querySelector('.rate-gen-monthly').value) || 0;
+        
+        const amount = parseAmount(card.querySelector('.rate-amount').value) || 0;
+        const date = card.querySelector('.rate-date').value;
+        const charge = card.querySelector('.rate-charge').value;
+        
+        if (!date) valid = false;
+
+        wizardData.rates.push({ 
+            account_id: accId, 
+            amount: amount, 
+            date: date, 
+            charge_to: charge,
+            reference: reference,
+            erf_details: erf_details,
+            property_category: property_category,
+            market_value: market_value,
+            rateable_value: rateable_value,
+            general_randage: general_randage,
+            sra_randage: sra_randage,
+            deferred: deferred,
+            sra_monthly: sra_monthly,
+            general_monthly: general_monthly
+        });
+      }
+    });
+    if (!silent && !valid) {
+      alert("Please ensure all checked Rates have a 'Date Captured' before proceeding.");
+      return false;
+    }
+    return true;
+  }
+
+  // --- ARRANGEMENTS (STEP 11) ---
+  window.toggleArrangement = function(checkbox, accId) {
+    const card = checkbox.closest('.arg-card');
+    const details = card.querySelector('.arg-details');
+    if (checkbox.checked) {
+      details.classList.remove('hidden');
+      const input = details.querySelector('.arg-contract');
+      if (input) input.focus();
+    } else {
+      details.classList.add('hidden');
+      details.querySelectorAll('input').forEach(i => i.value = '');
+    }
+    triggerAutoSave();
+  };
+
+  function buildArrangementsDashboard() {
+    const container = document.getElementById('arrangements-container');
+    container.innerHTML = '';
+    wizardData.accounts.forEach(acc => {
+      if(!acc.number) return;
+      const argFound = wizardData.arrangements && wizardData.arrangements.find(x => x.account_id === acc.id);
+      const savedArg = argFound || { 
+        contract_number: '', charge_to: 'owner', agreement_amount: 0, installments_raised: 0, installment_amount: 0, amount_owing: 0, remaining_periods: 0 
+      };
+      
+      let cardColor = acc.isBulk ? 'bg-amber-50 border-amber-300' : 'bg-sky-50 border-sky-300';
+      let isChecked = !!argFound;
+      let detailsClass = isChecked ? '' : 'hidden';
+      
+      container.innerHTML += `
+        <div class="p-3 border rounded-lg shadow-sm arg-card ${cardColor}" data-acc-id="${acc.id}">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-slate-800 text-base">${acc.number} ${getAccountBadge(acc)}</span>
+            <label class="flex items-center space-x-2 text-sm font-bold text-slate-700 cursor-pointer bg-white px-3 py-1.5 border border-slate-300 rounded shadow-sm hover:bg-slate-50 transition">
+              <input type="checkbox" class="arg-toggle rounded border-slate-400 text-blue-600 focus:ring-blue-500" ${isChecked ? 'checked' : ''} onchange="toggleArrangement(this, '${acc.id}')">
+              <span>Has Payment Arrangement?</span>
+            </label>
+          </div>
+          <div class="arg-details mt-4 pt-4 border-t border-slate-200/60 ${detailsClass}">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">Contract Number</label>
+                <input type="text" class="arg-contract w-full rounded border border-slate-400 px-3 py-1.5 text-sm outline-none focus:border-blue-500 shadow-inner bg-white" value="${savedArg.contract_number || ''}" onchange="triggerAutoSave()">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">Charge To</label>
+                <select class="arg-charge w-full rounded border border-slate-400 px-3 py-1.5 text-sm outline-none focus:border-blue-500 shadow-inner bg-white" onchange="triggerAutoSave()">
+                  <option value="owner" ${savedArg.charge_to === 'owner' ? 'selected' : ''}>Owner</option>
+                  <option value="tenant" ${savedArg.charge_to === 'tenant' ? 'selected' : ''}>Tenant</option>
+                </select>
+              </div>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-3">
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">Agreement Amt (R)</label>
+                <input type="number" class="arg-agree-amt w-full rounded border border-slate-400 px-3 py-1.5 text-sm outline-none focus:border-blue-500 shadow-inner bg-white" value="${savedArg.agreement_amount || ''}" onchange="triggerAutoSave()" step="0.01">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">Installments Raised (R)</label>
+                <input type="number" class="arg-raised w-full rounded border border-slate-400 px-3 py-1.5 text-sm outline-none focus:border-blue-500 shadow-inner bg-white" value="${savedArg.installments_raised || ''}" onchange="triggerAutoSave()" step="0.01">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">Installment Amt (R)</label>
+                <input type="number" class="arg-instl-amt w-full rounded border border-slate-400 px-3 py-1.5 text-sm outline-none focus:border-blue-500 shadow-inner bg-white" value="${savedArg.installment_amount || ''}" onchange="triggerAutoSave()" step="0.01">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">Amount Owing (R)</label>
+                <input type="number" class="arg-owing w-full rounded border border-slate-400 px-3 py-1.5 text-sm outline-none focus:border-blue-500 shadow-inner bg-white" value="${savedArg.amount_owing || ''}" onchange="triggerAutoSave()" step="0.01">
+              </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mt-3">
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">Remaining Periods</label>
+                <input type="number" class="arg-periods w-full rounded border border-slate-400 px-3 py-1.5 text-sm outline-none focus:border-blue-500 shadow-inner bg-white" value="${savedArg.remaining_periods || ''}" onchange="triggerAutoSave()" step="1">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">Date Captured</label>
+                <input type="date" class="arg-date w-full rounded border border-slate-400 px-3 py-1.5 text-sm outline-none focus:border-blue-500 shadow-inner bg-white" value="${savedArg.date || ''}" onchange="triggerAutoSave()">
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+      // Trigger initial calculation to render the millions labels
+      setTimeout(() => calcRates(acc.id), 50);
+    });
+  }
+
+  function gatherArrangements(silent=false) {
+    if (currentStep < 11) return true;
+    wizardData.arrangements = [];
+    let isValid = true;
+    document.querySelectorAll('.arg-card').forEach(card => {
+      const toggle = card.querySelector('.arg-toggle');
+      if (toggle && toggle.checked) {
+        const dateVal = card.querySelector('.arg-date').value;
+        if (!dateVal) isValid = false;
+        wizardData.arrangements.push({
+          account_id: card.dataset.accId,
+          charge_to: card.querySelector('.arg-charge').value || 'owner',
+          contract_number: card.querySelector('.arg-contract').value || '',
+          agreement_amount: parseFloat(card.querySelector('.arg-agree-amt').value) || 0,
+          installments_raised: parseFloat(card.querySelector('.arg-raised').value) || 0,
+          installment_amount: parseFloat(card.querySelector('.arg-instl-amt').value) || 0,
+          amount_owing: parseFloat(card.querySelector('.arg-owing').value) || 0,
+          remaining_periods: parseInt(card.querySelector('.arg-periods').value) || 0,
+          date: dateVal
+        });
+      }
+    });
+    if (!silent && !isValid) {
+      alert("Please ensure all checked Arrangements have a 'Date Captured' before proceeding.");
+      return false;
+    }
+    return true;
+  }
+
+  let masterOwners = [];
+  let masterAddresses = [];
+
+  // --- OWNERS (STEP 12) ---
+  function buildOwnersDashboard() {
+    const masterContainer = document.getElementById('owners-master-container');
+    const addressContainer = document.getElementById('addresses-master-container');
+    const assignmentContainer = document.getElementById('owners-assignment-container');
+    masterContainer.innerHTML = '';
+    addressContainer.innerHTML = '';
+    assignmentContainer.innerHTML = '';
+    
+    // Extract unique owners and addresses from wizardData.owners
+    masterOwners = [];
+    masterAddresses = [];
+    if (wizardData.owners && wizardData.owners.length > 0) {
+        let uniqueOwnersKeys = new Set();
+        let uniqueAddrKeys = new Set();
+        wizardData.owners.forEach(o => {
+            let ownerKey = (o.name || '') + '|' + (o.email || '');
+            if (!uniqueOwnersKeys.has(ownerKey) && (o.name || o.email)) {
+                uniqueOwnersKeys.add(ownerKey);
+                masterOwners.push({ name: o.name || '', email: o.email || '' });
+            }
+            
+            let addrKey = (o.address || '');
+            if (!uniqueAddrKeys.has(addrKey) && o.address) {
+                uniqueAddrKeys.add(addrKey);
+                masterAddresses.push({ address: o.address || '' });
+            }
+        });
+    }
+    
+    // Pad to expected counts
+    while (masterOwners.length < EXPECTED_OWNERS) {
+        masterOwners.push({ name: '', email: '' });
+    }
+    while (masterAddresses.length < EXPECTED_ADDRESSES) {
+        masterAddresses.push({ address: '' });
+    }
+
+    renderMasterOwners();
+    renderMasterAddresses();
+    renderOwnerAssignments();
+  }
+
+  window.addOwnerRow = function() {
+    masterOwners.push({ name: '', email: '' });
+    renderMasterOwners();
+    renderOwnerAssignments(); // update dropdowns
+  };
+
+  window.addAddressRow = function() {
+    masterAddresses.push({ address: '' });
+    renderMasterAddresses();
+    renderOwnerAssignments(); // update dropdowns
+  };
+
+  window.updateMasterOwner = function(index, field, value) {
+    masterOwners[index][field] = value;
+    renderOwnerAssignments();
+    triggerAutoSave();
+  };
+
+  window.updateMasterAddress = function(index, value) {
+    masterAddresses[index].address = value;
+    renderOwnerAssignments();
+    triggerAutoSave();
+  };
+
+  function renderMasterOwners() {
+    const masterContainer = document.getElementById('owners-master-container');
+    masterContainer.innerHTML = '';
+    masterOwners.forEach((own, idx) => {
+        masterContainer.innerHTML += `
+          <div class="flex space-x-3 owner-master-row" data-idx="${idx}">
+            <input type="text" class="w-1/2 rounded border border-slate-400 bg-white px-3 py-1.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 shadow-inner transition" placeholder="Owner Name" value="${own.name}" style="text-transform: capitalize;" style="text-transform: capitalize;" oninput="updateMasterOwner(${idx}, 'name', this.value)">
+            <input type="email" class="w-1/2 rounded border border-slate-400 bg-white px-3 py-1.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 shadow-inner transition" placeholder="Owner Email" value="${own.email}" oninput="updateMasterOwner(${idx}, 'email', this.value)">
+          </div>
+        `;
+    });
+  }
+
+  function renderMasterAddresses() {
+    const addressContainer = document.getElementById('addresses-master-container');
+    addressContainer.innerHTML = '';
+    masterAddresses.forEach((addr, idx) => {
+        addressContainer.innerHTML += `
+          <div class="flex space-x-3 address-master-row" data-idx="${idx}">
+            <input type="text" class="w-full rounded border border-slate-400 bg-white px-3 py-1.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 shadow-inner transition" placeholder="Billing Address" value="${addr.address}" style="text-transform: capitalize;" style="text-transform: capitalize;" oninput="updateMasterAddress(${idx}, this.value)">
+          </div>
+        `;
+    });
+  }
+
+  function renderOwnerAssignments() {
+    const assignmentContainer = document.getElementById('owners-assignment-container');
+    assignmentContainer.innerHTML = '';
+    
+    wizardData.accounts.forEach(acc => {
+      if(!acc.number) return;
+      
+      const savedOwn = (wizardData.owners && wizardData.owners.find(x => x.account_id === acc.id));
+      let selectedOwnerIdx = -1;
+      let selectedAddrIdx = -1;
+      if (savedOwn) {
+          selectedOwnerIdx = masterOwners.findIndex(m => m.name === savedOwn.name && m.email === savedOwn.email);
+          if (PROPERTY_ADDRESS.trim() !== '' && savedOwn.address === PROPERTY_ADDRESS) {
+              selectedAddrIdx = -2;
+          } else {
+              selectedAddrIdx = masterAddresses.findIndex(m => m.address === savedOwn.address);
+          }
+      }
+      
+      let cardColor = acc.isBulk ? 'bg-amber-50 border-amber-300' : 'bg-sky-50 border-sky-300';
+      
+      let ownerOptionsHtml = '<option value="-1">-- Select Owner --</option>';
+      masterOwners.forEach((m, idx) => {
+          let label = m.name || `Owner ${idx + 1}`;
+          ownerOptionsHtml += `<option value="${idx}" ${selectedOwnerIdx === idx ? 'selected' : ''}>${label}</option>`;
+      });
+
+      let addrOptionsHtml = '<option value="-1">-- Select Address --</option>';
+      if (PROPERTY_ADDRESS.trim() !== '') {
+          addrOptionsHtml += `<option value="-2" ${selectedAddrIdx === -2 ? 'selected' : ''}>Use Property Physical Address</option>`;
+      }
+      masterAddresses.forEach((m, idx) => {
+          let label = m.address || `Address ${idx + 1}`;
+          addrOptionsHtml += `<option value="${idx}" ${selectedAddrIdx === idx ? 'selected' : ''}>${label}</option>`;
+      });
+
+      assignmentContainer.innerHTML += `
+        <div class="flex items-center justify-between p-3 border rounded-lg shadow-sm own-assign-card ${cardColor}" data-acc-id="${acc.id}">
+          <span class="font-bold text-slate-800 w-1/4">${acc.number} ${getAccountBadge(acc)}</span>
+          <div class="w-3/4 flex space-x-2">
+            <select class="own-assign-select-owner w-1/2 rounded border border-slate-400 bg-white px-3 py-1.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 shadow-inner transition" onchange="triggerAutoSave()">
+                ${ownerOptionsHtml}
+            </select>
+            <select class="own-assign-select-addr w-1/2 rounded border border-slate-400 bg-white px-3 py-1.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 shadow-inner transition" onchange="triggerAutoSave()">
+                ${addrOptionsHtml}
+            </select>
+          </div>
+        </div>
+      `;
+      // Trigger initial calculation to render the millions labels
+      setTimeout(() => calcRates(acc.id), 50);
+    });
+  }
+
+  function gatherOwners() {
+    if (currentStep < 12) return true;
+    wizardData.owners = [];
+    document.querySelectorAll('.own-assign-card').forEach(card => {
+      let accId = card.dataset.accId;
+      let ownerSelect = card.querySelector('.own-assign-select-owner');
+      let addrSelect = card.querySelector('.own-assign-select-addr');
+      let oIdx = parseInt(ownerSelect.value);
+      let aIdx = parseInt(addrSelect.value);
+      
+      let oName = '', oEmail = '', oAddr = '';
+      if (oIdx >= 0 && masterOwners[oIdx]) {
+          oName = masterOwners[oIdx].name;
+          oEmail = masterOwners[oIdx].email;
+      }
+      if (aIdx === -2) {
+          oAddr = PROPERTY_ADDRESS;
+      } else if (aIdx >= 0 && masterAddresses[aIdx]) {
+          oAddr = masterAddresses[aIdx].address;
+      }
+      
+      wizardData.owners.push({
+          account_id: accId,
+          name: oName,
+          email: oEmail,
+          address: oAddr
+      });
+    });
+    return true;
+  }
+
+  async function saveArchitecture() {
+    if(!gatherMapping() || !gatherInitialReadings() || !gatherArrears() || !gatherRates() || !gatherArrangements() || !gatherOwners()) {
+      return; // Do not save if validation fails on the final page
+    }
+    console.log("Saving Architecture:", wizardData);
+    
+    try {
+      const response = await fetch("{{ url_for('billing_bp.save_global_architecture', property_id=property.id) }}", {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify(wizardData)
+      });
+      
+      if (response.ok) {
+        // Clear draft on successful save!
+        window.location.href = "{{ url_for('billing_bp.architecture_summary', property_id=property.id) }}?from_wizard=1";
+      } else {
+        const text = await response.text();
+        try {
+           const errData = JSON.parse(text);
+           alert("Server Error: " + (errData.error || "Please ensure all data is valid."));
+        } catch (e) {
+           if (text.toLowerCase().includes("csrf") || text.toLowerCase().includes("bad request")) {
+               alert("Your session expired while you were filling out the wizard! Please save your data to a text file (just in case), do a hard refresh (Ctrl+Shift+R), and try again.");
+           } else {
+               alert("An unexpected server error occurred (500). The data could not be parsed.");
+           }
+        }
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Network error: " + e.message);
     }
   }
 </script>

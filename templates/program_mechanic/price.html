@@ -1,126 +1,182 @@
 {% extends "layout.html" %}
-{% block title %}Price · Mechanic CRM{% endblock %}
+{% block title %}Mechanic CRM - Pricing{% endblock %}
 
 {% block content %}
-<div class="mx-auto max-w-4xl mt-10 px-4">
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<div class="max-w-4xl mx-auto px-4 py-8">
 
-    {# -----------------------------
-       LEFT TILE: Country + Local Price
-       ----------------------------- #}
-    <div class="bg-white rounded-xl shadow overflow-hidden flex flex-col">
-      <div class="h-2 bg-indigo-600"></div>
-      <div class="p-6 flex-1">
-        
-        
-        <div class="flex items-center justify-between">
-          <h1 class="text-lg font-semibold text-slate-800">Check Your Premium Rate</h1>
-          <div class="text-xs text-slate-500">Mechanic CRM</div>
-        </div>
+  <!-- Single Main Tile -->
+  <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+    <!-- Color strip on top -->
+    <div class="h-2 bg-indigo-600"></div>
 
-        <p class="mt-2 text-sm text-slate-600">
-          We use value-based parity pricing. Check your localized cost before you start your free trial.
+    <div class="p-6 md:p-8 space-y-6">
+      <!-- First Row: Title & Back Button -->
+      <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+        <h1 class="text-2xl md:text-3xl font-bold text-slate-900">Pricing & Wallet</h1>
+        <a href="{{ url_for('mechanic_bp.about') }}"
+           class="inline-flex items-center gap-2 rounded border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition">
+          <span>←</span><span>Back to Info</span>
+        </a>
+      </div>
+
+      <!-- Content Body -->
+      <div>
+        <p class="text-slate-600 leading-relaxed mb-6">
+          Mechanic CRM operates on a transparent, <strong>pay-as-you-go</strong> model. No expensive monthly subscriptions, no hidden fees. You only pay for what you use.
         </p>
 
-        <div class="mt-5">
-          <label class="block text-sm font-medium text-slate-700 mb-2">Select Your Country</label>
-          <form id="countryForm" method="get" action="{{ url_for('mechanic_bp.price_page') }}">
-            <select name="country"
-                    onchange="this.form.submit()"
-                    class="w-full rounded-lg border-2 border-indigo-400 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
-              <option value="" {% if not price.has_quote %}selected{% endif %}>Select your country</option>
-              {% for c in countries %}
-                <option value="{{ c.code }}" {% if price.country_code == c.code %}selected{% endif %}>
-                  {{ c.name }}
-                </option>
-              {% endfor %}
-            </select>
-          </form>
-          <p class="mt-2 text-xs text-slate-500">
-            Don’t see your country? Choose any country that uses your currency.
+        <!-- Country Selector -->
+        <div class="mb-8 flex flex-col md:flex-row items-start md:items-center gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
+          <label for="country_selector" class="text-sm font-semibold text-slate-700 whitespace-nowrap">Select your country for local pricing:</label>
+          <select id="country_selector" class="form-select block w-full md:max-w-xs rounded-lg border-2 border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+            <option value="" disabled selected>-- Select your country --</option>
+            {% for c in countries %}
+              <option value="{{ c.code }}">{{ c.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- Pricing Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+          
+          <!-- Registration -->
+          <div class="bg-slate-50 rounded-2xl p-6 border border-slate-100 flex flex-col justify-between h-full">
+            <div>
+              <span class="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full font-bold mb-3 uppercase tracking-wide">30-Day Free Trial</span>
+              <div class="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center text-indigo-600 mb-4">
+                <i class="fas fa-store text-xl"></i>
+              </div>
+              <h3 class="text-lg font-bold text-slate-900 mb-2">Once-Off Registration</h3>
+              <p class="text-slate-600 text-sm leading-relaxed">
+                Unlock full access to the Mechanic CRM platform with a single registration fee. This gets your shop set up and ready to service clients immediately.
+              </p>
+            </div>
+              <div class="mt-6">
+                <span id="registration_price" class="text-2xl font-bold text-indigo-600">
+                  {% if price.has_quote %}
+                    {% if price.local_currency == 'ZAR' %}R {% else %}{{ price.local_currency }} {% endif %}{{ "%.2f"|format(price.local_amount / 100) }}
+                  {% else %}
+                    <i class="fas fa-spinner fa-spin text-lg"></i>
+                  {% endif %}
+                </span>
+              <span id="once_off_label" class="text-slate-500 text-sm ml-1">once-off</span>
+            </div>
+          </div>
+
+          <!-- Micro-transactions -->
+          <div class="bg-slate-50 rounded-2xl p-6 border border-slate-100 flex flex-col justify-between h-full">
+            <div>
+              <span class="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full font-bold mb-3 uppercase tracking-wide">30-Day Free Trial</span>
+              <div class="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center text-indigo-600 mb-4">
+                <i class="fas fa-coins text-xl"></i>
+              </div>
+              <h3 class="text-lg font-bold text-slate-900 mb-2">Prepaid Wallet Usage</h3>
+              <p class="text-slate-600 text-sm leading-relaxed">
+                Top up your internal wallet. We only deduct credits when you actively generate value for your shop. 
+                <br><br>
+                • <strong>Quotes:</strong> <span class="inline-flex items-center rounded-md bg-blue-50 px-2 py-0.5 text-sm font-bold text-blue-700 ring-1 ring-inset ring-blue-700/10 shadow-sm mx-1 dynamic-wallet-price" data-amount="{{ "%.2f"|format(quote_cents / 100) }}">{% if price.has_quote %}<span class="dynamic-currency">{{ 'R' if price.local_currency == 'ZAR' else price.local_currency ~ ' ' }}</span>{{ "%.2f"|format(quote_cents / 100) }}{% else %}...{% endif %}</span><br>
+                • <strong>Invoices & Statements:</strong> <span class="inline-flex items-center rounded-md bg-blue-50 px-2 py-0.5 text-sm font-bold text-blue-700 ring-1 ring-inset ring-blue-700/10 shadow-sm mx-1 dynamic-wallet-price" data-amount="{{ "%.2f"|format(invoice_cents / 100) }}">{% if price.has_quote %}<span class="dynamic-currency">{{ 'R' if price.local_currency == 'ZAR' else price.local_currency ~ ' ' }}</span>{{ "%.2f"|format(invoice_cents / 100) }}{% else %}...{% endif %}</span>
+              </p>
+            </div>
+            <div class="mt-6">
+              <span class="text-2xl font-bold text-indigo-600">Pay-As-You-Go</span>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- CTA -->
+        <div class="border-t border-slate-100 pt-8 text-center">
+          <h4 class="text-lg font-bold text-slate-900 mb-4">Ready to modernize your shop?</h4>
+          
+          <a id="register_btn" href="{{ url_for('auth_bp.register', subject='mechanic', next=url_for('mechanic_bp.mechanic_dashboard')) }}"
+             class="inline-block bg-indigo-600 text-white py-3 px-8 rounded-xl font-bold text-lg hover:bg-indigo-700 transition shadow-sm">Register to start your free trial</a>
+          
+          <p class="text-sm text-slate-500 mt-4">
+            Once registered, simply 
+            <a href="{{ url_for('auth_bp.login', next=url_for('mechanic_bp.mechanic_dashboard')) }}" class="text-indigo-600 font-semibold hover:underline">log in to your dashboard</a>.
           </p>
         </div>
 
-        {% set has_quote = price and price.has_quote %}
-        {% set disabled_class = '' if has_quote else 'opacity-50' %}
-
-        <div class="mt-6">
-          <div class="text-sm font-medium text-slate-700 mb-2">Mechanic CRM Monthly Price</div>
-          <div class="flex items-center gap-2 {{ disabled_class }}">
-            <div class="flex-1 rounded-lg border bg-slate-50 px-3 py-2 text-right text-sm text-slate-800">
-              {% if has_quote and price.local_amount is not none %}
-                {{ '%.2f' % (price.local_amount / 100) }}
-              {% else %}
-                —
-              {% endif %}
-            </div>
-            <div class="rounded-lg border px-3 py-2 text-sm text-slate-700">
-              {{ price.local_currency if has_quote else '—' }}
-            </div>
-          </div>
-          {% if has_quote and price.is_discount %}
-            <p class="mt-2 text-xs text-indigo-600">Regional parity discount applied.</p>
-          {% endif %}
-        </div>
       </div>
     </div>
-
-    {# -----------------------------
-       RIGHT TILE: Free Trial
-       ----------------------------- #}
-    <div class="bg-white rounded-xl shadow overflow-hidden flex flex-col">
-      <div class="h-2 bg-indigo-600"></div>
-      <div class="p-6 flex flex-col justify-between flex-1">
-        <div>
-          <div class="flex items-center justify-between">
-            <h2 class="text-lg font-semibold text-slate-800">14-Day Free Trial</h2>
-            <div class="text-xs font-bold text-indigo-600 uppercase">Start Now</div>
-          </div>
-
-          <div class="mt-4 p-4 bg-indigo-50 rounded border border-indigo-100">
-            <p class="text-sm text-indigo-800 mb-2 font-medium">What's included?</p>
-            <ul class="list-disc list-inside text-sm text-indigo-700 space-y-1">
-              <li>Full Dashboard Access</li>
-              <li>Unlimited Job Cards</li>
-              <li>Client & Vehicle Management</li>
-              <li>Invoicing System</li>
-            </ul>
-          </div>
-          
-          <div class="mt-4">
-             <p class="text-xs text-slate-500 leading-relaxed">
-               Start your trial to explore Mechanic CRM. If you choose to continue after the trial expires, the rate calculated on the left will be securely locked in for your account.
-             </p>
-          </div>
-        </div>
-
-        <div class="mt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <a href="{{ url_for('mechanic_bp.about') }}"
-             class="rounded-lg border px-4 py-2 text-sm hover:bg-slate-50 w-full sm:w-auto text-center">
-            ← Back to Info
-          </a>
-
-          {% if has_quote %}
-            {% if current_user.is_authenticated %}
-              <a href="{{ url_for('yoco_bp.yoco_start', email=current_user.email, subject='mechanic') }}"
-                 class="inline-flex items-center justify-center rounded bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 shadow-sm transition-colors w-full sm:w-auto">
-                Start Free Trial
-              </a>
-            {% else %}
-              <a href="{{ url_for('auth_bp.register', role='user', subject='mechanic', plan='trial', next=url_for('auth_bp.bridge_dashboard'), price_id=price.price_id) }}"
-                 class="inline-flex items-center justify-center rounded bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 shadow-sm transition-colors w-full sm:w-auto">
-                Start Free Trial
-              </a>
-            {% endif %}
-          {% else %}
-            <button type="button" class="rounded bg-indigo-600 px-4 py-2 text-sm font-semibold text-white opacity-50 cursor-not-allowed w-full sm:w-auto" disabled>
-              Select Country First
-            </button>
-          {% endif %}
-        </div>
-      </div>
-    </div>
-
   </div>
+
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const selector = document.getElementById('country_selector');
+    const priceDisplay = document.getElementById('registration_price');
+    const registerBtn = document.getElementById('register_btn');
+    const onceOffLabel = document.getElementById('once_off_label');
+    const baseUrl = "{{ url_for('auth_bp.register') }}";
+    const nextUrl = "{{ url_for('mechanic_bp.mechanic_dashboard') }}";
+    
+    function fetchPrice(country) {
+      if(!country) {
+        priceDisplay.innerHTML = '<span class="text-base font-medium text-slate-500">Please select a country</span>';
+        if (onceOffLabel) onceOffLabel.style.display = 'none';
+        document.querySelectorAll('.dynamic-wallet-price').forEach(el => {
+          el.innerHTML = '...';
+        });
+        return;
+      }
+      
+      // Update register button link to include country_code
+      registerBtn.href = `${baseUrl}?subject=mechanic&next=${encodeURIComponent(nextUrl)}&country_code=${country}`;
+      
+      priceDisplay.innerHTML = '<i class="fas fa-spinner fa-spin text-lg"></i>';
+      if (onceOffLabel) onceOffLabel.style.display = 'inline';
+
+      fetch(`/api/price/mechanic/${country}`)
+        .then(res => res.json())
+        .then(data => {
+          if(data.error) {
+            priceDisplay.innerHTML = '<span class="text-lg font-medium">Charged once-off if you continue with program</span>';
+            if (onceOffLabel) onceOffLabel.style.display = 'none';
+            document.querySelectorAll('.dynamic-wallet-price').forEach(el => {
+              el.innerHTML = '...';
+            });
+          } else {
+            priceDisplay.textContent = data.display_price;
+            if (onceOffLabel) onceOffLabel.style.display = 'inline';
+            
+            let currencyStr = data.currency === 'ZAR' ? 'R' : data.currency + ' ';
+            document.querySelectorAll('.dynamic-wallet-price').forEach(el => {
+              let amount = el.getAttribute('data-amount');
+              el.innerHTML = `<span class="dynamic-currency">${currencyStr}</span>${amount}`;
+            });
+          }
+        })
+        .catch(err => {
+          priceDisplay.innerHTML = '<span class="text-lg font-medium">Charged once-off if you continue with program</span>';
+          if (onceOffLabel) onceOffLabel.style.display = 'none';
+          document.querySelectorAll('.dynamic-wallet-price').forEach(el => {
+            el.innerHTML = '...';
+          });
+        });
+    }
+
+    // Ensure we trigger on load
+    fetchPrice(selector.value);
+    
+    selector.addEventListener('change', function(e) {
+      selector.classList.remove('border-red-500', 'border-2');
+      selector.classList.add('border-slate-300', 'border-2');
+      fetchPrice(e.target.value);
+    });
+
+    registerBtn.addEventListener('click', function(e) {
+      if (!selector.value) {
+        e.preventDefault();
+        selector.classList.remove('border-slate-300');
+        selector.classList.add('border-red-500', 'border-2');
+        alert("Please select your country from the dropdown before registering.");
+      }
+    });
+  });
+</script>
 {% endblock %}

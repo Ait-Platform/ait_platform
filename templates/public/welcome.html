@@ -31,6 +31,7 @@
 
 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto px-4 mb-8">
 
+  {% if settings.get("visibility_loss", "visible") != "hidden" %}
   <!-- Loss -->
   <div class="bg-white rounded-xl shadow overflow-hidden">
     <div class="h-2 bg-purple-600"></div>
@@ -43,7 +44,9 @@
       <a href="{{ url_for('loss_bp.about_loss', subject='loss') }}" class="inline-block mt-4 px-4 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition">Explore</a>
     </div>
   </div>
+  {% endif %}
 
+  {% if settings.get("visibility_reading", "visible") != "hidden" %}
   <!-- Reading -->
   <div class="bg-white rounded-xl shadow overflow-hidden">
     <div class="h-2 bg-emerald-600"></div>
@@ -56,7 +59,9 @@
       <a href="{{ url_for('reading_bp.about_reading', subject='reading') }}" class="inline-block mt-4 px-4 py-2 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700 transition">Explore</a>
     </div>
   </div>
+  {% endif %}
 
+  {% if settings.get("visibility_home", "visible") != "hidden" %}
   <!-- Home -->
   <div class="bg-white rounded-xl shadow overflow-hidden">
     <div class="h-2 bg-blue-600"></div>
@@ -69,7 +74,9 @@
       <a href="{{ url_for('home_bp.subject_home', subject='home') }}" class="inline-block mt-4 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition">Explore</a>
     </div>
   </div>
+  {% endif %}
 
+  {% if settings.get("visibility_tutor", "visible") != "hidden" %}
   <!-- Tutor Registration -->
   <div class="bg-white rounded-xl shadow overflow-hidden">
     <div class="h-2 bg-rose-500"></div>
@@ -82,7 +89,9 @@
       <a href="{{ url_for('public_bp.tutor_register') }}" class="inline-block mt-4 px-4 py-2 bg-rose-600 text-white text-sm rounded-lg hover:bg-rose-700 transition">Register as Tutor</a>
     </div>
   </div>
+  {% endif %}
 
+  {% if settings.get("visibility_budget", "visible") != "hidden" %}
   <!-- Budget -->
   <div class="bg-white rounded-xl shadow overflow-hidden">
     <div class="h-2 bg-amber-500"></div>
@@ -95,7 +104,9 @@
       <a href="{{ url_for('budget_bp.about', subject='budget') }}" class="inline-block mt-4 px-4 py-2 bg-amber-500 text-white text-sm rounded-lg hover:bg-amber-600 transition">Explore</a>
     </div>
   </div>
+  {% endif %}
 
+  {% if settings.get("visibility_billing", "visible") != "hidden" %}
   <!-- Billing -->
   <div class="bg-white rounded-xl shadow overflow-hidden">
     <div class="h-2 bg-orange-500"></div>
@@ -108,7 +119,9 @@
       <a href="{{ url_for('billing_bp.billing_about', subject='billing') }}" class="inline-block mt-4 px-4 py-2 bg-orange-500 text-white text-sm rounded-lg hover:bg-orange-600 transition">Explore</a>
     </div>
   </div>
+  {% endif %}
 
+  {% if settings.get("visibility_cultural_fire", "visible") != "hidden" %}
   <!-- Cultural Fire -->
   <div class="bg-white rounded-xl shadow overflow-hidden">
     <div class="h-2 bg-pink-500"></div>
@@ -121,7 +134,9 @@
       <a href="{{ url_for('cultural_bp.cultural_fire_about') }}" class="inline-block mt-4 px-4 py-2 bg-pink-600 text-white text-sm rounded-lg hover:bg-pink-700 transition">Explore</a>
     </div>
   </div>
+  {% endif %}
 
+  {% if settings.get("visibility_practice_crm", "visible") != "hidden" %}
   <!-- Health Care Customer Relation Management -->
   <div class="bg-white rounded-xl shadow overflow-hidden">
     <div class="h-2 bg-teal-600"></div>
@@ -138,7 +153,9 @@
       {% endif %}
     </div>
   </div>
+  {% endif %}
 
+  {% if settings.get("visibility_hds", "visible") != "hidden" %}
   <!-- Healthcare Data Switch -->
   <div class="bg-white rounded-xl shadow overflow-hidden">
     <div class="h-2 bg-fuchsia-600"></div>
@@ -151,7 +168,9 @@
       <a href="{{ url_for('hds_bp.about') }}" class="inline-block mt-4 px-4 py-2 bg-fuchsia-600 text-white text-sm rounded-lg hover:bg-fuchsia-700 transition">Explore</a>
     </div>
   </div>
+  {% endif %}
 
+  {% if settings.get("visibility_receptionist", "visible") != "hidden" %}
   <!-- Receptionist Registration -->
   <div class="bg-white rounded-xl shadow overflow-hidden">
     <div class="h-2 bg-emerald-500"></div>
@@ -164,7 +183,9 @@
       <a href="{{ url_for('public_bp.receptionist_register') }}" class="inline-block mt-4 px-4 py-2 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700 transition">Register as Staff</a>
     </div>
   </div>
+  {% endif %}
 
+  {% if settings.get("visibility_spv", "visible") != "hidden" %}
   <!-- SPV -->
   <div class="bg-white rounded-xl shadow overflow-hidden">
     <div class="h-2 bg-slate-800"></div>
@@ -177,20 +198,24 @@
       <a href="{{ url_for('spv_bp.about_spv') }}" class="inline-block mt-4 px-4 py-2 bg-slate-800 text-white text-sm rounded-lg hover:bg-slate-900 transition">Explore</a>
     </div>
   </div>
+  {% endif %}
 
+  {% if settings.get("visibility_adv_math", "visible") != "hidden" %}
   <!-- Grade 12 Mathematics -->
   <div class="bg-white rounded-xl shadow overflow-hidden">
     <div class="h-2 bg-cyan-600"></div>
     <div class="p-6 flex flex-col h-full">
       <div class="flex items-start justify-between">
-        <h2 class="text-lg font-semibold text-slate-800">Grade 12 Mathematics</h2>
+        <h2 class="text-lg font-semibold text-slate-800">Grade 12 Math Core</h2>
         <span class="text-xs bg-cyan-100 text-cyan-800 px-2 py-1 rounded">Paid</span>
       </div>
       <p class="mt-2 text-sm text-slate-600 flex-grow">Your Matric Success Partner. AI-driven mastery preparation for NSC Grade 12 Math.</p>
       <a href="{{ url_for('adv_math_bp.about') }}" class="inline-block mt-4 px-4 py-2 bg-cyan-600 text-white text-sm rounded-lg hover:bg-cyan-700 transition">Explore</a>
     </div>
   </div>
+  {% endif %}
 
+  {% if settings.get("visibility_mechanic", "visible") != "hidden" %}
   <!-- Mechanic -->
   <div class="bg-white rounded-xl shadow overflow-hidden">
     <div class="h-2 bg-indigo-600"></div>
@@ -203,7 +228,28 @@
       <a href="{{ url_for('mechanic_bp.about') }}" class="inline-block mt-4 px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 transition">Explore</a>
     </div>
   </div>
+  {% endif %}
 
+
+  {% if settings.get("visibility_tpx", "visible") != "hidden" %}
+    <!-- Talent Passport Exchange (TPX) -->
+    <div class="bg-white rounded-xl shadow overflow-hidden">
+      <div class="h-2 bg-pink-600"></div>
+      <div class="p-6 flex flex-col h-full">
+        <div class="flex items-start justify-between">
+          <h2 class="text-lg font-semibold text-slate-800">Talent Passport Exchange (TPX)</h2>
+          <span class="text-xs bg-cyan-100 text-cyan-800 px-2 py-1 rounded">Paid</span>
+        </div>
+        <p class="mt-2 text-sm text-slate-600 flex-grow">
+          To create a country's most trusted employment ecosystem 
+          by connecting verified people with verified employers 
+          through a secure digital Employment Passport.</p>
+        <a href="{{ url_for('tpx_bp.about') }}" class="inline-block mt-4 px-4 py-2 bg-cyan-600 text-white text-sm rounded-lg hover:bg-cyan-700 transition">Explore</a>
+      </div>
+    </div>
+  
+  {% endif %}
+  
 </div>
 
 {% endblock %}

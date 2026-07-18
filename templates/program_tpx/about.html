@@ -1,0 +1,291 @@
+{% extends "layout.html" %}
+
+{% block content %}
+
+<div class="max-w-6xl mx-auto px-4 py-6">
+
+    <!-- Main Tile -->
+    <div class="bg-white rounded-xl shadow-xl overflow-hidden">
+
+        <!-- TPX Colour Strip -->
+        <div class="h-3 bg-pink-600"></div>
+
+        <div class="p-6">
+
+            <!-- ========================================= -->
+            <!-- ROW 1 -->
+            <!-- ========================================= -->
+            <div class="flex justify-between items-center mb-6">
+
+                <h1 class="text-3xl font-bold text-gray-800">
+                    About Talent Passport Exchange (TPX)
+                </h1>
+
+                <a href="{{ url_for('public_bp.welcome') }}"
+                   class="px-4 py-2 rounded-lg bg-gray-600 text-white hover:bg-gray-700 transition">
+                    ← Back
+                </a>
+
+            </div>
+
+            <!-- ========================================= -->
+            <!-- ROW 2 -->
+            <!-- ========================================= -->
+            <div class="flex justify-end gap-3 mb-8">
+
+                <a href="{{ url_for('tpx_bp.how_it_works') }}"
+                   class="px-4 py-2 rounded-lg bg-pink-600 text-white hover:bg-pink-700 transition">
+                    How It Works
+                </a>
+
+                <a href="{{ url_for('tpx_bp.pricing') }}"
+                   class="px-4 py-2 rounded-lg bg-pink-600 text-white hover:bg-pink-700 transition">
+                    Pricing
+                </a>
+
+            </div>
+
+            <!-- ========================================= -->
+            <!-- INTRODUCTION -->
+            <!-- ========================================= -->
+
+            <div class="mb-10">
+
+                <h2 class="text-2xl font-semibold text-pink-700 mb-4">
+                    One Passport. Every Opportunity.
+                </h2>
+
+                <p class="text-gray-700 leading-8">
+                    Talent Passport Exchange (TPX) is a trusted employment ecosystem
+                    designed to connect verified people with verified employers.
+                    TPX enables individuals to build a secure digital Employment
+                    Passport while giving employers access to reliable information
+                    that supports better hiring decisions.
+                </p>
+
+            </div>
+
+            <!-- ========================================= -->
+            <!-- OUR VISION -->
+            <!-- ========================================= -->
+
+            <div class="mb-10">
+
+                <h2 class="text-2xl font-semibold text-pink-700 mb-4">
+                    Our Vision
+                </h2>
+
+                <p class="text-gray-700 leading-8">
+                    Our vision is to create a trusted employment marketplace where
+                    people build lifelong professional identities and employers recruit
+                    with confidence through transparent, evidence-based information.
+                </p>
+
+            </div>
+
+            <!-- ========================================= -->
+            <!-- TWO COLUMN -->
+            <!-- ========================================= -->
+
+            <div class="grid lg:grid-cols-2 gap-8 mb-10">
+
+                <!-- Employment Passport -->
+
+                <div class="border rounded-xl p-6">
+
+                    <h3 class="text-xl font-semibold text-pink-700 mb-4">
+                        Employment Passport
+                    </h3>
+
+                    <p class="text-gray-700 mb-4">
+                        More than a CV.
+                    </p>
+
+                    <ul class="list-disc ml-6 space-y-2 text-gray-700">
+                        <li>Professional Profile</li>
+                        <li>Employment History</li>
+                        <li>Qualifications</li>
+                        <li>Skills</li>
+                        <li>Certificates</li>
+                        <li>Licences</li>
+                        <li>References</li>
+                        <li>Supporting Documents</li>
+                    </ul>
+
+                </div>
+
+                <!-- Verification -->
+
+                <div class="border rounded-xl p-6">
+
+                    <h3 class="text-xl font-semibold text-pink-700 mb-4">
+                        Trust & Verification
+                    </h3>
+
+                    <ul class="space-y-3 text-gray-700">
+
+                        <li>✔ Identity Verification</li>
+
+                        <li>✔ Qualification Verification</li>
+
+                        <li>✔ Employment Verification</li>
+
+                        <li>✔ Reference Verification</li>
+
+                        <li>✔ Professional Registration</li>
+
+                        <li>✔ Police Clearance (where applicable)</li>
+
+                        <li>✔ Document Status Tracking</li>
+
+                    </ul>
+
+                </div>
+
+            </div>
+
+            <!-- ========================================= -->
+            <!-- JOB SEEKERS -->
+            <!-- ========================================= -->
+
+            <div class="mb-10">
+
+                <h2 class="text-2xl font-semibold text-pink-700 mb-4">
+                    For Job Seekers
+                </h2>
+
+                <div class="border rounded-xl p-6">
+
+                    <ul class="list-disc ml-6 space-y-3 text-gray-700">
+
+                        <li>Create your Employment Passport.</li>
+
+                        <li>Upload qualifications and supporting documents.</li>
+
+                        <li>Apply for opportunities.</li>
+
+                        <li>Receive intelligent job matches.</li>
+
+                        <li>Build your professional reputation over time.</li>
+
+                    </ul>
+
+                </div>
+
+            </div>
+
+            <!-- ========================================= -->
+            <!-- EMPLOYERS -->
+            <!-- ========================================= -->
+
+            <div class="mb-10">
+
+                <h2 class="text-2xl font-semibold text-pink-700 mb-4">
+                    For Employers
+                </h2>
+
+                <div class="border rounded-xl p-6">
+
+                    <ul class="list-disc ml-6 space-y-3 text-gray-700">
+
+                        <li>Search verified candidates.</li>
+
+                        <li>Advertise vacancies.</li>
+
+                        <li>Shortlist applicants.</li>
+
+                        <li>View Employment Passports.</li>
+
+                        <li>Recruit with greater confidence.</li>
+
+                    </ul>
+
+                </div>
+
+            </div>
+
+            <!-- ========================================= -->
+            <!-- TRANSPARENCY -->
+            <!-- ========================================= -->
+
+            <div class="mb-10">
+
+                <h2 class="text-2xl font-semibold text-pink-700 mb-4">
+                    Transparency
+                </h2>
+
+                <p class="text-gray-700 leading-8 mb-6">
+
+                    TPX does not certify people.
+
+                    We verify information where possible and clearly indicate whether
+                    information has been self-declared, uploaded, verified or is still
+                    awaiting verification.
+
+                </p>
+
+                <div class="grid md:grid-cols-4 gap-4">
+
+                    <div class="border rounded-lg p-4 text-center">
+
+                        <h3 class="font-semibold">📝</h3>
+
+                        <p>Self Declared</p>
+
+                    </div>
+
+                    <div class="border rounded-lg p-4 text-center">
+
+                        <h3 class="font-semibold">📄</h3>
+
+                        <p>Uploaded</p>
+
+                    </div>
+
+                    <div class="border rounded-lg p-4 text-center">
+
+                        <h3 class="font-semibold">✔</h3>
+
+                        <p>Verified</p>
+
+                    </div>
+
+                    <div class="border rounded-lg p-4 text-center">
+
+                        <h3 class="font-semibold">⏳</h3>
+
+                        <p>Pending</p>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            <!-- ========================================= -->
+            <!-- FOOTER -->
+            <!-- ========================================= -->
+
+            <div class="rounded-xl bg-pink-600 text-white p-8 text-center">
+
+                <h2 class="text-3xl font-bold mb-4">
+
+                    One Passport. Every Opportunity.
+
+                </h2>
+
+                <p class="text-lg">
+
+                    Building trusted careers and trusted workplaces together.
+
+                </p>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}

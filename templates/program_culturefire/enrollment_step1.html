@@ -25,28 +25,29 @@
             {{ form.full_name.label(class="block text-gray-700") }}
             {{ form.full_name(class="w-full border border-green-300 rounded px-3 py-2", autofocus=True) }}
           </div>
-          <div>
-            {{ form.dob.label(class="block text-gray-700") }}
-            {{ form.dob(class="w-full border border-green-300 rounded px-3 py-2") }}
-          </div>
+          <div class="mb-4">
+          {{ form.dob.label(class="block text-gray-700 font-bold mb-1") }}
+          {{ form.dob(class="w-full border border-green-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500", onchange="checkAge(this.value)") }}
+          {% if form.dob.errors %}
+            <ul class="text-red-500 text-sm mt-1">
+            {% for error in form.dob.errors %}<li>{{ error }}</li>{% endfor %}
+            </ul>
+          {% endif %}
         </div>
 
-        <!-- Row 2: POPIA message -->
-        <div class="bg-gray-50 border border-red-300 rounded px-3 py-2 text-sm text-gray-1000">
-          Your ID number is required for age verification and participant records. It will be encrypted and handled in compliance with POPIA.
+        <div class="mb-4 hidden" id="parentEmailGroup">
+          {{ form.parent_email.label(class="block text-gray-700 font-bold mb-1") }}
+          {{ form.parent_email(class="w-full border border-green-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500", placeholder="Required for participants under 18") }}
+          <p class="text-xs text-slate-500 mt-1">Since you are under 18, we need your parent or guardian's email to obtain consent.</p>
+          {% if form.parent_email.errors %}
+            <ul class="text-red-500 text-sm mt-1">
+            {% for error in form.parent_email.errors %}<li>{{ error }}</li>{% endfor %}
+            </ul>
+          {% endif %}
+        </div>
         </div>
 
-        <!-- Row 3: ID Number + Phone -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            {{ form.id_number.label(class="block text-gray-700") }}
-            {{ form.id_number(class="w-full border border-green-300 rounded px-3 py-2") }}
-          </div>
-          <div>
-            {{ form.phone.label(class="block text-gray-700") }}
-            {{ form.phone(class="w-full border border-green-300 rounded px-3 py-2") }}
-          </div>
-        </div>
+        <!-- Removed ID Number and Phone fields per user request -->
 
         <!-- Submit button right-aligned -->
         <div class="flex justify-end">
@@ -60,4 +61,36 @@
     </div>
   </div>
 </div>
+
+<script>
+function checkAge(dobString) {
+  if (!dobString) return;
+  const dob = new Date(dobString);
+  const today = new Date();
+  let age = today.getFullYear() - dob.getFullYear();
+  const m = today.getMonth() - dob.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
+      age--;
+  }
+  
+  const parentEmailGroup = document.getElementById('parentEmailGroup');
+  const parentEmailInput = document.getElementById('parent_email');
+  
+  if (age < 18) {
+      parentEmailGroup.classList.remove('hidden');
+      if(parentEmailInput) parentEmailInput.required = true;
+  } else {
+      parentEmailGroup.classList.add('hidden');
+      if(parentEmailInput) parentEmailInput.required = false;
+  }
+}
+
+// Run on load in case DOB is already filled and < 18
+document.addEventListener("DOMContentLoaded", function() {
+  const dobInput = document.getElementById('dob');
+  if (dobInput && dobInput.value) {
+    checkAge(dobInput.value);
+  }
+});
+</script>
 {% endblock %}

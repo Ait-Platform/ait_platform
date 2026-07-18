@@ -30,8 +30,11 @@ def start():
     """
 
 
+    from flask_login import current_user
+    
     email = (
         request.values.get("email") 
+        or (getattr(current_user, "email", None) if current_user.is_authenticated else None)
         or session.get("pending_email") 
         or session.get("reg_ctx", {}).get("email_lower") 
         or session.get("reg_ctx", {}).get("email_in") 
@@ -55,6 +58,9 @@ def start():
         
     if subject == "metro_billing":
         amount_cents = int(session.get("metro_billing_amount_cents", 0))
+
+    if subject == "mechanic_topup":
+        amount_cents = int(session.get("mechanic_topup_amount_cents", 0))
         
     if amount_cents <= 0:
         u = User.query.filter_by(email=email).first()
@@ -125,7 +131,16 @@ def start():
 
         
     import os
-    SECRET_KEY = os.environ.get("YOCO_SECRET_KEY", "sk_test_960bfde0VBrLlpK098e4ffeb53e1")
+    val = db.session.execute(text(f"SELECT value FROM system_settings WHERE key = 'yoco_mode_{subject}'")).scalar()
+    yoco_mode = val if val else 'sandbox'
+    
+    if yoco_mode == 'live':
+        SECRET_KEY = os.environ.get("YOCO_LIVE_SECRET_KEY")
+        if not SECRET_KEY:
+            current_app.logger.warning(f"Subject {subject} is set to LIVE Yoco mode but YOCO_LIVE_SECRET_KEY is missing! Falling back to sandbox.")
+            SECRET_KEY = os.environ.get("YOCO_SECRET_KEY", "sk_test_960bfde0VBrLlpK098e4ffeb53e1")
+    else:
+        SECRET_KEY = os.environ.get("YOCO_SECRET_KEY", "sk_test_960bfde0VBrLlpK098e4ffeb53e1")
     
     success_url = url_for("yoco_bp.yoco_success", _external=True)
     cancel_url = url_for("yoco_bp.yoco_cancel", _external=True)
@@ -198,8 +213,11 @@ def callback():
 def success():
     # 1) Read query params FIRST (then log)
     ref = (request.args.get("ref") or "").strip()
+    from flask_login import current_user
+    
     email = (
         (request.args.get("email") or "")
+        or (getattr(current_user, "email", None) if current_user.is_authenticated else None)
         or (session.get("pending_email") or "")
     ).strip().lower()
     subject = (
@@ -236,7 +254,61 @@ def success():
         db.session.add(u)
         db.session.flush()  # get u.id
 
+    # ---------- MECHANIC TOPUP SUCCESS ----------
+    if subject == "mechanic_topup":
+        amount_cents = int(session.get("mechanic_topup_amount_cents", 0))
+        if amount_cents > 0:
+            from app.models.mechanic import MechShop
+            shop = MechShop.query.filter_by(user_id=u.id).first()
+            if shop:
+                shop.wallet_balance_cents += amount_cents
+                db.session.commit()
+            session.pop("mechanic_topup_amount_cents", None)
+            flash(f"Successfully topped up wallet by R{amount_cents/100:.2f}!", "success")
+        return redirect(url_for("mechanic_bp.mechanic_dashboard"))
+    # --------------------------------------------
+
+    # ---------- CFI TOPUP SUCCESS ----------
+    if subject.lower() == "cultural_fire_topup":
+        from app.models.culturalfire import CfiWallet, CfiTokenTransaction
+        
+        # Check if this is a sponsored topup for another participant
+        target_participant_id = session.pop("topup_participant_id", None)
+        target_user_id = u.id
+        sponsor_desc = "Wallet Top-Up"
+        
+        if target_participant_id:
+            # Look up the actual participant's user_id
+            target_enrollment = db.session.execute(
+                text("SELECT user_id FROM user_enrollment WHERE id = :eid"),
+                {"eid": int(target_participant_id)}
+            ).scalar()
+            if target_enrollment:
+                target_user_id = target_enrollment
+                sponsor_desc = f"Sponsored Top-Up by {u.name or email}"
+
+        wallet = CfiWallet.query.filter_by(user_id=target_user_id).first()
+        if not wallet:
+            wallet = CfiWallet(user_id=target_user_id, balance=0)
+            db.session.add(wallet)
+            db.session.flush()
+            
+        amount_tokens = int(session.pop("topup_tokens", 0) or (int(session.get("zar_amount_cents", 0)) // 100))
+        if amount_tokens > 0:
+            wallet.balance += amount_tokens
+            txn = CfiTokenTransaction(
+                wallet_id=wallet.id,
+                amount=amount_tokens,
+                description=sponsor_desc
+            )
+            db.session.add(txn)
+            db.session.commit()
+    # --------------------------------------------
+
     # 3) Resolve subject id (safe if missing)
+    # Map spv_registration to the spv subject so the user gets correct program enrollment
+    lookup_subject = "spv" if subject.lower() == "spv_registration" else subject
+    
     sid = db.session.execute(
         text(
             """
@@ -247,7 +319,7 @@ def success():
          LIMIT 1
         """
         ),
-        {"s": subject},
+        {"s": lookup_subject},
     ).scalar()
 
     # 4) Flip enrollment to ACTIVE when we have a subject id
@@ -350,48 +422,15 @@ def success():
                 db.session.add(wallet)
                 db.session.flush()
             
-            wallet.balance += 150
+            wallet.balance += 200
             txn = CfiTokenTransaction(
                 wallet_id=wallet.id,
-                amount=150,
-                description="Initial Registration Bundle (150 Tokens)"
+                amount=200,
+                description="Initial Registration Bundle (200 Tokens)"
             )
             db.session.add(txn)
             
-        # Provision CFI Tokens if it was a wallet topup
-        if subject.lower() == "cultural_fire_topup":
-            from app.models.culturalfire import CfiWallet, CfiTokenTransaction
-            
-            # Check if this is a sponsored topup for another participant
-            target_participant_id = session.pop("topup_participant_id", None)
-            target_user_id = u.id
-            sponsor_desc = "Wallet Top-Up"
-            
-            if target_participant_id:
-                # Look up the actual participant's user_id
-                target_enrollment = db.session.execute(
-                    text("SELECT user_id FROM user_enrollment WHERE id = :eid"),
-                    {"eid": int(target_participant_id)}
-                ).scalar()
-                if target_enrollment:
-                    target_user_id = target_enrollment
-                    sponsor_desc = f"Sponsored Top-Up by {u.name or email}"
 
-            wallet = CfiWallet.query.filter_by(user_id=target_user_id).first()
-            if not wallet:
-                wallet = CfiWallet(user_id=target_user_id, balance=0)
-                db.session.add(wallet)
-                db.session.flush()
-                
-            amount_tokens = int(session.pop("topup_tokens", 0) or (int(session.get("zar_amount_cents", 0)) // 100))
-            if amount_tokens > 0:
-                wallet.balance += amount_tokens
-                txn = CfiTokenTransaction(
-                    wallet_id=wallet.id,
-                    amount=amount_tokens,
-                    description=sponsor_desc
-                )
-                db.session.add(txn)
         session["just_paid_subject_id"] = sid if sid else 12 # Default to CFI
 
     if session.get('is_retake') and subject == 'home':

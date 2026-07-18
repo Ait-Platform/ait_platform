@@ -1,0 +1,435 @@
+{% extends "layout.html" %}
+{% block title %}Account Setup Wizard{% endblock %}
+{% block flashes %}{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto px-4 py-8">
+  <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+    <!-- Color strip on top -->
+    <div class="h-2 bg-emerald-500"></div>
+
+    <div class="p-6 md:p-8 space-y-6">
+      <!-- Header -->
+      <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+        <div>
+          <h1 class="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">Phase 1: Architecture Setup</h1>
+          <p class="text-sm text-slate-500 mt-1">Property: <span class="font-semibold text-slate-700">{{ property.name }}</span></p>
+        </div>
+        <a href="{{ url_for('billing_bp.learner_dashboard') }}" class="inline-flex items-center text-sm font-medium text-slate-500 hover:text-slate-800 transition bg-white hover:bg-slate-50 px-4 py-2 rounded-lg border border-slate-200 shadow-sm">
+          <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+          Back to Dashboard
+        </a>
+      </div>
+
+      {% include "partials/flash_messages.html" ignore missing %}
+
+      <div class="bg-blue-50 border border-blue-200 rounded-xl p-5 shadow-sm">
+        <div class="flex">
+          <svg class="w-6 h-6 text-blue-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+          <div>
+            <h3 class="text-sm font-bold text-blue-900 uppercase tracking-wide">Expected Statements: {{ property.expected_bills }}</h3>
+            <p class="text-sm text-blue-800 mt-1">Please map out each of your {{ property.expected_bills }} municipal accounts below. Define the account numbers and their physical meters. No readings are required at this stage.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Accounts Grid Dashboard -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="accountsDashboardGrid">
+        {% for acc in accounts %}
+        <div class="border-2 border-slate-200 rounded-xl p-5 bg-slate-50 hover:shadow-md transition group">
+          <div class="flex justify-between items-start mb-3">
+            <div>
+              <h3 class="font-bold text-lg text-slate-800 group-hover:text-blue-700 transition">{{ acc.account_number or 'Unnumbered Account' }}</h3>
+              <p class="text-xs text-slate-500">{{ acc.owner.name if acc.owner else 'No owner assigned' }}</p>
+            </div>
+            <span class="px-2 py-1 bg-emerald-100 text-emerald-800 text-[10px] uppercase font-bold rounded-full">Draft</span>
+          </div>
+          <button onclick="openWizardModal({{ acc.id }})" class="mt-4 w-full bg-white hover:bg-slate-100 text-slate-700 font-bold py-2 border border-slate-300 rounded shadow-sm text-sm transition">
+            Resume Editing
+          </button>
+        </div>
+        {% endfor %}
+        
+        {% if accounts|length < property.expected_bills %}
+        <button onclick="openWizardModal('new')" class="border-2 border-dashed border-slate-300 rounded-xl p-5 hover:bg-slate-50 hover:border-blue-400 transition flex flex-col items-center justify-center text-slate-500 hover:text-blue-600 min-h-[140px]">
+          <svg class="w-8 h-8 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+          <span class="font-bold">Add Municipal Account</span>
+        </button>
+        {% endif %}
+      </div>
+
+      <div class="pt-8 border-t border-slate-100 flex justify-end">
+        <form action="{{ url_for('billing_bp.finalize_setup', property_id=property.id) }}" method="POST">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-8 rounded-xl shadow-md transition transform hover:-translate-y-0.5">
+            Finalize All Accounts &amp; Proceed
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- WIZARD MODAL -->
+<div id="wizardModal" class="hidden fixed inset-0 bg-slate-900 bg-opacity-60 flex items-center justify-center z-50 backdrop-blur-sm">
+  <div class="bg-white rounded-2xl shadow-2xl max-w-4xl w-full mx-4 overflow-hidden flex flex-col max-h-[90vh]">
+    
+    <!-- Modal Header -->
+    <div class="bg-slate-50 px-6 py-4 border-b border-slate-200 flex justify-between items-center">
+      <h3 class="font-bold text-xl text-slate-800" id="wizardTitle">Account Setup</h3>
+      <button onclick="closeWizardModal()" class="text-slate-400 hover:text-slate-600 transition">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+      </button>
+    </div>
+
+    <!-- Wizard Form -->
+    <form id="wizardForm" onsubmit="saveAccount(event)" class="flex flex-col flex-grow overflow-hidden">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="property_id" value="{{ property.id }}">
+      <input type="hidden" name="account_id" id="wiz_account_id" value="">
+
+      <!-- Tabs Navigation -->
+      <div class="flex border-b border-slate-200 px-6 bg-white">
+        <button type="button" onclick="switchTab('tab-main')" id="btn-tab-main" class="px-4 py-3 font-bold text-sm border-b-2 border-blue-600 text-blue-700 focus:outline-none">1. Account Details</button>
+        <button type="button" onclick="switchTab('tab-meters')" id="btn-tab-meters" class="px-4 py-3 font-bold text-sm border-b-2 border-transparent text-slate-500 hover:text-slate-700 focus:outline-none">2. Physical Meters</button>
+      </div>
+
+      <!-- Tab Contents (Scrollable) -->
+      <div class="p-6 overflow-y-auto flex-grow bg-slate-50">
+        
+        <!-- TAB 1: Main Details -->
+        <div id="tab-main" class="wizard-tab block space-y-5">
+          <div>
+            <label class="block text-sm font-semibold text-blue-900 mb-1">Municipal Account Number</label>
+            <input type="text" name="account_number" id="wiz_acc_num" class="w-full rounded border-2 border-blue-300 px-3 py-2 outline-none focus:border-blue-600 bg-white" placeholder="e.g. 701..." required>
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-slate-700 mb-1">Owner Name</label>
+            <input type="text" name="owner_name" id="wiz_owner" class="w-full rounded border border-slate-300 px-3 py-2 outline-none focus:border-blue-500 bg-white" required>
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-slate-700 mb-1">Unit / Address</label>
+            <input type="text" name="address" id="wiz_address" class="w-full rounded border border-slate-300 px-3 py-2 outline-none focus:border-blue-500 bg-white">
+          </div>
+        </div>
+
+        <!-- TAB 2: Meters -->
+        <div id="tab-meters" class="wizard-tab hidden">
+          <input type="hidden" name="meters_payload" id="wiz_meters_payload">
+          
+          <div id="wiz_meters_container" class="space-y-4 mb-4">
+            <!-- Meters will be injected here -->
+          </div>
+
+          <div class="flex space-x-3 mt-4">
+            <button type="button" onclick="addWizardMeter('water')" class="flex-1 bg-white hover:bg-sky-50 text-sky-700 font-bold py-3 px-4 rounded-lg border-2 border-dashed border-sky-300 transition text-sm flex justify-center items-center">
+              + Add Water Meter
+            </button>
+            <button type="button" onclick="addWizardMeter('electricity')" class="flex-1 bg-white hover:bg-indigo-50 text-indigo-700 font-bold py-3 px-4 rounded-lg border-2 border-dashed border-indigo-300 transition text-sm flex justify-center items-center">
+              + Add Electricity Meter
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="bg-white px-6 py-4 border-t border-slate-200 flex justify-between items-center">
+        <span id="saveStatusIndicator" class="text-sm font-semibold text-emerald-600 opacity-0 transition-opacity">Saved successfully!</span>
+        <div class="space-x-2 flex">
+          <button type="button" onclick="closeWizardModal()" class="px-5 py-2 text-slate-600 font-bold hover:bg-slate-100 rounded transition">Close</button>
+          <button type="button" id="btnNext" onclick="nextTab()" class="bg-slate-800 hover:bg-slate-900 text-white font-bold py-2 px-6 rounded shadow transition">Next Step</button>
+          <button type="submit" id="btnSave" class="hidden bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded shadow transition">Save Account Progress</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Template: Wizard Meter Card -->
+<template id="wizMeterTemplate">
+  <div class="meter-card bg-white p-4 rounded-xl border border-slate-300 shadow-sm relative">
+    <button type="button" onclick="this.closest('.meter-card').remove()" class="absolute top-3 right-3 text-red-400 hover:text-red-600">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+    </button>
+    <div class="flex items-center mb-3">
+      <div class="meter-icon mr-2"></div>
+      <h5 class="font-bold text-md meter-title">Meter</h5>
+    </div>
+    
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+      <div>
+        <label class="block text-[11px] uppercase font-bold text-slate-500 mb-1">Meter Number</label>
+        <input type="text" class="m-number w-full rounded border border-slate-300 px-2 py-1.5 text-sm outline-none focus:border-blue-500" required>
+      </div>
+      <div>
+        <label class="block text-[11px] uppercase font-bold text-slate-500 mb-1">Assignment</label>
+        <select class="m-assign w-full rounded border border-slate-300 px-2 py-1.5 text-sm outline-none focus:border-blue-500 bg-white">
+          <option value="linked">Linked</option>
+          <option value="bulk">Bulk</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-[11px] uppercase font-bold text-slate-500 mb-1">Status</label>
+        <select class="m-status w-full rounded border border-slate-300 px-2 py-1.5 text-sm outline-none focus:border-blue-500 bg-white" onchange="handleStolenToggle(this)">
+          <option value="active">Active (Normal)</option>
+          <option value="stolen">Stolen (On Bill)</option>
+          <option value="new_physical">New (Physical)</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Stolen Meter Replacement Question (Hidden initially) -->
+    <div class="stolen-action hidden bg-rose-50 p-3 rounded-lg border border-rose-200 mb-4">
+      <p class="text-xs font-bold text-rose-800 mb-2">Was this stolen meter replaced physically?</p>
+      <select class="m-replaced w-full rounded border border-rose-300 px-2 py-1 text-xs outline-none focus:border-rose-500 bg-white" onchange="handleReplacementToggle(this)">
+        <option value="no">No (Pass estimated charges to tenant)</option>
+        <option value="yes">Yes (I will provide the replacement meter readings)</option>
+      </select>
+      <div class="replacement-msg hidden mt-2 text-[11px] text-rose-700 bg-rose-100 p-2 rounded">
+        Excellent. Please add an additional meter block on this page and mark its Status as "New (Physical)" to capture the tenant's actual usage.
+      </div>
+    </div>
+    
+    </div>
+</template>
+
+<script>
+  const bulkMeters = [
+    {% for bm in bulk_meters %}
+    { id: {{ bm.id }}, number: "{{ bm.meter_number }}", type: "{{ bm.utility_type }}" }{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ];
+
+  let currentTab = 'tab-main';
+  const tabs = ['tab-main', 'tab-meters'];
+
+  function switchTab(tabId) {
+    // Hide all tabs
+    tabs.forEach(t => {
+      document.getElementById(t).classList.add('hidden');
+      document.getElementById('btn-' + t).classList.remove('border-blue-600', 'text-blue-700');
+      document.getElementById('btn-' + t).classList.add('border-transparent', 'text-slate-500');
+    });
+    
+    // Show active tab
+    document.getElementById(tabId).classList.remove('hidden');
+    document.getElementById('btn-' + tabId).classList.add('border-blue-600', 'text-blue-700');
+    document.getElementById('btn-' + tabId).classList.remove('border-transparent', 'text-slate-500');
+    
+    currentTab = tabId;
+    
+    // Toggle Next/Save buttons
+    if (tabId === 'tab-meters') {
+      document.getElementById('btnNext').classList.add('hidden');
+      document.getElementById('btnSave').classList.remove('hidden');
+    } else {
+      document.getElementById('btnNext').classList.remove('hidden');
+      document.getElementById('btnSave').classList.add('hidden');
+    }
+  }
+
+  function nextTab() {
+    const currentIndex = tabs.indexOf(currentTab);
+    if (currentIndex < tabs.length - 1) {
+      switchTab(tabs[currentIndex + 1]);
+    }
+  }
+
+  const map = {};
+  {% for acc in accounts %}
+  map[{{ acc.id }}] = {
+    id: {{ acc.id }},
+    account_number: "{{ acc.account_number or '' }}",
+    owner_name: "{{ acc.owner.name if acc.owner else '' }}",
+    is_bulk_account: {% if acc.is_bulk_account %}true{% else %}false{% endif %}
+  };
+  {% endfor %}
+
+  function openWizardModal(accountId) {
+    document.getElementById('wizardModal').classList.remove('hidden');
+    switchTab('tab-main');
+    
+    document.getElementById('wizardForm').reset();
+    document.getElementById('wiz_meters_container').innerHTML = '';
+    
+    if (accountId === 'new') {
+      document.getElementById('wizardTitle').textContent = 'New Account Setup';
+      document.getElementById('wiz_account_id').value = '';
+    } else {
+      document.getElementById('wizardTitle').textContent = 'Edit Account Setup';
+      document.getElementById('wiz_account_id').value = accountId;
+      const acc = map[accountId];
+      if(acc) {
+         document.getElementById('wiz_acc_number').value = acc.account_number;
+         document.getElementById('wiz_acc_owner').value = acc.owner_name;
+         document.getElementById('wiz_acc_is_bulk').checked = acc.is_bulk_account;
+      }
+    }
+  }
+
+  function closeWizardModal() {
+    document.getElementById('wizardModal').classList.add('hidden');
+  }
+
+  function addWizardMeter(type, isExceptional=false, isStolen=false) {
+    const template = document.getElementById('wizMeterTemplate').content.cloneNode(true);
+    const card = template.querySelector('.meter-card');
+    card.dataset.type = type;
+    
+    if (type === 'water') {
+      card.classList.add('border-sky-300');
+      card.querySelector('.meter-title').textContent = 'Water Meter';
+      card.querySelector('.meter-title').classList.add('text-sky-800');
+    } else {
+      card.classList.add('border-indigo-300');
+      card.querySelector('.meter-title').textContent = 'Elec Meter';
+      card.querySelector('.meter-title').classList.add('text-indigo-800');
+    }
+
+    // Populate assignment options dynamically
+    const isBulk = document.getElementById('wiz_acc_is_bulk').checked;
+    const assignSelect = card.querySelector('.m-assign');
+    assignSelect.innerHTML = '';
+    
+    if(isExceptional && isStolen) {
+      assignSelect.innerHTML = '<option value="stolen_exception">Stolen / Exceptional Link</option>';
+    } else if (isBulk) {
+      assignSelect.innerHTML = `<option value="bulk_supply">Bulk Supply (This is a main meter)</option><option value="independent">Independent (Not bulk)</option>`;
+    } else {
+      let opts = `<option value="independent">Independent Meter</option>`;
+      const relevantBulk = bulkMeters.filter(m => m.type === type);
+      if(relevantBulk.length > 0) {
+        opts += `<optgroup label="Link to Bulk Meter">`;
+        relevantBulk.forEach(m => {
+          opts += `<option value="linked_bulk_${m.id}">Linked to Bulk: #${m.number}</option>`;
+        });
+        opts += `</optgroup>`;
+      }
+      assignSelect.innerHTML = opts;
+    }
+    
+    return card;
+  }
+  
+  function addNormalMeter(type) {
+     const card = addWizardMeter(type, false, false);
+     document.getElementById('wiz_meters_container').appendChild(card);
+  }
+
+  function addExceptionalCase() {
+    const container = document.getElementById('wiz_meters_container');
+    const wrapper = document.createElement('div');
+    wrapper.className = "border-2 border-red-200 bg-red-50 p-4 rounded-xl mb-4 relative";
+    wrapper.innerHTML = `
+      <h3 class="font-bold text-red-800 mb-2">Exceptional Case: Stolen / Replaced Meter</h3>
+      <p class="text-xs text-red-600 mb-4">Link the stolen municipal meter to the new physical replacement meter.</p>
+      <button type="button" onclick="this.parentElement.remove()" class="absolute top-4 right-4 text-red-400 hover:text-red-600 font-bold">X Remove</button>
+      <div class="exception-cards"></div>
+    `;
+
+    // Stolen card (No bulk mapping)
+    const stolenCard = addWizardMeter('water', true, true);
+    stolenCard.classList.replace('bg-white', 'bg-red-100');
+    stolenCard.querySelector('.meter-title').textContent = "1. Stolen Municipal Meter";
+    stolenCard.querySelector('.m-status').value = 'stolen';
+    
+    // Replacement card (CAN link to bulk meter!)
+    const repCard = addWizardMeter('water', true, false);
+    repCard.classList.replace('bg-white', 'bg-green-50');
+    repCard.querySelector('.meter-title').textContent = "2. New Physical Meter";
+    repCard.querySelector('.m-status').value = 'new_physical';
+
+    stolenCard.querySelector('.m-number').addEventListener('input', (e) => {
+      repCard.querySelector('.m-replacement').value = e.target.value;
+    });
+
+    wrapper.querySelector('.exception-cards').appendChild(stolenCard);
+    wrapper.querySelector('.exception-cards').appendChild(repCard);
+    container.appendChild(wrapper);
+  }
+
+  async function saveAccount(e) {
+    e.preventDefault();
+    
+    // Pack meters
+    const meters = [];
+    document.querySelectorAll('.meter-card').forEach(card => {
+      meters.push({
+        utility_type: card.dataset.type,
+        meter_number: card.querySelector('.m-number').value,
+        assignment: card.querySelector('.m-assign').value,
+        status: card.querySelector('.m-status').value,
+        replacement_for: card.querySelector('.m-replacement').value || ''
+      });
+    });
+    document.getElementById('wiz_meters_payload').value = JSON.stringify(meters);
+    
+    // Submit via AJAX
+    const form = document.getElementById('wizardForm');
+    const formData = new FormData(form);
+    formData.append('is_bulk_account', document.getElementById('wiz_acc_is_bulk').checked);
+    
+    try {
+      const response = await fetch("{{ url_for('billing_bp.save_account') }}", {
+        method: 'POST',
+        body: formData
+      });
+      
+      if (response.ok) {
+        const statusInd = document.getElementById('saveStatusIndicator');
+        statusInd.classList.remove('opacity-0');
+        setTimeout(() => statusInd.classList.add('opacity-0'), 3000);
+        
+        // Reload page to reflect new account in grid
+        setTimeout(() => window.location.reload(), 1000);
+      } else {
+        alert('Failed to save account. Check required fields.');
+      }
+    } catch (err) {
+      alert('Network error saving account.');
+    }
+  }
+</script>
+
+
+    
+    <div class="px-6 py-4 border-t border-slate-100 bg-slate-50 flex justify-end">
+      <button onclick="document.getElementById('help-modal').classList.add('hidden')" class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-sm transition">Got it!</button>
+    </div>
+  </div>
+</div>
+
+<!-- Help Modal -->
+<div id="help-modal" class="hidden fixed inset-0 bg-slate-900 bg-opacity-50 flex items-center justify-center z-50 p-4">
+  <div class="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+    <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+      <h3 class="font-bold text-slate-800 text-lg flex items-center">
+        <svg class="w-5 h-5 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        Architecture Mapping Guide
+      </h3>
+      <button onclick="document.getElementById('help-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 focus:outline-none">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+      </button>
+    </div>
+    
+    <div class="p-6 overflow-y-auto space-y-6 text-sm text-slate-600">
+      <div>
+        <h4 class="font-bold text-slate-800 text-base mb-2">1. The Bulk Account</h4>
+        <p>Identify your main Bulk Account first. Open it, and in Tab 1, check the box: <strong>"Designate as Bulk Account"</strong>.</p>
+        <p class="mt-1">In Tab 2, add all the physical bulk meters (e.g., your 5 master water meters) to this account. Because you checked the box, the system knows these are your master meters.</p>
+      </div>
+
+      <div class="border-t border-slate-100 pt-4">
+        <h4 class="font-bold text-slate-800 text-base mb-2">2. The Sub-Accounts</h4>
+        <p>For your other accounts, leave the Bulk checkbox unchecked. When you add a water meter to one of these accounts, the dropdown will automatically show you the bulk meters you defined in Step 1.</p>
+        <p class="mt-1">Simply select <strong>"Linked to: #[Meter Number]"</strong>. This explicitly maps the sub-account to that master physical meter without you having to retype the meter number.</p>
+      </div>
+
+      <div class="border-t border-slate-100 pt-4">
+        <h4 class="font-bold text-red-700 text-base mb-2">3. Exceptional Cases (Stolen Meters)</h4>
+        <p>If you have a meter that was stolen but is still being billed by the municipality, click the red <strong>"+ Add Exceptional Case"</strong> button at the bottom of the meters tab.</p>
+        <p class="mt-1">This creates a dual-block. Enter the Stolen Municipal Meter on top, and your New Physical Replacement Meter on the bottom. The system explicitly links them together so the municipal charges perfectly map to the tenant's physical consumption.</p>
+      </div>
+    </div>
+{% endblock %}

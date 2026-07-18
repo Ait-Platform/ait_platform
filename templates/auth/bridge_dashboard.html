@@ -59,8 +59,12 @@
           {% set primary_href = url_for('home_bp.learner_dashboard') %}
         {% elif s.slug == 'billing' %}
           {% set primary_href = url_for('billing_bp.learner_dashboard') %}
+        {% elif s.slug == 'mechanic' %}
+          {% set primary_href = url_for('mechanic_bp.mechanic_dashboard') %}
         {% elif s.slug == 'hds' %}
           {% set primary_href = url_for('hds_bp.dashboard') %}
+        {% elif s.slug == 'spv' %}
+          {% set primary_href = url_for('spv_bp.investor_dashboard') %}
         {% else %}
           {% set primary_href = url_for('auth_bp.learner_subject_dashboard', subject=s.slug) %}
         {% endif %}
@@ -106,10 +110,9 @@
                     <svg class="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                     Quick Start Guide
                   </p>
-                  <ul class="space-y-1 text-xs">
-                    <li><span class="font-bold">1. Onboard:</span> Upload a bill via AI Onboarding</li>
-                    <li><span class="font-bold">2. Manage:</span> Submit monthly meter readings</li>
-                    <li><span class="font-bold">3. Generate:</span> Create tenant recon statements</li>
+                  <ul class="space-y-1 text-xs list-disc list-inside">
+                    <li>Manage as many properties as you want</li>
+                    <li>Generate statements for meters as well as utilities.</li>
                   </ul>
                 </div>
               {% elif s.slug == 'home' %}
@@ -154,7 +157,7 @@
           {% endif %}
 
           <div class="mt-5 flex items-center gap-3">
-            {% set is_teacher_only = (enroll_map.get(s.id) == 'teacher') %}
+            {% set is_teacher_only = (s.slug == 'home' and current_user.has_role('teacher')) %}
             
             {% if not is_teacher_only %}
               {% if primary_href %}

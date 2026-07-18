@@ -7,7 +7,17 @@ from app.extensions import db
 @hds_bp.route('/about')
 def about():
     """Public landing page for the Healthcare Data Switch program"""
-    return render_template('program_hds/about.html')
+    from sqlalchemy import text
+    val = db.session.execute(text("SELECT value FROM system_settings WHERE key = 'hds_subscription_cents'")).scalar()
+    hds_cents = int(float(val)) if val else 15000
+    return render_template('program_hds/about.html', hds_cents=hds_cents)
+
+@hds_bp.route('/price')
+def price_page():
+    from sqlalchemy import text
+    val = db.session.execute(text("SELECT value FROM system_settings WHERE key = 'hds_subscription_cents'")).scalar()
+    hds_cents = int(float(val)) if val else 15000
+    return render_template('program_hds/price.html', hds_cents=hds_cents)
 
 @hds_bp.route('/dashboard', methods=['GET', 'POST'])
 @login_required
@@ -89,6 +99,10 @@ def start_trial():
 
     enr = UserEnrollment.query.filter_by(user_id=current_user.id, subject_id=hds_subject.id).first()
     
+    from sqlalchemy import text
+    val = db.session.execute(text("SELECT value FROM system_settings WHERE key = 'hds_subscription_cents'")).scalar()
+    hds_cents = int(float(val)) if val else 15000
+
     if not enr:
         enr = UserEnrollment(
             user_id=current_user.id,
@@ -96,8 +110,8 @@ def start_trial():
             status="active",
             country_code="ZA",
             local_currency="ZAR",
-            local_amount_cents=15000,
-            zar_amount_cents=15000,
+            local_amount_cents=hds_cents,
+            zar_amount_cents=hds_cents,
             trial_count=1,
             trial_end=datetime.utcnow() + timedelta(days=30),
             started_at=datetime.utcnow()

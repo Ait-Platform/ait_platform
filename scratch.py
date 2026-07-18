@@ -1,10 +1,9 @@
-from sqlalchemy import create_engine, text
-db_url = 'postgresql+psycopg2://ait_local:temp1234@localhost:5432/ait_local_db'
-engine = create_engine(db_url)
-with engine.connect() as conn:
-    conn.execute(text("UPDATE cfi_pageant_segments SET name = 'Traditional Wear' WHERE name ILIKE '%eastern%'"))
-    conn.execute(text("UPDATE cfi_pageant_segments SET name = 'Formal Wear' WHERE name ILIKE '%western%'"))
-    conn.execute(text("UPDATE cfi_segment_items SET segment_type = 'Traditional Wear', title = 'Traditional Wear' WHERE segment_type ILIKE '%eastern%'"))
-    conn.execute(text("UPDATE cfi_segment_items SET segment_type = 'Formal Wear', title = 'Formal Wear' WHERE segment_type ILIKE '%western%'"))
-    conn.commit()
-    print("Database updated successfully.")
+from app import create_app
+from app.extensions import db
+from sqlalchemy import text
+
+app = create_app()
+with app.app_context():
+    db.session.execute(text('CREATE TABLE IF NOT EXISTS cfi_award (id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES "user"(id), earned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)'))
+    db.session.commit()
+    print('Table created successfully')

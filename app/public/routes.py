@@ -68,8 +68,15 @@ def _debug_routes():
 
 @public_bp.get("/")
 def welcome():
+    from sqlalchemy import text
+    from app.extensions import db
+    settings = {}
+    rows = db.session.execute(text("SELECT key, value FROM system_settings")).fetchall()
+    for row in rows:
+        settings[row[0]] = row[1]
+    
     endpoints = []  # whatever you pass
-    return render_template("public/welcome.html", endpoints=endpoints)
+    return render_template("public/welcome.html", endpoints=endpoints, settings=settings)
 
 def refresh_bridge_session(user):
     """

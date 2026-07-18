@@ -1,18 +1,10 @@
-import psycopg2
-import os
+from app import create_app
+from app.extensions import db
+from sqlalchemy import text
 
-db_url = "postgres://ait_platform_db_user:b5LcEVWQeG0JyI6Vklo7zaQBZ1zsAfqj@dpg-d4bkqsf5r7bs73989ia0-a.oregon-postgres.render.com:5432/ait_platform_db"
-
-try:
-    conn = psycopg2.connect(db_url)
-    cur = conn.cursor()
-    cur.execute('''
-        ALTER TABLE bil_property 
-        ADD COLUMN IF NOT EXISTS enrollment_id INTEGER REFERENCES "user_enrollment"(id);
-    ''')
-    conn.commit()
-    print("Added enrollment_id to bil_property.")
-    cur.close()
-    conn.close()
-except Exception as e:
-    print(f"Error: {e}")
+app = create_app()
+with app.app_context():
+    rows = db.session.execute(text("SELECT key, value FROM system_settings WHERE key LIKE 'visibility_%'")).fetchall()
+    print('Visibility settings in DB:')
+    for r in rows:
+        print(f'{r.key}: {r.value}')

@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Consumption Review - {{ property.name }} - {{ month }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: white; }
+        .min-h-screen { min-height: auto !important; padding: 0 !important; }
+        .shadow { box-shadow: none !important; border: none !important; }
+        .border-slate-200 { border-color: #e2e8f0; }
+        @media print {
+            .page-break { page-break-inside: avoid; }
+        }
+    </style>
+</head>
+<body class="bg-white p-4">
+Consumption Review
+
+
+<div class="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 lg:px-8 font-sans">
+  <div class="max-w-7xl mx-auto space-y-8">
+    
+    <div class="bg-white rounded-xl shadow overflow-hidden border border-slate-200">
+      <div class="h-2 bg-green-500"></div>
+      
+      <div class="p-8">
+        <div class="flex items-center justify-between mb-8 pb-6 border-b border-slate-200">
+          <div>
+            <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">Consumption Review</h1>
+            <p class="text-slate-500 mt-2">Property: <strong>{{ property.name }}</strong> | Month: <strong>{{ month }}</strong></p>
+          </div>
+          
+        </div>
+
+        
+
+
+        <div class="overflow-x-auto rounded-lg border border-slate-200">
+          <table class="w-full text-left border-collapse min-w-max">
+            <thead>
+              <tr class="bg-slate-50 text-slate-500 text-xs font-semibold uppercase tracking-wider border-b border-slate-200">
+                <th class="px-6 py-4">Meter Number</th>
+                <th class="px-6 py-4">Utility Type</th>
+                <th class="px-6 py-4 text-right">Previous Reading</th>
+                <th class="px-6 py-4 text-right">New Reading</th>
+                <th class="px-6 py-4 text-center">Days</th>
+                <th class="px-6 py-4 text-right font-bold text-green-700">Total Cons.</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+            {% for item in data %}
+            <tr class="hover:bg-slate-50 transition duration-150">
+              <td class="px-6 py-4">
+                <div class="font-bold text-slate-800">{{ item.meter.meter_number }}</div>
+                {% if item.meter.pointing_to %}
+                  <div class="text-[10px] uppercase font-bold text-slate-400 mt-0.5">{{ item.meter.pointing_to }}</div>
+                {% endif %}
+              </td>
+              <td class="px-6 py-4">
+                <span class="px-2 py-1 text-xs font-bold uppercase rounded-md shadow-sm border 
+                  {% if item.meter.utility_type == 'water' %}bg-blue-100 text-blue-700 border-blue-200
+                  {% else %}bg-yellow-100 text-yellow-700 border-yellow-200{% endif %}">
+                  {{ item.meter.utility_type }}
+                </span>
+              </td>
+              <td class="px-6 py-4 text-right">
+                {% if item.consumption %}
+                  <div class="text-sm font-mono text-slate-800">{{ item.consumption.last_read | int }}</div>
+                  <div class="text-[10px] text-slate-400">{{ item.consumption.last_date.strftime('%Y-%m-%d') if item.consumption.last_date else '' }}</div>
+                {% else %}
+                  <span class="text-slate-400">-</span>
+                {% endif %}
+              </td>
+              <td class="px-6 py-4 text-right">
+                {% if item.consumption %}
+                  <div class="text-sm font-mono text-slate-800">{{ item.consumption.new_read | int }}</div>
+                  <div class="text-[10px] text-slate-400">{{ item.consumption.new_date.strftime('%Y-%m-%d') if item.consumption.new_date else '' }}</div>
+                {% else %}
+                  <span class="text-slate-400">-</span>
+                {% endif %}
+              </td>
+              <td class="px-6 py-4 text-center text-slate-600">
+                {{ item.consumption.days if item.consumption else '-' }}
+              </td>
+              <td class="px-6 py-4 text-right font-bold text-lg text-green-700">
+                {{ item.consumption.consumption if item.consumption else 'Missing' }}
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="6" class="px-6 py-12 text-center text-slate-500">
+                No meters found for this property.
+              </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+
+</body>
+</html>

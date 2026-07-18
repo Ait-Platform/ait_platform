@@ -1,0 +1,276 @@
+{% extends "layout.html" %}
+{% block title %}MetSoa Statement{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-slate-100 py-10 px-4 flex flex-col items-center">
+  <div class="w-full max-w-5xl bg-white shadow-lg overflow-hidden relative" id="statement-container">
+    
+    <!-- Top Action Bar (Hidden in Print) -->
+    <div class="print:hidden bg-slate-800 text-white p-4 flex justify-between items-center">
+      <button onclick="window.history.back()" class="text-sm font-medium hover:text-slate-300 transition flex items-center">
+        &larr; Back
+      </button>
+      <div class="flex gap-4">
+        <button onclick="sendSoaEmail()" class="bg-blue-600 hover:bg-blue-700 font-bold py-2 px-4 rounded shadow transition text-sm flex items-center">
+          Email METSOA
+        </button>
+        <button onclick="window.print()" class="bg-slate-600 hover:bg-slate-700 font-bold py-2 px-4 rounded shadow transition text-sm flex items-center">
+          Print
+        </button>
+      </div>
+    </div>
+
+    <!-- START PAGE 1: Summary -->
+    <div class="print-page p-10 bg-white text-black text-sm">
+      
+      <!-- Statement Header -->
+      <h1 class="text-2xl font-bold text-center mb-6">Statement of Account (SOA) for<br/>{{ property.name if property else 'Unknown Property' }}</h1>
+      
+      <div class="grid grid-cols-2 gap-4 mb-4 text-base">
+        <div>
+          <div class="flex"><span class="w-24 font-semibold">Tenant Name</span><span>{{ tenant.name }}</span></div>
+          <div class="flex"><span class="w-24 font-semibold">Email</span><span>{{ tenant.email or '' }}</span></div>
+        </div>
+        <div>
+          <div class="flex"><span class="w-24 font-semibold">Date</span><span>{{ month|replace('-', '/') }}/29</span></div>
+          <div class="flex"><span class="w-24 font-semibold">Address</span><span>{{ tenant.address or property.name }}</span></div>
+        </div>
+      </div>
+      
+      <div class="w-full border border-gray-400 py-2 text-center font-bold mb-6">
+        Amount Due R{{ "%.2f"|format(grand_total|float) }} for Utilities.
+      </div>
+
+      <!-- Master Summary Table -->
+      <table class="w-full text-left border-collapse border-b border-gray-400">
+        <thead>
+          <tr class="border-b border-gray-400 bg-gray-50">
+            <th class="py-2 px-1">Item</th>
+            <th class="py-2 px-1">Meters</th>
+            <th class="py-2 px-1">Old Date</th>
+            <th class="py-2 px-1">New Date</th>
+            <th class="py-2 px-1 text-right">Old Read</th>
+            <th class="py-2 px-1 text-right">New Read</th>
+            <th class="py-2 px-1 text-right">Days</th>
+            <th class="py-2 px-1 text-right">Avg</th>
+            <th class="py-2 px-1 text-right">Cons</th>
+            <th class="py-2 px-1 text-right">Rate</th>
+            <th class="py-2 px-1 text-right">Due</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Electricity -->
+          {% for r in electricity.rows %}
+          <tr>
+            <td class="py-1 px-1">{{ loop.index }}</td>
+            <td class="py-1 px-1">{{ r.meter_number }}</td>
+            <td class="py-1 px-1">{{ r.last_date }}</td>
+            <td class="py-1 px-1">{{ r.new_date }}</td>
+            <td class="py-1 px-1 text-right">{{ r.last_read }}</td>
+            <td class="py-1 px-1 text-right">{{ r.new_read }}</td>
+            <td class="py-1 px-1 text-right">{{ r.days }}</td>
+            <td class="py-1 px-1 text-right">{{ r.avg }}</td>
+            <td class="py-1 px-1 text-right">{{ r.consumption }}</td>
+            <td class="py-1 px-1 text-right">{{ "%.4f"|format(r.rate) }}</td>
+            <td class="py-1 px-1 text-right">{{ "%.2f"|format(r.due) }}</td>
+          </tr>
+          {% endfor %}
+          <!-- Elec Subtotal -->
+          <tr class="font-bold border-t border-gray-400">
+            <td></td>
+            <td colspan="9" class="py-2 px-1">Electricity Sub-Total</td>
+            <td class="py-2 px-1 text-right">R{{ "%.2f"|format(electricity.subtotal) }}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Water -->
+      <table class="w-full text-left border-collapse border-b border-gray-400 mt-6">
+        <thead>
+          <tr class="bg-gray-200 text-xs text-left border-b border-gray-400">
+            <th class="py-2 px-1">Item</th>
+            <th class="py-2 px-1">Water Meters</th>
+            <th class="py-2 px-1">Old Date</th>
+            <th class="py-2 px-1">New Date</th>
+            <th class="py-2 px-1 text-right">Old Read</th>
+            <th class="py-2 px-1 text-right">New Read</th>
+            <th class="py-2 px-1 text-right">Days</th>
+            <th class="py-2 px-1 text-right">Avg</th>
+            <th class="py-2 px-1 text-right">Cons</th>
+          </tr>
+        </thead>
+        <tbody>
+
+          {% set item_offset = electricity.rows|length + 1 %}
+          {% for w in water.meters %}
+          <tr class="bg-gray-100">
+            <td class="py-1 px-1">{{ loop.index + item_offset }}</td>
+            <td class="py-1 px-1 font-semibold">{{ w.summary.meter_number }}</td>
+            <td class="py-1 px-1">{{ w.summary.last_date }}</td>
+            <td class="py-1 px-1">{{ w.summary.new_date }}</td>
+            <td class="py-1 px-1 text-right">{{ w.summary.last_read }}</td>
+            <td class="py-1 px-1 text-right">{{ w.summary.new_read }}</td>
+            <td class="py-1 px-1 text-right">{{ w.summary.days.split(' ')[0] }}</td>
+            <td class="py-1 px-1 text-right whitespace-nowrap">{{ w.summary.avg }} KL/day</td>
+            <td class="py-1 px-1 text-right">{{ w.summary.consumption }}</td>
+          </tr>
+          {% endfor %}
+          
+          <tr>
+            <td colspan="9" class="py-3"></td>
+          </tr>
+          
+          {% for w in water.meters %}
+          <tr>
+            <td></td>
+            <td colspan="7" class="py-1 px-1">W&S Cost For # {{ w.meter_number }}</td>
+            <td class="py-1 px-1 text-right">R{{ "%.2f"|format(w.ws_cost) }}</td>
+          </tr>
+          <tr class="bg-gray-100">
+            <td></td>
+            <td colspan="7" class="py-1 px-1">S & D Cost #{{ w.meter_number }}</td>
+            <td class="py-1 px-1 text-right">R{{ "%.2f"|format(w.sd_cost) }}</td>
+          </tr>
+          <tr class="font-bold border-b border-gray-300">
+            <td></td>
+            <td colspan="7" class="py-1 px-1">Total Water Cost For #{{ loop.index }}</td>
+            <td class="py-1 px-1 text-right">R{{ "%.2f"|format(w.total) }}</td>
+          </tr>
+          {% endfor %}
+          
+        </tbody>
+      </table>
+      
+      <div class="py-3"></div>
+      
+      <!-- Detail Cost Breakdown -->
+      <table class="w-full border-collapse mb-6 text-sm text-left">
+        <tbody>
+          {% for w in water.meters %}
+          <tr class="bg-gray-100 font-semibold border-t border-gray-400">
+            <td class="py-1 px-1 w-1/4 whitespace-nowrap">W&S For # {{ w.meter_number }}</td>
+            <td class="py-1 px-1 w-[10%] text-right">Cons</td>
+            <td class="py-1 px-1 w-[10%] text-right">Rate</td>
+            <td class="py-1 px-1 w-[10%] text-right">Due</td>
+            <td class="py-1 px-1 w-1/4 pl-4 border-l border-gray-400 whitespace-nowrap">S&D For #{{ w.meter_number }}</td>
+            <td class="py-1 px-1 w-[10%] text-right">Cons</td>
+            <td class="py-1 px-1 w-[10%] text-right">Rate</td>
+            <td class="py-1 px-1 w-[10%] text-right">Due</td>
+          </tr>
+          
+          {% set max_len = [w.ws_breakdown|length, w.sd_breakdown|length]|max %}
+          {% for i in range(max_len) %}
+          <tr class="{{ 'bg-gray-50' if loop.index is even else '' }}">
+            <!-- Left Side: WS -->
+            {% if i < w.ws_breakdown|length %}
+            {% if w.ws_breakdown[i].cons is defined %}
+            <td class="py-1 px-1">{{ w.ws_breakdown[i].desc }}</td>
+            <td class="py-1 px-1 text-right">{{ w.ws_breakdown[i].cons|round(2) }}</td>
+            <td class="py-1 px-1 text-right">{{ "%.1f"|format(w.ws_breakdown[i].rate) }}</td>
+            {% else %}
+            <td colspan="3" class="py-1 px-1">{{ w.ws_breakdown[i].desc }}</td>
+            {% endif %}
+            <td class="py-1 px-1 text-right">{{ "%.2f"|format(w.ws_breakdown[i].due) }}</td>
+            {% else %}
+            <td class="py-1 px-1"></td><td class="py-1 px-1"></td><td class="py-1 px-1"></td><td class="py-1 px-1"></td>
+            {% endif %}
+            
+            <!-- Right Side: SD -->
+            {% if i < w.sd_breakdown|length %}
+            {% if w.sd_breakdown[i].cons is defined %}
+            <td class="py-1 px-1 pl-4 border-l border-gray-300">{{ w.sd_breakdown[i].desc }}</td>
+            <td class="py-1 px-1 text-right">{{ w.sd_breakdown[i].cons|round(2) }}</td>
+            <td class="py-1 px-1 text-right">{{ "%.1f"|format(w.sd_breakdown[i].rate) }}</td>
+            {% else %}
+            <td colspan="3" class="py-1 px-1 pl-4 border-l border-gray-300">{{ w.sd_breakdown[i].desc }}</td>
+            {% endif %}
+            <td class="py-1 px-1 text-right">{{ "%.2f"|format(w.sd_breakdown[i].due) }}</td>
+            {% else %}
+            <td class="py-1 px-1 pl-4 border-l border-gray-300"></td><td class="py-1 px-1"></td><td class="py-1 px-1"></td><td class="py-1 px-1"></td>
+            {% endif %}
+          </tr>
+          {% endfor %}
+          
+          <tr class="font-bold border-b border-gray-400 bg-gray-50">
+            <td class="py-1 px-1">W&S Cost For # {{ w.meter_number }}</td>
+            <td class="py-1 px-1"></td><td class="py-1 px-1"></td>
+            <td class="py-1 px-1 text-right">{{ "%.2f"|format(w.ws_cost) }}</td>
+            <td class="py-1 px-1 pl-4 border-l border-gray-400">S & D Cost #{{ w.meter_number }}</td>
+            <td class="py-1 px-1"></td><td class="py-1 px-1"></td>
+            <td class="py-1 px-1 text-right">{{ "%.2f"|format(w.sd_cost) }}</td>
+          </tr>
+          {% endfor %}
+          
+          <tr class="font-bold bg-gray-200 border-t-2 border-gray-400">
+            <td colspan="3" class="py-2 px-2 text-lg">SUBTOTAL (UTILITIES)</td>
+            <td class="py-2 px-1"></td>
+            <td colspan="3" class="py-2 px-1"></td>
+            <td class="py-2 px-2 text-right text-lg">R{{ "%.2f"|format(grand_total) }}</td>
+          </tr>
+        </tbody>
+      </table>
+
+
+  </div>
+</div>
+
+<style>
+  .page-break {
+    display: none;
+  }
+  @media print {
+    body { 
+      background: white !important; 
+      margin: 0; 
+      padding: 0; 
+      -webkit-print-color-adjust: exact; 
+      print-color-adjust: exact; 
+    }
+    .min-h-screen { min-height: auto; padding: 0; background: white !important; }
+    .shadow-lg { box-shadow: none !important; border: none !important; }
+    .print\:hidden { display: none !important; }
+    
+    .page-break {
+      display: block;
+      page-break-before: always;
+      height: 0;
+    }
+    
+    .print-page {
+      padding: 0 !important;
+      page-break-inside: avoid;
+    }
+  }
+</style>
+
+<script>
+function sendSoaEmail() {
+    const email = prompt("Enter email address to send this METSOA to:", "{{ current_user.email }}");
+    if (!email) return;
+    
+    try {
+        fetch("{{ url_for('billing_bp.email_soa', tenant_id=tenant.id, month=month) }}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({ email: email })
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                alert("METSOA emailed successfully to " + email);
+            } else {
+                alert("Failed to send email: " + result.error);
+            }
+        })
+        .catch(err => {
+            alert("Error sending email.");
+        });
+    } catch(err) {
+        alert("Error sending email.");
+    }
+}
+</script>
+{% endblock %}

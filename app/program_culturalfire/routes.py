@@ -2928,3 +2928,36 @@ def approve_consent(token):
     # We could redirect to a nice success page, but for now we'll flash and redirect to home/login
     flash("Thank you! You have successfully granted parental consent.", "success")
     return render_template("auth/login.html") # Render login so they can tell their child to log back in
+
+@cultural_bp.post('/parent/consent/<int:user_id>/grant')
+@login_required
+def parent_grant_consent(user_id):
+    from app.models.culturalfire import CfiBiodata
+    record = CfiBiodata.query.filter_by(user_id=user_id).first_or_404()
+    if not record.parent_email or record.parent_email.lower() != current_user.email.lower():
+        abort(403)
+    record.parent_consent_status = 'granted'
+    record.parent_consent_token = None
+    db.session.commit()
+    flash(f'Consent granted for {record.full_name}.', 'success')
+    from app.models.auth import UserEnrollment
+    parent_enrollment = UserEnrollment.query.filter_by(user_id=current_user.id).first()
+    if parent_enrollment:
+        return redirect(url_for('cultural_bp.biodata_edit', enrollment_id=parent_enrollment.id))
+    return redirect(url_for('hub_bp.hub_dashboard'))
+
+@cultural_bp.post('/parent/consent/<int:user_id>/revoke')
+@login_required
+def parent_revoke_consent(user_id):
+    from app.models.culturalfire import CfiBiodata
+    record = CfiBiodata.query.filter_by(user_id=user_id).first_or_404()
+    if not record.parent_email or record.parent_email.lower() != current_user.email.lower():
+        abort(403)
+    record.parent_consent_status = 'pending'
+    db.session.commit()
+    flash(f'Consent revoked for {record.full_name}.', 'warning')
+    from app.models.auth import UserEnrollment
+    parent_enrollment = UserEnrollment.query.filter_by(user_id=current_user.id).first()
+    if parent_enrollment:
+        return redirect(url_for('cultural_bp.biodata_edit', enrollment_id=parent_enrollment.id))
+    return redirect(url_for('hub_bp.hub_dashboard'))

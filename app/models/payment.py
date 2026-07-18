@@ -59,3 +59,21 @@ class SubjectCountryPrice(db.Model):
     def zar_amount(self):
         return self.zar_amount_cents / 100 if self.zar_amount_cents else None
 
+
+
+class VoucherToken(db.Model):
+    __tablename__ = 'voucher_token'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(50), unique=True, nullable=False)
+    value_amount = db.Column(db.Integer, default=200)
+    
+    subject_id = db.Column(db.Integer, db.ForeignKey('auth_subject.id'), nullable=False)
+    
+    is_used = db.Column(db.Boolean, default=False)
+    created_by_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    used_by_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    used_at = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    
+    subject = db.relationship('AuthSubject', backref='vouchers')

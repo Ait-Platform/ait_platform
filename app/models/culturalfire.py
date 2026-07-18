@@ -593,14 +593,3 @@ class CfiMcRecording(db.Model):
 
 
 
-class CfiVoucher(db.Model):
-    __tablename__ = 'cfi_voucher'
-
-    id = db.Column(db.Integer, primary_key=True)
-    code = db.Column(db.String(50), unique=True, nullable=False)
-    tokens = db.Column(db.Integer, default=200)
-    is_used = db.Column(db.Boolean, default=False)
-    created_by_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
-    used_by_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
-    used_at = db.Column(db.DateTime, nullable=True)
-    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())

@@ -2393,7 +2393,7 @@ def select_show(show_id):
     flash(f"You have been assigned as a judge for '{show.title}'! 10 tokens were deducted.", "success")
     return redirect(url_for('cultural_bp.judge_dashboard'))
 
-@cultural_bp.route("/admin/cultural_fire")
+@cultural_bp.route("/cultural_fire/admin")
 @login_required
 def admin_dashboard():
     # Verify admin role
@@ -2402,34 +2402,7 @@ def admin_dashboard():
         return redirect(url_for('auth_bp.bridge_dashboard'))
         
     shows = CfiShow.query.all()
-    last_voucher = session.pop('last_admin_voucher', None)
-    return render_template("program_culturefire/admin_dashboard.html", shows=shows, last_voucher=last_voucher)
-
-@cultural_bp.route("/admin/cultural_fire/voucher/generate", methods=["POST"])
-@login_required
-def admin_generate_voucher():
-    if not current_user.has_role('admin'):
-        flash("Unauthorized access.", "danger")
-        return redirect(url_for('auth_bp.bridge_dashboard'))
-        
-    amount = request.form.get("voucher_amount", type=int)
-    if not amount or amount <= 0:
-        flash("Invalid voucher amount.", "danger")
-        return redirect(url_for('cultural_bp.admin_dashboard'))
-        
-    import secrets
-    from app.models.culturalfire import CfiVoucher
-    
-    # Generate an 8-character uppercase alphanumeric code
-    code = secrets.token_hex(4).upper()
-    
-    # Create the voucher (this does not deduct from any wallet since it's an admin complimentary voucher)
-    voucher = CfiVoucher(code=code, tokens=amount, created_by_user_id=current_user.id)
-    db.session.add(voucher)
-    db.session.commit()
-    
-    session['last_admin_voucher'] = code
-    return redirect(url_for('cultural_bp.admin_dashboard'))
+    return render_template("program_culturefire/admin_dashboard.html", shows=shows)
 
 @cultural_bp.route("/show/<int:show_id>/admin_scores")
 @login_required
@@ -2786,7 +2759,7 @@ def delete_voucher(voucher_id):
     wallet.balance += voucher.tokens
     txn = CfiTokenTransaction(
         wallet_id=wallet.id,
-        amount=voucher.tokens,
+        amount=voucher.value_amount,
         description=f"Refund for deleted voucher {voucher.code}"
     )
     db.session.add(txn)
@@ -2847,10 +2820,11 @@ def upload_ad(show_id):
     return redirect(url_for('cultural_bp.advertiser_dashboard'))
 
 def process_voucher_redemption(code, user_id):
-    from app.models.culturalfire import CfiVoucher, CfiWallet, CfiTokenTransaction
+    from app.models.payment import VoucherToken
+    from app.models.culturalfire import CfiWallet, CfiTokenTransaction
     from app.models.auth import AuthSubject, UserEnrollment
     
-    voucher = CfiVoucher.query.filter_by(code=code).first()
+    voucher = VoucherToken.query.filter_by(code=code).first()
     if not voucher:
         return False, "Invalid voucher code."
         
@@ -2869,11 +2843,11 @@ def process_voucher_redemption(code, user_id):
         db.session.add(wallet)
         db.session.flush()
         
-    wallet.balance += voucher.tokens
+    wallet.balance += voucher.value_amount
     
     txn = CfiTokenTransaction(
         wallet_id=wallet.id,
-        amount=voucher.tokens,
+        amount=voucher.value_amount,
         description=f"Voucher Redemption: {code}"
     )
     db.session.add(txn)

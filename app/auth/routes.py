@@ -427,52 +427,58 @@ def register_decision():
     enrollment_id = _ensure_enrollment_row(user_id=user_id, subject_slug=subject)
 
     # ---------- SPECIAL CASE: FREE SUBJECTS OR VOUCHER ----------
-    if subject in ("billing", "metro_billing") or (subject in ("cultural_fire", "culturalfire") and (ctx.get("voucher") or session.get("pending_voucher"))):
+    if subject in ("billing", "metro_billing") or (subject in ("cultural_fire", "culturalfire", "tpx") and (ctx.get("voucher") or session.get("pending_voucher"))):
         # Check for voucher bypass
         voucher = ctx.get("voucher") or session.pop("pending_voucher", None)
-        if voucher and subject in ("cultural_fire", "culturalfire"):
-            from app.models.culturalfire import CfiVoucher
-            v_obj = CfiVoucher.query.filter_by(code=voucher, is_used=False).first()
+        if voucher:
+            from app.models.payment import VoucherToken
+            v_obj = VoucherToken.query.filter_by(code=voucher, is_used=False).first()
             if v_obj:
                 v_obj.is_used = True
                 v_obj.used_by_user_id = user_id
                 v_obj.used_at = datetime.utcnow()
                 db.session.commit()
                 
-                # Add tokens to wallet
-                from app.models.culturalfire import CfiWallet, CfiTokenTransaction
-                wallet = CfiWallet.query.filter_by(user_id=user_id).first()
-                if not wallet:
-                    wallet = CfiWallet(user_id=user_id, balance=0)
-                    db.session.add(wallet)
-                    db.session.flush()
-                wallet.balance += v_obj.tokens
-                
-                txn = CfiTokenTransaction(
-                    wallet_id=wallet.id,
-                    amount=v_obj.tokens,
-                    transaction_type="voucher_topup",
-                    description=f"Redeemed voucher {voucher}"
-                )
-                db.session.add(txn)
-                db.session.commit()
-                
-                flash(f"Voucher applied successfully! {v_obj.tokens} tokens added to your wallet.", "success")
+                # If it's a Cultural Fire voucher, add tokens to wallet
+                if subject in ("cultural_fire", "culturalfire"):
+                    from app.models.culturalfire import CfiWallet, CfiTokenTransaction
+                    wallet = CfiWallet.query.filter_by(user_id=user_id).first()
+                    if not wallet:
+                        wallet = CfiWallet(user_id=user_id, balance=0)
+                        db.session.add(wallet)
+                        db.session.flush()
+                    wallet.balance += v_obj.value_amount
+                    
+                    txn = CfiTokenTransaction(
+                        wallet_id=wallet.id,
+                        amount=v_obj.value_amount,
+                        transaction_type="voucher_topup",
+                        description=f"Redeemed voucher {voucher}"
+                    )
+                    db.session.add(txn)
+                    db.session.commit()
+                    
+                    flash(f"Voucher applied successfully! {v_obj.value_amount} tokens added to your wallet.", "success")
+                else:
+                    flash("Voucher applied successfully! Registration bypassed.", "success")
                 
                 # Activate enrollment and bypass payment
                 mark_loss_enrollment_free(enrollment_id)
                 session.pop("reg_ctx", None)
                 session.pop("just_paid_subject_id", None)
                 
-                # Create default biodata if needed
-                from app.models.culturalfire import CfiBiodata
-                record = CfiBiodata.query.filter_by(user_id=user_id).first()
-                if not record:
-                    record = CfiBiodata(user_id=user_id, role="participant")
-                    db.session.add(record)
-                    db.session.commit()
+                if subject in ("cultural_fire", "culturalfire"):
+                    # Create default biodata if needed
+                    from app.models.culturalfire import CfiBiodata
+                    record = CfiBiodata.query.filter_by(user_id=user_id).first()
+                    if not record:
+                        record = CfiBiodata(user_id=user_id, role="participant")
+                        db.session.add(record)
+                        db.session.commit()
+                    return redirect(url_for("cultural_bp.cultural_fire_router"))
+                elif subject == "tpx":
+                    return redirect(url_for("tpx_bp.dashboard"))
                 
-                return redirect(url_for("cultural_bp.cultural_fire_router"))
             else:
                 flash("Invalid or expired voucher code.", "danger")
                 # Don't bypass payment! Just let it fall through to the Yoco redirect below.

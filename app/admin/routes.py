@@ -9,7 +9,7 @@ from app.extensions import db
 from app.models.reading import RdpLesson
 from . import admin_bp
 #admin_bp = Blueprint("admin_bp", __name__, url_prefix="/admin")
-from sqlalchemy import select, func
+from sqlalchemy import select, func, text
 from flask_login import current_user
 import uuid
 from app.models.payment import VoucherToken

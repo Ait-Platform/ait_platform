@@ -1,93 +1,93 @@
 {% extends "layout.html" %}
 {% block title %}Advertiser Dashboard{% endblock %}
 
+{% block flashes %}{% endblock %}
+
 {% block content %}
-<div class="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
-  <div class="max-w-6xl mx-auto space-y-8">
+<div class="max-w-5xl mx-auto mt-8 bg-white shadow-xl border-t-4 border-indigo-600 rounded-lg p-6 mb-12">
+  
+  {% include "partials/flash_messages.html" %}
+
+  <!-- Row 1: Title and Back Button -->
+  <div class="flex justify-between items-center mb-6 border-b pb-4">
+    <h1 class="text-2xl font-bold text-gray-800">Advertiser Dashboard</h1>
+    <a href="{{ url_for('hub_bp.hub_dashboard') }}" class="px-4 py-2 bg-gray-200 text-gray-800 font-semibold rounded hover:bg-gray-300 transition text-sm">
+      &larr; Back
+    </a>
+  </div>
+
+  <!-- Row 2: Token Balance (right aligned) -->
+  <div class="flex justify-end mb-8">
+    <div class="bg-indigo-50 border border-indigo-100 rounded-lg px-4 py-2 flex items-center gap-3">
+      <span class="text-sm text-indigo-800 uppercase tracking-wider font-semibold">Token Balance:</span>
+      <span class="text-2xl font-black text-indigo-700">{{ token_balance }}</span>
+      <svg class="w-6 h-6 text-yellow-500" fill="currentColor" viewBox="0 0 20 20"><path d="M10 2a8 8 0 100 16 8 8 0 000-16zM8 7a2 2 0 114 0 2 2 0 01-4 0zM7 14a3 3 0 116 0H7z"></path></svg>
+    </div>
+  </div>
+
+  <p class="text-gray-600 mb-8">Place your advertisements in upcoming Culture Fire shows. Ads cost 40 tokens per placement.</p>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
     
-    <!-- Header -->
-    <div class="bg-gradient-to-r from-blue-700 to-indigo-800 rounded-xl shadow-lg p-6 sm:p-10 text-white flex flex-col md:flex-row md:items-center justify-between">
-      <div>
-        <h1 class="text-3xl font-bold tracking-tight mb-2">Advertiser Dashboard</h1>
-        <p class="text-blue-100 max-w-2xl">Place your advertisements in upcoming Culture Fire shows. Ads cost 40 tokens per placement.</p>
-      </div>
-      <div class="mt-6 md:mt-0 flex flex-col items-end">
-        <span class="text-sm text-blue-200 uppercase tracking-wider font-semibold mb-1">Token Balance</span>
-        <div class="flex items-center gap-2">
-          <span class="text-4xl font-black">{{ token_balance }}</span>
-          <svg class="w-6 h-6 text-yellow-400" fill="currentColor" viewBox="0 0 20 20"><path d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z"></path></svg>
+    <!-- Available Shows -->
+    <div class="lg:col-span-2 space-y-4">
+      <h2 class="text-xl font-bold text-gray-800 border-b pb-2">Available Shows</h2>
+      
+      <div class="grid gap-4 sm:grid-cols-2">
+        {% for show in shows %}
+        <div class="border-2 border-gray-200 rounded-lg p-4 hover:border-indigo-400 transition shadow-sm">
+          <div class="flex justify-between items-start mb-2">
+            <span class="bg-indigo-100 text-indigo-800 text-xs font-semibold px-2 py-1 rounded uppercase">{{ show.category_item.name if show.category_item else 'General' }}</span>
+            <span class="text-xs text-gray-500 font-medium">{{ show.start_date.strftime('%b %d, %Y') if show.start_date else 'TBD' }}</span>
+          </div>
+          <h3 class="text-lg font-bold text-gray-900 mb-1">{{ show.title }}</h3>
+          <p class="text-gray-600 text-sm mb-4 line-clamp-2 h-10">{{ show.description }}</p>
+          
+          <button onclick="openAdModal({{ show.id }}, '{{ show.title|escape }}')" class="w-full bg-blue-600 text-white font-semibold py-2 rounded transition hover:bg-blue-700 flex justify-center items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+            Place Ad (40 Tokens)
+          </button>
         </div>
+        {% else %}
+        <div class="col-span-full p-6 text-center text-gray-500 border-2 border-dashed border-gray-300 rounded-lg">
+          No active shows available for advertising.
+        </div>
+        {% endfor %}
       </div>
     </div>
 
-    {% include "partials/flash_messages.html" %}
-
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-      
-      <!-- Shows List -->
-      <div class="lg:col-span-2 space-y-6">
-        <h2 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
-          <svg class="w-6 h-6 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
-          Available Shows
-        </h2>
-        
-        <div class="grid gap-6 sm:grid-cols-2">
-          {% for show in shows %}
-          <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition">
-            <div class="p-6">
-              <div class="flex justify-between items-start mb-4">
-                <span class="bg-indigo-100 text-indigo-800 text-xs font-semibold px-2.5 py-0.5 rounded uppercase">{{ show.category_item.name if show.category_item else 'General' }}</span>
-                <span class="text-sm text-gray-500">{{ show.start_date.strftime('%b %d, %Y') if show.start_date else 'TBD' }}</span>
-              </div>
-              <h3 class="text-xl font-bold text-gray-900 mb-2">{{ show.title }}</h3>
-              <p class="text-gray-600 text-sm mb-6 line-clamp-2">{{ show.description }}</p>
-              
-              <button onclick="openAdModal({{ show.id }}, '{{ show.title|escape }}')" class="w-full bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-600 hover:text-white font-semibold py-2.5 rounded-lg transition-colors flex justify-center items-center gap-2">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
-                Place Ad (40 Tokens)
-              </button>
-            </div>
+    <!-- My Ads -->
+    <div class="space-y-4">
+      <h2 class="text-xl font-bold text-gray-800 border-b pb-2">My Ads</h2>
+      <div class="space-y-3">
+        {% for ad in ads %}
+        <div class="flex items-center gap-3 p-3 rounded-lg border-2 border-gray-200 bg-gray-50">
+          <div class="bg-white border border-gray-300 p-2 rounded shadow-sm">
+            <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
           </div>
-          {% else %}
-          <div class="col-span-full bg-white rounded-xl p-8 text-center text-gray-500 border border-gray-200">
-            No active shows available for advertising.
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-bold text-gray-900 truncate">{{ ad.show.title }}</p>
+            <p class="text-xs text-gray-600 font-medium mt-0.5">After Act {{ ad.position_index }}</p>
           </div>
-          {% endfor %}
         </div>
-      </div>
-
-      <!-- My Ads -->
-      <div class="space-y-6">
-        <h2 class="text-2xl font-bold text-gray-800">My Ads</h2>
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 space-y-4">
-          {% for ad in ads %}
-          <div class="flex items-center gap-4 p-3 rounded-lg hover:bg-gray-50 transition border border-transparent hover:border-gray-200">
-            <div class="bg-gray-100 p-2 rounded-lg">
-              <svg class="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
-            </div>
-            <div class="flex-1 min-w-0">
-              <p class="text-sm font-semibold text-gray-900 truncate">{{ ad.show.title }}</p>
-              <p class="text-xs text-gray-500">Position: After Act {{ ad.position_index }}</p>
-            </div>
-          </div>
-          {% else %}
-          <div class="text-center py-6 text-gray-500 text-sm">
-            You haven't placed any ads yet.
-          </div>
-          {% endfor %}
+        {% else %}
+        <div class="text-center py-6 text-gray-500 text-sm border-2 border-dashed border-gray-300 rounded-lg">
+          You haven't placed any ads yet.
         </div>
+        {% endfor %}
       </div>
-      
     </div>
+    
   </div>
 </div>
 
 <!-- Ad Upload Modal -->
 <div id="adModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden items-center justify-center z-50 p-4 backdrop-blur-sm transition-opacity">
-  <div class="bg-white rounded-2xl shadow-xl max-w-md w-full overflow-hidden transform scale-95 opacity-0 transition-all" id="adModalContent">
-    <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-      <h3 class="text-lg font-bold text-gray-900">Upload Ad for <span id="modalShowTitle" class="text-indigo-600"></span></h3>
-      <button onclick="closeAdModal()" class="text-gray-400 hover:text-gray-600 transition">
+  <div class="bg-white rounded-xl shadow-2xl max-w-md w-full border-t-4 border-indigo-600 transform scale-95 opacity-0 transition-all" id="adModalContent">
+    
+    <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-gray-50 rounded-t-lg">
+      <h3 class="text-lg font-bold text-gray-900">Upload Ad: <span id="modalShowTitle" class="text-indigo-700"></span></h3>
+      <button onclick="closeAdModal()" class="text-gray-500 hover:text-red-600 transition">
         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
       </button>
     </div>
@@ -95,27 +95,10 @@
     <form id="adForm" method="POST" enctype="multipart/form-data" class="p-6">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       
-      <div class="space-y-5">
+      <div class="space-y-6">
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Ad Video File</label>
-          <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg hover:border-indigo-500 transition-colors bg-gray-50">
-            <div class="space-y-1 text-center">
-              <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48"><path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
-              <div class="flex text-sm text-gray-600 justify-center">
-                <label for="file-upload" class="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-indigo-500">
-                  <span>Upload a video</span>
-                  <input id="file-upload" name="file" type="file" accept="video/mp4,video/webm,video/ogg" class="sr-only" required>
-                </label>
-              </div>
-              <p class="text-xs text-gray-500">MP4, WebM up to 50MB</p>
-            </div>
-          </div>
-        </div>
-
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Placement Position</label>
-          <p class="text-xs text-gray-500 mb-2">Select which act number you want your ad to play after.</p>
-          <select name="position_index" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm py-2 px-3 border outline-none bg-white">
+          <label class="block text-sm font-bold text-gray-800 mb-2">Placement Position</label>
+          <select id="adPositionSelect" name="position_index" class="block w-full border-2 border-gray-300 rounded-lg px-3 py-2 text-gray-900 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition bg-white shadow-sm">
             <option value="0">Play Before Show (Intro)</option>
             <option value="1">After Act 1</option>
             <option value="2">After Act 2</option>
@@ -125,13 +108,24 @@
             <option value="6">After Act 6</option>
           </select>
         </div>
+
+        <div>
+          <label class="block text-sm font-bold text-gray-800 mb-2">Ad Video File</label>
+          <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg hover:border-indigo-500 transition-colors bg-gray-50 cursor-pointer" onclick="document.getElementById('file-upload').click()">
+            <div class="space-y-2 text-center">
+              <svg class="mx-auto h-10 w-10 text-indigo-400" stroke="currentColor" fill="none" viewBox="0 0 48 48"><path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
+              <div class="text-sm text-gray-600 font-semibold">
+                <span class="text-indigo-600">Click to upload a video</span>
+                <input id="file-upload" name="file" type="file" accept="video/mp4,video/webm,video/ogg" class="sr-only" required>
+              </div>
+              <p class="text-xs text-gray-500 font-medium">MP4, WebM up to 50MB</p>
+            </div>
+          </div>
+        </div>
       </div>
       
       <div class="mt-8 flex justify-end gap-3">
-        <button type="button" onclick="closeAdModal()" class="bg-white py-2 px-4 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-          Cancel
-        </button>
-        <button type="submit" class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+        <button type="submit" class="w-full sm:w-auto inline-flex justify-center items-center py-2 px-6 border-2 border-indigo-600 shadow-sm text-sm font-bold rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-200 transition">
           Pay 40 Tokens & Upload
         </button>
       </div>
@@ -154,7 +148,9 @@
     setTimeout(() => {
       content.classList.remove('scale-95', 'opacity-0');
       content.classList.add('scale-100', 'opacity-100');
-    }, 10);
+      // Autofocus the first select/input as requested
+      document.getElementById('adPositionSelect').focus();
+    }, 50);
   }
 
   function closeAdModal() {

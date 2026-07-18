@@ -360,7 +360,10 @@ def biodata_edit(enrollment_id):
     if record.dob == date(2000, 1, 1) or not record.gender:
         is_forced = True
 
-    return render_template("program_culturefire/update_biodata.html", form=form, enrollment=enrollment, is_forced=is_forced)
+    # PARENT DATA: Find any children linked to this user's email
+    child_biodatas = CfiBiodata.query.filter(db.func.lower(CfiBiodata.parent_email) == (current_user.email or "").lower()).all()
+
+    return render_template("program_culturefire/update_biodata.html", form=form, enrollment=enrollment, is_forced=is_forced, child_biodatas=child_biodatas)
 
 @cultural_bp.route("/program/cultural_fire/enrollment/<int:subject_id>/step2", methods=["GET", "POST"])
 @login_required
@@ -2544,78 +2547,6 @@ def wallet_topup():
 
 
 @cultural_bp.route("/stakeholder/dashboard")
-@cultural_bp.route("/stakeholder/dashboard/<int:enrollment_id>")
-@login_required
-def stakeholder_dashboard(enrollment_id=None):
-    cfi_subject = AuthSubject.query.filter_by(slug="cultural_fire").first_or_404()
-    
-    enrollment = None
-    if enrollment_id:
-        enrollment = UserEnrollment.query.get_or_404(enrollment_id)
-    else:
-        enrollment = UserEnrollment.query.filter_by(user_id=current_user.id, subject_id=cfi_subject.id).first()
-
-    # --- PARENT DATA ---
-    # Find all children where this user's email was provided as the parent_email
-    child_biodatas = CfiBiodata.query.filter(db.func.lower(CfiBiodata.parent_email) == (current_user.email or "").lower()).all()
-    children = []
-    for biodata in child_biodatas:
-        child_enrollment = UserEnrollment.query.filter_by(user_id=biodata.user_id, subject_id=cfi_subject.id).first()
-        if not child_enrollment: continue
-        
-        talents = CfiTalentSubmission.query.filter_by(user_id=biodata.user_id).order_by(CfiTalentSubmission.id.asc()).all()
-        groups = CfiGroup.query.join(CfiGroupMember, CfiGroupMember.group_id == CfiGroup.id).filter(CfiGroupMember.enrollment.has(user_id=biodata.user_id)).all()
-
-        children.append({
-            "user": child_enrollment.user,
-            "biodata": biodata,
-            "status": child_enrollment.status,
-            "subject": child_enrollment.subject,
-            "talents": talents,
-            "groups": groups,
-            "consent": biodata.parent_consent_status == "granted"
-        })
-
-    # --- SPONSOR DATA ---
-    sponsorships = (
-        db.session.query(CfiSponsorship)
-        .outerjoin(UserEnrollment, CfiSponsorship.participant_id == UserEnrollment.id)
-        .outerjoin(CfiBiodata, UserEnrollment.biodata_id == CfiBiodata.id)
-        .outerjoin(CfiShow, CfiSponsorship.show_id == CfiShow.id)
-        .filter(CfiSponsorship.user_id == current_user.id)
-        .order_by(CfiSponsorship.created_at.desc())
-        .all()
-    )
-
-    # --- SUPPORTER DATA ---
-    supporters = (
-        db.session.query(CfiSupporter, UserEnrollment, CfiBiodata, CfiShow)
-        .outerjoin(UserEnrollment, CfiSupporter.participant_id == UserEnrollment.id)
-        .outerjoin(CfiBiodata, UserEnrollment.biodata_id == CfiBiodata.id)
-        .outerjoin(CfiShow, CfiSupporter.show_id == CfiShow.id)
-        .filter(CfiSupporter.user_id == current_user.id)
-        .all()
-    )
-
-    form = PermissionForm()
-    sponsor_form = SponsorForm()
-    supporter_form = SupporterForm()
-
-    return render_template(
-        "program_culturefire/stakeholder_dashboard.html",
-        children=children,
-        sponsorships=sponsorships,
-        supporters=supporters,
-        form=form,
-        sponsor_form=sponsor_form,
-        supporter_form=supporter_form,
-        enrollment=enrollment,
-        enrollment_id=enrollment.id if enrollment else None,
-        calculate_age_from_dob=calculate_age_from_dob
-    )
-
-@cultural_bp.route("/mc/dashboard")
-@login_required
 def mc_dashboard():
     origin = request.args.get('origin')
     enrollment_id = request.args.get('enrollment_id', type=int)

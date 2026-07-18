@@ -25,7 +25,22 @@ def register_choice():
 
 @tpx_bp.route("/pricing")
 def pricing():
-    return render_template("program_tpx/pricing.html")
+    from app.payments.pricing import price_for_country
+    from app.models.auth import AuthSubject
+    
+    country_code = request.headers.get("CF-IPCountry", "ZA")
+    tpx_subject = AuthSubject.query.filter_by(slug='tpx').first()
+    
+    display_price = "ZAR 100"
+    if tpx_subject:
+        row = price_for_country(tpx_subject.id, country_code)
+        if row:
+            # row returns (local_amount_cents, zar_amount_cents, currency)
+            local_amt = row[0] / 100.0
+            currency = row[2]
+            display_price = f"{currency} {local_amt:,.2f}"
+            
+    return render_template("program_tpx/pricing.html", display_price=display_price)
 
 #price = price_for_country(subject_id, country_code)'quote_bp.quote', subject='tpx'
 

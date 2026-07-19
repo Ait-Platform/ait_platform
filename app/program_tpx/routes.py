@@ -63,12 +63,12 @@ def dashboard():
 @login_required
 def profile():
     passport = TPXPassport.query.filter_by(user_id=current_user.id).first()
-    form = CandidateProfileForm(obj=candidate)
+    form = CandidateProfileForm(obj=passport)
     
     if form.validate_on_submit():
         if not passport:
             passport = TPXPassport(user_id=current_user.id)
-            db.session.add(candidate)
+            db.session.add(passport)
         
         passport.first_name = form.first_name.data
         passport.last_name = form.last_name.data
@@ -79,7 +79,7 @@ def profile():
         flash("Profile updated successfully!", "success")
         return redirect(url_for("tpx_bp.dashboard"))
         
-    return render_template("program_tpx/profile.html", form=form, passport=candidate)
+    return render_template("program_tpx/profile.html", form=form, passport=passport)
 
 
 from app.models.tpx import TPXEmployment, TPXQualification, TPXSkill

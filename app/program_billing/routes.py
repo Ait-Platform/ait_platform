@@ -312,7 +312,7 @@ def property_hub(property_id):
     if prop.manager_id != current_user.id and not current_user.has_role('admin'):
         abort(403)
         
-    all_meters = prop.meters
+    all_meters = BilMeter.query.filter_by(property_id=property_id).all()
         
     # Also collect master meters by municipal account numbers
     from app.models.billing import BilMuniAccount, BilMeter
@@ -1492,7 +1492,7 @@ def build_raw_water_row(meter_id, month):
 
 def get_all_property_meters(property_id):
     from app.models.billing import BilProperty, BilMuniAccount, BilMeter
-    all_meters = prop.meters
+    all_meters = BilMeter.query.filter_by(property_id=property_id).all()
         
     muni_accounts = BilMuniAccount.query.filter_by(property_id=property_id).all()
     muni_acc_numbers = [acc.account_number for acc in muni_accounts if acc.account_number]
@@ -3641,7 +3641,7 @@ def consumption_review(property_id, month):
     if prop.manager_id != current_user.id and not current_user.has_role('admin'):
         abort(403)
         
-    all_meters = prop.meters
+    all_meters = BilMeter.query.filter_by(property_id=property_id).all()
         
     muni_accounts = BilMuniAccount.query.filter_by(property_id=prop.id).all()
     muni_acc_numbers = [acc.account_number for acc in muni_accounts if acc.account_number]
@@ -4108,7 +4108,7 @@ def email_consumption(property_id, month):
     if prop.manager_id != current_user.id and not current_user.has_role('admin'):
         return {"success": False, "error": "Unauthorized"}, 403
         
-    all_meters = prop.meters
+    all_meters = BilMeter.query.filter_by(property_id=property_id).all()
         
     muni_accounts = BilMuniAccount.query.filter_by(property_id=prop.id).all()
     muni_acc_numbers = [acc.account_number for acc in muni_accounts if acc.account_number]

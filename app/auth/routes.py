@@ -129,7 +129,7 @@ def start_registration():
                 next_url = f"{next_url}?{p.query}"
 
     if not next_url:
-        next_url = url_for("yoco_bp.yoco_start",
+        next_url = url_for("auth_bp.register_decision",
                            subject=subject_slug)
 
     # 5) Role (default "user")

@@ -452,7 +452,6 @@ def register_decision():
                     txn = CfiTokenTransaction(
                         wallet_id=wallet.id,
                         amount=v_obj.value_amount,
-                        transaction_type="voucher_topup",
                         description=f"Redeemed voucher {voucher}"
                     )
                     db.session.add(txn)

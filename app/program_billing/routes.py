@@ -494,8 +494,8 @@ def delete_consumption(consumption_id):
     
     # Verify ownership
     meter = BilMeter.query.get(cons.meter_id)
-    if meter and meter.property and meter.property.property_id:
-        prop = BilProperty.query.get(meter.property.property_id)
+    if meter and meter.property and meter.property_id:
+        prop = BilProperty.query.get(meter.property_id)
         if prop.manager_id != current_user.id and not current_user.has_role('admin'):
             abort(403)
             
@@ -3854,8 +3854,8 @@ def edit_tenant_soa(tenant_id):
     tenant = BilTenant.query.get_or_404(tenant_id)
     
     # Very basic validation that the user owns the property
-    if tenant.property and tenant.property.property:
-        if tenant.property.property.manager_id != current_user.id and not current_user.has_role('admin'):
+    if tenant.property and tenant.property:
+        if tenant.property.manager_id != current_user.id and not current_user.has_role('admin'):
             abort(403)
             
     if request.method == "POST":
@@ -3896,7 +3896,7 @@ def email_soa(tenant_id, month):
     if not email:
         return {"success": False, "error": "Email address is required"}, 400
         
-    prop = tenant.property.property
+    prop = tenant.property
     
     tenant_meter_ids = [m.id for m in tenant.property.meters]
     
@@ -4006,7 +4006,7 @@ def generate_soa(tenant_id):
         flash("Month is required.", "danger")
         return redirect(url_for("billing_bp.soa_dashboard"))
         
-    prop = tenant.property.property
+    prop = tenant.property
     
     tenant_meter_ids = [m.id for m in tenant.property.meters]
     

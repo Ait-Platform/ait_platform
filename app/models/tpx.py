@@ -2262,3 +2262,13 @@ class TPXLearning(db.Model):
 
 
 
+
+
+
+class TPXShortlist(db.Model):
+    __tablename__ = 'tpx_shortlist'
+    id = db.Column(db.Integer, primary_key=True)
+    employer_id = db.Column(db.Integer, db.ForeignKey('tpx_employer.id'), nullable=False, index=True)
+    passport_id = db.Column(db.Integer, db.ForeignKey('tpx_passport.id'), nullable=False, index=True)
+    job_id = db.Column(db.Integer, db.ForeignKey('tpx_job.id'), nullable=True, index=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)

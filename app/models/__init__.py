@@ -23,3 +23,10 @@ from .loss import (
 from .adv_math import AdvMathProgress, AdvMathAssessment, AdvMathQuestion, AdvMathStep
 from .practice_crm import CrmPractice, CrmPracticeUser, CrmEnquiry, CrmAuditLog
 from .hds import HdsOrganization, HdsClaim
+
+from .tpx import (
+    TPXPassport, TPXEmployer, TPXJob, TPXApplication, TPXEmployment,
+    TPXQualification, TPXSkill, TPXVerification, TPXReference, TPXDocument,
+    TPXTimeline, TPXCareerDNA, TPXProject, TPXAchievement, TPXOrganisation,
+    TPXCareerPlan, TPXOpportunity, TPXMarketplace, TPXMentor, TPXLearning
+)

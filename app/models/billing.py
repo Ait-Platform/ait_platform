@@ -66,7 +66,8 @@ class BilProperty(db.Model):
     # Archiving
     is_archived = db.Column(db.Boolean, default=False)
     
-    sectional_units = db.relationship('BilSectionalUnit', backref='property', lazy=True)
+    meters = db.relationship('BilMeter', back_populates='property', cascade='all, delete-orphan')
+    tenants = db.relationship('BilTenant', back_populates='property', cascade='all, delete-orphan')
     manager = db.relationship('User', backref='managed_properties')
 
 class BilMeter(db.Model):
@@ -85,8 +86,8 @@ class BilMeter(db.Model):
     date_replaced = db.Column(db.Date, nullable=True)
 
     # BilMeter
-    sectional_unit_id = db.Column(db.Integer, db.ForeignKey('bil_sectional_unit.id'), nullable=True)
-    sectional_unit = db.relationship("BilSectionalUnit", back_populates="meters")
+    property_id = db.Column(db.Integer, db.ForeignKey('bil_property.id'), nullable=True)
+    property = db.relationship("BilProperty", back_populates="meters")
 
 
 
@@ -183,7 +184,7 @@ class BilLease(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     tenant_id = db.Column(db.Integer, db.ForeignKey("bil_tenant.id"), nullable=False)
-    sectional_unit_id = db.Column(db.Integer, db.ForeignKey("bil_sectional_unit.id"))
+    property_id = db.Column(db.Integer, db.ForeignKey("bil_property.id"))
 
     start_date   = db.Column(db.Text)
     end_date     = db.Column(db.Text)
@@ -213,29 +214,7 @@ class BilLease(db.Model):
     def __repr__(self):
         return f"<BilLease id={self.id} tenant_id={self.tenant_id} unit_id={self.sectional_unit_id}>"
 
-class BilSectionalUnit(db.Model):
-    __tablename__ = "bil_sectional_unit"
 
-    id   = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(120), nullable=False, unique=True, index=True)
-    property_id = db.Column(db.Integer, db.ForeignKey('bil_property.id'), nullable=True)
-
-    # Match BilMeter.sectional_unit  (cascade delete meters when a unit is removed)
-    meters = db.relationship(
-        "BilMeter",
-        back_populates="sectional_unit",
-        cascade="all, delete-orphan",
-        passive_deletes=True,
-    )
-
-    # Match BilTenant.sectional_unit  (don’t cascade-delete tenants)
-    tenants = db.relationship(
-        "BilTenant",
-        back_populates="sectional_unit",
-    )
-
-    def __repr__(self):
-        return f"<BilSectionalUnit id={self.id} name={self.name!r}>"
 
 
 class BilBankDetail(db.Model):
@@ -258,10 +237,10 @@ class BilTenant(db.Model):
     id   = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(200), nullable=False)
 
-    sectional_unit_id = db.Column(
-        db.Integer, db.ForeignKey('bil_sectional_unit.id'), nullable=False, index=True
+    property_id = db.Column(
+        db.Integer, db.ForeignKey('bil_property.id'), nullable=False, index=True
     )
-    sectional_unit = db.relationship("BilSectionalUnit", back_populates="tenants")
+    property = db.relationship("BilProperty", back_populates="tenants")
 
     metro_account_no     = db.Column(db.String(64), index=True)
     rent_includes_metro  = db.Column(db.Integer, default=0, nullable=False)  # 0/1

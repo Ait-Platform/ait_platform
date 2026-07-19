@@ -1,14 +1,14 @@
 # app/models/__init__.py
 from .auth import User, ApprovedAdmin, UserEnrollment, AuthPaymentLog
 from .billing import (
-    BilProperty, BilSectionalUnit, BilTenant, BilMeter,
+    BilProperty, BilTenant, BilMeter,
     BilMeterReading, BilTariff, BilFixedItem, BilMeterFixedCharge,
     BilPayment, BilLease, BilConsumption
 )
 
 __all__ = [
     "User", "ApprovedAdmin", "UserEnrollment", "AuthPaymentLog",
-    "BilProperty", "BilSectionalUnit", "BilTenant", "BilMeter",
+    "BilProperty", "BilTenant", "BilMeter",
     "BilMeterReading", "BilTariff", "BilFixedItem", "BilMeterFixedCharge",
     "BilPayment", "BilLease", "BilConsumption"
 ]

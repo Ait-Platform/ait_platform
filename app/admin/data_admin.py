@@ -23,7 +23,7 @@ def init_admin(app):
         BilTenant,
         BilMeter,
         BilMeterReading,
-        BilSectionalUnit,
+        BilProperty,
     )
 
     admin_ui.init_app(app)
@@ -40,19 +40,19 @@ def init_admin(app):
 
     class TenantView(BaseView):
         column_list = (
-            "id", "name", "sectional_unit",
+            "id", "name", "property",
             "metro_account_no", "rent_includes_metro",
             "email", "phone",
         )
         column_searchable_list = ("name", "email", "phone", "metro_account_no")
 
     class MeterView(BaseView):
-        column_list = ("id", "meter_number", "utility_type", "sectional_unit")
+        column_list = ("id", "meter_number", "utility_type", "property")
         column_searchable_list = ("meter_number", "utility_type")
 
     class LeaseView(BaseView):
         column_list = (
-            "id", "tenant", "sectional_unit",
+            "id", "tenant", "property",
             "lease_start", "lease_end", "rent_includes_metro"
         )
 
@@ -71,7 +71,6 @@ def init_admin(app):
             raise
 
     # Use explicit endpoints for each view to avoid Flask endpoint collisions
-    add(UnitView(   BilSectionalUnit,     db.session, name="Units",          endpoint="data_units"),          endpoint="data_units")
     add(TenantView( BilTenant,            db.session, name="Tenants",        endpoint="data_tenants"),        endpoint="data_tenants")
     add(MeterView(  BilMeter,             db.session, name="Meters",         endpoint="data_meters"),         endpoint="data_meters")
     add(LeaseView(  BilLease,             db.session, name="Leases",         endpoint="data_leases"),         endpoint="data_leases")

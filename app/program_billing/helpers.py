@@ -1,6 +1,6 @@
 from flask_login import current_user
 from app.extensions import db
-from app.models.billing import BilProperty, BilSectionalUnit
+from app.models.billing import BilProperty, BilProperty
 
 def get_dashboard_data(show_hidden=False):
     """
@@ -14,7 +14,7 @@ def get_dashboard_data(show_hidden=False):
     data = []
     
     for p in props:
-        unit = BilSectionalUnit.query.filter_by(property_id=p.id).first()
+        unit = BilProperty.query.filter_by(property_id=p.id).first()
         
         tenant_name = None
         tenant_id = None
@@ -78,10 +78,10 @@ def sync_muni_accounts():
             owner_name = "Unknown Owner"
             if meters:
                 first_meter = meters[0]
-                if first_meter.sectional_unit_id:
-                    from app.models.billing import BilSectionalUnit, BilProperty
+                if first_meter.property_id:
+                    from app.models.billing import BilProperty, BilProperty
                     from app.models.auth import User
-                    unit = BilSectionalUnit.query.get(first_meter.sectional_unit_id)
+                    unit = BilProperty.query.get(first_meter.property_id)
                     if unit and unit.property_id:
                         prop = BilProperty.query.get(unit.property_id)
                         if prop and prop.manager_id:

@@ -8,7 +8,7 @@ from flask import (
 from app.extensions import db
 from app.models.billing import (
     BilLease, BilMeterFixedCharge, BilTenant, BilMeter, BilMeterReading,
-    BilSectionalUnit, BilTariff, BilTenantLedger)
+    BilProperty, BilTariff, BilTenantLedger)
 from datetime import datetime, date, timedelta
 from sqlalchemy import and_, func, select, text, or_
 from app.auth.forms import LoginForm
@@ -168,12 +168,12 @@ def readings_view():
              .filter(BilMeterReading.reading_date >= first,
                      BilMeterReading.reading_date <= last))
 
-        # Filter meters by tenant. If your BilMeter has tenant_id, use that; else use sectional_unit_id.
+        # Filter meters by tenant. If your BilMeter has tenant_id, use that; else use property_id.
         if hasattr(BilMeter, "tenant_id"):
             q = q.filter(BilMeter.tenant_id == tenant.id)
         else:
-            # assumes BilTenant has sectional_unit_id and BilMeter.sectional_unit_id exists
-            q = q.filter(BilMeter.sectional_unit_id == tenant.sectional_unit_id)
+            # assumes BilTenant has property_id and BilMeter.property_id exists
+            q = q.filter(BilMeter.property_id == tenant.property_id)
 
         rows = q.order_by(BilMeter.id, BilMeterReading.reading_date).all()
 
@@ -262,8 +262,8 @@ def readings_enter():
     if tenant:
         if hasattr(BilMeter, "tenant_id"):
             meters = BilMeter.query.filter_by(tenant_id=tenant.id).order_by(BilMeter.id).all()
-        elif hasattr(BilMeter, "sectional_unit_id") and hasattr(tenant, "sectional_unit_id"):
-            meters = BilMeter.query.filter_by(sectional_unit_id=tenant.sectional_unit_id).order_by(BilMeter.id).all()
+        elif hasattr(BilMeter, "property_id") and hasattr(tenant, "property_id"):
+            meters = BilMeter.query.filter_by(property_id=tenant.property_id).order_by(BilMeter.id).all()
 
     warning_same, prev_info = None, None
 
@@ -355,14 +355,14 @@ def readings_consumption():
         prev_last_day = curr_first - timedelta(days=1)
         prev_first = prev_last_day.replace(day=1)
 
-        # Meters for tenant (supports tenant_id OR sectional_unit_id schema)
+        # Meters for tenant (supports tenant_id OR property_id schema)
         if hasattr(BilMeter, "tenant_id"):
             meters = (BilMeter.query
                       .filter_by(tenant_id=tenant.id)
                       .order_by(BilMeter.id).all())
-        elif hasattr(BilMeter, "sectional_unit_id") and hasattr(tenant, "sectional_unit_id"):
+        elif hasattr(BilMeter, "property_id") and hasattr(tenant, "property_id"):
             meters = (BilMeter.query
-                      .filter_by(sectional_unit_id=tenant.sectional_unit_id)
+                      .filter_by(property_id=tenant.property_id)
                       .order_by(BilMeter.id).all())
         else:
             meters = []
@@ -883,7 +883,7 @@ def tenant_ledger():
     tenant_obj = db.session.get(BilTenant, tenant_id)
     if not tenant_obj:
         abort(404)
-    unit_label = tenant_obj.sectional_unit.name if tenant_obj.sectional_unit else "No Unit"
+    unit_label = tenant_obj.property.name if tenant_obj.property else "No Unit"
     tenant = {
         "id": tenant_obj.id,
         "name": tenant_obj.name,
@@ -2434,12 +2434,12 @@ def tenants_update(tenant_id):
 # 1) Ensure at least one unit exists (so the form can work)
 @admin_bp.get("/billing/units/ensure_one", endpoint="units_ensure_one")
 def units_ensure_one():
-    u = BilSectionalUnit.query.first()
+    u = BilProperty.query.first()
     if not u:
-        u = BilSectionalUnit(name="Unit A-101")
+        u = BilProperty(name="Unit A-101")
         db.session.add(u)
         db.session.commit()
-    return f"OK: unit id={u.id} name={u.name}"
+    return f"OK: unit id={property.id} name={u.name}"
 '''
 # 2) List tenants (plain HTML)
 @admin_bp.get("/billing/tenants/smoke", endpoint="tenants_smoke")
@@ -2456,7 +2456,7 @@ def tenants_smoke():
             BilTenant.metro_account_no.ilike(like),
         ))
     tenants = query.order_by(BilTenant.name.asc()).all()
-    units = BilSectionalUnit.query.order_by(BilSectionalUnit.name.asc()).all()
+    units = BilProperty.query.order_by(BilProperty.name.asc()).all()
 
     html = """
     <h1>Tenants SMOKE</h1>
@@ -2469,7 +2469,7 @@ def tenants_smoke():
     <ul>
     {% for t in tenants %}
       <li>#{{ t.id }} — {{ t.name }}
-          — unit: {{ t.sectional_unit.name if t.sectional_unit else "None" }}
+          — unit: {{ t.property.name if t.property else "None" }}
           — metro: {{ t.metro_account_no or "—" }}
       </li>
     {% else %}
@@ -2483,9 +2483,9 @@ def tenants_smoke():
       <label>Name*</label>
       <input name="name" required>
       <label>Unit*</label>
-      <select name="sectional_unit_id" required>
+      <select name="property_id" required>
         {% for u in units %}
-          <option value="{{ u.id }}">{{ u.name }}</option>
+          <option value="{{ property.id }}">{{ u.name }}</option>
         {% endfor %}
       </select>
       <label>Metro</label>
@@ -2506,12 +2506,12 @@ def tenants_smoke():
 @admin_bp.post("/billing/tenants/smoke", endpoint="tenants_smoke_create")
 def tenants_smoke_create():
     name = (request.form.get("name") or "").strip()
-    suid = request.form.get("sectional_unit_id")
+    suid = request.form.get("property_id")
     if not name or not suid:
-        abort(400, "name and sectional_unit_id required")
+        abort(400, "name and property_id required")
     t = BilTenant(
         name=name,
-        sectional_unit_id=int(suid),
+        property_id=int(suid),
         metro_account_no=(request.form.get("metro_account_no") or None),
         rent_includes_metro=1 if request.form.get("rent_includes_metro") == "on" else 0,
         email=(request.form.get("email") or None),
@@ -2527,10 +2527,10 @@ def tenants_smoke_create():
 @admin_bp.route("/billing/occupants/<int:tenant_id>/edit", methods=["GET", "POST"], endpoint="billing_occupants_edit")
 def billing_occupants_edit(tenant_id: int):
     t = BilTenant.query.get_or_404(tenant_id)
-    units = BilSectionalUnit.query.order_by(BilSectionalUnit.name.asc()).all()
+    units = BilProperty.query.order_by(BilProperty.name.asc()).all()
     if request.method == "POST":
         t.name = (request.form.get("name") or "").strip()
-        t.sectional_unit_id = int(request.form.get("sectional_unit_id"))
+        t.property_id = int(request.form.get("property_id"))
         t.metro_account_no = (request.form.get("metro_account_no") or None)
         t.rent_includes_metro = 1 if request.form.get("rent_includes_metro") == "on" else 0
         t.email = (request.form.get("email") or None)
@@ -2591,7 +2591,7 @@ def _active_lease_filter():
 
 # app/admin/billing/routes.py
 
-#from app.models.billing import BilSectionalUnit, BilTenant, BilMeter  # and BilLease later
+#from app.models.billing import BilProperty, BilTenant, BilMeter  # and BilLease later
 
 admin_bp = Blueprint("admin_bp", __name__, url_prefix="/admin")
 
@@ -2604,13 +2604,13 @@ def billing_data():
 @admin_bp.get("/billing/units")
 def units_index():
     # TODO: compute occupied/free counts if you want badges
-    units = BilSectionalUnit.query.order_by(BilSectionalUnit.name.asc()).all()
+    units = BilProperty.query.order_by(BilProperty.name.asc()).all()
     return render_template("admin/billing/units/index.html", units=units)
 
 @admin_bp.route("/billing/units/new", methods=["GET", "POST"])
 def units_new():
     if request.method == "POST":
-        # TODO: create & commit a new BilSectionalUnit from form fields
+        # TODO: create & commit a new BilProperty from form fields
         # flash("Unit added.", "success")
         return redirect(url_for("admin_bp.units_index"))
     return render_template("admin/billing/units/new.html")
@@ -2619,7 +2619,7 @@ def units_new():
 @admin_bp.post("/billing/occupants/new", endpoint="billing_occupants_create")
 def billing_occupants_create():
     name    = (request.form.get("name") or "").strip()
-    unit_id = request.form.get("sectional_unit_id", type=int)
+    unit_id = request.form.get("property_id", type=int)
     email   = (request.form.get("email") or "").strip() or None
     phone   = (request.form.get("phone") or "").strip() or None
     metro   = (request.form.get("metro_account_no") or "").strip() or None
@@ -2632,7 +2632,7 @@ def billing_occupants_create():
         return redirect(url_for("admin_bp.billing_occupants_new"))
 
     # simple guard: reject if some tenant already claims that unit
-    exists = db.session.query(BilTenant.id).filter(BilTenant.sectional_unit_id == unit_id).first()
+    exists = db.session.query(BilTenant.id).filter(BilTenant.property_id == unit_id).first()
     if exists:
         flash("That unit is already occupied. Please choose another unit.", "error")
         return redirect(url_for("admin_bp.billing_occupants_new"))
@@ -2640,7 +2640,7 @@ def billing_occupants_create():
     try:
         t = BilTenant(
             name=name,
-            sectional_unit_id=unit_id,
+            property_id=unit_id,
             email=email,
             phone=phone,
             metro_account_no=metro,
@@ -2653,7 +2653,7 @@ def billing_occupants_create():
         if start:
             lease = BilLease(
                 tenant_id=t.id,
-                sectional_unit_id=unit_id,
+                property_id=unit_id,
                 start_date=date.fromisoformat(start),
                 end_date=(date.fromisoformat(end) if end else None),
                 # other BilLease fields only if they exist in your schema:
@@ -2681,12 +2681,12 @@ def billing_occupants_index():
 # NEW (GET+POST)
 @admin_bp.get("/billing/occupants/new", endpoint="billing_occupants_new")
 def billing_occupants_new():
-    units = BilSectionalUnit.query.order_by(BilSectionalUnit.name.asc()).all()
+    units = BilProperty.query.order_by(BilProperty.name.asc()).all()
 
     # mark occupied by existing tenants (simple fallback)
     occupied_ids = {
-        sid for (sid,) in db.session.query(BilTenant.sectional_unit_id)
-        .filter(BilTenant.sectional_unit_id.isnot(None)).all()
+        sid for (sid,) in db.session.query(BilTenant.property_id)
+        .filter(BilTenant.property_id.isnot(None)).all()
     }
 
     return render_template(

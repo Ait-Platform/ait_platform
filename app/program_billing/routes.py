@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 # Models (clean and complete)
 from app.models.billing import (
     BilProperty, BilTenant, BilMeter, BilMeterReading,
-    BilConsumption, BilTariff, BilSectionalUnit, 
+    BilConsumption, BilTariff, BilProperty, 
     BilMeterFixedCharge, PropertyForm
     )
 from flask_login import login_user, logout_user, login_required, current_user
@@ -35,7 +35,7 @@ billing_bp = Blueprint('billing_bp', __name__)
 @billing_bp.route('/billing/checkout/<month>', methods=['GET'])
 @login_required
 def billing_checkout(month):
-    from app.models.billing import BilStatementPayment, BilProperty, BilSectionalUnit, BilMeter, BilPlatformSettings
+    from app.models.billing import BilStatementPayment, BilProperty, BilProperty, BilMeter, BilPlatformSettings
     # Check if already paid
     payment = BilStatementPayment.query.filter_by(manager_id=current_user.id, month=month).first()
     if payment and payment.amount_paid_cents > 0:
@@ -50,10 +50,10 @@ def billing_checkout(month):
         flash("You have no properties to bill.", "warning")
         return redirect(url_for('billing_bp.learner_dashboard'))
         
-    units = BilSectionalUnit.query.filter(BilSectionalUnit.property_id.in_(prop_ids)).all()
-    unit_ids = [u.id for u in units]
+    units = BilProperty.query.filter(BilProperty.property_id.in_(prop_ids)).all()
+    unit_ids = [property.id for u in units]
     
-    meters = BilMeter.query.filter(BilMeter.sectional_unit_id.in_(unit_ids)).all()
+    meters = BilMeter.query.filter(BilMeter.property_id.in_(unit_ids)).all()
     meter_count = len(meters)
     
     settings = BilPlatformSettings.query.first()
@@ -118,7 +118,7 @@ def property_portfolio():
         tenant_id = units[0].tenants[0].id
 
     if request.method == "POST":
-        from app.models.billing import BilProperty, BilSectionalUnit
+        from app.models.billing import BilProperty
         # Create property + unit in one go
         prop = BilProperty(
             name=request.form["property_name"],
@@ -130,7 +130,7 @@ def property_portfolio():
         db.session.add(prop)
         db.session.flush()
 
-        unit = BilSectionalUnit(
+        unit = BilProperty(
             property_id=prop.id,
             unit_number=request.form.get("unit_number", "1")
         )
@@ -165,16 +165,14 @@ def delete_property(property_id):
         
     try:
         # Manually cascade delete to be safe
-        units = BilSectionalUnit.query.filter_by(property_id=prop.id).all()
-        for u in units:
-            meters = BilMeter.query.filter_by(sectional_unit_id=u.id).all()
+        meters = BilMeter.query.filter_by(property_id=prop.id).all()
             for m in meters:
                 BilMeterReading.query.filter_by(meter_id=m.id).delete()
                 BilConsumption.query.filter_by(meter_id=m.id).delete()
                 BilMeterFixedCharge.query.filter_by(meter_id=m.id).delete()
                 db.session.delete(m)
                 
-            tenants = BilTenant.query.filter_by(sectional_unit_id=u.id).all()
+            tenants = BilTenant.query.filter_by(property_id=property.id).all()
             for t in tenants:
                 BilLease.query.filter_by(tenant_id=t.id).delete()
                 # Assuming statements are cascading or don't exist yet
@@ -199,9 +197,7 @@ def view_property(property_id):
     if prop.manager_id != current_user.id and not current_user.has_role('admin'):
         abort(403)
         
-    units = BilSectionalUnit.query.filter_by(property_id=prop.id).all()
-    # Simple rendering, we can pass property and units
-    return render_template("program_billing/view_property.html", property=prop, account_meters=account_meters, units=units)
+    return render_template("program_billing/view_property.html", property=prop, account_meters=account_meters)
 
 @billing_bp.route("/billing/property/<int:property_id>/edit", methods=["GET", "POST"])
 @login_required
@@ -211,12 +207,9 @@ def edit_property(property_id):
         abort(403)
         
     # Get primary unit and tenant if exists
-    units = BilSectionalUnit.query.filter_by(property_id=prop.id).all()
-    unit = units[0] if units else None
-    tenant = None
+    tenant = BilTenant.query.filter_by(property_id=prop.id).first()
     lease = None
-    if unit:
-        tenant = BilTenant.query.filter_by(sectional_unit_id=unit.id).first()
+    if tenant:
         if tenant:
             lease = BilLease.query.filter_by(tenant_id=tenant.id).first()
             
@@ -255,7 +248,7 @@ def edit_property(property_id):
                     m_id = m_data.get("id")
                     if m_id:
                         meter = BilMeter.query.get(m_id)
-                        if meter and meter.sectional_unit_id == unit.id:
+                        if meter and meter.property_id == property.id:
                             meter.meter_number = m_data.get("number", meter.meter_number)
                             meter.pointing_to = m_data.get("pointing_to", meter.pointing_to)
                             meter.utility_type = m_data.get("type", meter.utility_type)
@@ -271,7 +264,7 @@ def edit_property(property_id):
                 deleted_ids = json.loads(deleted_meters_json)
                 for m_id in deleted_ids:
                     meter = BilMeter.query.get(m_id)
-                    if meter and meter.sectional_unit_id == unit.id:
+                    if meter and meter.property_id == property.id:
                         # Optional: also delete linked consumptions if cascade is not set
                         from app.models.billing import BilConsumption
                         
@@ -296,7 +289,7 @@ def edit_property(property_id):
                     number = m_data.get("number")
                     if number:
                         new_meter = BilMeter(
-                            sectional_unit_id=unit.id,
+                            property_id=property.id,
                             meter_number=number,
                             utility_type=m_data.get("type", "water"),
                             pointing_to=m_data.get("pointing_to", "")
@@ -319,12 +312,7 @@ def property_hub(property_id):
     if prop.manager_id != current_user.id and not current_user.has_role('admin'):
         abort(403)
         
-    units = BilSectionalUnit.query.filter_by(property_id=prop.id).all()
-    
-    # Collect all meters attached to any unit in this property
-    all_meters = []
-    for u in units:
-        all_meters.extend(u.meters)
+    all_meters = prop.meters
         
     # Also collect master meters by municipal account numbers
     from app.models.billing import BilMuniAccount, BilMeter
@@ -506,8 +494,8 @@ def delete_consumption(consumption_id):
     
     # Verify ownership
     meter = BilMeter.query.get(cons.meter_id)
-    if meter and meter.sectional_unit and meter.sectional_unit.property_id:
-        prop = BilProperty.query.get(meter.sectional_unit.property_id)
+    if meter and meter.property and meter.property.property_id:
+        prop = BilProperty.query.get(meter.property.property_id)
         if prop.manager_id != current_user.id and not current_user.has_role('admin'):
             abort(403)
             
@@ -551,7 +539,7 @@ def muni_recon_statement():
         LEFT JOIN bil_meter wm ON wm.id = a.water_meter_id
         LEFT JOIN bil_meter em ON em.id = a.elec_meter_id
         JOIN bil_meter m ON (m.id = a.water_meter_id OR m.id = a.elec_meter_id)
-        JOIN bil_sectional_unit u ON u.id = m.sectional_unit_id
+        JOIN bil_property u ON property.id = m.property_id
         JOIN bil_property p ON p.id = u.property_id
         LEFT JOIN ref_muni_owner o ON o.id = a.owner_id
         WHERE p.manager_id = :manager_id
@@ -590,7 +578,7 @@ def muni_recon_statement():
                 FROM bil_tenant_ledger l
                 JOIN bil_tenant t ON t.id = l.tenant_id
                 WHERE l.ref = 'METSOA-AUTO' AND EXISTS (
-                    SELECT 1 FROM bil_meter m WHERE m.sectional_unit_id = t.sectional_unit_id AND m.municipal_bill_number = :acc_num
+                    SELECT 1 FROM bil_meter m WHERE m.property_id = t.property_id AND m.municipal_bill_number = :acc_num
                 )
             ) p
             LEFT JOIN bil_metsoa_cycle mc ON mc.account_id = :acc_id AND mc.period = p.period
@@ -600,7 +588,7 @@ def muni_recon_statement():
                 FROM bil_tenant_ledger l
                 JOIN bil_tenant t ON t.id = l.tenant_id
                 WHERE l.ref = 'METSOA-AUTO' AND EXISTS (
-                    SELECT 1 FROM bil_meter m WHERE m.sectional_unit_id = t.sectional_unit_id AND m.municipal_bill_number = :acc_num
+                    SELECT 1 FROM bil_meter m WHERE m.property_id = t.property_id AND m.municipal_bill_number = :acc_num
                 )
                 GROUP BY l.month
             ) ai ON ai.month = p.period
@@ -621,7 +609,7 @@ def muni_recon_statement():
         prop_sql = """
             SELECT p.metro_rates_amount, p.metro_arrangement_amount
             FROM bil_meter m
-            JOIN bil_sectional_unit u ON u.id = m.sectional_unit_id
+            JOIN bil_property u ON property.id = m.property_id
             JOIN bil_property p ON p.id = u.property_id
             WHERE m.id = :water_id OR m.id = :elec_id
             LIMIT 1
@@ -774,7 +762,7 @@ def muni_recon_edit():
             FROM bil_tenant_ledger l
             JOIN bil_tenant t ON t.id = l.tenant_id
             WHERE l.ref = 'METSOA-AUTO' AND l.month = :month AND EXISTS (
-                SELECT 1 FROM bil_meter m WHERE m.sectional_unit_id = t.sectional_unit_id AND m.municipal_bill_number = :acc_num
+                SELECT 1 FROM bil_meter m WHERE m.property_id = t.property_id AND m.municipal_bill_number = :acc_num
             )
         """
         val = db.session.execute(text(ledger_sql), {"month": month, "acc_num": account_number}).scalar()
@@ -968,7 +956,7 @@ def muni_recon_email_send():
         db.session.add(prop)
         db.session.flush()
 
-        unit = BilSectionalUnit(
+        unit = BilProperty(
             property_id=prop.id,
             unit_number=request.form["unit_number"]
         )
@@ -1503,11 +1491,8 @@ def build_raw_water_row(meter_id, month):
     }]
 
 def get_all_property_meters(property_id):
-    from app.models.billing import BilProperty, BilSectionalUnit, BilMuniAccount, BilMeter
-    units = BilSectionalUnit.query.filter_by(property_id=property_id).all()
-    all_meters = []
-    for u in units:
-        all_meters.extend(u.meters)
+    from app.models.billing import BilProperty, BilMuniAccount, BilMeter
+    all_meters = prop.meters
         
     muni_accounts = BilMuniAccount.query.filter_by(property_id=property_id).all()
     muni_acc_numbers = [acc.account_number for acc in muni_accounts if acc.account_number]
@@ -2422,7 +2407,7 @@ def setup_submit():
         db.session.flush()
         
         # 2. Create Default Unit (Fix duplicate key crash)
-        unit = BilSectionalUnit(
+        unit = BilProperty(
             property_id=prop.id,
             name=f"{prop_name} - Main Unit (Prop {prop.id})"
         )
@@ -2436,7 +2421,7 @@ def setup_submit():
                 name=tenant_name,
                 email=data.get("tenant_email"),
                 email_statements=bool(data.get("email_statements")),
-                sectional_unit_id=unit.id
+                property_id=property.id
             )
             db.session.add(tenant)
             db.session.flush()
@@ -2444,7 +2429,7 @@ def setup_submit():
             rent_amount = data.get("rent_amount")
             lease = BilLease(
                 tenant_id=tenant.id,
-                sectional_unit_id=unit.id,
+                property_id=property.id,
                 rent_amount=float(rent_amount) if rent_amount else 0.0,
                 tenant_arrangement_charge=float(data.get("tenant_arrangement_charge") or 0.0),
                 tenant_rates_charge=float(data.get("tenant_rates_charge") or 0.0),
@@ -2463,7 +2448,7 @@ def setup_submit():
                 meter = BilMeter(
                     meter_number=m_data.get("number"),
                     utility_type=m_data.get("type"),
-                    sectional_unit_id=unit.id,
+                    property_id=property.id,
                     pointing_to=m_data.get("pointing_to"),
                     municipal_bill_number=m_data.get("municipal_bill_number")
                 )
@@ -2483,7 +2468,7 @@ def setup_submit():
                 meter = BilMeter(
                     meter_number=m_data.get("number"),
                     utility_type=m_data.get("type"),
-                    sectional_unit_id=unit.id,
+                    property_id=property.id,
                     parent_meter_id=parent_id,
                     pointing_to=m_data.get("pointing_to"),
                     municipal_bill_number=m_data.get("municipal_bill_number")
@@ -2967,16 +2952,16 @@ def ai_onboarding_process():
         tenant_map = {}
         
         # 2a. Owner Account (Default)
-        owner_unit = BilSectionalUnit(property_id=prop.id, name=f"{prop.name} - Owner/Common")
+        owner_unit = BilProperty(property_id=prop.id, name=f"{prop.name} - Owner/Common")
         db.session.add(owner_unit)
         db.session.flush()
-        unit_map["owner"] = owner_unit.id
+        unit_map["owner"] = owner_property.id
         
-        owner_tenant = BilTenant(name="Owner Account", sectional_unit_id=owner_unit.id)
+        owner_tenant = BilTenant(name="Owner Account", property_id=owner_property.id)
         db.session.add(owner_tenant)
         db.session.flush()
         tenant_map["owner"] = owner_tenant.id
-        db.session.add(BilLease(tenant_id=owner_tenant.id, sectional_unit_id=owner_unit.id, rent_amount=0))
+        db.session.add(BilLease(tenant_id=owner_tenant.id, property_id=owner_property.id, rent_amount=0))
         
         # 2b. Dynamic Tenants
         for t_data in data.get("tenants", []):
@@ -2985,16 +2970,16 @@ def ai_onboarding_process():
             tname = t_data.get("name", "").strip() or f"Statement {tid}"
             rent = float(t_data.get("rent") or 0.0)
             
-            t_unit = BilSectionalUnit(property_id=prop.id, name=f"Unit {tid.upper()}")
+            t_unit = BilProperty(property_id=prop.id, name=f"Unit {tid.upper()}")
             db.session.add(t_unit)
             db.session.flush()
-            unit_map[tid] = t_unit.id
+            unit_map[tid] = t_property.id
             
-            t_tenant = BilTenant(name=tname, sectional_unit_id=t_unit.id)
+            t_tenant = BilTenant(name=tname, property_id=t_property.id)
             db.session.add(t_tenant)
             db.session.flush()
             tenant_map[tid] = t_tenant.id
-            db.session.add(BilLease(tenant_id=t_tenant.id, sectional_unit_id=t_unit.id, rent_amount=rent))
+            db.session.add(BilLease(tenant_id=t_tenant.id, property_id=t_property.id, rent_amount=rent))
             
         # 3. Create Meters and initial readings (baselines)
         month = data.get("month")
@@ -3043,13 +3028,13 @@ def ai_onboarding_process():
         for m_data in data.get("readings", []):
             if m_data.get("is_bulk"):
                 assign_to = m_data.get("assign_to", "owner")
-                u_id = unit_map.get(assign_to, owner_unit.id)
+                u_id = unit_map.get(assign_to, owner_property.id)
                 u_type = (m_data.get("utility_type") or "water").lower()
                 
                 meter = BilMeter(
                     meter_number=m_data.get("meter_number"),
                     utility_type=u_type,
-                    sectional_unit_id=u_id,
+                    property_id=u_id,
                     pointing_to="Entire Property",
                     municipal_bill_number=m_data.get("accountNo")
                 )
@@ -3062,7 +3047,7 @@ def ai_onboarding_process():
         for m_data in data.get("readings", []):
             if not m_data.get("is_bulk"):
                 assign_to = m_data.get("assign_to", "owner")
-                u_id = unit_map.get(assign_to, owner_unit.id)
+                u_id = unit_map.get(assign_to, owner_property.id)
                 u_type = (m_data.get("utility_type") or "water").lower()
                 
                 parent_id = None
@@ -3072,7 +3057,7 @@ def ai_onboarding_process():
                 meter = BilMeter(
                     meter_number=m_data.get("meter_number"),
                     utility_type=u_type,
-                    sectional_unit_id=u_id,
+                    property_id=u_id,
                     parent_meter_id=parent_id,
                     pointing_to=None,
                     municipal_bill_number=m_data.get("accountNo")
@@ -3651,15 +3636,12 @@ def utilities_hub():
 @billing_bp.route("/billing/utilities/<int:property_id>/consumption/<month>")
 @login_required
 def consumption_review(property_id, month):
-    from app.models.billing import BilProperty, BilSectionalUnit, BilMuniAccount, BilMeter, BilConsumption
+    from app.models.billing import BilProperty, BilMuniAccount, BilMeter, BilConsumption
     prop = BilProperty.query.get_or_404(property_id)
     if prop.manager_id != current_user.id and not current_user.has_role('admin'):
         abort(403)
         
-    units = BilSectionalUnit.query.filter_by(property_id=prop.id).all()
-    all_meters = []
-    for u in units:
-        all_meters.extend(u.meters)
+    all_meters = prop.meters
         
     muni_accounts = BilMuniAccount.query.filter_by(property_id=prop.id).all()
     muni_acc_numbers = [acc.account_number for acc in muni_accounts if acc.account_number]
@@ -3744,27 +3726,78 @@ def soa_map_view(property_id, month):
 @billing_bp.route("/billing/soa/tenants/<int:property_id>/<month>", methods=["GET"])
 @login_required
 def soa_tenants_view(property_id, month):
-    from app.models.billing import BilProperty, BilSectionalUnit
+    from app.models.billing import BilProperty
     prop = BilProperty.query.get_or_404(property_id)
     if prop.manager_id != current_user.id and not current_user.has_role('admin'):
         abort(403)
-    units = BilSectionalUnit.query.filter_by(property_id=prop.id).all()
-    tenants = []
-    for u in units:
-        tenants.extend(u.tenants)
+    tenants = prop.tenants
     return render_template("program_billing/soa_tenants.html", property=prop, month=month, tenants=tenants)
+
+@billing_bp.route("/billing/soa/tenants/<int:property_id>/<month>/add", methods=["POST"])
+@login_required
+def soa_add_tenant(property_id, month):
+    from app.models.billing import BilProperty, BilTenant, BilLease
+    prop = BilProperty.query.get_or_404(property_id)
+    if prop.manager_id != current_user.id and not current_user.has_role('admin'):
+        abort(403)
+        
+
+
+    name = request.form.get("name")
+    if not name:
+        flash("Tenant name is required.", "danger")
+        return redirect(url_for("billing_bp.soa_tenants_view", property_id=property_id, month=month))
+        
+    status = request.form.get("status") == "active"
+    date_started_str = request.form.get("date_started")
+    date_terminated_str = request.form.get("date_terminated")
+    
+    date_started = None
+    if date_started_str:
+        try:
+            date_started = datetime.strptime(date_started_str, "%Y-%m-%d").date()
+        except ValueError:
+            pass
+
+    date_terminated = None
+    if date_terminated_str:
+        try:
+            date_terminated = datetime.strptime(date_terminated_str, "%Y-%m-%d").date()
+        except ValueError:
+            pass
+
+    new_tenant = BilTenant(
+        name=name,
+        property_id=property.id,
+        is_active=status,
+        date_started=date_started,
+        date_terminated=date_terminated
+    )
+    db.session.add(new_tenant)
+    db.session.flush()
+
+    # Create a blank lease to ensure the config views work
+    lease = BilLease(
+        tenant_id=new_tenant.id,
+        property_id=property.id,
+        start_date=date_started_str if date_started_str else None,
+        end_date=date_terminated_str if date_terminated_str else None,
+        rent_amount=0.0
+    )
+    db.session.add(lease)
+    
+    db.session.commit()
+    flash(f"Tenant {name} added successfully.", "success")
+    return redirect(url_for("billing_bp.soa_tenants_view", property_id=property_id, month=month))
 
 @billing_bp.route("/billing/soa/generate/<int:property_id>/<month>", methods=["GET"])
 @login_required
 def soa_generate_view(property_id, month):
-    from app.models.billing import BilProperty, BilSectionalUnit
+    from app.models.billing import BilProperty
     prop = BilProperty.query.get_or_404(property_id)
     if prop.manager_id != current_user.id and not current_user.has_role('admin'):
         abort(403)
-    units = BilSectionalUnit.query.filter_by(property_id=prop.id).all()
-    tenants = []
-    for u in units:
-        tenants.extend(u.tenants)
+    tenants = prop.tenants
     return render_template("program_billing/soa_generate.html", property=prop, month=month, tenants=tenants)
 
 
@@ -3821,8 +3854,8 @@ def edit_tenant_soa(tenant_id):
     tenant = BilTenant.query.get_or_404(tenant_id)
     
     # Very basic validation that the user owns the property
-    if tenant.sectional_unit and tenant.sectional_unit.property:
-        if tenant.sectional_unit.property.manager_id != current_user.id and not current_user.has_role('admin'):
+    if tenant.property and tenant.property.property:
+        if tenant.property.property.manager_id != current_user.id and not current_user.has_role('admin'):
             abort(403)
             
     if request.method == "POST":
@@ -3863,9 +3896,9 @@ def email_soa(tenant_id, month):
     if not email:
         return {"success": False, "error": "Email address is required"}, 400
         
-    prop = tenant.sectional_unit.property
+    prop = tenant.property.property
     
-    tenant_meter_ids = [m.id for m in tenant.sectional_unit.meters]
+    tenant_meter_ids = [m.id for m in tenant.property.meters]
     
     elec_rows, elec_total = build_electrical_rows(prop.id, month, filter_meter_ids=tenant_meter_ids)
     water_meters, water_total = build_water_rows(prop.id, month, filter_meter_ids=tenant_meter_ids)
@@ -3973,9 +4006,9 @@ def generate_soa(tenant_id):
         flash("Month is required.", "danger")
         return redirect(url_for("billing_bp.soa_dashboard"))
         
-    prop = tenant.sectional_unit.property
+    prop = tenant.property.property
     
-    tenant_meter_ids = [m.id for m in tenant.sectional_unit.meters]
+    tenant_meter_ids = [m.id for m in tenant.property.meters]
     
     elec_rows, elec_total = build_electrical_rows(prop.id, month, filter_meter_ids=tenant_meter_ids)
     water_meters, water_total = build_water_rows(prop.id, month, filter_meter_ids=tenant_meter_ids)
@@ -4060,7 +4093,7 @@ def generate_soa(tenant_id):
 @billing_bp.route("/billing/utilities/<int:property_id>/consumption/<month>/email", methods=["POST"])
 @login_required
 def email_consumption(property_id, month):
-    from app.models.billing import BilProperty, BilSectionalUnit, BilMuniAccount, BilMeter, BilConsumption
+    from app.models.billing import BilProperty, BilMuniAccount, BilMeter, BilConsumption
     from app.utils.mailer import send_pdf_email
     from app.utils.pdf_render import html_to_pdf_bytes
     from flask import request, current_app, render_template
@@ -4075,10 +4108,7 @@ def email_consumption(property_id, month):
     if prop.manager_id != current_user.id and not current_user.has_role('admin'):
         return {"success": False, "error": "Unauthorized"}, 403
         
-    units = BilSectionalUnit.query.filter_by(property_id=prop.id).all()
-    all_meters = []
-    for u in units:
-        all_meters.extend(u.meters)
+    all_meters = prop.meters
         
     muni_accounts = BilMuniAccount.query.filter_by(property_id=prop.id).all()
     muni_acc_numbers = [acc.account_number for acc in muni_accounts if acc.account_number]

@@ -135,12 +135,12 @@ def start():
     yoco_mode = val if val else 'sandbox'
     
     if yoco_mode == 'live':
-        SECRET_KEY = os.environ.get("YOCO_LIVE_SECRET_KEY")
+        SECRET_KEY = (os.environ.get("YOCO_LIVE_SECRET_KEY") or "").strip()
         if not SECRET_KEY:
             current_app.logger.warning(f"Subject {subject} is set to LIVE Yoco mode but YOCO_LIVE_SECRET_KEY is missing! Falling back to sandbox.")
-            SECRET_KEY = os.environ.get("YOCO_SECRET_KEY", "sk_test_960bfde0VBrLlpK098e4ffeb53e1")
+            SECRET_KEY = (os.environ.get("YOCO_SECRET_KEY") or "sk_test_960bfde0VBrLlpK098e4ffeb53e1").strip()
     else:
-        SECRET_KEY = os.environ.get("YOCO_SECRET_KEY", "sk_test_960bfde0VBrLlpK098e4ffeb53e1")
+        SECRET_KEY = (os.environ.get("YOCO_SECRET_KEY") or "sk_test_960bfde0VBrLlpK098e4ffeb53e1").strip()
     
     success_url = url_for("yoco_bp.yoco_success", subject=subject, email=email, _external=True)
     cancel_url = url_for("yoco_bp.yoco_cancel", subject=subject, email=email, _external=True)
@@ -185,7 +185,11 @@ def start():
                 return redirect(url_for("public_bp.welcome"))
         else:
             try:
-                err_msg = response.json().get("message", "Unknown error occurred.")
+                err_data = response.json()
+                err_msg = err_data.get("message") or err_data.get("description") or err_data.get("error")
+                if not err_msg:
+                    import json
+                    err_msg = f"Unknown error occurred. Details: {json.dumps(err_data)}"
             except Exception:
                 err_msg = response.text
             current_app.logger.error(f"Yoco API Error: {response.status_code} - {err_msg}")

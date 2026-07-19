@@ -230,7 +230,7 @@ def _get_consumption_rows(property_id, month_str):
         c.consumption                      AS consumption
       FROM bil_consumption c
       JOIN bil_meter m ON m.id = c.meter_id
-      JOIN bil_sectional_unit su ON su.id = m.sectional_unit_id
+      JOIN bil_property su ON sproperty.id = m.property_id
       WHERE su.property_id = :pid AND c.month = :m
       ORDER BY CASE WHEN LOWER(m.utility_type) LIKE 'elec%%' THEN 0 ELSE 1 END,
                m.meter_number

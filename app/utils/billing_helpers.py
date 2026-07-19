@@ -490,7 +490,7 @@ def get_metsoa_consumption_split(tenant_id, month_str):
         return [], []
 
     # All meters for the tenant's sectional unit -> map number -> type
-    meters = BilMeter.query.filter_by(sectional_unit_id=tenant.sectional_unit_id).all()
+    meters = BilMeter.query.filter_by(property_id=tenant.property_id).all()
     meter_nums = [m.meter_number for m in meters]
     type_map = {m.meter_number: (m.utility_type or "").strip().lower() for m in meters}
 
@@ -573,7 +573,7 @@ def build_page1_from_consumption(tenant_id: int, month_str: str):
         return [], 0.0, [], 0.0
 
     # 1) Get this tenant's meters and a type map (by meter_number).
-    meters = BilMeter.query.filter_by(sectional_unit_id=tenant.sectional_unit_id).all()
+    meters = BilMeter.query.filter_by(property_id=tenant.property_id).all()
     meter_nums = [m.meter_number for m in meters]
     type_map = {m.meter_number: (m.utility_type or "").strip().lower() for m in meters}
     if not meter_nums:
@@ -674,7 +674,7 @@ def build_page1_from_consumption(tenant_id: int, month_str: str):
 # Assumptions:
 # - bil_consumption has integer consumption (no decimals).
 # - bil_tariff holds electricity flat rate and tiered water/sanitation + fixed items.
-# - BilTenant.sectional_unit_id -> BilMeter.sectional_unit_id maps tenant to meters.
+# - BilTenant.property_id -> BilMeter.property_id maps tenant to meters.
 # - BilMeter.utility_type in {"electricity","water"} (sanitation/refuse are tariffs only).
 #
 # Returned row shapes for Page 1:
@@ -822,7 +822,7 @@ def build_metsoa_page2_breakdown(tenant_id, month_str):
 
     meters = (
         db.session.query(BilMeter)
-        .filter(BilMeter.sectional_unit_id == tenant.sectional_unit_id)
+        .filter(BilMeter.property_id == tenant.property_id)
         .filter(BilMeter.utility_type == "water")
         .order_by(BilMeter.id.asc())
         .all()
@@ -1007,9 +1007,9 @@ def _get_tenant_and_meters(db, BilTenant, BilMeter, tenant_id):
     tenant = db.session.get(BilTenant, tenant_id)
     if not tenant:
         return None, []
-    unit_id = tenant.sectional_unit_id
+    unit_id = tenant.property_id
     meters = (db.session.query(BilMeter)
-              .filter(BilMeter.sectional_unit_id == unit_id)
+              .filter(BilMeter.property_id == unit_id)
               .order_by(BilMeter.utility_type.asc(), BilMeter.meter_number.asc())
               .all())
     return tenant, meters

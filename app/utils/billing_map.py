@@ -315,7 +315,7 @@ def build_metsoa_rows(tenant_id, month_str):
             })
         return extras
 
-    # ---- load tenant’s consumption (no c.tenant_id in table; join via sectional_unit) ----
+    # ---- load tenant’s consumption (no c.tenant_id in table; join via property) ----
     rows = db.session.execute(text("""
         SELECT
           c.meter_id,
@@ -329,8 +329,8 @@ def build_metsoa_rows(tenant_id, month_str):
           c.consumption      AS consumption
         FROM bil_consumption c
         JOIN bil_meter m           ON m.id = c.meter_id
-        JOIN bil_sectional_unit su ON su.id = m.sectional_unit_id
-        JOIN bil_tenant t          ON t.sectional_unit_id = su.id
+        JOIN bil_property su ON sproperty.id = m.property_id
+        JOIN bil_tenant t          ON t.property_id = sproperty.id
         WHERE t.id = :tid
           AND c.month = :month
         ORDER BY CASE WHEN lower(m.utility_type)='electricity' THEN 0 ELSE 1 END,

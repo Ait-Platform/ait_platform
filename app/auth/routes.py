@@ -427,9 +427,9 @@ def register_decision():
     enrollment_id = _ensure_enrollment_row(user_id=user_id, subject_slug=subject)
 
     # ---------- SPECIAL CASE: FREE SUBJECTS OR VOUCHER ----------
-    if subject in ("billing", "metro_billing") or (subject in ("cultural_fire", "culturalfire", "tpx") and (ctx.get("voucher") or session.get("pending_voucher"))):
+    voucher = request.values.get("voucher") or ctx.get("voucher") or session.pop("pending_voucher", None)
+    if subject in ("billing", "metro_billing") or (subject in ("cultural_fire", "culturalfire", "tpx") and voucher):
         # Check for voucher bypass
-        voucher = ctx.get("voucher") or session.pop("pending_voucher", None)
         if voucher:
             from app.models.payment import VoucherToken
             v_obj = VoucherToken.query.filter_by(code=voucher, is_used=False).first()

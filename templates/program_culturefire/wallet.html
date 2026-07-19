@@ -41,12 +41,14 @@
           <form action="{{ url_for('cultural_bp.wallet_topup') }}" method="POST" class="mt-4 flex gap-3">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="flex-1">
-              <select name="amount" required class="w-full border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500 text-sm py-2 px-3 shadow-sm font-semibold">
+              <select name="package_id" required class="w-full border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500 text-sm py-2 px-3 shadow-sm font-semibold">
                 <option value="">-- Choose Token Package --</option>
-                <option value="100">200 Tokens (~{{ local_currency }} {{ "%.2f"|format(100 / fx_to_zar) }})</option>
-                <option value="200">400 Tokens (~{{ local_currency }} {{ "%.2f"|format(200 / fx_to_zar) }})</option>
-                <option value="300">600 Tokens (~{{ local_currency }} {{ "%.2f"|format(300 / fx_to_zar) }})</option>
-                <option value="500">1000 Tokens (~{{ local_currency }} {{ "%.2f"|format(500 / fx_to_zar) }})</option>
+                {% for pkg in packages %}
+                  <option value="{{ pkg.id }}">
+                    {{ pkg.tokens }} Tokens for {{ local_currency }} {{ pkg.local_amt }} 
+                    {% if pkg.zar_cents == 1000 and pkg.local_amt > 100 %} (Minimum package due to exchange rate){% endif %}
+                  </option>
+                {% endfor %}
               </select>
             </div>
             <button type="submit" class="bg-orange-600 text-white px-5 py-2 rounded font-bold shadow hover:bg-orange-700 transition whitespace-nowrap">

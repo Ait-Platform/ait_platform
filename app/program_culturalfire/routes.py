@@ -2516,21 +2516,57 @@ def wallet_dashboard():
     ccy = RefCountryCurrency.query.filter_by(alpha2=user_country).first()
     local_currency = ccy.currency if ccy else "ZAR"
     fx_to_zar = ccy.fx_to_zar if ccy and ccy.fx_to_zar else 1.0
-    
-    return render_template("program_culturefire/wallet.html", wallet=wallet, transactions=transactions, award=award, local_currency=local_currency, fx_to_zar=fx_to_zar)
+
+    # Generate dynamic token packages based on LOCAL currency (100 local = 200 tokens)
+    base_local_amounts = [100, 200, 300, 500]
+    packages = []
+    has_minimum = False
+
+    for local_amt in base_local_amounts:
+        tokens = local_amt * 2
+        zar_cents = int(local_amt * fx_to_zar * 100)
+
+        if zar_cents < 1000:
+            if not has_minimum:
+                min_local_amt = int(1000 / (fx_to_zar * 100))
+                packages.append({
+                    'id': f"1000_{min_local_amt*2}",
+                    'tokens': min_local_amt * 2,
+                    'local_amt': min_local_amt,
+                    'zar_cents': 1000
+                })
+                has_minimum = True
+        else:
+            packages.append({
+                'id': f"{zar_cents}_{tokens}",
+                'tokens': tokens,
+                'local_amt': local_amt,
+                'zar_cents': zar_cents
+            })
+
+    return render_template("program_culturefire/wallet.html", wallet=wallet, transactions=transactions, award=award, local_currency=local_currency, fx_to_zar=fx_to_zar, packages=packages)
 
 @cultural_bp.route("/wallet/topup", methods=["POST"])
 @login_required
 def wallet_topup():
-    amount = request.form.get("amount", type=int)
-    if not amount or amount < 100:
-        flash("Minimum top-up amount is 100 ZAR.", "danger")
+    package_id = request.form.get("package_id")
+    if not package_id:
+        flash("Please select a token package.", "danger")
         return redirect(url_for("cultural_bp.wallet_dashboard"))
         
-    zar_cents = amount * 100
+    try:
+        zar_cents_str, tokens_str = package_id.split('_')
+        zar_cents = int(zar_cents_str)
+        tokens = int(tokens_str)
+    except ValueError:
+        flash("Invalid token package selected.", "danger")
+        return redirect(url_for("cultural_bp.wallet_dashboard"))
+
+    if zar_cents < 1000:
+        flash("Minimum payment amount is 10 ZAR.", "danger")
+        return redirect(url_for("cultural_bp.wallet_dashboard"))
     
-    # 200% parity: 100 ZAR = 200 Tokens
-    session["topup_tokens"] = amount * 2
+    session["topup_tokens"] = tokens
     session["zar_amount_cents"] = zar_cents
     session["subject_slug"] = "cultural_fire_topup"
     session["just_paid_subject_id"] = None

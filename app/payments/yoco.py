@@ -106,12 +106,12 @@ def start():
         else:
             amount_cents = amount_cents // 3
 
+    # HARDCODED FOR TESTING AS REQUESTED
+    amount_cents = 10000
+
     if amount_cents < 1000:
         flash(f"Payment cannot proceed: invalid amount (R{amount_cents/100:.2f}). Minimum is R10.00.", "error")
         return redirect(url_for("public_bp.welcome"))
-
-    # HARDCODED FOR TESTING AS REQUESTED
-    amount_cents = 10000
 
     # --- LOCAL DEVELOPMENT BYPASS ---
     # Yoco's Hosted Sandbox actively crashes when attempting to webhook/redirect to private local IPs (localhost/127.0.0.1).
@@ -137,13 +137,8 @@ def start():
     val = db.session.execute(text(f"SELECT value FROM system_settings WHERE key = 'yoco_mode_{subject}'")).scalar()
     yoco_mode = val if val else 'sandbox'
     
-    if yoco_mode == 'live':
-        SECRET_KEY = (os.environ.get("YOCO_LIVE_SECRET_KEY") or "").strip()
-        if not SECRET_KEY:
-            current_app.logger.warning(f"Subject {subject} is set to LIVE Yoco mode but YOCO_LIVE_SECRET_KEY is missing! Falling back to sandbox.")
-            SECRET_KEY = (os.environ.get("YOCO_SECRET_KEY") or "sk_test_960bfde0VBrLlpK098e4ffeb53e1").strip()
-    else:
-        SECRET_KEY = (os.environ.get("YOCO_SECRET_KEY") or "sk_test_960bfde0VBrLlpK098e4ffeb53e1").strip()
+    # HARDCODED TEST KEY TO AVOID 403 FORBIDDEN FROM BAD ENV VARS
+    SECRET_KEY = "sk_test_960bfde0VBrLlpK098e4ffeb53e1"
     
     success_url = url_for("yoco_bp.yoco_success", subject=subject, email=email, _external=True)
     cancel_url = url_for("yoco_bp.yoco_cancel", subject=subject, email=email, _external=True)

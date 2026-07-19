@@ -106,8 +106,14 @@
       <div class="p-6 flex flex-col justify-between flex-1">
         <div>
           <div class="flex items-center justify-between">
-            <h2 class="text-lg font-semibold text-slate-800">Checkout</h2>
-            <div class="text-base text-slate-800 font-medium">{{ subject_slug|capitalize }}</div>
+            <div>
+              <h2 class="text-lg font-semibold text-slate-800 inline-block">Checkout</h2>
+              <span class="text-base text-slate-500 font-medium ml-2">{{ subject_slug|capitalize }}</span>
+            </div>
+            <a href="javascript:history.back()" class="text-sm text-gray-500 hover:text-gray-800 flex items-center gap-1 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-md transition">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+              Back
+            </a>
           </div>
 
           <div class="mt-5">
@@ -136,11 +142,7 @@
         {% set can_act = has_quote and price.price_id %}
         {% set reg_next = url_for('auth_bp.bridge_dashboard') %}
 
-        <div class="mt-6 flex items-center justify-between gap-3">
-          <a href="javascript:history.back()"
-             class="rounded-lg border px-4 py-2 text-base font-medium hover:bg-slate-100">
-            ← Back
-          </a>
+        <div class="mt-6 flex items-center justify-end gap-3">
 
           {% if trial_allowed %}
             {% if can_act %}

@@ -166,19 +166,19 @@ def delete_property(property_id):
     try:
         # Manually cascade delete to be safe
         meters = BilMeter.query.filter_by(property_id=prop.id).all()
-            for m in meters:
-                BilMeterReading.query.filter_by(meter_id=m.id).delete()
-                BilConsumption.query.filter_by(meter_id=m.id).delete()
-                BilMeterFixedCharge.query.filter_by(meter_id=m.id).delete()
-                db.session.delete(m)
+        for m in meters:
+            BilMeterReading.query.filter_by(meter_id=m.id).delete()
+            BilConsumption.query.filter_by(meter_id=m.id).delete()
+            BilMeterFixedCharge.query.filter_by(meter_id=m.id).delete()
+            db.session.delete(m)
                 
-            tenants = BilTenant.query.filter_by(property_id=property.id).all()
-            for t in tenants:
-                BilLease.query.filter_by(tenant_id=t.id).delete()
+        tenants = BilTenant.query.filter_by(property_id=prop.id).all()
+        for t in tenants:
+            BilLease.query.filter_by(tenant_id=t.id).delete()
                 # Assuming statements are cascading or don't exist yet
-                db.session.delete(t)
+            db.session.delete(t)
                 
-            db.session.delete(u)
+
             
         BilPayment.query.filter_by(property_id=prop.id).delete()
         db.session.delete(prop)

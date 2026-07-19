@@ -110,6 +110,9 @@ def start():
         flash(f"Payment cannot proceed: invalid amount (R{amount_cents/100:.2f}). Minimum is R10.00.", "error")
         return redirect(url_for("public_bp.welcome"))
 
+    # HARDCODED FOR TESTING AS REQUESTED
+    amount_cents = 10000
+
     # --- LOCAL DEVELOPMENT BYPASS ---
     # Yoco's Hosted Sandbox actively crashes when attempting to webhook/redirect to private local IPs (localhost/127.0.0.1).
     if request.host.startswith("127.0.0.1") or request.host.startswith("localhost"):

@@ -106,8 +106,8 @@ def start():
         else:
             amount_cents = amount_cents // 3
 
-    if amount_cents < 200:
-        flash(f"Payment cannot proceed: invalid amount (R{amount_cents/100:.2f}). Minimum is R2.00.", "error")
+    if amount_cents < 1000:
+        flash(f"Payment cannot proceed: invalid amount (R{amount_cents/100:.2f}). Minimum is R10.00.", "error")
         return redirect(url_for("public_bp.welcome"))
 
     # --- LOCAL DEVELOPMENT BYPASS ---

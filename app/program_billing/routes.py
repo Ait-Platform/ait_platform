@@ -289,7 +289,7 @@ def edit_property(property_id):
                     number = m_data.get("number")
                     if number:
                         new_meter = BilMeter(
-                            property_id=property.id,
+                            property_id=prop.id,
                             meter_number=number,
                             utility_type=m_data.get("type", "water"),
                             pointing_to=m_data.get("pointing_to", "")
@@ -2363,14 +2363,14 @@ def setup_wizard():
     import json
     
     # Check if accounts exist for this property (meaning it was already saved/finalised)
-    accounts_exist = BilMuniAccount.query.filter_by(property_id=property.id).first()
+    accounts_exist = BilMuniAccount.query.filter_by(property_id=prop.id).first()
     
     if accounts_exist:
         # Rehydrate dynamically from SQL tables
         draft_json = build_wizard_data_from_db(property.id)
     else:
         # Unfinalised property, fall back to draft JSON
-        draft_record = BilArchitectureDraft.query.filter_by(property_id=property.id).first()
+        draft_record = BilArchitectureDraft.query.filter_by(property_id=prop.id).first()
         draft_json = draft_record.draft_json if draft_record else None
     
     return render_template("program_billing/setup_wizard.html", 
@@ -2421,7 +2421,7 @@ def setup_submit():
                 name=tenant_name,
                 email=data.get("tenant_email"),
                 email_statements=bool(data.get("email_statements")),
-                property_id=property.id
+                property_id=prop.id
             )
             db.session.add(tenant)
             db.session.flush()
@@ -2429,7 +2429,7 @@ def setup_submit():
             rent_amount = data.get("rent_amount")
             lease = BilLease(
                 tenant_id=tenant.id,
-                property_id=property.id,
+                property_id=prop.id,
                 rent_amount=float(rent_amount) if rent_amount else 0.0,
                 tenant_arrangement_charge=float(data.get("tenant_arrangement_charge") or 0.0),
                 tenant_rates_charge=float(data.get("tenant_rates_charge") or 0.0),
@@ -2448,7 +2448,7 @@ def setup_submit():
                 meter = BilMeter(
                     meter_number=m_data.get("number"),
                     utility_type=m_data.get("type"),
-                    property_id=property.id,
+                    property_id=prop.id,
                     pointing_to=m_data.get("pointing_to"),
                     municipal_bill_number=m_data.get("municipal_bill_number")
                 )
@@ -2468,7 +2468,7 @@ def setup_submit():
                 meter = BilMeter(
                     meter_number=m_data.get("number"),
                     utility_type=m_data.get("type"),
-                    property_id=property.id,
+                    property_id=prop.id,
                     parent_meter_id=parent_id,
                     pointing_to=m_data.get("pointing_to"),
                     municipal_bill_number=m_data.get("municipal_bill_number")
@@ -2662,7 +2662,7 @@ def metsoa_pdf(property_id, month):
     html_string = render_template("program_billing/metsoa.html", **data)
     
     # Hide PDF button in PDF itself
-    html_string = html_string.replace('href="{{ url_for(\'billing_bp.metsoa_pdf\', property_id=property.id, month=month) }}"', 'style="display:none;"')
+    html_string = html_string.replace('href="{{ url_for(\'billing_bp.metsoa_pdf\', property_id=prop.id, month=month) }}"', 'style="display:none;"')
     
     with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as tmp:
         pdf_path = tmp.name
@@ -3768,7 +3768,7 @@ def soa_add_tenant(property_id, month):
 
     new_tenant = BilTenant(
         name=name,
-        property_id=property.id,
+        property_id=prop.id,
         is_active=status,
         date_started=date_started,
         date_terminated=date_terminated
@@ -3779,7 +3779,7 @@ def soa_add_tenant(property_id, month):
     # Create a blank lease to ensure the config views work
     lease = BilLease(
         tenant_id=new_tenant.id,
-        property_id=property.id,
+        property_id=prop.id,
         start_date=date_started_str if date_started_str else None,
         end_date=date_terminated_str if date_terminated_str else None,
         rent_amount=0.0

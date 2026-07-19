@@ -1,7 +1,7 @@
 from flask import Blueprint, redirect, render_template, url_for, request, flash
 from flask_login import login_required, current_user
 from app.extensions import db
-from app.models.tpx import TPXCandidate
+from app.models.tpx import TPXPassport, TPXEmployment, TPXQualification, TPXSkill
 from .forms import CandidateProfileForm, WorkExperienceForm, EducationForm, SkillForm
 
 tpx_bp = Blueprint(
@@ -56,46 +56,46 @@ def quote():
 @tpx_bp.route("/dashboard")
 @login_required
 def dashboard():
-    candidate = TPXCandidate.query.filter_by(user_id=current_user.id).first()
-    return render_template("program_tpx/dashboard.html", candidate=candidate)
+    passport = TPXPassport.query.filter_by(user_id=current_user.id).first()
+    return render_template("program_tpx/dashboard.html", passport=candidate)
 
 @tpx_bp.route("/profile", methods=["GET", "POST"])
 @login_required
 def profile():
-    candidate = TPXCandidate.query.filter_by(user_id=current_user.id).first()
+    passport = TPXPassport.query.filter_by(user_id=current_user.id).first()
     form = CandidateProfileForm(obj=candidate)
     
     if form.validate_on_submit():
-        if not candidate:
-            candidate = TPXCandidate(user_id=current_user.id)
+        if not passport:
+            passport = TPXPassport(user_id=current_user.id)
             db.session.add(candidate)
         
-        candidate.first_name = form.first_name.data
-        candidate.last_name = form.last_name.data
-        candidate.headline = form.headline.data
-        candidate.summary = form.summary.data
+        passport.first_name = form.first_name.data
+        passport.last_name = form.last_name.data
+        passport.headline = form.headline.data
+        passport.summary = form.summary.data
         
         db.session.commit()
         flash("Profile updated successfully!", "success")
         return redirect(url_for("tpx_bp.dashboard"))
         
-    return render_template("program_tpx/profile.html", form=form, candidate=candidate)
+    return render_template("program_tpx/profile.html", form=form, passport=candidate)
 
 
-from app.models.tpx import TPXWorkExperience, TPXEducation, TPXSkill
+from app.models.tpx import TPXEmployment, TPXQualification, TPXSkill
 
 @tpx_bp.route("/work-experience", methods=["GET", "POST"])
 @login_required
 def work_experience():
-    candidate = TPXCandidate.query.filter_by(user_id=current_user.id).first()
-    if not candidate:
+    passport = TPXPassport.query.filter_by(user_id=current_user.id).first()
+    if not passport:
         flash("Please complete your profile first.", "warning")
         return redirect(url_for("tpx_bp.profile"))
         
     form = WorkExperienceForm()
     if form.validate_on_submit():
-        exp = TPXWorkExperience(
-            candidate_id=candidate.id,
+        exp = TPXEmployment(
+            passport_id=passport.id,
             job_title=form.job_title.data,
             company=form.company.data,
             location=form.location.data,
@@ -108,21 +108,21 @@ def work_experience():
         flash("Work experience added!", "success")
         return redirect(url_for("tpx_bp.work_experience"))
         
-    experiences = TPXWorkExperience.query.filter_by(candidate_id=candidate.id).order_by(TPXWorkExperience.created_at.desc()).all()
+    experiences = TPXEmployment.query.filter_by(passport_id=passport.id).order_by(TPXEmployment.created_at.desc()).all()
     return render_template("program_tpx/work_experience.html", form=form, experiences=experiences)
 
 @tpx_bp.route("/education", methods=["GET", "POST"])
 @login_required
 def education():
-    candidate = TPXCandidate.query.filter_by(user_id=current_user.id).first()
-    if not candidate:
+    passport = TPXPassport.query.filter_by(user_id=current_user.id).first()
+    if not passport:
         flash("Please complete your profile first.", "warning")
         return redirect(url_for("tpx_bp.profile"))
         
     form = EducationForm()
     if form.validate_on_submit():
-        edu = TPXEducation(
-            candidate_id=candidate.id,
+        edu = TPXQualification(
+            passport_id=passport.id,
             degree=form.degree.data,
             institution=form.institution.data,
             graduation_year=form.graduation_year.data
@@ -132,21 +132,21 @@ def education():
         flash("Education added!", "success")
         return redirect(url_for("tpx_bp.education"))
         
-    educations = TPXEducation.query.filter_by(candidate_id=candidate.id).order_by(TPXEducation.created_at.desc()).all()
+    educations = TPXQualification.query.filter_by(passport_id=passport.id).order_by(TPXQualification.created_at.desc()).all()
     return render_template("program_tpx/education.html", form=form, educations=educations)
 
 @tpx_bp.route("/skills", methods=["GET", "POST"])
 @login_required
 def skills():
-    candidate = TPXCandidate.query.filter_by(user_id=current_user.id).first()
-    if not candidate:
+    passport = TPXPassport.query.filter_by(user_id=current_user.id).first()
+    if not passport:
         flash("Please complete your profile first.", "warning")
         return redirect(url_for("tpx_bp.profile"))
         
     form = SkillForm()
     if form.validate_on_submit():
         skill = TPXSkill(
-            candidate_id=candidate.id,
+            passport_id=passport.id,
             skill_name=form.skill_name.data
         )
         db.session.add(skill)
@@ -154,5 +154,5 @@ def skills():
         flash("Skill added!", "success")
         return redirect(url_for("tpx_bp.skills"))
         
-    skills = TPXSkill.query.filter_by(candidate_id=candidate.id).all()
+    skills = TPXSkill.query.filter_by(passport_id=passport.id).all()
     return render_template("program_tpx/skills.html", form=form, skills=skills)

@@ -428,6 +428,8 @@ def register_decision():
 
     # ---------- SPECIAL CASE: FREE SUBJECTS OR VOUCHER ----------
     voucher = request.values.get("voucher") or ctx.get("voucher") or session.pop("pending_voucher", None)
+    if voucher:
+        voucher = voucher.strip()
     if subject in ("billing", "metro_billing") or (subject in ("cultural_fire", "culturalfire", "tpx") and voucher):
         # Check for voucher bypass
         if voucher:

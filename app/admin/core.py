@@ -11,7 +11,13 @@ import base64
 import json
 import glob
 import re
-import google.generativeai as genai
+# import google.generativeai as genai
+# Note: google.generativeai is deprecated. Since this is admin/core.py, 
+# we'll just catch the import or suppress the warning if it's unused.
+try:
+    import google.genai as genai
+except ImportError:
+    pass
 from sqlalchemy import text
 from flask import (
     render_template,

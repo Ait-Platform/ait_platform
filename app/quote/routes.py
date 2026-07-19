@@ -140,23 +140,28 @@ def quote():
         # Auto-generate parity price if missing
         if not row:
             za_price = SubjectCountryPrice.query.filter_by(subject_id=subject.id, country_code='ZA').first()
-            if za_price:
-                from app.payments.pricing import fx_rate_local_to_zar
-                c_ref = RefCountryCurrency.query.filter_by(alpha2=country_code).first()
-                if c_ref:
-                    fx = fx_rate_local_to_zar(country_code)
-                    local_cents = int(za_price.zar_amount_cents * fx) if fx else za_price.zar_amount_cents
-                    local_currency = c_ref.currency if fx else "ZAR"
-                    row = SubjectCountryPrice(
-                        subject_id=subject.id,
-                        country_code=country_code,
-                        local_amount_cents=local_cents,
-                        zar_amount_cents=za_price.zar_amount_cents,
-                        local_currency=local_currency,
-                        is_active=True
-                    )
-                    db.session.add(row)
-                    db.session.commit()
+            base_zar_cents = za_price.zar_amount_cents if za_price else {
+                'cultural_fire': 2000,
+                'hds': 25000,
+                'tpx': 10000
+            }.get(subject.slug, 5000)
+            
+            from app.payments.pricing import fx_rate_local_to_zar
+            c_ref = RefCountryCurrency.query.filter_by(alpha2=country_code).first()
+            if c_ref:
+                fx = fx_rate_local_to_zar(country_code)
+                local_cents = int(base_zar_cents * fx) if fx else base_zar_cents
+                local_currency = c_ref.currency if fx else "ZAR"
+                row = SubjectCountryPrice(
+                    subject_id=subject.id,
+                    country_code=country_code,
+                    local_amount_cents=local_cents,
+                    zar_amount_cents=base_zar_cents,
+                    local_currency=local_currency,
+                    is_active=True
+                )
+                db.session.add(row)
+                db.session.commit()
 
         if row:
             price_ctx.update({

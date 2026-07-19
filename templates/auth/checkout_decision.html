@@ -1,0 +1,33 @@
+{% extends "layout.html" %}
+
+{% block title %}Complete Registration{% endblock %}
+
+{% block content %}
+<div class="container mx-auto py-10 max-w-lg">
+  <div class="bg-white shadow-lg rounded p-8 border border-slate-200">
+    <h1 class="text-2xl font-bold mb-4">Complete Registration</h1>
+    <p class="mb-6 text-gray-700">You are completing registration for <strong>{{ subject }}</strong>. Please choose how you would like to proceed.</p>
+
+    <div class="mb-8">
+      <a href="{{ url_for('yoco_bp.yoco_start', email=email, subject=subject, debug=0) }}" class="block w-full bg-blue-600 hover:bg-blue-700 text-white text-center font-bold py-3 px-4 rounded shadow transition">
+        Continue to Yoco Payment
+      </a>
+    </div>
+
+    <div class="relative flex py-5 items-center">
+        <div class="flex-grow border-t border-gray-300"></div>
+        <span class="flex-shrink-0 mx-4 text-gray-400">OR</span>
+        <div class="flex-grow border-t border-gray-300"></div>
+    </div>
+
+    <h2 class="text-lg font-bold mb-4">Have a Voucher?</h2>
+    <form method="GET" action="{{ url_for('auth_bp.register_decision') }}">
+      <input type="hidden" name="subject" value="{{ subject }}">
+      <div class="flex gap-2">
+        <input type="text" name="voucher" placeholder="Enter voucher code" class="flex-grow border border-gray-300 rounded px-4 py-2 focus:ring-blue-500 focus:border-blue-500" required>
+        <button type="submit" class="bg-slate-800 hover:bg-slate-900 text-white font-bold py-2 px-6 rounded shadow transition">Apply</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -798,17 +798,8 @@ def register_decision():
 
 
 
-    # If they reach here, there is NO free access and NO trial, so we MUST send them to Yoco for payment
-    return redirect(
-        url_for(
-            "yoco_bp.yoco_start",
-            
-            email=user_email,
-            subject=subject,
-            debug=0,
-        )
-    )
-
+    # If they reach here, there is NO free access and NO trial, so we prompt them to pay or enter a voucher
+    return render_template("auth/checkout_decision.html", email=user_email, subject=subject)
 
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login():

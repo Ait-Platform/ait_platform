@@ -57,7 +57,7 @@ def quote():
 @login_required
 def dashboard():
     passport = TPXPassport.query.filter_by(user_id=current_user.id).first()
-    return render_template("program_tpx/dashboard.html", passport=candidate)
+    return render_template("program_tpx/dashboard.html", passport=passport)
 
 @tpx_bp.route("/profile", methods=["GET", "POST"])
 @login_required

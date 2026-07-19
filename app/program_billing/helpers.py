@@ -1,6 +1,6 @@
 from flask_login import current_user
 from app.extensions import db
-from app.models.billing import BilProperty, BilProperty
+from app.models.billing import BilProperty
 
 def get_dashboard_data(show_hidden=False):
     """
@@ -14,21 +14,18 @@ def get_dashboard_data(show_hidden=False):
     data = []
     
     for p in props:
-        unit = BilProperty.query.filter_by(property_id=p.id).first()
-        
         tenant_name = None
         tenant_id = None
         meter_summary = None
         utility_summary = None
         
-        if unit:
-            if unit.tenants:
-                tenant_name = unit.tenants[0].name
-                tenant_id = unit.tenants[0].id
-            if unit.meters:
-                meter_summary = f"{len(unit.meters)} Meters Linked"
-                types = list(set([m.utility_type for m in unit.meters if m.utility_type]))
-                utility_summary = ", ".join(types)
+        if p.tenants:
+            tenant_name = p.tenants[0].name
+            tenant_id = p.tenants[0].id
+        if p.meters:
+            meter_summary = f"{len(p.meters)} Meters Linked"
+            types = list(set([m.utility_type for m in p.meters if m.utility_type]))
+            utility_summary = ", ".join(types)
                 
         data.append({
             "property_id": p.id,

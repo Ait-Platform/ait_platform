@@ -38,6 +38,10 @@ class BilProperty(db.Model):
         db.ForeignKey('user.id'),
         nullable=True
     )
+    
+    # Direct Payment Details
+    bank_detail_id = db.Column(db.Integer, db.ForeignKey('bil_bank_detail.id'), nullable=True)
+    bank_detail = db.relationship("BilBankDetail")
 
     wallet_balance_cents = db.Column(db.Integer, default=0, nullable=False)
     trial_ends_at = db.Column(db.DateTime, nullable=True)

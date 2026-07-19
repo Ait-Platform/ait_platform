@@ -118,9 +118,40 @@
         </div>
         {% endif %}
 
+        <!-- Section: Direct Payment Details -->
+        <div class="mb-8 bg-teal-50 border border-teal-200 rounded-xl p-6">
+          <h2 class="text-lg font-bold text-teal-800 mb-4 border-b border-teal-200 pb-2">5. Direct Payment Details (For Statements)</h2>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label class="block text-sm font-medium text-teal-900">Bank Name</label>
+              <input type="text" name="bank_name" value="{{ property.bank_detail.bank_name if property.bank_detail else '' }}" class="mt-1 block w-full rounded-md border-2 border-teal-300 p-2 focus:border-orange-500 focus:ring-orange-500">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-teal-900">Account Holder</label>
+              <input type="text" name="account_holder" value="{{ property.bank_detail.account_holder if property.bank_detail else '' }}" class="mt-1 block w-full rounded-md border-2 border-teal-300 p-2 focus:border-orange-500 focus:ring-orange-500">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-teal-900">Account Number</label>
+              <input type="text" name="account_number" value="{{ property.bank_detail.account_number if property.bank_detail else '' }}" class="mt-1 block w-full rounded-md border-2 border-teal-300 p-2 focus:border-orange-500 focus:ring-orange-500">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-teal-900">Account Type (e.g. Savings, Cheque)</label>
+              <input type="text" name="account_type" value="{{ property.bank_detail.account_type if property.bank_detail else '' }}" class="mt-1 block w-full rounded-md border-2 border-teal-300 p-2 focus:border-orange-500 focus:ring-orange-500">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-teal-900">Branch Name</label>
+              <input type="text" name="branch_name" value="{{ property.bank_detail.branch_name if property.bank_detail else '' }}" class="mt-1 block w-full rounded-md border-2 border-teal-300 p-2 focus:border-orange-500 focus:ring-orange-500">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-teal-900">Branch Code</label>
+              <input type="text" name="branch_code" value="{{ property.bank_detail.branch_code if property.bank_detail else '' }}" class="mt-1 block w-full rounded-md border-2 border-teal-300 p-2 focus:border-orange-500 focus:ring-orange-500">
+            </div>
+          </div>
+        </div>
+
         <!-- Section: Meters -->
         <div class="mb-8 bg-purple-50 border border-purple-200 rounded-xl p-6">
-          <h2 class="text-lg font-bold text-purple-800 mb-4 border-b border-purple-200 pb-2">5. Meters</h2>
+          <h2 class="text-lg font-bold text-purple-800 mb-4 border-b border-purple-200 pb-2">6. Meters</h2>
           
           <div class="mb-6">
             <h3 class="text-sm font-bold text-purple-900 mb-2">Existing Meters</h3>

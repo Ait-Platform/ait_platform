@@ -31,56 +31,90 @@
     <!-- START PAGE -->
     <div class="print-page p-10 bg-white text-black text-sm">
       
-      <!-- Top Section Grid -->
-      <div class="grid grid-cols-3 gap-8 mb-8 text-sm">
-        <!-- Col 1 -->
+      <!-- Header Row: Landlord Details -->
+      <div class="flex justify-between items-start mb-6">
         <div>
-          <p>19 Dale Road, Howardene, Durban 4001</p>
-          <h2 class="font-bold text-lg mt-2 mb-2">Statement of Account</h2>
+          <h1 class="font-bold text-3xl mb-1">{{ tenant.property.manager.name if tenant.property and tenant.property.manager else 'Nanhoo' }}</h1>
+          <p class="text-gray-600">19 Dale Road, Howardene, Durban 4001</p>
+        </div>
+        <div class="text-right text-gray-600">
           <p>Cell: 083 226 9381</p>
-          <p>email: sanjith.nanhoo@gmail.com</p>
-          
-          <h3 class="font-bold mt-6 mb-1 text-base">Direct Payment Details</h3>
-          {% if tenant.bank_detail %}
-            <p><span class="font-semibold w-24 inline-block">Account Holder</span> {{ tenant.bank_detail.account_holder }}</p>
-            <p><span class="font-semibold w-24 inline-block">Bank</span> {{ tenant.bank_detail.bank_name }}</p>
-            <p><span class="font-semibold w-24 inline-block">Branch</span> {{ tenant.bank_detail.branch_name }}</p>
-            <p><span class="font-semibold w-24 inline-block">Bank Code</span> {{ tenant.bank_detail.branch_code }}</p>
-            <p><span class="font-semibold w-24 inline-block">Account Number</span> {{ tenant.bank_detail.account_number }}</p>
-            {% if tenant.bank_detail.account_type %}<p><span class="font-semibold w-24 inline-block">Account Type</span> {{ tenant.bank_detail.account_type }}</p>{% endif %}
-          {% else %}
-            <p><span class="font-semibold w-24 inline-block">Account Holder</span> NANHOO</p>
-            <p><span class="font-semibold w-24 inline-block">Bank</span> STD</p>
-            <p><span class="font-semibold w-24 inline-block">Branch</span> Overport City</p>
-            <p><span class="font-semibold w-24 inline-block">Bank Code</span> 043826</p>
-            <p><span class="font-semibold w-24 inline-block">Account Number</span> 10155663176</p>
-            <p><span class="font-semibold w-24 inline-block">Account Type</span> Savings</p>
-          {% endif %}
+          <p>Email: sanjith.nanhoo@gmail.com</p>
+        </div>
+      </div>
+
+      <!-- Centered Title -->
+      <div class="text-center mb-8">
+        <h2 class="font-bold text-xl uppercase tracking-widest border-y-2 border-black py-2 inline-block px-12">Statement of Account</h2>
+      </div>
+
+      <!-- Second Row Grid: Tenant vs Bank -->
+      <div class="grid grid-cols-2 gap-12 mb-8 text-sm">
+        
+        <!-- Left: Tenant Details -->
+        <div>
+          <h3 class="font-bold mb-2 text-base border-b border-gray-300 pb-1">Details Section</h3>
+          <table class="w-full">
+            <tbody>
+              <tr>
+                <td class="font-semibold w-24 py-1">Customer</td>
+                <td>{{ tenant.name }}</td>
+              </tr>
+              <tr>
+                <td class="font-semibold py-1">Email</td>
+                <td>{{ tenant.email or 'N/A' }}</td>
+              </tr>
+              <tr>
+                <td class="font-semibold py-1 align-top">Address</td>
+                <td class="py-1">
+                  {{ tenant.property.address if tenant.property else 'N/A' }}
+                </td>
+              </tr>
+              <tr>
+                <td class="font-semibold py-1 pt-6 align-top">In Account with</td>
+                <td class="py-1 pt-6">{{ tenant.property.manager.name if tenant.property and tenant.property.manager else 'Nanhoo' }}</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
 
-        <!-- Col 2 -->
+        <!-- Right: Bank Details & Statement Info -->
         <div>
-          <h3 class="font-bold mb-1 text-base">Details Section</h3>
-          <p><span class="font-semibold w-20 inline-block">Customer</span> {{ tenant.name }}</p>
-          <p class="mt-6"><span class="font-semibold">Address</span></p>
-          <p>{{ tenant.property.property.address if tenant.property and tenant.property.property else 'N/A' }}</p>
-          <p>Unit {{ tenant.property.name if tenant.property else '' }}</p>
+          <h3 class="font-bold mb-2 text-base border-b border-gray-300 pb-1">Direct Payment Details</h3>
+          <table class="w-full mb-4">
+            <tbody>
+              {% set bank = tenant.property.bank_detail if tenant.property and tenant.property.bank_detail else none %}
+              {% if bank %}
+                <tr><td class="font-semibold w-32 py-0.5">Account Holder</td><td>{{ bank.account_holder }}</td></tr>
+                <tr><td class="font-semibold py-0.5">Bank</td><td>{{ bank.bank_name }}</td></tr>
+                <tr><td class="font-semibold py-0.5">Branch</td><td>{{ bank.branch_name }}</td></tr>
+                <tr><td class="font-semibold py-0.5">Bank Code</td><td>{{ bank.branch_code }}</td></tr>
+                <tr><td class="font-semibold py-0.5">Account Number</td><td>{{ bank.account_number }}</td></tr>
+                {% if bank.account_type %}<tr><td class="font-semibold py-0.5">Account Type</td><td>{{ bank.account_type }}</td></tr>{% endif %}
+              {% else %}
+                <tr><td class="font-semibold w-32 py-0.5">Account Holder</td><td>NANHOO</td></tr>
+                <tr><td class="font-semibold py-0.5">Bank</td><td>STD</td></tr>
+                <tr><td class="font-semibold py-0.5">Branch</td><td>Overport City</td></tr>
+                <tr><td class="font-semibold py-0.5">Bank Code</td><td>043826</td></tr>
+                <tr><td class="font-semibold py-0.5">Account Number</td><td>10155663176</td></tr>
+                <tr><td class="font-semibold py-0.5">Account Type</td><td>Savings</td></tr>
+              {% endif %}
+            </tbody>
+          </table>
 
-          <p class="mt-6"><span class="font-semibold">In Account with</span></p>
-          <p>{{ tenant.name }}</p>
-        </div>
-
-        <!-- Col 3 -->
-        <div>
-          <p><span class="font-semibold w-28 inline-block">Email</span> {{ tenant.email or 'N/A' }}</p>
-          <p class="mt-6"><span class="font-semibold w-28 inline-block">Statement Date</span> {{ month }}-01</p>
-          <p><span class="font-semibold w-28 inline-block">Reference</span> {{ tenant.metro_account_no or tenant.id }}</p>
+          <table class="w-full pt-4 border-t border-gray-100 mt-2">
+            <tbody>
+              <tr><td class="font-semibold w-32 py-1">Statement Date</td><td>{{ month }}-01</td></tr>
+              <tr><td class="font-semibold py-1">Reference</td><td>{{ tenant.metro_account_no or tenant.name[:3]|upper ~ tenant.id }}</td></tr>
+            </tbody>
+          </table>
 
           {% set current_balance = rows[-1].balance if rows else 0 %}
-          <div class="mt-8 font-bold text-lg border-2 border-black p-4 text-center shadow-sm">
+          <div class="mt-6 font-bold text-lg border-2 border-black p-4 text-center shadow-sm bg-gray-50">
             R{{ "%.2f"|format(current_balance) }} Is Now Due
           </div>
         </div>
+
       </div>
 
       <!-- Master Summary Table -->

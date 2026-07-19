@@ -206,6 +206,8 @@ def edit_property(property_id):
     if prop.manager_id != current_user.id and not current_user.has_role('admin'):
         abort(403)
         
+    from app.models.billing import BilBankDetail
+        
     # Get primary unit and tenant if exists
     tenant = BilTenant.query.filter_by(property_id=prop.id).first()
     lease = None
@@ -236,6 +238,18 @@ def edit_property(property_id):
             lease.tenant_arrears_total = float(request.form.get("tenant_arrears_total") or 0)
             lease.tenant_arrears_installment = float(request.form.get("tenant_arrears_installment") or 0)
             lease.agent_fee_target = request.form.get("agent_fee_target") or "owner"
+            
+        bank_name = request.form.get("bank_name")
+        if bank_name:
+            if not prop.bank_detail:
+                prop.bank_detail = BilBankDetail()
+                db.session.add(prop.bank_detail)
+            prop.bank_detail.bank_name = bank_name
+            prop.bank_detail.account_holder = request.form.get("account_holder")
+            prop.bank_detail.account_number = request.form.get("account_number")
+            prop.bank_detail.account_type = request.form.get("account_type")
+            prop.bank_detail.branch_name = request.form.get("branch_name")
+            prop.bank_detail.branch_code = request.form.get("branch_code")
             
         import json
         

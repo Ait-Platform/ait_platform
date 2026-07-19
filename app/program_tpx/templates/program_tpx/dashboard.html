@@ -23,10 +23,11 @@
 
       <div class="bg-white shadow rounded-lg overflow-hidden">
         <nav class="flex flex-col">
-          <a href="#" class="px-6 py-3 border-b hover:bg-slate-50 text-sky-700 font-medium bg-sky-50/50">Dashboard Overview</a>
-          <a href="#" class="px-6 py-3 border-b hover:bg-slate-50 text-slate-600 font-medium">Personal Information</a>
-          <a href="#" class="px-6 py-3 border-b hover:bg-slate-50 text-slate-600 font-medium">Work Experience</a>
-          <a href="#" class="px-6 py-3 border-b hover:bg-slate-50 text-slate-600 font-medium">Education & Skills</a>
+          <a href="{{ url_for('tpx_bp.dashboard') }}" class="px-6 py-3 border-b hover:bg-slate-50 text-sky-700 font-medium bg-sky-50/50">Dashboard Overview</a>
+          <a href="{{ url_for('tpx_bp.profile') }}" class="px-6 py-3 border-b hover:bg-slate-50 text-slate-600 font-medium">Personal Information</a>
+          <a href="{{ url_for('tpx_bp.work_experience') }}" class="px-6 py-3 border-b hover:bg-slate-50 text-slate-600 font-medium">Work Experience</a>
+          <a href="{{ url_for('tpx_bp.education') }}" class="px-6 py-3 border-b hover:bg-slate-50 text-slate-600 font-medium">Education & Skills</a>
+          <a href="{{ url_for('tpx_bp.skills') }}" class="px-6 py-3 border-b hover:bg-slate-50 text-slate-600 font-medium">Specific Skills</a>
           <a href="#" class="px-6 py-3 hover:bg-slate-50 text-slate-600 font-medium">Job Matches <span class="ml-2 inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">0</span></a>
         </nav>
       </div>
@@ -41,7 +42,7 @@
           The more complete your profile, the better we can match you with verified global employers.
         </p>
         <div class="mt-4">
-          <a href="#" class="inline-flex items-center justify-center rounded-md bg-sky-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-sky-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600">
+          <a href="{{ url_for('tpx_bp.profile') }}" class="inline-flex items-center justify-center rounded-md bg-sky-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-sky-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600">
             Complete Profile
           </a>
         </div>

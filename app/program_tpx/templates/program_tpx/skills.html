@@ -1,0 +1,47 @@
+{% extends "layout.html" %}
+{% block title %}Skills · AIT{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-4xl mt-8 px-4">
+  <div class="mb-6">
+    <a href="{{ url_for('tpx_bp.dashboard') }}" class="text-sky-600 hover:text-sky-800 font-medium text-sm flex items-center gap-1">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+      Back to Dashboard
+    </a>
+  </div>
+
+  <div class="bg-white shadow rounded-lg overflow-hidden mb-8">
+    <div class="border-b px-6 py-4">
+      <h1 class="text-2xl font-bold text-slate-800">Skills</h1>
+      <p class="text-sm text-slate-500 mt-1">Add your specific technical and soft skills to match with employers.</p>
+    </div>
+
+    <form method="POST" action="{{ url_for('tpx_bp.skills') }}" class="p-6">
+      {{ form.hidden_tag() }}
+
+      <div class="flex items-center gap-4">
+        <div class="flex-1">
+          {{ form.skill_name.label(class="sr-only") }}
+          {{ form.skill_name(class="w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500 sm:text-sm px-3 py-2 border", placeholder="e.g. Project Management, Python, Welding") }}
+        </div>
+        <div>
+          {{ form.submit(class="inline-flex justify-center rounded-md border border-transparent bg-sky-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 cursor-pointer") }}
+        </div>
+      </div>
+    </form>
+  </div>
+
+  {% if skills %}
+  <div class="bg-white shadow rounded-lg p-6">
+    <h2 class="text-lg font-bold text-slate-800 mb-4">Your Skills</h2>
+    <div class="flex flex-wrap gap-2">
+      {% for skill in skills %}
+        <span class="inline-flex items-center rounded-full bg-sky-100 px-3 py-1 text-sm font-medium text-sky-800">
+          {{ skill.skill_name }}
+        </span>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -790,8 +790,8 @@ def register_decision():
                 ue = db.session.get(UserEnrollment, enrollment_id)
                 if ue:
                     ue.status = "active"
-                    # Set trial period to 15 minutes for testing
-                    ue.trial_end = datetime.utcnow() + timedelta(minutes=15)
+                    # Set trial period based on the subject's configuration
+                    ue.trial_end = datetime.utcnow() + timedelta(days=int(float(subj_obj.trial_days)))
                     db.session.commit()
                 if subj_obj.slug in ["cultural_fire", "culturalfire"]:
                     return redirect(url_for("cultural_bp.cultural_fire_router"))

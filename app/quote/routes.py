@@ -136,6 +136,28 @@ def quote():
 
     if country_code:
         row = get_quote_for_subject_country(subject.id, country_code)
+        
+        # Auto-generate parity price if missing
+        if not row:
+            za_price = SubjectCountryPrice.query.filter_by(subject_id=subject.id, country_code='ZA').first()
+            if za_price:
+                from app.payments.pricing import fx_rate_local_to_zar
+                c_ref = RefCountryCurrency.query.filter_by(alpha2=country_code).first()
+                if c_ref:
+                    fx = fx_rate_local_to_zar(country_code)
+                    local_cents = int(za_price.zar_amount_cents * fx) if fx else za_price.zar_amount_cents
+                    local_currency = c_ref.currency if fx else "ZAR"
+                    row = SubjectCountryPrice(
+                        subject_id=subject.id,
+                        country_code=country_code,
+                        local_amount_cents=local_cents,
+                        zar_amount_cents=za_price.zar_amount_cents,
+                        local_currency=local_currency,
+                        is_active=True
+                    )
+                    db.session.add(row)
+                    db.session.commit()
+
         if row:
             price_ctx.update({
                 "price_id": row.id,

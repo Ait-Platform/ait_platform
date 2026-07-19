@@ -290,6 +290,9 @@ def cultural_fire_router():
     if record.role == "admin":
         return redirect(url_for("cultural_bp.admin_dashboard"))
         
+    if record.role == "parent":
+        return redirect(url_for("cultural_bp.stakeholder_dashboard", enrollment_id=enrollment.id))
+        
     return redirect(url_for("cultural_bp.talent_dashboard", enrollment_id=enrollment.id))
 
 @cultural_bp.route("/program/cultural_fire/biodata/edit/<int:enrollment_id>", methods=["GET", "POST"])

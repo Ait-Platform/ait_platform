@@ -142,8 +142,8 @@ def start():
     else:
         SECRET_KEY = os.environ.get("YOCO_SECRET_KEY", "sk_test_960bfde0VBrLlpK098e4ffeb53e1")
     
-    success_url = url_for("yoco_bp.yoco_success", _external=True)
-    cancel_url = url_for("yoco_bp.yoco_cancel", _external=True)
+    success_url = url_for("yoco_bp.yoco_success", subject=subject, email=email, _external=True)
+    cancel_url = url_for("yoco_bp.yoco_cancel", subject=subject, email=email, _external=True)
     
     try:
         response = requests.post(

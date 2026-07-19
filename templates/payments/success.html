@@ -27,7 +27,7 @@
       {% elif subject == 'cultural_fire' or subject == 'culturalfire' %}
         {% set target_url = url_for('cultural_bp.cultural_fire_router') %}
       {% elif subject == 'cultural_fire_topup' %}
-        {% set target_url = url_for('cultural_bp.wallet_dashboard') %}
+        {% set target_url = url_for('cultural_bp.cultural_fire_router') %}
       {% elif subject == 'spv_investment' %}
         {% set target_url = url_for('spv_bp.spv_ledger') %}
       {% elif subject == 'spv_registration' %}
@@ -50,7 +50,7 @@
       {% elif subject == 'cultural_fire' or subject == 'culturalfire' %}
         {% set login_target = url_for('cultural_bp.cultural_fire_router') %}
       {% elif subject == 'cultural_fire_topup' %}
-        {% set login_target = url_for('cultural_bp.wallet_dashboard') %}
+        {% set login_target = url_for('cultural_bp.cultural_fire_router') %}
       {% elif subject == 'spv_registration' %}
         {% set login_target = url_for('spv_bp.investor_dashboard') %}
       {% else %}

@@ -9,10 +9,10 @@
     <div class="h-2 bg-red-600"></div>
 
     <div class="p-6 relative">
-      <a href="{{ url_for('public_bp.welcome') }}" class="absolute top-6 right-6 text-sm text-gray-500 hover:text-gray-800 flex items-center gap-1 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-md transition">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
-          Back
-      </a>
+      <a href="{{ url_for('public_bp.welcome') }}" class="inline-flex items-center text-sm font-medium text-slate-700 hover:text-slate-900 transition bg-slate-100 hover:bg-slate-200 px-4 py-2 rounded-lg border border-slate-300 shadow-sm absolute top-6 right-6">
+<svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+Back
+</a>
       <h1 class="text-2xl font-semibold mb-2 text-slate-900 pr-20">
         About Cultural Fire
       </h1>
@@ -92,6 +92,13 @@
           We work with local businesses and organisations to support youth development while
           offering meaningful brand exposure within the community.
         </p>
+        <p>
+          Additionally, if you are a community member on a fixed income—such as a pensioner on a 
+          small grant who would love to attend a live show—you can receive a <strong>sponsored voucher</strong> 
+          of tokens from a sponsor. For example, if a live show ticket costs 50 ZAR (or equivalent tokens), 
+          a sponsor can gift you a voucher so you can order your ticket directly on the app and enjoy 
+          the performances!
+        </p>
 
         <h2 class="text-lg font-bold text-slate-900">Join the Movement</h2>
         <p>
@@ -103,10 +110,12 @@
       </div>
 
       <!-- Explore button leading to price page -->
-      <a href="{{ url_for('cultural_bp.cultural_fire_price') }}"
-         class="inline-block bg-red-600 text-white font-semibold text-sm py-2 px-6 rounded hover:bg-red-700">
-        Prices
-      </a>
+      <div class="mt-4 flex justify-end">
+        <a href="{{ url_for('cultural_bp.cultural_fire_price') }}"
+           class="inline-block bg-red-600 text-white font-semibold text-sm py-2 px-6 rounded hover:bg-red-700 shadow-sm">
+          Prices
+        </a>
+      </div>
     </div>
   </div>
 

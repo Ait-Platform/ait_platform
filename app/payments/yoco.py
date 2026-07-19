@@ -303,6 +303,8 @@ def success():
             )
             db.session.add(txn)
             db.session.commit()
+            flash(f"Successfully topped up wallet by {amount_tokens} Tokens!", "success")
+            return redirect(url_for("cultural_bp.cultural_fire_router"))
     # --------------------------------------------
 
     # 3) Resolve subject id (safe if missing)

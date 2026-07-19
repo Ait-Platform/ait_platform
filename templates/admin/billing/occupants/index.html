@@ -31,9 +31,9 @@
           <tr class="hover:bg-slate-50 transition-colors">
             <td class="px-6 py-4 font-medium text-slate-900">{{ t.name }}</td>
             <td class="px-6 py-4 text-slate-600">
-              {% if t.sectional_unit %}
-                Unit {{ t.sectional_unit.name }} 
-                <span class="text-xs text-slate-400 block">{{ t.sectional_unit.property.name if t.sectional_unit.property else '' }}</span>
+              {% if t.property %}
+                Unit {{ t.property.name }} 
+                <span class="text-xs text-slate-400 block">{{ t.property.property.name if t.property.property else '' }}</span>
               {% else %}
                 <span class="text-slate-400 italic">No Unit Assigned</span>
               {% endif %}

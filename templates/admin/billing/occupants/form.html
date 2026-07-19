@@ -22,13 +22,13 @@
         <h2 class="text-sm font-medium mb-2">Unit</h2>
         <label class="block text-sm mb-1">Sectional Unit <span class="text-red-600">*</span></label>
 
-        {% set selected_id = (request.form.get('sectional_unit_id') or (tenant.sectional_unit_id if tenant else '')) | string %}
-        <select name="sectional_unit_id" required class="w-full rounded-lg border px-3 py-2">
+        {% set selected_id = (request.form.get('property_id') or (tenant.property_id if tenant else '')) | string %}
+        <select name="property_id" required class="w-full rounded-lg border px-3 py-2">
           <option value="" disabled {{ 'selected' if not selected_id }}>Select a unit…</option>
           {% for u in (units or []) %}
-            {% set is_taken = (occupied_ids is defined and u.id in occupied_ids) %}
-            <option value="{{ u.id }}"
-                    {{ 'selected' if selected_id == (u.id|string) else '' }}
+            {% set is_taken = (occupied_ids is defined and property.id in occupied_ids) %}
+            <option value="{{ property.id }}"
+                    {{ 'selected' if selected_id == (property.id|string) else '' }}
                     {% if is_taken %}disabled class="text-slate-400"{% endif %}>
               {{ u.name }}{% if is_taken %} (occupied){% endif %}
             </option>

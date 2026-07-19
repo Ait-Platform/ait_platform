@@ -18,11 +18,11 @@
 
     <div>
       <label class="block text-sm mb-1">Sectional unit <span class="text-red-600">*</span></label>
-      {% set selected_id = (request.form.get('sectional_unit_id') or '') | string %}
-      <select name="sectional_unit_id" required class="w-full rounded-lg border px-3 py-2">
+      {% set selected_id = (request.form.get('property_id') or '') | string %}
+      <select name="property_id" required class="w-full rounded-lg border px-3 py-2">
         <option value="" disabled {{ 'selected' if not selected_id }}>Select a unit…</option>
         {% for u in (units or []) %}
-          <option value="{{ u.id }}" {{ 'selected' if selected_id == (u.id|string) else '' }}>
+          <option value="{{ property.id }}" {{ 'selected' if selected_id == (property.id|string) else '' }}>
             {{ u.name }}
           </option>
         {% endfor %}

@@ -1089,9 +1089,13 @@ def sponsor_edit(id):
 def sponsor_checkout(id):
     sponsor = CfiSponsorship.query.get_or_404(id)
 
-    # Build Yoco checkout URL (example)
-    yoco_url = f"https://pay.yoco.com/{sponsor.id}?amount={sponsor.amount:.2f}"
-    return redirect(yoco_url)
+    # Route through the actual Yoco gateway instead of broken static link
+    session["zar_amount_cents"] = int(sponsor.amount * 100)
+    session["topup_participant_id"] = sponsor.participant_id
+    # Calculate tokens (assuming 1 ZAR = 1 token based on the amount//100 fallback in yoco.py, but you can adjust if needed)
+    session["topup_tokens"] = int(sponsor.amount) 
+    
+    return redirect(url_for("yoco_bp.yoco_start", subject="cultural_fire_topup"))
 
 # --- supporter---
 
@@ -2507,60 +2511,26 @@ def wallet_dashboard():
         
     award = CfiAward.query.filter_by(user_id=current_user.id).first()
     
-    # Currency calculations
     from app.models.auth import AuthSubject, UserEnrollment
     cf_subject = AuthSubject.query.filter_by(slug='cultural_fire').first()
     enrollment = UserEnrollment.query.filter_by(user_id=current_user.id, subject_id=cf_subject.id).first() if cf_subject else None
     
-    user_country = enrollment.country_code if (enrollment and enrollment.country_code) else 'ZA'
-    ccy = RefCountryCurrency.query.filter_by(alpha2=user_country).first()
-    local_currency = ccy.currency if ccy else "ZAR"
-    fx_to_zar = ccy.fx_to_zar if ccy and ccy.fx_to_zar else 1.0
+    local_currency = enrollment.local_currency if (enrollment and enrollment.local_currency) else "ZAR"
+    local_amount_cents = enrollment.local_amount_cents if (enrollment and enrollment.local_amount_cents) else 20000
+    zar_amount_cents = enrollment.zar_amount_cents if (enrollment and enrollment.zar_amount_cents) else 20000
+    local_amount = local_amount_cents / 100
 
-    # Generate dynamic token packages based on LOCAL currency (100 local = 200 tokens)
-    base_local_amounts = [100, 200, 300, 500]
-    packages = []
-    has_minimum = False
-
-    for local_amt in base_local_amounts:
-        tokens = local_amt * 2
-        zar_cents = int(local_amt * fx_to_zar * 100)
-
-        if zar_cents < 1000:
-            if not has_minimum:
-                min_local_amt = int(1000 / (fx_to_zar * 100))
-                packages.append({
-                    'id': f"1000_{min_local_amt*2}",
-                    'tokens': min_local_amt * 2,
-                    'local_amt': min_local_amt,
-                    'zar_cents': 1000
-                })
-                has_minimum = True
-        else:
-            packages.append({
-                'id': f"{zar_cents}_{tokens}",
-                'tokens': tokens,
-                'local_amt': local_amt,
-                'zar_cents': zar_cents
-            })
-
-    return render_template("program_culturefire/wallet.html", wallet=wallet, transactions=transactions, award=award, local_currency=local_currency, fx_to_zar=fx_to_zar, packages=packages)
+    return render_template("program_culturefire/wallet.html", wallet=wallet, transactions=transactions, award=award, local_currency=local_currency, local_amount=local_amount, zar_amount_cents=zar_amount_cents)
 
 @cultural_bp.route("/wallet/topup", methods=["POST"])
 @login_required
 def wallet_topup():
-    package_id = request.form.get("package_id")
-    if not package_id:
-        flash("Please select a token package.", "danger")
-        return redirect(url_for("cultural_bp.wallet_dashboard"))
-        
-    try:
-        zar_cents_str, tokens_str = package_id.split('_')
-        zar_cents = int(zar_cents_str)
-        tokens = int(tokens_str)
-    except ValueError:
-        flash("Invalid token package selected.", "danger")
-        return redirect(url_for("cultural_bp.wallet_dashboard"))
+    from app.models.auth import AuthSubject, UserEnrollment
+    cf_subject = AuthSubject.query.filter_by(slug='cultural_fire').first()
+    enrollment = UserEnrollment.query.filter_by(user_id=current_user.id, subject_id=cf_subject.id).first() if cf_subject else None
+    
+    zar_cents = enrollment.zar_amount_cents if (enrollment and enrollment.zar_amount_cents) else 20000
+    tokens = 200
 
     if zar_cents < 1000:
         flash("Minimum payment amount is 10 ZAR.", "danger")
@@ -2751,12 +2721,14 @@ def generate_voucher():
         return redirect(url_for('cultural_bp.generate_voucher_page'))
         
     import secrets
-    from app.models.culturalfire import CfiVoucher
+    from app.models.payment import VoucherToken
+    from app.models.auth import AuthSubject
     
     # Generate an 8-character uppercase alphanumeric code
     code = secrets.token_hex(4).upper()
     
-    voucher = CfiVoucher(code=code, tokens=amount, created_by_user_id=current_user.id)
+    cf_subject = AuthSubject.query.filter_by(slug='cultural_fire').first()
+    voucher = VoucherToken(code=code, value_amount=amount, created_by_user_id=current_user.id, subject_id=cf_subject.id if cf_subject else 1)
     db.session.add(voucher)
     db.session.commit()
     
@@ -2780,22 +2752,24 @@ def transfer_form_page():
 @cultural_bp.route("/wallet/voucher_page")
 @login_required
 def generate_voucher_page():
-    from app.models.culturalfire import CfiWallet, CfiVoucher
+    from app.models.culturalfire import CfiWallet
+    from app.models.payment import VoucherToken
     wallet = CfiWallet.query.filter_by(user_id=current_user.id).first()
     balance = wallet.balance if wallet else 0
     last_voucher = session.pop('last_generated_voucher', None)
     
     # Fetch user's generated vouchers using the new DB column
-    vouchers = CfiVoucher.query.filter_by(created_by_user_id=current_user.id).order_by(CfiVoucher.created_at.desc()).all()
+    vouchers = VoucherToken.query.filter_by(created_by_user_id=current_user.id).order_by(VoucherToken.created_at.desc()).all()
     
     return render_template("program_culturefire/generate_voucher.html", token_balance=balance, last_voucher=last_voucher, vouchers=vouchers)
 
 @cultural_bp.route("/wallet/voucher/<int:voucher_id>/delete", methods=["POST"])
 @login_required
 def delete_voucher(voucher_id):
-    from app.models.culturalfire import CfiVoucher, CfiWallet, CfiTokenTransaction
+    from app.models.payment import VoucherToken
+    from app.models.culturalfire import CfiWallet, CfiTokenTransaction
     
-    voucher = CfiVoucher.query.get_or_404(voucher_id)
+    voucher = VoucherToken.query.get_or_404(voucher_id)
     
     # Ensure this user created this voucher
     if voucher.created_by_user_id != current_user.id:
@@ -2812,7 +2786,7 @@ def delete_voucher(voucher_id):
         flash("Wallet not found.", "danger")
         return redirect(url_for('cultural_bp.generate_voucher_page'))
         
-    wallet.balance += voucher.tokens
+    wallet.balance += voucher.value_amount
     txn = CfiTokenTransaction(
         wallet_id=wallet.id,
         amount=voucher.value_amount,
@@ -2824,7 +2798,7 @@ def delete_voucher(voucher_id):
     db.session.delete(voucher)
     db.session.commit()
     
-    flash(f"Voucher {voucher.code} deleted and {voucher.tokens} tokens refunded.", "success")
+    flash(f"Voucher {voucher.code} deleted and {voucher.value_amount} tokens refunded.", "success")
     return redirect(url_for('cultural_bp.generate_voucher_page'))
 
 @cultural_bp.route("/advertiser/dashboard")

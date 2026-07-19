@@ -10,8 +10,8 @@
       <a href="{{ url_for('admin_bp.billing_tenant_edit', tenant_id=tenant.id) }}"
          class="rounded-lg border px-3 py-1 text-sm hover:bg-slate-50">Edit</a>
 
-      {% if tenant and (tenant.sectional_unit and tenant.sectional_unit.id) %}
-        <a href="{{ url_for('admin_bp.sectional_unit_view', unit_id=tenant.sectional_unit.id) }}"
+      {% if tenant and (tenant.property and tenant.property.id) %}
+        <a href="{{ url_for('admin_bp.property_view', unit_id=tenant.property.id) }}"
            class="rounded-lg border px-3 py-1 text-sm hover:bg-slate-50">Go to unit</a>
       {% endif %}
 
@@ -38,8 +38,8 @@
     <div class="rounded-xl border p-4">
       <h2 class="font-medium mb-2">Unit</h2>
       <div>
-        {% if tenant.sectional_unit %}
-          {{ tenant.sectional_unit.name }}
+        {% if tenant.property %}
+          {{ tenant.property.name }}
         {% else %}
           —
         {% endif %}
@@ -95,7 +95,7 @@
               {% set e = (l.end_date.strftime('%Y-%m-%d')   if l.end_date   and l.end_date.strftime   is defined else (l.end_date   or None)) %}
               <li>
                 {{ s or '—' }} → {{ e or 'Present' }}
-                {% if l.sectional_unit_id %} (Unit: {{ l.sectional_unit_id }}){% endif %}
+                {% if l.property_id %} (Unit: {{ l.property_id }}){% endif %}
               </li>
             {% endfor %}
           </ul>

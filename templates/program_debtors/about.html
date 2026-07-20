@@ -7,7 +7,12 @@
   <div class="bg-white rounded-xl shadow-lg overflow-hidden border border-slate-200">
     <div class="h-2 bg-blue-600"></div>
     <div class="p-8">
-      <h1 class="text-3xl font-bold text-slate-800 mb-4">Manage Debtors. Generate SOAs.</h1>
+      <!-- Row 1: Title and Back Button -->
+      <div class="flex justify-between items-start mb-6">
+          <h1 class="text-3xl font-bold text-slate-800">Manage Debtors. Generate SOAs.</h1>
+          <a href="{{ url_for('public_bp.welcome') }}" class="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 font-semibold text-sm shadow-sm transition">Back</a>
+      </div>
+      
       <p class="text-lg text-slate-600 mb-8">
         The Debtors module allows you to track outstanding balances across all your tenants, clients, or customers. 
         Easily capture debit and credit transactions, maintain accurate ledgers, and instantly generate beautifully branded 
@@ -31,8 +36,8 @@
 
       <div class="border-t pt-8">
         <h2 class="text-2xl font-bold mb-4">Pricing</h2>
-        <p class="mb-6">Start managing your debtors today for a one-off registration fee.</p>
-        <a href="{{ url_for('auth_bp.register_decision', subject='debtors') }}" class="inline-block bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded shadow transition">Register Now for R150</a>
+        <p class="mb-6">Start managing your debtors today for a one-off registration fee. We use parity pricing, so your fee is automatically adjusted based on your country!</p>
+        <a href="{{ url_for('auth_bp.register_decision', subject='debtors') }}" class="inline-block bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded shadow transition">Select Country & Register</a>
       </div>
     </div>
   </div>

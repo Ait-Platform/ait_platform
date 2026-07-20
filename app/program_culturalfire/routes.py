@@ -820,7 +820,7 @@ def talent_edit(submission_id):
 
 @cultural_bp.route("/uploads/<path:filename>")
 def uploaded_file(filename):
-    return send_from_directory(os.path.join(current_app.root_path, "static", "uploads"), filename)
+    return send_from_directory(os.path.join(current_app.root_path, "static", "uploads", "cfi"), filename)
 
 @cultural_bp.route("/talent/group/edit/<int:submission_id>", methods=["GET", "POST"])
 @login_required

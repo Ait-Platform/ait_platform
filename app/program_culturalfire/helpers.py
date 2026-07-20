@@ -119,7 +119,7 @@ def auto_generate_show_from_submissions(submissions):
     return new_show
 
 def handle_talent_files(submission, files):
-    upload_folder = current_app.config["UPLOAD_FOLDER"]
+    upload_folder = current_app.config.get("UPLOAD_FOLDER", os.path.join(current_app.root_path, "static", "uploads", "cfi"))
     os.makedirs(upload_folder, exist_ok=True)
 
     # Only replace if new files were uploaded

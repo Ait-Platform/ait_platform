@@ -4008,10 +4008,12 @@ def email_soa(tenant_id, month):
 @billing_bp.route("/billing/soa/tenant/<int:tenant_id>/generate", methods=["GET"])
 @login_required
 def generate_soa(tenant_id):
-    from app.models.billing import BilTenant, BilMuniAccount
+    from app.models.billing import BilTenant
     import tempfile
     import os
     from flask import send_file
+    from sqlalchemy import text
+    from app.extensions import db
     
     tenant = BilTenant.query.get_or_404(tenant_id)
     month = request.args.get("month")
@@ -4022,54 +4024,42 @@ def generate_soa(tenant_id):
         
     prop = tenant.property
     
-    tenant_meter_ids = [m.id for m in tenant.property.meters]
-    
-    elec_rows, elec_total = build_electrical_rows(prop.id, month, filter_meter_ids=tenant_meter_ids)
-    water_meters, water_total = build_water_rows(prop.id, month, filter_meter_ids=tenant_meter_ids)
-    
-    # Calculate mapped charges
-    muni_accounts = BilMuniAccount.query.filter_by(property_id=prop.id).all()
-    
-    mapped_charges = []
-    mapped_total = 0.0
-    
-    for acc in muni_accounts:
-        if acc.rates_charge_to == 'tenant':
-            val = acc.rates_amount if acc.rates_amount and acc.rates_amount > 0 else round((acc.rates_general_monthly or 0) + (acc.rates_sra_monthly or 0), 2)
-            if val > 0:
-                mapped_charges.append({"description": "Rates & SRA", "amount": val})
-                mapped_total += val
-                
-        if acc.arrears_charge_to == 'tenant':
-            if acc.arrears_amount and acc.arrears_amount > 0:
-                mapped_charges.append({"description": "Arrears", "amount": acc.arrears_amount})
-                mapped_total += acc.arrears_amount
-                
-        if acc.arrangement_charge_to == 'tenant':
-            if acc.ca_installment_amount and acc.ca_installment_amount > 0:
-                mapped_charges.append({"description": "Arrangement Installment", "amount": acc.ca_installment_amount})
-                mapped_total += acc.ca_installment_amount
-                
-    grand_total = round(elec_total + water_total + mapped_total, 2)
+    rows = db.session.execute(text("""
+      SELECT txn_date, month, description, kind, amount, ref
+      FROM bil_tenant_ledger
+      WHERE tenant_id=:t
+      ORDER BY date(txn_date), id
+    """), {"t": tenant_id}).mappings().all()
+
+    running = 0.0
+    out = []
+    for r in rows:
+        amt = float(r["amount"] or 0.0)
+        running += amt
+        out.append({
+            "date": r["txn_date"],
+            "month": r["month"],
+            "description": r["description"],
+            "kind": r["kind"],
+            "amount": amt,
+            "ref": r["ref"],
+            "balance": round(running, 2),
+        })
+        
+    grand_total = running
     
     data = {
         "tenant": tenant,
         "property": prop,
         "month": month,
-        "electricity": {
-            "rows": elec_rows,
-            "subtotal": elec_total
-        },
-        "water": {
-            "meters": water_meters,
-            "total": water_total
-        },
-        "mapped_charges": mapped_charges,
-        "mapped_total": mapped_total,
+        "rows": out,
         "grand_total": grand_total
     }
     
     html_string = render_template("program_billing/soa_document.html", **data)
+    
+    # Hide the action buttons in the PDF
+    html_string = html_string.replace('class="print:hidden', 'style="display:none;"')
     
     # If the user clicks print in the browser
     if request.args.get("view") == "html":

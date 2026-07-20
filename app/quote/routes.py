@@ -50,8 +50,7 @@ def quote():
             {"uid": current_user.id, "sid": subject.id}
         ).first()
         if row and row.status in ("pending", "started"):
-            flash("You already have an active quote. Resuming checkout...", "info")
-            return redirect(url_for("yoco_bp.yoco_start", email=current_user.email, subject=subject.slug))
+            pass # Allow user to change country instead of forcing Yoco checkout
         elif row and row.status in ("active", "completed"):
             from app.utils.routing import get_dashboard_route
             

@@ -259,12 +259,14 @@ def cultural_fire_router():
     # Create basic record if it doesn't exist
     if not record:
         from datetime import date
+        user_phone = getattr(current_user, 'phone_number', None) or getattr(current_user, 'phone', None) or "N/A"
+        user_phone = user_phone[:20]
         record = CfiBiodata(
             user_id=user_id, 
             full_name=current_user.name or "Pending",
             id_number="N/A",
             dob=date(2000, 1, 1),
-            phone="N/A"
+            phone=user_phone
         )
         db.session.add(record)
         db.session.commit()
@@ -306,12 +308,14 @@ def biodata_edit(enrollment_id):
     record = CfiBiodata.query.filter_by(user_id=current_user.id).first()
     if not record:
         from datetime import date
+        user_phone = getattr(current_user, 'phone_number', None) or getattr(current_user, 'phone', None) or "N/A"
+        user_phone = user_phone[:20]
         record = CfiBiodata(
             user_id=current_user.id, 
             full_name=current_user.name or "Pending",
             id_number="N/A",
             dob=date(2000, 1, 1),
-            phone="N/A"
+            phone=user_phone
         )
         db.session.add(record)
         db.session.commit()

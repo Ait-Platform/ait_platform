@@ -700,6 +700,15 @@ def register_decision():
                 "est_zar_cents": 10000,
                 "version": "2026-testing"
             }
+        elif subject in ("cultural_fire", "culturalfire"):
+            q = {
+                "country_code": "ZA",
+                "currency": "ZAR",
+                "amount_cents": 0,
+                "zar_amount_cents": 0,
+                "est_zar_cents": 0,
+                "version": "2026-cfi-voucher-only"
+            }
         else:
             flash(
                 "Pricing is not configured for this course yet. Please contact us.",

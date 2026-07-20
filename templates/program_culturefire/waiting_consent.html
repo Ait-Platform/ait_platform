@@ -1,36 +1,43 @@
 {% extends "layout.html" %}
+
+{% block flashes %}{% endblock %}
+
 {% block content %}
-<div class="max-w-4xl mx-auto mt-6">
-  <div class="bg-white shadow-md rounded-lg overflow-hidden border">
-    <div class="h-2 bg-amber-500"></div>
-    <div class="p-8 text-center">
-      <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-amber-100 mb-6">
-        <svg class="h-8 w-8 text-amber-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-        </svg>
+<div class="max-w-4xl mx-auto mt-6 mb-8">
+  <div class="bg-white shadow-md rounded-lg overflow-hidden border border-slate-200">
+    <div class="h-2 bg-blue-600"></div>
+    <div class="p-8">
+      
+      {% include "partials/flash_messages.html" %}
+      
+      <!-- Row 1: Title and Back button -->
+      <div class="flex justify-between items-center mb-6">
+        <h2 class="text-2xl font-bold text-gray-800">Waiting for Parent Consent</h2>
+        <a href="{{ url_for('auth_bp.bridge_dashboard') }}" class="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 font-semibold text-sm shadow-sm transition">Back</a>
       </div>
       
-      <h2 class="text-2xl font-bold text-gray-800 mb-2">Waiting for Parent Consent</h2>
-      <p class="text-gray-600 mb-6 max-w-lg mx-auto">
-        Because you are under 18, we require your parent or guardian's consent to participate in Cultural Fire.
-        An email has been sent to <strong>{{ email }}</strong> with a link to approve your registration.
-      </p>
+      <div class="text-center mb-6 mt-8">
+        <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-amber-100 mb-6">
+          <svg class="h-8 w-8 text-amber-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+        </div>
+        
+        <p class="text-gray-600 mb-6 max-w-lg mx-auto">
+          Because you are under 18, we require your parent or guardian's consent to participate in Cultural Fire.
+          An email has been sent to <strong>{{ email }}</strong> with a link to approve your registration.
+        </p>
+      </div>
       
-      <div class="bg-slate-50 p-4 rounded-md border border-slate-200 inline-block text-left mb-6">
-        <h3 class="text-sm font-bold text-slate-800 mb-1">What happens next?</h3>
-        <ol class="list-decimal pl-5 text-sm text-slate-600 space-y-1">
+      <div class="bg-slate-50 p-6 rounded-md border border-slate-200 text-left mb-2">
+        <h3 class="text-sm font-bold text-slate-800 mb-2">What happens next?</h3>
+        <ol class="list-decimal pl-5 text-sm text-slate-600 space-y-2">
           <li>Your parent/guardian clicks the link in the email.</li>
           <li>They review the terms and provide digital consent.</li>
           <li>Your account is instantly unlocked and you can continue to the dashboard!</li>
         </ol>
       </div>
 
-      <div>
-        <a href="{{ url_for('auth_bp.bridge_dashboard') }}" class="text-blue-600 hover:text-blue-800 font-medium">
-          ← Return to Dashboard
-        </a>
-      </div>
-      
     </div>
   </div>
 </div>

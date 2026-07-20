@@ -153,6 +153,11 @@ def add_transaction(debtor_id):
                 
     return redirect(url_for("debtors_bp.debtor_view", debtor_id=debtor.id))
 
+from flask import send_file
+import io
+from app.utils.pdf_render import html_to_pdf_bytes
+from flask import current_app
+
 @debtors_bp.route("/debtor/<int:debtor_id>/soa")
 @login_required
 def generate_soa(debtor_id):
@@ -171,5 +176,20 @@ def generate_soa(debtor_id):
             running_balance -= l.amount
         l.running_balance = running_balance
         
-    return render_template("program_debtors/soa_template.html", debtor=debtor, ledgers=ledgers, profile=profile, running_balance=running_balance)
-
+    html_content = render_template("program_debtors/soa_template.html", debtor=debtor, ledgers=ledgers, profile=profile, running_balance=running_balance)
+    
+    if request.args.get('pdf') == '1':
+        try:
+            pdf_bytes = html_to_pdf_bytes(html_content, base_url=request.host_url)
+            return send_file(
+                io.BytesIO(pdf_bytes),
+                mimetype='application/pdf',
+                as_attachment=True,
+                download_name=f"SOA_{debtor.name.replace(' ', '_')}.pdf"
+            )
+        except Exception as e:
+            current_app.logger.error(f"Failed to generate SOA PDF: {e}")
+            flash("Error generating PDF. Please try again or print the page directly.", "danger")
+            return html_content
+            
+    return html_content

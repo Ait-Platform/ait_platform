@@ -775,33 +775,31 @@ def talent_edit(submission_id):
         talent.custom_talent = form.custom_talent.data
         talent.category_item_id = form.category_item_id.data
 
-        # 🔥 DELETE old files (DB + disk)
-        for f in talent.files:
-            try:
-                os.remove(os.path.join(os.path.join(current_app.root_path, "static", "uploads"), f.filename))
-            except Exception:
-                pass
-
-        CfiTalentFile.query.filter_by(submission_id=talent.id).delete()
-        talent.files.clear()
-
-        # 🔥 SAVE new files
-        #files = request.files.getlist("talent_files")
         files = form.talent_files.data
+        has_new_files = files and any(f.filename for f in files if f)
 
-        saved_files = []
+        if has_new_files:
+            # 🔥 DELETE old files (DB + disk)
+            for f in talent.files:
+                try:
+                    os.remove(os.path.join(current_app.root_path, "static", "uploads", "cfi", f.filename))
+                except Exception:
+                    pass
 
-        for file in files:
-            if file and file.filename:
-                filename = build_filename(talent.talent_name, file.filename, talent.id)
+            CfiTalentFile.query.filter_by(submission_id=talent.id).delete()
+            talent.files.clear()
 
-                file.save(os.path.join(os.path.join(current_app.root_path, "static", "uploads"), filename))
+            saved_files = []
 
-                saved_files.append(filename)
-                talent.files.append(CfiTalentFile(filename=filename))
+            for file in files:
+                if file and file.filename:
+                    filename = build_filename(talent.talent_name, file.filename, talent.id)
+                    file.save(os.path.join(current_app.root_path, "static", "uploads", "cfi", filename))
+                    saved_files.append(filename)
+                    talent.files.append(CfiTalentFile(filename=filename))
 
-        if saved_files:
-            talent.media_url = url_for('static', filename=f'uploads/{saved_files[0]}')
+            if saved_files:
+                talent.media_url = url_for('cultural_bp.uploaded_file', filename=saved_files[0])
 
         db.session.commit()
 

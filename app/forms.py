@@ -44,7 +44,7 @@ class EnrollmentStep3Form(FlaskForm):
 
 class UpdateBiodataForm(FlaskForm):
     full_name = StringField("Stage Name / Pseudonym", validators=[DataRequired()])
-    dob = DateField("Date of Birth", format="%Y-%m-%d", validators=[Optional()])
+    dob = DateField("Date of Birth", format="%Y-%m-%d", validators=[DataRequired(message="Please provide your date of birth.")])
     gender = SelectField("Gender", choices=[
         ("male","Male"),
         ("female","Female"),

@@ -249,7 +249,7 @@ def cultural_fire_router():
     if not enrollment or enrollment.status == "pending":
         # No enrollment or unpaid -> redirect to registration gateway
         flash("You must complete payment before accessing this program.", "warning")
-        return redirect(url_for("quote_bp.quote", subject="cultural_fire"))
+        return redirect(url_for("auth_bp.register_decision", subject="cultural_fire"))
 
     subject_id = enrollment.subject_id
 
@@ -378,7 +378,7 @@ def enrollment_step2(subject_id):
     enrollment = UserEnrollment.query.filter_by(user_id=user_id, subject_id=subject_id).first()
     if not enrollment or enrollment.status == "pending":
         flash("You must complete payment before proceeding.", "warning")
-        return redirect(url_for("quote_bp.quote", subject="cultural_fire"))
+        return redirect(url_for("auth_bp.register_decision", subject="cultural_fire"))
 
     # ✅ Always fetch the record first
     record = CfiBiodata.query.filter_by(user_id=user_id).first()
@@ -413,7 +413,7 @@ def enrollment_step1(subject_id):
     enrollment = UserEnrollment.query.filter_by(user_id=user_id, subject_id=subject_id).first()
     if not enrollment or enrollment.status == "pending":
         flash("You must complete payment before proceeding.", "warning")
-        return redirect(url_for("quote_bp.quote", subject="cultural_fire"))
+        return redirect(url_for("auth_bp.register_decision", subject="cultural_fire"))
 
     form = EnrollmentStep1Form()
 
@@ -491,7 +491,7 @@ def enrollment_step3(subject_id):
     enrollment = UserEnrollment.query.filter_by(user_id=user_id, subject_id=subject_id).first()
     if not enrollment or enrollment.status == "pending":
         flash("You must complete payment before proceeding.", "warning")
-        return redirect(url_for("quote_bp.quote", subject="cultural_fire"))
+        return redirect(url_for("auth_bp.register_decision", subject="cultural_fire"))
     record = CfiBiodata.query.filter_by(user_id=user_id).first()
 
     form = EnrollmentStep3Form(obj=record)

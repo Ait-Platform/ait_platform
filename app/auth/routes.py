@@ -1024,6 +1024,14 @@ def login():
         )
 
     next_url = request.args.get("next")
+    
+    # Intercept legacy yoco_start redirects (from cached URLs) to use register_decision instead
+    if next_url and "yoco_start" in next_url and "spv" not in next_url:
+        import re
+        m = re.search(r'subject=([^&]+)', next_url)
+        subj = m.group(1) if m else "cultural_fire"
+        next_url = url_for("auth_bp.register_decision", subject=subj)
+
     if not _is_safe_url(next_url):
         next_url = url_for("auth_bp.bridge_dashboard")
     return redirect(next_url)

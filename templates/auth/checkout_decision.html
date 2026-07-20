@@ -19,7 +19,6 @@
 
       <p class="mb-6 text-gray-700">You are completing registration for <strong>{{ subject }}</strong>. Please choose how you would like to proceed.</p>
 
-      {% if subject not in ("cultural_fire", "culturalfire") %}
       <div class="mb-8">
         <a href="{{ url_for('yoco_bp.yoco_start', email=email, subject=subject, debug=0) }}" class="block w-full bg-blue-600 hover:bg-blue-700 text-white text-center font-bold py-3 px-4 rounded shadow transition">
           Continue to Yoco Payment
@@ -31,7 +30,6 @@
           <span class="flex-shrink-0 mx-4 text-gray-400">OR</span>
           <div class="flex-grow border-t border-gray-300"></div>
       </div>
-      {% endif %}
 
       <h2 class="text-lg font-bold mb-4 text-slate-800">Have a Voucher?</h2>
       <form method="GET" action="{{ url_for('auth_bp.register_decision') }}">

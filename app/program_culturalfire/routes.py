@@ -357,8 +357,9 @@ def biodata_edit(enrollment_id):
             record.parent_consent_status = "not_required"
             record.parent_email = None
 
+        from datetime import date
         record.full_name = form.full_name.data
-        record.dob = form.dob.data
+        record.dob = form.dob.data or date(2000, 1, 1)
         record.gender = form.gender.data
         db.session.commit()
         flash("Biodata updated successfully!", "success")

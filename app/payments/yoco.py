@@ -106,8 +106,7 @@ def start():
         else:
             amount_cents = amount_cents // 3
 
-    # HARDCODED FOR TESTING AS REQUESTED
-    amount_cents = 10000
+    # Removed hardcoded test value so actual pricing flows through
 
     if amount_cents < 1000:
         flash(f"Payment cannot proceed: invalid amount (R{amount_cents/100:.2f}). Minimum is R10.00.", "error")

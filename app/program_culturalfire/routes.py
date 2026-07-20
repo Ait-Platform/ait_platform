@@ -261,7 +261,7 @@ def cultural_fire_router():
         from datetime import date
         record = CfiBiodata(
             user_id=user_id, 
-            full_name=current_user.name,
+            full_name=current_user.name or "Pending",
             id_number="N/A",
             dob=date(2000, 1, 1),
             phone="N/A"
@@ -308,7 +308,7 @@ def biodata_edit(enrollment_id):
         from datetime import date
         record = CfiBiodata(
             user_id=current_user.id, 
-            full_name=current_user.name,
+            full_name=current_user.name or "Pending",
             id_number="N/A",
             dob=date(2000, 1, 1),
             phone="N/A"

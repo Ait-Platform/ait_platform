@@ -226,19 +226,7 @@
           {% endif %}
         </div>
         
-        <!-- Voucher Block -->
-        <div class="mt-8 pt-6 border-t border-slate-200">
-          <div class="text-base font-bold text-slate-800 mb-3">Have a Sponsor Voucher?</div>
-          <form action="{{ url_for('cultural_bp.redeem_voucher') }}" method="POST" class="flex gap-2">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="text" name="voucher_code" placeholder="Enter voucher code" required
-                   class="flex-1 rounded-lg border-2 border-indigo-200 px-3 py-2 text-base focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-300">
-            <button type="submit" class="rounded-lg bg-indigo-600 px-6 py-2 text-base font-bold text-white hover:bg-indigo-700 shadow-md transition-colors whitespace-nowrap">
-              Redeem
-            </button>
-          </form>
-          <p class="mt-2 text-sm text-slate-600 font-medium">Redeeming a valid voucher will bypass the checkout process entirely.</p>
-        </div>
+        <!-- Voucher block removed as it is now handled in checkout_decision.html -->
 
       </div>
     </div>

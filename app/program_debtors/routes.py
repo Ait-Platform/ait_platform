@@ -150,8 +150,23 @@ def add_transaction(debtor_id):
         for field, errors in form.errors.items():
             for error in errors:
                 flash(f"Error in {getattr(form, field).label.text}: {error}", "danger")
-                
     return redirect(url_for("debtors_bp.debtor_view", debtor_id=debtor.id))
+
+@debtors_bp.route("/transaction/<int:txn_id>/edit", methods=["GET", "POST"])
+@login_required
+def edit_transaction(txn_id):
+    txn = DebtorLedger.query.get_or_404(txn_id)
+    debtor = Debtor.query.filter_by(id=txn.debtor_id, user_id=current_user.id).first_or_404()
+    
+    form = TransactionForm(obj=txn)
+    
+    if form.validate_on_submit():
+        form.populate_obj(txn)
+        db.session.commit()
+        flash("Transaction updated successfully.", "success")
+        return redirect(url_for("debtors_bp.debtor_view", debtor_id=debtor.id))
+        
+    return render_template("program_debtors/edit_transaction.html", form=form, txn=txn)
 
 from flask import send_file
 import io

@@ -101,8 +101,40 @@ def add_debtor():
         db.session.commit()
         flash("Debtor added successfully.", "success")
         return redirect(url_for("debtors_bp.dashboard"))
-        
     return render_template("program_debtors/add_debtor.html", form=form)
+
+@debtors_bp.route("/debtor/<int:debtor_id>/edit", methods=["GET", "POST"])
+@login_required
+def edit_debtor(debtor_id):
+    debtor = Debtor.query.filter_by(id=debtor_id, user_id=current_user.id).first_or_404()
+    form = DebtorForm(obj=debtor)
+    
+    cmap = DebtorChargeMap.query.filter_by(debtor_id=debtor.id).first()
+    if request.method == 'GET' and cmap:
+        form.charge_description.data = cmap.charge_description
+        form.charge_amount.data = cmap.amount
+        form.charge_frequency.data = cmap.frequency
+        
+    if form.validate_on_submit():
+        debtor.name = form.name.data
+        debtor.email = form.email.data
+        debtor.phone = form.phone.data
+        
+        if form.charge_description.data and form.charge_amount.data > 0:
+            if not cmap:
+                cmap = DebtorChargeMap(debtor_id=debtor.id)
+                db.session.add(cmap)
+            cmap.charge_description = form.charge_description.data
+            cmap.amount = form.charge_amount.data
+            cmap.frequency = form.charge_frequency.data
+        elif cmap and (not form.charge_description.data or form.charge_amount.data <= 0):
+            db.session.delete(cmap)
+            
+        db.session.commit()
+        flash("Debtor updated successfully.", "success")
+        return redirect(url_for('debtors_bp.dashboard'))
+        
+    return render_template('program_debtors/edit_debtor.html', form=form, debtor=debtor)
 
 from app.program_debtors.forms import TransactionForm
 

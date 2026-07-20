@@ -12,22 +12,26 @@ class SoaProfileForm(FlaskForm):
     submit = SubmitField("Save Profile")
 
 class DebtorForm(FlaskForm):
-    name = StringField("Debtor Name / Company", validators=[DataRequired()])
+    name = StringField("SOA Client Name / Company", validators=[DataRequired()])
     email = StringField("Email Address", validators=[Optional(), Email()])
     phone = StringField("Phone Number", validators=[Optional()])
-    
-    opening_balance = IntegerField("Opening Balance (in Cents, Optional)", validators=[Optional()], default=0)
-    
-    # Charge Map Fields
-    charge_description = StringField("Recurring Charge Description (Optional)", validators=[Optional()])
-    charge_amount = IntegerField("Charge Amount (in Cents)", validators=[Optional()], default=0)
+    submit = SubmitField("Save Setup")
+
+class OpeningBalanceForm(FlaskForm):
+    opening_balance = IntegerField("Opening Balance (in Cents)", validators=[DataRequired()], default=0)
+    txn_date = DateField("Date", validators=[DataRequired()])
+    submit = SubmitField("Set Balance")
+
+class RecurringChargeForm(FlaskForm):
+    charge_description = StringField("Recurring Charge Description", validators=[DataRequired()])
+    charge_amount = IntegerField("Charge Amount (in Cents)", validators=[DataRequired()], default=0)
     charge_frequency = SelectField("Frequency", choices=[
         ('monthly', 'Monthly'),
         ('weekly', 'Weekly'),
         ('once', 'Once-off')
     ], default='monthly')
-    
-    submit = SubmitField("Save Debtor")
+    day_of_month = IntegerField("Day of Month (1-31)", validators=[Optional()], default=1)
+    submit = SubmitField("Add Charge")
 
 class TransactionForm(FlaskForm):
     txn_date = DateField("Transaction Date", validators=[DataRequired()])

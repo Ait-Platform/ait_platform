@@ -71,36 +71,12 @@ def add_debtor():
             user_id=current_user.id,
             name=form.name.data,
             email=form.email.data,
-            phone=form.phone.data,
-            opening_balance=form.opening_balance.data
+            phone=form.phone.data
         )
         db.session.add(new_debtor)
-        db.session.flush() # get ID
-        
-        # Add opening balance ledger entry if > 0
-        if new_debtor.opening_balance > 0:
-            ledger = DebtorLedger(
-                debtor_id=new_debtor.id,
-                description="Opening Balance",
-                kind="debit",
-                amount=new_debtor.opening_balance,
-                ref="OPENING"
-            )
-            db.session.add(ledger)
-            
-        # Add charge map if provided
-        if form.charge_description.data and form.charge_amount.data > 0:
-            cmap = DebtorChargeMap(
-                debtor_id=new_debtor.id,
-                charge_description=form.charge_description.data,
-                amount=form.charge_amount.data,
-                frequency=form.charge_frequency.data
-            )
-            db.session.add(cmap)
-            
         db.session.commit()
-        flash("Debtor added successfully.", "success")
-        return redirect(url_for("debtors_bp.dashboard"))
+        flash("SOA Setup saved. Now configure financials.", "success")
+        return redirect(url_for("debtors_bp.debtor_financials", debtor_id=new_debtor.id))
     return render_template("program_debtors/add_debtor.html", form=form)
 
 @debtors_bp.route("/debtor/<int:debtor_id>/edit", methods=["GET", "POST"])
@@ -109,32 +85,83 @@ def edit_debtor(debtor_id):
     debtor = Debtor.query.filter_by(id=debtor_id, user_id=current_user.id).first_or_404()
     form = DebtorForm(obj=debtor)
     
-    cmap = DebtorChargeMap.query.filter_by(debtor_id=debtor.id).first()
-    if request.method == 'GET' and cmap:
-        form.charge_description.data = cmap.charge_description
-        form.charge_amount.data = cmap.amount
-        form.charge_frequency.data = cmap.frequency
-        
     if form.validate_on_submit():
         debtor.name = form.name.data
         debtor.email = form.email.data
         debtor.phone = form.phone.data
         
-        if form.charge_description.data and form.charge_amount.data > 0:
-            if not cmap:
-                cmap = DebtorChargeMap(debtor_id=debtor.id)
-                db.session.add(cmap)
-            cmap.charge_description = form.charge_description.data
-            cmap.amount = form.charge_amount.data
-            cmap.frequency = form.charge_frequency.data
-        elif cmap and (not form.charge_description.data or form.charge_amount.data <= 0):
-            db.session.delete(cmap)
-            
         db.session.commit()
-        flash("Debtor updated successfully.", "success")
+        flash("SOA Profile updated successfully.", "success")
         return redirect(url_for('debtors_bp.dashboard'))
         
     return render_template('program_debtors/edit_debtor.html', form=form, debtor=debtor)
+
+from app.program_debtors.forms import RecurringChargeForm, OpeningBalanceForm
+
+@debtors_bp.route("/debtor/<int:debtor_id>/financials")
+@login_required
+def debtor_financials(debtor_id):
+    debtor = Debtor.query.filter_by(id=debtor_id, user_id=current_user.id).first_or_404()
+    charges = DebtorChargeMap.query.filter_by(debtor_id=debtor.id).all()
+    
+    rc_form = RecurringChargeForm()
+    ob_form = OpeningBalanceForm()
+    
+    # Check if opening balance is already set in ledger
+    has_opening_balance = DebtorLedger.query.filter_by(debtor_id=debtor.id, ref='OPENING').first() is not None
+    
+    return render_template('program_debtors/debtor_financials.html', debtor=debtor, charges=charges, rc_form=rc_form, ob_form=ob_form, has_opening_balance=has_opening_balance)
+
+@debtors_bp.route("/debtor/<int:debtor_id>/add_charge", methods=["POST"])
+@login_required
+def add_recurring_charge(debtor_id):
+    debtor = Debtor.query.filter_by(id=debtor_id, user_id=current_user.id).first_or_404()
+    form = RecurringChargeForm()
+    
+    if form.validate_on_submit():
+        cmap = DebtorChargeMap(
+            debtor_id=debtor.id,
+            charge_description=form.charge_description.data,
+            amount=form.charge_amount.data,
+            frequency=form.charge_frequency.data,
+            day_of_month=form.day_of_month.data
+        )
+        db.session.add(cmap)
+        db.session.commit()
+        flash("Recurring charge added successfully.", "success")
+    return redirect(url_for('debtors_bp.debtor_financials', debtor_id=debtor.id))
+
+@debtors_bp.route("/debtor/<int:debtor_id>/delete_charge/<int:charge_id>", methods=["POST"])
+@login_required
+def delete_recurring_charge(debtor_id, charge_id):
+    debtor = Debtor.query.filter_by(id=debtor_id, user_id=current_user.id).first_or_404()
+    cmap = DebtorChargeMap.query.filter_by(id=charge_id, debtor_id=debtor.id).first_or_404()
+    
+    db.session.delete(cmap)
+    db.session.commit()
+    flash("Recurring charge deleted.", "success")
+    return redirect(url_for('debtors_bp.debtor_financials', debtor_id=debtor.id))
+
+@debtors_bp.route("/debtor/<int:debtor_id>/add_opening_balance", methods=["POST"])
+@login_required
+def add_opening_balance(debtor_id):
+    debtor = Debtor.query.filter_by(id=debtor_id, user_id=current_user.id).first_or_404()
+    form = OpeningBalanceForm()
+    
+    if form.validate_on_submit():
+        if form.opening_balance.data > 0:
+            ledger = DebtorLedger(
+                debtor_id=debtor.id,
+                description="Opening Balance",
+                kind="debit",
+                amount=form.opening_balance.data,
+                ref="OPENING",
+                txn_date=form.txn_date.data
+            )
+            db.session.add(ledger)
+            db.session.commit()
+            flash("Opening balance set successfully.", "success")
+    return redirect(url_for('debtors_bp.debtor_financials', debtor_id=debtor.id))
 
 from app.program_debtors.forms import TransactionForm
 

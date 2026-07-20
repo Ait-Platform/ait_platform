@@ -128,6 +128,12 @@ def create_app(test_config=None):
         except Exception:
             db.session.rollback()
 
+        try:
+            db.session.execute(text("ALTER TABLE debtor_charge_map ADD COLUMN day_of_month INTEGER DEFAULT 1"))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
     # 4) Template helpers
     app.jinja_env.globals.update(csrf_token=generate_csrf)
     app.jinja_env.autoescape = select_autoescape(['html', 'htm', 'xml'])

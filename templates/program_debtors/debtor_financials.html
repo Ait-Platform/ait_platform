@@ -1,0 +1,131 @@
+{% extends "layout.html" %}
+{% block title %}Financial Setup - SOA Profile{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8 max-w-4xl">
+    <div class="bg-white rounded-lg shadow-xl overflow-hidden">
+        <div class="h-2 bg-blue-600"></div>
+        
+        <div class="p-6 md:p-8">
+            {% include "partials/flash_messages.html" %}
+            
+            <div class="flex justify-between items-center mb-6 border-b pb-4">
+                <h1 class="text-2xl font-bold text-gray-800">Financial Setup: {{ debtor.name }}</h1>
+                <div>
+                    <a href="{{ url_for('debtors_bp.dashboard') }}" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors shadow-sm font-medium mr-2">Dashboard</a>
+                    <a href="{{ url_for('debtors_bp.debtor_view', debtor_id=debtor.id) }}" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm font-medium">View Ledger</a>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- Left Column: Settings & Setup Forms -->
+                <div class="lg:col-span-1 space-y-6">
+                    
+                    {% if not has_opening_balance %}
+                    <div class="bg-slate-50 border rounded-lg p-5">
+                        <h3 class="text-md font-bold text-gray-800 mb-3 border-b pb-2">Set Opening Balance</h3>
+                        <form method="POST" action="{{ url_for('debtors_bp.add_opening_balance', debtor_id=debtor.id) }}">
+                            {{ ob_form.hidden_tag() }}
+                            <div class="space-y-3">
+                                <div>
+                                    {{ ob_form.opening_balance.label(class="block text-sm font-medium text-gray-700 mb-1") }}
+                                    {{ ob_form.opening_balance(class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none text-sm", placeholder="e.g. 5000 for R50.00") }}
+                                </div>
+                                <div>
+                                    {{ ob_form.txn_date.label(class="block text-sm font-medium text-gray-700 mb-1") }}
+                                    {{ ob_form.txn_date(class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none text-sm", type="date") }}
+                                </div>
+                                <div class="pt-2">
+                                    {{ ob_form.submit(class="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded transition shadow-sm cursor-pointer") }}
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="bg-slate-50 border rounded-lg p-5">
+                        <h3 class="text-md font-bold text-gray-800 mb-3 border-b pb-2">Add Recurring Charge</h3>
+                        <form method="POST" action="{{ url_for('debtors_bp.add_recurring_charge', debtor_id=debtor.id) }}">
+                            {{ rc_form.hidden_tag() }}
+                            <div class="space-y-3">
+                                <div>
+                                    {{ rc_form.charge_description.label(class="block text-xs font-medium text-gray-700 mb-1") }}
+                                    {{ rc_form.charge_description(class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none text-sm", placeholder="e.g. Monthly Retainer") }}
+                                </div>
+                                <div>
+                                    {{ rc_form.charge_amount.label(class="block text-xs font-medium text-gray-700 mb-1") }}
+                                    {{ rc_form.charge_amount(class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none text-sm") }}
+                                    <p class="text-xs text-gray-500 mt-1">In cents</p>
+                                </div>
+                                <div>
+                                    {{ rc_form.charge_frequency.label(class="block text-xs font-medium text-gray-700 mb-1") }}
+                                    {{ rc_form.charge_frequency(class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none text-sm") }}
+                                </div>
+                                <div>
+                                    {{ rc_form.day_of_month.label(class="block text-xs font-medium text-gray-700 mb-1") }}
+                                    {{ rc_form.day_of_month(class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none text-sm", placeholder="e.g. 1") }}
+                                    <p class="text-xs text-gray-500 mt-1">1-31 (Caps out on short months)</p>
+                                </div>
+                                <div class="pt-2">
+                                    {{ rc_form.submit(class="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded transition shadow-sm cursor-pointer") }}
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                
+                <!-- Right Column: List of existing financials -->
+                <div class="lg:col-span-2">
+                    <h3 class="text-lg font-bold text-gray-800 mb-4">Configured Recurring Charges</h3>
+                    
+                    {% if charges %}
+                    <div class="bg-white border rounded-lg overflow-hidden shadow-sm">
+                        <table class="w-full text-left border-collapse text-sm">
+                            <thead>
+                                <tr class="bg-slate-100 text-gray-700">
+                                    <th class="py-2 px-3 font-semibold border-b">Description</th>
+                                    <th class="py-2 px-3 font-semibold border-b text-right">Amount</th>
+                                    <th class="py-2 px-3 font-semibold border-b">Frequency</th>
+                                    <th class="py-2 px-3 font-semibold border-b text-center">Day</th>
+                                    <th class="py-2 px-3 font-semibold border-b text-center">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200">
+                                {% for c in charges %}
+                                <tr class="hover:bg-slate-50">
+                                    <td class="py-2 px-3 font-medium text-gray-800">{{ c.charge_description }}</td>
+                                    <td class="py-2 px-3 text-right font-bold text-gray-700">{{ '{:,.2f}'.format(c.amount / 100) }}</td>
+                                    <td class="py-2 px-3 capitalize text-gray-600">{{ c.frequency }}</td>
+                                    <td class="py-2 px-3 text-center text-gray-600">{{ c.day_of_month }}</td>
+                                    <td class="py-2 px-3 text-center">
+                                        <form action="{{ url_for('debtors_bp.delete_recurring_charge', debtor_id=debtor.id, charge_id=c.id) }}" method="POST" onsubmit="return confirm('Delete this recurring charge?');">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <button type="submit" class="text-xs text-red-600 hover:text-red-800 font-semibold bg-red-50 hover:bg-red-100 px-2 py-1 rounded transition">Remove</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="p-8 text-center bg-slate-50 border rounded-lg text-gray-500">
+                        <p>No recurring charges are configured for this SOA Client.</p>
+                        <p class="text-sm mt-2">Use the form on the left to add one.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const dateInput = document.getElementById('txn_date');
+        if (dateInput && !dateInput.value) {
+            dateInput.valueAsDate = new Date();
+        }
+    });
+</script>
+{% endblock %}

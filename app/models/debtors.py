@@ -57,6 +57,7 @@ class DebtorChargeMap(db.Model):
     charge_description = db.Column(db.String(255), nullable=False)
     amount = db.Column(db.Integer, nullable=False) # In cents
     frequency = db.Column(db.String(50), default='monthly') # e.g. 'monthly', 'weekly', 'once'
+    day_of_month = db.Column(db.Integer, default=1) # 1-31
     
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 

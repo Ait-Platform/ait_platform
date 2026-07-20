@@ -334,7 +334,7 @@ def biodata_edit(enrollment_id):
         from app.program_culturalfire.helpers import calculate_age_from_dob
         age = calculate_age_from_dob(form.dob.data)
 
-        if age < 18:
+        if age is not None and age < 18:
             parent_email = form.parent_email.data
             if not parent_email:
                 form.parent_email.errors.append("Parent/Guardian email is required for participants under 18.")

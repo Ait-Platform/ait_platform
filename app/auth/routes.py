@@ -469,13 +469,6 @@ def register_decision():
                 session.pop("just_paid_subject_id", None)
                 
                 if subject in ("cultural_fire", "culturalfire"):
-                    # Create default biodata if needed
-                    from app.models.culturalfire import CfiBiodata
-                    record = CfiBiodata.query.filter_by(user_id=user_id).first()
-                    if not record:
-                        record = CfiBiodata(user_id=user_id, role="participant")
-                        db.session.add(record)
-                        db.session.commit()
                     return redirect(url_for("cultural_bp.cultural_fire_router"))
                 elif subject == "tpx":
                     return redirect(url_for("tpx_bp.dashboard"))

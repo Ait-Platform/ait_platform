@@ -589,19 +589,6 @@ def register_decision():
         }
     # ---------- END BILLING SPECIAL CASE ----------
 
-    # ---------- SPECIAL CASE: DEBTORS MODULE ----------
-    if subject == "debtors":
-        # ONE-OFF REGISTRATION FEE
-        ctx["quote"] = {
-            "country_code": "ZA",
-            "currency": "ZAR",
-            "amount_cents": 15000,  # 150 ZAR
-            "zar_amount_cents": 15000,
-            "est_zar_cents": 15000,
-            "version": "2026-debtors-reg",
-        }
-    # ---------- END DEBTORS SPECIAL CASE ----------
-
     if "quote" not in ctx:
         ctx["error"] = f"No price configuration found for {subject}."
 
@@ -804,7 +791,7 @@ def register_decision():
 
     # next_url already defined above
     from app.models.auth import AuthSubject, UserEnrollment
-    from datetime import datetime, timedelta
+    from datetime import timedelta
     
     subj_obj = AuthSubject.query.filter(db.func.lower(AuthSubject.slug) == subject.lower()).first()
     if subj_obj:

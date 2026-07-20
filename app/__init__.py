@@ -328,7 +328,8 @@ def create_app(test_config=None):
             "reading": 150,
             "loss": 150,
             "practice_crm": 100,
-            "budget": 50
+            "budget": 50,
+            "debtors": 100
         }
         
         # First, fetch subject IDs for these slugs

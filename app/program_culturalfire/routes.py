@@ -769,13 +769,9 @@ def talent_edit(submission_id):
         (c.id, c.name) for c in CfiTalentCategoryItem.query.all()
     ]
 
-    if form.validate_on_submit():
-        # Update fields
-        talent.talent_name = form.talent_name.data
-        talent.custom_talent = form.custom_talent.data
-        talent.category_item_id = form.category_item_id.data
+    if request.method == "POST":
 
-        files = form.talent_files.data
+        files = request.files.getlist("talent_files")
         has_new_files = files and any(f.filename for f in files if f)
 
         if has_new_files:

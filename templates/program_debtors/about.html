@@ -1,0 +1,40 @@
+{% extends "layout.html" %}
+
+{% block title %}Debtors & Statements - About{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-4xl mt-8 mb-8">
+  <div class="bg-white rounded-xl shadow-lg overflow-hidden border border-slate-200">
+    <div class="h-2 bg-blue-600"></div>
+    <div class="p-8">
+      <h1 class="text-3xl font-bold text-slate-800 mb-4">Manage Debtors. Generate SOAs.</h1>
+      <p class="text-lg text-slate-600 mb-8">
+        The Debtors module allows you to track outstanding balances across all your tenants, clients, or customers. 
+        Easily capture debit and credit transactions, maintain accurate ledgers, and instantly generate beautifully branded 
+        Statements of Account (SOAs) customized with your own letterhead and logo.
+      </p>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div class="bg-blue-50 rounded-lg p-6">
+          <h3 class="text-xl font-bold text-blue-800 mb-2">Token Economy</h3>
+          <p class="text-blue-900">
+            Pay a one-off registration fee to gain access and receive your own Debtors Wallet. Use tokens to generate AI-extracted letterheads or automate statements in the future.
+          </p>
+        </div>
+        <div class="bg-slate-50 rounded-lg p-6">
+          <h3 class="text-xl font-bold text-slate-800 mb-2">Seamless Integration</h3>
+          <p class="text-slate-700">
+            Link directly with the Billing, Budget Cash, and Mechanic CRM modules so that all your outstanding debtors are managed in one central place.
+          </p>
+        </div>
+      </div>
+
+      <div class="border-t pt-8">
+        <h2 class="text-2xl font-bold mb-4">Pricing</h2>
+        <p class="mb-6">Start managing your debtors today for a one-off registration fee.</p>
+        <a href="{{ url_for('auth_bp.register_decision', subject='debtors') }}" class="inline-block bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded shadow transition">Register Now for R150</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

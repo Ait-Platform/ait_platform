@@ -1,0 +1,40 @@
+{% extends "layout.html" %}
+
+{% block title %}Debtors Dashboard{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-6xl mb-8">
+  <div class="bg-white rounded-xl shadow overflow-hidden border border-slate-200">
+    <div class="h-2 bg-blue-600"></div>
+    <div class="p-6">
+      <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold text-slate-800">Debtors & Statements</h1>
+        <div class="flex items-center gap-4">
+          <span class="bg-blue-100 text-blue-800 text-sm font-semibold px-4 py-2 rounded-lg">
+            Tokens: {{ token_balance }}
+          </span>
+          <a href="#" class="text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded px-4 py-2 transition">
+            Generate Voucher
+          </a>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Debtor List -->
+        <div class="bg-slate-50 border rounded p-4">
+          <h2 class="text-lg font-bold mb-4">Your Debtors</h2>
+          <p class="text-sm text-slate-600 mb-4">You have no debtors configured yet.</p>
+          <a href="#" class="inline-block bg-slate-800 hover:bg-slate-900 text-white font-semibold py-2 px-4 rounded text-sm transition">Add Debtor</a>
+        </div>
+
+        <!-- Settings -->
+        <div class="bg-slate-50 border rounded p-4">
+          <h2 class="text-lg font-bold mb-4">SOA Settings</h2>
+          <p class="text-sm text-slate-600 mb-4">Configure your letterhead and logo for Statement of Accounts.</p>
+          <a href="#" class="inline-block bg-slate-800 hover:bg-slate-900 text-white font-semibold py-2 px-4 rounded text-sm transition">Manage Settings</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

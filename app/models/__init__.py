@@ -30,3 +30,5 @@ from .tpx import (
     TPXTimeline, TPXCareerDNA, TPXProject, TPXAchievement, TPXOrganisation,
     TPXCareerPlan, TPXOpportunity, TPXMarketplace, TPXMentor, TPXLearning
 )
+
+from .debtors import SoaProfile, Debtor, DebtorLedger, DebtorChargeMap, DebtorsWallet, DebtorsTokenTransaction

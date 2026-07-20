@@ -430,7 +430,7 @@ def register_decision():
     voucher = request.values.get("voucher") or ctx.get("voucher") or session.pop("pending_voucher", None)
     if voucher:
         voucher = voucher.strip()
-    if subject in ("billing", "metro_billing") or (subject in ("cultural_fire", "culturalfire", "tpx") and voucher):
+    if subject in ("billing", "metro_billing") or (subject in ("cultural_fire", "culturalfire", "tpx", "debtors") and voucher):
         # Check for voucher bypass
         if voucher:
             from app.models.payment import VoucherToken
@@ -460,6 +460,24 @@ def register_decision():
                     db.session.commit()
                     
                     flash(f"Voucher applied successfully! {v_obj.value_amount} tokens added to your wallet.", "success")
+                elif subject == "debtors":
+                    from app.models.debtors import DebtorsWallet, DebtorsTokenTransaction
+                    wallet = DebtorsWallet.query.filter_by(user_id=user_id).first()
+                    if not wallet:
+                        wallet = DebtorsWallet(user_id=user_id, balance=0)
+                        db.session.add(wallet)
+                        db.session.flush()
+                    wallet.balance += v_obj.value_amount
+                    
+                    txn = DebtorsTokenTransaction(
+                        wallet_id=wallet.id,
+                        amount=v_obj.value_amount,
+                        description=f"Redeemed voucher {voucher}"
+                    )
+                    db.session.add(txn)
+                    db.session.commit()
+                    
+                    flash(f"Voucher applied successfully! {v_obj.value_amount} tokens added to your Debtors wallet.", "success")
                 else:
                     flash("Voucher applied successfully! Registration bypassed.", "success")
                 
@@ -470,6 +488,8 @@ def register_decision():
                 
                 if subject in ("cultural_fire", "culturalfire"):
                     return redirect(url_for("cultural_bp.cultural_fire_router"))
+                elif subject == "debtors":
+                    return redirect(url_for("debtors_bp.debtors_router"))
                 elif subject == "tpx":
                     return redirect(url_for("tpx_bp.dashboard"))
                 
@@ -568,6 +588,19 @@ def register_decision():
             "version": "2026-billing-reg",
         }
     # ---------- END BILLING SPECIAL CASE ----------
+
+    # ---------- SPECIAL CASE: DEBTORS MODULE ----------
+    if subject == "debtors":
+        # ONE-OFF REGISTRATION FEE
+        ctx["quote"] = {
+            "country_code": "ZA",
+            "currency": "ZAR",
+            "amount_cents": 15000,  # 150 ZAR
+            "zar_amount_cents": 15000,
+            "est_zar_cents": 15000,
+            "version": "2026-debtors-reg",
+        }
+    # ---------- END DEBTORS SPECIAL CASE ----------
 
     if "quote" not in ctx:
         ctx["error"] = f"No price configuration found for {subject}."

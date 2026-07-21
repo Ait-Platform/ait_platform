@@ -232,25 +232,67 @@ import io
 from app.utils.pdf_render import html_to_pdf_bytes
 from flask import current_app
 
+@debtors_bp.route("/soa_redirect")
+@login_required
+def soa_redirect():
+    debtor_id = request.args.get('debtor_id')
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    return redirect(url_for('debtors_bp.generate_soa', debtor_id=debtor_id, start_date=start_date, end_date=end_date, pdf=1))
+
 @debtors_bp.route("/debtor/<int:debtor_id>/soa")
 @login_required
 def generate_soa(debtor_id):
+    from datetime import datetime
     debtor = Debtor.query.filter_by(id=debtor_id, user_id=current_user.id).first_or_404()
     profile = SoaProfile.query.filter_by(user_id=current_user.id).first()
     
-    # Optional: Date filtering could go here via request.args
+    start_date_str = request.args.get('start_date')
+    end_date_str = request.args.get('end_date')
+    
+    start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date() if start_date_str else None
+    end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date() if end_date_str else None
     
     running_balance = 0
+    period_ledgers = []
     ledgers = DebtorLedger.query.filter_by(debtor_id=debtor.id).order_by(DebtorLedger.txn_date, DebtorLedger.id).all()
+    
+    period_opening_balance = 0
+    calculated_opening_yet = False
     
     for l in ledgers:
         if l.kind == 'debit':
             running_balance += l.amount
         else:
             running_balance -= l.amount
+            
         l.running_balance = running_balance
         
-    html_content = render_template("program_debtors/soa_template.html", debtor=debtor, ledgers=ledgers, profile=profile, running_balance=running_balance)
+        if start_date and l.txn_date < start_date:
+            continue
+            
+        if not calculated_opening_yet:
+            # The opening balance for this period is the running balance just BEFORE this transaction
+            prev_balance = running_balance - l.amount if l.kind == 'debit' else running_balance + l.amount
+            period_opening_balance = prev_balance
+            calculated_opening_yet = True
+            
+        if end_date and l.txn_date > end_date:
+            continue
+            
+        period_ledgers.append(l)
+        
+    if not calculated_opening_yet:
+        period_opening_balance = running_balance
+        
+    html_content = render_template("program_debtors/soa_template.html", 
+                                   debtor=debtor, 
+                                   ledgers=period_ledgers, 
+                                   profile=profile, 
+                                   running_balance=running_balance,
+                                   period_opening_balance=period_opening_balance,
+                                   start_date=start_date,
+                                   end_date=end_date)
     
     if request.args.get('pdf') == '1':
         try:

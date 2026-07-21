@@ -17,32 +17,32 @@
       <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 border-b pb-6">
         <!-- Add Debtor -->
         <a href="{{ url_for('debtors_bp.add_debtor') }}" class="flex flex-col items-center justify-center p-4 bg-blue-50 border border-blue-200 rounded-xl hover:bg-blue-100 transition group">
-            <div class="text-blue-600 font-bold mb-1">+ Add Debtor</div>
-            <div class="text-xs text-slate-500 text-center">Register a new client</div>
+            <div class="text-blue-600 font-bold mb-1 text-base md:text-lg">+ Add Debtor</div>
+            <div class="text-sm text-slate-500 text-center">Register a new client</div>
         </a>
         
         <!-- SOA Setup -->
         <a href="{{ url_for('debtors_bp.profile') }}" class="flex flex-col items-center justify-center p-4 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 transition group">
-            <div class="text-slate-700 font-bold mb-1">SOA Setup</div>
-            <div class="text-xs text-slate-500 text-center">Company Profile & Logo</div>
+            <div class="text-slate-700 font-bold mb-1 text-base md:text-lg">SOA Setup</div>
+            <div class="text-sm text-slate-500 text-center">Company Profile & Logo</div>
         </a>
         
         <!-- Recurring & Balances -->
         <button onclick="document.getElementById('recurring-modal').classList.remove('hidden')" class="flex flex-col items-center justify-center p-4 bg-indigo-50 border border-indigo-200 rounded-xl hover:bg-indigo-100 transition group">
-            <div class="text-indigo-600 font-bold mb-1">Recurring & Balances</div>
-            <div class="text-xs text-slate-500 text-center">Manage client financials</div>
+            <div class="text-indigo-600 font-bold mb-1 text-base md:text-lg">Recurring & Balances</div>
+            <div class="text-sm text-slate-500 text-center">Manage client financials</div>
         </button>
         
         <!-- Generate SOA -->
         <button onclick="document.getElementById('soa-modal').classList.remove('hidden')" class="flex flex-col items-center justify-center p-4 bg-green-50 border border-green-200 rounded-xl hover:bg-green-100 transition group">
-            <div class="text-green-600 font-bold mb-1">Generate SOA</div>
-            <div class="text-xs text-slate-500 text-center">Create Statement of Account</div>
+            <div class="text-green-600 font-bold mb-1 text-base md:text-lg">Generate SOA</div>
+            <div class="text-sm text-slate-500 text-center">Create Statement of Account</div>
         </button>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div>
         <!-- Debtor List -->
-        <div class="md:col-span-2 bg-slate-50 border rounded-lg p-0 overflow-hidden">
+        <div class="bg-slate-50 border rounded-lg p-0 overflow-hidden">
           <div class="p-4 border-b bg-white flex justify-between items-center">
             <h2 class="text-lg font-bold text-gray-800">Your Debtors</h2>
           </div>
@@ -51,20 +51,20 @@
           <div class="overflow-x-auto">
             <table class="w-full text-left border-collapse">
               <thead>
-                <tr class="bg-slate-100 text-gray-600 text-sm">
+                <tr class="bg-slate-100 text-gray-600 text-base">
                   <th class="py-3 px-4 font-semibold">Name</th>
                   <th class="py-3 px-4 font-semibold">Contact</th>
                   <th class="py-3 px-4 font-semibold text-right">Current Balance</th>
                   <th class="py-3 px-4 font-semibold text-center">Action</th>
                 </tr>
               </thead>
-              <tbody class="divide-y divide-gray-200 bg-white text-sm">
+              <tbody class="divide-y divide-gray-200 bg-white text-base">
                 {% for d in debtors %}
                 <tr class="hover:bg-slate-50 transition-colors">
                   <td class="py-3 px-4 font-medium text-gray-800">{{ d.name }}</td>
                   <td class="py-3 px-4 text-gray-600">
-                    {% if d.email %}<div class="text-xs">{{ d.email }}</div>{% endif %}
-                    {% if d.phone %}<div class="text-xs">{{ d.phone }}</div>{% endif %}
+                    {% if d.email %}<div>{{ d.email }}</div>{% endif %}
+                    {% if d.phone %}<div>{{ d.phone }}</div>{% endif %}
                   </td>
                   <td class="py-3 px-4 text-right font-bold {% if d.current_balance > 0 %}text-red-600{% elif d.current_balance < 0 %}text-green-600{% else %}text-gray-600{% endif %}">
                     {{ '{:,.2f}'.format(d.current_balance / 100) }}
@@ -87,16 +87,6 @@
           </div>
           {% endif %}
         </div>
-
-        <!-- Settings -->
-        <div class="bg-white border rounded-lg p-0 h-fit">
-            <div class="p-4 border-b bg-white">
-                <h2 class="text-lg font-bold text-gray-800">SOA Settings</h2>
-            </div>
-            <div class="p-4 bg-slate-50">
-                <p class="text-sm text-slate-600 mb-6">Configure your letterhead and logo for Statement of Accounts.</p>
-                <a href="{{ url_for('debtors_bp.profile') }}" class="block w-full text-center bg-slate-800 hover:bg-slate-900 text-white font-semibold py-2 px-4 rounded text-sm transition">Manage Settings</a>
-            </div>
         </div>
       </div>
     </div>

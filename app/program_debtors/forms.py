@@ -1,5 +1,5 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, TextAreaField, IntegerField, SelectField, DateField, SubmitField
+from wtforms import StringField, TextAreaField, IntegerField, FloatField, SelectField, DateField, SubmitField
 from wtforms.validators import DataRequired, Email, Optional
 
 class SoaProfileForm(FlaskForm):
@@ -18,13 +18,13 @@ class DebtorForm(FlaskForm):
     submit = SubmitField("Save Setup")
 
 class OpeningBalanceForm(FlaskForm):
-    opening_balance = IntegerField("Opening Balance (in Cents)", validators=[DataRequired()], default=0)
+    opening_balance = FloatField("Opening Balance", validators=[DataRequired()])
     txn_date = DateField("Date", validators=[DataRequired()])
     submit = SubmitField("Set Balance")
 
 class RecurringChargeForm(FlaskForm):
     charge_description = StringField("Recurring Charge Description", validators=[DataRequired()])
-    charge_amount = IntegerField("Charge Amount (in Cents)", validators=[DataRequired()], default=0)
+    charge_amount = FloatField("Charge Amount", validators=[DataRequired()])
     charge_frequency = SelectField("Frequency", choices=[
         ('monthly', 'Monthly'),
         ('weekly', 'Weekly'),
@@ -37,6 +37,6 @@ class TransactionForm(FlaskForm):
     txn_date = DateField("Transaction Date", validators=[DataRequired()])
     description = StringField("Description", validators=[DataRequired()])
     kind = SelectField("Type", choices=[('debit', 'Debit (Invoice/Charge)'), ('credit', 'Credit (Payment/Receipt)')], validators=[DataRequired()])
-    amount = IntegerField("Amount (in Cents)", validators=[DataRequired()])
+    amount = FloatField("Amount", validators=[DataRequired()])
     ref = StringField("Reference (Optional)", validators=[Optional()])
     submit = SubmitField("Add Transaction")

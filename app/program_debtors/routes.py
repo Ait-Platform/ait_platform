@@ -122,7 +122,7 @@ def add_recurring_charge(debtor_id):
         cmap = DebtorChargeMap(
             debtor_id=debtor.id,
             charge_description=form.charge_description.data,
-            amount=form.charge_amount.data,
+            amount=int(round(form.charge_amount.data * 100)),
             frequency=form.charge_frequency.data,
             day_of_month=form.day_of_month.data
         )
@@ -154,7 +154,7 @@ def add_opening_balance(debtor_id):
                 debtor_id=debtor.id,
                 description="Opening Balance",
                 kind="debit",
-                amount=form.opening_balance.data,
+                amount=int(round(form.opening_balance.data * 100)),
                 ref="OPENING",
                 txn_date=form.txn_date.data
             )
@@ -199,7 +199,7 @@ def add_transaction(debtor_id):
             txn_date=form.txn_date.data,
             description=form.description.data,
             kind=form.kind.data,
-            amount=form.amount.data,
+            amount=int(round(form.amount.data * 100)),
             ref=form.ref.data
         )
         db.session.add(txn)
@@ -219,8 +219,16 @@ def edit_transaction(txn_id):
     
     form = TransactionForm(obj=txn)
     
+    if request.method == "GET":
+        form.amount.data = txn.amount / 100.0
+    
     if form.validate_on_submit():
-        form.populate_obj(txn)
+        txn.txn_date = form.txn_date.data
+        txn.description = form.description.data
+        txn.kind = form.kind.data
+        txn.ref = form.ref.data
+        txn.amount = int(round(form.amount.data * 100))
+        
         db.session.commit()
         flash("Transaction updated successfully.", "success")
         return redirect(url_for("debtors_bp.debtor_view", debtor_id=debtor.id))

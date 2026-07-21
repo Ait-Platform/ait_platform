@@ -9,11 +9,15 @@
         <div class="p-6 md:p-8">
             {% include "partials/flash_messages.html" %}
             
-            <div class="flex justify-between items-center mb-6 border-b pb-4">
-                <h1 class="text-2xl font-bold text-gray-800">Financial Setup: {{ debtor.name }}</h1>
-                <div>
-                    <a href="{{ url_for('debtors_bp.dashboard') }}" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors shadow-sm font-medium mr-2">Dashboard</a>
-                    <a href="{{ url_for('debtors_bp.debtor_view', debtor_id=debtor.id) }}" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm font-medium">View Ledger</a>
+            <div class="flex flex-col mb-6 border-b pb-4">
+                <!-- Row 1: Title and Back button -->
+                <div class="flex justify-between items-center mb-4">
+                    <h1 class="text-2xl font-bold text-gray-800">Financial Setup: {{ debtor.name }}</h1>
+                    <a href="{{ url_for('debtors_bp.dashboard') }}" class="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 font-semibold text-sm shadow-sm transition">Back</a>
+                </div>
+                <!-- Row 2: Right aligned buttons -->
+                <div class="flex justify-end items-center">
+                    <a href="{{ url_for('debtors_bp.debtor_view', debtor_id=debtor.id) }}" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-semibold text-sm shadow-sm transition">View Ledger</a>
                 </div>
             </div>
             
@@ -28,11 +32,11 @@
                             <div class="space-y-3">
                                 <div>
                                     {{ ob_form.opening_balance.label(class="block text-sm font-medium text-gray-700 mb-1") }}
-                                    {{ ob_form.opening_balance(class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none text-sm", placeholder="e.g. 5000 for R50.00") }}
+                                    {{ ob_form.opening_balance(class="w-full px-3 py-2 border border-gray-400 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm", placeholder="e.g. 50.00", step="0.01", autofocus=True) }}
                                 </div>
                                 <div>
                                     {{ ob_form.txn_date.label(class="block text-sm font-medium text-gray-700 mb-1") }}
-                                    {{ ob_form.txn_date(class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none text-sm", type="date") }}
+                                    {{ ob_form.txn_date(class="w-full px-3 py-2 border border-gray-400 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm", type="date") }}
                                 </div>
                                 <div class="pt-2">
                                     {{ ob_form.submit(class="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded transition shadow-sm cursor-pointer") }}
@@ -49,20 +53,19 @@
                             <div class="space-y-3">
                                 <div>
                                     {{ rc_form.charge_description.label(class="block text-xs font-medium text-gray-700 mb-1") }}
-                                    {{ rc_form.charge_description(class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none text-sm", placeholder="e.g. Monthly Retainer") }}
+                                    {{ rc_form.charge_description(class="w-full px-3 py-2 border border-gray-400 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm", placeholder="e.g. Monthly Retainer", autofocus=has_opening_balance) }}
                                 </div>
                                 <div>
                                     {{ rc_form.charge_amount.label(class="block text-xs font-medium text-gray-700 mb-1") }}
-                                    {{ rc_form.charge_amount(class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none text-sm") }}
-                                    <p class="text-xs text-gray-500 mt-1">In cents</p>
+                                    {{ rc_form.charge_amount(class="w-full px-3 py-2 border border-gray-400 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm", placeholder="e.g. 50.00", step="0.01") }}
                                 </div>
                                 <div>
                                     {{ rc_form.charge_frequency.label(class="block text-xs font-medium text-gray-700 mb-1") }}
-                                    {{ rc_form.charge_frequency(class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none text-sm") }}
+                                    {{ rc_form.charge_frequency(class="w-full px-3 py-2 border border-gray-400 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm") }}
                                 </div>
                                 <div>
                                     {{ rc_form.day_of_month.label(class="block text-xs font-medium text-gray-700 mb-1") }}
-                                    {{ rc_form.day_of_month(class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none text-sm", placeholder="e.g. 1") }}
+                                    {{ rc_form.day_of_month(class="w-full px-3 py-2 border border-gray-400 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm", placeholder="e.g. 1") }}
                                     <p class="text-xs text-gray-500 mt-1">1-31 (Caps out on short months)</p>
                                 </div>
                                 <div class="pt-2">

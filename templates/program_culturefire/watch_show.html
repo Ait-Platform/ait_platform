@@ -150,10 +150,16 @@ function loadItem(index) {
 
   // play safely (handles browser restrictions)
   player.play().catch((err) => {
-    alert("Video playback error: " + err.message + "\nURL: " + submissions[index].src);
+    console.error("Video playback error:", err);
+    title.innerHTML = `<span class="text-red-500 font-bold">Error playing video! Skipping...</span>`;
+    setTimeout(() => {
+        nextItem();
+    }, 3000);
   });
 
-  title.textContent = `${index + 1} of ${submissions.length} - ${submissions[index].title || "Untitled"}`;
+  if (!title.innerHTML.includes("Error playing video")) {
+    title.textContent = `${index + 1} of ${submissions.length} - ${submissions[index].title || "Untitled"}`;
+  }
   
   // Show score container if judge
   const scoreContainer = document.getElementById('scoreContainer');

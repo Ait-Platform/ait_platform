@@ -604,9 +604,7 @@ def talent_new(enrollment_id):
         for file in files:
             if file and file.filename:
                 filename = build_filename(talent_name, file.filename, submission.id)
-
-                file.save(os.path.join(os.path.join(current_app.root_path, "static", "uploads"), filename))
-
+                file.save(os.path.join(current_app.root_path, "static", "uploads", "cfi", filename))
                 saved_files.append(filename)
                 submission.files.append(CfiTalentFile(filename=filename))
 
@@ -814,7 +812,10 @@ def talent_edit(submission_id):
 
 @cultural_bp.route("/uploads/<path:filename>")
 def uploaded_file(filename):
-    return send_from_directory(os.path.join(current_app.root_path, "static", "uploads", "cfi"), filename)
+    cfi_path = os.path.join(current_app.root_path, "static", "uploads", "cfi")
+    if os.path.exists(os.path.join(cfi_path, filename)):
+        return send_from_directory(cfi_path, filename)
+    return send_from_directory(os.path.join(current_app.root_path, "static", "uploads"), filename)
 
 @cultural_bp.route("/talent/group/edit/<int:submission_id>", methods=["GET", "POST"])
 @login_required

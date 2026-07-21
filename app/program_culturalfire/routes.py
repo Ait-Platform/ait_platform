@@ -604,7 +604,9 @@ def talent_new(enrollment_id):
         for file in files:
             if file and file.filename:
                 filename = build_filename(talent_name, file.filename, submission.id)
-                file.save(os.path.join(current_app.root_path, "static", "uploads", "cfi", filename))
+                cfi_dir = os.path.join(current_app.root_path, "static", "uploads", "cfi")
+                os.makedirs(cfi_dir, exist_ok=True)
+                file.save(os.path.join(cfi_dir, filename))
                 saved_files.append(filename)
                 submission.files.append(CfiTalentFile(filename=filename))
 
@@ -788,7 +790,9 @@ def talent_edit(submission_id):
             for file in files:
                 if file and file.filename:
                     filename = build_filename(talent.talent_name, file.filename, talent.id)
-                    file.save(os.path.join(current_app.root_path, "static", "uploads", "cfi", filename))
+                    cfi_dir = os.path.join(current_app.root_path, "static", "uploads", "cfi")
+                    os.makedirs(cfi_dir, exist_ok=True)
+                    file.save(os.path.join(cfi_dir, filename))
                     saved_files.append(filename)
                     talent.files.append(CfiTalentFile(filename=filename))
 
@@ -1753,9 +1757,11 @@ def segment_edit(enrollment_id, category_id, segment):
         file = request.files.get("video")
         if file:
             filename = secure_filename(file.filename)
-            filepath = os.path.join(os.path.join(current_app.root_path, "static", "uploads"), filename)
+            cfi_dir = os.path.join(current_app.root_path, "static", "uploads", "cfi")
+            os.makedirs(cfi_dir, exist_ok=True)
+            filepath = os.path.join(cfi_dir, filename)
             file.save(filepath)
-            submission.video_url = filepath
+            submission.video_url = filename
             db.session.commit()
             flash(f"{segment.replace('_',' ').title()} updated successfully.", "success")
             return redirect(url_for("cultural_bp.pageant_flow",
@@ -1815,16 +1821,18 @@ def segment_new(enrollment_id, category_id, segment):
             flash(f"Please upload a {segment} video.", "error")
             return redirect(request.url)
 
-        filename = secure_filename(file.filename)
-        filepath = os.path.join(os.path.join(current_app.root_path, "static", "uploads"), filename)
+        cfi_dir = os.path.join(current_app.root_path, "static", "uploads", "cfi")
+        os.makedirs(cfi_dir, exist_ok=True)
+        filepath = os.path.join(cfi_dir, filename)
         file.save(filepath)
 
         submission = CfiTalentSubmission(
             user_enrollment_id=enrollment.id,
-            category_item_id=category.id,
+            user_id=enrollment.user_id,
             show_id=show.id,
-            segment_type=segment,
-            video_url=filepath
+            category_item_id=category.id,
+            segment_type=segment_id,
+            video_url=filename
         )
         db.session.add(submission)
         db.session.commit()
@@ -1855,15 +1863,18 @@ def ramp_walk(enrollment_id, category_id):
             return redirect(request.url)
 
         filename = secure_filename(file.filename)
-        filepath = os.path.join(os.path.join(current_app.root_path, "static", "uploads"), filename)
+        cfi_dir = os.path.join(current_app.root_path, "static", "uploads", "cfi")
+        os.makedirs(cfi_dir, exist_ok=True)
+        filepath = os.path.join(cfi_dir, filename)
         file.save(filepath)
 
         submission = CfiTalentSubmission(
             user_enrollment_id=enrollment.id,
-            category_item_id=category.id,
+            user_id=enrollment.user_id,
             show_id=show.id,
+            category_item_id=category.id,
             segment_type="ramp_walk",
-            video_url=filepath
+            video_url=filename
         )
         db.session.add(submission)
         db.session.commit()

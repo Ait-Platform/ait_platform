@@ -17,10 +17,9 @@
                 </div>
             </div>
             
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <!-- Left Column: Settings & Setup Forms -->
-                <div class="lg:col-span-1 space-y-6">
-                    
+            <div class="flex flex-col space-y-8">
+                <!-- Top Section: Forms -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {% if not has_opening_balance %}
                     <div class="bg-slate-50 border rounded-lg p-5">
                         <h3 class="text-md font-bold text-gray-800 mb-3 border-b pb-2">Set Opening Balance</h3>
@@ -74,9 +73,9 @@
                     </div>
                 </div>
                 
-                <!-- Right Column: List of existing financials -->
-                <div class="lg:col-span-2">
-                    <h3 class="text-lg font-bold text-gray-800 mb-4">Configured Recurring Charges</h3>
+                <!-- Bottom Section: List of existing financials -->
+                <div class="pt-6 border-t border-slate-200">
+                    <h3 class="text-xl font-bold text-gray-800 mb-6">Configured Recurring Charges</h3>
                     
                     {% if charges %}
                     <div class="bg-white border rounded-lg overflow-hidden shadow-sm">

@@ -63,6 +63,8 @@
           {% set primary_href = url_for('mechanic_bp.mechanic_dashboard') %}
         {% elif s.slug == 'hds' %}
           {% set primary_href = url_for('hds_bp.dashboard') %}
+        {% elif s.slug == 'debtors' %}
+          {% set primary_href = url_for('debtors_bp.debtors_router') %}
         {% elif s.slug == 'spv' %}
           {% set primary_href = url_for('spv_bp.investor_dashboard') %}
         {% else %}
@@ -194,3 +196,4 @@
 </div>
 
 {% endblock %}
+

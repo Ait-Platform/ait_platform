@@ -1,0 +1,103 @@
+{% extends 'layout.html' %}
+{% block title %}Mechanic CRM - Manage Catalog{% endblock %}
+{% block flashes %}{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-slate-50 py-10 px-4 flex flex-col items-center">
+  <div class="w-full max-w-4xl bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+    
+    <!-- Top Strip -->
+    <div class="h-2 w-full bg-indigo-500"></div>
+
+    <div class="px-6 pt-6 pb-2">
+      {% include "partials/flash_messages.html" %}
+    </div>
+
+    <!-- First Row: Title & Back Button -->
+    <div class="flex items-center justify-between border-b border-slate-100 px-6 pb-4">
+      <div>
+        <h1 class="text-2xl md:text-3xl font-bold text-slate-900">Manage Catalog</h1>
+        <p class="mt-1 text-sm text-slate-500">Shop: {{ shop.business_name }}</p>
+      </div>
+      <a href="{{ url_for('mechanic_bp.mechanic_dashboard') }}" class="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition shadow-sm">
+        <span>&larr;</span><span>Back</span>
+      </a>
+    </div>
+
+    <div class="p-6">
+      
+      <!-- Add New Part -->
+      <div class="bg-indigo-50 border border-indigo-200 rounded-xl p-6 mb-8">
+        <h3 class="text-lg font-bold text-indigo-900 mb-4">Add or Update Custom Part</h3>
+        <form action="{{ url_for('mechanic_bp.catalog_manage') }}" method="POST" class="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+          <input type="hidden" name="action" value="add"/>
+          
+          <div>
+            <label class="block text-sm font-semibold text-indigo-700 mb-1">Part Name</label>
+            <input type="text" name="part_name" required autofocus class="block w-full rounded-md border border-indigo-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:text-sm">
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-indigo-700 mb-1">Price ({{ currency_sym }})</label>
+            <input type="number" step="0.01" name="price" required class="block w-full rounded-md border border-indigo-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:text-sm">
+          </div>
+          <div>
+            <button type="submit" class="w-full inline-flex justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition">
+              Save Part
+            </button>
+          </div>
+        </form>
+        <p class="mt-3 text-xs text-indigo-600">If you add a part with the same name as a global part, your custom price will override the global price on quotes.</p>
+      </div>
+
+      <!-- Parts List -->
+      <h3 class="text-lg font-bold text-slate-800 mb-4">Your Active Catalog</h3>
+      <div class="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+        <table class="min-w-full divide-y divide-slate-200">
+          <thead class="bg-slate-50">
+            <tr>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Part Name</th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Category</th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Price</th>
+              <th scope="col" class="px-6 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Source</th>
+              <th scope="col" class="relative px-6 py-3"><span class="sr-only">Actions</span></th>
+            </tr>
+          </thead>
+          <tbody class="bg-white divide-y divide-slate-200">
+            {% for part in catalog_parts %}
+            <tr class="hover:bg-slate-50">
+              <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">{{ part.part_name }}</td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{{ part.category }}</td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-900">{{ currency_sym }}{{ "%.2f"|format(part.default_price) }}</td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-slate-500">
+                {% if part.user_id %}
+                  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Custom</span>
+                {% else %}
+                  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800">Global</span>
+                {% endif %}
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                {% if part.user_id %}
+                <form action="{{ url_for('mechanic_bp.catalog_manage') }}" method="POST" class="inline">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                  <input type="hidden" name="action" value="delete"/>
+                  <input type="hidden" name="part_id" value="{{ part.id }}"/>
+                  <button type="submit" onclick="return confirm('Remove this part from your catalog?')" class="text-red-600 hover:text-red-900">Delete</button>
+                </form>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+            {% if not catalog_parts %}
+            <tr>
+              <td colspan="5" class="px-6 py-8 text-center text-sm text-slate-500">No parts found in catalog.</td>
+            </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}

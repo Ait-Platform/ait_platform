@@ -1,15 +1,19 @@
 {% extends "layout.html" %}
 {% block title %}Mechanic CRM - Trial Ended{% endblock %}
+{% block flashes %}{% endblock %}
 
 {% block content %}
-<div class="max-w-3xl mx-auto px-4 py-12">
-
-  <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden text-center">
+<div class="min-h-screen bg-slate-50 py-10 px-4 flex flex-col items-center">
+  <div class="w-full max-w-3xl bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden text-center">
+    
     <!-- Color strip on top -->
-    <div class="h-2 bg-indigo-600"></div>
+    <div class="h-2 w-full bg-indigo-500"></div>
+    
+    <div class="px-6 pt-6 pb-2">
+      {% include "partials/flash_messages.html" %}
+    </div>
 
     <div class="p-8 md:p-12 space-y-6">
-      
       <div class="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4">
         <i class="fas fa-file-invoice-dollar text-2xl"></i>
       </div>
@@ -22,7 +26,7 @@
       <!-- Mock Bill Card -->
       <div class="bg-slate-50 border border-slate-200 rounded-xl p-8 max-w-lg mx-auto shadow-sm my-8">
         <h3 class="text-sm font-bold text-slate-500 uppercase tracking-wider mb-2">30-Day Usage Summary</h3>
-        <p class="text-5xl font-extrabold text-indigo-600 mb-4">R {{ "%.2f"|format(shop.shadow_spent_cents / 100) }}</p>
+        <p class="text-5xl font-extrabold text-indigo-600 mb-4">{{ currency_sym }}{{ "%.2f"|format(shop.shadow_spent_cents / 100) }}</p>
         <p class="text-slate-600 text-sm leading-relaxed">
           This is exactly what your usage would have cost under our pay-as-you-go token model. 
         </p>
@@ -32,7 +36,7 @@
       <div class="bg-blue-50 border-l-4 border-blue-500 p-6 text-left text-blue-900 rounded-r-xl max-w-lg mx-auto mb-8">
         <p class="font-semibold mb-2">💡 How to cover this cost effortlessly:</p>
         <p class="text-sm">
-          If your monthly usage cost is R{{ "%.2f"|format(shop.shadow_spent_cents / 100) }}, you only need to increase your future client bills by <strong>R10</strong> per invoice to completely cover the platform cost! You pass the tech fee on seamlessly while running a modernized shop.
+          If your monthly usage cost is {{ currency_sym }}{{ "%.2f"|format(shop.shadow_spent_cents / 100) }}, you only need to increase your future client bills by <strong>{{ currency_sym }}10.00</strong> per invoice to completely cover the platform cost! You pass the tech fee on seamlessly while running a modernized shop.
         </p>
       </div>
 
@@ -41,14 +45,13 @@
         <h4 class="text-lg font-bold text-slate-900">Ready to continue?</h4>
         <p class="text-sm text-slate-500 mb-6">Pay your once-off registration fee and top up your wallet to retain your data and keep generating quotes.</p>
         
-        <a href="{{ url_for('auth_bp.register', subject='mechanic_registration', next=url_for('mechanic_bp.topup')) }}"
+        <a href="{{ url_for('auth_bp.register', subject='mechanic', next=url_for('mechanic_bp.topup')) }}"
            class="inline-block w-full sm:w-auto bg-indigo-600 text-white font-bold text-lg py-3 px-8 rounded-xl shadow-sm hover:bg-indigo-700 transition">
-          Pay R100 Registration Fee
+          Register to Continue
         </a>
       </div>
 
     </div>
   </div>
-
 </div>
 {% endblock %}

@@ -54,18 +54,29 @@
         
         <!-- AI disabled temporarily. Manual Setup Tile -->
         {% if not active_shop %}
-          <button onclick="document.getElementById('manual-setup-modal').classList.remove('hidden')" class="text-left block rounded-xl border p-6 shadow-sm transition hover:shadow bg-blue-50 border-blue-100 hover:bg-blue-100 group">
-            <div class="font-semibold text-slate-900 group-hover:text-blue-700">1. Setup Shop Profile</div>
-            <div class="mt-1 text-sm text-slate-600">Manually enter your business details.</div>
+          <!-- User has no shop set up -->
+          <button type="button" onclick="document.getElementById('manual-setup-modal').classList.remove('hidden')" class="block text-left rounded-xl border p-6 shadow-sm transition hover:shadow bg-white border-slate-200 hover:border-indigo-300 group">
+            <div class="font-semibold text-slate-900 group-hover:text-indigo-600">1. Complete Shop Setup</div>
+            <div class="mt-1 text-sm text-slate-600">Enter your business name, address, and logo manually.</div>
           </button>
         {% else %}
-          <button onclick="document.getElementById('manual-setup-modal').classList.remove('hidden')" class="text-left block rounded-xl border p-6 shadow-sm transition hover:shadow bg-blue-50 border-blue-100 hover:bg-blue-100 group">
-            <div class="font-semibold text-slate-900 group-hover:text-blue-700">1. Edit Shop Profile</div>
-            <div class="mt-1 text-sm text-slate-600">Update your business details.</div>
+          <!-- User has shop set up -->
+          <button type="button" onclick="document.getElementById('manual-setup-modal').classList.remove('hidden')" class="block text-left rounded-xl border p-6 shadow-sm transition hover:shadow bg-white border-slate-200 hover:border-indigo-300 group">
+            <div class="font-semibold text-slate-900 group-hover:text-indigo-600">Update Shop Profile</div>
+            <div class="mt-1 text-sm text-slate-600">Edit business details, terms, and logo.</div>
           </button>
+          
+          <a href="{{ url_for('mechanic_bp.catalog_manage') }}" class="block text-left rounded-xl border p-6 shadow-sm transition hover:shadow bg-white border-slate-200 hover:border-indigo-300 group">
+            <div class="font-semibold text-slate-900 group-hover:text-indigo-600">Manage Catalog</div>
+            <div class="mt-1 text-sm text-slate-600">Add custom parts and set your local prices.</div>
+          </a>
         {% endif %}
+        
+        <a href="{{ url_for('mechanic_bp.topup') }}" class="block rounded-xl border p-6 shadow-sm transition hover:shadow bg-white border-slate-200 hover:border-indigo-300 group">
+          <div class="font-semibold text-slate-900 group-hover:text-indigo-600">2. Top Up Wallet</div>
+          <div class="mt-1 text-sm text-slate-600">Add credits to generate quotes and invoices.</div>
+        </a>
 
-        <!-- Tile 3: Create Quote (Intake) -->
         {% if active_shop %}
           <a href="{{ url_for('mechanic_bp.new_quote') }}" class="block rounded-xl border p-6 shadow-sm transition hover:shadow bg-green-50 border-green-100 hover:bg-green-100 group">
             <div class="font-semibold text-slate-900 group-hover:text-green-700">3. Create Quote</div>
@@ -77,6 +88,56 @@
             <div class="mt-1 text-sm text-slate-600">Requires an active Shop Profile to start quoting.</div>
           </div>
         {% endif %}
+      </div>
+    </div>
+
+    <!-- Job Cards Table -->
+    <div class="px-6 py-8">
+      <h2 class="text-lg font-bold text-slate-800 mb-4">Recent Job Cards</h2>
+      <div class="border border-slate-200 rounded-xl overflow-x-auto shadow-sm">
+        <table class="min-w-full divide-y divide-slate-200">
+          <thead class="bg-slate-50">
+            <tr>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Job #</th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Date</th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Client & Vehicle</th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Status</th>
+              <th scope="col" class="px-6 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="bg-white divide-y divide-slate-200">
+            {% for job in job_cards %}
+            <tr class="hover:bg-slate-50 transition">
+              <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">#{{ job.job_number }}</td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{{ job.created_at.strftime('%Y-%m-%d') }}</td>
+              <td class="px-6 py-4 whitespace-nowrap">
+                <div class="text-sm font-bold text-slate-900">{{ job.vehicle.client.name }}</div>
+                <div class="text-sm text-slate-500">{{ job.vehicle.registration_number }} ({{ job.vehicle.make }})</div>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap">
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
+                  {% if job.status == 'Billed' %}bg-green-100 text-green-800
+                  {% elif job.status == 'Ready' %}bg-blue-100 text-blue-800
+                  {% else %}bg-amber-100 text-amber-800{% endif %}">
+                  {{ job.status }}
+                </span>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                <a href="{{ url_for('mechanic_bp.job_card_detail', id=job.id) }}" class="text-indigo-600 hover:text-indigo-900">View Job</a>
+                {% if job.status == 'Billed' %}
+                  <span class="text-slate-300">|</span>
+                  <a href="{{ url_for('mechanic_bp.client_soa', client_id=job.vehicle.client.id) }}" class="text-green-600 hover:text-green-900">View SOA</a>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+            {% if not job_cards %}
+            <tr>
+              <td colspan="5" class="px-6 py-8 text-center text-sm text-slate-500">No job cards found. Start by generating a quote!</td>
+            </tr>
+            {% endif %}
+          </tbody>
+        </table>
       </div>
     </div>
   </div>
@@ -96,19 +157,19 @@
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div class="sm:col-span-2">
               <label class="block text-sm font-medium text-slate-700">Business Name</label>
-              <input type="text" name="business_name" value="{{ active_shop.business_name if active_shop else '' }}" required class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+              <input type="text" name="business_name" value="{{ active_shop.business_name if active_shop else '' }}" required autofocus class="mt-1 block w-full rounded-md border border-slate-300 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:text-sm">
             </div>
             <div class="sm:col-span-2">
               <label class="block text-sm font-medium text-slate-700">Address</label>
-              <input type="text" name="address" value="{{ active_shop.address if active_shop else '' }}" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+              <input type="text" name="address" value="{{ active_shop.address if active_shop else '' }}" class="mt-1 block w-full rounded-md border border-slate-300 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:text-sm">
             </div>
             <div>
               <label class="block text-sm font-medium text-slate-700">Phone</label>
-              <input type="text" name="phone" value="{{ active_shop.phone if active_shop else '' }}" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+              <input type="text" name="phone" value="{{ active_shop.phone if active_shop else '' }}" class="mt-1 block w-full rounded-md border border-slate-300 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:text-sm">
             </div>
             <div>
               <label class="block text-sm font-medium text-slate-700">Email</label>
-              <input type="email" name="email" value="{{ active_shop.email if active_shop else '' }}" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+              <input type="email" name="email" value="{{ active_shop.email if active_shop else '' }}" class="mt-1 block w-full rounded-md border border-slate-300 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:text-sm">
             </div>
             <div class="sm:col-span-2">
               <label class="block text-sm font-medium text-slate-700">Shop Logo (Optional)</label>
@@ -116,7 +177,7 @@
             </div>
             <div class="sm:col-span-2">
               <label class="block text-sm font-medium text-slate-700">Terms and Conditions</label>
-              <textarea name="terms_and_conditions" rows="3" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">{{ active_shop.terms_and_conditions if active_shop else '' }}</textarea>
+              <textarea name="terms_and_conditions" rows="3" class="mt-1 block w-full rounded-md border border-slate-300 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:text-sm">{{ active_shop.terms_and_conditions if active_shop else '' }}</textarea>
             </div>
           </div>
         </div>

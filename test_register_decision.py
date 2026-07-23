@@ -12,16 +12,16 @@ app = create_app()
 
 with app.app_context():
     # Make sure we have a user
-    user = User.query.filter_by(email='minor3@test.com').first()
+    user = User.query.filter_by(email='minor4@test.com').first()
     if not user:
-        user = User(name='Minor Three', email='minor3@test.com')
+        user = User(name='Minor Four', email='minor4@test.com')
         db.session.add(user)
         db.session.commit()
         
     subj = AuthSubject.query.filter_by(slug='cultural_fire').first()
         
     # Make sure we have a voucher
-    vcode = "VOUCHER-TEST-333"
+    vcode = "VOUCHER-TEST-444"
     v = VoucherToken.query.filter_by(code=vcode).first()
     if not v:
         v = VoucherToken(code=vcode, value_amount=150, subject_id=subj.id)
@@ -34,7 +34,7 @@ with app.app_context():
             sess['_user_id'] = str(user.id)
             
         try:
-            res = c.get(f'/checkout/decision?subject=cultural_fire&voucher={vcode}', follow_redirects=False)
+            res = c.get(f'/register/decision?subject=cultural_fire&voucher={vcode}', follow_redirects=False)
             print(f"Register decision status: {res.status_code}")
             if res.status_code == 500:
                 print("500 ERROR CAUGHT IN REGISTER_DECISION")

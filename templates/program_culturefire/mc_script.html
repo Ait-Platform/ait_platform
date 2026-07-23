@@ -44,6 +44,7 @@
             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 mt-2">Missing Video</span>
           {% endif %}
         </div>
+        {% if not show_intro or show_intro.user_id == current_user.id %}
         <div>
           <form class="mc-upload-form" enctype="multipart/form-data">
             <input type="hidden" name="recording_type" value="show_intro">
@@ -54,6 +55,11 @@
             </div>
           </form>
         </div>
+        {% else %}
+        <div>
+          <p class="text-sm font-semibold text-gray-500 italic">Uploaded by another MC</p>
+        </div>
+        {% endif %}
       </div>
 
       <h2 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2">Part 2: Act Intros</h2>
@@ -91,6 +97,7 @@
               {% endif %}
             </div>
             
+            {% if not act_intro or act_intro.user_id == current_user.id %}
             <div class="w-full md:w-auto">
               <form class="mc-upload-form" enctype="multipart/form-data">
                 <input type="hidden" name="recording_type" value="act_intro">
@@ -102,6 +109,11 @@
                 </div>
               </form>
             </div>
+            {% else %}
+            <div class="w-full md:w-auto text-right">
+              <p class="text-sm font-semibold text-gray-500 italic">Uploaded by another MC</p>
+            </div>
+            {% endif %}
           </div>
         {% endfor %}
       </div>
@@ -121,6 +133,7 @@
             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 mt-2">Missing Video</span>
           {% endif %}
         </div>
+        {% if not show_outro or show_outro.user_id == current_user.id %}
         <div>
           <form class="mc-upload-form" enctype="multipart/form-data">
             <input type="hidden" name="recording_type" value="show_outro">
@@ -131,6 +144,11 @@
             </div>
           </form>
         </div>
+        {% else %}
+        <div>
+          <p class="text-sm font-semibold text-gray-500 italic">Uploaded by another MC</p>
+        </div>
+        {% endif %}
       </div>
     </div>
   </div>
@@ -157,13 +175,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
         const result = await resp.json();
         if(result.success) {
-          const currentUploads = {{ recordings|length }};
-          const requiredUploads = {{ submissions|length + 2 }};
-          if (currentUploads + 1 >= requiredUploads) {
-            window.location.href = "{{ url_for('cultural_bp.mc_dashboard') }}";
-          } else {
-            window.location.reload();
-          }
+          window.location.reload();
         } else {
           alert("Error: " + result.message);
           btn.innerText = originalText;

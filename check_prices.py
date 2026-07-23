@@ -1,10 +1,19 @@
 import os
+import sys
+sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
+
 from app import create_app
 from app.extensions import db
-from sqlalchemy import text
+from app.models.auth import AuthSubject, AuthPricing
 
 app = create_app()
 with app.app_context():
-    for sid in [1, 2, 4]:
-        count = db.session.execute(text(f"SELECT COUNT(*) FROM subject_country_price WHERE subject_id = {sid}")).scalar()
-        print(f"Subject {sid} has {count} prices.")
+    subj = AuthSubject.query.filter_by(slug='debtors').first()
+    if subj:
+        prices = AuthPricing.query.filter_by(subject_id=subj.id).all()
+        for p in prices:
+            print(f"{p.currency}: {p.amount_cents}")
+        if not prices:
+            print("No prices found for debtors")
+    else:
+        print("Debtors subject not found")

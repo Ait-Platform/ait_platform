@@ -1598,7 +1598,7 @@ def upload_mc_recording(show_id):
 
     filename = secure_filename(file.filename)
     unique_filename = f"mc_{current_user.id}_{int(time.time())}_{filename}"
-    upload_folder = current_app.config.get('UPLOAD_FOLDER', os.path.join(current_app.root_path, "static", "uploads"))
+    upload_folder = os.path.join(current_app.root_path, "static", "uploads", "cfi")
     os.makedirs(upload_folder, exist_ok=True)
     file_path = os.path.join(upload_folder, unique_filename)
     file.save(file_path)
@@ -1606,9 +1606,9 @@ def upload_mc_recording(show_id):
     recording_type = request.form.get("recording_type", "act_intro")
     
     if v_type == "pageant":
-        rec = CfiMcRecording(user_id=current_user.id, show_id=show_id, recording_type=recording_type, segment_item_id=sub_id if sub_id else None, media_url=f"uploads/{unique_filename}")
+        rec = CfiMcRecording(user_id=current_user.id, show_id=show_id, recording_type=recording_type, segment_item_id=sub_id if sub_id else None, media_url=f"cfi/{unique_filename}")
     else:
-        rec = CfiMcRecording(user_id=current_user.id, show_id=show_id, recording_type=recording_type, submission_id=sub_id if sub_id else None, media_url=f"uploads/{unique_filename}")
+        rec = CfiMcRecording(user_id=current_user.id, show_id=show_id, recording_type=recording_type, submission_id=sub_id if sub_id else None, media_url=f"cfi/{unique_filename}")
 
     db.session.add(rec)
     db.session.commit()

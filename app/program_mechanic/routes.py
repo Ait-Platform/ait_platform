@@ -5,6 +5,24 @@ from app.extensions import db
 from . import mechanic_bp
 from app.models.mechanic import MechClient, MechVehicle, MechJobCard, MechInvoice
 from datetime import datetime, timedelta
+import os
+import time
+from werkzeug.utils import secure_filename
+
+@mechanic_bp.context_processor
+def inject_currency():
+    if current_user.is_authenticated:
+        from app.models.auth import AuthSubject, UserEnrollment
+        subject = AuthSubject.query.filter_by(slug='mechanic').first()
+        if subject:
+            enrollment = UserEnrollment.query.filter_by(user_id=current_user.id, subject_id=subject.id).first()
+            if enrollment and enrollment.local_currency:
+                curr = enrollment.local_currency.upper()
+                sym_map = {'ZAR': 'R ', 'USD': '$ ', 'EUR': '€ ', 'GBP': '£ ', 'AUD': '$ ', 'CAD': '$ '}
+                sym = sym_map.get(curr, '') if curr else ''
+                return dict(currency_sym=sym)
+    # Default fallback for unauthenticated or un-enrolled
+    return dict(currency_sym='R ')
 
 @mechanic_bp.route("/mechanic/about")
 def about():
@@ -238,12 +256,10 @@ def generate_invoice(id):
         invoice_cost = int(setting[0]) if setting else 1000
 
         if active_shop.trial_ends_at and datetime.utcnow() < active_shop.trial_ends_at:
-            # IN TRIAL: Shadow Billing
             active_shop.shadow_spent_cents += invoice_cost
             db.session.commit()
             flash(f"Invoice generated successfully! (Shadow Billed R{invoice_cost/100:.2f})", "success")
         else:
-            # TRIAL EXPIRED or NO TRIAL: Real Wallet
             if active_shop.wallet_balance_cents < invoice_cost:
                 flash("Insufficient tokens. Please top up or pay your registration fee.", "warning")
                 return redirect(url_for("mechanic_bp.mock_bill"))
@@ -252,11 +268,46 @@ def generate_invoice(id):
             db.session.commit()
             flash(f"Invoice generated successfully! (R{invoice_cost/100:.2f} deducted)", "success")
             
+        job_card = MechJobCard.query.get_or_404(id)
+        labor_total = sum(l.hours * l.rate_per_hour for l in job_card.labor_lines)
+        parts_total = sum(p.quantity * p.markup_price for p in job_card.part_lines)
+        total = labor_total + parts_total
+        
+        from app.models.mechanic import MechInvoice
+        invoice = MechInvoice(job_card_id=job_card.id, subtotal=total, total=total, status='Unpaid')
+        db.session.add(invoice)
+        job_card.status = 'Billed'
+        db.session.flush()
+        
+        from app.models.debtors import Debtor, DebtorLedger
+        client = job_card.vehicle.client
+        debtor = Debtor.query.filter_by(reference_id=client.id, slug_reference='mechanic').first()
+        
+        if not debtor:
+            debtor = Debtor(
+                user_id=current_user.id,
+                name=client.name,
+                email=client.email,
+                phone=client.phone,
+                reference_id=client.id,
+                slug_reference='mechanic'
+            )
+            db.session.add(debtor)
+            db.session.flush()
+            
+        ledger = DebtorLedger(
+            debtor_id=debtor.id,
+            transaction_type='debit',
+            amount_cents=int(total * 100),
+            description=f'Mechanic Invoice for Job #{job_card.job_number}'
+        )
+        db.session.add(ledger)
+        db.session.commit()
+        
         return redirect(url_for("mechanic_bp.job_card_detail", id=id))
 
-    # Logic to calculate totals from labor/parts and generate MechInvoice
     job_card = MechJobCard.query.get_or_404(id)
-    return render_template("program_mechanic/invoice_view.html", job_card=job_card)
+    return render_template("program_mechanic/invoice_view.html", job_card=job_card, shop=active_shop)
 
 @mechanic_bp.route("/mechanic/quote/new", methods=["GET", "POST"])
 @login_required
@@ -266,20 +317,29 @@ def new_quote():
         flash("You must complete your shop setup first.", "warning")
         return redirect(url_for("mechanic_bp.mechanic_dashboard"))
         
-    # Get global parts + user's learned parts
-    catalog_parts = MechCatalogPart.query.filter(
+    all_parts = MechCatalogPart.query.filter(
         (MechCatalogPart.user_id == None) | (MechCatalogPart.user_id == current_user.id)
     ).all()
+    
+    part_dict = {}
+    for p in all_parts:
+        name_lower = p.part_name.lower().strip()
+        if name_lower not in part_dict:
+            part_dict[name_lower] = p
+        else:
+            if p.user_id == current_user.id:
+                part_dict[name_lower] = p
+    
+    catalog_parts = list(part_dict.values())
+    catalog_parts.sort(key=lambda x: x.part_name)
     
     if request.method == "POST":
         setting = db.session.execute(text("SELECT value FROM system_settings WHERE key = 'mechanic_quote_cents'")).fetchone()
         quote_cost = int(setting[0]) if setting else 500
 
         if active_shop.trial_ends_at and datetime.utcnow() < active_shop.trial_ends_at:
-            # IN TRIAL: Shadow Billing
             active_shop.shadow_spent_cents += quote_cost
         else:
-            # TRIAL EXPIRED or NO TRIAL: Real Wallet
             if active_shop.wallet_balance_cents < quote_cost:
                 flash("Insufficient tokens. Please top up or pay your registration fee.", "warning")
                 return redirect(url_for("mechanic_bp.mock_bill"))
@@ -288,10 +348,10 @@ def new_quote():
         
         customer_name = request.form.get("customer_name")
         vehicle_reg = request.form.get("vehicle_reg")
-        # In a real app, we'd save this to MechJobCard and MechClient.
-        # For now, if they typed a new part, let's learn it!
         new_part_name = request.form.get("new_part_name")
         new_part_price = request.form.get("new_part_price")
+        
+        selected_part_ids = request.form.getlist('selected_parts')
         
         if new_part_name and new_part_price:
             learned_part = MechCatalogPart(
@@ -301,11 +361,55 @@ def new_quote():
                 default_price=float(new_part_price)
             )
             db.session.add(learned_part)
-            db.session.commit()
+            db.session.flush()
+            selected_part_ids.append(str(learned_part.id))
             flash(f"Learned new part: {new_part_name}", "success")
             
-        flash("Quote created successfully!", "success")
-        return redirect(url_for("mechanic_bp.mechanic_dashboard"))
+        from app.models.mechanic import MechClient, MechVehicle, MechJobCard, MechPartLine, MechLaborLine
+        import uuid
+        
+        # Mock finding or creating client
+        client = MechClient.query.filter_by(name=customer_name).first()
+        if not client:
+            client = MechClient(name=customer_name)
+            db.session.add(client)
+            db.session.flush()
+            
+        vehicle = MechVehicle.query.filter_by(registration_number=vehicle_reg, client_id=client.id).first()
+        if not vehicle:
+            vehicle = MechVehicle(registration_number=vehicle_reg, make="Unknown", client_id=client.id)
+            db.session.add(vehicle)
+            db.session.flush()
+            
+        job_card = MechJobCard(
+            job_number=f"JOB-{uuid.uuid4().hex[:6].upper()}",
+            vehicle_id=vehicle.id,
+            status='Ready'
+        )
+        db.session.add(job_card)
+        db.session.flush()
+        
+        # Add a default labor line
+        labor = MechLaborLine(job_card_id=job_card.id, mechanic_name="General", description="General Inspection", hours=1.0, rate_per_hour=350.0)
+        db.session.add(labor)
+        
+        for p_id in selected_part_ids:
+            part_def = MechCatalogPart.query.get(p_id)
+            if part_def:
+                pline = MechPartLine(
+                    job_card_id=job_card.id,
+                    part_number=part_def.part_name,
+                    description=f"{part_def.category} part",
+                    quantity=1,
+                    unit_cost=part_def.default_price,
+                    markup_price=part_def.default_price
+                )
+                db.session.add(pline)
+                
+        db.session.commit()
+            
+        flash("Quote created and Job Card generated successfully!", "success")
+        return redirect(url_for("mechanic_bp.job_card_detail", id=job_card.id))
         
     return render_template("program_mechanic/quote_form.html", catalog_parts=catalog_parts, shop=active_shop)
 
@@ -326,3 +430,66 @@ def messages():
     msgs = DirectMessage.query.filter_by(user_id=current_user.id, subject='mechanic').order_by(DirectMessage.created_at.desc()).all()
     return render_template('program_mechanic/messages.html', messages=msgs)
 
+@mechanic_bp.route('/mechanic/catalog', methods=['GET', 'POST'])
+@login_required
+def catalog_manage():
+    active_shop = MechShop.query.filter_by(user_id=current_user.id, onboarding_status='active').first()
+    if not active_shop:
+        flash('You must complete your shop setup first.', 'warning')
+        return redirect(url_for('mechanic_bp.mechanic_dashboard'))
+
+    if request.method == 'POST':
+        action = request.form.get('action')
+        if action == 'add':
+            part_name = request.form.get('part_name')
+            category = request.form.get('category', 'Custom')
+            price = request.form.get('price', type=float, default=0.0)
+            
+            if part_name:
+                existing = MechCatalogPart.query.filter_by(user_id=current_user.id, part_name=part_name).first()
+                if existing:
+                    existing.default_price = price
+                    existing.category = category
+                    flash(f'Updated price for {part_name}', 'success')
+                else:
+                    new_part = MechCatalogPart(user_id=current_user.id, part_name=part_name, category=category, default_price=price)
+                    db.session.add(new_part)
+                    flash(f'Added {part_name} to your catalog', 'success')
+                db.session.commit()
+                
+        elif action == 'delete':
+            part_id = request.form.get('part_id')
+            part = MechCatalogPart.query.filter_by(id=part_id, user_id=current_user.id).first()
+            if part:
+                db.session.delete(part)
+                db.session.commit()
+                flash('Part removed from your catalog.', 'success')
+                
+        return redirect(url_for('mechanic_bp.catalog_manage'))
+
+    all_parts = MechCatalogPart.query.filter(
+        (MechCatalogPart.user_id == None) | (MechCatalogPart.user_id == current_user.id)
+    ).all()
+    
+    part_dict = {}
+    for p in all_parts:
+        name_lower = p.part_name.lower().strip()
+        if name_lower not in part_dict:
+            part_dict[name_lower] = p
+        else:
+            if p.user_id == current_user.id:
+                part_dict[name_lower] = p
+                
+    catalog_parts = list(part_dict.values())
+    catalog_parts.sort(key=lambda x: x.part_name)
+
+    return render_template('program_mechanic/catalog_manage.html', catalog_parts=catalog_parts, shop=active_shop)
+@mechanic_bp.route('/mechanic/client_soa/<int:client_id>')
+@login_required
+def client_soa(client_id):
+    from app.models.debtors import Debtor
+    debtor = Debtor.query.filter_by(reference_id=client_id, slug_reference='mechanic', user_id=current_user.id).first()
+    if not debtor:
+        flash('No Statement of Account exists for this client yet.', 'info')
+        return redirect(url_for('mechanic_bp.mechanic_dashboard'))
+    return redirect(url_for('debtors_bp.generate_soa', debtor_id=debtor.id))

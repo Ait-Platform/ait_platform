@@ -1,0 +1,129 @@
+{% extends "layout.html" %}
+{% block title %}Mechanic CRM - Job Card #{{ job_card.job_number }}{% endblock %}
+{% block flashes %}{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-slate-50 py-10 px-4 flex flex-col items-center">
+  <div class="w-full max-w-4xl bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+    
+    <!-- Top Strip -->
+    <div class="h-2 w-full bg-indigo-500"></div>
+
+    <div class="px-6 pt-6 pb-2">
+      {% include "partials/flash_messages.html" %}
+    </div>
+
+    <!-- First Row: Title & Back Button -->
+    <div class="flex items-center justify-between border-b border-slate-100 px-6 pb-4">
+      <div>
+        <h1 class="text-2xl md:text-3xl font-bold text-slate-900">Job Card #{{ job_card.job_number }}</h1>
+        <p class="mt-1 text-sm text-slate-500">Created: {{ job_card.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+      </div>
+      <a href="{{ url_for('mechanic_bp.mechanic_dashboard') }}" class="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition shadow-sm">
+        <span>&larr;</span><span>Back</span>
+      </a>
+    </div>
+
+    <div class="p-6 space-y-8">
+      
+      <!-- Status & Actions -->
+      <div class="flex justify-between items-center bg-slate-50 border border-slate-200 rounded-xl p-4">
+        <div>
+          <span class="text-sm font-bold text-slate-500 uppercase tracking-wider mr-2">Status:</span>
+          <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold 
+            {% if job_card.status == 'Billed' %}bg-green-100 text-green-800
+            {% elif job_card.status == 'Ready' %}bg-blue-100 text-blue-800
+            {% else %}bg-amber-100 text-amber-800{% endif %}">
+            {{ job_card.status }}
+          </span>
+        </div>
+        <div class="flex space-x-3">
+          {% if job_card.status == 'Billed' %}
+            <a href="{{ url_for('mechanic_bp.client_soa', client_id=job_card.vehicle.client.id) }}" class="inline-flex items-center rounded-lg border border-indigo-200 bg-white px-4 py-2 text-sm font-semibold text-indigo-700 shadow-sm hover:bg-slate-50 transition">
+              View Client SOA
+            </a>
+            <a href="{{ url_for('mechanic_bp.generate_invoice', id=job_card.id) }}" class="inline-flex items-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 transition">
+              View Invoice
+            </a>
+          {% else %}
+            <form action="{{ url_for('mechanic_bp.generate_invoice', id=job_card.id) }}" method="POST" class="inline">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+              <button type="submit" class="inline-flex items-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 transition">
+                Generate Invoice & Bill
+              </button>
+            </form>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Details Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+          <h3 class="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2">Client Details</h3>
+          <p class="font-bold text-slate-900 text-lg mb-1">{{ job_card.vehicle.client.name }}</p>
+          <p class="text-slate-600 text-sm"><i class="fas fa-phone mr-2 text-slate-400"></i>{{ job_card.vehicle.client.phone or 'No phone' }}</p>
+          <p class="text-slate-600 text-sm mt-1"><i class="fas fa-envelope mr-2 text-slate-400"></i>{{ job_card.vehicle.client.email or 'No email' }}</p>
+        </div>
+        <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+          <h3 class="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2">Vehicle Details</h3>
+          <p class="font-bold text-slate-900 text-lg mb-1">{{ job_card.vehicle.registration_number }}</p>
+          <p class="text-slate-600 text-sm"><span class="font-semibold">Make:</span> {{ job_card.vehicle.make }}</p>
+          <p class="text-slate-600 text-sm mt-1"><span class="font-semibold">Model:</span> {{ job_card.vehicle.model or 'Unknown' }} ({{ job_card.vehicle.year or 'N/A' }})</p>
+          <p class="text-slate-600 text-sm mt-1"><span class="font-semibold">VIN:</span> {{ job_card.vehicle.vin or 'N/A' }}</p>
+        </div>
+      </div>
+
+      <!-- Parts & Labor Lines -->
+      <div>
+        <h3 class="text-lg font-bold text-slate-800 mb-4">Service Details</h3>
+        <div class="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+          <table class="min-w-full divide-y divide-slate-200">
+            <thead class="bg-slate-50">
+              <tr>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Item</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Type</th>
+                <th scope="col" class="px-6 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Qty/Hrs</th>
+                <th scope="col" class="px-6 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Rate</th>
+                <th scope="col" class="px-6 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Total</th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-slate-200">
+              {% set ns = namespace(total=0) %}
+              
+              {% for p in job_card.part_lines %}
+              {% set line_total = p.quantity * p.markup_price %}
+              {% set ns.total = ns.total + line_total %}
+              <tr class="hover:bg-slate-50">
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-900"><span class="font-bold">{{ p.part_number }}</span><br><span class="text-slate-500 text-xs">{{ p.description }}</span></td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">Part</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-slate-500">{{ p.quantity }}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-slate-500">{{ currency_sym }}{{ "%.2f"|format(p.markup_price) }}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-right text-slate-900">{{ currency_sym }}{{ "%.2f"|format(line_total) }}</td>
+              </tr>
+              {% endfor %}
+
+              {% for l in job_card.labor_lines %}
+              {% set line_total = l.hours * l.rate_per_hour %}
+              {% set ns.total = ns.total + line_total %}
+              <tr class="hover:bg-slate-50">
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-900"><span class="font-bold">Labor: {{ l.mechanic_name or 'General' }}</span><br><span class="text-slate-500 text-xs">{{ l.description }}</span></td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">Labor</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-slate-500">{{ l.hours }}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-slate-500">{{ currency_sym }}{{ "%.2f"|format(l.rate_per_hour) }}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-right text-slate-900">{{ currency_sym }}{{ "%.2f"|format(line_total) }}</td>
+              </tr>
+              {% endfor %}
+              
+              <tr class="bg-slate-50 border-t-2 border-slate-200">
+                <td colspan="4" class="px-6 py-4 whitespace-nowrap text-right text-sm font-bold text-slate-700 uppercase">Estimated Total</td>
+                <td class="px-6 py-4 whitespace-nowrap text-right text-lg font-black text-indigo-600">{{ currency_sym }}{{ "%.2f"|format(ns.total) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}

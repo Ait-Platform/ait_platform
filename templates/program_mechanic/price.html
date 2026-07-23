@@ -1,11 +1,11 @@
 {% extends "layout.html" %}
 {% block title %}Mechanic CRM - Pricing{% endblock %}
 
-{% block content %}
-<div class="max-w-4xl mx-auto px-4 py-8">
+{% block flashes %}{% endblock %}
 
-  <!-- Single Main Tile -->
-  <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+{% block content %}
+<div class="min-h-screen bg-slate-50 py-10 px-4 flex flex-col items-center">
+  <div class="w-full max-w-4xl bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
     <!-- Color strip on top -->
     <div class="h-2 bg-indigo-600"></div>
 
@@ -54,7 +54,10 @@
               <div class="mt-6">
                 <span id="registration_price" class="text-2xl font-bold text-indigo-600">
                   {% if price.has_quote %}
-                    {% if price.local_currency == 'ZAR' %}R {% else %}{{ price.local_currency }} {% endif %}{{ "%.2f"|format(price.local_amount / 100) }}
+                    {% set curr = price.local_currency|upper if price.local_currency else '' %}
+                    {% set sym_map = {'ZAR': 'R ', 'USD': '$ ', 'EUR': '€ ', 'GBP': '£ ', 'AUD': '$ ', 'CAD': '$ '} %}
+                    {% set sym = sym_map.get(curr, '') if curr else '' %}
+                    {{ sym }}{{ "%.2f"|format(price.local_amount / 100) }}
                   {% else %}
                     <i class="fas fa-spinner fa-spin text-lg"></i>
                   {% endif %}
@@ -74,8 +77,11 @@
               <p class="text-slate-600 text-sm leading-relaxed">
                 Top up your internal wallet. We only deduct credits when you actively generate value for your shop. 
                 <br><br>
-                • <strong>Quotes:</strong> <span class="inline-flex items-center rounded-md bg-blue-50 px-2 py-0.5 text-sm font-bold text-blue-700 ring-1 ring-inset ring-blue-700/10 shadow-sm mx-1 dynamic-wallet-price" data-amount="{{ "%.2f"|format(quote_cents / 100) }}">{% if price.has_quote %}<span class="dynamic-currency">{{ 'R' if price.local_currency == 'ZAR' else price.local_currency ~ ' ' }}</span>{{ "%.2f"|format(quote_cents / 100) }}{% else %}...{% endif %}</span><br>
-                • <strong>Invoices & Statements:</strong> <span class="inline-flex items-center rounded-md bg-blue-50 px-2 py-0.5 text-sm font-bold text-blue-700 ring-1 ring-inset ring-blue-700/10 shadow-sm mx-1 dynamic-wallet-price" data-amount="{{ "%.2f"|format(invoice_cents / 100) }}">{% if price.has_quote %}<span class="dynamic-currency">{{ 'R' if price.local_currency == 'ZAR' else price.local_currency ~ ' ' }}</span>{{ "%.2f"|format(invoice_cents / 100) }}{% else %}...{% endif %}</span>
+                {% set curr = price.local_currency|upper if price.local_currency else '' %}
+                {% set sym_map = {'ZAR': 'R ', 'USD': '$ ', 'EUR': '€ ', 'GBP': '£ ', 'AUD': '$ ', 'CAD': '$ '} %}
+                {% set sym = sym_map.get(curr, '') if curr else '' %}
+                • <strong>Quotes:</strong> <span class="inline-flex items-center rounded-md bg-blue-50 px-2 py-0.5 text-sm font-bold text-blue-700 ring-1 ring-inset ring-blue-700/10 shadow-sm mx-1 dynamic-wallet-price" data-amount="{{ "%.2f"|format(quote_cents / 100) }}">{% if price.has_quote %}<span class="dynamic-currency">{{ sym }}</span>{{ "%.2f"|format(quote_cents / 100) }}{% else %}...{% endif %}</span><br>
+                • <strong>Invoices & Statements:</strong> <span class="inline-flex items-center rounded-md bg-blue-50 px-2 py-0.5 text-sm font-bold text-blue-700 ring-1 ring-inset ring-blue-700/10 shadow-sm mx-1 dynamic-wallet-price" data-amount="{{ "%.2f"|format(invoice_cents / 100) }}">{% if price.has_quote %}<span class="dynamic-currency">{{ sym }}</span>{{ "%.2f"|format(invoice_cents / 100) }}{% else %}...{% endif %}</span>
               </p>
             </div>
             <div class="mt-6">
@@ -144,7 +150,9 @@
             priceDisplay.textContent = data.display_price;
             if (onceOffLabel) onceOffLabel.style.display = 'inline';
             
-            let currencyStr = data.currency === 'ZAR' ? 'R' : data.currency + ' ';
+            let symMap = {'ZAR': 'R ', 'USD': '$ ', 'EUR': '€ ', 'GBP': '£ ', 'AUD': '$ ', 'CAD': '$ '};
+            let currencyStr = (data.currency && symMap[data.currency]) ? symMap[data.currency] : '';
+            
             document.querySelectorAll('.dynamic-wallet-price').forEach(el => {
               let amount = el.getAttribute('data-amount');
               el.innerHTML = `<span class="dynamic-currency">${currencyStr}</span>${amount}`;

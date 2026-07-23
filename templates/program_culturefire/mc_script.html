@@ -62,7 +62,8 @@
         {% endif %}
       </div>
 
-      <h2 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2">Part 2: Act Intros</h2>
+      <h2 class="text-xl font-bold text-gray-800 mb-2 border-b pb-2">Part 2: Act Intros</h2>
+      <p class="text-sm text-gray-500 mb-4">Record and upload your MC introduction for each participant's act below. This will play immediately before their performance.</p>
       <div class="space-y-6 mb-8">
         {% for sub in submissions %}
           {% if show.category_item and show.category_item.name == "Pageant" %}
@@ -74,7 +75,7 @@
             <div>
               <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Act {{ loop.index }}</span>
               {% if show.category_item and show.category_item.name == "Pageant" %}
-                <h3 class="font-bold text-gray-900 text-lg">{{ sub.title or "Untitled" }} <span class="text-indigo-600 text-sm">({{ sub.segment_type.replace('_', ' ').title() }})</span></h3>
+                <h3 class="font-bold text-gray-900 text-lg">Your Intro for: {{ sub.title or "Untitled" }} <span class="text-indigo-600 text-sm">({{ sub.segment_type.replace('_', ' ').title() }})</span></h3>
                 <p class="text-sm text-gray-600">Participant: {{ sub.enrollment.biodata.full_name if sub.enrollment and sub.enrollment.biodata else (sub.enrollment.user.name if sub.enrollment and sub.enrollment.user else 'Unknown') }}</p>
                 {% if sub.id in assigned_questions and assigned_questions[sub.id] and ('q' in sub.segment_type.lower() or 'answer' in sub.segment_type.lower()) %}
                   <div class="mt-3 bg-blue-50 p-3 rounded-lg border border-blue-100">
@@ -83,17 +84,17 @@
                   </div>
                 {% endif %}
               {% else %}
-                <h3 class="font-bold text-gray-900 text-lg">{{ sub.talent_name or sub.custom_talent or "Untitled Act" }}</h3>
+                <h3 class="font-bold text-gray-900 text-lg">Your Intro for: {{ sub.talent_name or sub.custom_talent or "Untitled Act" }}</h3>
                 <p class="text-sm text-gray-600">Participant: {{ sub.user_enrollment.biodata.full_name if sub.user_enrollment and sub.user_enrollment.biodata else (sub.user_enrollment.user.name if sub.user_enrollment and sub.user_enrollment.user else 'Unknown') }}</p>
               {% endif %}
               
               {% if act_intro %}
                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 mt-2">
                   <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
-                  Video Uploaded
+                  MC Intro Uploaded
                 </span>
               {% else %}
-                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 mt-2">Missing Video</span>
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 mt-2">Missing MC Intro</span>
               {% endif %}
             </div>
             
@@ -105,7 +106,7 @@
                 <input type="hidden" name="type" value="{% if show.category_item and show.category_item.name == 'Pageant' %}pageant{% else %}talent{% endif %}">
                 <div class="flex flex-col sm:flex-row items-center gap-2">
                   <input type="file" name="file" accept="video/*,audio/*" capture="environment" required class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
-                  <button type="submit" class="w-full sm:w-auto bg-indigo-600 text-white px-4 py-2 rounded-full font-bold hover:bg-indigo-700 transition shadow-sm text-sm">Upload</button>
+                  <button type="submit" class="w-full sm:w-auto bg-indigo-600 text-white px-4 py-2 rounded-full font-bold hover:bg-indigo-700 transition shadow-sm text-sm">Upload MC Intro</button>
                 </div>
               </form>
             </div>

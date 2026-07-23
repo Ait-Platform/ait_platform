@@ -1,12 +1,16 @@
 {% extends "layout.html" %}
 
 {% block title %}Debtors Dashboard{% endblock %}
+{% block flashes %}{% endblock %}
 
 {% block content %}
 <div class="mx-auto max-w-6xl mb-8">
   <div class="bg-white rounded-xl shadow overflow-hidden border border-slate-200">
     <div class="h-2 bg-blue-600"></div>
     <div class="p-6">
+      <!-- Flash Messages -->
+      {% include "partials/flash_messages.html" %}
+
       <!-- Row 1: Title and Back button -->
       <div class="flex justify-between items-center mb-4">
         <h1 class="text-2xl font-bold text-slate-800">Debtors & Statements</h1>

@@ -84,6 +84,7 @@
         <button onclick="document.getElementById('manual-setup-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 text-2xl leading-none">&times;</button>
       </div>
       <form action="{{ url_for('mechanic_bp.onboarding_process') }}" method="POST" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <div class="p-6 space-y-4">
           <p class="text-sm text-slate-500 mb-4">Please enter your business details.</p>
           

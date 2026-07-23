@@ -297,8 +297,8 @@ def generate_invoice(id):
             
         ledger = DebtorLedger(
             debtor_id=debtor.id,
-            transaction_type='debit',
-            amount_cents=int(total * 100),
+            kind='debit',
+            amount=int(total * 100),
             description=f'Mechanic Invoice for Job #{job_card.job_number}'
         )
         db.session.add(ledger)

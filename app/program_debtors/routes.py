@@ -71,7 +71,7 @@ def profile():
         flash("SOA Profile updated successfully.", "success")
         return redirect(url_for("debtors_bp.dashboard"))
         
-    return render_template("program_debtors/profile.html", form=form)
+    return render_template("program_debtors/profile.html", form=form, profile=profile_record)
 
 @debtors_bp.route("/add_debtor", methods=["GET", "POST"])
 @login_required

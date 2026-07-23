@@ -175,19 +175,25 @@ def onboarding_start():
 @mechanic_bp.route("/mechanic/onboarding/process", methods=["POST"])
 @login_required
 def onboarding_process():
-    draft_shop = MechShop.query.filter_by(user_id=current_user.id, onboarding_status='draft_review').first()
-    if draft_shop:
-        draft_shop.business_name = request.form.get("business_name")
-        draft_shop.address = request.form.get("address")
-        draft_shop.phone = request.form.get("phone")
-        draft_shop.email = request.form.get("email")
-        draft_shop.terms_and_conditions = request.form.get("terms_and_conditions")
-        draft_shop.onboarding_status = 'active'
-        db.session.commit()
-        flash("Shop profile successfully activated!", "success")
+    shop = MechShop.query.filter_by(user_id=current_user.id).first()
+    if not shop:
+        shop = MechShop(
+            user_id=current_user.id,
+            onboarding_status='active',
+            trial_ends_at=datetime.utcnow() + timedelta(days=30)
+        )
+        db.session.add(shop)
+        
+    shop.business_name = request.form.get("business_name") or "My Mechanic Shop"
+    shop.address = request.form.get("address")
+    shop.phone = request.form.get("phone")
+    shop.email = request.form.get("email")
+    shop.terms_and_conditions = request.form.get("terms_and_conditions")
+    shop.onboarding_status = 'active'
+    db.session.commit()
+    flash("Shop profile successfully saved!", "success")
         
     return redirect(url_for("mechanic_bp.mechanic_dashboard"))
-
 
 @mechanic_bp.route("/mechanic/intake", methods=["GET", "POST"])
 @login_required
@@ -237,8 +243,6 @@ def generate_invoice(id):
     # Logic to calculate totals from labor/parts and generate MechInvoice
     job_card = MechJobCard.query.get_or_404(id)
     return render_template("program_mechanic/invoice_view.html", job_card=job_card)
-
-
 
 @mechanic_bp.route("/mechanic/quote/new", methods=["GET", "POST"])
 @login_required

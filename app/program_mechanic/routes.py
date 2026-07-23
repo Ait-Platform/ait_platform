@@ -375,9 +375,9 @@ def new_quote():
             db.session.add(client)
             db.session.flush()
             
-        vehicle = MechVehicle.query.filter_by(registration_number=vehicle_reg, client_id=client.id).first()
+        vehicle = MechVehicle.query.filter_by(license_plate=vehicle_reg, client_id=client.id).first()
         if not vehicle:
-            vehicle = MechVehicle(registration_number=vehicle_reg, make="Unknown", client_id=client.id)
+            vehicle = MechVehicle(license_plate=vehicle_reg, make="Unknown", client_id=client.id)
             db.session.add(vehicle)
             db.session.flush()
             

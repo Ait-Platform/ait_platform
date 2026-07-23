@@ -154,6 +154,41 @@ def delete_recurring_charge(debtor_id, charge_id):
     flash("Recurring charge deleted.", "success")
     return redirect(url_for('debtors_bp.debtor_financials', debtor_id=debtor.id))
 
+@debtors_bp.route("/run_billing", methods=["POST"])
+@login_required
+def run_billing():
+    from datetime import datetime
+    debtors = Debtor.query.filter_by(user_id=current_user.id, is_active=True).all()
+    current_month_year = datetime.utcnow().strftime("%Y_%m")
+    
+    charges_applied = 0
+    for debtor in debtors:
+        for cmap in debtor.charge_maps:
+            ref_id = f"recurring_{cmap.id}_{current_month_year}"
+            
+            # Check if this charge was already applied this month
+            existing_ledger = DebtorLedger.query.filter_by(debtor_id=debtor.id, ref=ref_id).first()
+            if not existing_ledger:
+                # Apply the charge
+                ledger = DebtorLedger(
+                    debtor_id=debtor.id,
+                    description=cmap.charge_description,
+                    kind="debit",
+                    amount=cmap.amount,
+                    ref=ref_id,
+                    txn_date=datetime.utcnow()
+                )
+                db.session.add(ledger)
+                charges_applied += 1
+                
+    if charges_applied > 0:
+        db.session.commit()
+        flash(f"Successfully applied {charges_applied} recurring charge(s) for the current month.", "success")
+    else:
+        flash("All recurring charges for the current month have already been applied.", "info")
+        
+    return redirect(url_for("debtors_bp.dashboard"))
+
 @debtors_bp.route("/debtor/<int:debtor_id>/add_opening_balance", methods=["POST"])
 @login_required
 def add_opening_balance(debtor_id):

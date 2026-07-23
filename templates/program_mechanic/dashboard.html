@@ -1,4 +1,5 @@
 {% extends 'layout.html' %}
+{% block flashes %}{% endblock %}
 {% block content %}
 <div class="min-h-screen bg-slate-50 py-10 px-4 flex flex-col items-center">
   <div class="w-full max-w-5xl bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
@@ -6,7 +7,11 @@
     <!-- Top Strip -->
     <div class="h-2 w-full bg-indigo-500"></div>
 
-    <div class="mb-8 w-full px-6 pt-6 flex flex-col md:flex-row md:justify-between md:items-start">
+    <div class="px-6 pt-6 pb-2">
+      {% include "partials/flash_messages.html" %}
+    </div>
+
+    <div class="mb-8 w-full px-6 flex flex-col md:flex-row md:justify-between md:items-start">
       <div>
         <h1 class="text-3xl font-extrabold text-slate-800 tracking-tight">Mechanic CRM Dashboard</h1>
         <p class="text-slate-500 mt-2">Manage your shop, quotes, and workflow below.</p>

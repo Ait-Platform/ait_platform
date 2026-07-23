@@ -1,4 +1,7 @@
-from flask import render_template, redirect, url_for, flash, request
+import os
+import time
+from werkzeug.utils import secure_filename
+from flask import render_template, redirect, url_for, flash, request, current_app
 from flask_login import login_required, current_user
 from app.program_debtors import debtors_bp
 from app.models.auth import AuthSubject, UserEnrollment
@@ -55,6 +58,15 @@ def profile():
             db.session.add(profile_record)
             
         form.populate_obj(profile_record)
+        
+        logo_file = form.logo_file.data
+        if logo_file:
+            filename = secure_filename(f"debtor_{current_user.id}_{int(time.time())}_{logo_file.filename}")
+            upload_folder = os.path.join(current_app.root_path, "static", "uploads", "debtors")
+            os.makedirs(upload_folder, exist_ok=True)
+            logo_file.save(os.path.join(upload_folder, filename))
+            profile_record.logo_url = filename
+            
         db.session.commit()
         flash("SOA Profile updated successfully.", "success")
         return redirect(url_for("debtors_bp.dashboard"))

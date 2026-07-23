@@ -1,4 +1,5 @@
 from flask_wtf import FlaskForm
+from flask_wtf.file import FileField, FileAllowed
 from wtforms import StringField, TextAreaField, IntegerField, FloatField, SelectField, DateField, SubmitField
 from wtforms.validators import DataRequired, Email, Optional
 
@@ -8,7 +9,9 @@ class SoaProfileForm(FlaskForm):
     phone = StringField("Phone", validators=[Optional()])
     email = StringField("Email", validators=[Optional(), Email()])
     bank_details = TextAreaField("Bank Details (e.g. Account No, Branch)", validators=[Optional()])
-    logo_url = StringField("Logo URL (Optional)", validators=[Optional()])
+    logo_file = FileField("Upload Logo (Optional)", validators=[
+        FileAllowed(['jpg', 'png', 'jpeg'], 'Images only!')
+    ])
     submit = SubmitField("Save Profile")
 
 class DebtorForm(FlaskForm):

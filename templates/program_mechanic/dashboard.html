@@ -83,7 +83,7 @@
         <h3 class="font-bold text-slate-800 text-lg">Shop Profile Setup</h3>
         <button onclick="document.getElementById('manual-setup-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 text-2xl leading-none">&times;</button>
       </div>
-      <form action="{{ url_for('mechanic_bp.onboarding_process') }}" method="POST">
+      <form action="{{ url_for('mechanic_bp.onboarding_process') }}" method="POST" enctype="multipart/form-data">
         <div class="p-6 space-y-4">
           <p class="text-sm text-slate-500 mb-4">Please enter your business details.</p>
           
@@ -103,6 +103,10 @@
             <div>
               <label class="block text-sm font-medium text-slate-700">Email</label>
               <input type="email" name="email" value="{{ active_shop.email if active_shop else '' }}" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+            </div>
+            <div class="sm:col-span-2">
+              <label class="block text-sm font-medium text-slate-700">Shop Logo (Optional)</label>
+              <input type="file" name="logo_file" accept="image/*" class="mt-1 block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
             </div>
             <div class="sm:col-span-2">
               <label class="block text-sm font-medium text-slate-700">Terms and Conditions</label>

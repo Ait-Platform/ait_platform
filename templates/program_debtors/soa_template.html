@@ -45,7 +45,11 @@
         <!-- Logo -->
         <div class="w-1/3">
             {% if profile and profile.logo_url %}
+            {% if profile.logo_url.startswith('http') %}
             <img src="{{ profile.logo_url }}" alt="Company Logo" class="max-h-24 object-contain">
+            {% else %}
+            <img src="{{ url_for('static', filename='uploads/debtors/' + profile.logo_url) }}" alt="Company Logo" class="max-h-24 object-contain">
+            {% endif %}
             {% else %}
             <div class="h-24 w-48 bg-gray-100 flex items-center justify-center border border-gray-300 text-gray-400 font-semibold tracking-widest uppercase">
                 [ YOUR LOGO ]

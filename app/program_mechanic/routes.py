@@ -190,6 +190,20 @@ def onboarding_process():
     shop.email = request.form.get("email")
     shop.terms_and_conditions = request.form.get("terms_and_conditions")
     shop.onboarding_status = 'active'
+    
+    logo_file = request.files.get("logo_file")
+    if logo_file and logo_file.filename:
+        import os
+        import time
+        from werkzeug.utils import secure_filename
+        from flask import current_app
+        
+        filename = secure_filename(f"mechanic_{current_user.id}_{int(time.time())}_{logo_file.filename}")
+        upload_folder = os.path.join(current_app.root_path, "static", "uploads", "mechanic")
+        os.makedirs(upload_folder, exist_ok=True)
+        logo_file.save(os.path.join(upload_folder, filename))
+        shop.logo_url = filename
+
     db.session.commit()
     flash("Shop profile successfully saved!", "success")
         

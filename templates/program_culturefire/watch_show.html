@@ -58,6 +58,7 @@
     <!-- Bottom: Controls (Moved up) -->
     <div class="bg-gray-100 border-b px-6 py-3 flex justify-between items-center shadow-inner">
       <button id="btnPrev" onclick="prevItem()" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded disabled:opacity-40 transition font-semibold">&larr; Previous</button>
+      <button id="btnStart" onclick="startShow()" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded transition font-bold shadow">Start / Resume</button>
       {% if not available_segments %}
       {% endif %}
       <button id="btnNext" onclick="nextItem()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded disabled:opacity-40 transition font-semibold">Next &rarr;</button>
@@ -73,27 +74,59 @@
           <span id="currentTitle" class="font-medium text-lg">Not playing</span>
           
           {% if is_judge %}
-          <div id="scoreContainer" class="hidden flex flex-col space-y-2 py-2">
-            <div id="scoreForm">
-              <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
-                {% for crit in judge_criteria %}
-                <div class="flex flex-col items-center bg-gray-700 p-2 rounded">
-                  <label class="text-xs text-gray-300 font-semibold mb-1 text-center h-8 flex items-center">{{ crit.label }}</label>
-                  <input type="number" id="{{ crit.id }}" min="1" max="10" class="w-16 px-2 py-1 text-black rounded font-bold text-center judge-score-input outline outline-2 outline-gray-400 focus:outline-blue-500" placeholder="/10" onchange="calculateTotalScore()">
-                </div>
-                {% endfor %}
-              </div>
-              <div class="flex justify-between items-center mt-2 border-t border-gray-600 pt-2">
-                <div class="text-lg font-bold text-yellow-400">Total: <span id="totalScore">0</span> / 50</div>
-                <button id="btnVote" onclick="voteItem()" class="bg-purple-600 text-white px-5 py-2 rounded hover:bg-purple-700 font-bold shadow-lg transition text-sm">Submit Score</button>
-              </div>
-            </div>
-          </div>
           <div id="alreadyScoredWarning" class="hidden py-2">
             <span class="text-green-400 italic font-semibold border border-green-400 rounded px-3 py-1">You have already scored this performance.</span>
           </div>
           <div id="ownSubmissionWarning" class="hidden py-2">
             <span class="text-yellow-400 italic font-semibold border border-yellow-400 rounded px-3 py-1">You cannot score your own submission</span>
+          </div>
+
+          <!-- Modals (Hidden by default) -->
+          <div id="judgingModal" class="fixed inset-0 bg-black bg-opacity-80 z-50 hidden flex justify-center items-center p-4">
+            <div class="bg-gray-900 border border-gray-700 rounded-xl shadow-2xl max-w-4xl w-full p-6 relative">
+              <button onclick="closeModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white transition">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+              </button>
+              
+              <h2 id="modalTitle" class="text-2xl font-bold text-white mb-2">Evaluate Performance</h2>
+              <p class="text-gray-400 text-sm mb-6 pb-4 border-b border-gray-700">Please provide a score from 1 to 10 for each criteria based on the official guidelines.</p>
+              
+              <!-- Talent Form -->
+              <div id="talentScoreForm" class="hidden">
+                <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+                  {% for crit in judge_criteria %}
+                  <div class="flex flex-col items-center bg-gray-800 border border-gray-700 p-3 rounded-lg shadow-inner">
+                    <label class="text-xs text-gray-300 font-semibold mb-2 text-center h-8 flex items-center">{{ crit.label }}</label>
+                    <input type="number" id="talent_{{ crit.id }}" min="1" max="10" class="w-20 px-2 py-2 text-xl text-black rounded font-bold text-center talent-score-input focus:outline-none focus:ring-4 focus:ring-blue-500 transition shadow-sm" placeholder="/10" onchange="calculateTotalScore('talent')">
+                  </div>
+                  {% endfor %}
+                </div>
+                <div class="flex justify-between items-center mt-6 pt-4 border-t border-gray-700">
+                  <div class="text-2xl font-bold text-yellow-400">Total: <span id="talentTotalScore">0</span> <span class="text-gray-500 text-lg">/ 50</span></div>
+                  <button id="btnVoteTalent" onclick="voteItem('talent')" class="bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-500 font-bold shadow-lg transition text-lg flex items-center gap-2">
+                    Submit Score
+                  </button>
+                </div>
+              </div>
+
+              <!-- MC Form -->
+              <div id="mcScoreForm" class="hidden">
+                <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+                  {% for crit in mc_criteria %}
+                  <div class="flex flex-col items-center bg-gray-800 border border-gray-700 p-3 rounded-lg shadow-inner">
+                    <label class="text-xs text-gray-300 font-semibold mb-2 text-center h-8 flex items-center">{{ crit.label }}</label>
+                    <input type="number" id="mc_{{ crit.id }}" min="1" max="10" class="w-20 px-2 py-2 text-xl text-black rounded font-bold text-center mc-score-input focus:outline-none focus:ring-4 focus:ring-blue-500 transition shadow-sm" placeholder="/10" onchange="calculateTotalScore('mc')">
+                  </div>
+                  {% endfor %}
+                </div>
+                <div class="flex justify-between items-center mt-6 pt-4 border-t border-gray-700">
+                  <div class="text-2xl font-bold text-yellow-400">Total: <span id="mcTotalScore">0</span> <span class="text-gray-500 text-lg">/ 50</span></div>
+                  <button id="btnVoteMC" onclick="voteItem('mc')" class="bg-purple-600 text-white px-8 py-3 rounded-lg hover:bg-purple-500 font-bold shadow-lg transition text-lg flex items-center gap-2">
+                    Submit MC Score
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
           {% else %}
           <span class="text-gray-400 italic text-xs">Judging Panel Only</span>
@@ -303,11 +336,37 @@ function stopShow() {
 
   currentIndex = -1;
   title.textContent = "Stopped";
-  const scoreContainer = document.getElementById('scoreContainer');
-  if (scoreContainer) scoreContainer.classList.add('hidden');
+  closeModal();
   if (nextDelayTimeout) clearTimeout(nextDelayTimeout);
 
   updateButtons();
+}
+
+function closeModal() {
+  const modal = document.getElementById('judgingModal');
+  if (modal) modal.classList.add('hidden');
+}
+
+function openModal(type) {
+  const modal = document.getElementById('judgingModal');
+  const talentForm = document.getElementById('talentScoreForm');
+  const mcForm = document.getElementById('mcScoreForm');
+  
+  if (modal) modal.classList.remove('hidden');
+  
+  if (type === 'talent') {
+    if (talentForm) talentForm.classList.remove('hidden');
+    if (mcForm) mcForm.classList.add('hidden');
+    // Clear old inputs
+    document.querySelectorAll('.talent-score-input').forEach(inp => inp.value = '');
+    calculateTotalScore('talent');
+  } else if (type === 'mc') {
+    if (mcForm) mcForm.classList.remove('hidden');
+    if (talentForm) talentForm.classList.add('hidden');
+    // Clear old inputs
+    document.querySelectorAll('.mc-score-input').forEach(inp => inp.value = '');
+    calculateTotalScore('mc');
+  }
 }
 
 // Auto-load first item if this is a standard show (Talent show)
@@ -317,25 +376,26 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-function calculateTotalScore() {
+function calculateTotalScore(type) {
   let total = 0;
-  const inputs = document.querySelectorAll('.judge-score-input');
+  const inputs = document.querySelectorAll(`.${type}-score-input`);
   inputs.forEach(inp => {
     let val = parseInt(inp.value);
     if (!isNaN(val)) total += val;
   });
-  const totalScoreSpan = document.getElementById('totalScore');
+  const totalScoreSpan = document.getElementById(`${type}TotalScore`);
   if (totalScoreSpan) {
     totalScoreSpan.textContent = total;
   }
 }
 
-function voteItem() {
+function voteItem(type) {
   if (currentIndex === -1) return;
   const subId = submissions[currentIndex].id;
   
-  const inputs = document.querySelectorAll('.judge-score-input');
+  const inputs = document.querySelectorAll(`.${type}-score-input`);
   let critScores = [];
+  let labels = [];
   let total = 0;
   let isValid = true;
   
@@ -345,58 +405,80 @@ function voteItem() {
       isValid = false;
     } else {
       critScores.push(val);
+      labels.push(inp.id.replace(type + '_', ''));
       total += val;
     }
   });
   
-  if (!isValid || critScores.length !== 5) {
-    alert("Please enter a valid score between 1 and 10 for all 5 criteria.");
+  const requiredCount = type === 'talent' ? {{ judge_criteria|length }} : {{ mc_criteria|length }};
+  if (!isValid || critScores.length !== requiredCount) {
+    alert(`Please enter a valid score between 1 and 10 for all ${requiredCount} criteria.`);
     return;
   }
   
-  if (!confirm("Are you sure you want to submit these scores?\n\nOnce submitted, scores cannot be edited. You must submit your score to continue to the next video.")) {
+  if (!confirm("Are you sure you want to submit these scores?\n\nOnce submitted, scores cannot be edited.")) {
     return;
   }
   
-  fetch('{{ url_for("cultural_bp.vote_item") }}', {
+  let endpoint = type === 'talent' ? '{{ url_for("cultural_bp.vote_item") }}' : '{{ url_for("cultural_bp.vote_mc") }}';
+  let bodyData = { 
+    score: total,
+    criteria_scores: critScores,
+    labels: labels
+  };
+
+  if (type === 'talent') {
+    bodyData.submission_id = subId;
+    bodyData.type = '{{ "pageant" if show.category_item and show.category_item.name == "Pageant" else "talent" }}';
+    // Add legacy fields for vote_item compatibility
+    bodyData.crit1 = critScores[0] || 0;
+    bodyData.crit2 = critScores[1] || 0;
+    bodyData.crit3 = critScores[2] || 0;
+    bodyData.crit4 = critScores[3] || 0;
+    bodyData.crit5 = critScores[4] || 0;
+  } else {
+    bodyData.show_id = {{ show.id }};
+  }
+
+  const btn = type === 'talent' ? document.getElementById('btnVoteTalent') : document.getElementById('btnVoteMC');
+  const originalText = btn.innerHTML;
+  btn.innerHTML = "Submitting...";
+  btn.disabled = true;
+
+  fetch(endpoint, {
     method: 'POST',
     headers: { 
       'Content-Type': 'application/json',
       'X-CSRFToken': '{{ csrf_token() }}'
     },
-    body: JSON.stringify({ 
-      submission_id: subId,
-      type: '{{ "pageant" if show.category_item and show.category_item.name == "Pageant" else "talent" }}',
-      score: total,
-      crit1: critScores[0],
-      crit2: critScores[1],
-      crit3: critScores[2],
-      crit4: critScores[3],
-      crit5: critScores[4]
-    })
+    body: JSON.stringify(bodyData)
   })
   .then(res => res.json()).then(data => {
+    btn.innerHTML = originalText;
+    btn.disabled = false;
     if(data.success) {
-      alert("Score recorded successfully!");
+      btn.innerHTML = "Saved! Loading next...";
+      btn.classList.add('bg-green-600');
       submissions[currentIndex].has_voted = true;
-      if (currentIndex < submissions.length - 1) {
-        nextItem();
-      } else {
-        loadItem(currentIndex); // reload to show already voted state
-      }
+      
+      setTimeout(() => {
+        closeModal();
+        if (currentIndex < submissions.length - 1) {
+          nextItem();
+        }
+      }, 2000);
     } else {
       alert("Error: " + data.message);
     }
   }).catch(err => {
+    btn.innerHTML = originalText;
+    btn.disabled = false;
     alert("Error recording score");
   });
 }
 
-
-
 function updateButtons() {
   btnPrev.disabled = currentIndex <= 0;
-  // Next is only disabled if it's the last item AND there is no timeout
   btnNext.disabled = submissions.length <= 1 || currentIndex >= submissions.length - 1;
 
   if (btnPrev.disabled) {
@@ -412,12 +494,30 @@ function updateButtons() {
   }
 }
 
-// 🔥 Disable auto-next so the video stops at the end for judging
-// player.addEventListener("ended", () => {
-//   if (currentIndex < submissions.length - 1) {
-//     nextItem();
-//   }
-// });
+player.addEventListener("ended", () => {
+  if (currentIndex === -1) return;
+  const currentItem = submissions[currentIndex];
+  
+  {% if is_judge %}
+  // If it's a talent act, and they haven't voted, show talent modal
+  if (currentItem.item_type === 'act' && !currentItem.has_voted && currentItem.user_id != {{ current_user.id }}) {
+    openModal('talent');
+    return;
+  }
+  
+  // If it's the MC Outro, and they haven't voted for MC, show MC modal
+  const isMcOutro = currentItem.id.toString().startsWith('mc_outro');
+  if (isMcOutro) {
+    openModal('mc');
+    return;
+  }
+  {% endif %}
+  
+  // Auto next if not judging
+  if (currentIndex < submissions.length - 1) {
+    nextItem();
+  }
+});
 
 // init
 updateButtons();

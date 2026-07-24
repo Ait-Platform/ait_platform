@@ -1505,13 +1505,23 @@ def watch_show(show_id):
             })
         
     if show_outro:
+        # Check if the user has already voted for the MC
+        has_mc_voted = False
+        if current_user.is_authenticated:
+            from app.models.culturalfire import CfiMcVote, CfiMcAssignment
+            mc_assignment = CfiMcAssignment.query.filter_by(show_id=show.id).first()
+            if mc_assignment:
+                existing_mc_vote = CfiMcVote.query.filter_by(user_id=current_user.id, show_id=show.id, mc_id=mc_assignment.mc_id).first()
+                if existing_mc_vote:
+                    has_mc_voted = True
+
         unified_playlist.append({
             "id": f"mc_outro_{show_outro.id}",
             "title": "Farewell & Wrap-up",
             "segment_type": last_segment,
             "src": get_url(show_outro.media_url),
             "item_type": "mc",
-            "has_voted": False,
+            "has_voted": has_mc_voted,
             "user_id": None
         })
         
@@ -1558,11 +1568,20 @@ def watch_show(show_id):
     show_judges = list(set([User.query.get(a.judge_id).name for a in judge_assignments if User.query.get(a.judge_id)]))
     show_advertisers = list(set([User.query.get(ad.user_id).name for ad in ads if User.query.get(ad.user_id)]))
 
+    mc_criteria = [
+        {"id": "mc_crit1", "label": "Clarity / Articulation"},
+        {"id": "mc_crit2", "label": "Enthusiasm / Energy"},
+        {"id": "mc_crit3", "label": "Professionalism"},
+        {"id": "mc_crit4", "label": "Audience Engagement"},
+        {"id": "mc_crit5", "label": "Overall Impression"}
+    ]
+
     return render_template(
         "program_culturefire/watch_show.html",
         is_judge=is_judge,
         is_mc=is_mc,
         judge_criteria=judge_criteria,
+        mc_criteria=mc_criteria,
         show=show,
         submissions_data=submissions_data,
         available_segments=available_segments,
@@ -2161,6 +2180,48 @@ def talent_dashboard(enrollment_id):
         total_count=len(talents_all)
     )
 
+
+@cultural_bp.route("/show/vote_mc", methods=["POST"])
+@login_required
+def vote_mc():
+    try:
+        data = request.json
+        show_id = data.get('show_id')
+        score = int(data.get('score', 0))
+        labels = data.get('labels', [])
+        crit_values = data.get('criteria_scores', [])
+
+        if not show_id:
+            return jsonify({"success": False, "message": "Missing show ID"})
+            
+        # Get the MC for this show
+        from app.models.culturalfire import CfiMcAssignment, CfiMcVote, CfiMcScore
+        mc_assignment = CfiMcAssignment.query.filter_by(show_id=show_id).first()
+        if not mc_assignment:
+            return jsonify({"success": False, "message": "No MC found for this show"})
+            
+        mc_id = mc_assignment.mc_id
+
+        # Check if already voted
+        existing_vote = CfiMcVote.query.filter_by(user_id=current_user.id, show_id=show_id, mc_id=mc_id).first()
+        if existing_vote:
+            return jsonify({"success": False, "message": "You have already scored the MC for this show."})
+
+        # Save vote
+        vote = CfiMcVote(user_id=current_user.id, show_id=show_id, mc_id=mc_id, score=score)
+        db.session.add(vote)
+        db.session.commit()
+
+        # Save criteria scores
+        for i in range(len(labels)):
+            if i < len(crit_values) and crit_values[i]:
+                db.session.add(CfiMcScore(vote_id=vote.id, criterion_name=labels[i], score=crit_values[i]))
+        db.session.commit()
+
+        return jsonify({"success": True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"success": False, "message": str(e)})
 
 @cultural_bp.route("/show/vote", methods=["POST"])
 @login_required

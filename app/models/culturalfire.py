@@ -567,6 +567,26 @@ class CfiJudgeScore(db.Model):
     
     vote = db.relationship('CfiShowcaseVote', backref=db.backref('criteria_scores', lazy=True, cascade='all, delete-orphan'))
 
+class CfiMcVote(db.Model):
+    __tablename__ = 'cfi_mc_votes'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    show_id = db.Column(db.Integer, db.ForeignKey('cfi_shows.id'), nullable=False)
+    mc_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    score = db.Column(db.Integer, default=0, nullable=False)
+    created_at = db.Column(db.DateTime, default=db.func.now())
+    
+    show = db.relationship('CfiShow')
+    mc = db.relationship('User', foreign_keys=[mc_id])
+
+class CfiMcScore(db.Model):
+    __tablename__ = 'cfi_mc_scores'
+    id = db.Column(db.Integer, primary_key=True)
+    vote_id = db.Column(db.Integer, db.ForeignKey('cfi_mc_votes.id'), nullable=False)
+    criterion_name = db.Column(db.String(100), nullable=False)
+    score = db.Column(db.Integer, default=0, nullable=False)
+    
+    vote = db.relationship('CfiMcVote', backref=db.backref('criteria_scores', lazy=True, cascade='all, delete-orphan'))
 class CfiMcAssignment(db.Model):
     __tablename__ = "cfi_mc_assignment"
     id = db.Column(db.Integer, primary_key=True)

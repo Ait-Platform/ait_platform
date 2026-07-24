@@ -2487,8 +2487,13 @@ def judge_dashboard():
     
     historical_scores = CfiShowcaseVote.query.filter_by(user_id=current_user.id).order_by(CfiShowcaseVote.created_at.desc()).all()
     
-    # Active shows that have slots available
-    shows = CfiShow.query.filter_by(status='active').all()
+    # Active shows that have slots available (exclude private shows)
+    private_show_ids = [group.show_id for group in CfiGroup.query.filter(CfiGroup.show_id != None).all()]
+    if private_show_ids:
+        shows = CfiShow.query.filter(CfiShow.status == 'active', ~CfiShow.id.in_(private_show_ids)).all()
+    else:
+        shows = CfiShow.query.filter_by(status='active').all()
+        
     available_shows = []
     
     for show in shows:
@@ -2706,16 +2711,21 @@ def mc_dashboard():
         if enrollment:
             back_enrollment_id = enrollment.id
 
-    from app.models.culturalfire import CfiWallet
-    wallet = CfiWallet.query.filter_by(user_id=current_user.id).first()
-    token_balance = wallet.balance if wallet else 0
+    from app.models.debtors import DebtorsWallet
+    wallet = DebtorsWallet.query.filter_by(user_id=current_user.id).first()
+    token_balance = wallet.token_balance if wallet else 0
 
     active_assignments = CfiMcAssignment.query.join(CfiShow).filter(
         CfiMcAssignment.mc_id == current_user.id,
         CfiShow.status == 'active'
     ).all()
     
-    shows = CfiShow.query.filter_by(status='active').all()
+    # Active shows that have slots available (exclude private shows)
+    private_show_ids = [group.show_id for group in CfiGroup.query.filter(CfiGroup.show_id != None).all()]
+    if private_show_ids:
+        shows = CfiShow.query.filter(CfiShow.status == 'active', ~CfiShow.id.in_(private_show_ids)).all()
+    else:
+        shows = CfiShow.query.filter_by(status='active').all()
     available_shows = []
     
     for show in shows:

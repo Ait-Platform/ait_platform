@@ -162,7 +162,7 @@ function filterSegment(segmentType) {
 }
 
 // 🔥 Load item
-function loadItem(index) {
+function loadItem(index, autoPlay = true) {
   if (index < 0 || index >= submissions.length) return;
 
   currentIndex = index;
@@ -170,27 +170,30 @@ function loadItem(index) {
   player.src = submissions[index].src;
   player.load();
 
-  player.play().catch((err) => {
+  function showPlayOverlay() {
+      title.innerHTML = `<span class="text-blue-500 font-bold">Ready. Click Start to begin.</span>`;
+      let existingBtn = document.getElementById('autoplayOverlayBtn');
+      if (!existingBtn) {
+          const playBtn = document.createElement('button');
+          playBtn.id = 'autoplayOverlayBtn';
+          playBtn.className = "absolute inset-0 w-full h-full flex items-center justify-center bg-black bg-opacity-60 text-white font-bold text-4xl rounded-b-lg";
+          playBtn.innerHTML = "▶️ START";
+          playBtn.onclick = () => {
+              player.play();
+              playBtn.remove();
+              title.textContent = `${currentIndex + 1} of ${submissions.length} - ${submissions[currentIndex].title || "Untitled"}`;
+          };
+          player.parentElement.classList.add('relative');
+          player.parentElement.appendChild(playBtn);
+      }
+  }
+
+  if (autoPlay) {
+      player.play().catch((err) => {
     console.error("Video playback error:", err);
-    if (err.name === 'NotAllowedError') {
-        title.innerHTML = `<span class="text-blue-500 font-bold">Autoplay blocked. Click Play to start.</span>`;
-        // Create an overlay play button
-        let existingBtn = document.getElementById('autoplayOverlayBtn');
-        if (!existingBtn) {
-            const playBtn = document.createElement('button');
-            playBtn.id = 'autoplayOverlayBtn';
-            playBtn.className = "absolute inset-0 w-full h-full flex items-center justify-center bg-black bg-opacity-60 text-white font-bold text-4xl rounded-b-lg";
-            playBtn.innerHTML = "▶️ START";
-            playBtn.onclick = () => {
-                player.play();
-                playBtn.remove();
-                title.textContent = `${currentIndex + 1} of ${submissions.length} - ${submissions[currentIndex].title || "Untitled"}`;
-            };
-            // The player is inside a div, let's append to its parent if relative
-            player.parentElement.classList.add('relative');
-            player.parentElement.appendChild(playBtn);
-        }
-    } else if (err.name === 'AbortError') {
+        if (err.name === 'NotAllowedError') {
+            showPlayOverlay();
+        } else if (err.name === 'AbortError') {
         // This happens if loadItem() or a new src is set before the previous play() promise resolves.
         // It is perfectly normal (e.g. user clicked Start Show twice or clicked Next quickly).
         console.log("Play interrupted by a new load request. Ignoring AbortError.");
@@ -202,6 +205,9 @@ function loadItem(index) {
         }, 4000);
     }
   });
+  } else {
+      showPlayOverlay();
+  }
 
   if (!title.innerHTML.includes("Error playing video")) {
     title.textContent = `${index + 1} of ${submissions.length} - ${submissions[index].title || "Untitled"}`;
@@ -306,7 +312,7 @@ function stopShow() {
 // Auto-load first item if this is a standard show (Talent show)
 window.addEventListener('DOMContentLoaded', () => {
   if (submissions.length > 0) {
-    loadItem(0);
+    loadItem(0, false);
   }
 });
 

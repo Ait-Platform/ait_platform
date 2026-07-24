@@ -1430,7 +1430,9 @@ def watch_show(show_id):
     ads = CfiShowAd.query.filter_by(show_id=show.id).all()
     
     def get_url(url):
-        return url_for("cultural_bp.uploaded_file", filename=url) if not url.startswith('uploads/') else url_for("cultural_bp.uploaded_file", filename=url.replace('uploads/', ''))
+        res = url_for("cultural_bp.uploaded_file", filename=url) if not url.startswith('uploads/') else url_for("cultural_bp.uploaded_file", filename=url.replace('uploads/', ''))
+        print(f"DEBUG get_url: url={url} res={res}", flush=True)
+        return res
     
     show_intro = next((r for r in recordings if r.recording_type == 'show_intro'), None)
     show_outro = next((r for r in recordings if r.recording_type == 'show_outro'), None)

@@ -174,13 +174,32 @@ function loadItem(index) {
 
   player.load();
 
-  // play safely (handles browser restrictions)
   player.play().catch((err) => {
     console.error("Video playback error:", err);
-    title.innerHTML = `<span class="text-red-500 font-bold">Error playing video! Skipping...</span>`;
-    setTimeout(() => {
-        nextItem();
-    }, 3000);
+    if (err.name === 'NotAllowedError') {
+        title.innerHTML = `<span class="text-blue-500 font-bold">Autoplay blocked. Click Play to start.</span>`;
+        // Create an overlay play button
+        let existingBtn = document.getElementById('autoplayOverlayBtn');
+        if (!existingBtn) {
+            const playBtn = document.createElement('button');
+            playBtn.id = 'autoplayOverlayBtn';
+            playBtn.className = "absolute inset-0 w-full h-full flex items-center justify-center bg-black bg-opacity-60 text-white font-bold text-4xl rounded-b-lg";
+            playBtn.innerHTML = "▶️ START";
+            playBtn.onclick = () => {
+                player.play();
+                playBtn.remove();
+                title.textContent = `${currentIndex + 1} of ${submissions.length} - ${submissions[currentIndex].title || "Untitled"}`;
+            };
+            // The player is inside a div, let's append to its parent if relative
+            player.parentElement.classList.add('relative');
+            player.parentElement.appendChild(playBtn);
+        }
+    } else {
+        title.innerHTML = `<span class="text-red-500 font-bold">Error playing video: ${err.name} - ${err.message}. Skipping...</span>`;
+        setTimeout(() => {
+            nextItem();
+        }, 4000);
+    }
   });
 
   if (!title.innerHTML.includes("Error playing video")) {

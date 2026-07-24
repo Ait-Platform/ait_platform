@@ -1433,7 +1433,7 @@ def watch_show(show_id):
         available_segments = []
 
     # Build Unified Playlist
-    recordings = CfiMcRecording.query.filter_by(show_id=show.id).all()
+    recordings = CfiMcRecording.query.filter_by(show_id=show.id).order_by(CfiMcRecording.id.desc()).all()
     from app.models.culturalfire import CfiShowAd
     ads = CfiShowAd.query.filter_by(show_id=show.id).all()
     
@@ -1586,7 +1586,7 @@ def mc_script(show_id):
     assign_questions_for_show(show_id)
     
     show = CfiShow.query.get_or_404(show_id)
-    recordings = CfiMcRecording.query.filter_by(show_id=show.id).all()
+    recordings = CfiMcRecording.query.filter_by(show_id=show.id).order_by(CfiMcRecording.id.desc()).all()
     
     if show.category_item and show.category_item.name == "Pageant":
         from sqlalchemy.orm import joinedload
@@ -1635,11 +1635,20 @@ def upload_mc_recording(show_id):
     recording_type = request.form.get("recording_type", "act_intro")
     
     if v_type == "pageant":
-        rec = CfiMcRecording(user_id=current_user.id, show_id=show_id, recording_type=recording_type, segment_item_id=sub_id if sub_id else None, media_url=f"cfi/{unique_filename}")
+        rec = CfiMcRecording.query.filter_by(user_id=current_user.id, show_id=show_id, recording_type=recording_type, segment_item_id=sub_id if sub_id else None).first()
+        if rec:
+            rec.media_url = f"cfi/{unique_filename}"
+        else:
+            rec = CfiMcRecording(user_id=current_user.id, show_id=show_id, recording_type=recording_type, segment_item_id=sub_id if sub_id else None, media_url=f"cfi/{unique_filename}")
+            db.session.add(rec)
     else:
-        rec = CfiMcRecording(user_id=current_user.id, show_id=show_id, recording_type=recording_type, submission_id=sub_id if sub_id else None, media_url=f"cfi/{unique_filename}")
+        rec = CfiMcRecording.query.filter_by(user_id=current_user.id, show_id=show_id, recording_type=recording_type, submission_id=sub_id if sub_id else None).first()
+        if rec:
+            rec.media_url = f"cfi/{unique_filename}"
+        else:
+            rec = CfiMcRecording(user_id=current_user.id, show_id=show_id, recording_type=recording_type, submission_id=sub_id if sub_id else None, media_url=f"cfi/{unique_filename}")
+            db.session.add(rec)
 
-    db.session.add(rec)
     db.session.commit()
     return jsonify({'success': True})
 

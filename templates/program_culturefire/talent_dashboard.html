@@ -28,38 +28,33 @@
        Pageant
     </a>
     {% endif %}
-    <a href="{{ url_for('cultural_bp.mc_dashboard', enrollment_id=enrollment.id) }}" 
-       class="bg-teal-600 text-white px-3 py-1 rounded hover:bg-teal-700 shadow-sm transition-transform hover:-translate-y-0.5">
-       Master of Ceremony
+    <a href="{{ url_for('cultural_bp.private_show_dashboard', enrollment_id=enrollment.id) }}" 
+       class="bg-fuchsia-600 text-white px-3 py-1 rounded hover:bg-fuchsia-700 shadow-sm transition-transform hover:-translate-y-0.5 font-bold">
+       Private Shows
     </a>
     <a href="{{ url_for('cultural_bp.showcase_dashboard', origin='talent', enrollment_id=enrollment.id) }}" 
        class="bg-purple-600 text-white px-3 py-1 rounded hover:bg-purple-700 shadow-sm transition-transform hover:-translate-y-0.5">
        Showcase
     </a>
-    <a href="{{ url_for('cultural_bp.private_show_dashboard', enrollment_id=enrollment.id) }}" 
-       class="bg-fuchsia-600 text-white px-3 py-1 rounded hover:bg-fuchsia-700 shadow-sm transition-transform hover:-translate-y-0.5 font-bold">
-       Private Shows
+    <a href="{{ url_for('cultural_bp.live_results_list', origin='talent', enrollment_id=enrollment.id) }}" 
+       class="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600 shadow-sm transition-transform hover:-translate-y-0.5">
+       Results
     </a>
-    <a href="{{ url_for('cultural_bp.judge_dashboard', origin='talent_dashboard', enrollment_id=enrollment.id) }}" 
-       class="bg-indigo-600 text-white px-3 py-1 rounded hover:bg-indigo-700 shadow-sm transition-transform hover:-translate-y-0.5">
-       Judges
+    <a href="{{ url_for('cultural_bp.biodata_edit', enrollment_id=enrollment.id) }}" 
+       class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 shadow-sm transition-transform hover:-translate-y-0.5">
+       Update Biodata
     </a>
     <a href="{{ url_for('cultural_bp.advertiser_dashboard') }}" 
        class="bg-blue-800 text-white px-3 py-1 rounded hover:bg-blue-900 shadow-sm transition-transform hover:-translate-y-0.5">
        Advertisers
     </a>
-    <a href="{{ url_for('cultural_bp.live_results_list', origin='talent', enrollment_id=enrollment.id) }}" 
-       class="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600 shadow-sm transition-transform hover:-translate-y-0.5">
-       Results
+    <a href="{{ url_for('cultural_bp.judge_dashboard', origin='talent_dashboard', enrollment_id=enrollment.id) }}" 
+       class="bg-indigo-600 text-white px-3 py-1 rounded hover:bg-indigo-700 shadow-sm transition-transform hover:-translate-y-0.5">
+       Judges
     </a>
-    <button onclick="document.getElementById('helpModal').classList.remove('hidden')" 
-       class="bg-gray-800 text-white px-3 py-1 rounded hover:bg-gray-900 shadow-sm transition-transform hover:-translate-y-0.5">
-       ? Help
-    </button>
-    <a href="{{ url_for('cultural_bp.live_shows_static', origin='talent', enrollment_id=enrollment.id) }}" 
-       class="bg-emerald-500 text-white px-3 py-1 rounded hover:bg-emerald-600 shadow-sm flex items-center gap-2 transition-transform hover:-translate-y-0.5">
-       <span class="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
-       Live
+    <a href="{{ url_for('cultural_bp.mc_dashboard', enrollment_id=enrollment.id) }}" 
+       class="bg-teal-600 text-white px-3 py-1 rounded hover:bg-teal-700 shadow-sm transition-transform hover:-translate-y-0.5">
+       Master of Ceremony
     </a>
     <a href="{{ url_for('cultural_bp.wallet_dashboard', origin='talent', enrollment_id=enrollment.id) }}" 
        class="bg-orange-500 text-white px-3 py-1 rounded hover:bg-orange-600 shadow-sm transition-transform hover:-translate-y-0.5">
@@ -73,10 +68,15 @@
        class="bg-pink-500 text-white px-3 py-1 rounded hover:bg-pink-600 shadow-sm transition-transform hover:-translate-y-0.5">
        Awards
     </a>
-    <a href="{{ url_for('cultural_bp.biodata_edit', enrollment_id=enrollment.id) }}" 
-       class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 shadow-sm transition-transform hover:-translate-y-0.5">
-       Update Biodata
+    <a href="{{ url_for('cultural_bp.live_shows_static', origin='talent', enrollment_id=enrollment.id) }}" 
+       class="bg-emerald-500 text-white px-3 py-1 rounded hover:bg-emerald-600 shadow-sm flex items-center gap-2 transition-transform hover:-translate-y-0.5">
+       <span class="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+       Live
     </a>
+    <button onclick="document.getElementById('helpModal').classList.remove('hidden')" 
+       class="bg-gray-800 text-white px-3 py-1 rounded hover:bg-gray-900 shadow-sm transition-transform hover:-translate-y-0.5">
+       ? Help
+    </button>
   </div>
 
   <!-- Inline Flash Messages -->

@@ -73,16 +73,17 @@
       <p class="text-sm text-gray-500 mb-4">Record and upload your MC introduction for each participant's act below. This will play immediately before their performance.</p>
       <div class="space-y-6 mb-8">
         {% for sub in submissions %}
-          {% set act_intro = None %}
+          {% set ns = namespace(act_intro=None) %}
           {% for r in recordings %}
             {% if r.recording_type == 'act_intro' %}
               {% if show.category_item and show.category_item.name == "Pageant" and r.segment_item_id|string == sub.id|string %}
-                {% set act_intro = r %}
+                {% set ns.act_intro = r %}
               {% elif (not show.category_item or show.category_item.name != "Pageant") and r.submission_id|string == sub.id|string %}
-                {% set act_intro = r %}
+                {% set ns.act_intro = r %}
               {% endif %}
             {% endif %}
           {% endfor %}
+          {% set act_intro = ns.act_intro %}
           <div class="bg-white p-5 rounded-lg border border-gray-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
               <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Act {{ loop.index }}</span>

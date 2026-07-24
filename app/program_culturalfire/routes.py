@@ -1339,7 +1339,7 @@ def show_program(show_id):
             if sub.user_enrollment and sub.user_enrollment.biodata and sub.user_enrollment.biodata.dob:
                 sub.user_enrollment.biodata.age_calc = calculate_age(sub.user_enrollment.biodata.dob)
 
-    from app.models.user import User
+    from app.models.auth import User
     mc_assignments = CfiMcAssignment.query.filter_by(show_id=show.id).all()
     judge_assignments = CfiJudgeAssignment.query.filter_by(show_id=show.id).all()
     from app.models.culturalfire import CfiShowAd
@@ -1545,7 +1545,7 @@ def watch_show(show_id):
             {"id": "crit5", "label": "Creativity"}
         ]
 
-    from app.models.user import User
+    from app.models.auth import User
     mc_assignments = CfiMcAssignment.query.filter_by(show_id=show.id).all()
     judge_assignments = CfiJudgeAssignment.query.filter_by(show_id=show.id).all()
     

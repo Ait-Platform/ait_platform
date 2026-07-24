@@ -36,6 +36,10 @@
        class="bg-purple-600 text-white px-3 py-1 rounded hover:bg-purple-700 shadow-sm transition-transform hover:-translate-y-0.5">
        Showcase
     </a>
+    <a href="{{ url_for('cultural_bp.private_show_dashboard', enrollment_id=enrollment.id) }}" 
+       class="bg-fuchsia-600 text-white px-3 py-1 rounded hover:bg-fuchsia-700 shadow-sm transition-transform hover:-translate-y-0.5 font-bold">
+       Private Shows
+    </a>
     <a href="{{ url_for('cultural_bp.judge_dashboard', origin='talent_dashboard', enrollment_id=enrollment.id) }}" 
        class="bg-indigo-600 text-white px-3 py-1 rounded hover:bg-indigo-700 shadow-sm transition-transform hover:-translate-y-0.5">
        Judges
@@ -48,6 +52,10 @@
        class="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600 shadow-sm transition-transform hover:-translate-y-0.5">
        Results
     </a>
+    <button onclick="document.getElementById('helpModal').classList.remove('hidden')" 
+       class="bg-gray-800 text-white px-3 py-1 rounded hover:bg-gray-900 shadow-sm transition-transform hover:-translate-y-0.5">
+       ? Help
+    </button>
     <a href="{{ url_for('cultural_bp.live_shows_static', origin='talent', enrollment_id=enrollment.id) }}" 
        class="bg-emerald-500 text-white px-3 py-1 rounded hover:bg-emerald-600 shadow-sm flex items-center gap-2 transition-transform hover:-translate-y-0.5">
        <span class="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
@@ -219,4 +227,28 @@
   </div>
 </div>
 </div>
+
+<!-- Help / How-To Modal -->
+<div id="helpModal" class="fixed inset-0 bg-black bg-opacity-75 z-50 hidden flex justify-center items-center p-4">
+  <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full p-6 relative max-h-[80vh] overflow-y-auto">
+    <button onclick="document.getElementById('helpModal').classList.add('hidden')" class="absolute top-4 right-4 text-gray-500 hover:text-gray-800 transition">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+    </button>
+    <h2 class="text-2xl font-bold text-gray-800 mb-4 border-b pb-2">Dashboard Guide</h2>
+    <div class="space-y-4 text-gray-600 text-sm">
+      <p><strong>Pageant:</strong> Access the Pageant section to upload your Ramp Walk and Introduction videos.</p>
+      <p><strong>Master of Ceremony:</strong> Access the MC dashboard to record or view MC introductions for shows.</p>
+      <p><strong>Showcase:</strong> View the public showcase of all available talent and pageant shows.</p>
+      <p><strong>Private Shows:</strong> Create and manage exclusive viewing groups. Invite family members and assign custom judges or MCs. Viewing a private show costs 10 tokens.</p>
+      <p><strong>Judges:</strong> Access the Judging dashboard to score performances (if you are assigned as a judge).</p>
+      <p><strong>Advertisers:</strong> Upload and manage video advertisements for shows.</p>
+      <p><strong>Results:</strong> View live and past results of all shows.</p>
+      <p><strong>Live:</strong> Join live broadcasts of ongoing shows.</p>
+    </div>
+    <div class="mt-6 text-center">
+      <button onclick="document.getElementById('helpModal').classList.add('hidden')" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 font-bold transition">Got it!</button>
+    </div>
+  </div>
+</div>
+
 {% endblock %}

@@ -81,11 +81,89 @@
               {% endif %}
             </td>
           </tr>
+          {% else %}
+          <tr><td colspan="4" class="px-4 py-2 border text-center text-gray-500">No general shows available.</td></tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
   </div>
 
+  {% if private_shows %}
+  <!-- Private Shows Tile -->
+  <div class="bg-white shadow-lg rounded-lg overflow-hidden mb-8 border border-fuchsia-200">
+    <!-- Color Strip -->
+    <div class="h-2 bg-fuchsia-600"></div>
+
+    <div class="p-6">
+      <h2 class="text-2xl font-bold text-fuchsia-800 mb-4">Your Private Shows</h2>
+      <p class="text-gray-600 mb-4">You have access to these exclusive shows. Viewing a private show costs 10 tokens.</p>
+    </div>
+
+    <!-- Table of Private Shows -->
+    <div class="overflow-x-auto">
+      <table class="min-w-full bg-white border-t border-gray-200">
+        <thead class="bg-fuchsia-50">
+          <tr>
+            <th class="px-4 py-2 border">No.</th>
+            <th class="px-4 py-2 border text-left">Title</th>
+            <th class="px-4 py-2 border text-left">Start Date</th>
+            <th class="px-4 py-2 border text-left">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for show in private_shows %}
+          <tr class="hover:bg-fuchsia-50">
+            <td class="px-4 py-2 border text-center">{{ loop.index }}</td>
+            <td class="px-4 py-2 border font-bold text-fuchsia-900">{{ show.title }} <span class="bg-fuchsia-100 text-fuchsia-800 text-xs px-2 py-0.5 rounded ml-2">Private</span></td>
+            <td class="px-4 py-2 border">
+              {{ show.start_date.strftime("%d %B %Y") if show.start_date else "Not scheduled" }}
+            </td>
+            <td class="px-4 py-2 border">
+              {% if show.id in unlocked_private_show_ids %}
+              <a href="{{ url_for('cultural_bp.show_program', show_id=show.id, origin=origin, enrollment_id=enrollment_id) }}"
+                 class="bg-blue-600 text-white px-4 py-2 rounded font-bold hover:bg-blue-700 shadow-sm transition">
+                 View Program (Unlocked)
+              </a>
+              {% else %}
+              <button onclick="unlockPrivateShow({{ show.id }}, '{{ url_for('cultural_bp.show_program', show_id=show.id, origin=origin, enrollment_id=enrollment_id) }}')"
+                 class="bg-fuchsia-600 text-white px-4 py-2 rounded font-bold hover:bg-fuchsia-700 shadow-sm flex items-center gap-2 transition">
+                 <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" fill-rule="evenodd"></path></svg>
+                 Unlock (10 Tokens)
+              </button>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
 </div>
+
+<script>
+function unlockPrivateShow(showId, programUrl) {
+  if (!confirm("This will deduct 10 tokens from your wallet to unlock the private show. Continue?")) return;
+
+  fetch(`/program/cultural_fire/private_show/unlock/${showId}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': '{{ csrf_token() }}'
+    }
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.success) {
+      alert("Unlocked successfully!");
+      window.location.href = programUrl;
+    } else {
+      alert("Error: " + data.message);
+    }
+  })
+  .catch(err => alert("An error occurred trying to unlock the show."));
+}
+</script>
 {% endblock %}

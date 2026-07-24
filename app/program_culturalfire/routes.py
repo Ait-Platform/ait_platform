@@ -1230,7 +1230,13 @@ def showcase_dashboard():
     # (Disabled per user request: shows are now created instantly by category)
     submissions = CfiTalentSubmission.query.all()
 
-    shows = CfiShow.query.filter(CfiShow.is_private == False).all()
+    # Get private show IDs
+    private_show_ids = [group.show_id for group in CfiGroup.query.filter(CfiGroup.show_id != None).all()]
+
+    if private_show_ids:
+        shows = CfiShow.query.filter(~CfiShow.id.in_(private_show_ids)).all()
+    else:
+        shows = CfiShow.query.all()
     
     # Get private shows for this user
     private_shows = []
@@ -1241,7 +1247,7 @@ def showcase_dashboard():
         for member in memberships:
             if member.group.show_id:
                 pshow = CfiShow.query.get(member.group.show_id)
-                if pshow and pshow.is_private:
+                if pshow:
                     private_shows.append(pshow)
                     
         # Check unlocked
@@ -1283,7 +1289,8 @@ def show_program(show_id):
     enrollment_id = request.args.get("enrollment_id")
     show = CfiShow.query.get_or_404(show_id)
     
-    if show.is_private:
+    is_private_show = CfiGroup.query.filter_by(show_id=show.id).first() is not None
+    if is_private_show:
         # Check if unlocked
         access = CfiShowAccess.query.filter_by(user_id=current_user.id, show_id=show.id).first()
         if not access:
@@ -2468,9 +2475,9 @@ def judge_dashboard():
         if enrollment:
             back_enrollment_id = enrollment.id
 
-    from app.models.culturalfire import CfiWallet
-    wallet = CfiWallet.query.filter_by(user_id=current_user.id).first()
-    token_balance = wallet.balance if wallet else 0
+    from app.models.debtors import DebtorsWallet
+    wallet = DebtorsWallet.query.filter_by(user_id=current_user.id).first()
+    token_balance = wallet.token_balance if wallet else 0
 
     # Check if they are currently assigned to any active shows
     active_assignments = CfiJudgeAssignment.query.join(CfiShow).filter(
@@ -3140,8 +3147,7 @@ def create_private_show(enrollment_id):
         start_date=datetime.utcnow().date(),
         location="Virtual",
         category_item_id=category_item_id,
-        status="active",
-        is_private=True
+        status="active"
     )
     db.session.add(new_show)
     db.session.flush() # To get the show.id
@@ -3193,7 +3199,8 @@ def join_private_show(group_id):
 @login_required
 def unlock_private_show(show_id):
     show = CfiShow.query.get_or_404(show_id)
-    if not show.is_private:
+    is_private = CfiGroup.query.filter_by(show_id=show.id).first() is not None
+    if not is_private:
         return jsonify({"success": False, "message": "This show is public."})
         
     # Check if they are a member

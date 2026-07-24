@@ -486,7 +486,6 @@ class CfiShow(db.Model):
     created_at = db.Column(db.DateTime, default=db.func.now())
     updated_at = db.Column(db.DateTime, default=db.func.now(), onupdate=db.func.now())
     status = db.Column(db.String(50), default="active")  # "active", "archived"
-    is_private = db.Column(db.Boolean, default=False)
 
     category_item_id = db.Column(db.Integer, db.ForeignKey("cfi_talent_category_items.id"), nullable=False)    
     category_item = db.relationship("CfiTalentCategoryItem", lazy="joined")

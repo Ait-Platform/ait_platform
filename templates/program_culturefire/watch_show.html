@@ -190,6 +190,11 @@ function loadItem(index) {
             player.parentElement.classList.add('relative');
             player.parentElement.appendChild(playBtn);
         }
+    } else if (err.name === 'AbortError') {
+        // This happens if loadItem() or a new src is set before the previous play() promise resolves.
+        // It is perfectly normal (e.g. user clicked Start Show twice or clicked Next quickly).
+        console.log("Play interrupted by a new load request. Ignoring AbortError.");
+        return;
     } else {
         title.innerHTML = `<span class="text-red-500 font-bold">Error playing video: ${err.name} - ${err.message}. Skipping...</span>`;
         setTimeout(() => {

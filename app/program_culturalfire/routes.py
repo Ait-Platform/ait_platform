@@ -1613,6 +1613,20 @@ def watch_show(show_id):
         {"id": "mc_crit5", "label": "Overall Impression"}
     ]
 
+    
+    # Filter out flagged videos
+    from app.models.culturalfire import CfiVideoFlag
+    flagged_counts = db.session.query(CfiVideoFlag.video_id, db.func.count(CfiVideoFlag.id)).group_by(CfiVideoFlag.video_id).all()
+    banned_video_ids = {vid for vid, count in flagged_counts if count >= 3}
+    
+    filtered_playlist = []
+    for item in unified_playlist:
+        item_id_str = str(item.get("id"))
+        if item_id_str not in banned_video_ids:
+            filtered_playlist.append(item)
+    
+    unified_playlist = filtered_playlist
+
     return render_template(
         "program_culturefire/watch_show.html",
         is_judge=is_judge,
@@ -1687,6 +1701,14 @@ def upload_mc_recording(show_id):
     os.makedirs(upload_folder, exist_ok=True)
     file_path = os.path.join(upload_folder, unique_filename)
     file.save(file_path)
+
+    from app.program_culturalfire.helpers import moderate_video_with_gemini
+    if file.filename.lower().endswith(('.mp4', '.mov', '.avi', '.mkv')):
+        if not moderate_video_with_gemini(file_path):
+            import os
+            if os.path.exists(file_path):
+                os.remove(file_path)
+            return jsonify({'success': False, 'message': 'Upload rejected: Inappropriate content detected by AI moderator.'})
 
     recording_type = request.form.get("recording_type", "act_intro")
     
@@ -1855,6 +1877,16 @@ def segment_edit(enrollment_id, category_id, segment):
             os.makedirs(cfi_dir, exist_ok=True)
             filepath = os.path.join(cfi_dir, filename)
             file.save(filepath)
+
+            from app.program_culturalfire.helpers import moderate_video_with_gemini
+            if file.filename.lower().endswith(('.mp4', '.mov', '.avi', '.mkv')):
+                if not moderate_video_with_gemini(filepath):
+                    import os
+                    if os.path.exists(filepath):
+                        os.remove(filepath)
+                    flash("Upload rejected: Inappropriate content detected by AI moderator.", "danger")
+                    return redirect(request.url)
+
             submission.video_url = filename
             db.session.commit()
             flash(f"{segment.replace('_',' ').title()} updated successfully.", "success")
@@ -1920,6 +1952,15 @@ def segment_new(enrollment_id, category_id, segment):
         filepath = os.path.join(cfi_dir, filename)
         file.save(filepath)
 
+            from app.program_culturalfire.helpers import moderate_video_with_gemini
+            if file.filename.lower().endswith(('.mp4', '.mov', '.avi', '.mkv')):
+                if not moderate_video_with_gemini(filepath):
+                    import os
+                    if os.path.exists(filepath):
+                        os.remove(filepath)
+                    flash("Upload rejected: Inappropriate content detected by AI moderator.", "danger")
+                    return redirect(request.url)
+
         submission = CfiTalentSubmission(
             user_enrollment_id=enrollment.id,
             user_id=enrollment.user_id,
@@ -1961,6 +2002,15 @@ def ramp_walk(enrollment_id, category_id):
         os.makedirs(cfi_dir, exist_ok=True)
         filepath = os.path.join(cfi_dir, filename)
         file.save(filepath)
+
+            from app.program_culturalfire.helpers import moderate_video_with_gemini
+            if file.filename.lower().endswith(('.mp4', '.mov', '.avi', '.mkv')):
+                if not moderate_video_with_gemini(filepath):
+                    import os
+                    if os.path.exists(filepath):
+                        os.remove(filepath)
+                    flash("Upload rejected: Inappropriate content detected by AI moderator.", "danger")
+                    return redirect(request.url)
 
         submission = CfiTalentSubmission(
             user_enrollment_id=enrollment.id,
@@ -2095,6 +2145,15 @@ def segment_form(enrollment_id, show_id, category_id):
             filename = secure_filename(file.filename)
             filepath = os.path.join(cfi_upload_folder, filename)
             file.save(filepath)
+
+            from app.program_culturalfire.helpers import moderate_video_with_gemini
+            if file.filename.lower().endswith(('.mp4', '.mov', '.avi', '.mkv')):
+                if not moderate_video_with_gemini(filepath):
+                    import os
+                    if os.path.exists(filepath):
+                        os.remove(filepath)
+                    flash("Upload rejected: Inappropriate content detected by AI moderator.", "danger")
+                    return redirect(request.url)
 
             if submission:
                 submission.video_url = f"cfi/{filename}"
@@ -2994,7 +3053,16 @@ def upload_ad(show_id):
     os.makedirs(upload_folder, exist_ok=True)
     file_path = os.path.join(upload_folder, filename)
     file.save(file_path)
-    
+
+    from app.program_culturalfire.helpers import moderate_video_with_gemini
+    if file.filename.lower().endswith(('.mp4', '.mov', '.avi', '.mkv')):
+        if not moderate_video_with_gemini(file_path):
+            import os
+            if os.path.exists(file_path):
+                os.remove(file_path)
+            flash("Upload rejected: Inappropriate content detected by AI moderator.", "danger")
+            return redirect(url_for('cultural_bp.advertiser_dashboard'))
+
     from app.models.culturalfire import CfiShowAd
     new_ad = CfiShowAd(
         show_id=show_id,
@@ -3280,3 +3348,27 @@ def unlock_private_show(show_id):
     db.session.commit()
     
     return jsonify({"success": True, "message": "Show unlocked successfully!"})
+
+
+@cultural_bp.route("/flag_video/<video_id>", methods=["POST"])
+@login_required
+def flag_video(video_id):
+    from app.models.culturalfire import CfiVideoFlag
+    
+    # Check if user already flagged
+    existing_flag = CfiVideoFlag.query.filter_by(video_id=video_id, reporter_id=current_user.id).first()
+    if existing_flag:
+        return jsonify({"success": False, "message": "You have already flagged this video."})
+        
+    new_flag = CfiVideoFlag(video_id=video_id, reporter_id=current_user.id)
+    db.session.add(new_flag)
+    db.session.commit()
+    
+    # Check flag count
+    flag_count = CfiVideoFlag.query.filter_by(video_id=video_id).count()
+    if flag_count >= 3:
+        # It will be hidden on next load
+        pass
+        
+    return jsonify({"success": True, "message": "Video flagged for review. Thank you for keeping the community safe."})
+

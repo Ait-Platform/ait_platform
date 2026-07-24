@@ -134,6 +134,43 @@ def handle_talent_files(submission, files):
                 file.save(file_path)
                 submission.files.append(CfiTalentFile(filename=filename))
 
+def moderate_video_with_gemini(filepath):
+    import os
+    import time
+    try:
+        import google.generativeai as genai
+    except ImportError:
+        return True # Fail open if library not installed
+        
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        return True
+        
+    try:
+        genai.configure(api_key=api_key)
+        video_file = genai.upload_file(path=filepath)
+        
+        # Wait for processing
+        while video_file.state.name == "PROCESSING":
+            time.sleep(2)
+            video_file = genai.get_file(video_file.name)
+            
+        if video_file.state.name == "FAILED":
+            genai.delete_file(video_file.name)
+            return True
+            
+        model = genai.GenerativeModel(model_name="gemini-1.5-flash")
+        prompt = "Analyze this video. Does it contain explicit content (pornography, severe violence, hate symbols)? Reply ONLY with 'SAFE' or 'EXPLICIT'."
+        response = model.generate_content([video_file, prompt])
+        
+        is_safe = 'EXPLICIT' not in response.text.upper()
+        
+        genai.delete_file(video_file.name)
+        return is_safe
+    except Exception as e:
+        print(f"Gemini Moderation Error: {e}")
+        return True
+
 def curate_shows(cutoff=10):
     submissions = CfiTalentSubmission.query.filter(CfiTalentSubmission.show_id == None).all()
 

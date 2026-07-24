@@ -59,6 +59,10 @@
     <div class="bg-gray-100 border-b px-6 py-3 flex justify-between items-center shadow-inner">
       <button id="btnPrev" onclick="prevItem()" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded disabled:opacity-40 transition font-semibold">&larr; Previous</button>
       <button id="btnStart" onclick="startShow()" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded transition font-bold shadow">Start / Resume</button>
+      <button id="btnFlagVideo" onclick="flagVideo()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded transition font-semibold flex items-center gap-2 text-sm shadow">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9"></path></svg>
+        Flag Video
+      </button>
       {% if not available_segments %}
       {% endif %}
       <button id="btnNext" onclick="nextItem()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded disabled:opacity-40 transition font-semibold">Next &rarr;</button>
@@ -298,7 +302,30 @@ function loadItem(index, autoPlay = true) {
 }
 
 // 🔥 Controls
-function startShow() {
+  function flagVideo() {
+    if(currentIndex < 0 || currentIndex >= submissions.length) return;
+    const currentVid = submissions[currentIndex];
+    
+    if(!confirm("Are you sure you want to flag this video for inappropriate content?")) return;
+    
+    fetch('/flag_video/' + currentVid.id, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': '{{ csrf_token() }}'
+      }
+    })
+    .then(res => res.json())
+    .then(data => {
+      alert(data.message);
+      if(data.success) {
+        nextItem();
+      }
+    })
+    .catch(err => console.error(err));
+  }
+
+  function startShow() {
   if (submissions.length === 0) return;
   loadItem(0);
 }

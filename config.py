@@ -129,6 +129,7 @@ class Config:
     # ------------ Core / Security ------------
     SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret")
     MAINTENANCE_MODE = int(os.getenv("MAINTENANCE_MODE", "0"))
+    MAX_CONTENT_LENGTH = 50 * 1024 * 1024  # 50 MB limit for all uploads
 
     # ------------ Database (Postgres only) ------------
     _raw_db_url = os.getenv("DATABASE_URL", "").strip()

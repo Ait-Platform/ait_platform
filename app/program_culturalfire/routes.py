@@ -2316,74 +2316,81 @@ def vote_mc():
 
         return jsonify({"success": True})
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         db.session.rollback()
-        return jsonify({"success": False, "message": str(e)})
-
+        return jsonify({"success": False, "message": "Server error: " + str(e)})
 @cultural_bp.route("/show/vote", methods=["POST"])
 @login_required
 def vote_item():
-    data = request.json
-    sub_id = data.get("submission_id")
-    v_type = data.get("type", "talent")
-    score = int(data.get("score", 0))
-    crit1 = int(data.get("crit1", 0))
-    crit2 = int(data.get("crit2", 0))
-    crit3 = int(data.get("crit3", 0))
-    crit4 = int(data.get("crit4", 0))
-    crit5 = int(data.get("crit5", 0))
-
-    if v_type == "pageant":
-        item = CfiSegmentItem.query.get(sub_id)
-        if not item:
-            return jsonify({"success": False, "message": "Segment item not found"})
-        show_id = item.show_id
-        
-        if not CfiJudgeAssignment.query.filter_by(show_id=item.show_id, judge_id=current_user.id).first():
-            return jsonify({"success": False, "message": "Only assigned judges can score this pageant!"})
-
-        existing_vote = CfiShowcaseVote.query.filter_by(user_id=current_user.id, segment_item_id=sub_id).first()
-        if existing_vote:
-            return jsonify({"success": False, "message": "You have already voted on this performance. Scores cannot be edited."})
-        else:
-            vote = CfiShowcaseVote(user_id=current_user.id, segment_item_id=sub_id, score=score)
-            db.session.add(vote)
-    else:
-        sub = CfiTalentSubmission.query.get(sub_id)
-        if not sub:
-            return jsonify({"success": False, "message": "Submission not found"})
-        show_id = sub.show_id
+    try:
+        data = request.json
+        sub_id = data.get("submission_id")
+        v_type = data.get("type", "talent")
+        score = int(data.get("score", 0))
+        crit1 = int(data.get("crit1", 0))
+        crit2 = int(data.get("crit2", 0))
+        crit3 = int(data.get("crit3", 0))
+        crit4 = int(data.get("crit4", 0))
+        crit5 = int(data.get("crit5", 0))
+    
+        if v_type == "pageant":
+            item = CfiSegmentItem.query.get(sub_id)
+            if not item:
+                return jsonify({"success": False, "message": "Segment item not found"})
+            show_id = item.show_id
             
-        if not CfiJudgeAssignment.query.filter_by(show_id=sub.show_id, judge_id=current_user.id).first():
-            return jsonify({"success": False, "message": "Only assigned judges can score this show!"})
-
-        existing_vote = CfiShowcaseVote.query.filter_by(user_id=current_user.id, submission_id=sub_id).first()
-        if existing_vote:
-            return jsonify({"success": False, "message": "You have already voted on this performance. Scores cannot be edited."})
+            if not CfiJudgeAssignment.query.filter_by(show_id=item.show_id, judge_id=current_user.id).first():
+                return jsonify({"success": False, "message": "Only assigned judges can score this pageant!"})
+    
+            existing_vote = CfiShowcaseVote.query.filter_by(user_id=current_user.id, segment_item_id=sub_id).first()
+            if existing_vote:
+                return jsonify({"success": False, "message": "You have already voted on this performance. Scores cannot be edited."})
+            else:
+                vote = CfiShowcaseVote(user_id=current_user.id, segment_item_id=sub_id, score=score)
+                db.session.add(vote)
         else:
-            vote = CfiShowcaseVote(user_id=current_user.id, submission_id=sub_id, score=score)
-            db.session.add(vote)
-
-    db.session.flush()
-
-    show = CfiShow.query.get(show_id)
-    cat_name = show.category_item.name if show and show.category_item else "Unknown"
+            sub = CfiTalentSubmission.query.get(sub_id)
+            if not sub:
+                return jsonify({"success": False, "message": "Submission not found"})
+            show_id = sub.show_id
+                
+            if not CfiJudgeAssignment.query.filter_by(show_id=sub.show_id, judge_id=current_user.id).first():
+                return jsonify({"success": False, "message": "Only assigned judges can score this show!"})
     
-    if cat_name == "Pageant":
-        labels = ["Confidence / Poise", "Walk / Posture", "Outfit / Presentation", "Personality", "Overall Impression"]
-    elif cat_name == "Dancing":
-        labels = ["Technique", "Rhythm / Timing", "Choreography", "Stage Presence", "Expression"]
-    else:
-        labels = ["Vocal Quality", "Pitch / Intonation", "Rhythm / Timing", "Stage Presence", "Creativity"]
-
-    crit_values = [crit1, crit2, crit3, crit4, crit5]
+            existing_vote = CfiShowcaseVote.query.filter_by(user_id=current_user.id, submission_id=sub_id).first()
+            if existing_vote:
+                return jsonify({"success": False, "message": "You have already voted on this performance. Scores cannot be edited."})
+            else:
+                vote = CfiShowcaseVote(user_id=current_user.id, submission_id=sub_id, score=score)
+                db.session.add(vote)
     
-    CfiJudgeScore.query.filter_by(vote_id=vote.id).delete()
-    for i in range(5):
-        db.session.add(CfiJudgeScore(vote_id=vote.id, criterion_name=labels[i], score=crit_values[i]))
-
-    db.session.commit()
-    return jsonify({"success": True})
-
+        db.session.flush()
+    
+        show = CfiShow.query.get(show_id)
+        cat_name = show.category_item.name if show and show.category_item else "Unknown"
+        
+        if cat_name == "Pageant":
+            labels = ["Confidence / Poise", "Walk / Posture", "Outfit / Presentation", "Personality", "Overall Impression"]
+        elif cat_name == "Dancing":
+            labels = ["Technique", "Rhythm / Timing", "Choreography", "Stage Presence", "Expression"]
+        else:
+            labels = ["Vocal Quality", "Pitch / Intonation", "Rhythm / Timing", "Stage Presence", "Creativity"]
+    
+        crit_values = [crit1, crit2, crit3, crit4, crit5]
+        
+        CfiJudgeScore.query.filter_by(vote_id=vote.id).delete()
+        for i in range(5):
+            db.session.add(CfiJudgeScore(vote_id=vote.id, criterion_name=labels[i], score=crit_values[i]))
+    
+        db.session.commit()
+        return jsonify({"success": True})
+    
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        db.session.rollback()
+        return jsonify({"success": False, "message": "Server error: " + str(e)})
 @cultural_bp.route("/show/<int:show_id>/results")
 @login_required
 def pageant_results(show_id):

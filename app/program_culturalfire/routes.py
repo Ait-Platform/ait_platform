@@ -1365,6 +1365,14 @@ def show_program(show_id):
 def watch_show(show_id):
     show = CfiShow.query.get_or_404(show_id)
 
+    def get_url(url):
+        if not url:
+            return ""
+        if url.startswith('cfi/'):
+            url = url[4:]
+        res = url_for("cultural_bp.uploaded_file", filename=url) if not url.startswith('uploads/') else url_for("cultural_bp.uploaded_file", filename=url.replace('uploads/', ''))
+        return res
+
     if show.category_item and show.category_item.name == "Pageant":
         submissions = (CfiSegmentItem.query
                        .filter_by(show_id=show.id)
@@ -1375,7 +1383,7 @@ def watch_show(show_id):
                 "id": sub.id,
                 "title": sub.title or "Untitled",
                 "segment_type": sub.segment_type,
-                "src": url_for("cultural_bp.uploaded_file", filename=sub.video_url) if not sub.video_url.startswith('uploads/') else url_for("cultural_bp.uploaded_file", filename=sub.video_url.replace('uploads/', '')),
+                "src": get_url(sub.video_url),
                 "user_id": sub.enrollment.user_id if sub.enrollment else None
             }
             for sub in submissions if sub.video_url
@@ -1391,7 +1399,7 @@ def watch_show(show_id):
                 "id": sub.id,
                 "title": sub.talent_name or sub.custom_talent or "Untitled",
                 "segment_type": "all",
-                "src": url_for("cultural_bp.uploaded_file", filename=file.filename),
+                "src": get_url(file.filename),
                 "user_id": sub.user_id
             }
             for sub in submissions
@@ -1428,11 +1436,6 @@ def watch_show(show_id):
     recordings = CfiMcRecording.query.filter_by(show_id=show.id).all()
     from app.models.culturalfire import CfiShowAd
     ads = CfiShowAd.query.filter_by(show_id=show.id).all()
-    
-    def get_url(url):
-        res = url_for("cultural_bp.uploaded_file", filename=url) if not url.startswith('uploads/') else url_for("cultural_bp.uploaded_file", filename=url.replace('uploads/', ''))
-        print(f"DEBUG get_url: url={url} res={res}", flush=True)
-        return res
     
     show_intro = next((r for r in recordings if r.recording_type == 'show_intro'), None)
     show_outro = next((r for r in recordings if r.recording_type == 'show_outro'), None)

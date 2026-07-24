@@ -107,7 +107,6 @@
           video::-webkit-media-controls-overflow-button { display: none !important; }
         </style>
         <video id="programPlayer" class="w-full bg-black shadow-lg rounded-b-lg object-contain max-h-[70vh]" controls controlsList="nodownload noplaybackrate" disablePictureInPicture>
-          <source id="programSource" src="">
           Your browser does not support the video tag.
         </video>
 
@@ -169,9 +168,6 @@ function loadItem(index) {
   currentIndex = index;
 
   player.src = submissions[index].src;
-  const sourceElem = document.getElementById('programSource');
-  if (sourceElem) sourceElem.src = submissions[index].src;
-
   player.load();
 
   player.play().catch((err) => {

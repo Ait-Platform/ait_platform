@@ -1231,7 +1231,8 @@ def showcase_dashboard():
     submissions = CfiTalentSubmission.query.all()
 
     # Get private show IDs
-    private_show_ids = [group.show_id for group in CfiGroup.query.filter(CfiGroup.show_id != None).all()]
+    from app.models.culturalfire import CfiPrivateShowGroup
+    private_show_ids = [psg.show_id for psg in CfiPrivateShowGroup.query.all()]
 
     if private_show_ids:
         shows = CfiShow.query.filter(~CfiShow.id.in_(private_show_ids)).all()
@@ -1244,9 +1245,11 @@ def showcase_dashboard():
     enrollment = UserEnrollment.query.filter_by(user_id=current_user.id).first()
     if enrollment:
         memberships = CfiGroupMember.query.filter_by(enrollment_id=enrollment.id).all()
+        from app.models.culturalfire import CfiPrivateShowGroup
         for member in memberships:
-            if member.group.show_id:
-                pshow = CfiShow.query.get(member.group.show_id)
+            psg = CfiPrivateShowGroup.query.filter_by(group_id=member.group_id).first()
+            if psg:
+                pshow = CfiShow.query.get(psg.show_id)
                 if pshow:
                     private_shows.append(pshow)
                     
@@ -1289,7 +1292,8 @@ def show_program(show_id):
     enrollment_id = request.args.get("enrollment_id")
     show = CfiShow.query.get_or_404(show_id)
     
-    is_private_show = CfiGroup.query.filter_by(show_id=show.id).first() is not None
+    from app.models.culturalfire import CfiPrivateShowGroup
+    is_private_show = CfiPrivateShowGroup.query.filter_by(show_id=show.id).first() is not None
     if is_private_show:
         # Check if unlocked
         access = CfiShowAccess.query.filter_by(user_id=current_user.id, show_id=show.id).first()
@@ -2488,7 +2492,8 @@ def judge_dashboard():
     historical_scores = CfiShowcaseVote.query.filter_by(user_id=current_user.id).order_by(CfiShowcaseVote.created_at.desc()).all()
     
     # Active shows that have slots available (exclude private shows)
-    private_show_ids = [group.show_id for group in CfiGroup.query.filter(CfiGroup.show_id != None).all()]
+    from app.models.culturalfire import CfiPrivateShowGroup
+    private_show_ids = [psg.show_id for psg in CfiPrivateShowGroup.query.all()]
     if private_show_ids:
         shows = CfiShow.query.filter(CfiShow.status == 'active', ~CfiShow.id.in_(private_show_ids)).all()
     else:
@@ -2721,7 +2726,8 @@ def mc_dashboard():
     ).all()
     
     # Active shows that have slots available (exclude private shows)
-    private_show_ids = [group.show_id for group in CfiGroup.query.filter(CfiGroup.show_id != None).all()]
+    from app.models.culturalfire import CfiPrivateShowGroup
+    private_show_ids = [psg.show_id for psg in CfiPrivateShowGroup.query.all()]
     if private_show_ids:
         shows = CfiShow.query.filter(CfiShow.status == 'active', ~CfiShow.id.in_(private_show_ids)).all()
     else:
@@ -3128,7 +3134,16 @@ def private_show_dashboard(enrollment_id):
         
     categories = CfiTalentCategoryItem.query.all()
         
-    groups_led = CfiGroup.query.filter(CfiGroup.leader_id == enrollment.id, CfiGroup.show_id != None).all()
+    from app.models.culturalfire import CfiPrivateShowGroup
+    private_show_groups = CfiPrivateShowGroup.query.all()
+    group_ids = [psg.group_id for psg in private_show_groups]
+    groups_led = CfiGroup.query.filter(CfiGroup.leader_id == enrollment.id, CfiGroup.id.in_(group_ids)).all() if group_ids else []
+    
+    # Inject show_id to group object for the template
+    for group in groups_led:
+        psg = CfiPrivateShowGroup.query.filter_by(group_id=group.id).first()
+        if psg:
+            group.show_id = psg.show_id
     memberships = CfiGroupMember.query.filter(CfiGroupMember.enrollment_id == enrollment.id, CfiGroupMember.submission_id == None).all()
     
     return render_template("program_culturefire/private_show_dashboard.html", 
@@ -3164,11 +3179,17 @@ def create_private_show(enrollment_id):
     
     group = CfiGroup(
         name=f"{title} Group",
-        leader_id=enrollment.id,
-        show_id=new_show.id
+        leader_id=enrollment.id
     )
     db.session.add(group)
     db.session.flush()
+    
+    from app.models.culturalfire import CfiPrivateShowGroup
+    psg = CfiPrivateShowGroup(
+        show_id=new_show.id,
+        group_id=group.id
+    )
+    db.session.add(psg)
     
     # Add leader as member
     member = CfiGroupMember(
@@ -3209,7 +3230,9 @@ def join_private_show(group_id):
 @login_required
 def unlock_private_show(show_id):
     show = CfiShow.query.get_or_404(show_id)
-    is_private = CfiGroup.query.filter_by(show_id=show.id).first() is not None
+    from app.models.culturalfire import CfiPrivateShowGroup
+    psg = CfiPrivateShowGroup.query.filter_by(show_id=show.id).first()
+    is_private = psg is not None
     if not is_private:
         return jsonify({"success": False, "message": "This show is public."})
         
@@ -3218,7 +3241,7 @@ def unlock_private_show(show_id):
     if not enrollment:
         return jsonify({"success": False, "message": "You must be enrolled to view this show."})
         
-    group = CfiGroup.query.filter_by(show_id=show.id).first()
+    group = CfiGroup.query.get(psg.group_id)
     if not group:
         return jsonify({"success": False, "message": "Group not found."})
         

@@ -204,7 +204,6 @@ class CfiGroup(db.Model):
     leader_id = db.Column(db.Integer, db.ForeignKey("user_enrollment.id"), nullable=False)
 
     submission_id = db.Column(db.Integer, db.ForeignKey("cfi_talent_submission.id"), nullable=True)
-    show_id = db.Column(db.Integer, db.ForeignKey("cfi_shows.id"), nullable=True)
 
     created_at = db.Column(db.DateTime, default=db.func.now())
 
@@ -624,12 +623,16 @@ class CfiShowAccess(db.Model):
     show = db.relationship("CfiShow", backref="access_records")
 
 class CfiTokenTariff(db.Model):
-    __tablename__ = "cfi_token_tariffs"
+    __tablename__ = "cfi_token_tariff"
     id = db.Column(db.Integer, primary_key=True)
-    action_name = db.Column(db.String(100), nullable=False, unique=True) # e.g. 'private_show_view'
+    action_name = db.Column(db.String(100), nullable=False, unique=True)
     base_token_cost = db.Column(db.Integer, nullable=False, default=10)
     created_at = db.Column(db.DateTime, default=db.func.now())
+
+class CfiPrivateShowGroup(db.Model):
+    __tablename__ = 'cfi_private_show_groups'
+    id = db.Column(db.Integer, primary_key=True)
+    show_id = db.Column(db.Integer, db.ForeignKey('cfi_shows.id'), nullable=False, unique=True)
+    group_id = db.Column(db.Integer, db.ForeignKey('cfi_groups.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=db.func.now())
     updated_at = db.Column(db.DateTime, default=db.func.now(), onupdate=db.func.now())
-
-
-

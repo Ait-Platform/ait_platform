@@ -1339,12 +1339,25 @@ def show_program(show_id):
             if sub.user_enrollment and sub.user_enrollment.biodata and sub.user_enrollment.biodata.dob:
                 sub.user_enrollment.biodata.age_calc = calculate_age(sub.user_enrollment.biodata.dob)
 
+    from app.models.user import User
+    mc_assignments = CfiMcAssignment.query.filter_by(show_id=show.id).all()
+    judge_assignments = CfiJudgeAssignment.query.filter_by(show_id=show.id).all()
+    from app.models.culturalfire import CfiShowAd
+    ads = CfiShowAd.query.filter_by(show_id=show.id).all()
+    
+    show_mcs = list(set([User.query.get(a.mc_id).name for a in mc_assignments if User.query.get(a.mc_id)]))
+    show_judges = list(set([User.query.get(a.judge_id).name for a in judge_assignments if User.query.get(a.judge_id)]))
+    show_advertisers = list(set([User.query.get(ad.user_id).name for ad in ads if User.query.get(ad.user_id)]))
+
     return render_template("program_culturefire/program.html",
                            show=show,
                            submissions=submissions,
                            submissions_by_segment=submissions_by_segment,
                            origin=origin,
-                           enrollment_id=enrollment_id
+                           enrollment_id=enrollment_id,
+                           show_mcs=show_mcs,
+                           show_judges=show_judges,
+                           show_advertisers=show_advertisers
                            )
 
 @cultural_bp.route("/show/watch/<int:show_id>")

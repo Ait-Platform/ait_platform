@@ -36,10 +36,13 @@
           <h3 class="font-semibold text-gray-900">Welcome & Self-Introduction</h3>
           <p class="text-sm text-gray-500">Welcome the audience, introduce yourself, and hype up the show.</p>
           {% if show_intro %}
-            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 mt-2">
-              <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
-              Video Uploaded
-            </span>
+            <div class="mt-2 flex flex-col gap-1">
+              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 w-max">
+                <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
+                Video Uploaded
+              </span>
+              <p class="text-xs text-gray-500 font-medium truncate max-w-[200px] sm:max-w-xs" title="{{ show_intro.media_url.split('/')[-1] }}">File: {{ show_intro.media_url.split('_', 3)[-1] if '_' in show_intro.media_url else show_intro.media_url.split('/')[-1] }}</p>
+            </div>
           {% else %}
             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 mt-2">Missing Video</span>
           {% endif %}
@@ -89,10 +92,13 @@
               {% endif %}
               
               {% if act_intro %}
-                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 mt-2">
-                  <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
-                  MC Intro Uploaded
-                </span>
+                <div class="mt-2 flex flex-col gap-1">
+                  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 w-max">
+                    <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
+                    MC Intro Uploaded
+                  </span>
+                  <p class="text-xs text-gray-500 font-medium truncate max-w-[200px] sm:max-w-xs" title="{{ act_intro.media_url.split('/')[-1] }}">File: {{ act_intro.media_url.split('_', 3)[-1] if '_' in act_intro.media_url else act_intro.media_url.split('/')[-1] }}</p>
+                </div>
               {% else %}
                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 mt-2">Missing MC Intro</span>
               {% endif %}
@@ -126,10 +132,13 @@
           <h3 class="font-semibold text-gray-900">Farewell & Outro</h3>
           <p class="text-sm text-gray-500">Thank the audience, wrap up the show.</p>
           {% if show_outro %}
-            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 mt-2">
-              <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
-              Video Uploaded
-            </span>
+            <div class="mt-2 flex flex-col gap-1">
+              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 w-max">
+                <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
+                Video Uploaded
+              </span>
+              <p class="text-xs text-gray-500 font-medium truncate max-w-[200px] sm:max-w-xs" title="{{ show_outro.media_url.split('/')[-1] }}">File: {{ show_outro.media_url.split('_', 3)[-1] if '_' in show_outro.media_url else show_outro.media_url.split('/')[-1] }}</p>
+            </div>
           {% else %}
             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 mt-2">Missing Video</span>
           {% endif %}

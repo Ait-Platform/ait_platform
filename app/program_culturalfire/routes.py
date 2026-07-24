@@ -1456,9 +1456,9 @@ def watch_show(show_id):
         
     for idx, act in enumerate(submissions_data):
         if show.category_item and show.category_item.name == "Pageant":
-            act_intro = next((r for r in recordings if r.recording_type == 'act_intro' and r.segment_item_id == act['id']), None)
+            act_intro = next((r for r in recordings if r.recording_type == 'act_intro' and str(r.segment_item_id) == str(act['id'])), None)
         else:
-            act_intro = next((r for r in recordings if r.recording_type == 'act_intro' and r.submission_id == act['id']), None)
+            act_intro = next((r for r in recordings if r.recording_type == 'act_intro' and str(r.submission_id) == str(act['id'])), None)
             
         if act_intro:
             unified_playlist.append({

@@ -575,7 +575,7 @@ def create_app(test_config=None):
             obsolete_slugs = ['home2', 'home_premium', 'home_section3']
             AuthSubject.query.filter(AuthSubject.slug.in_(obsolete_slugs)).update({"is_active": 0}, synchronize_session=False)
 
-            subjects_to_hide = ['sms', 'cfi_judge', 'admin', 'admin_general', 'spv']
+            subjects_to_hide = ['sms', 'cfi_judge', 'admin', 'admin_general', 'spv', 'debtors']
             AuthSubject.query.filter(AuthSubject.slug.in_(subjects_to_hide)).update({"is_hidden_on_bridge": True}, synchronize_session=False)
             AuthSubject.query.filter(AuthSubject.slug.in_(['admin', 'admin_general'])).update({"program_type": "admin"}, synchronize_session=False)
             db.session.commit()

@@ -107,11 +107,9 @@
           video::-webkit-media-controls-fullscreen-button { display: none !important; }
           video::-webkit-media-controls-overflow-button { display: none !important; }
         </style>
-        <div class="w-full bg-black flex justify-center items-center h-[50vh] md:h-[70vh] rounded-b-lg shadow-lg">
-          <video id="programPlayer" class="w-full h-full object-contain" controls controlsList="nodownload noplaybackrate" disablePictureInPicture>
-            Your browser does not support the video tag.
-          </video>
-        </div>
+        <video id="programPlayer" class="w-full bg-black shadow-lg rounded-b-lg object-contain max-h-[75vh]" controls controlsList="nodownload noplaybackrate" disablePictureInPicture>
+          Your browser does not support the video tag.
+        </video>
 
       </div>
 
@@ -173,11 +171,35 @@ function loadItem(index, autoPlay = true) {
   player.src = submissions[index].src;
   player.load();
 
+  function showPlayOverlay() {
+      title.innerHTML = `<span class="text-blue-500 font-bold">Ready. Click Start to begin.</span>`;
+      let existingBtn = document.getElementById('autoplayOverlayBtn');
+      if (!existingBtn) {
+          const playBtn = document.createElement('button');
+          playBtn.id = 'autoplayOverlayBtn';
+          playBtn.className = "absolute inset-0 w-full h-full flex items-center justify-center bg-black bg-opacity-60 text-white font-bold text-4xl rounded-b-lg z-10 hover:bg-opacity-50 transition cursor-pointer";
+          playBtn.innerHTML = "▶️ START";
+          playBtn.onclick = () => {
+              player.play().catch((err) => {
+                  console.error("Manual playback error:", err);
+                  title.innerHTML = `<span class="text-red-500 font-bold">Error playing video: ${err.name} - ${err.message}. Skipping...</span>`;
+                  setTimeout(() => {
+                      nextItem();
+                  }, 4000);
+              });
+              playBtn.remove();
+              title.textContent = `${currentIndex + 1} of ${submissions.length} - ${submissions[currentIndex].title || "Untitled"}`;
+          };
+          player.parentElement.classList.add('relative');
+          player.parentElement.appendChild(playBtn);
+      }
+  }
+
   if (autoPlay) {
       player.play().catch((err) => {
           console.error("Video playback error:", err);
           if (err.name === 'NotAllowedError') {
-              console.log("Autoplay blocked. User must press play.");
+              showPlayOverlay();
           } else if (err.name === 'AbortError') {
               console.log("Play interrupted by a new load request. Ignoring AbortError.");
               return;
@@ -188,6 +210,8 @@ function loadItem(index, autoPlay = true) {
               }, 4000);
           }
       });
+  } else {
+      showPlayOverlay();
   }
 
   if (!title.innerHTML.includes("Error playing video")) {
@@ -201,11 +225,7 @@ function loadItem(index, autoPlay = true) {
   const scoreForm = document.getElementById('scoreForm');
   
   if (scoreContainer) {
-    if (submissions[index].item_type === 'mc') {
-      scoreContainer.classList.add('hidden');
-      if (ownSubmissionWarning) ownSubmissionWarning.classList.add('hidden');
-      if (alreadyScoredWarning) alreadyScoredWarning.classList.add('hidden');
-    } else if (submissions[index].user_id == {{ current_user.id }}) {
+    if (submissions[index].user_id == {{ current_user.id }}) {
       scoreContainer.classList.add('hidden');
       if (ownSubmissionWarning) ownSubmissionWarning.classList.remove('hidden');
       if (alreadyScoredWarning) alreadyScoredWarning.classList.add('hidden');

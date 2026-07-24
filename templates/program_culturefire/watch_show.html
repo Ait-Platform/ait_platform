@@ -59,7 +59,6 @@
     <div class="bg-gray-100 border-b px-6 py-3 flex justify-between items-center shadow-inner">
       <button id="btnPrev" onclick="prevItem()" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded disabled:opacity-40 transition font-semibold">&larr; Previous</button>
       {% if not available_segments %}
-      <button id="btnStart" onclick="startShow()" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded transition font-bold shadow">Start Show</button>
       {% endif %}
       <button id="btnNext" onclick="nextItem()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded disabled:opacity-40 transition font-semibold">Next &rarr;</button>
     </div>
@@ -101,14 +100,18 @@
           {% endif %}
         </div>
 
-        <!-- Video -->
         <style>
-          video::-internal-media-controls-overflow-button { display: none !important; }
+          video::-webkit-media-controls-timeline,
+          video::-webkit-media-controls-current-time-display,
+          video::-webkit-media-controls-time-remaining-display { display: none !important; }
+          video::-webkit-media-controls-fullscreen-button { display: none !important; }
           video::-webkit-media-controls-overflow-button { display: none !important; }
         </style>
-        <video id="programPlayer" class="w-full bg-black shadow-lg rounded-b-lg object-contain max-h-[70vh]" controls controlsList="nodownload noplaybackrate" disablePictureInPicture>
-          Your browser does not support the video tag.
-        </video>
+        <div class="w-full bg-black flex justify-center items-center h-[50vh] md:h-[70vh] rounded-b-lg shadow-lg">
+          <video id="programPlayer" class="w-full h-full object-contain" controls controlsList="nodownload noplaybackrate" disablePictureInPicture>
+            Your browser does not support the video tag.
+          </video>
+        </div>
 
       </div>
 
@@ -170,43 +173,21 @@ function loadItem(index, autoPlay = true) {
   player.src = submissions[index].src;
   player.load();
 
-  function showPlayOverlay() {
-      title.innerHTML = `<span class="text-blue-500 font-bold">Ready. Click Start to begin.</span>`;
-      let existingBtn = document.getElementById('autoplayOverlayBtn');
-      if (!existingBtn) {
-          const playBtn = document.createElement('button');
-          playBtn.id = 'autoplayOverlayBtn';
-          playBtn.className = "absolute inset-0 w-full h-full flex items-center justify-center bg-black bg-opacity-60 text-white font-bold text-4xl rounded-b-lg";
-          playBtn.innerHTML = "▶️ START";
-          playBtn.onclick = () => {
-              player.play();
-              playBtn.remove();
-              title.textContent = `${currentIndex + 1} of ${submissions.length} - ${submissions[currentIndex].title || "Untitled"}`;
-          };
-          player.parentElement.classList.add('relative');
-          player.parentElement.appendChild(playBtn);
-      }
-  }
-
   if (autoPlay) {
       player.play().catch((err) => {
-    console.error("Video playback error:", err);
-        if (err.name === 'NotAllowedError') {
-            showPlayOverlay();
-        } else if (err.name === 'AbortError') {
-        // This happens if loadItem() or a new src is set before the previous play() promise resolves.
-        // It is perfectly normal (e.g. user clicked Start Show twice or clicked Next quickly).
-        console.log("Play interrupted by a new load request. Ignoring AbortError.");
-        return;
-    } else {
-        title.innerHTML = `<span class="text-red-500 font-bold">Error playing video: ${err.name} - ${err.message}. Skipping...</span>`;
-        setTimeout(() => {
-            nextItem();
-        }, 4000);
-    }
-  });
-  } else {
-      showPlayOverlay();
+          console.error("Video playback error:", err);
+          if (err.name === 'NotAllowedError') {
+              console.log("Autoplay blocked. User must press play.");
+          } else if (err.name === 'AbortError') {
+              console.log("Play interrupted by a new load request. Ignoring AbortError.");
+              return;
+          } else {
+              title.innerHTML = `<span class="text-red-500 font-bold">Error playing video: ${err.name} - ${err.message}. Skipping...</span>`;
+              setTimeout(() => {
+                  nextItem();
+              }, 4000);
+          }
+      });
   }
 
   if (!title.innerHTML.includes("Error playing video")) {

@@ -32,3 +32,5 @@ from .tpx import (
 )
 
 from .debtors import SoaProfile, Debtor, DebtorLedger, DebtorChargeMap, DebtorsWallet, DebtorsTokenTransaction
+
+import app.models.culturalfire

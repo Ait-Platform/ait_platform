@@ -1245,7 +1245,7 @@ def showcase_dashboard():
     enrollment = UserEnrollment.query.filter_by(user_id=current_user.id).first()
     if enrollment:
         memberships = CfiGroupMember.query.filter_by(enrollment_id=enrollment.id).all()
-        from app.models.culturalfire import CfiPrivateShowGroup
+        from app.models.culturalfire import CfiPrivateShowGroup, CfiShowAccess
         for member in memberships:
             psg = CfiPrivateShowGroup.query.filter_by(group_id=member.group_id).first()
             if psg:
@@ -1292,7 +1292,7 @@ def show_program(show_id):
     enrollment_id = request.args.get("enrollment_id")
     show = CfiShow.query.get_or_404(show_id)
     
-    from app.models.culturalfire import CfiPrivateShowGroup
+    from app.models.culturalfire import CfiPrivateShowGroup, CfiShowAccess
     is_private_show = CfiPrivateShowGroup.query.filter_by(show_id=show.id).first() is not None
     if is_private_show:
         # Check if unlocked
@@ -3297,6 +3297,7 @@ def join_private_show(group_id):
 @cultural_bp.route("/private_show/unlock/<int:show_id>", methods=["POST"])
 @login_required
 def unlock_private_show(show_id):
+    from app.models.culturalfire import CfiShowAccess
     show = CfiShow.query.get_or_404(show_id)
     from app.models.culturalfire import CfiPrivateShowGroup
     psg = CfiPrivateShowGroup.query.filter_by(show_id=show.id).first()

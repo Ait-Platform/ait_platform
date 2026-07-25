@@ -1405,6 +1405,8 @@ def watch_show(show_id):
     def get_url(url):
         if not url:
             return ""
+        if url.startswith('/static/'):
+            return url
         if url.startswith('cfi/'):
             url = url[4:]
         res = url_for("cultural_bp.uploaded_file", filename=url) if not url.startswith('uploads/') else url_for("cultural_bp.uploaded_file", filename=url.replace('uploads/', ''))

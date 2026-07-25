@@ -34,24 +34,6 @@
     {% endif %}
   </div>
 
-  <div class="mb-8">
-    <div class="rounded-xl border border-teal-200 bg-white shadow-sm hover:shadow-md transition overflow-hidden">
-      <div class="h-2 bg-teal-600"></div>
-      <div class="p-6">
-        <div class="flex items-start justify-between">
-          <h2 class="text-lg font-bold text-teal-800">HealthCore Dashboard</h2>
-          <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-teal-50 text-teal-700 border border-teal-200">Phase 2 Demo</span>
-        </div>
-        <p class="mt-2 text-sm text-slate-600">Access the new 9-Engine personalized health dashboard.</p>
-        <div class="mt-4 flex items-center gap-3">
-          <a href="{{ url_for('healthcore_bp.healthcore_dashboard') }}" class="inline-flex items-center rounded-lg px-4 py-2 text-sm font-semibold border border-transparent bg-teal-600 text-white hover:bg-teal-700 shadow-sm transition-colors">
-            Open HealthCore
-          </a>
-        </div>
-      </div>
-    </div>
-  </div>
-
   <div class="{% if subjects|length == 1 %}max-w-2xl mx-auto grid grid-cols-1{% else %}grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3{% endif %} gap-6">
     {% for s in subjects %}
       {% set is_admin    = (s.access_level == 'admin') %}
@@ -85,6 +67,8 @@
           {% set primary_href = url_for('debtors_bp.debtors_router') %}
         {% elif s.slug == 'spv' %}
           {% set primary_href = url_for('spv_bp.investor_dashboard') %}
+        {% elif s.slug == 'healthcore' %}
+          {% set primary_href = url_for('healthcore_bp.healthcore_dashboard') %}
         {% else %}
           {% set primary_href = url_for('auth_bp.learner_subject_dashboard', subject=s.slug) %}
         {% endif %}

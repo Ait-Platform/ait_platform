@@ -12,7 +12,8 @@
   <div class="flex justify-between items-start mb-6 border-b pb-4">
     <h1 class="text-2xl font-bold text-gray-800">Advertiser Dashboard</h1>
     <div class="flex flex-col items-end gap-2">
-      <a href="{{ url_for('cultural_bp.cultural_fire_home') }}" class="px-4 py-2 bg-gray-200 text-gray-800 font-semibold rounded hover:bg-gray-300 transition text-sm text-center w-full">
+      {% set back_url = url_for('cultural_bp.talent_dashboard', enrollment_id=request.args.get('enrollment_id')) if request.args.get('enrollment_id') else url_for('cultural_bp.cultural_fire_home') %}
+      <a href="{{ back_url }}" class="px-4 py-2 bg-gray-200 text-gray-800 font-semibold rounded hover:bg-gray-300 transition text-sm text-center w-full">
         &larr; Back
       </a>
       <a href="{{ url_for('cultural_bp.showcase_dashboard') }}" class="px-4 py-2 bg-indigo-600 text-white font-semibold rounded hover:bg-indigo-700 transition text-sm shadow-sm text-center w-full whitespace-nowrap">

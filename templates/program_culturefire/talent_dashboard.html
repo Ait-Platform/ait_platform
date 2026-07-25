@@ -51,7 +51,7 @@
 
     <!-- Second Row -->
     <div class="flex items-center justify-end space-x-2 flex-wrap gap-y-2">
-      <a href="{{ url_for('cultural_bp.advertiser_dashboard') }}" 
+      <a href="{{ url_for('cultural_bp.advertiser_dashboard', origin='talent_dashboard', enrollment_id=enrollment.id) }}" 
          class="bg-blue-800 text-white px-3 py-1 rounded hover:bg-blue-900 shadow-sm transition-transform hover:-translate-y-0.5">
          Advertisers
       </a>

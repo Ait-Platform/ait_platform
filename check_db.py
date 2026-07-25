@@ -1,10 +1,10 @@
-from app import create_app
-from app.extensions import db
-from sqlalchemy import text
 
+from app import create_app, db
+from app.models.culturalfire import CfiTalentSubmission
+import sqlalchemy as sa
 app = create_app()
 with app.app_context():
-    rows = db.session.execute(text("SELECT key, value FROM system_settings WHERE key LIKE 'visibility_%'")).fetchall()
-    print('Visibility settings in DB:')
-    for r in rows:
-        print(f'{r.key}: {r.value}')
+    inspector = sa.inspect(db.engine)
+    columns = [c['name'] for c in inspector.get_columns('cfi_talent_submission')]
+    print('Columns in cfi_talent_submission:', columns)
+

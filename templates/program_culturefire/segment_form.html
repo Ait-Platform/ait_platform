@@ -53,23 +53,25 @@
               No question selected yet. Please choose one.
             {% endif %}
           </div>
-          <button type="button" onclick="document.getElementById('question-modal').classList.remove('hidden')" class="bg-indigo-100 text-indigo-700 px-3 py-2 rounded hover:bg-indigo-200 text-sm font-semibold whitespace-nowrap">
+          <button type="button" onclick="openModal()" class="bg-indigo-100 text-indigo-700 px-3 py-2 rounded hover:bg-indigo-200 text-sm font-semibold whitespace-nowrap">
             Choose Question
           </button>
         </div>
       </div>
       {% endif %}
 
-      <input type="file"
-             name="video"
-             accept="video/*"
-             required
-             class="block w-full text-sm text-gray-600 border rounded px-2 py-1 mb-2">
+      <div id="upload_section" class="{% if segment.name == 'Q&A' and not (submission and submission.custom_talent) %}hidden{% endif %}">
+        <input type="file"
+               name="video"
+               accept="video/*"
+               required
+               class="block w-full text-sm text-gray-600 border rounded px-2 py-1 mb-2">
 
-      <button type="submit"
-              class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">
-        Save
-      </button>
+        <button type="submit"
+                class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">
+          Save
+        </button>
+      </div>
 
     </form>
 
@@ -176,34 +178,55 @@
 
 {% if segment.name == 'Q&A' %}
 <!-- Question Selection Modal -->
-<div id="question-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+<div id="question-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden items-center justify-center p-4">
   <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] flex flex-col">
     <div class="px-6 py-4 border-b flex justify-between items-center">
       <h3 class="text-lg font-bold text-gray-800">Select a Question</h3>
-      <button onclick="document.getElementById('question-modal').classList.add('hidden')" type="button" class="text-gray-500 hover:text-gray-700">
+      <button onclick="closeModal()" type="button" class="text-gray-500 hover:text-gray-700">
         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
       </button>
     </div>
     <div class="p-6 overflow-y-auto flex-1">
       <div class="grid gap-3">
-        {% for q in questions %}
-        <button type="button" onclick="selectQuestion('{{ q.id }}', '{{ q.question_text|replace("'", "\\'")|escape }}')" class="text-left p-4 border rounded hover:border-indigo-500 hover:bg-indigo-50 transition">
-          <span class="font-bold text-indigo-600 mr-2">Q{{ loop.index }}.</span>
-          <span class="text-gray-700">{{ q.question_text }}</span>
-        </button>
-        {% endfor %}
+        {% if questions|length == 0 %}
+          <div class="text-gray-500 text-center py-4">No questions available in the database.</div>
+        {% else %}
+          {% for q in questions %}
+          <button type="button" onclick="selectQuestion('{{ q.id }}', '{{ q.question_text|replace("'", "\'")|escape }}')" class="text-left p-4 border rounded hover:border-indigo-500 hover:bg-indigo-50 transition">
+            <span class="font-bold text-indigo-600 mr-2">Q{{ loop.index }}.</span>
+            <span class="text-gray-700">{{ q.question_text }}</span>
+          </button>
+          {% endfor %}
+        {% endif %}
       </div>
     </div>
   </div>
 </div>
 
 <script>
+function openModal() {
+  const modal = document.getElementById('question-modal');
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+}
+
+function closeModal() {
+  const modal = document.getElementById('question-modal');
+  modal.classList.add('hidden');
+  modal.classList.remove('flex');
+}
+
 function selectQuestion(id, text) {
   document.getElementById('question_id_input').value = id;
   document.getElementById('selected_question_display').textContent = text;
   document.getElementById('selected_question_display').classList.remove('italic', 'text-gray-600');
   document.getElementById('selected_question_display').classList.add('font-semibold', 'text-gray-800');
-  document.getElementById('question-modal').classList.add('hidden');
+  closeModal();
+  
+  const uploadSection = document.getElementById('upload_section');
+  if (uploadSection) {
+      uploadSection.classList.remove('hidden');
+  }
 }
 </script>
 {% endif %}

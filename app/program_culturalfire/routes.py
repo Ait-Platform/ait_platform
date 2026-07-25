@@ -1977,17 +1977,18 @@ def segment_new(enrollment_id, category_id, segment):
 
         cfi_dir = os.path.join(current_app.root_path, "static", "uploads", "cfi")
         os.makedirs(cfi_dir, exist_ok=True)
+        filename = secure_filename(file.filename)
         filepath = os.path.join(cfi_dir, filename)
         file.save(filepath)
 
-            from app.program_culturalfire.helpers import moderate_video_with_gemini
-            if file.filename.lower().endswith(('.mp4', '.mov', '.avi', '.mkv')):
-                if not moderate_video_with_gemini(filepath):
-                    import os
-                    if os.path.exists(filepath):
-                        os.remove(filepath)
-                    flash("Upload rejected: Inappropriate content detected by AI moderator.", "danger")
-                    return redirect(request.url)
+        from app.program_culturalfire.helpers import moderate_video_with_gemini
+        if file.filename.lower().endswith(('.mp4', '.mov', '.avi', '.mkv')):
+            if not moderate_video_with_gemini(filepath):
+                import os
+                if os.path.exists(filepath):
+                    os.remove(filepath)
+                flash("Upload rejected: Inappropriate content detected by AI moderator.", "danger")
+                return redirect(request.url)
 
         submission = CfiTalentSubmission(
             user_enrollment_id=enrollment.id,
@@ -2031,14 +2032,14 @@ def ramp_walk(enrollment_id, category_id):
         filepath = os.path.join(cfi_dir, filename)
         file.save(filepath)
 
-            from app.program_culturalfire.helpers import moderate_video_with_gemini
-            if file.filename.lower().endswith(('.mp4', '.mov', '.avi', '.mkv')):
-                if not moderate_video_with_gemini(filepath):
-                    import os
-                    if os.path.exists(filepath):
-                        os.remove(filepath)
-                    flash("Upload rejected: Inappropriate content detected by AI moderator.", "danger")
-                    return redirect(request.url)
+        from app.program_culturalfire.helpers import moderate_video_with_gemini
+        if file.filename.lower().endswith(('.mp4', '.mov', '.avi', '.mkv')):
+            if not moderate_video_with_gemini(filepath):
+                import os
+                if os.path.exists(filepath):
+                    os.remove(filepath)
+                flash("Upload rejected: Inappropriate content detected by AI moderator.", "danger")
+                return redirect(request.url)
 
         submission = CfiTalentSubmission(
             user_enrollment_id=enrollment.id,

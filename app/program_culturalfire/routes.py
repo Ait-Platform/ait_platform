@@ -1405,8 +1405,8 @@ def watch_show(show_id):
     def get_url(url):
         if not url:
             return ""
-        if url.startswith('/static/'):
-            return url
+        if url.startswith('/static/uploads/'):
+            return url_for("cultural_bp.uploaded_file", filename=url.replace('/static/uploads/', ''))
         if url.startswith('cfi/'):
             url = url[4:]
         res = url_for("cultural_bp.uploaded_file", filename=url) if not url.startswith('uploads/') else url_for("cultural_bp.uploaded_file", filename=url.replace('uploads/', ''))
@@ -3086,7 +3086,7 @@ def upload_ad(show_id):
         import os
         from werkzeug.utils import secure_filename
         filename = secure_filename(f"ad_{current_user.id}_{show_id}_{file.filename}")
-        upload_folder = os.path.join(current_app.root_path, 'static', 'uploads', 'cfi_ads')
+        upload_folder = os.path.join(current_app.root_path, 'static', 'uploads', 'cfi')
         os.makedirs(upload_folder, exist_ok=True)
         file_path = os.path.join(upload_folder, filename)
         file.save(file_path)
@@ -3099,7 +3099,7 @@ def upload_ad(show_id):
                     os.remove(file_path)
                 flash("Upload rejected: Inappropriate content detected by AI moderator.", "danger")
                 return redirect(url_for('cultural_bp.advertiser_dashboard'))
-        final_url = f"/static/uploads/cfi_ads/{filename}"
+        final_url = f"cfi/{filename}"
     else:
         final_url = video_url_input
 

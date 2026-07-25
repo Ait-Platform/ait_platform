@@ -134,6 +134,18 @@ class HcDocument(db.Model):
     doc_category = db.Column(db.String(100))  # 'Lab Report', 'Generated Report'
     file_url = db.Column(db.String(255), nullable=False)
     extracted_text = db.Column(db.Text)
+    status = db.Column(db.String(50), default='uploaded')  # uploaded, processing, review_ready, completed, error
+
+class HcDocumentExtraction(db.Model):
+    __tablename__ = 'hc_document_extraction'
+    id = db.Column(db.Integer, primary_key=True)
+    document_id = db.Column(db.Integer, db.ForeignKey('hc_document.id'), nullable=False)
+    extracted_json = db.Column(db.Text)  # JSON string
+    document_type = db.Column(db.String(50))  # e.g., 'laboratory', 'medication'
+    reviewed = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    document = db.relationship('HcDocument', backref=db.backref('extractions', lazy=True, cascade='all, delete-orphan'))
 
 class HcGeneratedReport(db.Model):
     __tablename__ = 'hc_generated_report'

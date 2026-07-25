@@ -1,0 +1,65 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="max-w-6xl mx-auto mt-8">
+  <div class="bg-white shadow-xl rounded-lg overflow-hidden border border-gray-100">
+    <!-- Top Color Strip -->
+    <div class="h-2 bg-yellow-400 w-full"></div>
+    
+    <div class="p-6">
+      <!-- Row 1: Title & Back Button -->
+      <div class="flex justify-between items-center mb-6 pb-4 border-b">
+        <h1 class="text-3xl font-bold text-gray-800">✅ Human Review Required</h1>
+        <a href="{{ url_for('healthcore_bp.document_dashboard') }}" class="px-4 py-2 bg-gray-200 text-gray-800 font-semibold rounded hover:bg-gray-300 transition text-sm">
+          &larr; Back to Queue
+        </a>
+      </div>
+
+      <div class="mb-6">
+        <p class="text-gray-600">The AI has extracted the following structured data from your document. Please verify its accuracy. If the AI made a mistake, you can edit the JSON directly before saving.</p>
+        <p class="mt-2 text-sm text-gray-500 font-semibold">Document: {{ doc.file_url.split('/')[-1] }}</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        
+        <!-- Left Column: Document Viewer (if image or pdf) -->
+        <div class="bg-slate-50 border border-gray-200 rounded-xl p-4">
+            <h3 class="text-lg font-bold text-gray-800 mb-4">Original Document</h3>
+            <div class="w-full h-96 bg-gray-100 rounded border border-gray-300 flex items-center justify-center overflow-hidden">
+                {% if doc.file_type in ['jpg', 'jpeg', 'png'] %}
+                    <img src="{{ url_for('static', filename=doc.file_url) }}" alt="Document" class="max-h-full max-w-full object-contain">
+                {% elif doc.file_type == 'pdf' %}
+                    <iframe src="{{ url_for('static', filename=doc.file_url) }}" class="w-full h-full"></iframe>
+                {% else %}
+                    <a href="{{ url_for('static', filename=doc.file_url) }}" target="_blank" class="text-indigo-600 underline">View Document</a>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Right Column: Extracted Data -->
+        <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm relative">
+            <h3 class="text-lg font-bold text-indigo-700 mb-4">Extracted Structured Data</h3>
+            
+            <form action="{{ url_for('healthcore_bp.document_review', doc_id=doc.id) }}" method="POST">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Edit JSON Data</label>
+                    <textarea name="extracted_json" rows="15" class="w-full font-mono text-sm border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 bg-gray-50 p-3">{{ extraction.extracted_json | safe }}</textarea>
+                </div>
+                
+                <div class="mt-4 bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
+                    <p class="text-sm text-yellow-700">By clicking "Verify & Save", this data will be permanently written to the {{ parsed_data.get('document_type', 'HealthCore') | title }} Engine.</p>
+                </div>
+                
+                <div class="flex justify-end">
+                    <button type="submit" class="px-6 py-2 bg-indigo-600 text-white font-bold rounded hover:bg-indigo-700 shadow-md transition">
+                        Verify & Save
+                    </button>
+                </div>
+            </form>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}

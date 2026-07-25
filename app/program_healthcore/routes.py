@@ -415,3 +415,163 @@ def generate_report():
     
     flash(f"{report_type} generated successfully.", "success")
     return redirect(url_for("healthcore_bp.reporting_dashboard"))
+# ---------------------------------------------------------
+# DOCUMENT INTELLIGENCE LAYER
+# ---------------------------------------------------------
+
+@healthcore_bp.route("/program/healthcore/documents")
+@login_required
+def document_dashboard():
+    from app.models.healthcore import HcDocument
+    documents = HcDocument.query.filter_by(user_id=current_user.id).order_by(HcDocument.upload_date.desc()).all()
+    return render_template("program_healthcore/document_upload.html", documents=documents)
+
+@healthcore_bp.route("/program/healthcore/documents/upload", methods=["POST"])
+@login_required
+def document_upload():
+    import os
+    from werkzeug.utils import secure_filename
+    from app.models.healthcore import HcDocument
+    
+    files = request.files.getlist("documents")
+    if not files or not files[0].filename:
+        flash("No files selected.", "danger")
+        return redirect(url_for("healthcore_bp.document_dashboard"))
+        
+    upload_folder = os.path.join(current_app.root_path, "static", "uploads", "healthcore")
+    os.makedirs(upload_folder, exist_ok=True)
+    
+    for file in files:
+        if file.filename:
+            filename = secure_filename(file.filename)
+            filepath = os.path.join(upload_folder, filename)
+            file.save(filepath)
+            
+            doc = HcDocument(
+                user_id=current_user.id,
+                file_type=filename.split('.')[-1].lower(),
+                doc_category='Unknown',
+                file_url=f"uploads/healthcore/{filename}",
+                status="uploaded"
+            )
+            db.session.add(doc)
+            
+    db.session.commit()
+    flash(f"Successfully uploaded {len(files)} documents.", "success")
+    return redirect(url_for("healthcore_bp.document_dashboard"))
+
+@healthcore_bp.route("/program/healthcore/documents/analyze", methods=["POST"])
+@login_required
+def document_analyze():
+    import threading
+    from app.program_healthcore.document_processor import process_documents_async
+    from flask import current_app
+    
+    # Run processor in background
+    app = current_app._get_current_object()
+    thread = threading.Thread(target=process_documents_async, args=(app, current_user.id))
+    thread.start()
+    
+    return {"status": "started"}
+
+@healthcore_bp.route("/program/healthcore/documents/status", methods=["GET"])
+@login_required
+def document_status():
+    from app.models.healthcore import HcDocument
+    docs = HcDocument.query.filter_by(user_id=current_user.id).all()
+    status_dict = {
+        doc.id: {
+            "status": doc.status,
+            "url": url_for('healthcore_bp.document_review', doc_id=doc.id) if doc.status == 'review_ready' else None
+        } for doc in docs
+    }
+    return {"documents": status_dict}
+
+@healthcore_bp.route("/program/healthcore/documents/review/<int:doc_id>", methods=["GET", "POST"])
+@login_required
+def document_review(doc_id):
+    from app.models.healthcore import HcDocument, HcDocumentExtraction
+    import json
+    
+    doc = HcDocument.query.filter_by(id=doc_id, user_id=current_user.id).first_or_404()
+    extraction = HcDocumentExtraction.query.filter_by(document_id=doc.id).first_or_404()
+    
+    if request.method == "POST":
+        # Handle manual edits
+        edited_json = request.form.get("extracted_json")
+        try:
+            # Validate JSON
+            parsed_json = json.loads(edited_json)
+            extraction.extracted_json = edited_json
+            extraction.reviewed = True
+            db.session.commit()
+            
+            # Map to Permanent Engine Table!
+            from app.models.healthcore import HcLaboratory, HcMedication, HcImaging
+            from datetime import datetime
+            
+            doc_type = parsed_json.get("document_type", "").lower()
+            
+            if doc_type == "laboratory":
+                tests = parsed_json.get("tests", [])
+                report_date_str = parsed_json.get("report_date")
+                r_date = datetime.strptime(report_date_str, "%Y-%m-%d").date() if report_date_str else datetime.utcnow().date()
+                
+                for test in tests:
+                    lab = HcLaboratory(
+                        user_id=current_user.id,
+                        report_date=r_date,
+                        test_name=test.get("name", "Unknown"),
+                        value=float(test.get("value", 0)),
+                        units=test.get("unit", ""),
+                        reference_range=test.get("reference_range", ""),
+                        status=test.get("status", ""),
+                        document_id=doc.id
+                    )
+                    db.session.add(lab)
+            
+            elif doc_type == "medication":
+                meds = parsed_json.get("medications", [])
+                report_date_str = parsed_json.get("report_date")
+                r_date = datetime.strptime(report_date_str, "%Y-%m-%d").date() if report_date_str else None
+                
+                for med in meds:
+                    m = HcMedication(
+                        user_id=current_user.id,
+                        medication_name=med.get("name", "Unknown"),
+                        date_prescribed=r_date,
+                        dosage=med.get("dose", ""),
+                        frequency=med.get("frequency", ""),
+                        status=med.get("status", "Active")
+                    )
+                    db.session.add(m)
+                    
+            elif doc_type == "imaging":
+                report_date_str = parsed_json.get("report_date")
+                r_date = datetime.strptime(report_date_str, "%Y-%m-%d").date() if report_date_str else datetime.utcnow().date()
+                
+                img = HcImaging(
+                    user_id=current_user.id,
+                    scan_date=r_date,
+                    modality=parsed_json.get("modality", ""),
+                    body_part=parsed_json.get("body_part", ""),
+                    findings=parsed_json.get("findings", ""),
+                    impression=parsed_json.get("impression", ""),
+                    document_id=doc.id
+                )
+                db.session.add(img)
+
+            doc.status = "completed"
+            db.session.commit()
+            
+            flash("Document data successfully verified and saved to HealthCore!", "success")
+            return redirect(url_for("healthcore_bp.document_dashboard"))
+            
+        except json.JSONDecodeError:
+            flash("Invalid JSON format submitted.", "danger")
+        except Exception as e:
+            db.session.rollback()
+            flash(f"Error saving to permanent record: {str(e)}", "danger")
+            
+    parsed_data = json.loads(extraction.extracted_json) if extraction.extracted_json else {}
+    return render_template("program_healthcore/document_review.html", doc=doc, extraction=extraction, parsed_data=parsed_data)

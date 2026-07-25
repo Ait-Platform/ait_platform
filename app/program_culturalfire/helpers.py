@@ -294,7 +294,7 @@ def all_segments_filled(show):
     }
 
     # Collect submitted segment types from linked submissions
-    submitted_segments = {s.segment_type for s in show.submissions}
+    submitted_segments = {s.segment.name.lower() for s in show.submissions if s.segment}
 
     # Compare sets
     return required_segments.issubset(submitted_segments)

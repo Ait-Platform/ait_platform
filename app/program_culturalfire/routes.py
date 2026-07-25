@@ -1890,11 +1890,12 @@ def segment_edit(enrollment_id, category_id, segment):
     category = CfiTalentCategoryItem.query.get_or_404(category_id)
     show = CfiShow.query.filter_by(category_item_id=category.id, status="active").first_or_404()
 
+    seg_obj = CfiPageantSegment.query.filter(CfiPageantSegment.name.ilike(segment)).first_or_404()
     submission = CfiTalentSubmission.query.filter_by(
         user_enrollment_id=enrollment.id,
         category_item_id=category.id,
         show_id=show.id,
-        segment_type=segment
+        segment_id=seg_obj.id
     ).first_or_404()
 
     if request.method == "POST":
@@ -1932,11 +1933,12 @@ def segment_delete(enrollment_id, category_id, segment):
     category = CfiTalentCategoryItem.query.get_or_404(category_id)
     show = CfiShow.query.filter_by(category_item_id=category.id, status="active").first_or_404()
 
+    seg_obj = CfiPageantSegment.query.filter(CfiPageantSegment.name.ilike(segment)).first_or_404()
     submission = CfiTalentSubmission.query.filter_by(
         user_enrollment_id=enrollment.id,
         category_item_id=category.id,
         show_id=show.id,
-        segment_type=segment
+        segment_id=seg_obj.id
     ).first_or_404()
 
     db.session.delete(submission)
@@ -1995,7 +1997,7 @@ def segment_new(enrollment_id, category_id, segment):
             user_id=enrollment.user_id,
             show_id=show.id,
             category_item_id=category.id,
-            segment_type=segment_id,
+            segment_id=segment_id,
             video_url=filename
         )
         db.session.add(submission)
@@ -2041,12 +2043,18 @@ def ramp_walk(enrollment_id, category_id):
                 flash("Upload rejected: Inappropriate content detected by AI moderator.", "danger")
                 return redirect(request.url)
 
+        seg_obj = CfiPageantSegment.query.filter(CfiPageantSegment.name.ilike('ramp_walk')).first()
+        if not seg_obj:
+            seg_obj = CfiPageantSegment(name='ramp_walk')
+            db.session.add(seg_obj)
+            db.session.commit()
+            
         submission = CfiTalentSubmission(
             user_enrollment_id=enrollment.id,
             user_id=enrollment.user_id,
             show_id=show.id,
             category_item_id=category.id,
-            segment_type="ramp_walk",
+            segment_id=seg_obj.id,
             video_url=filename
         )
         db.session.add(submission)
@@ -2159,10 +2167,10 @@ def segment_form(enrollment_id, show_id, category_id):
 
     submission = None
     if segment:
-        submission = CfiSegmentItem.query.filter_by(
-            enrollment_id=enrollment_id,
+        submission = CfiTalentSubmission.query.filter_by(
+            user_enrollment_id=enrollment_id,
             show_id=show_id,
-            segment_type=segment.name
+            segment_id=segment.id
         ).first()
 
     if request.method == "POST":
@@ -2188,11 +2196,12 @@ def segment_form(enrollment_id, show_id, category_id):
                 submission.video_url = f"cfi/{filename}"
                 submission.status = "uploaded"
             else:
-                submission = CfiSegmentItem(
-                    enrollment_id=enrollment_id,
+                submission = CfiTalentSubmission(
+                    user_enrollment_id=enrollment_id,
+                    user_id=current_user.id,
                     show_id=show_id,
-                    segment_type=segment.name,
-                    title=segment.name,
+                    segment_id=segment.id,
+                    talent_name=segment.name,
                     video_url=f"cfi/{filename}",
                     status="uploaded"
                 )

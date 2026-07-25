@@ -1572,29 +1572,39 @@ def watch_show(show_id):
     
     # Judging Criteria setup
     cat_name = show.category_item.name if show.category_item else "Unknown"
-    if cat_name == "Pageant":
+    cat_lower = cat_name.lower()
+    if "pageant" in cat_lower:
         judge_criteria = [
-            {"id": "crit1", "label": "Confidence / Poise"},
-            {"id": "crit2", "label": "Walk / Posture"},
-            {"id": "crit3", "label": "Outfit / Presentation"},
-            {"id": "crit4", "label": "Personality"},
-            {"id": "crit5", "label": "Overall Impression"}
+            {"id": "crit1", "label": "Confidence / Poise", "desc": "Grace under pressure and self-assurance."},
+            {"id": "crit2", "label": "Walk / Posture", "desc": "Elegance, balance, and physical carriage."},
+            {"id": "crit3", "label": "Outfit / Presentation", "desc": "Suitability, fit, and overall styling."},
+            {"id": "crit4", "label": "Personality", "desc": "Charm, likability, and natural flair."},
+            {"id": "crit5", "label": "Overall Impression", "desc": "The complete package and final takeaway."}
         ]
-    elif cat_name == "Dancing":
+    elif "danc" in cat_lower:
         judge_criteria = [
-            {"id": "crit1", "label": "Technique"},
-            {"id": "crit2", "label": "Rhythm / Timing"},
-            {"id": "crit3", "label": "Choreography"},
-            {"id": "crit4", "label": "Stage Presence"},
-            {"id": "crit5", "label": "Expression"}
+            {"id": "crit1", "label": "Technique", "desc": "Proper execution of movements, posture, and alignment."},
+            {"id": "crit2", "label": "Rhythm / Timing", "desc": "Synchronization with the music's beat."},
+            {"id": "crit3", "label": "Choreography", "desc": "Complexity and structural flow of the routine."},
+            {"id": "crit4", "label": "Stage Presence", "desc": "Energy, confidence, and projection to the audience."},
+            {"id": "crit5", "label": "Expression", "desc": "Emotion and storytelling through movement."}
+        ]
+    elif "sing" in cat_lower or "music" in cat_lower or "vocal" in cat_lower or "choir" in cat_lower or cat_name == "Singing":
+        judge_criteria = [
+            {"id": "crit1", "label": "Vocal Quality", "desc": "Tone, breath control, and clarity of voice."},
+            {"id": "crit2", "label": "Pitch / Intonation", "desc": "Hitting the correct notes without being sharp or flat."},
+            {"id": "crit3", "label": "Rhythm / Timing", "desc": "Staying on beat with the music."},
+            {"id": "crit4", "label": "Stage Presence", "desc": "Charisma, eye contact, and audience connection."},
+            {"id": "crit5", "label": "Creativity", "desc": "Originality or unique arrangement of the piece."}
         ]
     else:
+        # Generic Criteria for Speech, Poetry, Drama, Magic, and anything else not explicitly listed
         judge_criteria = [
-            {"id": "crit1", "label": "Vocal Quality"},
-            {"id": "crit2", "label": "Pitch / Intonation"},
-            {"id": "crit3", "label": "Rhythm / Timing"},
-            {"id": "crit4", "label": "Stage Presence"},
-            {"id": "crit5", "label": "Creativity"}
+            {"id": "crit1", "label": "Content & Material", "desc": "Originality, depth, and creative quality of the performance."},
+            {"id": "crit2", "label": "Execution & Delivery", "desc": "Clarity of delivery, diction, pacing, and overall mastery."},
+            {"id": "crit3", "label": "Stage Presence", "desc": "Charisma, emotional connection, and engaging the audience."},
+            {"id": "crit4", "label": "Structure & Flow", "desc": "Smooth transitions, logical progression, and dynamic rhythm."},
+            {"id": "crit5", "label": "Overall Impact", "desc": "Memorability, resonance, and complete performance impression."}
         ]
 
     from app.models.auth import User
@@ -1606,11 +1616,11 @@ def watch_show(show_id):
     show_advertisers = list(set([User.query.get(ad.user_id).name for ad in ads if User.query.get(ad.user_id)]))
 
     mc_criteria = [
-        {"id": "mc_crit1", "label": "Clarity / Articulation"},
-        {"id": "mc_crit2", "label": "Enthusiasm / Energy"},
-        {"id": "mc_crit3", "label": "Professionalism"},
-        {"id": "mc_crit4", "label": "Audience Engagement"},
-        {"id": "mc_crit5", "label": "Overall Impression"}
+        {"id": "mc_crit1", "label": "Clarity / Articulation", "desc": "Clear pronunciation and easy to understand."},
+        {"id": "mc_crit2", "label": "Enthusiasm / Energy", "desc": "Keeping the audience energized and involved."},
+        {"id": "mc_crit3", "label": "Professionalism", "desc": "Appropriate conduct, attire, and preparation."},
+        {"id": "mc_crit4", "label": "Audience Engagement", "desc": "Interacting well with the crowd and maintaining flow."},
+        {"id": "mc_crit5", "label": "Overall Impression", "desc": "The complete package and final takeaway."}
     ]
 
     

@@ -86,9 +86,12 @@
               <div id="talentScoreForm" class="hidden">
                 <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
                   {% for crit in judge_criteria %}
-                  <div class="flex flex-col items-center bg-gray-800 border border-gray-700 p-3 rounded-lg shadow-inner">
-                    <label class="text-xs text-gray-300 font-semibold mb-2 text-center h-8 flex items-center">{{ crit.label }}</label>
-                    <input type="number" id="talent_{{ crit.id }}" min="1" max="10" class="w-20 px-2 py-2 text-xl text-black rounded font-bold text-center talent-score-input focus:outline-none focus:ring-4 focus:ring-blue-500 transition shadow-sm" placeholder="/10" onchange="calculateTotalScore('talent')">
+                  <div class="flex flex-col items-center justify-between bg-gray-800 border border-gray-700 p-3 rounded-lg shadow-inner h-full">
+                    <div class="text-center mb-3 w-full">
+                      <label class="text-sm text-gray-200 font-bold block mb-1">{{ crit.label }}</label>
+                      <p class="text-[10px] text-gray-400 leading-tight h-8 flex items-center justify-center">{{ crit.desc }}</p>
+                    </div>
+                    <input type="number" id="talent_{{ crit.id }}" min="1" max="10" class="w-20 px-2 py-2 text-xl text-black rounded font-bold text-center talent-score-input focus:outline-none focus:ring-4 focus:ring-blue-500 transition shadow-sm mt-auto" placeholder="/10" onchange="calculateTotalScore('talent')">
                   </div>
                   {% endfor %}
                 </div>
@@ -104,9 +107,12 @@
               <div id="mcScoreForm" class="hidden">
                 <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
                   {% for crit in mc_criteria %}
-                  <div class="flex flex-col items-center bg-gray-800 border border-gray-700 p-3 rounded-lg shadow-inner">
-                    <label class="text-xs text-gray-300 font-semibold mb-2 text-center h-8 flex items-center">{{ crit.label }}</label>
-                    <input type="number" id="mc_{{ crit.id }}" min="1" max="10" class="w-20 px-2 py-2 text-xl text-black rounded font-bold text-center mc-score-input focus:outline-none focus:ring-4 focus:ring-blue-500 transition shadow-sm" placeholder="/10" onchange="calculateTotalScore('mc')">
+                  <div class="flex flex-col items-center justify-between bg-gray-800 border border-gray-700 p-3 rounded-lg shadow-inner h-full">
+                    <div class="text-center mb-3 w-full">
+                      <label class="text-sm text-gray-200 font-bold block mb-1">{{ crit.label }}</label>
+                      <p class="text-[10px] text-gray-400 leading-tight h-8 flex items-center justify-center">{{ crit.desc }}</p>
+                    </div>
+                    <input type="number" id="mc_{{ crit.id }}" min="1" max="10" class="w-20 px-2 py-2 text-xl text-black rounded font-bold text-center mc-score-input focus:outline-none focus:ring-4 focus:ring-blue-500 transition shadow-sm mt-auto" placeholder="/10" onchange="calculateTotalScore('mc')">
                   </div>
                   {% endfor %}
                 </div>
@@ -139,10 +145,13 @@
         <div class="bg-gray-100 border-t border-gray-700 px-6 py-4 flex justify-between items-center shadow-inner mt-4 rounded-b-lg">
           <button id="btnPrev" onclick="prevItem()" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded disabled:opacity-40 transition font-semibold">&larr; Previous</button>
           <button id="btnStart" onclick="startShow()" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded transition font-bold shadow">Start / Resume</button>
-          <button id="btnFlagVideo" onclick="flagVideo()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded transition font-semibold flex items-center gap-2 text-sm shadow">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9"></path></svg>
-            Flag Video
-          </button>
+          <div class="flex flex-col items-center">
+            <button id="btnFlagVideo" onclick="flagVideo()" title="Report inappropriate content. 3 flags automatically removes a video." class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded transition font-semibold flex items-center gap-2 text-sm shadow">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9"></path></svg>
+              Flag Video
+            </button>
+            <span class="text-[11px] text-gray-500 font-medium mt-1 text-center leading-tight">Report inappropriate content<br>(3 flags auto-removes video)</span>
+          </div>
           <button id="btnNext" onclick="nextItem()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded disabled:opacity-40 transition font-semibold">Next &rarr;</button>
         </div>
       </div>

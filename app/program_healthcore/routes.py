@@ -463,10 +463,15 @@ def document_upload():
 @healthcore_bp.route("/program/healthcore/documents/delete/<int:doc_id>", methods=["POST"])
 @login_required
 def document_delete(doc_id):
-    from app.models.healthcore import HcDocument
+    from app.models.healthcore import HcDocument, HcGeneratedReport, HcLaboratory, HcImaging
     import os
     
     doc = HcDocument.query.filter_by(id=doc_id, user_id=current_user.id).first_or_404()
+    
+    # Manually delete dependent records to prevent ForeignKeyViolation
+    HcGeneratedReport.query.filter_by(document_id=doc.id).delete()
+    HcLaboratory.query.filter_by(document_id=doc.id).delete()
+    HcImaging.query.filter_by(document_id=doc.id).delete()
     
     # Optionally remove the file from disk
     if doc.file_url:

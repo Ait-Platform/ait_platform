@@ -7,7 +7,7 @@ from datetime import datetime
 class HcLaboratory(db.Model):
     __tablename__ = 'hc_laboratory'
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     report_date = db.Column(db.Date, nullable=False)
     test_name = db.Column(db.String(100), nullable=False)
     value = db.Column(db.Float, nullable=False)
@@ -23,7 +23,7 @@ class HcLaboratory(db.Model):
 class HcMedication(db.Model):
     __tablename__ = 'hc_medication'
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     date_prescribed = db.Column(db.Date, nullable=True)
     medication_name = db.Column(db.String(150), nullable=False)
     dosage = db.Column(db.String(100))
@@ -38,7 +38,7 @@ class HcMedication(db.Model):
 class HcNutrition(db.Model):
     __tablename__ = 'hc_nutrition'
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     log_date = db.Column(db.Date, nullable=False)
     entry_type = db.Column(db.String(50))  # 'Meal', 'Snack', 'Hydration'
     description = db.Column(db.String(255))
@@ -55,7 +55,7 @@ class HcNutrition(db.Model):
 class HcImaging(db.Model):
     __tablename__ = 'hc_imaging'
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     scan_date = db.Column(db.Date, nullable=False)
     modality = db.Column(db.String(100))  # e.g., 'MRI', 'X-Ray'
     body_part = db.Column(db.String(100))
@@ -70,7 +70,7 @@ class HcImaging(db.Model):
 class HcLifestyle(db.Model):
     __tablename__ = 'hc_lifestyle'
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     log_date = db.Column(db.Date, nullable=False)
     category = db.Column(db.String(50))  # 'Exercise', 'Sleep', 'Vital', 'Habit'
     metric_name = db.Column(db.String(100))  # e.g., 'Blood Pressure', 'Sleep Duration'
@@ -85,7 +85,7 @@ class HcLifestyle(db.Model):
 class HcTimelineEvent(db.Model):
     __tablename__ = 'hc_timeline_event'
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     start_date = db.Column(db.Date, nullable=False)
     end_date = db.Column(db.Date, nullable=True)
     category = db.Column(db.String(100))  # 'Surgery', 'Diagnosis'
@@ -100,7 +100,7 @@ class HcTimelineEvent(db.Model):
 class HcRiskAssessment(db.Model):
     __tablename__ = 'hc_risk_assessment'
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     calculated_date = db.Column(db.Date, nullable=False)
     algorithm_name = db.Column(db.String(150))
     score_percentage = db.Column(db.Float)
@@ -114,7 +114,7 @@ class HcRiskAssessment(db.Model):
 class HcCorrelationInsight(db.Model):
     __tablename__ = 'hc_correlation_insight'
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     generated_date = db.Column(db.Date, nullable=False)
     primary_factor = db.Column(db.String(255))
     secondary_factor = db.Column(db.String(255))
@@ -128,7 +128,7 @@ class HcCorrelationInsight(db.Model):
 class HcDocument(db.Model):
     __tablename__ = 'hc_document'
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     upload_date = db.Column(db.DateTime, default=datetime.utcnow)
     file_type = db.Column(db.String(50))  # 'PDF', 'Image'
     doc_category = db.Column(db.String(100))  # 'Lab Report', 'Generated Report'
@@ -138,7 +138,7 @@ class HcDocument(db.Model):
 class HcGeneratedReport(db.Model):
     __tablename__ = 'hc_generated_report'
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     generated_date = db.Column(db.DateTime, default=datetime.utcnow)
     report_type = db.Column(db.String(100))
     audience = db.Column(db.String(100))

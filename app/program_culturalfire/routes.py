@@ -3411,3 +3411,19 @@ def flag_video(video_id):
         
     return jsonify({"success": True, "message": "Video flagged for review. Thank you for keeping the community safe."})
 
+
+@cultural_bp.route("/advertiser/delete/<int:ad_id>", methods=["POST"])
+@login_required
+def delete_ad(ad_id):
+    from app.models.culturalfire import CfiShowAd
+    from app.extensions import db
+    
+    ad = CfiShowAd.query.get_or_404(ad_id)
+    if ad.user_id != current_user.id:
+        flash("Unauthorized to delete this ad.", "danger")
+        return redirect(url_for('cultural_bp.advertiser_dashboard'))
+        
+    db.session.delete(ad)
+    db.session.commit()
+    flash("Ad successfully deleted.", "success")
+    return redirect(url_for('cultural_bp.advertiser_dashboard'))

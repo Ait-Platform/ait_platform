@@ -380,7 +380,7 @@ def add_correlation():
 @login_required
 def reporting_dashboard():
     from app.models.healthcore import HcGeneratedReport
-    records = HcGeneratedReport.query.filter_by(user_id=current_user.id).order_by(HcGeneratedReport.generated_date.desc(), HcGeneratedReport.created_at.desc()).all()
+    records = HcGeneratedReport.query.filter_by(user_id=current_user.id).order_by(HcGeneratedReport.generated_date.desc()).all()
     return render_template("program_healthcore/reporting.html", records=records)
 
 @healthcore_bp.route("/program/healthcore/engine/reporting/generate", methods=["POST"])

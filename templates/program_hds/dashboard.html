@@ -9,6 +9,9 @@
       <div class="flex items-center justify-between mb-8">
         <h1 class="text-2xl font-bold text-slate-900">HDS Dashboard</h1>
         <div class="flex items-center space-x-4">
+          <a href="{{ url_for('healthcore_bp.healthcore_dashboard') }}" class="text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 px-4 py-2 rounded-md shadow transition">
+            Go to HealthCore
+          </a>
           <a href="{{ url_for('auth_bp.bridge_dashboard') }}" class="text-sm font-medium text-slate-500 hover:text-slate-700 border border-slate-200 px-3 py-1.5 rounded-md hover:bg-slate-50 transition">Back to Bridge</a>
         </div>
       </div>

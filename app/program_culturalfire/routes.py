@@ -1900,7 +1900,7 @@ def segment_edit(enrollment_id, category_id, segment):
 
     if request.method == "POST":
         file = request.files.get("video")
-        if file:
+        if file and file.filename:
             filename = secure_filename(file.filename)
             cfi_dir = os.path.join(current_app.root_path, "static", "uploads", "cfi")
             os.makedirs(cfi_dir, exist_ok=True)
@@ -1973,7 +1973,7 @@ def segment_new(enrollment_id, category_id, segment):
 
     if request.method == "POST":
         file = request.files.get("video")
-        if not file:
+        if not file or not file.filename:
             flash(f"Please upload a {segment} video.", "error")
             return redirect(request.url)
 
@@ -1992,12 +1992,18 @@ def segment_new(enrollment_id, category_id, segment):
                 flash("Upload rejected: Inappropriate content detected by AI moderator.", "danger")
                 return redirect(request.url)
 
+        seg_obj = CfiPageantSegment.query.filter(CfiPageantSegment.name.ilike(segment)).first()
+        if not seg_obj:
+            seg_obj = CfiPageantSegment(name=segment)
+            db.session.add(seg_obj)
+            db.session.commit()
+            
         submission = CfiTalentSubmission(
             user_enrollment_id=enrollment.id,
             user_id=enrollment.user_id,
             show_id=show.id,
             category_item_id=category.id,
-            segment_id=segment_id,
+            segment_id=seg_obj.id,
             video_url=filename
         )
         db.session.add(submission)
@@ -2024,7 +2030,7 @@ def ramp_walk(enrollment_id, category_id):
 
     if request.method == "POST":
         file = request.files.get("video")
-        if not file:
+        if not file or not file.filename:
             flash("Please upload a Ramp Walk + Intro video.", "error")
             return redirect(request.url)
 

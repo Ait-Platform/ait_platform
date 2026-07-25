@@ -57,6 +57,7 @@
               <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
               <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
               <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Delete</th>
             </tr>
           </thead>
           <tbody class="bg-white divide-y divide-gray-200" id="docsTableBody">
@@ -79,25 +80,22 @@
                 {% endif %}
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm" id="action-{{ doc.id }}">
-                <div class="flex items-center space-x-4">
-                    <div id="main-action-{{ doc.id }}">
-                        {% if doc.status == 'review_ready' %}
-                          <a href="{{ url_for('healthcore_bp.document_review', doc_id=doc.id) }}" class="text-indigo-600 hover:text-indigo-900 font-medium">Verify & Save</a>
-                        {% elif doc.status == 'completed' %}
-                          <span class="text-gray-400">Done</span>
-                        {% else %}
-                          <span class="text-gray-400">Waiting...</span>
-                        {% endif %}
-                    </div>
-                    
-                    <form action="{{ url_for('healthcore_bp.document_delete', doc_id=doc.id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this document?');" class="flex items-center">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                        <button type="submit" class="flex items-center text-red-500 hover:text-red-700 font-semibold px-2 py-1 bg-red-50 rounded shadow-sm border border-red-100 hover:bg-red-100 transition" title="Delete Document">
-                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                            Delete
-                        </button>
-                    </form>
-                </div>
+                {% if doc.status == 'review_ready' %}
+                  <a href="{{ url_for('healthcore_bp.document_review', doc_id=doc.id) }}" class="text-indigo-600 hover:text-indigo-900 font-medium">Verify & Save</a>
+                {% elif doc.status == 'completed' %}
+                  <span class="text-gray-400">Done</span>
+                {% else %}
+                  <span class="text-gray-400">Waiting...</span>
+                {% endif %}
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-right">
+                <form action="{{ url_for('healthcore_bp.document_delete', doc_id=doc.id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this document?');">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <button type="submit" class="flex items-center text-red-500 hover:text-red-700 font-semibold px-3 py-1 bg-red-50 rounded shadow-sm border border-red-100 hover:bg-red-100 transition" title="Delete Document">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                        Delete
+                    </button>
+                </form>
               </td>
             </tr>
             {% else %}
@@ -153,15 +151,12 @@ function pollStatus() {
                         statusEl.innerHTML = badge;
                     }
                     if (actionEl) {
-                        const mainActionEl = document.getElementById('main-action-' + doc_id);
-                        if (mainActionEl) {
-                            if (info.status === 'review_ready' && info.url) {
-                                mainActionEl.innerHTML = `<a href="${info.url}" class="text-indigo-600 hover:text-indigo-900 font-medium">Verify & Save</a>`;
-                            } else if (info.status === 'completed') {
-                                mainActionEl.innerHTML = `<span class="text-gray-400">Done</span>`;
-                            } else {
-                                mainActionEl.innerHTML = `<span class="text-gray-400">Waiting...</span>`;
-                            }
+                        if (info.status === 'review_ready' && info.url) {
+                            actionEl.innerHTML = `<a href="${info.url}" class="text-indigo-600 hover:text-indigo-900 font-medium">Verify & Save</a>`;
+                        } else if (info.status === 'completed') {
+                            actionEl.innerHTML = `<span class="text-gray-400">Done</span>`;
+                        } else {
+                            actionEl.innerHTML = `<span class="text-gray-400">Waiting...</span>`;
                         }
                     }
                 }

@@ -3340,22 +3340,28 @@ def private_show_dashboard(enrollment_id):
         
     categories = CfiTalentCategoryItem.query.all()
         
-    from app.models.culturalfire import CfiPrivateShowGroup
+    from app.models.culturalfire import CfiPrivateShowGroup, CfiGroupInvitation
     private_show_groups = CfiPrivateShowGroup.query.all()
     group_ids = [psg.group_id for psg in private_show_groups]
     groups_led = CfiGroup.query.filter(CfiGroup.leader_id == enrollment.id, CfiGroup.id.in_(group_ids)).all() if group_ids else []
     
-    # Inject show_id to group object for the template
+    # Inject show_id and fetch pending invitations for groups led
     for group in groups_led:
         psg = CfiPrivateShowGroup.query.filter_by(group_id=group.id).first()
         if psg:
             group.show_id = psg.show_id
+        group.pending_invitations = CfiGroupInvitation.query.filter_by(group_id=group.id, status='pending').all()
+            
     memberships = CfiGroupMember.query.filter(CfiGroupMember.enrollment_id == enrollment.id, CfiGroupMember.submission_id == None).all()
+    
+    # Fetch pending invitations FOR this user
+    my_invitations = CfiGroupInvitation.query.filter_by(enrollment_id=enrollment.id, status='pending').all()
     
     return render_template("program_culturefire/private_show_dashboard.html", 
                            enrollment=enrollment, 
                            groups_led=groups_led, 
                            memberships=memberships,
+                           my_invitations=my_invitations,
                            categories=categories)
 
 @cultural_bp.route("/private_show/create/<int:enrollment_id>", methods=["POST"])
@@ -3432,6 +3438,85 @@ def join_private_show(group_id):
         
     return redirect(url_for('cultural_bp.private_show_dashboard', enrollment_id=enrollment.id))
 
+@cultural_bp.route("/private_show/invite/<int:group_id>", methods=["POST"])
+@login_required
+def invite_private_show(group_id):
+    from app.models.culturalfire import CfiGroupInvitation
+    group = CfiGroup.query.get_or_404(group_id)
+    enrollment = UserEnrollment.query.filter_by(user_id=current_user.id).first()
+    
+    # Only group leader can invite
+    if group.leader_id != enrollment.id:
+        abort(403)
+        
+    identifier = request.form.get("identifier")
+    if not identifier:
+        flash("Please provide a username or email.", "danger")
+        return redirect(url_for('cultural_bp.private_show_dashboard', enrollment_id=enrollment.id))
+        
+    # Find user by username or email
+    user = User.query.filter((User.username == identifier) | (User.email == identifier)).first()
+    if not user:
+        flash("User not found.", "danger")
+        return redirect(url_for('cultural_bp.private_show_dashboard', enrollment_id=enrollment.id))
+        
+    invitee_enrollment = UserEnrollment.query.filter_by(user_id=user.id).first()
+    if not invitee_enrollment:
+        flash("User is not enrolled in the program.", "danger")
+        return redirect(url_for('cultural_bp.private_show_dashboard', enrollment_id=enrollment.id))
+        
+    if invitee_enrollment.id == enrollment.id:
+        flash("You cannot invite yourself.", "danger")
+        return redirect(url_for('cultural_bp.private_show_dashboard', enrollment_id=enrollment.id))
+        
+    # Check if already a member
+    is_member = CfiGroupMember.query.filter_by(group_id=group.id, enrollment_id=invitee_enrollment.id).first()
+    if is_member:
+        flash(f"{user.username} is already a member.", "info")
+        return redirect(url_for('cultural_bp.private_show_dashboard', enrollment_id=enrollment.id))
+        
+    # Check if already invited
+    is_invited = CfiGroupInvitation.query.filter_by(group_id=group.id, enrollment_id=invitee_enrollment.id, status='pending').first()
+    if is_invited:
+        flash(f"An invitation is already pending for {user.username}.", "info")
+        return redirect(url_for('cultural_bp.private_show_dashboard', enrollment_id=enrollment.id))
+        
+    invitation = CfiGroupInvitation(
+        group_id=group.id,
+        enrollment_id=invitee_enrollment.id
+    )
+    db.session.add(invitation)
+    db.session.commit()
+    
+    flash(f"Invitation sent to {user.username}!", "success")
+    return redirect(url_for('cultural_bp.private_show_dashboard', enrollment_id=enrollment.id))
+
+@cultural_bp.route("/private_show/invitation/<action>/<int:invitation_id>", methods=["POST"])
+@login_required
+def handle_private_show_invitation(action, invitation_id):
+    from app.models.culturalfire import CfiGroupInvitation
+    invitation = CfiGroupInvitation.query.get_or_404(invitation_id)
+    enrollment = UserEnrollment.query.filter_by(user_id=current_user.id).first()
+    
+    if invitation.enrollment_id != enrollment.id:
+        abort(403)
+        
+    if action == "accept":
+        invitation.status = "accepted"
+        member = CfiGroupMember(
+            group_id=invitation.group_id,
+            enrollment_id=invitation.enrollment_id
+        )
+        db.session.add(member)
+        flash("You have accepted the invitation and joined the private show!", "success")
+    elif action == "reject":
+        invitation.status = "rejected"
+        flash("You have rejected the invitation.", "info")
+        
+    db.session.commit()
+    return redirect(url_for('cultural_bp.private_show_dashboard', enrollment_id=enrollment.id))
+
+
 @cultural_bp.route("/private_show/unlock/<int:show_id>", methods=["POST"])
 @login_required
 def unlock_private_show(show_id):
@@ -3465,13 +3550,13 @@ def unlock_private_show(show_id):
     tariff = CfiTokenTariff.query.filter_by(action_name='private_show_view').first()
     token_cost = tariff.base_token_cost if tariff else 10
     
-    from app.models.debtors import DebtorsWallet, DebtorsTokenTransaction
-    wallet = DebtorsWallet.query.filter_by(user_id=current_user.id).first()
-    if not wallet or wallet.token_balance < token_cost:
+    from app.models.culturalfire import CfiWallet, CfiTokenTransaction
+    wallet = CfiWallet.query.filter_by(user_id=current_user.id).first()
+    if not wallet or wallet.balance < token_cost:
         return jsonify({"success": False, "message": f"Insufficient tokens. You need {token_cost} tokens."})
         
-    wallet.token_balance -= token_cost
-    txn = DebtorsTokenTransaction(
+    wallet.balance -= token_cost
+    txn = CfiTokenTransaction(
         wallet_id=wallet.id,
         amount=-token_cost,
         description=f"Unlocked private show: {show.title}"

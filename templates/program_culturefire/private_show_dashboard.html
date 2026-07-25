@@ -39,21 +39,91 @@
 
       <h2 class="text-xl font-bold text-gray-800 mt-10 mb-4">Shows I Lead</h2>
       {% if groups_led %}
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="grid grid-cols-1 gap-6">
         {% for group in groups_led %}
-        <div class="border rounded p-4 shadow-sm bg-white">
-          <h3 class="font-bold text-lg text-fuchsia-800">{{ group.name }}</h3>
-          <p class="text-sm text-gray-600 mb-2">Show ID: {{ group.show_id }}</p>
-          <div class="mb-4">
-            <p class="text-xs font-bold text-gray-500 uppercase tracking-wide">Invite Link for Family/Friends:</p>
-            <input type="text" readonly value="{{ url_for('cultural_bp.join_private_show', group_id=group.id, _external=True) }}" class="w-full bg-gray-100 border text-sm rounded px-2 py-1 mt-1 text-gray-700" onclick="this.select()">
+        <div class="border rounded p-6 shadow-sm bg-white">
+          <div class="flex justify-between items-start mb-4">
+            <div>
+              <h3 class="font-bold text-xl text-fuchsia-800">{{ group.name }}</h3>
+              <p class="text-sm text-gray-600">Show ID: {{ group.show_id }}</p>
+            </div>
+            <a href="{{ url_for('cultural_bp.showcase_dashboard', origin='talent', enrollment_id=enrollment.id) }}" class="text-fuchsia-600 hover:text-fuchsia-800 text-sm font-bold bg-fuchsia-50 px-3 py-1 rounded">Go to Showcase &rarr;</a>
           </div>
-          <a href="{{ url_for('cultural_bp.showcase_dashboard', origin='talent', enrollment_id=enrollment.id) }}" class="text-fuchsia-600 hover:text-fuchsia-800 text-sm font-bold">Go to Showcase &rarr;</a>
+          
+          <div class="mb-6 p-4 bg-gray-50 rounded border">
+            <h4 class="font-bold text-gray-700 mb-2">Invite Members</h4>
+            <form action="{{ url_for('cultural_bp.invite_private_show', group_id=group.id) }}" method="POST" class="flex gap-2">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+              <input type="text" name="identifier" required placeholder="Enter username or email..." class="flex-1 border rounded px-3 py-2 text-sm">
+              <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded text-sm font-bold hover:bg-indigo-700">Send Invite</button>
+            </form>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <h4 class="font-bold text-gray-700 text-sm uppercase tracking-wide border-b pb-1 mb-2">Active Members</h4>
+              {% if group.group_members %}
+                <ul class="text-sm space-y-1">
+                {% for member in group.group_members %}
+                  <li class="flex items-center text-gray-700">
+                    <span class="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
+                    {{ member.enrollment.user.username }}
+                  </li>
+                {% endfor %}
+                </ul>
+              {% else %}
+                <p class="text-sm text-gray-500 italic">No members yet.</p>
+              {% endif %}
+            </div>
+            
+            <div>
+              <h4 class="font-bold text-gray-700 text-sm uppercase tracking-wide border-b pb-1 mb-2">Pending Invites</h4>
+              {% if group.pending_invitations %}
+                <ul class="text-sm space-y-1">
+                {% for inv in group.pending_invitations %}
+                  <li class="flex items-center text-gray-500">
+                    <span class="w-2 h-2 bg-yellow-400 rounded-full mr-2"></span>
+                    {{ inv.enrollment.user.username }}
+                  </li>
+                {% endfor %}
+                </ul>
+              {% else %}
+                <p class="text-sm text-gray-500 italic">No pending invites.</p>
+              {% endif %}
+            </div>
+          </div>
+          
         </div>
         {% endfor %}
       </div>
       {% else %}
       <p class="text-gray-500 italic">You have not created any private shows.</p>
+      {% endif %}
+
+      <h2 class="text-xl font-bold text-gray-800 mt-10 mb-4">Pending Invitations</h2>
+      {% if my_invitations %}
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {% for inv in my_invitations %}
+        <div class="border rounded p-4 shadow-sm bg-yellow-50 border-yellow-200 flex flex-col justify-between">
+          <div>
+            <h3 class="font-bold text-lg text-gray-800">{{ inv.group.name }}</h3>
+            <p class="text-sm text-gray-600 mb-4">Invited by: {{ inv.group.leader.user.username }}</p>
+          </div>
+          <div class="flex gap-2 mt-auto">
+            <form action="{{ url_for('cultural_bp.handle_private_show_invitation', action='accept', invitation_id=inv.id) }}" method="POST" class="flex-1">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+              <button type="submit" class="w-full bg-green-600 text-white px-4 py-2 rounded text-sm font-bold hover:bg-green-700">Accept</button>
+            </form>
+            <form action="{{ url_for('cultural_bp.handle_private_show_invitation', action='reject', invitation_id=inv.id) }}" method="POST" class="flex-1">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+              <button type="submit" class="w-full bg-red-100 text-red-700 px-4 py-2 rounded text-sm font-bold hover:bg-red-200">Reject</button>
+            </form>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="text-gray-500 italic">You have no pending invitations.</p>
       {% endif %}
 
       <h2 class="text-xl font-bold text-gray-800 mt-10 mb-4">Shows I've Joined</h2>

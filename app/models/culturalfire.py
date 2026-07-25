@@ -236,6 +236,17 @@ class CfiGroupMember(db.Model):
     submission = db.relationship("CfiTalentSubmission", back_populates="group_members")
     group = db.relationship("CfiGroup", back_populates="group_members")
 
+class CfiGroupInvitation(db.Model):
+    __tablename__ = "cfi_group_invitations"
+    id = db.Column(db.Integer, primary_key=True)
+    group_id = db.Column(db.Integer, db.ForeignKey("cfi_groups.id"), nullable=False)
+    enrollment_id = db.Column(db.Integer, db.ForeignKey("user_enrollment.id"), nullable=False)
+    status = db.Column(db.String(20), default="pending") # pending, rejected
+    created_at = db.Column(db.DateTime, default=db.func.now())
+    
+    group = db.relationship("CfiGroup")
+    enrollment = db.relationship("UserEnrollment")
+
 class CfiTalentSubmission(db.Model):
     __tablename__ = "cfi_talent_submission"
 

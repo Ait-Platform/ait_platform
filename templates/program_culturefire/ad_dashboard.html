@@ -128,11 +128,16 @@
               <svg class="mx-auto h-10 w-10 text-indigo-400" stroke="currentColor" fill="none" viewBox="0 0 48 48"><path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
               <div class="text-sm text-gray-600 font-semibold">
                 <span class="text-indigo-600">Click to upload a video</span>
-                <input id="file-upload" name="file" type="file" accept="video/mp4,video/webm,video/ogg" class="sr-only" required>
+                <input id="file-upload" name="file" type="file" accept="video/mp4,video/webm,video/ogg" class="sr-only">
               </div>
               <p class="text-xs text-gray-500 font-medium">MP4, WebM up to 50MB</p>
             </div>
           </div>
+        </div>
+
+        <div>
+          <label class="block text-sm font-bold text-gray-800 mb-2">Or Provide Video URL (YouTube, Vimeo, MP4 link)</label>
+          <input type="url" name="video_url" placeholder="https://..." class="block w-full border-2 border-gray-300 rounded-lg px-3 py-2 text-gray-900 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition bg-white shadow-sm">
         </div>
       </div>
       
@@ -148,7 +153,7 @@
 <script>
   function openAdModal(showId, showTitle) {
     document.getElementById('modalShowTitle').textContent = showTitle;
-    document.getElementById('adForm').action = "/program/culture_fire/advertiser/upload/" + showId;
+    document.getElementById('adForm').action = "/advertiser/upload/" + showId;
     
     const modal = document.getElementById('adModal');
     const content = document.getElementById('adModalContent');

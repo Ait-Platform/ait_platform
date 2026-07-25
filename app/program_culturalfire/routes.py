@@ -3049,36 +3049,41 @@ def advertiser_dashboard():
 @cultural_bp.route("/advertiser/upload/<int:show_id>", methods=["POST"])
 @login_required
 def upload_ad(show_id):
-    if 'file' not in request.files:
-        flash("No file provided.", "danger")
-        return redirect(url_for('cultural_bp.advertiser_dashboard'))
-    file = request.files['file']
-    if file.filename == '':
-        flash("No file selected.", "danger")
-        return redirect(url_for('cultural_bp.advertiser_dashboard'))
     position_index = request.form.get("position_index", type=int, default=0)
-    
+    video_url_input = request.form.get("video_url")
+    file = request.files.get('file')
+
+    if not video_url_input and (not file or file.filename == ''):
+        flash("No file or URL provided. Please provide one.", "danger")
+        return redirect(url_for('cultural_bp.advertiser_dashboard'))
+
     from app.program_culturalfire.helpers import charge_tokens
     if not charge_tokens(current_user.id, 40, f"Uploaded Ad for Show ID: {show_id}"):
         flash("Insufficient tokens to upload an ad. You need 40 tokens.", "danger")
         return redirect(url_for('cultural_bp.wallet_transfer_page'))
-        
-    import os
-    from werkzeug.utils import secure_filename
-    filename = secure_filename(f"ad_{current_user.id}_{show_id}_{file.filename}")
-    upload_folder = os.path.join('app', 'static', 'uploads', 'cfi_ads')
-    os.makedirs(upload_folder, exist_ok=True)
-    file_path = os.path.join(upload_folder, filename)
-    file.save(file_path)
 
-    from app.program_culturalfire.helpers import moderate_video_with_gemini
-    if file.filename.lower().endswith(('.mp4', '.mov', '.avi', '.mkv')):
-        if not moderate_video_with_gemini(file_path):
-            import os
-            if os.path.exists(file_path):
-                os.remove(file_path)
-            flash("Upload rejected: Inappropriate content detected by AI moderator.", "danger")
-            return redirect(url_for('cultural_bp.advertiser_dashboard'))
+    final_url = ""
+
+    if file and file.filename != '':
+        import os
+        from werkzeug.utils import secure_filename
+        filename = secure_filename(f"ad_{current_user.id}_{show_id}_{file.filename}")
+        upload_folder = os.path.join('app', 'static', 'uploads', 'cfi_ads')
+        os.makedirs(upload_folder, exist_ok=True)
+        file_path = os.path.join(upload_folder, filename)
+        file.save(file_path)
+
+        from app.program_culturalfire.helpers import moderate_video_with_gemini
+        if file.filename.lower().endswith(('.mp4', '.mov', '.avi', '.mkv')):
+            if not moderate_video_with_gemini(file_path):
+                import os
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+                flash("Upload rejected: Inappropriate content detected by AI moderator.", "danger")
+                return redirect(url_for('cultural_bp.advertiser_dashboard'))
+        final_url = f"/static/uploads/cfi_ads/{filename}"
+    else:
+        final_url = video_url_input
 
     from app.models.culturalfire import CfiShowAd
     new_ad = CfiShowAd(

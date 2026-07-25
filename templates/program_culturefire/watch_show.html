@@ -62,7 +62,10 @@
 
         <!-- Top: Title & Vote/Score -->
         <div class="bg-gray-800 text-white text-sm px-4 py-3 flex justify-between items-center rounded-t-lg">
-          <span id="currentTitle" class="font-medium text-lg">Not playing</span>
+          <div class="flex flex-col text-left">
+            <span id="currentTitle" class="font-medium text-lg">Not playing</span>
+            <span id="currentQuestion" class="italic text-gray-300 text-sm hidden mt-1"></span>
+          </div>
           
           {% if is_judge %}
           <div id="alreadyScoredWarning" class="hidden py-2">
@@ -263,6 +266,15 @@ function loadItem(index, autoPlay = true) {
 
   if (!title.innerHTML.includes("Error playing video")) {
     title.textContent = `${index + 1} of ${submissions.length} - ${submissions[index].title || "Untitled"}`;
+  }
+  
+  const questionEl = document.getElementById('currentQuestion');
+  if (submissions[index].question_text) {
+    questionEl.textContent = `Q&A Question: ${submissions[index].question_text}`;
+    questionEl.classList.remove('hidden');
+  } else {
+    questionEl.classList.add('hidden');
+    questionEl.textContent = '';
   }
   
   // Show score container if judge

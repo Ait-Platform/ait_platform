@@ -52,7 +52,7 @@
         {% for segment in segments %}
           {% set ns = namespace(completed=false, video_url=None) %}
           {% for sub in submissions %}
-            {% if sub.segment_type == segment.name %}
+            {% if sub.segment_id == segment.id %}
               {% set ns.completed = true %}
               {% set ns.video_url = sub.video_url %}
             {% endif %}

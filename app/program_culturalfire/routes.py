@@ -1417,16 +1417,31 @@ def watch_show(show_id):
                        .filter_by(show_id=show.id)
                        .options(db.joinedload(CfiSegmentItem.enrollment))
                        .all())
-        submissions_data = [
-            {
+        submissions_data = []
+        from app.models.culturalfire import CfiTalentSubmission, CfiPageantQuestion
+        for sub in submissions:
+            if not sub.video_url:
+                continue
+            question_text = ""
+            if sub.segment_type in ["Q&A", "qna", "q_and_a"]:
+                ts = CfiTalentSubmission.query.filter_by(
+                    user_enrollment_id=sub.enrollment_id, 
+                    show_id=show.id, 
+                    talent_name="Q&A"
+                ).first()
+                if ts and ts.custom_talent and ts.custom_talent.isdigit():
+                    q = CfiPageantQuestion.query.get(int(ts.custom_talent))
+                    if q:
+                        question_text = q.question_text
+
+            submissions_data.append({
                 "id": sub.id,
                 "title": sub.title or "Untitled",
                 "segment_type": sub.segment_type,
                 "src": get_url(sub.video_url),
-                "user_id": sub.enrollment.user_id if sub.enrollment else None
-            }
-            for sub in submissions if sub.video_url
-        ]
+                "user_id": sub.enrollment.user_id if sub.enrollment else None,
+                "question_text": question_text
+            })
     else:
         submissions = (
             CfiTalentSubmission.query
@@ -1827,16 +1842,21 @@ def pageant_flow(enrollment_id, category_id):
     enrollment = UserEnrollment.query.get_or_404(enrollment_id)
     category = CfiTalentCategoryItem.query.get_or_404(category_id)
     
-    # Find existing shows for this category
-    shows = CfiShow.query.filter_by(
-        category_item_id=category.id
+    # Get user gender from Biodata
+    record = CfiBiodata.query.filter_by(user_id=enrollment.user_id).first()
+    gender = record.gender if record else "Unknown"
+
+    # Find existing shows for this category AND gender
+    shows = CfiShow.query.filter(
+        CfiShow.category_item_id == category.id,
+        CfiShow.title.like(f"%({gender})%")
     ).order_by(CfiShow.id.asc()).all()
 
     if not shows:
         # Create Show 1 if none exist
         show = CfiShow(
-            title=f"{category.name} Show 1",
-            description=f"First {category.name} showcase",
+            title=f"{category.name} ({gender}) Show 1",
+            description=f"First {category.name} showcase for {gender}",
             start_date=date.today(),
             location="TBD",
             status="active",
@@ -1851,8 +1871,8 @@ def pageant_flow(enrollment_id, category_id):
             # All completed → create next show
             next_number = len(shows) + 1
             show = CfiShow(
-                title=f"{category.name} Show {next_number}",
-                description=f"{category.name} showcase {next_number}",
+                title=f"{category.name} ({gender}) Show {next_number}",
+                description=f"{category.name} showcase {next_number} for {gender}",
                 start_date=date.today(),
                 location="TBD",
                 status="active",
@@ -2193,9 +2213,13 @@ def segment_form(enrollment_id, show_id, category_id):
                     flash("Upload rejected: Inappropriate content detected by AI moderator.", "danger")
                     return redirect(request.url)
 
+            selected_question_id = request.form.get("question_id")
+
             if submission:
                 submission.video_url = f"cfi/{filename}"
                 submission.status = "uploaded"
+                if selected_question_id:
+                    submission.custom_talent = str(selected_question_id)
             else:
                 submission = CfiTalentSubmission(
                     user_enrollment_id=enrollment_id,
@@ -2205,10 +2229,34 @@ def segment_form(enrollment_id, show_id, category_id):
                     category_item_id=category_id,
                     segment_id=segment.id,
                     talent_name=segment.name,
+                    custom_talent=str(selected_question_id) if selected_question_id else None,
                     video_url=f"cfi/{filename}",
                     status="uploaded"
                 )
                 db.session.add(submission)
+
+            # Sync with CfiSegmentItem for Pageant compatibility
+            from app.models.culturalfire import CfiSegmentItem
+            segment_type_norm = segment.name.lower().replace(" ", "_").replace("&", "n")
+            seg_item = CfiSegmentItem.query.filter_by(
+                enrollment_id=enrollment_id,
+                show_id=show_id,
+                segment_type=segment_type_norm
+            ).first()
+
+            if seg_item:
+                seg_item.video_url = f"cfi/{filename}"
+                seg_item.status = "uploaded"
+            else:
+                seg_item = CfiSegmentItem(
+                    enrollment_id=enrollment_id,
+                    show_id=show_id,
+                    segment_type=segment_type_norm,
+                    title=segment.name,
+                    status="uploaded",
+                    video_url=f"cfi/{filename}"
+                )
+                db.session.add(seg_item)
 
             db.session.commit()
             flash("Video uploaded successfully!", "success")
@@ -2220,8 +2268,8 @@ def segment_form(enrollment_id, show_id, category_id):
                 segment_id=segment_id
             ))
 
-    all_submissions = CfiSegmentItem.query.filter_by(
-        enrollment_id=enrollment_id,
+    all_submissions = CfiTalentSubmission.query.filter_by(
+        user_enrollment_id=enrollment_id,
         show_id=show_id
     ).all()
 
@@ -2233,6 +2281,11 @@ def segment_form(enrollment_id, show_id, category_id):
                     next_segment = segments[i+1]
                 break
 
+    questions = []
+    if segment and segment.name == 'Q&A':
+        from app.models.culturalfire import CfiPageantQuestion
+        questions = CfiPageantQuestion.query.all()
+
     return render_template(
         "program_culturefire/segment_form.html",
         form=form,
@@ -2243,7 +2296,8 @@ def segment_form(enrollment_id, show_id, category_id):
         segment=segment,
         submission=submission,
         submissions=all_submissions,
-        next_segment=next_segment
+        next_segment=next_segment,
+        questions=questions
     )
 
 @cultural_bp.route("/talent/dashboard/<int:enrollment_id>", methods=["GET"])
@@ -2279,7 +2333,12 @@ def talent_dashboard(enrollment_id):
         selected_category = CfiTalentCategoryItem.query.get(selected_category_id)
         if selected_category and selected_category.name == "Pageant":
             segments = [s for s in CfiPageantSegment.query.all() if s.name.lower() not in ('sponsor', 'supporter')]
-            show = CfiShow.query.filter_by(category_item_id=selected_category.id).first()
+            record = CfiBiodata.query.filter_by(user_id=enrollment.user_id).first()
+            gender = record.gender if record else "Unknown"
+            show = CfiShow.query.filter(
+                CfiShow.category_item_id == selected_category.id,
+                CfiShow.title.like(f"%({gender})%")
+            ).order_by(CfiShow.id.asc()).first()
             if show:
                 segment_items = CfiSegmentItem.query.filter_by(
                     enrollment_id=enrollment.id,

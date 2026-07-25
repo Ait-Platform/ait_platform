@@ -1,0 +1,35 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="max-w-4xl mx-auto mt-8">
+  <div class="bg-white shadow-xl rounded-lg overflow-hidden border border-gray-100">
+    <!-- Top Color Strip -->
+    <div class="h-2 bg-teal-600 w-full"></div>
+    
+    <div class="p-6">
+      <!-- Row 1: Title & Back Button -->
+      <div class="flex justify-between items-center mb-6 pb-4 border-b">
+        <h1 class="text-3xl font-bold text-gray-800 flex items-center gap-2">
+          <svg class="w-8 h-8 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
+          HealthCore
+        </h1>
+        <a href="{{ url_for('hds_bp.dashboard') }}" class="px-4 py-2 bg-gray-200 text-gray-800 font-semibold rounded hover:bg-gray-300 transition text-sm">
+          &larr; Back
+        </a>
+      </div>
+
+      <!-- Welcome Content -->
+      <div class="text-center py-10 space-y-4">
+        <h2 class="text-4xl font-extrabold text-gray-900 tracking-tight">Understand Your Health.<br><span class="text-teal-600">Protect Your Future.</span></h2>
+      </div>
+      
+      <!-- Row 2: Right aligned button -->
+      <div class="flex justify-end mt-8 border-t pt-4">
+        <a href="{{ url_for('healthcore_bp.healthcore_about') }}" class="px-8 py-3 bg-teal-600 text-white font-bold rounded-lg hover:bg-teal-700 transition shadow-lg flex items-center gap-2">
+          Learn More
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

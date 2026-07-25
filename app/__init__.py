@@ -487,6 +487,7 @@ def create_app(test_config=None):
     from app.reports.routes import reports_bp
     from app.pdf.routes import pdf_bp
     from app.program_culturalfire.routes import cultural_bp
+    from app.program_healthcore.routes import healthcore_bp
     from app.program_mechanic import mechanic_bp
     from app.program_spv.routes import spv_bp
     from app.program_adv_math.routes import adv_math_bp
@@ -522,6 +523,7 @@ def create_app(test_config=None):
     app.register_blueprint(reports_bp)
     app.register_blueprint(pdf_bp)
     app.register_blueprint(cultural_bp)
+    app.register_blueprint(healthcore_bp)
     app.register_blueprint(mechanic_bp)
     app.register_blueprint(spv_bp)
     app.register_blueprint(adv_math_bp)

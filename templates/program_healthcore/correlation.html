@@ -2,31 +2,115 @@
 {% block content %}
 <div class="max-w-6xl mx-auto mt-8">
   <div class="bg-white shadow-xl rounded-lg overflow-hidden border border-gray-100">
-    <!-- Top Color Strip -->
-    <div class="h-2 bg-indigo-600 w-full"></div>
+    <div class="h-2 bg-purple-600 w-full"></div>
     
     <div class="p-6">
-      <!-- Row 1: Title & Back Button -->
       <div class="flex justify-between items-center mb-6 pb-4 border-b">
-        <h1 class="text-3xl font-bold text-gray-800">🔗 Correlation Engine</h1>
+        <h1 class="text-3xl font-bold text-gray-800 flex items-center gap-3">
+          <span class="text-4xl">🔗</span> Correlation Engine
+        </h1>
         <a href="{{ url_for('healthcore_bp.healthcore_dashboard') }}" class="px-4 py-2 bg-gray-200 text-gray-800 font-semibold rounded hover:bg-gray-300 transition text-sm">
-          &larr; Back to HealthCore
+          &larr; Back to Dashboard
         </a>
       </div>
 
-      <!-- Row 2: Secondary Action -->
-      <div class="flex justify-end mb-6">
-        <button class="px-4 py-2 bg-indigo-600 text-white font-semibold rounded hover:bg-indigo-700 transition shadow">
-          + Add New Record
-        </button>
-      </div>
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        <!-- Add New Correlation Insight Form -->
+        <div class="lg:col-span-1 bg-slate-50 border border-slate-200 rounded-xl p-6">
+          <h2 class="text-xl font-semibold text-slate-800 mb-4 border-b pb-2">Log New Insight</h2>
+          <form action="{{ url_for('healthcore_bp.add_correlation') }}" method="POST" class="space-y-4">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1">Generated Date</label>
+              <input type="date" name="generated_date" required
+                class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500">
+            </div>
 
-      <!-- Content Placeholder -->
-      <div class="bg-gray-50 border border-gray-200 rounded-xl p-8 text-center">
-        <p class="text-gray-500 mb-4">The Correlation engine is currently being initialized.</p>
-        <p class="text-sm text-gray-400">Data structures have been generated and database schema is mapped.</p>
-      </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1">Primary Factor</label>
+              <input type="text" name="primary_factor" required placeholder="e.g. High Sodium Intake"
+                class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500">
+            </div>
 
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1">Secondary Factor</label>
+              <input type="text" name="secondary_factor" required placeholder="e.g. Elevated Blood Pressure"
+                class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500">
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1">Confidence Score</label>
+              <select name="confidence" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white">
+                <option value="High">High Confidence</option>
+                <option value="Medium">Medium Confidence</option>
+                <option value="Low">Low / Weak Correlation</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1">Insight Description</label>
+              <textarea name="insight_text" rows="4" required placeholder="Describe the correlation pattern found..."
+                class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"></textarea>
+            </div>
+
+            <div class="pt-2">
+              <button type="submit" class="w-full bg-purple-600 text-white font-semibold py-2 px-4 rounded-md hover:bg-purple-700 transition">
+                Log Insight
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Correlations Display -->
+        <div class="lg:col-span-2">
+          <h2 class="text-xl font-semibold text-slate-800 mb-4 border-b pb-2">Identified Patterns & Correlations</h2>
+          
+          {% if records %}
+          <div class="space-y-4">
+            {% for r in records %}
+            <div class="bg-white border border-slate-200 rounded-lg p-5 shadow-sm hover:shadow transition relative overflow-hidden">
+              
+              <div class="absolute top-0 left-0 w-1 h-full 
+                {% if r.confidence == 'High' %}bg-purple-600{% elif r.confidence == 'Medium' %}bg-purple-400{% else %}bg-purple-200{% endif %}">
+              </div>
+
+              <div class="flex justify-between items-start mb-4 pl-3">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="inline-flex items-center rounded-md px-2.5 py-1 text-sm font-medium bg-slate-100 text-slate-800 border border-slate-200">
+                    {{ r.primary_factor }}
+                  </span>
+                  <svg class="w-5 h-5 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
+                  <span class="inline-flex items-center rounded-md px-2.5 py-1 text-sm font-medium bg-slate-100 text-slate-800 border border-slate-200">
+                    {{ r.secondary_factor }}
+                  </span>
+                </div>
+                <span class="text-xs text-slate-500 ml-4 whitespace-nowrap">{{ r.generated_date.strftime('%Y-%m-%d') }}</span>
+              </div>
+              
+              <div class="pl-3 mt-2">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="text-xs font-bold uppercase tracking-wider 
+                    {% if r.confidence == 'High' %}text-purple-700{% elif r.confidence == 'Medium' %}text-purple-600{% else %}text-purple-400{% endif %}">
+                    {{ r.confidence }} Confidence
+                  </span>
+                </div>
+                <p class="text-sm text-slate-700 bg-purple-50 p-4 rounded-md border border-purple-100">{{ r.insight_text }}</p>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <div class="bg-purple-50 border border-purple-200 rounded-lg p-8 text-center">
+            <div class="text-4xl mb-3">🔗</div>
+            <h3 class="text-lg font-semibold text-purple-900">No Correlations Found</h3>
+            <p class="text-purple-700 text-sm mt-1">The engine hasn't detected any significant patterns across your data yet.</p>
+          </div>
+          {% endif %}
+        </div>
+
+      </div>
     </div>
   </div>
 </div>

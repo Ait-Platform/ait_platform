@@ -2,31 +2,123 @@
 {% block content %}
 <div class="max-w-6xl mx-auto mt-8">
   <div class="bg-white shadow-xl rounded-lg overflow-hidden border border-gray-100">
-    <!-- Top Color Strip -->
-    <div class="h-2 bg-pink-600 w-full"></div>
+    <div class="h-2 bg-rose-600 w-full"></div>
     
     <div class="p-6">
-      <!-- Row 1: Title & Back Button -->
       <div class="flex justify-between items-center mb-6 pb-4 border-b">
-        <h1 class="text-3xl font-bold text-gray-800">⚠️ Risk Engine</h1>
+        <h1 class="text-3xl font-bold text-gray-800 flex items-center gap-3">
+          <span class="text-4xl">⚠️</span> Risk Engine
+        </h1>
         <a href="{{ url_for('healthcore_bp.healthcore_dashboard') }}" class="px-4 py-2 bg-gray-200 text-gray-800 font-semibold rounded hover:bg-gray-300 transition text-sm">
-          &larr; Back to HealthCore
+          &larr; Back to Dashboard
         </a>
       </div>
 
-      <!-- Row 2: Secondary Action -->
-      <div class="flex justify-end mb-6">
-        <button class="px-4 py-2 bg-pink-600 text-white font-semibold rounded hover:bg-pink-700 transition shadow">
-          + Add New Record
-        </button>
-      </div>
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        <!-- Add New Risk Assessment Form -->
+        <div class="lg:col-span-1 bg-slate-50 border border-slate-200 rounded-xl p-6">
+          <h2 class="text-xl font-semibold text-slate-800 mb-4 border-b pb-2">Log Risk Assessment</h2>
+          <form action="{{ url_for('healthcore_bp.add_risk') }}" method="POST" class="space-y-4">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1">Calculated Date</label>
+              <input type="date" name="calculated_date" required
+                class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-rose-500">
+            </div>
 
-      <!-- Content Placeholder -->
-      <div class="bg-gray-50 border border-gray-200 rounded-xl p-8 text-center">
-        <p class="text-gray-500 mb-4">The Risk engine is currently being initialized.</p>
-        <p class="text-sm text-gray-400">Data structures have been generated and database schema is mapped.</p>
-      </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1">Algorithm Name</label>
+              <select name="algorithm_name" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-rose-500 bg-white">
+                <option value="10-Year ASCVD (Cardiovascular)">10-Year ASCVD (Cardiovascular)</option>
+                <option value="SCORE2 (European CV Risk)">SCORE2 (European CV Risk)</option>
+                <option value="FINDRISC (Type 2 Diabetes)">FINDRISC (Type 2 Diabetes)</option>
+                <option value="FRAX (Fracture Risk)">FRAX (Fracture Risk)</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
 
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1">Score / Percentage (%)</label>
+              <input type="number" step="0.1" name="score_percentage" required placeholder="e.g. 14.5"
+                class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-rose-500">
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1">Risk Stratification</label>
+              <select name="risk_stratification" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-rose-500 bg-white">
+                <option value="Low">Low Risk</option>
+                <option value="Moderate">Moderate Risk</option>
+                <option value="High">High Risk</option>
+                <option value="Very High">Very High Risk</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1">Driving Factors</label>
+              <textarea name="driving_factors" rows="3" placeholder="e.g. High LDL, Smoking, Family History"
+                class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-rose-500"></textarea>
+            </div>
+
+            <div class="pt-2">
+              <button type="submit" class="w-full bg-rose-600 text-white font-semibold py-2 px-4 rounded-md hover:bg-rose-700 transition">
+                Save Risk Assessment
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Risk Display -->
+        <div class="lg:col-span-2">
+          <h2 class="text-xl font-semibold text-slate-800 mb-4 border-b pb-2">Risk Trajectory</h2>
+          
+          {% if records %}
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {% for r in records %}
+            <div class="bg-white border 
+              {% if r.risk_stratification == 'High' or r.risk_stratification == 'Very High' %}border-rose-300{% elif r.risk_stratification == 'Moderate' %}border-amber-300{% else %}border-emerald-300{% endif %} 
+              rounded-lg p-5 shadow-sm hover:shadow transition relative overflow-hidden">
+              
+              <div class="absolute top-0 left-0 w-1 h-full 
+                {% if r.risk_stratification == 'High' or r.risk_stratification == 'Very High' %}bg-rose-500{% elif r.risk_stratification == 'Moderate' %}bg-amber-500{% else %}bg-emerald-500{% endif %}">
+              </div>
+
+              <div class="flex justify-between items-start mb-2 pl-2">
+                <h3 class="text-sm font-bold text-slate-800">{{ r.algorithm_name }}</h3>
+                <span class="text-xs text-slate-500">{{ r.calculated_date.strftime('%Y-%m-%d') }}</span>
+              </div>
+              
+              <div class="pl-2 mt-4 flex items-end gap-3">
+                <div class="text-4xl font-black 
+                  {% if r.risk_stratification == 'High' or r.risk_stratification == 'Very High' %}text-rose-600{% elif r.risk_stratification == 'Moderate' %}text-amber-600{% else %}text-emerald-600{% endif %}">
+                  {{ r.score_percentage }}%
+                </div>
+                <div class="text-sm font-semibold uppercase tracking-wider mb-1
+                  {% if r.risk_stratification == 'High' or r.risk_stratification == 'Very High' %}text-rose-700{% elif r.risk_stratification == 'Moderate' %}text-amber-700{% else %}text-emerald-700{% endif %}">
+                  {{ r.risk_stratification }}
+                </div>
+              </div>
+              
+              {% if r.driving_factors %}
+              <div class="pl-2 mt-4 pt-3 border-t border-slate-100">
+                <h4 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">Key Drivers</h4>
+                <p class="text-sm text-slate-700">{{ r.driving_factors }}</p>
+              </div>
+              {% endif %}
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <div class="bg-rose-50 border border-rose-200 rounded-lg p-8 text-center">
+            <div class="text-4xl mb-3">⚠️</div>
+            <h3 class="text-lg font-semibold text-rose-900">No Risk Assessments</h3>
+            <p class="text-rose-700 text-sm mt-1">Algorithms have not calculated any risks yet.</p>
+          </div>
+          {% endif %}
+        </div>
+
+      </div>
     </div>
   </div>
 </div>

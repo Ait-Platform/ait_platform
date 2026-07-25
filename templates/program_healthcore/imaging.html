@@ -2,31 +2,117 @@
 {% block content %}
 <div class="max-w-6xl mx-auto mt-8">
   <div class="bg-white shadow-xl rounded-lg overflow-hidden border border-gray-100">
-    <!-- Top Color Strip -->
-    <div class="h-2 bg-purple-600 w-full"></div>
+    <div class="h-2 bg-indigo-600 w-full"></div>
     
     <div class="p-6">
-      <!-- Row 1: Title & Back Button -->
       <div class="flex justify-between items-center mb-6 pb-4 border-b">
-        <h1 class="text-3xl font-bold text-gray-800">🦴 Imaging Engine</h1>
+        <h1 class="text-3xl font-bold text-gray-800 flex items-center gap-3">
+          <span class="text-4xl">🩻</span> Imaging Engine
+        </h1>
         <a href="{{ url_for('healthcore_bp.healthcore_dashboard') }}" class="px-4 py-2 bg-gray-200 text-gray-800 font-semibold rounded hover:bg-gray-300 transition text-sm">
-          &larr; Back to HealthCore
+          &larr; Back to Dashboard
         </a>
       </div>
 
-      <!-- Row 2: Secondary Action -->
-      <div class="flex justify-end mb-6">
-        <button class="px-4 py-2 bg-purple-600 text-white font-semibold rounded hover:bg-purple-700 transition shadow">
-          + Add New Record
-        </button>
-      </div>
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        <!-- Add New Imaging Record Form -->
+        <div class="lg:col-span-1 bg-slate-50 border border-slate-200 rounded-xl p-6">
+          <h2 class="text-xl font-semibold text-slate-800 mb-4 border-b pb-2">Log Imaging Report</h2>
+          <form action="{{ url_for('healthcore_bp.add_imaging') }}" method="POST" class="space-y-4">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1">Scan Date</label>
+              <input type="date" name="scan_date" required
+                class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+            </div>
 
-      <!-- Content Placeholder -->
-      <div class="bg-gray-50 border border-gray-200 rounded-xl p-8 text-center">
-        <p class="text-gray-500 mb-4">The Imaging engine is currently being initialized.</p>
-        <p class="text-sm text-gray-400">Data structures have been generated and database schema is mapped.</p>
-      </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1">Modality</label>
+              <select name="modality" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white">
+                <option value="X-Ray">X-Ray</option>
+                <option value="MRI">MRI</option>
+                <option value="CT Scan">CT Scan</option>
+                <option value="Ultrasound">Ultrasound</option>
+                <option value="PET Scan">PET Scan</option>
+                <option value="Mammogram">Mammogram</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
 
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1">Body Part / Region</label>
+              <input type="text" name="body_part" required placeholder="e.g. Chest, Lower Back"
+                class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1">Key Findings</label>
+              <textarea name="findings" rows="3" placeholder="List extracted findings..."
+                class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"></textarea>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1">Impression / Conclusion</label>
+              <textarea name="impression" rows="2" placeholder="Radiologist's conclusion..."
+                class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"></textarea>
+            </div>
+
+            <div class="pt-2">
+              <button type="submit" class="w-full bg-indigo-600 text-white font-semibold py-2 px-4 rounded-md hover:bg-indigo-700 transition">
+                Save Record
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Imaging Records Table -->
+        <div class="lg:col-span-2">
+          <h2 class="text-xl font-semibold text-slate-800 mb-4 border-b pb-2">Your Imaging History</h2>
+          
+          {% if records %}
+          <div class="space-y-4">
+            {% for r in records %}
+            <div class="bg-white border border-slate-200 rounded-lg p-5 shadow-sm hover:shadow transition">
+              <div class="flex justify-between items-start mb-3">
+                <div>
+                  <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                    {{ r.body_part }}
+                    <span class="inline-flex items-center rounded-md px-2 py-1 text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-200">
+                      {{ r.modality }}
+                    </span>
+                  </h3>
+                  <p class="text-sm text-slate-500 mt-1">Scan Date: {{ r.scan_date.strftime('%Y-%m-%d') }}</p>
+                </div>
+              </div>
+              
+              {% if r.findings %}
+              <div class="mt-3">
+                <h4 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">Findings</h4>
+                <p class="text-sm text-slate-700 bg-slate-50 p-3 rounded border border-slate-100 whitespace-pre-line">{{ r.findings }}</p>
+              </div>
+              {% endif %}
+              
+              {% if r.impression %}
+              <div class="mt-3">
+                <h4 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">Impression</h4>
+                <p class="text-sm text-indigo-900 bg-indigo-50 p-3 rounded border border-indigo-100 font-medium whitespace-pre-line">{{ r.impression }}</p>
+              </div>
+              {% endif %}
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <div class="bg-indigo-50 border border-indigo-200 rounded-lg p-8 text-center">
+            <div class="text-4xl mb-3">🩻</div>
+            <h3 class="text-lg font-semibold text-indigo-900">No Imaging Records</h3>
+            <p class="text-indigo-700 text-sm mt-1">You haven't added any radiology reports yet.</p>
+          </div>
+          {% endif %}
+        </div>
+
+      </div>
     </div>
   </div>
 </div>

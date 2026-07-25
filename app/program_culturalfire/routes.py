@@ -1485,6 +1485,8 @@ def watch_show(show_id):
     first_segment = available_segments[0] if available_segments else 'all'
     last_segment = available_segments[-1] if available_segments else 'all'
     
+    middle_index = max(1, len(submissions_data) // 2)
+    
     # Pre-show Ads (position_index == 0)
     pre_show_ads = [ad for ad in ads if ad.position_index == 0]
     for ad in pre_show_ads:
@@ -1528,18 +1530,32 @@ def watch_show(show_id):
             
         unified_playlist.append(act)
         
-        # Insert ads that should play after this act (position_index == idx + 1)
-        act_ads = [ad for ad in ads if ad.position_index == idx + 1]
-        for ad in act_ads:
-            unified_playlist.append({
-                "id": f"ad_{ad.id}",
-                "title": "Sponsor Message",
-                "segment_type": act['segment_type'],
-                "src": get_url(ad.video_url),
-                "item_type": "ad",
-                "has_voted": False,
-                "user_id": ad.user_id
-            })
+        # Insert mid-show ads (position_index between 1 and 98) exactly after the middle act
+        if idx + 1 == middle_index:
+            mid_ads = [ad for ad in ads if 1 <= ad.position_index <= 98]
+            for ad in mid_ads:
+                unified_playlist.append({
+                    "id": f"ad_{ad.id}",
+                    "title": "Sponsor Message",
+                    "segment_type": act['segment_type'],
+                    "src": get_url(ad.video_url),
+                    "item_type": "ad",
+                    "has_voted": False,
+                    "user_id": ad.user_id
+                })
+        
+    # Insert post-show ads (position_index == 99)
+    outro_ads = [ad for ad in ads if ad.position_index == 99]
+    for ad in outro_ads:
+        unified_playlist.append({
+            "id": f"ad_{ad.id}",
+            "title": "Sponsor Message",
+            "segment_type": last_segment,
+            "src": get_url(ad.video_url),
+            "item_type": "ad",
+            "has_voted": False,
+            "user_id": ad.user_id
+        })
         
     if show_outro:
         # Check if the user has already voted for the MC
@@ -3089,7 +3105,7 @@ def upload_ad(show_id):
     new_ad = CfiShowAd(
         show_id=show_id,
         user_id=current_user.id,
-        video_url=f"/static/uploads/cfi_ads/{filename}",
+        video_url=final_url,
         position_index=position_index
     )
     db.session.add(new_ad)

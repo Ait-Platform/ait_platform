@@ -1,37 +1,54 @@
 {% extends "layout.html" %}
-{% block content %}
-<div class="max-w-4xl mx-auto mt-8">
-  <div class="bg-white shadow-xl rounded-lg overflow-hidden border border-gray-100">
-    <div class="h-2 bg-teal-600 w-full"></div>
-    <div class="p-6">
-      <div class="flex justify-between items-center mb-6 pb-4 border-b">
-        <h1 class="text-3xl font-bold text-gray-800">HealthCore Pricing</h1>
-        <a href="{{ url_for('healthcore_bp.healthcore_about') }}" class="px-4 py-2 bg-gray-200 text-gray-800 font-semibold rounded hover:bg-gray-300 transition text-sm">
-          &larr; Back
-        </a>
-      </div>
+{% block title %}HealthCore Pricing{% endblock %}
 
-      <div class="space-y-6">
-        <div>
-          <label class="block text-sm font-bold text-gray-800 mb-2">Select Your Country</label>
-          <input type="text" id="countryInput" name="country" placeholder="e.g., United States" class="block w-full border-2 border-gray-400 rounded-lg px-4 py-3 text-gray-900 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-200 transition shadow-sm" autofocus required>
+{% block content %}
+<div class="max-w-4xl mx-auto mt-8 p-6">
+  <div class="bg-white shadow-xl rounded-2xl overflow-hidden border border-gray-100">
+    <div class="h-2 bg-teal-600 w-full"></div>
+    
+    <div class="p-6 border-b border-gray-100 flex justify-between items-center mb-2">
+      <div>
+        <h1 class="text-3xl font-bold text-slate-900 mb-1">HealthCore Pricing</h1>
+        <p class="text-base text-gray-500">Global Coverage Available</p>
+      </div>
+      <a href="{{ url_for('healthcore_bp.healthcore_about') }}" class="px-4 py-2 bg-gray-200 text-gray-800 font-medium rounded hover:bg-gray-300 transition-colors shadow-sm">
+        Back
+      </a>
+    </div>
+
+    <div class="px-6 pb-6">
+      <div class="space-y-6 text-gray-800 mb-8 mt-4">
+        
+        <div class="bg-gray-50 p-5 rounded-xl border border-gray-200">
+          <h3 class="text-lg font-bold text-gray-900 mb-2">1. One-Off Registration & Initial Tokens</h3>
+          <p class="text-base leading-relaxed">
+            To join HealthCore, there is a single, once-off registration fee based on your <strong>local currency parity</strong>. 
+            For example, paying <strong>100 in your local currency</strong> automatically credits your digital wallet with an initial bundle of <strong>200 Tokens</strong>!
+          </p>
         </div>
 
-        <div class="bg-gray-50 border border-gray-200 p-6 rounded-lg text-center mt-8 shadow-sm">
-          <h2 class="text-2xl font-bold text-gray-800 mb-2">Standard Access</h2>
-          <p class="text-4xl font-extrabold text-teal-600 mb-4">50 Tokens <span class="text-lg text-gray-500 font-normal">/ month</span></p>
-          <ul class="text-gray-600 space-y-3 mb-6 max-w-sm mx-auto text-left">
-            <li class="flex items-center"><svg class="w-5 h-5 text-teal-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Unlimited Health Records</li>
-            <li class="flex items-center"><svg class="w-5 h-5 text-teal-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> AI-Powered Lab Report Structuring</li>
-            <li class="flex items-center"><svg class="w-5 h-5 text-teal-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Secure Doctor Sharing</li>
+        <div class="bg-gray-50 p-5 rounded-xl border border-gray-200">
+          <h3 class="text-lg font-bold text-gray-900 mb-3">2. Pay-As-You-Go Usage</h3>
+          <p class="text-base leading-relaxed mb-3">HealthCore operates on a transparent model with no monthly subscriptions. Tokens are deducted only when you actively use the system:</p>
+          <ul class="list-disc pl-8 text-base space-y-2">
+            <li><strong>AI Lab Report Structuring:</strong> 10 Tokens per document</li>
+            <li><strong>Doctor Sharing Links:</strong> 5 Tokens per share</li>
+            <li><strong>Timeline Sync:</strong> 2 Tokens per event</li>
           </ul>
         </div>
+        
+        <div class="bg-teal-50 p-5 rounded-xl border border-teal-200 text-teal-900">
+          <h3 class="text-lg font-bold mb-2">3. Have a Voucher?</h3>
+          <p class="text-base leading-relaxed">
+            If you were provided a voucher by your healthcare provider, you can redeem it securely on the next step during registration.
+          </p>
+        </div>
       </div>
 
-      <!-- Row 2: Right aligned button -->
-      <div class="flex justify-end mt-8 border-t pt-4">
-        <a href="{{ url_for('healthcore_bp.healthcore_dashboard') }}" class="px-8 py-3 bg-teal-600 text-white font-bold rounded-lg hover:bg-teal-700 transition shadow-lg flex items-center gap-2">
-          Start Your Health Journey
+      <!-- Register / Pick Country button -->
+      <div class="flex justify-end border-t border-gray-100 pt-6">
+        <a href="{{ url_for('quote_bp.quote', subject='healthcore') }}" class="px-8 py-3 bg-teal-600 text-white text-base font-bold rounded-lg hover:bg-teal-700 transition shadow-md flex items-center gap-2">
+          Pick Country
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
         </a>
       </div>

@@ -1,0 +1,33 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="max-w-6xl mx-auto mt-8">
+  <div class="bg-white shadow-xl rounded-lg overflow-hidden border border-gray-100">
+    <!-- Top Color Strip -->
+    <div class="h-2 bg-green-600 w-full"></div>
+    
+    <div class="p-6">
+      <!-- Row 1: Title & Back Button -->
+      <div class="flex justify-between items-center mb-6 pb-4 border-b">
+        <h1 class="text-3xl font-bold text-gray-800">🏃 Lifestyle Engine</h1>
+        <a href="{{ url_for('healthcore_bp.healthcore_dashboard') }}" class="px-4 py-2 bg-gray-200 text-gray-800 font-semibold rounded hover:bg-gray-300 transition text-sm">
+          &larr; Back to HealthCore
+        </a>
+      </div>
+
+      <!-- Row 2: Secondary Action -->
+      <div class="flex justify-end mb-6">
+        <button class="px-4 py-2 bg-green-600 text-white font-semibold rounded hover:bg-green-700 transition shadow">
+          + Add New Record
+        </button>
+      </div>
+
+      <!-- Content Placeholder -->
+      <div class="bg-gray-50 border border-gray-200 rounded-xl p-8 text-center">
+        <p class="text-gray-500 mb-4">The Lifestyle engine is currently being initialized.</p>
+        <p class="text-sm text-gray-400">Data structures have been generated and database schema is mapped.</p>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}

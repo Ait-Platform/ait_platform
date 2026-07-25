@@ -14,55 +14,63 @@
         </a>
       </div>
 
-      <!-- Dashboard Tiles -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <!-- Laboratory -->
-        <div class="bg-red-50 border border-red-100 p-8 rounded-xl hover:shadow-lg transition cursor-pointer flex flex-col items-center text-center hover:border-red-300">
+      <!-- Dashboard Tiles (9 Engines) -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        
+        <!-- 1. Laboratory -->
+        <a href="{{ url_for('healthcore_bp.laboratory_dashboard') }}" class="bg-red-50 border border-red-100 p-8 rounded-xl hover:shadow-lg transition flex flex-col items-center text-center hover:border-red-300">
           <div class="text-5xl mb-4">🩸</div>
           <h3 class="text-xl font-bold text-red-900">Laboratory</h3>
-        </div>
+        </a>
         
-        <!-- Medications -->
-        <div class="bg-blue-50 border border-blue-100 p-8 rounded-xl hover:shadow-lg transition cursor-pointer flex flex-col items-center text-center hover:border-blue-300">
+        <!-- 2. Medication -->
+        <a href="{{ url_for('healthcore_bp.medication_dashboard') }}" class="bg-blue-50 border border-blue-100 p-8 rounded-xl hover:shadow-lg transition flex flex-col items-center text-center hover:border-blue-300">
           <div class="text-5xl mb-4">💊</div>
-          <h3 class="text-xl font-bold text-blue-900">Medications</h3>
-        </div>
+          <h3 class="text-xl font-bold text-blue-900">Medication</h3>
+        </a>
 
-        <!-- Imaging -->
-        <div class="bg-purple-50 border border-purple-100 p-8 rounded-xl hover:shadow-lg transition cursor-pointer flex flex-col items-center text-center hover:border-purple-300">
-          <div class="text-5xl mb-4">🧠</div>
+        <!-- 3. Nutrition -->
+        <a href="{{ url_for('healthcore_bp.nutrition_dashboard') }}" class="bg-orange-50 border border-orange-100 p-8 rounded-xl hover:shadow-lg transition flex flex-col items-center text-center hover:border-orange-300">
+          <div class="text-5xl mb-4">🥗</div>
+          <h3 class="text-xl font-bold text-orange-900">Nutrition</h3>
+        </a>
+
+        <!-- 4. Imaging -->
+        <a href="{{ url_for('healthcore_bp.imaging_dashboard') }}" class="bg-purple-50 border border-purple-100 p-8 rounded-xl hover:shadow-lg transition flex flex-col items-center text-center hover:border-purple-300">
+          <div class="text-5xl mb-4">🦴</div>
           <h3 class="text-xl font-bold text-purple-900">Imaging</h3>
-        </div>
+        </a>
 
-        <!-- Timeline -->
-        <div class="bg-yellow-50 border border-yellow-100 p-8 rounded-xl hover:shadow-lg transition cursor-pointer flex flex-col items-center text-center hover:border-yellow-300">
+        <!-- 5. Lifestyle -->
+        <a href="{{ url_for('healthcore_bp.lifestyle_dashboard') }}" class="bg-green-50 border border-green-100 p-8 rounded-xl hover:shadow-lg transition flex flex-col items-center text-center hover:border-green-300">
+          <div class="text-5xl mb-4">🏃</div>
+          <h3 class="text-xl font-bold text-green-900">Lifestyle</h3>
+        </a>
+
+        <!-- 6. Timeline -->
+        <a href="{{ url_for('healthcore_bp.timeline_dashboard') }}" class="bg-yellow-50 border border-yellow-100 p-8 rounded-xl hover:shadow-lg transition flex flex-col items-center text-center hover:border-yellow-300">
           <div class="text-5xl mb-4">📅</div>
           <h3 class="text-xl font-bold text-yellow-900">Timeline</h3>
-        </div>
+        </a>
 
-        <!-- Vital Signs -->
-        <div class="bg-pink-50 border border-pink-100 p-8 rounded-xl hover:shadow-lg transition cursor-pointer flex flex-col items-center text-center hover:border-pink-300">
-          <div class="text-5xl mb-4">❤️</div>
-          <h3 class="text-xl font-bold text-pink-900">Vital Signs</h3>
-        </div>
+        <!-- 7. Risk -->
+        <a href="{{ url_for('healthcore_bp.risk_dashboard') }}" class="bg-pink-50 border border-pink-100 p-8 rounded-xl hover:shadow-lg transition flex flex-col items-center text-center hover:border-pink-300">
+          <div class="text-5xl mb-4">⚠️</div>
+          <h3 class="text-xl font-bold text-pink-900">Risk</h3>
+        </a>
 
-        <!-- Lifestyle -->
-        <div class="bg-green-50 border border-green-100 p-8 rounded-xl hover:shadow-lg transition cursor-pointer flex flex-col items-center text-center hover:border-green-300">
-          <div class="text-5xl mb-4">🍎</div>
-          <h3 class="text-xl font-bold text-green-900">Lifestyle</h3>
-        </div>
+        <!-- 8. Correlation -->
+        <a href="{{ url_for('healthcore_bp.correlation_dashboard') }}" class="bg-indigo-50 border border-indigo-100 p-8 rounded-xl hover:shadow-lg transition flex flex-col items-center text-center hover:border-indigo-300">
+          <div class="text-5xl mb-4">🔗</div>
+          <h3 class="text-xl font-bold text-indigo-900">Correlation</h3>
+        </a>
 
-        <!-- Reports -->
-        <div class="bg-gray-50 border border-gray-200 p-8 rounded-xl hover:shadow-lg transition cursor-pointer flex flex-col items-center text-center hover:border-gray-400">
+        <!-- 9. Reporting -->
+        <a href="{{ url_for('healthcore_bp.reporting_dashboard') }}" class="bg-gray-50 border border-gray-200 p-8 rounded-xl hover:shadow-lg transition flex flex-col items-center text-center hover:border-gray-400">
           <div class="text-5xl mb-4">📄</div>
-          <h3 class="text-xl font-bold text-gray-800">Reports</h3>
-        </div>
+          <h3 class="text-xl font-bold text-gray-800">Reporting</h3>
+        </a>
 
-        <!-- Share with Doctor -->
-        <div class="bg-teal-50 border border-teal-100 p-8 rounded-xl hover:shadow-lg transition cursor-pointer flex flex-col items-center text-center hover:border-teal-300">
-          <div class="text-5xl mb-4">👨‍⚕️</div>
-          <h3 class="text-xl font-bold text-teal-900">Share with Doctor</h3>
-        </div>
       </div>
       
       <!-- Row 2: Right aligned button (Example action for later) -->

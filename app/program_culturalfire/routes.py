@@ -3417,6 +3417,7 @@ def flag_video(video_id):
 def delete_ad(ad_id):
     from app.models.culturalfire import CfiShowAd
     from app.extensions import db
+    from app.program_culturalfire.helpers import charge_tokens
     
     ad = CfiShowAd.query.get_or_404(ad_id)
     if ad.user_id != current_user.id:
@@ -3425,5 +3426,9 @@ def delete_ad(ad_id):
         
     db.session.delete(ad)
     db.session.commit()
-    flash("Ad successfully deleted.", "success")
+    
+    # Refund the 40 tokens
+    charge_tokens(current_user.id, -40, f"Refund for deleted Ad ID: {ad_id}")
+    
+    flash("Ad successfully deleted and 40 tokens refunded.", "success")
     return redirect(url_for('cultural_bp.advertiser_dashboard'))

@@ -1733,7 +1733,6 @@ def upload_mc_recording(show_id):
     from app.program_culturalfire.helpers import moderate_video_with_gemini
     if file.filename.lower().endswith(('.mp4', '.mov', '.avi', '.mkv')):
         if not moderate_video_with_gemini(file_path):
-            import os
             if os.path.exists(file_path):
                 os.remove(file_path)
             return jsonify({'success': False, 'message': 'Upload rejected: Inappropriate content detected by AI moderator.'})
@@ -1910,7 +1909,6 @@ def segment_edit(enrollment_id, category_id, segment):
             from app.program_culturalfire.helpers import moderate_video_with_gemini
             if file.filename.lower().endswith(('.mp4', '.mov', '.avi', '.mkv')):
                 if not moderate_video_with_gemini(filepath):
-                    import os
                     if os.path.exists(filepath):
                         os.remove(filepath)
                     flash("Upload rejected: Inappropriate content detected by AI moderator.", "danger")
@@ -1986,7 +1984,6 @@ def segment_new(enrollment_id, category_id, segment):
         from app.program_culturalfire.helpers import moderate_video_with_gemini
         if file.filename.lower().endswith(('.mp4', '.mov', '.avi', '.mkv')):
             if not moderate_video_with_gemini(filepath):
-                import os
                 if os.path.exists(filepath):
                     os.remove(filepath)
                 flash("Upload rejected: Inappropriate content detected by AI moderator.", "danger")
@@ -2043,7 +2040,6 @@ def ramp_walk(enrollment_id, category_id):
         from app.program_culturalfire.helpers import moderate_video_with_gemini
         if file.filename.lower().endswith(('.mp4', '.mov', '.avi', '.mkv')):
             if not moderate_video_with_gemini(filepath):
-                import os
                 if os.path.exists(filepath):
                     os.remove(filepath)
                 flash("Upload rejected: Inappropriate content detected by AI moderator.", "danger")
@@ -2192,7 +2188,6 @@ def segment_form(enrollment_id, show_id, category_id):
             from app.program_culturalfire.helpers import moderate_video_with_gemini
             if file.filename.lower().endswith(('.mp4', '.mov', '.avi', '.mkv')):
                 if not moderate_video_with_gemini(filepath):
-                    import os
                     if os.path.exists(filepath):
                         os.remove(filepath)
                     flash("Upload rejected: Inappropriate content detected by AI moderator.", "danger")
@@ -2205,7 +2200,9 @@ def segment_form(enrollment_id, show_id, category_id):
                 submission = CfiTalentSubmission(
                     user_enrollment_id=enrollment_id,
                     user_id=current_user.id,
+                    subject_id=enrollment.subject_id,
                     show_id=show_id,
+                    category_item_id=category_id,
                     segment_id=segment.id,
                     talent_name=segment.name,
                     video_url=f"cfi/{filename}",
@@ -3099,7 +3096,6 @@ def upload_ad(show_id):
     final_url = ""
 
     if file and file.filename != '':
-        import os
         from werkzeug.utils import secure_filename
         filename = secure_filename(f"ad_{current_user.id}_{show_id}_{file.filename}")
         upload_folder = os.path.join(current_app.root_path, 'static', 'uploads', 'cfi')
@@ -3110,7 +3106,6 @@ def upload_ad(show_id):
         from app.program_culturalfire.helpers import moderate_video_with_gemini
         if file.filename.lower().endswith(('.mp4', '.mov', '.avi', '.mkv')):
             if not moderate_video_with_gemini(file_path):
-                import os
                 if os.path.exists(file_path):
                     os.remove(file_path)
                 flash("Upload rejected: Inappropriate content detected by AI moderator.", "danger")

@@ -3084,7 +3084,7 @@ def upload_ad(show_id):
         import os
         from werkzeug.utils import secure_filename
         filename = secure_filename(f"ad_{current_user.id}_{show_id}_{file.filename}")
-        upload_folder = os.path.join('app', 'static', 'uploads', 'cfi_ads')
+        upload_folder = os.path.join(current_app.root_path, 'static', 'uploads', 'cfi_ads')
         os.makedirs(upload_folder, exist_ok=True)
         file_path = os.path.join(upload_folder, filename)
         file.save(file_path)

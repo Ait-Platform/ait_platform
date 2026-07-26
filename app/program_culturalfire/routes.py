@@ -1495,7 +1495,7 @@ def watch_show(show_id):
                            .options(db.joinedload(CfiSegmentItem.enrollment))
                            .all())
             submissions_data = []
-            from app.models.culturalfire import CfiTalentSubmission, CfiPageantQuestion
+            from app.models.culturalfire import CfiPageantQuestion
             for sub in submissions:
                 if not sub.video_url:
                     continue

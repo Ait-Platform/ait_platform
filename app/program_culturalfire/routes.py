@@ -1359,7 +1359,7 @@ def show_program(show_id):
         submissions_by_segment = {}
         from app.models.culturalfire import CfiBiodata
         for item in segment_items:
-            seg = item.segment_type.replace('_', ' ').title()
+            seg = (item.segment_type or "Unknown").replace('_', ' ').title()
             if seg not in submissions_by_segment:
                 submissions_by_segment[seg] = []
             
@@ -1429,9 +1429,14 @@ def show_program(show_id):
     from app.models.culturalfire import CfiShowAd
     ads = CfiShowAd.query.filter_by(show_id=show.id).all()
     
-    show_mcs = list(set([User.query.get(a.mc_id).name for a in mc_assignments if User.query.get(a.mc_id)]))
-    show_judges = list(set([User.query.get(a.judge_id).name for a in judge_assignments if User.query.get(a.judge_id)]))
-    show_advertisers = list(set([User.query.get(ad.user_id).name for ad in ads if User.query.get(ad.user_id)]))
+    mc_ids = [a.mc_id for a in mc_assignments if getattr(a, 'mc_id', None)]
+    show_mcs = [u.name for u in User.query.filter(User.id.in_(mc_ids)).all()] if mc_ids else []
+    
+    judge_ids = [a.judge_id for a in judge_assignments if getattr(a, 'judge_id', None)]
+    show_judges = [u.name for u in User.query.filter(User.id.in_(judge_ids)).all()] if judge_ids else []
+    
+    ad_user_ids = [ad.user_id for ad in ads if getattr(ad, 'user_id', None)]
+    show_advertisers = [u.name for u in User.query.filter(User.id.in_(ad_user_ids)).all()] if ad_user_ids else []
 
     return render_template("program_culturefire/program.html",
                            show=show,

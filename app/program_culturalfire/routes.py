@@ -1263,6 +1263,26 @@ def showcase_dashboard():
         shows = CfiShow.query.filter(~CfiShow.id.in_(private_show_ids)).all()
     else:
         shows = CfiShow.query.all()
+        
+    # Create mapping of segment name to order ID for sorting pageant shows
+    all_segments = CfiPageantSegment.query.order_by(CfiPageantSegment.id).all()
+    segment_order_map = {s.name.lower(): s.id for s in all_segments}
+    
+    def get_show_order(show):
+        if " - " in show.title and "pageant" in show.title.lower():
+            try:
+                base_title, segment_part = show.title.rsplit(" - ", 1)
+                segment_part = segment_part.lower().strip()
+                # Special cases if names don't match exactly
+                if segment_part == "qna" or segment_part == "q and a":
+                    segment_part = "q&a"
+                order = segment_order_map.get(segment_part, 999)
+                return (0, base_title, order)
+            except ValueError:
+                pass
+        return (1, show.title, show.id)
+        
+    shows = sorted(shows, key=get_show_order)
     
     # Get private shows for this user
     private_shows = []

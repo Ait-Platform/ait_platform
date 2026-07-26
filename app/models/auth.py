@@ -358,3 +358,22 @@ class UserUnlockedTopic(db.Model):
     subject_slug = db.Column(db.String(255), nullable=False) # e.g., grade_12_math
     topic_id = db.Column(db.String(255), nullable=False) # e.g., equations_linear
     unlocked_at = db.Column(db.DateTime, default=db.func.now())
+
+class AitTokenWallet(db.Model):
+    __tablename__ = "ait_token_wallet"
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, unique=True)
+    balance = db.Column(db.Integer, default=0, nullable=False)
+    created_at = db.Column(db.DateTime, default=db.func.now())
+    
+    transactions = db.relationship("AitTokenTransaction", backref="wallet", lazy=True, cascade="all, delete-orphan")
+    
+    user = db.relationship("User", backref=db.backref("token_wallet", uselist=False))
+
+class AitTokenTransaction(db.Model):
+    __tablename__ = "ait_token_transaction"
+    id = db.Column(db.Integer, primary_key=True)
+    wallet_id = db.Column(db.Integer, db.ForeignKey('ait_token_wallet.id'), nullable=False)
+    amount = db.Column(db.Integer, nullable=False) # positive for top-up, negative for spend
+    description = db.Column(db.String(255))
+    created_at = db.Column(db.DateTime, default=db.func.now())

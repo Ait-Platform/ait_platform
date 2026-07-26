@@ -22,6 +22,11 @@
         </button>
       </div>
 
+      <!-- Chart Container -->
+      <div class="mb-8 bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+        <canvas id="labChart" height="100"></canvas>
+      </div>
+
       <!-- Content: Records Table -->
       <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
         <table class="min-w-full divide-y divide-gray-200">
@@ -136,4 +141,48 @@
   </div>
 </div>
 
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const rawData = [
+      {% for r in records %}
+      { date: "{{ r.report_date.strftime('%Y-%m-%d') }}", test: "{{ r.test_name }}", value: {{ r.value }} },
+      {% endfor %}
+    ];
+
+    if (rawData.length === 0) return;
+
+    // Group by test name
+    const tests = [...new Set(rawData.map(d => d.test))];
+    const testToChart = tests[0]; // Just plot the first test found for now
+
+    const filteredData = rawData.filter(d => d.test === testToChart).sort((a,b) => new Date(a.date) - new Date(b.date));
+    
+    const ctx = document.getElementById('labChart').getContext('2d');
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: filteredData.map(d => d.date),
+        datasets: [{
+          label: testToChart,
+          data: filteredData.map(d => d.value),
+          borderColor: 'rgb(220, 38, 38)', // Tailwind red-600
+          backgroundColor: 'rgba(220, 38, 38, 0.1)',
+          tension: 0.3,
+          fill: true
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { position: 'top' },
+          title: { display: true, text: 'Lab Results Over Time (' + testToChart + ')' }
+        }
+      }
+    });
+  });
+</script>
 {% endblock %}

@@ -1,5 +1,5 @@
 # app/models/__init__.py
-from .auth import User, ApprovedAdmin, UserEnrollment, AuthPaymentLog
+from .auth import User, ApprovedAdmin, UserEnrollment, AuthPaymentLog, AitTokenWallet, AitTokenTransaction
 from .billing import (
     BilProperty, BilTenant, BilMeter,
     BilMeterReading, BilTariff, BilFixedItem, BilMeterFixedCharge,
@@ -10,7 +10,8 @@ __all__ = [
     "User", "ApprovedAdmin", "UserEnrollment", "AuthPaymentLog",
     "BilProperty", "BilTenant", "BilMeter",
     "BilMeterReading", "BilTariff", "BilFixedItem", "BilMeterFixedCharge",
-    "BilPayment", "BilLease", "BilConsumption"
+    "BilPayment", "BilLease", "BilConsumption",
+    "AitTokenWallet", "AitTokenTransaction"
 ]
 
 # app/models/__init__.py
@@ -31,7 +32,7 @@ from .tpx import (
     TPXCareerPlan, TPXOpportunity, TPXMarketplace, TPXMentor, TPXLearning
 )
 
-from .debtors import SoaProfile, Debtor, DebtorLedger, DebtorChargeMap, DebtorsWallet, DebtorsTokenTransaction
+from .debtors import SoaProfile, Debtor, DebtorLedger, DebtorChargeMap
 
 import app.models.culturalfire
 import app.models.healthcore

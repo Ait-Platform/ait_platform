@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}HealthCore - Onboarding{% endblock %}
+{% block content %}
+<div class="container mx-auto px-4 py-12 max-w-2xl">
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden">
+        <!-- Header -->
+        <div class="bg-gradient-to-r from-blue-600 to-teal-500 p-8 text-white text-center">
+            <h1 class="text-3xl font-bold mb-2">Welcome to HealthCore</h1>
+            <p class="text-blue-100">Let's set up your baseline health profile to get started.</p>
+        </div>
+
+        <!-- Form -->
+        <div class="p-8">
+            <form method="POST" action="{{ url_for('healthcore_bp.healthcore_onboarding') }}" class="space-y-6">
+                {{ form.hidden_tag() }}
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        {{ form.dob.label(class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1") }}
+                        {{ form.dob(class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500") }}
+                    </div>
+                    <div>
+                        {{ form.biological_sex.label(class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1") }}
+                        {{ form.biological_sex(class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500") }}
+                    </div>
+                    <div>
+                        {{ form.blood_type.label(class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1") }}
+                        {{ form.blood_type(class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500") }}
+                    </div>
+                    <div>
+                        {{ form.height_cm.label(class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1") }}
+                        {{ form.height_cm(class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500", placeholder="e.g. 175") }}
+                    </div>
+                    <div>
+                        {{ form.weight_kg.label(class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1") }}
+                        {{ form.weight_kg(class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500", placeholder="e.g. 70.5") }}
+                    </div>
+                </div>
+
+                <div>
+                    {{ form.chronic_conditions.label(class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1") }}
+                    {{ form.chronic_conditions(class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500", rows="3", placeholder="Any pre-existing conditions...") }}
+                </div>
+
+                <div class="mt-8 bg-blue-50 dark:bg-blue-900/20 p-6 rounded-xl border border-blue-100 dark:border-blue-800">
+                    <h3 class="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-3">Privacy & Consent</h3>
+                    <p class="text-sm text-blue-800 dark:text-blue-200 mb-4">
+                        HealthCore uses advanced AI to process your medical documents, lab results, and health logs to provide personalized insights. 
+                        By continuing, you consent to the processing of your health data by our AI engines in a secure, privacy-compliant manner.
+                    </p>
+                    <label class="flex items-start gap-3 cursor-pointer">
+                        <div class="flex-shrink-0 mt-1">
+                            {{ form.consent_ai(class="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500") }}
+                        </div>
+                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                            {{ form.consent_ai.label.text }}
+                        </span>
+                    </label>
+                    {% if form.consent_ai.errors %}
+                        <p class="text-red-500 text-sm mt-2">{{ form.consent_ai.errors[0] }}</p>
+                    {% endif %}
+                </div>
+
+                <div class="pt-4">
+                    {{ form.submit(class="w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-teal-500 hover:from-blue-700 hover:to-teal-600 text-white font-bold rounded-xl shadow-lg transform transition hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500") }}
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

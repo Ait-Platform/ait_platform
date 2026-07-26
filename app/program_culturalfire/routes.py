@@ -14,14 +14,14 @@ from app.forms import (
     SponsorForm, SupporterForm, TalentDetailsForm, TalentForm, TalentSubmissionForm, 
     UpdateGroupForm, UpdateBiodataForm
     )
-from app.models.auth import AuthSubject, User, UserEnrollment, UserRole
+from app.models.auth import AuthSubject, User, UserEnrollment, UserRole, AitTokenWallet, AitTokenTransaction
 from app.extensions import db
 
 from app.models.culturalfire import (
     CfiBiodata, CfiGroup, CfiGroupMember, CfiPageantSegment, CfiParent, CfiRole, CfiSegmentItem, CfiShow, CfiSponsorItem, CfiSponsorship, CfiSubmissionParticipant, 
     CfiSupporter, CfiTalentCategoryItem, CfiTalentContext, CfiTalentFile, CfiTalentStyle, CfiShowcaseVote, 
     CfiTalentSubmission, CfiJudgeAssignment, CfiMcAssignment, CfiJudgeScore, CfiMcRecording, CfiGroupInvitation,
-    CfiPrivateShowGroup, CfiShowAccess, CfiWallet, CfiTokenTransaction, CfiTokenTariff
+    CfiPrivateShowGroup, CfiShowAccess, CfiTokenTariff
     )
 from app.program_culturalfire.helpers import (
     all_segments_filled,
@@ -2849,12 +2849,12 @@ def admin_scores(show_id):
 @cultural_bp.route("/wallet")
 @login_required
 def wallet_dashboard():
-    from app.models.culturalfire import CfiWallet, CfiTokenTransaction, CfiAward
+    from app.models.culturalfire import CfiAward
     from app.models.payment import RefCountryCurrency
-    wallet = CfiWallet.query.filter_by(user_id=current_user.id).first()
+    wallet = AitTokenWallet.query.filter_by(user_id=current_user.id).first()
     transactions = []
     if wallet:
-        transactions = CfiTokenTransaction.query.filter_by(wallet_id=wallet.id).order_by(CfiTokenTransaction.created_at.desc()).all()
+        transactions = AitTokenTransaction.query.filter_by(wallet_id=wallet.id).order_by(AitTokenTransaction.created_at.desc()).all()
         
     award = CfiAward.query.filter_by(user_id=current_user.id).first()
     
@@ -3040,15 +3040,15 @@ def wallet_transfer():
         flash("Insufficient tokens for this transfer.", "danger")
         return redirect(url_for('cultural_bp.transfer_form_page'))
         
-    from app.models.culturalfire import CfiWallet, CfiTokenTransaction
-    recipient_wallet = CfiWallet.query.filter_by(user_id=recipient.id).first()
+    from app.models.culturalfire import
+    recipient_wallet = AitTokenWallet.query.filter_by(user_id=recipient.id).first()
     if not recipient_wallet:
-        recipient_wallet = CfiWallet(user_id=recipient.id, balance=0)
+        recipient_wallet = AitTokenWallet(user_id=recipient.id, balance=0)
         db.session.add(recipient_wallet)
         db.session.flush()
         
     recipient_wallet.balance += amount
-    txn = CfiTokenTransaction(
+    txn = AitTokenTransaction(
         wallet_id=recipient_wallet.id, 
         amount=amount, 
         description=f"Received from {current_user.email}"
@@ -3097,17 +3097,17 @@ def wallet_transfer_page():
 @cultural_bp.route("/wallet/transfer/form")
 @login_required
 def transfer_form_page():
-    from app.models.culturalfire import CfiWallet
-    wallet = CfiWallet.query.filter_by(user_id=current_user.id).first()
+    from app.models.culturalfire import
+    wallet = AitTokenWallet.query.filter_by(user_id=current_user.id).first()
     balance = wallet.balance if wallet else 0
     return render_template("program_culturefire/transfer_form.html", token_balance=balance)
 
 @cultural_bp.route("/wallet/voucher_page")
 @login_required
 def generate_voucher_page():
-    from app.models.culturalfire import CfiWallet
+    from app.models.culturalfire import
     from app.models.payment import VoucherToken
-    wallet = CfiWallet.query.filter_by(user_id=current_user.id).first()
+    wallet = AitTokenWallet.query.filter_by(user_id=current_user.id).first()
     balance = wallet.balance if wallet else 0
     last_voucher = session.pop('last_generated_voucher', None)
     
@@ -3120,7 +3120,7 @@ def generate_voucher_page():
 @login_required
 def delete_voucher(voucher_id):
     from app.models.payment import VoucherToken
-    from app.models.culturalfire import CfiWallet, CfiTokenTransaction
+    from app.models.culturalfire import
     
     voucher = VoucherToken.query.get_or_404(voucher_id)
     
@@ -3134,13 +3134,13 @@ def delete_voucher(voucher_id):
         return redirect(url_for('cultural_bp.generate_voucher_page'))
         
     # Refund tokens to the user
-    wallet = CfiWallet.query.filter_by(user_id=current_user.id).first()
+    wallet = AitTokenWallet.query.filter_by(user_id=current_user.id).first()
     if not wallet:
         flash("Wallet not found.", "danger")
         return redirect(url_for('cultural_bp.generate_voucher_page'))
         
     wallet.balance += voucher.value_amount
-    txn = CfiTokenTransaction(
+    txn = AitTokenTransaction(
         wallet_id=wallet.id,
         amount=voucher.value_amount,
         description=f"Refund for deleted voucher {voucher.code}"
@@ -3157,10 +3157,10 @@ def delete_voucher(voucher_id):
 @cultural_bp.route("/advertiser/dashboard")
 @login_required
 def advertiser_dashboard():
-    from app.models.culturalfire import CfiShow, CfiShowAd, CfiWallet
+    from app.models.culturalfire import CfiShow, CfiShowAd
     shows = CfiShow.query.filter_by(status='active').all()
     ads = CfiShowAd.query.filter_by(user_id=current_user.id).all()
-    wallet = CfiWallet.query.filter_by(user_id=current_user.id).first()
+    wallet = AitTokenWallet.query.filter_by(user_id=current_user.id).first()
     token_balance = wallet.balance if wallet else 0
     return render_template("program_culturefire/ad_dashboard.html", shows=shows, ads=ads, token_balance=token_balance)
 
@@ -3216,7 +3216,7 @@ def upload_ad(show_id):
 
 def process_voucher_redemption(code, user_id):
     from app.models.payment import VoucherToken
-    from app.models.culturalfire import CfiWallet, CfiTokenTransaction
+    from app.models.culturalfire import
     from app.models.auth import AuthSubject, UserEnrollment
     
     voucher = VoucherToken.query.filter_by(code=code).first()
@@ -3232,15 +3232,15 @@ def process_voucher_redemption(code, user_id):
     voucher.used_at = datetime.utcnow()
     
     # 1. Create/Update Wallet
-    wallet = CfiWallet.query.filter_by(user_id=user_id).first()
+    wallet = AitTokenWallet.query.filter_by(user_id=user_id).first()
     if not wallet:
-        wallet = CfiWallet(user_id=user_id, balance=0)
+        wallet = AitTokenWallet(user_id=user_id, balance=0)
         db.session.add(wallet)
         db.session.flush()
         
     wallet.balance += voucher.value_amount
     
-    txn = CfiTokenTransaction(
+    txn = AitTokenTransaction(
         wallet_id=wallet.id,
         amount=voucher.value_amount,
         description=f"Voucher Redemption: {code}"
@@ -3559,13 +3559,13 @@ def unlock_private_show(show_id):
     tariff = CfiTokenTariff.query.filter_by(action_name='private_show_view').first()
     token_cost = tariff.base_token_cost if tariff else 10
     
-    from app.models.culturalfire import CfiWallet, CfiTokenTransaction
-    wallet = CfiWallet.query.filter_by(user_id=current_user.id).first()
+    from app.models.culturalfire import
+    wallet = AitTokenWallet.query.filter_by(user_id=current_user.id).first()
     if not wallet or wallet.balance < token_cost:
         return jsonify({"success": False, "message": f"Insufficient tokens. You need {token_cost} tokens."})
         
     wallet.balance -= token_cost
-    txn = CfiTokenTransaction(
+    txn = AitTokenTransaction(
         wallet_id=wallet.id,
         amount=-token_cost,
         description=f"Unlocked private show: {show.title}"

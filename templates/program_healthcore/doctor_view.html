@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patient HealthCore Profile</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+    </style>
+</head>
+<body class="text-slate-800">
+    
+    <!-- Top Nav -->
+    <nav class="bg-blue-900 text-white shadow-md py-4 px-6 sticky top-0 z-50">
+        <div class="max-w-6xl mx-auto flex justify-between items-center">
+            <div class="flex items-center gap-2">
+                <span class="text-2xl font-black tracking-tight text-blue-300">Health</span>
+                <span class="text-2xl font-black tracking-tight">Core</span>
+                <span class="ml-2 bg-blue-700 text-blue-100 text-xs px-2 py-1 rounded-full uppercase tracking-widest font-bold">Provider Portal</span>
+            </div>
+            <div class="text-sm text-blue-200">
+                Secure Session for <strong>{{ share.doctor_name or share.doctor_email }}</strong>
+            </div>
+        </div>
+    </nav>
+
+    <div class="max-w-6xl mx-auto mt-8 px-4 pb-12">
+        
+        <!-- Header Banner -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 mb-8 flex flex-col md:flex-row justify-between items-center gap-6">
+            <div>
+                <h1 class="text-3xl font-bold text-slate-900 mb-1">Patient: {{ patient.first_name }} {{ patient.last_name }}</h1>
+                <p class="text-slate-500">
+                    <span class="mr-4"><strong>DOB:</strong> {{ profile.dob.strftime('%Y-%m-%d') if profile and profile.dob else 'N/A' }}</span>
+                    <span class="mr-4"><strong>Sex:</strong> {{ profile.biological_sex if profile else 'N/A' }}</span>
+                    <span><strong>Blood Type:</strong> {{ profile.blood_type if profile else 'N/A' }}</span>
+                </p>
+            </div>
+            <div class="bg-blue-50 text-blue-800 px-4 py-3 rounded-xl border border-blue-100 text-sm">
+                <strong>Access Expires:</strong><br>
+                {{ share.expires_at.strftime('%Y-%m-%d %H:%M UTC') }}
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            <!-- Left Column (Vitals & Conditions) -->
+            <div class="lg:col-span-1 space-y-8">
+                
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                    <h2 class="text-lg font-bold text-slate-800 mb-4 pb-2 border-b">Baseline Profile</h2>
+                    <ul class="space-y-3 text-sm">
+                        <li class="flex justify-between border-b border-slate-50 pb-2">
+                            <span class="text-slate-500">Height</span>
+                            <span class="font-medium text-slate-900">{{ profile.height_cm if profile else 'N/A' }} cm</span>
+                        </li>
+                        <li class="flex justify-between border-b border-slate-50 pb-2">
+                            <span class="text-slate-500">Weight</span>
+                            <span class="font-medium text-slate-900">{{ profile.weight_kg if profile else 'N/A' }} kg</span>
+                        </li>
+                        <li class="flex justify-between">
+                            <span class="text-slate-500">BMI</span>
+                            <span class="font-medium text-slate-900">
+                                {% if profile and profile.height_cm and profile.weight_kg %}
+                                    {{ (profile.weight_kg / ((profile.height_cm/100) ** 2)) | round(1) }}
+                                {% else %}
+                                    N/A
+                                {% endif %}
+                            </span>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                    <h2 class="text-lg font-bold text-slate-800 mb-4 pb-2 border-b">Chronic Conditions</h2>
+                    {% if profile and profile.chronic_conditions %}
+                        <p class="text-sm text-slate-700 leading-relaxed">{{ profile.chronic_conditions }}</p>
+                    {% else %}
+                        <p class="text-sm text-slate-400 italic">No chronic conditions listed.</p>
+                    {% endif %}
+                </div>
+
+            </div>
+
+            <!-- Right Column (Risk & Labs) -->
+            <div class="lg:col-span-2 space-y-8">
+                
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="bg-slate-50 px-6 py-4 border-b border-slate-200 flex justify-between items-center">
+                        <h2 class="text-lg font-bold text-slate-800">AI Risk Assessments</h2>
+                    </div>
+                    <div class="p-6">
+                        {% if risks %}
+                        <div class="space-y-4">
+                            {% for r in risks %}
+                            <div class="border border-slate-100 rounded-lg p-4 bg-slate-50">
+                                <div class="flex justify-between mb-2">
+                                    <h3 class="font-bold text-slate-800">{{ r.risk_category }} Risk <span class="text-xs text-slate-500 ml-2 font-normal">{{ r.calculated_date.strftime('%Y-%m-%d') }}</span></h3>
+                                    <span class="px-2 py-1 text-xs font-bold uppercase rounded 
+                                        {% if r.risk_level == 'High' %}bg-red-100 text-red-800
+                                        {% elif r.risk_level == 'Medium' %}bg-amber-100 text-amber-800
+                                        {% else %}bg-green-100 text-green-800{% endif %}">
+                                        {{ r.risk_level }}
+                                    </span>
+                                </div>
+                                <div class="mb-2 text-sm text-slate-600">
+                                    <strong>Score:</strong> {{ r.risk_score_100 }}/100
+                                </div>
+                                <div class="text-sm text-slate-700 mb-2 border-l-2 border-slate-300 pl-3">
+                                    <strong>Factors:</strong> {{ r.factors }}
+                                </div>
+                                <div class="text-sm text-slate-700 bg-blue-50 p-2 rounded">
+                                    <strong>Recommendations:</strong> {{ r.recommendations }}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <p class="text-sm text-slate-400 italic">No AI risk assessments generated for this patient.</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="bg-slate-50 px-6 py-4 border-b border-slate-200">
+                        <h2 class="text-lg font-bold text-slate-800">Recent Laboratory Results</h2>
+                    </div>
+                    {% if labs %}
+                    <table class="w-full text-left text-sm border-collapse">
+                        <thead class="bg-slate-100 border-b border-slate-200 text-slate-600">
+                            <tr>
+                                <th class="p-4 font-medium uppercase text-xs tracking-wider">Date</th>
+                                <th class="p-4 font-medium uppercase text-xs tracking-wider">Test</th>
+                                <th class="p-4 font-medium uppercase text-xs tracking-wider">Result</th>
+                                <th class="p-4 font-medium uppercase text-xs tracking-wider">Ref Range</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            {% for lab in labs %}
+                            <tr class="hover:bg-slate-50">
+                                <td class="p-4 text-slate-500 whitespace-nowrap">{{ lab.report_date.strftime('%Y-%m-%d') }}</td>
+                                <td class="p-4 font-medium text-slate-800">{{ lab.test_name }}</td>
+                                <td class="p-4">
+                                    <span class="font-bold {% if lab.status == 'High' or lab.status == 'Low' %}text-red-600{% endif %}">{{ lab.value }}</span> {{ lab.units }}
+                                    {% if lab.status == 'High' or lab.status == 'Low' %}
+                                        <span class="ml-1 inline-block text-[10px] font-bold text-red-600 uppercase bg-red-50 px-1 rounded">{{ lab.status }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="p-4 text-slate-500">{{ lab.reference_range }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <div class="p-6">
+                        <p class="text-sm text-slate-400 italic">No laboratory results available.</p>
+                    </div>
+                    {% endif %}
+                </div>
+
+            </div>
+        </div>
+        
+    </div>
+
+    <footer class="bg-slate-800 text-slate-400 py-6 text-center text-sm">
+        <p>AIT HealthCore Secure Portal &bull; Strictly Confidential</p>
+    </footer>
+
+</body>
+</html>

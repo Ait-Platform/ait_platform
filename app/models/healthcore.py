@@ -2,6 +2,31 @@ from app.extensions import db
 from datetime import datetime
 
 # ---------------------------------------------------------
+# ENGINE 0: BASELINE & PRIVACY
+# ---------------------------------------------------------
+class HcPatientProfile(db.Model):
+    __tablename__ = 'hc_patient_profile'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, unique=True)
+    dob = db.Column(db.Date, nullable=True)
+    biological_sex = db.Column(db.String(20), nullable=True)
+    blood_type = db.Column(db.String(10), nullable=True)
+    height_cm = db.Column(db.Float, nullable=True)
+    weight_kg = db.Column(db.Float, nullable=True)
+    chronic_conditions = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+class HcConsentLog(db.Model):
+    __tablename__ = 'hc_consent_log'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    consent_type = db.Column(db.String(100), nullable=False) # e.g., 'ai_processing', 'doctor_share'
+    ip_address = db.Column(db.String(50), nullable=True)
+    user_agent = db.Column(db.String(255), nullable=True)
+    agreed_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+# ---------------------------------------------------------
 # ENGINE 1: LABORATORY (LAB)
 # ---------------------------------------------------------
 class HcLaboratory(db.Model):
@@ -153,5 +178,16 @@ class HcGeneratedReport(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     generated_date = db.Column(db.DateTime, default=datetime.utcnow)
     report_type = db.Column(db.String(100))
-    audience = db.Column(db.String(100))
-    document_id = db.Column(db.Integer, db.ForeignKey('hc_document.id'), nullable=False)
+    report_summary = db.Column(db.Text)
+    document_id = db.Column(db.Integer, db.ForeignKey('hc_document.id', ondelete="CASCADE"), nullable=True)
+
+class HcDoctorAccess(db.Model):
+    __tablename__ = 'hc_doctor_access'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    doctor_email = db.Column(db.String(120), nullable=False)
+    doctor_name = db.Column(db.String(150), nullable=True)
+    access_token = db.Column(db.String(100), unique=True, nullable=False)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)

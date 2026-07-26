@@ -5,7 +5,8 @@ from flask import render_template, redirect, url_for, flash, request, current_ap
 from flask_login import login_required, current_user
 from app.program_debtors import debtors_bp
 from app.models.auth import AuthSubject, UserEnrollment
-from app.models.debtors import SoaProfile, Debtor, DebtorLedger, DebtorChargeMap, DebtorsWallet
+from app.models.debtors import SoaProfile, Debtor, DebtorLedger, DebtorChargeMap
+from app.models.auth import AitTokenWallet, AitTokenTransaction
 from app.extensions import db
 from app.program_debtors.forms import SoaProfileForm, DebtorForm
 
@@ -35,7 +36,7 @@ def debtors_router():
 @debtors_bp.route("/dashboard")
 @login_required
 def dashboard():
-    wallet = DebtorsWallet.query.filter_by(user_id=current_user.id).first()
+    wallet = AitTokenWallet.query.filter_by(user_id=current_user.id).first()
     debtors = Debtor.query.filter_by(user_id=current_user.id, is_active=True).all()
     
     # Calculate balances for each debtor dynamically (or we could store it)

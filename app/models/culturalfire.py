@@ -13,22 +13,6 @@ class CfiConfig:
     COST_APPLY_JUDGE = 10
     COST_VOTE = 50
 
-class CfiWallet(db.Model):
-    __tablename__ = "cfi_wallet"
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, unique=True)
-    balance = db.Column(db.Integer, default=0, nullable=False)
-    
-    transactions = db.relationship("CfiTokenTransaction", backref="wallet", lazy=True, cascade="all, delete-orphan")
-
-class CfiTokenTransaction(db.Model):
-    __tablename__ = "cfi_token_transaction"
-    id = db.Column(db.Integer, primary_key=True)
-    wallet_id = db.Column(db.Integer, db.ForeignKey("cfi_wallet.id"), nullable=False)
-    amount = db.Column(db.Integer, nullable=False)  # Positive for top-ups, negative for actions
-    description = db.Column(db.String(255), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
 class CfiAward(db.Model):
     __tablename__ = "cfi_award"
     id = db.Column(db.Integer, primary_key=True)

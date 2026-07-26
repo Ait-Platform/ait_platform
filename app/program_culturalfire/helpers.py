@@ -302,20 +302,21 @@ def all_segments_filled(show):
 
 
 def charge_tokens(user_id, amount, description):
-    from app.models.culturalfire import CfiWallet, CfiTokenTransaction, CfiAward
+    from app.models.auth import AitTokenWallet, AitTokenTransaction
+    from app.models.culturalfire import, CfiAward
     from app.extensions import db
-    wallet = CfiWallet.query.filter_by(user_id=user_id).first()
+    wallet = AitTokenWallet.query.filter_by(user_id=user_id).first()
     if not wallet or wallet.balance < amount:
         return False
     wallet.balance -= amount
-    txn = CfiTokenTransaction(wallet_id=wallet.id, amount=-amount, description=description)
+    txn = AitTokenTransaction(wallet_id=wallet.id, amount=-amount, description=description)
     db.session.add(txn)
     db.session.flush()
     
     # Milestone Award logic based on cumulative tokens spent
-    total_spent_val = db.session.query(db.func.sum(CfiTokenTransaction.amount)).filter(
-        CfiTokenTransaction.wallet_id == wallet.id, 
-        CfiTokenTransaction.amount < 0
+    total_spent_val = db.session.query(db.func.sum(AitTokenTransaction.amount)).filter(
+        AitTokenTransaction.wallet_id == wallet.id, 
+        AitTokenTransaction.amount < 0
     ).scalar() or 0
     total_spent = abs(total_spent_val)
     

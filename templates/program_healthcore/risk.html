@@ -18,6 +18,14 @@
         
         <!-- Add New Risk Assessment Form -->
         <div class="lg:col-span-1 bg-slate-50 border border-slate-200 rounded-xl p-6">
+          <form action="{{ url_for('healthcore_bp.generate_risk') }}" method="POST" class="mb-8">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold py-3 px-4 rounded-xl shadow hover:shadow-lg transform transition hover:-translate-y-0.5 flex justify-center items-center gap-2">
+              <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+              Generate AI Risk Insight
+            </button>
+          </form>
+
           <h2 class="text-xl font-semibold text-slate-800 mb-4 border-b pb-2">Log Risk Assessment</h2>
           <form action="{{ url_for('healthcore_bp.add_risk') }}" method="POST" class="space-y-4">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

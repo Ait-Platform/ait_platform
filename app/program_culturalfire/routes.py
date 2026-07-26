@@ -3581,6 +3581,12 @@ def create_private_show(enrollment_id):
         flash("Title and category are required.", "danger")
         return redirect(url_for('cultural_bp.private_show_dashboard', enrollment_id=enrollment_id))
         
+    # Check for duplicate show name
+    existing_show = CfiShow.query.filter_by(title=title, status="active").first()
+    if existing_show:
+        flash(f"A show named '{title}' already exists. Please choose a different name.", "danger")
+        return redirect(url_for('cultural_bp.private_show_dashboard', enrollment_id=enrollment_id))
+        
     new_show = CfiShow(
         title=title,
         description="A private, exclusive show.",
@@ -3616,6 +3622,29 @@ def create_private_show(enrollment_id):
     
     flash("Private show created! You can now invite members.", "success")
     return redirect(url_for('cultural_bp.private_show_dashboard', enrollment_id=enrollment_id))
+
+@cultural_bp.route("/private_show/delete/<int:group_id>", methods=["POST"])
+@login_required
+def delete_private_show(group_id):
+    from app.models.culturalfire import CfiPrivateShowGroup
+    group = CfiGroup.query.get_or_404(group_id)
+    
+    leader_enrollment = UserEnrollment.query.get(group.leader_id)
+    if not leader_enrollment or leader_enrollment.user_id != current_user.id:
+        abort(403)
+        
+    psg = CfiPrivateShowGroup.query.filter_by(group_id=group.id).first()
+    if psg:
+        show = CfiShow.query.get(psg.show_id)
+        if show:
+            db.session.delete(show)
+        db.session.delete(psg)
+        
+    db.session.delete(group)
+    db.session.commit()
+    
+    flash("Private show deleted successfully.", "success")
+    return redirect(url_for('cultural_bp.private_show_dashboard', enrollment_id=leader_enrollment.id))
 
 @cultural_bp.route("/private_show/join/<int:group_id>", methods=["GET", "POST"])
 @login_required

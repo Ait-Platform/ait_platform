@@ -1,0 +1,62 @@
+{% extends "layout.html" %}
+
+{% block title %}Manage Token Tariffs{% endblock %}
+
+{% block content %}
+<div class="bg-white shadow rounded-lg overflow-hidden max-w-6xl mx-auto my-6">
+  <div class="h-2 bg-blue-800"></div>
+  
+  <div class="px-6 py-4 border-b flex justify-between items-center bg-gray-50">
+    <h1 class="text-2xl font-bold text-gray-800">Manage Token Tariffs</h1>
+    <a href="{{ url_for('cultural_bp.admin_dashboard') }}" class="bg-gray-300 text-gray-800 px-4 py-2 rounded hover:bg-gray-400">Back to Dashboard</a>
+  </div>
+
+  <div class="p-6">
+    <div class="mb-6 bg-blue-50 border-l-4 border-blue-500 p-4">
+      <p class="text-sm text-blue-700">
+        <strong>Note:</strong> Token tariffs determine how many tokens are deducted when users perform specific actions in Culture Fire.
+        Updating a cost here will instantly affect all future transactions.
+      </p>
+    </div>
+
+    <div class="overflow-x-auto bg-white border rounded-lg shadow-sm">
+      <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-100">
+          <tr>
+            <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Action Name</th>
+            <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Current Cost</th>
+            <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Update Cost</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-200">
+          {% for tariff in tariffs %}
+          <tr class="hover:bg-gray-50">
+            <td class="px-6 py-4">
+              <span class="font-medium text-gray-900 bg-gray-100 px-2 py-1 rounded text-sm border">{{ tariff.action_name }}</span>
+            </td>
+            <td class="px-6 py-4">
+              <span class="font-bold text-blue-600 text-lg">{{ tariff.base_token_cost }}</span> <span class="text-xs text-gray-500 uppercase">Tokens</span>
+            </td>
+            <td class="px-6 py-4">
+              <form method="POST" action="{{ url_for('cultural_bp.admin_tariffs') }}" class="flex items-center gap-2">
+                <input type="hidden" name="tariff_id" value="{{ tariff.id }}">
+                <input type="number" name="base_token_cost" value="{{ tariff.base_token_cost }}" min="0" required class="border-gray-300 rounded shadow-sm focus:ring-blue-500 focus:border-blue-500 w-24">
+                <button type="submit" class="bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700 font-medium text-sm transition">
+                  Save
+                </button>
+              </form>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="3" class="px-6 py-8 text-center text-gray-500">
+              No token tariffs found in the database. Tariffs are generated automatically when a user triggers an action for the first time.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

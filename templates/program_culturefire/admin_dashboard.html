@@ -44,5 +44,18 @@
           {% endfor %}
         </tbody>
       </table>
+    </div>
+
+    <h2 class="text-xl font-semibold mt-8 mb-4 text-gray-700">Platform Settings</h2>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div class="bg-white border rounded-lg p-6 shadow-sm hover:shadow transition">
+        <h3 class="font-bold text-lg text-gray-900 mb-2">Token Tariffs</h3>
+        <p class="text-sm text-gray-600 mb-4">Manage the token costs for various actions across Culture Fire (e.g., video submissions, judging, MCing).</p>
+        <a href="{{ url_for('cultural_bp.admin_tariffs') }}" class="inline-block bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 font-medium transition text-sm">
+          Manage Tariffs
+        </a>
+      </div>
+    </div>
+  </div>
 </div>
 {% endblock %}

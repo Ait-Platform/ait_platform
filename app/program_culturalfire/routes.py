@@ -550,9 +550,9 @@ def talent_new(enrollment_id):
         category_obj = CfiTalentCategoryItem.query.get(category_item_id)
         is_other = category_obj and "other" in category_obj.name.lower()
         is_pageant = category_obj and category_obj.name == "Pageant"
-        token_cost = 30 if is_pageant else 20
+        from app.program_culturalfire.helpers import get_token_cost, charge_tokens
+        token_cost = get_token_cost('talent_submission_pageant', 30) if is_pageant else get_token_cost('talent_submission_other', 20)
 
-        from app.program_culturalfire.helpers import charge_tokens
         if not charge_tokens(enrollment.user_id, token_cost, f"Talent Submission: {talent_name}"):
             flash(f"Insufficient tokens to submit a video. Please top up your wallet ({token_cost} Tokens required).", "warning")
             return redirect(url_for("cultural_bp.wallet_dashboard"))
@@ -2827,22 +2827,23 @@ def select_show(show_id):
         flash("You cannot be a judge for a show you are participating in.", "warning")
         return redirect(url_for('cultural_bp.judge_dashboard'))
 
-    from app.program_culturalfire.helpers import charge_tokens
-    if not charge_tokens(current_user.id, 50, f"Judge Assignment: {show.title}"):
-        flash("Insufficient tokens. You need 50 tokens to judge a show. Please top up your wallet.", "error")
-        return redirect(url_for("cultural_bp.wallet_dashboard"))
+    from app.program_culturalfire.helpers import get_token_cost, charge_tokens
+    cost = get_token_cost('judge_assignment', 40)
+    if not charge_tokens(current_user.id, cost, f"Judge Assignment: {show.title}"):
+        flash(f"Insufficient tokens. You need {cost} tokens to judge a show. Please top up your wallet.", "error")
+        return redirect(url_for('cultural_bp.wallet_dashboard'))
     
     # Create Assignment
     new_assignment = CfiJudgeAssignment(
         judge_id=current_user.id,
         show_id=show.id,
-        role="paid_judge"
+        role="Self-Assigned Judge"
     )
     
     db.session.add(new_assignment)
     db.session.commit()
     
-    flash(f"You have been assigned as a judge for '{show.title}'! 10 tokens were deducted.", "success")
+    flash(f"You have been assigned as a judge for '{show.title}'! {cost} tokens were deducted.", "success")
     return redirect(url_for('cultural_bp.judge_dashboard'))
 
 @cultural_bp.route("/cultural_fire/admin")
@@ -2855,6 +2856,31 @@ def admin_dashboard():
         
     shows = CfiShow.query.all()
     return render_template("program_culturefire/admin_dashboard.html", shows=shows)
+
+@cultural_bp.route("/cultural_fire/admin/tariffs", methods=["GET", "POST"])
+@login_required
+def admin_tariffs():
+    if not current_user.has_role('admin'):
+        flash("Unauthorized access.", "danger")
+        return redirect(url_for('auth_bp.bridge_dashboard'))
+        
+    from app.models.culturalfire import CfiTokenTariff
+    if request.method == "POST":
+        tariff_id = request.form.get("tariff_id")
+        new_cost = request.form.get("base_token_cost", type=int)
+        
+        tariff = CfiTokenTariff.query.get(tariff_id)
+        if tariff and new_cost is not None and new_cost >= 0:
+            tariff.base_token_cost = new_cost
+            db.session.commit()
+            flash(f"Updated token cost for '{tariff.action_name}' to {new_cost}.", "success")
+        else:
+            flash("Invalid input.", "danger")
+            
+        return redirect(url_for('cultural_bp.admin_tariffs'))
+        
+    tariffs = CfiTokenTariff.query.order_by(CfiTokenTariff.action_name).all()
+    return render_template("program_culturefire/admin_tariffs.html", tariffs=tariffs)
 
 @cultural_bp.route("/show/<int:show_id>/admin_scores")
 @login_required
@@ -3060,9 +3086,10 @@ def select_mc_show(show_id):
         flash("You cannot be the MC for a show you are participating in.", "warning")
         return redirect(url_for('cultural_bp.mc_dashboard'))
 
-    from app.program_culturalfire.helpers import charge_tokens
-    if not charge_tokens(current_user.id, 70, f"MC Assignment: {show.title}"):
-        flash("Insufficient tokens. You need 70 tokens to MC a show. Please top up your wallet.", "error")
+    from app.program_culturalfire.helpers import get_token_cost, charge_tokens
+    cost = get_token_cost('mc_assignment', 40)
+    if not charge_tokens(current_user.id, cost, f"MC Assignment: {show.title}"):
+        flash(f"Insufficient tokens. You need {cost} tokens to MC a show. Please top up your wallet.", "error")
         return redirect(url_for("cultural_bp.wallet_dashboard"))
     
     assigned_segment_id = None
@@ -3079,13 +3106,14 @@ def select_mc_show(show_id):
     new_assignment = CfiMcAssignment(
         mc_id=current_user.id,
         show_id=show.id,
-        pageant_segment_id=assigned_segment_id
+        pageant_segment_id=assigned_segment_id,
+        role="Self-Assigned MC"
     )
     
     db.session.add(new_assignment)
     db.session.commit()
     
-    flash(f"You have been assigned as the Master of Ceremony for '{show.title}'! 70 tokens were deducted.", "success")
+    flash(f"You have been assigned as the Master of Ceremony for '{show.title}'! {cost} tokens were deducted.", "success")
     return redirect(url_for('cultural_bp.mc_dashboard'))
 
 
@@ -3245,51 +3273,55 @@ def advertiser_dashboard():
 @cultural_bp.route("/advertiser/upload/<int:show_id>", methods=["POST"])
 @login_required
 def upload_ad(show_id):
-    position_index = request.form.get("position_index", type=int, default=0)
-    video_url_input = request.form.get("video_url")
-    file = request.files.get('file')
-
-    if not video_url_input and (not file or file.filename == ''):
-        flash("No file or URL provided. Please provide one.", "danger")
+    from app.program_culturalfire.helpers import get_token_cost, charge_tokens
+    cost = get_token_cost('ad_upload', 40)
+    if not charge_tokens(current_user.id, cost, f"Uploaded Ad for Show ID: {show_id}"):
+        flash(f"Insufficient tokens to upload an ad. You need {cost} tokens.", "danger")
         return redirect(url_for('cultural_bp.advertiser_dashboard'))
 
-    from app.program_culturalfire.helpers import charge_tokens
-    if not charge_tokens(current_user.id, 40, f"Uploaded Ad for Show ID: {show_id}"):
-        flash("Insufficient tokens to upload an ad. You need 40 tokens.", "danger")
-        return redirect(url_for('cultural_bp.wallet_transfer_page'))
+    file = request.files.get("file")
+    video_url = request.form.get("video_url")
+    final_ad_url = None
 
-    final_url = ""
-
-    if file and file.filename != '':
+    if video_url and video_url.strip():
+        final_ad_url = video_url.strip()
+    elif file and file.filename:
         from werkzeug.utils import secure_filename
-        filename = secure_filename(f"ad_{current_user.id}_{show_id}_{file.filename}")
-        upload_folder = os.path.join(current_app.root_path, 'static', 'uploads', 'cfi')
+        filename = secure_filename(file.filename)
+        unique_filename = f"ad_{current_user.id}_{int(datetime.utcnow().timestamp())}_{filename}"
+        upload_folder = os.path.join(current_app.root_path, "static", "uploads", "cfi")
         os.makedirs(upload_folder, exist_ok=True)
-        file_path = os.path.join(upload_folder, filename)
+        file_path = os.path.join(upload_folder, unique_filename)
         file.save(file_path)
 
-        from app.program_culturalfire.helpers import moderate_video_with_gemini
-        if file.filename.lower().endswith(('.mp4', '.mov', '.avi', '.mkv')):
+        # AI Moderation
+        if file.filename.lower().endswith(('.mp4', '.mov', '.avi', '.mkv', '.webm', '.jpg', '.jpeg', '.png')):
+            from app.program_culturalfire.helpers import moderate_video_with_gemini
             if not moderate_video_with_gemini(file_path):
                 if os.path.exists(file_path):
                     os.remove(file_path)
                 flash("Upload rejected: Inappropriate content detected by AI moderator.", "danger")
+                charge_tokens(current_user.id, -cost, f"Refund for failed Ad upload: {show_id}")
                 return redirect(url_for('cultural_bp.advertiser_dashboard'))
-        final_url = f"cfi/{filename}"
-    else:
-        final_url = video_url_input
+
+        final_ad_url = f"cfi/{unique_filename}"
+        
+    if not final_ad_url:
+        flash("You must provide a file or a valid URL.", "danger")
+        charge_tokens(current_user.id, -cost, f"Refund for failed Ad upload: {show_id}")
+        return redirect(url_for('cultural_bp.advertiser_dashboard'))
 
     from app.models.culturalfire import CfiShowAd
-    new_ad = CfiShowAd(
+    ad = CfiShowAd(
         show_id=show_id,
         user_id=current_user.id,
-        video_url=final_url,
-        position_index=position_index
+        video_url=final_ad_url,
+        position_index=request.form.get("position_index", 0)
     )
-    db.session.add(new_ad)
+    db.session.add(ad)
     db.session.commit()
-    
-    flash("Your ad has been successfully uploaded! 40 tokens were deducted.", "success")
+
+    flash(f"Your ad has been successfully uploaded! {cost} tokens were deducted.", "success")
     return redirect(url_for('cultural_bp.advertiser_dashboard'))
 
 def process_voucher_redemption(code, user_id):
@@ -3633,8 +3665,8 @@ def unlock_private_show(show_id):
         return jsonify({"success": True, "message": "Already unlocked."})
         
     # Token Logic
-    tariff = CfiTokenTariff.query.filter_by(action_name='private_show_view').first()
-    token_cost = tariff.base_token_cost if tariff else 10
+    from app.program_culturalfire.helpers import get_token_cost
+    token_cost = get_token_cost('private_show_view', 10)
     
     from app.models.auth import AitTokenWallet, AitTokenTransaction
     wallet = AitTokenWallet.query.filter_by(user_id=current_user.id).first()
@@ -3688,7 +3720,7 @@ def flag_video(video_id):
 def delete_ad(ad_id):
     from app.models.culturalfire import CfiShowAd
     from app.extensions import db
-    from app.program_culturalfire.helpers import charge_tokens
+    from app.program_culturalfire.helpers import get_token_cost, charge_tokens
     
     ad = CfiShowAd.query.get_or_404(ad_id)
     if ad.user_id != current_user.id:
@@ -3698,8 +3730,9 @@ def delete_ad(ad_id):
     db.session.delete(ad)
     db.session.commit()
     
-    # Refund the 40 tokens
-    charge_tokens(current_user.id, -40, f"Refund for deleted Ad ID: {ad_id}")
+    # Refund the tokens based on the current upload cost
+    cost = get_token_cost('ad_upload', 40)
+    charge_tokens(current_user.id, -cost, f"Refund for deleted Ad ID: {ad_id}")
     
-    flash("Ad successfully deleted and 40 tokens refunded.", "success")
+    flash(f"Ad successfully deleted and {cost} tokens refunded.", "success")
     return redirect(url_for('cultural_bp.advertiser_dashboard'))

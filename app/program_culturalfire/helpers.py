@@ -299,7 +299,15 @@ def all_segments_filled(show):
     # Compare sets
     return required_segments.issubset(submitted_segments)
 
-
+def get_token_cost(action_name: str, default_cost: int = 10) -> int:
+    from app.models.culturalfire import CfiTokenTariff
+    from app.extensions import db
+    tariff = CfiTokenTariff.query.filter_by(action_name=action_name).first()
+    if not tariff:
+        tariff = CfiTokenTariff(action_name=action_name, base_token_cost=default_cost)
+        db.session.add(tariff)
+        db.session.commit()
+    return tariff.base_token_cost
 
 def charge_tokens(user_id, amount, description):
     from app.models.auth import AitTokenWallet, AitTokenTransaction

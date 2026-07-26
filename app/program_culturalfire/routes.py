@@ -1404,21 +1404,19 @@ def show_program(show_id):
                            
             if is_private_show:
                 psg = CfiPrivateShowGroup.query.filter_by(show_id=show.id).first()
-                if psg:
-                    group = CfiGroup.query.get(psg.group_id)
-                    if group:
-                        class MockSub:
-                            pass
-                        for member in group.group_members:
-                            sub = MockSub()
-                            sub.id = member.id
-                            sub.user_enrollment = member.enrollment
-                            sub.talent_name = "Private Show Member"
-                            sub.custom_talent = None
-                            sub.group_members = []
-                            sub.sponsors = []
-                            sub.supporters = []
-                            submissions.append(sub)
+                if psg and psg.group:
+                    class MockSub:
+                        pass
+                    for member in psg.group.group_members:
+                        sub = MockSub()
+                        sub.id = member.id
+                        sub.user_enrollment = member.enrollment
+                        sub.talent_name = "Private Show Member"
+                        sub.custom_talent = None
+                        sub.group_members = []
+                        sub.sponsors = []
+                        sub.supporters = []
+                        submissions.append(sub)
 
             from app.models.culturalfire import CfiBiodata
             for sub in submissions:
@@ -1476,18 +1474,17 @@ def show_program(show_id):
 @cultural_bp.route("/show/watch/<int:show_id>")
 @login_required
 def watch_show(show_id):
-    try:
-        show = CfiShow.query.get_or_404(show_id)
+    show = CfiShow.query.get_or_404(show_id)
 
-        def get_url(url):
-            if not url:
-                return ""
-            if url.startswith('/static/uploads/'):
-                return url_for("cultural_bp.uploaded_file", filename=url.replace('/static/uploads/', ''))
-            if url.startswith('cfi/'):
-                url = url[4:]
-            res = url_for("cultural_bp.uploaded_file", filename=url) if not url.startswith('uploads/') else url_for("cultural_bp.uploaded_file", filename=url.replace('uploads/', ''))
-            return res
+    def get_url(url):
+        if not url:
+            return ""
+        if url.startswith('/static/uploads/'):
+            return url_for("cultural_bp.uploaded_file", filename=url.replace('/static/uploads/', ''))
+        if url.startswith('cfi/'):
+            url = url[4:]
+        res = url_for("cultural_bp.uploaded_file", filename=url) if not url.startswith('uploads/') else url_for("cultural_bp.uploaded_file", filename=url.replace('uploads/', ''))
+        return res
 
     if show.category_item and show.category_item.name == "Pageant":
         submissions = (CfiSegmentItem.query
@@ -1733,27 +1730,21 @@ def watch_show(show_id):
     
     unified_playlist = filtered_playlist
 
-        return render_template(
-            "program_culturefire/watch_show.html",
-            is_judge=is_judge,
-            is_mc=is_mc,
-            judge_criteria=judge_criteria,
-            mc_criteria=mc_criteria,
-            show=show,
-            submissions_data=submissions_data,
-            available_segments=available_segments,
-            origin=origin,
-            enrollment_id=enrollment_id,
-            show_mcs=show_mcs,
-            show_judges=show_judges,
-            show_advertisers=show_advertisers
-        )
-    except Exception as e:
-        import traceback
-        error_msg = f"Error in watch_show: {str(e)} | Trace: {traceback.format_exc()}"
-        print(error_msg)
-        flash(f"System Error: {str(e)}", "danger")
-        return redirect(url_for('cultural_bp.showcase_dashboard'))
+    return render_template(
+        "program_culturefire/watch_show.html",
+        is_judge=is_judge,
+        is_mc=is_mc,
+        judge_criteria=judge_criteria,
+        mc_criteria=mc_criteria,
+        show=show,
+        submissions_data=submissions_data,
+        available_segments=available_segments,
+        origin=origin,
+        enrollment_id=enrollment_id,
+        show_mcs=show_mcs,
+        show_judges=show_judges,
+        show_advertisers=show_advertisers
+    )
 
 @cultural_bp.route("/mc/script/<int:show_id>", methods=["GET"])
 @login_required

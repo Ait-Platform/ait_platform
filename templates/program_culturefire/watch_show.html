@@ -171,7 +171,9 @@ const allSubmissions = JSON.parse(
 let submissions = allSubmissions;
 
 window.addEventListener('DOMContentLoaded', () => {
-
+  if (submissions.length > 0) {
+    loadItem(0, false);
+  }
 });
 
 let currentIndex = -1;

@@ -5,6 +5,17 @@ from app import db
 
 healthcore_bp = Blueprint("healthcore_bp", __name__)
 
+def healthcore_onboarded_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        from app.models.healthcore import HcPatientProfile
+        profile = HcPatientProfile.query.filter_by(user_id=current_user.id).first()
+        if not profile:
+            flash("Please complete your baseline profile and consent to continue.", "info")
+            return redirect(url_for("healthcore_bp.healthcore_onboarding"))
+        return f(*args, **kwargs)
+    return decorated_function
+
 @healthcore_bp.route("/program/healthcore")
 def healthcore_home():
     return render_template("program_healthcore/welcome.html")
@@ -29,17 +40,7 @@ def healthcore_dashboard():
 # ---------------------------------------------------------
 # ONBOARDING DECORATOR & ROUTES
 # ---------------------------------------------------------
-def healthcore_onboarded_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        from app.models.healthcore import HcPatientProfile
-        profile = HcPatientProfile.query.filter_by(user_id=current_user.id).first()
-        if not profile:
-            flash("Please complete your baseline profile and consent to continue.", "info")
-            return redirect(url_for("healthcore_bp.healthcore_onboarding"))
-        return f(*args, **kwargs)
-    return decorated_function
-
+# ---------------------------------------------------------
 @healthcore_bp.route("/program/healthcore/onboarding", methods=["GET", "POST"])
 @login_required
 def healthcore_onboarding():

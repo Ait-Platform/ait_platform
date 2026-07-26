@@ -126,7 +126,6 @@
   {% if selected_category and selected_category.name == "Pageant" %}
   <form method="GET" action="{{ url_for('cultural_bp.segment_form',
                                         enrollment_id=enrollment.id,
-                                        show_id=show.id,
                                         category_id=selected_category.id,
                                         segment_id=selected_segment_id) }}">
       <label for="segment">Select Segment:</label>

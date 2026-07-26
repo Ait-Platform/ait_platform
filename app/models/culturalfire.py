@@ -483,7 +483,7 @@ class CfiShow(db.Model):
 
     category_item_id = db.Column(db.Integer, db.ForeignKey("cfi_talent_category_items.id"), nullable=False)    
     category_item = db.relationship("CfiTalentCategoryItem", lazy="joined")
-    
+
     sponsorships = db.relationship("CfiSponsorship", backref="show", lazy=True)
     supporters = db.relationship("CfiSupporter", backref="show", lazy=True)
     submissions = db.relationship("CfiTalentSubmission", back_populates="show", lazy=True)

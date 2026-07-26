@@ -303,7 +303,7 @@ def all_segments_filled(show):
 
 def charge_tokens(user_id, amount, description):
     from app.models.auth import AitTokenWallet, AitTokenTransaction
-    from app.models.culturalfire import, CfiAward
+    from app.models.culturalfire import CfiAward
     from app.extensions import db
     wallet = AitTokenWallet.query.filter_by(user_id=user_id).first()
     if not wallet or wallet.balance < amount:

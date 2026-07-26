@@ -598,20 +598,45 @@ def talent_new(enrollment_id):
                         CfiSubmissionParticipant(user_id=collaborator.user_id)
                     )
 
-        # 🔥 SAVE FILES (now ID is guaranteed)
+        # 🔥 SAVE FILES AND URLS
         saved_files = []
+        video_url_input = request.form.get("video_url_input")
 
-        for file in files:
-            if file and file.filename:
-                filename = build_filename(talent_name, file.filename, submission.id)
-                cfi_dir = os.path.join(current_app.root_path, "static", "uploads", "cfi")
-                os.makedirs(cfi_dir, exist_ok=True)
-                file.save(os.path.join(cfi_dir, filename))
-                saved_files.append(filename)
-                submission.files.append(CfiTalentFile(filename=filename))
+        # Prioritize URL if provided
+        if video_url_input and video_url_input.strip():
+            submission.media_url = video_url_input.strip()
+            submission.video_url = video_url_input.strip()  # also set video_url for consistency
+        else:
+            for file in files:
+                if file and file.filename:
+                    filename = build_filename(talent_name, file.filename, submission.id)
+                    cfi_dir = os.path.join(current_app.root_path, "static", "uploads", "cfi")
+                    os.makedirs(cfi_dir, exist_ok=True)
+                    filepath = os.path.join(cfi_dir, filename)
+                    file.save(filepath)
+                    
+                    from app.program_culturalfire.helpers import moderate_video_with_gemini
+                    if file.filename.lower().endswith(('.mp4', '.mov', '.avi', '.mkv', '.webm')):
+                        if not moderate_video_with_gemini(filepath):
+                            if os.path.exists(filepath):
+                                os.remove(filepath)
+                            db.session.delete(submission)
+                            db.session.commit()
+                            flash("Upload rejected: Inappropriate content detected by AI moderator.", "danger")
+                            return redirect(request.url)
 
-        if saved_files:
-            submission.media_url = url_for('static', filename=f'uploads/{saved_files[0]}')
+                    saved_files.append(filename)
+                    submission.files.append(CfiTalentFile(filename=filename))
+
+            if saved_files:
+                submission.media_url = f"cfi/{saved_files[0]}"
+                submission.video_url = f"cfi/{saved_files[0]}"
+
+        if not submission.media_url:
+            db.session.delete(submission)
+            db.session.commit()
+            flash("Please upload a file or provide a video URL.", "danger")
+            return redirect(request.url)
 
         db.session.commit()
 
@@ -1292,7 +1317,7 @@ def show_program(show_id):
     enrollment_id = request.args.get("enrollment_id")
     show = CfiShow.query.get_or_404(show_id)
     
-    from app.models.culturalfire import CfiPrivateShowGroup, CfiShowAccess
+    from app.models.culturalfire import CfiPrivateShowGroup, CfiShowAccess, CfiGroup, CfiTalentSubmission, CfiSegmentItem, CfiMcAssignment, CfiJudgeAssignment
     is_private_show = CfiPrivateShowGroup.query.filter_by(show_id=show.id).first() is not None
     if is_private_show:
         # Check if unlocked
@@ -1469,22 +1494,8 @@ def watch_show(show_id):
             existing_vote = CfiShowcaseVote.query.filter_by(user_id=current_user.id, submission_id=sub['id']).first()
         sub['has_voted'] = bool(existing_vote)
 
-    # Get available segments for the UI and sort them correctly
-    PAGEANT_ORDER = {
-        "ramp_walk": 1,
-        "intro": 2,
-        "talent": 3,
-        "traditional_wear": 4,
-        "formal_wear": 5,
-        "qna": 6,
-        "q&a": 6
-    }
-    
-    if show.category_item and show.category_item.name == "Pageant":
-        raw_segments = list(set([s["segment_type"] for s in submissions_data]))
-        available_segments = sorted(raw_segments, key=lambda x: PAGEANT_ORDER.get(x.replace(' ', '_').lower(), 99))
-    else:
-        available_segments = []
+    # We no longer need available_segments for Pageants since each show is exactly one segment.
+    available_segments = []
 
     # Build Unified Playlist
     recordings = CfiMcRecording.query.filter_by(show_id=show.id).order_by(CfiMcRecording.id.desc()).all()
@@ -1499,8 +1510,8 @@ def watch_show(show_id):
         
     unified_playlist = []
     
-    first_segment = available_segments[0] if available_segments else 'all'
-    last_segment = available_segments[-1] if available_segments else 'all'
+    first_segment = 'all'
+    last_segment = 'all'
     
     middle_index = max(1, len(submissions_data) // 2)
     
@@ -1725,11 +1736,16 @@ def mc_script(show_id):
 @cultural_bp.route("/show/<int:show_id>/upload_mc_recording", methods=["POST"])
 @login_required
 def upload_mc_recording(show_id):
-    if 'file' not in request.files:
-        return jsonify({'success': False, 'message': 'No file provided'})
-    file = request.files['file']
-    if file.filename == '':
-        return jsonify({'success': False, 'message': 'No selected file'})
+    # Check if a URL was provided instead of a file
+    video_url_input = request.form.get("video_url_input")
+    
+    if not video_url_input and 'file' not in request.files:
+        return jsonify({'success': False, 'message': 'No file or URL provided'})
+        
+    file = request.files.get('file')
+    
+    if not video_url_input and (not file or file.filename == ''):
+        return jsonify({'success': False, 'message': 'No selected file or URL'})
     
     sub_id = request.form.get("submission_id")
     v_type = request.form.get("type", "talent")
@@ -1738,35 +1754,39 @@ def upload_mc_recording(show_id):
     if not CfiMcAssignment.query.filter_by(show_id=show_id, mc_id=current_user.id).first():
         return jsonify({'success': False, 'message': 'You are not assigned as MC for this show.'})
 
-    filename = secure_filename(file.filename)
-    unique_filename = f"mc_{current_user.id}_{int(time.time())}_{filename}"
-    upload_folder = os.path.join(current_app.root_path, "static", "uploads", "cfi")
-    os.makedirs(upload_folder, exist_ok=True)
-    file_path = os.path.join(upload_folder, unique_filename)
-    file.save(file_path)
+    if video_url_input and video_url_input.strip():
+        final_media_url = video_url_input.strip()
+    else:
+        filename = secure_filename(file.filename)
+        unique_filename = f"mc_{current_user.id}_{int(time.time())}_{filename}"
+        upload_folder = os.path.join(current_app.root_path, "static", "uploads", "cfi")
+        os.makedirs(upload_folder, exist_ok=True)
+        file_path = os.path.join(upload_folder, unique_filename)
+        file.save(file_path)
 
-    from app.program_culturalfire.helpers import moderate_video_with_gemini
-    if file.filename.lower().endswith(('.mp4', '.mov', '.avi', '.mkv')):
-        if not moderate_video_with_gemini(file_path):
-            if os.path.exists(file_path):
-                os.remove(file_path)
-            return jsonify({'success': False, 'message': 'Upload rejected: Inappropriate content detected by AI moderator.'})
+        from app.program_culturalfire.helpers import moderate_video_with_gemini
+        if file.filename.lower().endswith(('.mp4', '.mov', '.avi', '.mkv', '.webm')):
+            if not moderate_video_with_gemini(file_path):
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+                return jsonify({'success': False, 'message': 'Upload rejected: Inappropriate content detected by AI moderator.'})
+        final_media_url = f"cfi/{unique_filename}"
 
     recording_type = request.form.get("recording_type", "act_intro")
     
     if v_type == "pageant":
         rec = CfiMcRecording.query.filter_by(user_id=current_user.id, show_id=show_id, recording_type=recording_type, segment_item_id=sub_id if sub_id else None).first()
         if rec:
-            rec.media_url = f"cfi/{unique_filename}"
+            rec.media_url = final_media_url
         else:
-            rec = CfiMcRecording(user_id=current_user.id, show_id=show_id, recording_type=recording_type, segment_item_id=sub_id if sub_id else None, media_url=f"cfi/{unique_filename}")
+            rec = CfiMcRecording(user_id=current_user.id, show_id=show_id, recording_type=recording_type, segment_item_id=sub_id if sub_id else None, media_url=final_media_url)
             db.session.add(rec)
     else:
         rec = CfiMcRecording.query.filter_by(user_id=current_user.id, show_id=show_id, recording_type=recording_type, submission_id=sub_id if sub_id else None).first()
         if rec:
-            rec.media_url = f"cfi/{unique_filename}"
+            rec.media_url = final_media_url
         else:
-            rec = CfiMcRecording(user_id=current_user.id, show_id=show_id, recording_type=recording_type, submission_id=sub_id if sub_id else None, media_url=f"cfi/{unique_filename}")
+            rec = CfiMcRecording(user_id=current_user.id, show_id=show_id, recording_type=recording_type, submission_id=sub_id if sub_id else None, media_url=final_media_url)
             db.session.add(rec)
 
     db.session.commit()
@@ -1852,40 +1872,44 @@ def pageant_flow(enrollment_id, category_id):
         CfiShow.title.like(f"%({gender})%")
     ).order_by(CfiShow.id.asc()).all()
 
-    if not shows:
-        # Create Show 1 if none exist
-        show = CfiShow(
-            title=f"{category.name} ({gender}) Show 1",
-            description=f"First {category.name} showcase for {gender}",
-            start_date=date.today(),
-            location="TBD",
-            status="active",
-            category_item_id=category.id
-        )
-        db.session.add(show)
-        db.session.commit()
-    else:
-        # Find first incomplete show
-        show = next((s for s in shows if s.status != "completed"), None)
-        if not show:
-            # All completed → create next show
-            next_number = len(shows) + 1
+    segments = [s for s in CfiPageantSegment.query.all() if s.name.lower() not in ('sponsor', 'supporter')]
+
+    # Group shows by number
+    active_shows = [s for s in shows if s.status != "completed"]
+    
+    if not active_shows:
+        # Need to create the next set of 6 shows
+        next_number = (len(shows) // max(len(segments), 1)) + 1
+        for seg in segments:
             show = CfiShow(
-                title=f"{category.name} ({gender}) Show {next_number}",
-                description=f"{category.name} showcase {next_number} for {gender}",
+                title=f"{category.name} ({gender}) Show {next_number} - {seg.name}",
+                description=f"{category.name} showcase {next_number} for {gender} - {seg.name}",
                 start_date=date.today(),
                 location="TBD",
                 status="active",
                 category_item_id=category.id
             )
             db.session.add(show)
-            db.session.commit()
+        db.session.commit()
+        
+        # Update our list of active shows
+        active_shows = CfiShow.query.filter(
+            CfiShow.category_item_id == category.id,
+            CfiShow.title.like(f"%({gender})%Show {next_number}%")
+        ).order_by(CfiShow.id.asc()).all()
+
+    # Pass a generic show title to the template
+    show = active_shows[0] if active_shows else None
 
     segments = [s for s in CfiPageantSegment.query.all() if s.name.lower() not in ('sponsor', 'supporter')]
+    
+    # Fetch all submissions for this enrollment regardless of segment show_id
     submissions = CfiTalentSubmission.query.filter_by(
-        user_enrollment_id=enrollment.id,
-        show_id=show.id
+        user_enrollment_id=enrollment.id
     ).all()
+
+    # Extract generic show title (remove " - Segment Name")
+    show_title = show.title.split(" - ")[0] if show else f"{category.name} ({gender}) Show"
 
     # ✅ Create the form here too
     form = TalentForm()
@@ -1896,6 +1920,7 @@ def pageant_flow(enrollment_id, category_id):
         enrollment=enrollment,
         category=category,
         show=show,
+        show_title=show_title,
         segments=segments,
         submissions=submissions,
         form=form   # ✅ pass it in
@@ -2165,11 +2190,11 @@ def pageant_dashboard(enrollment_id, category_id):
     )
 
 @cultural_bp.route(
-    "/talent/pageant/segment_form/<int:enrollment_id>/<int:show_id>/<int:category_id>",
+    "/talent/pageant/segment_form/<int:enrollment_id>/<int:category_id>",
     methods=["GET", "POST"]
 )
 @login_required
-def segment_form(enrollment_id, show_id, category_id):
+def segment_form(enrollment_id, category_id):
 
     form = PageantForm()
 
@@ -2177,7 +2202,6 @@ def segment_form(enrollment_id, show_id, category_id):
     form.segment_id.choices = [(s.id, s.name) for s in segments]
 
     enrollment = UserEnrollment.query.get_or_404(enrollment_id)
-    show = CfiShow.query.get_or_404(show_id)
     category = CfiTalentCategoryItem.query.get_or_404(category_id)
 
     # ✅ single source of truth
@@ -2187,17 +2211,60 @@ def segment_form(enrollment_id, show_id, category_id):
     if segment_id:
         segment = CfiPageantSegment.query.get_or_404(segment_id)
 
-    submission = None
+    # Find the specific show for this segment
+    show = None
     if segment:
+        record = CfiBiodata.query.filter_by(user_id=enrollment.user_id).first()
+        gender = record.gender if record else "Unknown"
+        show = CfiShow.query.filter(
+            CfiShow.category_item_id == category.id,
+            CfiShow.title.like(f"%({gender})% - {segment.name}")
+        ).order_by(CfiShow.id.asc()).first()
+        
+        if not show:
+            flash("Error finding the correct show for this segment.", "danger")
+            return redirect(url_for("cultural_bp.talent_dashboard", enrollment_id=enrollment_id))
+
+    submission = None
+    if segment and show:
         submission = CfiTalentSubmission.query.filter_by(
             user_enrollment_id=enrollment_id,
-            show_id=show_id,
+            show_id=show.id,
             segment_id=segment.id
         ).first()
 
     if request.method == "POST":
         file = request.files.get("video")
-        if file and file.filename:
+        video_url_input = request.form.get("video_url_input")
+        
+        selected_question_id = request.form.get("question_id")
+        
+        # Enforce question selection for Q&A segment
+        if segment and segment.name == 'Q&A':
+            if not selected_question_id:
+                flash("You must select a question before submitting your Q&A video.", "danger")
+                return redirect(request.url)
+            
+            # Check if this question was already used in a DIFFERENT show
+            past_usage = CfiTalentSubmission.query.filter(
+                CfiTalentSubmission.user_id == current_user.id,
+                CfiTalentSubmission.talent_name == 'Q&A',
+                CfiTalentSubmission.custom_talent == str(selected_question_id),
+                CfiTalentSubmission.show_id != show.id
+            ).first()
+            
+            if past_usage:
+                flash("You have already answered this question in a previous show. Please select a different one.", "danger")
+                return redirect(request.url)
+            
+        final_video_url = None
+        
+        # If user provided a URL, prioritize that
+        if video_url_input and video_url_input.strip():
+            final_video_url = video_url_input.strip()
+            
+        # Otherwise process the uploaded file
+        elif file and file.filename:
             cfi_upload_folder = os.path.join(os.path.join(current_app.root_path, "static", "uploads"), "cfi")
             os.makedirs(cfi_upload_folder, exist_ok=True)
 
@@ -2206,55 +2273,59 @@ def segment_form(enrollment_id, show_id, category_id):
             file.save(filepath)
 
             from app.program_culturalfire.helpers import moderate_video_with_gemini
-            if file.filename.lower().endswith(('.mp4', '.mov', '.avi', '.mkv')):
+            if file.filename.lower().endswith(('.mp4', '.mov', '.avi', '.mkv', '.webm')):
                 if not moderate_video_with_gemini(filepath):
                     if os.path.exists(filepath):
                         os.remove(filepath)
                     flash("Upload rejected: Inappropriate content detected by AI moderator.", "danger")
                     return redirect(request.url)
+            
+            final_video_url = f"cfi/{filename}"
+            
+        if not final_video_url:
+            flash("Please upload a file or provide a video URL.", "danger")
+            return redirect(request.url)
 
-            selected_question_id = request.form.get("question_id")
-
-            if submission:
-                submission.video_url = f"cfi/{filename}"
-                submission.status = "uploaded"
-                if selected_question_id:
-                    submission.custom_talent = str(selected_question_id)
-            else:
-                submission = CfiTalentSubmission(
-                    user_enrollment_id=enrollment_id,
-                    user_id=current_user.id,
-                    subject_id=enrollment.subject_id,
-                    show_id=show_id,
-                    category_item_id=category_id,
-                    segment_id=segment.id,
-                    talent_name=segment.name,
-                    custom_talent=str(selected_question_id) if selected_question_id else None,
-                    video_url=f"cfi/{filename}",
-                    status="uploaded"
-                )
-                db.session.add(submission)
+        if submission:
+            submission.video_url = final_video_url
+            submission.status = "uploaded"
+            if selected_question_id:
+                submission.custom_talent = str(selected_question_id)
+        else:
+            submission = CfiTalentSubmission(
+                user_enrollment_id=enrollment_id,
+                user_id=current_user.id,
+                subject_id=enrollment.subject_id,
+                show_id=show.id,
+                category_item_id=category_id,
+                segment_id=segment.id,
+                talent_name=segment.name,
+                custom_talent=str(selected_question_id) if selected_question_id else None,
+                video_url=final_video_url,
+                status="uploaded"
+            )
+            db.session.add(submission)
 
             # Sync with CfiSegmentItem for Pageant compatibility
             from app.models.culturalfire import CfiSegmentItem
             segment_type_norm = segment.name.lower().replace(" ", "_").replace("&", "n")
             seg_item = CfiSegmentItem.query.filter_by(
                 enrollment_id=enrollment_id,
-                show_id=show_id,
+                show_id=show.id,
                 segment_type=segment_type_norm
             ).first()
 
             if seg_item:
-                seg_item.video_url = f"cfi/{filename}"
+                seg_item.video_url = final_video_url
                 seg_item.status = "uploaded"
             else:
                 seg_item = CfiSegmentItem(
                     enrollment_id=enrollment_id,
-                    show_id=show_id,
+                    show_id=show.id,
                     segment_type=segment_type_norm,
                     title=segment.name,
                     status="uploaded",
-                    video_url=f"cfi/{filename}"
+                    video_url=final_video_url
                 )
                 db.session.add(seg_item)
 
@@ -2263,14 +2334,13 @@ def segment_form(enrollment_id, show_id, category_id):
             return redirect(url_for(
                 "cultural_bp.segment_form",
                 enrollment_id=enrollment_id,
-                show_id=show_id,
                 category_id=category_id,
                 segment_id=segment_id
             ))
 
     all_submissions = CfiTalentSubmission.query.filter_by(
         user_enrollment_id=enrollment_id,
-        show_id=show_id
+        show_id=show.id
     ).all()
 
     next_segment = None
@@ -2312,7 +2382,23 @@ def segment_form(enrollment_id, show_id, category_id):
                 db.session.add(q)
             db.session.commit()
             
-        questions = CfiPageantQuestion.query.all()
+        # Get questions the user has already answered in other shows
+        past_qa_submissions = CfiTalentSubmission.query.filter(
+            CfiTalentSubmission.user_id == current_user.id,
+            CfiTalentSubmission.talent_name == 'Q&A',
+            CfiTalentSubmission.custom_talent.isnot(None),
+            CfiTalentSubmission.show_id != show_id
+        ).all()
+        
+        used_question_ids = []
+        for sub in past_qa_submissions:
+            try:
+                used_question_ids.append(int(sub.custom_talent))
+            except (ValueError, TypeError):
+                pass
+                
+        all_questions = CfiPageantQuestion.query.all()
+        questions = [q for q in all_questions if q.id not in used_question_ids]
 
     return render_template(
         "program_culturefire/segment_form.html",
@@ -2363,15 +2449,10 @@ def talent_dashboard(enrollment_id):
             segments = [s for s in CfiPageantSegment.query.all() if s.name.lower() not in ('sponsor', 'supporter')]
             record = CfiBiodata.query.filter_by(user_id=enrollment.user_id).first()
             gender = record.gender if record else "Unknown"
-            show = CfiShow.query.filter(
-                CfiShow.category_item_id == selected_category.id,
-                CfiShow.title.like(f"%({gender})%")
-            ).order_by(CfiShow.id.asc()).first()
-            if show:
-                segment_items = CfiSegmentItem.query.filter_by(
-                    enrollment_id=enrollment.id,
-                    show_id=show.id
-                ).all()
+            # Fetch all segment items for this enrollment since pageant shows are now split
+            segment_items = CfiSegmentItem.query.filter_by(
+                enrollment_id=enrollment.id
+            ).all()
 
     talents_all = CfiTalentSubmission.query.filter_by(
         user_id=enrollment.user_id,
@@ -3040,7 +3121,7 @@ def wallet_transfer():
         flash("Insufficient tokens for this transfer.", "danger")
         return redirect(url_for('cultural_bp.transfer_form_page'))
         
-    from app.models.culturalfire import
+    from app.models.auth import AitTokenWallet, AitTokenTransaction
     recipient_wallet = AitTokenWallet.query.filter_by(user_id=recipient.id).first()
     if not recipient_wallet:
         recipient_wallet = AitTokenWallet(user_id=recipient.id, balance=0)
@@ -3097,7 +3178,6 @@ def wallet_transfer_page():
 @cultural_bp.route("/wallet/transfer/form")
 @login_required
 def transfer_form_page():
-    from app.models.culturalfire import
     wallet = AitTokenWallet.query.filter_by(user_id=current_user.id).first()
     balance = wallet.balance if wallet else 0
     return render_template("program_culturefire/transfer_form.html", token_balance=balance)
@@ -3105,7 +3185,6 @@ def transfer_form_page():
 @cultural_bp.route("/wallet/voucher_page")
 @login_required
 def generate_voucher_page():
-    from app.models.culturalfire import
     from app.models.payment import VoucherToken
     wallet = AitTokenWallet.query.filter_by(user_id=current_user.id).first()
     balance = wallet.balance if wallet else 0
@@ -3120,7 +3199,6 @@ def generate_voucher_page():
 @login_required
 def delete_voucher(voucher_id):
     from app.models.payment import VoucherToken
-    from app.models.culturalfire import
     
     voucher = VoucherToken.query.get_or_404(voucher_id)
     
@@ -3216,7 +3294,6 @@ def upload_ad(show_id):
 
 def process_voucher_redemption(code, user_id):
     from app.models.payment import VoucherToken
-    from app.models.culturalfire import
     from app.models.auth import AuthSubject, UserEnrollment
     
     voucher = VoucherToken.query.filter_by(code=code).first()
@@ -3559,7 +3636,7 @@ def unlock_private_show(show_id):
     tariff = CfiTokenTariff.query.filter_by(action_name='private_show_view').first()
     token_cost = tariff.base_token_cost if tariff else 10
     
-    from app.models.culturalfire import
+    from app.models.auth import AitTokenWallet, AitTokenTransaction
     wallet = AitTokenWallet.query.filter_by(user_id=current_user.id).first()
     if not wallet or wallet.balance < token_cost:
         return jsonify({"success": False, "message": f"Insufficient tokens. You need {token_cost} tokens."})

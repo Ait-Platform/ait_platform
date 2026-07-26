@@ -2720,6 +2720,25 @@ def pageant_results(show_id):
 
     has_ended = (actual_scores >= expected_scores) and (expected_scores > 0)
     
+    # Calculate MC Scores
+    from app.models.culturalfire import CfiMcVote
+    mc_assignments = CfiMcAssignment.query.filter_by(show_id=show.id).all()
+    mc_scores = {}
+    from app.models.auth import User
+    for a in mc_assignments:
+        user = User.query.get(a.mc_id)
+        if user:
+            mc_scores[user.id] = {'name': user.name, 'total_score': 0}
+            
+    mc_votes_records = CfiMcVote.query.filter_by(show_id=show.id).all()
+    for v in mc_votes_records:
+        if v.mc_id in mc_scores:
+            mc_scores[v.mc_id]['total_score'] += v.score
+        elif v.mc:
+            mc_scores[v.mc_id] = {'name': v.mc.name, 'total_score': v.score}
+            
+    ranked_mcs = sorted(mc_scores.values(), key=lambda x: x['total_score'], reverse=True)
+    
     origin = request.args.get('origin')
     enrollment_id = request.args.get('enrollment_id', type=int)
 
@@ -2730,7 +2749,8 @@ def pageant_results(show_id):
         ordered_segments=ordered_segments,
         has_ended=has_ended,
         origin=origin,
-        enrollment_id=enrollment_id
+        enrollment_id=enrollment_id,
+        ranked_mcs=ranked_mcs
     )
 
 
@@ -2776,6 +2796,25 @@ def pageant_winners(show_id):
 
     has_ended = (actual_scores >= expected_scores) and (expected_scores > 0)
     
+    # Calculate MC Scores to find best MC
+    from app.models.culturalfire import CfiMcVote
+    mc_assignments = CfiMcAssignment.query.filter_by(show_id=show.id).all()
+    mc_scores = {}
+    from app.models.auth import User
+    for a in mc_assignments:
+        user = User.query.get(a.mc_id)
+        if user:
+            mc_scores[user.id] = {'name': user.name, 'total_score': 0}
+            
+    mc_votes_records = CfiMcVote.query.filter_by(show_id=show.id).all()
+    for v in mc_votes_records:
+        if v.mc_id in mc_scores:
+            mc_scores[v.mc_id]['total_score'] += v.score
+        elif v.mc:
+            mc_scores[v.mc_id] = {'name': v.mc.name, 'total_score': v.score}
+            
+    ranked_mcs = sorted(mc_scores.values(), key=lambda x: x['total_score'], reverse=True)
+    
     origin = request.args.get('origin')
     enrollment_id = request.args.get('enrollment_id', type=int)
 
@@ -2785,7 +2824,8 @@ def pageant_winners(show_id):
         top_3=top_3,
         has_ended=has_ended,
         origin=origin,
-        enrollment_id=enrollment_id
+        enrollment_id=enrollment_id,
+        ranked_mcs=ranked_mcs
     )
 
 @cultural_bp.route("/judge/dashboard")

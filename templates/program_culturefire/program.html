@@ -156,7 +156,7 @@
                   {{ sub.user_enrollment.biodata.full_name if sub.user_enrollment and sub.user_enrollment.biodata else (sub.user_enrollment.user.name if sub.user_enrollment and sub.user_enrollment.user else 'Unknown Participant') }}
                 </td>
                 <td class="px-6 py-4 text-sm text-gray-600">
-                  {{ sub.user_enrollment.country_code or 'Unknown' }}
+                  {{ sub.user_enrollment.country_code if sub.user_enrollment else 'Unknown' }}
                 </td>
                 <td class="px-6 py-4 text-sm text-gray-600">
                   {{ sub.user_enrollment.biodata.gender.title() if sub.user_enrollment and sub.user_enrollment.biodata and sub.user_enrollment.biodata.gender else 'Unknown' }}
@@ -168,7 +168,7 @@
                   {% if sub.group_members and sub.group_members|length > 0 %}
                     <ul class="list-disc list-inside">
                       {% for gm in sub.group_members %}
-                        <li>{{ gm.enrollment.user.name }}</li>
+                        <li>{{ gm.enrollment.user.name if gm.enrollment and gm.enrollment.user else 'Unknown Participant' }}</li>
                       {% endfor %}
                     </ul>
                   {% else %}

@@ -2414,7 +2414,7 @@ def segment_form(enrollment_id, category_id):
             CfiTalentSubmission.user_id == current_user.id,
             CfiTalentSubmission.talent_name == 'Q&A',
             CfiTalentSubmission.custom_talent.isnot(None),
-            CfiTalentSubmission.show_id != show_id
+            CfiTalentSubmission.show_id != show.id if show else None
         ).all()
         
         used_question_ids = []

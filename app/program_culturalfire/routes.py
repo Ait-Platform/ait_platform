@@ -1302,6 +1302,8 @@ def showcase_dashboard():
         accesses = CfiShowAccess.query.filter_by(user_id=current_user.id).all()
         unlocked_private_show_ids = [a.show_id for a in accesses]
 
+    private_shows = sorted(private_shows, key=get_show_order)
+
     pageant_segments = [s for s in CfiPageantSegment.query.all() if s.name.lower() not in ('sponsor', 'supporter')]
 
     # Collect related data

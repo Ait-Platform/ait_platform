@@ -3763,3 +3763,73 @@ def delete_ad(ad_id):
     
     flash(f"Ad successfully deleted and {cost} tokens refunded.", "success")
     return redirect(url_for('cultural_bp.advertiser_dashboard'))
+
+@cultural_bp.route("/admin/migrate_pageants")
+@login_required
+def migrate_pageants():
+    if current_user.role != UserRole.ADMIN:
+        flash("Unauthorized", "danger")
+        return redirect(url_for('cultural_bp.cultural_fire_router'))
+        
+    pageant_shows = CfiShow.query.filter(
+        CfiShow.title.notlike("% - %"),
+        CfiShow.title.like("%Pageant%")
+    ).all()
+
+    count = 0
+    for show in pageant_shows:
+        items = CfiSegmentItem.query.filter_by(show_id=show.id).all()
+        
+        if not items:
+            show.title = f"{show.title} - Ramp Walk"
+            db.session.commit()
+            count += 1
+            continue
+            
+        gender = "Female"
+        first_item = items[0]
+        enrollment = UserEnrollment.query.get(first_item.enrollment_id)
+        if enrollment:
+            biodata = CfiBiodata.query.filter_by(user_id=enrollment.user_id).first()
+            if biodata and biodata.gender:
+                gender = biodata.gender
+                
+        import re
+        match = re.search(r"Show (\d+)", show.title)
+        show_num = match.group(1) if match else "1"
+        base_title = f"Pageant ({gender}) Show {show_num}"
+        
+        original_show_id = show.id
+        show.title = f"{base_title} - Ramp Walk"
+        
+        segments = [s for s in CfiPageantSegment.query.all() if s.name.lower() not in ('sponsor', 'supporter')]
+        segment_to_show_map = {}
+        for seg in segments:
+            if seg.name.lower() in ["ramp walk", "ramp_walk"]:
+                segment_to_show_map[seg.name] = original_show_id
+            else:
+                new_show = CfiShow(
+                    title=f"{base_title} - {seg.name}",
+                    description=f"{show.description} for {seg.name}",
+                    start_date=show.start_date,
+                    location=show.location,
+                    status=show.status,
+                    category_item_id=show.category_item_id
+                )
+                db.session.add(new_show)
+                db.session.commit()
+                segment_to_show_map[seg.name] = new_show.id
+                
+        for item in items:
+            normalized_type = item.segment_type.replace("_", " ").title()
+            if normalized_type == "Qna": normalized_type = "Q&A"
+            if normalized_type == "Q And A": normalized_type = "Q&A"
+            matched_key = next((k for k in segment_to_show_map.keys() if k.lower() == normalized_type.lower()), None)
+            if matched_key:
+                item.show_id = segment_to_show_map[matched_key]
+                
+        db.session.commit()
+        count += 1
+        
+    flash(f"Migrated {count} old Pageant Shows to sequence format.", "success")
+    return redirect(url_for('cultural_bp.admin_dashboard'))

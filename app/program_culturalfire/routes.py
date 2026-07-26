@@ -1332,138 +1332,144 @@ def showcase_dashboard():
         sponsor_id=sponsor_id
     )
 
-@cultural_bp.route("/show/program/<int:show_id>")
+@cultural_bp.route("/showcase/program/<int:show_id>")
 @login_required
 def show_program(show_id):
-    origin = request.args.get("origin")
-    enrollment_id = request.args.get("enrollment_id")
-    show = CfiShow.query.get_or_404(show_id)
-    
-    from app.models.culturalfire import CfiPrivateShowGroup, CfiShowAccess, CfiGroup, CfiTalentSubmission, CfiSegmentItem, CfiMcAssignment, CfiJudgeAssignment
-    is_private_show = CfiPrivateShowGroup.query.filter_by(show_id=show.id).first() is not None
-    if is_private_show:
-        # Check if unlocked
-        access = CfiShowAccess.query.filter_by(user_id=current_user.id, show_id=show.id).first()
-        if not access:
-            flash("You must unlock this private show first.", "danger")
-            return redirect(url_for('cultural_bp.showcase_dashboard'))
-
-    if show.category_item and show.category_item.name == "Pageant":
-        segment_items = (CfiSegmentItem.query
-                       .filter_by(show_id=show.id)
-                       .options(joinedload(CfiSegmentItem.enrollment)
-                                .joinedload(UserEnrollment.biodata))
-                       .all())
+    try:
+        origin = request.args.get("origin")
+        enrollment_id = request.args.get("enrollment_id")
+        show = CfiShow.query.get_or_404(show_id)
         
-        # Group by segment_type
-        submissions_by_segment = {}
-        from app.models.culturalfire import CfiBiodata
-        for item in segment_items:
-            seg = (item.segment_type or "Unknown").replace('_', ' ').title()
-            if seg not in submissions_by_segment:
-                submissions_by_segment[seg] = []
-            
-            # Normalize attributes so it looks like a submission
-            item.user_enrollment = item.enrollment
-            item.talent_name = item.title
-            
-            if item.user_enrollment and not item.user_enrollment.biodata:
-                item.user_enrollment.biodata = CfiBiodata.query.filter_by(user_id=item.user_enrollment.user_id).first()
-                
-            if item.user_enrollment and item.user_enrollment.biodata and item.user_enrollment.biodata.dob:
-                item.user_enrollment.biodata.age_calc = calculate_age_from_dob(item.user_enrollment.biodata.dob)
-                
-            submissions_by_segment[seg].append(item)
-                
-        # Sort the dictionary by segment order
-        PAGEANT_ORDER = {
-            "ramp_walk": 1,
-            "intro": 2,
-            "talent": 3,
-            "traditional_wear": 4,
-            "formal_wear": 5,
-            "qna": 6,
-            "q&a": 6
-        }
-        
-        # Sort by mapping the title cased name back to its key, default to 99 if not found
-        sorted_segments = {}
-        for seg_key in sorted(submissions_by_segment.keys(), key=lambda k: PAGEANT_ORDER.get(k.replace(' ', '_').lower(), 99)):
-            sorted_segments[seg_key] = submissions_by_segment[seg_key]
-            
-        submissions_by_segment = sorted_segments
-            
-        submissions = None # We won't use the flat list for Pageants
-    else:
-        submissions_by_segment = None
-        submissions = list((CfiTalentSubmission.query
-                       .filter_by(show_id=show.id)
-                       .options(joinedload(CfiTalentSubmission.user_enrollment)
-                                .joinedload(UserEnrollment.biodata))
-                       .all()))
-                       
+        from app.models.culturalfire import CfiPrivateShowGroup, CfiShowAccess, CfiGroup, CfiTalentSubmission, CfiSegmentItem, CfiMcAssignment, CfiJudgeAssignment
+        is_private_show = CfiPrivateShowGroup.query.filter_by(show_id=show.id).first() is not None
         if is_private_show:
-            psg = CfiPrivateShowGroup.query.filter_by(show_id=show.id).first()
-            if psg and psg.group:
-                class MockSub:
-                    pass
-                for member in psg.group.group_members:
-                    sub = MockSub()
-                    sub.id = member.id
-                    sub.user_enrollment = member.enrollment
-                    sub.talent_name = "Private Show Member"
+            # Check if unlocked
+            access = CfiShowAccess.query.filter_by(user_id=current_user.id, show_id=show.id).first()
+            if not access:
+                flash("You must unlock this private show first.", "danger")
+                return redirect(url_for('cultural_bp.showcase_dashboard'))
+
+        if show.category_item and show.category_item.name == "Pageant":
+            segment_items = (CfiSegmentItem.query
+                           .filter_by(show_id=show.id)
+                           .options(joinedload(CfiSegmentItem.enrollment)
+                                    .joinedload(UserEnrollment.biodata))
+                           .all())
+            
+            # Group by segment_type
+            submissions_by_segment = {}
+            from app.models.culturalfire import CfiBiodata
+            for item in segment_items:
+                seg = (item.segment_type or "Unknown").replace('_', ' ').title()
+                if seg not in submissions_by_segment:
+                    submissions_by_segment[seg] = []
+                
+                # Normalize attributes so it looks like a submission
+                item.user_enrollment = item.enrollment
+                item.talent_name = item.title
+                
+                if item.user_enrollment and not item.user_enrollment.biodata:
+                    item.user_enrollment.biodata = CfiBiodata.query.filter_by(user_id=item.user_enrollment.user_id).first()
+                    
+                if item.user_enrollment and item.user_enrollment.biodata and item.user_enrollment.biodata.dob:
+                    item.user_enrollment.biodata.age_calc = calculate_age_from_dob(item.user_enrollment.biodata.dob)
+                    
+                submissions_by_segment[seg].append(item)
+                    
+            # Sort the dictionary by segment order
+            PAGEANT_ORDER = {
+                "ramp_walk": 1,
+                "intro": 2,
+                "talent": 3,
+                "traditional_wear": 4,
+                "formal_wear": 5,
+                "qna": 6,
+                "q&a": 6
+            }
+            
+            # Sort by mapping the title cased name back to its key, default to 99 if not found
+            sorted_segments = {}
+            for seg_key in sorted(submissions_by_segment.keys(), key=lambda k: PAGEANT_ORDER.get(k.replace(' ', '_').lower(), 99)):
+                sorted_segments[seg_key] = submissions_by_segment[seg_key]
+                
+            submissions_by_segment = sorted_segments
+            submissions = None # We won't use the flat list for Pageants
+        else:
+            submissions_by_segment = None
+            submissions = list((CfiTalentSubmission.query
+                           .filter_by(show_id=show.id)
+                           .options(joinedload(CfiTalentSubmission.user_enrollment)
+                                    .joinedload(UserEnrollment.biodata))
+                           .all()))
+                           
+            if is_private_show:
+                psg = CfiPrivateShowGroup.query.filter_by(show_id=show.id).first()
+                if psg and psg.group:
+                    class MockSub:
+                        pass
+                    for member in psg.group.group_members:
+                        sub = MockSub()
+                        sub.id = member.id
+                        sub.user_enrollment = member.enrollment
+                        sub.talent_name = "Private Show Member"
+                        sub.custom_talent = None
+                        sub.group_members = []
+                        sub.sponsors = []
+                        sub.supporters = []
+                        submissions.append(sub)
+
+            from app.models.culturalfire import CfiBiodata
+            for sub in submissions:
+                if not hasattr(sub, 'user_enrollment'):
+                    sub.user_enrollment = getattr(sub, 'enrollment', None)
+                if not hasattr(sub, 'talent_name'):
+                    sub.talent_name = getattr(sub, 'title', None)
+                if not hasattr(sub, 'custom_talent'):
                     sub.custom_talent = None
+                if not hasattr(sub, 'group_members'):
                     sub.group_members = []
+                if not hasattr(sub, 'sponsors'):
                     sub.sponsors = []
+                if not hasattr(sub, 'supporters'):
                     sub.supporters = []
-                    submissions.append(sub)
 
-        from app.models.culturalfire import CfiBiodata
-        for sub in submissions:
-            if not hasattr(sub, 'user_enrollment'):
-                sub.user_enrollment = getattr(sub, 'enrollment', None)
-            if not hasattr(sub, 'talent_name'):
-                sub.talent_name = getattr(sub, 'title', None)
-            if not hasattr(sub, 'custom_talent'):
-                sub.custom_talent = None
-            if not hasattr(sub, 'group_members'):
-                sub.group_members = []
-            if not hasattr(sub, 'sponsors'):
-                sub.sponsors = []
-            if not hasattr(sub, 'supporters'):
-                sub.supporters = []
+                if sub.user_enrollment and not sub.user_enrollment.biodata:
+                    sub.user_enrollment.biodata = CfiBiodata.query.filter_by(user_id=sub.user_enrollment.user_id).first()
 
-            if sub.user_enrollment and not sub.user_enrollment.biodata:
-                sub.user_enrollment.biodata = CfiBiodata.query.filter_by(user_id=sub.user_enrollment.user_id).first()
+                if sub.user_enrollment and sub.user_enrollment.biodata and sub.user_enrollment.biodata.dob:
+                    sub.user_enrollment.biodata.age_calc = calculate_age_from_dob(sub.user_enrollment.biodata.dob)
 
-            if sub.user_enrollment and sub.user_enrollment.biodata and sub.user_enrollment.biodata.dob:
-                sub.user_enrollment.biodata.age_calc = calculate_age_from_dob(sub.user_enrollment.biodata.dob)
+        from app.models.auth import User
+        mc_assignments = CfiMcAssignment.query.filter_by(show_id=show.id).all()
+        judge_assignments = CfiJudgeAssignment.query.filter_by(show_id=show.id).all()
+        from app.models.culturalfire import CfiShowAd
+        ads = CfiShowAd.query.filter_by(show_id=show.id).all()
+        
+        mc_ids = [a.mc_id for a in mc_assignments if getattr(a, 'mc_id', None)]
+        show_mcs = [u.name for u in User.query.filter(User.id.in_(mc_ids)).all()] if mc_ids else []
+        
+        judge_ids = [a.judge_id for a in judge_assignments if getattr(a, 'judge_id', None)]
+        show_judges = [u.name for u in User.query.filter(User.id.in_(judge_ids)).all()] if judge_ids else []
+        
+        ad_user_ids = [ad.user_id for ad in ads if getattr(ad, 'user_id', None)]
+        show_advertisers = [u.name for u in User.query.filter(User.id.in_(ad_user_ids)).all()] if ad_user_ids else []
 
-    from app.models.auth import User
-    mc_assignments = CfiMcAssignment.query.filter_by(show_id=show.id).all()
-    judge_assignments = CfiJudgeAssignment.query.filter_by(show_id=show.id).all()
-    from app.models.culturalfire import CfiShowAd
-    ads = CfiShowAd.query.filter_by(show_id=show.id).all()
-    
-    mc_ids = [a.mc_id for a in mc_assignments if getattr(a, 'mc_id', None)]
-    show_mcs = [u.name for u in User.query.filter(User.id.in_(mc_ids)).all()] if mc_ids else []
-    
-    judge_ids = [a.judge_id for a in judge_assignments if getattr(a, 'judge_id', None)]
-    show_judges = [u.name for u in User.query.filter(User.id.in_(judge_ids)).all()] if judge_ids else []
-    
-    ad_user_ids = [ad.user_id for ad in ads if getattr(ad, 'user_id', None)]
-    show_advertisers = [u.name for u in User.query.filter(User.id.in_(ad_user_ids)).all()] if ad_user_ids else []
-
-    return render_template("program_culturefire/program.html",
-                           show=show,
-                           submissions=submissions,
-                           submissions_by_segment=submissions_by_segment,
-                           origin=origin,
-                           enrollment_id=enrollment_id,
-                           show_mcs=show_mcs,
-                           show_judges=show_judges,
-                           show_advertisers=show_advertisers
-                           )
+        return render_template("program_culturefire/program.html",
+                               show=show,
+                               submissions=submissions,
+                               submissions_by_segment=submissions_by_segment,
+                               origin=origin,
+                               enrollment_id=enrollment_id,
+                               show_mcs=show_mcs,
+                               show_judges=show_judges,
+                               show_advertisers=show_advertisers
+                               )
+    except Exception as e:
+        import traceback
+        error_msg = f"Error in show_program: {str(e)} | Trace: {traceback.format_exc()}"
+        print(error_msg)
+        flash(f"System Error: {str(e)}", "danger")
+        return redirect(url_for('cultural_bp.showcase_dashboard'))
 
 @cultural_bp.route("/show/watch/<int:show_id>")
 @login_required

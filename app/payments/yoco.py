@@ -271,7 +271,7 @@ def success():
 
     # ---------- CFI TOPUP SUCCESS ----------
     if subject.lower() == "cultural_fire_topup":
-        from app.models.culturalfire import CfiWallet, CfiTokenTransaction
+        from app.models.auth import AitTokenWallet, AitTokenTransaction
         
         # Check if this is a sponsored topup for another participant
         target_participant_id = session.pop("topup_participant_id", None)
@@ -288,16 +288,16 @@ def success():
                 target_user_id = target_enrollment
                 sponsor_desc = f"Sponsored Top-Up by {u.name or email}"
 
-        wallet = CfiWallet.query.filter_by(user_id=target_user_id).first()
+        wallet = AitTokenWallet.query.filter_by(user_id=target_user_id).first()
         if not wallet:
-            wallet = CfiWallet(user_id=target_user_id, balance=0)
+            wallet = AitTokenWallet(user_id=target_user_id, balance=0)
             db.session.add(wallet)
             db.session.flush()
             
         amount_tokens = int(session.pop("topup_tokens", 0) or (int(session.get("zar_amount_cents", 0)) // 100))
         if amount_tokens > 0:
             wallet.balance += amount_tokens
-            txn = CfiTokenTransaction(
+            txn = AitTokenTransaction(
                 wallet_id=wallet.id,
                 amount=amount_tokens,
                 description=sponsor_desc
@@ -418,15 +418,15 @@ def success():
             
         # Provision CFI Tokens if the subject is Cultural Fire
         if subject.lower() == "cultural_fire" or subject.lower() == "culturalfire":
-            from app.models.culturalfire import CfiWallet, CfiTokenTransaction
-            wallet = CfiWallet.query.filter_by(user_id=u.id).first()
+            from app.models.auth import AitTokenWallet, AitTokenTransaction
+            wallet = AitTokenWallet.query.filter_by(user_id=u.id).first()
             if not wallet:
-                wallet = CfiWallet(user_id=u.id, balance=0)
+                wallet = AitTokenWallet(user_id=u.id, balance=0)
                 db.session.add(wallet)
                 db.session.flush()
             
             wallet.balance += 200
-            txn = CfiTokenTransaction(
+            txn = AitTokenTransaction(
                 wallet_id=wallet.id,
                 amount=200,
                 description="Initial Registration Bundle (200 Tokens)"

@@ -443,15 +443,15 @@ def register_decision():
                 
                 # If it's a Cultural Fire voucher, add tokens to wallet
                 if subject in ("cultural_fire", "culturalfire"):
-                    from app.models.culturalfire import CfiWallet, CfiTokenTransaction
-                    wallet = CfiWallet.query.filter_by(user_id=user_id).first()
+                    from app.models.auth import AitTokenWallet, AitTokenTransaction
+                    wallet = AitTokenWallet.query.filter_by(user_id=user_id).first()
                     if not wallet:
-                        wallet = CfiWallet(user_id=user_id, balance=0)
+                        wallet = AitTokenWallet(user_id=user_id, balance=0)
                         db.session.add(wallet)
                         db.session.flush()
                     wallet.balance += v_obj.value_amount
                     
-                    txn = CfiTokenTransaction(
+                    txn = AitTokenTransaction(
                         wallet_id=wallet.id,
                         amount=v_obj.value_amount,
                         description=f"Redeemed voucher {voucher}"

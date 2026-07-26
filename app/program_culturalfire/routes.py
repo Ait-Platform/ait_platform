@@ -1474,277 +1474,284 @@ def show_program(show_id):
 @cultural_bp.route("/show/watch/<int:show_id>")
 @login_required
 def watch_show(show_id):
-    show = CfiShow.query.get_or_404(show_id)
+    try:
+        show = CfiShow.query.get_or_404(show_id)
 
-    def get_url(url):
-        if not url:
-            return ""
-        if url.startswith('/static/uploads/'):
-            return url_for("cultural_bp.uploaded_file", filename=url.replace('/static/uploads/', ''))
-        if url.startswith('cfi/'):
-            url = url[4:]
-        res = url_for("cultural_bp.uploaded_file", filename=url) if not url.startswith('uploads/') else url_for("cultural_bp.uploaded_file", filename=url.replace('uploads/', ''))
-        return res
+        def get_url(url):
+            if not url:
+                return ""
+            if url.startswith('/static/uploads/'):
+                return url_for("cultural_bp.uploaded_file", filename=url.replace('/static/uploads/', ''))
+            if url.startswith('cfi/'):
+                url = url[4:]
+            res = url_for("cultural_bp.uploaded_file", filename=url) if not url.startswith('uploads/') else url_for("cultural_bp.uploaded_file", filename=url.replace('uploads/', ''))
+            return res
 
-    if show.category_item and show.category_item.name == "Pageant":
-        submissions = (CfiSegmentItem.query
-                       .filter_by(show_id=show.id)
-                       .options(db.joinedload(CfiSegmentItem.enrollment))
-                       .all())
-        submissions_data = []
-        from app.models.culturalfire import CfiTalentSubmission, CfiPageantQuestion
-        for sub in submissions:
-            if not sub.video_url:
-                continue
-            question_text = ""
-            if sub.segment_type in ["Q&A", "qna", "q_and_a"]:
-                ts = CfiTalentSubmission.query.filter_by(
-                    user_enrollment_id=sub.enrollment_id, 
-                    show_id=show.id, 
-                    talent_name="Q&A"
-                ).first()
-                if ts and ts.custom_talent and ts.custom_talent.isdigit():
-                    q = CfiPageantQuestion.query.get(int(ts.custom_talent))
-                    if q:
-                        question_text = q.question_text
-
-            submissions_data.append({
-                "id": sub.id,
-                "title": sub.title or "Untitled",
-                "segment_type": sub.segment_type,
-                "src": get_url(sub.video_url),
-                "user_id": sub.enrollment.user_id if sub.enrollment else None,
-                "question_text": question_text
-            })
-    else:
-        submissions = (
-            CfiTalentSubmission.query
-            .filter_by(show_id=show.id)
-            .all()
-        )
-        submissions_data = [
-            {
-                "id": sub.id,
-                "title": sub.talent_name or sub.custom_talent or "Untitled",
-                "segment_type": "all",
-                "src": get_url(file.filename),
-                "user_id": sub.user_id
-            }
-            for sub in submissions
-            for file in (sub.files or [])
-            if file and file.filename
-        ]
-
-    # Inject has_voted for current user
-    for sub in submissions_data:
         if show.category_item and show.category_item.name == "Pageant":
-            existing_vote = CfiShowcaseVote.query.filter_by(user_id=current_user.id, segment_item_id=sub['id']).first()
+            submissions = (CfiSegmentItem.query
+                           .filter_by(show_id=show.id)
+                           .options(db.joinedload(CfiSegmentItem.enrollment))
+                           .all())
+            submissions_data = []
+            from app.models.culturalfire import CfiTalentSubmission, CfiPageantQuestion
+            for sub in submissions:
+                if not sub.video_url:
+                    continue
+                question_text = ""
+                if sub.segment_type in ["Q&A", "qna", "q_and_a"]:
+                    ts = CfiTalentSubmission.query.filter_by(
+                        user_enrollment_id=sub.enrollment_id, 
+                        show_id=show.id, 
+                        talent_name="Q&A"
+                    ).first()
+                    if ts and ts.custom_talent and ts.custom_talent.isdigit():
+                        q = CfiPageantQuestion.query.get(int(ts.custom_talent))
+                        if q:
+                            question_text = q.question_text
+
+                submissions_data.append({
+                    "id": sub.id,
+                    "title": sub.title or "Untitled",
+                    "segment_type": sub.segment_type,
+                    "src": get_url(sub.video_url),
+                    "user_id": sub.enrollment.user_id if sub.enrollment else None,
+                    "question_text": question_text
+                })
         else:
-            existing_vote = CfiShowcaseVote.query.filter_by(user_id=current_user.id, submission_id=sub['id']).first()
-        sub['has_voted'] = bool(existing_vote)
+            submissions = (
+                CfiTalentSubmission.query
+                .filter_by(show_id=show.id)
+                .all()
+            )
+            submissions_data = [
+                {
+                    "id": sub.id,
+                    "title": sub.talent_name or sub.custom_talent or "Untitled",
+                    "segment_type": "all",
+                    "src": get_url(file.filename),
+                    "user_id": sub.user_id
+                }
+                for sub in submissions
+                for file in (sub.files or [])
+                if file and file.filename
+            ]
 
-    # We no longer need available_segments for Pageants since each show is exactly one segment.
-    available_segments = []
+        # Inject has_voted for current user
+        for sub in submissions_data:
+            if show.category_item and show.category_item.name == "Pageant":
+                existing_vote = CfiShowcaseVote.query.filter_by(user_id=current_user.id, segment_item_id=sub['id']).first()
+            else:
+                existing_vote = CfiShowcaseVote.query.filter_by(user_id=current_user.id, submission_id=sub['id']).first()
+            sub['has_voted'] = bool(existing_vote)
 
-    # Build Unified Playlist
-    recordings = CfiMcRecording.query.filter_by(show_id=show.id).order_by(CfiMcRecording.id.desc()).all()
-    from app.models.culturalfire import CfiShowAd
-    ads = CfiShowAd.query.filter_by(show_id=show.id).all()
-    
-    show_intro = next((r for r in recordings if r.recording_type == 'show_intro'), None)
-    show_outro = next((r for r in recordings if r.recording_type == 'show_outro'), None)
+        # We no longer need available_segments for Pageants since each show is exactly one segment.
+        available_segments = []
 
-    for s in submissions_data:
-        s['item_type'] = 'act'
+        # Build Unified Playlist
+        recordings = CfiMcRecording.query.filter_by(show_id=show.id).order_by(CfiMcRecording.id.desc()).all()
+        from app.models.culturalfire import CfiShowAd
+        ads = CfiShowAd.query.filter_by(show_id=show.id).all()
         
-    unified_playlist = []
-    
-    first_segment = 'all'
-    last_segment = 'all'
-    
-    middle_index = max(1, len(submissions_data) // 2)
-    
-    # Pre-show Ads (position_index == 0)
-    pre_show_ads = [ad for ad in ads if ad.position_index == 0]
-    for ad in pre_show_ads:
-        unified_playlist.append({
-            "id": f"ad_{ad.id}",
-            "title": "Sponsor Message",
-            "segment_type": first_segment,
-            "src": get_url(ad.video_url),
-            "item_type": "ad",
-            "has_voted": False,
-            "user_id": ad.user_id
-        })
-    
-    if show_intro:
-        unified_playlist.append({
-            "id": f"mc_intro_{show_intro.id}",
-            "title": "Welcome to the Show!",
-            "segment_type": first_segment,
-            "src": get_url(show_intro.media_url),
-            "item_type": "mc",
-            "has_voted": False,
-            "user_id": None
-        })
-        
-    for idx, act in enumerate(submissions_data):
-        if show.category_item and show.category_item.name == "Pageant":
-            act_intro = next((r for r in recordings if r.recording_type == 'act_intro' and str(r.segment_item_id) == str(act['id'])), None)
-        else:
-            act_intro = next((r for r in recordings if r.recording_type == 'act_intro' and str(r.submission_id) == str(act['id'])), None)
+        show_intro = next((r for r in recordings if r.recording_type == 'show_intro'), None)
+        show_outro = next((r for r in recordings if r.recording_type == 'show_outro'), None)
+
+        for s in submissions_data:
+            s['item_type'] = 'act'
             
-        if act_intro:
+        unified_playlist = []
+        
+        first_segment = 'all'
+        last_segment = 'all'
+        
+        middle_index = max(1, len(submissions_data) // 2)
+        
+        # Pre-show Ads (position_index == 0)
+        pre_show_ads = [ad for ad in ads if ad.position_index == 0]
+        for ad in pre_show_ads:
             unified_playlist.append({
-                "id": f"mc_act_{act_intro.id}",
-                "title": f"MC Intro: {act['title']}",
-                "segment_type": act['segment_type'],
-                "src": get_url(act_intro.media_url),
+                "id": f"ad_{ad.id}",
+                "title": "Sponsor Message",
+                "segment_type": first_segment,
+                "src": get_url(ad.video_url),
+                "item_type": "ad",
+                "has_voted": False,
+                "user_id": ad.user_id
+            })
+        
+        if show_intro:
+            unified_playlist.append({
+                "id": f"mc_intro_{show_intro.id}",
+                "title": "Welcome to the Show!",
+                "segment_type": first_segment,
+                "src": get_url(show_intro.media_url),
                 "item_type": "mc",
                 "has_voted": False,
                 "user_id": None
             })
             
-        unified_playlist.append(act)
-        
-        # Insert mid-show ads (position_index between 1 and 98) exactly after the middle act
-        if idx + 1 == middle_index:
-            mid_ads = [ad for ad in ads if 1 <= ad.position_index <= 98]
-            for ad in mid_ads:
+        for idx, act in enumerate(submissions_data):
+            if show.category_item and show.category_item.name == "Pageant":
+                act_intro = next((r for r in recordings if r.recording_type == 'act_intro' and str(r.segment_item_id) == str(act['id'])), None)
+            else:
+                act_intro = next((r for r in recordings if r.recording_type == 'act_intro' and str(r.submission_id) == str(act['id'])), None)
+                
+            if act_intro:
                 unified_playlist.append({
-                    "id": f"ad_{ad.id}",
-                    "title": "Sponsor Message",
+                    "id": f"mc_act_{act_intro.id}",
+                    "title": f"MC Intro: {act['title']}",
                     "segment_type": act['segment_type'],
-                    "src": get_url(ad.video_url),
-                    "item_type": "ad",
+                    "src": get_url(act_intro.media_url),
+                    "item_type": "mc",
                     "has_voted": False,
-                    "user_id": ad.user_id
+                    "user_id": None
                 })
+                
+            unified_playlist.append(act)
+            
+            # Insert mid-show ads (position_index between 1 and 98) exactly after the middle act
+            if idx + 1 == middle_index:
+                mid_ads = [ad for ad in ads if 1 <= ad.position_index <= 98]
+                for ad in mid_ads:
+                    unified_playlist.append({
+                        "id": f"ad_{ad.id}",
+                        "title": "Sponsor Message",
+                        "segment_type": act['segment_type'],
+                        "src": get_url(ad.video_url),
+                        "item_type": "ad",
+                        "has_voted": False,
+                        "user_id": ad.user_id
+                    })
+            
+        # Insert post-show ads (position_index == 99)
+        outro_ads = [ad for ad in ads if ad.position_index == 99]
+        for ad in outro_ads:
+            unified_playlist.append({
+                "id": f"ad_{ad.id}",
+                "title": "Sponsor Message",
+                "segment_type": last_segment,
+                "src": get_url(ad.video_url),
+                "item_type": "ad",
+                "has_voted": False,
+                "user_id": ad.user_id
+            })
+            
+        if show_outro:
+            # Check if the user has already voted for the MC
+            has_mc_voted = False
+            if current_user.is_authenticated:
+                from app.models.culturalfire import CfiMcVote
+                mc_assignment = CfiMcAssignment.query.filter_by(show_id=show.id).first()
+                if mc_assignment:
+                    existing_mc_vote = CfiMcVote.query.filter_by(user_id=current_user.id, show_id=show.id, mc_id=mc_assignment.mc_id).first()
+                    if existing_mc_vote:
+                        has_mc_voted = True
+
+            unified_playlist.append({
+                "id": f"mc_outro_{show_outro.id}",
+                "title": "Farewell & Wrap-up",
+                "segment_type": last_segment,
+                "src": get_url(show_outro.media_url),
+                "item_type": "mc",
+                "has_voted": has_mc_voted,
+                "user_id": None
+            })
+            
+        submissions_data = unified_playlist
+
+        origin = request.args.get("origin")
+        enrollment_id = request.args.get("enrollment_id")
+
+        is_judge = CfiJudgeAssignment.query.filter_by(show_id=show.id, judge_id=current_user.id).first() is not None
+        is_mc = CfiMcAssignment.query.filter_by(show_id=show.id, mc_id=current_user.id).first() is not None
         
-    # Insert post-show ads (position_index == 99)
-    outro_ads = [ad for ad in ads if ad.position_index == 99]
-    for ad in outro_ads:
-        unified_playlist.append({
-            "id": f"ad_{ad.id}",
-            "title": "Sponsor Message",
-            "segment_type": last_segment,
-            "src": get_url(ad.video_url),
-            "item_type": "ad",
-            "has_voted": False,
-            "user_id": ad.user_id
-        })
+        # Judging Criteria setup
+        cat_name = show.category_item.name if show.category_item else "Unknown"
+        cat_lower = cat_name.lower()
+        if "pageant" in cat_lower:
+            judge_criteria = [
+                {"id": "crit1", "label": "Confidence / Poise", "desc": "Grace under pressure and self-assurance."},
+                {"id": "crit2", "label": "Walk / Posture", "desc": "Elegance, balance, and physical carriage."},
+                {"id": "crit3", "label": "Outfit / Presentation", "desc": "Suitability, fit, and overall styling."},
+                {"id": "crit4", "label": "Personality", "desc": "Charm, likability, and natural flair."},
+                {"id": "crit5", "label": "Overall Impression", "desc": "The complete package and final takeaway."}
+            ]
+        elif "danc" in cat_lower:
+            judge_criteria = [
+                {"id": "crit1", "label": "Technique", "desc": "Proper execution of movements, posture, and alignment."},
+                {"id": "crit2", "label": "Rhythm / Timing", "desc": "Synchronization with the music's beat."},
+                {"id": "crit3", "label": "Choreography", "desc": "Complexity and structural flow of the routine."},
+                {"id": "crit4", "label": "Stage Presence", "desc": "Energy, confidence, and projection to the audience."},
+                {"id": "crit5", "label": "Expression", "desc": "Emotion and storytelling through movement."}
+            ]
+        elif "sing" in cat_lower or "music" in cat_lower or "vocal" in cat_lower or "choir" in cat_lower or cat_name == "Singing":
+            judge_criteria = [
+                {"id": "crit1", "label": "Vocal Quality", "desc": "Tone, breath control, and clarity of voice."},
+                {"id": "crit2", "label": "Pitch / Intonation", "desc": "Hitting the correct notes without being sharp or flat."},
+                {"id": "crit3", "label": "Rhythm / Timing", "desc": "Staying on beat with the music."},
+                {"id": "crit4", "label": "Stage Presence", "desc": "Charisma, eye contact, and audience connection."},
+                {"id": "crit5", "label": "Creativity", "desc": "Originality or unique arrangement of the piece."}
+            ]
+        else:
+            # Generic Criteria for Speech, Poetry, Drama, Magic, and anything else not explicitly listed
+            judge_criteria = [
+                {"id": "crit1", "label": "Content & Material", "desc": "Originality, depth, and creative quality of the performance."},
+                {"id": "crit2", "label": "Execution & Delivery", "desc": "Clarity of delivery, diction, pacing, and overall mastery."},
+                {"id": "crit3", "label": "Stage Presence", "desc": "Charisma, emotional connection, and engaging the audience."},
+                {"id": "crit4", "label": "Structure & Flow", "desc": "Smooth transitions, logical progression, and dynamic rhythm."},
+                {"id": "crit5", "label": "Overall Impact", "desc": "Memorability, resonance, and complete performance impression."}
+            ]
+
+        from app.models.auth import User
+        mc_assignments = CfiMcAssignment.query.filter_by(show_id=show.id).all()
+        judge_assignments = CfiJudgeAssignment.query.filter_by(show_id=show.id).all()
         
-    if show_outro:
-        # Check if the user has already voted for the MC
-        has_mc_voted = False
-        if current_user.is_authenticated:
-            from app.models.culturalfire import CfiMcVote
-            mc_assignment = CfiMcAssignment.query.filter_by(show_id=show.id).first()
-            if mc_assignment:
-                existing_mc_vote = CfiMcVote.query.filter_by(user_id=current_user.id, show_id=show.id, mc_id=mc_assignment.mc_id).first()
-                if existing_mc_vote:
-                    has_mc_voted = True
+        show_mcs = list(set([User.query.get(a.mc_id).name for a in mc_assignments if User.query.get(a.mc_id)]))
+        show_judges = list(set([User.query.get(a.judge_id).name for a in judge_assignments if User.query.get(a.judge_id)]))
+        show_advertisers = list(set([User.query.get(ad.user_id).name for ad in ads if User.query.get(ad.user_id)]))
 
-        unified_playlist.append({
-            "id": f"mc_outro_{show_outro.id}",
-            "title": "Farewell & Wrap-up",
-            "segment_type": last_segment,
-            "src": get_url(show_outro.media_url),
-            "item_type": "mc",
-            "has_voted": has_mc_voted,
-            "user_id": None
-        })
+        mc_criteria = [
+            {"id": "mc_crit1", "label": "Clarity / Articulation", "desc": "Clear pronunciation and easy to understand."},
+            {"id": "mc_crit2", "label": "Enthusiasm / Energy", "desc": "Keeping the audience energized and involved."},
+            {"id": "mc_crit3", "label": "Professionalism", "desc": "Appropriate conduct, attire, and preparation."},
+            {"id": "mc_crit4", "label": "Audience Engagement", "desc": "Interacting well with the crowd and maintaining flow."},
+            {"id": "mc_crit5", "label": "Overall Impression", "desc": "The complete package and final takeaway."}
+        ]
+
         
-    submissions_data = unified_playlist
+        # Filter out flagged videos
+        from app.models.culturalfire import CfiVideoFlag
+        flagged_counts = db.session.query(CfiVideoFlag.video_id, db.func.count(CfiVideoFlag.id)).group_by(CfiVideoFlag.video_id).all()
+        banned_video_ids = {vid for vid, count in flagged_counts if count >= 3}
+        
+        filtered_playlist = []
+        for item in unified_playlist:
+            item_id_str = str(item.get("id"))
+            if item_id_str not in banned_video_ids:
+                filtered_playlist.append(item)
+        
+        unified_playlist = filtered_playlist
 
-    origin = request.args.get("origin")
-    enrollment_id = request.args.get("enrollment_id")
-
-    is_judge = CfiJudgeAssignment.query.filter_by(show_id=show.id, judge_id=current_user.id).first() is not None
-    is_mc = CfiMcAssignment.query.filter_by(show_id=show.id, mc_id=current_user.id).first() is not None
-    
-    # Judging Criteria setup
-    cat_name = show.category_item.name if show.category_item else "Unknown"
-    cat_lower = cat_name.lower()
-    if "pageant" in cat_lower:
-        judge_criteria = [
-            {"id": "crit1", "label": "Confidence / Poise", "desc": "Grace under pressure and self-assurance."},
-            {"id": "crit2", "label": "Walk / Posture", "desc": "Elegance, balance, and physical carriage."},
-            {"id": "crit3", "label": "Outfit / Presentation", "desc": "Suitability, fit, and overall styling."},
-            {"id": "crit4", "label": "Personality", "desc": "Charm, likability, and natural flair."},
-            {"id": "crit5", "label": "Overall Impression", "desc": "The complete package and final takeaway."}
-        ]
-    elif "danc" in cat_lower:
-        judge_criteria = [
-            {"id": "crit1", "label": "Technique", "desc": "Proper execution of movements, posture, and alignment."},
-            {"id": "crit2", "label": "Rhythm / Timing", "desc": "Synchronization with the music's beat."},
-            {"id": "crit3", "label": "Choreography", "desc": "Complexity and structural flow of the routine."},
-            {"id": "crit4", "label": "Stage Presence", "desc": "Energy, confidence, and projection to the audience."},
-            {"id": "crit5", "label": "Expression", "desc": "Emotion and storytelling through movement."}
-        ]
-    elif "sing" in cat_lower or "music" in cat_lower or "vocal" in cat_lower or "choir" in cat_lower or cat_name == "Singing":
-        judge_criteria = [
-            {"id": "crit1", "label": "Vocal Quality", "desc": "Tone, breath control, and clarity of voice."},
-            {"id": "crit2", "label": "Pitch / Intonation", "desc": "Hitting the correct notes without being sharp or flat."},
-            {"id": "crit3", "label": "Rhythm / Timing", "desc": "Staying on beat with the music."},
-            {"id": "crit4", "label": "Stage Presence", "desc": "Charisma, eye contact, and audience connection."},
-            {"id": "crit5", "label": "Creativity", "desc": "Originality or unique arrangement of the piece."}
-        ]
-    else:
-        # Generic Criteria for Speech, Poetry, Drama, Magic, and anything else not explicitly listed
-        judge_criteria = [
-            {"id": "crit1", "label": "Content & Material", "desc": "Originality, depth, and creative quality of the performance."},
-            {"id": "crit2", "label": "Execution & Delivery", "desc": "Clarity of delivery, diction, pacing, and overall mastery."},
-            {"id": "crit3", "label": "Stage Presence", "desc": "Charisma, emotional connection, and engaging the audience."},
-            {"id": "crit4", "label": "Structure & Flow", "desc": "Smooth transitions, logical progression, and dynamic rhythm."},
-            {"id": "crit5", "label": "Overall Impact", "desc": "Memorability, resonance, and complete performance impression."}
-        ]
-
-    from app.models.auth import User
-    mc_assignments = CfiMcAssignment.query.filter_by(show_id=show.id).all()
-    judge_assignments = CfiJudgeAssignment.query.filter_by(show_id=show.id).all()
-    
-    show_mcs = list(set([User.query.get(a.mc_id).name for a in mc_assignments if User.query.get(a.mc_id)]))
-    show_judges = list(set([User.query.get(a.judge_id).name for a in judge_assignments if User.query.get(a.judge_id)]))
-    show_advertisers = list(set([User.query.get(ad.user_id).name for ad in ads if User.query.get(ad.user_id)]))
-
-    mc_criteria = [
-        {"id": "mc_crit1", "label": "Clarity / Articulation", "desc": "Clear pronunciation and easy to understand."},
-        {"id": "mc_crit2", "label": "Enthusiasm / Energy", "desc": "Keeping the audience energized and involved."},
-        {"id": "mc_crit3", "label": "Professionalism", "desc": "Appropriate conduct, attire, and preparation."},
-        {"id": "mc_crit4", "label": "Audience Engagement", "desc": "Interacting well with the crowd and maintaining flow."},
-        {"id": "mc_crit5", "label": "Overall Impression", "desc": "The complete package and final takeaway."}
-    ]
-
-    
-    # Filter out flagged videos
-    from app.models.culturalfire import CfiVideoFlag
-    flagged_counts = db.session.query(CfiVideoFlag.video_id, db.func.count(CfiVideoFlag.id)).group_by(CfiVideoFlag.video_id).all()
-    banned_video_ids = {vid for vid, count in flagged_counts if count >= 3}
-    
-    filtered_playlist = []
-    for item in unified_playlist:
-        item_id_str = str(item.get("id"))
-        if item_id_str not in banned_video_ids:
-            filtered_playlist.append(item)
-    
-    unified_playlist = filtered_playlist
-
-    return render_template(
-        "program_culturefire/watch_show.html",
-        is_judge=is_judge,
-        is_mc=is_mc,
-        judge_criteria=judge_criteria,
-        mc_criteria=mc_criteria,
-        show=show,
-        submissions_data=submissions_data,
-        available_segments=available_segments,
-        origin=origin,
-        enrollment_id=enrollment_id,
-        show_mcs=show_mcs,
-        show_judges=show_judges,
-        show_advertisers=show_advertisers
-    )
+        return render_template(
+            "program_culturefire/watch_show.html",
+            is_judge=is_judge,
+            is_mc=is_mc,
+            judge_criteria=judge_criteria,
+            mc_criteria=mc_criteria,
+            show=show,
+            submissions_data=submissions_data,
+            available_segments=available_segments,
+            origin=origin,
+            enrollment_id=enrollment_id,
+            show_mcs=show_mcs,
+            show_judges=show_judges,
+            show_advertisers=show_advertisers
+        )
+    except Exception as e:
+        import traceback
+        error_msg = f"Error in watch_show: {str(e)} | Trace: {traceback.format_exc()}"
+        print(error_msg)
+        flash(f"System Error: {str(e)}", "danger")
+        return redirect(url_for('cultural_bp.showcase_dashboard'))
 
 @cultural_bp.route("/mc/script/<int:show_id>", methods=["GET"])
 @login_required

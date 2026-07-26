@@ -3155,8 +3155,7 @@ def select_mc_show(show_id):
     new_assignment = CfiMcAssignment(
         mc_id=current_user.id,
         show_id=show.id,
-        pageant_segment_id=assigned_segment_id,
-        role="Self-Assigned MC"
+        pageant_segment_id=assigned_segment_id
     )
     
     db.session.add(new_assignment)

@@ -3764,12 +3764,12 @@ def delete_ad(ad_id):
     flash(f"Ad successfully deleted and {cost} tokens refunded.", "success")
     return redirect(url_for('cultural_bp.advertiser_dashboard'))
 
-@cultural_bp.route("/admin/migrate_pageants")
+@cultural_bp.route("/cultural_fire/admin/migrate_pageants")
 @login_required
 def migrate_pageants():
-    if current_user.role != UserRole.ADMIN:
-        flash("Unauthorized", "danger")
-        return redirect(url_for('cultural_bp.cultural_fire_router'))
+    if not current_user.has_role('admin'):
+        flash("Unauthorized access.", "danger")
+        return redirect(url_for('auth_bp.bridge_dashboard'))
         
     pageant_shows = CfiShow.query.filter(
         CfiShow.title.notlike("% - %"),

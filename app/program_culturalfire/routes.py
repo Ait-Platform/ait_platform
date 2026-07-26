@@ -2801,9 +2801,9 @@ def judge_dashboard():
         if enrollment:
             back_enrollment_id = enrollment.id
 
-    from app.models.debtors import DebtorsWallet
-    wallet = DebtorsWallet.query.filter_by(user_id=current_user.id).first()
-    token_balance = wallet.token_balance if wallet else 0
+    from app.models.auth import AitTokenWallet
+    wallet = AitTokenWallet.query.filter_by(user_id=current_user.id).first()
+    token_balance = wallet.balance if wallet else 0
 
     # Check if they are currently assigned to any active shows
     active_assignments = CfiJudgeAssignment.query.join(CfiShow).filter(
@@ -3064,9 +3064,9 @@ def mc_dashboard():
         if enrollment:
             back_enrollment_id = enrollment.id
 
-    from app.models.debtors import DebtorsWallet
-    wallet = DebtorsWallet.query.filter_by(user_id=current_user.id).first()
-    token_balance = wallet.token_balance if wallet else 0
+    from app.models.auth import AitTokenWallet
+    wallet = AitTokenWallet.query.filter_by(user_id=current_user.id).first()
+    token_balance = wallet.balance if wallet else 0
 
     active_assignments = CfiMcAssignment.query.join(CfiShow).filter(
         CfiMcAssignment.mc_id == current_user.id,

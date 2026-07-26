@@ -166,7 +166,11 @@
                 </td>
                 <td class="px-6 py-4 text-sm text-gray-500">
                   {% if sub.group_members and sub.group_members|length > 0 %}
-                    Group ({{ sub.group_members|length }})
+                    <ul class="list-disc list-inside">
+                      {% for gm in sub.group_members %}
+                        <li>{{ gm.enrollment.user.name }}</li>
+                      {% endfor %}
+                    </ul>
                   {% else %}
                     -
                   {% endif %}

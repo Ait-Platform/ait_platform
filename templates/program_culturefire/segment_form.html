@@ -62,18 +62,6 @@
 
       <div id="upload_section" class="{% if segment.name == 'Q&A' and not (submission and submission.custom_talent) %}hidden{% endif %}">
         
-        <!-- Tab Navigation for Upload vs URL -->
-        <div class="mb-4">
-          <div class="flex border-b border-gray-200">
-            <button type="button" onclick="document.getElementById('file_upload_div').classList.remove('hidden'); document.getElementById('url_upload_div').classList.add('hidden'); this.classList.add('border-indigo-500', 'text-indigo-600'); this.classList.remove('border-transparent', 'text-gray-500'); document.getElementById('url_tab_btn').classList.remove('border-indigo-500', 'text-indigo-600'); document.getElementById('url_tab_btn').classList.add('border-transparent', 'text-gray-500');" class="w-1/2 py-2 px-1 text-center border-b-2 border-indigo-500 text-indigo-600 font-medium text-sm" id="file_tab_btn">
-              Upload Video File
-            </button>
-            <button type="button" id="url_tab_btn" onclick="document.getElementById('url_upload_div').classList.remove('hidden'); document.getElementById('file_upload_div').classList.add('hidden'); this.classList.add('border-indigo-500', 'text-indigo-600'); this.classList.remove('border-transparent', 'text-gray-500'); document.getElementById('file_tab_btn').classList.remove('border-indigo-500', 'text-indigo-600'); document.getElementById('file_tab_btn').classList.add('border-transparent', 'text-gray-500');" class="w-1/2 py-2 px-1 text-center border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 font-medium text-sm">
-              Provide Video URL
-            </button>
-          </div>
-        </div>
-
         <div id="file_upload_div" class="mb-4">
           <label class="block text-gray-700 text-sm font-bold mb-2">Video File</label>
           <input type="file"
@@ -81,15 +69,6 @@
                  accept="video/*"
                  class="block w-full text-sm text-gray-600 border rounded px-3 py-2">
           <p class="text-xs text-gray-500 mt-1">Supported formats: MP4, MOV, AVI, MKV, WEBM</p>
-        </div>
-
-        <div id="url_upload_div" class="mb-4 hidden">
-          <label class="block text-gray-700 text-sm font-bold mb-2">Video URL (e.g. YouTube, Google Drive)</label>
-          <input type="url"
-                 name="video_url_input"
-                 placeholder="https://youtube.com/watch?v=..."
-                 class="block w-full text-sm text-gray-600 border rounded px-3 py-2 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500">
-          <p class="text-xs text-gray-500 mt-1">Make sure the link is publicly accessible.</p>
         </div>
 
         <button type="submit"

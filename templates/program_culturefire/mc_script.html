@@ -58,9 +58,7 @@
             <input type="hidden" name="type" value="{% if show.category_item and show.category_item.name == 'Pageant' %}pageant{% else %}talent{% endif %}">
             <div class="flex flex-col gap-2">
               <input type="file" name="file" accept="video/*,audio/*" capture="environment" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100">
-              <div class="flex items-center gap-2">
-                <span class="text-xs text-gray-500 font-bold">OR</span>
-                <input type="url" name="video_url_input" placeholder="Paste Video URL..." class="flex-grow border border-gray-300 rounded p-2 text-sm focus:ring-purple-500 focus:border-purple-500">
+              <div class="flex items-center gap-2 mt-2">
                 <button type="submit" class="bg-purple-600 text-white px-4 py-2 rounded-full font-bold hover:bg-purple-700 transition shadow-sm text-sm whitespace-nowrap">Upload</button>
               </div>
             </div>
@@ -126,10 +124,8 @@
                 <input type="hidden" name="type" value="{% if show.category_item and show.category_item.name == 'Pageant' %}pageant{% else %}talent{% endif %}">
                 <div class="flex flex-col gap-2">
                   <input type="file" name="file" accept="video/*,audio/*" capture="environment" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
-                  <div class="flex items-center gap-2">
-                    <span class="text-xs text-gray-500 font-bold">OR</span>
-                    <input type="url" name="video_url_input" placeholder="Paste Video URL..." class="flex-grow border border-gray-300 rounded p-2 text-sm focus:ring-indigo-500 focus:border-indigo-500">
-                    <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded-full font-bold hover:bg-indigo-700 transition shadow-sm text-sm whitespace-nowrap">Upload MC Intro</button>
+                  <div class="flex items-center gap-2 mt-2">
+                    <button type="submit" class="bg-indigo-600 text-white px-4 py-1.5 rounded-full font-bold hover:bg-indigo-700 transition shadow-sm text-xs whitespace-nowrap">Upload</button>
                   </div>
                 </div>
               </form>
@@ -168,9 +164,7 @@
             <input type="hidden" name="type" value="{% if show.category_item and show.category_item.name == 'Pageant' %}pageant{% else %}talent{% endif %}">
             <div class="flex flex-col gap-2">
               <input type="file" name="file" accept="video/*,audio/*" capture="environment" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-gray-200 file:text-gray-700 hover:file:bg-gray-300">
-              <div class="flex items-center gap-2">
-                <span class="text-xs text-gray-500 font-bold">OR</span>
-                <input type="url" name="video_url_input" placeholder="Paste Video URL..." class="flex-grow border border-gray-300 rounded p-2 text-sm focus:ring-gray-500 focus:border-gray-500">
+              <div class="flex items-center gap-2 mt-2">
                 <button type="submit" class="bg-gray-800 text-white px-4 py-2 rounded-full font-bold hover:bg-gray-900 transition shadow-sm text-sm whitespace-nowrap">Upload</button>
               </div>
             </div>

@@ -461,15 +461,15 @@ def register_decision():
                     
                     flash(f"Voucher applied successfully! {v_obj.value_amount} tokens added to your wallet.", "success")
                 elif subject == "debtors":
-                    from app.models.debtors import DebtorsWallet, DebtorsTokenTransaction
-                    wallet = DebtorsWallet.query.filter_by(user_id=user_id).first()
+                    from app.models.auth import AitTokenWallet, AitTokenTransaction
+                    wallet = AitTokenWallet.query.filter_by(user_id=user_id).first()
                     if not wallet:
-                        wallet = DebtorsWallet(user_id=user_id, balance=0)
+                        wallet = AitTokenWallet(user_id=user_id, balance=0)
                         db.session.add(wallet)
                         db.session.flush()
                     wallet.balance += v_obj.value_amount
                     
-                    txn = DebtorsTokenTransaction(
+                    txn = AitTokenTransaction(
                         wallet_id=wallet.id,
                         amount=v_obj.value_amount,
                         description=f"Redeemed voucher {voucher}"

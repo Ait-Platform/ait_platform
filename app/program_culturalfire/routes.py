@@ -1396,11 +1396,27 @@ def show_program(show_id):
         submissions = None # We won't use the flat list for Pageants
     else:
         submissions_by_segment = None
-        submissions = (CfiTalentSubmission.query
+        submissions = list((CfiTalentSubmission.query
                        .filter_by(show_id=show.id)
                        .options(joinedload(CfiTalentSubmission.user_enrollment)
                                 .joinedload(UserEnrollment.biodata))
-                       .all())
+                       .all()))
+                       
+        if is_private_show:
+            psg = CfiPrivateShowGroup.query.filter_by(show_id=show.id).first()
+            if psg and psg.group:
+                class MockSub:
+                    pass
+                for member in psg.group.group_members:
+                    sub = MockSub()
+                    sub.id = member.id
+                    sub.user_enrollment = member.enrollment
+                    sub.talent_name = "Private Show Member"
+                    sub.custom_talent = None
+                    sub.group_members = []
+                    sub.sponsors = []
+                    sub.supporters = []
+                    submissions.append(sub)
 
         from app.models.culturalfire import CfiBiodata
         for sub in submissions:

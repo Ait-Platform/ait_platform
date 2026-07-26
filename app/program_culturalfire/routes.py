@@ -3831,5 +3831,25 @@ def migrate_pageants():
         db.session.commit()
         count += 1
         
-    flash(f"Migrated {count} old Pageant Shows to sequence format.", "success")
+    items_to_sync = CfiSegmentItem.query.filter(CfiSegmentItem.video_url.is_(None)).all()
+    sync_count = 0
+    for item in items_to_sync:
+        normalized_type = item.segment_type.replace("_", " ").title()
+        if normalized_type == "Qna": normalized_type = "Q&A"
+        if normalized_type == "Q And A": normalized_type = "Q&A"
+        
+        from app.models.culturalfire import CfiTalentSubmission
+        ts = CfiTalentSubmission.query.filter_by(
+            user_enrollment_id=item.enrollment_id,
+            talent_name=normalized_type
+        ).first()
+        
+        if ts and ts.video_url:
+            item.video_url = ts.video_url
+            item.status = "uploaded"
+            sync_count += 1
+            
+    db.session.commit()
+        
+    flash(f"Migrated {count} old Pageant Shows to sequence format. Synced {sync_count} missing videos.", "success")
     return redirect(url_for('cultural_bp.admin_dashboard'))

@@ -147,7 +147,7 @@
 function unlockPrivateShow(showId, programUrl) {
   if (!confirm("This will deduct 10 tokens from your wallet to unlock the private show. Continue?")) return;
 
-  fetch(`/program/cultural_fire/private_show/unlock/${showId}`, {
+  fetch(`/private_show/unlock/${showId}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

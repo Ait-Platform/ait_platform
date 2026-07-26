@@ -20,7 +20,7 @@ from app.extensions import db
 from app.models.culturalfire import (
     CfiBiodata, CfiGroup, CfiGroupMember, CfiPageantSegment, CfiParent, CfiRole, CfiSegmentItem, CfiShow, CfiSponsorItem, CfiSponsorship, CfiSubmissionParticipant, 
     CfiSupporter, CfiTalentCategoryItem, CfiTalentContext, CfiTalentFile, CfiTalentStyle, CfiShowcaseVote, 
-    CfiTalentSubmission, CfiJudgeAssignment, CfiMcAssignment, CfiJudgeScore, CfiMcRecording
+    CfiTalentSubmission, CfiJudgeAssignment, CfiMcAssignment, CfiJudgeScore, CfiMcRecording, CfiGroupInvitation
     )
 from app.program_culturalfire.helpers import (
     all_segments_filled,
@@ -1324,7 +1324,7 @@ def show_program(show_id):
                 item.user_enrollment.biodata = CfiBiodata.query.filter_by(user_id=item.user_enrollment.user_id).first()
                 
             if item.user_enrollment and item.user_enrollment.biodata and item.user_enrollment.biodata.dob:
-                item.user_enrollment.biodata.age_calc = calculate_age(item.user_enrollment.biodata.dob)
+                item.user_enrollment.biodata.age_calc = calculate_age_from_dob(item.user_enrollment.biodata.dob)
                 
             submissions_by_segment[seg].append(item)
                 

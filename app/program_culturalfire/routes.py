@@ -3688,8 +3688,8 @@ def invite_private_show(group_id):
         flash("Please provide a username or email.", "danger")
         return redirect(url_for('cultural_bp.private_show_dashboard', enrollment_id=enrollment.id))
         
-    # Find user by name or email (User model has name, not username)
-    user = User.query.filter((User.name == identifier) | (User.email == identifier)).first()
+    # Find user by name or email case-insensitively
+    user = User.query.filter((User.name.ilike(identifier)) | (User.email.ilike(identifier))).first()
     if not user:
         flash("User not found.", "danger")
         return redirect(url_for('cultural_bp.private_show_dashboard', enrollment_id=enrollment.id))

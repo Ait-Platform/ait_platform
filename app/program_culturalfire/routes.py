@@ -20,13 +20,13 @@ from app.extensions import db
 from app.models.culturalfire import (
     CfiBiodata, CfiGroup, CfiGroupMember, CfiPageantSegment, CfiParent, CfiRole, CfiSegmentItem, CfiShow, CfiSponsorItem, CfiSponsorship, CfiSubmissionParticipant, 
     CfiSupporter, CfiTalentCategoryItem, CfiTalentContext, CfiTalentFile, CfiTalentStyle, CfiShowcaseVote, 
-    CfiTalentSubmission, CfiJudgeAssignment, CfiMcAssignment, CfiJudgeScore, CfiMcRecording, CfiGroupInvitation
+    CfiTalentSubmission, CfiJudgeAssignment, CfiMcAssignment, CfiJudgeScore, CfiMcRecording, CfiGroupInvitation,
+    CfiPrivateShowGroup, CfiShowAccess, CfiWallet, CfiTokenTransaction, CfiTokenTariff
     )
 from app.program_culturalfire.helpers import (
     all_segments_filled,
     auto_generate_show_from_submissions,
     build_filename,
-    calculate_age,
     calculate_age_from_dob,
     curate_shows,
     handle_talent_files,
@@ -1374,7 +1374,7 @@ def show_program(show_id):
                 sub.user_enrollment.biodata = CfiBiodata.query.filter_by(user_id=sub.user_enrollment.user_id).first()
 
             if sub.user_enrollment and sub.user_enrollment.biodata and sub.user_enrollment.biodata.dob:
-                sub.user_enrollment.biodata.age_calc = calculate_age(sub.user_enrollment.biodata.dob)
+                sub.user_enrollment.biodata.age_calc = calculate_age_from_dob(sub.user_enrollment.biodata.dob)
 
     from app.models.auth import User
     mc_assignments = CfiMcAssignment.query.filter_by(show_id=show.id).all()
@@ -3443,11 +3443,13 @@ def join_private_show(group_id):
 def invite_private_show(group_id):
     from app.models.culturalfire import CfiGroupInvitation
     group = CfiGroup.query.get_or_404(group_id)
-    enrollment = UserEnrollment.query.filter_by(user_id=current_user.id).first()
     
-    # Only group leader can invite
-    if group.leader_id != enrollment.id:
+    # The leader is already an enrollment. We should ensure current_user owns this leader enrollment
+    leader_enrollment = UserEnrollment.query.get(group.leader_id)
+    if not leader_enrollment or leader_enrollment.user_id != current_user.id:
         abort(403)
+        
+    enrollment = leader_enrollment
         
     identifier = request.form.get("identifier")
     if not identifier:
@@ -3460,9 +3462,15 @@ def invite_private_show(group_id):
         flash("User not found.", "danger")
         return redirect(url_for('cultural_bp.private_show_dashboard', enrollment_id=enrollment.id))
         
-    invitee_enrollment = UserEnrollment.query.filter_by(user_id=user.id).first()
+    from app.models.auth import AuthSubject
+    cfi_subject = AuthSubject.query.filter_by(slug="cultural_fire").first()
+    if not cfi_subject:
+        flash("Cultural Fire program not found.", "danger")
+        return redirect(url_for('cultural_bp.private_show_dashboard', enrollment_id=enrollment.id))
+        
+    invitee_enrollment = UserEnrollment.query.filter_by(user_id=user.id, subject_id=cfi_subject.id).first()
     if not invitee_enrollment:
-        flash("User is not enrolled in the program.", "danger")
+        flash("User is not enrolled in the Cultural Fire program.", "danger")
         return redirect(url_for('cultural_bp.private_show_dashboard', enrollment_id=enrollment.id))
         
     if invitee_enrollment.id == enrollment.id:
@@ -3528,8 +3536,9 @@ def unlock_private_show(show_id):
     if not is_private:
         return jsonify({"success": False, "message": "This show is public."})
         
-    # Check if they are a member
-    enrollment = UserEnrollment.query.filter_by(user_id=current_user.id).first()
+    from app.models.auth import AuthSubject
+    cfi_subject = AuthSubject.query.filter_by(slug="cultural_fire").first()
+    enrollment = UserEnrollment.query.filter_by(user_id=current_user.id, subject_id=cfi_subject.id if cfi_subject else 0).first()
     if not enrollment:
         return jsonify({"success": False, "message": "You must be enrolled to view this show."})
         

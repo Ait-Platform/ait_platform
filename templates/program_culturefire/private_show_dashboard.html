@@ -3,6 +3,9 @@
 {% block title %}Private Shows Dashboard{% endblock %}
 {% block heading %}Private Shows Dashboard{% endblock %}
 
+{# Override global flashes to place it inside the tile #}
+{% block flashes %}{% endblock %}
+
 {% block content %}
 <div class="mx-auto max-w-7xl mt-8 px-4 mb-10">
   <div class="bg-white rounded-xl shadow overflow-hidden border border-gray-200">
@@ -14,6 +17,11 @@
          class="bg-gray-200 text-gray-700 px-4 py-2 rounded border border-gray-300 hover:bg-gray-300 font-semibold transition">
          Back to Dashboard
       </a>
+    </div>
+
+    <!-- Flash Messages inside the tile -->
+    <div class="px-6 pt-4">
+      {% include "partials/flash_messages.html" %}
     </div>
 
     <div class="p-6">

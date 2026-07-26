@@ -3540,7 +3540,8 @@ def private_show_dashboard(enrollment_id):
     if enrollment.user_id != current_user.id:
         abort(403)
         
-    categories = CfiTalentCategoryItem.query.all()
+    # Filter out Pageant from categories for private shows
+    categories = [c for c in CfiTalentCategoryItem.query.all() if c.name != "Pageant"]
         
     from app.models.culturalfire import CfiPrivateShowGroup, CfiGroupInvitation
     private_show_groups = CfiPrivateShowGroup.query.all()
@@ -3658,8 +3659,8 @@ def invite_private_show(group_id):
         flash("Please provide a username or email.", "danger")
         return redirect(url_for('cultural_bp.private_show_dashboard', enrollment_id=enrollment.id))
         
-    # Find user by username or email
-    user = User.query.filter((User.username == identifier) | (User.email == identifier)).first()
+    # Find user by name or email (User model has name, not username)
+    user = User.query.filter((User.name == identifier) | (User.email == identifier)).first()
     if not user:
         flash("User not found.", "danger")
         return redirect(url_for('cultural_bp.private_show_dashboard', enrollment_id=enrollment.id))
@@ -3682,13 +3683,13 @@ def invite_private_show(group_id):
     # Check if already a member
     is_member = CfiGroupMember.query.filter_by(group_id=group.id, enrollment_id=invitee_enrollment.id).first()
     if is_member:
-        flash(f"{user.username} is already a member.", "info")
+        flash(f"{user.name} is already a member.", "info")
         return redirect(url_for('cultural_bp.private_show_dashboard', enrollment_id=enrollment.id))
         
     # Check if already invited
     is_invited = CfiGroupInvitation.query.filter_by(group_id=group.id, enrollment_id=invitee_enrollment.id, status='pending').first()
     if is_invited:
-        flash(f"An invitation is already pending for {user.username}.", "info")
+        flash(f"An invitation is already pending for {user.name}.", "info")
         return redirect(url_for('cultural_bp.private_show_dashboard', enrollment_id=enrollment.id))
         
     invitation = CfiGroupInvitation(
@@ -3698,7 +3699,7 @@ def invite_private_show(group_id):
     db.session.add(invitation)
     db.session.commit()
     
-    flash(f"Invitation sent to {user.username}!", "success")
+    flash(f"Invitation sent to {user.name}!", "success")
     return redirect(url_for('cultural_bp.private_show_dashboard', enrollment_id=enrollment.id))
 
 @cultural_bp.route("/private_show/invitation/<action>/<int:invitation_id>", methods=["POST"])

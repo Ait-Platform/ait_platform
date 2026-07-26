@@ -3853,3 +3853,80 @@ def migrate_pageants():
         
     flash(f"Migrated {count} old Pageant Shows to sequence format. Synced {sync_count} missing videos.", "success")
     return redirect(url_for('cultural_bp.admin_dashboard'))
+
+@cultural_bp.route("/cultural_fire/admin/fix_pageant_data")
+@login_required
+def fix_pageant_data():
+    if not current_user.has_role('admin'):
+        flash("Unauthorized access.", "danger")
+        return redirect(url_for('auth_bp.bridge_dashboard'))
+        
+    from app.models.culturalfire import CfiTalentSubmission, CfiShow, CfiSegmentItem, CfiPageantSegment
+    
+    # 1. Find all Pageant Shows (even if they have " - Ramp Walk")
+    pageant_shows = CfiShow.query.filter(CfiShow.title.like("%Pageant%")).all()
+    pageant_show_ids = [s.id for s in pageant_shows]
+    
+    # 2. Find all CfiTalentSubmission for these shows
+    submissions = CfiTalentSubmission.query.filter(CfiTalentSubmission.show_id.in_(pageant_show_ids)).all()
+    
+    created_count = 0
+    synced_count = 0
+    shows_created = 0
+    
+    for sub in submissions:
+        if not sub.talent_name: continue
+        
+        normalized_name = sub.talent_name.replace("_", " ").title()
+        if normalized_name in ["Qna", "Q And A"]: normalized_name = "Q&A"
+        
+        orig_show = CfiShow.query.get(sub.show_id)
+        if not orig_show: continue
+        
+        base_title = orig_show.title.split(" - ")[0]
+        
+        target_show = None
+        if normalized_name.lower() == "ramp walk":
+            target_show = orig_show
+        else:
+            target_show = CfiShow.query.filter_by(title=f"{base_title} - {normalized_name}").first()
+            if not target_show:
+                target_show = CfiShow(
+                    title=f"{base_title} - {normalized_name}",
+                    description=f"{orig_show.description} for {normalized_name}",
+                    start_date=orig_show.start_date,
+                    location=orig_show.location,
+                    status=orig_show.status,
+                    category_item_id=orig_show.category_item_id
+                )
+                db.session.add(target_show)
+                db.session.commit()
+                shows_created += 1
+                
+        segment_type_norm = normalized_name.lower().replace(" ", "_").replace("&", "n")
+        existing_item = CfiSegmentItem.query.filter_by(
+            enrollment_id=sub.user_enrollment_id,
+            show_id=target_show.id,
+            segment_type=segment_type_norm
+        ).first()
+        
+        if not existing_item:
+            new_item = CfiSegmentItem(
+                enrollment_id=sub.user_enrollment_id,
+                show_id=target_show.id,
+                segment_type=segment_type_norm,
+                title=normalized_name,
+                status="uploaded" if sub.video_url else "pending",
+                video_url=sub.video_url
+            )
+            db.session.add(new_item)
+            created_count += 1
+        else:
+            if not existing_item.video_url and sub.video_url:
+                existing_item.video_url = sub.video_url
+                existing_item.status = "uploaded"
+                synced_count += 1
+                
+    db.session.commit()
+    flash(f"Data Fix Complete: Created {shows_created} missing shows, {created_count} segment items, synced {synced_count} videos.", "success")
+    return redirect(url_for('cultural_bp.admin_dashboard'))

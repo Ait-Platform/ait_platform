@@ -1589,7 +1589,7 @@ def watch_show(show_id):
         # Check if the user has already voted for the MC
         has_mc_voted = False
         if current_user.is_authenticated:
-            from app.models.culturalfire import CfiMcVote, CfiMcAssignment
+            from app.models.culturalfire import CfiMcVote
             mc_assignment = CfiMcAssignment.query.filter_by(show_id=show.id).first()
             if mc_assignment:
                 existing_mc_vote = CfiMcVote.query.filter_by(user_id=current_user.id, show_id=show.id, mc_id=mc_assignment.mc_id).first()
@@ -2155,36 +2155,63 @@ def pageant_dashboard(enrollment_id, category_id):
     enrollment = UserEnrollment.query.get_or_404(enrollment_id)
     category = CfiTalentCategoryItem.query.get_or_404(category_id)
 
-    shows = CfiShow.query.filter_by(
-        category_item_id=category.id
+    # Get the gender of the participant
+    record = CfiBiodata.query.filter_by(user_id=enrollment.user_id).first()
+    gender = record.gender if record else "Unknown"
+
+    shows = CfiShow.query.filter(
+        CfiShow.category_item_id == category.id,
+        CfiShow.title.like(f"%({gender})%")
     ).order_by(CfiShow.id.asc()).all()
 
-    show = next((s for s in shows if s.status != "completed"), None)
-
-    if not show:
-        show = CfiShow(
-            title=f"{category.name} Show {len(shows)+1}",
-            description=f"{category.name} showcase",
-            start_date=date.today(),
-            location="TBD",
-            status="active",
-            category_item_id=category.id
-        )
-        db.session.add(show)
-        db.session.commit()
+    active_shows = [s for s in shows if s.status != "completed"]
 
     segments = [s for s in CfiPageantSegment.query.all() if s.name.lower() not in ('sponsor', 'supporter')]
 
-    submissions = CfiSegmentItem.query.filter_by(
-        enrollment_id=enrollment.id,
-        show_id=show.id
+    if not active_shows:
+        # Determine the next show number
+        import re
+        max_num = 0
+        for s in shows:
+            match = re.search(r"Show (\d+)", s.title)
+            if match:
+                max_num = max(max_num, int(match.group(1)))
+        next_num = max_num + 1
+
+        for seg in segments:
+            new_show = CfiShow(
+                title=f"{category.name} ({gender}) Show {next_num} - {seg.name}",
+                description=f"{category.name} showcase for {seg.name}",
+                start_date=date.today(),
+                location="TBD",
+                status="active",
+                category_item_id=category.id
+            )
+            db.session.add(new_show)
+        db.session.commit()
+
+        active_shows = CfiShow.query.filter(
+            CfiShow.category_item_id == category.id,
+            CfiShow.title.like(f"%({gender})%Show {next_num}%")
+        ).order_by(CfiShow.id.asc()).all()
+
+    # Get submissions across all these active shows
+    active_show_ids = [s.id for s in active_shows]
+    submissions = CfiSegmentItem.query.filter(
+        CfiSegmentItem.enrollment_id == enrollment.id,
+        CfiSegmentItem.show_id.in_(active_show_ids)
     ).all()
+
+    # Pass the first show object for backwards compatibility in templates (id for Showcase link)
+    show = active_shows[0] if active_shows else None
+    show_title = show.title.split(" - ")[0] if show else f"{category.name} ({gender}) Show"
 
     return render_template(
         "program_culturefire/pageant_dashboard.html",
         enrollment=enrollment,
         category=category,
         show=show,
+        show_title=show_title,
         segments=segments,
         submissions=submissions
     )

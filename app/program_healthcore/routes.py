@@ -527,34 +527,17 @@ def reporting_dashboard():
 @healthcore_bp.route("/program/healthcore/engine/reporting/generate", methods=["POST"])
 @login_required
 def generate_report():
-    from app.models.healthcore import HcGeneratedReport, HcDocument
-    from datetime import datetime
+    from app.program_healthcore.ai_extractor import generate_report as ai_generate_report
 
     report_type = request.form.get("report_type", "General Summary")
     audience = request.form.get("audience", "Doctor (Clinical)")
     
-    # Mock generation of PDF and Document
-    doc = HcDocument(
-        user_id=current_user.id,
-        file_type="PDF",
-        doc_category="Generated Report",
-        file_url="/static/healthcore_placeholder_report.pdf",
-        extracted_text="MOCK AI EXTRACTED TEXT - HealthCore Summary."
-    )
-    db.session.add(doc)
-    db.session.commit()
-
-    record = HcGeneratedReport(
-        user_id=current_user.id,
-        generated_date=datetime.utcnow(),
-        report_type=report_type,
-        audience=audience,
-        document_id=doc.id
-    )
-    db.session.add(record)
-    db.session.commit()
+    result = ai_generate_report(current_user.id, report_type, audience)
     
-    flash(f"{report_type} generated successfully.", "success")
+    if "error" in result:
+        flash(f"Error generating Report: {result['error']}", "danger")
+    else:
+        flash(f"{report_type} generated successfully.", "success")
     return redirect(url_for("healthcore_bp.reporting_dashboard"))
 # ---------------------------------------------------------
 # DOCUMENT INTELLIGENCE LAYER
@@ -785,7 +768,32 @@ def create_share():
     db.session.add(share)
     db.session.commit()
     
-    flash("Secure sharing link generated!", "success")
+    # Send email invitation to the doctor
+    from app import send_mail
+    invite_url = url_for("healthcore_bp.doctor_view", token=access_token, _external=True)
+    email_html = f"""
+    <div style="font-family: sans-serif; padding: 20px; color: #333;">
+        <h2>HealthCore Access Invitation</h2>
+        <p>Dear {doctor_name or 'Doctor'},</p>
+        <p>Your patient <strong>{current_user.name or 'A patient'}</strong> has shared their HealthCore medical profile with you.</p>
+        <p>HealthCore is a next-generation clinical intelligence platform. By joining, you can review your patient's AI-summarized health records, laboratory trends, and AI-generated correlation insights to provide better care.</p>
+        <p>To view their records securely, please create an account on the AIT Platform by clicking the link below:</p>
+        <p>
+            <a href="{invite_url}" style="background-color: #4F46E5; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">
+                Register & View Patient Data
+            </a>
+        </p>
+        <p>This secure access token will expire on <strong>{expires_at.strftime('%B %d, %Y')}</strong>.</p>
+        <br>
+        <p>Best regards,<br>The HealthCore Team</p>
+    </div>
+    """
+    try:
+        send_mail(doctor_email, "Invitation to view patient data on HealthCore", email_html)
+        flash("Secure sharing link generated and invitation email sent to the doctor!", "success")
+    except Exception as e:
+        flash("Secure sharing link generated, but there was an error sending the invitation email.", "warning")
+        
     return redirect(url_for("healthcore_bp.share_dashboard"))
 
 @healthcore_bp.route("/program/healthcore/share/revoke/<int:share_id>", methods=["POST"])
@@ -799,6 +807,7 @@ def revoke_share(share_id):
     return redirect(url_for("healthcore_bp.share_dashboard"))
 
 @healthcore_bp.route("/healthcore/doctor/view/<token>")
+@login_required
 def doctor_view(token):
     from app.models.healthcore import HcDoctorAccess, HcPatientProfile, HcRiskAssessment, HcLaboratory
     from datetime import datetime

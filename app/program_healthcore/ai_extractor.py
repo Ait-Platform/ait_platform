@@ -244,3 +244,64 @@ def generate_correlation_insight(user_id):
     except Exception as e:
         print(f"Correlation Gen Error: {e}")
         return {"error": str(e)}
+
+def generate_report(user_id, report_type, audience):
+    from app.models.healthcore import HcPatientProfile, HcLaboratory, HcLifestyle, HcMedication, HcTimelineEvent, HcGeneratedReport
+    from app import db
+    
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        return {"error": "GEMINI_API_KEY not configured."}
+        
+    try:
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        
+        # Gather data
+        profile = HcPatientProfile.query.filter_by(user_id=user_id).first()
+        labs = HcLaboratory.query.filter_by(user_id=user_id).order_by(HcLaboratory.report_date.desc()).limit(20).all()
+        lifestyles = HcLifestyle.query.filter_by(user_id=user_id).order_by(HcLifestyle.log_date.desc()).limit(20).all()
+        meds = HcMedication.query.filter_by(user_id=user_id, status='Active').all()
+        events = HcTimelineEvent.query.filter_by(user_id=user_id).order_by(HcTimelineEvent.start_date.desc()).limit(10).all()
+        
+        prompt = f"""
+        You are an expert Medical AI Assistant.
+        Generate a comprehensive health report based on the following patient data.
+        Report Type requested: {report_type}
+        Target Audience: {audience}
+        
+        Patient Profile:
+        Age/DOB: {profile.dob if profile else 'N/A'}
+        Sex: {profile.biological_sex if profile else 'N/A'}
+        Weight (kg): {profile.weight_kg if profile else 'N/A'}
+        Height (cm): {profile.height_cm if profile else 'N/A'}
+        Chronic Conditions: {profile.chronic_conditions if profile else 'None'}
+        
+        Recent Labs: {[f"{l.test_name}: {l.value} {l.units}" for l in labs]}
+        Recent Lifestyle logs: {[f"{l.category} - {l.metric_name}: {l.value_num or l.value_str}" for l in lifestyles]}
+        Active Medications: {[m.medication_name for m in meds]}
+        Medical History Events: {[e.title for e in events]}
+        
+        Please format the report professionally using Markdown. Include sections like:
+        - Executive Summary
+        - Key Findings
+        - Recommendations/Action Plan
+        Adjust the tone and technical depth appropriately for a {audience}.
+        """
+        
+        response = model.generate_content(prompt)
+        report_summary = response.text.strip()
+        
+        record = HcGeneratedReport(
+            user_id=user_id,
+            generated_date=datetime.utcnow(),
+            report_type=report_type,
+            report_summary=report_summary
+        )
+        db.session.add(record)
+        db.session.commit()
+        return {"success": True}
+        
+    except Exception as e:
+        print(f"Report Gen Error: {e}")
+        return {"error": str(e)}

@@ -62,11 +62,11 @@
     </tr>
   </thead>
   <tbody class="divide-y divide-slate-100 bg-white">
-    {% set slugs = ['loss', 'reading', 'home', 'tutor', 'budget', 'billing', 'debtors', 'cultural_fire', 'practice_crm', 'hds', 'receptionist', 'spv', 'adv_math', 'mechanic', 'tpx', 'healthcore'] %}
-    {% for s in slugs %}
+    {% for subj in subjects %}
+    {% set s = subj.slug %}
     <tr class="hover:bg-slate-50 transition-colors">
       <td class="px-4 py-3 text-sm text-slate-500 font-medium">{{ loop.index }}</td>
-      <td class="px-4 py-3 text-sm font-bold text-slate-800 capitalize">{{ s | replace('_', ' ') }}</td>
+      <td class="px-4 py-3 text-sm font-bold text-slate-800">{{ subj.name }} <span class="text-xs text-slate-500 font-normal ml-2">({{ s }})</span></td>
       
       <!-- Visibility Checkbox -->
       <td class="px-4 py-3 text-center">
@@ -81,9 +81,9 @@
       <!-- Sandbox Checkbox -->
       <td class="px-4 py-3 text-center">
         <label class="inline-flex items-center cursor-pointer justify-center">
-          <input type="hidden" name="yoco_mode_{{ s }}" id="yoco_{{ s }}" value="{{ settings.get('yoco_mode_'~s, 'sandbox') }}">
-          <input type="checkbox" class="form-checkbox h-5 w-5 text-amber-500 rounded border-2 border-slate-300 focus:ring-amber-500 outline-none transition duration-150 cursor-pointer"
-                 onchange="document.getElementById('yoco_{{ s }}').value = this.checked ? 'sandbox' : 'live';"
+          <input type="hidden" name="yoco_mode_{{ s }}" id="yoco_mode_{{ s }}" value="{{ settings.get('yoco_mode_'~s, 'sandbox') }}">
+          <input type="checkbox" class="form-checkbox h-5 w-5 text-indigo-500 rounded border-2 border-slate-300 focus:ring-indigo-500 outline-none transition duration-150 cursor-pointer"
+                 onchange="document.getElementById('yoco_mode_{{ s }}').value = this.checked ? 'sandbox' : 'live';"
                  {% if settings.get('yoco_mode_'~s, 'sandbox') == 'sandbox' %}checked{% endif %}>
         </label>
       </td>

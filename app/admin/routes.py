@@ -336,7 +336,9 @@ def modules_control():
         
     settings = db.session.execute(text("SELECT key, value FROM system_settings")).fetchall()
     settings_dict = {s.key: s.value for s in settings}
-    return render_template("admin/modules_control.html", settings=settings_dict)
+    from app.models.auth import AuthSubject
+    subjects = AuthSubject.query.order_by(AuthSubject.name).all()
+    return render_template("admin/modules_control.html", settings=settings_dict, subjects=subjects)
 
 from app.models.payment import VoucherToken
 from app.models.auth import AuthSubject

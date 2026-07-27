@@ -373,9 +373,12 @@ def view_lesson(lesson_id: int):
         {"ord": lesson_key},
     ).scalar()
 
-    video_src = url_for("static", filename=f"reading_videos/{lesson['video_filename']}")
-    ui_lang = session.get("ui_lang", "en")
+    #video_src = url_for("static", filename=f"reading_videos/{lesson['video_filename']}")
 
+
+    video_src = url_for("static", filename=f"uploads/reading_videos/{lesson['video_filename']}")
+    ui_lang = session.get("ui_lang", "en")
+    
     return render_template(
         "subject_reading/lesson.html",
         lesson=lesson,

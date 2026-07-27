@@ -69,33 +69,7 @@ def cultural_fire_about():
 def cultural_fire_price():
     return render_template("program_culturefire/price.html")
 
-@cultural_bp.route("/submissions")
-def submissions():
-    return render_template("cultural_fire/submissions.html")
 
-@cultural_bp.route("/events")
-def events():
-    return render_template("cultural_fire/events.html")
-
-@cultural_bp.route("/tickets")
-def tickets():
-    return render_template("cultural_fire/tickets.html")
-
-@cultural_bp.route("/voting")
-def voting():
-    return render_template("cultural_fire/voting.html")
-
-@cultural_bp.route("/volunteers")
-def volunteers():
-    return render_template("cultural_fire/volunteers.html")
-
-@cultural_bp.route("/outreach")
-def outreach():
-    return render_template("cultural_fire/outreach.html")
-
-@cultural_bp.route("/analytics")
-def analytics():
-    return render_template("cultural_fire/analytics.html")
 
 @cultural_bp.route("/program/cultural_fire/sponsor/topup/<int:participant_id>", methods=["GET"])
 @login_required

@@ -1413,7 +1413,15 @@ def show_program(show_id):
                             sub = MockSub()
                             sub.id = member.id
                             sub.user_enrollment = member.enrollment
-                            sub.talent_name = "Private Show Member"
+                            
+                            # Find if the member has a real talent submission to use as their talent_name
+                            real_submission = CfiTalentSubmission.query.filter_by(user_enrollment_id=member.enrollment.id).first()
+                            
+                            if real_submission and real_submission.talent_name:
+                                sub.talent_name = real_submission.talent_name
+                            else:
+                                sub.talent_name = "Private Show Member"
+                                
                             sub.custom_talent = None
                             sub.group_members = []
                             sub.sponsors = []

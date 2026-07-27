@@ -95,8 +95,10 @@ def welcome():
     for row in rows:
         settings[row[0]] = row[1]
     
+    from app.models.auth import AuthSubject
+    subjects = AuthSubject.query.filter_by(is_active=1).order_by(AuthSubject.name).all()
     endpoints = []  # whatever you pass
-    return render_template("public/welcome.html", endpoints=endpoints, settings=settings)
+    return render_template("public/welcome.html", endpoints=endpoints, settings=settings, subjects=subjects)
 
 def refresh_bridge_session(user):
     """

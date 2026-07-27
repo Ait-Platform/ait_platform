@@ -69,8 +69,6 @@ def cultural_fire_about():
 def cultural_fire_price():
     return render_template("program_culturefire/price.html")
 
-
-
 @cultural_bp.route("/program/cultural_fire/sponsor/topup/<int:participant_id>", methods=["GET"])
 @login_required
 def sponsor_topup_get(participant_id):
@@ -916,8 +914,6 @@ def talent_group_dashboard(group_id):
 @login_required
 def parent_dashboard(enrollment_id):
     return redirect(url_for('cultural_bp.stakeholder_dashboard', enrollment_id=enrollment_id))
-
-
 
 @cultural_bp.route("/parent/permission", methods=["POST"])
 @login_required

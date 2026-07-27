@@ -22,268 +22,105 @@
 {% if request.args.get('sent') == '1' %}
   <div class="mx-auto max-w-6xl mb-8 rounded-lg bg-emerald-50 text-emerald-800 px-4 py-2 border border-emerald-200">
     Report emailed successfully.
+{% extends "layout.html" %}
+{% block title %}Welcome | AIT Platform{% endblock %}
+
+{% block content %}
+
+{% block flashes %}{% endblock %}
+
+<!-- School tile -->
+<div class="mx-auto max-w-6xl mb-8">
+  <div class="bg-white rounded-xl shadow overflow-hidden">
+    <div class="h-2 bg-indigo-600"></div>
+    <div class="p-6 text-center">
+      {% include "partials/flash_messages.html" %}
+      <h1 class="text-xl font-semibold text-slate-900">Archoney Institute of Technology</h1>
+      <p class="mt-2 text-slate-600 text-sm">
+        Explore powerful programs tailored to different needs
+      </p>
+    </div>
+  </div>
+</div>
+
+{% if request.args.get('sent') == '1' %}
+  <div class="mx-auto max-w-6xl mb-8 rounded-lg bg-emerald-50 text-emerald-800 px-4 py-2 border border-emerald-200">
+    Report emailed successfully.
   </div>
 {% elif request.args.get('sent') == '0' %}
   <div class="mx-auto max-w-6xl mb-8 rounded-lg bg-red-50 text-red-800 px-4 py-2 border border-red-200">
     We couldn’t complete your request ({{ request.args.get('err') }}). Please try again or contact support.
   </div>
 {% endif %}
-
 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto px-4 mb-8">
 
-  {% if settings.get("visibility_loss", "visible") != "hidden" %}
-  <!-- Loss -->
-  <div class="bg-white rounded-xl shadow overflow-hidden">
-    <div class="h-2 bg-purple-600"></div>
-    <div class="p-6 flex flex-col h-full">
-      <div class="flex items-start justify-between">
-        <h2 class="text-lg font-semibold text-slate-800">Loss of a Loved One (LOLO)</h2>
-        <span class="text-xs bg-purple-100 text-purple-600 px-2 py-1 rounded">Paid</span>
-      </div>
-      <p class="mt-2 text-sm text-slate-600 flex-grow">Get support, assess your needs, and begin healing.</p>
-      <a href="{{ url_for('loss_bp.about_loss', subject='loss') }}" class="inline-block mt-4 px-4 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition">Explore</a>
-    </div>
-  </div>
-  {% endif %}
+{% set fallback_desc = "Explore our latest program and get started today." %}
+{% set fallback_color = "slate" %}
 
-  {% if settings.get("visibility_reading", "visible") != "hidden" %}
-  <!-- Reading -->
-  <div class="bg-white rounded-xl shadow overflow-hidden">
-    <div class="h-2 bg-emerald-600"></div>
-    <div class="p-6 flex flex-col h-full">
-      <div class="flex items-start justify-between">
-        <h2 class="text-lg font-semibold text-slate-800">Reading</h2>
-        <span class="text-xs bg-emerald-100 text-emerald-600 px-2 py-1 rounded">Paid</span>
-      </div>
-      <p class="mt-2 text-sm text-slate-600 flex-grow">Learn to read from scratch with the Litre Method.</p>
-      <a href="{{ url_for('reading_bp.about_reading', subject='reading') }}" class="inline-block mt-4 px-4 py-2 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700 transition">Explore</a>
-    </div>
-  </div>
-  {% endif %}
+{% set slug_data = {
+  "loss": {"color": "purple", "desc": "Get support, assess your needs, and begin healing."},
+  "reading": {"color": "emerald", "desc": "Learn to read from scratch with the Litre Method."},
+  "home": {"color": "blue", "desc": "Master math through hands-on learning and visual tools."},
+  "tutor": {"color": "teal", "desc": "Join as a tutor and help students learn math."},
+  "budget": {"color": "rose", "desc": "Manage your finances effectively and plan your budget."},
+  "billing": {"color": "indigo", "desc": "Automate patient statements and track clinic revenue."},
+  "debtors": {"color": "blue", "desc": "Manage debtors, capture transactions, and generate automated Statements of Account with your custom branding."},
+  "cultural_fire": {"color": "orange", "desc": "Ignite your talent and compete in global showcases!"},
+  "practice_crm": {"color": "teal", "desc": "Eliminate patient leakage and control risks in a medical/dental reception environment."},
+  "hds": {"color": "fuchsia", "desc": "Securely switch, manage, and track healthcare claims and data transactions."},
+  "receptionist": {"color": "emerald", "desc": "Register to gain pipeline access when added by your Practice Owner."},
+  "spv": {"color": "slate", "desc": "Explore secure, transparent investment opportunities in curated private development projects."},
+  "adv_math": {"color": "cyan", "desc": "Your Matric Success Partner. AI-driven mastery preparation for NSC Grade 12 Math."},
+  "mechanic": {"color": "indigo", "desc": "Manage your mechanic workshop easily."},
+  "tpx": {"color": "pink", "desc": "To create a country's most trusted employment ecosystem by connecting verified people with verified employers through a secure digital Employment Passport."},
+  "healthcore": {"color": "teal", "desc": "Understand Your Health. Protect Your Future. Your personal health intelligence assistant."}
+} %}
 
-  {% if settings.get("visibility_home", "visible") != "hidden" %}
-  <!-- Home -->
-  <div class="bg-white rounded-xl shadow overflow-hidden">
-    <div class="h-2 bg-blue-600"></div>
-    <div class="p-6 flex flex-col h-full">
-      <div class="flex items-start justify-between">
-        <h2 class="text-lg font-semibold text-slate-800">HOME (Math)</h2>
-        <span class="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded">Paid</span>
-      </div>
-      <p class="mt-2 text-sm text-slate-600 flex-grow">Master math through hands-on learning and visual tools.</p>
-      <a href="{{ url_for('home_bp.subject_home', subject='home') }}" class="inline-block mt-4 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition">Explore</a>
-    </div>
-  </div>
-  {% endif %}
-
-  {% if settings.get("visibility_tutor", "visible") != "hidden" %}
-  <!-- Tutor Registration -->
-  <div class="bg-white rounded-xl shadow overflow-hidden">
-    <div class="h-2 bg-rose-500"></div>
-    <div class="p-6 flex flex-col h-full">
-      <div class="flex items-start justify-between">
-        <h2 class="text-lg font-semibold text-slate-800">Tutor Platform</h2>
-        <span class="text-xs bg-rose-100 text-rose-600 px-2 py-1 rounded">Free</span>
-      </div>
-      <p class="mt-2 text-sm text-slate-600 flex-grow">Register as a Teacher or Parent to grade learners across our platform.</p>
-      <a href="{{ url_for('public_bp.tutor_register') }}" class="inline-block mt-4 px-4 py-2 bg-rose-600 text-white text-sm rounded-lg hover:bg-rose-700 transition">Register as Tutor</a>
-    </div>
-  </div>
-  {% endif %}
-
-  {% if settings.get("visibility_budget", "visible") != "hidden" %}
-  <!-- Budget -->
-  <div class="bg-white rounded-xl shadow overflow-hidden">
-    <div class="h-2 bg-amber-500"></div>
-    <div class="p-6 flex flex-col h-full">
-      <div class="flex items-start justify-between">
-        <h2 class="text-lg font-semibold text-slate-800">BudgetCash</h2>
-        <span class="text-xs bg-amber-100 text-amber-600 px-2 py-1 rounded">Trial</span>
-      </div>
-      <p class="mt-2 text-sm text-slate-600 flex-grow">External statement cashbook with balances, arrears, and due.</p>
-      <a href="{{ url_for('budget_bp.about', subject='budget') }}" class="inline-block mt-4 px-4 py-2 bg-amber-500 text-white text-sm rounded-lg hover:bg-amber-600 transition">Explore</a>
-    </div>
-  </div>
-  {% endif %}
-
-  {% if settings.get("visibility_billing", "visible") != "hidden" %}
-  <!-- Billing -->
-  <div class="bg-white rounded-xl shadow overflow-hidden">
-    <div class="h-2 bg-orange-500"></div>
-    <div class="p-6 flex flex-col h-full">
-      <div class="flex items-start justify-between">
-        <h2 class="text-lg font-semibold text-slate-800">Metro Billing</h2>
-        <span class="text-xs bg-orange-100 text-orange-600 px-2 py-1 rounded">Paid</span>
-      </div>
-      <p class="mt-2 text-sm text-slate-600 flex-grow">Track utilities, manage tenants, and simplify statements.</p>
-      <a href="{{ url_for('billing_bp.billing_about', subject='billing') }}" class="inline-block mt-4 px-4 py-2 bg-orange-500 text-white text-sm rounded-lg hover:bg-orange-600 transition">Explore</a>
-    </div>
-  </div>
-  {% endif %}
-
-  {% if settings.get("visibility_cultural_fire", "visible") != "hidden" %}
-  <!-- Cultural Fire -->
-  <div class="bg-white rounded-xl shadow overflow-hidden">
-    <div class="h-2 bg-pink-500"></div>
-    <div class="p-6 flex flex-col h-full">
-      <div class="flex items-start justify-between">
-        <h2 class="text-lg font-semibold text-slate-800">Cultural Fire</h2>
-        <span class="text-xs bg-pink-100 text-pink-600 px-2 py-1 rounded">Free</span>
-      </div>
-      <p class="mt-2 text-sm text-slate-600 flex-grow">Talent Begins Here. Discover, submit, and showcase youth talent.</p>
-      <a href="{{ url_for('cultural_bp.cultural_fire_about') }}" class="inline-block mt-4 px-4 py-2 bg-pink-600 text-white text-sm rounded-lg hover:bg-pink-700 transition">Explore</a>
-    </div>
-  </div>
-  {% endif %}
-
-  {% if settings.get("visibility_practice_crm", "visible") != "hidden" %}
-  <!-- Health Care Customer Relation Management -->
-  <div class="bg-white rounded-xl shadow overflow-hidden">
-    <div class="h-2 bg-teal-600"></div>
-    <div class="p-6 flex flex-col h-full">
-      <div class="flex items-start justify-between">
-        <h2 class="text-lg font-semibold text-slate-800">Health Care Customer Relation Management</h2>
-        <span class="text-xs bg-teal-100 text-teal-800 px-2 py-1 rounded">Trial</span>
-      </div>
-      <p class="mt-2 text-sm text-slate-600 flex-grow">Eliminate patient leakage and control risks in a medical/dental reception environment.</p>
-      {% if session.get('subjects_access', {}).get('practice_crm') in ['enrolled', 'admin'] %}
-      <a href="{{ url_for('practice_crm_bp.pipeline') }}" class="inline-block mt-4 px-4 py-2 bg-teal-600 text-white text-sm rounded-lg hover:bg-teal-700 transition">Go to Dashboard</a>
-      {% else %}
-      <a href="{{ url_for('practice_crm_bp.about') }}" class="inline-block mt-4 px-4 py-2 bg-teal-600 text-white text-sm rounded-lg hover:bg-teal-700 transition">Explore</a>
-      {% endif %}
-    </div>
-  </div>
-  {% endif %}
-
-  {% if settings.get("visibility_hds", "visible") != "hidden" %}
-  <!-- Healthcare Data Switch -->
-  <div class="bg-white rounded-xl shadow overflow-hidden">
-    <div class="h-2 bg-fuchsia-600"></div>
-    <div class="p-6 flex flex-col h-full">
-      <div class="flex items-start justify-between">
-        <h2 class="text-lg font-semibold text-slate-800">Healthcare Data Switch</h2>
-        <span class="text-xs bg-fuchsia-100 text-fuchsia-800 px-2 py-1 rounded">Paid</span>
-      </div>
-      <p class="mt-2 text-sm text-slate-600 flex-grow">Securely switch, manage, and track healthcare claims and data transactions.</p>
-      <a href="{{ url_for('hds_bp.about') }}" class="inline-block mt-4 px-4 py-2 bg-fuchsia-600 text-white text-sm rounded-lg hover:bg-fuchsia-700 transition">Explore</a>
-    </div>
-  </div>
-  {% endif %}
-
-  {% if settings.get("visibility_receptionist", "visible") != "hidden" %}
-  <!-- Receptionist Registration -->
-  <div class="bg-white rounded-xl shadow overflow-hidden">
-    <div class="h-2 bg-emerald-500"></div>
-    <div class="p-6 flex flex-col h-full">
-      <div class="flex items-start justify-between">
-        <h2 class="text-lg font-semibold text-slate-800">Receptionist Registration</h2>
-        <span class="text-xs bg-emerald-100 text-emerald-600 px-2 py-1 rounded">Free</span>
-      </div>
-      <p class="mt-2 text-sm text-slate-600 flex-grow">Register to gain pipeline access when added by your Practice Owner.</p>
-      <a href="{{ url_for('public_bp.receptionist_register') }}" class="inline-block mt-4 px-4 py-2 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700 transition">Register as Staff</a>
-    </div>
-  </div>
-  {% endif %}
-
-  {% if settings.get("visibility_spv", "visible") != "hidden" %}
-  <!-- SPV -->
-  <div class="bg-white rounded-xl shadow overflow-hidden">
-    <div class="h-2 bg-slate-800"></div>
-    <div class="p-6 flex flex-col h-full">
-      <div class="flex items-start justify-between">
-        <h2 class="text-lg font-semibold text-slate-800">Special Purpose Vehicle</h2>
-        <span class="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded">Paid</span>
-      </div>
-      <p class="mt-2 text-sm text-slate-600 flex-grow">Explore secure, transparent investment opportunities in curated private development projects.</p>
-      <a href="{{ url_for('spv_bp.about_spv') }}" class="inline-block mt-4 px-4 py-2 bg-slate-800 text-white text-sm rounded-lg hover:bg-slate-900 transition">Explore</a>
-    </div>
-  </div>
-  {% endif %}
-
-  {% if settings.get("visibility_adv_math", "visible") != "hidden" %}
-  <!-- Grade 12 Mathematics -->
-  <div class="bg-white rounded-xl shadow overflow-hidden">
-    <div class="h-2 bg-cyan-600"></div>
-    <div class="p-6 flex flex-col h-full">
-      <div class="flex items-start justify-between">
-        <h2 class="text-lg font-semibold text-slate-800">Grade 12 Math Core</h2>
-        <span class="text-xs bg-cyan-100 text-cyan-800 px-2 py-1 rounded">Paid</span>
-      </div>
-      <p class="mt-2 text-sm text-slate-600 flex-grow">Your Matric Success Partner. AI-driven mastery preparation for NSC Grade 12 Math.</p>
-      <a href="{{ url_for('adv_math_bp.about') }}" class="inline-block mt-4 px-4 py-2 bg-cyan-600 text-white text-sm rounded-lg hover:bg-cyan-700 transition">Explore</a>
-    </div>
-  </div>
-  {% endif %}
-
-  {% if settings.get("visibility_mechanic", "visible") != "hidden" %}
-  <!-- Mechanic -->
-  <div class="bg-white rounded-xl shadow overflow-hidden">
-    <div class="h-2 bg-indigo-600"></div>
-    <div class="p-6 flex flex-col h-full">
-      <div class="flex items-start justify-between">
-        <h2 class="text-lg font-semibold text-slate-800">Mechanic Customer Relationship Management</h2>
-        <span class="text-xs bg-indigo-100 text-indigo-800 px-2 py-1 rounded">Trial</span>
-      </div>
-      <p class="mt-2 text-sm text-slate-600 flex-grow">Manage your mechanic workshop easily.</p>
-      <a href="{{ url_for('mechanic_bp.about') }}" class="inline-block mt-4 px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 transition">Explore</a>
-    </div>
-  </div>
-  {% endif %}
-
-
-  {% if settings.get("visibility_tpx", "visible") != "hidden" %}
-    <!-- Talent Passport Exchange (TPX) -->
+  {% for subj in subjects %}
+    {% set s = subj.slug %}
+    {% if settings.get("visibility_" ~ s, "visible") != "hidden" %}
+    
+    {% set info = slug_data.get(s, {"color": fallback_color, "desc": fallback_desc}) %}
+    {% set color = info.color %}
+    
     <div class="bg-white rounded-xl shadow overflow-hidden">
-      <div class="h-2 bg-pink-600"></div>
+      <!-- To ensure tailwind compiler sees the classes, we map the color strictly, 
+           but since these specific dynamic color classes might not compile if not already in safelist,
+           we construct them explicitly with style if they are unknown, or rely on standard ones.
+           However, standard Tailwind JIT doesn't compile dynamic strings like `bg-{{ color }}-600`.
+           We will use standard hardcoded classes for the fallback to be safe, 
+           and a dictionary mapping for the known ones. -->
+           
+      {% set bg_header = "bg-" ~ color ~ "-600" %}
+      {% set bg_badge = "bg-" ~ color ~ "-100" %}
+      {% set text_badge = "text-" ~ color ~ "-800" %}
+      {% set bg_btn = "bg-" ~ color ~ "-600" %}
+      {% set hover_btn = "hover:bg-" ~ color ~ "-700" %}
+      
+      <!-- We use a custom style injection as a fallback to ensure colors render even if Tailwind stripped them -->
+      {% set hex_map = {"purple":"#9333ea", "emerald":"#059669", "blue":"#2563eb", "teal":"#0d9488", "rose":"#e11d48", "indigo":"#4f46e5", "orange":"#ea580c", "cyan":"#0891b2", "fuchsia":"#c026d3", "slate":"#475569", "pink":"#db2777"} %}
+      {% set hex = hex_map.get(color, "#475569") %}
+      
+      <div class="h-2" style="background-color: {{ hex }};"></div>
       <div class="p-6 flex flex-col h-full">
         <div class="flex items-start justify-between">
-          <h2 class="text-lg font-semibold text-slate-800">Talent Passport Exchange (TPX)</h2>
-          <span class="text-xs bg-cyan-100 text-cyan-800 px-2 py-1 rounded">Paid</span>
+          <h2 class="text-lg font-semibold text-slate-800">{{ subj.name }}</h2>
+          <span class="text-xs px-2 py-1 rounded capitalize" style="background-color: {{ hex }}20; color: {{ hex }};">{{ subj.program_type }}</span>
         </div>
-        <p class="mt-2 text-sm text-slate-600 flex-grow">
-          To create a country's most trusted employment ecosystem 
-          by connecting verified people with verified employers 
-          through a secure digital Employment Passport.</p>
-        <a href="{{ url_for('tpx_bp.about') }}" class="inline-block mt-4 px-4 py-2 bg-cyan-600 text-white text-sm rounded-lg hover:bg-cyan-700 transition">Explore</a>
+        <p class="mt-2 text-sm text-slate-600 flex-grow">{{ info.desc }}</p>
+        
+        {% if subj.about_endpoint %}
+          {% set endpoint = subj.about_endpoint %}
+        {% else %}
+          {% set endpoint = "public_bp.welcome" %} 
+        {% endif %}
+        
+        <a href="{{ url_for(endpoint, subject=s) }}" class="inline-block mt-4 px-4 py-2 text-white text-sm rounded-lg transition" style="background-color: {{ hex }};">Explore</a>
       </div>
     </div>
-  
-  {% endif %}
+    {% endif %}
+  {% endfor %}
 
-  {% if settings.get("visibility_debtors", "visible") != "hidden" %}
-    <!-- Debtors & SOA Module -->
-    <div class="bg-white rounded-xl shadow overflow-hidden">
-      <div class="h-2 bg-blue-600"></div>
-      <div class="p-6 flex flex-col h-full">
-        <div class="flex items-start justify-between">
-          <h2 class="text-lg font-semibold text-slate-800">Debtors & Statements</h2>
-          <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">Paid</span>
-        </div>
-        <p class="mt-2 text-sm text-slate-600 flex-grow">
-          Manage debtors, capture transactions, and generate automated Statements of Account with your custom branding.
-        </p>
-        <a href="{{ url_for('debtors_bp.about') }}" class="inline-block mt-4 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition">Explore</a>
-      </div>
-    </div>
-  {% endif %}
-  
-  {% if settings.get("visibility_healthcore", "visible") != "hidden" %}
-    <!-- HealthCore -->
-    <div class="bg-white rounded-xl shadow overflow-hidden">
-      <div class="h-2 bg-teal-600"></div>
-      <div class="p-6 flex flex-col h-full">
-        <div class="flex items-start justify-between">
-          <h2 class="text-lg font-semibold text-slate-800">HealthCore</h2>
-          <span class="text-xs bg-teal-100 text-teal-800 px-2 py-1 rounded">Trial</span>
-        </div>
-        <p class="mt-2 text-sm text-slate-600 flex-grow">
-          Understand Your Health. Protect Your Future. Your personal health intelligence assistant.
-        </p>
-        <a href="{{ url_for('healthcore_bp.healthcore_home') }}" class="inline-block mt-4 px-4 py-2 bg-teal-600 text-white text-sm rounded-lg hover:bg-teal-700 transition">Explore</a>
-      </div>
-    </div>
-  {% endif %}
-  
 </div>
 
 {% endblock %}

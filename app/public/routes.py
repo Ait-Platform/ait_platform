@@ -110,7 +110,8 @@ def welcome():
 
     subjects = (
         AuthSubject.query
-        .filter_by(is_active=1)
+        .filter(AuthSubject.is_active == 1)
+        .filter(~AuthSubject.slug.in_(["admin", "admin_general"]))
         .order_by(AuthSubject.name)
         .all()
     )

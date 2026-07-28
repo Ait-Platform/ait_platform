@@ -378,7 +378,10 @@ def view_lesson(lesson_id: int):
 
     video_src = url_for("static", filename=f"uploads/reading_videos/{lesson['video_filename']}")
     ui_lang = session.get("ui_lang", "en")
-    
+
+    print("Video filename:", lesson["video_filename"])
+    print("Video src:", video_src)
+
     return render_template(
         "subject_reading/lesson.html",
         lesson=lesson,

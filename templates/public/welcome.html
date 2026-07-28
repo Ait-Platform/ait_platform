@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% from "shared/welcome_card.html" import welcome_card %}
 
 {% block title %}Welcome | AIT Platform{% endblock %}
 
@@ -8,30 +9,30 @@ mx-auto max-w-7xl px-6 py-10
 
 {% block content %}
 
-{% from "shared/welcome_card.html" import welcome_card %}
-
 {% set fallback_desc = "Explore our latest program and get started today." %}
 
 {% set subject_info = {
-    "loss": {"color":"purple","desc":"Get support, assess your needs, and begin healing."},
-    "reading":{"color":"emerald","desc":"Learn to read from scratch with the Litre Method."},
-    "home":{"color":"blue","desc":"Master math through hands-on learning and visual tools."},
-    "tutor":{"color":"teal","desc":"Join as a tutor and help students learn math."},
-    "budget":{"color":"rose","desc":"Manage your finances effectively and plan your budget."},
-    "billing":{"color":"indigo","desc":"Automate patient statements and track clinic revenue."},
-    "debtors":{"color":"blue","desc":"Manage debtors and generate professional statements."},
-    "cultural_fire":{"color":"orange","desc":"Ignite your talent and compete globally."},
-    "practice_crm":{"color":"teal","desc":"Manage your practice and reduce patient leakage."},
-    "hds":{"color":"fuchsia","desc":"Healthcare Data Switch platform."},
-    "receptionist":{"color":"emerald","desc":"Reception access for approved practices."},
-    "spv":{"color":"slate","desc":"Private investment opportunities."},
-    "adv_math":{"color":"cyan","desc":"AI-powered Grade 12 Mathematics."},
-    "mechanic":{"color":"indigo","desc":"Workshop management system."},
-    "tpx":{"color":"pink","desc":"Trusted Employment Passport."},
-    "healthcore":{"color":"teal","desc":"Your personal health intelligence assistant."}
+"loss":{"color":"purple","desc":"Get support, assess your needs, and begin healing."},
+"reading":{"color":"emerald","desc":"Learn to read from scratch with the Litre Method."},
+"home":{"color":"blue","desc":"Master math through hands-on learning and visual tools."},
+"tutor":{"color":"teal","desc":"Join as a tutor and help students learn math."},
+"budget":{"color":"rose","desc":"Manage your finances effectively and plan your budget."},
+"billing":{"color":"indigo","desc":"Automate patient statements and track clinic revenue."},
+"debtors":{"color":"blue","desc":"Manage debtors and generate professional statements."},
+"cultural_fire":{"color":"orange","desc":"Ignite your talent and compete globally."},
+"practice_crm":{"color":"teal","desc":"Manage your practice and reduce patient leakage."},
+"hds":{"color":"fuchsia","desc":"Healthcare Data Switch platform."},
+"receptionist":{"color":"emerald","desc":"Reception access for approved practices."},
+"spv":{"color":"slate","desc":"Private investment opportunities."},
+"adv_math":{"color":"cyan","desc":"AI-powered Grade 12 Mathematics."},
+"mechanic":{"color":"indigo","desc":"Workshop management system."},
+"tpx":{"color":"pink","desc":"Trusted Employment Passport."},
+"healthcore":{"color":"teal","desc":"Your personal health intelligence assistant."}
 } %}
 
-<div class="mb-10 text-center">
+<!-- Hero -->
+
+<div class="text-center mb-10">
 
     <h1 class="text-4xl font-bold text-slate-900">
         Welcome to AIT Platform
@@ -39,97 +40,43 @@ mx-auto max-w-7xl px-6 py-10
 
     <p class="mt-4 max-w-3xl mx-auto text-lg text-slate-600">
         Discover innovative education, healthcare, business and technology
-        platforms designed to empower individuals and organisations.
+        solutions designed to empower individuals, professionals and organisations.
     </p>
 
 </div>
 
-<div class="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+<!-- Tiles -->
+
+<div class="grid gap-8 sm:grid-cols-2 xl:grid-cols-3">
 
 {% for subj in subjects %}
 
     {% set slug = subj.slug %}
 
-    {% if settings.get("visibility_" ~ slug, "visible") != "hidden" %}
+    {# Hide admin systems #}
+    {% if slug not in [
+        "admin",
+        "admin_general",
+        "sms"
+    ] %}
 
-        {% set info = subject_info.get(slug, {
-            "color":"slate",
-            "desc":fallback_desc
-        }) %}
+        {% if settings.get("visibility_" ~ slug, "visible") != "hidden" %}
 
-        {% set card_classes = {
-            "purple":"border-purple-600 bg-purple-50 hover:border-purple-700",
-            "emerald":"border-emerald-600 bg-emerald-50 hover:border-emerald-700",
-            "blue":"border-blue-600 bg-blue-50 hover:border-blue-700",
-            "teal":"border-teal-600 bg-teal-50 hover:border-teal-700",
-            "rose":"border-rose-600 bg-rose-50 hover:border-rose-700",
-            "indigo":"border-indigo-600 bg-indigo-50 hover:border-indigo-700",
-            "orange":"border-orange-600 bg-orange-50 hover:border-orange-700",
-            "cyan":"border-cyan-600 bg-cyan-50 hover:border-cyan-700",
-            "fuchsia":"border-fuchsia-600 bg-fuchsia-50 hover:border-fuchsia-700",
-            "pink":"border-pink-600 bg-pink-50 hover:border-pink-700",
-            "slate":"border-slate-600 bg-slate-50 hover:border-slate-700"
-        }.get(info.color,"border-slate-600 bg-slate-50 hover:border-slate-700") %}
+            {% set info = subject_info.get(slug,{
+                "color":"slate",
+                "desc":fallback_desc
+            }) %}
 
-        {% set button_classes = {
-            "purple":"bg-purple-600 hover:bg-purple-700",
-            "emerald":"bg-emerald-600 hover:bg-emerald-700",
-            "blue":"bg-blue-600 hover:bg-blue-700",
-            "teal":"bg-teal-600 hover:bg-teal-700",
-            "rose":"bg-rose-600 hover:bg-rose-700",
-            "indigo":"bg-indigo-600 hover:bg-indigo-700",
-            "orange":"bg-orange-600 hover:bg-orange-700",
-            "cyan":"bg-cyan-600 hover:bg-cyan-700",
-            "fuchsia":"bg-fuchsia-600 hover:bg-fuchsia-700",
-            "pink":"bg-pink-600 hover:bg-pink-700",
-            "slate":"bg-slate-700 hover:bg-slate-800"
-        }.get(info.color,"bg-slate-700 hover:bg-slate-800") %}
+            {{ welcome_card(
+                title=subj.name,
+                badge=subj.program_type,
+                description=info.desc,
+                color=info.color,
+                href=subj.about_url,
+                available=subj.about_url is not none
+            ) }}
 
-        {% if subj.about_url %}
-            <a href="{{ subj.about_url }}"
-              class="mt-6 inline-flex justify-center rounded-lg px-4 py-2 font-medium text-white transition {{ button_classes }}">
-                Explore
-            </a>
-        {% else %}
-            <span class="mt-6 inline-flex justify-center rounded-lg px-4 py-2 rounded bg-slate-300 text-slate-700">
-                Coming Soon
-            </span>
-        {% endif %}       
-
-        <div class="rounded-2xl border-2 shadow-sm transition hover:shadow-lg {{ card_classes }}">
-
-            <div class="p-6 flex flex-col h-full">
-
-                <div class="flex justify-between items-center">
-
-                    <h2 class="text-xl font-semibold text-slate-900">
-                        {{ subj.name }}
-                    </h2>
-
-                    <span class="rounded-full bg-white px-3 py-1 text-xs font-medium text-slate-700 shadow-sm">
-                        {{ subj.program_type }}
-                    </span>
-
-                </div>
-
-                <p class="mt-4 flex-grow text-slate-700">
-                    {{ info.desc }}
-                </p>
-
-                {% if subj.about_url %}
-                <a href="{{ subj.about_url }}"
-                  class="mt-6 inline-flex justify-center rounded-lg px-4 py-2 font-medium text-white transition {{ button_classes }}">
-                    Explore
-                </a>
-                {% else %}
-                <span class="mt-6 inline-flex justify-center rounded-lg px-4 py-2 bg-slate-300 text-slate-700">
-                    Coming Soon
-                </span>
-                {% endif %}
-
-            </div>
-
-        </div>
+        {% endif %}
 
     {% endif %}
 

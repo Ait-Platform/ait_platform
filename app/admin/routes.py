@@ -8,12 +8,13 @@ from app.utils.roles import is_admin  # reuse your helper
 from app.extensions import db
 from app.models.reading import RdpLesson
 from . import admin_bp
-#admin_bp = Blueprint("admin_bp", __name__, url_prefix="/admin")
 from sqlalchemy import select, func, text
 from flask_login import current_user
 import uuid
 from app.models.payment import VoucherToken
 from app.models.auth import AuthSubject
+
+
 
 # subjects you support in admin
 ALLOWED_SUBJECTS = {"reading", "home", "loss", "billing", "adv_math", "spv"}  # extend as needed
@@ -26,8 +27,6 @@ def _guard():
         
     if not is_admin():
         return redirect(url_for("public_bp.welcome"))
-
-
 
 @admin_bp.route("/<subject>/", endpoint="subject_dashboard")
 def subject_dashboard(subject: str):
@@ -174,32 +173,12 @@ def admin_reading_preview():
 
     return render_template("school_reading/learner_dashboard.html", **ctx)
 
-
-
-# app/admin/routes.py (or wherever your admin_bp routes are)
-# app/admin/routes.py
-from flask import render_template, current_app
-from . import admin_bp
-
 # ---- Tiles dashboard view ----
-
-# app/admin/routes.py
-from flask import request, session, redirect, url_for
 
 def _admins_only():
     if not (session.get("is_admin") or session.get("role") == "admin"):
         return redirect(url_for("public_bp.welcome"))  # not login
     return None
-
-# /admin/ → templates/admin/admin_dashboard.html
-
-
-
-
-
-
-from . import admin_bp
-from flask import render_template, session, redirect, url_for
 
 # --- define the view function ONCE ---
 def _admin_dashboard_view():
@@ -209,9 +188,6 @@ def _admin_dashboard_view():
 # --- bind BOTH endpoints to the same function (AFTER it's defined) ---
 admin_bp.add_url_rule("/", endpoint="index",            view_func=_admin_dashboard_view)
 admin_bp.add_url_rule("/", endpoint="admin_dashboard",  view_func=_admin_dashboard_view)
-
-# app/blueprints/admin/loss_admin.py
-
 
 @admin_bp.route("/loss/runs", methods=["GET"], endpoint="loss_runs_selector")
 def loss_runs_selector():
@@ -246,7 +222,6 @@ def manage_programs():
     
     subjects = AuthSubject.query.order_by(AuthSubject.name).all()
     return render_template("admin/programs.html", subjects=subjects)
-
 
 @admin_bp.route("/settings", methods=["GET", "POST"])
 def global_settings():
@@ -320,29 +295,28 @@ def view_messages():
     msgs = DirectMessage.query.order_by(DirectMessage.created_at.desc()).all()
     return render_template('admin/messages.html', messages=msgs)
 
-
 @admin_bp.route("/modules_control", methods=["GET", "POST"], endpoint="modules_control")
 def modules_control():
+
     if request.method == "POST":
         updates = []
-        for k, v in request.form.items():
-            if k.startswith('visibility_') or k.startswith('yoco_mode_'):
-                updates.append((k, v))
-        for key, val in updates:
-            db.session.execute(text("INSERT INTO system_settings (key, value) VALUES (:k, :v) ON CONFLICT(key) DO UPDATE SET value=excluded.value"), {"k": key, "v": val})
-        db.session.commit()
-        flash("Module controls updated successfully", "success")
-        return redirect(url_for("admin_bp.modules_control"))
-        
-    settings = db.session.execute(text("SELECT key, value FROM system_settings")).fetchall()
-    settings_dict = {s.key: s.value for s in settings}
-    from app.models.auth import AuthSubject
-    subjects = AuthSubject.query.order_by(AuthSubject.name).all()
-    return render_template("admin/modules_control.html", settings=settings_dict, subjects=subjects)
 
-from app.models.payment import VoucherToken
-from app.models.auth import AuthSubject
-import uuid
+        for k, v in request.form.items():
+            if k.startswith("visibility_") or k.startswith("yoco_mode_"):
+                updates.append((k, v))
+
+        for key, val in updates:
+            db.session.execute(
+                text("""
+                INSERT INTO system_settings (key, value)
+                VALUES (:k, :v)
+                ON CONFLICT(key)
+                DO UPDATE SET value = excluded.value
+                """),
+                {"k": key, "v": val}
+            )
+
+        db.session.commit()
 
 @admin_bp.route("/vouchers", methods=["GET", "POST"], endpoint="manage_vouchers")
 def manage_vouchers():

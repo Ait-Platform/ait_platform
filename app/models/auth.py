@@ -124,7 +124,8 @@ class AuthSubject(db.Model):
     pay_endpoint = db.Column(db.String(128), nullable=True)
     trial_expired_endpoint = db.Column(db.String(128), nullable=True)
     admin_start_endpoint = db.Column(db.String(128), nullable=True)
-
+    show_on_welcome = db.Column(db.Boolean, nullable=False, default=False)
+    
     def __repr__(self):
         return f"<AuthSubject slug={self.slug} name={self.name}>"
 

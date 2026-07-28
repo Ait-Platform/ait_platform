@@ -114,10 +114,16 @@ mx-auto max-w-7xl px-6 py-10
                     {{ info.desc }}
                 </p>
 
-                <a href="{{ url_for(endpoint, subject=slug) }}"
-                   class="mt-6 inline-flex justify-center rounded-lg px-4 py-2 font-medium text-white transition {{ button_classes }}">
+                {% if subj.about_url %}
+                <a href="{{ subj.about_url }}"
+                  class="mt-6 inline-flex justify-center rounded-lg px-4 py-2 font-medium text-white transition {{ button_classes }}">
                     Explore
                 </a>
+                {% else %}
+                <span class="mt-6 inline-flex justify-center rounded-lg px-4 py-2 bg-slate-300 text-slate-700">
+                    Coming Soon
+                </span>
+                {% endif %}
 
             </div>
 

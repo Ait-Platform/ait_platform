@@ -83,11 +83,25 @@ mx-auto max-w-7xl px-6 py-10
             "slate":"bg-slate-700 hover:bg-slate-800"
         }.get(info.color,"bg-slate-700 hover:bg-slate-800") %}
 
-        {% if subj.about_endpoint %}
+        {% if slug == "admin" %}
+            {% set endpoint = None %}
+        {% elif subj.about_endpoint %}
             {% set endpoint = subj.about_endpoint %}
         {% else %}
-            {% set endpoint = "public_bp.welcome" %}
+            {% set endpoint = None %}
         {% endif %}
+
+        {% if endpoint %}
+        <a href="{{ url_for(endpoint) }}"
+          class="mt-6 inline-flex justify-center rounded-lg px-4 py-2 font-medium text-white transition {{ button_classes }}">
+            Explore
+        </a>
+        {% else %}
+        <button
+            class="mt-6 inline-flex justify-center rounded-lg px-4 py-2 font-medium bg-slate-300 text-slate-700 cursor-not-allowed">
+            Coming Soon
+        </button>
+        {% endif %}        
 
         <div class="rounded-2xl border-2 shadow-sm transition hover:shadow-lg {{ card_classes }}">
 

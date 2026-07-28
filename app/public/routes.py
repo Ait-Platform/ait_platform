@@ -91,15 +91,6 @@ def welcome():
         except Exception:
             db.session.rollback()
             rows = []
-    '''        
-    for row in rows:
-        settings[row[0]] = row[1]
-    
-    from app.models.auth import AuthSubject
-    subjects = AuthSubject.query.filter_by(is_active=1).order_by(AuthSubject.name).all()
-    endpoints = []  # whatever you pass
-    return render_template("public/welcome.html", endpoints=endpoints, settings=settings, subjects=subjects)
-    '''
 
     from werkzeug.routing import BuildError
 
@@ -111,7 +102,7 @@ def welcome():
     subjects = (
         AuthSubject.query
         .filter(AuthSubject.is_active == 1)
-        .filter(~AuthSubject.slug.in_(["admin", "admin_general"]))
+        .filter(AuthSubject.show_on_welcome == True)
         .order_by(AuthSubject.name)
         .all()
     )
@@ -129,8 +120,8 @@ def welcome():
             except BuildError:
                 subj.about_url = None
 
-    print(settings)
-    
+    #print(settings)
+
     return render_template(
         "public/welcome.html",
         settings=settings,

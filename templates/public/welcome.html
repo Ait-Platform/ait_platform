@@ -67,23 +67,23 @@ mx-auto max-w-7xl px-6 py-10
         "sms"
     ] %}
 
-        {% if settings.get("visibility_" ~ slug, "visible") != "hidden" %}
+        
 
-            {% set info = subject_info.get(slug,{
-                "color":"slate",
-                "desc":fallback_desc
-            }) %}
+        {% set info = subject_info.get(slug,{
+            "color":"slate",
+            "desc":fallback_desc
+        }) %}
 
-            {{ welcome_card(
-                title=subj.name,
-                badge=subj.program_type,
-                description=info.desc,
-                color=info.color,
-                href=subj.about_url,
-                available=subj.about_url is not none
-            ) }}
+        {{ welcome_card(
+            title=subj.name,
+            badge=subj.program_type,
+            description=info.desc,
+            color=info.color,
+            href=subj.about_url,
+            available=subj.about_url is not none
+        ) }}
 
-        {% endif %}
+        
 
     {% endif %}
 

@@ -91,7 +91,7 @@ def welcome():
         except Exception:
             db.session.rollback()
             rows = []
-            
+    '''        
     for row in rows:
         settings[row[0]] = row[1]
     
@@ -99,6 +99,40 @@ def welcome():
     subjects = AuthSubject.query.filter_by(is_active=1).order_by(AuthSubject.name).all()
     endpoints = []  # whatever you pass
     return render_template("public/welcome.html", endpoints=endpoints, settings=settings, subjects=subjects)
+    '''
+
+    from werkzeug.routing import BuildError
+
+    for row in rows:
+        settings[row[0]] = row[1]
+
+    from app.models.auth import AuthSubject
+
+    subjects = (
+        AuthSubject.query
+        .filter_by(is_active=1)
+        .order_by(AuthSubject.name)
+        .all()
+    )
+
+    for subj in subjects:
+        subj.about_url = None
+
+        # Don't show admin modules on the public page
+        if subj.slug in ("admin", "admin_general"):
+            continue
+
+        if subj.about_endpoint:
+            try:
+                subj.about_url = url_for(subj.about_endpoint)
+            except BuildError:
+                subj.about_url = None
+
+    return render_template(
+        "public/welcome.html",
+        settings=settings,
+        subjects=subjects
+    )
 
 def refresh_bridge_session(user):
     """

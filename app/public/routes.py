@@ -129,6 +129,8 @@ def welcome():
             except BuildError:
                 subj.about_url = None
 
+    print(settings)
+    
     return render_template(
         "public/welcome.html",
         settings=settings,

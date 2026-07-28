@@ -71,7 +71,11 @@
       <!-- Visibility Checkbox -->
       <td class="px-4 py-3 text-center">
         <label class="inline-flex items-center cursor-pointer justify-center">
-          <input type="hidden" name="visibility_{{ s }}" id="vis_{{ s }}" value="{{ settings.get('visibility_'~s, 'visible') }}">
+          <input
+              type="checkbox"
+              name="show_on_welcome_{{ subject.slug }}"
+              class="form-checkbox h-5 w-5 rounded border-2 border-slate-300 text-emerald-600 focus:ring-emerald-500"
+              {% if subject.show_on_welcome %}checked{% endif %}>
           <input type="checkbox" class="form-checkbox h-5 w-5 text-emerald-500 rounded border-2 border-slate-300 focus:ring-emerald-500 outline-none transition duration-150 cursor-pointer"
                  onchange="document.getElementById('vis_{{ s }}').value = this.checked ? 'visible' : 'hidden';"
                  {% if settings.get('visibility_'~s, 'visible') == 'visible' %}checked{% endif %}>

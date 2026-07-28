@@ -297,26 +297,66 @@ def view_messages():
 
 @admin_bp.route("/modules_control", methods=["GET", "POST"], endpoint="modules_control")
 def modules_control():
+    from sqlalchemy import text
+    from app.extensions import db
+    from app.models.auth import AuthSubject
 
     if request.method == "POST":
-        updates = []
 
-        for k, v in request.form.items():
-            if k.startswith("visibility_") or k.startswith("yoco_mode_"):
-                updates.append((k, v))
+        # Update every active subject
+        subjects = AuthSubject.query.all()
 
-        for key, val in updates:
+        for subject in subjects:
+
+            # Welcome page visibility
+            subject.show_on_welcome = (
+                request.form.get(f"show_on_welcome_{subject.slug}") == "on"
+            )
+
+            # Yoco Mode (still stored in system_settings)
+            yoco_mode = request.form.get(
+                f"yoco_mode_{subject.slug}",
+                "sandbox"
+            )
+
             db.session.execute(
                 text("""
-                INSERT INTO system_settings (key, value)
-                VALUES (:k, :v)
-                ON CONFLICT(key)
-                DO UPDATE SET value = excluded.value
+                    INSERT INTO system_settings (key, value)
+                    VALUES (:k, :v)
+                    ON CONFLICT (key)
+                    DO UPDATE SET value = EXCLUDED.value
                 """),
-                {"k": key, "v": val}
+                {
+                    "k": f"yoco_mode_{subject.slug}",
+                    "v": yoco_mode
+                }
             )
 
         db.session.commit()
+
+        flash("Platform Module Control updated successfully.", "success")
+        return redirect(url_for("admin_bp.modules_control"))
+
+    # Load system settings
+    rows = db.session.execute(
+        text("SELECT key, value FROM system_settings")
+    ).fetchall()
+
+    settings = {row.key: row.value for row in rows}
+
+    # Load all active subjects
+    subjects = (
+        AuthSubject.query
+        .filter(AuthSubject.is_active == True)
+        .order_by(AuthSubject.name)
+        .all()
+    )
+
+    return render_template(
+        "admin/modules_control.html",
+        settings=settings,
+        subjects=subjects
+    )
 
 @admin_bp.route("/vouchers", methods=["GET", "POST"], endpoint="manage_vouchers")
 def manage_vouchers():

@@ -588,6 +588,11 @@ def create_app(test_config=None):
         # Setup globals
         app.jinja_env.globals['current_year'] = datetime.now().year
         db.create_all()
+
+        print("STATIC FOLDER:", app.static_folder)
+        print("STATIC URL:", app.static_url_path)
+        print("ROOT PATH:", app.root_path)        
+        
         # Create Postgres-safe view (no missing columns)
         # ensure core subjects exist in auth_subject (SQLite + Postgres)
         ensure_core_subjects()

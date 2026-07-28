@@ -1,125 +1,126 @@
 {% extends "layout.html" %}
+
 {% block title %}Welcome | AIT Platform{% endblock %}
 
-{% block content %}
-
-{% block flashes %}{% endblock %}
-
-<!-- School tile -->
-<div class="mx-auto max-w-6xl mb-8">
-  <div class="bg-white rounded-xl shadow overflow-hidden">
-    <div class="h-2 bg-indigo-600"></div>
-    <div class="p-6 text-center">
-      {% include "partials/flash_messages.html" %}
-      <h1 class="text-xl font-semibold text-slate-900">Archoney Institute of Technology</h1>
-      <p class="mt-2 text-slate-600 text-sm">
-        Explore powerful programs tailored to different needs
-      </p>
-    </div>
-  </div>
-</div>
-
-{% if request.args.get('sent') == '1' %}
-  <div class="mx-auto max-w-6xl mb-8 rounded-lg bg-emerald-50 text-emerald-800 px-4 py-2 border border-emerald-200">
-    Report emailed successfully.
-{% extends "layout.html" %}
-{% block title %}Welcome | AIT Platform{% endblock %}
+{% block page_wrap_classes %}
+mx-auto max-w-7xl px-6 py-10
+{% endblock %}
 
 {% block content %}
-
-{% block flashes %}{% endblock %}
-
-<!-- School tile -->
-<div class="mx-auto max-w-6xl mb-8">
-  <div class="bg-white rounded-xl shadow overflow-hidden">
-    <div class="h-2 bg-indigo-600"></div>
-    <div class="p-6 text-center">
-      {% include "partials/flash_messages.html" %}
-      <h1 class="text-xl font-semibold text-slate-900">Archoney Institute of Technology</h1>
-      <p class="mt-2 text-slate-600 text-sm">
-        Explore powerful programs tailored to different needs
-      </p>
-    </div>
-  </div>
-</div>
-
-{% if request.args.get('sent') == '1' %}
-  <div class="mx-auto max-w-6xl mb-8 rounded-lg bg-emerald-50 text-emerald-800 px-4 py-2 border border-emerald-200">
-    Report emailed successfully.
-  </div>
-{% elif request.args.get('sent') == '0' %}
-  <div class="mx-auto max-w-6xl mb-8 rounded-lg bg-red-50 text-red-800 px-4 py-2 border border-red-200">
-    We couldn’t complete your request ({{ request.args.get('err') }}). Please try again or contact support.
-  </div>
-{% endif %}
-<div class="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto px-4 mb-8">
 
 {% set fallback_desc = "Explore our latest program and get started today." %}
-{% set fallback_color = "slate" %}
 
-{% set slug_data = {
-  "loss": {"color": "purple", "desc": "Get support, assess your needs, and begin healing."},
-  "reading": {"color": "emerald", "desc": "Learn to read from scratch with the Litre Method."},
-  "home": {"color": "blue", "desc": "Master math through hands-on learning and visual tools."},
-  "tutor": {"color": "teal", "desc": "Join as a tutor and help students learn math."},
-  "budget": {"color": "rose", "desc": "Manage your finances effectively and plan your budget."},
-  "billing": {"color": "indigo", "desc": "Automate patient statements and track clinic revenue."},
-  "debtors": {"color": "blue", "desc": "Manage debtors, capture transactions, and generate automated Statements of Account with your custom branding."},
-  "cultural_fire": {"color": "orange", "desc": "Ignite your talent and compete in global showcases!"},
-  "practice_crm": {"color": "teal", "desc": "Eliminate patient leakage and control risks in a medical/dental reception environment."},
-  "hds": {"color": "fuchsia", "desc": "Securely switch, manage, and track healthcare claims and data transactions."},
-  "receptionist": {"color": "emerald", "desc": "Register to gain pipeline access when added by your Practice Owner."},
-  "spv": {"color": "slate", "desc": "Explore secure, transparent investment opportunities in curated private development projects."},
-  "adv_math": {"color": "cyan", "desc": "Your Matric Success Partner. AI-driven mastery preparation for NSC Grade 12 Math."},
-  "mechanic": {"color": "indigo", "desc": "Manage your mechanic workshop easily."},
-  "tpx": {"color": "pink", "desc": "To create a country's most trusted employment ecosystem by connecting verified people with verified employers through a secure digital Employment Passport."},
-  "healthcore": {"color": "teal", "desc": "Understand Your Health. Protect Your Future. Your personal health intelligence assistant."}
+{% set subject_info = {
+    "loss": {"color":"purple","desc":"Get support, assess your needs, and begin healing."},
+    "reading":{"color":"emerald","desc":"Learn to read from scratch with the Litre Method."},
+    "home":{"color":"blue","desc":"Master math through hands-on learning and visual tools."},
+    "tutor":{"color":"teal","desc":"Join as a tutor and help students learn math."},
+    "budget":{"color":"rose","desc":"Manage your finances effectively and plan your budget."},
+    "billing":{"color":"indigo","desc":"Automate patient statements and track clinic revenue."},
+    "debtors":{"color":"blue","desc":"Manage debtors and generate professional statements."},
+    "cultural_fire":{"color":"orange","desc":"Ignite your talent and compete globally."},
+    "practice_crm":{"color":"teal","desc":"Manage your practice and reduce patient leakage."},
+    "hds":{"color":"fuchsia","desc":"Healthcare Data Switch platform."},
+    "receptionist":{"color":"emerald","desc":"Reception access for approved practices."},
+    "spv":{"color":"slate","desc":"Private investment opportunities."},
+    "adv_math":{"color":"cyan","desc":"AI-powered Grade 12 Mathematics."},
+    "mechanic":{"color":"indigo","desc":"Workshop management system."},
+    "tpx":{"color":"pink","desc":"Trusted Employment Passport."},
+    "healthcore":{"color":"teal","desc":"Your personal health intelligence assistant."}
 } %}
 
-  {% for subj in subjects %}
-    {% set s = subj.slug %}
-    {% if settings.get("visibility_" ~ s, "visible") != "hidden" %}
-    
-    {% set info = slug_data.get(s, {"color": fallback_color, "desc": fallback_desc}) %}
-    {% set color = info.color %}
-    
-    <div class="bg-white rounded-xl shadow overflow-hidden">
-      <!-- To ensure tailwind compiler sees the classes, we map the color strictly, 
-           but since these specific dynamic color classes might not compile if not already in safelist,
-           we construct them explicitly with style if they are unknown, or rely on standard ones.
-           However, standard Tailwind JIT doesn't compile dynamic strings like `bg-{{ color }}-600`.
-           We will use standard hardcoded classes for the fallback to be safe, 
-           and a dictionary mapping for the known ones. -->
-           
-      {% set bg_header = "bg-" ~ color ~ "-600" %}
-      {% set bg_badge = "bg-" ~ color ~ "-100" %}
-      {% set text_badge = "text-" ~ color ~ "-800" %}
-      {% set bg_btn = "bg-" ~ color ~ "-600" %}
-      {% set hover_btn = "hover:bg-" ~ color ~ "-700" %}
-      
-      <!-- We use a custom style injection as a fallback to ensure colors render even if Tailwind stripped them -->
-      {% set hex_map = {"purple":"#9333ea", "emerald":"#059669", "blue":"#2563eb", "teal":"#0d9488", "rose":"#e11d48", "indigo":"#4f46e5", "orange":"#ea580c", "cyan":"#0891b2", "fuchsia":"#c026d3", "slate":"#475569", "pink":"#db2777"} %}
-      {% set hex = hex_map.get(color, "#475569") %}
-      
-      <div class="h-2" style="background-color: {{ hex }};"></div>
-      <div class="p-6 flex flex-col h-full">
-        <div class="flex items-start justify-between">
-          <h2 class="text-lg font-semibold text-slate-800">{{ subj.name }}</h2>
-          <span class="text-xs px-2 py-1 rounded capitalize" style="background-color: {{ hex }}20; color: {{ hex }};">{{ subj.program_type }}</span>
-        </div>
-        <p class="mt-2 text-sm text-slate-600 flex-grow">{{ info.desc }}</p>
-        
+<div class="mb-10 text-center">
+
+    <h1 class="text-4xl font-bold text-slate-900">
+        Welcome to AIT Platform
+    </h1>
+
+    <p class="mt-4 max-w-3xl mx-auto text-lg text-slate-600">
+        Discover innovative education, healthcare, business and technology
+        platforms designed to empower individuals and organisations.
+    </p>
+
+</div>
+
+<div class="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+
+{% for subj in subjects %}
+
+    {% set slug = subj.slug %}
+
+    {% if settings.get("visibility_" ~ slug, "visible") != "hidden" %}
+
+        {% set info = subject_info.get(slug, {
+            "color":"slate",
+            "desc":fallback_desc
+        }) %}
+
+        {% set card_classes = {
+            "purple":"border-purple-600 bg-purple-50 hover:border-purple-700",
+            "emerald":"border-emerald-600 bg-emerald-50 hover:border-emerald-700",
+            "blue":"border-blue-600 bg-blue-50 hover:border-blue-700",
+            "teal":"border-teal-600 bg-teal-50 hover:border-teal-700",
+            "rose":"border-rose-600 bg-rose-50 hover:border-rose-700",
+            "indigo":"border-indigo-600 bg-indigo-50 hover:border-indigo-700",
+            "orange":"border-orange-600 bg-orange-50 hover:border-orange-700",
+            "cyan":"border-cyan-600 bg-cyan-50 hover:border-cyan-700",
+            "fuchsia":"border-fuchsia-600 bg-fuchsia-50 hover:border-fuchsia-700",
+            "pink":"border-pink-600 bg-pink-50 hover:border-pink-700",
+            "slate":"border-slate-600 bg-slate-50 hover:border-slate-700"
+        }.get(info.color,"border-slate-600 bg-slate-50 hover:border-slate-700") %}
+
+        {% set button_classes = {
+            "purple":"bg-purple-600 hover:bg-purple-700",
+            "emerald":"bg-emerald-600 hover:bg-emerald-700",
+            "blue":"bg-blue-600 hover:bg-blue-700",
+            "teal":"bg-teal-600 hover:bg-teal-700",
+            "rose":"bg-rose-600 hover:bg-rose-700",
+            "indigo":"bg-indigo-600 hover:bg-indigo-700",
+            "orange":"bg-orange-600 hover:bg-orange-700",
+            "cyan":"bg-cyan-600 hover:bg-cyan-700",
+            "fuchsia":"bg-fuchsia-600 hover:bg-fuchsia-700",
+            "pink":"bg-pink-600 hover:bg-pink-700",
+            "slate":"bg-slate-700 hover:bg-slate-800"
+        }.get(info.color,"bg-slate-700 hover:bg-slate-800") %}
+
         {% if subj.about_endpoint %}
-          {% set endpoint = subj.about_endpoint %}
+            {% set endpoint = subj.about_endpoint %}
         {% else %}
-          {% set endpoint = "public_bp.welcome" %} 
+            {% set endpoint = "public_bp.welcome" %}
         {% endif %}
-        
-        <a href="{{ url_for(endpoint, subject=s) }}" class="inline-block mt-4 px-4 py-2 text-white text-sm rounded-lg transition" style="background-color: {{ hex }};">Explore</a>
-      </div>
-    </div>
+
+        <div class="rounded-2xl border-2 shadow-sm transition hover:shadow-lg {{ card_classes }}">
+
+            <div class="p-6 flex flex-col h-full">
+
+                <div class="flex justify-between items-center">
+
+                    <h2 class="text-xl font-semibold text-slate-900">
+                        {{ subj.name }}
+                    </h2>
+
+                    <span class="rounded-full bg-white px-3 py-1 text-xs font-medium text-slate-700 shadow-sm">
+                        {{ subj.program_type }}
+                    </span>
+
+                </div>
+
+                <p class="mt-4 flex-grow text-slate-700">
+                    {{ info.desc }}
+                </p>
+
+                <a href="{{ url_for(endpoint, subject=slug) }}"
+                   class="mt-6 inline-flex justify-center rounded-lg px-4 py-2 font-medium text-white transition {{ button_classes }}">
+                    Explore
+                </a>
+
+            </div>
+
+        </div>
+
     {% endif %}
-  {% endfor %}
+
+{% endfor %}
 
 </div>
 

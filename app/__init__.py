@@ -45,10 +45,13 @@ STATIC_DIR = BASE_DIR / "static"
 
 def create_app(test_config=None):
     app = Flask(__name__, instance_relative_config=True, 
-                #template_folder=str(TEMPLATES_DIR),
-        template_folder="../templates",
-        static_folder="../static",)
-    
+        #template_folder=str(TEMPLATES_DIR),
+        ##static_folder="../static",)
+
+        template_folder="templates",
+        static_folder="static",
+    )
+
     Path(app.instance_path).mkdir(parents=True, exist_ok=True)
 
     # 1) Base config object (config.py at project root)
@@ -592,7 +595,7 @@ def create_app(test_config=None):
         print("STATIC FOLDER:", app.static_folder)
         print("STATIC URL:", app.static_url_path)
         print("ROOT PATH:", app.root_path)        
-        
+
         # Create Postgres-safe view (no missing columns)
         # ensure core subjects exist in auth_subject (SQLite + Postgres)
         ensure_core_subjects()

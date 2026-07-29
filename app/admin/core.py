@@ -253,7 +253,7 @@ def adv_math_extract_memo_save():
         db.session.rollback()
         return jsonify({"success": False, "error": str(e)}), 500
 
-
+'''
 @admin_bp.route("/modules_control", methods=["GET", "POST"], endpoint="modules_control")
 def modules_control():
     if request.method == "POST":
@@ -311,3 +311,4 @@ def manage_vouchers():
     
     return render_template('admin/vouchers.html', vouchers=vouchers, subjects=subjects)
 
+'''

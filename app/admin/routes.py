@@ -304,15 +304,20 @@ def modules_control():
     if request.method == "POST":
 
         # Update every active subject
-        subjects = AuthSubject.query.all()
+        subjects = (
+            AuthSubject.query
+            .filter_by(is_active=1)
+            .all()
+        )
 
         for subject in subjects:
 
             # Welcome page visibility
             subject.show_on_welcome = (
-                request.form.get(f"show_on_welcome_{subject.slug}") == "on"
+                #request.form.get(f"show_on_welcome_{subject.slug}") == "on"
+                f"show_on_welcome_{subject.slug}" in request.form
             )
-
+        
             # Yoco Mode (still stored in system_settings)
             yoco_mode = request.form.get(
                 f"yoco_mode_{subject.slug}",
@@ -337,24 +342,23 @@ def modules_control():
         flash("Platform Module Control updated successfully.", "success")
         return redirect(url_for("admin_bp.modules_control"))
 
-    # Load system settings
-    rows = db.session.execute(
+    # Read settings
+    settings = db.session.execute(
         text("SELECT key, value FROM system_settings")
     ).fetchall()
 
-    settings = {row.key: row.value for row in rows}
+    settings_dict = {row.key: row.value for row in settings}
 
-    # Load all active subjects
+    # Read subjects
     subjects = (
         AuthSubject.query
-        .filter(AuthSubject.is_active == True)
         .order_by(AuthSubject.name)
         .all()
     )
 
     return render_template(
         "admin/modules_control.html",
-        settings=settings,
+        settings=settings_dict,
         subjects=subjects
     )
 

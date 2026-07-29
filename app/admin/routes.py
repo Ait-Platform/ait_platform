@@ -343,27 +343,28 @@ def modules_control():
         return redirect(url_for("admin_bp.modules_control"))
 
     # Read settings
+    # Read settings
     settings = db.session.execute(
         text("SELECT key, value FROM system_settings")
     ).fetchall()
 
     settings_dict = {row.key: row.value for row in settings}
 
-    # Read subjects
-    subjects = AuthSubject.query.all()
+    print("=" * 60)
+    print("SYSTEM SETTINGS:", len(settings_dict))
+    print(settings_dict)
+    print("=" * 60)
 
-    print("===================================")
-    print("AUTH SUBJECT COUNT:", len(subjects))
-
-    for s in subjects:
-        print(s.id, s.slug, s.name)
-
-    print("===================================")
-
-    from sqlalchemy import text
+    # --------------------------------------------------
+    # RAW SQL TEST
+    # --------------------------------------------------
 
     rows = db.session.execute(
-        text("SELECT id, slug, name FROM auth_subject")
+        text("""
+            SELECT id, slug, name, show_on_welcome
+            FROM auth_subject
+            ORDER BY name
+        """)
     ).fetchall()
 
     print("RAW SQL COUNT:", len(rows))
@@ -371,21 +372,27 @@ def modules_control():
     for r in rows:
         print(r)
 
-    subjects = AuthSubject.query.order_by(AuthSubject.name).all()
-
-    print("ORM SUBJECTS:", len(subjects))
-
-    print("Subjects:", len(subjects))
-    for s in subjects:
-        print(s.name, s.slug, s.show_on_welcome)
-
-    print(settings_dict)
-
     print("=" * 60)
-    print("SUBJECT COUNT:", len(subjects))
+
+    # --------------------------------------------------
+    # ORM TEST
+    # --------------------------------------------------
+
+    subjects = (
+        AuthSubject.query
+        .order_by(AuthSubject.name)
+        .all()
+    )
+
+    print("ORM SUBJECT COUNT:", len(subjects))
 
     for s in subjects:
-        print(s.id, s.name, s.slug, s.show_on_welcome)
+        print(
+            s.id,
+            s.name,
+            s.slug,
+            s.show_on_welcome
+        )
 
     print("=" * 60)
 

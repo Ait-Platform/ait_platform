@@ -28,7 +28,10 @@ def start():
     """
     Creates a Yoco Hosted Checkout session and redirects the user to the Yoco gateway.
     """
-
+    current_app.logger.warning("=" * 60)
+    current_app.logger.warning("YOCO START ROUTE EXECUTED")
+    current_app.logger.warning(__file__)
+    current_app.logger.warning("=" * 60)
 
     from flask_login import current_user
     

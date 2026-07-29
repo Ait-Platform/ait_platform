@@ -295,6 +295,7 @@ def view_messages():
     msgs = DirectMessage.query.order_by(DirectMessage.created_at.desc()).all()
     return render_template('admin/messages.html', messages=msgs)
 
+'''
 @admin_bp.route("/modules_control", methods=["GET", "POST"], endpoint="modules_control")
 def modules_control():
     from sqlalchemy import text
@@ -439,3 +440,4 @@ def manage_vouchers():
     subjects = AuthSubject.query.order_by(AuthSubject.name.asc()).all()
     
     return render_template("admin/vouchers.html", vouchers=vouchers, subjects=subjects)
+'''

@@ -350,16 +350,24 @@ def modules_control():
     settings_dict = {row.key: row.value for row in settings}
 
     # Read subjects
-    rows = db.session.execute(text("""
-        SELECT id,
-            name,
-            slug,
-            show_on_welcome
-        FROM auth_subject
-        ORDER BY name
-    """)).fetchall()
+    subjects = AuthSubject.query.all()
 
-    print("RAW ROWS:", len(rows))
+    print("===================================")
+    print("AUTH SUBJECT COUNT:", len(subjects))
+
+    for s in subjects:
+        print(s.id, s.slug, s.name)
+
+    print("===================================")
+
+    from sqlalchemy import text
+
+    rows = db.session.execute(
+        text("SELECT id, slug, name FROM auth_subject")
+    ).fetchall()
+
+    print("RAW SQL COUNT:", len(rows))
+
     for r in rows:
         print(r)
 

@@ -139,7 +139,7 @@ def start():
     # HARDCODED TEST KEY TO AVOID 403 FORBIDDEN FROM BAD ENV VARS
     SECRET_KEY = "sk_test_960bfde0VBrLlpK098e4ffeb53e1"
     '''
-    
+
     import os
 
     val = db.session.execute(
@@ -152,10 +152,18 @@ def start():
 
     yoco_mode = (val or "sandbox").lower()
 
+    current_app.logger.info(
+        f"YOCO MODE: {yoco_mode} | SUBJECT: {subject}"
+    )
+
     if yoco_mode == "live":
         SECRET_KEY = os.environ.get("YOCO_LIVE_SECRET_KEY")
     else:
         SECRET_KEY = os.environ.get("YOCO_TEST_SECRET_KEY")
+
+    current_app.logger.info(
+        f"Using {'LIVE' if yoco_mode == 'live' else 'TEST'} Yoco key"
+    )
 
     if not SECRET_KEY:
         current_app.logger.error("No Yoco secret key configured.")

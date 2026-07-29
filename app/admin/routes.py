@@ -358,16 +358,15 @@ def modules_control():
     # --------------------------------------------------
     # RAW SQL TEST
     # --------------------------------------------------
+    rows = db.session.execute(text("""
+        SELECT *
+        FROM auth_subject
+        ORDER BY name
+    """)).mappings().all()
 
-    rows = db.session.execute(
-        text("""
-            SELECT id, slug, name, show_on_welcome
-            FROM auth_subject
-            ORDER BY name
-        """)
-    ).fetchall()
+    print("RAW ROWS:", len(rows))
 
-    print("RAW SQL COUNT:", len(rows))
+    subjects = rows
 
     for r in rows:
         print(r)

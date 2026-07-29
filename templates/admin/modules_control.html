@@ -126,7 +126,7 @@ Payment Mode
 
 {% for subject in subjects %}
 
-<tr class="hover:bg-slate-50 transition">
+<!--tr class="hover:bg-slate-50 transition">
 
 <td class="px-4 py-4 text-center text-slate-500">
 {{ loop.index }}
@@ -138,7 +138,17 @@ Payment Mode
 
 <td class="px-4 py-4 text-slate-500 font-mono text-sm">
 {{ subject.slug }}
-</td>
+</td-->
+
+
+
+<tr>
+    <td>{{ subject["name"] }}</td>
+    <td>{{ subject["slug"] }}</td>
+    <td>{{ subject["show_on_welcome"] }}</td>
+</tr>
+
+{% endfor %}
 
 <!-- Welcome -->
 

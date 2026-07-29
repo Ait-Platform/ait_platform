@@ -4,251 +4,222 @@
 
 {% block content %}
 
-<!-- Header -->
-<div class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+<div class="max-w-7xl mx-auto px-6 py-8">
 
-    <div class="h-2 bg-indigo-600"></div>
+    <!-- Header -->
+    <div class="bg-white rounded-2xl shadow border border-slate-200 overflow-hidden">
 
-    <div class="px-8 py-6 flex items-center justify-between">
+        <div class="h-2 bg-indigo-600"></div>
 
-        <div>
-            <h1 class="text-3xl font-bold text-slate-900">
-                Platform Modules Control
-            </h1>
+        <div class="px-8 py-6 flex justify-between items-center">
 
-            <p class="mt-2 text-slate-600">
-                Select which programs appear on the public Welcome page and
-                choose the Yoco payment environment for each program.
-            </p>
-        </div>
+            <div>
+                <h1 class="text-3xl font-bold text-slate-900">
+                    Platform Modules Control
+                </h1>
 
-        <div class="flex gap-3">
+                <p class="mt-2 text-slate-500">
+                    Control which programs appear on the Welcome page and choose
+                    the Yoco payment environment.
+                </p>
+            </div>
 
-            <a href="{{ url_for('admin_bp.manage_vouchers') }}"
-               class="rounded-lg border border-slate-300 bg-white px-4 py-2 hover:bg-slate-50 transition">
-                Manage Vouchers
-            </a>
+            <div class="flex gap-3">
 
-            <a href="{{ url_for('admin_bp.subject_dashboard', subject='admin_secure') }}"
-               class="rounded-lg border border-slate-300 bg-white px-4 py-2 hover:bg-slate-50 transition">
-                Back
-            </a>
+                <a href="{{ url_for('admin_bp.manage_vouchers') }}"
+                   class="px-4 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-50">
+                    Manage Vouchers
+                </a>
+
+                <a href="{{ url_for('admin_bp.subject_dashboard', subject='admin_secure') }}"
+                   class="px-4 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-50">
+                    Back
+                </a>
+
+            </div>
 
         </div>
 
     </div>
 
-</div>
 
+    <!-- Flash Messages -->
 
-<!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
 
-{% with messages = get_flashed_messages(with_categories=true) %}
-{% if messages %}
+        {% for category, message in messages %}
 
-<div class="mt-6 space-y-3">
+        <div class="mt-6 rounded-lg border px-5 py-4
+            {% if category == 'success' %}
+                border-green-200 bg-green-50 text-green-800
+            {% else %}
+                border-red-200 bg-red-50 text-red-800
+            {% endif %}">
+            {{ message }}
+        </div>
 
-{% for category, message in messages %}
+        {% endfor %}
 
-<div class="rounded-xl border px-5 py-4
-{% if category == 'success' %}
-border-green-200 bg-green-50 text-green-800
-{% else %}
-border-red-200 bg-red-50 text-red-800
-{% endif %}">
+    {% endif %}
+    {% endwith %}
 
-{{ message }}
 
-</div>
+    <form method="POST"
+          action="{{ url_for('admin_bp.modules_control') }}"
+          class="mt-6">
 
-{% endfor %}
+        <input type="hidden"
+               name="csrf_token"
+               value="{{ csrf_token() }}">
 
-</div>
+        <div class="bg-white rounded-2xl shadow border border-slate-200 overflow-hidden">
 
-{% endif %}
-{% endwith %}
+            <div class="px-6 py-5 border-b border-slate-200">
 
+                <h2 class="text-xl font-semibold text-slate-800">
+                    Programs
+                </h2>
 
-<form method="POST"
-      action="{{ url_for('admin_bp.modules_control') }}"
-      class="mt-6">
+            </div>
 
-<input type="hidden"
-       name="csrf_token"
-       value="{{ csrf_token() }}">
+            <div class="overflow-x-auto">
 
+                <table class="min-w-full">
 
-<div class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+                    <thead class="bg-slate-50">
 
-<div class="h-2 bg-indigo-600"></div>
+                        <tr>
 
-<div class="p-6">
+                            <th class="px-4 py-4 text-center w-16">
+                                #
+                            </th>
 
-<div class="overflow-x-auto">
+                            <th class="px-4 py-4 text-left">
+                                Program
+                            </th>
 
-<p>Subjects loaded: {{ subjects|length }}</p>
+                            <th class="px-4 py-4 text-left">
+                                Slug
+                            </th>
 
-<p class="mb-4 text-red-600">
-    Subjects loaded: {{ subjects|length }}
-</p>
+                            <th class="px-4 py-4 text-center">
+                                Show on Welcome
+                            </th>
 
-<table class="min-w-full divide-y divide-slate-200">
+                            <th class="px-4 py-4 text-center">
+                                Payment Mode
+                            </th>
 
-<thead class="bg-slate-50">
+                        </tr>
 
-<tr>
+                    </thead>
 
-<th class="px-4 py-3 text-center w-16">
-#
-</th>
+                    <tbody class="divide-y divide-slate-200">
 
-<th class="px-4 py-3 text-left">
-Program
-</th>
+                    {% if subjects %}
 
-<th class="px-4 py-3 text-left">
-Slug
-</th>
+                        {% for subject in subjects %}
 
-<th class="px-4 py-3 text-center">
-Show on Welcome
-</th>
+                        <tr class="hover:bg-slate-50">
 
-<th class="px-4 py-3 text-center">
-Payment Mode
-</th>
+                            <td class="px-4 py-4 text-center text-slate-500">
+                                {{ loop.index }}
+                            </td>
 
-</tr>
+                            <td class="px-4 py-4 font-semibold text-slate-800">
+                                {{ subject.name }}
+                            </td>
 
-</thead>
+                            <td class="px-4 py-4 text-sm font-mono text-slate-500">
+                                {{ subject.slug }}
+                            </td>
 
-<tbody class="divide-y divide-slate-200">
+                            <td class="px-4 py-4 text-center">
 
-{% for subject in subjects %}
+                                <input
+                                    type="checkbox"
+                                    name="show_on_welcome_{{ subject.slug }}"
+                                    class="h-5 w-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                                    {% if subject.show_on_welcome %}checked{% endif %}>
 
-<!--tr class="hover:bg-slate-50 transition">
+                            </td>
 
-<td class="px-4 py-4 text-center text-slate-500">
-{{ loop.index }}
-</td>
+                            <td class="px-4 py-4 text-center">
 
-<td class="px-4 py-4 font-semibold text-slate-800">
-{{ subject.name }}
-</td>
+                                <input
+                                    type="hidden"
+                                    id="yoco_mode_{{ subject.slug }}"
+                                    name="yoco_mode_{{ subject.slug }}"
+                                    value="{{ settings.get('yoco_mode_' ~ subject.slug, 'sandbox') }}">
 
-<td class="px-4 py-4 text-slate-500 font-mono text-sm">
-{{ subject.slug }}
-</td-->
+                                <label class="inline-flex items-center gap-2 cursor-pointer">
 
+                                    <input
+                                        type="checkbox"
+                                        class="h-5 w-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                        onchange="
+                                            document.getElementById('yoco_mode_{{ subject.slug }}').value=this.checked?'sandbox':'live';
+                                            document.getElementById('mode_label_{{ subject.slug }}').innerHTML=this.checked?'Sandbox':'Live';
+                                        "
+                                        {% if settings.get('yoco_mode_' ~ subject.slug, 'sandbox') == 'sandbox' %}checked{% endif %}>
 
+                                    <span id="mode_label_{{ subject.slug }}"
+                                          class="text-sm font-medium text-slate-600">
 
-<tr>
-    <td>{{ subject["name"] }}</td>
-    <td>{{ subject["slug"] }}</td>
-    <td>{{ subject["show_on_welcome"] }}</td>
-</tr>
+                                        {% if settings.get('yoco_mode_' ~ subject.slug, 'sandbox') == 'sandbox' %}
+                                            Sandbox
+                                        {% else %}
+                                            Live
+                                        {% endif %}
 
-{% endfor %}
+                                    </span>
 
-<!-- Welcome -->
+                                </label>
 
-<td class="px-4 py-4 text-center">
+                            </td>
 
-<label class="inline-flex items-center justify-center cursor-pointer">
+                        </tr>
 
-<input
-type="checkbox"
-name="show_on_welcome_{{ subject.slug }}"
-class="h-5 w-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
-{% if subject.show_on_welcome %}checked{% endif %}>
+                        {% endfor %}
 
-</label>
+                    {% else %}
 
-</td>
+                        <tr>
 
-<!-- Payment -->
+                            <td colspan="5"
+                                class="py-12 text-center text-slate-500">
 
-<td class="px-4 py-4 text-center">
+                                No programs found.
 
-<input
-type="hidden"
-id="yoco_mode_{{ subject.slug }}"
-name="yoco_mode_{{ subject.slug }}"
-value="{{ settings.get('yoco_mode_' ~ subject.slug, 'sandbox') }}">
+                            </td>
 
-<label class="inline-flex items-center gap-2 cursor-pointer">
+                        </tr>
 
-<input
-type="checkbox"
-class="h-5 w-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-onchange="
-document.getElementById('yoco_mode_{{ subject.slug }}').value=this.checked?'sandbox':'live';
-document.getElementById('mode_label_{{ subject.slug }}').innerHTML=this.checked?'Sandbox':'Live';
-"
-{% if settings.get('yoco_mode_' ~ subject.slug, 'sandbox') == 'sandbox' %}checked{% endif %}>
+                    {% endif %}
 
-<span
-id="mode_label_{{ subject.slug }}"
-class="text-sm font-medium text-slate-600">
+                    </tbody>
 
-{% if settings.get('yoco_mode_' ~ subject.slug, 'sandbox') == 'sandbox' %}
-Sandbox
-{% else %}
-Live
-{% endif %}
+                </table>
 
-</span>
+            </div>
 
-</label>
+            <div class="border-t border-slate-200 bg-slate-50 px-6 py-4 flex justify-end">
 
-</td>
+                <button
+                    type="submit"
+                    class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-6 py-2 rounded-lg">
 
-</tr>
+                    Save Changes
 
-{% else %}
+                </button>
 
-<tr>
+            </div>
 
-<td colspan="5"
-class="px-6 py-10 text-center text-slate-500">
+        </div>
 
-No programs have been configured.
-
-</td>
-
-</tr>
-
-{% endfor %}
-
-</tbody>
-
-</table>
+    </form>
 
 </div>
-
-</div>
-
-<div class="border-t border-slate-200 bg-slate-50 px-6 py-4 flex items-center justify-between">
-
-<div class="text-sm text-slate-500">
-
-Changes take effect immediately after clicking
-<strong>Save Changes</strong>.
-
-</div>
-
-<button
-type="submit"
-class="rounded-lg bg-indigo-600 px-6 py-2 font-semibold text-white hover:bg-indigo-700 transition">
-
-Save Changes
-
-</button>
-
-</div>
-
-</div>
-
-</form>
 
 {% endblock %}

@@ -350,12 +350,23 @@ def modules_control():
     settings_dict = {row.key: row.value for row in settings}
 
     # Read subjects
-    subjects = (
-        AuthSubject.query
-        .order_by(AuthSubject.name)
-        .all()
-    )
-    
+    rows = db.session.execute(text("""
+        SELECT id,
+            name,
+            slug,
+            show_on_welcome
+        FROM auth_subject
+        ORDER BY name
+    """)).fetchall()
+
+    print("RAW ROWS:", len(rows))
+    for r in rows:
+        print(r)
+
+    subjects = AuthSubject.query.order_by(AuthSubject.name).all()
+
+    print("ORM SUBJECTS:", len(subjects))
+
     print("Subjects:", len(subjects))
     for s in subjects:
         print(s.name, s.slug, s.show_on_welcome)

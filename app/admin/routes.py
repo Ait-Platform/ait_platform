@@ -355,7 +355,12 @@ def modules_control():
         .order_by(AuthSubject.name)
         .all()
     )
+    print("Subjects:", len(subjects))
+    for s in subjects:
+        print(s.name, s.slug, s.show_on_welcome)
 
+    print(settings_dict)
+    
     return render_template(
         "admin/modules_control.html",
         settings=settings_dict,

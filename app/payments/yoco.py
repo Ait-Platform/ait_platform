@@ -131,14 +131,38 @@ def start():
         </html>
         """
 
-        
+    '''      
     import os
     val = db.session.execute(text(f"SELECT value FROM system_settings WHERE key = 'yoco_mode_{subject}'")).scalar()
     yoco_mode = val if val else 'sandbox'
     
     # HARDCODED TEST KEY TO AVOID 403 FORBIDDEN FROM BAD ENV VARS
     SECRET_KEY = "sk_test_960bfde0VBrLlpK098e4ffeb53e1"
+    '''
     
+    import os
+
+    val = db.session.execute(
+        text(
+            "SELECT value FROM system_settings "
+            "WHERE key = :k"
+        ),
+        {"k": f"yoco_mode_{subject}"}
+    ).scalar()
+
+    yoco_mode = (val or "sandbox").lower()
+
+    if yoco_mode == "live":
+        SECRET_KEY = os.environ.get("YOCO_LIVE_SECRET_KEY")
+    else:
+        SECRET_KEY = os.environ.get("YOCO_TEST_SECRET_KEY")
+
+    if not SECRET_KEY:
+        current_app.logger.error("No Yoco secret key configured.")
+        flash("Payment configuration error.", "error")
+        return redirect(url_for("public_bp.welcome"))
+
+
     success_url = url_for("yoco_bp.yoco_success", subject=subject, email=email, _external=True)
     cancel_url = url_for("yoco_bp.yoco_cancel", subject=subject, email=email, _external=True)
     

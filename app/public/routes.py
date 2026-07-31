@@ -99,6 +99,14 @@ def welcome():
 
     from app.models.auth import AuthSubject
 
+    # Auto-fix healthcore
+    healthcore = AuthSubject.query.filter_by(slug='healthcore').first()
+    if healthcore and (healthcore.name != 'Health IQ' or healthcore.is_coming_soon):
+        healthcore.name = 'Health IQ'
+        healthcore.is_coming_soon = False
+        healthcore.about_endpoint = 'healthcore_bp.healthcore_home'
+        db.session.commit()
+
     subjects = (
         AuthSubject.query
         .filter(AuthSubject.is_active == 1)

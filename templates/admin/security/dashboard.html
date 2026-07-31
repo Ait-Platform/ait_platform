@@ -2,43 +2,58 @@
 {% block title %}Security Administration{% endblock %}
 
 {% block content %}
+<div class="max-w-6xl mx-auto mt-8 mb-12">
+    <!-- Main Tile Container -->
+    <div class="bg-white shadow-xl rounded-lg overflow-hidden border border-gray-100">
+        
+        <!-- Top Color Strip matching welcome page -->
+        <div class="h-2 bg-teal-600 w-full"></div>
+        
+        <div class="p-6">
+            
+            <!-- Row 1: Title on left, Back button on right -->
+            <div class="flex justify-between items-center mb-8 pb-4 border-b">
+                <h1 class="text-3xl font-bold text-gray-800">Security Administration</h1>
+                <a href="{{ url_for('admin_bp.admin_home') }}" class="px-4 py-2 bg-gray-200 text-gray-800 font-semibold rounded hover:bg-gray-300 transition text-sm">
+                    &larr; Back
+                </a>
+            </div>
 
-<div class="max-w-6xl mx-auto">
+            <!-- Dashboard Content -->
+            <div class="grid md:grid-cols-2 gap-6">
 
-    <h1 class="text-3xl font-bold mb-6">
-        Security Administration
-    </h1>
+                <a href="{{ url_for('admin_bp.modules_control') }}"
+                   class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md hover:border-teal-500 transition group">
+                    <h2 class="text-xl font-semibold text-gray-800 group-hover:text-teal-600 transition">
+                        Platform Modules
+                    </h2>
+                    <p class="text-gray-600 mt-2">
+                        Welcome page visibility, payment mode and platform controls.
+                    </p>
+                </a>
 
-    <div class="grid md:grid-cols-2 gap-6">
+                <a href="{{ url_for('admin_bp.manage_vouchers') }}"
+                   class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md hover:border-teal-500 transition group">
+                    <h2 class="text-xl font-semibold text-gray-800 group-hover:text-teal-600 transition">
+                        Voucher Management
+                    </h2>
+                    <p class="text-gray-600 mt-2">
+                        Create, manage and revoke platform vouchers.
+                    </p>
+                </a>
 
-        <a href="{{ url_for('admin_bp.modules_control') }}"
-           class="bg-white rounded-xl shadow border p-6 hover:shadow-lg">
+            </div>
+            
+            <!-- Row 2 (Optional future buttons can go here, right aligned) -->
+            <!--
+            <div class="flex justify-end gap-3 pt-6 mt-6 border-t border-gray-200">
+                <button class="px-6 py-2 bg-teal-600 text-white font-bold rounded-lg hover:bg-teal-700 transition">
+                    Action
+                </button>
+            </div>
+            -->
 
-            <h2 class="text-xl font-semibold">
-                Platform Modules
-            </h2>
-
-            <p class="text-slate-600 mt-2">
-                Welcome page visibility, payment mode and platform controls.
-            </p>
-
-        </a>
-
-        <a href="{{ url_for('admin_bp.manage_vouchers') }}"
-           class="bg-white rounded-xl shadow border p-6 hover:shadow-lg">
-
-            <h2 class="text-xl font-semibold">
-                Voucher Management
-            </h2>
-
-            <p class="text-slate-600 mt-2">
-                Create, manage and revoke platform vouchers.
-            </p>
-
-        </a>
-
+        </div>
     </div>
-
 </div>
-
 {% endblock %}

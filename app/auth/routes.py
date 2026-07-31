@@ -415,7 +415,7 @@ def register_decision():
         session.pop("reg_ctx", None)
         return redirect(
             url_for(
-                "yoco_bp.yoco_start",
+                "paddle_bp.paddle_start",
                 email=user_email,
                 subject="spv_registration",
                 debug=0

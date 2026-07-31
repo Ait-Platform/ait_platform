@@ -478,6 +478,7 @@ def create_app(test_config=None):
     from app.admin.programs.sms import sms_admin_bp
     from app.subject_sms.routes import sms_bp
     from app.payments.yoco import yoco_bp
+    from app.payments.paddle import paddle_bp
     from app.program_budget import budget_bp
     from app.payments import payment_bp
     from app.admin.programs.spv import spv_admin_bp
@@ -514,6 +515,7 @@ def create_app(test_config=None):
     app.register_blueprint(general_bp, url_prefix="/admin/general")
     app.register_blueprint(tts_bp, url_prefix="/admin/general")
     app.register_blueprint(yoco_bp, url_prefix="/payments")
+    app.register_blueprint(paddle_bp, url_prefix="/payments/paddle")
     app.register_blueprint(budget_bp)
     app.register_blueprint(payment_bp)
     app.register_blueprint(spv_admin_bp)

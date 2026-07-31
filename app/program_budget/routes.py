@@ -955,7 +955,7 @@ def billing():
     """), {"uid": current_user.id}).mappings().first()
 
     if ent and ent["zar_amount_cents"] and int(ent["zar_amount_cents"]) > 0:
-        return redirect(url_for("yoco_bp.yoco_start", email=current_user.email, subject='budget'))
+        return redirect(url_for("paddle_bp.paddle_start", email=current_user.email, subject='budget'))
 
     return redirect(url_for("budget_bp.price_page"))
 

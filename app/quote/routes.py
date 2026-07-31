@@ -92,7 +92,7 @@ def quote():
                 # BUT don't do this for HOME upgrades, as they need to go through parity pricing quote page
                 if subject.slug != 'home' and full_row and full_row.zar_amount_cents and int(full_row.zar_amount_cents) > 0:
                     flash("Redirecting to secure checkout at your locked renewal rate.", "info")
-                    return redirect(url_for("yoco_bp.yoco_start", email=current_user.email, subject=subject.slug))
+                    return redirect(url_for("paddle_bp.paddle_start", email=current_user.email, subject=subject.slug))
 
         # Anti-exploitation & convenience: Inherit country from previous enrollments
         prev_enr = db.session.execute(

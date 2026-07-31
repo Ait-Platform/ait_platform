@@ -1,0 +1,282 @@
+# app/payments/paddle.py
+import os
+import json
+from decimal import Decimal
+from flask import (
+    Blueprint,
+    request,
+    session,
+    render_template,
+    flash,
+    current_app,
+    redirect,
+    url_for,
+    jsonify
+)
+from flask_login import current_user
+from sqlalchemy import text
+
+from app.extensions import db
+from app.models.auth import User
+
+paddle_bp = Blueprint("paddle_bp", __name__)
+
+@paddle_bp.route("/start", methods=["GET", "POST"], endpoint="paddle_start")
+def start():
+    """
+    Renders the Paddle Hosted Checkout page with dynamic inline pricing.
+    """
+    current_app.logger.warning("=" * 60)
+    current_app.logger.warning("PADDLE START ROUTE EXECUTED")
+    current_app.logger.warning("=" * 60)
+
+    email = (
+        request.values.get("email") 
+        or (getattr(current_user, "email", None) if current_user.is_authenticated else None)
+        or session.get("pending_email") 
+        or session.get("reg_ctx", {}).get("email_lower") 
+        or session.get("reg_ctx", {}).get("email_in") 
+        or ""
+    ).strip().lower()
+    subject = (request.values.get("subject") or session.get("pending_subject") or session.get("reg_ctx", {}).get("subject") or "").strip().lower()
+
+    if email:
+        session["pending_email"] = email
+    if subject:
+        session["pending_subject"] = subject
+
+    if not subject:
+        flash("Could not determine which module to purchase.", "error")
+        return redirect(url_for("public_bp.welcome"))
+
+    # Resolve amount exactly like Yoco did
+    amount_cents = 0
+    
+    if subject == "spv_registration":
+        amount_cents = 10000
+        
+    if subject == "metro_billing":
+        amount_cents = int(session.get("metro_billing_amount_cents", 0))
+
+    if subject == "mechanic_topup":
+        amount_cents = int(session.get("mechanic_topup_amount_cents", 0))
+        
+    if amount_cents <= 0:
+        u = User.query.filter_by(email=email).first()
+        if u:
+            row = db.session.execute(
+                text("""
+                    SELECT zar_amount_cents
+                    FROM user_enrollment
+                    WHERE user_id = :uid 
+                      AND subject_id = (SELECT id FROM auth_subject WHERE lower(slug) = :s LIMIT 1)
+                    ORDER BY id DESC LIMIT 1
+                """),
+                {"uid": u.id, "s": subject}
+            ).scalar()
+            if row and int(row) > 0:
+                amount_cents = int(row)
+
+    if amount_cents <= 0:
+        if session.get("subject_slug") == subject and session.get("zar_amount_cents"):
+            amount_cents = int(session.get("zar_amount_cents"))
+
+    if amount_cents <= 0:
+        ctx = session.get("reg_ctx", {})
+        quote = ctx.get("quote", {})
+        if quote:
+            fallback = quote.get("est_zar_cents") or quote.get("zar_amount_cents")
+            if fallback:
+                amount_cents = int(fallback)
+            
+    if amount_cents <= 0:
+        from app.payments.pricing import get_subject_price
+        price_info = get_subject_price(subject)
+        if price_info and price_info["amount_cents"] > 0:
+            amount_cents = int(price_info["amount_cents"])
+            
+    if session.get('is_retake'):
+        retake_zar = session.get('retake_zar_cents')
+        if retake_zar:
+            amount_cents = int(retake_zar)
+        else:
+            amount_cents = amount_cents // 3
+
+    if amount_cents < 1000:
+        flash(f"Payment cannot proceed: invalid amount (R{amount_cents/100:.2f}). Minimum is R10.00.", "error")
+        return redirect(url_for("public_bp.welcome"))
+
+    # Find the environment from DB
+    val = db.session.execute(
+        text("SELECT value FROM system_settings WHERE key = :k"),
+        {"k": f"yoco_mode_{subject}"} # Reusing the same setting key for backward compatibility
+    ).scalar()
+
+    paddle_env = (val or "sandbox").lower()
+
+    # Pass the client token to the template
+    client_token = os.environ.get("PADDLE_CLIENT_TOKEN", "test_YOUR_CLIENT_TOKEN") # Fallback to test if missing for now
+
+    success_url = url_for("paddle_bp.paddle_success", subject=subject, email=email, _external=True)
+
+    # Paddle expects a clean product name for display
+    display_name = subject.replace("_", " ").title()
+
+    return render_template(
+        "payments/paddle_checkout.html",
+        client_token=client_token,
+        environment=paddle_env,
+        email=email,
+        subject=subject,
+        display_name=display_name,
+        amount_cents=amount_cents,
+        currency="ZAR",
+        success_url=success_url
+    )
+
+
+@paddle_bp.get("/success", endpoint="paddle_success")
+def success():
+    # Paddle redirects here after a successful frontend checkout.
+    # We just show the success page and wait for the webhook to fulfill the order.
+    # Note: If it's a one-time product, Paddle's webhook might arrive *after* the user sees this page.
+    # To mimic Yoco exactly, we could fulfill it here, but Webhooks are much safer.
+    
+    email = request.args.get("email", "").strip().lower()
+    subject = request.args.get("subject", "loss").strip().lower()
+    
+    # We use the same success template as before
+    if not email:
+        flash("Payment processing... Please sign in to continue.", "info")
+    
+    return render_template("payments/success.html", subject=subject), 200
+
+
+@paddle_bp.post("/webhook", endpoint="paddle_webhook")
+def webhook():
+    """
+    Paddle Billing Server-to-Server Webhook.
+    Listens for transaction.completed events to fulfill orders.
+    """
+    import hmac
+    import hashlib
+    
+    # 1. Verify signature (Paddle specific)
+    # The signature is in the Paddle-Signature header: ts=...,h1=...
+    signature_header = request.headers.get("Paddle-Signature")
+    webhook_secret = os.environ.get("PADDLE_WEBHOOK_SECRET")
+    
+    if webhook_secret and signature_header:
+        # Quick validation logic
+        parts = dict(x.split("=") for x in signature_header.split(";"))
+        ts = parts.get("ts")
+        h1 = parts.get("h1")
+        if ts and h1:
+            signed_payload = f"{ts}:{request.get_data(as_text=True)}"
+            expected_h1 = hmac.new(
+                webhook_secret.encode('utf-8'),
+                signed_payload.encode('utf-8'),
+                hashlib.sha256
+            ).hexdigest()
+            if h1 != expected_h1:
+                current_app.logger.error("Paddle webhook signature mismatch.")
+                return "Invalid signature", 401
+    
+    try:
+        data = request.json
+        event_type = data.get("event_type")
+        
+        if event_type == "transaction.completed":
+            transaction = data.get("data", {})
+            custom_data = transaction.get("custom_data", {})
+            
+            email = custom_data.get("email", "").strip().lower()
+            subject = custom_data.get("subject", "").strip().lower()
+            
+            if email and subject:
+                fulfill_order(email, subject, transaction)
+                
+        return {"status": "ok"}, 200
+        
+    except Exception as e:
+        current_app.logger.error(f"Error processing Paddle webhook: {e}")
+        return "Internal Error", 500
+
+
+def fulfill_order(email, subject, transaction=None):
+    """
+    Extracted from yoco.py success endpoint.
+    This fulfills the purchase for the user.
+    """
+    # Ensure user exists
+    u = User.query.filter_by(email=email).first()
+    if not u:
+        u = User(email=email, name=email.split("@", 1)[0].title(), is_active=1)
+        db.session.add(u)
+        db.session.flush()
+
+    # ---------- MECHANIC TOPUP ----------
+    if subject == "mechanic_topup":
+        from app.models.mechanic import MechShop
+        shop = MechShop.query.filter_by(user_id=u.id).first()
+        if shop and transaction:
+            # We assume custom_data or transaction holds the original amount, or we extract it.
+            # Since Paddle transactions contain the total, we can use that.
+            total = int(transaction.get("details", {}).get("totals", {}).get("grand_total", 0))
+            if total > 0:
+                shop.wallet_balance_cents += total
+                db.session.commit()
+        return
+
+    # ---------- CFI TOPUP ----------
+    if subject == "cultural_fire_topup":
+        from app.models.auth import AitTokenWallet, AitTokenTransaction
+        total = int(transaction.get("details", {}).get("totals", {}).get("grand_total", 0)) if transaction else 0
+        if total > 0:
+            tokens_purchased = total // 100
+            wallet = AitTokenWallet.query.filter_by(user_id=u.id).first()
+            if not wallet:
+                wallet = AitTokenWallet(user_id=u.id, balance=0)
+                db.session.add(wallet)
+                db.session.flush()
+            wallet.balance += tokens_purchased
+            tx = AitTokenTransaction(
+                wallet_id=wallet.id,
+                transaction_type="purchase",
+                amount=tokens_purchased,
+                description="Paddle Top-Up",
+                reference=transaction.get("id") if transaction else "paddle_tx"
+            )
+            db.session.add(tx)
+            db.session.commit()
+        return
+
+    # ---------- METRO BILLING (DEBTORS) SUBSCRIPTION ----------
+    if subject == "metro_billing":
+        # Usually handled by UserEntitlement or similar logic. We mimic Yoco's behavior.
+        pass
+
+    # ---------- SPV ----------
+    if subject == "spv_registration":
+        u.is_investor = 1
+        db.session.commit()
+        return
+
+    # ---------- STANDARD MODULES ----------
+    from datetime import datetime
+    from dateutil.relativedelta import relativedelta
+    from app.models.auth import UserEntitlement
+
+    ent = UserEntitlement.query.filter_by(user_id=u.id, product_slug=subject).first()
+    if not ent:
+        ent = UserEntitlement(user_id=u.id, product_slug=subject)
+        db.session.add(ent)
+        
+    # Extend by 1 year
+    now = datetime.utcnow()
+    base_date = ent.paid_until if ent.paid_until and ent.paid_until > now else now
+    ent.paid_until = base_date + relativedelta(years=1)
+    
+    db.session.commit()
+    current_app.logger.info(f"Fulfilled {subject} for {email} via Paddle.")
+

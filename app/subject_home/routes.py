@@ -187,7 +187,7 @@ def chapter_page(chapter_num):
 
         if not _has_active_home_subscription(current_user.id):
             flash("You must subscribe to unlock the rest of the HOME course.", "warning")
-            return redirect(url_for('yoco_bp.yoco_start', subject='home', email=current_user.email))
+            return redirect(url_for('paddle_bp.paddle_start', subject='home', email=current_user.email))
 
     questions = HomeQuestion.query.filter_by(
         chapter_id=chapter.id
@@ -425,7 +425,7 @@ def re_enrol():
         session['pending_email'] = current_user.email
         session['retake_zar_cents'] = course_zar_cents if retake_type == 'course' else exam_zar_cents
         flash("You are about to retake the program. A retake fee applies.", "info")
-        return redirect(url_for("yoco_bp.yoco_start"))
+        return redirect(url_for("paddle_bp.paddle_start"))
 
     return render_template(
         'subject_home/retake_quote.html',

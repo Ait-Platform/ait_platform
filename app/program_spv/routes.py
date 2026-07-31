@@ -80,7 +80,7 @@ def investor_dashboard():
     if not investments:
         from flask import flash, redirect, url_for
         flash("You must complete your R100 ZAR initial commitment to access your investor dashboard.", "warning")
-        return redirect(url_for("yoco_bp.yoco_start", email=current_user.email, subject="spv_registration", debug=0))
+        return redirect(url_for("paddle_bp.paddle_start", email=current_user.email, subject="spv_registration", debug=0))
     
     # Fetch Dale SPV as an available opportunity
     dale_deal = SpvDeal.query.filter_by(slug="dale-housing").first()
@@ -191,7 +191,7 @@ def initiate_spv_investment(slug):
     session["zar_amount_cents"] = int(amount * 1.05 * 100)
     session["subject_slug"] = "spv_investment"
     
-    return redirect(url_for("yoco_bp.yoco_start", subject="spv_investment", email=current_user.email))
+    return redirect(url_for("paddle_bp.paddle_start", subject="spv_investment", email=current_user.email))
 
 @spv_bp.route("/portfolio/<slug>")
 def portfolio_detail(slug):
@@ -257,7 +257,7 @@ def spv_ledger():
     if not user_investments:
         from flask import flash, redirect, url_for
         flash("You must complete your R100 ZAR initial commitment to view the ledger.", "warning")
-        return redirect(url_for("yoco_bp.yoco_start", email=current_user.email, subject="spv_registration", debug=0))
+        return redirect(url_for("paddle_bp.paddle_start", email=current_user.email, subject="spv_registration", debug=0))
 
     # 2. Grab all participations for Dale SPV
     dale_deal = SpvDeal.query.filter_by(slug="dale-housing").first()

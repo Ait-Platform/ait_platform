@@ -15,10 +15,18 @@ def _guard():
         return redirect(url_for("public_bp.welcome"))
 
 from app.admin import core                          # /admin/
-from .reading import routes as _reading     # /admin/reading/...
-from .billing import routes as _billing     # /admin/billing/...
-from .home import routes as _home     # /admin/home/...
-from .loss import routes as _loss     # /admin/loss/...
 from .general import routes as _general
 from .security import routes as _security
 from .security import modules_control as _modules_control
+
+# Programs (Subjects)
+from .programs import routes as _programs
+from .programs import chapters as _chapters
+from .programs import lessons as _lessons
+from .programs import assessments as _assessments
+from .programs.reading import routes as _reading
+from .programs.billing import routes as _billing
+from .programs.loss import routes as _loss
+from .programs.grade12_core_math import routes as _math
+from .programs.spv import routes as _spv
+from .programs.sms import routes as _sms

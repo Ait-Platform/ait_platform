@@ -6,7 +6,7 @@ from flask import (
     session, request, flash, abort, make_response, send_file)
 from flask import request, render_template, send_file, url_for, redirect, current_app 
 import pdfkit
-from app.admin.loss.routes import _render_report_html
+from app.admin.programs.loss.routes import _render_report_html
 from app.models.auth import AuthSubject
 from app.models.loss import (
     LcaResponse, LcaRun,  LcaQuestion,
@@ -48,7 +48,7 @@ try:
 except Exception:
     get_user_display_name = None
 from decimal import Decimal, ROUND_HALF_UP
-from app.admin.loss.utils import get_run_id, with_run_id_in_ctx
+from app.admin.programs.loss.utils import get_run_id, with_run_id_in_ctx
 from flask import session
 from sqlalchemy import text
 from math import ceil
@@ -439,7 +439,7 @@ def result_run(run_id: int):
         uid = row["user_id"] if row else None
 
     # Build the same context you use elsewhere
-    from app.admin.loss.routes import _build_context
+    from app.admin.programs.loss.routes import _build_context
     ctx, _, _row = _build_context(run_id, uid)
     if not ctx:
         return (f"No result for run_id={run_id}", 404)
@@ -823,7 +823,7 @@ def report_send_and_download():
     if not to_email:
         raise BadRequest("Email is required.")
 
-    from app.admin.loss.routes import _build_context
+    from app.admin.programs.loss.routes import _build_context
     ctx, _, _row = _build_context(rid, uid)
     if not ctx:
         abort(404)

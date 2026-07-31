@@ -1,0 +1,51 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="bg-white rounded-xl shadow-sm border overflow-hidden">
+    <div class="h-2 bg-slate-700"></div>
+    <div class="p-6">
+        <!-- Row 1 -->
+        <div class="flex justify-between items-center mb-4">
+            <h1 class="text-2xl font-bold text-slate-800">Reading Lessons</h1>
+            <a href="{{ url_for('admin_bp.subject_dashboard', subject=subject) }}" class="px-4 py-2 border rounded hover:bg-gray-50 text-sm">Back</a>
+        </div>
+        
+        <!-- Row 2 -->
+        <div class="flex justify-end mb-6 space-x-2">
+            <a href="{{ url_for('admin_bp.new_lesson', subject=subject) }}" class="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 text-sm">New Lesson</a>
+            <a href="{{ url_for('admin_bp.reorder', subject=subject) }}" class="px-4 py-2 rounded bg-white border border-blue-600 text-blue-600 hover:bg-blue-50 text-sm">⇅ Reorder</a>
+        </div>
+
+        <table class="min-w-full text-sm align-middle">
+            <thead class="bg-slate-100">
+                <tr>
+                    <th class="px-4 py-3 text-left w-10">#</th>
+                    <th class="px-4 py-3 text-left">Title</th>
+                    <th class="px-4 py-3 text-left">Media</th>
+                    <th class="px-4 py-3 text-right">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200">
+                {% for l in lessons %}
+                <tr class="hover:bg-slate-50">
+                    <td class="px-4 py-3">{{ loop.index }}</td>
+                    <td class="px-4 py-3">
+                        <div class="font-medium">{{ l.title }}</div>
+                        <div class="text-xs text-slate-500">{{ l.caption }}</div>
+                    </td>
+                    <td class="px-4 py-3">{{ l.video_filename or '-' }}</td>
+                    <td class="px-4 py-3 text-right whitespace-nowrap">
+                        <a href="{{ url_for('admin_bp.edit_lesson', subject=subject, lesson_id=l.id) }}" class="text-blue-600 hover:underline mr-3">Edit</a>
+                        <a href="{{ url_for('admin_bp.preview_lesson', lesson_id=l.id) }}" class="text-slate-600 hover:underline">Preview</a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="4" class="px-4 py-8 text-center text-slate-500">No lessons found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

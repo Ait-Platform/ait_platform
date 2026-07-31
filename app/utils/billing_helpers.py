@@ -1,7 +1,7 @@
 # app/utils/billing_helpers.py
 # (No imports; all pure-Python helpers you can call from admin/billing)
 import calendar 
-from app.admin.billing.water import get_consumption_rows_for_month
+from app.admin.programs.billing.water import get_consumption_rows_for_month
 from app.models.billing import (
     BilConsumption,  BilTenant, BilMeter,
     BilTariff )

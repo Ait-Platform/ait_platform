@@ -3,7 +3,7 @@ from flask import (
     abort, render_template, current_app, make_response, url_for
     )
 from sqlalchemy import text as sa_text
-from app.admin.spv.forms import SpvAssetForm, SpvSectionForm
+from app.admin.programs.spv.forms import SpvAssetForm, SpvSectionForm
 from app.extensions import db
 from datetime import datetime
 from flask import render_template
@@ -118,7 +118,7 @@ def create_section():
 @spv_admin_bp.route("/deals/create", methods=["GET", "POST"])
 @login_required
 def create_deal():
-    from app.admin.spv.forms import SpvDealForm
+    from app.admin.programs.spv.forms import SpvDealForm
     form = SpvDealForm()
     
     if form.validate_on_submit():
@@ -140,7 +140,7 @@ def create_deal():
 @login_required
 def edit_deal(deal_id):
     deal = SpvDeal.query.get_or_404(deal_id)
-    from app.admin.spv.forms import SpvDealForm
+    from app.admin.programs.spv.forms import SpvDealForm
     form = SpvDealForm(obj=deal)
     
     if form.validate_on_submit():

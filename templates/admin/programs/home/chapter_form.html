@@ -1,0 +1,46 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="bg-white rounded-xl shadow-sm border overflow-hidden">
+    <div class="h-2 bg-slate-700"></div>
+    <div class="p-6">
+        <!-- Row 1 -->
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-bold text-slate-800">{% if chapter %}Edit{% else %}Add{% endif %} Chapter</h1>
+            <a href="{{ url_for('admin_bp.manage_chapters', subject=subject) }}" class="px-4 py-2 border rounded hover:bg-gray-50 text-sm">Back</a>
+        </div>
+        
+        <form method="POST" class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Chapter Number</label>
+                <input type="number" name="chapter_number" value="{{ chapter.chapter_number if chapter else '' }}" required class="w-full border border-slate-300 rounded px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500" autofocus>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Title</label>
+                <input type="text" name="title" value="{{ chapter.title if chapter else '' }}" required class="w-full border border-slate-300 rounded px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Objective</label>
+                <textarea name="objective" rows="3" class="w-full border border-slate-300 rounded px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">{{ chapter.objective if chapter else '' }}</textarea>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Image Filename (optional)</label>
+                <input type="text" name="image_filename" value="{{ chapter.image_filename if chapter else '' }}" class="w-full border border-slate-300 rounded px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Pass Mark (%)</label>
+                <input type="number" name="pass_mark" value="{{ chapter.pass_mark if chapter else 80 }}" required class="w-full border border-slate-300 rounded px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+
+            <!-- Row 2 (Other buttons right aligned) -->
+            <div class="flex justify-end pt-4">
+                <button type="submit" class="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Save Chapter</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

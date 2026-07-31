@@ -1,0 +1,53 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="bg-white rounded-xl shadow-sm border overflow-hidden">
+    <div class="h-2 bg-slate-700"></div>
+    <div class="p-6">
+        <!-- Row 1 -->
+        <div class="flex justify-between items-center mb-4">
+            <h1 class="text-2xl font-bold text-slate-800">HOME Questions</h1>
+            <a href="{{ url_for('admin_bp.subject_dashboard', subject=subject) }}" class="px-4 py-2 border rounded hover:bg-gray-50 text-sm">Back</a>
+        </div>
+        
+        <!-- Row 2 -->
+        <div class="flex justify-end mb-6 space-x-2">
+            <a href="{{ url_for('admin_bp.add_question', subject=subject) }}" class="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 text-sm">Add Question</a>
+        </div>
+
+        <table class="min-w-full text-sm">
+            <thead class="bg-slate-100">
+                <tr>
+                    <th class="px-4 py-3 text-left w-20">ID</th>
+                    <th class="px-4 py-3 text-left w-24">Chapter</th>
+                    <th class="px-4 py-3 text-left">Question</th>
+                    <th class="px-4 py-3 text-left w-32">Type</th>
+                    <th class="px-4 py-3 text-right">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200">
+                {% for question in questions %}
+                <tr class="hover:bg-slate-50">
+                    <td class="px-4 py-3 text-slate-500">{{ question.id }}</td>
+                    <td class="px-4 py-3 font-medium">{{ question.chapter_id }}</td>
+                    <td class="px-4 py-3">
+                        <div class="line-clamp-2">{{ question.question }}</div>
+                    </td>
+                    <td class="px-4 py-3 text-slate-600">{{ question.question_type }}</td>
+                    <td class="px-4 py-3 text-right whitespace-nowrap">
+                        <a href="{{ url_for('admin_bp.edit_question', subject=subject, question_id=question.id) }}" class="text-blue-600 hover:underline mr-3">Edit</a>
+                        <form action="{{ url_for('admin_bp.delete_question', subject=subject, question_id=question.id) }}" method="POST" class="inline">
+                            <button type="submit" class="text-red-600 hover:underline" onclick="return confirm('Are you sure?');">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" class="px-4 py-8 text-center text-slate-500">No questions found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

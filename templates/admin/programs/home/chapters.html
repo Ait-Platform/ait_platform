@@ -1,0 +1,51 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="bg-white rounded-xl shadow-sm border overflow-hidden">
+    <div class="h-2 bg-slate-700"></div>
+    <div class="p-6">
+        <!-- Row 1 -->
+        <div class="flex justify-between items-center mb-4">
+            <h1 class="text-2xl font-bold text-slate-800">HOME Chapters</h1>
+            <a href="{{ url_for('admin_bp.subject_dashboard', subject=subject) }}" class="px-4 py-2 border rounded hover:bg-gray-50 text-sm">Back</a>
+        </div>
+        
+        <!-- Row 2 -->
+        <div class="flex justify-end mb-6 space-x-2">
+            <a href="{{ url_for('admin_bp.add_chapter', subject=subject) }}" class="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 text-sm">Add Chapter</a>
+        </div>
+
+        <table class="min-w-full text-sm">
+            <thead class="bg-slate-100">
+                <tr>
+                    <th class="px-4 py-3 text-left">#</th>
+                    <th class="px-4 py-3 text-left">Title</th>
+                    <th class="px-4 py-3 text-left">Objective</th>
+                    <th class="px-4 py-3 text-center">Pass Mark</th>
+                    <th class="px-4 py-3 text-right">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200">
+                {% for chapter in chapters %}
+                <tr class="hover:bg-slate-50">
+                    <td class="px-4 py-3">{{ chapter.chapter_number }}</td>
+                    <td class="px-4 py-3 font-medium">{{ chapter.title }}</td>
+                    <td class="px-4 py-3 text-slate-600">{{ chapter.objective or '-' }}</td>
+                    <td class="px-4 py-3 text-center">{{ chapter.pass_mark }}%</td>
+                    <td class="px-4 py-3 text-right">
+                        <a href="{{ url_for('admin_bp.edit_chapter', subject=subject, chapter_id=chapter.id) }}" class="text-blue-600 hover:underline mr-3">Edit</a>
+                        <form action="{{ url_for('admin_bp.delete_chapter', subject=subject, chapter_id=chapter.id) }}" method="POST" class="inline">
+                            <button type="submit" class="text-red-600 hover:underline" onclick="return confirm('Are you sure?');">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" class="px-4 py-8 text-center text-slate-500">No chapters found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

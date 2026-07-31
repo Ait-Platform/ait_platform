@@ -475,12 +475,12 @@ def create_app(test_config=None):
     from app.admin import admin_bp
     from app.admin_general.routes import general_bp      # GET /admin/general/
     from app.admin_general.admin_tts import tts_bp       # POST /admin/general/tts
-    from app.admin.sms import sms_admin_bp
+    from app.admin.programs.sms import sms_admin_bp
     from app.subject_sms.routes import sms_bp
     from app.payments.yoco import yoco_bp
     from app.program_budget import budget_bp
     from app.payments import payment_bp
-    from app.admin.spv import spv_admin_bp
+    from app.admin.programs.spv import spv_admin_bp
     from app.subscription import subscription_bp
     from app.quote import quote_bp
     from app.bridge.routes import bridge_bp

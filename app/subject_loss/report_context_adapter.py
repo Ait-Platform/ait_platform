@@ -2,7 +2,7 @@
 from __future__ import annotations
 from flask import current_app
 # ← use the SAME builder that already works for admin
-from app.admin.loss.routes import _build_context, _phase_scores_from_blocks
+from app.admin.programs.loss.routes import _build_context, _phase_scores_from_blocks
 from app.subject_loss.charts import phase_scores_bar
 #from app.subject.loss.charts import phase_scores_bar
 #from app.subject.loss.charts import phase_scores_bar, _phase_scores_from_blocks

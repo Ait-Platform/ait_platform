@@ -12,7 +12,7 @@ from app.models.billing import (
 from datetime import datetime, date, timedelta
 from sqlalchemy import and_, func, select, text, or_
 from app.auth.forms import LoginForm
-from app.admin.billing.water import (
+from app.admin.programs.billing.water import (
     get_consumption_rows_for_month,_month_bounds,
     calc_ws_sd_for_meter,calc_ws_sd_totals, SAN_TIER_CODES, WATER_TIER_CODES,
      recompute_and_upsert_water_totals, _tariff_latest_by_code, 
@@ -22,12 +22,12 @@ from app.utils.billing_map import compute_electricity_due
 from app.utils.billing_metsoa import build_metsoa_page2_groups
 from app.utils.billing_metsoa_builder import build_metsoa_payload
 from app.utils.billing_persist import commit_metsoa_for_month
-from .. import admin_bp
+from app.admin import admin_bp
 import calendar
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError, OperationalError
 import io, csv, zipfile, re
 from decimal import Decimal, InvalidOperation
-from app.admin.billing.electric import upsert_electricity_line  # <- the helper above
+from app.admin.programs.billing.electric import upsert_electricity_line  # <- the helper above
 from sqlalchemy.orm import joinedload
 from io import BytesIO
 #from weasyprint import HTML

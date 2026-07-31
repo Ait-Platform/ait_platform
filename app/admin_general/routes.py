@@ -571,6 +571,7 @@ def fix_healthcore():
     if subj:
         subj.name = 'Health IQ'
         subj.about_endpoint = 'healthcore_bp.healthcore_home'
+        subj.is_coming_soon = False
         db.session.commit()
         return 'Fixed Health IQ in database! Go back to welcome page.'
     return 'Not found'

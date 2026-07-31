@@ -1,6 +1,7 @@
 # app/payments/paddle.py
 import os
 import json
+import requests
 from decimal import Decimal
 from flask import (
     Blueprint,
@@ -20,6 +21,52 @@ from app.extensions import db
 from app.models.auth import User
 
 paddle_bp = Blueprint("paddle_bp", __name__)
+
+def create_paddle_transaction(amount_cents, display_name, paddle_env, subject):
+    api_key = os.environ.get("PADDLE_API_KEY", "")
+    if not api_key:
+        current_app.logger.error("PADDLE_API_KEY is not set.")
+        return None
+
+    base_url = "https://api.paddle.com" if paddle_env == "production" else "https://sandbox-api.paddle.com"
+    
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+    
+    payload = {
+        "items": [
+            {
+                "price": {
+                    "description": f"{display_name} Access",
+                    "unit_price": {
+                        "amount": str(amount_cents),
+                        "currency_code": "ZAR"
+                    },
+                    "product": {
+                        "name": display_name,
+                        "tax_category": "standard"
+                    }
+                },
+                "quantity": 1
+            }
+        ],
+        "custom_data": {
+            "subject": subject
+        }
+    }
+    
+    try:
+        r = requests.post(f"{base_url}/transactions", json=payload, headers=headers)
+        r.raise_for_status()
+        data = r.json().get("data", {})
+        return data.get("id")
+    except Exception as e:
+        current_app.logger.error(f"Paddle Transaction Error: {str(e)}")
+        if hasattr(e, "response") and getattr(e, "response") is not None:
+            current_app.logger.error(e.response.text)
+        return None
 
 @paddle_bp.route("/start", methods=["GET", "POST"], endpoint="paddle_start")
 def start():
@@ -122,11 +169,18 @@ def start():
 
     # Paddle expects a clean product name for display
     display_name = subject.replace("_", " ").title()
+    
+    transaction_id = create_paddle_transaction(amount_cents, display_name, paddle_env, subject)
+    
+    if not transaction_id:
+        flash("Could not initiate Paddle checkout. Please contact support.", "error")
+        return redirect(url_for("public_bp.welcome"))
 
     return render_template(
         "payments/paddle_checkout.html",
         client_token=client_token,
         environment=paddle_env,
+        transaction_id=transaction_id,
         email=email,
         subject=subject,
         display_name=display_name,

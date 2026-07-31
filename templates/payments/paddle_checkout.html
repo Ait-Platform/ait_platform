@@ -57,28 +57,9 @@ mx-auto max-w-lg px-6 py-12
 
         document.getElementById('paddle-buy-btn').addEventListener('click', function() {
             Paddle.Checkout.open({
-                items: [
-                    {
-                        price: {
-                            description: '{{ display_name }} Access',
-                            unit_price: {
-                                amount: '{{ amount_cents }}',
-                                currency_code: 'ZAR'
-                            },
-                            product: {
-                                name: '{{ display_name }}',
-                                tax_category: 'standard'
-                            }
-                        },
-                        quantity: 1
-                    }
-                ],
+                transactionId: '{{ transaction_id }}',
                 customer: {
                     email: '{{ email }}'
-                },
-                customData: {
-                    email: '{{ email }}',
-                    subject: '{{ subject }}'
                 }
             });
         });

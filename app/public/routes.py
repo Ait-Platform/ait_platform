@@ -280,3 +280,11 @@ def receptionist_register():
 def coming_soon(subject_slug):
     return render_template("public/coming_soon.html", subject_slug=subject_slug)
 
+
+
+@public_bp.route("/programs")
+def programs_list():
+    from app.models.auth import AuthSubject
+    # We query all subjects. The template will separate them into Live and Coming Soon
+    subjects = AuthSubject.query.order_by(AuthSubject.name).all()
+    return render_template("public/programs.html", subjects=subjects)

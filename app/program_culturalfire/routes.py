@@ -910,10 +910,6 @@ def talent_group_dashboard(group_id):
 
 # --- parent---
 
-@cultural_bp.route("/parent/dashboard/<int:enrollment_id>", methods=["GET"], endpoint="parent_dashboard")
-@login_required
-def parent_dashboard(enrollment_id):
-    return redirect(url_for('cultural_bp.stakeholder_dashboard', enrollment_id=enrollment_id))
 
 @cultural_bp.route("/parent/permission", methods=["POST"])
 @login_required
@@ -953,10 +949,6 @@ def parent_update_biodata(child_id):
 
 # --- sponsors---
 
-@cultural_bp.route("/sponsor/dashboard")
-@login_required
-def sponsor_dashboard():
-    return redirect(url_for('cultural_bp.stakeholder_dashboard'))
 
 @cultural_bp.route("/sponsor/create/<int:enrollment_id>", methods=["GET", "POST"])
 @login_required
@@ -1029,7 +1021,7 @@ def sponsor_create(enrollment_id):
         db.session.commit()
 
         flash("Sponsorship added successfully!", "success")
-        return redirect(url_for("cultural_bp.sponsor_dashboard"))
+        return redirect(url_for("cultural_bp.stakeholder_dashboard"))
 
     # GET or failed validation
     return render_template(
@@ -1075,7 +1067,7 @@ def sponsor_edit(id):
 
         db.session.commit()
         flash("Sponsorship updated successfully!", "success")
-        return redirect(url_for("cultural_bp.sponsor_dashboard"))
+        return redirect(url_for("cultural_bp.stakeholder_dashboard"))
 
     return render_template(
         "program_culturefire/sponsor_edit.html",
@@ -1098,10 +1090,6 @@ def sponsor_checkout(id):
 
 # --- supporter---
 
-@cultural_bp.route("/supporter/dashboard/<int:enrollment_id>")
-@login_required
-def supporter_dashboard(enrollment_id):
-    return redirect(url_for('cultural_bp.stakeholder_dashboard', enrollment_id=enrollment_id))
 
 @cultural_bp.route("/supporter/create/<int:enrollment_id>", methods=["GET", "POST"])
 @login_required
@@ -1148,7 +1136,7 @@ def supporter_create(enrollment_id):
         )
         db.session.add(supporter)
         db.session.commit()
-        return redirect(url_for("cultural_bp.supporter_dashboard", enrollment_id=enrollment_id))
+        return redirect(url_for("cultural_bp.stakeholder_dashboard", enrollment_id=enrollment_id))
 
     return render_template(
         "program_culturefire/supporter_create.html",
@@ -1176,7 +1164,7 @@ def supporter_edit(id):
         form.populate_obj(supporter)
         db.session.commit()
         flash("Supporter updated successfully", "success")
-        return redirect(url_for("cultural_bp.supporter_dashboard", id=id))
+        return redirect(url_for("cultural_bp.stakeholder_dashboard", id=id))
 
     return render_template("program_culturefire/supporter_edit.html", form=form, supporter=supporter)
 
@@ -1196,7 +1184,7 @@ def supporter_confirm(id):
     supporter.confirmed = True   # assuming you have a 'confirmed' column
     db.session.commit()
     flash("Supporter confirmed successfully", "success")
-    return redirect(url_for("cultural_bp.supporter_dashboard", id=id))
+    return redirect(url_for("cultural_bp.stakeholder_dashboard", id=id))
 
 # --- showcase---
 @cultural_bp.route("/showcase/dashboard")

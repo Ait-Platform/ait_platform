@@ -1,6 +1,9 @@
 <nav class="w-full bg-blue-700 text-white">
   <div class="mx-auto max-w-6xl px-4 h-12 flex items-center justify-between">
-    <a href="{{ url_for('public_bp.welcome') }}" class="font-semibold">AIT Platform</a>
+    <div class="flex items-center gap-4">
+      <a href="{{ url_for('public_bp.welcome') }}" class="font-semibold text-lg">AIT Platform</a>
+      <a href="{{ url_for('public_bp.programs_list') }}" class="ml-4 font-medium hover:text-blue-200 transition-colors">Programs</a>
+    </div>
 
     <div class="flex items-center gap-4">
       <a href="{{ url_for('public_bp.contact') }}" class="hover:underline">Contact Us</a>

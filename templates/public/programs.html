@@ -1,0 +1,80 @@
+{% extends "layout.html" %}
+{% from "shared/welcome_card.html" import welcome_card %}
+
+{% block title %}Programs Directory | AIT Platform{% endblock %}
+
+{% block page_wrap_classes %}
+mx-auto max-w-7xl px-6 py-10
+{% endblock %}
+
+{% block content %}
+
+{% set fallback_desc = "Explore our latest program and get started today." %}
+
+{% set subject_info = {
+"loss":{"color":"purple","desc":"Get support, assess your needs, and begin healing."},
+"reading":{"color":"emerald","desc":"Learn to read from scratch with the Litre Method."},
+"home":{"color":"blue","desc":"Master math through hands-on learning and visual tools."},
+"tutor":{"color":"teal","desc":"Join as a tutor and help students learn math."},
+"budget":{"color":"rose","desc":"Manage your finances effectively and plan your budget."},
+"billing":{"color":"indigo","desc":"Automate patient statements and track clinic revenue."},
+"debtors":{"color":"blue","desc":"Manage debtors and generate professional statements."},
+"cultural_fire":{"color":"orange","desc":"Ignite your talent and compete globally."},
+"practice_crm":{"color":"teal","desc":"Manage your practice and reduce patient leakage."},
+"hds":{"color":"fuchsia","desc":"Healthcare Data Switch platform."},
+"receptionist":{"color":"emerald","desc":"Reception access for approved practices."},
+"spv":{"color":"slate","desc":"Private investment opportunities."},
+"adv_math":{"color":"cyan","desc":"AI-powered Grade 12 Mathematics."},
+"mechanic":{"color":"indigo","desc":"Workshop management system."},
+"tpx":{"color":"pink","desc":"Trusted Employment Passport."},
+"healthcore":{"color":"teal","desc":"Your personal health intelligence assistant."}
+} %}
+
+<!-- Hero -->
+<div class="rounded-2xl overflow-hidden bg-white shadow-lg border border-slate-200 mb-8">
+    <div class="h-2 bg-slate-700"></div>
+    <div class="p-8">
+        <h1 class="text-4xl font-bold text-slate-900">
+            Programs Directory
+        </h1>
+        <p class="mt-4 text-lg text-slate-600 max-w-4xl">
+            Browse our complete directory of active and upcoming modules.
+        </p>
+    </div>
+</div>
+
+<!-- Live Programs -->
+<h2 class="text-2xl font-semibold text-slate-800 mb-6 border-b pb-2">Live Programs</h2>
+<div class="grid gap-8 sm:grid-cols-2 xl:grid-cols-3 mb-12">
+{% for subj in subjects if subj.is_active %}
+    {% set slug = subj.slug %}
+    {% if slug not in ["admin", "admin_general", "sms"] %}
+        {% set info = subject_info.get(slug, {"color":"slate", "desc":fallback_desc}) %}
+        {{ welcome_card(
+            title=subj.name,
+            desc=info.desc,
+            color=info.color,
+            url=url_for('auth_bp.bridge_landing', subject=slug)
+        ) }}
+    {% endif %}
+{% endfor %}
+</div>
+
+<!-- Coming Soon -->
+<h2 class="text-2xl font-semibold text-slate-800 mb-6 border-b pb-2 text-slate-500">Coming Soon</h2>
+<div class="grid gap-8 sm:grid-cols-2 xl:grid-cols-3 opacity-70 cursor-not-allowed">
+{% for subj in subjects if not subj.is_active %}
+    {% set slug = subj.slug %}
+    {% if slug not in ["admin", "admin_general", "sms"] %}
+        {% set info = subject_info.get(slug, {"color":"slate", "desc":fallback_desc}) %}
+        {{ welcome_card(
+            title=subj.name,
+            desc=info.desc,
+            color=info.color,
+            url="#"
+        ) }}
+    {% endif %}
+{% endfor %}
+</div>
+
+{% endblock %}

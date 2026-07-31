@@ -4,25 +4,7 @@ from app.models.auth import DirectMessage
 from app.extensions import db
 from app.admin import admin_bp
 
-@admin_bp.route("/programs", methods=["GET", "POST"])
-def manage_programs():
-    from app.models.auth import AuthSubject
-    if request.method == "POST":
-        subject_id = request.form.get("subject_id")
-        is_hidden = request.form.get("is_hidden") == "1"
-        req_price = request.form.get("requires_price") == "1"
-        ptype = request.form.get("program_type")
-        subj = AuthSubject.query.get(subject_id)
-        if subj:
-            subj.is_hidden_on_bridge = is_hidden
-            subj.requires_price = req_price
-            subj.program_type = ptype
-            db.session.commit()
-            flash(f"Updated {subj.name}", "success")
-        return redirect(url_for("admin_bp.manage_programs"))
-    
-    subjects = AuthSubject.query.order_by(AuthSubject.name).all()
-    return render_template("admin/programs.html", subjects=subjects)
+
 
 
 @admin_bp.route('/messages', methods=['GET', 'POST'])

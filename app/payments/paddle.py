@@ -112,7 +112,8 @@ def start():
         {"k": f"yoco_mode_{subject}"} # Reusing the same setting key for backward compatibility
     ).scalar()
 
-    paddle_env = (val or "sandbox").lower()
+    raw_env = (val or "sandbox").lower()
+    paddle_env = "production" if raw_env == "live" else "sandbox"
 
     # Pass the client token to the template
     client_token = os.environ.get("PADDLE_CLIENT_TOKEN", "test_YOUR_CLIENT_TOKEN") # Fallback to test if missing for now

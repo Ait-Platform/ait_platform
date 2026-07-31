@@ -1,140 +1,54 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <title>Certificate of Completion – Reading Programme</title>
+{% extends "shared/ait_certificate_layout.html" %}
 
-  <style>
-    :root {
-      --ait-blue: #0033a1;
-      --text-dark: #0f172a;
-      --text-mid: #475569;
-      --border-gray: #cbd5e1;
-    }
+{% block document_title %}Completion Certificate{% endblock %}
 
-    @page {
-      margin: 2cm;
-      border: 4px solid #0033a1;
-      padding: 0.4cm;
-    }
+{% block learner_name %}{{ learner_name }}{% endblock %}
+{% block issue_date %}{{ completed_date }}{% endblock %}
+{% block student_number %}{{ user_id }}{% endblock %}
+{% block certificate_number %}{{ certificate_id }}{% endblock %}
+{% block programme_name %}Reading Programme{% endblock %}
 
-    body {
-      font-family: system-ui, sans-serif;
-      color: var(--text-dark);
-    }
+{% block achievement %}
+Successfully completed the Reading Programme
+{% endblock %}
 
-    .heading {
-      text-align: center;
-      font-size: 1.5rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      margin-bottom: 1rem;
-      color: var(--ait-blue);
-    }
+{% block competencies %}
+<table class="comp-table">
+  <tr>
+    <th>Competency</th>
+    <th>Result</th>
+  </tr>
+  <tr>
+    <td>Letter Recognition</td>
+    <td>Competent</td>
+  </tr>
+  <tr>
+    <td>Word Recognition</td>
+    <td>Competent</td>
+  </tr>
+  <tr>
+    <td>Fluency</td>
+    <td>Competent</td>
+  </tr>
+  <tr>
+    <td>Vocabulary</td>
+    <td>Developing</td>
+  </tr>
+  <tr>
+    <td>Comprehension</td>
+    <td>Competent</td>
+  </tr>
+</table>
+{% endblock %}
 
-    .subheading {
-      text-align: center;
-      font-size: 0.9rem;
-      color: var(--text-mid);
-      margin-bottom: 2.5rem;
-    }
+{% block overall_result %}
+Completion Status: Completed Successfully
+{% endblock %}
 
-    .name-line {
-      text-align: center;
-      font-size: 1.25rem;
-      font-weight: 600;
-      margin-bottom: 1.5rem;
-      color: var(--text-dark);
-    }
+{% block comments %}
+The learner demonstrates confident reading ability with good comprehension and vocabulary development. Continued practice is recommended to strengthen fluency.
+{% endblock %}
 
-    .statement {
-      font-size: 0.95rem;
-      line-height: 1.5rem;
-      text-align: center;
-      color: var(--text-dark);
-      max-width: 480px;
-      margin: 0 auto 2rem auto;
-    }
-
-    .meta-row {
-      display: flex;
-      justify-content: space-between;
-      font-size: 0.8rem;
-      color: var(--text-mid);
-      margin-top: 2rem;
-      border-top: 1px solid var(--border-gray);
-      padding-top: 1rem;
-    }
-
-    .sig-block {
-      text-align: right;
-      font-size: 0.8rem;
-      line-height: 1.2rem;
-      color: var(--text-dark);
-    }
-
-    .label {
-      font-weight: 600;
-      color: var(--text-dark);
-    }
-  </style>
-</head>
-
-<body>
-
-  {# global AIT header with logo + institute name #}
-  {% include "_ait_header.html" %}
-
-  <div class="heading">
-    Certificate of Completion
-  </div>
-
-  <div class="subheading">
-    AIT Reading Programme
-  </div>
-
-  <div class="name-line">
-    This certifies that <span class="label">{{ learner_name }}</span>
-  </div>
-
-  <div class="statement">
-    has successfully completed the AIT Reading Programme,
-    demonstrating focus and persistence across 18 guided sessions.
-  </div>
-
-  <table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-top: 1rem; font-size: 10pt; color: #475569;">
-    <tr>
-      <td style="vertical-align: top; width: 65%; padding-right: 20px;">
-        <table width="100%" border="0" cellpadding="0" cellspacing="0">
-          <tr>
-            <td style="width: 50%; vertical-align: top;">
-              <div class="label" style="font-weight: 600; color: #0f172a;">Issued:</div>
-              <div style="margin-top: 0.2rem;">{{ completed_date }}</div>
-            </td>
-            <td style="width: 50%; vertical-align: top;">
-              <div class="label" style="font-weight: 600; color: #0f172a;">Certificate ID:</div>
-              <div style="margin-top: 0.2rem;">{{ certificate_id }}</div>
-            </td>
-          </tr>
-        </table>
-        
-        <div style="margin-top: 2rem; font-size: 8pt; line-height: 1.3;">
-          <div style="font-weight: 600; color: #0f172a; margin-bottom: 0.25rem;">Disclaimer</div>
-          <div>This certificate recognises participation in the AIT Reading Programme. It is not an academic qualification or formal literacy credential. For verification or further support, contact AIT Platform — www.mathwithhands.com.</div>
-        </div>
-      </td>
-      <td style="vertical-align: top; width: 35%; text-align: right;">
-        {% if seal_b64 %}
-        <div style="margin-bottom: 0.5rem;">
-            <img src="{{ seal_b64 }}" style="width: 70px; height: 70px; opacity: 0.85;">
-        </div>
-        {% endif %}
-        <div class="label" style="font-weight: 600; color: #0f172a;">Authorised:</div>
-        <div style="margin-top: 0.2rem;">Programme Lead</div>
-        <div>AIT Platform</div>
-      </td>
-    </tr>
-  </table>
-
-</body>
-</html>
+{% block disclaimer %}
+This certificate recognises successful participation and completion of the AIT Reading Programme.
+{% endblock %}

@@ -958,7 +958,7 @@ def _finalize_and_send_certificate(user_id: int):
     flash("Certificate emailed (PDF download unavailable on this device).", "success")
     return redirect(url_for("reading_bp.exit_page"))
 
-def _generate_certificate_pdf(certificate_id, learner_name, completed_at):
+def _generate_certificate_pdf(certificate_id, learner_name, completed_at, user_id=None):
     # 1. normalize completed_at into datetime
     if isinstance(completed_at, str):
         try:
@@ -979,7 +979,8 @@ def _generate_certificate_pdf(certificate_id, learner_name, completed_at):
         learner_name=learner_name,
         completed_date=completed_date,
         certificate_id=certificate_id,
-        logo_path=logo_data_uri,   # <- now this is inline img data, no file://
+        logo_path=logo_data_uri,
+        user_id=user_id,   # <- now this is inline img data, no file://
     )
 
     # 4. write pdf

@@ -1,0 +1,60 @@
+{% extends "shared/ait_certificate_layout.html" %}
+
+{% block document_title %}Assessment Report{% endblock %}
+
+{% block learner_name %}{{ learner_name }}{% endblock %}
+{% block issue_date %}{{ run_date }}{% endblock %}
+{% block student_number %}{{ user_id or 'N/A' }}{% endblock %}
+{% block certificate_number %}HOME-{{ "%04d" % run_id }}{% endblock %}
+{% block programme_name %}HOME (Learning Outcomes Support System){% endblock %}
+
+{% block achievement %}
+Completed Diagnostic Assessment
+{% endblock %}
+
+{% block competencies %}
+<div style="font-size: 14px; margin-bottom: 20px;">
+  <p><strong>Age:</strong> {{ age }} | <strong>Grade Equivalent:</strong> {{ current_grade }}</p>
+</div>
+
+<table class="comp-table">
+  <tr>
+    <th>Competency Area</th>
+    <th>Score</th>
+    <th>Status</th>
+  </tr>
+  {% for p in phases %}
+  <tr>
+    <td>{{ p.phase_name }}</td>
+    <td>{{ p.score_pct }}%</td>
+    <td>
+      {% if p.score_band == 1 %}
+        <span style="color: #10b981; font-weight: bold;">Competent</span>
+      {% elif p.score_band == 2 %}
+        <span style="color: #f59e0b; font-weight: bold;">Developing</span>
+      {% else %}
+        <span style="color: #ef4444; font-weight: bold;">Needs Support</span>
+      {% endif %}
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+{% endblock %}
+
+{% block overall_result %}
+Overall Diagnostic Score: {{ overall_score_pct }}%
+{% endblock %}
+
+{% block comments %}
+{% if overall_band == 1 %}
+The learner demonstrates excellent foundational understanding and is well-equipped for advanced concepts.
+{% elif overall_band == 2 %}
+The learner shows good progress but requires targeted intervention in specific developing areas.
+{% else %}
+Significant gaps have been identified. A structured remediation program is highly recommended.
+{% endif %}
+{% endblock %}
+
+{% block disclaimer %}
+This diagnostic report summarises your performance in the AIT HOME Assessment.
+{% endblock %}

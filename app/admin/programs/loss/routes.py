@@ -116,16 +116,16 @@ import os, shutil, glob
 @admin_bp.get("/loss/assessment", endpoint="loss_assessment")
 def loss_assessment():
     """Placeholder page to preview the LOSS assessment (admin view)."""
-    return render_template("admin/loss/assessment.html")
+    return render_template("admin/programs/loss/assessment.html")
 
 @admin_bp.get("/loss/results", endpoint="loss_results")
 def loss_results():
     """Placeholder page for viewing submitted results (admin view)."""
-    return render_template("admin/loss/results.html")
+    return render_template("admin/programs/loss/results.html")
 
 @admin_bp.route("/loss/tool/<slug>", methods=["GET"])
 def loss_placeholder(slug: str):
-    return render_template("admin/loss/placeholder.html", slug=slug)
+    return render_template("admin/programs/loss/placeholder.html", slug=slug)
 
 #new starting point
 
@@ -250,7 +250,7 @@ def loss_scorecard_admin():
       "p4": {"raw": row["p4_raw"] or 0, "max": maxima["p4_max"] or 0},
     }
     for v in data.values(): v["pct"] = pct(v["raw"], v["max"])
-    return render_template("admin/loss/scorecard.html", data=data, uid=uid, run_id=rid)
+    return render_template("admin/programs/loss/scorecard.html", data=data, uid=uid, run_id=rid)
 
 
 
@@ -435,7 +435,7 @@ def loss_scorecard():
             FROM lca_scorecard WHERE run_id=:rid
         """), {"rid": rid}).mappings().first()
 
-    return render_template("admin/loss/scorecard.html", sc=sc, uid=uid, run_id=rid)
+    return render_template("admin/programs/loss/scorecard.html", sc=sc, uid=uid, run_id=rid)
 
 # Optional: convenience start from Admin
 @admin_bp.get("/loss/start-test")
@@ -536,7 +536,7 @@ def _fetch_result_row(run_id: int):
 
 def _render_report_html(row):
     # Reuse a clean report template below
-    return render_template("admin/loss/report.html", row=row)
+    return render_template("admin/programs/loss/report.html", row=row)
 
 
 def _make_pdf(html_str: str) -> bytes | None:
@@ -1325,7 +1325,7 @@ def _progress_lines_from_db(phase_percents: dict, limit_per_phase: int = 1):
 @admin_bp.route("/loss/sequence/<int:pos>")
 def loss_sequence_step(pos:int):
     # your existing renderer; keep endpoint for “Back to Sequence”
-    return render_template("admin/loss/sequence_step.html", pos=pos)
+    return render_template("admin/programs/loss/sequence_step.html", pos=pos)
 
 def _get_phase_percentages_for_run(run_id:int):
     # Replace with your real source (lca_scorecard_v). Demo lets you see UI:
@@ -1358,7 +1358,7 @@ def loss_progress(run_id: int):
 
     # keep the rest exactly as-is; just include adaptive_vector in the context
     return render_template(
-        "admin/loss/report.html",        # or your current template name
+        "admin/programs/loss/report.html",        # or your current template name
         run_id=run_id,
         adaptive_vector=adaptive_vector     # <-- add this kwarg
     )
@@ -1433,7 +1433,7 @@ def loss_exit():
 
 @admin_bp.route("/loss/thanks")
 def loss_thanks():
-    return render_template("admin/loss/thanks.html")
+    return render_template("admin/programs/loss/thanks.html")
 
 
 def _build_loss_report_context(run_id: int):
@@ -1621,7 +1621,7 @@ def loss_after():
 
     ctx = _build_loss_report_context(run_id)
     session["last_loss_run_id"] = run_id
-    return render_template("admin/loss/after.html", **with_run_id_in_ctx(ctx, run_id))
+    return render_template("admin/programs/loss/after.html", **with_run_id_in_ctx(ctx, run_id))
 
 # app/routes.py
 
@@ -1826,7 +1826,7 @@ def list_runs_from_lca_result(limit: int = 200):
 @admin_bp.route("/loss/runs")
 def loss_runs_selector():
     runs = list_runs_from_lca_result()
-    return render_template("admin/loss/runs.html", runs=runs)
+    return render_template("admin/programs/loss/runs.html", runs=runs)
 
 
   
@@ -1887,7 +1887,7 @@ def loss_email_pdf():
 
     # Render the same report template as HTML
     html = render_template(
-        "admin/loss/report.html",
+        "admin/programs/loss/report.html",
         run_id=run_id,
         result=result_row,
         generated_at=datetime.utcnow(),
@@ -2004,7 +2004,7 @@ def loss_home():
     if selected and not any(r["id"] == selected["id"] for r in runs):
         runs = [selected] + runs
 
-    return render_template("admin/loss/dashboard.html",
+    return render_template("admin/programs/loss/dashboard.html",
                            uid=uid, 
                            run_id=(selected["id"] if selected else None),
                            runs=runs, 
@@ -2219,7 +2219,7 @@ def _render_loss_dashboard():
     runs, diag = _fetch_runs_debug()
     valid = {r["id"] for r in runs}
     run_id = requested if requested in valid else None
-    return render_template("admin/loss/dashboard.html",
+    return render_template("admin/programs/loss/dashboard.html",
                            runs=runs, run_id=run_id,
                            diag=diag, debug=(request.args.get("debug") == "1"))
 
@@ -2337,7 +2337,7 @@ def loss_index():
     )
 
     return render_template(
-        "admin/loss/dashboard.html",
+        "admin/programs/loss/dashboard.html",
         user_ids=user_ids,
         runs=runs,
         user_id=uid,
@@ -2395,7 +2395,7 @@ def loss_responses():
     report_url = url_for("loss_bp.report",      run_id=rid, user_id=user_id)
 
     return render_template(
-        "admin/loss/responses.html",
+        "admin/programs/loss/responses.html",
         run_id=rid, user_id=user_id, subject=subject,
         rows=rows,
         hub_url=hub_url,
@@ -2466,7 +2466,7 @@ def loss_result():
         {"rid": rid}
     ).mappings().first()
 
-    return render_template("admin/loss/result.html", run_id=rid, user_id=uid, row=row)
+    return render_template("admin/programs/loss/result.html", run_id=rid, user_id=uid, row=row)
 
 
 
@@ -2499,7 +2499,7 @@ def loss_phase_scores():
         totals["P4"] += p4
 
     return render_template(
-        "admin/loss/phase_scores.html",
+        "admin/programs/loss/phase_scores.html",
         run_id=rid,
         user_id=uid,
         rows=rows,
@@ -2590,7 +2590,7 @@ def loss_results_raw():
             uid = result_row.get("user_id")
 
     return render_template(
-        "admin/loss/results_raw.html",
+        "admin/programs/loss/results_raw.html",
         run_id=rid,
         user_id=uid,
         result=result_row,
@@ -2943,7 +2943,7 @@ def _build_context(rid: int, uid: int | None):
 
 
 def _render_pdf_bytes(ctx: dict) -> bytes:
-    html = render_template("admin/loss/report.html", **ctx, pdf_mode=True)
+    html = render_template("admin/programs/loss/pdf_report.html", **ctx)
     pdf_io = BytesIO()
     HTML(string=html, base_url=request.host_url).write_pdf(pdf_io)
     return pdf_io.getvalue()
@@ -2988,7 +2988,7 @@ def _phase_scores_from_blocks(ctx):
 TEMPLATE_DIR = "subject/loss"      # ← change to "admin/loss" if that’s where the files are
 
 def render_loss_template(name, **ctx):
-    for path in (f"subject/loss/{name}", f"admin/loss/{name}", f"school_loss/{name}"):
+    for path in (f"subject/loss/{name}", f"admin/programs/loss/{name}", f"school_loss/{name}"):
         try:
             return render_template(path, **ctx)
         except TemplateNotFound:

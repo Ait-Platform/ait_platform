@@ -563,3 +563,14 @@ def traffic():
     ).all()
 
     return render_template("admin_general/traffic.html", rows=rows)
+
+@general_bp.route('/fix-healthcore')
+@login_required
+def fix_healthcore():
+    subj = AuthSubject.query.filter_by(slug='healthcore').first()
+    if subj:
+        subj.name = 'Health IQ'
+        subj.about_endpoint = 'healthcore_bp.healthcore_home'
+        db.session.commit()
+        return 'Fixed Health IQ in database! Go back to welcome page.'
+    return 'Not found'

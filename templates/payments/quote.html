@@ -201,7 +201,7 @@
           {% else %}
             {% if current_user.is_authenticated %}
               {% if is_upgrade %}
-                <a href="{{ url_for('yoco_bp.yoco_start', email=current_user.email, subject=subject_slug) }}" 
+                <a href="{{ url_for('paddle_bp.paddle_start', email=current_user.email, subject=subject_slug) }}" 
                    class="inline-flex items-center justify-center rounded bg-emerald-600 px-4 py-2 text-base font-bold text-white hover:bg-emerald-700 shadow-sm transition-colors">
                   Proceed to Payment
                 </a>

@@ -1,12 +1,12 @@
 import os
 
-target_dir = 'app'
+target_dir = 'templates'
 to_replace = 'yoco_bp.yoco_start'
 replacement = 'paddle_bp.paddle_start'
 
 for root, _, files in os.walk(target_dir):
     for file in files:
-        if file.endswith('.py'):
+        if file.endswith('.html'):
             filepath = os.path.join(root, file)
             with open(filepath, 'r', encoding='utf-8') as f:
                 content = f.read()

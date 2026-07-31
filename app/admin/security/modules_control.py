@@ -27,13 +27,9 @@ def modules_control():
 
             # Welcome page visibility
             subject.show_on_welcome = (
+                #request.form.get(f"show_on_welcome_{subject.slug}") == "on"
                 f"show_on_welcome_{subject.slug}" in request.form
             )
-            
-            # Bridge visibility and properties
-            subject.is_hidden_on_bridge = (f"is_hidden_on_bridge_{subject.slug}" in request.form)
-            subject.requires_price = (f"requires_price_{subject.slug}" in request.form)
-            subject.program_type = request.form.get(f"program_type_{subject.slug}", "")
         
             # Yoco Mode (still stored in system_settings)
             yoco_mode = request.form.get(

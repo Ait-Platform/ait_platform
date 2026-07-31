@@ -1,0 +1,77 @@
+{% extends "layout.html" %}
+{% block title %}Manage Bridge Tiles & Programs · Admin{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto py-8 px-4">
+  <div class="bg-white rounded-xl shadow overflow-hidden">
+    <!-- Top color strip -->
+    <div class="h-2 w-full bg-sky-600"></div>
+    
+    <!-- Row 1: Header -->
+    <div class="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+      <div>
+        <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight">Manage Bridge Tiles & Programs</h1>
+        <p class="text-sm text-slate-500 mt-1">Control which tiles appear on the bridge and edit program types.</p>
+      </div>
+      <a href="{{ url_for('admin_bp.security_dashboard') }}" class="inline-flex items-center text-sm font-medium text-slate-500 hover:text-slate-800 transition bg-white hover:bg-slate-50 px-4 py-2 rounded-lg border border-slate-200 shadow-sm">
+        <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+        Back to Secure Setup
+      </a>
+    </div>
+
+    <!-- Inner Content -->
+    <div class="p-8">
+      {% include "partials/flash_messages.html" ignore missing %}
+      
+      <table class="min-w-full divide-y divide-slate-200">
+        <thead class="bg-slate-50">
+          <tr>
+            <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">No.</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Name / Slug</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Program Type</th>
+            <th class="px-4 py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">Bridge Visibility</th>
+            <th class="px-4 py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100 bg-white">
+          {% for s in subjects %}
+          <tr class="hover:bg-slate-50 transition-colors">
+            <td class="px-4 py-4 text-sm text-slate-500 font-medium">{{ loop.index }}</td>
+            <td class="px-4 py-4 whitespace-nowrap">
+              <div class="text-sm font-bold text-slate-800">{{ s.name }}</div>
+              <div class="text-sm text-slate-500">{{ s.slug }}</div>
+            </td>
+            <td class="px-4 py-4 whitespace-nowrap">
+              <form id="form_{{ s.id }}" method="POST" action="{{ url_for('admin_bp.manage_programs') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="subject_id" value="{{ s.id }}">
+              </form>
+              <input form="form_{{ s.id }}" type="text" name="program_type" value="{{ s.program_type or '' }}" 
+                     class="w-full rounded-md border-2 border-slate-400 outline-none focus:border-sky-500 focus:ring focus:ring-sky-200 sm:text-sm px-3 py-1.5 transition duration-150"
+                     {% if loop.first %}autofocus{% endif %}>
+            </td>
+            <td class="px-4 py-4 whitespace-nowrap text-center">
+              <div class="flex items-center justify-center space-x-6">
+                <label class="inline-flex items-center cursor-pointer">
+                  <input form="form_{{ s.id }}" type="checkbox" name="is_hidden" value="1" {% if s.is_hidden_on_bridge %}checked{% endif %} class="form-checkbox h-5 w-5 text-sky-600 rounded border-2 border-slate-300 focus:ring-sky-500 outline-none transition duration-150 cursor-pointer">
+                  <span class="ml-2 text-xs font-medium text-slate-600">Hidden</span>
+                </label>
+                <label class="inline-flex items-center cursor-pointer">
+                  <input form="form_{{ s.id }}" type="checkbox" name="requires_price" value="1" {% if s.requires_price %}checked{% endif %} class="form-checkbox h-5 w-5 text-sky-600 rounded border-2 border-slate-300 focus:ring-sky-500 outline-none transition duration-150 cursor-pointer">
+                  <span class="ml-2 text-xs font-medium text-slate-600">Req. Price</span>
+                </label>
+              </div>
+            </td>
+            <td class="px-4 py-4 whitespace-nowrap text-center space-x-2">
+              <button form="form_{{ s.id }}" type="submit" class="bg-sky-600 hover:bg-sky-700 text-white font-medium py-1.5 px-3 rounded text-xs shadow-sm transition">
+                Save
+              </button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

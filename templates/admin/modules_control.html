@@ -51,9 +51,6 @@
                                 <th class="px-4 py-3 text-left text-sm font-semibold text-gray-600">Program</th>
                                 <th class="px-4 py-3 text-left text-sm font-semibold text-gray-600">Slug</th>
                                 <th class="px-4 py-3 text-center text-sm font-semibold text-gray-600">Show on Welcome</th>
-                                <th class="px-4 py-3 text-center text-sm font-semibold text-gray-600">Hide on Bridge</th>
-                                <th class="px-4 py-3 text-center text-sm font-semibold text-gray-600">Req Price</th>
-                                <th class="px-4 py-3 text-left text-sm font-semibold text-gray-600">Program Type</th>
                                 <th class="px-4 py-3 text-center text-sm font-semibold text-gray-600">Payment Mode</th>
                             </tr>
                         </thead>
@@ -66,15 +63,6 @@
                                 <td class="px-4 py-3 text-sm font-mono text-gray-500">{{ subject.slug }}</td>
                                 <td class="px-4 py-3 text-center">
                                     <input type="checkbox" name="show_on_welcome_{{ subject.slug }}" class="h-5 w-5 rounded border-gray-300 text-teal-600 focus:ring-teal-500" {% if subject.show_on_welcome %}checked{% endif %}>
-                                </td>
-                                <td class="px-4 py-3 text-center">
-                                    <input type="checkbox" name="is_hidden_on_bridge_{{ subject.slug }}" class="h-5 w-5 rounded border-gray-300 text-slate-600 focus:ring-slate-500" {% if subject.is_hidden_on_bridge %}checked{% endif %}>
-                                </td>
-                                <td class="px-4 py-3 text-center">
-                                    <input type="checkbox" name="requires_price_{{ subject.slug }}" class="h-5 w-5 rounded border-gray-300 text-slate-600 focus:ring-slate-500" {% if subject.requires_price %}checked{% endif %}>
-                                </td>
-                                <td class="px-4 py-3">
-                                    <input type="text" name="program_type_{{ subject.slug }}" value="{{ subject.program_type or '' }}" class="w-full rounded border-gray-300 text-sm px-2 py-1 focus:ring-teal-500 focus:border-teal-500">
                                 </td>
                                 <td class="px-4 py-3 text-center">
                                     <input type="hidden" id="yoco_mode_{{ subject.slug }}" name="yoco_mode_{{ subject.slug }}" value="{{ settings.get('yoco_mode_' ~ subject.slug, 'sandbox') }}">

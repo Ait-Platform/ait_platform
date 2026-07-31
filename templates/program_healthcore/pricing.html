@@ -1,5 +1,5 @@
 {% extends "layout.html" %}
-{% block title %}HealthCore Pricing{% endblock %}
+{% block title %}Health IQ Pricing{% endblock %}
 
 {% block content %}
 <div class="max-w-4xl mx-auto mt-8 p-6">
@@ -8,7 +8,7 @@
     
     <div class="p-6 border-b border-gray-100 flex justify-between items-center mb-2">
       <div>
-        <h1 class="text-3xl font-bold text-slate-900 mb-1">HealthCore Pricing</h1>
+        <h1 class="text-3xl font-bold text-slate-900 mb-1">Health IQ Pricing</h1>
         <p class="text-base text-gray-500">Global Coverage Available</p>
       </div>
       <a href="{{ url_for('healthcore_bp.healthcore_about') }}" class="px-4 py-2 bg-gray-200 text-gray-800 font-medium rounded hover:bg-gray-300 transition-colors shadow-sm">
@@ -22,14 +22,14 @@
         <div class="bg-gray-50 p-5 rounded-xl border border-gray-200">
           <h3 class="text-lg font-bold text-gray-900 mb-2">1. One-Off Registration & Initial Tokens</h3>
           <p class="text-base leading-relaxed">
-            To join HealthCore, there is a single, once-off registration fee based on your <strong>local currency parity</strong>. 
+            To join Health IQ, there is a single, once-off registration fee based on your <strong>local currency parity</strong>. 
             For example, paying <strong>100 in your local currency</strong> automatically credits your digital wallet with an initial bundle of <strong>200 Tokens</strong>!
           </p>
         </div>
 
         <div class="bg-gray-50 p-5 rounded-xl border border-gray-200">
           <h3 class="text-lg font-bold text-gray-900 mb-3">2. Pay-As-You-Go Usage</h3>
-          <p class="text-base leading-relaxed mb-3">HealthCore operates on a transparent model with no monthly subscriptions. Tokens are deducted only when you actively use the system:</p>
+          <p class="text-base leading-relaxed mb-3">Health IQ operates on a transparent model with no monthly subscriptions. Tokens are deducted only when you actively use the system:</p>
           <ul class="list-disc pl-8 text-base space-y-2">
             <li><strong>AI Lab Report Structuring:</strong> 10 Tokens per document</li>
             <li><strong>Doctor Sharing Links:</strong> 5 Tokens per share</li>
@@ -47,7 +47,7 @@
 
       <!-- Register / Pick Country button -->
       <div class="flex justify-end border-t border-gray-100 pt-6">
-        <a href="{{ url_for('quote_bp.quote', subject='healthcore') }}" class="px-8 py-3 bg-teal-600 text-white text-base font-bold rounded-lg hover:bg-teal-700 transition shadow-md flex items-center gap-2">
+        <a href="{{ url_for('quote_bp.quote', subject='Health IQ') }}" class="px-8 py-3 bg-teal-600 text-white text-base font-bold rounded-lg hover:bg-teal-700 transition shadow-md flex items-center gap-2">
           Pick Country
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
         </a>

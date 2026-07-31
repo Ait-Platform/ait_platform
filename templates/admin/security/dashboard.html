@@ -1,0 +1,44 @@
+{% extends "layout.html" %}
+{% block title %}Security Administration{% endblock %}
+
+{% block content %}
+
+<div class="max-w-6xl mx-auto">
+
+    <h1 class="text-3xl font-bold mb-6">
+        Security Administration
+    </h1>
+
+    <div class="grid md:grid-cols-2 gap-6">
+
+        <a href="{{ url_for('admin_bp.modules_control') }}"
+           class="bg-white rounded-xl shadow border p-6 hover:shadow-lg">
+
+            <h2 class="text-xl font-semibold">
+                Platform Modules
+            </h2>
+
+            <p class="text-slate-600 mt-2">
+                Welcome page visibility, payment mode and platform controls.
+            </p>
+
+        </a>
+
+        <a href="{{ url_for('admin_bp.manage_vouchers') }}"
+           class="bg-white rounded-xl shadow border p-6 hover:shadow-lg">
+
+            <h2 class="text-xl font-semibold">
+                Voucher Management
+            </h2>
+
+            <p class="text-slate-600 mt-2">
+                Create, manage and revoke platform vouchers.
+            </p>
+
+        </a>
+
+    </div>
+
+</div>
+
+{% endblock %}

@@ -1,41 +1,11 @@
-from app.admin.security import dashboard
-from flask import (
-    Blueprint, current_app, render_template, 
-    redirect, url_for, abort, request, session,
-    jsonify, flash)
-from app.models.loss import LcaResult
-from app.utils import reading_utils
-from app.utils.roles import is_admin  # reuse your helper
-from app.extensions import db
-from . import admin_bp
-from sqlalchemy import select, func, text
-from flask_login import current_user
-import uuid
-from app.models.payment import VoucherToken
-from app.models.auth import AuthSubject
-
-
-'''
-# subjects you support in admin
-ALLOWED_SUBJECTS = {"reading", "home", "loss", "billing", "adv_math", "spv"}  # extend as needed
-
-@admin_bp.before_request
-def _guard():
-    # Allow authenticated property managers to access billing statement routes
-    if request.path.startswith('/admin/billing/') and current_user.is_authenticated:
-        return None
-        
-    if not is_admin():
-        return redirect(url_for("public_bp.welcome"))
-
-@admin_bp.route("/<subject>/", endpoint="subject_dashboard")
-def subject_dashboard(subject: str):
-    subject = (subject or "").lower().strip()
-    if subject not in ALLOWED_SUBJECTS:
-        abort(404)
-    return render_template(f"admin/{subject}/dashboard.html", subject=subject)
 
 # --- Lessons list (simple) ---
+from flask import abort, current_app, flash, jsonify, redirect, render_template, request, session, url_for
+from app.models.reading import RdpLesson
+from app.extensions import db
+from app.admin import admin_bp
+from app.utils import reading_utils
+
 @admin_bp.route("/<subject>/lessons", endpoint="lessons")
 def lessons(subject: str):
     if subject != "reading":
@@ -173,47 +143,5 @@ def admin_reading_preview():
 
     return render_template("school_reading/learner_dashboard.html", **ctx)
 
-# ---- Tiles dashboard view ----
-
-def _admins_only():
-    if not (session.get("is_admin") or session.get("role") == "admin"):
-        return redirect(url_for("public_bp.welcome"))  # not login
-    return None
 
 
-# --- bind BOTH endpoints to the same function (AFTER it's defined) ---
-admin_bp.add_url_rule("/", endpoint="index",            view_func=_admin_dashboard_view)
-admin_bp.add_url_rule("/", endpoint="admin_dashboard",  view_func=_admin_dashboard_view)
-
-
-@admin_bp.route("/loss/runs", methods=["GET"], endpoint="loss_runs_selector")
-def loss_runs_selector():
-    rows = db.session.execute(
-        select(
-            LcaResult.run_id.label("run_id"),
-            func.max(LcaResult.created_at).label("last_at"),
-            func.count().label("answers")
-        )
-        .where(LcaResult.run_id.isnot(None))
-        .group_by(LcaResult.run_id)
-        .order_by(func.max(LcaResult.created_at).desc())
-    ).all()
-    return render_template("admin/loss/runs_selector.html", runs=rows)
-
-from app.models.auth import DirectMessage
-@admin_bp.route('/messages', methods=['GET', 'POST'])
-def view_messages():
-    if request.method == 'POST':
-        msg_id = request.form.get('msg_id')
-        reply = request.form.get('reply')
-        msg = DirectMessage.query.get(msg_id)
-        if msg and reply:
-            msg.reply = reply
-            msg.is_read = True
-            db.session.commit()
-            flash('Reply sent successfully', 'success')
-        return redirect(url_for('admin_bp.view_messages'))
-        
-    msgs = DirectMessage.query.order_by(DirectMessage.created_at.desc()).all()
-    return render_template('admin/messages.html', messages=msgs)
-'''

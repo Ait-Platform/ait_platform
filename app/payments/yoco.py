@@ -136,12 +136,13 @@ def start():
     import os
 
     val = db.session.execute(
-        text(
-            "SELECT value FROM system_settings "
-            "WHERE key = :k"
-        ),
+        text("SELECT value FROM system_settings WHERE key = :k"),
         {"k": f"yoco_mode_{subject}"}
     ).scalar()
+
+    current_app.logger.warning(
+        f"DATABASE VALUE = {val}"
+    )
 
     yoco_mode = (val or "sandbox").lower()
 

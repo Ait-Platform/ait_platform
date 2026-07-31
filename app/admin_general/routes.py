@@ -570,8 +570,7 @@ def fix_healthcore():
     subj = AuthSubject.query.filter_by(slug='healthcore').first()
     if subj:
         subj.name = 'Health IQ'
-        subj.about_endpoint = 'healthcore_bp.healthcore_home'
-        subj.is_coming_soon = False
+        subj.about_endpoint = 'healthcore_bp.healthcore_about'
         db.session.commit()
         return 'Fixed Health IQ in database! Go back to welcome page.'
     return 'Not found'

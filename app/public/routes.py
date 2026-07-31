@@ -101,10 +101,16 @@ def welcome():
 
     # Auto-fix healthcore
     healthcore = AuthSubject.query.filter_by(slug='healthcore').first()
-    if healthcore and (healthcore.name != 'Health IQ' or healthcore.is_coming_soon):
+    if healthcore and (healthcore.name != 'Health IQ' or healthcore.about_endpoint != 'healthcore_bp.healthcore_about'):
         healthcore.name = 'Health IQ'
-        healthcore.is_coming_soon = False
-        healthcore.about_endpoint = 'healthcore_bp.healthcore_home'
+        healthcore.about_endpoint = 'healthcore_bp.healthcore_about'
+        db.session.commit()
+
+    # Auto-fix legacy yoco database entries
+    yoco_subjects = AuthSubject.query.filter_by(pay_endpoint='yoco_bp.yoco_start').all()
+    if yoco_subjects:
+        for subj in yoco_subjects:
+            subj.pay_endpoint = 'paddle_bp.paddle_start'
         db.session.commit()
 
     subjects = (

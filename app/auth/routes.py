@@ -1239,6 +1239,27 @@ def bridge_dashboard():
         if enr_status == 'completed':
             slug = getattr(s, 'slug', '').lower()
             return redirect(url_for('auth_bp.learner_subject_dashboard', subject=slug))
+            
+    # NEW FALLBACK: If user has no active subjects, redirect to checkout for their latest incomplete enrollment
+    if len(rows) == 0 and not is_admin:
+        incomplete_slug = db.session.execute(
+            text("""
+                SELECT s.slug 
+                FROM user_enrollment ue
+                JOIN auth_subject s ON s.id = ue.subject_id
+                WHERE ue.user_id = :uid 
+                ORDER BY ue.id DESC LIMIT 1
+            """),
+            {"uid": user_obj.id}
+        ).scalar()
+        
+        if incomplete_slug:
+            # Seed the session so register_decision knows what subject we're paying for
+            ctx = session.setdefault("reg_ctx", {})
+            ctx["subject"] = incomplete_slug
+            session.modified = True
+            flash("Please complete your payment to access this course.", "info")
+            return redirect(url_for("auth_bp.register_decision", subject=incomplete_slug))
     
     return render_template(
         "auth/bridge_dashboard.html",

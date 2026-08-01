@@ -183,6 +183,6 @@ def reading_preview_certificate(user_id):
     return send_file(
         io.BytesIO(pdf_bytes),
         mimetype="application/pdf",
-        as_attachment=False,
+        as_attachment=True,
         download_name=f"certificate_{user_id}.pdf"
     )

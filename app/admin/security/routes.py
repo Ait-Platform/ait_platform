@@ -87,6 +87,38 @@ def manage_pricing():
                     db.session.commit()
                     flash(f"Price updated for {c.name}.", "success")
         
+        elif action == "multi_set":
+            if subject_id:
+                for key, val in request.form.items():
+                    if key.startswith("amount_") and val.strip():
+                        country_code = key.replace("amount_", "")
+                        amount = int(val)
+                        local_cents = amount * 100
+                        c = RefCountryCurrency.query.filter_by(alpha2=country_code).first()
+                        if c:
+                            p = SubjectCountryPrice.query.filter_by(subject_id=subject_id, country_code=c.alpha2).first()
+                            if not p:
+                                p = SubjectCountryPrice(
+                                    subject_id=subject_id,
+                                    country_code=c.alpha2,
+                                    local_currency=c.currency,
+                                )
+                                db.session.add(p)
+                                
+                            fx = float(c.fx_to_zar) if c.fx_to_zar else 0.0
+                            if fx > 0:
+                                computed_zar = int(local_cents * fx)
+                                if computed_zar < 3000:
+                                    local_cents = int(3000 / fx)
+                                    computed_zar = int(local_cents * fx)
+                                p.local_amount_cents = local_cents
+                                p.zar_amount_cents = computed_zar
+                            else:
+                                p.local_amount_cents = local_cents
+                                p.zar_amount_cents = 3000
+                db.session.commit()
+                flash("All global prices updated successfully.", "success")
+        
         return redirect(url_for("admin_bp.manage_pricing", subject_id=subject_id))
 
     # GET request

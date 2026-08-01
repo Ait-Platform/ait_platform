@@ -23,9 +23,12 @@ from app.models.auth import User
 paddle_bp = Blueprint("paddle_bp", __name__)
 
 def create_paddle_transaction(amount_cents, display_name, paddle_env, subject):
-    api_key = os.environ.get("PADDLE_API_KEY", "")
+    api_key = os.environ.get("PADDLE_LIVE_API_KEY") if paddle_env == "production" else os.environ.get("PADDLE_SANDBOX_API_KEY")
     if not api_key:
-        current_app.logger.error("PADDLE_API_KEY is not set.")
+        api_key = os.environ.get("PADDLE_API_KEY", "")
+        
+    if not api_key:
+        current_app.logger.error(f"PADDLE_API_KEY is not set for {paddle_env}.")
         return None
 
     base_url = "https://api.paddle.com" if paddle_env == "production" else "https://sandbox-api.paddle.com"
@@ -163,7 +166,11 @@ def start():
     paddle_env = "production" if raw_env == "live" else "sandbox"
 
     # Pass the client token to the template
-    client_token = os.environ.get("PADDLE_CLIENT_TOKEN", "test_YOUR_CLIENT_TOKEN") # Fallback to test if missing for now
+    if paddle_env == "production":
+        client_token = os.environ.get("PADDLE_LIVE_CLIENT_TOKEN") or os.environ.get("PADDLE_CLIENT_TOKEN")
+    else:
+        client_token = os.environ.get("PADDLE_SANDBOX_CLIENT_TOKEN") or os.environ.get("PADDLE_CLIENT_TOKEN")
+    client_token = client_token or "test_YOUR_CLIENT_TOKEN"
 
     success_url = url_for("paddle_bp.paddle_success", subject=subject, email=email, _external=True)
 
@@ -219,23 +226,36 @@ def webhook():
     # 1. Verify signature (Paddle specific)
     # The signature is in the Paddle-Signature header: ts=...,h1=...
     signature_header = request.headers.get("Paddle-Signature")
-    webhook_secret = os.environ.get("PADDLE_WEBHOOK_SECRET")
     
-    if webhook_secret and signature_header:
+    webhook_secrets = [
+        os.environ.get("PADDLE_SANDBOX_WEBHOOK_SECRET"),
+        os.environ.get("PADDLE_LIVE_WEBHOOK_SECRET"),
+        os.environ.get("PADDLE_WEBHOOK_SECRET")
+    ]
+    webhook_secrets = [s for s in webhook_secrets if s]
+    
+    is_valid = False
+    
+    if signature_header and webhook_secrets:
         # Quick validation logic
         parts = dict(x.split("=") for x in signature_header.split(";"))
         ts = parts.get("ts")
         h1 = parts.get("h1")
         if ts and h1:
             signed_payload = f"{ts}:{request.get_data(as_text=True)}"
-            expected_h1 = hmac.new(
-                webhook_secret.encode('utf-8'),
-                signed_payload.encode('utf-8'),
-                hashlib.sha256
-            ).hexdigest()
-            if h1 != expected_h1:
-                current_app.logger.error("Paddle webhook signature mismatch.")
-                return "Invalid signature", 401
+            for secret in webhook_secrets:
+                expected_h1 = hmac.new(
+                    secret.encode('utf-8'),
+                    signed_payload.encode('utf-8'),
+                    hashlib.sha256
+                ).hexdigest()
+                if h1 == expected_h1:
+                    is_valid = True
+                    break
+                    
+    if not is_valid and signature_header:
+        current_app.logger.error("Paddle webhook signature mismatch.")
+        return "Invalid signature", 401
     
     try:
         data = request.json

@@ -26,12 +26,11 @@ def get_dashboard_route(role, subject=None, with_params=False):
         "general_user":    "public_bp.welcome",
     }
 
-    # Prefer subject-specific admin if role is admin and we know the subject
     if role == "admin":
         if subject == "reading":
-            return ("admin_bp.reading_home", {}) if with_params else "admin_bp.reading_home"
+            return ("admin_bp.subject_dashboard", {"subject": "reading"}) if with_params else "admin_bp.subject_dashboard"
         if subject == "billing":
-            return ("admin_bp.billing_home", {}) if with_params else "admin_bp.billing_home"
+            return ("admin_bp.subject_dashboard", {"subject": "billing"}) if with_params else "admin_bp.subject_dashboard"
         return ("admin_bp.index", {}) if with_params else "admin_bp.index"
     
     # Also allow explicit subject admin roles like "reading_admin"

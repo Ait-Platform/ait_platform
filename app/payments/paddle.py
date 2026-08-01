@@ -219,66 +219,92 @@ def success():
 
 @paddle_bp.post("/webhook", endpoint="paddle_webhook")
 def webhook():
-    """
-    Paddle Billing Server-to-Server Webhook.
-    Listens for transaction.completed events to fulfill orders.
-    """
     import hmac
     import hashlib
+    import json
+    import os
+    from datetime import datetime
     
-    # 1. Verify signature (Paddle specific)
-    # The signature is in the Paddle-Signature header: ts=...,h1=...
-    signature_header = request.headers.get("Paddle-Signature")
+    log_entry = {"time": str(datetime.utcnow()), "event": "webhook_received"}
+    log_file = os.path.join(current_app.instance_path, 'webhook_debug.json')
+    os.makedirs(current_app.instance_path, exist_ok=True)
     
-    webhook_secrets = [
-        os.environ.get("PADDLE_SANDBOX_WEBHOOK_SECRET"),
-        os.environ.get("PADDLE_LIVE_WEBHOOK_SECRET"),
-        os.environ.get("PADDLE_WEBHOOK_SECRET")
-    ]
-    webhook_secrets = [s for s in webhook_secrets if s]
-    
-    is_valid = False
-    
-    if signature_header and webhook_secrets:
-        # Quick validation logic
-        parts = dict(x.split("=") for x in signature_header.split(";"))
-        ts = parts.get("ts")
-        h1 = parts.get("h1")
-        if ts and h1:
-            signed_payload = f"{ts}:{request.get_data(as_text=True)}"
-            for secret in webhook_secrets:
-                expected_h1 = hmac.new(
-                    secret.encode('utf-8'),
-                    signed_payload.encode('utf-8'),
-                    hashlib.sha256
-                ).hexdigest()
-                if h1 == expected_h1:
-                    is_valid = True
-                    break
-                    
-    if not is_valid and signature_header:
-        current_app.logger.error("Paddle webhook signature mismatch.")
-        return "Invalid signature", 401
-    
+    def write_log():
+        logs = []
+        if os.path.exists(log_file):
+            try:
+                with open(log_file, 'r') as f:
+                    logs = json.load(f)
+            except: pass
+        logs.insert(0, log_entry)
+        with open(log_file, 'w') as f:
+            json.dump(logs[:20], f, indent=2)
+
     try:
+        raw_body = request.get_data(as_text=True)
+        log_entry["raw_body"] = raw_body
+        
+        signature_header = request.headers.get("Paddle-Signature")
+        log_entry["signature_header"] = signature_header
+        
+        webhook_secrets = [
+            os.environ.get("PADDLE_SANDBOX_WEBHOOK_SECRET"),
+            os.environ.get("PADDLE_LIVE_WEBHOOK_SECRET"),
+            os.environ.get("PADDLE_WEBHOOK_SECRET")
+        ]
+        webhook_secrets = [s for s in webhook_secrets if s]
+        
+        is_valid = False
+        if signature_header and webhook_secrets:
+            parts = dict(x.split("=") for x in signature_header.split(";"))
+            ts = parts.get("ts")
+            h1 = parts.get("h1")
+            if ts and h1:
+                signed_payload = f"{ts}:{raw_body}"
+                for secret in webhook_secrets:
+                    expected_h1 = hmac.new(
+                        secret.encode('utf-8'),
+                        signed_payload.encode('utf-8'),
+                        hashlib.sha256
+                    ).hexdigest()
+                    if h1 == expected_h1:
+                        is_valid = True
+                        log_entry["matched_secret"] = secret[:10] + "..."
+                        break
+                        
+        if not is_valid and signature_header:
+            log_entry["error"] = "Invalid signature"
+            write_log()
+            return "Invalid signature", 401
+            
         data = request.json
+        log_entry["json_data"] = data
         event_type = data.get("event_type")
         
         if event_type == "transaction.completed":
             transaction = data.get("data", {})
-            custom_data = transaction.get("custom_data", {})
+            custom_data = transaction.get("custom_data") or {}
             
             email = custom_data.get("email", "").strip().lower()
             subject = custom_data.get("subject", "").strip().lower()
             
+            log_entry["parsed_email"] = email
+            log_entry["parsed_subject"] = subject
+            
             if email and subject:
-                fulfill_order(email, subject, transaction)
+                try:
+                    fulfill_order(email, subject, transaction)
+                    log_entry["fulfill_success"] = True
+                except Exception as e:
+                    log_entry["fulfill_error"] = str(e)
+            else:
+                log_entry["skip_reason"] = "Missing email or subject"
                 
-        return {"status": "ok"}, 200
-        
     except Exception as e:
-        current_app.logger.error(f"Error processing Paddle webhook: {e}")
-        return "Internal Error", 500
+        log_entry["fatal_error"] = str(e)
+        
+    write_log()
+    return jsonify({"status": "ok"}), 200
 
 
 def fulfill_order(email, subject, transaction=None):
@@ -456,8 +482,24 @@ def fulfill_order(email, subject, transaction=None):
 @paddle_bp.route('/debug')
 def paddle_debug():
     from flask_login import current_user
+    import os, json
+    
     if not current_user.is_authenticated: return 'Not logged in'
+    
     enr = db.session.execute(text('SELECT * FROM user_enrollment WHERE user_id = :uid ORDER BY id DESC LIMIT 5'), {'uid': current_user.id}).mappings().all()
     logs = db.session.execute(text('SELECT * FROM auth_payment_log ORDER BY id DESC LIMIT 5')).mappings().all()
-    return {'enrollments': [dict(x) for x in enr], 'latest_logs': [dict(x) for x in logs]}
+    
+    webhook_logs = []
+    log_file = os.path.join(current_app.instance_path, 'webhook_debug.json')
+    if os.path.exists(log_file):
+        try:
+            with open(log_file, 'r') as f:
+                webhook_logs = json.load(f)
+        except: pass
+        
+    return {
+        'enrollments': [dict(x) for x in enr], 
+        'latest_logs': [dict(x) for x in logs],
+        'webhook_logs': webhook_logs
+    }
 

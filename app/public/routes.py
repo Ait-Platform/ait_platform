@@ -28,6 +28,10 @@ def privacy_policy():
 def terms():
     return render_template("public/terms.html")
 
+@public_bp.route("/refund-policy")
+def refund_policy():
+    return render_template("public/refund_policy.html")
+
 @public_bp.route("/contact", methods=["GET", "POST"])
 def contact():
     if request.method == "POST":

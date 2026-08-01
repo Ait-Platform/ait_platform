@@ -11,4 +11,4 @@ def subject_dashboard(subject: str):
     subject = (subject or "").lower().strip()
     if subject not in ALLOWED_SUBJECTS:
         abort(404)
-    return render_template(f"admin/{subject}/dashboard.html", subject=subject)
+    return render_template(f"admin/programs/{subject}/dashboard.html", subject=subject)

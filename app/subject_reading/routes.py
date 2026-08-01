@@ -738,6 +738,201 @@ def _update_progress_after_lesson(lesson_order_number: int, total_lessons: int =
     """
     Cheap %:
       - learner starts at 10%
+        """),
+        {"uid": uid, "k": lesson_key},
+    )
+    db.session.commit()
+
+    # Go to next open lesson (or dashboard if none)
+    next_id = db.session.execute(
+        sa_text("""
+            WITH ordered AS (
+              SELECT id, "order" AS k
+              FROM rdp_lesson
+              ORDER BY "order" ASC
+            ),
+            first_open AS (
+              SELECT o.id
+              FROM ordered o
+              LEFT JOIN rdp_lesson_progress p
+                ON p.user_id = :uid AND p.lesson_key = o.k
+              WHERE COALESCE(p.status, 'not_started') != 'completed'
+              ORDER BY o.k ASC
+              LIMIT 1
+            )
+            SELECT id FROM first_open
+        """),
+        {"uid": uid},
+    ).scalar()
+
+    if next_id:
+        return redirect(url_for("reading_bp.view_lesson", lesson_id=int(next_id)))
+    return redirect(url_for("reading_bp.report_exit"))
+
+@reading_bp.post("/lesson/defer", endpoint="defer_lesson")
+@login_required
+def defer_lesson():
+    uid = int(current_user.id)
+    lesson_key = int(request.form.get("lesson_key") or 0)
+    if lesson_key <= 0:
+        return redirect(url_for("reading_bp.learner_dashboard"))
+
+    # Mark deferred (intro-only choice enforced in template; server stays safe anyway)
+    db.session.execute(
+        sa_text("""
+            INSERT INTO rdp_lesson_progress (user_id, lesson_key, status, tries_used, started_at)
+            VALUES (:uid, :k, 'deferred', 0, CURRENT_TIMESTAMP)
+            ON CONFLICT (user_id, lesson_key) DO UPDATE SET
+                status = CASE
+                  WHEN rdp_lesson_progress.status = 'completed' THEN 'completed'
+                  ELSE 'deferred'
+                END
+        """),
+        {"uid": uid, "k": lesson_key},
+    )
+    db.session.commit()
+    return redirect(url_for("reading_bp.learner_dashboard"))
+
+
+# ─────────────────────────────────
+# 1. helpers
+# ─────────────────────────────────
+
+def _get_enrollment(uid=None):
+    if uid is None:
+        uid = current_user.id
+    row = db.session.execute(
+        sa_text("""
+            SELECT
+                id,
+                user_id,
+                started_at,
+                expires_at,
+                progress_percent,
+                completed_at,
+                certificate_id
+            FROM rdp_enrollment
+            WHERE user_id = :uid
+            LIMIT 1
+        """),
+        {"uid": uid},
+    ).fetchone()
+    return row
+
+def _redirect_after_reading():
+    if _has_other_active_subjects(current_user.id):
+        # learner has more to do → send to bridge hub
+        return redirect(url_for("bridge_bp.bridge"))
+    else:
+        # reading was their only/last subject → send to welcome/landing
+        return redirect(url_for("public_bp.welcome"))
+
+
+def _has_other_active_subjects(user_id):
+    # TODO later:
+    #   check LOSS / billing / math / whatever tables
+    #   return True if enrolled & not completed in any of those
+    return False
+
+def _ensure_enrollment_row():
+    """
+    Make sure rdp_enrollment row exists for this user.
+    Return that row as a mapping.
+    """
+    uid = int(current_user.id)
+
+    row = db.session.execute(
+        sa_text("""
+            SELECT
+                r.user_id,
+                r.started_at,
+                r.expires_at,
+                r.completed_at,
+                r.progress_percent,
+                r.certificate_id,
+                u.status AS ue_status
+            FROM rdp_enrollment r
+            LEFT JOIN user_enrollment u ON u.user_id = r.user_id AND u.subject_id = (SELECT id FROM auth_subject WHERE slug = 'reading' LIMIT 1)
+            WHERE r.user_id = :uid
+            LIMIT 1
+        """),
+        {"uid": uid},
+    ).mappings().first()
+
+    if row:
+        # Check if this rdp_enrollment is stale/orphaned
+        ue_status = row.get("ue_status")
+        is_orphaned = (ue_status is None)
+        is_stale_paid = (ue_status == "active" and row.get("completed_at") is not None)
+        
+        if is_orphaned or is_stale_paid:
+            # Wipe stale reading progress so they can start fresh
+            db.session.execute(sa_text("DELETE FROM rdp_lesson_progress WHERE user_id = :uid"), {"uid": uid})
+            db.session.execute(sa_text("DELETE FROM rdp_enrollment WHERE user_id = :uid"), {"uid": uid})
+            db.session.commit()
+            # Continue below to create a fresh rdp_enrollment
+        else:
+            return row
+
+    # create brand new row
+    db.session.execute(
+        sa_text("""
+            INSERT INTO rdp_enrollment (
+                user_id,
+                started_at,
+                expires_at,
+                completed_at,
+                progress_percent,
+                certificate_id
+            ) VALUES (
+                :uid,
+                NULL,
+                NULL,
+                NULL,
+                0,
+                NULL
+            )
+        """),
+        {"uid": uid},
+    )
+    db.session.commit()
+
+    # fetch again
+    row = db.session.execute(
+        sa_text("""
+            SELECT
+                user_id,
+                started_at,
+                expires_at,
+                completed_at,
+                progress_percent,
+                certificate_id
+            FROM rdp_enrollment
+            WHERE user_id = :uid
+            LIMIT 1
+        """),
+        {"uid": uid},
+    ).mappings().first()
+
+    return row
+
+def _ensure_started_window():
+    uid = int(current_user.id)
+    now = datetime.utcnow()
+    expires = now + timedelta(days=365)
+
+    db.session.execute(sa_text("""
+        UPDATE rdp_enrollment
+           SET started_at = COALESCE(started_at, :now),
+               expires_at = COALESCE(expires_at, :exp)
+         WHERE user_id = :uid
+    """), {"now": now, "exp": expires, "uid": uid})
+    db.session.commit()
+
+def _update_progress_after_lesson(lesson_order_number: int, total_lessons: int = 18):
+    """
+    Cheap %:
+      - learner starts at 10%
       - then increases up to 100% across lessons watched
     We'll just map lesson_order_number -> percent, cap at 100.
     """
@@ -766,7 +961,7 @@ def _make_certificate_id(user_id):
     today_str = datetime.utcnow().strftime("%Y%m%d")
     return f"READ-{user_id}-{today_str}"
 
-def _email_certificate_pdf(to_email, learner_name, certificate_id, pdf_path):
+def _email_certificate_pdf(to_email, learner_name, certificate_id, pdf_bytes):
     """
     Best-effort email.
     Does NOT block the redirect if it fails.
@@ -781,14 +976,6 @@ def _email_certificate_pdf(to_email, learner_name, certificate_id, pdf_path):
         "If an attachment is not included, you can still request a copy from your facilitator.\n\n"
         "AIT Platform"
     )
-
-    pdf_bytes = None
-    if pdf_path:
-        try:
-            with open(pdf_path, "rb") as f:
-                pdf_bytes = f.read()
-        except Exception as e:
-            current_app.logger.error(f"Read PDF failed for {certificate_id}: {e}")
 
     try:
         send_pdf_email(
@@ -930,32 +1117,33 @@ def _finalize_and_send_certificate(user_id: int):
     # generate PDF
     fresh = _get_enrollment()
     completed_at = fresh.completed_at if fresh else datetime.utcnow()
-    pdf_path = _generate_certificate_pdf(
+    pdf_bytes = _generate_certificate_pdf(
         certificate_id=cert_id,
         learner_name=learner_name,
         completed_at=completed_at,
     )
 
     # try email
-    if learner_email:
+    if learner_email and pdf_bytes:
         _email_certificate_pdf(
             to_email=learner_email,
             learner_name=learner_name,
             certificate_id=cert_id,
-            pdf_path=pdf_path,
+            pdf_bytes=pdf_bytes,
         )
 
     # stream file back
-    if pdf_path and os.path.exists(pdf_path):
+    if pdf_bytes:
+        import io
         return send_file(
-            pdf_path,
+            io.BytesIO(pdf_bytes),
             mimetype="application/pdf",
             as_attachment=True,
             download_name=f"{cert_id}.pdf",
         )
 
     # fallback: no file
-    flash("Certificate emailed (PDF download unavailable on this device).", "success")
+    flash("Certificate generation failed.", "danger")
     return redirect(url_for("reading_bp.exit_page"))
 
 def _generate_certificate_pdf(certificate_id, learner_name, completed_at, user_id=None):
@@ -980,28 +1168,6 @@ def _generate_certificate_pdf(certificate_id, learner_name, completed_at, user_i
         completed_date=completed_date,
         certificate_id=certificate_id,
         logo_path=logo_data_uri,
-        user_id=user_id,   # <- now this is inline img data, no file://
-    )
-
-    # 4. write pdf
-    cert_dir = os.path.join(current_app.root_path, "static", "certificates")
-    os.makedirs(cert_dir, exist_ok=True)
-
-    pdf_path = os.path.join(cert_dir, f"{certificate_id}.pdf")
-
-    try:
-        from flask import request
-        from weasyprint import HTML
-        HTML(string=html_str, base_url=request.host_url).write_pdf(pdf_path)
-        return pdf_path
-    except Exception as e:
-        current_app.logger.error(f"PDF generation failed for {certificate_id}: {e}")
-        return None
-
-def _get_lesson_progress_map(user_id: int) -> dict[int, dict]:
-    rows = db.session.execute(
-        sa_text("""
-            SELECT lesson_key, status, tries_used
             FROM rdp_lesson_progress
             WHERE user_id = :uid
         """),

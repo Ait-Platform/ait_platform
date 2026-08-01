@@ -57,7 +57,10 @@ function editEmail(userId, currentEmail) {
 
     fetch(`/admin/reading/learners/${userId}/update-email`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+            "Content-Type": "application/json",
+            "X-CSRFToken": "{{ csrf_token() }}"
+        },
         body: JSON.stringify({ email: newEmail })
     })
     .then(r => r.json())
@@ -81,7 +84,10 @@ function resendCertificate(userId, currentEmail) {
 
     fetch(`/admin/reading/learners/${userId}/resend-certificate`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+            "Content-Type": "application/json",
+            "X-CSRFToken": "{{ csrf_token() }}"
+        },
         body: JSON.stringify({ email: targetEmail })
     })
     .then(r => r.json())

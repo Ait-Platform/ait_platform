@@ -29,7 +29,7 @@ def create_paddle_transaction(amount_cents, display_name, paddle_env, subject, e
         
     if not api_key:
         current_app.logger.error(f"PADDLE_API_KEY is not set for {paddle_env}.")
-        return None
+        return None, f"PADDLE_API_KEY is not set for {paddle_env}."
 
     base_url = "https://api.paddle.com" if paddle_env == "production" else "https://sandbox-api.paddle.com"
     
@@ -65,12 +65,14 @@ def create_paddle_transaction(amount_cents, display_name, paddle_env, subject, e
         r = requests.post(f"{base_url}/transactions", json=payload, headers=headers)
         r.raise_for_status()
         data = r.json().get("data", {})
-        return data.get("id")
+        return data.get("id"), None
     except Exception as e:
-        current_app.logger.error(f"Paddle Transaction Error: {str(e)}")
+        err_msg = str(e)
+        current_app.logger.error(f"Paddle Transaction Error: {err_msg}")
         if hasattr(e, "response") and getattr(e, "response") is not None:
-            current_app.logger.error(e.response.text)
-        return None
+            err_msg = e.response.text
+            current_app.logger.error(err_msg)
+        return None, err_msg
 
 @paddle_bp.route("/start", methods=["GET", "POST"], endpoint="paddle_start")
 def start():
@@ -178,10 +180,10 @@ def start():
     # Paddle expects a clean product name for display
     display_name = subject.replace("_", " ").title()
     
-    transaction_id = create_paddle_transaction(amount_cents, display_name, paddle_env, subject, email)
+    transaction_id, err_msg = create_paddle_transaction(amount_cents, display_name, paddle_env, subject, email)
     
     if not transaction_id:
-        flash("Could not initiate Paddle checkout. Please contact support.", "error")
+        flash(f"Paddle API Error: {err_msg}", "error")
         return redirect(url_for("public_bp.welcome"))
 
     return render_template(

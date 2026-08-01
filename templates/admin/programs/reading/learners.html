@@ -1,6 +1,6 @@
 {% extends "admin/admin_layout.html" %}
 
-{% block admin_title %}Reading Learners{% endblock %}
+{% block admin_title %}Reading Dashboard{% endblock %}
 {% block admin_back_url %}{{ url_for('admin_bp.subject_dashboard', subject='reading') }}{% endblock %}
 {% block admin_back_text %}Back to Reading{% endblock %}
 {% block admin_color %}bg-blue-500{% endblock %}
@@ -39,9 +39,9 @@
             <a href="{{ url_for('admin_bp.reading_preview_certificate', user_id=l.id) }}" target="_blank" class="text-xs rounded border border-slate-300 px-2 py-1 mr-2 hover:bg-slate-50 inline-block text-slate-700">
               Preview Cert
             </a>
-            <button onclick="resendCertificate({{ l.id }}, '{{ l.email }}')" class="text-xs rounded border border-slate-300 px-2 py-1 hover:bg-slate-50">
-              {% if l.completed_at %}Resend Cert{% else %}Force Complete & Send Cert{% endif %}
-            </button>
+              <button onclick="resendCertificate({{ l.id }}, '{{ l.email }}')" class="text-xs rounded border border-slate-300 px-2 py-1 hover:bg-slate-50">
+                Email
+              </button>
           </td>
         </tr>
         {% endfor %}

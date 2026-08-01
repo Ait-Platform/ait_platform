@@ -45,7 +45,7 @@
       {% if is_admin %}
         {% if s.slug in ('admin', 'admin-general') or s.name|lower == 'admin general' %}
           {# SPECIAL: Admin General goes to tools hub #}
-          {% set primary_href = url_for('general_bp.index') %}
+          {% set primary_href = url_for('admin_bp.index') %}
           
         {% else %}
           {% set primary_href = url_for('admin_bp.subject_dashboard', subject=s.slug) %}

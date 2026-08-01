@@ -84,7 +84,7 @@ def manage_pricing():
                 SELECT c.alpha2 as country_code, c.name as country_name, c.currency, p.local_amount_cents
                 FROM ref_country_currency c
                 LEFT JOIN subject_country_price p ON c.alpha2 = p.country_code AND p.subject_id = :sid
-                WHERE c.is_active = 1
+                WHERE c.is_active = true
                 ORDER BY c.name
             """), {"sid": selected_subject_id}
         ).mappings().all()

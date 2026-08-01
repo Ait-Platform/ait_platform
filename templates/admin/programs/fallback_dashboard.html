@@ -1,0 +1,27 @@
+{% extends "admin/admin_layout.html" %}
+
+{% block admin_title %}{{ subject_name }} Admin{% endblock %}
+{% block admin_color %}bg-indigo-600{% endblock %}
+
+{% block admin_back_url %}{{ url_for('admin_bp.programs_index') }}{% endblock %}
+{% block admin_back_text %}Back to Programs{% endblock %}
+
+{% block admin_content %}
+<div class="bg-white rounded-xl shadow-sm border border-slate-200 p-8 text-center max-w-2xl mx-auto mt-12">
+    <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-indigo-100 text-indigo-600 mb-6">
+        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+        </svg>
+    </div>
+    
+    <h2 class="text-2xl font-bold text-slate-800 mb-3">Admin Dashboard Coming Soon</h2>
+    
+    <p class="text-slate-600 mb-8">
+        The admin controls for <strong>{{ subject_name }}</strong> are currently being built and integrated into the new Admin Hub layout.
+    </p>
+
+    <a href="{{ url_for('admin_bp.programs_index') }}" class="inline-flex items-center rounded-lg px-6 py-2.5 text-sm font-semibold border border-transparent bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm transition-colors">
+        Return to Programs
+    </a>
+</div>
+{% endblock %}

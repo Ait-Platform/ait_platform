@@ -118,13 +118,17 @@ def reading_resend_certificate(user_id):
     if not pdf_bytes:
         return jsonify({"success": False, "error": "Failed to generate PDF"}), 500
 
-    if user.email:
+    target_email = request.json.get("email", "").strip().lower() if request.is_json else ""
+    if not target_email:
+        target_email = user.email
+
+    if target_email:
         _email_certificate_pdf(
-            to_email=user.email,
+            to_email=target_email,
             learner_name=learner_name,
             certificate_id=cert_id,
             pdf_bytes=pdf_bytes,
         )
         return jsonify({"success": True, "message": "Email sent successfully"})
     else:
-        return jsonify({"success": False, "error": "User has no email"}), 400
+        return jsonify({"success": False, "error": "No email address provided"}), 400

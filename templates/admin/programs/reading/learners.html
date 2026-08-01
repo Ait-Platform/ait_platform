@@ -46,7 +46,7 @@
             {% endif %}
           </td>
           <td class="px-4 py-3 text-right">
-            <button onclick="resendCertificate({{ l.id }})" class="text-xs rounded border border-slate-300 px-2 py-1 hover:bg-slate-50">
+            <button onclick="resendCertificate({{ l.id }}, '{{ l.email }}')" class="text-xs rounded border border-slate-300 px-2 py-1 hover:bg-slate-50">
               {% if l.completed_at %}Resend Cert{% else %}Force Complete & Send Cert{% endif %}
             </button>
           </td>
@@ -82,17 +82,19 @@ function editEmail(userId, currentEmail) {
     });
 }
 
-function resendCertificate(userId) {
-    if (!confirm("Are you sure you want to resend the certificate to this user?")) return;
+function resendCertificate(userId, currentEmail) {
+    const targetEmail = prompt("Enter the email address to send the certificate to:", currentEmail);
+    if (!targetEmail) return;
 
     fetch(`/admin/reading/learners/${userId}/resend-certificate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: targetEmail })
     })
     .then(r => r.json())
     .then(data => {
         if (data.success) {
-            alert("Certificate sent successfully.");
+            alert(`Certificate sent successfully to ${targetEmail}.`);
         } else {
             alert("Error: " + (data.error || "Failed to send."));
         }

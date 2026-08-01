@@ -449,3 +449,13 @@ def fulfill_order(email, subject, transaction=None):
             
     db.session.commit()
     current_app.logger.info(f"Fulfilled {subject} for {email} via Paddle.")
+
+
+@paddle_bp.route('/debug')
+def paddle_debug():
+    from flask_login import current_user
+    if not current_user.is_authenticated: return 'Not logged in'
+    enr = db.session.execute(text('SELECT * FROM user_enrollment WHERE user_id = :uid ORDER BY id DESC LIMIT 5'), {'uid': current_user.id}).mappings().all()
+    logs = db.session.execute(text('SELECT * FROM auth_payment_log ORDER BY id DESC LIMIT 5')).mappings().all()
+    return {'enrollments': [dict(x) for x in enr], 'latest_logs': [dict(x) for x in logs]}
+

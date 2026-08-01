@@ -36,6 +36,7 @@
 
   <div class="{% if subjects|length == 1 %}max-w-2xl mx-auto grid grid-cols-1{% else %}grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3{% endif %} gap-6">
     {% for s in subjects %}
+      {% if s.slug != 'admin_general' %}
       {% set is_admin    = (s.access_level == 'admin') %}
       {% set is_enrolled = (s.access_level == 'enrolled') %}
       {% set is_locked   = (s.access_level == 'locked') %}
@@ -83,9 +84,7 @@
           <div class="flex items-start justify-between">
             <h2 class="text-lg font-medium">
               {% if s.slug == 'admin' %}
-                Programs Admin Hub
-              {% elif s.slug == 'admin_general' %}
-                Global Site Tools & Settings
+                Admin Hub
               {% else %}
                 {{ s.name }}
               {% endif %}
@@ -193,6 +192,7 @@
           </div>
         </div>
       </div>
+    {% endif %}
     {% endfor %}
   </div>
 </div>

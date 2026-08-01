@@ -11,6 +11,91 @@ from app.extensions import db
 def security_dashboard():
     return render_template("admin/security/dashboard.html")
 
+@admin_bp.route("/security/pricing", methods=["GET", "POST"], endpoint="manage_pricing")
+@login_required
+def manage_pricing():
+    if not (session.get("is_admin") or session.get("role") == "admin"):
+        return redirect(url_for("public_bp.welcome"))
+
+    from app.models.auth import AuthSubject
+    from app.models.payment import SubjectCountryPrice, RefCountryCurrency
+
+    if request.method == "POST":
+        subject_id = request.form.get("subject_id")
+        action = request.form.get("action")
+        
+        if action == "bulk_set":
+            amount = request.form.get("bulk_amount", type=int)
+            if amount is not None and subject_id:
+                amount_cents = amount * 100
+                countries = RefCountryCurrency.query.filter_by(is_active=True).all()
+                for c in countries:
+                    # Upsert pricing
+                    p = SubjectCountryPrice.query.filter_by(subject_id=subject_id, country_code=c.alpha2).first()
+                    if not p:
+                        p = SubjectCountryPrice(
+                            subject_id=subject_id,
+                            country_code=c.alpha2,
+                            local_currency=c.currency,
+                        )
+                        db.session.add(p)
+                    
+                    p.local_amount_cents = amount_cents
+                    # As per user: e.g. 10000 in local, 2000 in ZAR. 
+                    # If we don't have fx rate, just set ZAR to 0 or leave it. 
+                    # For now, just set local_amount_cents.
+                    p.zar_amount_cents = 0  # We only care about local_amount_cents in checkout
+                    
+                db.session.commit()
+                flash("Bulk pricing updated successfully.", "success")
+                
+        elif action == "single_set":
+            amount = request.form.get("single_amount", type=int)
+            country_code = request.form.get("country_code")
+            if amount is not None and subject_id and country_code:
+                amount_cents = amount * 100
+                c = RefCountryCurrency.query.filter_by(alpha2=country_code).first()
+                if c:
+                    p = SubjectCountryPrice.query.filter_by(subject_id=subject_id, country_code=c.alpha2).first()
+                    if not p:
+                        p = SubjectCountryPrice(
+                            subject_id=subject_id,
+                            country_code=c.alpha2,
+                            local_currency=c.currency,
+                        )
+                        db.session.add(p)
+                    p.local_amount_cents = amount_cents
+                    p.zar_amount_cents = 0
+                    db.session.commit()
+                    flash(f"Price updated for {c.name}.", "success")
+        
+        return redirect(url_for("admin_bp.manage_pricing", subject_id=subject_id))
+
+    # GET request
+    subjects = AuthSubject.query.filter_by(is_active=1).order_by(AuthSubject.name).all()
+    selected_subject_id = request.args.get("subject_id", type=int)
+    if not selected_subject_id and subjects:
+        selected_subject_id = subjects[0].id
+
+    prices = []
+    if selected_subject_id:
+        prices = db.session.execute(
+            text("""
+                SELECT c.alpha2 as country_code, c.name as country_name, c.currency, p.local_amount_cents
+                FROM ref_country_currency c
+                LEFT JOIN subject_country_price p ON c.alpha2 = p.country_code AND p.subject_id = :sid
+                WHERE c.is_active = 1
+                ORDER BY c.name
+            """), {"sid": selected_subject_id}
+        ).mappings().all()
+
+    return render_template(
+        "admin/security/pricing.html",
+        subjects=subjects,
+        selected_subject_id=selected_subject_id,
+        prices=prices
+    )
+
 @admin_bp.route("/settings", methods=["GET", "POST"])
 def global_settings():
     if request.method == "POST":

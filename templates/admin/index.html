@@ -1,20 +1,54 @@
-{% extends "layout.html" %}
-{% block content %}
-<div class="container mx-auto py-10">
-  <h1 class="text-2xl font-semibold mb-8">Admin Dashboard</h1>
+{% extends "admin/admin_layout.html" %}
 
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-    {% for s in subjects %}
-      <a href="{{ url_for('admin_bp.subject_dashboard', subject=s.slug) }}"
-         class="block rounded-xl border p-6 hover:bg-slate-50">
-        <h2 class="font-medium">{{ s.name }}</h2>
-        <p class="text-sm text-slate-500">
-          {{ s.description or "Manage resources, lessons, and settings." }}
-        </p>
-      </a>
-    {% endfor %}
-    
-  </div>
+{% block admin_title %}Admin Hub{% endblock %}
+{% block admin_color %}bg-slate-800{% endblock %}
+
+{% block admin_content %}
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+  <!-- General -->
+  <a href="/admin/general/" class="group block rounded-xl border border-slate-200 p-6 hover:shadow-md hover:border-slate-300 transition-all">
+    <div class="flex items-center mb-3">
+      <div class="p-2 bg-slate-100 text-slate-600 rounded-lg group-hover:bg-slate-800 group-hover:text-white transition-colors">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+      </div>
+      <h2 class="ml-4 text-xl font-semibold text-slate-800">General</h2>
+    </div>
+    <p class="text-slate-500 text-sm">System settings, platform configuration, and general administration tools.</p>
+  </a>
+
+  <!-- Programs -->
+  <a href="{{ url_for('admin_bp.programs_index') }}" class="group block rounded-xl border border-slate-200 p-6 hover:shadow-md hover:border-slate-300 transition-all">
+    <div class="flex items-center mb-3">
+      <div class="p-2 bg-slate-100 text-slate-600 rounded-lg group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+      </div>
+      <h2 class="ml-4 text-xl font-semibold text-slate-800">Programs</h2>
+    </div>
+    <p class="text-slate-500 text-sm">Manage subjects (Reading, Loss, Home, Math, etc.), learners, and course content.</p>
+  </a>
+
+  <!-- Security -->
+  <a href="/admin/security/" class="group block rounded-xl border border-slate-200 p-6 hover:shadow-md hover:border-slate-300 transition-all">
+    <div class="flex items-center mb-3">
+      <div class="p-2 bg-slate-100 text-slate-600 rounded-lg group-hover:bg-red-600 group-hover:text-white transition-colors">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+      </div>
+      <h2 class="ml-4 text-xl font-semibold text-slate-800">Security</h2>
+    </div>
+    <p class="text-slate-500 text-sm">Manage users, roles, permissions, and security policies.</p>
+  </a>
+
+  <!-- API -->
+  <a href="/admin/api/" class="group block rounded-xl border border-slate-200 p-6 hover:shadow-md hover:border-slate-300 transition-all">
+    <div class="flex items-center mb-3">
+      <div class="p-2 bg-slate-100 text-slate-600 rounded-lg group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+      </div>
+      <h2 class="ml-4 text-xl font-semibold text-slate-800">API</h2>
+    </div>
+    <p class="text-slate-500 text-sm">Manage API keys, webhooks, and third-party integrations.</p>
+  </a>
+
 </div>
 {% endblock %}
-

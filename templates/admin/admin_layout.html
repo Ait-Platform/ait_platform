@@ -1,0 +1,85 @@
+{% extends "layout.html" %}
+
+{% block title %}
+{% block admin_page_title %}Admin{% endblock %} - AIT
+{% endblock %}
+
+{% block content %}
+<style>
+  /* Standardized input styling for the admin tile */
+  .admin-tile input[type="text"], 
+  .admin-tile input[type="email"], 
+  .admin-tile input[type="number"], 
+  .admin-tile input[type="password"], 
+  .admin-tile select, 
+  .admin-tile textarea {
+      border: 1px solid #cbd5e1; /* slate-300 */
+      border-radius: 0.375rem; /* rounded-md */
+      padding: 0.5rem 0.75rem;
+      outline: none;
+      width: 100%;
+      transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+  }
+  .admin-tile input[type="text"]:focus, 
+  .admin-tile input[type="email"]:focus, 
+  .admin-tile input[type="number"]:focus, 
+  .admin-tile input[type="password"]:focus, 
+  .admin-tile select:focus, 
+  .admin-tile textarea:focus {
+      box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+      border-color: #6366f1;
+  }
+</style>
+
+<div class="mx-auto max-w-5xl py-8 px-4 sm:px-6 lg:px-8">
+  
+  <div class="admin-tile bg-white rounded-xl shadow-lg overflow-hidden border border-slate-200">
+    <!-- Color Strip -->
+    <div class="h-2 w-full {% block admin_color %}bg-indigo-600{% endblock %}"></div>
+    
+    <div class="p-6 sm:p-8">
+      
+      <!-- Row 1: Title and Back Button -->
+      <div class="flex items-center justify-between mb-6 pb-4 border-b border-slate-100">
+        <h1 class="text-2xl font-bold text-slate-800">
+          {% block admin_title %}Admin Dashboard{% endblock %}
+        </h1>
+        
+        {% block admin_back %}
+        {% if admin_back_url %}
+        <a href="{{ admin_back_url }}" class="inline-flex items-center px-4 py-2 border border-slate-300 rounded-md shadow-sm text-sm font-medium text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors">
+          <svg class="-ml-1 mr-2 h-4 w-4 text-slate-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          </svg>
+          {{ admin_back_text|default('Back') }}
+        </a>
+        {% endif %}
+        {% endblock %}
+      </div>
+
+      <!-- Row 2: Actions (Right Aligned) -->
+      {% if self.admin_actions() | trim %}
+      <div class="flex justify-end mb-6 space-x-3">
+        {% block admin_actions %}{% endblock %}
+      </div>
+      {% endif %}
+
+      <!-- Main Content -->
+      <div class="admin-content text-slate-700">
+        {% block admin_content %}{% endblock %}
+      </div>
+      
+    </div>
+  </div>
+</div>
+
+<script>
+  // Automatically focus the first visible input inside the admin tile
+  document.addEventListener("DOMContentLoaded", function() {
+      const firstInput = document.querySelector('.admin-tile input:not([type="hidden"]):not([disabled]), .admin-tile select:not([disabled]), .admin-tile textarea:not([disabled])');
+      if (firstInput && !firstInput.hasAttribute('autofocus')) {
+          firstInput.focus();
+      }
+  });
+</script>
+{% endblock %}

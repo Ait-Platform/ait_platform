@@ -5,6 +5,11 @@ from app.admin import admin_bp
 # subjects you support in admin
 ALLOWED_SUBJECTS = {"reading", "home", "loss", "billing", "adv_math", "spv"}  # extend as needed
 
+@admin_bp.route("/programs/", endpoint="programs_index")
+def programs_index():
+    from app.models.auth import AuthSubject
+    subjects = AuthSubject.query.filter(AuthSubject.slug.in_(ALLOWED_SUBJECTS)).order_by(AuthSubject.name).all()
+    return render_template("admin/programs/index.html", subjects=subjects)
 
 @admin_bp.route("/<subject>/", endpoint="subject_dashboard")
 def subject_dashboard(subject: str):

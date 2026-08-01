@@ -1,186 +1,81 @@
-{% extends "layout.html" %}
-{% block title %}Admin Hub · AIT{% endblock %}
+{% extends "admin/admin_layout.html" %}
 
-{# Head: guarantee CSRF token + page-scoped Tailwind #}
+{% block admin_title %}General Admin{% endblock %}
+{% block admin_back_url %}{{ url_for('admin_bp.index') }}{% endblock %}
+{% block admin_back_text %}Back to Hub{% endblock %}
+{% block admin_color %}bg-slate-800{% endblock %}
+
 {% block head %}
   <meta name="csrf-token" content="{{ csrf_token() }}">
-  <script>
-    (function () {
-      if (!document.querySelector('#tailwind-cdn')) {
-        var s = document.createElement('script'); s.id='tailwind-cdn'; s.src='https://cdn.tailwindcss.com';
-        document.head.appendChild(s);
-      }
-    })();
-  </script>
 {% endblock %}
 
-{% block content %}
-{# Body fallback (in case head blocks aren’t rendered by layout) #}
-<meta name="csrf-token" content="{{ csrf_token() }}">
-
-<div class="mx-auto max-w-5xl py-8">
-  <!-- Top bar: title + back -->
-  <div class="flex items-center justify-between mb-6">
-    <div>
-      <h1 class="text-2xl font-semibold text-slate-800">Admin Hub</h1>
-      <p class="text-slate-500 text-sm">Central tools for site operations & campaigns.</p>
-    </div>
-
-    <a href="{{ url_for('auth_bp.bridge_dashboard') }}"
-       class="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">
-      ← Back to Dashboard
-    </a>
-  </div>
+{% block admin_content %}
+  <p class="text-slate-500 text-sm mb-6">Central tools for site operations & campaigns.</p>
 
   <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 
-    <!-- Pricing & Offers -->
     <!-- Country Pricing (tiers) -->
-    <div class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-      <div class="h-1.5 bg-amber-500"></div>
-      <div class="p-5">
-        <h2 class="font-medium text-slate-900">Country Pricing (Tiers)</h2>
-        <p class="text-xs text-slate-500 mb-3">
-          Per-country parity prices for each subject.
-        </p>
-        <a href="{{ url_for('general_bp.pricing_index') }}"
-           class="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50">
-          Open
-        </a>
-      </div>
-    </div>
+    <a href="{{ url_for('general_bp.pricing_index') }}" class="group block rounded-xl border border-slate-200 bg-white p-5 hover:border-slate-300 hover:shadow-md transition-all relative overflow-hidden">
+      <div class="absolute top-0 left-0 w-full h-1 bg-amber-500"></div>
+      <h2 class="font-semibold text-slate-900 mt-2">Country Pricing (Tiers)</h2>
+      <p class="text-xs text-slate-500 mt-1">Per-country parity prices for each subject.</p>
+    </a>
 
     <!-- Base Pricing (auth_pricing) -->
-    <div class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-      <div class="h-1.5 bg-yellow-500"></div>
-      <div class="p-5">
-        <h2 class="font-medium text-slate-900">Base Pricing</h2>
-        <p class="text-xs text-slate-500 mb-3">
-          Core subject prices from auth_pricing.
-        </p>
-        <a href="{{ url_for('general_bp.pricing_base') }}"
-           class="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50">
-          Open
-        </a>
-      </div>
-    </div>
-
+    <a href="{{ url_for('general_bp.pricing_base') }}" class="group block rounded-xl border border-slate-200 bg-white p-5 hover:border-slate-300 hover:shadow-md transition-all relative overflow-hidden">
+      <div class="absolute top-0 left-0 w-full h-1 bg-yellow-500"></div>
+      <h2 class="font-semibold text-slate-900 mt-2">Base Pricing</h2>
+      <p class="text-xs text-slate-500 mt-1">Core subject prices from auth_pricing.</p>
+    </a>
 
     <!-- Traffic & Visitors (placeholder) -->
+    <a href="{{ url_for('general_bp.traffic') }}" class="group block rounded-xl border border-slate-200 bg-white p-5 hover:border-slate-300 hover:shadow-md transition-all relative overflow-hidden">
+      <div class="absolute top-0 left-0 w-full h-1 bg-blue-600"></div>
+      <h2 class="font-semibold text-slate-900 mt-2">Traffic & Visitors</h2>
+      <p class="text-xs text-slate-500 mt-1">Daily hits, signups, funnel conversion.</p>
+    </a>
 
-
-    <div class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-      <div class="h-1.5 bg-blue-600"></div>
-      <div class="p-5">
-        <h2 class="font-medium text-slate-900">Traffic & Visitors</h2>
-        <p class="text-xs text-slate-500 mb-3">Daily hits, signups, funnel conversion.</p>
-        <a href="{{ url_for('general_bp.traffic') }}"
-          class="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50">
-          Open
-        </a>
-      </div>
-    </div>
-
-    <!-- Payments Reconciliation (placeholder) -->
-    <div class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-      <div class="h-1.5 bg-orange-600"></div>
-      <div class="p-5">
-        <h2 class="font-medium text-slate-900">Payments Reconciliation</h2>
-        <p class="text-xs text-slate-500 mb-3">Peach/provider payouts vs. orders.</p>
-        <button type="button" class="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-400" disabled>Open</button>
-      </div>
-    </div>
-
-    <!-- Users & Registrations (placeholder) -->
-    <div class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-      <div class="h-1.5 bg-emerald-600"></div>
-      <div class="p-5">
-        <h2 class="font-medium text-slate-900">Users & Registrations</h2>
-        <p class="text-xs text-slate-500 mb-3">Active learners, enrollments, status.</p>
-        <button type="button" class="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-400" disabled>Open</button>
-      </div>
-    </div>
     <!-- Manage Programs & Visibility -->
-    <div class="rounded-xl border border-sky-200 bg-white shadow-sm overflow-hidden">
-      <div class="h-1.5 bg-sky-500"></div>
-      <div class="p-5">
-        <h2 class="font-medium text-slate-900">Manage Programs & Visibility</h2>
-        <p class="text-xs text-slate-500 mb-3">Control which tiles appear on the bridge and edit program types.</p>
-        <a href="{{ url_for('admin_bp.security_dashboard') }}" class="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50">
-          Open
-        </a>
-      </div>
-    </div>
+    <a href="{{ url_for('admin_bp.security_dashboard') }}" class="group block rounded-xl border border-sky-200 bg-white p-5 hover:border-sky-300 hover:shadow-md transition-all relative overflow-hidden">
+      <div class="absolute top-0 left-0 w-full h-1 bg-sky-500"></div>
+      <h2 class="font-semibold text-slate-900 mt-2">Manage Programs & Visibility</h2>
+      <p class="text-xs text-slate-500 mt-1">Control which tiles appear on the bridge.</p>
+    </a>
 
-    <!-- Ad Builder (placeholder) -->
-    <div class="md:col-span-2 rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-      <div class="h-1.5 bg-purple-600"></div>
-      <div class="p-5">
-        <h2 class="font-medium text-slate-900">Ad Builder (Video & Assets)</h2>
-        <p class="text-xs text-slate-500 mb-3">Assemble voice, music, images; export for YouTube.</p>
-        <a href="{{ url_for('general_bp.ad_builder') }}"
-          class="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50">
-          Open
-        </a>
-      </div>
-    </div>
+    <!-- Ad Builder -->
+    <a href="{{ url_for('general_bp.ad_builder') }}" class="group block rounded-xl border border-slate-200 bg-white p-5 hover:border-slate-300 hover:shadow-md transition-all relative overflow-hidden">
+      <div class="absolute top-0 left-0 w-full h-1 bg-purple-600"></div>
+      <h2 class="font-semibold text-slate-900 mt-2">Ad Builder</h2>
+      <p class="text-xs text-slate-500 mt-1">Assemble voice, music, images; export for YouTube.</p>
+    </a>
 
+    <!-- Text to Speech -->
+    <a href="{{ url_for('general_bp.tts_ui') }}" class="group block rounded-xl border border-slate-200 bg-white p-5 hover:border-slate-300 hover:shadow-md transition-all relative overflow-hidden">
+      <div class="absolute top-0 left-0 w-full h-1 bg-pink-600"></div>
+      <h2 class="font-semibold text-slate-900 mt-2">Text to Speech</h2>
+      <p class="text-xs text-slate-500 mt-1">Type/paste text and generate MP3.</p>
+    </a>
 
-        <!-- Text to Speech -->
-    <div class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-      <div class="h-1.5 bg-pink-600"></div>
-      <div class="p-5">
-        <h2 class="font-medium text-slate-900">Text to Speech</h2>
-        <p class="text-xs text-slate-500 mb-3">Type/paste text and generate MP3.</p>
-        <a href="{{ url_for('general_bp.tts_ui') }}"
-          class="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50">
-          Open
-        </a>
-      </div>
-    </div>
-
-    <!-- Database & Backups -->
-    <a href="{{ url_for('general_bp.db_tools') }}"
-       class="rounded-xl border bg-white shadow-sm overflow-hidden flex flex-col hover:shadow-md transition">
-      <div class="h-1 bg-gradient-to-r from-slate-700 via-slate-500 to-slate-700"></div>
-      <div class="p-4 flex-1 flex flex-col">
-        <h2 class="text-sm font-semibold text-slate-800">
-          Database tools & backups
-        </h2>
-        <p class="mt-1 text-xs text-slate-500 flex-1">
-          Download a snapshot of the database before big changes.
-        </p>
-        <div class="mt-3">
-          <span class="inline-flex items-center rounded-md border px-2 py-1 text-xs text-slate-700 hover:bg-slate-50">
-            Open tools →
-          </span>
-        </div>
-      </div>
+    <!-- Database Tools -->
+    <a href="{{ url_for('general_bp.db_tools') }}" class="group block rounded-xl border border-slate-200 bg-white p-5 hover:border-slate-300 hover:shadow-md transition-all relative overflow-hidden">
+      <div class="absolute top-0 left-0 w-full h-1 bg-slate-700"></div>
+      <h2 class="font-semibold text-slate-900 mt-2">Database Tools & Backups</h2>
+      <p class="text-xs text-slate-500 mt-1">Download snapshot of the DB.</p>
     </a>
 
     <!-- App Backup -->
-    <div class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-      <div class="h-1.5 bg-indigo-600"></div>
-      <div class="p-5">
-        <h2 class="font-medium text-slate-900">App Backup</h2>
-        <p class="text-xs text-slate-500 mb-3">
-          Download a full ZIP of the AIT application code.
-        </p>
-        <a href="{{ url_for('general_bp.app_backup_now') }}"
-          class="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50">
-          Create backup
-        </a>
-      </div>
-    </div>
+    <a href="{{ url_for('general_bp.app_backup_now') }}" class="group block rounded-xl border border-slate-200 bg-white p-5 hover:border-slate-300 hover:shadow-md transition-all relative overflow-hidden">
+      <div class="absolute top-0 left-0 w-full h-1 bg-indigo-600"></div>
+      <h2 class="font-semibold text-slate-900 mt-2">App Backup</h2>
+      <p class="text-xs text-slate-500 mt-1">Download full ZIP of AIT code.</p>
+    </a>
 
   </div>
-</div>
 
-{# No network calls. Tiny console sanity only. #}
-<script>
-  (function () {
-    var t = (document.querySelector('meta[name="csrf-token"]')||{}).content || '';
-    if (!t) console.warn('CSRF meta missing on Admin Hub (index).');
-  })();
-</script>
+  <script>
+    (function () {
+      var t = (document.querySelector('meta[name="csrf-token"]')||{}).content || '';
+      if (!t) console.warn('CSRF meta missing on Admin Hub (index).');
+    })();
+  </script>
 {% endblock %}

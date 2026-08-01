@@ -1,31 +1,16 @@
-{% extends "layout.html" %}
-{% block title %}Pricing · Admin · AIT{% endblock %}
+{% extends "admin/admin_layout.html" %}
 
-{% block content %}
-<div class="mx-auto max-w-4xl py-8">
+{% block admin_title %}Pricing for {{ subject.name }}{% endblock %}
+{% block admin_back_url %}/admin/general/{% endblock %}
+{% block admin_back_text %}Back to Admin{% endblock %}
+{% block admin_color %}bg-emerald-600{% endblock %}
 
-  <!-- Header -->
-  <div class="flex items-center justify-between mb-4">
-    <div>
-      <h1 class="text-xl font-semibold text-slate-800">
-        Pricing for {{ subject.name }}
-      </h1>
-      <p class="text-sm text-slate-500">
-        Manage parity tiers per subject.
-      </p>
-    </div>
-
-    <a href="/admin/general/"
-       class="rounded-lg border px-3 py-1.5 text-sm hover:bg-slate-50">
-      ← Back to Admin
-    </a>
-  </div>
-
+{% block admin_actions %}
   <!-- Subject switcher -->
-  <form method="get" class="mb-4">
-    <label class="text-sm text-slate-600 mr-2">Subject:</label>
+  <form method="get" class="flex items-center">
+    <label class="text-sm font-medium text-slate-600 mr-2">Switch Subject:</label>
     <select name="subject"
-            class="rounded border px-2 py-1 text-sm"
+            class="rounded border border-slate-300 px-3 py-1.5 text-sm focus:ring-emerald-500 focus:border-emerald-500"
             onchange="this.form.submit()">
       {% for s in all_subjects %}
         <option value="{{ s.slug }}" {% if s.id == subject.id %}selected{% endif %}>
@@ -159,5 +144,4 @@
     </table>
   </div>
 
-</div>
 {% endblock %}

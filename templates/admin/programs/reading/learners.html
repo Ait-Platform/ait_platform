@@ -1,14 +1,12 @@
-{% extends "layout.html" %}
-{% block title %}Reading - Admin{% endblock %}
+{% extends "admin/admin_layout.html" %}
 
-{% block content %}
-<div class="max-w-6xl mx-auto px-4 py-10">
-  <div class="flex items-center justify-between mb-6">
-    <h1 class="text-2xl font-semibold">Reading Learners</h1>
-    <a href="{{ url_for('admin_bp.subject_dashboard', subject='reading') }}" class="rounded-xl border px-3 py-2 text-sm hover:bg-slate-50">&larr; Back to Reading</a>
-  </div>
+{% block admin_title %}Reading Learners{% endblock %}
+{% block admin_back_url %}{{ url_for('admin_bp.subject_dashboard', subject='reading') }}{% endblock %}
+{% block admin_back_text %}Back to Reading{% endblock %}
+{% block admin_color %}bg-blue-500{% endblock %}
 
-  <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+{% block admin_content %}
+  <div class="overflow-x-auto">
     <table class="w-full text-left text-sm whitespace-nowrap">
       <thead class="bg-slate-50 border-b border-slate-200">
         <tr>

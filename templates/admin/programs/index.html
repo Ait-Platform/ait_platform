@@ -1,0 +1,23 @@
+{% extends "admin/admin_layout.html" %}
+
+{% block admin_title %}Programs & Subjects{% endblock %}
+{% block admin_back_url %}{{ url_for('admin_bp.index') }}{% endblock %}
+{% block admin_back_text %}Back to Hub{% endblock %}
+{% block admin_color %}bg-indigo-600{% endblock %}
+
+{% block admin_content %}
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+  {% for s in subjects %}
+    <a href="{{ url_for('admin_bp.subject_dashboard', subject=s.slug) }}"
+       class="block rounded-xl border border-slate-200 p-6 hover:shadow-md hover:border-indigo-300 hover:bg-slate-50 transition-all">
+      <h2 class="text-xl font-medium text-slate-800 mb-2">{{ s.name }}</h2>
+      <p class="text-sm text-slate-500">
+        {{ s.description or "Manage resources, learners, and settings for this program." }}
+      </p>
+      <div class="mt-4 flex items-center text-sm font-medium text-indigo-600">
+        Manage <span aria-hidden="true" class="ml-1">?</span>
+      </div>
+    </a>
+  {% endfor %}
+</div>
+{% endblock %}

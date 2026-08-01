@@ -46,11 +46,9 @@
             {% endif %}
           </td>
           <td class="px-4 py-3 text-right">
-            {% if l.completed_at %}
             <button onclick="resendCertificate({{ l.id }})" class="text-xs rounded border border-slate-300 px-2 py-1 hover:bg-slate-50">
-              Resend Cert
+              {% if l.completed_at %}Resend Cert{% else %}Force Complete & Send Cert{% endif %}
             </button>
-            {% endif %}
           </td>
         </tr>
         {% endfor %}

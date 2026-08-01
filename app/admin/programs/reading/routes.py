@@ -32,10 +32,12 @@ def reading_learners():
                 u.name,
                 r.started_at,
                 r.completed_at,
-                r.progress_percent,
-                r.certificate_id
-            FROM users u
-            JOIN rdp_enrollment r ON u.id = r.user_id
+                0 as progress_percent,
+                '' as certificate_id
+            FROM user u
+            JOIN user_enrollment r ON u.id = r.user_id
+            JOIN auth_subject s ON r.subject_id = s.id
+            WHERE s.slug = 'reading'
             ORDER BY u.id DESC
         """)
     ).mappings().all()
@@ -77,22 +79,40 @@ def reading_resend_certificate(user_id):
 
     # fetch enrollment
     enr = db.session.execute(
-        db.text("SELECT * FROM rdp_enrollment WHERE user_id = :uid LIMIT 1"),
+        db.text("""
+            SELECT r.*
+            FROM user_enrollment r
+            JOIN auth_subject s ON r.subject_id = s.id
+            WHERE r.user_id = :uid AND s.slug = 'reading'
+            LIMIT 1
+        """),
         {"uid": user_id}
     ).mappings().first()
 
-    if not enr or not enr.completed_at:
-        return jsonify({"success": False, "error": "User has not completed the course"}), 400
+    if not enr:
+        return jsonify({"success": False, "error": "User is not enrolled in Reading"}), 400
+
+    from datetime import datetime, timezone
+    completed_at = enr.completed_at
+    if not completed_at:
+        # Force complete the user if admin resends cert
+        completed_at = datetime.now(timezone.utc)
+        db.session.execute(
+            db.text("UPDATE user_enrollment SET completed_at = :now, status = 'completed' WHERE id = :eid"),
+            {"now": completed_at, "eid": enr.id}
+        )
+        db.session.commit()
 
     from app.subject_reading.routes import _generate_certificate_pdf, _email_certificate_pdf, _make_certificate_id
     
-    cert_id = enr.certificate_id or _make_certificate_id(user_id)
+    # generate a consistent cert id
+    cert_id = _make_certificate_id(user_id)
     learner_name = user.name or user.email
 
     pdf_bytes = _generate_certificate_pdf(
         certificate_id=cert_id,
         learner_name=learner_name,
-        completed_at=enr.completed_at,
+        completed_at=completed_at,
     )
 
     if not pdf_bytes:

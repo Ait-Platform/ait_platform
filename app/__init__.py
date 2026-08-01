@@ -473,8 +473,6 @@ def create_app(test_config=None):
     from app.subject_loss.routes import loss_bp
     from app.program_billing.routes import billing_bp
     from app.admin import admin_bp
-    from app.admin_general.routes import general_bp      # GET /admin/general/
-    from app.admin_general.admin_tts import tts_bp       # POST /admin/general/tts
     from app.admin.programs.sms import sms_admin_bp
     from app.subject_sms.routes import sms_bp
     from app.payments.yoco import yoco_bp
@@ -512,8 +510,6 @@ def create_app(test_config=None):
     app.register_blueprint(admin_bp)
     app.register_blueprint(sms_bp)
     app.register_blueprint(sms_admin_bp)
-    app.register_blueprint(general_bp, url_prefix="/admin/general")
-    app.register_blueprint(tts_bp, url_prefix="/admin/general")
     app.register_blueprint(yoco_bp, url_prefix="/payments")
     app.register_blueprint(paddle_bp, url_prefix="/payments/paddle")
     app.register_blueprint(budget_bp)

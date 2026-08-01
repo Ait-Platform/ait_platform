@@ -6,7 +6,10 @@ from jinja2.exceptions import TemplateNotFound
 @admin_bp.route("/programs/", endpoint="programs_index")
 def programs_index():
     from app.models.auth import AuthSubject
-    subjects = AuthSubject.query.filter_by(is_active=1).order_by(AuthSubject.name).all()
+    subjects = AuthSubject.query.filter(
+        AuthSubject.is_active == 1,
+        ~AuthSubject.slug.in_(['admin', 'admin_general', 'admin-general'])
+    ).order_by(AuthSubject.name).all()
     return render_template("admin/programs/index.html", subjects=subjects)
 
 @admin_bp.route("/<subject>/", endpoint="subject_dashboard")

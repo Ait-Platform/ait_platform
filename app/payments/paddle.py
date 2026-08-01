@@ -318,20 +318,113 @@ def fulfill_order(email, subject, transaction=None):
         return
 
     # ---------- STANDARD MODULES ----------
-    from datetime import datetime
-    from dateutil.relativedelta import relativedelta
-    from app.models.auth import UserEntitlement
-
-    ent = UserEntitlement.query.filter_by(user_id=u.id, product_slug=subject).first()
-    if not ent:
-        ent = UserEntitlement(user_id=u.id, product_slug=subject)
-        db.session.add(ent)
-        
-    # Extend by 1 year
-    now = datetime.utcnow()
-    base_date = ent.paid_until if ent.paid_until and ent.paid_until > now else now
-    ent.paid_until = base_date + relativedelta(years=1)
+    lookup_subject = "spv" if subject.lower() == "spv_registration" else subject
     
+    sid = db.session.execute(
+        text("SELECT id FROM auth_subject WHERE lower(slug) = :s OR lower(name) = :s LIMIT 1"),
+        {"s": lookup_subject},
+    ).scalar()
+
+    if sid:
+        # Get subject's paid_days
+        subj_paid_days = db.session.execute(
+            text("SELECT paid_days FROM auth_subject WHERE id = :sid LIMIT 1"),
+            {"sid": int(sid)}
+        ).scalar()
+        
+        expires_at_val = None
+        if subj_paid_days and int(subj_paid_days) > 0:
+            from datetime import datetime, timedelta
+            expires_at_val = datetime.utcnow() + timedelta(days=int(subj_paid_days))
+
+        existing = db.session.execute(
+            text("""
+            SELECT id, status, zar_amount_cents, local_currency, local_amount_cents, country_code, price_id
+              FROM user_enrollment
+             WHERE user_id   = :uid
+               AND subject_id = :sid
+             ORDER BY id DESC LIMIT 1
+            """),
+            {"uid": int(u.id), "sid": int(sid)},
+        ).first()
+
+        new_status = 'paid' if expires_at_val is None else 'active'
+        if existing:
+            db.session.execute(
+                text("""
+                    UPDATE user_enrollment
+                       SET status = :st,
+                           trial_end = NULL,
+                           expires_at = :exp
+                     WHERE id = :eid
+                """),
+                {"eid": existing.id, "st": new_status, "exp": expires_at_val},
+            )
+            eid = existing.id
+            zar_cents = existing.zar_amount_cents
+            local_cur = existing.local_currency
+            local_cents = existing.local_amount_cents
+            price_id = existing.price_id
+            cc = existing.country_code
+        else:
+            new_enr = db.session.execute(
+                text("""
+                    INSERT INTO user_enrollment (user_id, subject_id, status, expires_at)
+                    VALUES (:uid, :sid, :st, :exp)
+                    RETURNING id
+                """),
+                {"uid": int(u.id), "sid": int(sid), "st": new_status, "exp": expires_at_val},
+            ).fetchone()
+            eid = new_enr[0]
+            zar_cents = 0
+            local_cur = None
+            local_cents = 0
+            price_id = None
+            cc = None
+            
+        # Log the payment to AuthPaymentLog
+        db.session.execute(
+            text("""
+                INSERT INTO auth_payment_log (
+                    user_id, program, amount, currency, transaction_id, status, 
+                    valid_from, valid_until, enrollment_id, local_currency, 
+                    local_amount_cents, price_id, country_code
+                ) VALUES (
+                    :uid, :prog, :amt, 'ZAR', :ref, 'success',
+                    CURRENT_TIMESTAMP, :vu, :eid, :lcur, 
+                    :l_amt, :pid, :cc
+                )
+            """),
+            {
+                "uid": int(u.id),
+                "prog": subject,
+                "amt": (zar_cents / 100.0) if zar_cents else 0,
+                "ref": transaction.get("id") if transaction else "paddle_tx",
+                "vu": expires_at_val,
+                "eid": eid,
+                "lcur": local_cur,
+                "l_amt": local_cents,
+                "pid": price_id,
+                "cc": cc
+            }
+        )
+            
+        # Provision CFI Tokens if the subject is Cultural Fire
+        if subject.lower() in ("cultural_fire", "culturalfire"):
+            from app.models.auth import AitTokenWallet, AitTokenTransaction
+            wallet = AitTokenWallet.query.filter_by(user_id=u.id).first()
+            if not wallet:
+                wallet = AitTokenWallet(user_id=u.id, balance=0)
+                db.session.add(wallet)
+                db.session.flush()
+            
+            wallet.balance += 200
+            txn = AitTokenTransaction(
+                wallet_id=wallet.id,
+                amount=200,
+                description="Initial Registration Bundle (200 Tokens)"
+            )
+            db.session.add(txn)
+            
     db.session.commit()
     current_app.logger.info(f"Fulfilled {subject} for {email} via Paddle.")
-

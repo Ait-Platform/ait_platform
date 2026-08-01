@@ -22,7 +22,7 @@ from app.models.auth import User
 
 paddle_bp = Blueprint("paddle_bp", __name__)
 
-def create_paddle_transaction(amount_cents, display_name, paddle_env, subject):
+def create_paddle_transaction(amount_cents, display_name, paddle_env, subject, email):
     api_key = os.environ.get("PADDLE_LIVE_API_KEY") if paddle_env == "production" else os.environ.get("PADDLE_SANDBOX_API_KEY")
     if not api_key:
         api_key = os.environ.get("PADDLE_API_KEY", "")
@@ -56,7 +56,8 @@ def create_paddle_transaction(amount_cents, display_name, paddle_env, subject):
             }
         ],
         "custom_data": {
-            "subject": subject
+            "subject": subject,
+            "email": email
         }
     }
     
@@ -177,7 +178,7 @@ def start():
     # Paddle expects a clean product name for display
     display_name = subject.replace("_", " ").title()
     
-    transaction_id = create_paddle_transaction(amount_cents, display_name, paddle_env, subject)
+    transaction_id = create_paddle_transaction(amount_cents, display_name, paddle_env, subject, email)
     
     if not transaction_id:
         flash("Could not initiate Paddle checkout. Please contact support.", "error")

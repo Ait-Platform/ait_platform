@@ -34,7 +34,7 @@ def reading_learners():
                 r.completed_at,
                 0 as progress_percent,
                 '' as certificate_id
-            FROM user u
+            FROM auth_user u
             JOIN user_enrollment r ON u.id = r.user_id
             JOIN auth_subject s ON r.subject_id = s.id
             WHERE s.slug = 'reading'

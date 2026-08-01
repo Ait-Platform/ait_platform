@@ -27,7 +27,7 @@ def manage_pricing():
         if action == "bulk_set":
             amount = request.form.get("bulk_amount", type=int)
             if amount is not None and subject_id:
-                amount_cents = amount * 100
+                base_amount_cents = amount * 100
                 countries = RefCountryCurrency.query.filter_by(is_active=True).all()
                 for c in countries:
                     # Upsert pricing
@@ -40,20 +40,27 @@ def manage_pricing():
                         )
                         db.session.add(p)
                     
-                    p.local_amount_cents = amount_cents
-                    # As per user: e.g. 10000 in local, 2000 in ZAR. 
-                    # If we don't have fx rate, just set ZAR to 0 or leave it. 
-                    # For now, just set local_amount_cents.
-                    p.zar_amount_cents = 0  # We only care about local_amount_cents in checkout
-                    
+                    local_cents = base_amount_cents
+                    fx = float(c.fx_to_zar) if c.fx_to_zar else 0.0
+                    if fx > 0:
+                        computed_zar = int(local_cents * fx)
+                        if computed_zar < 3000:
+                            local_cents = int(3000 / fx)
+                            computed_zar = int(local_cents * fx)
+                        p.local_amount_cents = local_cents
+                        p.zar_amount_cents = computed_zar
+                    else:
+                        p.local_amount_cents = local_cents
+                        p.zar_amount_cents = 0
+                      
                 db.session.commit()
-                flash("Bulk pricing updated successfully.", "success")
+                flash("Bulk pricing updated successfully. Prices below 30 ZAR equivalent were automatically adjusted.", "success")
                 
         elif action == "single_set":
             amount = request.form.get("single_amount", type=int)
             country_code = request.form.get("country_code")
             if amount is not None and subject_id and country_code:
-                amount_cents = amount * 100
+                local_cents = amount * 100
                 c = RefCountryCurrency.query.filter_by(alpha2=country_code).first()
                 if c:
                     p = SubjectCountryPrice.query.filter_by(subject_id=subject_id, country_code=c.alpha2).first()
@@ -64,8 +71,19 @@ def manage_pricing():
                             local_currency=c.currency,
                         )
                         db.session.add(p)
-                    p.local_amount_cents = amount_cents
-                    p.zar_amount_cents = 0
+                        
+                    fx = float(c.fx_to_zar) if c.fx_to_zar else 0.0
+                    if fx > 0:
+                        computed_zar = int(local_cents * fx)
+                        if computed_zar < 3000:
+                            local_cents = int(3000 / fx)
+                            computed_zar = int(local_cents * fx)
+                        p.local_amount_cents = local_cents
+                        p.zar_amount_cents = computed_zar
+                    else:
+                        p.local_amount_cents = local_cents
+                        p.zar_amount_cents = 0
+                        
                     db.session.commit()
                     flash(f"Price updated for {c.name}.", "success")
         

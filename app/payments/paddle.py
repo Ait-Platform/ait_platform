@@ -449,11 +449,3 @@ def fulfill_order(email, subject, transaction=None):
             
     db.session.commit()
     current_app.logger.info(f"Fulfilled {subject} for {email} via Paddle.")
-@ p a d d l e _ b p . r o u t e ( ' / d e b u g ' ) 
- d e f   p a d d l e _ d e b u g ( ) : 
-         f r o m   f l a s k _ l o g i n   i m p o r t   c u r r e n t _ u s e r 
-         i f   n o t   c u r r e n t _ u s e r . i s _ a u t h e n t i c a t e d :   r e t u r n   ' N o t   l o g g e d   i n ' 
-         e n r   =   d b . s e s s i o n . e x e c u t e ( t e x t ( ' S E L E C T   *   F R O M   u s e r _ e n r o l l m e n t   W H E R E   u s e r _ i d   =   : u i d   O R D E R   B Y   i d   D E S C   L I M I T   5 ' ) ,   { ' u i d ' :   c u r r e n t _ u s e r . i d } ) . m a p p i n g s ( ) . a l l ( ) 
-         l o g s   =   d b . s e s s i o n . e x e c u t e ( t e x t ( ' S E L E C T   *   F R O M   a u t h _ p a y m e n t _ l o g   O R D E R   B Y   i d   D E S C   L I M I T   5 ' ) ) . m a p p i n g s ( ) . a l l ( ) 
-         r e t u r n   { ' e n r o l l m e n t s ' :   [ d i c t ( x )   f o r   x   i n   e n r ] ,   ' l a t e s t _ l o g s ' :   [ d i c t ( x )   f o r   x   i n   l o g s ] }  
- 

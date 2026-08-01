@@ -48,7 +48,7 @@ mx-auto max-w-7xl px-6 py-10
 <div class="grid gap-8 sm:grid-cols-2 xl:grid-cols-3 mb-12">
 {% for subj in subjects if subj.is_active %}
     {% set slug = subj.slug %}
-    {% if slug not in ["admin", "admin_general", "sms"] %}
+    {% if slug not in ["admin", "admin_general", "sms", "spv"] %}
         {% set info = subject_info.get(slug, {"color":"slate", "desc":fallback_desc}) %}
         {{ welcome_card(
             title=subj.name,
@@ -65,7 +65,7 @@ mx-auto max-w-7xl px-6 py-10
 <div class="grid gap-8 sm:grid-cols-2 xl:grid-cols-3 opacity-70 cursor-not-allowed">
 {% for subj in subjects if not subj.is_active %}
     {% set slug = subj.slug %}
-    {% if slug not in ["admin", "admin_general", "sms"] %}
+    {% if slug not in ["admin", "admin_general", "sms", "spv"] %}
         {% set info = subject_info.get(slug, {"color":"slate", "desc":fallback_desc}) %}
         {{ welcome_card(
             title=subj.name,

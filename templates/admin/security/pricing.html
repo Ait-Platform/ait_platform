@@ -1,0 +1,68 @@
+{% extends "admin/admin_layout.html" %}
+
+{% block admin_title %}Global Pricing Engine{% endblock %}
+{% block admin_back_url %}{{ url_for('admin_bp.security_dashboard') }}{% endblock %}
+{% block admin_back_text %}Back to Security{% endblock %}
+{% block admin_color %}bg-teal-600{% endblock %}
+
+{% block admin_content %}
+<div class="mb-6 flex flex-col md:flex-row md:items-end gap-4">
+    <div class="flex-1">
+        <label class="block text-sm font-medium text-gray-700 mb-1">Select Program/Subject</label>
+        <form id="subjectForm" method="GET" action="{{ url_for('admin_bp.manage_pricing') }}">
+            <select name="subject_id" onchange="document.getElementById('subjectForm').submit()" class="w-full md:w-64 border border-slate-300 rounded-md shadow-sm p-2 focus:ring-2 focus:ring-teal-500 outline-none" autofocus>
+                {% for s in subjects %}
+                    <option value="{{ s.id }}" {% if s.id == selected_subject_id %}selected{% endif %}>{{ s.name }}</option>
+                {% endfor %}
+            </select>
+        </form>
+    </div>
+    
+    <div class="flex-1 border-l pl-4 border-gray-200">
+        <label class="block text-sm font-medium text-gray-700 mb-1">Bulk Set Base Price (Local Currency)</label>
+        <form method="POST" action="{{ url_for('admin_bp.manage_pricing') }}" class="flex gap-2">
+            <input type="hidden" name="subject_id" value="{{ selected_subject_id }}">
+            <input type="hidden" name="action" value="bulk_set">
+            <input type="number" name="bulk_amount" placeholder="e.g. 100" required class="w-32 border border-slate-300 rounded-md shadow-sm p-2 focus:ring-2 focus:ring-teal-500 outline-none">
+            <button type="submit" onclick="return confirm('This will overwrite the price for EVERY country. Are you sure?')" class="px-4 py-2 bg-teal-600 text-white font-bold rounded-lg hover:bg-teal-700 transition shadow-sm">
+                Bulk Set All
+            </button>
+        </form>
+    </div>
+</div>
+
+<div class="overflow-x-auto">
+    <table class="w-full text-left text-sm whitespace-nowrap">
+        <thead class="bg-slate-50 border-b border-slate-200">
+            <tr>
+                <th class="px-4 py-3 font-medium text-slate-600">Country Code</th>
+                <th class="px-4 py-3 font-medium text-slate-600">Country Name</th>
+                <th class="px-4 py-3 font-medium text-slate-600">Currency</th>
+                <th class="px-4 py-3 font-medium text-slate-600">Configured Local Price</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-200">
+            {% for p in prices %}
+            <tr class="hover:bg-slate-50">
+                <td class="px-4 py-3 text-slate-500 font-mono">{{ p.country_code }}</td>
+                <td class="px-4 py-3 text-gray-700">{{ p.country_name }}</td>
+                <td class="px-4 py-3 font-semibold text-teal-600">{{ p.currency }}</td>
+                <td class="px-4 py-3">
+                    <form method="POST" action="{{ url_for('admin_bp.manage_pricing') }}" class="flex items-center gap-2">
+                        <input type="hidden" name="subject_id" value="{{ selected_subject_id }}">
+                        <input type="hidden" name="country_code" value="{{ p.country_code }}">
+                        <input type="hidden" name="action" value="single_set">
+                        <input type="number" name="single_amount" value="{% if p.local_amount_cents %}{{ p.local_amount_cents // 100 }}{% endif %}" placeholder="e.g. 100" class="w-24 border border-slate-300 rounded-md p-1 outline-none text-sm">
+                        <button type="submit" class="text-xs px-2 py-1 bg-teal-50 text-teal-700 hover:bg-teal-100 rounded border border-teal-200">Save</button>
+                    </form>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="4" class="px-4 py-6 text-center text-gray-500">No active countries found.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

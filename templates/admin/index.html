@@ -1,6 +1,8 @@
 {% extends "admin/admin_layout.html" %}
 
 {% block admin_title %}Admin Hub{% endblock %}
+{% block admin_back_url %}{{ url_for('auth_bp.bridge_dashboard') }}{% endblock %}
+{% block admin_back_text %}Back to Dashboard{% endblock %}
 {% block admin_color %}bg-slate-800{% endblock %}
 
 {% block admin_content %}
@@ -29,7 +31,7 @@
   </a>
 
   <!-- Security -->
-  <a href="/admin/security/" class="group block rounded-xl border border-slate-200 p-6 hover:shadow-md hover:border-slate-300 transition-all">
+  <a href="{{ url_for('admin_bp.security_dashboard') }}" class="group block rounded-xl border border-slate-200 p-6 hover:shadow-md hover:border-slate-300 transition-all">
     <div class="flex items-center mb-3">
       <div class="p-2 bg-slate-100 text-slate-600 rounded-lg group-hover:bg-red-600 group-hover:text-white transition-colors">
         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>

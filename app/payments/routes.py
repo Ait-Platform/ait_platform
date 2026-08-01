@@ -127,6 +127,12 @@ def pricing_index():
             flash("Base ZAR amount must be whole cents (integer).", "error")
             return redirect(url_for("payment_bp.pricing_index", subject=subject.slug))
 
+        # Enforce minimum ZAR floor to protect against extreme currency devaluation
+        MIN_ZAR_CENTS = 5000  # R50.00 ZAR minimum
+        if base_zar_cents < MIN_ZAR_CENTS:
+            flash(f"Error: The calculated ZAR value (R{base_zar_cents/100:.2f}) is below the absolute minimum of R{MIN_ZAR_CENTS/100:.2f}.", "error")
+            return redirect(url_for("payment_bp.pricing_index", subject=subject.slug))
+
         db.session.execute(
             text("""
                 INSERT INTO subject_country_price

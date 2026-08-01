@@ -38,6 +38,11 @@ def create_paddle_transaction(amount_cents, display_name, paddle_env, subject, e
         "Content-Type": "application/json"
     }
     
+    currency_code = str(currency_code or "ZAR").strip().upper()
+    valid_currencies = ["ARS", "AUD", "BRL", "CAD", "CHF", "CLP", "CNY", "COP", "CZK", "DKK", "EUR", "GBP", "HKD", "HUF", "ILS", "INR", "JPY", "KRW", "MXN", "NOK", "NZD", "PEN", "PLN", "RUB", "SEK", "SGD", "THB", "TRY", "TWD", "UAH", "USD", "VND", "ZAR"]
+    if currency_code not in valid_currencies:
+        currency_code = "ZAR"
+
     payload = {
         "items": [
             {

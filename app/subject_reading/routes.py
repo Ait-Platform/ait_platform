@@ -964,8 +964,9 @@ def _generate_certificate_pdf(certificate_id, learner_name, completed_at, user_i
 
     completed_date = completed_at.strftime("%d %B %Y")
 
-    from app.utils.branding import get_logo_data_uri
+    from app.utils.branding import get_logo_data_uri, get_seal_data_uri
     logo_data_uri = get_logo_data_uri()
+    seal_data_uri = get_seal_data_uri()
 
     # 3. render html
     html_str = render_template(
@@ -974,6 +975,7 @@ def _generate_certificate_pdf(certificate_id, learner_name, completed_at, user_i
         completed_date=completed_date,
         certificate_id=certificate_id,
         logo_path=logo_data_uri,
+        seal_path=seal_data_uri,
         user_id=user_id,   # <- now this is inline img data, no file://
     )
 

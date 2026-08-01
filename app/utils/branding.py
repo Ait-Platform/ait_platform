@@ -16,3 +16,17 @@ def get_logo_data_uri() -> str | None:
         # Will render without a logo if missing; logged for visibility
         current_app.logger.warning("PDF logo not found/loaded: %s", e)
         return None
+
+def get_seal_data_uri() -> str | None:
+    """
+    Returns data:image/png;base64,... for static/branding/ait_seal.png.
+    Works in WeasyPrint/xhtml2pdf without remote fetch.
+    """
+    try:
+        path = os.path.join(current_app.static_folder, "branding", "ait_seal.png")
+        with open(path, "rb") as f:
+            b64 = base64.b64encode(f.read()).decode("ascii")
+        return f"data:image/png;base64,{b64}"
+    except Exception as e:
+        current_app.logger.warning("PDF seal not found/loaded: %s", e)
+        return None

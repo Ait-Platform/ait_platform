@@ -187,6 +187,9 @@
 
   <!-- 1. Standard AIT Header -->
   <div class="header">
+    {% if logo_path %}
+    <img src="{{ logo_path }}" alt="Logo" class="header-logo" />
+    {% endif %}
     <div class="header-title">AIT Platform</div>
     <div class="header-subtitle">Archoney Institute of Technology</div>
   </div>
@@ -247,7 +250,9 @@
   <div class="footer">
     <div class="auth-block">
       <div class="auth-seal">
-        <img src="/static/branding/ait_seal.png" alt="AIT Official Seal" />
+        {% if seal_path %}
+        <img src="{{ seal_path }}" alt="AIT Official Seal" />
+        {% endif %}
       </div>
       <div class="auth-signature">
         <div class="line"></div>

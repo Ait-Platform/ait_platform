@@ -51,7 +51,7 @@ def manage_pricing():
                         p.zar_amount_cents = computed_zar
                     else:
                         p.local_amount_cents = local_cents
-                        p.zar_amount_cents = 0
+                        p.zar_amount_cents = 3000
                       
                 db.session.commit()
                 flash("Bulk pricing updated successfully. Prices below 30 ZAR equivalent were automatically adjusted.", "success")
@@ -82,7 +82,7 @@ def manage_pricing():
                         p.zar_amount_cents = computed_zar
                     else:
                         p.local_amount_cents = local_cents
-                        p.zar_amount_cents = 0
+                        p.zar_amount_cents = 3000
                         
                     db.session.commit()
                     flash(f"Price updated for {c.name}.", "success")

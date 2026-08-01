@@ -32,7 +32,7 @@ def reading_learners():
                 u.name,
                 r.started_at,
                 r.completed_at,
-                0 as progress_percent,
+                CASE WHEN r.completed_at IS NOT NULL THEN 100 ELSE 0 END as progress_percent,
                 '' as certificate_id
             FROM "user" u
             JOIN user_enrollment r ON u.id = r.user_id

@@ -132,3 +132,57 @@ def reading_resend_certificate(user_id):
         return jsonify({"success": True, "message": "Email sent successfully"})
     else:
         return jsonify({"success": False, "error": "No email address provided"}), 400
+
+@admin_bp.route("/reading/learners/<int:user_id>/preview-certificate", methods=["GET"])
+def reading_preview_certificate(user_id):
+    if not (session.get("is_admin") or session.get("role") == "admin"):
+        abort(403)
+
+    from app.models.auth import User
+    user = db.session.query(User).get(user_id)
+    if not user:
+        abort(404)
+
+    # fetch enrollment
+    enr = db.session.execute(
+        db.text("""
+            SELECT r.*
+            FROM user_enrollment r
+            JOIN auth_subject s ON r.subject_id = s.id
+            WHERE r.user_id = :uid AND s.slug = 'reading'
+            LIMIT 1
+        """),
+        {"uid": user_id}
+    ).mappings().first()
+
+    if not enr:
+        abort(404)
+
+    from datetime import datetime, timezone
+    completed_at = enr.completed_at
+    if not completed_at:
+        # If not completed, use current time for the preview
+        completed_at = datetime.now(timezone.utc)
+
+    from app.subject_reading.routes import _generate_certificate_pdf, _make_certificate_id
+    from flask import send_file
+    import io
+    
+    cert_id = _make_certificate_id(user_id)
+    learner_name = user.name or user.email
+
+    pdf_bytes = _generate_certificate_pdf(
+        certificate_id=cert_id,
+        learner_name=learner_name,
+        completed_at=completed_at,
+    )
+
+    if not pdf_bytes:
+        abort(500)
+
+    return send_file(
+        io.BytesIO(pdf_bytes),
+        mimetype="application/pdf",
+        as_attachment=False,
+        download_name=f"certificate_{user_id}.pdf"
+    )

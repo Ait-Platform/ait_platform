@@ -46,6 +46,9 @@
             {% endif %}
           </td>
           <td class="px-4 py-3 text-right">
+            <a href="{{ url_for('admin_bp.reading_preview_certificate', user_id=l.id) }}" target="_blank" class="text-xs rounded border border-slate-300 px-2 py-1 mr-2 hover:bg-slate-50 inline-block text-slate-700">
+              Preview Cert
+            </a>
             <button onclick="resendCertificate({{ l.id }}, '{{ l.email }}')" class="text-xs rounded border border-slate-300 px-2 py-1 hover:bg-slate-50">
               {% if l.completed_at %}Resend Cert{% else %}Force Complete & Send Cert{% endif %}
             </button>

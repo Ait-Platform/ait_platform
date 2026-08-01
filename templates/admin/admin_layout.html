@@ -4,6 +4,8 @@
 {% block admin_page_title %}Admin{% endblock %} - AIT
 {% endblock %}
 
+{% block flashes %}{% endblock %}
+
 {% block content %}
 <style>
   /* Standardized input styling for the admin tile */
@@ -56,6 +58,11 @@
         </a>
         {% endif %}
         {% endblock %}
+      </div>
+
+      <!-- Flash Messages Inside Tile -->
+      <div class="mb-6">
+        {% include "partials/flash_messages.html" %}
       </div>
 
       <!-- Row 2: Actions (Right Aligned) -->

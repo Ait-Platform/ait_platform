@@ -196,6 +196,9 @@
 
   <div class="document-title">
     {% block document_title %}Official Certificate / Diagnostic Report{% endblock %}
+    <div style="font-size: 16px; margin-top: 10px; color: var(--text-mid); font-weight: normal;">
+      {% block programme_name %}Programme Name{% endblock %}
+    </div>
   </div>
 
   <!-- 2. Learner Details -->
@@ -207,14 +210,8 @@
       <td>{% block issue_date %}{{ current_date }}{% endblock %}</td>
     </tr>
     <tr>
-      <th>Student Number</th>
-      <td>{% block student_number %}{{ user_id }}{% endblock %}</td>
       <th>Certificate Number</th>
-      <td>{% block certificate_number %}{{ certificate_id }}{% endblock %}</td>
-    </tr>
-    <tr>
-      <th>Programme</th>
-      <td colspan="3">{% block programme_name %}Programme Name{% endblock %}</td>
+      <td colspan="3">{% block certificate_number %}{{ certificate_id }}{% endblock %}</td>
     </tr>
   </table>
 

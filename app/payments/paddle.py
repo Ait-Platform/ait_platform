@@ -22,7 +22,7 @@ from app.models.auth import User
 
 paddle_bp = Blueprint("paddle_bp", __name__)
 
-def create_paddle_transaction(amount_cents, display_name, paddle_env, subject, email):
+def create_paddle_transaction(amount_cents, display_name, paddle_env, subject, email, currency_code="ZAR"):
     api_key = os.environ.get("PADDLE_LIVE_API_KEY") if paddle_env == "production" else os.environ.get("PADDLE_SANDBOX_API_KEY")
     if not api_key:
         api_key = os.environ.get("PADDLE_API_KEY", "")
@@ -45,7 +45,7 @@ def create_paddle_transaction(amount_cents, display_name, paddle_env, subject, e
                     "description": f"{display_name} Access",
                     "unit_price": {
                         "amount": str(amount_cents),
-                        "currency_code": "ZAR"
+                        "currency_code": currency_code
                     },
                     "product": {
                         "name": display_name,
@@ -104,6 +104,7 @@ def start():
 
     # Resolve amount exactly like Yoco did
     amount_cents = 0
+    currency = "ZAR"
     
     if subject == "spv_registration":
         amount_cents = 10000
@@ -119,39 +120,56 @@ def start():
         if u:
             row = db.session.execute(
                 text("""
-                    SELECT zar_amount_cents
+                    SELECT local_amount_cents, local_currency, zar_amount_cents
                     FROM user_enrollment
                     WHERE user_id = :uid 
                       AND subject_id = (SELECT id FROM auth_subject WHERE lower(slug) = :s LIMIT 1)
                     ORDER BY id DESC LIMIT 1
                 """),
                 {"uid": u.id, "s": subject}
-            ).scalar()
-            if row and int(row) > 0:
-                amount_cents = int(row)
+            ).mappings().first()
+            if row:
+                if row.get("local_amount_cents") and row.get("local_currency"):
+                    amount_cents = int(row["local_amount_cents"])
+                    currency = row["local_currency"]
+                elif row.get("zar_amount_cents") and int(row["zar_amount_cents"]) > 0:
+                    amount_cents = int(row["zar_amount_cents"])
 
     if amount_cents <= 0:
         if session.get("subject_slug") == subject and session.get("zar_amount_cents"):
-            amount_cents = int(session.get("zar_amount_cents"))
+            if session.get("local_currency") and session.get("local_amount_cents"):
+                amount_cents = int(session.get("local_amount_cents"))
+                currency = session.get("local_currency")
+            else:
+                amount_cents = int(session.get("zar_amount_cents"))
 
     if amount_cents <= 0:
         ctx = session.get("reg_ctx", {})
         quote = ctx.get("quote", {})
         if quote:
-            fallback = quote.get("est_zar_cents") or quote.get("zar_amount_cents")
-            if fallback:
-                amount_cents = int(fallback)
+            if quote.get("local_cents") and quote.get("local_currency"):
+                amount_cents = int(quote["local_cents"])
+                currency = quote["local_currency"]
+            else:
+                fallback = quote.get("est_zar_cents") or quote.get("zar_amount_cents")
+                if fallback:
+                    amount_cents = int(fallback)
             
     if amount_cents <= 0:
         from app.payments.pricing import get_subject_price
         price_info = get_subject_price(subject)
         if price_info and price_info["amount_cents"] > 0:
-            amount_cents = int(price_info["amount_cents"])
+            if price_info.get("local_cents") and price_info.get("local_currency"):
+                amount_cents = int(price_info["local_cents"])
+                currency = price_info["local_currency"]
+            else:
+                amount_cents = int(price_info["amount_cents"])
             
     if session.get('is_retake'):
         retake_zar = session.get('retake_zar_cents')
         if retake_zar:
             amount_cents = int(retake_zar)
+            currency = "ZAR"
         else:
             amount_cents = amount_cents // 3
 
@@ -180,7 +198,7 @@ def start():
     # Paddle expects a clean product name for display
     display_name = subject.replace("_", " ").title()
     
-    transaction_id, err_msg = create_paddle_transaction(amount_cents, display_name, paddle_env, subject, email)
+    transaction_id, err_msg = create_paddle_transaction(amount_cents, display_name, paddle_env, subject, email, currency_code=currency)
     
     if not transaction_id:
         flash(f"Paddle API Error: {err_msg}", "error")
@@ -195,7 +213,7 @@ def start():
         subject=subject,
         display_name=display_name,
         amount_cents=amount_cents,
-        currency="ZAR",
+        currency=currency,
         success_url=success_url
     )
 

@@ -1229,6 +1229,9 @@ def bridge_dashboard():
     is_admin = any(getattr(r, 'access_level', '') == 'admin' for r in rows)
     enrolled_tiles = [r for r in rows if getattr(r, 'access_level', '') == 'enrolled']
     
+    if is_admin and len(enrolled_tiles) == 0 and not force_bridge:
+        return redirect(url_for('admin_bp.index'))
+
     if len(enrolled_tiles) == 1 and not is_admin and not force_bridge:
         s = enrolled_tiles[0]
         uid = current_user.id

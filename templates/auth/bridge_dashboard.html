@@ -38,6 +38,7 @@
     {% for s in subjects %}
       {% if s.slug != 'admin_general' %}
       {% set is_admin    = (s.access_level == 'admin') %}
+      {% if not (is_admin and s.slug != 'admin') %}
       {% set is_enrolled = (s.access_level == 'enrolled') %}
       {% set is_locked   = (s.access_level == 'locked') %}
       {% set color_bar   = subject_colors.get(s.slug, 'bg-slate-600') %}
@@ -192,6 +193,7 @@
           </div>
         </div>
       </div>
+      {% endif %}
     {% endif %}
     {% endfor %}
   </div>

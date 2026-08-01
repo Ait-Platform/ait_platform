@@ -217,7 +217,10 @@ def success():
     return render_template("payments/success.html", subject=subject), 200
 
 
+from app.extensions import csrf
+
 @paddle_bp.post("/webhook", endpoint="paddle_webhook")
+@csrf.exempt
 def webhook():
     import hmac
     import hashlib

@@ -16,7 +16,6 @@ from app.extensions import db, csrf
 from werkzeug.security import check_password_hash
 from flask_login import login_user, logout_user, login_required, current_user
 from app.models import subject
-from app.models.sms import SmsApprovedUser
 from app.payments.pricing import price_cents_for, price_for_country, subject_id_for
 from app.services import enrollment
 from app.services.enrollment import _ensure_enrollment_row
@@ -1150,11 +1149,6 @@ def bridge_dashboard():
     if not email:
         return redirect(url_for("auth_bp.login"))
     
-    # ✅ SMS sieve at BRIDGE level: if this email has an active SMS role, skip Bridge
-    sms_ok = SmsApprovedUser.query.filter_by(email=email, active=True).first()
-    if sms_ok:
-        return redirect(url_for("sms_bp.sms_entry"))
-
     # If we didn't get user_obj above, resolve it by email
     if user_obj is None:
         user_obj = User.query.filter_by(email=email).first()

@@ -41,7 +41,7 @@
         <h4 class="text-lg font-bold text-slate-900">Ready to continue?</h4>
         <p class="text-sm text-slate-500 mb-6">Pay your once-off registration fee and top up your wallet to retain your patient data and keep managing your pipeline.</p>
         
-        <a href="{{ url_for('auth_bp.register', subject='practice_registration', next=url_for('practice_crm_bp.topup')) }}"
+        <a href="{{ url_for('practice_crm_bp.topup') }}"
            class="inline-block w-full sm:w-auto bg-indigo-600 text-white font-bold text-lg py-3 px-8 rounded-xl shadow-sm hover:bg-indigo-700 transition">
           Pay R100 Registration Fee
         </a>

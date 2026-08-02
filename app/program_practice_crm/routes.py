@@ -489,18 +489,17 @@ def enquiry_audit(id):
 def mock_bill():
     practice = CrmPractice.query.filter_by(owner_id=current_user.id).first()
     if not practice:
-        return redirect(url_for('public_bp.welcome'))
-    return render_template('program_practice_crm/mock_bill.html', practice=practice)
-    
-@practice_crm_bp.route('/topup')
+        flash("You do not have an active practice.", "warning")
+        return redirect(url_for('practice_crm_bp.pipeline'))
+        
+    return render_template("program_practice_crm/mock_bill.html", practice=practice)
+
+@practice_crm_bp.route("/topup", methods=["GET", "POST"])
 @login_required
 def topup():
-    practice = CrmPractice.query.filter_by(owner_id=current_user.id).first()
-    if not practice:
-        return redirect(url_for('public_bp.welcome'))
-    # Dummy topup for now, similar to mechanic
-    practice.wallet_balance_cents += 50000  # R500
-    db.session.commit()
-    flash('Successfully topped up wallet with R500', 'success')
-    return redirect(url_for('practice_crm_bp.pipeline'))
+    """Route to redirect user to Paddle checkout for practice CRM tokens"""
+    from flask import session
+    # 100 ZAR = 10000 cents
+    session["practice_crm_topup_amount_cents"] = 10000 
+    return redirect(url_for('paddle_bp.paddle_start', subject='practice_crm_topup', email=current_user.email))
 

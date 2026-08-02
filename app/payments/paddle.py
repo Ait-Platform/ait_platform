@@ -117,6 +117,9 @@ def start():
     if subject == "mechanic_topup":
         amount_cents = int(session.get("mechanic_topup_amount_cents", 0))
         
+    if subject == "practice_crm_topup":
+        amount_cents = int(session.get("practice_crm_topup_amount_cents", 0))
+        
     if amount_cents <= 0:
         u = User.query.filter_by(email=email).first()
         if u:
@@ -352,6 +355,18 @@ def fulfill_order(email, subject, transaction=None):
             total = int(transaction.get("details", {}).get("totals", {}).get("grand_total", 0))
             if total > 0:
                 shop.wallet_balance_cents += total
+                db.session.commit()
+        return
+
+    # ---------- PRACTICE CRM TOPUP ----------
+    if subject == "practice_crm_topup":
+        from app.models.practice_crm import CrmPractice
+        practice = CrmPractice.query.filter_by(owner_id=u.id).first()
+        if practice and transaction:
+            total = int(transaction.get("details", {}).get("totals", {}).get("grand_total", 0))
+            if total > 0:
+                # Top up practice wallet
+                practice.wallet_balance_cents += total
                 db.session.commit()
         return
 

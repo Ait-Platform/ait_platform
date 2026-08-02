@@ -12,6 +12,7 @@ class SoaProfile(db.Model):
     email = db.Column(db.String(150), nullable=True)
     bank_details = db.Column(db.Text, nullable=True)
     logo_url = db.Column(db.String(500), nullable=True)
+    interest_rate = db.Column(db.Float, default=2.0)
     
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -29,6 +30,7 @@ class Debtor(db.Model):
     phone = db.Column(db.String(50), nullable=True)
     
     opening_balance = db.Column(db.Integer, default=0) # In cents
+    apply_interest = db.Column(db.Boolean, default=True)
     
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     is_active = db.Column(db.Boolean, default=True)

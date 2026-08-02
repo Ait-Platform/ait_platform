@@ -84,7 +84,8 @@ def add_debtor():
             user_id=current_user.id,
             name=form.name.data,
             email=form.email.data,
-            phone=form.phone.data
+            phone=form.phone.data,
+            apply_interest=form.apply_interest.data
         )
         db.session.add(new_debtor)
         db.session.commit()
@@ -102,6 +103,7 @@ def edit_debtor(debtor_id):
         debtor.name = form.name.data
         debtor.email = form.email.data
         debtor.phone = form.phone.data
+        debtor.apply_interest = form.apply_interest.data
         
         db.session.commit()
         flash("SOA Profile updated successfully.", "success")
@@ -162,8 +164,35 @@ def run_billing():
     debtors = Debtor.query.filter_by(user_id=current_user.id, is_active=True).all()
     current_month_year = datetime.utcnow().strftime("%Y_%m")
     
+    profile = SoaProfile.query.filter_by(user_id=current_user.id).first()
+    interest_rate = profile.interest_rate if profile and profile.interest_rate else 0.0
+    
     charges_applied = 0
+    interest_applied = 0
     for debtor in debtors:
+        # Calculate current balance before this month's charges
+        total_debits = sum(l.amount for l in debtor.ledgers if l.kind == 'debit')
+        total_credits = sum(l.amount for l in debtor.ledgers if l.kind == 'credit')
+        current_balance = total_debits - total_credits
+
+        # Apply interest first (if applicable)
+        if getattr(debtor, 'apply_interest', True) and current_balance > 0 and interest_rate > 0:
+            interest_ref = f"interest_{current_month_year}"
+            existing_interest = DebtorLedger.query.filter_by(debtor_id=debtor.id, ref=interest_ref).first()
+            if not existing_interest:
+                interest_amount = int(round(current_balance * (interest_rate / 100)))
+                if interest_amount > 0:
+                    ledger = DebtorLedger(
+                        debtor_id=debtor.id,
+                        description=f"Monthly Arrears Interest ({interest_rate}%)",
+                        kind="debit",
+                        amount=interest_amount,
+                        ref=interest_ref,
+                        txn_date=datetime.utcnow()
+                    )
+                    db.session.add(ledger)
+                    interest_applied += 1
+
         for cmap in debtor.charge_maps:
             ref_id = f"recurring_{cmap.id}_{current_month_year}"
             
@@ -182,9 +211,9 @@ def run_billing():
                 db.session.add(ledger)
                 charges_applied += 1
                 
-    if charges_applied > 0:
+    if charges_applied > 0 or interest_applied > 0:
         db.session.commit()
-        flash(f"Successfully applied {charges_applied} recurring charge(s) for the current month.", "success")
+        flash(f"Applied {charges_applied} recurring charge(s) and {interest_applied} interest charge(s).", "success")
     else:
         flash("All recurring charges for the current month have already been applied.", "info")
         

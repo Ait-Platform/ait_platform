@@ -12,12 +12,16 @@ class SoaProfileForm(FlaskForm):
     logo_file = FileField("Upload Logo (Optional)", validators=[
         FileAllowed(['jpg', 'png', 'jpeg'], 'Images only!')
     ])
+    interest_rate = FloatField("Global Monthly Interest Rate (%)", validators=[Optional()], default=2.0)
     submit = SubmitField("Save Profile")
+
+from wtforms import BooleanField
 
 class DebtorForm(FlaskForm):
     name = StringField("SOA Client Name / Company", validators=[DataRequired()])
     email = StringField("Email Address", validators=[Optional(), Email()])
     phone = StringField("Phone Number", validators=[Optional()])
+    apply_interest = BooleanField("Apply Monthly Arrears Interest", default=True)
     submit = SubmitField("Save Setup")
 
 class OpeningBalanceForm(FlaskForm):

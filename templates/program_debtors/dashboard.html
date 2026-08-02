@@ -74,7 +74,14 @@
               <tbody class="divide-y divide-gray-200 bg-white text-base">
                 {% for d in debtors %}
                 <tr class="hover:bg-slate-50 transition-colors">
-                  <td class="py-3 px-4 font-medium text-gray-800">{{ d.name }}</td>
+                  <td class="py-3 px-4 font-medium text-gray-800">
+                      {{ d.name }}
+                      {% if not d.apply_interest %}
+                      <span title="Interest Paused" class="ml-2 inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800 border border-yellow-200">
+                          Paused
+                      </span>
+                      {% endif %}
+                  </td>
                   <td class="py-3 px-4 text-gray-600">
                     {% if d.email %}<div>{{ d.email }}</div>{% endif %}
                     {% if d.phone %}<div>{{ d.phone }}</div>{% endif %}

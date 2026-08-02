@@ -39,6 +39,14 @@
                             </div>
                         </div>
                     </div>
+
+                    <div class="p-4 bg-yellow-50 border border-yellow-200 rounded-lg flex items-center">
+                        {{ form.apply_interest(class="h-5 w-5 text-yellow-600 rounded border-gray-300 focus:ring-yellow-500 mr-3") }}
+                        <div>
+                            {{ form.apply_interest.label(class="font-bold text-yellow-800") }}
+                            <p class="text-sm text-yellow-700">If checked, this debtor will be charged monthly arrears interest during billing runs.</p>
+                        </div>
+                    </div>
                     
                 </div>
                 

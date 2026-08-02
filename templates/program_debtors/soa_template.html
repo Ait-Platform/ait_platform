@@ -162,6 +162,16 @@
     </table>
     
 
+    <!-- Pay Now Section -->
+    {% if running_balance > 0 %}
+    <div class="mt-12 pt-8 border-t border-gray-300 text-center no-print">
+        <p class="text-sm text-gray-600 mb-4">You can pay this outstanding balance securely online.</p>
+        <a href="{{ url_for('debtors_bp.pay_soa', debtor_id=debtor.id, _external=True) }}" class="inline-block px-8 py-3 bg-blue-600 text-white font-bold rounded shadow hover:bg-blue-700 transition">
+            Pay Outstanding Balance
+        </a>
+    </div>
+    {% endif %}
+
 </div>
 
 </body>

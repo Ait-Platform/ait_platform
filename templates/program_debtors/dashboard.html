@@ -18,7 +18,7 @@
       </div>
       
       <!-- Row 2: Action Grid -->
-      <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6 border-b pb-6">
+      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6 border-b pb-6">
         <!-- Add Debtor -->
         <a href="{{ url_for('debtors_bp.add_debtor') }}" class="flex flex-col items-center justify-center p-4 bg-blue-50 border border-blue-200 rounded-xl hover:bg-blue-100 transition group">
             <div class="text-blue-600 font-bold mb-1 text-base md:text-lg">+ Add Debtor</div>
@@ -39,8 +39,14 @@
         
         <!-- Generate SOA -->
         <button onclick="document.getElementById('soa-modal').classList.remove('hidden')" class="flex flex-col items-center justify-center p-4 bg-green-50 border border-green-200 rounded-xl hover:bg-green-100 transition group">
-            <div class="text-green-600 font-bold mb-1 text-base md:text-lg">Generate SOA</div>
-            <div class="text-sm text-slate-500 text-center">Create Statement of Account</div>
+            <div class="text-green-600 font-bold mb-1 text-base md:text-lg">Download SOA</div>
+            <div class="text-sm text-slate-500 text-center">Create Statement PDF</div>
+        </button>
+
+        <!-- Email SOA -->
+        <button onclick="document.getElementById('email-soa-modal').classList.remove('hidden')" class="flex flex-col items-center justify-center p-4 bg-purple-50 border border-purple-200 rounded-xl hover:bg-purple-100 transition group">
+            <div class="text-purple-600 font-bold mb-1 text-base md:text-lg">Email Statement</div>
+            <div class="text-sm text-slate-500 text-center">Send SOA directly to client</div>
         </button>
         
         <!-- Run Billing -->
@@ -162,9 +168,44 @@
           <input type="date" name="end_date" class="w-full px-3 py-2 border rounded focus:outline-none focus:border-blue-500">
         </div>
       </div>
-      <button type="submit" class="w-full bg-green-600 text-white font-bold py-2 rounded hover:bg-green-700 transition">Generate PDF</button>
+      <button type="submit" class="w-full bg-green-600 text-white font-bold py-2 rounded hover:bg-green-700 transition">Download PDF</button>
     </form>
   </div>
 </div>
+
+<!-- Email SOA Modal -->
+<div id="email-soa-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
+  <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="text-lg font-bold text-slate-800">Email SOA to Client</h3>
+      <button onclick="document.getElementById('email-soa-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 font-bold text-xl">&times;</button>
+    </div>
+    <form action="{{ url_for('debtors_bp.email_soa') }}" method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+      <div class="mb-4">
+        <label class="block text-sm font-semibold text-slate-700 mb-2">Debtor</label>
+        <select name="debtor_id" id="email-debtor-select" required class="w-full px-3 py-2 border rounded focus:outline-none focus:border-blue-500" onchange="updateEmailField()">
+          <option value="" data-email="">-- Select Debtor --</option>
+          {% for d in debtors %}
+          <option value="{{ d.id }}" data-email="{{ d.email or '' }}">{{ d.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="mb-6">
+        <label class="block text-sm font-semibold text-slate-700 mb-2">Recipient Email Address</label>
+        <input type="email" name="to_email" id="email-recipient-input" required class="w-full px-3 py-2 border rounded focus:outline-none focus:border-blue-500" placeholder="client@example.com">
+        <p class="text-xs text-gray-500 mt-1">You can change this before sending.</p>
+      </div>
+      <button type="submit" class="w-full bg-blue-600 text-white font-bold py-2 rounded hover:bg-blue-700 transition">Send Email Now</button>
+    </form>
+  </div>
+</div>
+<script>
+    function updateEmailField() {
+        var select = document.getElementById("email-debtor-select");
+        var selectedOption = select.options[select.selectedIndex];
+        document.getElementById("email-recipient-input").value = selectedOption.getAttribute("data-email");
+    }
+</script>
 
 {% endblock %}

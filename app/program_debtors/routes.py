@@ -394,3 +394,77 @@ def generate_soa(debtor_id):
             return html_content
             
     return html_content
+from app.utils.mailer import send_pdf_email
+
+@debtors_bp.route("/email_soa", methods=["POST"])
+@login_required
+def email_soa():
+    debtor_id = request.form.get("debtor_id")
+    to_email = request.form.get("to_email")
+    
+    if not debtor_id or not to_email:
+        flash("Debtor and Email Address are required.", "danger")
+        return redirect(url_for('debtors_bp.dashboard'))
+        
+    debtor = Debtor.query.filter_by(id=debtor_id, user_id=current_user.id).first_or_404()
+    profile = SoaProfile.query.filter_by(user_id=current_user.id).first()
+    
+    # Calculate running balance and fetch ledgers for the entire history (or you could pass dates)
+    running_balance = 0
+    period_ledgers = []
+    ledgers = DebtorLedger.query.filter_by(debtor_id=debtor.id).order_by(DebtorLedger.txn_date, DebtorLedger.id).all()
+    
+    for l in ledgers:
+        if l.kind == 'debit':
+            running_balance += l.amount
+        else:
+            running_balance -= l.amount
+        l.running_balance = running_balance
+        period_ledgers.append(l)
+        
+    html_content = render_template("program_debtors/soa_template.html", 
+                                   debtor=debtor, 
+                                   ledgers=period_ledgers, 
+                                   profile=profile, 
+                                   running_balance=running_balance,
+                                   period_opening_balance=0,
+                                   start_date=None,
+                                   end_date=None)
+                                   
+    try:
+        pdf_bytes = html_to_pdf_bytes(html_content, base_url=request.host_url)
+        send_pdf_email(
+            to_email=to_email,
+            subject=f"Statement of Account - {profile.business_name if profile else 'Billing'}",
+            body_text=f"Dear {debtor.name},\n\nPlease find attached your latest Statement of Account.\n\nThank you.",
+            pdf_bytes=pdf_bytes,
+            filename=f"SOA_{debtor.name.replace(' ', '_')}.pdf"
+        )
+        flash(f"Statement successfully emailed to {to_email}", "success")
+    except Exception as e:
+        current_app.logger.error(f"Failed to email SOA PDF: {e}")
+        flash(f"Error sending email: {e}", "danger")
+        
+    return redirect(url_for('debtors_bp.dashboard'))
+
+
+@debtors_bp.route("/debtor/<int:debtor_id>/pay")
+@login_required
+def pay_soa(debtor_id):
+    debtor = Debtor.query.filter_by(id=debtor_id, user_id=current_user.id).first_or_404()
+    
+    # Calculate current balance
+    total_debits = sum(l.amount for l in debtor.ledgers if l.kind == 'debit')
+    total_credits = sum(l.amount for l in debtor.ledgers if l.kind == 'credit')
+    current_balance = total_debits - total_credits
+    
+    if current_balance <= 0:
+        flash("This debtor has no outstanding balance to pay.", "info")
+        return redirect(url_for('debtors_bp.dashboard'))
+        
+    session["pending_email"] = debtor.email or current_user.email
+    session["pending_subject"] = "debtors_soa"
+    session["zar_amount_cents"] = current_balance
+    session["debtor_payment_id"] = debtor.id
+    
+    return redirect(url_for('yoco_bp.yoco_start'))

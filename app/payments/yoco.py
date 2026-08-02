@@ -465,6 +465,30 @@ def success():
         session.pop('retake_type', None)
         db.session.commit()
 
+    # ---------- DEBTORS SOA PAYMENT ----------
+    if subject.lower() == "debtors_soa":
+        debtor_id = session.pop("debtor_payment_id", None)
+        if debtor_id:
+            from app.models.debtors import Debtor, DebtorLedger
+            debtor = Debtor.query.get(debtor_id)
+            if debtor:
+                # Add credit to ledger
+                amount_paid = int(amount_cents if 'amount_cents' in locals() else session.get("zar_amount_cents", 0))
+                if amount_paid > 0:
+                    ledger = DebtorLedger(
+                        debtor_id=debtor.id,
+                        description="Online Payment Received",
+                        kind="credit",
+                        amount=amount_paid,
+                        ref=ref or "yoco_online_pay",
+                        txn_date=datetime.utcnow()
+                    )
+                    db.session.add(ledger)
+                    db.session.commit()
+                    flash(f"Payment of R{amount_paid/100:.2f} successfully applied to {debtor.name}'s account.", "success")
+        return redirect(url_for("debtors_bp.dashboard"))
+    # --------------------------------------------
+
     # Process Metro Billing Payment
     if subject.lower() == "metro_billing":
         from app.models.billing import BilStatementPayment

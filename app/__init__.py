@@ -660,12 +660,19 @@ def create_app(test_config=None):
                 db.session.commit()
 
     from app.jobs.budgetcash_daily import run_budgetcash_daily_jobs
+    from app.jobs.debtors_jobs import run_debtors_billing_job
 
     @app.cli.command("budgetcash-daily")
     def budgetcash_daily():
         """Run BudgetCash daily jobs (purge/reminders)."""
         run_budgetcash_daily_jobs()
         click.echo("OK: budgetcash-daily done")
+        
+    @app.cli.command("run-debtors-billing")
+    def debtors_billing():
+        """Run automated monthly billing for all active debtors."""
+        run_debtors_billing_job()
+        click.echo("OK: debtors billing sweep complete")
                         
     return app
 

@@ -80,6 +80,7 @@ def price_page():
         text("""
             SELECT r.alpha2 AS code, r.name
               FROM ref_country_currency r
+              ORDER BY r.name
         """)
     ).mappings().all()
 

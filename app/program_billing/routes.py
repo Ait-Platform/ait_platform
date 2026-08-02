@@ -804,11 +804,6 @@ def muni_recon_edit():
 def muni_recon_email():
     from app.models.billing import BilMuniAccount, BilMeter, BilConsumption
     
-
-    tenant_id = None
-    if units and units[0].tenants:
-        tenant_id = units[0].tenants[0].id
-
     if request.method == "POST":
         account_number = request.form.get("account_number")
         month = request.form.get("month")
@@ -887,7 +882,7 @@ def muni_recon_email():
 @login_required
 def muni_recon_email_send():
     from app.models.billing import BilMuniAccount, BilMeter, BilConsumption, BilMetroReadingLog
-    from app.utils.mailer import send_email
+    from app.utils.mailer import send_pdf_email
     
     account_number = request.form.get("account_number")
     month = request.form.get("month")
@@ -920,7 +915,7 @@ def muni_recon_email_send():
             
     # Dispatch email
     try:
-        success = send_email(subject=subject, recipients=[to_email], body=body_text)
+        success = send_pdf_email(to_email=to_email, subject=subject, body_text=body_text, pdf_bytes=None)
         if not success:
             raise Exception("Mailer returned False")
     except Exception as e:
@@ -1790,6 +1785,7 @@ def get_sundry_sd(consumption):
 
 from datetime import date
 from app.models.billing import BilTenantLedger
+from app.models.debtors import Debtor, DebtorLedger
 
 def _auto_post_to_ledger(tenant_id, month, grand_total, tenant, elec_rows=None):
     from datetime import date, datetime
@@ -1868,6 +1864,53 @@ def _auto_post_to_ledger(tenant_id, month, grand_total, tenant, elec_rows=None):
             ref="METSOA-AUTO"
         )
         db.session.add(metsoa_entry)
+
+    # 4. Sync seamlessly to the Debtors module if linked
+    debtor = Debtor.query.filter_by(slug_reference='billing', reference_id=tenant_id).first()
+    if debtor:
+        # Sync Arrears if applicable
+        if arrears_amount > 0:
+            d_arrears = DebtorLedger.query.filter_by(debtor_id=debtor.id, ref=f"ARREARS-{month}").first()
+            if d_arrears:
+                d_arrears.amount = arrears_amount
+            else:
+                db.session.add(DebtorLedger(
+                    debtor_id=debtor.id,
+                    description="Opening Balance (Billing)",
+                    kind="debit",
+                    amount=arrears_amount,
+                    ref=f"ARREARS-{month}",
+                    txn_date=base_date
+                ))
+        
+        # Sync Rent if applicable
+        if rent_amount > 0:
+            d_rent = DebtorLedger.query.filter_by(debtor_id=debtor.id, ref=f"RENT-{month}").first()
+            if d_rent:
+                d_rent.amount = rent_amount
+            else:
+                db.session.add(DebtorLedger(
+                    debtor_id=debtor.id,
+                    description="Monthly Rent",
+                    kind="debit",
+                    amount=rent_amount,
+                    ref=f"RENT-{month}",
+                    txn_date=base_date
+                ))
+                
+        # Sync METSOA Total
+        d_metsoa = DebtorLedger.query.filter_by(debtor_id=debtor.id, ref=f"METSOA-{month}").first()
+        if d_metsoa:
+            d_metsoa.amount = grand_total
+        else:
+            db.session.add(DebtorLedger(
+                debtor_id=debtor.id,
+                description="Utilities (METSOA)",
+                kind="debit",
+                amount=grand_total,
+                ref=f"METSOA-{month}",
+                txn_date=metsoa_date
+            ))
 
     db.session.commit()
 
@@ -3692,405 +3735,6 @@ def consumption_review(property_id, month):
         })
         
     return render_template("program_billing/consumption_table.html", property=prop, month=month, data=data)
-
-
-@billing_bp.route("/billing/soa", methods=["GET", "POST"])
-@login_required
-def soa_dashboard():
-    from app.models.billing import BilProperty
-    from datetime import datetime
-    
-    properties = BilProperty.query.filter_by(manager_id=current_user.id).all()
-    current_month = datetime.now().strftime("%Y-%m")
-    
-    if request.method == "POST":
-        property_id = request.form.get("property_id")
-        month = request.form.get("month")
-        action = request.form.get("action")
-        
-        if not property_id or not month:
-            flash("Please select both a property and a month.", "warning")
-            return redirect(url_for("billing_bp.soa_dashboard"))
-            
-        if action == "charge_map":
-            return redirect(url_for("billing_bp.soa_map_view", property_id=property_id, month=month))
-        elif action == "tenants":
-            return redirect(url_for("billing_bp.soa_tenants_view", property_id=property_id, month=month))
-        elif action == "generate_soa":
-            return redirect(url_for("billing_bp.soa_generate_view", property_id=property_id, month=month))
-            
-    return render_template("program_billing/soa_dashboard.html", properties=properties, current_month=current_month)
-
-@billing_bp.route("/billing/soa/map/<int:property_id>/<month>", methods=["GET"])
-@login_required
-def soa_map_view(property_id, month):
-    from app.models.billing import BilProperty, BilMuniAccount
-    prop = BilProperty.query.get_or_404(property_id)
-    if prop.manager_id != current_user.id and not current_user.has_role('admin'):
-        abort(403)
-    muni_accounts = BilMuniAccount.query.filter_by(property_id=prop.id).all()
-    
-    selected_account_id = request.args.get('account_id')
-    selected_account = None
-    if selected_account_id:
-        selected_account = BilMuniAccount.query.filter_by(id=selected_account_id, property_id=prop.id).first()
-        
-    return render_template("program_billing/soa_map.html", property=prop, month=month, muni_accounts=muni_accounts, selected_account=selected_account)
-
-@billing_bp.route("/billing/soa/tenants/<int:property_id>/<month>", methods=["GET"])
-@login_required
-def soa_tenants_view(property_id, month):
-    from app.models.billing import BilProperty
-    prop = BilProperty.query.get_or_404(property_id)
-    if prop.manager_id != current_user.id and not current_user.has_role('admin'):
-        abort(403)
-    tenants = prop.tenants
-    return render_template("program_billing/soa_tenants.html", property=prop, month=month, tenants=tenants)
-
-@billing_bp.route("/billing/soa/tenants/<int:property_id>/<month>/add", methods=["POST"])
-@login_required
-def soa_add_tenant(property_id, month):
-    from app.models.billing import BilProperty, BilTenant, BilLease
-    prop = BilProperty.query.get_or_404(property_id)
-    if prop.manager_id != current_user.id and not current_user.has_role('admin'):
-        abort(403)
-        
-
-
-    name = request.form.get("name")
-    if not name:
-        flash("Tenant name is required.", "danger")
-        return redirect(url_for("billing_bp.soa_tenants_view", property_id=property_id, month=month))
-        
-    status = request.form.get("status") == "active"
-    date_started_str = request.form.get("date_started")
-    date_terminated_str = request.form.get("date_terminated")
-    
-    date_started = None
-    if date_started_str:
-        try:
-            date_started = datetime.strptime(date_started_str, "%Y-%m-%d").date()
-        except ValueError:
-            pass
-
-    date_terminated = None
-    if date_terminated_str:
-        try:
-            date_terminated = datetime.strptime(date_terminated_str, "%Y-%m-%d").date()
-        except ValueError:
-            pass
-
-    new_tenant = BilTenant(
-        name=name,
-        property_id=prop.id,
-        is_active=status,
-        date_started=date_started,
-        date_terminated=date_terminated
-    )
-    db.session.add(new_tenant)
-    db.session.flush()
-
-    # Create a blank lease to ensure the config views work
-    lease = BilLease(
-        tenant_id=new_tenant.id,
-        property_id=prop.id,
-        start_date=date_started_str if date_started_str else None,
-        end_date=date_terminated_str if date_terminated_str else None,
-        rent_amount=0.0
-    )
-    db.session.add(lease)
-    
-    db.session.commit()
-    flash(f"Tenant {name} added successfully.", "success")
-    return redirect(url_for("billing_bp.soa_tenants_view", property_id=property_id, month=month))
-
-@billing_bp.route("/billing/soa/generate/<int:property_id>/<month>", methods=["GET"])
-@login_required
-def soa_generate_view(property_id, month):
-    from app.models.billing import BilProperty
-    prop = BilProperty.query.get_or_404(property_id)
-    if prop.manager_id != current_user.id and not current_user.has_role('admin'):
-        abort(403)
-    tenants = prop.tenants
-    return render_template("program_billing/soa_generate.html", property=prop, month=month, tenants=tenants)
-
-
-@billing_bp.route("/billing/soa/map/update", methods=["POST"])
-@login_required
-def update_soa_map():
-    from app.models.billing import BilMuniAccount
-    from app.extensions import db
-    
-    account_id = request.form.get("account_id")
-    property_id = request.form.get("property_id")
-    month = request.form.get("month")
-    
-    if not account_id:
-        flash("Invalid account ID.", "danger")
-        return redirect(url_for('billing_bp.soa_dashboard'))
-        
-    acc = BilMuniAccount.query.get_or_404(account_id)
-    from app.models.billing import BilProperty
-    prop = BilProperty.query.get(acc.property_id) if acc.property_id else None
-    if prop and prop.manager_id != current_user.id and not current_user.has_role('admin'):
-        abort(403)
-        
-    acc.arrears_charge_to = request.form.get("arrears_charge_to", "owner")
-    acc.rates_charge_to = request.form.get("rates_charge_to", "owner")
-    acc.arrangement_charge_to = request.form.get("arrangement_charge_to", "owner")
-    
-    # Save the input amounts
-    try:
-        acc.rates_amount = float(request.form.get("rates_amount") or 0.0)
-    except:
-        pass
-    try:
-        acc.arrears_amount = float(request.form.get("arrears_amount") or 0.0)
-    except:
-        pass
-    try:
-        acc.ca_installment_amount = float(request.form.get("ca_installment_amount") or 0.0)
-    except:
-        pass
-        
-    db.session.commit()
-    flash("SOA Map recorded successfully.", "success")
-    return redirect(url_for("billing_bp.soa_map_view", property_id=property_id, month=month, account_id=account_id))
-
-
-@billing_bp.route("/billing/soa/tenant/<int:tenant_id>/edit", methods=["GET", "POST"])
-@login_required
-def edit_tenant_soa(tenant_id):
-    from app.models.billing import BilTenant
-    from app.extensions import db
-    from datetime import datetime
-    
-    tenant = BilTenant.query.get_or_404(tenant_id)
-    
-    # Very basic validation that the user owns the property
-    if tenant.property and tenant.property:
-        if tenant.property.manager_id != current_user.id and not current_user.has_role('admin'):
-            abort(403)
-            
-    if request.method == "POST":
-        tenant.address = request.form.get("address")
-        
-        ds = request.form.get("date_started")
-        if ds:
-            tenant.date_started = datetime.strptime(ds, "%Y-%m-%d").date()
-            
-        dt = request.form.get("date_terminated")
-        if dt:
-            tenant.date_terminated = datetime.strptime(dt, "%Y-%m-%d").date()
-        else:
-            tenant.date_terminated = None
-            
-        is_active = request.form.get("is_active") == "on"
-        tenant.is_active = is_active
-        
-        db.session.commit()
-        flash("Tenant SOA Configuration updated.", "success")
-        return redirect(url_for("billing_bp.soa_dashboard"))
-        
-    return render_template("program_billing/edit_tenant_soa.html", tenant=tenant)
-
-@billing_bp.route("/billing/soa/tenant/<int:tenant_id>/<month>/email", methods=["POST"])
-@login_required
-def email_soa(tenant_id, month):
-    from app.models.billing import BilTenant, BilMuniAccount
-    import tempfile
-    import os
-    from flask import send_file, request
-    from app.utils.mailer import send_pdf_email
-    
-    tenant = BilTenant.query.get_or_404(tenant_id)
-    
-    data_req = request.get_json()
-    email = data_req.get("email") if data_req else None
-    if not email:
-        return {"success": False, "error": "Email address is required"}, 400
-        
-    prop = tenant.property
-    
-    tenant_meter_ids = [m.id for m in tenant.property.meters]
-    
-    elec_rows, elec_total = build_electrical_rows(prop.id, month, filter_meter_ids=tenant_meter_ids)
-    water_meters, water_total = build_water_rows(prop.id, month, filter_meter_ids=tenant_meter_ids)
-    
-    # Calculate mapped charges
-    muni_accounts = BilMuniAccount.query.filter_by(property_id=prop.id).all()
-    
-    mapped_charges = []
-    mapped_total = 0.0
-    
-    for acc in muni_accounts:
-        if acc.rates_charge_to == 'tenant':
-            val = acc.rates_amount if acc.rates_amount and acc.rates_amount > 0 else round((acc.rates_general_monthly or 0) + (acc.rates_sra_monthly or 0), 2)
-            if val > 0:
-                mapped_charges.append({"description": "Rates & SRA", "amount": val})
-                mapped_total += val
-                
-        if acc.arrears_charge_to == 'tenant':
-            if acc.arrears_amount and acc.arrears_amount > 0:
-                mapped_charges.append({"description": "Arrears", "amount": acc.arrears_amount})
-                mapped_total += acc.arrears_amount
-                
-        if acc.arrangement_charge_to == 'tenant':
-            if acc.ca_installment_amount and acc.ca_installment_amount > 0:
-                mapped_charges.append({"description": "Arrangement Installment", "amount": acc.ca_installment_amount})
-                mapped_total += acc.ca_installment_amount
-                
-    grand_total = round(elec_total + water_total + mapped_total, 2)
-    
-    data = {
-        "tenant": tenant,
-        "property": prop,
-        "month": month,
-        "electricity": {
-            "rows": elec_rows,
-            "subtotal": elec_total
-        },
-        "water": {
-            "meters": water_meters,
-            "total": water_total
-        },
-        "mapped_charges": mapped_charges,
-        "mapped_total": mapped_total,
-        "grand_total": grand_total
-    }
-    
-    html_string = render_template("program_billing/soa_document.html", **data)
-    
-    # Hide the action buttons in the PDF
-    html_string = html_string.replace('class="print:hidden', 'style="display:none;"')
-    
-    with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as tmp:
-        pdf_path = tmp.name
-
-    try:
-        from playwright.sync_api import sync_playwright
-        with sync_playwright() as p:
-            browser = p.chromium.launch()
-            page = browser.new_page()
-            page.set_content(html_string, wait_until="networkidle")
-            page.pdf(
-                path=pdf_path, 
-                format="A4", 
-                print_background=True,
-                display_header_footer=True,
-                header_template="<span></span>",
-                footer_template="<div style='width: 100%; text-align: center; font-size: 10px; color: #6b7280; padding-bottom: 10px;'>Page <span class='pageNumber'></span> of <span class='totalPages'></span></div>",
-                margin={"top": "30px", "bottom": "40px", "left": "20px", "right": "20px"}
-            )
-            browser.close()
-            
-        with open(pdf_path, 'rb') as f_pdf:
-            pdf_bytes = f_pdf.read()
-            
-        os.remove(pdf_path)
-            
-        subject = f"Statement of Account - {tenant.name} - {month}"
-        body = f"Hello {tenant.name},\n\nPlease find your Statement of Account for the billing month of {month} attached as a PDF.\n\nRegards,\n{prop.name} Management"
-        
-        success = send_pdf_email(email, subject, body, pdf_bytes, filename=f"SOA_{tenant.name.replace(' ', '_')}_{month}.pdf")
-        if success:
-            return {"success": True}
-        else:
-            return {"success": False, "error": "Mailer returned false."}
-            
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        if os.path.exists(pdf_path):
-            os.remove(pdf_path)
-        return {"success": False, "error": str(e)}
-
-@billing_bp.route("/billing/soa/tenant/<int:tenant_id>/generate", methods=["GET"])
-@login_required
-def generate_soa(tenant_id):
-    from app.models.billing import BilTenant
-    import tempfile
-    import os
-    from flask import send_file
-    from sqlalchemy import text
-    from app.extensions import db
-    
-    tenant = BilTenant.query.get_or_404(tenant_id)
-    month = request.args.get("month")
-    
-    if not month:
-        flash("Month is required.", "danger")
-        return redirect(url_for("billing_bp.soa_dashboard"))
-        
-    prop = tenant.property
-    
-    rows = db.session.execute(text("""
-      SELECT txn_date, month, description, kind, amount, ref
-      FROM bil_tenant_ledger
-      WHERE tenant_id=:t
-      ORDER BY date(txn_date), id
-    """), {"t": tenant_id}).mappings().all()
-
-    running = 0.0
-    out = []
-    for r in rows:
-        amt = float(r["amount"] or 0.0)
-        running += amt
-        out.append({
-            "date": r["txn_date"],
-            "month": r["month"],
-            "description": r["description"],
-            "kind": r["kind"],
-            "amount": amt,
-            "ref": r["ref"],
-            "balance": round(running, 2),
-        })
-        
-    grand_total = running
-    
-    data = {
-        "tenant": tenant,
-        "property": prop,
-        "month": month,
-        "rows": out,
-        "grand_total": grand_total
-    }
-    
-    html_string = render_template("program_billing/soa_document.html", **data)
-    
-    # Hide the action buttons in the PDF
-    html_string = html_string.replace('class="print:hidden', 'style="display:none;"')
-    
-    # If the user clicks print in the browser
-    if request.args.get("view") == "html":
-        return html_string
-        
-    with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as tmp:
-        pdf_path = tmp.name
-
-    try:
-        from playwright.sync_api import sync_playwright
-        with sync_playwright() as p:
-            browser = p.chromium.launch()
-            page = browser.new_page()
-            page.set_content(html_string, wait_until="networkidle")
-            page.pdf(
-                path=pdf_path, 
-                format="A4", 
-                print_background=True,
-                display_header_footer=True,
-                header_template="<span></span>",
-                footer_template="<div style='width: 100%; text-align: center; font-size: 10px; color: #6b7280; padding-bottom: 10px;'>Page <span class='pageNumber'></span> of <span class='totalPages'></span></div>",
-                margin={"top": "30px", "bottom": "40px", "left": "20px", "right": "20px"}
-            )
-            browser.close()
-            
-        return send_file(pdf_path, as_attachment=True, download_name=f"SOA_{tenant.name.replace(' ', '_')}_{month}.pdf")
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        flash(f"Failed to generate SOA: {str(e)}", "danger")
-        return redirect(url_for('billing_bp.soa_dashboard', property_id=prop.id, month=month))
 
 
 

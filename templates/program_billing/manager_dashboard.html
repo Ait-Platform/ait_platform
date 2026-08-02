@@ -15,7 +15,7 @@
         <!-- Row 1: Title on left, Back button on right -->
         <div class="flex items-center justify-between mb-2">
           <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">Billing Dashboard</h1>
-          <a href="{{ url_for('bridge_bp.bridge') }}" class="inline-flex items-center px-4 py-2 bg-slate-100 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-200 transition">
+          <a href="{{ url_for('auth_bp.bridge_dashboard') }}" class="inline-flex items-center px-4 py-2 bg-slate-100 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-200 transition">
             <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
             Back
           </a>
@@ -24,8 +24,8 @@
         
         <!-- Row 2: Dashboard Navigation -->
         <div class="flex justify-end border-b border-slate-200 mb-6 space-x-2">
-          <a href="{{ url_for('billing_bp.soa_dashboard') }}" class="px-6 py-3 text-sm font-semibold text-purple-700 bg-purple-50 hover:bg-purple-100 border-b-2 border-purple-600 rounded-t-md transition-colors">
-            SOA &rarr;
+          <a href="{{ url_for('debtors_bp.dashboard') }}" class="px-6 py-3 text-sm font-semibold text-purple-700 bg-purple-50 hover:bg-purple-100 border-b-2 border-purple-600 rounded-t-md transition-colors">
+            SOA (Debtors) &rarr;
           </a>
           <a href="{{ url_for('billing_bp.utilities_hub') }}" class="px-6 py-3 text-sm font-semibold text-green-700 bg-green-50 hover:bg-green-100 border-b-2 border-green-600 rounded-t-md transition-colors">
             Utilities Hub &rarr;

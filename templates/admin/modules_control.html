@@ -57,7 +57,7 @@
                         <tbody class="divide-y divide-gray-200">
                         {% if subjects %}
                             {% for subject in subjects %}
-                                {% if subject.slug not in ["admin_general", "spv", "tpx"] %}
+                                {% if subject.slug not in ["admin_general", "spv", "tpx", "sms"] %}
                                 <tr class="hover:bg-gray-50">
                                     <td class="px-4 py-3 text-center text-gray-500">{{ loop.index }}</td>
                                     <td class="px-4 py-3 font-semibold text-gray-800">{{ subject.name }}</td>

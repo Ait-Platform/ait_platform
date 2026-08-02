@@ -57,28 +57,34 @@
                         <tbody class="divide-y divide-gray-200">
                         {% if subjects %}
                             {% for subject in subjects %}
-                            <tr class="hover:bg-gray-50">
-                                <td class="px-4 py-3 text-center text-gray-500">{{ loop.index }}</td>
-                                <td class="px-4 py-3 font-semibold text-gray-800">{{ subject.name }}</td>
-                                <td class="px-4 py-3 text-sm font-mono text-gray-500">{{ subject.slug }}</td>
-                                <td class="px-4 py-3 text-center">
-                                    <input type="checkbox" name="show_on_welcome_{{ subject.slug }}" class="h-5 w-5 rounded border-gray-300 text-teal-600 focus:ring-teal-500" {% if subject.show_on_welcome %}checked{% endif %}>
-                                </td>
-                                <td class="px-4 py-3 text-center">
-                                    <input type="hidden" id="yoco_mode_{{ subject.slug }}" name="yoco_mode_{{ subject.slug }}" value="{{ settings.get('yoco_mode_' ~ subject.slug, 'sandbox') }}">
-                                    <label class="inline-flex items-center gap-2 cursor-pointer">
-                                        <input type="checkbox" class="h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                                            onchange="
-                                                document.getElementById('yoco_mode_{{ subject.slug }}').value = this.checked ? 'sandbox' : 'live';
-                                                document.getElementById('mode_label_{{ subject.slug }}').innerHTML = this.checked ? 'Sandbox' : 'Live';
-                                            "
-                                            {% if settings.get('yoco_mode_' ~ subject.slug, 'sandbox') == 'sandbox' %}checked{% endif %}>
-                                        <span id="mode_label_{{ subject.slug }}" class="text-sm font-medium text-gray-600">
-                                            {% if settings.get('yoco_mode_' ~ subject.slug, 'sandbox') == 'sandbox' %}Sandbox{% else %}Live{% endif %}
-                                        </span>
-                                    </label>
-                                </td>
-                            </tr>
+                                {% if subject.slug != "admin_general" %}
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-4 py-3 text-center text-gray-500">{{ loop.index }}</td>
+                                    <td class="px-4 py-3 font-semibold text-gray-800">{{ subject.name }}</td>
+                                    <td class="px-4 py-3 text-sm font-mono text-gray-500">{{ subject.slug }}</td>
+                                    <td class="px-4 py-3 text-center">
+                                        <input type="checkbox" name="show_on_welcome_{{ subject.slug }}" class="h-5 w-5 rounded border-gray-300 text-teal-600 focus:ring-teal-500" {% if subject.show_on_welcome %}checked{% endif %}>
+                                    </td>
+                                    <td class="px-4 py-3 text-center">
+                                        {% if subject.slug != "admin" %}
+                                        <input type="hidden" id="yoco_mode_{{ subject.slug }}" name="yoco_mode_{{ subject.slug }}" value="{{ settings.get('yoco_mode_' ~ subject.slug, 'sandbox') }}">
+                                        <label class="inline-flex items-center gap-2 cursor-pointer">
+                                            <input type="checkbox" class="h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                                onchange="
+                                                    document.getElementById('yoco_mode_{{ subject.slug }}').value = this.checked ? 'sandbox' : 'live';
+                                                    document.getElementById('mode_label_{{ subject.slug }}').innerHTML = this.checked ? 'Sandbox' : 'Live';
+                                                "
+                                                {% if settings.get('yoco_mode_' ~ subject.slug, 'sandbox') == 'sandbox' %}checked{% endif %}>
+                                            <span id="mode_label_{{ subject.slug }}" class="text-sm font-medium text-gray-600">
+                                                {% if settings.get('yoco_mode_' ~ subject.slug, 'sandbox') == 'sandbox' %}Sandbox{% else %}Live{% endif %}
+                                            </span>
+                                        </label>
+                                        {% else %}
+                                        <span class="text-sm text-gray-400 italic">N/A</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endif %}
                             {% endfor %}
                         {% else %}
                             <tr>

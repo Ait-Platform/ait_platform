@@ -52,9 +52,9 @@ mx-auto max-w-7xl px-6 py-10
         {% set info = subject_info.get(slug, {"color":"slate", "desc":fallback_desc}) %}
         {{ welcome_card(
             title=subj.name,
-            desc=info.desc,
+            description=info.desc,
             color=info.color,
-            url=url_for('auth_bp.start_registration', subject=slug)
+            href=url_for('auth_bp.start_registration', subject=slug)
         ) }}
     {% endif %}
 {% endfor %}
@@ -69,9 +69,9 @@ mx-auto max-w-7xl px-6 py-10
         {% set info = subject_info.get(slug, {"color":"slate", "desc":fallback_desc}) %}
         {{ welcome_card(
             title=subj.name,
-            desc=info.desc,
+            description=info.desc,
             color=info.color,
-            url="#"
+            href="#"
         ) }}
     {% endif %}
 {% endfor %}

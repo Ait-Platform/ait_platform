@@ -28,5 +28,5 @@ from .programs.reading import routes as _reading
 from .programs.billing import routes as _billing
 from .programs.loss import routes as _loss
 from .programs.grade12_core_math import routes as _math
-from .programs.spv import routes as _spv
+
 from .programs.sms import routes as _sms

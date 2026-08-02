@@ -479,7 +479,7 @@ def create_app(test_config=None):
     from app.payments.paddle import paddle_bp
     from app.program_budget import budget_bp
     from app.payments import payment_bp
-    from app.admin.programs.spv import spv_admin_bp
+    
     from app.subscription import subscription_bp
     from app.quote import quote_bp
     from app.bridge.routes import bridge_bp
@@ -491,7 +491,6 @@ def create_app(test_config=None):
     from app.program_culturalfire.routes import cultural_bp
     from app.program_healthcore.routes import healthcore_bp
     from app.program_mechanic import mechanic_bp
-    from app.program_spv.routes import spv_bp
     from app.program_adv_math.routes import adv_math_bp
     from app.program_practice_crm.routes import practice_crm_bp
     from app.program_hds.routes import hds_bp
@@ -514,7 +513,6 @@ def create_app(test_config=None):
     app.register_blueprint(paddle_bp, url_prefix="/payments/paddle")
     app.register_blueprint(budget_bp)
     app.register_blueprint(payment_bp)
-    app.register_blueprint(spv_admin_bp)
     app.register_blueprint(subscription_bp)
     app.register_blueprint(quote_bp)
     app.register_blueprint(bridge_bp)
@@ -526,7 +524,6 @@ def create_app(test_config=None):
     app.register_blueprint(cultural_bp)
     app.register_blueprint(healthcore_bp)
     app.register_blueprint(mechanic_bp)
-    app.register_blueprint(spv_bp)
     app.register_blueprint(adv_math_bp)
     app.register_blueprint(practice_crm_bp, url_prefix="/practice-crm")
     app.register_blueprint(hds_bp, url_prefix="/hds")

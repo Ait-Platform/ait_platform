@@ -111,9 +111,6 @@ def start():
     amount_cents = 0
     currency = "ZAR"
     
-    if subject == "spv_registration":
-        amount_cents = 10000
-        
     if subject == "metro_billing":
         amount_cents = int(session.get("metro_billing_amount_cents", 0))
 
@@ -386,14 +383,8 @@ def fulfill_order(email, subject, transaction=None):
         # Usually handled by UserEntitlement or similar logic. We mimic Yoco's behavior.
         pass
 
-    # ---------- SPV ----------
-    if subject == "spv_registration":
-        u.is_investor = 1
-        db.session.commit()
-        return
-
     # ---------- STANDARD MODULES ----------
-    lookup_subject = "spv" if subject.lower() == "spv_registration" else subject
+    lookup_subject = subject
     
     sid = db.session.execute(
         text("SELECT id FROM auth_subject WHERE lower(slug) = :s OR lower(name) = :s LIMIT 1"),

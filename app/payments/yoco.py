@@ -56,9 +56,6 @@ def start():
     # 1) Try to get amount from user_enrollment (since parity pricing locks the user to their first trial country price)
     amount_cents = 0
     
-    if subject == "spv_registration":
-        amount_cents = 10000
-        
     if subject == "metro_billing":
         amount_cents = int(session.get("metro_billing_amount_cents", 0))
 
@@ -329,8 +326,7 @@ def success():
     # --------------------------------------------
 
     # 3) Resolve subject id (safe if missing)
-    # Map spv_registration to the spv subject so the user gets correct program enrollment
-    lookup_subject = "spv" if subject.lower() == "spv_registration" else subject
+    lookup_subject = subject
     
     sid = db.session.execute(
         text(
@@ -467,44 +463,6 @@ def success():
                     session.pop(k, None)
         session.pop('is_retake', None)
         session.pop('retake_type', None)
-        db.session.commit()
-
-    # Process SPV Registration
-    if subject.lower() == "spv_registration":
-        from app.models.spv import SpvDeal, SpvParticipation
-        deal = SpvDeal.query.filter_by(slug="dale-housing").first()
-        if deal:
-            part = SpvParticipation(
-                user_id=u.id,
-                deal_id=deal.id,
-                amount=100.00,
-                pseudonym=u.name or "Anonymous",
-                status="confirmed"
-            )
-            db.session.add(part)
-
-    # Process SPV Investment
-    if subject.lower() == "spv_investment":
-        from app.models.spv import SpvDeal, SpvParticipation
-        spv_amount = float(session.pop("spv_amount", 0))
-        spv_pseudonym = session.pop("spv_pseudonym", "Anonymous")
-        spv_deal_slug = session.pop("spv_deal_slug", None)
-        
-        # The 5% fee was added to the charge amount, so the recorded investment is the full spv_amount
-        effective_amount = spv_amount
-        
-        if spv_deal_slug and effective_amount > 0:
-            deal = SpvDeal.query.filter_by(slug=spv_deal_slug).first()
-            if deal:
-                part = SpvParticipation(
-                    user_id=u.id,
-                    deal_id=deal.id,
-                    amount=effective_amount,
-                    pseudonym=spv_pseudonym,
-                    status="confirmed"
-                )
-                db.session.add(part)
-
         db.session.commit()
 
     # Process Metro Billing Payment

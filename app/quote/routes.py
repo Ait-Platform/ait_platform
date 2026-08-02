@@ -152,14 +152,8 @@ def quote():
         else:
             flash("No pricing found for that country yet.", "warning")
 
-    countries = db.session.execute(
-        sa_text("""
-            SELECT r.alpha2 AS code, r.name
-              FROM ref_country_currency r
-             WHERE (r.is_active IS NULL OR r.is_active::text IN ('1','t','true','TRUE'))
-             ORDER BY r.name
-        """)
-    ).mappings().all()
+    from app.utils.country import get_active_countries
+    countries = get_active_countries()
 
     if row:
         store_quote_baton(

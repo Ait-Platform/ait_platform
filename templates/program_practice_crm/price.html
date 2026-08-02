@@ -27,13 +27,9 @@
 
         <!-- Country Selector -->
         <div class="mb-8 flex flex-col md:flex-row items-start md:items-center gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
-          <label for="country_selector" class="text-sm font-semibold text-slate-700 whitespace-nowrap">Select your country for local pricing:</label>
-          <select id="country_selector" class="form-select block w-full md:max-w-xs rounded-lg border-2 border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
-            <option value="" disabled selected>-- Select your country --</option>
-            {% for c in countries %}
-              <option value="{{ c.code }}">{{ c.name }}</option>
-            {% endfor %}
-          </select>
+          <label class="text-sm font-semibold text-slate-700 whitespace-nowrap">Select your country for local pricing:</label>
+          {% from 'shared/country_selector.html' import render_country_selector %}
+          {{ render_country_selector(countries, subject_slug='practice_crm') }}
         </div>
 
         <!-- Pricing Cards -->
@@ -105,77 +101,54 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
-  document.addEventListener('DOMContentLoaded', function() {
-    const selector = document.getElementById('country_selector');
-    const priceDisplay = document.getElementById('registration_price');
-    const registerBtn = document.getElementById('register_btn');
-    const onceOffLabel = document.getElementById('once_off_label');
-    const baseUrl = "{{ url_for('auth_bp.register') }}";
-    const nextUrl = "{{ url_for('practice_crm_bp.pipeline') }}";
-    
-    function fetchPrice(country) {
-      if(!country) {
-        priceDisplay.innerHTML = '<span class="text-base font-medium text-slate-500">Please select a country</span>';
-        if (onceOffLabel) onceOffLabel.style.display = 'none';
-        document.querySelectorAll('.dynamic-wallet-price').forEach(el => {
-          el.innerHTML = '...';
-        });
-        return;
-      }
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const priceDisplay = document.getElementById('registration_price');
+      const registerBtn = document.getElementById('register_btn');
+      const onceOffLabel = document.getElementById('once_off_label');
+      const baseUrl = "{{ url_for('auth_bp.register') }}";
+      const nextUrl = "{{ url_for('practice_crm_bp.pipeline') }}";
       
-      // Update register button link to include country_code
-      registerBtn.href = `${baseUrl}?subject=practice_crm&next=${encodeURIComponent(nextUrl)}&country_code=${country}`;
-      
-      priceDisplay.innerHTML = '<i class="fas fa-spinner fa-spin text-lg"></i>';
-      if (onceOffLabel) onceOffLabel.style.display = 'inline';
+      document.addEventListener('countryPriceLoading', function(e) {
+        const country = e.detail.country;
+        registerBtn.href = `${baseUrl}?subject=practice_crm&next=${encodeURIComponent(nextUrl)}&country_code=${country}`;
+        priceDisplay.innerHTML = '<i class="fas fa-spinner fa-spin text-lg"></i>';
+        if (onceOffLabel) onceOffLabel.style.display = 'inline';
+      });
 
-      fetch(`/api/price/practice_crm/${country}`)
-        .then(res => res.json())
-        .then(data => {
-          if(data.error) {
-            priceDisplay.innerHTML = '<span class="text-lg font-medium">Charged once-off if you continue with program</span>';
-            if (onceOffLabel) onceOffLabel.style.display = 'none';
-            document.querySelectorAll('.dynamic-wallet-price').forEach(el => {
-              el.innerHTML = '...';
-            });
-          } else {
-            priceDisplay.textContent = data.display_price;
-            if (onceOffLabel) onceOffLabel.style.display = 'inline';
-            
-            let currencyStr = data.currency === 'ZAR' ? 'R' : data.currency + ' ';
-            document.querySelectorAll('.dynamic-wallet-price').forEach(el => {
-              let amount = el.getAttribute('data-amount');
-              el.innerHTML = `<span class="dynamic-currency">${currencyStr}</span>${amount}`;
-            });
-          }
-        })
-        .catch(err => {
+      document.addEventListener('countryPriceSuccess', function(e) {
+        const data = e.detail.data;
+        if(data.error) {
           priceDisplay.innerHTML = '<span class="text-lg font-medium">Charged once-off if you continue with program</span>';
           if (onceOffLabel) onceOffLabel.style.display = 'none';
           document.querySelectorAll('.dynamic-wallet-price').forEach(el => {
             el.innerHTML = '...';
           });
-        });
-    }
+        } else {
+          priceDisplay.textContent = data.display_price;
+          if (onceOffLabel) onceOffLabel.style.display = 'inline';
+          
+          let currencyStr = data.currency === 'ZAR' ? 'R' : data.currency + ' ';
+          document.querySelectorAll('.dynamic-wallet-price').forEach(el => {
+            let amount = el.getAttribute('data-amount');
+            el.innerHTML = `<span class="dynamic-currency">${currencyStr}</span>${amount}`;
+          });
+        }
+      });
+      
+      document.addEventListener('countryPriceError', function(e) {
+        priceDisplay.innerHTML = '<span class="text-sm text-red-500">Error loading price</span>';
+      });
 
-    // Ensure we trigger on load
-    fetchPrice(selector.value);
-    
-    selector.addEventListener('change', function(e) {
-      selector.classList.remove('border-red-500', 'border-2');
-      selector.classList.add('border-slate-300', 'border-2');
-      fetchPrice(e.target.value);
+      registerBtn.addEventListener('click', function(e) {
+        const selector = document.getElementById('uniform_country_selector');
+        if (selector && !selector.value) {
+          e.preventDefault();
+          selector.classList.remove('border-slate-300');
+          selector.classList.add('border-red-500', 'border-2');
+          alert("Please select your country from the dropdown before registering.");
+        }
+      });
     });
-
-    registerBtn.addEventListener('click', function(e) {
-      if (!selector.value) {
-        e.preventDefault();
-        selector.classList.remove('border-slate-300');
-        selector.classList.add('border-red-500', 'border-2');
-        alert("Please select your country from the dropdown before registering.");
-      }
-    });
-  });
-</script>
+  </script>
 {% endblock %}

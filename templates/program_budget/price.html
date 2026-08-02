@@ -1,5 +1,5 @@
 {% extends "layout.html" %}
-{% block title %}Price · BudgetCash{% endblock %}
+{% block title %}Price – BudgetCash{% endblock %}
 
 {% block content %}
 <div class="mx-auto max-w-4xl mt-10 px-4">
@@ -24,20 +24,10 @@
 
         <div class="mt-5">
           <label class="block text-sm font-medium text-slate-700 mb-2">Select Your Country</label>
-          <form id="countryForm" method="get" action="{{ url_for('budget_bp.price_page') }}">
-            <select name="country"
-                    onchange="this.form.submit()"
-                    class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200">
-              <option value="" {% if not price.has_quote %}selected{% endif %}>Select your country</option>
-              {% for c in countries %}
-                <option value="{{ c.code }}" {% if price.country_code == c.code %}selected{% endif %}>
-                  {{ c.name }}
-                </option>
-              {% endfor %}
-            </select>
-          </form>
+          {% from 'shared/country_selector.html' import render_country_selector %}
+          {{ render_country_selector(countries, subject_slug='budget', selected_code=price.country_code) }}
           <p class="mt-2 text-xs text-slate-500">
-            Don’t see your country? Choose any country that uses your currency.
+            Don't see your country? Choose any country that uses your currency.
           </p>
         </div>
 
@@ -46,21 +36,19 @@
 
         <div class="mt-6">
           <div class="text-sm font-medium text-slate-700 mb-2">BudgetCash Monthly Price</div>
-          <div class="flex items-center gap-2 {{ disabled_class }}">
-            <div class="flex-1 rounded-lg border bg-slate-50 px-3 py-2 text-right text-sm text-slate-800">
+          <div id="price_container" class="flex items-center gap-2 {{ disabled_class }}">
+            <div id="budget_local_amount" class="flex-1 rounded-lg border bg-slate-50 px-3 py-2 text-right text-sm text-slate-800 font-medium">
               {% if has_quote and price.local_amount is not none %}
                 {{ '%.2f' % (price.local_amount / 100) }}
               {% else %}
                 —
               {% endif %}
             </div>
-            <div class="rounded-lg border px-3 py-2 text-sm text-slate-700">
+            <div id="budget_local_currency" class="rounded-lg border px-3 py-2 text-sm text-slate-700 font-medium">
               {{ price.local_currency if has_quote else '—' }}
             </div>
           </div>
-          {% if has_quote and price.is_discount %}
-            <p class="mt-2 text-xs text-amber-600">Regional parity discount applied.</p>
-          {% endif %}
+          <p id="discount_msg" class="mt-2 text-xs text-amber-600" style="display: {% if has_quote and price.is_discount %}block{% else %}none{% endif %};">Regional parity discount applied.</p>
         </div>
       </div>
     </div>
@@ -100,27 +88,77 @@
             ← Back to Info
           </a>
 
-          {% if has_quote %}
-            {% if current_user.is_authenticated %}
-              <a href="{{ url_for('paddle_bp.paddle_start', email=current_user.email, subject='budget') }}"
-                 class="inline-flex items-center justify-center rounded bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700 shadow-sm transition-colors w-full sm:w-auto">
-                Start Free Trial
-              </a>
-            {% else %}
-              <a href="{{ url_for('auth_bp.register', role='user', subject='budget', plan='trial', next=url_for('auth_bp.bridge_dashboard'), price_id=price.price_id) }}"
-                 class="inline-flex items-center justify-center rounded bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700 shadow-sm transition-colors w-full sm:w-auto">
-                Start Free Trial
-              </a>
-            {% endif %}
-          {% else %}
-            <button type="button" class="rounded bg-amber-600 px-4 py-2 text-sm font-semibold text-white opacity-50 cursor-not-allowed w-full sm:w-auto" disabled>
-              Select Country First
-            </button>
-          {% endif %}
+          <a id="register_btn" href="#"
+             class="inline-flex items-center justify-center rounded bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700 shadow-sm transition-colors w-full sm:w-auto opacity-50 cursor-not-allowed"
+             style="pointer-events: none;">
+            Start Free Trial
+          </a>
         </div>
       </div>
     </div>
 
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const is_authenticated = {{ 'true' if current_user.is_authenticated else 'false' }};
+    const registerBtn = document.getElementById('register_btn');
+    const priceContainer = document.getElementById('price_container');
+    const budgetLocalAmount = document.getElementById('budget_local_amount');
+    const budgetLocalCurrency = document.getElementById('budget_local_currency');
+    const discountMsg = document.getElementById('discount_msg');
+    
+    const paddleUrl = "{{ url_for('paddle_bp.paddle_start', email=current_user.email if current_user.is_authenticated else '', subject='budget')|safe }}";
+    const registerUrlBase = "{{ url_for('auth_bp.register') }}";
+    const nextUrl = "{{ url_for('auth_bp.bridge_dashboard') }}";
+    
+    function updateRegisterButton(countryCode, priceId) {
+      registerBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+      registerBtn.style.pointerEvents = 'auto';
+      
+      if (is_authenticated) {
+        registerBtn.href = `${paddleUrl}&country_code=${countryCode}`;
+      } else {
+        registerBtn.href = `${registerUrlBase}?subject=budget&plan=trial&next=${encodeURIComponent(nextUrl)}&price_id=${priceId}&country_code=${countryCode}`;
+      }
+    }
+
+    // Handle pre-loaded quote if form submitted earlier
+    {% if price and price.has_quote %}
+      updateRegisterButton("{{ price.country_code }}", "{{ price.price_id }}");
+    {% endif %}
+
+    document.addEventListener('countryPriceLoading', function(e) {
+      budgetLocalAmount.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+      budgetLocalCurrency.innerHTML = '';
+      priceContainer.classList.remove('opacity-50');
+      registerBtn.classList.add('opacity-50', 'cursor-not-allowed');
+      registerBtn.style.pointerEvents = 'none';
+      registerBtn.href = '#';
+    });
+
+    document.addEventListener('countryPriceSuccess', function(e) {
+      const data = e.detail.data;
+      if (data.error) {
+        budgetLocalAmount.textContent = '—';
+        budgetLocalCurrency.textContent = '—';
+        discountMsg.style.display = 'none';
+      } else {
+        budgetLocalAmount.textContent = (data.amount / 100).toFixed(2);
+        budgetLocalCurrency.textContent = data.currency;
+        discountMsg.style.display = data.is_discount ? 'block' : 'none';
+        
+        updateRegisterButton(e.detail.country, data.price_id);
+      }
+    });
+
+    document.addEventListener('countryPriceError', function(e) {
+      budgetLocalAmount.innerHTML = '<span class="text-sm text-red-500">Error</span>';
+      budgetLocalCurrency.innerHTML = '';
+    });
+  });
+</script>
 {% endblock %}

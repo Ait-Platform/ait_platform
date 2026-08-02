@@ -1,0 +1,49 @@
+{% macro render_country_selector(countries, subject_slug, selected_code='') %}
+<div class="country-selector-wrapper">
+  <select id="uniform_country_selector" class="form-select block w-full md:max-w-xs rounded-lg border-2 border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm transition-colors">
+    <option value="" disabled {% if not selected_code %}selected{% endif %}>-- Select your country --</option>
+    {% for c in countries %}
+      <option value="{{ c.code }}" {% if selected_code == c.code %}selected{% endif %}>
+        {{ c.name }}
+      </option>
+    {% endfor %}
+  </select>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const selector = document.getElementById('uniform_country_selector');
+    if (!selector) return;
+
+    const subject = "{{ subject_slug }}";
+
+    function fetchPriceData(country) {
+      if (!country) return;
+
+      // Dispatch event to indicate loading state
+      document.dispatchEvent(new CustomEvent('countryPriceLoading', { detail: { country } }));
+
+      fetch(`/api/price/${subject}/${country}`)
+        .then(res => res.json())
+        .then(data => {
+          document.dispatchEvent(new CustomEvent('countryPriceSuccess', { detail: { country, data } }));
+        })
+        .catch(err => {
+          document.dispatchEvent(new CustomEvent('countryPriceError', { detail: { country, error: err } }));
+        });
+    }
+
+    selector.addEventListener('change', function(e) {
+      // Remove any error borders if present
+      selector.classList.remove('border-red-500');
+      selector.classList.add('border-slate-300');
+      fetchPriceData(e.target.value);
+    });
+
+    // If a country is pre-selected, fetch its price immediately (optional)
+    // if (selector.value) {
+    //   fetchPriceData(selector.value);
+    // }
+  });
+</script>
+{% endmacro %}

@@ -76,13 +76,8 @@ def price_page():
         else:
             flash("No pricing found for that country yet.", "warning")
 
-    countries = db.session.execute(
-        text("""
-            SELECT r.alpha2 AS code, r.name
-              FROM ref_country_currency r
-              ORDER BY r.name
-        """)
-    ).mappings().all()
+    from app.utils.country import get_active_countries
+    countries = get_active_countries()
 
     val = db.session.execute(text("SELECT value FROM system_settings WHERE key = 'practice_enquiry_cents'")).scalar()
     enquiry_cents = int(float(val)) if val else 500

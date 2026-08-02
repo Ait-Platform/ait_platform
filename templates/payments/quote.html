@@ -29,22 +29,8 @@
 
         <div class="mt-5">
           <label class="block text-base font-bold text-slate-800 mb-2">Country</label>
-
-          <form id="countryForm" method="get" action="{{ url_for('quote_bp.quote') }}">
-            <input type="hidden" name="subject" value="{{ subject_slug }}">
-            <input type="hidden" name="next" value="{{ next_url }}">
-
-            <select name="country"
-                    onchange="this.form.submit()"
-                    class="w-full rounded-lg border-2 border-sky-500 bg-white px-3 py-2 text-base text-slate-900 focus:outline-none focus:border-sky-600 focus:ring-2 focus:ring-sky-500 shadow-sm transition-colors">
-              <option value="" {% if not price.has_quote %}selected{% endif %}>Select your country</option>
-              {% for c in countries %}
-                <option value="{{ c.code }}" {% if price.country_code == c.code %}selected{% endif %}>
-                  {{ c.name }}
-                </option>
-              {% endfor %}
-            </select>
-          </form>
+          {% from 'shared/country_selector.html' import render_country_selector %}
+          {{ render_country_selector(countries, subject_slug=subject_slug, selected_code=price.country_code) }}
 
           <p class="mt-2 text-base text-slate-800 font-medium">
             Don’t see your country? Choose any country that uses your currency.
@@ -76,22 +62,33 @@
 
         <div class="mt-6">
           <div class="text-base font-bold text-slate-800 mb-2">Price (your currency)</div>
-          <div class="flex items-center gap-2 {{ disabled_class }}">
-            <div class="flex-1 rounded-lg border bg-slate-50 px-3 py-2 text-right text-base text-slate-900">
+          <div id="price_container" class="flex items-center gap-2 {{ disabled_class }}">
+            <div id="quote_local_amount" class="flex-1 rounded-lg border bg-slate-50 px-3 py-2 text-right text-base text-slate-900">
               {% if has_quote and price.local_amount is not none %}
                 {{ '%.2f' % (price.local_amount / 100) }}
               {% else %}
                 —
               {% endif %}
             </div>
-            <div class="rounded-lg border px-3 py-2 text-base text-slate-800">
+            <div id="quote_local_currency" class="rounded-lg border px-3 py-2 text-base text-slate-800">
               {{ price.local_currency if has_quote else '—' }}
             </div>
           </div>
-
-          {% if has_quote and price.is_discount %}
-            <p class="mt-2 text-sm font-bold text-emerald-700">10% discount already applied.</p>
-          {% endif %}
+          
+          <p id="discount_msg" class="mt-2 text-sm text-sky-600 font-bold" style="display: {% if has_quote and price.is_discount %}block{% else %}none{% endif %};">
+            Good news! A regional parity discount was applied for your country.
+          </p>
+          
+          <div class="mt-4 p-4 bg-slate-50 border border-slate-200 rounded text-sm text-slate-600">
+            <p class="font-semibold text-slate-700 mb-1">How billing works:</p>
+            <p id="billing_info_text">
+              {% if has_quote %}
+                Charged in ZAR at checkout (platform parity pricing applied).
+              {% else %}
+                Select a country to calculate the estimate.
+              {% endif %}
+            </p>
+          </div>
         </div>
       </div>
     </div>
@@ -139,90 +136,39 @@
           </div>
         </div>
 
-        {% set can_act = has_quote and price.price_id %}
-        {% set reg_next = url_for('auth_bp.bridge_dashboard') %}
-
-        <div class="mt-6 flex items-center justify-end gap-3">
-
+        <div class="mt-6 flex flex-col gap-3">
           {% if trial_allowed %}
-            {% if can_act %}
-              {% if current_user.is_authenticated %}
-                <form action="{{ url_for('auth_bp.register_decision', subject=subject_slug) }}" method="POST" class="inline">
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button type="submit" class="inline-flex items-center justify-center rounded bg-sky-600 px-4 py-2 text-base font-bold text-white hover:bg-sky-700 shadow-sm transition-colors">
-                    Start free {{ trial_days }}-day trial
-                  </button>
-                </form>
-              {% else %}
-                <a href="{{ url_for('auth_bp.register',
-                                    role='user',
-                                    subject=subject_slug,
-                                    plan='trial',
-                                    next=reg_next,
-                                    price_id=price.price_id) }}"
-                   class="inline-flex items-center justify-center rounded bg-sky-600 px-4 py-2 text-base font-bold text-white hover:bg-sky-700 shadow-sm transition-colors">
-                  Start free {{ trial_days }}-day trial
-                </a>
-              {% endif %}
-            {% else %}
-              <button type="button"
-                      class="rounded bg-sky-600 px-4 py-2 text-base font-bold text-white opacity-50 cursor-not-allowed"
-                      disabled>
-                Start free {{ trial_days }}-day trial
-              </button>
-            {% endif %}
-          {% elif requires_price|int == 1 %}
-            {% if can_act %}
-              {% if current_user.is_authenticated %}
-                <form action="{{ url_for('auth_bp.register_decision', subject=subject_slug) }}" method="POST" class="inline">
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button type="submit" class="inline-flex items-center justify-center rounded bg-emerald-600 px-4 py-2 text-base font-bold text-white hover:bg-emerald-700 shadow-sm transition-colors">
-                    Continue to checkout
-                  </button>
-                </form>
-              {% else %}
-                <a href="{{ url_for('auth_bp.register',
-                                    role='user',
-                                    subject=subject_slug,
-                                    plan='paid',
-                                    next=reg_next,
-                                    price_id=price.price_id) }}"
-                  class="inline-flex items-center justify-center rounded bg-emerald-600 px-4 py-2 text-base font-bold text-white hover:bg-emerald-700 shadow-sm transition-colors">
-                  Buy now
-                </a>
-              {% endif %}
-            {% else %}
-              <button type="button"
-                      class="rounded bg-emerald-600 px-4 py-2 text-base font-bold text-white opacity-50 cursor-not-allowed"
-                      disabled>
-                Buy now
-              </button>
-            {% endif %}
-          {% else %}
             {% if current_user.is_authenticated %}
-              {% if is_upgrade %}
-                <a href="{{ url_for('paddle_bp.paddle_start', email=current_user.email, subject=subject_slug) }}" 
-                   class="inline-flex items-center justify-center rounded bg-emerald-600 px-4 py-2 text-base font-bold text-white hover:bg-emerald-700 shadow-sm transition-colors">
-                  Proceed to Payment
-                </a>
-              {% else %}
-                <form action="{{ url_for('auth_bp.register_decision', subject=subject_slug) }}" method="POST" class="inline">
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button type="submit" class="inline-flex items-center justify-center rounded bg-emerald-600 px-4 py-2 text-base font-bold text-white hover:bg-emerald-700 shadow-sm transition-colors">
-                    Register and Start
-                  </button>
-                </form>
-              {% endif %}
+              <form action="{{ url_for('auth_bp.register_decision', subject=subject_slug) }}" method="POST" class="inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" id="trial_country_code" name="country_code" value="{{ price.country_code if has_quote else '' }}">
+                <button id="trial_btn" type="submit" class="w-full inline-flex items-center justify-center rounded bg-sky-600 px-4 py-2 text-base font-bold text-white hover:bg-sky-700 shadow-sm transition-colors {% if not has_quote %}opacity-50 cursor-not-allowed{% endif %}" {% if not has_quote %}disabled{% endif %}>
+                  Start free {{ trial_days }}-day trial
+                </button>
+              </form>
             {% else %}
-              <a href="{{ url_for('auth_bp.register',
-                                  role='user',
-                                  subject=subject_slug,
-                                  plan='free',
-                                  next=reg_next) }}"
-                 class="inline-flex items-center justify-center rounded bg-emerald-600 px-4 py-2 text-base font-bold text-white hover:bg-emerald-700 shadow-sm transition-colors">
-                Register and Start
+              <a id="trial_btn" href="{{ url_for('auth_bp.register', role='user', subject=subject_slug, plan='trial', next=next_url, price_id=price.price_id if has_quote else '', country_code=price.country_code if has_quote else '') }}"
+                 class="w-full inline-flex items-center justify-center rounded bg-sky-600 px-4 py-2 text-base font-bold text-white hover:bg-sky-700 shadow-sm transition-colors {% if not has_quote %}opacity-50 cursor-not-allowed{% endif %}"
+                 {% if not has_quote %}style="pointer-events: none;"{% endif %}>
+                Start free {{ trial_days }}-day trial
               </a>
             {% endif %}
+          {% endif %}
+          
+          {% if current_user.is_authenticated %}
+            <form action="{{ url_for('auth_bp.register_decision', subject=subject_slug) }}" method="POST" class="inline">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" id="paid_country_code" name="country_code" value="{{ price.country_code if has_quote else '' }}">
+              <button id="paid_btn" type="submit" name="force_paid" value="1" class="w-full inline-flex items-center justify-center rounded bg-slate-800 px-4 py-2 text-base font-bold text-white hover:bg-slate-900 shadow-sm transition-colors {% if not has_quote %}opacity-50 cursor-not-allowed{% endif %}" {% if not has_quote %}disabled{% endif %}>
+                Register Account
+              </button>
+            </form>
+          {% else %}
+            <a id="paid_btn" href="{{ url_for('auth_bp.register', role='user', subject=subject_slug, plan='paid', next=next_url, price_id=price.price_id if has_quote else '', country_code=price.country_code if has_quote else '') }}"
+               class="w-full inline-flex items-center justify-center rounded bg-slate-800 px-4 py-2 text-base font-bold text-white hover:bg-slate-900 shadow-sm transition-colors {% if not has_quote %}opacity-50 cursor-not-allowed{% endif %}"
+               {% if not has_quote %}style="pointer-events: none;"{% endif %}>
+              Register Account
+            </a>
           {% endif %}
         </div>
         
@@ -235,4 +181,89 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const is_authenticated = {{ 'true' if current_user.is_authenticated else 'false' }};
+    const trialBtn = document.getElementById('trial_btn');
+    const paidBtn = document.getElementById('paid_btn');
+    const priceContainer = document.getElementById('price_container');
+    const quoteLocalAmount = document.getElementById('quote_local_amount');
+    const quoteLocalCurrency = document.getElementById('quote_local_currency');
+    const discountMsg = document.getElementById('discount_msg');
+    const billingInfoText = document.getElementById('billing_info_text');
+    
+    const trialCountryInput = document.getElementById('trial_country_code');
+    const paidCountryInput = document.getElementById('paid_country_code');
+    
+    const registerUrlBase = "{{ url_for('auth_bp.register') }}";
+    const nextUrl = "{{ next_url }}";
+    const subject = "{{ subject_slug }}";
+
+    function updateButtons(countryCode, priceId) {
+      if (trialBtn) {
+        trialBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        if (is_authenticated) {
+          trialBtn.disabled = false;
+          if (trialCountryInput) trialCountryInput.value = countryCode;
+        } else {
+          trialBtn.style.pointerEvents = 'auto';
+          trialBtn.href = `${registerUrlBase}?subject=${subject}&plan=trial&next=${encodeURIComponent(nextUrl)}&price_id=${priceId}&country_code=${countryCode}`;
+        }
+      }
+      if (paidBtn) {
+        paidBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        if (is_authenticated) {
+          paidBtn.disabled = false;
+          if (paidCountryInput) paidCountryInput.value = countryCode;
+        } else {
+          paidBtn.style.pointerEvents = 'auto';
+          paidBtn.href = `${registerUrlBase}?subject=${subject}&plan=paid&next=${encodeURIComponent(nextUrl)}&price_id=${priceId}&country_code=${countryCode}`;
+        }
+      }
+    }
+
+    function disableButtons() {
+      if (trialBtn) {
+        trialBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        if (is_authenticated) { trialBtn.disabled = true; } else { trialBtn.style.pointerEvents = 'none'; }
+      }
+      if (paidBtn) {
+        paidBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        if (is_authenticated) { paidBtn.disabled = true; } else { paidBtn.style.pointerEvents = 'none'; }
+      }
+    }
+
+    document.addEventListener('countryPriceLoading', function(e) {
+      quoteLocalAmount.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+      quoteLocalCurrency.innerHTML = '';
+      priceContainer.classList.remove('opacity-50');
+      disableButtons();
+    });
+
+    document.addEventListener('countryPriceSuccess', function(e) {
+      const data = e.detail.data;
+      if (data.error) {
+        quoteLocalAmount.textContent = '—';
+        quoteLocalCurrency.textContent = '—';
+        discountMsg.style.display = 'none';
+        billingInfoText.textContent = "Pricing unavailable.";
+      } else {
+        quoteLocalAmount.textContent = (data.amount / 100).toFixed(2);
+        quoteLocalCurrency.textContent = data.currency;
+        discountMsg.style.display = data.is_discount ? 'block' : 'none';
+        billingInfoText.textContent = "Charged in ZAR at checkout (platform parity pricing applied).";
+        
+        updateButtons(e.detail.country, data.price_id);
+      }
+    });
+
+    document.addEventListener('countryPriceError', function(e) {
+      quoteLocalAmount.innerHTML = '<span class="text-sm text-red-500">Error</span>';
+      quoteLocalCurrency.innerHTML = '';
+    });
+  });
+</script>
 {% endblock %}

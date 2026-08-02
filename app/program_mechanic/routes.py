@@ -82,13 +82,8 @@ def price_page():
         else:
             flash("No pricing found for that country yet.", "warning")
 
-    countries = db.session.execute(
-        text("""
-            SELECT r.alpha2 AS code, r.name
-              FROM ref_country_currency r
-              ORDER BY r.name
-        """)
-    ).mappings().all()
+    from app.utils.country import get_active_countries
+    countries = get_active_countries()
 
     val_quote = db.session.execute(text("SELECT value FROM system_settings WHERE key = 'mechanic_quote_cents'")).scalar()
     quote_cents = int(float(val_quote)) if val_quote else 500

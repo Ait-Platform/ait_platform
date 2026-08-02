@@ -53,15 +53,19 @@ def subject_home():
 @home_bp.route('/home/price')
 def price_page():
     from app.models.auth import AuthSubject
+    from app.utils.country import get_active_countries
     
     subject = AuthSubject.query.filter(db.func.lower(AuthSubject.slug) == 'home').first()
     if not subject:
         flash("Subject not found.", "warning")
         return redirect(url_for('public_bp.welcome'))
 
+    countries = get_active_countries()
+
     return render_template(
         "subject_home/price.html",
-        subject=subject
+        subject=subject,
+        countries=countries
     )
 
 

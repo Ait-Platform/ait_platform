@@ -211,43 +211,47 @@ def staff_toggle_status(pu_id):
 @practice_crm_bp.route("/pipeline")
 @login_required
 def pipeline():
-    """Receptionist kanban pipeline"""
-    from app.models.auth import UserEnrollment, AuthSubject
-    
-    practice = None
-    is_receptionist = False
-    
-    # Check enrollment status
-    crm_subj = AuthSubject.query.filter_by(slug='practice_crm').first()
-    if crm_subj:
-        enr = UserEnrollment.query.filter_by(user_id=current_user.id, subject_id=crm_subj.id).first()
-        if enr and enr.status == 'receptionist':
-            is_receptionist = True
-
-    if is_receptionist:
-        pu = CrmPracticeUser.query.filter_by(user_id=current_user.id).first()
-        if pu:
-            if pu.status == 'suspended':
-                flash("Your account has been suspended by the practice owner. Please contact them.", "error")
-                return redirect(url_for('public_bp.welcome'))
-            practice = CrmPractice.query.get(pu.practice_id)
-        else:
-            flash("Your Practice Owner has not added you to their staff list yet.", "warning")
-            return redirect(url_for('public_bp.welcome'))
-    else:
-        practice = CrmPractice.query.filter_by(owner_id=current_user.id).first()
-        if not practice:
-            # Create default practice if none exists for a new owner
-            practice = CrmPractice(owner_id=current_user.id, name=f"{current_user.name or 'My'} Practice")
-            db.session.add(practice)
-            db.session.commit()
-            
-    if not practice:
-        flash("You are not assigned to any practice.", "error")
-        return redirect(url_for('public_bp.welcome'))
+    try:
+        """Receptionist kanban pipeline"""
+        from app.models.auth import UserEnrollment, AuthSubject
         
-    enquiries = CrmEnquiry.query.filter_by(practice_id=practice.id).order_by(CrmEnquiry.created_at.desc()).all()
-    return render_template("program_practice_crm/pipeline.html", practice=practice, enquiries=enquiries, is_receptionist=is_receptionist)
+        practice = None
+        is_receptionist = False
+        
+        # Check enrollment status
+        crm_subj = AuthSubject.query.filter_by(slug='practice_crm').first()
+        if crm_subj:
+            enr = UserEnrollment.query.filter_by(user_id=current_user.id, subject_id=crm_subj.id).first()
+            if enr and enr.status == 'receptionist':
+                is_receptionist = True
+
+        if is_receptionist:
+            pu = CrmPracticeUser.query.filter_by(user_id=current_user.id).first()
+            if pu:
+                if pu.status == 'suspended':
+                    flash("Your account has been suspended by the practice owner. Please contact them.", "error")
+                    return redirect(url_for('public_bp.welcome'))
+                practice = CrmPractice.query.get(pu.practice_id)
+            else:
+                flash("Your Practice Owner has not added you to their staff list yet.", "warning")
+                return redirect(url_for('public_bp.welcome'))
+        else:
+            practice = CrmPractice.query.filter_by(owner_id=current_user.id).first()
+            if not practice:
+                # Create default practice if none exists for a new owner
+                practice = CrmPractice(owner_id=current_user.id, name=f"{current_user.name or 'My'} Practice")
+                db.session.add(practice)
+                db.session.commit()
+                
+        if not practice:
+            flash("You are not assigned to any practice.", "error")
+            return redirect(url_for('public_bp.welcome'))
+            
+        enquiries = CrmEnquiry.query.filter_by(practice_id=practice.id).order_by(CrmEnquiry.created_at.desc()).all()
+        return render_template("program_practice_crm/pipeline.html", practice=practice, enquiries=enquiries, is_receptionist=is_receptionist)
+    except Exception as e:
+        import traceback
+        return f"<pre>Error occurred:\n{traceback.format_exc()}</pre>", 500
 
 
 @practice_crm_bp.route("/appointments")

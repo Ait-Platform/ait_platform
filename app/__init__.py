@@ -587,7 +587,7 @@ def create_app(test_config=None):
 
         # Create Postgres-safe view (no missing columns)
         # ensure core subjects exist in auth_subject (SQLite + Postgres)
-        ensure_core_subjects()
+        # ensure_core_subjects()
 
         # Create Postgres-safe view (no missing columns)
         engine_name = db.engine.name  # 'sqlite', 'postgresql', etc.

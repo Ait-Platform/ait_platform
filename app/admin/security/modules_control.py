@@ -154,3 +154,22 @@ def manage_vouchers():
     return render_template("admin/vouchers.html", vouchers=vouchers, subjects=subjects)
 
 
+
+@admin_bp.route("/bridge_modules_control", methods=["GET", "POST"], endpoint="bridge_modules_control")
+def bridge_modules_control():
+    from app.extensions import db
+    from app.models.auth import AuthSubject
+
+    if request.method == "POST":
+        subjects = AuthSubject.query.filter_by(is_active=1).all()
+        for subject in subjects:
+            # If the checkbox is checked, it means "Show on Bridge" -> is_hidden_on_bridge = False
+            # If not checked -> is_hidden_on_bridge = True
+            subject.is_hidden_on_bridge = not (f"show_on_bridge_{subject.slug}" in request.form)
+        db.session.commit()
+        flash("Bridge settings saved successfully.", "success")
+        return redirect(url_for("admin_bp.bridge_modules_control"))
+
+    subjects = AuthSubject.query.filter_by(is_active=1).order_by(AuthSubject.sort_order).all()
+    return render_template("admin/bridge_modules_control.html", subjects=subjects)
+

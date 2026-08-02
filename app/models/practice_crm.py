@@ -9,6 +9,7 @@ class CrmPractice(db.Model):
     phone = db.Column(db.String(50), nullable=True)
     email = db.Column(db.String(120), nullable=True)
     address = db.Column(db.String(255), nullable=True)
+    practice_type = db.Column(db.String(50), nullable=True)
     dentist_details = db.Column(db.Text, nullable=True)
     operating_hours = db.Column(db.Text, nullable=True)
     slot_settings = db.Column(db.Text, nullable=True)

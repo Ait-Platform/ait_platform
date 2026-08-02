@@ -208,6 +208,40 @@ def staff_toggle_status(pu_id):
     db.session.commit()
     return redirect(url_for('practice_crm_bp.staff'))
 
+@practice_crm_bp.route("/setup", methods=["GET", "POST"])
+@login_required
+def setup():
+    """First-time setup for practice owner"""
+    practice = CrmPractice.query.filter_by(owner_id=current_user.id).first()
+    
+    if request.method == "POST":
+        if not practice:
+            practice = CrmPractice(owner_id=current_user.id)
+            db.session.add(practice)
+            
+        practice.name = request.form.get("name")
+        practice.practice_type = request.form.get("practice_type")
+        practice.phone = request.form.get("phone")
+        practice.email = request.form.get("email")
+        
+        db.session.commit()
+        flash("Practice setup successfully!", "success")
+        return redirect(url_for('practice_crm_bp.pipeline'))
+        
+    return render_template("program_practice_crm/setup.html", practice=practice)
+
+PRACTICE_TREATMENTS = {
+    "Dentist": ["General Checkup & Cleaning", "Toothache / Pain", "Cavity / Filling", "Root Canal", "Extraction", "Teeth Whitening", "Crown / Bridge", "Orthodontic Consult"],
+    "General Practitioner": ["General Checkup", "Prescription Renewal", "Fever / Flu Symptoms", "Blood Tests", "Referral Letter", "Medical Certificate", "Chronic Care"],
+    "Optometrist": ["Eye Test", "Glasses Fitment", "Contact Lenses", "Glaucoma Check", "Dry Eyes"],
+    "Physiotherapist": ["Back Pain", "Neck Pain", "Sports Injury", "Post-op Rehab", "Massage Therapy", "Dry Needling"],
+    "Psychologist": ["Initial Consultation", "Follow-up Therapy", "Couples Counseling", "Trauma Counseling", "Child Therapy"],
+    "Dietician": ["Weight Management", "Meal Planning", "Diabetes Diet Plan", "Sports Nutrition", "Cholesterol Management"],
+    "Chiropractor": ["Back Adjustment", "Neck Adjustment", "Joint Pain", "Sciatica", "Posture Correction"],
+    "Specialist": ["Initial Consultation", "Follow-up Consultation", "Pre-op Assessment", "Post-op Checkup", "Second Opinion"],
+    "Other": ["General Consultation", "Follow-up", "Specific Treatment"]
+}
+
 @practice_crm_bp.route("/pipeline")
 @login_required
 def pipeline():
@@ -247,8 +281,13 @@ def pipeline():
             flash("You are not assigned to any practice.", "error")
             return redirect(url_for('public_bp.welcome'))
             
+        if not practice.practice_type and not is_receptionist:
+            return redirect(url_for('practice_crm_bp.setup'))
+            
+        treatments = PRACTICE_TREATMENTS.get(practice.practice_type, PRACTICE_TREATMENTS["Other"])
+            
         enquiries = CrmEnquiry.query.filter_by(practice_id=practice.id).order_by(CrmEnquiry.created_at.desc()).all()
-        return render_template("program_practice_crm/pipeline.html", practice=practice, enquiries=enquiries, is_receptionist=is_receptionist)
+        return render_template("program_practice_crm/pipeline.html", practice=practice, enquiries=enquiries, is_receptionist=is_receptionist, treatments=treatments)
     except Exception as e:
         import traceback
         return f"<pre>Error occurred:\n{traceback.format_exc()}</pre>", 500

@@ -268,20 +268,12 @@
         <input type="text" id="new-medical-aid-no" name="medical_aid_no" placeholder="Leave blank if Cash/Private" class="w-full rounded border border-slate-300 focus:ring-emerald-500 focus:border-emerald-500 px-3 py-2">
       </div>
       <div>
-        <label class="block text-sm font-medium text-slate-700 mb-1">Reason for Call</label>
-        <input type="text" name="reason" list="dental-reasons" autocomplete="off" placeholder="Select or type reason..." class="w-full rounded border border-slate-300 focus:ring-emerald-500 focus:border-emerald-500 px-3 py-2">
-        <datalist id="dental-reasons">
-          <option value="General Checkup & Cleaning">
-          <option value="Toothache / Pain">
-          <option value="Cavity / Filling">
-          <option value="Root Canal">
-          <option value="Extraction (e.g., Wisdom Tooth)">
-          <option value="Crown / Bridge">
-          <option value="Braces / Orthodontics">
-          <option value="Teeth Whitening">
-          <option value="Dentures">
-          <option value="Emergency (Trauma/Bleeding)">
-          <option value="Follow-up Appointment">
+        <label class="block text-sm font-medium text-slate-700 mb-1">Reason for Visit / Treatment</label>
+        <input type="text" name="reason" list="dynamic-reasons" autocomplete="off" placeholder="Select or type reason..." class="w-full rounded border border-slate-300 focus:ring-emerald-500 focus:border-emerald-500 px-3 py-2">
+        <datalist id="dynamic-reasons">
+          {% for treatment in treatments %}
+          <option value="{{ treatment }}">
+          {% endfor %}
         </datalist>
       </div>
       

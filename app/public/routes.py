@@ -124,9 +124,13 @@ def welcome():
             commercial_mode='free',
             is_active=1,
             show_on_welcome=0,
+            is_hidden_on_bridge=1,
             bypass_dashboard_endpoint='auth_bp.bridge_dashboard'
         )
         db.session.add(staff_subj)
+        db.session.commit()
+    elif not getattr(staff_subj, 'is_hidden_on_bridge', False):
+        staff_subj.is_hidden_on_bridge = True
         db.session.commit()
 
     # Auto-fix legacy yoco database entries

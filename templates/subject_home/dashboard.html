@@ -105,11 +105,40 @@
                       Save Teacher
                   </button>
               </div>
-              <p class="text-xs text-blue-700 mt-2">
-                  Don't see your teacher? Please ask them to click the <strong>Tutor Platform</strong> button on the main Welcome page to register first.
-              </p>
+                <div class="mt-4 p-4 bg-white border border-blue-100 rounded-lg shadow-sm">
+                    <p class="text-xs text-blue-700 font-medium mb-2">
+                        Don't see your teacher? Invite them to register a free account:
+                    </p>
+                    <div class="flex items-center gap-2 bg-blue-50 p-2 border border-blue-200 rounded">
+                        <span class="pl-2 text-blue-500">📱</span>
+                        <input type="tel" id="invite-whatsapp-tutor" placeholder="Teacher's WhatsApp (e.g. 082 123 4567)" class="flex-1 border-none focus:ring-0 text-sm py-1 bg-transparent w-full">
+                        <button type="button" onclick="sendTutorInvite()" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded transition whitespace-nowrap flex items-center gap-2">
+                            <span>💬</span> Send Invite
+                        </button>
+                    </div>
+                </div>
           </form>
       </div>
+
+        <script>
+        function sendTutorInvite() {
+            let phone = document.getElementById('invite-whatsapp-tutor').value.replace(/[^0-9+]/g, '');
+            if (!phone) {
+                alert("Please enter a valid WhatsApp number.");
+                return;
+            }
+            if (phone.startsWith('0')) {
+                phone = '27' + phone.substring(1);
+            } else {
+                phone = phone.replace('+', '');
+            }
+            
+            const regUrl = "{{ url_for('auth_bp.register', subject='staff', _external=True) }}";
+            const msg = `Hi! Please click this link to register a free account on the AIT Platform so I can link you as my teacher for the Hands On Math Education (HOME) program: ${regUrl}`;
+            
+            window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+        }
+        </script>
 
       <!-- Section 1: Practical Learning -->
       <div class="overflow-hidden rounded-lg border border-gray-200 shadow-sm mb-8">

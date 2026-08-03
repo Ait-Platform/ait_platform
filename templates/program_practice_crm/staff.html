@@ -27,9 +27,16 @@
       <div class="bg-slate-50 p-6 rounded-xl border border-slate-200 mb-8">
         <h2 class="text-lg font-bold text-slate-800 mb-2">Add Receptionist</h2>
         
-        <div class="bg-blue-50 text-blue-900 text-sm p-4 rounded-lg mb-4 border border-blue-100">
-          <strong>Step 1:</strong> Your receptionist must first create a 100% free account on this platform (AIT Platform).<br>
-          <strong>Step 2:</strong> Once they have registered, simply enter their exact registered email address below to grant them access to your practice pipeline.
+        <div class="bg-blue-50 text-blue-900 text-sm p-4 rounded-lg mb-4 border border-blue-100 space-y-2">
+          <p>
+            <strong>Step 1:</strong> Your receptionist must first create a 100% free account on this platform. Share this exact registration link with them:
+          </p>
+          <div class="flex items-center gap-2 bg-white px-3 py-2 border border-blue-200 rounded">
+            <code class="flex-1 text-blue-700 text-xs sm:text-sm select-all">{{ url_for('auth_bp.register', subject='practice_crm', _external=True) }}</code>
+          </div>
+          <p>
+            <strong>Step 2:</strong> Once they have registered, simply enter their exact registered email address below to grant them access to your practice pipeline.
+          </p>
         </div>
 
         <form method="POST" class="space-y-4">

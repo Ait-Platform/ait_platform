@@ -95,11 +95,37 @@ def price_page():
 @practice_crm_bp.route("/migrate_db")
 def migrate_db():
     from sqlalchemy import text
+    from app.models.auth import UserEnrollment, AuthSubject
     try:
-        db.session.execute(text("ALTER TABLE crm_enquiry ADD COLUMN medical_aid_plan VARCHAR(150);"))
-        db.session.commit()
-        return "Migration successful!"
+        db.create_all()
+        
+        # Add patient_id to crm_enquiry (might fail if it already exists, so we catch it)
+        try:
+            db.session.execute(text("ALTER TABLE crm_enquiry ADD COLUMN patient_id INTEGER REFERENCES crm_patient(id);"))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            
+        # Fix the Support Staff enrollments issue
+        staff_subj = AuthSubject.query.filter_by(slug='staff').first()
+        crm_subj = AuthSubject.query.filter_by(slug='practice_crm').first()
+        if staff_subj and crm_subj:
+            enrs = UserEnrollment.query.filter_by(subject_id=staff_subj.id).all()
+            for e in enrs:
+                # Check if they are already enrolled in practice_crm to avoid duplicates
+                existing = UserEnrollment.query.filter_by(user_id=e.user_id, subject_id=crm_subj.id).first()
+                if not existing:
+                    e.subject_id = crm_subj.id
+                else:
+                    db.session.delete(e) # Delete duplicate staff enrollment
+            
+            # Hide staff tile
+            staff_subj.is_hidden_on_bridge = True
+            db.session.commit()
+            
+        return "Migration successful! Please return to the dashboard."
     except Exception as e:
+        db.session.rollback()
         return f"Error: {str(e)}"
 
 

@@ -78,7 +78,7 @@ def bridge_dashboard():
 
         for subj in subjects:
             # We don't want these subjects showing up as a separate tile on the bridge
-            if subj.slug in ['home_premium'] or getattr(subj, 'is_hidden_on_bridge', False):
+            if subj.slug in ['home_premium', 'staff'] or getattr(subj, 'is_hidden_on_bridge', False):
                 continue
 
             enrollment = enrollments.get(subj.id)
@@ -145,7 +145,7 @@ def bridge_dashboard():
                         "href": url_for("modes_bp.modes_checkpoint_route", subject_slug=subj.slug)
                     })
 
-                case ("course", "paid") | ("paid", "paid"):
+                case ("course", "paid") | ("paid", "paid") | (None, "paid") | ("subscription", "paid"):
                     tiles.append({
                         "subject": subj,
                         "slug": subj.slug,
@@ -154,9 +154,20 @@ def bridge_dashboard():
                         "message": "Your paid program is active.",
                         "href": url_for("modes_bp.modes_checkpoint_route", subject_slug=subj.slug)
                     })
+                    
+                case ("system", "free") | (None, "free") | ("subscription", "free"):
+                    ensure_free_enrollment(session["user_id"], subj.slug)
+                    tiles.append({
+                        "subject": subj,
+                        "slug": subj.slug,
+                        "name": subj.name,
+                        "access_level": "enrolled",
+                        "message": "You are enrolled in the free program.",
+                        "href": url_for("modes_bp.modes_checkpoint_route", subject_slug=subj.slug)
+                    })
 
                 case _:
-                    flash("Enrollment state could not be resolved.", "error")
+                    flash(f"Enrollment state could not be resolved for {subj.name} ({subj.program_type}, {subj.commercial_mode}).", "error")
                     tiles.append({
                         "subject": subj,
                         "slug": subj.slug,

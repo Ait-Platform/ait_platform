@@ -76,13 +76,6 @@
               <button onclick="openRequestVerifyModal({{ e.id }})" class="mt-3 w-full bg-slate-100 text-slate-700 border border-slate-200 rounded py-1.5 text-sm font-medium hover:bg-slate-200 transition-colors">
                 Phone Verification →
               </button>
-              <form method="POST" action="{{ url_for('practice_crm_bp.update_enquiry', id=e.id) }}" class="mt-2">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <input type="hidden" name="action_type" value="direct_verify">
-                <button type="submit" class="w-full bg-amber-50 text-amber-700 border border-amber-200 rounded py-1.5 text-sm font-medium hover:bg-amber-100 transition-colors">
-                  Direct e-Verification ⚡
-                </button>
-              </form>
             </div>
             {% endfor %}
           </div>

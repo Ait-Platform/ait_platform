@@ -26,26 +26,33 @@
       </div>
       
       <!-- Buttons row -->
-      <div class="flex space-x-2 mb-6 pb-4 border-b border-slate-100">
-        <button onclick="openNewEnquiryModal()" class="bg-emerald-600 text-white px-4 py-2 rounded shadow-sm hover:bg-emerald-700 font-medium">
-          + Log New Enquiry
-        </button>
-        <a href="{{ url_for('practice_crm_bp.appointments_log') }}" class="bg-slate-100 text-slate-700 border border-slate-200 px-4 py-2 rounded shadow-sm hover:bg-slate-200 font-medium flex items-center gap-2">
-          <span>📅</span> View Appointments Log
-        </a>
-        <a href="{{ url_for('practice_crm_bp.patients_directory') }}" class="bg-slate-100 text-slate-700 border border-slate-200 px-4 py-2 rounded shadow-sm hover:bg-slate-200 font-medium flex items-center gap-2">
-          <span>👥</span> Patient Directory
-        </a>
+      <div class="flex flex-col gap-3 mb-6 pb-4 border-b border-slate-100">
+        <!-- Top Row: Primary Actions -->
+        <div class="flex flex-wrap gap-2">
+          <button onclick="openNewEnquiryModal()" class="bg-emerald-600 text-white px-4 py-2 rounded shadow-sm hover:bg-emerald-700 font-medium">
+            + Log New Enquiry
+          </button>
+          <a href="{{ url_for('practice_crm_bp.appointments_log') }}" class="bg-slate-100 text-slate-700 border border-slate-200 px-4 py-2 rounded shadow-sm hover:bg-slate-200 font-medium flex items-center gap-2">
+            <span>📅</span> View Appointments Log
+          </a>
+          <a href="{{ url_for('practice_crm_bp.patients_directory') }}" class="bg-slate-100 text-slate-700 border border-slate-200 px-4 py-2 rounded shadow-sm hover:bg-slate-200 font-medium flex items-center gap-2">
+            <span>👥</span> Patient Directory
+          </a>
+        </div>
+        
+        <!-- Bottom Row: Admin Actions -->
         {% if practice.owner_id == current_user.id %}
-        <a href="{{ url_for('practice_crm_bp.practice_settings') }}" class="bg-slate-100 text-slate-700 border border-slate-200 px-4 py-2 rounded shadow-sm hover:bg-slate-200 font-medium flex items-center gap-2">
-          <span>⚙️</span> Practice Settings
-        </a>
-        <a href="{{ url_for('practice_crm_bp.staff') }}" class="bg-slate-100 text-slate-700 border border-slate-200 px-4 py-2 rounded shadow-sm hover:bg-slate-200 font-medium flex items-center gap-2">
-          <span>👥</span> Manage Staff
-        </a>
-        <a href="{{ url_for('practice_crm_bp.communication_logs') }}" class="bg-slate-100 text-slate-700 border border-slate-200 px-4 py-2 rounded shadow-sm hover:bg-slate-200 font-medium flex items-center gap-2">
-          <span>💬</span> Communication Logs
-        </a>
+        <div class="flex flex-wrap gap-2">
+          <a href="{{ url_for('practice_crm_bp.practice_settings') }}" class="bg-slate-100 text-slate-700 border border-slate-200 px-4 py-2 rounded shadow-sm hover:bg-slate-200 font-medium flex items-center gap-2">
+            <span>⚙️</span> Practice Settings
+          </a>
+          <a href="{{ url_for('practice_crm_bp.staff') }}" class="bg-slate-100 text-slate-700 border border-slate-200 px-4 py-2 rounded shadow-sm hover:bg-slate-200 font-medium flex items-center gap-2">
+            <span>👥</span> Manage Staff
+          </a>
+          <a href="{{ url_for('practice_crm_bp.communication_logs') }}" class="bg-slate-100 text-slate-700 border border-slate-200 px-4 py-2 rounded shadow-sm hover:bg-slate-200 font-medium flex items-center gap-2">
+            <span>💬</span> Communication Logs
+          </a>
+        </div>
         {% endif %}
       </div>
 

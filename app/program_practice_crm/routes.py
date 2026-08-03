@@ -296,52 +296,56 @@ def pipeline():
 @practice_crm_bp.route("/appointments")
 @login_required
 def appointments_log():
-    """Chronological log of all booked appointments"""
-    from app.models.auth import UserEnrollment, AuthSubject
-    
-    practice = None
-    is_receptionist = False
-    
-    # Check enrollment status
-    crm_subj = AuthSubject.query.filter_by(slug='practice_crm').first()
-    if crm_subj:
-        enr = UserEnrollment.query.filter_by(user_id=current_user.id, subject_id=crm_subj.id).first()
-        if enr and enr.status == 'receptionist':
-            is_receptionist = True
+    try:
+        """Chronological log of all booked appointments"""
+        from app.models.auth import UserEnrollment, AuthSubject
+        
+        practice = None
+        is_receptionist = False
+        
+        # Check enrollment status
+        crm_subj = AuthSubject.query.filter_by(slug='practice_crm').first()
+        if crm_subj:
+            enr = UserEnrollment.query.filter_by(user_id=current_user.id, subject_id=crm_subj.id).first()
+            if enr and enr.status == 'receptionist':
+                is_receptionist = True
 
-    if is_receptionist:
-        pu = CrmPracticeUser.query.filter_by(user_id=current_user.id).first()
-        if pu:
-            if pu.status == 'suspended':
-                flash("Your account has been suspended by the practice owner. Please contact them.", "error")
+        if is_receptionist:
+            pu = CrmPracticeUser.query.filter_by(user_id=current_user.id).first()
+            if pu:
+                if pu.status == 'suspended':
+                    flash("Your account has been suspended by the practice owner. Please contact them.", "error")
+                    return redirect(url_for('public_bp.welcome'))
+                practice = CrmPractice.query.get(pu.practice_id)
+            else:
+                flash("Your Practice Owner has not added you to their staff list yet.", "warning")
                 return redirect(url_for('public_bp.welcome'))
-            practice = CrmPractice.query.get(pu.practice_id)
         else:
-            flash("Your Practice Owner has not added you to their staff list yet.", "warning")
+            practice = CrmPractice.query.filter_by(owner_id=current_user.id).first()
+            
+        if not practice:
+            flash("You are not assigned to any practice.", "error")
             return redirect(url_for('public_bp.welcome'))
-    else:
-        practice = CrmPractice.query.filter_by(owner_id=current_user.id).first()
+            
+        # Get all booked appointments
+        now = datetime.utcnow()
+        appointments = CrmEnquiry.query.filter_by(practice_id=practice.id, status='Booked')\
+            .filter(CrmEnquiry.appointment_time != None)\
+            .order_by(CrmEnquiry.appointment_time.asc()).all()
+            
+        upcoming = [a for a in appointments if a.appointment_time > now]
+        past = [a for a in appointments if a.appointment_time <= now]
+        # Reverse past so most recent past is at the top
+        past.reverse()
         
-    if not practice:
-        flash("You are not assigned to any practice.", "error")
-        return redirect(url_for('public_bp.welcome'))
-        
-    # Get all booked appointments
-    now = datetime.utcnow()
-    appointments = CrmEnquiry.query.filter_by(practice_id=practice.id, status='Booked')\
-        .filter(CrmEnquiry.appointment_time != None)\
-        .order_by(CrmEnquiry.appointment_time.asc()).all()
-        
-    upcoming = [a for a in appointments if a.appointment_time > now]
-    past = [a for a in appointments if a.appointment_time <= now]
-    # Reverse past so most recent past is at the top
-    past.reverse()
-    
-    return render_template("program_practice_crm/appointments.html", 
-                           practice=practice, 
-                           upcoming=upcoming, 
-                           past=past, 
-                           is_receptionist=is_receptionist)
+        return render_template("program_practice_crm/appointments.html", 
+                               practice=practice, 
+                               upcoming=upcoming, 
+                               past=past, 
+                               is_receptionist=is_receptionist)
+    except Exception as e:
+        import traceback
+        return f"<pre>Error in appointments_log:\n{traceback.format_exc()}</pre>", 500
 
 
 

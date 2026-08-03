@@ -52,15 +52,17 @@
                 </td>
                 <td class="px-6 py-4 font-semibold text-slate-800 text-base">{{ a.patient_name }}</td>
                 <td class="px-6 py-4">
-                  {% set clean_phone = a.phone|replace(' ', '')|replace('-', '') %}
+                  {% set clean_phone = (a.phone or '')|replace(' ', '')|replace('-', '') %}
                   {% set wa_phone = '27' ~ clean_phone[1:] if clean_phone.startswith('0') else clean_phone|replace('+', '') %}
                   <div class="flex flex-col gap-2">
                     <a href="tel:{{ clean_phone }}" class="text-emerald-600 hover:text-emerald-700 font-medium hover:underline flex items-center gap-1">
-                      <span>📞</span> {{ a.phone }}
+                      <span>📞</span> {{ a.phone or 'No phone' }}
                     </a>
+                    {% if clean_phone %}
                     <a href="https://wa.me/{{ wa_phone }}" target="_blank" class="text-emerald-600 hover:text-emerald-700 font-medium hover:underline flex items-center gap-1">
                       <span>💬</span> WhatsApp
                     </a>
+                    {% endif %}
                   </div>
                 </td>
                 <td class="px-6 py-4">
@@ -105,11 +107,15 @@
                 </td>
                 <td class="px-6 py-4 font-medium text-slate-700">{{ a.patient_name }}</td>
                 <td class="px-6 py-4">
-                  {% set clean_phone = a.phone|replace(' ', '')|replace('-', '') %}
+                  {% set clean_phone = (a.phone or '')|replace(' ', '')|replace('-', '') %}
                   {% set wa_phone = '27' ~ clean_phone[1:] if clean_phone.startswith('0') else clean_phone|replace('+', '') %}
                   <div class="flex items-center gap-3">
+                    {% if clean_phone %}
                     <a href="tel:{{ clean_phone }}" class="text-slate-500 hover:text-emerald-600 hover:underline">📞</a>
                     <a href="https://wa.me/{{ wa_phone }}" target="_blank" class="text-slate-500 hover:text-emerald-600 hover:underline">💬</a>
+                    {% else %}
+                    <span class="text-slate-400 text-xs italic">No phone</span>
+                    {% endif %}
                   </div>
                 </td>
                 <td class="px-6 py-4 text-xs">

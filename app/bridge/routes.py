@@ -73,14 +73,20 @@ def bridge_dashboard():
         enrollments = {e.subject_id: e for e in enrollment_rows}
         subjects = [s for s in get_all_subjects() if s.id in enrollments]
 
+        # Track if we've added CRM tile so we don't duplicate
+        crm_added = False
+
         for subj in subjects:
             # We don't want these subjects showing up as a separate tile on the bridge
-            if subj.slug in ['home_premium']:
+            if subj.slug in ['home_premium'] or getattr(subj, 'is_hidden_on_bridge', False):
                 continue
 
             enrollment = enrollments.get(subj.id)
             if not enrollment:
                 continue
+                
+            if subj.slug == 'practice_crm':
+                crm_added = True
 
             session.update({
                 "user_id": enrollment.user_id,
@@ -156,6 +162,21 @@ def bridge_dashboard():
                         "slug": subj.slug,
                         "name": subj.name,
                         "href": url_for("payment_bp.pricing_base", subject=subj.slug)
+                    })
+
+        if not crm_added:
+            from app.models.practice_crm import CrmPracticeUser
+            pu = CrmPracticeUser.query.filter_by(user_id=user.id, status='active').first()
+            if pu:
+                crm_subj = AuthSubject.query.filter_by(slug='practice_crm').first()
+                if crm_subj:
+                    tiles.append({
+                        "subject": crm_subj,
+                        "slug": crm_subj.slug,
+                        "name": crm_subj.name,
+                        "access_level": "enrolled",
+                        "message": "You have staff access to Practice CRM.",
+                        "href": url_for("modes_bp.modes_checkpoint_route", subject_slug=crm_subj.slug)
                     })
 
     return render_template("auth/bridge_dashboard.html", user=user, subjects=tiles)

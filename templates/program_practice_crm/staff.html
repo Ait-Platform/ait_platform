@@ -152,6 +152,20 @@ function sendWhatsappInvite() {
         phone = phone.replace('+', '');
     }
     
+    // Log the invite asynchronously
+    fetch("{{ url_for('auth_bp.log_invite') }}", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": "{{ csrf_token() }}"
+        },
+        body: JSON.stringify({
+            phone: phone,
+            program: "practice_crm",
+            type: "staff_invite"
+        })
+    }).catch(e => console.error("Failed to log invite", e));
+    
     const regUrl = "{{ url_for('auth_bp.register', subject='staff', _external=True) }}";
     const msg = `Hi! Please click this link to register a free account on the AIT Platform so I can add you to our practice CRM: ${regUrl}`;
     

@@ -379,3 +379,15 @@ class AitTokenTransaction(db.Model):
     amount = db.Column(db.Integer, nullable=False) # positive for top-up, negative for spend
     description = db.Column(db.String(255))
     created_at = db.Column(db.DateTime, default=db.func.now())
+
+class InviteLog(db.Model):
+    __tablename__ = "invite_log"
+    id = db.Column(db.Integer, primary_key=True)
+    sender_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    recipient_phone = db.Column(db.String(50), nullable=False)
+    program_slug = db.Column(db.String(50), nullable=False)
+    invite_type = db.Column(db.String(50), nullable=False)
+    status = db.Column(db.String(20), nullable=False, default="Sent")
+    sent_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    
+    sender = db.relationship("User", backref="invites_sent")

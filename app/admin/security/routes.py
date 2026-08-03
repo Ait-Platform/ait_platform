@@ -11,6 +11,16 @@ from app.extensions import db
 def security_dashboard():
     return render_template("admin/security/dashboard.html")
 
+@admin_bp.route("/security/communication-logs", endpoint="security_communication_logs")
+@login_required
+def security_communication_logs():
+    if not (session.get("is_admin") or session.get("role") == "admin"):
+        return redirect(url_for("public_bp.welcome"))
+
+    from app.models.auth import InviteLog
+    logs = InviteLog.query.order_by(InviteLog.sent_at.desc()).all()
+    return render_template("shared/invite_logs_page.html", logs=logs, is_admin_view=True, back_url=url_for("admin_bp.security_dashboard"))
+
 @admin_bp.route("/security/pricing", methods=["GET", "POST"], endpoint="manage_pricing")
 @login_required
 def manage_pricing():

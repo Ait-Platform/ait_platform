@@ -133,6 +133,20 @@
                 phone = phone.replace('+', '');
             }
             
+            // Log the invite asynchronously
+            fetch("{{ url_for('auth_bp.log_invite') }}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": "{{ csrf_token() }}"
+                },
+                body: JSON.stringify({
+                    phone: phone,
+                    program: "home",
+                    type: "tutor_invite"
+                })
+            }).catch(e => console.error("Failed to log invite", e));
+            
             const regUrl = "{{ url_for('auth_bp.register', subject='staff', _external=True) }}";
             const msg = `Hi! Please click this link to register a free account on the AIT Platform so I can link you as my teacher for the Hands On Math Education (HOME) program: ${regUrl}`;
             

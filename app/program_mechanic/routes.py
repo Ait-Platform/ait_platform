@@ -28,6 +28,13 @@ def inject_currency():
 def about():
     return render_template("program_mechanic/about.html")
 
+@mechanic_bp.route("/mechanic/communication-logs")
+@login_required
+def communication_logs():
+    from app.models.auth import InviteLog
+    logs = InviteLog.query.filter_by(sender_id=current_user.id, program_slug="mechanic").order_by(InviteLog.sent_at.desc()).all()
+    return render_template("shared/invite_logs_page.html", logs=logs, is_admin_view=False, back_url=url_for("mechanic_bp.mechanic_dashboard"))
+
 @mechanic_bp.route("/mechanic/price")
 def price_page():
     from app.models.auth import AuthSubject

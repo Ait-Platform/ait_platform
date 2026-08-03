@@ -2138,6 +2138,28 @@ def _resolve_subject_from_request() -> tuple[int, str]:
     # keep it in reg_ctx for later steps
     reg_ctx["subject"] = slug
     session["reg_ctx"] = reg_ctx
+    session.modified = True
 
     return sid, slug
 
+@auth_bp.route("/api/invite/log", methods=["POST"])
+@login_required
+def log_invite():
+    from app.models.auth import InviteLog
+    data = request.get_json() or {}
+    phone = data.get("phone")
+    program = data.get("program")
+    invite_type = data.get("type", "generic")
+    
+    if phone and program:
+        log_entry = InviteLog(
+            sender_id=current_user.id,
+            recipient_phone=phone,
+            program_slug=program,
+            invite_type=invite_type
+        )
+        db.session.add(log_entry)
+        db.session.commit()
+        return {"status": "ok", "message": "Logged"}
+    
+    return {"status": "error", "message": "Missing phone or program"}, 400

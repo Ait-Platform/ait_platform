@@ -22,6 +22,14 @@ def about():
     """Welcome / Sales page for Medical Practice Customer Relation Management"""
     return render_template("program_practice_crm/about.html")
 
+@practice_crm_bp.route("/communication-logs")
+@login_required
+def communication_logs():
+    from app.models.auth import InviteLog
+    logs = InviteLog.query.filter_by(sender_id=current_user.id, program_slug="practice_crm").order_by(InviteLog.sent_at.desc()).all()
+    return render_template("shared/invite_logs_page.html", logs=logs, is_admin_view=False, back_url=url_for("practice_crm_bp.pipeline"))
+
+
 @practice_crm_bp.route("/price")
 def price_page():
     from app.models.auth import AuthSubject

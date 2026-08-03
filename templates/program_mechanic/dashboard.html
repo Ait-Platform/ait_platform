@@ -70,6 +70,11 @@
             <div class="font-semibold text-slate-900 group-hover:text-indigo-600">Manage Catalog</div>
             <div class="mt-1 text-sm text-slate-600">Add custom parts and set your local prices.</div>
           </a>
+
+          <a href="{{ url_for('mechanic_bp.communication_logs') }}" class="block text-left rounded-xl border p-6 shadow-sm transition hover:shadow bg-white border-slate-200 hover:border-indigo-300 group">
+            <div class="font-semibold text-slate-900 group-hover:text-indigo-600">Communication Logs</div>
+            <div class="mt-1 text-sm text-slate-600">View history of WhatsApp reminders and invites.</div>
+          </a>
         {% endif %}
         
         <a href="{{ url_for('mechanic_bp.topup') }}" class="block rounded-xl border p-6 shadow-sm transition hover:shadow bg-white border-slate-200 hover:border-indigo-300 group">

@@ -27,12 +27,17 @@
       <div class="bg-slate-50 p-6 rounded-xl border border-slate-200 mb-8">
         <h2 class="text-lg font-bold text-slate-800 mb-2">Add Receptionist</h2>
         
-        <div class="bg-blue-50 text-blue-900 text-sm p-4 rounded-lg mb-4 border border-blue-100 space-y-2">
+        <div class="bg-blue-50 text-blue-900 text-sm p-4 rounded-lg mb-4 border border-blue-100 space-y-3">
           <p>
-            <strong>Step 1:</strong> Your receptionist must first create a 100% free account on this platform. Share this exact registration link with them:
+            <strong>Step 1:</strong> Your receptionist must first create a 100% free account on this platform. Share this exact registration link with them (they can open it on their phone or PC):
           </p>
           <div class="flex items-center gap-2 bg-white px-3 py-2 border border-blue-200 rounded">
-            <code class="flex-1 text-blue-700 text-xs sm:text-sm select-all">{{ url_for('auth_bp.register', subject='practice_crm', _external=True) }}</code>
+            <a href="{{ url_for('auth_bp.register', subject='practice_crm', _external=True) }}" target="_blank" class="flex-1 text-blue-700 text-xs sm:text-sm hover:underline overflow-hidden text-ellipsis whitespace-nowrap" id="reg-link">
+              {{ url_for('auth_bp.register', subject='practice_crm', _external=True) }}
+            </a>
+            <button type="button" onclick="copyRegLink()" class="px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-800 text-xs font-bold rounded transition whitespace-nowrap">
+              Copy Link
+            </button>
           </div>
           <p>
             <strong>Step 2:</strong> Once they have registered, simply enter their exact registered email address below to grant them access to your practice pipeline.
@@ -134,6 +139,15 @@ function toggleEditStaff(id) {
             }
         }, 50);
     }
+}
+
+function copyRegLink() {
+    const linkText = document.getElementById('reg-link').innerText.trim();
+    navigator.clipboard.writeText(linkText).then(() => {
+        alert('Link copied to clipboard!');
+    }).catch(err => {
+        console.error('Failed to copy: ', err);
+    });
 }
 </script>
 {% endblock %}

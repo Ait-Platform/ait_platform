@@ -1264,6 +1264,7 @@ def bridge_dashboard():
     
     return render_template(
         "auth/bridge_dashboard.html",
+        user=user_obj,
         subjects=rows,
         banner=banner,
         enroll_map=enroll_map,   # 🔹 pass enrollment info into template

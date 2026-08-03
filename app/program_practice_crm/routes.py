@@ -99,9 +99,19 @@ def migrate_db():
     try:
         db.create_all()
         
-        # Add patient_id to crm_enquiry (might fail if it already exists, so we catch it)
+        # Add patient_id to crm_enquiry
         try:
             db.session.execute(text("ALTER TABLE crm_enquiry ADD COLUMN patient_id INTEGER REFERENCES crm_patient(id);"))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            
+        # Add billing property metro columns
+        try:
+            db.session.execute(text("ALTER TABLE bil_property ADD COLUMN metro_arrangement_amount FLOAT DEFAULT 0.0;"))
+            db.session.execute(text("ALTER TABLE bil_property ADD COLUMN metro_arrangement_duration INTEGER DEFAULT 0;"))
+            db.session.execute(text("ALTER TABLE bil_property ADD COLUMN metro_rates_amount FLOAT DEFAULT 0.0;"))
+            db.session.execute(text("ALTER TABLE bil_property ADD COLUMN metro_valuation FLOAT DEFAULT 0.0;"))
             db.session.commit()
         except Exception:
             db.session.rollback()

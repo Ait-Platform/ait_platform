@@ -5,38 +5,53 @@
 mx-auto max-w-lg px-6 py-12
 {% endblock %}
 
+{# Override global flashes so we can place them inside the tile #}
+{% block flashes %}{% endblock %}
+
 {% block content %}
-<div class="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden text-center">
+<div class="max-w-2xl mx-auto px-4 py-12">
+  <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+    <!-- Color strip on top -->
+    <div class="h-2 bg-slate-700"></div>
     
-    <div class="h-2 bg-teal-600"></div>
-    
-    <div class="p-8">
+    <div class="p-8 md:p-12">
+      <!-- Flash Messages Inside Tile -->
+      {% include "partials/flash_messages.html" %}
+
+      <!-- Row 1: Title Left, Back Button Right -->
+      <div class="flex justify-between items-start mb-8 border-b border-slate-100 pb-4">
+        <div>
+          <h1 class="text-3xl font-extrabold text-slate-900 mb-2">Secure Checkout</h1>
+          <p class="text-slate-500">You are about to purchase access to <strong>{{ display_name }}</strong>.</p>
+        </div>
+        <a href="{{ url_for('public_bp.welcome') }}" class="text-slate-500 hover:text-slate-700 font-medium px-4 py-2 border border-slate-300 rounded hover:bg-slate-50 transition">
+          <i class="fas fa-arrow-left mr-2"></i>Back
+        </a>
+      </div>
+
+      <div class="space-y-6">
         
-        <h1 class="text-3xl font-bold text-slate-900 mb-2">
-            Secure Checkout
-        </h1>
-        
-        <p class="text-slate-600 mb-8">
-            You are about to purchase access to <strong>{{ display_name }}</strong>.
-        </p>
-        
-        <div class="bg-slate-50 p-6 rounded-xl border border-slate-200 mb-8">
+        <div class="bg-slate-50 p-6 rounded-xl border border-slate-200">
             <p class="text-sm text-slate-500 font-semibold uppercase tracking-wider mb-1">Total Amount</p>
-            <p class="text-4xl font-bold text-slate-900">R{{ "%.2f"|format(amount_cents / 100) }}</p>
+            <p class="text-4xl font-bold text-slate-900">{{ "%.2f"|format(amount_cents / 100) }}</p>
         </div>
 
-        <!-- The Paddle Checkout container (optional inline checkout, or we can use overlay) -->
-        <button id="paddle-buy-btn" class="w-full bg-teal-600 text-white font-bold py-4 rounded-xl shadow-lg hover:bg-teal-700 hover:shadow-xl transition flex items-center justify-center gap-3">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
-            Pay Securely
-        </button>
-
-        <p class="text-xs text-slate-500 mt-6">
+        <p class="text-xs text-slate-500">
             Payments processed securely by Paddle. <br>
             If you experience any issues, please contact support.
         </p>
 
+        <!-- Row 2: Right Aligned Buttons -->
+        <div class="pt-6 border-t border-slate-100 flex justify-end">
+          <button id="paddle-buy-btn" class="bg-teal-600 text-white font-bold py-2 px-6 rounded shadow-sm hover:bg-teal-700 hover:shadow-xl transition flex items-center justify-center gap-3">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+              Pay Securely
+          </button>
+        </div>
+
+      </div>
     </div>
+  </div>
 </div>
 
 <script>

@@ -113,6 +113,21 @@ def welcome():
         healthcore.name = 'Health IQ'
         healthcore.about_endpoint = 'healthcore_bp.healthcore_about'
         db.session.commit()
+        
+    # Auto-create staff subject if missing
+    staff_subj = AuthSubject.query.filter_by(slug='staff').first()
+    if not staff_subj:
+        staff_subj = AuthSubject(
+            slug='staff',
+            name='Support Staff',
+            program_type='system',
+            commercial_mode='free',
+            is_active=1,
+            show_on_welcome=0,
+            bypass_dashboard_endpoint='auth_bp.bridge_dashboard'
+        )
+        db.session.add(staff_subj)
+        db.session.commit()
 
     # Auto-fix legacy yoco database entries
     yoco_subjects = AuthSubject.query.filter_by(pay_endpoint='yoco_bp.yoco_start').all()

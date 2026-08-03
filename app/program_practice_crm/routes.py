@@ -419,7 +419,12 @@ def new_enquiry():
 
     patient_name = request.form.get('patient_name')
     patient_id_no = request.form.get('patient_id_no')
-    phone = request.form.get('phone')
+    phone = request.form.get('phone', '').strip()
+    
+    if not phone:
+        flash("A phone number is essential, even for walk-in patients.", "error")
+        return redirect(url_for('practice_crm_bp.pipeline'))
+
     medical_aid = request.form.get("medical_aid", "").strip()
     medical_aid_plan = request.form.get("medical_aid_plan", "").strip()
     medical_aid_no = request.form.get("medical_aid_no", "").strip()

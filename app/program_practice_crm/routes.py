@@ -104,6 +104,26 @@ def migrate_db():
 
 
 
+@practice_crm_bp.route("/patients")
+@login_required
+def patients_directory():
+    """Patient directory view"""
+    from app.models.practice_crm import CrmPatient
+    
+    practice = CrmPractice.query.filter_by(owner_id=current_user.id).first()
+    if not practice:
+        # Check if they are staff
+        pu = CrmPracticeUser.query.filter_by(user_id=current_user.id, status='active').first()
+        if pu:
+            practice = CrmPractice.query.get(pu.practice_id)
+            
+    if not practice:
+        flash("You do not have access to a practice CRM.", "error")
+        return redirect(url_for('public_bp.welcome'))
+        
+    patients = CrmPatient.query.filter_by(practice_id=practice.id).order_by(CrmPatient.created_at.desc()).all()
+    return render_template("program_practice_crm/patients.html", practice=practice, patients=patients)
+
 @practice_crm_bp.route("/settings", methods=["GET", "POST"])
 @login_required
 def practice_settings():
@@ -512,7 +532,44 @@ def update_enquiry(id):
         try:
             enquiry.appointment_time = datetime.strptime(date_str, '%Y-%m-%dT%H:%M')
             enquiry.status = 'Booked'
-            log_audit(enquiry.id, current_user.id, f"Patient accepted, booked slot at {date_str}")
+            
+            # --- Create Patient Profile ---
+            first_name = request.form.get('first_name', '').strip()
+            last_name = request.form.get('last_name', '').strip()
+            
+            if not first_name and not last_name:
+                # Derive from patient_name
+                parts = enquiry.patient_name.strip().split(' ', 1)
+                first_name = parts[0]
+                if len(parts) > 1:
+                    last_name = parts[1]
+                    
+            from app.models.practice_crm import CrmPatient
+            patient = CrmPatient(
+                practice_id=practice.id,
+                first_name=first_name,
+                last_name=last_name,
+                id_number=enquiry.patient_id_no,
+                phone=enquiry.phone,
+                email=request.form.get('email', '').strip() or None,
+                address=request.form.get('address', '').strip() or None,
+                medical_aid=enquiry.medical_aid,
+                medical_aid_plan=enquiry.medical_aid_plan,
+                medical_aid_no=enquiry.medical_aid_no
+            )
+            
+            dob_str = request.form.get('dob')
+            if dob_str:
+                try:
+                    patient.dob = datetime.strptime(dob_str, '%Y-%m-%d').date()
+                except ValueError:
+                    pass
+                    
+            db.session.add(patient)
+            db.session.flush() # get patient.id
+            enquiry.patient_id = patient.id
+            
+            log_audit(enquiry.id, current_user.id, f"Patient accepted, booked slot at {date_str} and Patient Profile Created")
         except ValueError:
             flash("Invalid date format.", "error")
             return redirect(url_for('practice_crm_bp.pipeline'))

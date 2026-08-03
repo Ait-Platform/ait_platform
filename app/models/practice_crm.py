@@ -28,10 +28,39 @@ class CrmPracticeUser(db.Model):
     status = db.Column(db.String(20), default='active') # 'active' or 'suspended'
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+class CrmPatient(db.Model):
+    __tablename__ = "crm_patient"
+    id = db.Column(db.Integer, primary_key=True)
+    practice_id = db.Column(db.Integer, db.ForeignKey('crm_practice.id'), nullable=False)
+    
+    # Core Data
+    first_name = db.Column(db.String(100), nullable=True)
+    last_name = db.Column(db.String(100), nullable=True)
+    id_number = db.Column(db.String(20), nullable=True)
+    
+    # Contact Info
+    phone = db.Column(db.String(50), nullable=False)
+    email = db.Column(db.String(150), nullable=True)
+    address = db.Column(db.Text, nullable=True)
+    dob = db.Column(db.Date, nullable=True)
+    
+    # Medical Aid
+    medical_aid = db.Column(db.String(150), nullable=True)
+    medical_aid_plan = db.Column(db.String(150), nullable=True)
+    medical_aid_no = db.Column(db.String(100), nullable=True)
+    
+    # Meta
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    enquiries = db.relationship('CrmEnquiry', backref='patient', lazy=True)
+
 class CrmEnquiry(db.Model):
     __tablename__ = "crm_enquiry"
     id = db.Column(db.Integer, primary_key=True)
     practice_id = db.Column(db.Integer, db.ForeignKey('crm_practice.id'), nullable=False)
+    patient_id = db.Column(db.Integer, db.ForeignKey('crm_patient.id'), nullable=True)
     
     # Step 1: Initial capture
     patient_name = db.Column(db.String(150), nullable=False)

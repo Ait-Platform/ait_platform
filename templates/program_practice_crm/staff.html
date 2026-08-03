@@ -31,12 +31,11 @@
           <p>
             <strong>Step 1:</strong> Your receptionist must first create a 100% free account on this platform. Share this exact registration link with them (they can open it on their phone or PC):
           </p>
-          <div class="flex items-center gap-2 bg-white px-3 py-2 border border-blue-200 rounded">
-            <a href="{{ url_for('auth_bp.register', subject='staff', _external=True) }}" target="_blank" class="flex-1 text-blue-700 text-xs sm:text-sm hover:underline overflow-hidden text-ellipsis whitespace-nowrap" id="reg-link">
-              {{ url_for('auth_bp.register', subject='staff', _external=True) }}
-            </a>
-            <button type="button" onclick="copyRegLink()" class="px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-800 text-xs font-bold rounded transition whitespace-nowrap">
-              Copy Link
+          <div class="flex items-center gap-2 bg-white p-2 border border-blue-200 rounded">
+            <span class="pl-2 text-slate-500">📱</span>
+            <input type="tel" id="invite-whatsapp" placeholder="Receptionist's WhatsApp (e.g. 082 123 4567)" class="flex-1 border-none focus:ring-0 text-sm py-1 bg-transparent w-full">
+            <button type="button" onclick="sendWhatsappInvite()" class="px-4 py-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 text-sm font-bold rounded transition whitespace-nowrap flex items-center gap-2">
+              <span>💬</span> Send Invite
             </button>
           </div>
           <p>
@@ -141,13 +140,22 @@ function toggleEditStaff(id) {
     }
 }
 
-function copyRegLink() {
-    const linkText = document.getElementById('reg-link').innerText.trim();
-    navigator.clipboard.writeText(linkText).then(() => {
-        alert('Link copied to clipboard!');
-    }).catch(err => {
-        console.error('Failed to copy: ', err);
-    });
+function sendWhatsappInvite() {
+    let phone = document.getElementById('invite-whatsapp').value.replace(/[^0-9+]/g, '');
+    if (!phone) {
+        alert("Please enter a valid WhatsApp number.");
+        return;
+    }
+    if (phone.startsWith('0')) {
+        phone = '27' + phone.substring(1);
+    } else {
+        phone = phone.replace('+', '');
+    }
+    
+    const regUrl = "{{ url_for('auth_bp.register', subject='staff', _external=True) }}";
+    const msg = `Hi! Please click this link to register a free account on the AIT Platform so I can add you to our practice CRM: ${regUrl}`;
+    
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
 }
 </script>
 {% endblock %}

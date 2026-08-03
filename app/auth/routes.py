@@ -702,6 +702,10 @@ def register_decision():
                 "version": "2025-11",
             }
 
+    from app.models.auth import AuthSubject
+    subj_obj_pre = AuthSubject.query.filter(db.func.lower(AuthSubject.slug) == subject.lower()).first()
+    is_free = subj_obj_pre and subj_obj_pre.commercial_mode == "free"
+
     if not q or not int(q.get("amount_cents") or 0):
         if current_app.config.get("TESTING") or request.host.startswith("127.0.0.1") or request.host.startswith("localhost"):
             q = {
@@ -712,14 +716,14 @@ def register_decision():
                 "est_zar_cents": 10000,
                 "version": "2026-testing"
             }
-        elif subject in ("cultural_fire", "culturalfire"):
+        elif subject in ("cultural_fire", "culturalfire") or is_free:
             q = {
                 "country_code": "ZA",
                 "currency": "ZAR",
                 "amount_cents": 0,
                 "zar_amount_cents": 0,
                 "est_zar_cents": 0,
-                "version": "2026-cfi-voucher-only"
+                "version": "2026-free-bypass"
             }
         else:
             flash(

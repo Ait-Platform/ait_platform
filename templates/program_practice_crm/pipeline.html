@@ -60,11 +60,12 @@
               <div class="font-semibold text-slate-800">{{ e.patient_name }}</div>
               {% set clean_phone = e.phone|replace(' ', '')|replace('-', '') %}
               {% set wa_phone = '27' ~ clean_phone[1:] if clean_phone.startswith('0') else clean_phone|replace('+', '') %}
+              {% set wa_msg = ("Hello " ~ e.patient_name ~ ", this is " ~ practice.name ~ ". We have an appointment slot available for you on " ~ (e.appointment_time.strftime('%A, %d %b at %H:%M') if e.appointment_time else '') ~ ". Please let us know if this works for you!")|urlencode %}
               <div class="flex items-center gap-4 mt-1">
                 <a href="tel:{{ clean_phone }}" class="text-sm text-emerald-600 hover:text-emerald-700 font-medium hover:underline flex items-center gap-1">
                   <span>📞</span> {{ e.phone }}
                 </a>
-                <a href="https://wa.me/{{ wa_phone }}" target="_blank" class="text-sm text-emerald-600 hover:text-emerald-700 font-medium hover:underline flex items-center gap-1" title="Send WhatsApp Message">
+                <a href="https://wa.me/{{ wa_phone }}?text={{ wa_msg }}" target="_blank" class="text-sm text-emerald-600 hover:text-emerald-700 font-medium hover:underline flex items-center gap-1" title="Send WhatsApp Message">
                   <span>💬</span> WhatsApp
                 </a>
               </div>
@@ -93,11 +94,12 @@
               <div class="font-semibold text-slate-800">{{ e.patient_name }}</div>
               {% set clean_phone = e.phone|replace(' ', '')|replace('-', '') %}
               {% set wa_phone = '27' ~ clean_phone[1:] if clean_phone.startswith('0') else clean_phone|replace('+', '') %}
+              {% set wa_msg = ("Hello " ~ e.patient_name ~ ", this is " ~ practice.name ~ ". We have an appointment slot available for you on " ~ (e.appointment_time.strftime('%A, %d %b at %H:%M') if e.appointment_time else '') ~ ". Please let us know if this works for you!")|urlencode %}
               <div class="flex items-center gap-4 mt-1">
                 <a href="tel:{{ clean_phone }}" class="text-sm text-emerald-600 hover:text-emerald-700 font-medium hover:underline flex items-center gap-1">
                   <span>📞</span> {{ e.phone }}
                 </a>
-                <a href="https://wa.me/{{ wa_phone }}" target="_blank" class="text-sm text-emerald-600 hover:text-emerald-700 font-medium hover:underline flex items-center gap-1" title="Send WhatsApp Message">
+                <a href="https://wa.me/{{ wa_phone }}?text={{ wa_msg }}" target="_blank" class="text-sm text-emerald-600 hover:text-emerald-700 font-medium hover:underline flex items-center gap-1" title="Send WhatsApp Message">
                   <span>💬</span> WhatsApp
                 </a>
               </div>
@@ -122,11 +124,12 @@
               <div class="font-semibold text-slate-800">{{ e.patient_name }}</div>
               {% set clean_phone = e.phone|replace(' ', '')|replace('-', '') %}
               {% set wa_phone = '27' ~ clean_phone[1:] if clean_phone.startswith('0') else clean_phone|replace('+', '') %}
+              {% set wa_msg = ("Hello " ~ e.patient_name ~ ", this is " ~ practice.name ~ ". We have an appointment slot available for you on " ~ (e.appointment_time.strftime('%A, %d %b at %H:%M') if e.appointment_time else '') ~ ". Please let us know if this works for you!")|urlencode %}
               <div class="flex items-center gap-4 mt-1">
                 <a href="tel:{{ clean_phone }}" class="text-sm text-emerald-600 hover:text-emerald-700 font-medium hover:underline flex items-center gap-1">
                   <span>📞</span> {{ e.phone }}
                 </a>
-                <a href="https://wa.me/{{ wa_phone }}" target="_blank" class="text-sm text-emerald-600 hover:text-emerald-700 font-medium hover:underline flex items-center gap-1" title="Send WhatsApp Message">
+                <a href="https://wa.me/{{ wa_phone }}?text={{ wa_msg }}" target="_blank" class="text-sm text-emerald-600 hover:text-emerald-700 font-medium hover:underline flex items-center gap-1" title="Send WhatsApp Message">
                   <span>💬</span> WhatsApp
                 </a>
               </div>
@@ -151,11 +154,12 @@
               <div class="font-semibold text-slate-800">{{ e.patient_name }}</div>
               {% set clean_phone = e.phone|replace(' ', '')|replace('-', '') %}
               {% set wa_phone = '27' ~ clean_phone[1:] if clean_phone.startswith('0') else clean_phone|replace('+', '') %}
+              {% set wa_msg = ("Hello " ~ e.patient_name ~ ", this is " ~ practice.name ~ ". We have an appointment slot available for you on " ~ (e.appointment_time.strftime('%A, %d %b at %H:%M') if e.appointment_time else '') ~ ". Please let us know if this works for you!")|urlencode %}
               <div class="flex items-center gap-4 mt-1">
                 <a href="tel:{{ clean_phone }}" class="text-sm text-emerald-600 hover:text-emerald-700 font-medium hover:underline flex items-center gap-1">
                   <span>📞</span> {{ e.phone }}
                 </a>
-                <a href="https://wa.me/{{ wa_phone }}" target="_blank" class="text-sm text-emerald-600 hover:text-emerald-700 font-medium hover:underline flex items-center gap-1" title="Send WhatsApp Message">
+                <a href="https://wa.me/{{ wa_phone }}?text={{ wa_msg }}" target="_blank" class="text-sm text-emerald-600 hover:text-emerald-700 font-medium hover:underline flex items-center gap-1" title="Send WhatsApp Message">
                   <span>💬</span> WhatsApp
                 </a>
               </div>

@@ -32,8 +32,8 @@
             <strong>Step 1:</strong> Your receptionist must first create a 100% free account on this platform. Share this exact registration link with them (they can open it on their phone or PC):
           </p>
           <div class="flex items-center gap-2 bg-white px-3 py-2 border border-blue-200 rounded">
-            <a href="{{ url_for('auth_bp.register', subject='practice_crm', _external=True) }}" target="_blank" class="flex-1 text-blue-700 text-xs sm:text-sm hover:underline overflow-hidden text-ellipsis whitespace-nowrap" id="reg-link">
-              {{ url_for('auth_bp.register', subject='practice_crm', _external=True) }}
+            <a href="{{ url_for('auth_bp.register', subject='staff', _external=True) }}" target="_blank" class="flex-1 text-blue-700 text-xs sm:text-sm hover:underline overflow-hidden text-ellipsis whitespace-nowrap" id="reg-link">
+              {{ url_for('auth_bp.register', subject='staff', _external=True) }}
             </a>
             <button type="button" onclick="copyRegLink()" class="px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-800 text-xs font-bold rounded transition whitespace-nowrap">
               Copy Link

@@ -582,7 +582,7 @@ def update_enquiry(id):
                     
             from app.models.practice_crm import CrmPatient
             patient = CrmPatient(
-                practice_id=practice.id,
+                practice_id=enquiry.practice_id,
                 first_name=first_name,
                 last_name=last_name,
                 id_number=enquiry.patient_id_no,

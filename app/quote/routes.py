@@ -30,7 +30,7 @@ def quote():
 
     subject = (
         AuthSubject.query
-        .filter(db.func.lower(AuthSubject.slug) == subject_slug)
+        .filter(db.func.trim(db.func.lower(AuthSubject.slug)) == subject_slug)
         .first()
     )
     if not subject or int(getattr(subject, "is_active", 0) or 0) != 1:

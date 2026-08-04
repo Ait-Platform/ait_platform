@@ -1213,11 +1213,11 @@ def bridge_dashboard():
         rows = db.session.execute(sa_text(base_sql), params).fetchall()
 
     # The user requested that locked subjects are never shown on the bridge
-    # We also strictly hide sub-programs like hds, practice_crm, and staff from the learner bridge
+    # We also strictly hide sub-programs like hds and practice_crm from the learner bridge
     rows = [
         r for r in rows 
         if getattr(r, 'access_level', '') != 'locked'
-        and not (getattr(r, 'slug', '') in ('home_premium', 'hds', 'practice_crm', 'staff') and getattr(r, 'access_level', '') != 'admin')
+        and not (getattr(r, 'slug', '') in ('home_premium',) and getattr(r, 'access_level', '') != 'admin')
     ]
 
     banner = session.pop("payment_banner", None)

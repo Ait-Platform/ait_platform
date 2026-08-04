@@ -1358,12 +1358,18 @@ def dashboard_info(subject: str):
         {"uid": user, "sid": row.id}
     )
 
-    if ue_status in ("active", "expired"):
+    if ue_status in ("active", "expired", "completed"):
+        if row.slug == 'practice_crm':
+            return redirect(url_for("practice_crm_bp.pipeline"))
         flash(f"Welcome back to {row.name}!", "success")
         return redirect(url_for("auth_bp.learner_subject_dashboard", subject=row.slug))
-
-    if ue_status == "completed":
-        return redirect(url_for("auth_bp.learner_subject_dashboard", subject=row.slug))
+        
+    # SPECIAL: Practice CRM staff might not have a formal enrollment, but they have a CrmPracticeUser row
+    if row.slug == 'practice_crm':
+        from app.models.practice_crm import CrmPracticeUser
+        pu = CrmPracticeUser.query.filter_by(user_id=user, status='active').first()
+        if pu:
+            return redirect(url_for("practice_crm_bp.pipeline"))
 
     # Auto-enroll if the subject is free
     if row.program_type == 'free' or row.commercial_mode == 'free':

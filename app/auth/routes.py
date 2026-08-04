@@ -1297,13 +1297,13 @@ def learner_subject_dashboard(subject):
     # -------------------------------------------------
     # Determine start URL for generic "Press Next" screen
     # -------------------------------------------------
-    if row.get("start_endpoint"):
+    if slug in ('hiq', 'healthcore'):
+        start_url = url_for("healthcore_bp.healthcore_dashboard")
+    elif row.get("start_endpoint"):
         try:
             start_url = url_for(row["start_endpoint"])
         except BuildError:
             start_url = url_for("auth_bp.bridge_dashboard")
-    elif slug in ('hiq', 'healthcore'):
-        start_url = url_for("healthcore_bp.healthcore_dashboard")
     else:
         try:
             start_url = url_for(f"{slug}_bp.subject_home")

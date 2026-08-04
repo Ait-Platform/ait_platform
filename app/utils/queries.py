@@ -33,7 +33,6 @@ WHERE
   s.is_active = 1
   AND (
     (s.is_hidden_on_bridge IS NULL OR s.is_hidden_on_bridge = FALSE)
-    OR (SELECT is_admin_global FROM globals) = 1
     OR EXISTS (
       SELECT 1
       FROM user_enrollment ue

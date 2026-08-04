@@ -808,6 +808,8 @@ def register_decision():
                 db.session.commit()
             if subj_obj.slug in ["cultural_fire", "culturalfire"]:
                 return redirect(url_for("cultural_bp.cultural_fire_router"))
+            if subj_obj.slug == "practice_crm":
+                return redirect(url_for("practice_crm_bp.pipeline"))
             return redirect(url_for("auth_bp.bridge_dashboard"))
             
         # If the subject has a trial period, bypass payment and set trial expiration
@@ -821,6 +823,8 @@ def register_decision():
                     db.session.commit()
                 if subj_obj.slug in ["cultural_fire", "culturalfire"]:
                     return redirect(url_for("cultural_bp.cultural_fire_router"))
+                if subj_obj.slug == "practice_crm":
+                    return redirect(url_for("practice_crm_bp.pipeline"))
                 return redirect(url_for("auth_bp.bridge_dashboard"))
 
 
@@ -1242,6 +1246,7 @@ def bridge_dashboard():
             return redirect(url_for('auth_bp.learner_subject_dashboard', subject=slug))
             
     # NEW FALLBACK: If user has no active subjects, redirect to checkout for their latest incomplete enrollment
+    # Only consider subjects that are actually allowed on the bridge to prevent infinite redirect loops!
     if len(rows) == 0 and not is_admin:
         incomplete_slug = db.session.execute(
             text("""
@@ -1249,6 +1254,7 @@ def bridge_dashboard():
                 FROM user_enrollment ue
                 JOIN auth_subject s ON s.id = ue.subject_id
                 WHERE ue.user_id = :uid 
+                  AND s.slug NOT IN ('practice_crm', 'staff', 'hds', 'home_premium')
                 ORDER BY ue.id DESC LIMIT 1
             """),
             {"uid": user_obj.id}

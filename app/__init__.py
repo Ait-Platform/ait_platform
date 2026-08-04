@@ -166,7 +166,16 @@ def create_app(test_config=None):
     def inject_csrf():
         return {"csrf_token": generate_csrf}
     
-
+    @app.context_processor
+    def inject_nav_subjects():
+        try:
+            from app.models.auth import AuthSubject
+            live_programs = AuthSubject.query.filter_by(is_active=1, show_on_welcome=True).order_by(AuthSubject.name).all()
+            coming_soon = AuthSubject.query.filter_by(is_active=1, show_on_welcome=False).order_by(AuthSubject.name).all()
+            return {"nav_live_programs": live_programs, "nav_coming_soon": coming_soon}
+        except Exception:
+            return {"nav_live_programs": [], "nav_coming_soon": []}
+    
     @app.before_request
     def _inject_country():
         g.country_iso2 = (request.headers.get('cf-ipcountry') or 'ZA').upper()

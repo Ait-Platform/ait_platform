@@ -2,7 +2,33 @@
   <div class="mx-auto max-w-6xl px-4 h-12 flex items-center justify-between">
     <div class="flex items-center gap-4">
       <a href="{{ url_for('public_bp.welcome') }}" class="font-semibold text-lg">AIT Platform</a>
-      <a href="{{ url_for('public_bp.programs_list') }}" class="ml-4 font-medium hover:text-blue-200 transition-colors">Programs</a>
+      <div class="relative group ml-4">
+        <button class="font-medium hover:text-blue-200 transition-colors py-2">Programs</button>
+        <div class="absolute left-0 top-full mt-0 w-[400px] bg-white rounded-md shadow-xl border border-slate-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+          <div class="grid grid-cols-2 p-4 text-slate-800">
+            <div>
+              <h3 class="text-sm font-bold text-slate-900 border-b pb-1 mb-2">Live Programs</h3>
+              <ul class="space-y-1 text-sm text-slate-600">
+              {% for p in nav_live_programs %}
+                {% if p.slug not in ["admin", "admin_general", "sms", "spv"] %}
+                  <li class="py-1">{{ p.name }}</li>
+                {% endif %}
+              {% endfor %}
+              </ul>
+            </div>
+            <div>
+              <h3 class="text-sm font-bold text-slate-500 border-b pb-1 mb-2">Coming Soon</h3>
+              <ul class="space-y-1 text-sm text-slate-400">
+              {% for p in nav_coming_soon %}
+                {% if p.slug not in ["admin", "admin_general", "sms", "spv"] %}
+                  <li class="py-1">{{ p.name }}</li>
+                {% endif %}
+              {% endfor %}
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="flex items-center gap-4">

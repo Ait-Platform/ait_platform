@@ -1352,7 +1352,7 @@ def dashboard_info(subject: str):
         {"uid": user, "sid": row.id}
     )
 
-    if ue_status in ("active", "expired", "completed"):
+    if ue_status in ("active", "expired", "completed", "paid", "started", "enrolled", "teacher"):
         if row.slug == 'practice_crm':
             return redirect(url_for("practice_crm_bp.pipeline"))
         flash(f"Welcome back to {row.name}!", "success")

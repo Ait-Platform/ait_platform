@@ -62,13 +62,24 @@
 
       <div class="rounded-xl border bg-white p-6 shadow-sm">
         <p class="text-sm text-slate-600 mb-4">Press <strong>Next</strong> to begin {{ subject.name }}.</p>
-        <div class="flex items-center justify-between">
-          <div class="text-sm text-slate-500 italic bg-slate-50 border border-slate-200 rounded px-3 py-2 mr-4">
-            <strong>Help:</strong> How to use this program.
-          </div>
+        <div class="flex items-start justify-between">
+          <details class="group mr-4">
+            <summary class="flex items-center cursor-pointer list-none text-sm font-medium text-slate-600 hover:text-slate-800 focus:outline-none mt-1.5">
+              <svg class="w-4 h-4 mr-1 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+              Need help getting started?
+            </summary>
+            <div class="mt-4 text-sm text-slate-600 bg-slate-50 border border-slate-200 rounded-lg p-5 w-full">
+              <ul class="space-y-3 list-decimal list-inside">
+                <li><strong>Complete Your Profile:</strong> Click "Next" to answer your baseline questionnaire so we can personalize your health trajectory.</li>
+                <li><strong>Log Your Health Data:</strong> Use your dashboard to securely input your latest lab results, current medications, and lifestyle habits.</li>
+                <li><strong>Review Your Analysis:</strong> Once your data is entered, our engine will generate a personalized health correlation and risk assessment report.</li>
+                <li><strong>Update Regularly:</strong> Health is dynamic. Keep your profile updated over time to track your progress and see how your risk factors improve.</li>
+              </ul>
+            </div>
+          </details>
 
           <a href="{{ start_url }}"
-             class="inline-flex items-center rounded-lg px-6 py-2 text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white shrink-0">
+             class="inline-flex items-center rounded-lg px-6 py-2 text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white shrink-0 self-start">
             Next
           </a>
         </div>

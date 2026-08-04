@@ -1,5 +1,8 @@
 {% extends "layout.html" %}
 {% block title %}Health IQ - Onboarding{% endblock %}
+
+{% block flashes %}{% endblock %}
+
 {% block content %}
 <div class="container mx-auto px-4 py-12 max-w-2xl">
     <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden">
@@ -11,6 +14,22 @@
 
         <!-- Form -->
         <div class="p-8">
+            {% with msgs = get_flashed_messages(with_categories=true) %}
+              {% if msgs %}
+                <div class="mb-6 space-y-2">
+                  {% for cat, msg in msgs %}
+                    <div class="rounded-md border px-3 py-2 text-sm
+                                {% if cat == 'success' %}border-emerald-300 bg-emerald-50 text-emerald-800
+                                {% elif cat == 'warning' %}border-amber-300 bg-amber-50 text-amber-800
+                                {% elif cat == 'danger' %}border-rose-300 bg-rose-50 text-rose-800
+                                {% else %}border-blue-300 bg-blue-50 text-blue-800{% endif %}">
+                      {{ msg }}
+                    </div>
+                  {% endfor %}
+                </div>
+              {% endif %}
+            {% endwith %}
+
             <form method="POST" action="{{ url_for('healthcore_bp.healthcore_onboarding') }}" class="space-y-6">
                 {{ form.hidden_tag() }}
                 

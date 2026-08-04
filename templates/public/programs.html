@@ -43,20 +43,33 @@ mx-auto max-w-7xl px-6 py-10
     </div>
 </div>
 
-<!-- Programs Grid -->
-<div class="grid gap-8 sm:grid-cols-2 xl:grid-cols-3 mb-12">
-{% for subj in subjects %}
-    {% set slug = subj.slug %}
-    {% if slug not in ["admin", "admin_general", "sms", "spv"] %}
-        {% set info = subject_info.get(slug, {"color":"slate", "desc":fallback_desc}) %}
-        {{ welcome_card(
-            title=subj.name,
-            description=info.desc,
-            color=info.color,
-            href=url_for('auth_bp.start_registration', subject=slug)
-        ) }}
-    {% endif %}
-{% endfor %}
+<!-- Programs List -->
+<div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-12">
+    <ul class="divide-y divide-slate-100">
+    {% for subj in subjects %}
+        {% set slug = subj.slug %}
+        {% if slug not in ["admin", "admin_general", "sms", "spv"] %}
+            {% set info = subject_info.get(slug, {"color":"slate", "desc":fallback_desc}) %}
+            <li>
+                <a href="{{ url_for('auth_bp.start_registration', subject=slug) }}" class="block p-6 hover:bg-slate-50 transition-colors">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-xl font-semibold text-slate-800">{{ subj.name }}</h3>
+                            <p class="mt-1 text-slate-500">{{ info.desc }}</p>
+                        </div>
+                        <div class="text-blue-600">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                            </svg>
+                        </div>
+                    </div>
+                </a>
+            </li>
+        {% endif %}
+    {% else %}
+        <li class="p-8 text-center text-slate-500">No programs available at this time.</li>
+    {% endfor %}
+    </ul>
 </div>
 
 {% endblock %}

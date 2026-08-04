@@ -327,6 +327,6 @@ def coming_soon(subject_slug):
 @public_bp.route("/programs")
 def programs_list():
     from app.models.auth import AuthSubject
-    # Query all active subjects for the Programs Directory
-    subjects = AuthSubject.query.filter_by(is_active=1).order_by(AuthSubject.name).all()
+    # Query all active subjects for the Programs Directory that are meant to be shown
+    subjects = AuthSubject.query.filter_by(is_active=1, show_on_welcome=True).order_by(AuthSubject.name).all()
     return render_template("public/programs.html", subjects=subjects)

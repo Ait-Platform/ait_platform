@@ -1,0 +1,422 @@
+# app/payments/paystack.py
+import os
+import requests
+import hmac
+import hashlib
+import json
+from datetime import datetime
+from flask import (
+    Blueprint,
+    request,
+    session,
+    render_template,
+    flash,
+    current_app,
+    redirect,
+    url_for,
+    jsonify
+)
+from flask_login import current_user
+from sqlalchemy import text
+
+from app.extensions import db, csrf
+from app.models.auth import User
+
+paystack_bp = Blueprint("paystack_bp", __name__)
+
+def get_paystack_secret():
+    return os.environ.get("PAYSTACK_SECRET_KEY", "sk_test_2e6012a225612c95a187a8b706d401de89e75bbe")
+
+def create_paystack_transaction(amount_cents, display_name, subject, email, currency_code="ZAR"):
+    secret_key = get_paystack_secret()
+    
+    url = "https://api.paystack.co/transaction/initialize"
+    
+    headers = {
+        "Authorization": f"Bearer {secret_key}",
+        "Content-Type": "application/json"
+    }
+    
+    # Paystack expects amounts in cents/kobo
+    amount_in_lowest_denom = int(amount_cents)
+    
+    payload = {
+        "email": email,
+        "amount": amount_in_lowest_denom,
+        "currency": currency_code,
+        "callback_url": url_for("paystack_bp.paystack_success", subject=subject, email=email, _external=True),
+        "metadata": {
+            "subject": subject,
+            "email": email,
+            "custom_fields": [
+                {
+                    "display_name": "Product Name",
+                    "variable_name": "product_name",
+                    "value": display_name
+                }
+            ]
+        }
+    }
+    
+    try:
+        r = requests.post(url, json=payload, headers=headers)
+        r.raise_for_status()
+        data = r.json()
+        if data.get("status"):
+            return data["data"]["authorization_url"], data["data"]["reference"], None
+        else:
+            return None, None, data.get("message", "Unknown Paystack Error")
+    except Exception as e:
+        err_msg = str(e)
+        if hasattr(e, "response") and getattr(e, "response") is not None:
+            err_msg = e.response.text
+            current_app.logger.error(f"Paystack Init Error: {err_msg}")
+        return None, None, err_msg
+
+
+@paystack_bp.route("/start", methods=["GET", "POST"], endpoint="paystack_start")
+def start():
+    current_app.logger.warning("=" * 60)
+    current_app.logger.warning("PAYSTACK START ROUTE EXECUTED")
+    current_app.logger.warning("=" * 60)
+
+    email = (
+        request.values.get("email") 
+        or (getattr(current_user, "email", None) if current_user.is_authenticated else None)
+        or session.get("pending_email") 
+        or session.get("reg_ctx", {}).get("email_lower") 
+        or session.get("reg_ctx", {}).get("email_in") 
+        or ""
+    ).strip().lower()
+    subject = (request.values.get("subject") or session.get("pending_subject") or session.get("reg_ctx", {}).get("subject") or "").strip().lower()
+
+    if email:
+        session["pending_email"] = email
+    if subject:
+        session["pending_subject"] = subject
+
+    if not subject:
+        flash("Could not determine which module to purchase.", "error")
+        return redirect(url_for("public_bp.welcome"))
+
+    # Resolve amount
+    amount_cents = 0
+    currency = "ZAR"
+    
+    if subject == "metro_billing":
+        amount_cents = int(session.get("metro_billing_amount_cents", 0))
+
+    if subject == "mechanic_topup":
+        amount_cents = int(session.get("mechanic_topup_amount_cents", 0))
+        
+    if subject == "practice_crm_topup":
+        amount_cents = int(session.get("practice_crm_topup_amount_cents", 0))
+        
+    if amount_cents <= 0:
+        u = User.query.filter_by(email=email).first()
+        if u:
+            row = db.session.execute(
+                text("""
+                    SELECT local_amount_cents, local_currency, zar_amount_cents
+                    FROM user_enrollment
+                    WHERE user_id = :uid 
+                      AND subject_id = (SELECT id FROM auth_subject WHERE lower(slug) = :s LIMIT 1)
+                    ORDER BY id DESC LIMIT 1
+                """),
+                {"uid": u.id, "s": subject}
+            ).mappings().first()
+            if row:
+                if row.get("local_amount_cents") and row.get("local_currency"):
+                    amount_cents = int(row["local_amount_cents"])
+                    currency = row["local_currency"]
+                elif row.get("zar_amount_cents") and int(row["zar_amount_cents"]) > 0:
+                    amount_cents = int(row["zar_amount_cents"])
+
+    if amount_cents <= 0:
+        if session.get("subject_slug") == subject and session.get("zar_amount_cents"):
+            if session.get("local_currency") and session.get("local_amount_cents"):
+                amount_cents = int(session.get("local_amount_cents"))
+                currency = session.get("local_currency")
+            else:
+                amount_cents = int(session.get("zar_amount_cents"))
+
+    if amount_cents <= 0:
+        ctx = session.get("reg_ctx", {})
+        quote = ctx.get("quote", {})
+        if quote:
+            if quote.get("local_cents") and quote.get("local_currency"):
+                amount_cents = int(quote["local_cents"])
+                currency = quote["local_currency"]
+            else:
+                fallback = quote.get("est_zar_cents") or quote.get("zar_amount_cents")
+                if fallback:
+                    amount_cents = int(fallback)
+            
+    if amount_cents <= 0:
+        from app.payments.pricing import get_subject_price
+        price_info = get_subject_price(subject)
+        if price_info and price_info["amount_cents"] > 0:
+            if price_info.get("local_cents") and price_info.get("local_currency"):
+                amount_cents = int(price_info["local_cents"])
+                currency = price_info["local_currency"]
+            else:
+                amount_cents = int(price_info["amount_cents"])
+            
+    if session.get('is_retake'):
+        retake_zar = session.get('retake_zar_cents')
+        if retake_zar:
+            amount_cents = int(retake_zar)
+            currency = "ZAR"
+        else:
+            amount_cents = amount_cents // 3
+
+    if amount_cents < 1000:
+        flash(f"Payment cannot proceed: invalid amount (R{amount_cents/100:.2f}). Minimum is R10.00.", "error")
+        return redirect(url_for("public_bp.welcome"))
+
+    display_name = subject.replace("_", " ").title()
+    
+    auth_url, ref, err_msg = create_paystack_transaction(amount_cents, display_name, subject, email, currency_code=currency)
+    
+    if not auth_url:
+        flash(f"Paystack API Error: {err_msg}", "error")
+        return redirect(url_for("public_bp.welcome"))
+
+    return redirect(auth_url)
+
+
+@paystack_bp.get("/success", endpoint="paystack_success")
+def success():
+    # Callback from Paystack
+    # Actual fulfillment should be done in the webhook, but we show success page
+    email = request.args.get("email", "").strip().lower()
+    subject = request.args.get("subject", "loss").strip().lower()
+    
+    if not email:
+        flash("Payment processing... Please sign in to continue.", "info")
+    
+    return render_template("payments/success.html", subject=subject), 200
+
+
+@paystack_bp.post("/webhook", endpoint="paystack_webhook")
+@csrf.exempt
+def webhook():
+    log_entry = {"time": str(datetime.utcnow()), "event": "paystack_webhook"}
+    log_file = os.path.join(current_app.instance_path, 'webhook_debug.json')
+    os.makedirs(current_app.instance_path, exist_ok=True)
+    
+    def write_log():
+        logs = []
+        if os.path.exists(log_file):
+            try:
+                with open(log_file, 'r') as f:
+                    logs = json.load(f)
+            except: pass
+        logs.insert(0, log_entry)
+        with open(log_file, 'w') as f:
+            json.dump(logs[:20], f, indent=2)
+
+    try:
+        raw_body = request.get_data()
+        signature = request.headers.get("x-paystack-signature")
+        secret = get_paystack_secret()
+
+        # Validate signature
+        hash = hmac.new(secret.encode('utf-8'), raw_body, hashlib.sha512).hexdigest()
+        if hash != signature:
+            log_entry["error"] = "Invalid Paystack signature"
+            write_log()
+            return "Invalid signature", 401
+
+        data = request.json
+        event_type = data.get("event")
+        
+        if event_type == "charge.success":
+            tx_data = data.get("data", {})
+            metadata = tx_data.get("metadata", {})
+            
+            email = metadata.get("email") or tx_data.get("customer", {}).get("email", "")
+            subject = metadata.get("subject", "")
+            email = email.strip().lower()
+            subject = subject.strip().lower()
+
+            if email and subject:
+                try:
+                    fulfill_order(email, subject, tx_data)
+                    log_entry["fulfill_success"] = True
+                except Exception as e:
+                    log_entry["fulfill_error"] = str(e)
+            else:
+                log_entry["skip_reason"] = "Missing email or subject in metadata"
+                
+    except Exception as e:
+        log_entry["fatal_error"] = str(e)
+        
+    write_log()
+    return jsonify({"status": "ok"}), 200
+
+
+def fulfill_order(email, subject, transaction=None):
+    u = User.query.filter_by(email=email).first()
+    if not u:
+        u = User(email=email, name=email.split("@", 1)[0].title(), is_active=1)
+        db.session.add(u)
+        db.session.flush()
+
+    # ---------- MECHANIC TOPUP ----------
+    if subject == "mechanic_topup":
+        from app.models.mechanic import MechShop
+        shop = MechShop.query.filter_by(user_id=u.id).first()
+        if shop and transaction:
+            total = int(transaction.get("amount", 0))
+            if total > 0:
+                shop.wallet_balance_cents += total
+                db.session.commit()
+        return
+
+    # ---------- PRACTICE CRM TOPUP ----------
+    if subject == "practice_crm_topup":
+        from app.models.practice_crm import CrmPractice
+        practice = CrmPractice.query.filter_by(owner_id=u.id).first()
+        if practice and transaction:
+            total = int(transaction.get("amount", 0))
+            if total > 0:
+                practice.wallet_balance_cents += total
+                db.session.commit()
+        return
+
+    # ---------- CFI TOPUP ----------
+    if subject == "cultural_fire_topup":
+        from app.models.auth import AitTokenWallet, AitTokenTransaction
+        total = int(transaction.get("amount", 0)) if transaction else 0
+        if total > 0:
+            tokens_purchased = total // 100
+            wallet = AitTokenWallet.query.filter_by(user_id=u.id).first()
+            if not wallet:
+                wallet = AitTokenWallet(user_id=u.id, balance=0)
+                db.session.add(wallet)
+                db.session.flush()
+            wallet.balance += tokens_purchased
+            tx = AitTokenTransaction(
+                wallet_id=wallet.id,
+                transaction_type="purchase",
+                amount=tokens_purchased,
+                description="Paystack Top-Up",
+                reference=transaction.get("reference") if transaction else "paystack_tx"
+            )
+            db.session.add(tx)
+            db.session.commit()
+        return
+
+    # ---------- METRO BILLING (DEBTORS) SUBSCRIPTION ----------
+    if subject == "metro_billing":
+        pass
+
+    # ---------- STANDARD MODULES ----------
+    lookup_subject = subject
+    
+    sid = db.session.execute(
+        text("SELECT id FROM auth_subject WHERE lower(slug) = :s OR lower(name) = :s LIMIT 1"),
+        {"s": lookup_subject},
+    ).scalar()
+
+    if sid:
+        subj_paid_days = db.session.execute(
+            text("SELECT paid_days FROM auth_subject WHERE id = :sid LIMIT 1"),
+            {"sid": int(sid)}
+        ).scalar()
+        
+        expires_at_val = None
+        if subj_paid_days and int(subj_paid_days) > 0:
+            from datetime import timedelta
+            expires_at_val = datetime.utcnow() + timedelta(days=int(subj_paid_days))
+
+        existing = db.session.execute(
+            text("""
+            SELECT id, status, zar_amount_cents, local_currency, local_amount_cents, country_code, price_id
+              FROM user_enrollment
+             WHERE user_id   = :uid
+               AND subject_id = :sid
+             ORDER BY id DESC LIMIT 1
+            """),
+            {"uid": int(u.id), "sid": int(sid)},
+        ).first()
+
+        new_status = 'paid' if expires_at_val is None else 'active'
+        if existing:
+            db.session.execute(
+                text("""
+                    UPDATE user_enrollment
+                       SET status = :st,
+                           trial_end = NULL,
+                           expires_at = :exp
+                     WHERE id = :eid
+                """),
+                {"eid": existing.id, "st": new_status, "exp": expires_at_val},
+            )
+            eid = existing.id
+            zar_cents = existing.zar_amount_cents
+            local_cur = existing.local_currency
+            local_cents = existing.local_amount_cents
+            price_id = existing.price_id
+            cc = existing.country_code
+        else:
+            new_enr = db.session.execute(
+                text("""
+                    INSERT INTO user_enrollment (user_id, subject_id, status, expires_at)
+                    VALUES (:uid, :sid, :st, :exp)
+                    RETURNING id
+                """),
+                {"uid": int(u.id), "sid": int(sid), "st": new_status, "exp": expires_at_val},
+            ).fetchone()
+            eid = new_enr[0]
+            zar_cents = 0
+            local_cur = None
+            local_cents = 0
+            price_id = None
+            cc = None
+            
+        db.session.execute(
+            text("""
+                INSERT INTO auth_payment_log (
+                    user_id, program, amount, currency, transaction_id, status, 
+                    valid_from, valid_until, enrollment_id, local_currency, 
+                    local_amount_cents, price_id, country_code
+                ) VALUES (
+                    :uid, :prog, :amt, 'ZAR', :ref, 'success',
+                    CURRENT_TIMESTAMP, :vu, :eid, :lcur, 
+                    :l_amt, :pid, :cc
+                )
+            """),
+            {
+                "uid": int(u.id),
+                "prog": subject,
+                "amt": (zar_cents / 100.0) if zar_cents else 0,
+                "ref": transaction.get("reference") if transaction else "paystack_tx",
+                "vu": expires_at_val,
+                "eid": eid,
+                "lcur": local_cur,
+                "l_amt": local_cents,
+                "pid": price_id,
+                "cc": cc
+            }
+        )
+            
+        if subject.lower() in ("cultural_fire", "culturalfire"):
+            from app.models.auth import AitTokenWallet, AitTokenTransaction
+            wallet = AitTokenWallet.query.filter_by(user_id=u.id).first()
+            if not wallet:
+                wallet = AitTokenWallet(user_id=u.id, balance=0)
+                db.session.add(wallet)
+                db.session.flush()
+            
+            wallet.balance += 200
+            txn = AitTokenTransaction(
+                wallet_id=wallet.id,
+                amount=200,
+                description="Initial Registration Bundle (200 Tokens)"
+            )
+            db.session.add(txn)
+            
+    db.session.commit()
+    current_app.logger.info(f"Fulfilled {subject} for {email} via Paystack.")

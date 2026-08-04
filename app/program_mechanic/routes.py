@@ -121,7 +121,7 @@ def process_topup():
     
     session["mechanic_topup_amount_cents"] = int(amount_cents)
     
-    return redirect(url_for('paddle_bp.paddle_start', subject='mechanic_topup', email=current_user.email, next_url=url_for('mechanic_bp.mechanic_dashboard')))
+    return redirect(url_for('paystack_bp.paystack_start', subject='mechanic_topup', email=current_user.email, next_url=url_for('mechanic_bp.mechanic_dashboard')))
 
 
 @mechanic_bp.route("/mechanic/mock_bill")

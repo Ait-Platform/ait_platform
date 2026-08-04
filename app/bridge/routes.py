@@ -31,6 +31,9 @@ def bridge_dashboard():
     # --- Admin path ---
     if check_admin(user.email):
         for subj in get_all_subjects():
+            if getattr(subj, 'is_hidden_on_bridge', False):
+                continue
+
             if subj.slug == "admin_general":
                 href = url_for("general_bp.index")
             elif subj.slug == "admin":

@@ -105,7 +105,7 @@ def sponsor_topup_post(participant_id):
     session["zar_amount_cents"] = zar_cents
     session["subject_slug"] = "cultural_fire_topup"
     
-    return redirect(url_for("paddle_bp.paddle_start", subject="cultural_fire_topup"))
+    return redirect(url_for("paystack_bp.paystack_start", subject="cultural_fire_topup"))
 
 @cultural_bp.route("/program/cultural_fire/volunteer/<int:subject_id>")
 @login_required
@@ -1086,7 +1086,7 @@ def sponsor_checkout(id):
     # Calculate tokens (assuming 1 ZAR = 1 token based on the amount//100 fallback in yoco.py, but you can adjust if needed)
     session["topup_tokens"] = int(sponsor.amount) 
     
-    return redirect(url_for("paddle_bp.paddle_start", subject="cultural_fire_topup"))
+    return redirect(url_for("paystack_bp.paystack_start", subject="cultural_fire_topup"))
 
 # --- supporter---
 
@@ -3087,7 +3087,7 @@ def wallet_topup():
     session["just_paid_subject_id"] = None
     
     # Route to checkout via Yoco
-    return redirect(url_for("paddle_bp.paddle_start", subject="cultural_fire_topup"))
+    return redirect(url_for("paystack_bp.paystack_start", subject="cultural_fire_topup"))
 
 
 @cultural_bp.route("/stakeholder/dashboard")

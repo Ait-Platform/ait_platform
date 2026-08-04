@@ -650,5 +650,5 @@ def topup():
     from flask import session
     # 100 ZAR = 10000 cents
     session["practice_crm_topup_amount_cents"] = 10000 
-    return redirect(url_for('paddle_bp.paddle_start', subject='practice_crm_topup', email=current_user.email))
+    return redirect(url_for('paystack_bp.paystack_start', subject='practice_crm_topup', email=current_user.email))
 

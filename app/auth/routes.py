@@ -414,7 +414,7 @@ def register_decision():
         session.pop("reg_ctx", None)
         return redirect(
             url_for(
-                "paddle_bp.paddle_start",
+                "paystack_bp.paystack_start",
                 email=user_email,
                 subject="spv_registration",
                 debug=0

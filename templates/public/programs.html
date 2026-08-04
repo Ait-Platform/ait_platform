@@ -43,10 +43,9 @@ mx-auto max-w-7xl px-6 py-10
     </div>
 </div>
 
-<!-- Live Programs -->
-<h2 class="text-2xl font-semibold text-slate-800 mb-6 border-b pb-2">Live Programs</h2>
+<!-- Programs Grid -->
 <div class="grid gap-8 sm:grid-cols-2 xl:grid-cols-3 mb-12">
-{% for subj in subjects if subj.show_on_welcome %}
+{% for subj in subjects %}
     {% set slug = subj.slug %}
     {% if slug not in ["admin", "admin_general", "sms", "spv"] %}
         {% set info = subject_info.get(slug, {"color":"slate", "desc":fallback_desc}) %}
@@ -55,23 +54,6 @@ mx-auto max-w-7xl px-6 py-10
             description=info.desc,
             color=info.color,
             href=url_for('auth_bp.start_registration', subject=slug)
-        ) }}
-    {% endif %}
-{% endfor %}
-</div>
-
-<!-- Coming Soon -->
-<h2 class="text-2xl font-semibold text-slate-800 mb-6 border-b pb-2 text-slate-500">Coming Soon</h2>
-<div class="grid gap-8 sm:grid-cols-2 xl:grid-cols-3 opacity-70 cursor-not-allowed">
-{% for subj in subjects if not subj.show_on_welcome %}
-    {% set slug = subj.slug %}
-    {% if slug not in ["admin", "admin_general", "sms", "spv"] %}
-        {% set info = subject_info.get(slug, {"color":"slate", "desc":fallback_desc}) %}
-        {{ welcome_card(
-            title=subj.name,
-            description=info.desc,
-            color=info.color,
-            href="#"
         ) }}
     {% endif %}
 {% endfor %}

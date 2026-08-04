@@ -137,7 +137,7 @@ def welcome():
     yoco_subjects = AuthSubject.query.filter_by(pay_endpoint='yoco_bp.yoco_start').all()
     if yoco_subjects:
         for subj in yoco_subjects:
-            subj.pay_endpoint = 'paddle_bp.paddle_start'
+            subj.pay_endpoint = 'paystack_bp.paystack_start'
         db.session.commit()
 
     subjects = (
@@ -166,7 +166,8 @@ def welcome():
     return render_template(
         "public/welcome.html",
         settings=settings,
-        subjects=subjects
+        subjects=subjects,
+        staff_subj=staff_subj
     )
 
 def refresh_bridge_session(user):
@@ -326,6 +327,6 @@ def coming_soon(subject_slug):
 @public_bp.route("/programs")
 def programs_list():
     from app.models.auth import AuthSubject
-    # We query all subjects. The template will separate them into Live and Coming Soon
-    subjects = AuthSubject.query.order_by(AuthSubject.name).all()
+    # Query all active subjects for the Programs Directory
+    subjects = AuthSubject.query.filter_by(is_active=1).order_by(AuthSubject.name).all()
     return render_template("public/programs.html", subjects=subjects)

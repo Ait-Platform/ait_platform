@@ -25,14 +25,14 @@
   </div>
 
   <div class="mt-6 flex items-center justify-end gap-2">
-    <!--form method="get" action="{{ url_for('paddle_bp.paddle_start') }}">
+    <!--form method="get" action="{{ url_for('paystack_bp.paystack_start') }}">
       <input type="hidden" name="subject" value="{{ subject }}">
       <input type="hidden" name="country" value="{{ country_code }}">
       <button type="submit" class="inline-flex items-center rounded bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
         Pay now
       </button>
     </form-->
-    <form method="get" action="{{ url_for('paddle_bp.paddle_start') }}">
+    <form method="get" action="{{ url_for('paystack_bp.paystack_start') }}">
       <input type="hidden" name="subject" value="{{ subject }}">
       <input type="hidden" name="country" value="{{ country_code }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

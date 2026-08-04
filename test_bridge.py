@@ -1,21 +1,14 @@
-import os
 from app import create_app
-from flask_login import login_user
-from app.models.auth import User
-
+from app.extensions import db
+from sqlalchemy import text
+from app.utils.queries import BRIDGE_QUERY
 app = create_app()
-app.config['WTF_CSRF_ENABLED'] = False
-app.config['TESTING'] = True
-
-with app.test_client() as client:
-    with app.app_context():
-        user = User.query.first()
-        if user:
-            with client.session_transaction() as sess:
-                sess['_user_id'] = str(user.id)
-                sess['_fresh'] = True
-                
-    response = client.get('/dashboard')
-    print(f"Dashboard Status: {response.status_code}")
-    if response.status_code != 200:
-        print(response.data.decode('utf-8')[:200])
+with app.app_context():
+    u = db.session.execute(text("SELECT email FROM \"user\" JOIN crm_practice_user pu ON pu.user_id = \"user\".id LIMIT 1")).scalar()
+    if u:
+        print('Testing with CRM user:', u)
+        rows = db.session.execute(text(BRIDGE_QUERY), {'email': u}).fetchall()
+        for r in rows:
+            print(r.slug, r.access_level)
+    else:
+        print('No CRM user found')

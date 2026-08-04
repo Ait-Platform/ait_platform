@@ -4,17 +4,17 @@ from app.models.auth import AuthSubject, User, UserEnrollment
 app = create_app()
 
 with app.app_context():
-    # 1. Create the HealthCore Subject
+    # 1. Create the Health IQ Subject
     s = AuthSubject.query.filter_by(slug='healthcore').first()
     if not s:
         s = AuthSubject(
             slug='healthcore', 
-            name='HealthCore', 
+            name='Health IQ', 
             description='The next generation of personalized health dashboards.'
         )
         db.session.add(s)
         db.session.commit()
-        print('Added HealthCore subject!')
+        print('Added Health IQ subject!')
     
     # 2. Enroll users so it appears on their Bridge Dashboard
     users = User.query.all()
@@ -27,4 +27,4 @@ with app.app_context():
             count += 1
             
     db.session.commit()
-    print(f'Enrolled {count} users in HealthCore.')
+    print(f'Enrolled {count} users in Health IQ.')

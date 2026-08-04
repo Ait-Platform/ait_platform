@@ -50,7 +50,7 @@ def healthcore_onboarding():
         db.session.add(consent)
         
         db.session.commit()
-        flash("Welcome to HealthCore! Your profile is set up.", "success")
+        flash("Welcome to Health IQ! Your profile is set up.", "success")
         return redirect(url_for("healthcore_bp.healthcore_dashboard"))
         
     return render_template("program_healthcore/onboarding.html", form=form)

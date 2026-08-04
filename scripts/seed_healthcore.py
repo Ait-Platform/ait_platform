@@ -14,7 +14,7 @@ def run_seed():
         # 1. Create or update the AuthSubject
         hc_subj = AuthSubject.query.filter_by(slug='healthcore').first()
         if not hc_subj:
-            hc_subj = AuthSubject(slug='healthcore', name='HealthCore', is_active=1)
+            hc_subj = AuthSubject(slug='healthcore', name='Health IQ', is_active=1)
             db.session.add(hc_subj)
             db.session.commit()
             print('Created AuthSubject healthcore')
@@ -53,7 +53,7 @@ def run_seed():
                 existing.price_version = cp.price_version
         
         db.session.commit()
-        print(f"Successfully copied/updated {len(cfi_prices)} pricing tiers to HealthCore.")
+        print(f"Successfully copied/updated {len(cfi_prices)} pricing tiers to Health IQ.")
 
 if __name__ == '__main__':
     run_seed()

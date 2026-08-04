@@ -1,1 +1,1 @@
-# HealthCore module initialization
+# Health IQ module initialization

@@ -47,36 +47,57 @@ def healthcore_onboarding():
     from app.models.healthcore import HcPatientProfile, HcConsentLog
     from app.program_healthcore.forms import HcOnboardingForm
     
+    edit_mode = request.args.get('edit', '0') == '1'
     profile = HcPatientProfile.query.filter_by(user_id=current_user.id).first()
-    if profile:
+    
+    if profile and not edit_mode:
         return redirect(url_for("healthcore_bp.healthcore_dashboard"))
         
     form = HcOnboardingForm()
+    
+    if request.method == "GET" and profile:
+        form.dob.data = profile.dob
+        form.biological_sex.data = profile.biological_sex
+        form.blood_type.data = profile.blood_type
+        form.height_cm.data = profile.height_cm
+        form.weight_kg.data = profile.weight_kg
+        form.chronic_conditions.data = profile.chronic_conditions
+        form.consent_ai.data = True
+
     if form.validate_on_submit():
-        new_profile = HcPatientProfile(
-            user_id=current_user.id,
-            dob=form.dob.data,
-            biological_sex=form.biological_sex.data,
-            blood_type=form.blood_type.data,
-            height_cm=form.height_cm.data,
-            weight_kg=form.weight_kg.data,
-            chronic_conditions=form.chronic_conditions.data
-        )
-        db.session.add(new_profile)
-        
-        consent = HcConsentLog(
-            user_id=current_user.id,
-            consent_type="ai_processing",
-            ip_address=request.remote_addr,
-            user_agent=request.headers.get("User-Agent")
-        )
-        db.session.add(consent)
-        
+        if profile:
+            profile.dob = form.dob.data
+            profile.biological_sex = form.biological_sex.data
+            profile.blood_type = form.blood_type.data
+            profile.height_cm = form.height_cm.data
+            profile.weight_kg = form.weight_kg.data
+            profile.chronic_conditions = form.chronic_conditions.data
+            flash("Your profile has been updated.", "success")
+        else:
+            new_profile = HcPatientProfile(
+                user_id=current_user.id,
+                dob=form.dob.data,
+                biological_sex=form.biological_sex.data,
+                blood_type=form.blood_type.data,
+                height_cm=form.height_cm.data,
+                weight_kg=form.weight_kg.data,
+                chronic_conditions=form.chronic_conditions.data
+            )
+            db.session.add(new_profile)
+            
+            consent = HcConsentLog(
+                user_id=current_user.id,
+                consent_type="ai_processing",
+                ip_address=request.remote_addr,
+                user_agent=request.headers.get("User-Agent")
+            )
+            db.session.add(consent)
+            flash("Welcome to Health IQ! Your profile is set up.", "success")
+            
         db.session.commit()
-        flash("Welcome to HealthCore! Your profile is set up.", "success")
         return redirect(url_for("healthcore_bp.healthcore_dashboard"))
         
-    return render_template("program_healthcore/onboarding.html", form=form)
+    return render_template("program_healthcore/onboarding.html", form=form, edit_mode=edit_mode)
 
 # ---------------------------------------------------------
 # ENGINE DASHBOARDS
@@ -716,7 +737,7 @@ def document_review(doc_id):
             doc.status = "completed"
             db.session.commit()
             
-            flash("Document data successfully verified and saved to HealthCore!", "success")
+            flash("Document data successfully verified and saved to Health IQ!", "success")
             return redirect(url_for("healthcore_bp.document_dashboard"))
             
         except json.JSONDecodeError:
@@ -773,10 +794,10 @@ def create_share():
     invite_url = url_for("healthcore_bp.doctor_view", token=access_token, _external=True)
     email_html = f"""
     <div style="font-family: sans-serif; padding: 20px; color: #333;">
-        <h2>HealthCore Access Invitation</h2>
+        <h2>Health IQ Access Invitation</h2>
         <p>Dear {doctor_name or 'Doctor'},</p>
-        <p>Your patient <strong>{current_user.name or 'A patient'}</strong> has shared their HealthCore medical profile with you.</p>
-        <p>HealthCore is a next-generation clinical intelligence platform. By joining, you can review your patient's AI-summarized health records, laboratory trends, and AI-generated correlation insights to provide better care.</p>
+        <p>Your patient <strong>{current_user.name or 'A patient'}</strong> has shared their Health IQ medical profile with you.</p>
+        <p>Health IQ is a next-generation clinical intelligence platform. By joining, you can review your patient's AI-summarized health records, laboratory trends, and AI-generated correlation insights to provide better care.</p>
         <p>To view their records securely, please create an account on the AIT Platform by clicking the link below:</p>
         <p>
             <a href="{invite_url}" style="background-color: #4F46E5; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">
@@ -785,11 +806,11 @@ def create_share():
         </p>
         <p>This secure access token will expire on <strong>{expires_at.strftime('%B %d, %Y')}</strong>.</p>
         <br>
-        <p>Best regards,<br>The HealthCore Team</p>
+        <p>Best regards,<br>The Health IQ Team</p>
     </div>
     """
     try:
-        send_mail(doctor_email, "Invitation to view patient data on HealthCore", email_html)
+        send_mail(doctor_email, "Invitation to view patient data on Health IQ", email_html)
         flash("Secure sharing link generated and invitation email sent to the doctor!", "success")
     except Exception as e:
         flash("Secure sharing link generated, but there was an error sending the invitation email.", "warning")

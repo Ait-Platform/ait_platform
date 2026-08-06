@@ -485,6 +485,7 @@ def create_app(test_config=None):
     from app.payments.yoco import yoco_bp
     from app.payments.paddle import paddle_bp
     from app.payments.paystack import paystack_bp
+    from app.payments.payfast import payfast_bp
     from app.program_budget import budget_bp
     from app.payments import payment_bp
     
@@ -517,6 +518,7 @@ def create_app(test_config=None):
     app.register_blueprint(yoco_bp, url_prefix="/payments")
     app.register_blueprint(paddle_bp, url_prefix="/payments/paddle")
     app.register_blueprint(paystack_bp, url_prefix="/payments/paystack")
+    app.register_blueprint(payfast_bp, url_prefix="/payments/payfast")
     app.register_blueprint(budget_bp)
     app.register_blueprint(payment_bp)
     app.register_blueprint(subscription_bp)
@@ -538,6 +540,7 @@ def create_app(test_config=None):
     #csrf.exempt(checkout_bp)  # keeps webhook/start happy
     # Exempt the Yoco webhook route
     csrf.exempt(yoco_bp)
+    csrf.exempt(payfast_bp)
 
     # Log admin routes only in debug
     # if app.debug:

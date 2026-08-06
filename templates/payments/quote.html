@@ -116,7 +116,7 @@
           <div class="mt-5">
             <div class="text-base font-bold text-slate-800 mb-2">Estimated charge (in ZAR)</div>
             <div class="flex items-center gap-2 {{ disabled_class }}">
-              <div id="quote_zar_amount" class="flex-1 rounded-lg border bg-white px-3 py-2 text-right text-base text-slate-900">
+              <div id="quote_zar_amount" class="flex-1 rounded-lg border bg-white px-3 py-2 text-right text-base text-black font-bold">
                 {% if has_quote and price.estimated_zar is not none %}
                   {{ '%.2f' % (price.estimated_zar / 100) }}
                 {% else %}

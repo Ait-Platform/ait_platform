@@ -116,7 +116,7 @@
           <div class="mt-5">
             <div class="text-base font-bold text-slate-800 mb-2">Estimated charge (in ZAR)</div>
             <div class="flex items-center gap-2 {{ disabled_class }}">
-              <div class="flex-1 rounded-lg border bg-white px-3 py-2 text-right text-base text-slate-900">
+              <div id="quote_zar_amount" class="flex-1 rounded-lg border bg-white px-3 py-2 text-right text-base text-slate-900">
                 {% if has_quote and price.estimated_zar is not none %}
                   {{ '%.2f' % (price.estimated_zar / 100) }}
                 {% else %}
@@ -192,6 +192,7 @@
     const priceContainer = document.getElementById('price_container');
     const quoteLocalAmount = document.getElementById('quote_local_amount');
     const quoteLocalCurrency = document.getElementById('quote_local_currency');
+    const quoteZarAmount = document.getElementById('quote_zar_amount');
     const discountMsg = document.getElementById('discount_msg');
     const billingInfoText = document.getElementById('billing_info_text');
     
@@ -239,6 +240,7 @@
     document.addEventListener('countryPriceLoading', function(e) {
       quoteLocalAmount.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
       quoteLocalCurrency.innerHTML = '';
+      if (quoteZarAmount) quoteZarAmount.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
       priceContainer.classList.remove('opacity-50');
       disableButtons();
     });
@@ -248,11 +250,15 @@
       if (data.error) {
         quoteLocalAmount.textContent = '—';
         quoteLocalCurrency.textContent = '—';
+        if (quoteZarAmount) quoteZarAmount.textContent = '—';
         discountMsg.style.display = 'none';
         billingInfoText.textContent = "Pricing unavailable.";
       } else {
         quoteLocalAmount.textContent = (data.amount / 100).toFixed(2);
         quoteLocalCurrency.textContent = data.currency;
+        if (quoteZarAmount && data.zar_amount_cents !== undefined) {
+          quoteZarAmount.textContent = (data.zar_amount_cents / 100).toFixed(2);
+        }
         discountMsg.style.display = data.is_discount ? 'block' : 'none';
         billingInfoText.textContent = "Charged in ZAR at checkout (platform parity pricing applied).";
         
@@ -263,6 +269,7 @@
     document.addEventListener('countryPriceError', function(e) {
       quoteLocalAmount.innerHTML = '<span class="text-sm text-red-500">Error</span>';
       quoteLocalCurrency.innerHTML = '';
+      if (quoteZarAmount) quoteZarAmount.innerHTML = '<span class="text-sm text-red-500">Error</span>';
     });
   });
 </script>

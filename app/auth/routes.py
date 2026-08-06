@@ -1789,6 +1789,7 @@ def api_price_for_country(subject, country):
         if amount_cents is None:
             amount_cents = price_cents_for(subject, "ZAR")
             currency = "ZAR"
+        zar_cents = price_cents_for(subject, "ZAR")
     else:
         amount_cents = local_cents
     
@@ -1808,6 +1809,7 @@ def api_price_for_country(subject, country):
         "currency": currency,
         "amount": amount_cents,
         "amount_cents": amount_cents,
+        "zar_amount_cents": zar_cents,
         "display_price": display_price,
         "price_id": price_id,
         "is_discount": is_discount

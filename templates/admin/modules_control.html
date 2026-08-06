@@ -37,7 +37,7 @@
             {% endwith %}
 
             <p class="mb-6 text-gray-600">
-                Control which programs appear on the Welcome page and choose the Yoco payment environment.
+                Control which programs appear on the Welcome page and choose the Paystack payment environment.
             </p>
 
             <form method="POST" action="{{ url_for('admin_bp.modules_control') }}">
@@ -67,16 +67,16 @@
                                     </td>
                                     <td class="px-4 py-3 text-center">
                                         {% if subject.slug != "admin" %}
-                                        <input type="hidden" id="yoco_mode_{{ subject.slug }}" name="yoco_mode_{{ subject.slug }}" value="{{ settings.get('yoco_mode_' ~ subject.slug, 'sandbox') }}">
+                                        <input type="hidden" id="Paystack_mode_{{ subject.slug }}" name="Paystack_mode_{{ subject.slug }}" value="{{ settings.get('Paystack_mode_' ~ subject.slug, 'sandbox') }}">
                                         <label class="inline-flex items-center gap-2 cursor-pointer">
                                             <input type="checkbox" class="h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                                                 onchange="
-                                                    document.getElementById('yoco_mode_{{ subject.slug }}').value = this.checked ? 'sandbox' : 'live';
+                                                    document.getElementById('Paystack_mode_{{ subject.slug }}').value = this.checked ? 'sandbox' : 'live';
                                                     document.getElementById('mode_label_{{ subject.slug }}').innerHTML = this.checked ? 'Sandbox' : 'Live';
                                                 "
-                                                {% if settings.get('yoco_mode_' ~ subject.slug, 'sandbox') == 'sandbox' %}checked{% endif %}>
+                                                {% if settings.get('Paystack_mode_' ~ subject.slug, 'sandbox') == 'sandbox' %}checked{% endif %}>
                                             <span id="mode_label_{{ subject.slug }}" class="text-sm font-medium text-gray-600">
-                                                {% if settings.get('yoco_mode_' ~ subject.slug, 'sandbox') == 'sandbox' %}Sandbox{% else %}Live{% endif %}
+                                                {% if settings.get('Paystack_mode_' ~ subject.slug, 'sandbox') == 'sandbox' %}Sandbox{% else %}Live{% endif %}
                                             </span>
                                         </label>
                                         {% else %}

@@ -31,7 +31,7 @@ import os  # sqlite3 no longer needed
 import click
 from hashlib import sha256
 from app.models.visit import VisitLog
-from app.models.payment import YocoPayment
+from app.models.payment import PaystackPayment
 from werkzeug.middleware.proxy_fix import ProxyFix
 from dotenv import load_dotenv, find_dotenv
 load_dotenv(find_dotenv(), override=False)  # picks up your .env locally
@@ -482,10 +482,7 @@ def create_app(test_config=None):
     from app.subject_loss.routes import loss_bp
     from app.program_billing.routes import billing_bp
     from app.admin import admin_bp
-    from app.payments.yoco import yoco_bp
-    from app.payments.paddle import paddle_bp
     from app.payments.paystack import paystack_bp
-    from app.payments.payfast import payfast_bp
     from app.program_budget import budget_bp
     from app.payments import payment_bp
     
@@ -515,10 +512,7 @@ def create_app(test_config=None):
     app.register_blueprint(loss_bp)
     app.register_blueprint(billing_bp)
     app.register_blueprint(admin_bp)
-    app.register_blueprint(yoco_bp, url_prefix="/payments")
-    app.register_blueprint(paddle_bp, url_prefix="/payments/paddle")
     app.register_blueprint(paystack_bp, url_prefix="/payments/paystack")
-    app.register_blueprint(payfast_bp, url_prefix="/payments/payfast")
     app.register_blueprint(budget_bp)
     app.register_blueprint(payment_bp)
     app.register_blueprint(subscription_bp)
@@ -538,9 +532,8 @@ def create_app(test_config=None):
     app.register_blueprint(debtors_bp, url_prefix="/debtors")
 
     #csrf.exempt(checkout_bp)  # keeps webhook/start happy
-    # Exempt the Yoco webhook route
-    csrf.exempt(yoco_bp)
-    csrf.exempt(payfast_bp)
+    # Exempt the Paystack webhook route
+    csrf.exempt(paystack_bp)
 
     # Log admin routes only in debug
     # if app.debug:

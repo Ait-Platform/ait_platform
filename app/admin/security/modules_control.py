@@ -31,9 +31,9 @@ def modules_control():
                 f"show_on_welcome_{subject.slug}" in request.form
             )
         
-            # Yoco Mode (still stored in system_settings)
-            yoco_mode = request.form.get(
-                f"yoco_mode_{subject.slug}",
+            # Paystack Mode (still stored in system_settings)
+            Paystack_mode = request.form.get(
+                f"Paystack_mode_{subject.slug}",
                 "sandbox"
             )
 
@@ -45,8 +45,8 @@ def modules_control():
                     DO UPDATE SET value = EXCLUDED.value
                 """),
                 {
-                    "k": f"yoco_mode_{subject.slug}",
-                    "v": yoco_mode
+                    "k": f"Paystack_mode_{subject.slug}",
+                    "v": Paystack_mode
                 }
             )
 

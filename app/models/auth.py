@@ -83,7 +83,7 @@ class AuthPricing(db.Model):
     active_to = db.Column(db.DateTime)                      # NULL = open-ended
     created_at = db.Column(db.DateTime, nullable=False, server_default=db.func.current_timestamp())
     updated_at = db.Column(db.DateTime, nullable=False, server_default=db.func.current_timestamp())
-    # stripe_price_id = db.Column(db.Text)
+    # paystack_price_id = db.Column(db.Text)
 
 class AuthSubject(db.Model):
     __tablename__ = "auth_subject"
@@ -98,7 +98,7 @@ class AuthSubject(db.Model):
 
     commercial_mode = db.Column(db.String(16), nullable=False, default="free")
     enroll_policy = db.Column(db.String(16), nullable=False, default="auto_enroll")
-    processor_default = db.Column(db.String(16), nullable=False, default="yoco")
+    processor_default = db.Column(db.String(16), nullable=False, default="paystack")
     requires_price = db.Column(db.Integer, nullable=False, default=0)
     allow_country_pricing = db.Column(db.Integer, nullable=False, default=0)
     mor_mode = db.Column(db.Integer, nullable=False, default=0)

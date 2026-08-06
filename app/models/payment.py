@@ -2,8 +2,8 @@
 from datetime import datetime
 from app.extensions import db
 
-class YocoPayment(db.Model):
-    __tablename__ = "yoco_payment"
+class PaystackPayment(db.Model):
+    __tablename__ = "Paystack_payment"
     
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True, index=True)

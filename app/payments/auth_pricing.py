@@ -126,7 +126,7 @@ def _resolve_subject_id(subject_slug: str) -> int | None:
             {"s": s},
         ).scalar()
     except Exception:
-        current_app.logger.exception("YOCO: failed resolving subject id for %s", s)
+        current_app.logger.exception("PAYSTACK: failed resolving subject id for %s", s)
         return None
 
 def _ensure_user(*, email: str, ctx: dict) -> User:

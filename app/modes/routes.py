@@ -93,7 +93,7 @@ def modes_checkpoint_route():
                     if now < exp:
                         # Trial still active
                         return redirect(url_for(
-                            "payfast_bp.checkout_review",
+                            "paystack_bp.checkout_review",
                             subject=subj.slug,
                             enrollment_id=enrollment.id
                         ))
@@ -180,7 +180,7 @@ def modes_checkpoint_route():
 
                 flash("Proceed to checkout to complete your enrollment.", "info")
                 return redirect(url_for(
-                    "payfast_bp.checkout_review",
+                    "paystack_bp.checkout_review",
                     subject=subj.slug,
                     enrollment_id=enrollment.id
                 ))
@@ -188,7 +188,7 @@ def modes_checkpoint_route():
                 if enrollment.status in ("pending_payment", "pending _payment", "pending"):
                     flash("You have a pending enrollment. Please complete checkout.", "info")
                     return redirect(url_for(
-                        "payfast_bp.checkout_review",
+                        "paystack_bp.checkout_review",
                         subject=subj.slug,
                         enrollment_id=enrollment.id
                     ))
@@ -206,7 +206,7 @@ def modes_checkpoint_route():
                 else:
                     flash("Your enrollment has expired. Please renew.", "warning")
                     return redirect(url_for(
-                        "payfast_bp.checkout_review",
+                        "paystack_bp.checkout_review",
                         subject=subj.slug,
                         enrollment_id=enrollment.id
                     ))

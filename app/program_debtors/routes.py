@@ -467,4 +467,5 @@ def pay_soa(debtor_id):
     session["zar_amount_cents"] = current_balance
     session["debtor_payment_id"] = debtor.id
     
-    return redirect(url_for('yoco_bp.yoco_start'))
+    return redirect(url_for('paystack_bp.paystack_start'))
+

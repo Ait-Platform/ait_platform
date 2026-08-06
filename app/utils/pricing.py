@@ -14,7 +14,7 @@ from app.models.auth import AuthSubject, AuthPricing
 DEFAULT_CURRENCY = "ZAR"
 
 def get_currency() -> str:
-    return (current_app.config.get("STRIPE_CURRENCY") or DEFAULT_CURRENCY).upper()
+    return (current_app.config.get("PAYSTACK_CURRENCY") or DEFAULT_CURRENCY).upper()
 
 
 # Change this to your real table name:

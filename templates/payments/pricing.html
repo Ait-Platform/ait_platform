@@ -57,7 +57,7 @@
       </p>
     {% else %}
       <!-- Select country for first quote -->
-      <form id="country-form" method="post" action="{{ url_for('payfast_bp.pricing_lock') }}" class="space-y-2">
+      <form id="country-form" method="post" action="{{ url_for('paystack_bp.pricing_lock') }}" class="space-y-2">
         <input type="hidden" name="subject_id" value="{{ subject_id }}">
         <select name="country"
                 class="w-full rounded border px-3 py-2 text-sm"
@@ -143,7 +143,7 @@
 
   <div class="mt-4 flex items-center justify-between">
     <!-- Cancel left -->
-    <form method="post" action="{{ url_for('payfast_bp.checkout_cancel') }}">
+    <form method="post" action="{{ url_for('paystack_bp.checkout_cancel') }}">
       <input type="hidden" name="subject_id" value="{{ subject_id }}">
       <input type="hidden" name="reason" value="price_too_high">
       <button {{ disabled_attr }}
@@ -159,7 +159,7 @@
                           role='user',
                           subject=subject_slug,
                           subject_id=subject_id,
-                          next=url_for('payfast_bp.checkout_review',
+                          next=url_for('paystack_bp.checkout_review',
                                       subject_id=subject_id,
                                       subject=subject_slug)) }}
             {% elif loss_free %}
@@ -182,3 +182,5 @@
 
 </div>
 {% endblock %}
+
+

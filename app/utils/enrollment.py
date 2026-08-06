@@ -83,7 +83,7 @@ def ensure_enrollment(user_id: int, subject_slug: str, role: str):
     """
     Back-compat wrapper:
     Ensure ACTIVE + pending enrollment using subject_slug.
-    (Ignores role; settlement happens via Stripe success/webhook.)
+    (Ignores role; settlement happens via Paystack success/webhook.)
     """
     slug = (subject_slug or "").strip().lower()
     create_pending_user_enrollment(user_id=user_id, subject_slug=slug, program=slug)
@@ -275,7 +275,7 @@ def merge_enrollment_payload(enrollment, price_row):
     enrollment.local_currency = price_row.local_currency or enrollment.quoted_currency
     enrollment.local_amount_cents = price_row.local_amount_cents or enrollment.quoted_amount_cents
 
-    # Charged values (base currency, e.g. ZAR for Yoco)
+    # Charged values (base currency, e.g. ZAR for Paystack)
     enrollment.charged_currency = "ZAR"
     enrollment.charged_amount_cents = price_row.zar_amount_cents or 0
 

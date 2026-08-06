@@ -494,7 +494,7 @@ def register_decision():
                 
             else:
                 flash("Invalid or expired voucher code.", "danger")
-                # Don't bypass payment! Just let it fall through to the Yoco redirect below.
+                # Don't bypass payment! Just let it fall through to the Paystack redirect below.
 
         if subject in ("billing", "metro_billing"):
             mark_loss_enrollment_free(enrollment_id) # Acts as a generic free marker
@@ -506,7 +506,7 @@ def register_decision():
 
     # ---------- SPECIAL CASE: MECHANIC FLAT ZAR REGISTRATION ----------
     if subject == "mechanic":
-        # BYPASS YOCO ON INITIAL REGISTRATION (30-DAY TRIAL SHADOW BILLING)
+        # BYPASS Paystack ON INITIAL REGISTRATION (30-DAY TRIAL SHADOW BILLING)
         ctx["quote"] = {
             "country_code": "ZA",
             "currency": "ZAR",
@@ -530,7 +530,7 @@ def register_decision():
 
     # ---------- SPECIAL CASE: PRACTICE (HEALTHCARE) ----------
     if subject == "practice":
-        # BYPASS YOCO ON INITIAL REGISTRATION (30-DAY TRIAL)
+        # BYPASS Paystack ON INITIAL REGISTRATION (30-DAY TRIAL)
         ctx["quote"] = {
             "country_code": "ZA",
             "currency": "ZAR",
@@ -566,7 +566,7 @@ def register_decision():
     
     # ---------- SPECIAL CASE: BILLING (MUNICIPAL) ----------
     if subject == "billing":
-        # BYPASS YOCO ON INITIAL REGISTRATION (30-DAY TRIAL)
+        # BYPASS Paystack ON INITIAL REGISTRATION (30-DAY TRIAL)
         ctx["quote"] = {
             "country_code": "ZA",
             "currency": "ZAR",
@@ -591,7 +591,7 @@ def register_decision():
     if "quote" not in ctx:
         ctx["error"] = f"No price configuration found for {subject}."
 
-    # 3) Normal paid flow: keep your existing pricing + PayFast logic here
+    # 3) Normal paid flow: keep your existing pricing + Paystack logic here
     q = ctx.get("quote")
 
     # ----- COUNTRY PRICE CHECKER INTERCEPT -----
@@ -1050,8 +1050,8 @@ def login():
 
     next_url = request.args.get("next")
     
-    # Intercept legacy yoco_start redirects (from cached URLs) to use register_decision instead
-    if next_url and "yoco_start" in next_url and "spv" not in next_url:
+    # Intercept legacy Paystack_start redirects (from cached URLs) to use register_decision instead
+    if next_url and "Paystack_start" in next_url and "spv" not in next_url:
         import re
         m = re.search(r'subject=([^&]+)', next_url)
         subj = m.group(1) if m else "cultural_fire"

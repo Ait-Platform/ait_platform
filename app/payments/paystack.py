@@ -22,13 +22,99 @@ from sqlalchemy import text
 from app.extensions import db, csrf
 from app.models.auth import User
 
+from app.payments.quote import build_amount_quote
+from app.payments.pricing import get_subject_price, countries_from_ref_with_names, _resolve_subject_from_request
+
 paystack_bp = Blueprint("paystack_bp", __name__)
 
-def get_paystack_secret():
-    return os.environ.get("PAYSTACK_SECRET_KEY", "sk_test_2e6012a225612c95a187a8b706d401de89e75bbe")
+@paystack_bp.route("/checkout/review", endpoint="checkout_review")
+def checkout_review():
+    subject_id, subject_slug = _resolve_subject_from_request()
+    if not subject_slug:
+        flash("Subject not specified.", "error")
+        return redirect(url_for("public_bp.welcome"))
+
+    countries = countries_from_ref_with_names()
+    
+    country = session.get("pp_country")
+    discounted = session.get("pp_discount", False)
+    
+    price_obj = {
+        "has_quote": False,
+        "is_discount": discounted,
+        "country_code": country,
+        "local_amount": None,
+        "local_currency": None,
+        "estimated_zar": None,
+        "fx_rate": 1.0,
+    }
+
+    if country:
+        quote = build_amount_quote(subject_slug, country, discounted)
+        if quote:
+            price_obj["has_quote"] = True
+            price_obj["local_amount"] = quote.get("local_cents", 0) / 100.0 if quote.get("local_cents") else None
+            price_obj["local_currency"] = quote.get("local_currency")
+            
+            zar_cents = quote.get("final_zar_cents") or quote.get("anchor_zar_cents") or 0
+            price_obj["estimated_zar"] = zar_cents / 100.0 if zar_cents else None
+
+            # Calculate effective FX rate for display
+            if price_obj["local_amount"] and price_obj["estimated_zar"] and price_obj["local_amount"] > 0:
+                price_obj["fx_rate"] = price_obj["estimated_zar"] / price_obj["local_amount"]
+
+    return render_template(
+        "payments/pricing.html",
+        subject_id=subject_id,
+        subject_slug=subject_slug,
+        price=price_obj,
+        countries=countries,
+        loss_free=False
+    )
+
+@paystack_bp.post("/pricing/lock", endpoint="pricing_lock")
+def pricing_lock():
+    subject_id = request.form.get("subject_id")
+    country = request.form.get("country")
+    
+    if not subject_id or not country:
+        flash("Please select a country to continue.", "error")
+        return redirect(request.referrer or url_for("public_bp.welcome"))
+
+    # Lock country in session
+    session["pp_country"] = country.strip().upper()
+    session.modified = True
+
+    return redirect(url_for("paystack_bp.checkout_review", subject_id=subject_id))
+
+@paystack_bp.post("/checkout/cancel", endpoint="checkout_cancel")
+def checkout_cancel():
+    # Clear the quote lock
+    session.pop("pp_country", None)
+    session.pop("pp_discount", None)
+    
+    subject_slug = request.form.get("subject_slug") or session.get("pending_subject") or "loss"
+    return redirect(url_for("auth_bp.bridge_dashboard", subject=subject_slug))
+
+def get_paystack_secret(subject=None):
+    is_live = False
+    if subject:
+        val = db.session.execute(
+            text("SELECT value FROM system_settings WHERE key = :k"),
+            {"k": f"paystack_mode_{subject}"} 
+        ).scalar()
+        if (val or "sandbox").lower() == "live":
+            is_live = True
+    else:
+        # Webhook / fallback
+        is_live = os.environ.get("FLASK_ENV") == "production"
+
+    if is_live:
+        return os.environ.get("PAYSTACK_LIVE_KEY", os.environ.get("PAYSTACK_SECRET_KEY"))
+    return os.environ.get("PAYSTACK_TEST_KEY", os.environ.get("PAYSTACK_SECRET_KEY", "sk_test_2e6012a225612c95a187a8b706d401de89e75bbe"))
 
 def create_paystack_transaction(amount_cents, display_name, subject, email, currency_code="ZAR"):
-    secret_key = get_paystack_secret()
+    secret_key = get_paystack_secret(subject)
     
     url = "https://api.paystack.co/transaction/initialize"
     

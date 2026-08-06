@@ -90,7 +90,7 @@
                         role='user',
                         subject=subject_slug,
                         subject_id=subject_id,
-                        next=url_for('payfast_bp.checkout_review',
+                        next=url_for('paystack_bp.checkout_review',
                                      subject_id=subject_id, subject=subject_slug)) }}"
        class="inline-flex items-center rounded bg-blue-600 px-4 py-2 text-white font-semibold hover:bg-blue-700">
       Enrol with 10% off
@@ -105,3 +105,4 @@
 
 </div>
 {% endblock %}
+

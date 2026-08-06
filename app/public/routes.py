@@ -134,7 +134,7 @@ def welcome():
         db.session.commit()
 
     # Auto-fix legacy yoco database entries
-    yoco_subjects = AuthSubject.query.filter_by(pay_endpoint='yoco_bp.yoco_start').all()
+    yoco_subjects = AuthSubject.query.filter_by(pay_endpoint='paystack_bp.paystack_start').all()
     if yoco_subjects:
         for subj in yoco_subjects:
             subj.pay_endpoint = 'paystack_bp.paystack_start'
@@ -330,3 +330,4 @@ def programs_list():
     # Query all active subjects for the Programs Directory that are meant to be shown
     subjects = AuthSubject.query.filter_by(is_active=1, show_on_welcome=True).order_by(AuthSubject.name).all()
     return render_template("public/programs.html", subjects=subjects)
+

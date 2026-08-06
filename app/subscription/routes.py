@@ -195,7 +195,7 @@ def renew_subscription_route(subscription_id):
     form = DummyForm()  # a FlaskForm with CSRF enabled
 
     # Redirect into payment flow (checkout review)
-    return redirect(url_for("payfast_bp.checkout_review",
+    return redirect(url_for("paystack_bp.checkout_review",
                             subject=subject.slug,form=form,
                             enrollment_id=enrollment.id))
 

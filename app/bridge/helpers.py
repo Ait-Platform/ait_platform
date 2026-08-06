@@ -165,7 +165,7 @@ def _tile_primary_href(tile):
     elif access_level in ("expired_trial", "expired_subscription"):
         href = url_for("quote_bp.quote", subject=subj.slug)
     else:
-        href = url_for("payfast_bp.checkout_review", subject=subj.slug)
+        href = url_for("paystack_bp.checkout_review", subject=subj.slug)
 
     # Action overrides
     if action == "go_pay":

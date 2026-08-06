@@ -1798,11 +1798,19 @@ def api_price_for_country(subject, country):
     amount = amount_cents / 100.0
     display_price = f"R {amount:,.2f}" if currency == "ZAR" else f"{currency} {amount:,.2f}"
     
+    from app.enrollment.logic import get_quote_for_subject_country
+    row = get_quote_for_subject_country(subj_id, country)
+    price_id = row.id if row else None
+    is_discount = getattr(row, 'is_discount', False) if row else False
+
     return jsonify({
         "country": country,
         "currency": currency,
+        "amount": amount_cents,
         "amount_cents": amount_cents,
-        "display_price": display_price
+        "display_price": display_price,
+        "price_id": price_id,
+        "is_discount": is_discount
     })
 
 def consolidate_duplicates_silently(cemail: str):

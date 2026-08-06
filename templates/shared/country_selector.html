@@ -1,6 +1,6 @@
 {% macro render_country_selector(countries, subject_slug, selected_code='') %}
 <div class="country-selector-wrapper">
-  <select id="uniform_country_selector" class="w-full md:w-80 rounded-lg border-2 border-slate-300 px-4 py-3 text-base text-slate-800 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition-colors bg-white">
+  <select id="uniform_country_selector" class="w-full rounded-lg border-2 border-slate-300 px-4 py-3 text-base text-slate-800 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition-colors bg-white">
     <option value="" {% if not selected_code %}selected{% endif %} disabled>Select your country...</option>
     {% for c in countries %}
       <option value="{{ c.code }}" {% if selected_code == c.code %}selected{% endif %}>

@@ -97,17 +97,7 @@ mx-auto max-w-7xl px-6 py-10
 
 {% endfor %}
 
-    {% if staff_subj and staff_subj.show_on_welcome %}
-    <!-- Support Staff / Receptionist Registration -->
-    {{ welcome_card(
-        title="Support Staff",
-        badge="Registration",
-        description="Register as a receptionist, tutor, or support staff member.",
-        color="emerald",
-        href=url_for('auth_bp.register', subject='staff'),
-        available=true
-    ) }}
-    {% endif %}
+
 
 </div>
 

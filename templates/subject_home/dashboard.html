@@ -89,70 +89,32 @@
               <p class="text-sm text-blue-800 mb-4">You have not linked a teacher to your account. Your practicals will not be graded until you select a teacher.</p>
           {% endif %}
 
-          <form id="change-teacher-form" action="{{ url_for('home_bp.link_teacher') }}" method="POST" class="{% if linked_teacher %}hidden mt-4 pt-4 border-t border-blue-200{% else %}flex flex-col gap-3{% endif %}">
+          <form id="change-teacher-form" action="{{ url_for('home_bp.create_tutor') }}" method="POST" class="{% if linked_teacher %}hidden mt-4 pt-4 border-t border-blue-200{% else %}flex flex-col gap-3{% endif %}">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <div class="flex items-end gap-3">
-                  <div class="flex-grow">
-                      <label for="teacher_id" class="block text-sm font-medium text-blue-900 mb-1">Select a Teacher</label>
-                      <select name="teacher_id" id="teacher_id" class="w-full rounded-md border-blue-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" required>
-                          <option value="" disabled selected>-- Choose your teacher --</option>
-                          {% for t in all_home_teachers %}
-                              <option value="{{ t.id }}">{{ t.name or t.email }} ({{ t.email }})</option>
-                          {% endfor %}
-                      </select>
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div>
+                      <label class="block text-sm font-medium text-blue-900 mb-1">Tutor Name</label>
+                      <input type="text" name="tutor_name" required class="w-full rounded-md border-blue-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" placeholder="e.g. Jane Doe">
                   </div>
-                  <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 h-[38px]">
-                      Save Teacher
+                  <div>
+                      <label class="block text-sm font-medium text-blue-900 mb-1">Tutor Email</label>
+                      <input type="email" name="tutor_email" required class="w-full rounded-md border-blue-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" placeholder="e.g. jane@example.com">
+                  </div>
+                  <div>
+                      <label class="block text-sm font-medium text-blue-900 mb-1">Tutor Password</label>
+                      <input type="text" name="tutor_password" required class="w-full rounded-md border-blue-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" placeholder="e.g. Password123">
+                  </div>
+              </div>
+              <div class="mt-2 flex justify-between items-center">
+                  <span class="text-xs text-blue-700">After creating the account, give the email and password to your tutor so they can log in.</span>
+                  <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                      Create Tutor Account
                   </button>
               </div>
-                <div class="mt-4 p-4 bg-white border border-blue-100 rounded-lg shadow-sm">
-                    <p class="text-xs text-blue-700 font-medium mb-2">
-                        Don't see your teacher? Invite them to register a free account:
-                    </p>
-                    <div class="flex items-center gap-2 bg-blue-50 p-2 border border-blue-200 rounded">
-                        <span class="pl-2 text-blue-500">📱</span>
-                        <input type="tel" id="invite-whatsapp-tutor" placeholder="Teacher's WhatsApp (e.g. 082 123 4567)" class="flex-1 border-none focus:ring-0 text-sm py-1 bg-transparent w-full">
-                        <button type="button" onclick="sendTutorInvite()" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded transition whitespace-nowrap flex items-center gap-2">
-                            <span>💬</span> Send Invite
-                        </button>
-                    </div>
-                </div>
           </form>
       </div>
 
-        <script>
-        function sendTutorInvite() {
-            let phone = document.getElementById('invite-whatsapp-tutor').value.replace(/[^0-9+]/g, '');
-            if (!phone) {
-                alert("Please enter a valid WhatsApp number.");
-                return;
-            }
-            if (phone.startsWith('0')) {
-                phone = '27' + phone.substring(1);
-            } else {
-                phone = phone.replace('+', '');
-            }
-            
-            // Log the invite asynchronously
-            fetch("{{ url_for('auth_bp.log_invite') }}", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-CSRFToken": "{{ csrf_token() }}"
-                },
-                body: JSON.stringify({
-                    phone: phone,
-                    program: "home",
-                    type: "tutor_invite"
-                })
-            }).catch(e => console.error("Failed to log invite", e));
-            
-            const regUrl = "{{ url_for('auth_bp.register', subject='staff', _external=True) }}";
-            const msg = `Hi! Please click this link to register a free account on the AIT Platform so I can link you as my teacher for the Hands On Math Education (HOME) program: ${regUrl}`;
-            
-            window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
-        }
-        </script>
+
 
       <!-- Section 1: Practical Learning -->
       <div class="overflow-hidden rounded-lg border border-gray-200 shadow-sm mb-8">

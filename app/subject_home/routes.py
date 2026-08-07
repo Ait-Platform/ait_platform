@@ -163,6 +163,59 @@ def learner_dashboard():
     response.headers["Expires"] = "0"
     return response
 
+@home_bp.route('/home/create_tutor', methods=['POST'])
+@login_required
+def create_tutor():
+    from app.models.home import HomeTeacherLink
+    from app.models.auth import UserEnrollment, AuthSubject
+    from werkzeug.security import generate_password_hash
+    
+    tutor_name = request.form.get('tutor_name')
+    tutor_email = request.form.get('tutor_email')
+    tutor_password = request.form.get('tutor_password')
+    
+    if not tutor_name or not tutor_email or not tutor_password:
+        flash("Please fill in all tutor details.", "warning")
+        return redirect(url_for('home_bp.learner_dashboard'))
+        
+    # Check if email exists
+    existing = User.query.filter_by(email=tutor_email.lower()).first()
+    if existing:
+        flash("A user with this email already exists. Please use a different email or log in.", "warning")
+        return redirect(url_for('home_bp.learner_dashboard'))
+        
+    # Create the user
+    new_tutor = User(
+        email=tutor_email.lower(),
+        name=tutor_name,
+        password=generate_password_hash(tutor_password, method='pbkdf2:sha256'),
+        role='support_staff'
+    )
+    db.session.add(new_tutor)
+    db.session.flush() # To get new_tutor.id
+    
+    # Enroll them in staff
+    staff_subject = AuthSubject.query.filter_by(slug='staff').first()
+    if staff_subject:
+        enr = UserEnrollment(
+            user_id=new_tutor.id,
+            subject_id=staff_subject.id,
+            status='active'
+        )
+        db.session.add(enr)
+        
+    # Link to learner
+    link = HomeTeacherLink.query.filter_by(student_id=current_user.id).first()
+    if link:
+        link.teacher_id = new_tutor.id
+    else:
+        link = HomeTeacherLink(student_id=current_user.id, teacher_id=new_tutor.id)
+        db.session.add(link)
+        
+    db.session.commit()
+    flash(f"Tutor account created for {tutor_name}! They can now log in.", "success")
+    return redirect(url_for('home_bp.learner_dashboard'))
+
 @home_bp.route('/home/link_teacher', methods=['POST'])
 @login_required
 def link_teacher():

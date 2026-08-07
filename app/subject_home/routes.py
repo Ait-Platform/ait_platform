@@ -224,7 +224,33 @@ def chapter_page(chapter_num):
 
     if request.method == 'POST':
         
-
+        if chapter_num <= 10:
+            from app.models.home import HomePracticalSubmission
+            
+            # Check if there is already a submission
+            existing = HomePracticalSubmission.query.filter_by(
+                student_id=current_user.id, 
+                chapter_number=chapter_num
+            ).first()
+            
+            if not existing:
+                new_sub = HomePracticalSubmission(
+                    student_id=current_user.id,
+                    chapter_number=chapter_num,
+                    status="pending"
+                )
+                db.session.add(new_sub)
+                db.session.commit()
+                flash(f"Practical work for Chapter {chapter_num} submitted to your teacher for review!", "success")
+            elif existing.status == "pending":
+                flash(f"You have already submitted Chapter {chapter_num} for review. Please wait for your teacher.", "info")
+            else:
+                # If they were not_yet_competent, they can resubmit
+                existing.status = "pending"
+                db.session.commit()
+                flash(f"Practical work for Chapter {chapter_num} re-submitted for review!", "success")
+                
+            return redirect(url_for('home_bp.learner_dashboard'))
 
         results = []
         correct_count = 0
@@ -322,7 +348,7 @@ def chapter_page(chapter_num):
 
     if chapter_num in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]:
         return render_template(
-            'subject_home/chapter_db.html',
+            f'subject_home/chapter{chapter_num}_practical.html',
             chapter=chapter, hero_image=hero_image,
             questions=render_questions
         )

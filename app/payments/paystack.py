@@ -212,41 +212,26 @@ def start():
                 {"uid": u.id, "s": subject}
             ).mappings().first()
             if row:
-                if row.get("local_amount_cents") and row.get("local_currency"):
-                    amount_cents = int(row["local_amount_cents"])
-                    currency = row["local_currency"]
-                elif row.get("zar_amount_cents") and int(row["zar_amount_cents"]) > 0:
+                if row.get("zar_amount_cents") and int(row["zar_amount_cents"]) > 0:
                     amount_cents = int(row["zar_amount_cents"])
 
     if amount_cents <= 0:
         if session.get("subject_slug") == subject and session.get("zar_amount_cents"):
-            if session.get("local_currency") and session.get("local_amount_cents"):
-                amount_cents = int(session.get("local_amount_cents"))
-                currency = session.get("local_currency")
-            else:
-                amount_cents = int(session.get("zar_amount_cents"))
+            amount_cents = int(session.get("zar_amount_cents"))
 
     if amount_cents <= 0:
         ctx = session.get("reg_ctx", {})
         quote = ctx.get("quote", {})
         if quote:
-            if quote.get("local_cents") and quote.get("local_currency"):
-                amount_cents = int(quote["local_cents"])
-                currency = quote["local_currency"]
-            else:
-                fallback = quote.get("est_zar_cents") or quote.get("zar_amount_cents")
-                if fallback:
-                    amount_cents = int(fallback)
+            fallback = quote.get("est_zar_cents") or quote.get("zar_amount_cents") or quote.get("anchor_zar_cents")
+            if fallback:
+                amount_cents = int(fallback)
             
     if amount_cents <= 0:
         from app.payments.pricing import get_subject_price
         price_info = get_subject_price(subject)
         if price_info and price_info["amount_cents"] > 0:
-            if price_info.get("local_cents") and price_info.get("local_currency"):
-                amount_cents = int(price_info["local_cents"])
-                currency = price_info["local_currency"]
-            else:
-                amount_cents = int(price_info["amount_cents"])
+            amount_cents = int(price_info["amount_cents"])
             
     if session.get('is_retake'):
         retake_zar = session.get('retake_zar_cents')

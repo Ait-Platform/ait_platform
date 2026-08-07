@@ -6,7 +6,7 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
 
 {% block content %}
 
-<div class="max-w-4xl mx-auto bg-white shadow-xl rounded-2xl mt-6 overflow-hidden border border-slate-100">
+<div class="max-w-6xl mx-auto bg-white shadow-xl rounded-2xl mt-6 overflow-hidden border border-slate-100">
 
     <!-- Top Color Strip -->
     <div class="h-3 bg-blue-600"></div>
@@ -16,7 +16,7 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
         <!-- Header -->
         <div class="flex flex-row justify-between items-center mb-8 pb-6 border-b border-slate-100">
             <div>
-                <span class="text-sm font-bold tracking-wider text-blue-600 uppercase">SECTION 1 – PRACTICAL LEARNING</span>
+                <span class="text-base font-bold tracking-wider text-blue-600 uppercase">SECTION 1 – PRACTICAL LEARNING</span>
                 <h1 class="text-3xl font-extrabold text-slate-900 mt-1">
                     CHAPTER {{ chapter.chapter_number }} – {{ chapter.title|upper }}
                 </h1>
@@ -34,7 +34,7 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
         {% endif %}
 
             <a href="{{ url_for('home_bp.learner_dashboard') }}"
-               class="inline-flex items-center px-4 py-2 rounded-lg text-sm font-semibold text-slate-600 border border-slate-200 hover:bg-slate-50 transition">
+               class="inline-flex items-center px-4 py-2 rounded-lg text-base font-semibold text-slate-800 border border-slate-200 hover:bg-slate-50 transition">
                 ← Back
             </a>
         </div>
@@ -46,7 +46,7 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                     Objective
                 </h2>
-                <p class="text-blue-900 leading-relaxed text-sm">
+                <p class="text-blue-900 leading-relaxed text-base">
                     Learn how to analyse situations, evaluate options, identify consequences and make sound decisions using evidence and reasoning.
                 </p>
             </div>
@@ -56,7 +56,7 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
                     Teacher Preparation
                 </h2>
-                <p class="text-amber-900 leading-relaxed text-sm">
+                <p class="text-amber-900 leading-relaxed text-base">
                     Gather everyday objects and prepare simple real-life scenarios.
                     <br><span class="font-semibold">Examples:</span> Cup, Bottle, Book, Umbrella, Torch, School bag, Raincoat.
                 </p>
@@ -69,23 +69,25 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
             <!-- Activity 1 -->
             <div class="border border-slate-200 rounded-xl p-6 md:p-8 mb-6 shadow-sm">
                 <h3 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Activity 1 – Choosing the Best Tool</h3>
-                <div class="grid md:grid-cols-2 gap-6">
+                <div class="{% if is_teacher_scoring %}grid md:grid-cols-2 gap-6{% else %}space-y-4{% endif %}">
                     <div>
-                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Instruction</h4>
-                        <p class="text-slate-700 text-sm mb-2">Place several objects on a table. Teacher presents a problem. Examples:</p>
-                        <ul class="list-none text-slate-700 space-y-1 mb-4 text-sm pl-4 border-l-2 border-amber-300">
+                        <h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Instruction</h4>
+                        <p class="text-slate-900 text-base mb-2">Place several objects on a table. Teacher presents a problem. Examples:</p>
+                        <ul class="list-none text-slate-900 space-y-1 mb-4 text-base pl-4 border-l-2 border-amber-300">
                             <li>• You need to carry water.</li>
                             <li>• You need to read in the dark.</li>
                             <li>• It is raining outside.</li>
                         </ul>
-                        <p class="text-slate-700 text-sm font-semibold mb-2">Teacher asks:</p>
-                        <ul class="list-none text-slate-700 space-y-1 mb-4 text-sm pl-4 border-l-2 border-amber-300">
+                        <p class="text-slate-900 text-base font-semibold mb-2">Teacher asks:</p>
+                        <ul class="list-none text-slate-900 space-y-1 mb-4 text-base pl-4 border-l-2 border-amber-300">
                             <li>• Which object would help most?</li>
                             <li>• Why?</li>
                         </ul>
 
-                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Expected Answer</h4>
-                        <p class="text-slate-700 text-sm italic">Learner identifies the object that best solves the problem and explains the reason.</p>
+                        {% if is_teacher_scoring %}
+<h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Expected Answer</h4>
+                        <p class="text-slate-900 text-base italic">Learner identifies the object that best solves the problem and explains the reason.</p>
+{% endif %}
                     </div>
                     {% if is_teacher_scoring %}
 <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
@@ -93,7 +95,7 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
                             <input type="checkbox" name="act1_check" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
                             <div>
                                 <span class="block font-bold text-slate-800 group-hover:text-blue-600 transition">Teacher Check</span>
-                                <span class="block text-sm text-slate-500">Learner selects the most suitable object.</span>
+                                <span class="block text-base text-slate-500">Learner selects the most suitable object.</span>
                             </div>
                         </label>
                     </div>
@@ -104,22 +106,24 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
             <!-- Activity 2 -->
             <div class="border border-slate-200 rounded-xl p-6 md:p-8 mb-6 shadow-sm">
                 <h3 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Activity 2 – Identifying Consequences</h3>
-                <div class="grid md:grid-cols-2 gap-6">
+                <div class="{% if is_teacher_scoring %}grid md:grid-cols-2 gap-6{% else %}space-y-4{% endif %}">
                     <div>
-                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Instruction</h4>
-                        <p class="text-slate-700 text-sm font-semibold mb-2">Teacher presents situations. Examples:</p>
-                        <ul class="list-none text-slate-700 space-y-1 mb-4 text-sm pl-4 border-l-2 border-amber-300">
+                        <h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Instruction</h4>
+                        <p class="text-slate-900 text-base font-semibold mb-2">Teacher presents situations. Examples:</p>
+                        <ul class="list-none text-slate-900 space-y-1 mb-4 text-base pl-4 border-l-2 border-amber-300">
                             <li>• A learner forgets to study.</li>
                             <li>• A plant is never watered.</li>
                             <li>• A bicycle is left outside in the rain.</li>
                         </ul>
-                        <p class="text-slate-700 text-sm font-semibold mb-2">Teacher asks:</p>
-                        <ul class="list-none text-slate-700 space-y-1 mb-4 text-sm pl-4 border-l-2 border-amber-300">
+                        <p class="text-slate-900 text-base font-semibold mb-2">Teacher asks:</p>
+                        <ul class="list-none text-slate-900 space-y-1 mb-4 text-base pl-4 border-l-2 border-amber-300">
                             <li>• What might happen next?</li>
                         </ul>
 
-                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Expected Answer</h4>
-                        <p class="text-slate-700 text-sm italic">Learner explains realistic outcomes based on the situation.</p>
+                        {% if is_teacher_scoring %}
+<h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Expected Answer</h4>
+                        <p class="text-slate-900 text-base italic">Learner explains realistic outcomes based on the situation.</p>
+{% endif %}
                     </div>
                     {% if is_teacher_scoring %}
 <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
@@ -127,7 +131,7 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
                             <input type="checkbox" name="act2_check" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
                             <div>
                                 <span class="block font-bold text-slate-800 group-hover:text-blue-600 transition">Teacher Check</span>
-                                <span class="block text-sm text-slate-500">Learner identifies likely consequences.</span>
+                                <span class="block text-base text-slate-500">Learner identifies likely consequences.</span>
                             </div>
                         </label>
                     </div>
@@ -138,25 +142,27 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
             <!-- Activity 3 -->
             <div class="border border-slate-200 rounded-xl p-6 md:p-8 mb-6 shadow-sm">
                 <h3 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Activity 3 – Comparing Solutions</h3>
-                <div class="grid md:grid-cols-2 gap-6">
+                <div class="{% if is_teacher_scoring %}grid md:grid-cols-2 gap-6{% else %}space-y-4{% endif %}">
                     <div>
-                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Instruction</h4>
-                        <p class="text-slate-700 text-sm mb-2">Teacher presents a problem.</p>
-                        <p class="text-slate-700 text-sm italic mb-2">Example: You need to carry ten books.</p>
-                        <p class="text-slate-700 text-sm font-semibold mb-2">Options:</p>
-                        <ul class="list-none text-slate-700 space-y-1 mb-4 text-sm pl-4 border-l-2 border-amber-300">
+                        <h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Instruction</h4>
+                        <p class="text-slate-900 text-base mb-2">Teacher presents a problem.</p>
+                        <p class="text-slate-900 text-base italic mb-2">Example: You need to carry ten books.</p>
+                        <p class="text-slate-900 text-base font-semibold mb-2">Options:</p>
+                        <ul class="list-none text-slate-900 space-y-1 mb-4 text-base pl-4 border-l-2 border-amber-300">
                             <li>• Plastic bag</li>
                             <li>• School bag</li>
                             <li>• Small box</li>
                         </ul>
-                        <p class="text-slate-700 text-sm font-semibold mb-2">Teacher asks:</p>
-                        <ul class="list-none text-slate-700 space-y-1 mb-4 text-sm pl-4 border-l-2 border-amber-300">
+                        <p class="text-slate-900 text-base font-semibold mb-2">Teacher asks:</p>
+                        <ul class="list-none text-slate-900 space-y-1 mb-4 text-base pl-4 border-l-2 border-amber-300">
                             <li>• Which option is best?</li>
                             <li>• Why?</li>
                         </ul>
 
-                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Expected Answer</h4>
-                        <p class="text-slate-700 text-sm italic">Learner selects the most practical solution and justifies the choice.</p>
+                        {% if is_teacher_scoring %}
+<h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Expected Answer</h4>
+                        <p class="text-slate-900 text-base italic">Learner selects the most practical solution and justifies the choice.</p>
+{% endif %}
                     </div>
                     {% if is_teacher_scoring %}
 <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
@@ -164,7 +170,7 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
                             <input type="checkbox" name="act3_check" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
                             <div>
                                 <span class="block font-bold text-slate-800 group-hover:text-blue-600 transition">Teacher Check</span>
-                                <span class="block text-sm text-slate-500">Learner evaluates alternatives.</span>
+                                <span class="block text-base text-slate-500">Learner evaluates alternatives.</span>
                             </div>
                         </label>
                     </div>
@@ -175,23 +181,25 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
             <!-- Activity 4 -->
             <div class="border border-slate-200 rounded-xl p-6 md:p-8 mb-6 shadow-sm">
                 <h3 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Activity 4 – Spotting Problems</h3>
-                <div class="grid md:grid-cols-2 gap-6">
+                <div class="{% if is_teacher_scoring %}grid md:grid-cols-2 gap-6{% else %}space-y-4{% endif %}">
                     <div>
-                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Instruction</h4>
-                        <p class="text-slate-700 text-sm font-semibold mb-2">Teacher shows an everyday situation. Examples:</p>
-                        <ul class="list-none text-slate-700 space-y-1 mb-4 text-sm pl-4 border-l-2 border-amber-300">
+                        <h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Instruction</h4>
+                        <p class="text-slate-900 text-base font-semibold mb-2">Teacher shows an everyday situation. Examples:</p>
+                        <ul class="list-none text-slate-900 space-y-1 mb-4 text-base pl-4 border-l-2 border-amber-300">
                             <li>• Water leaking from a tap.</li>
                             <li>• Toys blocking a doorway.</li>
                             <li>• Food left uncovered.</li>
                         </ul>
-                        <p class="text-slate-700 text-sm font-semibold mb-2">Teacher asks:</p>
-                        <ul class="list-none text-slate-700 space-y-1 mb-4 text-sm pl-4 border-l-2 border-amber-300">
+                        <p class="text-slate-900 text-base font-semibold mb-2">Teacher asks:</p>
+                        <ul class="list-none text-slate-900 space-y-1 mb-4 text-base pl-4 border-l-2 border-amber-300">
                             <li>• What is the problem?</li>
                             <li>• Why is it a problem?</li>
                         </ul>
 
-                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Expected Answer</h4>
-                        <p class="text-slate-700 text-sm italic">Learner explains the issue and its possible impact.</p>
+                        {% if is_teacher_scoring %}
+<h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Expected Answer</h4>
+                        <p class="text-slate-900 text-base italic">Learner explains the issue and its possible impact.</p>
+{% endif %}
                     </div>
                     {% if is_teacher_scoring %}
 <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
@@ -199,7 +207,7 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
                             <input type="checkbox" name="act4_check" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
                             <div>
                                 <span class="block font-bold text-slate-800 group-hover:text-blue-600 transition">Teacher Check</span>
-                                <span class="block text-sm text-slate-500">Learner identifies risks and concerns.</span>
+                                <span class="block text-base text-slate-500">Learner identifies risks and concerns.</span>
                             </div>
                         </label>
                     </div>
@@ -210,24 +218,26 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
             <!-- Activity 5 -->
             <div class="border border-slate-200 rounded-xl p-6 md:p-8 mb-6 shadow-sm">
                 <h3 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Activity 5 – Making Decisions</h3>
-                <div class="grid md:grid-cols-2 gap-6">
+                <div class="{% if is_teacher_scoring %}grid md:grid-cols-2 gap-6{% else %}space-y-4{% endif %}">
                     <div>
-                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Instruction</h4>
-                        <p class="text-slate-700 text-sm mb-2">Teacher presents a choice.</p>
-                        <p class="text-slate-700 text-sm font-semibold mb-2">Example: You have enough money to buy:</p>
-                        <ul class="list-none text-slate-700 space-y-1 mb-4 text-sm pl-4 border-l-2 border-amber-300">
+                        <h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Instruction</h4>
+                        <p class="text-slate-900 text-base mb-2">Teacher presents a choice.</p>
+                        <p class="text-slate-900 text-base font-semibold mb-2">Example: You have enough money to buy:</p>
+                        <ul class="list-none text-slate-900 space-y-1 mb-4 text-base pl-4 border-l-2 border-amber-300">
                             <li>• One large item</li>
                             <li class="opacity-50">or</li>
                             <li>• Three smaller useful items</li>
                         </ul>
-                        <p class="text-slate-700 text-sm font-semibold mb-2">Teacher asks:</p>
-                        <ul class="list-none text-slate-700 space-y-1 mb-4 text-sm pl-4 border-l-2 border-amber-300">
+                        <p class="text-slate-900 text-base font-semibold mb-2">Teacher asks:</p>
+                        <ul class="list-none text-slate-900 space-y-1 mb-4 text-base pl-4 border-l-2 border-amber-300">
                             <li>• Which would you choose?</li>
                             <li>• Why?</li>
                         </ul>
 
-                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Expected Answer</h4>
-                        <p class="text-slate-700 text-sm italic">Learner provides logical reasoning supporting the choice.</p>
+                        {% if is_teacher_scoring %}
+<h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Expected Answer</h4>
+                        <p class="text-slate-900 text-base italic">Learner provides logical reasoning supporting the choice.</p>
+{% endif %}
                     </div>
                     {% if is_teacher_scoring %}
 <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
@@ -235,7 +245,7 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
                             <input type="checkbox" name="act5_check" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
                             <div>
                                 <span class="block font-bold text-slate-800 group-hover:text-blue-600 transition">Teacher Check</span>
-                                <span class="block text-sm text-slate-500">Learner makes a reasoned decision.</span>
+                                <span class="block text-base text-slate-500">Learner makes a reasoned decision.</span>
                             </div>
                         </label>
                     </div>
@@ -246,22 +256,24 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
             <!-- Activity 6 -->
             <div class="border border-slate-200 rounded-xl p-6 md:p-8 mb-6 shadow-sm">
                 <h3 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Activity 6 – Evidence Investigation</h3>
-                <div class="grid md:grid-cols-2 gap-6">
+                <div class="{% if is_teacher_scoring %}grid md:grid-cols-2 gap-6{% else %}space-y-4{% endif %}">
                     <div>
-                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Instruction</h4>
-                        <p class="text-slate-700 text-sm font-semibold mb-2">Teacher presents clues. Example:</p>
-                        <ul class="list-none text-slate-700 space-y-1 mb-4 text-sm pl-4 border-l-2 border-amber-300">
+                        <h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Instruction</h4>
+                        <p class="text-slate-900 text-base font-semibold mb-2">Teacher presents clues. Example:</p>
+                        <ul class="list-none text-slate-900 space-y-1 mb-4 text-base pl-4 border-l-2 border-amber-300">
                             <li>• The ground is wet.</li>
                             <li>• Dark clouds are visible.</li>
                             <li>• People are carrying umbrellas.</li>
                         </ul>
-                        <p class="text-slate-700 text-sm font-semibold mb-2">Teacher asks:</p>
-                        <ul class="list-none text-slate-700 space-y-1 mb-4 text-sm pl-4 border-l-2 border-amber-300">
+                        <p class="text-slate-900 text-base font-semibold mb-2">Teacher asks:</p>
+                        <ul class="list-none text-slate-900 space-y-1 mb-4 text-base pl-4 border-l-2 border-amber-300">
                             <li>• What probably happened?</li>
                         </ul>
 
-                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Expected Answer</h4>
-                        <p class="text-slate-700 text-sm italic">Learner concludes that it probably rained.</p>
+                        {% if is_teacher_scoring %}
+<h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Expected Answer</h4>
+                        <p class="text-slate-900 text-base italic">Learner concludes that it probably rained.</p>
+{% endif %}
                     </div>
                     {% if is_teacher_scoring %}
 <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
@@ -269,7 +281,7 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
                             <input type="checkbox" name="act6_check" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
                             <div>
                                 <span class="block font-bold text-slate-800 group-hover:text-blue-600 transition">Teacher Check</span>
-                                <span class="block text-sm text-slate-500">Learner uses evidence to form conclusions.</span>
+                                <span class="block text-base text-slate-500">Learner uses evidence to form conclusions.</span>
                             </div>
                         </label>
                     </div>
@@ -280,23 +292,25 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
             <!-- Activity 7 -->
             <div class="border border-slate-200 rounded-xl p-6 md:p-8 mb-6 shadow-sm">
                 <h3 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Activity 7 – Planning Ahead</h3>
-                <div class="grid md:grid-cols-2 gap-6">
+                <div class="{% if is_teacher_scoring %}grid md:grid-cols-2 gap-6{% else %}space-y-4{% endif %}">
                     <div>
-                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Instruction</h4>
-                        <p class="text-slate-700 text-sm font-semibold mb-2">Teacher presents a future situation. Examples:</p>
-                        <ul class="list-none text-slate-700 space-y-1 mb-4 text-sm pl-4 border-l-2 border-amber-300">
+                        <h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Instruction</h4>
+                        <p class="text-slate-900 text-base font-semibold mb-2">Teacher presents a future situation. Examples:</p>
+                        <ul class="list-none text-slate-900 space-y-1 mb-4 text-base pl-4 border-l-2 border-amber-300">
                             <li>• Going on a picnic.</li>
                             <li>• Travelling on a long trip.</li>
                             <li>• Preparing for a school day.</li>
                         </ul>
-                        <p class="text-slate-700 text-sm font-semibold mb-2">Teacher asks:</p>
-                        <ul class="list-none text-slate-700 space-y-1 mb-4 text-sm pl-4 border-l-2 border-amber-300">
+                        <p class="text-slate-900 text-base font-semibold mb-2">Teacher asks:</p>
+                        <ul class="list-none text-slate-900 space-y-1 mb-4 text-base pl-4 border-l-2 border-amber-300">
                             <li>• What should you take with you?</li>
                             <li>• Why?</li>
                         </ul>
 
-                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Expected Answer</h4>
-                        <p class="text-slate-700 text-sm italic">Learner identifies useful items and explains their importance.</p>
+                        {% if is_teacher_scoring %}
+<h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Expected Answer</h4>
+                        <p class="text-slate-900 text-base italic">Learner identifies useful items and explains their importance.</p>
+{% endif %}
                     </div>
                     {% if is_teacher_scoring %}
 <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
@@ -304,7 +318,7 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
                             <input type="checkbox" name="act7_check" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
                             <div>
                                 <span class="block font-bold text-slate-800 group-hover:text-blue-600 transition">Teacher Check</span>
-                                <span class="block text-sm text-slate-500">Learner plans appropriately.</span>
+                                <span class="block text-base text-slate-500">Learner plans appropriately.</span>
                             </div>
                         </label>
                     </div>
@@ -315,28 +329,30 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
             <!-- Activity 8 -->
             <div class="border border-slate-200 rounded-xl p-6 md:p-8 mb-6 shadow-sm">
                 <h3 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Activity 8 – Best Route Challenge</h3>
-                <div class="grid md:grid-cols-2 gap-6">
+                <div class="{% if is_teacher_scoring %}grid md:grid-cols-2 gap-6{% else %}space-y-4{% endif %}">
                     <div>
-                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Instruction</h4>
-                        <p class="text-slate-700 text-sm mb-2">Create two routes to reach an object.</p>
-                        <p class="text-slate-700 text-sm font-semibold mb-2">Route A:</p>
-                        <ul class="list-none text-slate-700 space-y-1 mb-4 text-sm pl-4 border-l-2 border-amber-300">
+                        <h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Instruction</h4>
+                        <p class="text-slate-900 text-base mb-2">Create two routes to reach an object.</p>
+                        <p class="text-slate-900 text-base font-semibold mb-2">Route A:</p>
+                        <ul class="list-none text-slate-900 space-y-1 mb-4 text-base pl-4 border-l-2 border-amber-300">
                             <li>• Shorter</li>
                             <li>• Contains obstacles</li>
                         </ul>
-                        <p class="text-slate-700 text-sm font-semibold mb-2">Route B:</p>
-                        <ul class="list-none text-slate-700 space-y-1 mb-4 text-sm pl-4 border-l-2 border-amber-300">
+                        <p class="text-slate-900 text-base font-semibold mb-2">Route B:</p>
+                        <ul class="list-none text-slate-900 space-y-1 mb-4 text-base pl-4 border-l-2 border-amber-300">
                             <li>• Longer</li>
                             <li>• Clear path</li>
                         </ul>
-                        <p class="text-slate-700 text-sm font-semibold mb-2">Teacher asks:</p>
-                        <ul class="list-none text-slate-700 space-y-1 mb-4 text-sm pl-4 border-l-2 border-amber-300">
+                        <p class="text-slate-900 text-base font-semibold mb-2">Teacher asks:</p>
+                        <ul class="list-none text-slate-900 space-y-1 mb-4 text-base pl-4 border-l-2 border-amber-300">
                             <li>• Which route would you choose?</li>
                             <li>• Why?</li>
                         </ul>
 
-                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Expected Answer</h4>
-                        <p class="text-slate-700 text-sm italic">Learner considers safety, speed and practicality before deciding.</p>
+                        {% if is_teacher_scoring %}
+<h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Expected Answer</h4>
+                        <p class="text-slate-900 text-base italic">Learner considers safety, speed and practicality before deciding.</p>
+{% endif %}
                     </div>
                     {% if is_teacher_scoring %}
 <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
@@ -344,7 +360,7 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
                             <input type="checkbox" name="act8_check" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
                             <div>
                                 <span class="block font-bold text-slate-800 group-hover:text-blue-600 transition">Teacher Check</span>
-                                <span class="block text-sm text-slate-500">Learner evaluates advantages and disadvantages.</span>
+                                <span class="block text-base text-slate-500">Learner evaluates advantages and disadvantages.</span>
                             </div>
                         </label>
                     </div>
@@ -355,23 +371,25 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
             <!-- Activity 9 -->
             <div class="border border-slate-200 rounded-xl p-6 md:p-8 mb-6 shadow-sm">
                 <h3 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Activity 9 – Solving a Real Problem</h3>
-                <div class="grid md:grid-cols-2 gap-6">
+                <div class="{% if is_teacher_scoring %}grid md:grid-cols-2 gap-6{% else %}space-y-4{% endif %}">
                     <div>
-                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Instruction</h4>
-                        <p class="text-slate-700 text-sm font-semibold mb-2">Teacher presents a household or school problem. Examples:</p>
-                        <ul class="list-none text-slate-700 space-y-1 mb-4 text-sm pl-4 border-l-2 border-amber-300">
+                        <h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Instruction</h4>
+                        <p class="text-slate-900 text-base font-semibold mb-2">Teacher presents a household or school problem. Examples:</p>
+                        <ul class="list-none text-slate-900 space-y-1 mb-4 text-base pl-4 border-l-2 border-amber-300">
                             <li>• Lost classroom supplies.</li>
                             <li>• Water spilled on the floor.</li>
                             <li>• Books falling from a shelf.</li>
                         </ul>
-                        <p class="text-slate-700 text-sm font-semibold mb-2">Teacher asks:</p>
-                        <ul class="list-none text-slate-700 space-y-1 mb-4 text-sm pl-4 border-l-2 border-amber-300">
+                        <p class="text-slate-900 text-base font-semibold mb-2">Teacher asks:</p>
+                        <ul class="list-none text-slate-900 space-y-1 mb-4 text-base pl-4 border-l-2 border-amber-300">
                             <li>• What should be done first?</li>
                             <li>• What would solve the problem?</li>
                         </ul>
 
-                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Expected Answer</h4>
-                        <p class="text-slate-700 text-sm italic">Learner identifies logical actions to resolve the situation.</p>
+                        {% if is_teacher_scoring %}
+<h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Expected Answer</h4>
+                        <p class="text-slate-900 text-base italic">Learner identifies logical actions to resolve the situation.</p>
+{% endif %}
                     </div>
                     {% if is_teacher_scoring %}
 <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
@@ -379,7 +397,7 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
                             <input type="checkbox" name="act9_check" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
                             <div>
                                 <span class="block font-bold text-slate-800 group-hover:text-blue-600 transition">Teacher Check</span>
-                                <span class="block text-sm text-slate-500">Learner proposes practical solutions.</span>
+                                <span class="block text-base text-slate-500">Learner proposes practical solutions.</span>
                             </div>
                         </label>
                     </div>
@@ -390,24 +408,26 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
             <!-- Activity 10 -->
             <div class="border border-slate-200 rounded-xl p-6 md:p-8 mb-6 shadow-sm">
                 <h3 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Activity 10 – Critical Thinking Investigation</h3>
-                <div class="grid md:grid-cols-2 gap-6">
+                <div class="{% if is_teacher_scoring %}grid md:grid-cols-2 gap-6{% else %}space-y-4{% endif %}">
                     <div>
-                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Instruction</h4>
-                        <p class="text-slate-700 text-sm mb-2">Teacher presents a complete scenario. Example:</p>
-                        <p class="text-slate-700 text-sm mb-2">A learner must walk home.</p>
-                        <ul class="list-none text-slate-700 space-y-1 mb-4 text-sm pl-4 border-l-2 border-amber-300">
+                        <h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Instruction</h4>
+                        <p class="text-slate-900 text-base mb-2">Teacher presents a complete scenario. Example:</p>
+                        <p class="text-slate-900 text-base mb-2">A learner must walk home.</p>
+                        <ul class="list-none text-slate-900 space-y-1 mb-4 text-base pl-4 border-l-2 border-amber-300">
                             <li>• Route A is short but busy.</li>
                             <li>• Route B is longer but safer.</li>
                             <li>• It is getting dark.</li>
                         </ul>
-                        <p class="text-slate-700 text-sm font-semibold mb-2">Teacher asks:</p>
-                        <ul class="list-none text-slate-700 space-y-1 mb-4 text-sm pl-4 border-l-2 border-amber-300">
+                        <p class="text-slate-900 text-base font-semibold mb-2">Teacher asks:</p>
+                        <ul class="list-none text-slate-900 space-y-1 mb-4 text-base pl-4 border-l-2 border-amber-300">
                             <li>• What should the learner do?</li>
                             <li>• Why?</li>
                         </ul>
 
-                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Expected Answer</h4>
-                        <p class="text-slate-700 text-sm italic">Learner considers safety, risk and consequences before making a recommendation.</p>
+                        {% if is_teacher_scoring %}
+<h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Expected Answer</h4>
+                        <p class="text-slate-900 text-base italic">Learner considers safety, risk and consequences before making a recommendation.</p>
+{% endif %}
                     </div>
                     {% if is_teacher_scoring %}
 <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
@@ -415,7 +435,7 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
                             <input type="checkbox" name="act10_check" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
                             <div>
                                 <span class="block font-bold text-slate-800 group-hover:text-blue-600 transition">Teacher Check</span>
-                                <span class="block text-sm text-slate-500">Learner evaluates information before deciding.</span>
+                                <span class="block text-base text-slate-500">Learner evaluates information before deciding.</span>
                             </div>
                         </label>
                     </div>
@@ -427,9 +447,9 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
 <!-- Final Competency Check -->
             <div class="bg-slate-900 rounded-xl p-8 mb-8 text-white shadow-lg">
                 <h3 class="text-2xl font-bold mb-4">Final Checklist</h3>
-                <p class="text-slate-300 mb-6 text-sm">As the observer, verify that the learner can successfully do all of the following:</p>
+                <p class="text-slate-300 mb-6 text-base">As the observer, verify that the learner can successfully do all of the following:</p>
                 
-                <div class="grid grid-cols-2 gap-4 mb-8 text-sm text-slate-300 opacity-80">
+                <div class="grid grid-cols-2 gap-4 mb-8 text-base text-slate-300 opacity-80">
                     <div>✓ Identify problems</div>
                     <div>✓ Analyse situations</div>
                     <div>✓ Predict consequences</div>

@@ -6,7 +6,7 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
 
 {% block content %}
 
-<div class="max-w-4xl mx-auto bg-white shadow-xl rounded-2xl mt-6 overflow-hidden border border-slate-100">
+<div class="max-w-6xl mx-auto bg-white shadow-xl rounded-2xl mt-6 overflow-hidden border border-slate-100">
 
     <!-- Top Color Strip -->
     <div class="h-3 bg-blue-600"></div>
@@ -16,7 +16,7 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
         <!-- Header -->
         <div class="flex flex-row justify-between items-center mb-8 pb-6 border-b border-slate-100">
             <div>
-                <span class="text-sm font-bold tracking-wider text-blue-600 uppercase">SECTION 1 – PRACTICAL LEARNING</span>
+                <span class="text-base font-bold tracking-wider text-blue-600 uppercase">SECTION 1 – PRACTICAL LEARNING</span>
                 <h1 class="text-3xl font-extrabold text-slate-900 mt-1">
                     CHAPTER {{ chapter.chapter_number }} – {{ chapter.title|upper }}
                 </h1>
@@ -34,7 +34,7 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
         {% endif %}
 
             <a href="{{ url_for('home_bp.learner_dashboard') }}"
-               class="inline-flex items-center px-4 py-2 rounded-lg text-sm font-semibold text-slate-600 border border-slate-200 hover:bg-slate-50 transition">
+               class="inline-flex items-center px-4 py-2 rounded-lg text-base font-semibold text-slate-800 border border-slate-200 hover:bg-slate-50 transition">
                 ← Back
             </a>
         </div>
@@ -46,7 +46,7 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                     Objective
                 </h2>
-                <p class="text-blue-900 leading-relaxed text-sm">
+                <p class="text-blue-900 leading-relaxed text-base">
                     Learn what an object is and discover the properties of objects through observation.
                 </p>
             </div>
@@ -56,7 +56,7 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
                     Teacher / Parent Preparation
                 </h2>
-                <p class="text-amber-900 leading-relaxed text-sm">
+                <p class="text-amber-900 leading-relaxed text-base">
                     Ask the learner to collect any three objects from their environment.
                     <br><span class="font-semibold">Examples:</span> Cup, Spoon, Book, Leaf, Shoe, Toy, Bottle, Fruit.
                     <br>The learner may choose any objects available.
@@ -70,16 +70,18 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
             <!-- Activity 1 -->
             <div class="border border-slate-200 rounded-xl p-6 md:p-8 mb-6 shadow-sm">
                 <h3 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Activity 1 – Finding Objects</h3>
-                <div class="grid md:grid-cols-2 gap-6">
+                <div class="{% if is_teacher_scoring %}grid md:grid-cols-2 gap-6{% else %}space-y-4{% endif %}">
                     <div>
-                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Instruction</h4>
-                        <ul class="list-disc list-inside text-slate-700 space-y-1 mb-4 text-sm">
+                        <h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Instruction</h4>
+                        <ul class="list-disc list-inside text-slate-900 space-y-1 mb-4 text-base">
                             <li>Look around your environment.</li>
                             <li>Select three objects.</li>
                             <li>Place them on a table.</li>
                         </ul>
-                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Expected Answer</h4>
-                        <p class="text-slate-700 text-sm italic">The learner can correctly identify three separate objects.</p>
+                        {% if is_teacher_scoring %}
+<h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Expected Answer</h4>
+                        <p class="text-slate-900 text-base italic">The learner can correctly identify three separate objects.</p>
+{% endif %}
                     </div>
                     {% if is_teacher_scoring %}
 <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
@@ -87,7 +89,7 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
                             <input type="checkbox" name="act1_check" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
                             <div>
                                 <span class="block font-bold text-slate-800 group-hover:text-blue-600 transition">Teacher Check</span>
-                                <span class="block text-sm text-slate-500">Learner identified three objects.</span>
+                                <span class="block text-base text-slate-500">Learner identified three objects.</span>
                             </div>
                         </label>
                     </div>
@@ -98,28 +100,30 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
             <!-- Activity 2 -->
             <div class="border border-slate-200 rounded-xl p-6 md:p-8 mb-6 shadow-sm">
                 <h3 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Activity 2 – Discovering Properties</h3>
-                <div class="grid md:grid-cols-2 gap-6">
+                <div class="{% if is_teacher_scoring %}grid md:grid-cols-2 gap-6{% else %}space-y-4{% endif %}">
                     <div>
-                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Instruction</h4>
-                        <ul class="list-disc list-inside text-slate-700 space-y-1 mb-4 text-sm">
+                        <h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Instruction</h4>
+                        <ul class="list-disc list-inside text-slate-900 space-y-1 mb-4 text-base">
                             <li>Pick up Object 1.</li>
                             <li>Explore it using your senses.</li>
                         </ul>
-                        <p class="text-slate-700 text-sm font-semibold mb-2">Teacher asks:</p>
-                        <ul class="list-none text-slate-700 space-y-1 mb-4 text-sm pl-4 border-l-2 border-amber-300">
+                        <p class="text-slate-900 text-base font-semibold mb-2">Teacher asks:</p>
+                        <ul class="list-none text-slate-900 space-y-1 mb-4 text-base pl-4 border-l-2 border-amber-300">
                             <li>• What colour is it?</li>
                             <li>• What shape is it?</li>
                             <li>• Is it hard or soft?</li>
                             <li>• Is it smooth or rough?</li>
                             <li>• Is it heavy or light?</li>
                         </ul>
-                        <p class="text-slate-700 text-sm italic mb-4">Repeat for Object 2 and Object 3.</p>
+                        <p class="text-slate-900 text-base italic mb-4">Repeat for Object 2 and Object 3.</p>
 
-                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Expected Answer</h4>
-                        <p class="text-slate-700 text-sm italic mb-2">The learner correctly describes observable properties.</p>
-                        <div class="bg-slate-50 p-3 rounded text-sm text-slate-600">
+                        {% if is_teacher_scoring %}
+<h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Expected Answer</h4>
+                        <p class="text-slate-900 text-base italic mb-2">The learner correctly describes observable properties.</p>
+                        <div class="bg-slate-50 p-3 rounded text-base text-slate-800">
                             <strong>Example (Apple):</strong> Red, Round, Smooth, Light, Firm.
                         </div>
+{% endif %}
                     </div>
                     {% if is_teacher_scoring %}
 <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
@@ -127,7 +131,7 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
                             <input type="checkbox" name="act2_check" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
                             <div>
                                 <span class="block font-bold text-slate-800 group-hover:text-blue-600 transition">Teacher Check</span>
-                                <span class="block text-sm text-slate-500">Learner identified at least three properties of each object.</span>
+                                <span class="block text-base text-slate-500">Learner identified at least three properties of each object.</span>
                             </div>
                         </label>
                     </div>
@@ -138,23 +142,25 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
             <!-- Activity 3 -->
             <div class="border border-slate-200 rounded-xl p-6 md:p-8 mb-6 shadow-sm">
                 <h3 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Activity 3 – Comparing Objects</h3>
-                <div class="grid md:grid-cols-2 gap-6">
+                <div class="{% if is_teacher_scoring %}grid md:grid-cols-2 gap-6{% else %}space-y-4{% endif %}">
                     <div>
-                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Instruction</h4>
-                        <p class="text-slate-700 text-sm mb-2">Place Object 1 and Object 2 side by side.</p>
-                        <p class="text-slate-700 text-sm font-semibold mb-2">Teacher asks:</p>
-                        <ul class="list-none text-slate-700 space-y-1 mb-4 text-sm pl-4 border-l-2 border-amber-300">
+                        <h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Instruction</h4>
+                        <p class="text-slate-900 text-base mb-2">Place Object 1 and Object 2 side by side.</p>
+                        <p class="text-slate-900 text-base font-semibold mb-2">Teacher asks:</p>
+                        <ul class="list-none text-slate-900 space-y-1 mb-4 text-base pl-4 border-l-2 border-amber-300">
                             <li>• Which is bigger?</li>
                             <li>• Which is heavier?</li>
                             <li>• Which is smoother?</li>
                             <li>• Which is easier to hold?</li>
                         </ul>
 
-                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Expected Answer</h4>
-                        <p class="text-slate-700 text-sm italic mb-2">The learner identifies at least one similarity and one difference.</p>
-                        <div class="bg-slate-50 p-3 rounded text-sm text-slate-600">
+                        {% if is_teacher_scoring %}
+<h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Expected Answer</h4>
+                        <p class="text-slate-900 text-base italic mb-2">The learner identifies at least one similarity and one difference.</p>
+                        <div class="bg-slate-50 p-3 rounded text-base text-slate-800">
                             <strong>Example:</strong> Cup and bottle are both containers. Bottle is taller. Cup is wider.
                         </div>
+{% endif %}
                     </div>
                     {% if is_teacher_scoring %}
 <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center gap-4">
@@ -162,14 +168,14 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
                             <input type="checkbox" name="act3_check1" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
                             <div>
                                 <span class="block font-bold text-slate-800 group-hover:text-blue-600 transition">Teacher Check</span>
-                                <span class="block text-sm text-slate-500">Learner identified similarities.</span>
+                                <span class="block text-base text-slate-500">Learner identified similarities.</span>
                             </div>
                         </label>
                         <label class="flex items-start gap-3 cursor-pointer group">
                             <input type="checkbox" name="act3_check2" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
                             <div>
                                 <span class="block font-bold text-slate-800 group-hover:text-blue-600 transition">Teacher Check</span>
-                                <span class="block text-sm text-slate-500">Learner identified differences.</span>
+                                <span class="block text-base text-slate-500">Learner identified differences.</span>
                             </div>
                         </label>
                     </div>
@@ -180,10 +186,10 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
             <!-- Activity 4 -->
             <div class="border border-slate-200 rounded-xl p-6 md:p-8 mb-6 shadow-sm">
                 <h3 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Activity 4 – Hidden Properties</h3>
-                <div class="grid md:grid-cols-2 gap-6">
+                <div class="{% if is_teacher_scoring %}grid md:grid-cols-2 gap-6{% else %}space-y-4{% endif %}">
                     <div>
-                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Instruction</h4>
-                        <ul class="list-disc list-inside text-slate-700 space-y-1 mb-4 text-sm">
+                        <h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Instruction</h4>
+                        <ul class="list-disc list-inside text-slate-900 space-y-1 mb-4 text-base">
                             <li>Teacher selects one object.</li>
                             <li>Learner closes eyes.</li>
                             <li>Teacher places the object in the learner's hands.</li>
@@ -191,8 +197,10 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
                             <li>Repeat with other objects.</li>
                         </ul>
 
-                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Expected Answer</h4>
-                        <p class="text-slate-700 text-sm italic">The learner identifies the object using texture, shape, size or weight.</p>
+                        {% if is_teacher_scoring %}
+<h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Expected Answer</h4>
+                        <p class="text-slate-900 text-base italic">The learner identifies the object using texture, shape, size or weight.</p>
+{% endif %}
                     </div>
                     {% if is_teacher_scoring %}
 <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
@@ -200,7 +208,7 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
                             <input type="checkbox" name="act4_check" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
                             <div>
                                 <span class="block font-bold text-slate-800 group-hover:text-blue-600 transition">Teacher Check</span>
-                                <span class="block text-sm text-slate-500">Learner used touch to identify objects.</span>
+                                <span class="block text-base text-slate-500">Learner used touch to identify objects.</span>
                             </div>
                         </label>
                     </div>
@@ -211,10 +219,10 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
             <!-- Activity 5 -->
             <div class="border border-slate-200 rounded-xl p-6 md:p-8 mb-6 shadow-sm">
                 <h3 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Activity 5 – Observation Challenge</h3>
-                <div class="grid md:grid-cols-2 gap-6">
+                <div class="{% if is_teacher_scoring %}grid md:grid-cols-2 gap-6{% else %}space-y-4{% endif %}">
                     <div>
-                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Instruction</h4>
-                        <ul class="list-disc list-inside text-slate-700 space-y-1 mb-4 text-sm">
+                        <h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Instruction</h4>
+                        <ul class="list-disc list-inside text-slate-900 space-y-1 mb-4 text-base">
                             <li>Learner studies all three objects for 30 seconds.</li>
                             <li>Teacher covers the objects.</li>
                             <li>Teacher removes one object.</li>
@@ -222,8 +230,10 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
                             <li>Learner identifies the missing object.</li>
                         </ul>
 
-                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Expected Answer</h4>
-                        <p class="text-slate-700 text-sm italic">The learner correctly identifies the missing object.</p>
+                        {% if is_teacher_scoring %}
+<h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Expected Answer</h4>
+                        <p class="text-slate-900 text-base italic">The learner correctly identifies the missing object.</p>
+{% endif %}
                     </div>
                     {% if is_teacher_scoring %}
 <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
@@ -231,7 +241,7 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
                             <input type="checkbox" name="act5_check" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
                             <div>
                                 <span class="block font-bold text-slate-800 group-hover:text-blue-600 transition">Teacher Check</span>
-                                <span class="block text-sm text-slate-500">Learner noticed what changed.</span>
+                                <span class="block text-base text-slate-500">Learner noticed what changed.</span>
                             </div>
                         </label>
                     </div>
@@ -242,22 +252,24 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
             <!-- Activity 6 -->
             <div class="border border-slate-200 rounded-xl p-6 md:p-8 mb-6 shadow-sm">
                 <h3 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Activity 6 – Purpose Investigation</h3>
-                <div class="grid md:grid-cols-2 gap-6">
+                <div class="{% if is_teacher_scoring %}grid md:grid-cols-2 gap-6{% else %}space-y-4{% endif %}">
                     <div>
-                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Instruction</h4>
-                        <p class="text-slate-700 text-sm font-semibold mb-2">Teacher asks:</p>
-                        <ul class="list-none text-slate-700 space-y-1 mb-4 text-sm pl-4 border-l-2 border-amber-300">
+                        <h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Instruction</h4>
+                        <p class="text-slate-900 text-base font-semibold mb-2">Teacher asks:</p>
+                        <ul class="list-none text-slate-900 space-y-1 mb-4 text-base pl-4 border-l-2 border-amber-300">
                             <li>• What is this object used for?</li>
                             <li>• Who might use it?</li>
                             <li>• What problem does it solve?</li>
                             <li>• What happens if we do not have it?</li>
                         </ul>
 
-                        <h4 class="font-semibold text-slate-600 mb-2 text-sm uppercase tracking-wider">Expected Answer</h4>
-                        <p class="text-slate-700 text-sm italic mb-2">The learner explains the function of the object.</p>
-                        <div class="bg-slate-50 p-3 rounded text-sm text-slate-600">
+                        {% if is_teacher_scoring %}
+<h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Expected Answer</h4>
+                        <p class="text-slate-900 text-base italic mb-2">The learner explains the function of the object.</p>
+                        <div class="bg-slate-50 p-3 rounded text-base text-slate-800">
                             <strong>Example (Spoon):</strong> Used for eating food. Used by people when eating meals. Helps move food from plate to mouth. Without it, eating some foods becomes more difficult.
                         </div>
+{% endif %}
                     </div>
                     {% if is_teacher_scoring %}
 <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
@@ -265,7 +277,7 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
                             <input type="checkbox" name="act6_check" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
                             <div>
                                 <span class="block font-bold text-slate-800 group-hover:text-blue-600 transition">Teacher Check</span>
-                                <span class="block text-sm text-slate-500">Learner explained the purpose of an object.</span>
+                                <span class="block text-base text-slate-500">Learner explained the purpose of an object.</span>
                             </div>
                         </label>
                     </div>
@@ -277,9 +289,9 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
 <!-- Final Competency Check -->
             <div class="bg-slate-900 rounded-xl p-8 mb-8 text-white shadow-lg">
                 <h3 class="text-2xl font-bold mb-4">Final Checklist</h3>
-                <p class="text-slate-300 mb-6 text-sm">As the observer, verify that the learner can successfully do all of the following:</p>
+                <p class="text-slate-300 mb-6 text-base">As the observer, verify that the learner can successfully do all of the following:</p>
                 
-                <div class="grid grid-cols-2 gap-4 mb-8 text-sm text-slate-300 opacity-80">
+                <div class="grid grid-cols-2 gap-4 mb-8 text-base text-slate-300 opacity-80">
                     <div>✓ Identify an object</div>
                     <div>✓ Identify properties of an object</div>
                     <div>✓ Compare objects</div>

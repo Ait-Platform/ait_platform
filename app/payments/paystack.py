@@ -290,7 +290,16 @@ def webhook():
     try:
         raw_body = request.get_data()
         signature = request.headers.get("x-paystack-signature")
-        secret = get_paystack_secret()
+        
+        # Extract subject to get correct secret (sandbox vs live)
+        data = request.get_json(silent=True) or {}
+        subject = None
+        try:
+            subject = data.get("data", {}).get("metadata", {}).get("subject")
+        except Exception:
+            pass
+            
+        secret = get_paystack_secret(subject)
 
         # Validate signature
         hash = hmac.new(secret.encode('utf-8'), raw_body, hashlib.sha512).hexdigest()

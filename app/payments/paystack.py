@@ -100,7 +100,7 @@ def get_paystack_secret(subject=None):
     is_live = False
     if subject:
         val = db.session.execute(
-            text("SELECT value FROM system_settings WHERE key = :k"),
+            text("SELECT value FROM system_settings WHERE LOWER(key) = LOWER(:k)"),
             {"k": f"paystack_mode_{subject}"} 
         ).scalar()
         if (val or "sandbox").lower() == "live":

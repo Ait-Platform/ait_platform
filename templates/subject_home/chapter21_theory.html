@@ -25,7 +25,18 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
             </div>
         </div>
 
-        <!-- Objective -->
+        
+        <!-- Chapter Image -->
+        {% if hero_image %}
+        <div class="mb-8">
+            <img
+                src="{{ url_for('static', filename='images/' + hero_image) }}"
+                alt="{{ chapter.title }}"
+                class="w-full rounded-xl shadow border"
+            >
+        </div>
+        {% endif %}
+<!-- Objective -->
         <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-8 rounded">
             <h2 class="text-lg font-bold text-blue-800 mb-2">Learning Objective</h2>
             <p class="text-blue-900">{{ chapter.objective }}</p>

@@ -45,11 +45,11 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
         </div>
 
         <!-- Chapter Image -->
-        {% if chapter.image_filename %}
+        {% if hero_image %}
         <div class="mb-8">
 
             <img
-                src="{{ url_for('static', filename='images/' + chapter.image_filename) }}"
+                src="{{ url_for('static', filename='images/' + hero_image) }}"
                 alt="{{ chapter.title }}"
                 class="w-full rounded-xl shadow border"
             >

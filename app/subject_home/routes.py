@@ -193,6 +193,17 @@ def chapter_page(chapter_num):
         chapter_number=chapter_num
     ).first_or_404()
 
+    # Resolve hero image from base chapter (1-10)
+    base_chapter_num = chapter_num
+    if 11 <= chapter_num <= 20:
+        base_chapter_num = chapter_num - 10
+    elif 21 <= chapter_num <= 30:
+        base_chapter_num = chapter_num - 20
+        
+    base_chapter = HomeChapter.query.filter_by(chapter_number=base_chapter_num).first()
+    hero_image = base_chapter.image_filename if base_chapter else None
+
+
     if chapter_num >= 11:
         from app.models.home import HomeProgress
         completed_count = db.session.scalar(
@@ -338,19 +349,19 @@ def chapter_page(chapter_num):
     if chapter_num in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]:
         return render_template(
             'subject_home/chapter_db.html',
-            chapter=chapter,
+            chapter=chapter, hero_image=hero_image,
             questions=render_questions
         )
     elif chapter_num in [21, 22, 23, 24, 25, 26, 27, 28, 29, 30]:
         return render_template(
             f'subject_home/chapter{chapter_num}_theory.html',
-            chapter=chapter,
+            chapter=chapter, hero_image=hero_image,
             questions=render_questions
         )
 
     return render_template(
         'subject_home/chapter_db.html',
-        chapter=chapter,
+        chapter=chapter, hero_image=hero_image,
         questions=render_questions
     )
 
@@ -988,7 +999,7 @@ def teacher_grade_view(submission_id):
     
     return render_template(
         template_name,
-        chapter=chapter,
+        chapter=chapter, hero_image=hero_image,
         is_teacher_scoring=True,
         submission=sub
     )

@@ -50,7 +50,7 @@ def manage_pricing():
                         )
                         db.session.add(p)
                     
-                    local_cents = base_amount_cents
+                    local_cents = max(base_amount_cents, 15000)
                     fx = float(c.fx_to_zar) if c.fx_to_zar else 0.0
                     if fx > 0:
                         computed_zar = int(local_cents * fx)
@@ -61,7 +61,7 @@ def manage_pricing():
                         p.zar_amount_cents = computed_zar
                     else:
                         p.local_amount_cents = local_cents
-                        p.zar_amount_cents = 3000
+                        p.zar_amount_cents = max(3000, computed_zar if 'computed_zar' in locals() else 3000)
                       
                 db.session.commit()
                 flash("Bulk pricing updated successfully. Prices below 30 ZAR equivalent were automatically adjusted.", "success")
@@ -70,7 +70,7 @@ def manage_pricing():
             amount = request.form.get("single_amount", type=int)
             country_code = request.form.get("country_code")
             if amount is not None and subject_id and country_code:
-                local_cents = amount * 100
+                local_cents = max(amount * 100, 15000)
                 c = RefCountryCurrency.query.filter_by(alpha2=country_code).first()
                 if c:
                     p = SubjectCountryPrice.query.filter_by(subject_id=subject_id, country_code=c.alpha2).first()
@@ -92,7 +92,7 @@ def manage_pricing():
                         p.zar_amount_cents = computed_zar
                     else:
                         p.local_amount_cents = local_cents
-                        p.zar_amount_cents = 3000
+                        p.zar_amount_cents = max(3000, computed_zar if 'computed_zar' in locals() else 3000)
                         
                     db.session.commit()
                     flash(f"Price updated for {c.name}.", "success")
@@ -103,7 +103,7 @@ def manage_pricing():
                     if key.startswith("amount_") and val.strip():
                         country_code = key.replace("amount_", "")
                         amount = int(val)
-                        local_cents = amount * 100
+                        local_cents = max(amount * 100, 15000)
                         c = RefCountryCurrency.query.filter_by(alpha2=country_code).first()
                         if c:
                             p = SubjectCountryPrice.query.filter_by(subject_id=subject_id, country_code=c.alpha2).first()
@@ -125,7 +125,7 @@ def manage_pricing():
                                 p.zar_amount_cents = computed_zar
                             else:
                                 p.local_amount_cents = local_cents
-                                p.zar_amount_cents = 3000
+                                p.zar_amount_cents = max(3000, computed_zar if 'computed_zar' in locals() else 3000)
                 db.session.commit()
                 flash("All global prices updated successfully.", "success")
         

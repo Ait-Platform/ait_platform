@@ -181,7 +181,15 @@ def create_tutor():
     # Check if email exists
     existing = User.query.filter_by(email=tutor_email.lower()).first()
     if existing:
-        flash("A user with this email already exists. Please use a different email or log in.", "warning")
+        # Just link the existing tutor
+        link = HomeTeacherLink.query.filter_by(student_id=current_user.id).first()
+        if link:
+            link.teacher_id = existing.id
+        else:
+            link = HomeTeacherLink(student_id=current_user.id, teacher_id=existing.id)
+            db.session.add(link)
+        db.session.commit()
+        flash(f"Tutor {existing.name or existing.email} already has an account and has been linked successfully!", "success")
         return redirect(url_for('home_bp.learner_dashboard'))
         
     # Create the user

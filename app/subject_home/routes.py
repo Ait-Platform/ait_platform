@@ -118,15 +118,29 @@ def learner_dashboard():
     link = HomeTeacherLink.query.filter_by(student_id=current_user.id).first()
     linked_teacher = User.query.get(link.teacher_id) if link else None
 
-    # Fetch all teachers enrolled in HOME
+    # Fetch all teachers enrolled in HOME and Support Staff
     from app.models.auth import UserEnrollment, AuthSubject
     home_subject = AuthSubject.query.filter_by(slug='home').first()
+    staff_subject = AuthSubject.query.filter_by(slug='staff').first()
+    
     all_home_teachers = []
+    teacher_ids = set()
+    
     if home_subject:
         teacher_enrollments = UserEnrollment.query.filter_by(subject_id=home_subject.id, status='teacher').all()
-        teacher_ids = [e.user_id for e in teacher_enrollments]
-        if teacher_ids:
-            all_home_teachers = User.query.filter(User.id.in_(teacher_ids)).all()
+        for e in teacher_enrollments:
+            teacher_ids.add(e.user_id)
+            
+    if staff_subject:
+        staff_enrollments = UserEnrollment.query.filter(
+            UserEnrollment.subject_id == staff_subject.id,
+            UserEnrollment.status != 'archived'
+        ).all()
+        for e in staff_enrollments:
+            teacher_ids.add(e.user_id)
+            
+    if teacher_ids:
+        all_home_teachers = User.query.filter(User.id.in_(list(teacher_ids))).all()
 
     from flask import make_response
     response = make_response(render_template(

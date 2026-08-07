@@ -1233,7 +1233,27 @@ def bridge_dashboard():
     if len(enrolled_tiles) == 1 and not is_admin and not force_bridge:
         s = enrolled_tiles[0]
         slug = getattr(s, 'slug', '').lower()
-        if slug != 'staff':
+        if slug == 'staff':
+            return redirect(url_for('home_bp.teacher_dashboard'))
+        elif slug == 'cultural_fire':
+            return redirect(url_for('cultural_bp.cultural_fire_router'))
+        elif slug == 'practice_crm':
+            return redirect(url_for('practice_crm_bp.pipeline'))
+        elif slug == 'home':
+            return redirect(url_for('home_bp.learner_dashboard'))
+        elif slug == 'billing':
+            return redirect(url_for('billing_bp.learner_dashboard'))
+        elif slug == 'mechanic':
+            return redirect(url_for('mechanic_bp.mechanic_dashboard'))
+        elif slug == 'hds':
+            return redirect(url_for('hds_bp.dashboard'))
+        elif slug == 'debtors':
+            return redirect(url_for('debtors_bp.debtors_router'))
+        elif slug == 'spv':
+            return redirect(url_for('spv_bp.investor_dashboard'))
+        elif slug == 'healthcore':
+            return redirect(url_for('healthcore_bp.healthcore_dashboard'))
+        else:
             return redirect(url_for('auth_bp.dashboard_info', subject=slug))
             
     # NEW FALLBACK: If user has no active subjects, redirect to checkout for their latest incomplete enrollment

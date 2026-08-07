@@ -1233,7 +1233,8 @@ def bridge_dashboard():
     if len(enrolled_tiles) == 1 and not is_admin and not force_bridge:
         s = enrolled_tiles[0]
         slug = getattr(s, 'slug', '').lower()
-        return redirect(url_for('auth_bp.dashboard_info', subject=slug))
+        if slug != 'staff':
+            return redirect(url_for('auth_bp.dashboard_info', subject=slug))
             
     # NEW FALLBACK: If user has no active subjects, redirect to checkout for their latest incomplete enrollment
     if len(rows) == 0 and not is_admin:

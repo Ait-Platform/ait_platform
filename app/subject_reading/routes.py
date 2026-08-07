@@ -453,17 +453,15 @@ def finish_report():
             completed_at = enr.completed_at if enr else datetime.utcnow()
             
             try:
-                pdf_path = _generate_certificate_pdf(
+                pdf_bytes = _generate_certificate_pdf(
                     certificate_id=enr.certificate_id,
                     learner_name=learner_name,
                     completed_at=completed_at,
                 )
                 
-                with open(pdf_path, "rb") as f:
-                    pdf_bytes = f.read()
-
-                from app.utils.mailer import send_standard_report_email
-                send_standard_report_email(
+                if pdf_bytes:
+                    from app.utils.mailer import send_standard_report_email
+                    send_standard_report_email(
                     to_email=email,
                     subject="Reading Programme Certificate",
                     pdf_url="No public link available. Please see attached PDF.",
@@ -471,7 +469,9 @@ def finish_report():
                     filename=f"{enr.certificate_id}.pdf",
                     run_id=None,
                     user_name=learner_name
-                )
+                    )
+                else:
+                    current_app.logger.error("Failed to generate PDF bytes.")
             except Exception as e:
                 current_app.logger.error(f"Failed to email certificate: {e}")
 

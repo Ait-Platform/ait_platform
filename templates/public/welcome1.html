@@ -1,7 +1,14 @@
 {% extends "layout.html" %}
 {% block title %}Welcome | AIT Platform{% endblock %}
 
+{% block flashes %}{% endblock %}
+
 {% block content %}
+
+<!-- Flash Messages -->
+<div class="mx-auto max-w-6xl mb-6">
+  {% include "partials/flash_messages.html" %}
+</div>
 
 <!-- School tile -->
 <div class="mx-auto max-w-6xl mb-8">

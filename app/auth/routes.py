@@ -181,10 +181,6 @@ def register():
         subject = _infer_subject_from_next(subject, next_url)
         subject = (subject or "loss").strip().lower()
 
-        # If already logged in, skip the form!
-        if getattr(current_user, "is_authenticated", False):
-            return redirect(url_for("auth_bp.dashboard_info", subject=subject))
-
         country_code = request.args.get("country_code")
         _save_reg_ctx(role, subject, "", "", next_url, country_code=country_code)
         
@@ -201,6 +197,10 @@ def register():
                 "price_id": request.args.get("price_id") or session.get("price_id"),
             }
             session.modified = True
+
+        # If already logged in, skip the form!
+        if getattr(current_user, "is_authenticated", False):
+            return redirect(url_for("auth_bp.dashboard_info", subject=subject))
 
         return render_template(
             "auth/register.html",

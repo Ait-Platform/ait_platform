@@ -114,7 +114,7 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
 
                 <h3 class="text-lg font-semibold text-gray-800 mb-4">
                     {{ loop.index }}.
-                    {{ question.question }}
+                    {{ question.question | safe }}
                 </h3>
 
                 {% if question.question_type in ['single_select', 'select'] %}

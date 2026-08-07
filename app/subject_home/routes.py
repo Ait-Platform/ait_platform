@@ -337,8 +337,9 @@ def chapter_page(chapter_num):
 
     if chapter_num in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]:
         return render_template(
-            f'subject_home/chapter{chapter_num}_practical.html',
-            chapter=chapter
+            'subject_home/chapter_db.html',
+            chapter=chapter,
+            questions=render_questions
         )
     elif chapter_num in [21, 22, 23, 24, 25, 26, 27, 28, 29, 30]:
         return render_template(

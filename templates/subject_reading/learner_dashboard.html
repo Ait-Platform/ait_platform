@@ -1,12 +1,17 @@
 {% extends "layout.html" %}
 {% block title %}Reading — Dashboard{% endblock %}
 
+{% block flashes %}{% endblock %}
+
 {% block content %}
   <div class="max-w-5xl mx-auto px-4 py-10">
     <div class="rounded-xl border bg-white shadow-sm overflow-hidden">
       <div class="h-2 bg-green-600"></div>
       
       <div class="p-6">
+        <div class="mb-6">
+          {% include "partials/flash_messages.html" %}
+        </div>
         <div class="flex items-center justify-between mb-6">
           <div>
             <h1 class="text-2xl font-semibold text-slate-800">Reading Programme</h1>

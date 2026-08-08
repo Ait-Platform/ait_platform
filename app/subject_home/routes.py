@@ -57,8 +57,8 @@ def subject_home():
 
 @home_bp.route('/home/price')
 def price_page():
-    # Redirect legacy price page visits to the new unified quote engine
-    return redirect(url_for('quote_bp.quote', subject='home'))
+    # Redirect legacy database entries (which point to price_page) to the About page
+    return redirect(url_for('home_bp.about_home'))
 
 
 @home_bp.route('/dashboard/learner')

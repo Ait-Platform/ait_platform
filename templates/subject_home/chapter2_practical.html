@@ -16,8 +16,8 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
         <!-- Header -->
         <div class="flex flex-row justify-between items-center mb-8 pb-6 border-b border-slate-100">
             <div>
-                <span class="text-base font-bold tracking-wider text-blue-600 uppercase">SECTION 1 – PRACTICAL LEARNING</span>
-                <h1 class="text-3xl font-extrabold text-slate-900 mt-1">
+                <span class="text-lg font-bold tracking-wider text-blue-600 uppercase">SECTION 1 – PRACTICAL LEARNING</span>
+                <h1 class="text-3xl font-extrabold text-slate-950 mt-1">
                     CHAPTER {{ chapter.chapter_number }} – {{ chapter.title|upper }}
                 </h1>
             </div>
@@ -34,7 +34,7 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
         {% endif %}
 
             <a href="{{ url_for('home_bp.learner_dashboard') }}"
-               class="inline-flex items-center px-4 py-2 rounded-lg text-base font-semibold text-slate-800 border border-slate-200 hover:bg-slate-50 transition">
+               class="inline-flex items-center px-4 py-2 rounded-lg text-lg font-semibold text-slate-900 border border-slate-200 hover:bg-slate-50 transition">
                 ← Back
             </a>
         </div>
@@ -46,7 +46,7 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                     Objective
                 </h2>
-                <p class="text-blue-900 leading-relaxed text-base">
+                <p class="text-blue-900 leading-relaxed text-lg">
                     Learn how objects are positioned relative to one another and how to describe location and direction.
                 </p>
             </div>
@@ -56,7 +56,7 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
                     Teacher Preparation
                 </h2>
-                <p class="text-amber-900 leading-relaxed text-base">
+                <p class="text-amber-900 leading-relaxed text-lg">
                     Collect any five everyday objects.
                     <br><span class="font-semibold">Examples:</span> Book, Cup, Pencil, Ball, Toy.
                     <br>Place them on a table.
@@ -69,51 +69,49 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
 
             <!-- Activity 1 -->
             <div class="border border-slate-200 rounded-xl p-6 md:p-8 mb-6 shadow-sm">
-                <h3 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Activity 1 – Position Words</h3>
-                <div class="{% if is_teacher_scoring %}grid md:grid-cols-2 gap-6{% else %}space-y-4{% endif %}">
+                <h3 class="text-xl font-bold text-slate-900 mb-4 border-b pb-2">Activity 1 – Position Words</h3>
+                <div class="grid md:grid-cols-2 gap-6">
                     <div>
-                        <h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Instruction</h4>
-                        <ol class="list-decimal list-inside text-slate-900 space-y-1 mb-4 text-base">
+                        <h4 class="font-semibold text-slate-900 mb-2 text-lg uppercase tracking-wider">Instruction</h4>
+                        <ol class="list-decimal list-inside text-slate-950 space-y-1 mb-4 text-lg">
                             <li>Teacher places one object on the table.</li>
                             <li>Teacher then places another object:</li>
                         </ol>
-                        <ol class="list-decimal list-inside text-slate-900 space-y-1 mb-4 text-base pl-4 border-l-2 border-amber-300">
+                        <ol class="list-decimal list-inside text-slate-950 space-y-1 mb-4 text-lg pl-4 border-l-2 border-amber-300">
                             <li>Above it</li>
                             <li>Below it</li>
                             <li>Next to it</li>
                             <li>In front of it</li>
                             <li>Behind it</li>
                         </ol>
-                        <p class="text-slate-900 text-base italic mb-4">Teacher asks the learner to point to the object in the stated position.</p>
+                        <p class="text-slate-950 text-lg italic mb-4">Teacher asks the learner to point to the object in the stated position.</p>
 
                         {% if is_teacher_scoring %}
-<h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Expected Answer</h4>
-                        <p class="text-slate-900 text-base italic">The learner correctly points to the object in the requested position.</p>
+<h4 class="font-semibold text-slate-900 mb-2 text-lg uppercase tracking-wider">Expected Answer</h4>
+                        <p class="text-slate-950 text-lg italic">The learner correctly points to the object in the requested position.</p>
 {% endif %}
                     </div>
-                    {% if is_teacher_scoring %}
-<div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
+                    <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
                         <label class="flex items-start gap-3 cursor-pointer group">
                             <input type="checkbox" name="act1_check" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
                             <div>
-                                <span class="block font-bold text-slate-800 group-hover:text-blue-600 transition">Teacher Check</span>
-                                <span class="block text-base text-slate-500">Learner correctly identifies positions.</span>
+                                <span class="block font-bold text-slate-900 group-hover:text-blue-600 transition">Activity Completed</span>
+                                <span class="block text-lg text-slate-500">Learner correctly identifies positions.</span>
                             </div>
                         </label>
                     </div>
-                {% endif %}
 </div>
             </div>
 
             <!-- Activity 2 -->
             <div class="border border-slate-200 rounded-xl p-6 md:p-8 mb-6 shadow-sm">
-                <h3 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Activity 2 – Follow Directions</h3>
-                <div class="{% if is_teacher_scoring %}grid md:grid-cols-2 gap-6{% else %}space-y-4{% endif %}">
+                <h3 class="text-xl font-bold text-slate-900 mb-4 border-b pb-2">Activity 2 – Follow Directions</h3>
+                <div class="grid md:grid-cols-2 gap-6">
                     <div>
-                        <h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Instruction</h4>
-                        <p class="text-slate-900 text-base mb-2">Place three objects in a line.</p>
-                        <p class="text-slate-900 text-base font-semibold mb-2">Teacher gives instructions:</p>
-                        <ol class="list-decimal list-inside text-slate-900 space-y-1 mb-4 text-base pl-4 border-l-2 border-amber-300">
+                        <h4 class="font-semibold text-slate-900 mb-2 text-lg uppercase tracking-wider">Instruction</h4>
+                        <p class="text-slate-950 text-lg mb-2">Place three objects in a line.</p>
+                        <p class="text-slate-950 text-lg font-semibold mb-2">Teacher gives instructions:</p>
+                        <ol class="list-decimal list-inside text-slate-950 space-y-1 mb-4 text-lg pl-4 border-l-2 border-amber-300">
                             <li>Move the ball to the left.</li>
                             <li>Move the pencil to the right.</li>
                             <li>Place the cup behind the book.</li>
@@ -121,66 +119,62 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
                         </ol>
 
                         {% if is_teacher_scoring %}
-<h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Expected Answer</h4>
-                        <p class="text-slate-900 text-base italic">The learner places the objects in the correct positions.</p>
+<h4 class="font-semibold text-slate-900 mb-2 text-lg uppercase tracking-wider">Expected Answer</h4>
+                        <p class="text-slate-950 text-lg italic">The learner places the objects in the correct positions.</p>
 {% endif %}
                     </div>
-                    {% if is_teacher_scoring %}
-<div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
+                    <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
                         <label class="flex items-start gap-3 cursor-pointer group">
                             <input type="checkbox" name="act2_check" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
                             <div>
-                                <span class="block font-bold text-slate-800 group-hover:text-blue-600 transition">Teacher Check</span>
-                                <span class="block text-base text-slate-500">Learner follows directional instructions correctly.</span>
+                                <span class="block font-bold text-slate-900 group-hover:text-blue-600 transition">Activity Completed</span>
+                                <span class="block text-lg text-slate-500">Learner follows directional instructions correctly.</span>
                             </div>
                         </label>
                     </div>
-                {% endif %}
 </div>
             </div>
 
             <!-- Activity 3 -->
             <div class="border border-slate-200 rounded-xl p-6 md:p-8 mb-6 shadow-sm">
-                <h3 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Activity 3 – Create a Position</h3>
-                <div class="{% if is_teacher_scoring %}grid md:grid-cols-2 gap-6{% else %}space-y-4{% endif %}">
+                <h3 class="text-xl font-bold text-slate-900 mb-4 border-b pb-2">Activity 3 – Create a Position</h3>
+                <div class="grid md:grid-cols-2 gap-6">
                     <div>
-                        <h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Instruction</h4>
-                        <p class="text-slate-900 text-base mb-2">Teacher selects two objects.</p>
-                        <p class="text-slate-900 text-base font-semibold mb-2">Teacher asks:</p>
-                        <ol class="list-decimal list-inside text-slate-900 space-y-1 mb-4 text-base pl-4 border-l-2 border-amber-300">
+                        <h4 class="font-semibold text-slate-900 mb-2 text-lg uppercase tracking-wider">Instruction</h4>
+                        <p class="text-slate-950 text-lg mb-2">Teacher selects two objects.</p>
+                        <p class="text-slate-950 text-lg font-semibold mb-2">Teacher asks:</p>
+                        <ol class="list-decimal list-inside text-slate-950 space-y-1 mb-4 text-lg pl-4 border-l-2 border-amber-300">
                             <li>"Place the pencil behind the book."</li>
                             <li>"Place the ball in front of the cup."</li>
                             <li>"Place the toy next to the book."</li>
                         </ol>
 
                         {% if is_teacher_scoring %}
-<h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Expected Answer</h4>
-                        <p class="text-slate-900 text-base italic">Objects are placed correctly without assistance.</p>
+<h4 class="font-semibold text-slate-900 mb-2 text-lg uppercase tracking-wider">Expected Answer</h4>
+                        <p class="text-slate-950 text-lg italic">Objects are placed correctly without assistance.</p>
 {% endif %}
                     </div>
-                    {% if is_teacher_scoring %}
-<div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
+                    <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
                         <label class="flex items-start gap-3 cursor-pointer group">
                             <input type="checkbox" name="act3_check" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
                             <div>
-                                <span class="block font-bold text-slate-800 group-hover:text-blue-600 transition">Teacher Check</span>
-                                <span class="block text-base text-slate-500">Learner can create the requested position.</span>
+                                <span class="block font-bold text-slate-900 group-hover:text-blue-600 transition">Activity Completed</span>
+                                <span class="block text-lg text-slate-500">Learner can create the requested position.</span>
                             </div>
                         </label>
                     </div>
-                {% endif %}
 </div>
             </div>
 
             <!-- Activity 4 -->
             <div class="border border-slate-200 rounded-xl p-6 md:p-8 mb-6 shadow-sm">
-                <h3 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Activity 4 – Describe What You See</h3>
-                <div class="{% if is_teacher_scoring %}grid md:grid-cols-2 gap-6{% else %}space-y-4{% endif %}">
+                <h3 class="text-xl font-bold text-slate-900 mb-4 border-b pb-2">Activity 4 – Describe What You See</h3>
+                <div class="grid md:grid-cols-2 gap-6">
                     <div>
-                        <h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Instruction</h4>
-                        <p class="text-slate-900 text-base mb-2">Teacher arranges five objects.</p>
-                        <p class="text-slate-900 text-base font-semibold mb-2">Learner describes:</p>
-                        <ol class="list-decimal list-inside text-slate-900 space-y-1 mb-4 text-base pl-4 border-l-2 border-amber-300">
+                        <h4 class="font-semibold text-slate-900 mb-2 text-lg uppercase tracking-wider">Instruction</h4>
+                        <p class="text-slate-950 text-lg mb-2">Teacher arranges five objects.</p>
+                        <p class="text-slate-950 text-lg font-semibold mb-2">Learner describes:</p>
+                        <ol class="list-decimal list-inside text-slate-950 space-y-1 mb-4 text-lg pl-4 border-l-2 border-amber-300">
                             <li>Which object is on the left?</li>
                             <li>Which object is on the right?</li>
                             <li>Which object is in the middle?</li>
@@ -189,33 +183,31 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
                         </ol>
 
                         {% if is_teacher_scoring %}
-<h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Expected Answer</h4>
-                        <p class="text-slate-900 text-base italic">The learner uses position words accurately.</p>
+<h4 class="font-semibold text-slate-900 mb-2 text-lg uppercase tracking-wider">Expected Answer</h4>
+                        <p class="text-slate-950 text-lg italic">The learner uses position words accurately.</p>
 {% endif %}
                     </div>
-                    {% if is_teacher_scoring %}
-<div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
+                    <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
                         <label class="flex items-start gap-3 cursor-pointer group">
                             <input type="checkbox" name="act4_check" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
                             <div>
-                                <span class="block font-bold text-slate-800 group-hover:text-blue-600 transition">Teacher Check</span>
-                                <span class="block text-base text-slate-500">Learner correctly describes positions.</span>
+                                <span class="block font-bold text-slate-900 group-hover:text-blue-600 transition">Activity Completed</span>
+                                <span class="block text-lg text-slate-500">Learner correctly describes positions.</span>
                             </div>
                         </label>
                     </div>
-                {% endif %}
 </div>
             </div>
 
             <!-- Activity 5 -->
             <div class="border border-slate-200 rounded-xl p-6 md:p-8 mb-6 shadow-sm">
-                <h3 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Activity 5 – Human Directions</h3>
-                <div class="{% if is_teacher_scoring %}grid md:grid-cols-2 gap-6{% else %}space-y-4{% endif %}">
+                <h3 class="text-xl font-bold text-slate-900 mb-4 border-b pb-2">Activity 5 – Human Directions</h3>
+                <div class="grid md:grid-cols-2 gap-6">
                     <div>
-                        <h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Instruction</h4>
-                        <p class="text-slate-900 text-base mb-2">Learner stands in an open area.</p>
-                        <p class="text-slate-900 text-base font-semibold mb-2">Teacher gives instructions:</p>
-                        <ol class="list-decimal list-inside text-slate-900 space-y-1 mb-4 text-base pl-4 border-l-2 border-amber-300">
+                        <h4 class="font-semibold text-slate-900 mb-2 text-lg uppercase tracking-wider">Instruction</h4>
+                        <p class="text-slate-950 text-lg mb-2">Learner stands in an open area.</p>
+                        <p class="text-slate-950 text-lg font-semibold mb-2">Teacher gives instructions:</p>
+                        <ol class="list-decimal list-inside text-slate-950 space-y-1 mb-4 text-lg pl-4 border-l-2 border-amber-300">
                             <li>Take two steps forward.</li>
                             <li>Take one step backward.</li>
                             <li>Turn left.</li>
@@ -224,36 +216,34 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
                         </ol>
 
                         {% if is_teacher_scoring %}
-<h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Expected Answer</h4>
-                        <p class="text-slate-900 text-base italic">Learner moves in the correct direction each time.</p>
+<h4 class="font-semibold text-slate-900 mb-2 text-lg uppercase tracking-wider">Expected Answer</h4>
+                        <p class="text-slate-950 text-lg italic">Learner moves in the correct direction each time.</p>
 {% endif %}
                     </div>
-                    {% if is_teacher_scoring %}
-<div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
+                    <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
                         <label class="flex items-start gap-3 cursor-pointer group">
                             <input type="checkbox" name="act5_check" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
                             <div>
-                                <span class="block font-bold text-slate-800 group-hover:text-blue-600 transition">Teacher Check</span>
-                                <span class="block text-base text-slate-500">Learner follows directional movement correctly.</span>
+                                <span class="block font-bold text-slate-900 group-hover:text-blue-600 transition">Activity Completed</span>
+                                <span class="block text-lg text-slate-500">Learner follows directional movement correctly.</span>
                             </div>
                         </label>
                     </div>
-                {% endif %}
 </div>
             </div>
 
             <!-- Activity 6 -->
             <div class="border border-slate-200 rounded-xl p-6 md:p-8 mb-6 shadow-sm">
-                <h3 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Activity 6 – Navigation Challenge</h3>
-                <div class="{% if is_teacher_scoring %}grid md:grid-cols-2 gap-6{% else %}space-y-4{% endif %}">
+                <h3 class="text-xl font-bold text-slate-900 mb-4 border-b pb-2">Activity 6 – Navigation Challenge</h3>
+                <div class="grid md:grid-cols-2 gap-6">
                     <div>
-                        <h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Instruction</h4>
-                        <ol class="list-decimal list-inside text-slate-900 space-y-1 mb-4 text-base">
+                        <h4 class="font-semibold text-slate-900 mb-2 text-lg uppercase tracking-wider">Instruction</h4>
+                        <ol class="list-decimal list-inside text-slate-950 space-y-1 mb-4 text-lg">
                             <li>Teacher places an object somewhere in the room.</li>
                             <li>Learner must guide the teacher to the object using only directions.</li>
                         </ol>
-                        <p class="text-slate-900 text-base font-semibold mb-2">Examples:</p>
-                        <ol class="list-decimal list-inside text-slate-900 space-y-1 mb-4 text-base pl-4 border-l-2 border-amber-300">
+                        <p class="text-slate-950 text-lg font-semibold mb-2">Examples:</p>
+                        <ol class="list-decimal list-inside text-slate-950 space-y-1 mb-4 text-lg pl-4 border-l-2 border-amber-300">
                             <li>Go forward.</li>
                             <li>Turn left.</li>
                             <li>Take two steps.</li>
@@ -261,21 +251,19 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
                         </ol>
 
                         {% if is_teacher_scoring %}
-<h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Expected Answer</h4>
-                        <p class="text-slate-900 text-base italic">The teacher can locate the object using the learner's instructions.</p>
+<h4 class="font-semibold text-slate-900 mb-2 text-lg uppercase tracking-wider">Expected Answer</h4>
+                        <p class="text-slate-950 text-lg italic">The teacher can locate the object using the learner's instructions.</p>
 {% endif %}
                     </div>
-                    {% if is_teacher_scoring %}
-<div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
+                    <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
                         <label class="flex items-start gap-3 cursor-pointer group">
                             <input type="checkbox" name="act6_check" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
                             <div>
-                                <span class="block font-bold text-slate-800 group-hover:text-blue-600 transition">Teacher Check</span>
-                                <span class="block text-base text-slate-500">Learner gives clear directions.</span>
+                                <span class="block font-bold text-slate-900 group-hover:text-blue-600 transition">Activity Completed</span>
+                                <span class="block text-lg text-slate-500">Learner gives clear directions.</span>
                             </div>
                         </label>
                     </div>
-                {% endif %}
 </div>
             </div>
 
@@ -283,9 +271,9 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
 <!-- Final Competency Check -->
             <div class="bg-slate-900 rounded-xl p-8 mb-8 text-white shadow-lg">
                 <h3 class="text-2xl font-bold mb-4">Final Checklist</h3>
-                <p class="text-slate-300 mb-6 text-base">As the observer, verify that the learner can successfully do all of the following:</p>
+                <p class="text-slate-300 mb-6 text-lg">As the observer, verify that the learner can successfully do all of the following:</p>
                 
-                <div class="grid grid-cols-2 gap-4 mb-8 text-base text-slate-300 opacity-80">
+                <div class="grid grid-cols-2 gap-4 mb-8 text-lg text-slate-300 opacity-80">
                     <div>✓ Identify positions</div>
                     <div>✓ Use direction words correctly</div>
                     <div>✓ Follow instructions involving movement</div>

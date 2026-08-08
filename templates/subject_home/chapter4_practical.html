@@ -16,8 +16,8 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
         <!-- Header -->
         <div class="flex flex-row justify-between items-center mb-8 pb-6 border-b border-slate-100">
             <div>
-                <span class="text-base font-bold tracking-wider text-blue-600 uppercase">SECTION 1 – PRACTICAL LEARNING</span>
-                <h1 class="text-3xl font-extrabold text-slate-900 mt-1">
+                <span class="text-lg font-bold tracking-wider text-blue-600 uppercase">SECTION 1 – PRACTICAL LEARNING</span>
+                <h1 class="text-3xl font-extrabold text-slate-950 mt-1">
                     CHAPTER {{ chapter.chapter_number }} – {{ chapter.title|upper }}
                 </h1>
             </div>
@@ -34,7 +34,7 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
         {% endif %}
 
             <a href="{{ url_for('home_bp.learner_dashboard') }}"
-               class="inline-flex items-center px-4 py-2 rounded-lg text-base font-semibold text-slate-800 border border-slate-200 hover:bg-slate-50 transition">
+               class="inline-flex items-center px-4 py-2 rounded-lg text-lg font-semibold text-slate-900 border border-slate-200 hover:bg-slate-50 transition">
                 ← Back
             </a>
         </div>
@@ -46,7 +46,7 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                     Objective
                 </h2>
-                <p class="text-blue-900 leading-relaxed text-base">
+                <p class="text-blue-900 leading-relaxed text-lg">
                     Learn how to make sensible guesses using observation before measuring, counting or calculating.
                 </p>
             </div>
@@ -56,7 +56,7 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
                     Teacher Preparation
                 </h2>
-                <p class="text-amber-900 leading-relaxed text-base">
+                <p class="text-amber-900 leading-relaxed text-lg">
                     Collect a variety of everyday items.
                     <br><span class="font-semibold">Examples:</span> Marbles, Coins, Beans, Blocks, Bottles, Cups, Books, Pencils.
                 </p>
@@ -68,266 +68,250 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
 
             <!-- Activity 1 -->
             <div class="border border-slate-200 rounded-xl p-6 md:p-8 mb-6 shadow-sm">
-                <h3 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Activity 1 – How Many?</h3>
-                <div class="{% if is_teacher_scoring %}grid md:grid-cols-2 gap-6{% else %}space-y-4{% endif %}">
+                <h3 class="text-xl font-bold text-slate-900 mb-4 border-b pb-2">Activity 1 – How Many?</h3>
+                <div class="grid md:grid-cols-2 gap-6">
                     <div>
-                        <h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Instruction</h4>
-                        <p class="text-slate-900 text-base mb-2">Place a group of objects on a table (e.g. Beans, Coins, Blocks).</p>
-                        <ol class="list-decimal list-inside text-slate-900 space-y-1 mb-4 text-base">
+                        <h4 class="font-semibold text-slate-900 mb-2 text-lg uppercase tracking-wider">Instruction</h4>
+                        <p class="text-slate-950 text-lg mb-2">Place a group of objects on a table (e.g. Beans, Coins, Blocks).</p>
+                        <ol class="list-decimal list-inside text-slate-950 space-y-1 mb-4 text-lg">
                             <li>Learner observes without counting.</li>
                         </ol>
-                        <p class="text-slate-900 text-base font-semibold mb-2">Teacher asks:</p>
-                        <ol class="list-decimal list-inside text-slate-900 space-y-1 mb-4 text-base pl-4 border-l-2 border-amber-300">
+                        <p class="text-slate-950 text-lg font-semibold mb-2">Teacher asks:</p>
+                        <ol class="list-decimal list-inside text-slate-950 space-y-1 mb-4 text-lg pl-4 border-l-2 border-amber-300">
                             <li>How many objects do you think there are?</li>
                         </ol>
-                        <p class="text-slate-900 text-base italic mb-4">After the estimate, the learner counts the objects.</p>
+                        <p class="text-slate-950 text-lg italic mb-4">After the estimate, the learner counts the objects.</p>
 
                         {% if is_teacher_scoring %}
-<h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Expected Answer</h4>
-                        <p class="text-slate-900 text-base italic">The estimate should be reasonably close to the actual quantity.</p>
+<h4 class="font-semibold text-slate-900 mb-2 text-lg uppercase tracking-wider">Expected Answer</h4>
+                        <p class="text-slate-950 text-lg italic">The estimate should be reasonably close to the actual quantity.</p>
 {% endif %}
                     </div>
-                    {% if is_teacher_scoring %}
-<div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
+                    <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
                         <label class="flex items-start gap-3 cursor-pointer group">
                             <input type="checkbox" name="act1_check" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
                             <div>
-                                <span class="block font-bold text-slate-800 group-hover:text-blue-600 transition">Teacher Check</span>
-                                <span class="block text-base text-slate-500">Learner makes an estimate before counting.</span>
+                                <span class="block font-bold text-slate-900 group-hover:text-blue-600 transition">Activity Completed</span>
+                                <span class="block text-lg text-slate-500">Learner makes an estimate before counting.</span>
                             </div>
                         </label>
                     </div>
-                {% endif %}
 </div>
             </div>
 
             <!-- Activity 2 -->
             <div class="border border-slate-200 rounded-xl p-6 md:p-8 mb-6 shadow-sm">
-                <h3 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Activity 2 – Which Holds More?</h3>
-                <div class="{% if is_teacher_scoring %}grid md:grid-cols-2 gap-6{% else %}space-y-4{% endif %}">
+                <h3 class="text-xl font-bold text-slate-900 mb-4 border-b pb-2">Activity 2 – Which Holds More?</h3>
+                <div class="grid md:grid-cols-2 gap-6">
                     <div>
-                        <h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Instruction</h4>
-                        <p class="text-slate-900 text-base mb-2">Place three containers of different sizes on a table (e.g. Cup, Bottle, Jug).</p>
-                        <p class="text-slate-900 text-base font-semibold mb-2">Teacher asks:</p>
-                        <ol class="list-decimal list-inside text-slate-900 space-y-1 mb-4 text-base pl-4 border-l-2 border-amber-300">
+                        <h4 class="font-semibold text-slate-900 mb-2 text-lg uppercase tracking-wider">Instruction</h4>
+                        <p class="text-slate-950 text-lg mb-2">Place three containers of different sizes on a table (e.g. Cup, Bottle, Jug).</p>
+                        <p class="text-slate-950 text-lg font-semibold mb-2">Teacher asks:</p>
+                        <ol class="list-decimal list-inside text-slate-950 space-y-1 mb-4 text-lg pl-4 border-l-2 border-amber-300">
                             <li>Which container will hold the most water?</li>
                             <li>Which will hold the least?</li>
                         </ol>
 
                         {% if is_teacher_scoring %}
-<h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Expected Answer</h4>
-                        <p class="text-slate-900 text-base italic">The learner identifies the largest and smallest capacity containers.</p>
+<h4 class="font-semibold text-slate-900 mb-2 text-lg uppercase tracking-wider">Expected Answer</h4>
+                        <p class="text-slate-950 text-lg italic">The learner identifies the largest and smallest capacity containers.</p>
 {% endif %}
                     </div>
-                    {% if is_teacher_scoring %}
-<div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
+                    <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
                         <label class="flex items-start gap-3 cursor-pointer group">
                             <input type="checkbox" name="act2_check" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
                             <div>
-                                <span class="block font-bold text-slate-800 group-hover:text-blue-600 transition">Teacher Check</span>
-                                <span class="block text-base text-slate-500">Learner estimates capacity correctly.</span>
+                                <span class="block font-bold text-slate-900 group-hover:text-blue-600 transition">Activity Completed</span>
+                                <span class="block text-lg text-slate-500">Learner estimates capacity correctly.</span>
                             </div>
                         </label>
                     </div>
-                {% endif %}
 </div>
             </div>
 
             <!-- Activity 3 -->
             <div class="border border-slate-200 rounded-xl p-6 md:p-8 mb-6 shadow-sm">
-                <h3 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Activity 3 – Which Is Heavier?</h3>
-                <div class="{% if is_teacher_scoring %}grid md:grid-cols-2 gap-6{% else %}space-y-4{% endif %}">
+                <h3 class="text-xl font-bold text-slate-900 mb-4 border-b pb-2">Activity 3 – Which Is Heavier?</h3>
+                <div class="grid md:grid-cols-2 gap-6">
                     <div>
-                        <h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Instruction</h4>
-                        <p class="text-slate-900 text-base mb-2">Place three objects on a table (e.g. Book, Stone, Pencil).</p>
-                        <p class="text-slate-900 text-base mb-2">Learner may lift them.</p>
-                        <p class="text-slate-900 text-base font-semibold mb-2">Teacher asks:</p>
-                        <ol class="list-decimal list-inside text-slate-900 space-y-1 mb-4 text-base pl-4 border-l-2 border-amber-300">
+                        <h4 class="font-semibold text-slate-900 mb-2 text-lg uppercase tracking-wider">Instruction</h4>
+                        <p class="text-slate-950 text-lg mb-2">Place three objects on a table (e.g. Book, Stone, Pencil).</p>
+                        <p class="text-slate-950 text-lg mb-2">Learner may lift them.</p>
+                        <p class="text-slate-950 text-lg font-semibold mb-2">Teacher asks:</p>
+                        <ol class="list-decimal list-inside text-slate-950 space-y-1 mb-4 text-lg pl-4 border-l-2 border-amber-300">
                             <li>Which object do you think is heaviest?</li>
                             <li>Which is lightest?</li>
                         </ol>
 
                         {% if is_teacher_scoring %}
-<h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Expected Answer</h4>
-                        <p class="text-slate-900 text-base italic">The learner identifies the approximate weight differences.</p>
+<h4 class="font-semibold text-slate-900 mb-2 text-lg uppercase tracking-wider">Expected Answer</h4>
+                        <p class="text-slate-950 text-lg italic">The learner identifies the approximate weight differences.</p>
 {% endif %}
                     </div>
-                    {% if is_teacher_scoring %}
-<div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
+                    <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
                         <label class="flex items-start gap-3 cursor-pointer group">
                             <input type="checkbox" name="act3_check" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
                             <div>
-                                <span class="block font-bold text-slate-800 group-hover:text-blue-600 transition">Teacher Check</span>
-                                <span class="block text-base text-slate-500">Learner estimates weight correctly.</span>
+                                <span class="block font-bold text-slate-900 group-hover:text-blue-600 transition">Activity Completed</span>
+                                <span class="block text-lg text-slate-500">Learner estimates weight correctly.</span>
                             </div>
                         </label>
                     </div>
-                {% endif %}
 </div>
             </div>
 
             <!-- Activity 4 -->
             <div class="border border-slate-200 rounded-xl p-6 md:p-8 mb-6 shadow-sm">
-                <h3 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Activity 4 – Distance Estimation</h3>
-                <div class="{% if is_teacher_scoring %}grid md:grid-cols-2 gap-6{% else %}space-y-4{% endif %}">
+                <h3 class="text-xl font-bold text-slate-900 mb-4 border-b pb-2">Activity 4 – Distance Estimation</h3>
+                <div class="grid md:grid-cols-2 gap-6">
                     <div>
-                        <h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Instruction</h4>
-                        <p class="text-slate-900 text-base mb-2">Select two points (e.g. Door to desk, Chair to wall).</p>
-                        <p class="text-slate-900 text-base font-semibold mb-2">Teacher asks:</p>
-                        <ol class="list-decimal list-inside text-slate-900 space-y-1 mb-4 text-base pl-4 border-l-2 border-amber-300">
+                        <h4 class="font-semibold text-slate-900 mb-2 text-lg uppercase tracking-wider">Instruction</h4>
+                        <p class="text-slate-950 text-lg mb-2">Select two points (e.g. Door to desk, Chair to wall).</p>
+                        <p class="text-slate-950 text-lg font-semibold mb-2">Teacher asks:</p>
+                        <ol class="list-decimal list-inside text-slate-950 space-y-1 mb-4 text-lg pl-4 border-l-2 border-amber-300">
                             <li>How many steps away is it?</li>
                         </ol>
-                        <p class="text-slate-900 text-base italic mb-2">Learner estimates first.</p>
-                        <p class="text-slate-900 text-base italic mb-4">Then learner walks and counts.</p>
+                        <p class="text-slate-950 text-lg italic mb-2">Learner estimates first.</p>
+                        <p class="text-slate-950 text-lg italic mb-4">Then learner walks and counts.</p>
 
                         {% if is_teacher_scoring %}
-<h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Expected Answer</h4>
-                        <p class="text-slate-900 text-base italic">Estimate is reasonably close to the actual number of steps.</p>
+<h4 class="font-semibold text-slate-900 mb-2 text-lg uppercase tracking-wider">Expected Answer</h4>
+                        <p class="text-slate-950 text-lg italic">Estimate is reasonably close to the actual number of steps.</p>
 {% endif %}
                     </div>
-                    {% if is_teacher_scoring %}
-<div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
+                    <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
                         <label class="flex items-start gap-3 cursor-pointer group">
                             <input type="checkbox" name="act4_check" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
                             <div>
-                                <span class="block font-bold text-slate-800 group-hover:text-blue-600 transition">Teacher Check</span>
-                                <span class="block text-base text-slate-500">Learner estimates distance before measuring.</span>
+                                <span class="block font-bold text-slate-900 group-hover:text-blue-600 transition">Activity Completed</span>
+                                <span class="block text-lg text-slate-500">Learner estimates distance before measuring.</span>
                             </div>
                         </label>
                     </div>
-                {% endif %}
 </div>
             </div>
 
             <!-- Activity 5 -->
             <div class="border border-slate-200 rounded-xl p-6 md:p-8 mb-6 shadow-sm">
-                <h3 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Activity 5 – Time Estimation</h3>
-                <div class="{% if is_teacher_scoring %}grid md:grid-cols-2 gap-6{% else %}space-y-4{% endif %}">
+                <h3 class="text-xl font-bold text-slate-900 mb-4 border-b pb-2">Activity 5 – Time Estimation</h3>
+                <div class="grid md:grid-cols-2 gap-6">
                     <div>
-                        <h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Instruction</h4>
-                        <ol class="list-decimal list-inside text-slate-900 space-y-1 mb-4 text-base">
+                        <h4 class="font-semibold text-slate-900 mb-2 text-lg uppercase tracking-wider">Instruction</h4>
+                        <ol class="list-decimal list-inside text-slate-950 space-y-1 mb-4 text-lg">
                             <li>Teacher asks learner to close their eyes.</li>
                         </ol>
-                        <p class="text-slate-900 text-base font-semibold mb-2">Teacher says:</p>
-                        <p class="text-slate-900 text-base pl-4 border-l-2 border-amber-300 mb-2">"Raise your hand when you think one minute has passed."</p>
-                        <p class="text-slate-900 text-base italic mb-4">Teacher times the activity.</p>
+                        <p class="text-slate-950 text-lg font-semibold mb-2">Teacher says:</p>
+                        <p class="text-slate-950 text-lg pl-4 border-l-2 border-amber-300 mb-2">"Raise your hand when you think one minute has passed."</p>
+                        <p class="text-slate-950 text-lg italic mb-4">Teacher times the activity.</p>
 
                         {% if is_teacher_scoring %}
-<h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Expected Answer</h4>
-                        <p class="text-slate-900 text-base italic">Estimate is reasonably close to one minute.</p>
+<h4 class="font-semibold text-slate-900 mb-2 text-lg uppercase tracking-wider">Expected Answer</h4>
+                        <p class="text-slate-950 text-lg italic">Estimate is reasonably close to one minute.</p>
 {% endif %}
                     </div>
-                    {% if is_teacher_scoring %}
-<div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
+                    <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
                         <label class="flex items-start gap-3 cursor-pointer group">
                             <input type="checkbox" name="act5_check" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
                             <div>
-                                <span class="block font-bold text-slate-800 group-hover:text-blue-600 transition">Teacher Check</span>
-                                <span class="block text-base text-slate-500">Learner attempts to estimate time.</span>
+                                <span class="block font-bold text-slate-900 group-hover:text-blue-600 transition">Activity Completed</span>
+                                <span class="block text-lg text-slate-500">Learner attempts to estimate time.</span>
                             </div>
                         </label>
                     </div>
-                {% endif %}
 </div>
             </div>
 
             <!-- Activity 6 -->
             <div class="border border-slate-200 rounded-xl p-6 md:p-8 mb-6 shadow-sm">
-                <h3 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Activity 6 – Fill the Container</h3>
-                <div class="{% if is_teacher_scoring %}grid md:grid-cols-2 gap-6{% else %}space-y-4{% endif %}">
+                <h3 class="text-xl font-bold text-slate-900 mb-4 border-b pb-2">Activity 6 – Fill the Container</h3>
+                <div class="grid md:grid-cols-2 gap-6">
                     <div>
-                        <h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Instruction</h4>
-                        <p class="text-slate-900 text-base mb-2">Show an empty container and provide small objects (e.g. Marbles, Blocks, Coins).</p>
-                        <p class="text-slate-900 text-base font-semibold mb-2">Teacher asks:</p>
-                        <ol class="list-decimal list-inside text-slate-900 space-y-1 mb-4 text-base pl-4 border-l-2 border-amber-300">
+                        <h4 class="font-semibold text-slate-900 mb-2 text-lg uppercase tracking-wider">Instruction</h4>
+                        <p class="text-slate-950 text-lg mb-2">Show an empty container and provide small objects (e.g. Marbles, Blocks, Coins).</p>
+                        <p class="text-slate-950 text-lg font-semibold mb-2">Teacher asks:</p>
+                        <ol class="list-decimal list-inside text-slate-950 space-y-1 mb-4 text-lg pl-4 border-l-2 border-amber-300">
                             <li>How many objects will fit inside?</li>
                         </ol>
-                        <p class="text-slate-900 text-base italic mb-2">Learner estimates first.</p>
-                        <p class="text-slate-900 text-base italic mb-4">Objects are then added and counted.</p>
+                        <p class="text-slate-950 text-lg italic mb-2">Learner estimates first.</p>
+                        <p class="text-slate-950 text-lg italic mb-4">Objects are then added and counted.</p>
 
                         {% if is_teacher_scoring %}
-<h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Expected Answer</h4>
-                        <p class="text-slate-900 text-base italic">Estimate is based on observation and reasoning.</p>
+<h4 class="font-semibold text-slate-900 mb-2 text-lg uppercase tracking-wider">Expected Answer</h4>
+                        <p class="text-slate-950 text-lg italic">Estimate is based on observation and reasoning.</p>
 {% endif %}
                     </div>
-                    {% if is_teacher_scoring %}
-<div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
+                    <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
                         <label class="flex items-start gap-3 cursor-pointer group">
                             <input type="checkbox" name="act6_check" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
                             <div>
-                                <span class="block font-bold text-slate-800 group-hover:text-blue-600 transition">Teacher Check</span>
-                                <span class="block text-base text-slate-500">Learner estimates quantity before testing.</span>
+                                <span class="block font-bold text-slate-900 group-hover:text-blue-600 transition">Activity Completed</span>
+                                <span class="block text-lg text-slate-500">Learner estimates quantity before testing.</span>
                             </div>
                         </label>
                     </div>
-                {% endif %}
 </div>
             </div>
 
             <!-- Activity 7 -->
             <div class="border border-slate-200 rounded-xl p-6 md:p-8 mb-6 shadow-sm">
-                <h3 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Activity 7 – Estimation Challenge</h3>
-                <div class="{% if is_teacher_scoring %}grid md:grid-cols-2 gap-6{% else %}space-y-4{% endif %}">
+                <h3 class="text-xl font-bold text-slate-900 mb-4 border-b pb-2">Activity 7 – Estimation Challenge</h3>
+                <div class="grid md:grid-cols-2 gap-6">
                     <div>
-                        <h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Instruction</h4>
-                        <p class="text-slate-900 text-base mb-2">Teacher presents several situations.</p>
-                        <p class="text-slate-900 text-base font-semibold mb-2">Examples:</p>
-                        <ol class="list-decimal list-inside text-slate-900 space-y-1 mb-4 text-base pl-4 border-l-2 border-amber-300">
+                        <h4 class="font-semibold text-slate-900 mb-2 text-lg uppercase tracking-wider">Instruction</h4>
+                        <p class="text-slate-950 text-lg mb-2">Teacher presents several situations.</p>
+                        <p class="text-slate-950 text-lg font-semibold mb-2">Examples:</p>
+                        <ol class="list-decimal list-inside text-slate-950 space-y-1 mb-4 text-lg pl-4 border-l-2 border-amber-300">
                             <li>How many books are on the shelf?</li>
                             <li>How many learners are in the room?</li>
                             <li>How many chairs are in the hall?</li>
                             <li>How many leaves are on a branch?</li>
                         </ol>
-                        <p class="text-slate-900 text-base italic mb-4">Learner provides estimates without counting.</p>
+                        <p class="text-slate-950 text-lg italic mb-4">Learner provides estimates without counting.</p>
 
                         {% if is_teacher_scoring %}
-<h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Expected Answer</h4>
-                        <p class="text-slate-900 text-base italic">Estimates are realistic and not random.</p>
+<h4 class="font-semibold text-slate-900 mb-2 text-lg uppercase tracking-wider">Expected Answer</h4>
+                        <p class="text-slate-950 text-lg italic">Estimates are realistic and not random.</p>
 {% endif %}
                     </div>
-                    {% if is_teacher_scoring %}
-<div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
+                    <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
                         <label class="flex items-start gap-3 cursor-pointer group">
                             <input type="checkbox" name="act7_check" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
                             <div>
-                                <span class="block font-bold text-slate-800 group-hover:text-blue-600 transition">Teacher Check</span>
-                                <span class="block text-base text-slate-500">Learner uses observation to make sensible estimates.</span>
+                                <span class="block font-bold text-slate-900 group-hover:text-blue-600 transition">Activity Completed</span>
+                                <span class="block text-lg text-slate-500">Learner uses observation to make sensible estimates.</span>
                             </div>
                         </label>
                     </div>
-                {% endif %}
 </div>
             </div>
 
             <!-- Activity 8 -->
             <div class="border border-slate-200 rounded-xl p-6 md:p-8 mb-6 shadow-sm">
-                <h3 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Activity 8 – Reflection Through Prediction</h3>
-                <div class="{% if is_teacher_scoring %}grid md:grid-cols-2 gap-6{% else %}space-y-4{% endif %}">
+                <h3 class="text-xl font-bold text-slate-900 mb-4 border-b pb-2">Activity 8 – Reflection Through Prediction</h3>
+                <div class="grid md:grid-cols-2 gap-6">
                     <div>
-                        <h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Instruction</h4>
-                        <p class="text-slate-900 text-base font-semibold mb-2">Teacher asks:</p>
-                        <ol class="list-decimal list-inside text-slate-900 space-y-1 mb-4 text-base pl-4 border-l-2 border-amber-300">
+                        <h4 class="font-semibold text-slate-900 mb-2 text-lg uppercase tracking-wider">Instruction</h4>
+                        <p class="text-slate-950 text-lg font-semibold mb-2">Teacher asks:</p>
+                        <ol class="list-decimal list-inside text-slate-950 space-y-1 mb-4 text-lg pl-4 border-l-2 border-amber-300">
                             <li>Why is estimation useful?</li>
                             <li>When would you estimate instead of count?</li>
                             <li>What helped you make a good estimate?</li>
                         </ol>
 
                         {% if is_teacher_scoring %}
-<h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Expected Answer</h4>
-                        <p class="text-slate-900 text-base italic">The learner explains that estimation is a sensible guess made before exact measurement or counting.</p>
+<h4 class="font-semibold text-slate-900 mb-2 text-lg uppercase tracking-wider">Expected Answer</h4>
+                        <p class="text-slate-950 text-lg italic">The learner explains that estimation is a sensible guess made before exact measurement or counting.</p>
 {% endif %}
                     </div>
-                    {% if is_teacher_scoring %}
-<div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
+                    <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
                         <label class="flex items-start gap-3 cursor-pointer group">
                             <input type="checkbox" name="act8_check" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
                             <div>
-                                <span class="block font-bold text-slate-800 group-hover:text-blue-600 transition">Teacher Check</span>
-                                <span class="block text-base text-slate-500">Learner demonstrates understanding of estimation.</span>
+                                <span class="block font-bold text-slate-900 group-hover:text-blue-600 transition">Activity Completed</span>
+                                <span class="block text-lg text-slate-500">Learner demonstrates understanding of estimation.</span>
                             </div>
                         </label>
                     </div>
-                {% endif %}
 </div>
             </div>
 
@@ -335,9 +319,9 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
 <!-- Final Competency Check -->
             <div class="bg-slate-900 rounded-xl p-8 mb-8 text-white shadow-lg">
                 <h3 class="text-2xl font-bold mb-4">Final Checklist</h3>
-                <p class="text-slate-300 mb-6 text-base">As the observer, verify that the learner can successfully do all of the following:</p>
+                <p class="text-slate-300 mb-6 text-lg">As the observer, verify that the learner can successfully do all of the following:</p>
                 
-                <div class="grid grid-cols-2 gap-4 mb-8 text-base text-slate-300 opacity-80">
+                <div class="grid grid-cols-2 gap-4 mb-8 text-lg text-slate-300 opacity-80">
                     <div>✓ Estimate quantities</div>
                     <div>✓ Estimate weight</div>
                     <div>✓ Estimate capacity</div>

@@ -16,8 +16,8 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
         <!-- Header -->
         <div class="flex flex-row justify-between items-center mb-8 pb-6 border-b border-slate-100">
             <div>
-                <span class="text-base font-bold tracking-wider text-blue-600 uppercase">SECTION 1 – PRACTICAL LEARNING</span>
-                <h1 class="text-3xl font-extrabold text-slate-900 mt-1">
+                <span class="text-lg font-bold tracking-wider text-blue-600 uppercase">SECTION 1 – PRACTICAL LEARNING</span>
+                <h1 class="text-3xl font-extrabold text-slate-950 mt-1">
                     CHAPTER {{ chapter.chapter_number }} – {{ chapter.title|upper }}
                 </h1>
             </div>
@@ -34,7 +34,7 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
         {% endif %}
 
             <a href="{{ url_for('home_bp.learner_dashboard') }}"
-               class="inline-flex items-center px-4 py-2 rounded-lg text-base font-semibold text-slate-800 border border-slate-200 hover:bg-slate-50 transition">
+               class="inline-flex items-center px-4 py-2 rounded-lg text-lg font-semibold text-slate-900 border border-slate-200 hover:bg-slate-50 transition">
                 ← Back
             </a>
         </div>
@@ -46,7 +46,7 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                     Objective
                 </h2>
-                <p class="text-blue-900 leading-relaxed text-base">
+                <p class="text-blue-900 leading-relaxed text-lg">
                     Learn how to measure length, height, weight, distance and capacity using practical methods and everyday objects.
                 </p>
             </div>
@@ -56,7 +56,7 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
                     Teacher Preparation
                 </h2>
-                <p class="text-amber-900 leading-relaxed text-base">
+                <p class="text-amber-900 leading-relaxed text-lg">
                     Collect a variety of everyday items.
                     <br><span class="font-semibold">Examples:</span> Ruler or tape measure, Pencil, Book, Bottle, Cup, Chair, School bag, Small stone.
                     <br><span class="italic opacity-80 mt-2 block">If measuring tools are unavailable, learners may use hand spans, footsteps or other non-standard units.</span>
@@ -69,216 +69,204 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
 
             <!-- Activity 1 -->
             <div class="border border-slate-200 rounded-xl p-6 md:p-8 mb-6 shadow-sm">
-                <h3 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Activity 1 – Measuring Length</h3>
-                <div class="{% if is_teacher_scoring %}grid md:grid-cols-2 gap-6{% else %}space-y-4{% endif %}">
+                <h3 class="text-xl font-bold text-slate-900 mb-4 border-b pb-2">Activity 1 – Measuring Length</h3>
+                <div class="grid md:grid-cols-2 gap-6">
                     <div>
-                        <h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Instruction</h4>
-                        <p class="text-slate-900 text-base mb-2">Select three objects (e.g. Pencil, Book, Spoon).</p>
-                        <p class="text-slate-900 text-base mb-2">Measure each object using a ruler.</p>
-                        <p class="text-slate-900 text-base italic mb-4">If no ruler is available, use finger widths or hand spans.</p>
-                        <p class="text-slate-900 text-base font-semibold mb-2">Teacher asks:</p>
-                        <ol class="list-decimal list-inside text-slate-900 space-y-1 mb-4 text-base pl-4 border-l-2 border-amber-300">
+                        <h4 class="font-semibold text-slate-900 mb-2 text-lg uppercase tracking-wider">Instruction</h4>
+                        <p class="text-slate-950 text-lg mb-2">Select three objects (e.g. Pencil, Book, Spoon).</p>
+                        <p class="text-slate-950 text-lg mb-2">Measure each object using a ruler.</p>
+                        <p class="text-slate-950 text-lg italic mb-4">If no ruler is available, use finger widths or hand spans.</p>
+                        <p class="text-slate-950 text-lg font-semibold mb-2">Teacher asks:</p>
+                        <ol class="list-decimal list-inside text-slate-950 space-y-1 mb-4 text-lg pl-4 border-l-2 border-amber-300">
                             <li>Which object is longest?</li>
                             <li>Which object is shortest?</li>
                         </ol>
 
                         {% if is_teacher_scoring %}
-<h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Expected Answer</h4>
-                        <p class="text-slate-900 text-base italic">The learner obtains a measurement and correctly identifies longest and shortest objects.</p>
+<h4 class="font-semibold text-slate-900 mb-2 text-lg uppercase tracking-wider">Expected Answer</h4>
+                        <p class="text-slate-950 text-lg italic">The learner obtains a measurement and correctly identifies longest and shortest objects.</p>
 {% endif %}
                     </div>
-                    {% if is_teacher_scoring %}
-<div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
+                    <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
                         <label class="flex items-start gap-3 cursor-pointer group">
                             <input type="checkbox" name="act1_check" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
                             <div>
-                                <span class="block font-bold text-slate-800 group-hover:text-blue-600 transition">Teacher Check</span>
-                                <span class="block text-base text-slate-500">Learner measures length correctly.</span>
+                                <span class="block font-bold text-slate-900 group-hover:text-blue-600 transition">Activity Completed</span>
+                                <span class="block text-lg text-slate-500">Learner measures length correctly.</span>
                             </div>
                         </label>
                     </div>
-                {% endif %}
 </div>
             </div>
 
             <!-- Activity 2 -->
             <div class="border border-slate-200 rounded-xl p-6 md:p-8 mb-6 shadow-sm">
-                <h3 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Activity 2 – Measuring Height</h3>
-                <div class="{% if is_teacher_scoring %}grid md:grid-cols-2 gap-6{% else %}space-y-4{% endif %}">
+                <h3 class="text-xl font-bold text-slate-900 mb-4 border-b pb-2">Activity 2 – Measuring Height</h3>
+                <div class="grid md:grid-cols-2 gap-6">
                     <div>
-                        <h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Instruction</h4>
-                        <p class="text-slate-900 text-base mb-2">Select three objects of different heights (e.g. Bottle, Book, Chair).</p>
-                        <p class="text-slate-900 text-base mb-2">Measure or compare their heights.</p>
-                        <p class="text-slate-900 text-base font-semibold mb-2">Teacher asks:</p>
-                        <ol class="list-decimal list-inside text-slate-900 space-y-1 mb-4 text-base pl-4 border-l-2 border-amber-300">
+                        <h4 class="font-semibold text-slate-900 mb-2 text-lg uppercase tracking-wider">Instruction</h4>
+                        <p class="text-slate-950 text-lg mb-2">Select three objects of different heights (e.g. Bottle, Book, Chair).</p>
+                        <p class="text-slate-950 text-lg mb-2">Measure or compare their heights.</p>
+                        <p class="text-slate-950 text-lg font-semibold mb-2">Teacher asks:</p>
+                        <ol class="list-decimal list-inside text-slate-950 space-y-1 mb-4 text-lg pl-4 border-l-2 border-amber-300">
                             <li>Which object is tallest?</li>
                             <li>Which object is shortest?</li>
                         </ol>
 
                         {% if is_teacher_scoring %}
-<h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Expected Answer</h4>
-                        <p class="text-slate-900 text-base italic">The learner correctly ranks objects by height.</p>
+<h4 class="font-semibold text-slate-900 mb-2 text-lg uppercase tracking-wider">Expected Answer</h4>
+                        <p class="text-slate-950 text-lg italic">The learner correctly ranks objects by height.</p>
 {% endif %}
                     </div>
-                    {% if is_teacher_scoring %}
-<div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
+                    <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
                         <label class="flex items-start gap-3 cursor-pointer group">
                             <input type="checkbox" name="act2_check" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
                             <div>
-                                <span class="block font-bold text-slate-800 group-hover:text-blue-600 transition">Teacher Check</span>
-                                <span class="block text-base text-slate-500">Learner compares height accurately.</span>
+                                <span class="block font-bold text-slate-900 group-hover:text-blue-600 transition">Activity Completed</span>
+                                <span class="block text-lg text-slate-500">Learner compares height accurately.</span>
                             </div>
                         </label>
                     </div>
-                {% endif %}
 </div>
             </div>
 
             <!-- Activity 3 -->
             <div class="border border-slate-200 rounded-xl p-6 md:p-8 mb-6 shadow-sm">
-                <h3 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Activity 3 – Measuring Distance</h3>
-                <div class="{% if is_teacher_scoring %}grid md:grid-cols-2 gap-6{% else %}space-y-4{% endif %}">
+                <h3 class="text-xl font-bold text-slate-900 mb-4 border-b pb-2">Activity 3 – Measuring Distance</h3>
+                <div class="grid md:grid-cols-2 gap-6">
                     <div>
-                        <h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Instruction</h4>
-                        <p class="text-slate-900 text-base mb-2">Choose two points (e.g. Door to desk, Chair to wall).</p>
-                        <p class="text-slate-900 text-base font-semibold mb-2">Measure the distance using:</p>
-                        <ol class="list-decimal list-inside text-slate-900 space-y-1 mb-4 text-base pl-4 border-l-2 border-amber-300">
+                        <h4 class="font-semibold text-slate-900 mb-2 text-lg uppercase tracking-wider">Instruction</h4>
+                        <p class="text-slate-950 text-lg mb-2">Choose two points (e.g. Door to desk, Chair to wall).</p>
+                        <p class="text-slate-950 text-lg font-semibold mb-2">Measure the distance using:</p>
+                        <ol class="list-decimal list-inside text-slate-950 space-y-1 mb-4 text-lg pl-4 border-l-2 border-amber-300">
                             <li>Footsteps</li>
                             <li>Tape measure</li>
                             <li>Metre stick</li>
                         </ol>
-                        <p class="text-slate-900 text-base font-semibold mb-2">Teacher asks:</p>
-                        <ol class="list-decimal list-inside text-slate-900 space-y-1 mb-4 text-base pl-4 border-l-2 border-amber-300">
+                        <p class="text-slate-950 text-lg font-semibold mb-2">Teacher asks:</p>
+                        <ol class="list-decimal list-inside text-slate-950 space-y-1 mb-4 text-lg pl-4 border-l-2 border-amber-300">
                             <li>How far apart are the two points?</li>
                         </ol>
 
                         {% if is_teacher_scoring %}
-<h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Expected Answer</h4>
-                        <p class="text-slate-900 text-base italic">Learner records a reasonable measurement using available tools.</p>
+<h4 class="font-semibold text-slate-900 mb-2 text-lg uppercase tracking-wider">Expected Answer</h4>
+                        <p class="text-slate-950 text-lg italic">Learner records a reasonable measurement using available tools.</p>
 {% endif %}
                     </div>
-                    {% if is_teacher_scoring %}
-<div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
+                    <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
                         <label class="flex items-start gap-3 cursor-pointer group">
                             <input type="checkbox" name="act3_check" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
                             <div>
-                                <span class="block font-bold text-slate-800 group-hover:text-blue-600 transition">Teacher Check</span>
-                                <span class="block text-base text-slate-500">Learner measures distance correctly.</span>
+                                <span class="block font-bold text-slate-900 group-hover:text-blue-600 transition">Activity Completed</span>
+                                <span class="block text-lg text-slate-500">Learner measures distance correctly.</span>
                             </div>
                         </label>
                     </div>
-                {% endif %}
 </div>
             </div>
 
             <!-- Activity 4 -->
             <div class="border border-slate-200 rounded-xl p-6 md:p-8 mb-6 shadow-sm">
-                <h3 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Activity 4 – Comparing Weight</h3>
-                <div class="{% if is_teacher_scoring %}grid md:grid-cols-2 gap-6{% else %}space-y-4{% endif %}">
+                <h3 class="text-xl font-bold text-slate-900 mb-4 border-b pb-2">Activity 4 – Comparing Weight</h3>
+                <div class="grid md:grid-cols-2 gap-6">
                     <div>
-                        <h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Instruction</h4>
-                        <p class="text-slate-900 text-base mb-2">Provide several objects (e.g. Stone, Pencil, Book, School bag).</p>
-                        <p class="text-slate-900 text-base italic mb-4">Learner lifts and compares them.</p>
-                        <p class="text-slate-900 text-base font-semibold mb-2">Teacher asks:</p>
-                        <ol class="list-decimal list-inside text-slate-900 space-y-1 mb-4 text-base pl-4 border-l-2 border-amber-300">
+                        <h4 class="font-semibold text-slate-900 mb-2 text-lg uppercase tracking-wider">Instruction</h4>
+                        <p class="text-slate-950 text-lg mb-2">Provide several objects (e.g. Stone, Pencil, Book, School bag).</p>
+                        <p class="text-slate-950 text-lg italic mb-4">Learner lifts and compares them.</p>
+                        <p class="text-slate-950 text-lg font-semibold mb-2">Teacher asks:</p>
+                        <ol class="list-decimal list-inside text-slate-950 space-y-1 mb-4 text-lg pl-4 border-l-2 border-amber-300">
                             <li>Which object is heaviest?</li>
                             <li>Which object is lightest?</li>
                         </ol>
 
                         {% if is_teacher_scoring %}
-<h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Expected Answer</h4>
-                        <p class="text-slate-900 text-base italic">Learner identifies heavier and lighter objects correctly.</p>
+<h4 class="font-semibold text-slate-900 mb-2 text-lg uppercase tracking-wider">Expected Answer</h4>
+                        <p class="text-slate-950 text-lg italic">Learner identifies heavier and lighter objects correctly.</p>
 {% endif %}
                     </div>
-                    {% if is_teacher_scoring %}
-<div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
+                    <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
                         <label class="flex items-start gap-3 cursor-pointer group">
                             <input type="checkbox" name="act4_check" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
                             <div>
-                                <span class="block font-bold text-slate-800 group-hover:text-blue-600 transition">Teacher Check</span>
-                                <span class="block text-base text-slate-500">Learner compares weight accurately.</span>
+                                <span class="block font-bold text-slate-900 group-hover:text-blue-600 transition">Activity Completed</span>
+                                <span class="block text-lg text-slate-500">Learner compares weight accurately.</span>
                             </div>
                         </label>
                     </div>
-                {% endif %}
 </div>
             </div>
 
             <!-- Activity 5 -->
             <div class="border border-slate-200 rounded-xl p-6 md:p-8 mb-6 shadow-sm">
-                <h3 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Activity 5 – Measuring Capacity</h3>
-                <div class="{% if is_teacher_scoring %}grid md:grid-cols-2 gap-6{% else %}space-y-4{% endif %}">
+                <h3 class="text-xl font-bold text-slate-900 mb-4 border-b pb-2">Activity 5 – Measuring Capacity</h3>
+                <div class="grid md:grid-cols-2 gap-6">
                     <div>
-                        <h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Instruction</h4>
-                        <p class="text-slate-900 text-base mb-2">Provide three containers (e.g. Cup, Bottle, Jug).</p>
-                        <p class="text-slate-900 text-base italic mb-4">Fill each with water.</p>
-                        <p class="text-slate-900 text-base font-semibold mb-2">Teacher asks:</p>
-                        <ol class="list-decimal list-inside text-slate-900 space-y-1 mb-4 text-base pl-4 border-l-2 border-amber-300">
+                        <h4 class="font-semibold text-slate-900 mb-2 text-lg uppercase tracking-wider">Instruction</h4>
+                        <p class="text-slate-950 text-lg mb-2">Provide three containers (e.g. Cup, Bottle, Jug).</p>
+                        <p class="text-slate-950 text-lg italic mb-4">Fill each with water.</p>
+                        <p class="text-slate-950 text-lg font-semibold mb-2">Teacher asks:</p>
+                        <ol class="list-decimal list-inside text-slate-950 space-y-1 mb-4 text-lg pl-4 border-l-2 border-amber-300">
                             <li>Which holds the most?</li>
                             <li>Which holds the least?</li>
                         </ol>
 
                         {% if is_teacher_scoring %}
-<h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Expected Answer</h4>
-                        <p class="text-slate-900 text-base italic">Learner identifies the container with the greatest and smallest capacity.</p>
+<h4 class="font-semibold text-slate-900 mb-2 text-lg uppercase tracking-wider">Expected Answer</h4>
+                        <p class="text-slate-950 text-lg italic">Learner identifies the container with the greatest and smallest capacity.</p>
 {% endif %}
                     </div>
-                    {% if is_teacher_scoring %}
-<div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
+                    <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
                         <label class="flex items-start gap-3 cursor-pointer group">
                             <input type="checkbox" name="act5_check" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
                             <div>
-                                <span class="block font-bold text-slate-800 group-hover:text-blue-600 transition">Teacher Check</span>
-                                <span class="block text-base text-slate-500">Learner compares capacity correctly.</span>
+                                <span class="block font-bold text-slate-900 group-hover:text-blue-600 transition">Activity Completed</span>
+                                <span class="block text-lg text-slate-500">Learner compares capacity correctly.</span>
                             </div>
                         </label>
                     </div>
-                {% endif %}
 </div>
             </div>
 
             <!-- Activity 6 -->
             <div class="border border-slate-200 rounded-xl p-6 md:p-8 mb-6 shadow-sm">
-                <h3 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Activity 6 – Non-Standard Measurement</h3>
-                <div class="{% if is_teacher_scoring %}grid md:grid-cols-2 gap-6{% else %}space-y-4{% endif %}">
+                <h3 class="text-xl font-bold text-slate-900 mb-4 border-b pb-2">Activity 6 – Non-Standard Measurement</h3>
+                <div class="grid md:grid-cols-2 gap-6">
                     <div>
-                        <h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Instruction</h4>
-                        <p class="text-slate-900 text-base mb-2">Measure a table using hand spans.</p>
-                        <p class="text-slate-900 text-base italic mb-4">Measure a room using footsteps.</p>
-                        <p class="text-slate-900 text-base font-semibold mb-2">Teacher asks:</p>
-                        <ol class="list-decimal list-inside text-slate-900 space-y-1 mb-4 text-base pl-4 border-l-2 border-amber-300">
+                        <h4 class="font-semibold text-slate-900 mb-2 text-lg uppercase tracking-wider">Instruction</h4>
+                        <p class="text-slate-950 text-lg mb-2">Measure a table using hand spans.</p>
+                        <p class="text-slate-950 text-lg italic mb-4">Measure a room using footsteps.</p>
+                        <p class="text-slate-950 text-lg font-semibold mb-2">Teacher asks:</p>
+                        <ol class="list-decimal list-inside text-slate-950 space-y-1 mb-4 text-lg pl-4 border-l-2 border-amber-300">
                             <li>How many hand spans long is the table?</li>
                             <li>How many steps across is the room?</li>
                         </ol>
 
                         {% if is_teacher_scoring %}
-<h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Expected Answer</h4>
-                        <p class="text-slate-900 text-base italic">Learner obtains consistent measurements using the chosen unit.</p>
+<h4 class="font-semibold text-slate-900 mb-2 text-lg uppercase tracking-wider">Expected Answer</h4>
+                        <p class="text-slate-950 text-lg italic">Learner obtains consistent measurements using the chosen unit.</p>
 {% endif %}
                     </div>
-                    {% if is_teacher_scoring %}
-<div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
+                    <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
                         <label class="flex items-start gap-3 cursor-pointer group">
                             <input type="checkbox" name="act6_check" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
                             <div>
-                                <span class="block font-bold text-slate-800 group-hover:text-blue-600 transition">Teacher Check</span>
-                                <span class="block text-base text-slate-500">Learner uses non-standard measurement units.</span>
+                                <span class="block font-bold text-slate-900 group-hover:text-blue-600 transition">Activity Completed</span>
+                                <span class="block text-lg text-slate-500">Learner uses non-standard measurement units.</span>
                             </div>
                         </label>
                     </div>
-                {% endif %}
 </div>
             </div>
 
             <!-- Activity 7 -->
             <div class="border border-slate-200 rounded-xl p-6 md:p-8 mb-6 shadow-sm">
-                <h3 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Activity 7 – Measurement Investigation</h3>
-                <div class="{% if is_teacher_scoring %}grid md:grid-cols-2 gap-6{% else %}space-y-4{% endif %}">
+                <h3 class="text-xl font-bold text-slate-900 mb-4 border-b pb-2">Activity 7 – Measurement Investigation</h3>
+                <div class="grid md:grid-cols-2 gap-6">
                     <div>
-                        <h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Instruction</h4>
-                        <p class="text-slate-900 text-base mb-2">Select an everyday object (e.g. School bag, Water bottle, Book).</p>
-                        <p class="text-slate-900 text-base font-semibold mb-2">Teacher asks:</p>
-                        <ol class="list-decimal list-inside text-slate-900 space-y-1 mb-4 text-base pl-4 border-l-2 border-amber-300">
+                        <h4 class="font-semibold text-slate-900 mb-2 text-lg uppercase tracking-wider">Instruction</h4>
+                        <p class="text-slate-950 text-lg mb-2">Select an everyday object (e.g. School bag, Water bottle, Book).</p>
+                        <p class="text-slate-950 text-lg font-semibold mb-2">Teacher asks:</p>
+                        <ol class="list-decimal list-inside text-slate-950 space-y-1 mb-4 text-lg pl-4 border-l-2 border-amber-300">
                             <li>How long is it?</li>
                             <li>How tall is it?</li>
                             <li>Is it heavy or light?</li>
@@ -286,32 +274,30 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
                         </ol>
 
                         {% if is_teacher_scoring %}
-<h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Expected Answer</h4>
-                        <p class="text-slate-900 text-base italic">Learner applies different measurement concepts to the same object.</p>
+<h4 class="font-semibold text-slate-900 mb-2 text-lg uppercase tracking-wider">Expected Answer</h4>
+                        <p class="text-slate-950 text-lg italic">Learner applies different measurement concepts to the same object.</p>
 {% endif %}
                     </div>
-                    {% if is_teacher_scoring %}
-<div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
+                    <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
                         <label class="flex items-start gap-3 cursor-pointer group">
                             <input type="checkbox" name="act7_check" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
                             <div>
-                                <span class="block font-bold text-slate-800 group-hover:text-blue-600 transition">Teacher Check</span>
-                                <span class="block text-base text-slate-500">Learner identifies multiple measurements.</span>
+                                <span class="block font-bold text-slate-900 group-hover:text-blue-600 transition">Activity Completed</span>
+                                <span class="block text-lg text-slate-500">Learner identifies multiple measurements.</span>
                             </div>
                         </label>
                     </div>
-                {% endif %}
 </div>
             </div>
 
             <!-- Activity 8 -->
             <div class="border border-slate-200 rounded-xl p-6 md:p-8 mb-6 shadow-sm">
-                <h3 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Activity 8 – Practical Problem Solving</h3>
-                <div class="{% if is_teacher_scoring %}grid md:grid-cols-2 gap-6{% else %}space-y-4{% endif %}">
+                <h3 class="text-xl font-bold text-slate-900 mb-4 border-b pb-2">Activity 8 – Practical Problem Solving</h3>
+                <div class="grid md:grid-cols-2 gap-6">
                     <div>
-                        <h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Instruction</h4>
-                        <p class="text-slate-900 text-base font-semibold mb-2">Teacher presents a scenario. Examples:</p>
-                        <ol class="list-decimal list-inside text-slate-900 space-y-1 mb-4 text-base pl-4 border-l-2 border-amber-300">
+                        <h4 class="font-semibold text-slate-900 mb-2 text-lg uppercase tracking-wider">Instruction</h4>
+                        <p class="text-slate-950 text-lg font-semibold mb-2">Teacher presents a scenario. Examples:</p>
+                        <ol class="list-decimal list-inside text-slate-950 space-y-1 mb-4 text-lg pl-4 border-l-2 border-amber-300">
                             <li>Will this book fit inside the drawer?</li>
                             <li>Can this bottle fit on the shelf?</li>
                             <li>Which container should be used to carry more water?</li>
@@ -319,21 +305,19 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
                         </ol>
 
                         {% if is_teacher_scoring %}
-<h4 class="font-semibold text-slate-800 mb-2 text-base uppercase tracking-wider">Expected Answer</h4>
-                        <p class="text-slate-900 text-base italic">Learner makes decisions based on size, height, weight or capacity.</p>
+<h4 class="font-semibold text-slate-900 mb-2 text-lg uppercase tracking-wider">Expected Answer</h4>
+                        <p class="text-slate-950 text-lg italic">Learner makes decisions based on size, height, weight or capacity.</p>
 {% endif %}
                     </div>
-                    {% if is_teacher_scoring %}
-<div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
+                    <div class="bg-slate-50 p-5 rounded-lg border border-slate-200 flex flex-col justify-center">
                         <label class="flex items-start gap-3 cursor-pointer group">
                             <input type="checkbox" name="act8_check" class="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" required>
                             <div>
-                                <span class="block font-bold text-slate-800 group-hover:text-blue-600 transition">Teacher Check</span>
-                                <span class="block text-base text-slate-500">Learner uses measurements to solve problems.</span>
+                                <span class="block font-bold text-slate-900 group-hover:text-blue-600 transition">Activity Completed</span>
+                                <span class="block text-lg text-slate-500">Learner uses measurements to solve problems.</span>
                             </div>
                         </label>
                     </div>
-                {% endif %}
 </div>
             </div>
 
@@ -341,9 +325,9 @@ Chapter {{ chapter.chapter_number }} – {{ chapter.title }} | HOME™
 <!-- Final Competency Check -->
             <div class="bg-slate-900 rounded-xl p-8 mb-8 text-white shadow-lg">
                 <h3 class="text-2xl font-bold mb-4">Final Checklist</h3>
-                <p class="text-slate-300 mb-6 text-base">As the observer, verify that the learner can successfully do all of the following:</p>
+                <p class="text-slate-300 mb-6 text-lg">As the observer, verify that the learner can successfully do all of the following:</p>
                 
-                <div class="grid grid-cols-2 gap-4 mb-8 text-base text-slate-300 opacity-80">
+                <div class="grid grid-cols-2 gap-4 mb-8 text-lg text-slate-300 opacity-80">
                     <div>✓ Measure length</div>
                     <div>✓ Measure height</div>
                     <div>✓ Measure distance</div>

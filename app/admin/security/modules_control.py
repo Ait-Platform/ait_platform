@@ -205,10 +205,21 @@ def log_promo_contact_voucher():
     voucher_code = data.get("voucher_code")
     
     if contact_id and voucher_code:
-        from app.models.auth import PromoContact
+        from app.models.auth import PromoContact, InviteLog
         contact = PromoContact.query.filter_by(id=contact_id, admin_id=current_user.id).first()
         if contact:
             contact.assigned_voucher = voucher_code
+            
+            # Log it in the InviteLog so it shows up on the Security Dashboard
+            invite = InviteLog(
+                sender_id=current_user.id,
+                recipient_phone=contact.whatsapp_number,
+                program_slug=contact.preferred_slug or "voucher_promo",
+                invite_type=f"Voucher Promo ({voucher_code})",
+                status="Sent"
+            )
+            db.session.add(invite)
+            
             db.session.commit()
             return jsonify({"success": True})
             

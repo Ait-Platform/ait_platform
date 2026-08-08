@@ -863,16 +863,35 @@ def view_final_certificate():
         flash("You must pass the assessment to view your certificate.", "warning")
         return redirect(url_for('home_bp.learner_dashboard'))
 
+    from flask import url_for
+    logo_url = url_for('static', filename='branding/ait_logo.png')
+    seal_url = url_for('static', filename='branding/ait_seal.png')
+    
     return render_template(
-        'subject_home/final_certificate.html',
-        assessment=assessment
+        'subject_home/certificate.html',
+        assessment=assessment,
+        logo_path=logo_url,
+        seal_path=seal_url
     )
 
 @home_bp.route('/view_failed_certificate')
 @login_required
 def view_failed_certificate():
-    return render_template('subject_home/failed_certificate.html')
-
+    from app.models.home import HomeFinalAssessment
+    assessment = HomeFinalAssessment.query.filter_by(
+        user_id=current_user.id
+    ).order_by(HomeFinalAssessment.id.desc()).first_or_404()
+    
+    from flask import url_for
+    logo_url = url_for('static', filename='branding/ait_logo.png')
+    seal_url = url_for('static', filename='branding/ait_seal.png')
+    
+    return render_template(
+        'subject_home/certificate.html',
+        assessment=assessment,
+        logo_path=logo_url,
+        seal_path=seal_url
+    )
 @home_bp.route('/test_passed_certificate')
 @login_required
 def test_passed_certificate():

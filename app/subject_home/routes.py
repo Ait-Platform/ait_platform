@@ -263,6 +263,22 @@ def chapter_page(chapter_num):
         
     base_chapter = HomeChapter.query.filter_by(chapter_number=base_chapter_num).first()
     hero_image = base_chapter.image_filename if base_chapter else None
+    
+    # Fallback if DB is missing the image filename
+    if not hero_image:
+        fallback_images = {
+            1: 'chapter1_observation.jpg',
+            2: 'chapter2_Position.jpg',
+            3: 'chapter3_comparison.jpg',
+            4: 'chapter4_estimation.jpg',
+            5: 'chapter5_Measurement.jpg',
+            6: 'chapter6_Pattern_Recognition.jpg',
+            7: 'chapter7_Spatial_Reasoning.jpg',
+            8: 'chapter8_logic..jpg',
+            9: 'chapter9_mathematics.jpg',
+            10: 'chapter10_critical_thinking.jpg'
+        }
+        hero_image = fallback_images.get(base_chapter_num)
 
 
     if chapter_num >= 11:

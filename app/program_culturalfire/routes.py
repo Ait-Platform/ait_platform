@@ -3087,8 +3087,8 @@ def wallet_dashboard():
     enrollment = UserEnrollment.query.filter_by(user_id=current_user.id, subject_id=cf_subject.id).first() if cf_subject else None
     
     local_currency = enrollment.local_currency if (enrollment and enrollment.local_currency) else "ZAR"
-    local_amount_cents = enrollment.local_amount_cents if (enrollment and enrollment.local_amount_cents) else 20000
-    zar_amount_cents = enrollment.zar_amount_cents if (enrollment and enrollment.zar_amount_cents) else 20000
+    local_amount_cents = enrollment.local_amount_cents if (enrollment and enrollment.local_amount_cents) else 15000
+    zar_amount_cents = enrollment.zar_amount_cents if (enrollment and enrollment.zar_amount_cents) else 15000
     local_amount = local_amount_cents / 100
 
     return render_template("program_culturefire/wallet.html", wallet=wallet, transactions=transactions, award=award, local_currency=local_currency, local_amount=local_amount, zar_amount_cents=zar_amount_cents)
@@ -3100,8 +3100,8 @@ def wallet_topup():
     cf_subject = AuthSubject.query.filter_by(slug='cultural_fire').first()
     enrollment = UserEnrollment.query.filter_by(user_id=current_user.id, subject_id=cf_subject.id).first() if cf_subject else None
     
-    zar_cents = enrollment.zar_amount_cents if (enrollment and enrollment.zar_amount_cents) else 20000
-    tokens = 200
+    zar_cents = enrollment.zar_amount_cents if (enrollment and enrollment.zar_amount_cents) else 15000
+    tokens = 300
 
     if zar_cents < 1000:
         flash("Minimum payment amount is 10 ZAR.", "danger")

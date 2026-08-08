@@ -61,6 +61,7 @@
                 <th class="py-3 px-4">Value</th>
                 <th class="py-3 px-4">Status</th>
                 <th class="py-3 px-4">Created At</th>
+                <th class="py-3 px-4 text-right">Actions</th>
               </tr>
             </thead>
             <tbody class="divide-y">
@@ -77,6 +78,16 @@
                   {% endif %}
                 </td>
                 <td class="py-3 px-4 text-sm text-gray-500">{{ v.created_at.strftime('%Y-%m-%d %H:%M') if v.created_at else '' }}</td>
+                <td class="py-3 px-4">
+                  {% if not v.is_used %}
+                  <div class="flex items-center gap-2">
+                    <input type="text" id="wa_{{ v.code }}" placeholder="WhatsApp number" class="w-32 border border-gray-300 rounded px-2 py-1 text-sm outline-none focus:ring-1 focus:ring-green-500">
+                    <button onclick="sendWa('{{ v.code }}', '{{ v.value_amount }}')" class="bg-green-500 text-white px-3 py-1 rounded text-sm hover:bg-green-600 transition font-bold whitespace-nowrap">
+                      Send
+                    </button>
+                  </div>
+                  {% endif %}
+                </td>
               </tr>
               {% else %}
               <tr>
@@ -91,4 +102,22 @@
   </div>
 
 </div>
+<script>
+function sendWa(code, amount) {
+  let number = document.getElementById('wa_' + code).value.replace(/[^0-9+]/g, '');
+  if (!number) {
+    alert("Please enter a WhatsApp number.");
+    return;
+  }
+  
+  // Format the number slightly if it doesn't have a plus sign
+  if (number.startsWith('0')) {
+    number = '27' + number.substring(1); // Default to SA format for convenience if starting with 0
+  }
+  
+  const message = `Hi! I'm gifting you a special early-access voucher for Cultural Fire on the AIT Platform! 🎁\n\nIt contains ${amount} free tokens to vote or participate.\n\nUse this code to claim your tokens: *${code}*\n\nGet started here: https://ait.mathwithhands.com/`;
+  const url = `https://wa.me/${number}?text=${encodeURIComponent(message)}`;
+  window.open(url, '_blank');
+}
+</script>
 {% endblock %}

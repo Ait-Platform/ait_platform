@@ -21,6 +21,16 @@ def security_communication_logs():
     logs = InviteLog.query.order_by(InviteLog.sent_at.desc()).all()
     return render_template("shared/invite_logs_page.html", logs=logs, is_admin_view=True, back_url=url_for("admin_bp.security_dashboard"))
 
+@admin_bp.route("/security/paystack-logs", endpoint="paystack_payment_logs")
+@login_required
+def paystack_payment_logs():
+    if not (session.get("is_admin") or session.get("role") == "admin"):
+        return redirect(url_for("public_bp.welcome"))
+
+    from app.models.payment import PaystackPayment
+    payments = PaystackPayment.query.order_by(PaystackPayment.created_at.desc()).all()
+    return render_template("admin/security/paystack_logs.html", payments=payments)
+
 @admin_bp.route("/security/pricing", methods=["GET", "POST"], endpoint="manage_pricing")
 @login_required
 def manage_pricing():

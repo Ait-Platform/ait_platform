@@ -21,6 +21,7 @@ from sqlalchemy import text
 
 from app.extensions import db, csrf
 from app.models.auth import User
+from app.models.payment import PaystackPayment
 
 from app.payments.quote import build_amount_quote
 from app.payments.pricing import get_subject_price, countries_from_ref_with_names, _resolve_subject_from_request
@@ -241,8 +242,8 @@ def start():
         else:
             amount_cents = amount_cents // 3
 
-    if amount_cents < 1000:
-        flash(f"Payment cannot proceed: invalid amount (R{amount_cents/100:.2f}). Minimum is R10.00.", "error")
+    if amount_cents < 3000:
+        flash(f"Payment cannot proceed: invalid amount (R{amount_cents/100:.2f}). Minimum is R30.00.", "error")
         return redirect(url_for("public_bp.welcome"))
 
     display_name = subject.replace("_", " ").title()
@@ -341,6 +342,21 @@ def fulfill_order(email, subject, transaction=None):
     if not u:
         u = User(email=email, name=email.split("@", 1)[0].title(), is_active=1)
         db.session.add(u)
+        db.session.flush()
+
+    if transaction:
+        payment = PaystackPayment(
+            user_id=u.id,
+            email=email,
+            subject_slug=subject,
+            amount_cents=int(transaction.get("amount", 0)),
+            currency=transaction.get("currency", "ZAR"),
+            status=transaction.get("status", "success"),
+            gateway_reference=transaction.get("reference", ""),
+            paid_at=datetime.utcnow()
+        )
+        db.session.add(payment)
+        # Flush so the ledger gets recorded before returning from any module handlers below
         db.session.flush()
 
     # ---------- MECHANIC TOPUP ----------

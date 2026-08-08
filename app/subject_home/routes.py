@@ -46,8 +46,8 @@ def _save_home_progress(user_id, chapter_number):
         db.session.rollback()
         print("Error saving home progress:", e)
 
-@home_bp.route('/home/about')
-def subject_home():
+@home_bp.route('/home/about', endpoint='about_home')
+def about_home():
     return render_template("subject_home/about.html")
 
 @home_bp.route('/home/price')

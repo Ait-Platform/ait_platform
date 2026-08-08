@@ -67,7 +67,15 @@ def cultural_fire_about():
 
 @cultural_bp.route("/program/cultural_fire/price", methods=["GET"])
 def cultural_fire_price():
-    return render_template("program_culturefire/price.html")
+    from app.program_culturalfire.helpers import get_token_cost
+    prices = {
+        "mc": get_token_cost('mc_assignment', 70),
+        "judge": get_token_cost('judge_assignment', 50),
+        "ad": get_token_cost('ad_upload', 40),
+        "pageant": get_token_cost('talent_submission_pageant', 30),
+        "talent": get_token_cost('talent_submission_other', 20)
+    }
+    return render_template("program_culturefire/price.html", prices=prices)
 
 @cultural_bp.route("/program/cultural_fire/sponsor/topup/<int:participant_id>", methods=["GET"])
 @login_required

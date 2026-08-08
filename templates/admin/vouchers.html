@@ -143,6 +143,7 @@ async function sendWa(code, amount) {
           voucher_code: code
         })
       });
+      alert(`Success! Voucher ${code} was successfully logged to this contact! \n\nOpening WhatsApp now...`);
     } catch (e) {
       console.error("Failed to log voucher assignment", e);
     }

@@ -4,7 +4,7 @@
 
   <div class="flex justify-between items-center mb-6">
     <h1 class="text-3xl font-bold text-gray-800">Global Voucher Management</h1>
-    <a href="{{ url_for('admin_bp.modules_control') }}" class="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition">Back to Admin</a>
+    <a href="{{ url_for('admin_bp.index') }}" class="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition">Back to Admin</a>
   </div>
 
   {% include "partials/flash_messages.html" %}
@@ -139,7 +139,6 @@ async function sendWa(code, amount) {
   }
 
   // Check if it's from the dropdown to log the voucher
-  const select = document.getElementById('contact_' + code);
   if (select && select.selectedIndex > 0) {
     const contactId = select.options[select.selectedIndex].getAttribute('data-id');
     try {

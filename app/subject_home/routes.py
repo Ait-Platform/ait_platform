@@ -285,7 +285,7 @@ def chapter_page(chapter_num):
 
         if not _has_active_home_subscription(current_user.id):
             flash("You must subscribe to unlock the rest of the HOME course.", "warning")
-            return redirect(url_for('paystack_bp.checkout_review', subject='home'))
+            return redirect(url_for('paystack_bp.paystack_start', subject='home'))
 
     questions = HomeQuestion.query.filter_by(
         chapter_id=chapter.id

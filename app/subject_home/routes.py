@@ -274,7 +274,7 @@ def chapter_page(chapter_num):
             5: 'chapter5_Measurement.jpg',
             6: 'chapter6_Pattern_Recognition.jpg',
             7: 'chapter7_Spatial_Reasoning.jpg',
-            8: 'chapter8_logic..jpg',
+            8: 'chapter8_logic.jpg',
             9: 'chapter9_mathematics.jpg',
             10: 'chapter10_critical_thinking.jpg'
         }

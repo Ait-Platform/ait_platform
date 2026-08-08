@@ -10,6 +10,17 @@
   }
   body { height: auto !important; }
   .footer { position: relative !important; margin-top: 30px; }
+  
+  /* Compress all margins aggressively for the HOME certificate so it fits perfectly on 1 page! */
+  .header { margin-bottom: 10px !important; }
+  .document-title { margin-bottom: 10px !important; padding-bottom: 5px !important; }
+  .details-table { margin-bottom: 10px !important; }
+  .achievement-block { margin-bottom: 10px !important; padding: 10px !important; }
+  .competency-block { margin-bottom: 10px !important; }
+  .overall-result { margin-bottom: 10px !important; }
+  .comments-block { margin-bottom: 10px !important; }
+  
+  .comp-table td, .comp-table th { padding: 2px 4px !important; }
 </style>
 {% endblock %}
 
@@ -41,40 +52,40 @@
 
 <table class="comp-table" style="font-size: 14px; margin-bottom: 0; color: #0f172a; font-weight: bold;">
   <tr>
-    <th style="width: 35%; padding: 8px 12px;">Category</th>
-    <th style="width: 15%; padding: 8px 12px;">Score</th>
-    <th style="width: 35%; padding: 8px 12px;">Category</th>
-    <th style="width: 15%; padding: 8px 12px;">Score</th>
+    <th style="width: 35%; padding: 4px 8px;">Category</th>
+    <th style="width: 15%; padding: 4px 8px;">Score</th>
+    <th style="width: 35%; padding: 4px 8px;">Category</th>
+    <th style="width: 15%; padding: 4px 8px;">Score</th>
   </tr>
   <tr>
-    <td style="padding: 8px 12px;">1. Observation</td>
-    <td style="padding: 8px 12px;">{{ assessment.observation_score | default(0, true) }}%</td>
-    <td style="padding: 8px 12px;">6. Pattern</td>
-    <td style="padding: 8px 12px;">{{ assessment.pattern_score | default(0, true) }}%</td>
+    <td style="padding: 4px 8px;">1. Observation</td>
+    <td style="padding: 4px 8px;">{{ assessment.observation_score | default(0, true) }}%</td>
+    <td style="padding: 4px 8px;">6. Pattern</td>
+    <td style="padding: 4px 8px;">{{ assessment.pattern_score | default(0, true) }}%</td>
   </tr>
   <tr>
-    <td style="padding: 8px 12px;">2. Position</td>
-    <td style="padding: 8px 12px;">{{ assessment.position_score | default(0, true) }}%</td>
-    <td style="padding: 8px 12px;">7. Spatial</td>
-    <td style="padding: 8px 12px;">{{ assessment.spatial_score | default(0, true) }}%</td>
+    <td style="padding: 4px 8px;">2. Position</td>
+    <td style="padding: 4px 8px;">{{ assessment.position_score | default(0, true) }}%</td>
+    <td style="padding: 4px 8px;">7. Spatial</td>
+    <td style="padding: 4px 8px;">{{ assessment.spatial_score | default(0, true) }}%</td>
   </tr>
   <tr>
-    <td style="padding: 8px 12px;">3. Comparison</td>
-    <td style="padding: 8px 12px;">{{ assessment.comparison_score | default(0, true) }}%</td>
-    <td style="padding: 8px 12px;">8. Logic</td>
-    <td style="padding: 8px 12px;">{{ assessment.logic_score | default(0, true) }}%</td>
+    <td style="padding: 4px 8px;">3. Comparison</td>
+    <td style="padding: 4px 8px;">{{ assessment.comparison_score | default(0, true) }}%</td>
+    <td style="padding: 4px 8px;">8. Logic</td>
+    <td style="padding: 4px 8px;">{{ assessment.logic_score | default(0, true) }}%</td>
   </tr>
   <tr>
-    <td style="padding: 8px 12px;">4. Estimation</td>
-    <td style="padding: 8px 12px;">{{ assessment.estimation_score | default(0, true) }}%</td>
-    <td style="padding: 8px 12px;">9. Mathematics</td>
-    <td style="padding: 8px 12px;">{{ assessment.mathematics_score | default(0, true) }}%</td>
+    <td style="padding: 4px 8px;">4. Estimation</td>
+    <td style="padding: 4px 8px;">{{ assessment.estimation_score | default(0, true) }}%</td>
+    <td style="padding: 4px 8px;">9. Mathematics</td>
+    <td style="padding: 4px 8px;">{{ assessment.mathematics_score | default(0, true) }}%</td>
   </tr>
   <tr>
-    <td style="padding: 8px 12px;">5. Measurement</td>
-    <td style="padding: 8px 12px;">{{ assessment.measurement_score | default(0, true) }}%</td>
-    <td style="padding: 8px 12px;">10. Critical Thinking</td>
-    <td style="padding: 8px 12px;">{{ assessment.critical_thinking_score | default(0, true) }}%</td>
+    <td style="padding: 4px 8px;">5. Measurement</td>
+    <td style="padding: 4px 8px;">{{ assessment.measurement_score | default(0, true) }}%</td>
+    <td style="padding: 4px 8px;">10. Critical Thinking</td>
+    <td style="padding: 4px 8px;">{{ assessment.critical_thinking_score | default(0, true) }}%</td>
   </tr>
 </table>
 {% endblock %}

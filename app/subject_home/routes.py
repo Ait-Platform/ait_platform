@@ -642,7 +642,7 @@ def finish_report():
             with open(seal_path, "rb") as image_file:
                 seal_b64 = "data:image/png;base64," + base64.b64encode(image_file.read()).decode('utf-8')
         
-        report_html = render_template('subject_home/certificate.html', assessment=assessment, logo_b64=logo_b64, seal_b64=seal_b64)
+        report_html = render_template('subject_home/certificate.html', assessment=assessment, logo_path=logo_b64, seal_path=seal_b64)
         out_report = io.BytesIO()
         pisa.CreatePDF(report_html, dest=out_report, encoding="UTF-8")
         report_pdf_bytes = out_report.getvalue()
@@ -926,7 +926,7 @@ def test_passed_certificate():
         with open(logo_path, "rb") as image_file:
             logo_b64 = "data:image/png;base64," + base64.b64encode(image_file.read()).decode('utf-8')
 
-    html = render_template('subject_home/certificate.html', assessment=mock, logo_b64=logo_b64)
+    html = render_template('subject_home/certificate.html', assessment=mock, logo_path=logo_b64)
     out = io.BytesIO()
     pisa.CreatePDF(html, dest=out, encoding="UTF-8")
     pdf_bytes = out.getvalue()

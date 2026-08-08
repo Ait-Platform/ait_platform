@@ -181,7 +181,8 @@ def manage_promo_contacts():
         return redirect(url_for("admin_bp.manage_promo_contacts"))
         
     contacts = PromoContact.query.filter_by(admin_id=current_user.id).order_by(PromoContact.created_at.desc()).all()
-    return render_template("admin/promo_contacts.html", contacts=contacts)
+    subjects = AuthSubject.query.order_by(AuthSubject.name.asc()).all()
+    return render_template("admin/promo_contacts.html", contacts=contacts, subjects=subjects)
 
 @admin_bp.route("/promo-contacts/delete/<int:contact_id>", methods=["POST"])
 def delete_promo_contact(contact_id):

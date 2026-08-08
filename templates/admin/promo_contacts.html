@@ -28,8 +28,13 @@
           </div>
 
           <div class="mb-6">
-            <label class="block text-sm font-semibold text-gray-700 mb-1">Preferred Subject Slug (Optional)</label>
-            <input type="text" name="preferred_slug" class="w-full border border-gray-300 rounded px-3 py-2" placeholder="e.g. cultural_fire">
+            <label class="block text-sm font-semibold text-gray-700 mb-1">Preferred Subject (Optional)</label>
+            <select name="preferred_slug" class="w-full border border-gray-300 rounded px-3 py-2 bg-white">
+              <option value="">-- No Preference --</option>
+              {% for s in subjects %}
+                <option value="{{ s.slug }}">{{ s.name }} ({{ s.slug }})</option>
+              {% endfor %}
+            </select>
             <p class="text-xs text-gray-500 mt-1">For your reference when generating vouchers.</p>
           </div>
 

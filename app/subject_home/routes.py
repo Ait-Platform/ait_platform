@@ -714,9 +714,11 @@ def final_exam():
         flash("You must subscribe to unlock the Final Exam.", "warning")
         return redirect(url_for('home_bp.learner_dashboard'))
 
-    questions = HomeQuestion.query.order_by(
-        HomeQuestion.id
-    ).all()
+    questions = []
+    for chapter_id in range(21, 31):
+        ch_qs = HomeQuestion.query.filter_by(chapter_id=chapter_id).all()
+        if ch_qs:
+            questions.extend(random.sample(ch_qs, min(5, len(ch_qs))))
 
     if request.method == 'POST':
 

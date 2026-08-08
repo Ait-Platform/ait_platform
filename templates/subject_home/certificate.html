@@ -3,28 +3,15 @@
 {% block extra_css %}
 <style>
   @page {
+    size: A4 portrait;
     margin: 1cm;
+    border: 4px solid #0033a1;
     padding: 0.5cm;
   }
-  body {
-    height: auto !important;
-  }
-  .header, .document-title, .details-table, .achievement-block, .competency-block, .overall-result {
-    margin-bottom: 15px !important;
-  }
-  .achievement-block {
-    padding: 10px !important;
-  }
-  .comments-block {
-    margin-bottom: 15px !important;
-  }
-  .footer {
-    position: relative !important;
-  }
+  body { height: auto !important; }
+  .footer { position: relative !important; margin-top: 30px; }
 </style>
 {% endblock %}
-
-{% block document_title_meta %}Diagnostic Report – HOME Programme{% endblock %}
 
 {% block document_title %}
 {% if assessment.passed %}Certificate & Diagnostic Report{% else %}Diagnostic Report{% endif %}
@@ -48,78 +35,46 @@
 {% endblock %}
 
 {% block competencies %}
-{% macro get_qualifier(score, verb_phrase) %}
-  {% set s = score | default(0, true) %}
-  {% if s >= 90 %}
-    Excellent ability to {{ verb_phrase }}.
-  {% elif s >= 70 %}
-    Good ability to {{ verb_phrase }}.
-  {% elif s >= 50 %}
-    Developing ability to {{ verb_phrase }}.
-  {% else %}
-    Requires practice to {{ verb_phrase }}.
-  {% endif %}
-{% endmacro %}
-
-<div style="font-size: 10px; margin-bottom: 5px; color: #475569; font-style: italic; text-align: center;">
+<div style="font-size: 14px; margin-bottom: 15px; color: #0f172a; font-style: italic; text-align: center;">
   This report details your performance across the 10 foundational categories assessed in the Section 3 (Theoretical Mastery) Final Examination.
 </div>
 
-<table class="comp-table" style="font-size: 10px; margin-bottom: 0;">
+<table class="comp-table" style="font-size: 14px; margin-bottom: 0; color: #0f172a; font-weight: bold;">
   <tr>
-    <th style="width: 20%; padding: 2px 4px;">Category</th>
-    <th style="width: 15%; padding: 2px 4px;">Score</th>
-    <th style="width: 65%; padding: 2px 4px;">Performance Indicator</th>
+    <th style="width: 35%; padding: 8px 12px;">Category</th>
+    <th style="width: 15%; padding: 8px 12px;">Score</th>
+    <th style="width: 35%; padding: 8px 12px;">Category</th>
+    <th style="width: 15%; padding: 8px 12px;">Score</th>
   </tr>
   <tr>
-    <td style="padding: 2px 4px;">1. Observation</td>
-    <td style="padding: 2px 4px;">{{ assessment.observation_score | default(0, true) }}%</td>
-    <td style="padding: 2px 4px; color: #334155;">{{ get_qualifier(assessment.observation_score, 'observe and identify key details') }}</td>
+    <td style="padding: 8px 12px;">1. Observation</td>
+    <td style="padding: 8px 12px;">{{ assessment.observation_score | default(0, true) }}%</td>
+    <td style="padding: 8px 12px;">6. Pattern</td>
+    <td style="padding: 8px 12px;">{{ assessment.pattern_score | default(0, true) }}%</td>
   </tr>
   <tr>
-    <td style="padding: 2px 4px;">2. Position</td>
-    <td style="padding: 2px 4px;">{{ assessment.position_score | default(0, true) }}%</td>
-    <td style="padding: 2px 4px; color: #334155;">{{ get_qualifier(assessment.position_score, 'understand and describe spatial positioning') }}</td>
+    <td style="padding: 8px 12px;">2. Position</td>
+    <td style="padding: 8px 12px;">{{ assessment.position_score | default(0, true) }}%</td>
+    <td style="padding: 8px 12px;">7. Spatial</td>
+    <td style="padding: 8px 12px;">{{ assessment.spatial_score | default(0, true) }}%</td>
   </tr>
   <tr>
-    <td style="padding: 2px 4px;">3. Comparison</td>
-    <td style="padding: 2px 4px;">{{ assessment.comparison_score | default(0, true) }}%</td>
-    <td style="padding: 2px 4px; color: #334155;">{{ get_qualifier(assessment.comparison_score, 'compare objects and quantities') }}</td>
+    <td style="padding: 8px 12px;">3. Comparison</td>
+    <td style="padding: 8px 12px;">{{ assessment.comparison_score | default(0, true) }}%</td>
+    <td style="padding: 8px 12px;">8. Logic</td>
+    <td style="padding: 8px 12px;">{{ assessment.logic_score | default(0, true) }}%</td>
   </tr>
   <tr>
-    <td style="padding: 2px 4px;">4. Estimation</td>
-    <td style="padding: 2px 4px;">{{ assessment.estimation_score | default(0, true) }}%</td>
-    <td style="padding: 2px 4px; color: #334155;">{{ get_qualifier(assessment.estimation_score, 'estimate values, sizes, and quantities') }}</td>
+    <td style="padding: 8px 12px;">4. Estimation</td>
+    <td style="padding: 8px 12px;">{{ assessment.estimation_score | default(0, true) }}%</td>
+    <td style="padding: 8px 12px;">9. Mathematics</td>
+    <td style="padding: 8px 12px;">{{ assessment.mathematics_score | default(0, true) }}%</td>
   </tr>
   <tr>
-    <td style="padding: 2px 4px;">5. Measurement</td>
-    <td style="padding: 2px 4px;">{{ assessment.measurement_score | default(0, true) }}%</td>
-    <td style="padding: 2px 4px; color: #334155;">{{ get_qualifier(assessment.measurement_score, 'understand and apply measurement concepts') }}</td>
-  </tr>
-  <tr>
-    <td style="padding: 2px 4px;">6. Pattern</td>
-    <td style="padding: 2px 4px;">{{ assessment.pattern_score | default(0, true) }}%</td>
-    <td style="padding: 2px 4px; color: #334155;">{{ get_qualifier(assessment.pattern_score, 'recognize, analyze, and extend patterns') }}</td>
-  </tr>
-  <tr>
-    <td style="padding: 2px 4px;">7. Spatial</td>
-    <td style="padding: 2px 4px;">{{ assessment.spatial_score | default(0, true) }}%</td>
-    <td style="padding: 2px 4px; color: #334155;">{{ get_qualifier(assessment.spatial_score, 'comprehend and manipulate spatial relationships') }}</td>
-  </tr>
-  <tr>
-    <td style="padding: 2px 4px;">8. Logic</td>
-    <td style="padding: 2px 4px;">{{ assessment.logic_score | default(0, true) }}%</td>
-    <td style="padding: 2px 4px; color: #334155;">{{ get_qualifier(assessment.logic_score, 'apply logical reasoning to solve problems') }}</td>
-  </tr>
-  <tr>
-    <td style="padding: 2px 4px;">9. Mathematics</td>
-    <td style="padding: 2px 4px;">{{ assessment.mathematics_score | default(0, true) }}%</td>
-    <td style="padding: 2px 4px; color: #334155;">{{ get_qualifier(assessment.mathematics_score, 'perform foundational mathematical operations') }}</td>
-  </tr>
-  <tr>
-    <td style="padding: 2px 4px;">10. Critical Thinking</td>
-    <td style="padding: 2px 4px;">{{ assessment.critical_thinking_score | default(0, true) }}%</td>
-    <td style="padding: 2px 4px; color: #334155;">{{ get_qualifier(assessment.critical_thinking_score, 'utilize critical thinking to analyze scenarios') }}</td>
+    <td style="padding: 8px 12px;">5. Measurement</td>
+    <td style="padding: 8px 12px;">{{ assessment.measurement_score | default(0, true) }}%</td>
+    <td style="padding: 8px 12px;">10. Critical Thinking</td>
+    <td style="padding: 8px 12px;">{{ assessment.critical_thinking_score | default(0, true) }}%</td>
   </tr>
 </table>
 {% endblock %}

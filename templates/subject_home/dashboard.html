@@ -234,7 +234,7 @@
                       {% if session.get(chapter_key) %}
                           <span class="inline-flex items-center rounded-lg px-4 py-2 text-xs font-semibold bg-gray-100 text-gray-500">Done</span>
                       {% elif needs_premium %}
-                          <a href="{{ url_for('paystack_bp.checkout_review', subject='home') }}" class="inline-flex items-center rounded-lg px-4 py-2 text-xs font-semibold bg-yellow-500 text-white hover:bg-yellow-600 shadow-sm animate-pulse">Unlock Premium</a>
+                          <a href="{{ url_for('paystack_bp.paystack_start', subject='home') }}" class="inline-flex items-center rounded-lg px-4 py-2 text-xs font-semibold bg-yellow-500 text-white hover:bg-yellow-600 shadow-sm animate-pulse">Unlock Premium</a>
                       {% elif is_locked %}
                           <span class="inline-flex items-center rounded-lg px-4 py-2 text-xs font-semibold bg-gray-100 text-gray-400">Locked</span>
                       {% else %}
@@ -301,7 +301,7 @@
                       {% if session.get(chapter_key) %}
                           <span class="inline-flex items-center rounded-lg px-4 py-2 text-xs font-semibold bg-gray-100 text-gray-500">Done</span>
                       {% elif needs_section3 %}
-                          <a href="{{ url_for('paystack_bp.checkout_review', subject='home') }}" class="inline-flex items-center rounded-lg px-4 py-2 text-xs font-semibold bg-yellow-500 text-white hover:bg-yellow-600 shadow-sm animate-pulse">Unlock Premium</a>
+                          <a href="{{ url_for('paystack_bp.paystack_start', subject='home') }}" class="inline-flex items-center rounded-lg px-4 py-2 text-xs font-semibold bg-yellow-500 text-white hover:bg-yellow-600 shadow-sm animate-pulse">Unlock Premium</a>
                       {% elif is_locked %}
                           <span class="inline-flex items-center rounded-lg px-4 py-2 text-xs font-semibold bg-gray-100 text-gray-400">Locked</span>
                       {% else %}
@@ -352,7 +352,7 @@
                       </div>
                   {% elif ns.chap_30_done and not has_premium %}
                       <div class="flex flex-col items-end space-y-2">
-                          <a href="{{ url_for('paystack_bp.checkout_review', subject='home') }}" class="inline-flex items-center rounded-lg px-4 py-2 text-xs font-semibold bg-yellow-500 text-white hover:bg-yellow-600 shadow-sm animate-pulse">Unlock Premium</a>
+                          <a href="{{ url_for('paystack_bp.paystack_start', subject='home') }}" class="inline-flex items-center rounded-lg px-4 py-2 text-xs font-semibold bg-yellow-500 text-white hover:bg-yellow-600 shadow-sm animate-pulse">Unlock Premium</a>
                           <div class="flex space-x-2 opacity-50 cursor-not-allowed" title="Unlock premium to access">
                               <span class="inline-flex items-center rounded-lg px-4 py-2 text-xs font-semibold bg-gray-200 text-gray-600">Certificate with Diagnostic Report</span>
                           </div>

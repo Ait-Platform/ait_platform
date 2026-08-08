@@ -2919,7 +2919,7 @@ def select_show(show_id):
         return redirect(url_for('cultural_bp.judge_dashboard'))
 
     from app.program_culturalfire.helpers import get_token_cost, charge_tokens
-    cost = get_token_cost('judge_assignment', 40)
+    cost = get_token_cost('judge_assignment', 50)
     if not charge_tokens(current_user.id, cost, f"Judge Assignment: {show.title}"):
         flash(f"Insufficient tokens. You need {cost} tokens to judge a show. Please top up your wallet.", "error")
         return redirect(url_for('cultural_bp.wallet_dashboard'))
@@ -3178,7 +3178,7 @@ def select_mc_show(show_id):
         return redirect(url_for('cultural_bp.mc_dashboard'))
 
     from app.program_culturalfire.helpers import get_token_cost, charge_tokens
-    cost = get_token_cost('mc_assignment', 40)
+    cost = get_token_cost('mc_assignment', 70)
     if not charge_tokens(current_user.id, cost, f"MC Assignment: {show.title}"):
         flash(f"Insufficient tokens. You need {cost} tokens to MC a show. Please top up your wallet.", "error")
         return redirect(url_for("cultural_bp.wallet_dashboard"))

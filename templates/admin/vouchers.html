@@ -143,7 +143,7 @@ async function sendWa(code, amount) {
   if (select && select.selectedIndex > 0) {
     const contactId = select.options[select.selectedIndex].getAttribute('data-id');
     try {
-      await fetch("{{ url_for('admin_bp.log_promo_contact_voucher') }}", {
+      const response = await fetch("{{ url_for('admin_bp.log_promo_contact_voucher') }}", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -154,8 +154,15 @@ async function sendWa(code, amount) {
           voucher_code: code
         })
       });
-      alert(`Success! Voucher ${code} was successfully logged to this contact! \n\nOpening WhatsApp now...`);
+      
+      const result = await response.json();
+      if (result.success) {
+        alert(`Success! Voucher ${code} was logged to this contact! \n\nOpening WhatsApp now...`);
+      } else {
+        alert(`Warning: Could not log voucher to database. Message: ${result.message}`);
+      }
     } catch (e) {
+      alert(`Network warning: Could not log voucher. Error: ${e.message}`);
       console.error("Failed to log voucher assignment", e);
     }
   }
@@ -163,6 +170,11 @@ async function sendWa(code, amount) {
   const message = `Hi! I'm gifting you a special early-access voucher for Cultural Fire on the AIT Platform! 🎁\n\nIt contains ${amount} free tokens to vote or participate.\n\nUse this code to claim your tokens: *${code}*\n\nGet started here: https://ait.mathwithhands.com/`;
   const url = `https://wa.me/${number}?text=${encodeURIComponent(message)}`;
   window.open(url, '_blank');
+  
+  // Reload the page after opening WhatsApp so the badge instantly appears
+  setTimeout(() => {
+    window.location.reload();
+  }, 1000);
 }
 </script>
 {% endblock %}

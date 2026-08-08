@@ -242,8 +242,8 @@ def start():
         else:
             amount_cents = amount_cents // 3
 
-    if amount_cents < 3000:
-        flash(f"Payment cannot proceed: invalid amount (R{amount_cents/100:.2f}). Minimum is R30.00.", "error")
+    if amount_cents < 500:
+        flash(f"Payment cannot proceed: invalid amount (R{amount_cents/100:.2f}). Minimum is R5.00.", "error")
         return redirect(url_for("public_bp.welcome"))
 
     display_name = subject.replace("_", " ").title()

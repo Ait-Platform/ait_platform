@@ -68,6 +68,24 @@ def cultural_fire_about():
 @cultural_bp.route("/program/cultural_fire/price", methods=["GET"])
 def cultural_fire_price():
     from app.program_culturalfire.helpers import get_token_cost
+    from app.models.culturalfire import CfiTokenTariff
+    from app.extensions import db
+    
+    # FORCE SYNC: Ensure the live Render DB is overwritten with the correct values
+    correct_tariffs = {
+        'mc_assignment': 70,
+        'judge_assignment': 50,
+        'ad_upload': 40,
+        'talent_submission_pageant': 20,
+        'talent_submission_other': 20
+    }
+    
+    for name, cost in correct_tariffs.items():
+        tariff = CfiTokenTariff.query.filter_by(action_name=name).first()
+        if tariff and tariff.base_token_cost != cost:
+            tariff.base_token_cost = cost
+    db.session.commit()
+
     prices = {
         "mc": get_token_cost('mc_assignment', 70),
         "judge": get_token_cost('judge_assignment', 50),

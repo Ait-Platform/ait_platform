@@ -1,6 +1,6 @@
 #app/admin/security/modules_control.py
 import uuid
-from flask import abort, flash, redirect, render_template, request, url_for
+from flask import abort, flash, redirect, render_template, request, url_for, jsonify
 from app.models.auth import AuthSubject
 from app.models.payment import VoucherToken
 from app.extensions import db

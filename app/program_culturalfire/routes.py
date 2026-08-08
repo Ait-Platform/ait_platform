@@ -72,7 +72,7 @@ def cultural_fire_price():
         "mc": get_token_cost('mc_assignment', 70),
         "judge": get_token_cost('judge_assignment', 50),
         "ad": get_token_cost('ad_upload', 40),
-        "pageant": get_token_cost('talent_submission_pageant', 30),
+        "pageant": get_token_cost('talent_submission_pageant', 20),
         "talent": get_token_cost('talent_submission_other', 20)
     }
     return render_template("program_culturefire/price.html", prices=prices)
@@ -531,7 +531,7 @@ def talent_new(enrollment_id):
         is_other = category_obj and "other" in category_obj.name.lower()
         is_pageant = category_obj and category_obj.name == "Pageant"
         from app.program_culturalfire.helpers import get_token_cost, charge_tokens
-        token_cost = get_token_cost('talent_submission_pageant', 30) if is_pageant else get_token_cost('talent_submission_other', 20)
+        token_cost = get_token_cost('talent_submission_pageant', 20) if is_pageant else get_token_cost('talent_submission_other', 20)
 
         if not charge_tokens(enrollment.user_id, token_cost, f"Talent Submission: {talent_name}"):
             flash(f"Insufficient tokens to submit a video. Please top up your wallet ({token_cost} Tokens required).", "warning")

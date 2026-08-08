@@ -66,6 +66,12 @@
             </thead>
             <tbody class="divide-y">
               {% for v in vouchers %}
+              {% set ns = namespace(assigned_to=none) %}
+              {% for c in contacts %}
+                {% if c.assigned_voucher == v.code %}
+                  {% set ns.assigned_to = c %}
+                {% endif %}
+              {% endfor %}
               <tr class="hover:bg-gray-50">
                 <td class="py-3 px-4 font-mono font-bold text-blue-600">{{ v.code }}</td>
                 <td class="py-3 px-4 text-gray-800">{{ v.subject.name if v.subject else 'Unknown' }}</td>
@@ -80,17 +86,22 @@
                 <td class="py-3 px-4 text-sm text-gray-500">{{ v.created_at.strftime('%Y-%m-%d %H:%M') if v.created_at else '' }}</td>
                 <td class="py-3 px-4">
                   {% if not v.is_used %}
-                  <div class="flex items-center gap-2">
-                    <select id="contact_{{ v.code }}" class="w-28 border border-gray-300 rounded px-1 py-1 text-sm outline-none bg-white">
-                      <option value="">- Contact -</option>
-                      {% for c in contacts %}
-                        <option value="{{ c.whatsapp_number }}" data-id="{{ c.id }}">{{ c.name }}</option>
-                      {% endfor %}
-                    </select>
-                    <a href="{{ url_for('admin_bp.manage_promo_contacts') }}" class="text-blue-500 hover:text-blue-700 text-lg font-bold" title="Add New Contact">+</a>
-                    <button onclick="sendWa('{{ v.code }}', '{{ v.value_amount }}')" class="bg-green-500 text-white px-3 py-1 rounded text-sm hover:bg-green-600 transition font-bold whitespace-nowrap ml-1">
-                      Send
-                    </button>
+                  <div class="flex flex-col gap-1">
+                    {% if ns.assigned_to %}
+                      <span class="text-xs font-bold text-blue-600">✓ Sent to {{ ns.assigned_to.name }}</span>
+                    {% endif %}
+                    <div class="flex items-center gap-2">
+                      <select id="contact_{{ v.code }}" class="w-28 border border-gray-300 rounded px-1 py-1 text-sm outline-none bg-white">
+                        <option value="">- Contact -</option>
+                        {% for c in contacts %}
+                          <option value="{{ c.whatsapp_number }}" data-id="{{ c.id }}" {% if ns.assigned_to and ns.assigned_to.id == c.id %}selected{% endif %}>{{ c.name }}</option>
+                        {% endfor %}
+                      </select>
+                      <a href="{{ url_for('admin_bp.manage_promo_contacts') }}" class="text-blue-500 hover:text-blue-700 text-lg font-bold" title="Add New Contact">+</a>
+                      <button onclick="sendWa('{{ v.code }}', '{{ v.value_amount }}')" class="bg-green-500 text-white px-3 py-1 rounded text-sm hover:bg-green-600 transition font-bold whitespace-nowrap ml-1">
+                        {% if ns.assigned_to %}Resend{% else %}Send{% endif %}
+                      </button>
+                    </div>
                   </div>
                   {% endif %}
                 </td>

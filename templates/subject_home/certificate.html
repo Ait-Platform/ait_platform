@@ -1,5 +1,29 @@
 {% extends "shared/ait_certificate_layout.html" %}
 
+{% block extra_css %}
+<style>
+  @page {
+    margin: 1cm;
+    padding: 0.5cm;
+  }
+  body {
+    height: auto !important;
+  }
+  .header, .document-title, .details-table, .achievement-block, .competency-block, .overall-result {
+    margin-bottom: 15px !important;
+  }
+  .achievement-block {
+    padding: 10px !important;
+  }
+  .comments-block {
+    margin-bottom: 15px !important;
+  }
+  .footer {
+    position: relative !important;
+  }
+</style>
+{% endblock %}
+
 {% block document_title_meta %}Diagnostic Report – HOME Programme{% endblock %}
 
 {% block document_title %}

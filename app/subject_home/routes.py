@@ -1057,6 +1057,7 @@ def teacher_grade_view(submission_id):
     
     # Render the exact same practical template, but tell it we are grading!
     template_name = f'subject_home/chapter{sub.chapter_number}_practical.html'
+    hero_image = chapter.image_filename
     
     return render_template(
         template_name,

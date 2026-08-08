@@ -629,23 +629,7 @@ def finish_report():
 
         # Generate HTML for Certificate & Diagnostic Report
         from flask import current_app
-        import os, base64
-        logo_path = os.path.join(current_app.root_path, '..', 'static', 'branding', 'ait_logo.png')
-        logo_b64 = ""
-        if os.path.exists(logo_path):
-            with open(logo_path, "rb") as image_file:
-                logo_b64 = "data:image/png;base64," + base64.b64encode(image_file.read()).decode('utf-8')
-                
-        seal_path = os.path.join(current_app.root_path, '..', 'static', 'branding', 'ait_seal.png')
-        seal_b64 = ""
-        if os.path.exists(seal_path):
-            with open(seal_path, "rb") as image_file:
-                seal_b64 = "data:image/png;base64," + base64.b64encode(image_file.read()).decode('utf-8')
-        
-        report_html = render_template('subject_home/certificate.html', assessment=assessment, logo_path=logo_b64, seal_path=seal_b64)
-        out_report = io.BytesIO()
-        pisa.CreatePDF(report_html, dest=out_report, encoding="UTF-8")
-        report_pdf_bytes = out_report.getvalue()
+        report_pdf_bytes = _generate_home_certificate_pdf(assessment)
 
         if doc_type == 'certificate' and assessment.passed:
             send_pdf_email(
@@ -936,7 +920,34 @@ def test_passed_certificate():
     return response
 
 
-
+def _generate_home_certificate_pdf(assessment):
+    from flask import current_app, render_template
+    import io, os, base64
+    from xhtml2pdf import pisa
+    
+    logo_path = os.path.join(current_app.root_path, 'static', 'branding', 'ait_logo.png')
+    if not os.path.exists(logo_path):
+        # Fallback to older static folder structure if needed
+        logo_path = os.path.join(current_app.root_path, '..', 'static', 'branding', 'ait_logo.png')
+    
+    logo_b64 = ""
+    if os.path.exists(logo_path):
+        with open(logo_path, "rb") as image_file:
+            logo_b64 = "data:image/png;base64," + base64.b64encode(image_file.read()).decode('utf-8')
+            
+    seal_path = os.path.join(current_app.root_path, 'static', 'branding', 'ait_seal.png')
+    if not os.path.exists(seal_path):
+        seal_path = os.path.join(current_app.root_path, '..', 'static', 'branding', 'ait_seal.png')
+        
+    seal_b64 = ""
+    if os.path.exists(seal_path):
+        with open(seal_path, "rb") as image_file:
+            seal_b64 = "data:image/png;base64," + base64.b64encode(image_file.read()).decode('utf-8')
+    
+    report_html = render_template('subject_home/certificate.html', assessment=assessment, logo_path=logo_b64, seal_path=seal_b64)
+    out_report = io.BytesIO()
+    pisa.CreatePDF(report_html, dest=out_report, encoding="UTF-8")
+    return out_report.getvalue()
 
 
 

@@ -27,4 +27,5 @@ from .programs import assessments as _assessments
 from .programs.reading import routes as _reading
 from .programs.billing import routes as _billing
 from .programs.loss import routes as _loss
+from .programs.home import routes as _home
 from .programs.grade12_core_math import routes as _math

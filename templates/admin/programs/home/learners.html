@@ -1,0 +1,112 @@
+{% extends "admin/admin_layout.html" %}
+
+{% block admin_title %}HOME Dashboard{% endblock %}
+{% block admin_back_url %}{{ url_for('admin_bp.subject_dashboard', subject='home') }}{% endblock %}
+{% block admin_back_text %}Back to HOME{% endblock %}
+{% block admin_color %}bg-indigo-600{% endblock %}
+
+{% block admin_content %}
+  <div class="overflow-x-auto bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+    <table class="w-full text-left text-sm whitespace-nowrap">
+      <thead class="bg-slate-50 border-b border-slate-200">
+        <tr>
+          <th class="px-4 py-3 font-medium text-slate-600">User ID</th>
+          <th class="px-4 py-3 font-medium text-slate-600">Name</th>
+          <th class="px-4 py-3 font-medium text-slate-600">Email</th>
+          <th class="px-4 py-3 font-medium text-slate-600">Started</th>
+          <th class="px-4 py-3 font-medium text-slate-600 text-right">Actions</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-200">
+        {% for l in learners %}
+        <tr>
+          <td class="px-4 py-3 text-slate-500">#{{ l.id }}</td>
+          <td class="px-4 py-3">{{ l.name or 'N/A' }}</td>
+          <td class="px-4 py-3 flex items-center gap-2">
+            <span id="email-text-{{ l.id }}">{{ l.email }}</span>
+            <button onclick="editEmail({{ l.id }}, '{{ l.email }}')" class="text-slate-400 hover:text-indigo-600">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+            </button>
+          </td>
+          <td class="px-4 py-3 text-slate-500">
+            {% if l.started_at %}
+              {{ l.started_at.strftime('%Y-%m-%d') }}
+            {% else %}
+              -
+            {% endif %}
+          </td>
+          <td class="px-4 py-3 text-right">
+            <a href="{{ url_for('admin_bp.home_preview_certificate', user_id=l.id) }}" target="_blank" class="text-xs rounded border border-slate-300 px-2 py-1 mr-2 hover:bg-slate-50 inline-block text-slate-700">
+              Preview Cert
+            </a>
+              <button onclick="resendCertificate({{ l.id }}, '{{ l.email }}')" class="text-xs rounded border border-slate-300 px-2 py-1 hover:bg-slate-50">
+                Email
+              </button>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="5" class="px-4 py-8 text-center text-slate-500">
+            No learners found for the HOME program yet.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+<script>
+function editEmail(userId, currentEmail) {
+    const newEmail = prompt("Enter new email for user:", currentEmail);
+    if (!newEmail || newEmail === currentEmail) return;
+
+    fetch(`/admin/home/learners/${userId}/update-email`, {
+        method: "POST",
+        headers: { 
+            "Content-Type": "application/json",
+            "X-CSRFToken": "{{ csrf_token() }}"
+        },
+        body: JSON.stringify({ email: newEmail })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById(`email-text-${userId}`).innerText = newEmail;
+            alert("Email updated successfully.");
+        } else {
+            alert("Error: " + (data.error || "Failed to update email."));
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        alert("An error occurred.");
+    });
+}
+
+function resendCertificate(userId, currentEmail) {
+    const targetEmail = prompt("Enter the email address to send the certificate to:", currentEmail);
+    if (!targetEmail) return;
+
+    fetch(`/admin/home/learners/${userId}/resend-certificate`, {
+        method: "POST",
+        headers: { 
+            "Content-Type": "application/json",
+            "X-CSRFToken": "{{ csrf_token() }}"
+        },
+        body: JSON.stringify({ email: targetEmail })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            alert(`Certificate sent successfully to ${targetEmail}.`);
+        } else {
+            alert("Error: " + (data.error || "Failed to send."));
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        alert("An error occurred.");
+    });
+}
+</script>
+{% endblock %}

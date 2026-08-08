@@ -391,3 +391,13 @@ class InviteLog(db.Model):
     sent_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     
     sender = db.relationship("User", backref="invites_sent")
+
+class PromoContact(db.Model):
+    __tablename__ = "promo_contact"
+    id = db.Column(db.Integer, primary_key=True)
+    admin_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    name = db.Column(db.String(255), nullable=False)
+    whatsapp_number = db.Column(db.String(50), nullable=False)
+    preferred_slug = db.Column(db.String(100))
+    assigned_voucher = db.Column(db.String(100))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)

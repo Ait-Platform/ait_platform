@@ -151,7 +151,68 @@ def manage_vouchers():
     vouchers = VoucherToken.query.order_by(VoucherToken.created_at.desc()).all()
     subjects = AuthSubject.query.order_by(AuthSubject.name.asc()).all()
     
-    return render_template("admin/vouchers.html", vouchers=vouchers, subjects=subjects)
+    # Pass contacts for the dropdown
+    from app.models.auth import PromoContact
+    contacts = PromoContact.query.filter_by(admin_id=current_user.id).order_by(PromoContact.name.asc()).all()
+    
+    return render_template("admin/vouchers.html", vouchers=vouchers, subjects=subjects, contacts=contacts)
+
+@admin_bp.route("/promo-contacts", methods=["GET", "POST"])
+def manage_promo_contacts():
+    if not is_admin():
+        abort(403)
+    
+    from app.models.auth import PromoContact
+    if request.method == "POST":
+        name = request.form.get("name")
+        whatsapp_number = request.form.get("whatsapp_number")
+        preferred_slug = request.form.get("preferred_slug")
+        
+        if name and whatsapp_number:
+            contact = PromoContact(
+                admin_id=current_user.id,
+                name=name,
+                whatsapp_number=whatsapp_number,
+                preferred_slug=preferred_slug
+            )
+            db.session.add(contact)
+            db.session.commit()
+            flash("Promo Contact added successfully!", "success")
+        return redirect(url_for("admin_bp.manage_promo_contacts"))
+        
+    contacts = PromoContact.query.filter_by(admin_id=current_user.id).order_by(PromoContact.created_at.desc()).all()
+    return render_template("admin/promo_contacts.html", contacts=contacts)
+
+@admin_bp.route("/promo-contacts/delete/<int:contact_id>", methods=["POST"])
+def delete_promo_contact(contact_id):
+    if not is_admin():
+        abort(403)
+    from app.models.auth import PromoContact
+    contact = PromoContact.query.filter_by(id=contact_id, admin_id=current_user.id).first_or_404()
+    db.session.delete(contact)
+    db.session.commit()
+    flash("Promo Contact deleted.", "success")
+    return redirect(url_for("admin_bp.manage_promo_contacts"))
+
+@admin_bp.route("/promo-contacts/log-voucher", methods=["POST"])
+def log_promo_contact_voucher():
+    if not is_admin():
+        return jsonify({"success": False, "message": "Unauthorized"}), 403
+    
+    data = request.get_json()
+    contact_id = data.get("contact_id")
+    voucher_code = data.get("voucher_code")
+    
+    if contact_id and voucher_code:
+        from app.models.auth import PromoContact
+        contact = PromoContact.query.filter_by(id=contact_id, admin_id=current_user.id).first()
+        if contact:
+            contact.assigned_voucher = voucher_code
+            db.session.commit()
+            return jsonify({"success": True})
+            
+    return jsonify({"success": False, "message": "Invalid data"}), 400
+
 
 
 

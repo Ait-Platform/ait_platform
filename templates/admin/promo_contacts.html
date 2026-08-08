@@ -4,7 +4,10 @@
 
   <div class="flex justify-between items-center mb-6">
     <h1 class="text-3xl font-bold text-gray-800">Promo Contacts</h1>
-    <a href="{{ url_for('admin_bp.modules_control') }}" class="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition">Back to Admin</a>
+    <div class="flex gap-4">
+      <a href="{{ url_for('admin_bp.manage_vouchers') }}" class="px-4 py-2 bg-emerald-100 text-emerald-800 font-bold rounded hover:bg-emerald-200 transition">Go to Vouchers</a>
+      <a href="{{ url_for('admin_bp.modules_control') }}" class="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition">Back to Admin</a>
+    </div>
   </div>
 
   {% include "partials/flash_messages.html" %}

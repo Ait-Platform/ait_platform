@@ -1,247 +1,127 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <title>Diagnostic Report – HOME Programme</title>
+{% extends "shared/ait_certificate_layout.html" %}
 
-  <style>
-    @page {
-      margin: 2cm;
-      border: 4px solid #0033a1;
-      padding: 0.4cm;
-    }
+{% block document_title_meta %}Diagnostic Report – HOME Programme{% endblock %}
 
-    body {
-      font-family: system-ui, sans-serif;
-      color: #0f172a;
-    }
+{% block document_title %}
+{% if assessment.passed %}Certificate & Diagnostic Report{% else %}Diagnostic Report{% endif %}
+{% endblock %}
 
-    .heading {
-      text-align: center;
-      font-size: 1.4rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      margin-bottom: 0.5rem;
-      color: #0033a1;
-    }
+{% block programme_name %}Hands On Math Education (HOME){% endblock %}
 
-    .subheading {
-      text-align: center;
-      font-size: 0.9rem;
-      color: #475569;
-      margin-bottom: 1rem;
-    }
+{% block learner_name %}{{ current_user.name or (current_user.first_name ~ ' ' ~ current_user.last_name) }}{% endblock %}
 
-    .name-line {
-      text-align: center;
-      font-size: 1.15rem;
-      font-weight: 600;
-      margin-bottom: 0.5rem;
-      color: #0f172a;
-    }
+{% block issue_date %}{{ assessment.created_at.strftime('%d %B %Y') }}{% endblock %}
 
-    .statement {
-      font-size: 10pt;
-      line-height: 1.2;
-      text-align: left;
-      color: #0f172a;
-      max-width: 500px;
-      margin: 0 auto 0.5rem auto;
-    }
+{% block certificate_number %}HOME-{{ assessment.id }}{% endblock %}
 
-    .diagnostic-table {
-      width: 100%;
-      margin-top: 0.25rem;
-      margin-bottom: 0.5rem;
-      font-size: 10pt;
-      line-height: 1.15;
-    }
+{% block achievement %}
+<div style="font-size: 18px; font-weight: bold; margin-bottom: 10px;">
+  {% if assessment.passed %}Successfully Completed the HOME Programme{% else %}HOME Programme Assessment Results{% endif %}
+</div>
+<table class="comp-table" style="width: 70%; margin: 0 auto; text-align: left; font-size: 14px; background-color: white;">
+  <tr><th style="width: 60%">Section 1 - Practicals:</th><td>Competent</td></tr>
+  <tr><th>Section 2 - Applied Understanding:</th><td>Completed</td></tr>
+  <tr><th>Section 3 - Theoretical Mastery:</th><td>{{ assessment.overall_score | default(0, true) }}%</td></tr>
+</table>
+{% endblock %}
 
-    .diagnostic-table th, .diagnostic-table td {
-      border: none;
-      padding: 0.15rem 0.25rem;
-      text-align: left;
-    }
+{% block competencies %}
+{% macro get_qualifier(score, verb_phrase) %}
+  {% set s = score | default(0, true) %}
+  {% if s >= 90 %}
+    Excellent ability to {{ verb_phrase }}.
+  {% elif s >= 70 %}
+    Good ability to {{ verb_phrase }}.
+  {% elif s >= 50 %}
+    Developing ability to {{ verb_phrase }}.
+  {% else %}
+    Requires practice to {{ verb_phrase }}.
+  {% endif %}
+{% endmacro %}
 
-    .diagnostic-table th {
-      background-color: #f1f5f9;
-      color: #0f172a;
-      font-weight: 600;
-    }
+<div style="font-size: 12px; margin-bottom: 5px; color: var(--text-mid); font-style: italic; text-align: center;">
+  This report details your performance across the 10 foundational categories assessed in the Section 3 (Theoretical Mastery) Final Examination.
+</div>
 
-    .meta-row {
-      display: flex;
-      justify-content: space-between;
-      font-size: 0.8rem;
-      color: #475569;
-      margin-top: 1rem;
-      padding-top: 0.5rem;
-    }
+<table class="comp-table" style="font-size: 11px; margin-bottom: 0;">
+  <tr>
+    <th style="width: 20%; padding: 3px 6px;">Category</th>
+    <th style="width: 15%; padding: 3px 6px;">Score</th>
+    <th style="width: 65%; padding: 3px 6px;">Performance Indicator</th>
+  </tr>
+  <tr>
+    <td style="padding: 3px 6px;">1. Observation</td>
+    <td style="padding: 3px 6px;">{{ assessment.observation_score | default(0, true) }}%</td>
+    <td style="padding: 3px 6px; color: #334155;">{{ get_qualifier(assessment.observation_score, 'observe and identify key details') }}</td>
+  </tr>
+  <tr>
+    <td style="padding: 3px 6px;">2. Position</td>
+    <td style="padding: 3px 6px;">{{ assessment.position_score | default(0, true) }}%</td>
+    <td style="padding: 3px 6px; color: #334155;">{{ get_qualifier(assessment.position_score, 'understand and describe spatial positioning') }}</td>
+  </tr>
+  <tr>
+    <td style="padding: 3px 6px;">3. Comparison</td>
+    <td style="padding: 3px 6px;">{{ assessment.comparison_score | default(0, true) }}%</td>
+    <td style="padding: 3px 6px; color: #334155;">{{ get_qualifier(assessment.comparison_score, 'compare objects and quantities') }}</td>
+  </tr>
+  <tr>
+    <td style="padding: 3px 6px;">4. Estimation</td>
+    <td style="padding: 3px 6px;">{{ assessment.estimation_score | default(0, true) }}%</td>
+    <td style="padding: 3px 6px; color: #334155;">{{ get_qualifier(assessment.estimation_score, 'estimate values, sizes, and quantities') }}</td>
+  </tr>
+  <tr>
+    <td style="padding: 3px 6px;">5. Measurement</td>
+    <td style="padding: 3px 6px;">{{ assessment.measurement_score | default(0, true) }}%</td>
+    <td style="padding: 3px 6px; color: #334155;">{{ get_qualifier(assessment.measurement_score, 'understand and apply measurement concepts') }}</td>
+  </tr>
+  <tr>
+    <td style="padding: 3px 6px;">6. Pattern</td>
+    <td style="padding: 3px 6px;">{{ assessment.pattern_score | default(0, true) }}%</td>
+    <td style="padding: 3px 6px; color: #334155;">{{ get_qualifier(assessment.pattern_score, 'recognize, analyze, and extend patterns') }}</td>
+  </tr>
+  <tr>
+    <td style="padding: 3px 6px;">7. Spatial</td>
+    <td style="padding: 3px 6px;">{{ assessment.spatial_score | default(0, true) }}%</td>
+    <td style="padding: 3px 6px; color: #334155;">{{ get_qualifier(assessment.spatial_score, 'comprehend and manipulate spatial relationships') }}</td>
+  </tr>
+  <tr>
+    <td style="padding: 3px 6px;">8. Logic</td>
+    <td style="padding: 3px 6px;">{{ assessment.logic_score | default(0, true) }}%</td>
+    <td style="padding: 3px 6px; color: #334155;">{{ get_qualifier(assessment.logic_score, 'apply logical reasoning to solve problems') }}</td>
+  </tr>
+  <tr>
+    <td style="padding: 3px 6px;">9. Mathematics</td>
+    <td style="padding: 3px 6px;">{{ assessment.mathematics_score | default(0, true) }}%</td>
+    <td style="padding: 3px 6px; color: #334155;">{{ get_qualifier(assessment.mathematics_score, 'perform foundational mathematical operations') }}</td>
+  </tr>
+  <tr>
+    <td style="padding: 3px 6px;">10. Critical Thinking</td>
+    <td style="padding: 3px 6px;">{{ assessment.critical_thinking_score | default(0, true) }}%</td>
+    <td style="padding: 3px 6px; color: #334155;">{{ get_qualifier(assessment.critical_thinking_score, 'utilize critical thinking to analyze scenarios') }}</td>
+  </tr>
+</table>
+{% endblock %}
 
-    .sig-block {
-      text-align: right;
-      font-size: 0.8rem;
-      line-height: 1.2rem;
-      color: #0f172a;
-    }
+{% block overall_result %}
+Completion Status: {% if assessment.passed %}Passed{% else %}Failed{% endif %}
+{% endblock %}
 
-    .label {
-      font-weight: 600;
-      color: #0f172a;
-    }
-  </style>
-</head>
+{% block comments %}
+<div style="text-align: center;">
+  {% set s = assessment.overall_score | default(0, true) %}
+  {% set learner_name = current_user.name or (current_user.first_name ~ ' ' ~ current_user.last_name) %}
+  {% if s >= 90 %}
+    {{ learner_name }} demonstrates exceptional understanding across foundational mathematics concepts. Excellent work!
+  {% elif s >= 70 %}
+    {{ learner_name }} shows strong comprehension in most areas and is well-prepared for advanced topics.
+  {% elif s >= 50 %}
+    {{ learner_name }} is developing a good foundation but requires further practice to solidify key mathematical concepts.
+  {% else %}
+    {{ learner_name }} needs significant additional practice and guided review to build confidence in foundational mathematics.
+  {% endif %}
+</div>
+{% endblock %}
 
-<body>
-
-  {# global AIT header with logo + institute name #}
-  {% include "_ait_header.html" %}
-
-  <div class="heading">
-    {% if assessment.passed %}Certificate & Diagnostic Report{% else %}Diagnostic Report{% endif %}
-  </div>
-
-  <div class="subheading" style="font-size: 1.8rem; font-weight: bold; color: #0033a1;">
-    Hands On Math Education (HOME)
-  </div>
-
-  <div class="name-line">
-    Prepared for: <span class="label">{{ current_user.name or (current_user.first_name ~ ' ' ~ current_user.last_name) }}</span>
-  </div>
-
-  <div class="statement">
-    <p style="margin-bottom: 0.25rem;">This report details your performance across the 10 foundational categories assessed in the Section 3 (Theoretical Mastery) Final Examination.</p>
-    <table width="100%" border="0" cellpadding="0" cellspacing="0" style="font-size: 9.5pt;">
-      <tr><td style="font-weight: bold; width: 40%; padding-bottom: 1px;">Status:</td><td style="padding-bottom: 1px;">{% if assessment.passed %}Passed{% else %}Failed{% endif %}</td></tr>
-      <tr><td style="font-weight: bold; padding-bottom: 1px;">Section 1 - Practicals:</td><td style="padding-bottom: 1px;">Competent</td></tr>
-      <tr><td style="font-weight: bold; padding-bottom: 1px;">Section 2 - Applied Understanding:</td><td style="padding-bottom: 1px;">Completed</td></tr>
-      <tr><td style="font-weight: bold; padding-bottom: 1px;">Section 3 - Theoretical Mastery:</td><td style="padding-bottom: 1px;">{{ assessment.overall_score | default(0, true) }}%</td></tr>
-      <tr><td style="font-weight: bold; padding-bottom: 1px; vertical-align: top;">Evaluation:</td>
-          <td style="padding-bottom: 1px; line-height: 1.1;">
-          {% set s = assessment.overall_score | default(0, true) %}
-          {% set learner_name = current_user.name or (current_user.first_name ~ ' ' ~ current_user.last_name) %}
-          {% if s >= 90 %}
-            {{ learner_name }} demonstrates exceptional understanding across foundational mathematics concepts. Excellent work!
-          {% elif s >= 70 %}
-            {{ learner_name }} shows strong comprehension in most areas and is well-prepared for advanced topics.
-          {% elif s >= 50 %}
-            {{ learner_name }} is developing a good foundation but requires further practice to solidify key mathematical concepts.
-          {% else %}
-            {{ learner_name }} needs significant additional practice and guided review to build confidence in foundational mathematics.
-          {% endif %}
-          </td>
-      </tr>
-    </table>
-  </div>
-
-  <table class="diagnostic-table" border="0" cellspacing="0" cellpadding="2">
-    <thead>
-      <tr>
-        <th style="width: 25%;">Category</th>
-        <th style="width: 15%;">Score</th>
-        <th style="width: 60%;">Performance Indicator</th>
-      </tr>
-    </thead>
-    {% macro get_qualifier(score, verb_phrase) %}
-      {% set s = score | default(0, true) %}
-      {% if s >= 90 %}
-        Excellent ability to {{ verb_phrase }}.
-      {% elif s >= 70 %}
-        Good ability to {{ verb_phrase }}.
-      {% elif s >= 50 %}
-        Developing ability to {{ verb_phrase }}.
-      {% else %}
-        Requires practice to {{ verb_phrase }}.
-      {% endif %}
-    {% endmacro %}
-
-    <tbody>
-      <tr>
-        <td>1. Observation</td>
-        <td>{{ assessment.observation_score | default(0, true) }}%</td>
-        <td style="color: #334155;">{{ get_qualifier(assessment.observation_score, 'observe and identify key details') }}</td>
-      </tr>
-      <tr>
-        <td>2. Position</td>
-        <td>{{ assessment.position_score | default(0, true) }}%</td>
-        <td style="color: #334155;">{{ get_qualifier(assessment.position_score, 'understand and describe spatial positioning') }}</td>
-      </tr>
-      <tr>
-        <td>3. Comparison</td>
-        <td>{{ assessment.comparison_score | default(0, true) }}%</td>
-        <td style="color: #334155;">{{ get_qualifier(assessment.comparison_score, 'compare objects and quantities') }}</td>
-      </tr>
-      <tr>
-        <td>4. Estimation</td>
-        <td>{{ assessment.estimation_score | default(0, true) }}%</td>
-        <td style="color: #334155;">{{ get_qualifier(assessment.estimation_score, 'estimate values, sizes, and quantities') }}</td>
-      </tr>
-      <tr>
-        <td>5. Measurement</td>
-        <td>{{ assessment.measurement_score | default(0, true) }}%</td>
-        <td style="color: #334155;">{{ get_qualifier(assessment.measurement_score, 'understand and apply measurement concepts') }}</td>
-      </tr>
-      <tr>
-        <td>6. Pattern</td>
-        <td>{{ assessment.pattern_score | default(0, true) }}%</td>
-        <td style="color: #334155;">{{ get_qualifier(assessment.pattern_score, 'recognize, analyze, and extend patterns') }}</td>
-      </tr>
-      <tr>
-        <td>7. Spatial</td>
-        <td>{{ assessment.spatial_score | default(0, true) }}%</td>
-        <td style="color: #334155;">{{ get_qualifier(assessment.spatial_score, 'comprehend and manipulate spatial relationships') }}</td>
-      </tr>
-      <tr>
-        <td>8. Logic</td>
-        <td>{{ assessment.logic_score | default(0, true) }}%</td>
-        <td style="color: #334155;">{{ get_qualifier(assessment.logic_score, 'apply logical reasoning to solve problems') }}</td>
-      </tr>
-      <tr>
-        <td>9. Mathematics</td>
-        <td>{{ assessment.mathematics_score | default(0, true) }}%</td>
-        <td style="color: #334155;">{{ get_qualifier(assessment.mathematics_score, 'perform foundational mathematical operations') }}</td>
-      </tr>
-      <tr>
-        <td>10. Critical Thinking</td>
-        <td>{{ assessment.critical_thinking_score | default(0, true) }}%</td>
-        <td style="color: #334155;">{{ get_qualifier(assessment.critical_thinking_score, 'utilize critical thinking to analyze scenarios') }}</td>
-      </tr>
-    </tbody>
-  </table>
-
-  <table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-top: 1rem; font-size: 10pt; color: #475569;">
-    <tr>
-      <td style="vertical-align: top; width: 65%; padding-right: 20px;">
-        <table width="100%" border="0" cellpadding="0" cellspacing="0">
-          <tr>
-            <td style="width: 50%; vertical-align: top;">
-              <div class="label" style="font-weight: 600; color: #0f172a;">Issued:</div>
-              <div style="margin-top: 0.2rem;">{{ assessment.created_at.strftime('%d %B %Y') }}</div>
-            </td>
-            <td style="width: 50%; vertical-align: top;">
-              <div class="label" style="font-weight: 600; color: #0f172a;">Assessment ID:</div>
-              <div style="margin-top: 0.2rem;">HOME-{{ assessment.id }}</div>
-            </td>
-          </tr>
-        </table>
-        
-        <div style="margin-top: 2rem; font-size: 9pt; line-height: 1.3;">
-          <div style="font-weight: 600; color: #0f172a; margin-bottom: 0.25rem;">Disclaimer</div>
-          <div>This diagnostic report summarises your performance in the Hands On Math Education assessment. It is not an academic qualification. For verification or further support, contact AIT Platform — www.mathwithhands.com.</div>
-        </div>
-      </td>
-      <td style="vertical-align: top; width: 35%; text-align: right;">
-        {% if seal_b64 %}
-        <div style="margin-bottom: 0.5rem;">
-            <img src="{{ seal_b64 }}" style="width: 70px; height: 70px; opacity: 0.85;">
-        </div>
-        {% endif %}
-        <div class="label" style="font-weight: 600; color: #0f172a;">Authorised:</div>
-        <div style="margin-top: 0.2rem;">Programme Lead</div>
-        <div>AIT Platform</div>
-      </td>
-    </tr>
-  </table>
-
-</body>
-</html>
+{% block disclaimer %}
+This diagnostic report summarises your performance in the Hands On Math Education assessment. It is not an academic qualification. For verification or further support, contact AIT Platform — www.mathwithhands.com.
+{% endblock %}

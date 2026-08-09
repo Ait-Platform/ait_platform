@@ -1,6 +1,9 @@
 {% extends "layout.html" %}
 {% block title %}Pipeline - Medical Practice Customer Relation Management{% endblock %}
 
+{# Override global flashes so we can place them inside the tile #}
+{% block flashes %}{% endblock %}
+
 {% block content %}
 <div class="max-w-7xl mx-auto py-8 px-4">
   <div class="bg-white rounded-xl shadow overflow-hidden">
@@ -13,10 +16,6 @@
         <div>
           <h1 class="text-2xl font-bold text-slate-800">Enquiry Pipeline</h1>
           <p class="text-slate-500">{{ practice.name }}</p>
-        </div>
-        <div class="flex items-center space-x-2">
-          <!-- Back button points to Bridge Dashboard -->
-          <a href="{{ url_for('auth_bp.bridge_dashboard') }}" class="text-emerald-600 hover:text-emerald-700 font-medium mr-4">← Back to Hub</a>
         </div>
       </div>
       
@@ -57,7 +56,17 @@
       </div>
 
       <!-- Flash messages inside tile -->
-      {% include "partials/flash_messages.html" %}
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <div class="mb-6">
+            {% for category, message in messages %}
+              <div class="p-4 rounded-lg text-sm font-medium {% if category == 'error' %}bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-600/20{% elif category == 'success' %}bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/20{% elif category == 'warning' %}bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-600/20{% else %}bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-600/20{% endif %}">
+                {{ message }}
+              </div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
 
       <div class="flex overflow-x-auto space-x-6 pb-4">
         

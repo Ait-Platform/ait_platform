@@ -242,20 +242,37 @@ def staff():
         return redirect(url_for('practice_crm_bp.pipeline'))
         
     if request.method == "POST":
-        email = request.form.get('email', '').strip()
+        email = request.form.get('email', '').strip().lower()
+        name = request.form.get('name', '').strip()
+        password = request.form.get('password', '')
+        
         user = User.query.filter_by(email=email).first()
+        
         if not user:
-            flash(f"User with email {email} not found. They must create an account first.", "error")
+            if not password:
+                flash(f"A password is required to create a new account for {email}.", "error")
+                return redirect(url_for('practice_crm_bp.staff'))
+            
+            from werkzeug.security import generate_password_hash
+            user = User(email=email, name=name, password=generate_password_hash(password), is_active=1)
+            db.session.add(user)
+            db.session.flush() # flush to get user.id
+            flash(f"Successfully created a new account for {name}.", "success")
+            
         else:
-            # Check if already in practice
-            existing = CrmPracticeUser.query.filter_by(practice_id=practice.id, user_id=user.id).first()
-            if existing:
-                flash(f"{user.name} is already a receptionist.", "info")
-            else:
-                pu = CrmPracticeUser(practice_id=practice.id, user_id=user.id, role='receptionist')
-                db.session.add(pu)
-                db.session.commit()
-                flash(f"Added {user.name} as a receptionist.", "success")
+            # If user exists but name was provided, maybe update it? Or just leave it.
+            pass
+
+        # Check if already in practice
+        existing = CrmPracticeUser.query.filter_by(practice_id=practice.id, user_id=user.id).first()
+        if existing:
+            flash(f"{user.name or email} is already a receptionist.", "info")
+        else:
+            pu = CrmPracticeUser(practice_id=practice.id, user_id=user.id, role='receptionist')
+            db.session.add(pu)
+            db.session.commit()
+            flash(f"Added {user.name or email} to your CRM pipeline.", "success")
+            
         return redirect(url_for('practice_crm_bp.staff'))
         
     from app.models.auth import UserEnrollment, AuthSubject

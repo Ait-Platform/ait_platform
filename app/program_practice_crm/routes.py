@@ -225,6 +225,8 @@ def practice_settings():
         practice.dentist_details = request.form.get("dentist_details", "").strip()
         practice.operating_hours = request.form.get("operating_hours", "").strip()
         practice.slot_settings = request.form.get("slot_settings", "").strip()
+        practice.clearing_house_provider = request.form.get("clearing_house_provider", "").strip()
+        practice.clearing_house_api_key = request.form.get("clearing_house_api_key", "").strip()
         
         db.session.commit()
         flash("Practice settings updated successfully.", "success")
@@ -634,9 +636,25 @@ def update_enquiry(id):
         log_audit(enquiry.id, current_user.id, "Requested verification (Phone)")
         
     elif action_type == 'direct_verify':
+        practice = CrmPractice.query.get(enquiry.practice_id)
+        from app.models.auth import AitTokenWallet, AitTokenTransaction
+        
+        has_byok = bool(practice.clearing_house_api_key)
+        
+        if not has_byok:
+            wallet = AitTokenWallet.query.filter_by(user_id=practice.owner_id).first()
+            if not wallet or wallet.balance < 5:
+                flash("Insufficient tokens to use the AIT Master Clearing House API. Please top up your wallet or configure your own API key in Practice Settings.", "error")
+                return redirect(url_for('practice_crm_bp.pipeline'))
+            
+            # Deduct 5 tokens for AIT master key usage
+            wallet.balance -= 5
+            txn = AitTokenTransaction(wallet_id=wallet.id, amount=-5, transaction_type="purchase", description=f"Medical Aid e-Verification (AIT Master Key)")
+            db.session.add(txn)
+            
         import random
         enquiry.verification_date = datetime.utcnow()
-        enquiry.consultant_name = 'e-Switch (Simulated)'
+        enquiry.consultant_name = f"{practice.clearing_house_provider.title() if has_byok else 'AIT Master Switch'} (Simulated)"
         
         # Simulate API logic
         if not enquiry.medical_aid or 'Cash' in enquiry.medical_aid or 'Private' in enquiry.medical_aid:
@@ -648,12 +666,18 @@ def update_enquiry(id):
             enquiry.reference_no = f"AUTH-{random.randint(100000, 999999)}"
             
         if enquiry.funds_available:
-            flash("Electronic verification successful. Funds available.", "success")
+            if has_byok:
+                flash("Electronic verification successful using your Custom API Key (0 Tokens Used).", "success")
+            else:
+                flash("Electronic verification successful using AIT Master Key (5 Tokens Deducted).", "success")
         else:
-            flash("Electronic verification failed. Membership invalid or funds exhausted.", "warning")
+            if has_byok:
+                flash("Electronic verification failed. Membership invalid or funds exhausted (0 Tokens Used).", "warning")
+            else:
+                flash("Electronic verification failed. Membership invalid or funds exhausted (5 Tokens Deducted).", "warning")
             
         enquiry.status = 'Verified'
-        log_audit(enquiry.id, current_user.id, f"Direct e-Verification (Funds: {'Yes' if enquiry.funds_available else 'No'})")
+        log_audit(enquiry.id, current_user.id, f"Direct e-Verification via {'BYOK' if has_byok else 'AIT Key'} (Funds: {'Yes' if enquiry.funds_available else 'No'})")
         
     elif action_type == 'record_verify':
         enquiry.verification_date = datetime.utcnow()

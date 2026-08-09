@@ -13,6 +13,8 @@ class CrmPractice(db.Model):
     dentist_details = db.Column(db.Text, nullable=True)
     operating_hours = db.Column(db.Text, nullable=True)
     slot_settings = db.Column(db.Text, nullable=True)
+    clearing_house_provider = db.Column(db.String(50), nullable=True)
+    clearing_house_api_key = db.Column(db.String(255), nullable=True)
     trial_ends_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 

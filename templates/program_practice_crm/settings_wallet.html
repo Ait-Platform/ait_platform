@@ -1,0 +1,72 @@
+﻿{% extends "layout.html" %}
+{% block title %}Token Wallet | Medical Practice CRM{% endblock %}
+
+{# Override global flashes so we can place them inside the tile #}
+{% block flashes %}{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto mt-8 mb-12">
+    
+    <!-- Tab Navigation -->
+    <div class="flex border-b border-gray-200 mb-6">
+        <a href="{{ url_for('practice_crm_bp.practice_settings_setup') }}" class="px-6 py-3 font-medium text-sm {% if active_tab == 'setup' %}border-b-2 border-teal-600 text-teal-600{% else %}text-gray-500 hover:text-gray-700{% endif %}">Practice Setup</a>
+        <a href="{{ url_for('practice_crm_bp.practice_settings_wallet') }}" class="px-6 py-3 font-medium text-sm {% if active_tab == 'wallet' %}border-b-2 border-teal-600 text-teal-600{% else %}text-gray-500 hover:text-gray-700{% endif %}">Token Wallet</a>
+        <a href="{{ url_for('practice_crm_bp.practice_settings_api_keys') }}" class="px-6 py-3 font-medium text-sm {% if active_tab == 'api_keys' %}border-b-2 border-teal-600 text-teal-600{% else %}text-gray-500 hover:text-gray-700{% endif %}">API Keys & Integrations</a>
+    </div>
+
+    <!-- Main Tile Container -->
+    <div class="bg-white shadow-xl rounded-lg overflow-hidden border border-gray-100 relative">
+        <!-- Top Color Strip matching welcome page -->
+        <div class="h-2 bg-teal-600 w-full"></div>
+        
+        <div class="p-6">
+            
+            <!-- Row 1: Title on left, Back button on right -->
+            <div class="flex justify-between items-center mb-6 pb-4 border-b">
+                <h1 class="text-3xl font-bold text-gray-800">Token Wallet</h1>
+                <a href="{{ url_for('practice_crm_bp.pipeline') }}" class="px-4 py-2 bg-gray-200 text-gray-800 font-semibold rounded hover:bg-gray-300 transition text-sm">
+                    &larr; Back to Pipeline
+                </a>
+            </div>
+
+            <!-- Flash messages inside tile -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="mb-6">
+                    {% for category, message in messages %}
+                        <div class="p-4 rounded-lg text-sm font-medium mb-2 {% if category == 'error' %}bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-600/20{% elif category == 'success' %}bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/20{% elif category == 'warning' %}bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-600/20{% else %}bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-600/20{% endif %}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+
+            <div class="mb-2 p-6 bg-slate-50 border border-slate-200 rounded-xl flex flex-col sm:flex-row justify-between items-center sm:items-start gap-4">
+                <div>
+                    <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                        <span>💰</span> Token Wallet
+                    </h2>
+                    <p class="text-slate-500 text-sm mt-1">
+                        Current balance available for logging new patient enquiries across your practice.
+                    </p>
+                    <div class="mt-3">
+                        <span class="text-5xl font-extrabold {% if token_balance < 50 %}text-rose-600{% else %}text-emerald-600{% endif %}">{{ token_balance }}</span>
+                        <span class="text-slate-500 font-bold uppercase tracking-wider text-sm ml-1">Tokens</span>
+                    </div>
+                </div>
+                <div class="mt-2 sm:mt-0 w-full sm:w-auto">
+                    <!-- Row 2: Right aligned button -->
+                    <form action="{{ url_for('practice_crm_bp.topup') }}" method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <button type="submit" class="w-full sm:w-auto bg-slate-800 text-white font-bold px-6 py-3 rounded-lg shadow hover:bg-slate-900 transition">
+                            Top Up Wallet
+                        </button>
+                    </form>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+</div>
+{% endblock %}

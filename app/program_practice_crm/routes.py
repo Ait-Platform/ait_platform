@@ -208,9 +208,9 @@ def patients_directory():
     patients = CrmPatient.query.filter_by(practice_id=practice.id).order_by(CrmPatient.created_at.desc()).all()
     return render_template("program_practice_crm/patients.html", practice=practice, patients=patients)
 
-@practice_crm_bp.route("/settings", methods=["GET", "POST"])
+@practice_crm_bp.route("/settings/setup", methods=["GET", "POST"])
 @login_required
-def practice_settings():
+def practice_settings_setup():
     """Owner dashboard: update practice biodata"""
     practice = CrmPractice.query.filter_by(owner_id=current_user.id).first()
     if not practice:
@@ -225,18 +225,51 @@ def practice_settings():
         practice.dentist_details = request.form.get("dentist_details", "").strip()
         practice.operating_hours = request.form.get("operating_hours", "").strip()
         practice.slot_settings = request.form.get("slot_settings", "").strip()
-        practice.clearing_house_provider = request.form.get("clearing_house_provider", "").strip()
-        practice.clearing_house_api_key = request.form.get("clearing_house_api_key", "").strip()
         
         db.session.commit()
-        flash("Practice settings updated successfully.", "success")
-        return redirect(url_for("practice_crm_bp.practice_settings"))
+        flash("Practice setup updated successfully.", "success")
+        return redirect(url_for("practice_crm_bp.practice_settings_setup"))
+        
+    return render_template("program_practice_crm/settings_setup.html", practice=practice, active_tab="setup")
+
+@practice_crm_bp.route("/settings/wallet", methods=["GET"])
+@login_required
+def practice_settings_wallet():
+    """Owner dashboard: Token Wallet"""
+    practice = CrmPractice.query.filter_by(owner_id=current_user.id).first()
+    if not practice:
+        flash("Please visit the dashboard first to initialize your practice.", "warning")
+        return redirect(url_for('practice_crm_bp.pipeline'))
         
     from app.models.auth import AitTokenWallet
     wallet = AitTokenWallet.query.filter_by(user_id=current_user.id).first()
     token_balance = wallet.balance if wallet else 0
         
-    return render_template("program_practice_crm/settings.html", practice=practice, token_balance=token_balance)
+    return render_template("program_practice_crm/settings_wallet.html", practice=practice, token_balance=token_balance, active_tab="wallet")
+
+@practice_crm_bp.route("/settings/api-keys", methods=["GET", "POST"])
+@login_required
+def practice_settings_api_keys():
+    """Owner dashboard: API Keys & Integrations"""
+    practice = CrmPractice.query.filter_by(owner_id=current_user.id).first()
+    if not practice:
+        flash("Please visit the dashboard first to initialize your practice.", "warning")
+        return redirect(url_for('practice_crm_bp.pipeline'))
+        
+    if request.method == "POST":
+        practice.clearing_house_provider = request.form.get("clearing_house_provider", "").strip()
+        practice.clearing_house_api_key = request.form.get("clearing_house_api_key", "").strip()
+        
+        db.session.commit()
+        flash("API Key settings updated successfully.", "success")
+        return redirect(url_for("practice_crm_bp.practice_settings_api_keys"))
+        
+    return render_template("program_practice_crm/settings_api.html", practice=practice, active_tab="api_keys")
+
+@practice_crm_bp.route("/settings", methods=["GET"])
+@login_required
+def practice_settings():
+    return redirect(url_for("practice_crm_bp.practice_settings_setup"))
 
 @practice_crm_bp.route("/staff", methods=["GET", "POST"])
 @login_required

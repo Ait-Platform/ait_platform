@@ -1,0 +1,94 @@
+﻿{% extends "layout.html" %}
+{% block title %}Practice Setup | Medical Practice CRM{% endblock %}
+
+{# Override global flashes so we can place them inside the tile #}
+{% block flashes %}{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto mt-8 mb-12">
+    
+    <!-- Tab Navigation -->
+    <div class="flex border-b border-gray-200 mb-6">
+        <a href="{{ url_for('practice_crm_bp.practice_settings_setup') }}" class="px-6 py-3 font-medium text-sm {% if active_tab == 'setup' %}border-b-2 border-teal-600 text-teal-600{% else %}text-gray-500 hover:text-gray-700{% endif %}">Practice Setup</a>
+        <a href="{{ url_for('practice_crm_bp.practice_settings_wallet') }}" class="px-6 py-3 font-medium text-sm {% if active_tab == 'wallet' %}border-b-2 border-teal-600 text-teal-600{% else %}text-gray-500 hover:text-gray-700{% endif %}">Token Wallet</a>
+        <a href="{{ url_for('practice_crm_bp.practice_settings_api_keys') }}" class="px-6 py-3 font-medium text-sm {% if active_tab == 'api_keys' %}border-b-2 border-teal-600 text-teal-600{% else %}text-gray-500 hover:text-gray-700{% endif %}">API Keys & Integrations</a>
+    </div>
+
+    <!-- Main Tile Container -->
+    <div class="bg-white shadow-xl rounded-lg overflow-hidden border border-gray-100 relative">
+        <!-- Top Color Strip matching welcome page -->
+        <div class="h-2 bg-teal-600 w-full"></div>
+        
+        <div class="p-6">
+            
+            <!-- Row 1: Title on left, Back button on right -->
+            <div class="flex justify-between items-center mb-6 pb-4 border-b">
+                <h1 class="text-3xl font-bold text-gray-800">Practice Setup</h1>
+                <a href="{{ url_for('practice_crm_bp.pipeline') }}" class="px-4 py-2 bg-gray-200 text-gray-800 font-semibold rounded hover:bg-gray-300 transition text-sm">
+                    &larr; Back to Pipeline
+                </a>
+            </div>
+
+            <!-- Flash messages inside tile -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="mb-6">
+                    {% for category, message in messages %}
+                        <div class="p-4 rounded-lg text-sm font-medium mb-2 {% if category == 'error' %}bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-600/20{% elif category == 'success' %}bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/20{% elif category == 'warning' %}bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-600/20{% else %}bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-600/20{% endif %}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+
+            <form method="POST" action="{{ url_for('practice_crm_bp.practice_settings_setup') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Practice Name</label>
+                    <input type="text" name="name" value="{{ practice.name or '' }}" required autofocus class="w-full border border-gray-300 rounded outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 px-3 py-2 text-sm">
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Practice Email</label>
+                    <input type="email" name="email" value="{{ practice.email or '' }}" class="w-full border border-gray-300 rounded outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 px-3 py-2 text-sm">
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Practice Phone Number</label>
+                    <input type="text" name="phone" value="{{ practice.phone or '' }}" class="w-full border border-gray-300 rounded outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 px-3 py-2 text-sm">
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Physical Address</label>
+                    <textarea name="address" rows="3" class="w-full border border-gray-300 rounded outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 px-3 py-2 text-sm">{{ practice.address or '' }}</textarea>
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Dentist Details</label>
+                    <textarea name="dentist_details" rows="3" class="w-full border border-gray-300 rounded outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 px-3 py-2 text-sm" placeholder="e.g. Dr. John Smith, BChD, specializing in orthodontics">{{ practice.dentist_details or '' }}</textarea>
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Operating Hours</label>
+                    <textarea name="operating_hours" rows="3" class="w-full border border-gray-300 rounded outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 px-3 py-2 text-sm" placeholder="e.g. Mon-Fri 08:00 to 17:00">{{ practice.operating_hours or '' }}</textarea>
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Appointment Slot Settings</label>
+                    <textarea name="slot_settings" rows="3" class="w-full border border-gray-300 rounded outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 px-3 py-2 text-sm" placeholder="e.g. 30 minute blocks, urgent slots reserved at 16:00">{{ practice.slot_settings or '' }}</textarea>
+                </div>
+
+                <!-- Row 2: Right aligned buttons -->
+                <div class="flex justify-end gap-3 pt-6 mt-6 border-t border-gray-200">
+                    <button type="submit" class="px-6 py-2 bg-teal-600 text-white font-bold rounded-lg hover:bg-teal-700 transition shadow">
+                        Save Changes
+                    </button>
+                </div>
+            </form>
+            
+        </div>
+    </div>
+</div>
+{% endblock %}

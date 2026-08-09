@@ -265,9 +265,31 @@ def start():
 @paystack_bp.get("/success", endpoint="paystack_success")
 def success():
     # Callback from Paystack
-    # Actual fulfillment should be done in the webhook, but we show success page
+    # Actual fulfillment should be done in the webhook, but we do a synchronous check here as a fallback
     email = request.args.get("email", "").strip().lower()
     subject = request.args.get("subject", "loss").strip().lower()
+    reference = request.args.get("reference") or request.args.get("trxref")
+    
+    if reference:
+        try:
+            secret = get_paystack_secret(subject)
+            headers = {"Authorization": f"Bearer {secret}"}
+            r = requests.get(f"https://api.paystack.co/transaction/verify/{reference}", headers=headers, timeout=10)
+            if r.status_code == 200:
+                data = r.json()
+                if data.get("status") and data.get("data", {}).get("status") == "success":
+                    tx_data = data["data"]
+                    # Check if already fulfilled
+                    from app.models.payment import PaystackPayment
+                    existing = PaystackPayment.query.filter_by(gateway_reference=reference).first()
+                    if not existing:
+                        meta_email = tx_data.get("metadata", {}).get("email") or tx_data.get("customer", {}).get("email", "")
+                        meta_subject = tx_data.get("metadata", {}).get("subject", "")
+                        if meta_email and meta_subject:
+                            fulfill_order(meta_email.strip().lower(), meta_subject.strip().lower(), tx_data)
+                            flash("Payment verified and applied successfully!", "success")
+        except Exception as e:
+            current_app.logger.error(f"Sync fallback error: {e}")
     
     if not email:
         flash("Payment processing... Please sign in to continue.", "info")

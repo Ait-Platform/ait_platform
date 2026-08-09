@@ -253,8 +253,8 @@ def staff():
                 flash(f"A password is required to create a new account for {email}.", "error")
                 return redirect(url_for('practice_crm_bp.staff'))
             
-            from werkzeug.security import generate_password_hash
-            user = User(email=email, name=name, password=generate_password_hash(password), is_active=1)
+            user = User(email=email, name=name, is_active=1)
+            user.set_password(password)
             db.session.add(user)
             db.session.flush() # flush to get user.id
             flash(f"Successfully created a new account for {name}.", "success")

@@ -24,6 +24,17 @@
         <strong>Pipeline Guide:</strong> Log every patient enquiry from the moment they call using the "+ Log New Enquiry" button. Move them through the stages by verifying their medical aid and offering an appointment. Ensure all fields are completed promptly to prevent patient leakage.
       </div>
       
+      {% if token_balance < 50 %}
+      <!-- Low Token Warning -->
+      <div class="mb-6 p-4 bg-rose-50 border border-rose-200 rounded-lg flex items-start gap-3 shadow-sm">
+        <span class="text-rose-600 text-2xl leading-none">⚠️</span>
+        <div>
+          <h3 class="font-bold text-rose-800">Low Token Balance ({{ token_balance }} Tokens Remaining)</h3>
+          <p class="text-rose-700 text-sm mt-1">Please ask the Practice Manager to top up the wallet as soon as possible to avoid service interruption when logging new patients.</p>
+        </div>
+      </div>
+      {% endif %}
+      
       <!-- Buttons row -->
       <div class="flex flex-col gap-3 mb-6 pb-4 border-b border-slate-100">
         <!-- Top Row: Primary Actions -->

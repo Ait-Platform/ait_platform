@@ -1,6 +1,9 @@
 {% extends "layout.html" %}
 {% block title %}Practice Settings | Medical Practice Customer Relation Management{% endblock %}
 
+{# Override global flashes so we can place them inside the tile #}
+{% block flashes %}{% endblock %}
+
 {% block content %}
 <div class="mx-auto max-w-4xl mb-8">
   <div class="bg-white rounded-xl shadow overflow-hidden">
@@ -16,7 +19,41 @@
         <a href="{{ url_for('practice_crm_bp.pipeline') }}" class="text-emerald-600 hover:text-emerald-700 font-medium">← Back to Pipeline</a>
       </div>
 
-      {% include "partials/flash_messages.html" %}
+      <!-- Flash messages inside tile -->
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <div class="mb-6">
+            {% for category, message in messages %}
+              <div class="p-4 rounded-lg text-sm font-medium {% if category == 'error' %}bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-600/20{% elif category == 'success' %}bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/20{% elif category == 'warning' %}bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-600/20{% else %}bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-600/20{% endif %}">
+                {{ message }}
+              </div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+
+      <!-- Token Wallet Widget -->
+      <div class="mb-8 p-6 bg-slate-50 border border-slate-200 rounded-xl flex flex-col sm:flex-row justify-between items-center sm:items-start gap-4">
+        <div>
+          <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+            <span>💳</span> Token Wallet
+          </h2>
+          <p class="text-slate-500 text-sm mt-1">
+            Current balance available for logging new patient enquiries across your practice.
+          </p>
+          <div class="mt-3">
+            <span class="text-4xl font-extrabold {% if token_balance < 50 %}text-rose-600{% else %}text-emerald-600{% endif %}">{{ token_balance }}</span>
+            <span class="text-slate-500 font-bold uppercase tracking-wider text-sm ml-1">Tokens</span>
+          </div>
+        </div>
+        <div class="mt-2 sm:mt-0 w-full sm:w-auto">
+          <form action="{{ url_for('practice_crm_bp.mock_bill') }}" method="GET">
+            <button type="submit" class="w-full sm:w-auto bg-slate-800 text-white font-bold px-6 py-3 rounded-lg shadow-sm hover:bg-slate-900 transition">
+              Top Up Wallet
+            </button>
+          </form>
+        </div>
+      </div>
 
       <div class="mt-4 max-w-2xl">
         <form method="POST" action="{{ url_for('practice_crm_bp.practice_settings') }}">

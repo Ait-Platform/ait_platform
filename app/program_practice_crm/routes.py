@@ -230,7 +230,11 @@ def practice_settings():
         flash("Practice settings updated successfully.", "success")
         return redirect(url_for("practice_crm_bp.practice_settings"))
         
-    return render_template("program_practice_crm/settings.html", practice=practice)
+    from app.models.auth import AitTokenWallet
+    wallet = AitTokenWallet.query.filter_by(user_id=current_user.id).first()
+    token_balance = wallet.balance if wallet else 0
+        
+    return render_template("program_practice_crm/settings.html", practice=practice, token_balance=token_balance)
 
 @practice_crm_bp.route("/staff", methods=["GET", "POST"])
 @login_required
@@ -445,8 +449,11 @@ def pipeline():
             
         treatments = PRACTICE_TREATMENTS.get(practice.practice_type, PRACTICE_TREATMENTS["Other"])
             
-        enquiries = CrmEnquiry.query.filter_by(practice_id=practice.id).order_by(CrmEnquiry.created_at.desc()).all()
-        return render_template("program_practice_crm/pipeline.html", practice=practice, enquiries=enquiries, is_receptionist=is_receptionist, treatments=treatments)
+        from app.models.auth import AitTokenWallet
+        wallet = AitTokenWallet.query.filter_by(user_id=practice.owner_id).first()
+        token_balance = wallet.balance if wallet else 0
+        
+        return render_template("program_practice_crm/pipeline.html", practice=practice, enquiries=enquiries, is_receptionist=is_receptionist, treatments=treatments, token_balance=token_balance)
     except Exception as e:
         import traceback
         return f"<pre>Error occurred:\n{traceback.format_exc()}</pre>", 500

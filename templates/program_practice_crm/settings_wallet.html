@@ -7,13 +7,6 @@
 {% block content %}
 <div class="max-w-4xl mx-auto mt-8 mb-12">
     
-    <!-- Tab Navigation -->
-    <div class="flex border-b border-gray-200 mb-6">
-        <a href="{{ url_for('practice_crm_bp.practice_settings_setup') }}" class="px-6 py-3 font-medium text-sm {% if active_tab == 'setup' %}border-b-2 border-teal-600 text-teal-600{% else %}text-gray-500 hover:text-gray-700{% endif %}">Practice Setup</a>
-        <a href="{{ url_for('practice_crm_bp.practice_settings_wallet') }}" class="px-6 py-3 font-medium text-sm {% if active_tab == 'wallet' %}border-b-2 border-teal-600 text-teal-600{% else %}text-gray-500 hover:text-gray-700{% endif %}">Token Wallet</a>
-        <a href="{{ url_for('practice_crm_bp.practice_settings_api_keys') }}" class="px-6 py-3 font-medium text-sm {% if active_tab == 'api_keys' %}border-b-2 border-teal-600 text-teal-600{% else %}text-gray-500 hover:text-gray-700{% endif %}">API Keys & Integrations</a>
-    </div>
-
     <!-- Main Tile Container -->
     <div class="bg-white shadow-xl rounded-lg overflow-hidden border border-gray-100 relative">
         <!-- Top Color Strip matching welcome page -->
@@ -28,6 +21,15 @@
                     &larr; Back to Pipeline
                 </a>
             </div>
+
+    <!-- Tab Navigation -->
+    <div class="flex border-b border-gray-200 mb-6">
+        <a href="{{ url_for('practice_crm_bp.practice_settings_setup') }}" class="px-6 py-3 font-medium text-sm {% if active_tab == 'setup' %}border-b-2 border-teal-600 text-teal-600{% else %}text-gray-500 hover:text-gray-700{% endif %}">Practice Setup</a>
+        <a href="{{ url_for('practice_crm_bp.practice_settings_wallet') }}" class="px-6 py-3 font-medium text-sm {% if active_tab == 'wallet' %}border-b-2 border-teal-600 text-teal-600{% else %}text-gray-500 hover:text-gray-700{% endif %}">Token Wallet</a>
+        <a href="{{ url_for('practice_crm_bp.practice_settings_api_keys') }}" class="px-6 py-3 font-medium text-sm {% if active_tab == 'api_keys' %}border-b-2 border-teal-600 text-teal-600{% else %}text-gray-500 hover:text-gray-700{% endif %}">API Keys & Integrations</a>
+    </div>
+
+
 
             <!-- Flash messages inside tile -->
             {% with messages = get_flashed_messages(with_categories=true) %}
@@ -70,3 +72,4 @@
     </div>
 </div>
 {% endblock %}
+

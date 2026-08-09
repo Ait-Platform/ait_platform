@@ -1,4 +1,4 @@
-import os
+﻿import os
 import time
 from werkzeug.utils import secure_filename
 from flask import render_template, redirect, url_for, flash, request, current_app
@@ -527,6 +527,9 @@ def price_page():
     from app.utils.country import get_active_countries
     countries = get_active_countries()
 
-    soa_cents = 1000  # Default static cost for SOA generation for now
+    from app.models.billing import TokenTariff
+    tariff = TokenTariff.query.filter_by(program_slug='debtors', action_name='soa_generation').first()
+    soa_cents = tariff.base_token_cost * 100 if tariff else 1000
 
     return render_template("program_debtors/price.html", price=price_ctx, subject=subject, countries=countries, soa_cents=soa_cents)
+

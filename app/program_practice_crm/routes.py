@@ -637,20 +637,7 @@ def update_enquiry(id):
         
     elif action_type == 'direct_verify':
         practice = CrmPractice.query.get(enquiry.practice_id)
-        from app.models.auth import AitTokenWallet, AitTokenTransaction
-        
         has_byok = bool(practice.clearing_house_api_key)
-        
-        if not has_byok:
-            wallet = AitTokenWallet.query.filter_by(user_id=practice.owner_id).first()
-            if not wallet or wallet.balance < 5:
-                flash("Insufficient tokens to use the AIT Master Clearing House API. Please top up your wallet or configure your own API key in Practice Settings.", "error")
-                return redirect(url_for('practice_crm_bp.pipeline'))
-            
-            # Deduct 5 tokens for AIT master key usage
-            wallet.balance -= 5
-            txn = AitTokenTransaction(wallet_id=wallet.id, amount=-5, transaction_type="purchase", description=f"Medical Aid e-Verification (AIT Master Key)")
-            db.session.add(txn)
             
         import random
         enquiry.verification_date = datetime.utcnow()
@@ -667,14 +654,14 @@ def update_enquiry(id):
             
         if enquiry.funds_available:
             if has_byok:
-                flash("Electronic verification successful using your Custom API Key (0 Tokens Used).", "success")
+                flash("Electronic verification successful using your Custom API Key.", "success")
             else:
-                flash("Electronic verification successful using AIT Master Key (5 Tokens Deducted).", "success")
+                flash("Electronic verification successful (AIT Master Key).", "success")
         else:
             if has_byok:
-                flash("Electronic verification failed. Membership invalid or funds exhausted (0 Tokens Used).", "warning")
+                flash("Electronic verification failed. Membership invalid or funds exhausted (Custom API Key).", "warning")
             else:
-                flash("Electronic verification failed. Membership invalid or funds exhausted (5 Tokens Deducted).", "warning")
+                flash("Electronic verification failed. Membership invalid or funds exhausted (AIT Master Key).", "warning")
             
         enquiry.status = 'Verified'
         log_audit(enquiry.id, current_user.id, f"Direct e-Verification via {'BYOK' if has_byok else 'AIT Key'} (Funds: {'Yes' if enquiry.funds_available else 'No'})")

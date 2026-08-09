@@ -1,7 +1,7 @@
 ﻿import os
 import time
 from werkzeug.utils import secure_filename
-from flask import render_template, redirect, url_for, flash, request, current_app
+from flask import render_template, redirect, url_for, flash, request, current_app, session
 from flask_login import login_required, current_user
 from app.program_debtors import debtors_bp
 from app.models.auth import AuthSubject, UserEnrollment
@@ -532,4 +532,5 @@ def price_page():
     soa_cents = tariff.base_token_cost * 100 if tariff else 1000
 
     return render_template("program_debtors/price.html", price=price_ctx, subject=subject, countries=countries, soa_cents=soa_cents)
+
 

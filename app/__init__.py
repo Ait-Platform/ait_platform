@@ -87,6 +87,18 @@ def create_app(test_config=None):
         db.create_all()
         
         try:
+            db.session.execute(text("ALTER TABLE crm_practice ADD COLUMN clearing_house_provider VARCHAR(50);"))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            
+        try:
+            db.session.execute(text("ALTER TABLE crm_practice ADD COLUMN clearing_house_api_key VARCHAR(255);"))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+        
+        try:
             db.session.execute(text("UPDATE auth_subject SET paid_days = NULL WHERE slug = 'reading'"))
             db.session.commit()
         except Exception:

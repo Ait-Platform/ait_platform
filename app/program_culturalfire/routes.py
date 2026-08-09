@@ -21,7 +21,7 @@ from app.models.culturalfire import (
     CfiBiodata, CfiGroup, CfiGroupMember, CfiPageantSegment, CfiParent, CfiRole, CfiSegmentItem, CfiShow, CfiSponsorItem, CfiSponsorship, CfiSubmissionParticipant, 
     CfiSupporter, CfiTalentCategoryItem, CfiTalentContext, CfiTalentFile, CfiTalentStyle, CfiShowcaseVote, 
     CfiTalentSubmission, CfiJudgeAssignment, CfiMcAssignment, CfiJudgeScore, CfiMcRecording, CfiGroupInvitation,
-    CfiPrivateShowGroup, CfiShowAccess, CfiTokenTariff
+    CfiPrivateShowGroup, CfiShowAccess
     )
 from app.program_culturalfire.helpers import (
     all_segments_filled,
@@ -68,7 +68,7 @@ def cultural_fire_about():
 @cultural_bp.route("/program/cultural_fire/price", methods=["GET"])
 def cultural_fire_price():
     from app.program_culturalfire.helpers import get_token_cost
-    from app.models.culturalfire import CfiTokenTariff
+    from app.models.billing import TokenTariff
     from app.extensions import db
     
     # FORCE SYNC: Ensure the live Render DB is overwritten with the correct values
@@ -81,7 +81,7 @@ def cultural_fire_price():
     }
     
     for name, cost in correct_tariffs.items():
-        tariff = CfiTokenTariff.query.filter_by(action_name=name).first()
+        tariff = TokenTariff.query.filter_by(program_slug='culturalfire', action_name=name).first()
         if tariff and tariff.base_token_cost != cost:
             tariff.base_token_cost = cost
     db.session.commit()
@@ -2981,12 +2981,12 @@ def admin_tariffs():
         flash("Unauthorized access.", "danger")
         return redirect(url_for('auth_bp.bridge_dashboard'))
         
-    from app.models.culturalfire import CfiTokenTariff
+    from app.models.billing import TokenTariff
     if request.method == "POST":
         tariff_id = request.form.get("tariff_id")
         new_cost = request.form.get("base_token_cost", type=int)
         
-        tariff = CfiTokenTariff.query.get(tariff_id)
+        tariff = TokenTariff.query.get(tariff_id)
         if tariff and new_cost is not None and new_cost >= 0:
             tariff.base_token_cost = new_cost
             db.session.commit()
@@ -2996,7 +2996,7 @@ def admin_tariffs():
             
         return redirect(url_for('cultural_bp.admin_tariffs'))
         
-    tariffs = CfiTokenTariff.query.order_by(CfiTokenTariff.action_name).all()
+    tariffs = TokenTariff.query.filter_by(program_slug='culturalfire').order_by(TokenTariff.action_name).all()
     return render_template("program_culturefire/admin_tariffs.html", tariffs=tariffs)
 
 @cultural_bp.route("/show/<int:show_id>/admin_scores")

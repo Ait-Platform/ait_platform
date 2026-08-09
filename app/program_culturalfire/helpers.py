@@ -300,11 +300,11 @@ def all_segments_filled(show):
     return required_segments.issubset(submitted_segments)
 
 def get_token_cost(action_name: str, default_cost: int = 10) -> int:
-    from app.models.culturalfire import CfiTokenTariff
+    from app.models.billing import TokenTariff
     from app.extensions import db
-    tariff = CfiTokenTariff.query.filter_by(action_name=action_name).first()
+    tariff = TokenTariff.query.filter_by(program_slug='culturalfire', action_name=action_name).first()
     if not tariff:
-        tariff = CfiTokenTariff(action_name=action_name, base_token_cost=default_cost)
+        tariff = TokenTariff(program_slug='culturalfire', action_name=action_name, base_token_cost=default_cost)
         db.session.add(tariff)
         db.session.commit()
     return tariff.base_token_cost

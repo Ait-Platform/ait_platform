@@ -523,3 +523,16 @@ class BilArchitectureDraft(db.Model):
     property_id = db.Column(db.Integer, db.ForeignKey('bil_property.id', ondelete='CASCADE'), nullable=False, unique=True)
     draft_json = db.Column(db.JSON, nullable=True)
     updated_at = db.Column(db.DateTime, default=func.now(), onupdate=func.now())
+
+class TokenTariff(db.Model):
+    __tablename__ = 'universal_token_tariff'
+    id = db.Column(db.Integer, primary_key=True)
+    program_slug = db.Column(db.String(50), nullable=False)
+    action_name = db.Column(db.String(100), nullable=False)
+    base_token_cost = db.Column(db.Integer, nullable=False, default=10)
+    created_at = db.Column(db.DateTime, default=db.func.now())
+    
+    __table_args__ = (
+        db.UniqueConstraint('program_slug', 'action_name', name='uq_program_action'),
+    )
+

@@ -42,3 +42,22 @@ def view_messages():
     return render_template('admin/messages.html', messages=msgs)
 
 
+
+@admin_bp.route('/tariffs', methods=['GET', 'POST'])
+def global_tariffs():
+    from app.models.billing import TokenTariff
+    if request.method == 'POST':
+        tariff_id = request.form.get('tariff_id')
+        new_cost = request.form.get('base_token_cost', type=int)
+        
+        tariff = TokenTariff.query.get(tariff_id)
+        if tariff and new_cost is not None and new_cost >= 0:
+            tariff.base_token_cost = new_cost
+            db.session.commit()
+            flash(f'Updated token cost for {tariff.action_name} to {new_cost}.', 'success')
+        
+        return redirect(url_for('admin_bp.global_tariffs'))
+        
+    tariffs = TokenTariff.query.order_by(TokenTariff.program_slug, TokenTariff.action_name).all()
+    return render_template('admin/tariffs.html', tariffs=tariffs)
+

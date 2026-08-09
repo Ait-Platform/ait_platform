@@ -87,8 +87,9 @@ def price_page():
     from app.utils.country import get_active_countries
     countries = get_active_countries()
 
-    val = db.session.execute(text("SELECT value FROM system_settings WHERE key = 'practice_enquiry_cents'")).scalar()
-    enquiry_cents = int(float(val)) if val else 1000
+    from app.models.billing import TokenTariff
+    tariff = TokenTariff.query.filter_by(program_slug='practice_crm', action_name='enquiry_intake').first()
+    enquiry_cents = tariff.base_token_cost if tariff else 1000
 
     return render_template("program_practice_crm/price.html", price=price_ctx, subject=subject, countries=countries, enquiry_cents=enquiry_cents)
 
@@ -99,9 +100,23 @@ def migrate_db():
     try:
         db.create_all()
         
-        # Enforce 10 Token (1000 cents) pricing in the DB
-        db.session.execute(text("UPDATE system_settings SET value = '1000' WHERE key = 'practice_enquiry_cents'"))
-        db.session.execute(text("INSERT INTO system_settings (key, value) SELECT 'practice_enquiry_cents', '1000' WHERE NOT EXISTS (SELECT 1 FROM system_settings WHERE key = 'practice_enquiry_cents')"))
+        # Migrate practice CRM token cost to new universal table
+        from app.models.billing import TokenTariff
+        val = db.session.execute(text("SELECT value FROM system_settings WHERE key = 'practice_enquiry_cents'")).scalar()
+        enquiry_cost = int(float(val)) if val else 1000
+        if not TokenTariff.query.filter_by(program_slug='practice_crm', action_name='enquiry_intake').first():
+            db.session.add(TokenTariff(program_slug='practice_crm', action_name='enquiry_intake', base_token_cost=enquiry_cost))
+            
+        # Migrate Cultural Fire token costs to new universal table
+        try:
+            cfi_tariffs = db.session.execute(text("SELECT action_name, base_token_cost FROM cfi_token_tariff")).fetchall()
+            for row in cfi_tariffs:
+                if not TokenTariff.query.filter_by(program_slug='culturalfire', action_name=row[0]).first():
+                    db.session.add(TokenTariff(program_slug='culturalfire', action_name=row[0], base_token_cost=row[1]))
+        except:
+            pass # cfi_token_tariff might not exist or already dropped
+            
+        db.session.commit()
         
         # Add patient_id to crm_enquiry
         try:
@@ -473,9 +488,9 @@ def new_enquiry():
         flash("Practice not found.", "error")
         return redirect(url_for('practice_crm_bp.pipeline'))
         
-    from sqlalchemy import text
-    setting = db.session.execute(text("SELECT value FROM system_settings WHERE key = 'practice_enquiry_cents'")).fetchone()
-    enquiry_cost = int(setting[0]) if setting else 1000
+    from app.models.billing import TokenTariff
+    tariff = TokenTariff.query.filter_by(program_slug='practice_crm', action_name='enquiry_intake').first()
+    enquiry_cost = tariff.base_token_cost if tariff else 1000
     
     if practice.wallet_balance_cents < enquiry_cost:
         flash("Insufficient tokens. Please top up your wallet to continue.", "warning")

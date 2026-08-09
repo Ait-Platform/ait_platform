@@ -1,0 +1,65 @@
+{% extends "admin/admin_layout.html" %}
+
+{% block admin_title %}Manage Token Tariffs{% endblock %}
+{% block admin_color %}bg-indigo-600{% endblock %}
+
+{% block admin_content %}
+<div class="bg-white shadow rounded-lg overflow-hidden max-w-6xl mx-auto my-6 border border-slate-200">
+  <div class="px-6 py-4 border-b flex justify-between items-center bg-slate-50">
+    <h1 class="text-2xl font-bold text-slate-800">Platform Token Tariffs</h1>
+    <a href="{{ url_for('admin_bp.index') }}" class="bg-slate-200 text-slate-800 px-4 py-2 rounded hover:bg-slate-300 font-medium">Back to Admin Hub</a>
+  </div>
+
+  <div class="p-6">
+    <div class="mb-6 bg-indigo-50 border-l-4 border-indigo-500 p-4 rounded-r">
+      <p class="text-sm text-indigo-700">
+        <strong>Note:</strong> These token tariffs determine the token cost deducted from user wallets across different modules. 
+        Updating a cost here will instantly affect all future transactions platform-wide.
+      </p>
+    </div>
+
+    <div class="overflow-x-auto bg-white border rounded-lg shadow-sm">
+      <table class="min-w-full divide-y divide-slate-200">
+        <thead class="bg-slate-100">
+          <tr>
+            <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Module / Slug</th>
+            <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Action Name</th>
+            <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Current Cost</th>
+            <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Update Cost</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-200">
+          {% for tariff in tariffs %}
+          <tr class="hover:bg-slate-50">
+            <td class="px-6 py-4">
+              <span class="font-bold text-indigo-600 uppercase tracking-wider text-xs">{{ tariff.program_slug }}</span>
+            </td>
+            <td class="px-6 py-4">
+              <span class="font-medium text-slate-900 bg-slate-100 px-2 py-1 rounded text-sm border border-slate-200">{{ tariff.action_name }}</span>
+            </td>
+            <td class="px-6 py-4">
+              <span class="font-bold text-indigo-600 text-lg">{{ tariff.base_token_cost }}</span> <span class="text-xs text-slate-500 uppercase">Tokens</span>
+            </td>
+            <td class="px-6 py-4">
+              <form method="POST" action="{{ url_for('admin_bp.global_tariffs') }}" class="flex items-center gap-2">
+                <input type="hidden" name="tariff_id" value="{{ tariff.id }}">
+                <input type="number" name="base_token_cost" value="{{ tariff.base_token_cost }}" min="0" required class="border-slate-300 rounded shadow-sm focus:ring-indigo-500 focus:border-indigo-500 w-24 px-2 py-1 border">
+                <button type="submit" class="bg-indigo-600 text-white px-3 py-1.5 rounded hover:bg-indigo-700 font-medium text-sm transition">
+                  Save
+                </button>
+              </form>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="4" class="px-6 py-8 text-center text-slate-500">
+              No token tariffs found in the database. Tariffs are generated automatically when a user triggers an action for the first time, or after running the database migration.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

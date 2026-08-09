@@ -453,6 +453,7 @@ def pipeline():
         wallet = AitTokenWallet.query.filter_by(user_id=practice.owner_id).first()
         token_balance = wallet.balance if wallet else 0
         
+        enquiries = CrmEnquiry.query.filter_by(practice_id=practice.id).order_by(CrmEnquiry.created_at.desc()).all()
         return render_template("program_practice_crm/pipeline.html", practice=practice, enquiries=enquiries, is_receptionist=is_receptionist, treatments=treatments, token_balance=token_balance)
     except Exception as e:
         import traceback

@@ -100,9 +100,10 @@ def checkout_cancel():
 def get_paystack_secret(subject=None):
     is_live = False
     if subject:
+        base_subject = subject.replace("_topup", "")
         val = db.session.execute(
             text("SELECT value FROM system_settings WHERE LOWER(key) = LOWER(:k)"),
-            {"k": f"paystack_mode_{subject}"} 
+            {"k": f"paystack_mode_{base_subject}"} 
         ).scalar()
         if (val or "sandbox").lower() == "live":
             is_live = True

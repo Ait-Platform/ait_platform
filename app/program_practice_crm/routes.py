@@ -89,7 +89,7 @@ def price_page():
 
     from app.models.billing import TokenTariff
     tariff = TokenTariff.query.filter_by(program_slug='practice_crm', action_name='enquiry_intake').first()
-    enquiry_cents = tariff.base_token_cost if tariff else 1000
+    enquiry_cents = tariff.base_token_cost * 100 if tariff else 1000
 
     return render_template("program_practice_crm/price.html", price=price_ctx, subject=subject, countries=countries, enquiry_cents=enquiry_cents)
 
@@ -100,12 +100,20 @@ def migrate_db():
     try:
         db.create_all()
         
-        # Migrate practice CRM token cost to new universal table
+        # Migrate practice CRM token cost to new universal table (convert from cents to tokens if needed)
         from app.models.billing import TokenTariff
         val = db.session.execute(text("SELECT value FROM system_settings WHERE key = 'practice_enquiry_cents'")).scalar()
-        enquiry_cost = int(float(val)) if val else 1000
+        
+        # If val is 1000 (cents), we convert it to 10 (tokens). If it's already small, assume tokens.
+        parsed_val = int(float(val)) if val else 1000
+        enquiry_cost = 10 if parsed_val == 1000 else (parsed_val // 100 if parsed_val >= 100 else parsed_val)
+        
         if not TokenTariff.query.filter_by(program_slug='practice_crm', action_name='enquiry_intake').first():
             db.session.add(TokenTariff(program_slug='practice_crm', action_name='enquiry_intake', base_token_cost=enquiry_cost))
+            
+        # Fix any existing 1000 token costs to 10
+        db.session.execute(text("UPDATE universal_token_tariff SET base_token_cost = 10 WHERE program_slug = 'practice_crm' AND action_name = 'enquiry_intake' AND base_token_cost >= 100"))
+        
             
         # Migrate Cultural Fire token costs to new universal table
         try:
@@ -490,13 +498,13 @@ def new_enquiry():
         
     from app.models.billing import TokenTariff
     tariff = TokenTariff.query.filter_by(program_slug='practice_crm', action_name='enquiry_intake').first()
-    enquiry_cost = tariff.base_token_cost if tariff else 1000
+    enquiry_cost_cents = (tariff.base_token_cost * 100) if tariff else 1000
     
-    if practice.wallet_balance_cents < enquiry_cost:
+    if practice.wallet_balance_cents < enquiry_cost_cents:
         flash("Insufficient tokens. Please top up your wallet to continue.", "warning")
         return redirect(url_for('practice_crm_bp.mock_bill'))
     
-    practice.wallet_balance_cents -= enquiry_cost
+    practice.wallet_balance_cents -= enquiry_cost_cents
 
     patient_name = request.form.get('patient_name')
     patient_id_no = request.form.get('patient_id_no')
@@ -668,4 +676,5 @@ def topup():
     # 100 ZAR = 10000 cents
     session["practice_crm_topup_amount_cents"] = 10000 
     return redirect(url_for('paystack_bp.paystack_start', subject='practice_crm_topup', email=current_user.email))
+
 

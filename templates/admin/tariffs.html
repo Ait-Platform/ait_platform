@@ -60,6 +60,52 @@
         </tbody>
       </table>
     </div>
+    
+    <div class="mt-12 mb-6 bg-emerald-50 border-l-4 border-emerald-500 p-4 rounded-r">
+      <h2 class="text-lg font-bold text-emerald-800 mb-1">Signup Bonuses (Free Starting Tokens)</h2>
+      <p class="text-sm text-emerald-700">
+        Control how many free tokens a user receives when they first register or activate a specific module.
+      </p>
+    </div>
+    
+    <div class="overflow-x-auto bg-white border rounded-lg shadow-sm">
+      <table class="min-w-full divide-y divide-slate-200">
+        <thead class="bg-slate-100">
+          <tr>
+            <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Module / Slug</th>
+            <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Current Bonus</th>
+            <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Update Bonus</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-200">
+          {% for bonus in bonuses %}
+          <tr class="hover:bg-slate-50">
+            <td class="px-6 py-4">
+              <span class="font-bold text-emerald-600 uppercase tracking-wider text-xs">{{ bonus.program_slug }}</span>
+            </td>
+            <td class="px-6 py-4">
+              <span class="font-bold text-emerald-600 text-lg">{{ bonus.bonus_tokens }}</span> <span class="text-xs text-slate-500 uppercase">Tokens</span>
+            </td>
+            <td class="px-6 py-4">
+              <form method="POST" action="{{ url_for('admin_bp.global_tariffs') }}" class="flex items-center gap-2">
+                <input type="hidden" name="bonus_id" value="{{ bonus.id }}">
+                <input type="number" name="bonus_tokens" value="{{ bonus.bonus_tokens }}" min="0" required class="border-slate-300 rounded shadow-sm focus:ring-emerald-500 focus:border-emerald-500 w-24 px-2 py-1 border">
+                <button type="submit" class="bg-emerald-600 text-white px-3 py-1.5 rounded hover:bg-emerald-700 font-medium text-sm transition">
+                  Save
+                </button>
+              </form>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="3" class="px-6 py-8 text-center text-slate-500">
+              No signup bonuses found in the database.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   </div>
 </div>
 {% endblock %}

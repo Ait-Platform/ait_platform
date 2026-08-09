@@ -536,3 +536,11 @@ class TokenTariff(db.Model):
         db.UniqueConstraint('program_slug', 'action_name', name='uq_program_action'),
     )
 
+
+class SignupBonus(db.Model):
+    __tablename__ = 'universal_signup_bonus'
+    id = db.Column(db.Integer, primary_key=True)
+    program_slug = db.Column(db.String(50), nullable=False, unique=True)
+    bonus_tokens = db.Column(db.Integer, nullable=False, default=100)
+    created_at = db.Column(db.DateTime, default=db.func.now())
+

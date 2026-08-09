@@ -114,6 +114,11 @@ def migrate_db():
         # Fix any existing 1000 token costs to 10
         db.session.execute(text("UPDATE universal_token_tariff SET base_token_cost = 10 WHERE program_slug = 'practice_crm' AND action_name = 'enquiry_intake' AND base_token_cost >= 100"))
         
+        # Seed Signup Bonus for HP CRM
+        from app.models.billing import SignupBonus
+        if not SignupBonus.query.filter_by(program_slug='practice_crm').first():
+            db.session.add(SignupBonus(program_slug='practice_crm', bonus_tokens=100))
+            
         # Give 100 free tokens (10000 cents) to any existing test practices that were stuck at 0
         db.session.execute(text("UPDATE crm_practice SET wallet_balance_cents = 10000 WHERE wallet_balance_cents = 0"))
         
@@ -310,7 +315,10 @@ def setup():
     
     if request.method == "POST":
         if not practice:
-            practice = CrmPractice(owner_id=current_user.id)
+            from app.models.billing import SignupBonus
+            bonus = SignupBonus.query.filter_by(program_slug='practice_crm').first()
+            start_cents = (bonus.bonus_tokens * 100) if bonus else 0
+            practice = CrmPractice(owner_id=current_user.id, wallet_balance_cents=start_cents)
             db.session.add(practice)
             
         practice.name = request.form.get("name")
@@ -367,7 +375,10 @@ def pipeline():
             practice = CrmPractice.query.filter_by(owner_id=current_user.id).first()
             if not practice:
                 # Create default practice if none exists for a new owner
-                practice = CrmPractice(owner_id=current_user.id, name=f"{current_user.name or 'My'} Practice")
+                from app.models.billing import SignupBonus
+                bonus = SignupBonus.query.filter_by(program_slug='practice_crm').first()
+                start_cents = (bonus.bonus_tokens * 100) if bonus else 0
+                practice = CrmPractice(owner_id=current_user.id, name=f"{current_user.name or 'My'} Practice", wallet_balance_cents=start_cents)
                 db.session.add(practice)
                 db.session.commit()
                 

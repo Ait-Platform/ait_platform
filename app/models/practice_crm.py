@@ -13,7 +13,7 @@ class CrmPractice(db.Model):
     dentist_details = db.Column(db.Text, nullable=True)
     operating_hours = db.Column(db.Text, nullable=True)
     slot_settings = db.Column(db.Text, nullable=True)
-    wallet_balance_cents = db.Column(db.Integer, default=0, nullable=False)
+    wallet_balance_cents = db.Column(db.Integer, default=10000, nullable=False)
     trial_ends_at = db.Column(db.DateTime, nullable=True)
     shadow_spent_cents = db.Column(db.Integer, default=0, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)

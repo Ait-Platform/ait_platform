@@ -114,7 +114,7 @@ def get_paystack_secret(subject=None):
         return os.environ.get("PAYSTACK_LIVE_KEY", os.environ.get("PAYSTACK_SECRET_KEY"))
     return os.environ.get("PAYSTACK_TEST_KEY", os.environ.get("PAYSTACK_SECRET_KEY", "sk_test_2e6012a225612c95a187a8b706d401de89e75bbe"))
 
-def create_paystack_transaction(amount_cents, display_name, subject, email, currency_code="ZAR"):
+def create_paystack_transaction(amount_cents, display_name, subject, email, currency_code="ZAR", tokens_purchased=None):
     secret_key = get_paystack_secret(subject)
     
     url = "https://api.paystack.co/transaction/initialize"
@@ -135,6 +135,7 @@ def create_paystack_transaction(amount_cents, display_name, subject, email, curr
         "metadata": {
             "subject": subject,
             "email": email,
+            "tokens_purchased": tokens_purchased,
             "custom_fields": [
                 {
                     "display_name": "Product Name",
@@ -248,7 +249,10 @@ def start():
 
     display_name = subject.replace("_", " ").title()
     
-    auth_url, ref, err_msg = create_paystack_transaction(amount_cents, display_name, subject, email, currency_code=currency)
+    # Retrieve explicitly set tokens if this is a token top-up
+    tokens_purchased = session.get("topup_tokens")
+    
+    auth_url, ref, err_msg = create_paystack_transaction(amount_cents, display_name, subject, email, currency_code=currency, tokens_purchased=tokens_purchased)
     
     if not auth_url:
         flash(f"Paystack API Error: {err_msg}", "error")
@@ -372,13 +376,29 @@ def fulfill_order(email, subject, transaction=None):
 
     # ---------- PRACTICE CRM TOPUP ----------
     if subject == "practice_crm_topup":
-        from app.models.practice_crm import CrmPractice
-        practice = CrmPractice.query.filter_by(owner_id=u.id).first()
-        if practice and transaction:
-            total = int(transaction.get("amount", 0))
-            if total > 0:
-                practice.wallet_balance_cents += total
-                db.session.commit()
+        from app.models.auth import AitTokenWallet, AitTokenTransaction
+        total = int(transaction.get("amount", 0)) if transaction else 0
+        if total > 0:
+            tokens_purchased = transaction.get("metadata", {}).get("tokens_purchased")
+            if tokens_purchased is None:
+                tokens_purchased = total // 100 # Legacy fallback
+            
+            wallet = AitTokenWallet.query.filter_by(user_id=u.id).first()
+            if not wallet:
+                wallet = AitTokenWallet(user_id=u.id, balance=0)
+                db.session.add(wallet)
+                db.session.flush()
+                
+            wallet.balance += int(tokens_purchased)
+            tx = AitTokenTransaction(
+                wallet_id=wallet.id,
+                transaction_type="purchase",
+                amount=int(tokens_purchased),
+                description="Paystack Top-Up (HP CRM)",
+                reference=transaction.get("reference") if transaction else "paystack_tx"
+            )
+            db.session.add(tx)
+            db.session.commit()
         return
 
     # ---------- CFI TOPUP ----------
@@ -386,17 +406,20 @@ def fulfill_order(email, subject, transaction=None):
         from app.models.auth import AitTokenWallet, AitTokenTransaction
         total = int(transaction.get("amount", 0)) if transaction else 0
         if total > 0:
-            tokens_purchased = total // 100
+            tokens_purchased = transaction.get("metadata", {}).get("tokens_purchased")
+            if tokens_purchased is None:
+                tokens_purchased = total // 100 # Legacy fallback
+                
             wallet = AitTokenWallet.query.filter_by(user_id=u.id).first()
             if not wallet:
                 wallet = AitTokenWallet(user_id=u.id, balance=0)
                 db.session.add(wallet)
                 db.session.flush()
-            wallet.balance += tokens_purchased
+            wallet.balance += int(tokens_purchased)
             tx = AitTokenTransaction(
                 wallet_id=wallet.id,
                 transaction_type="purchase",
-                amount=tokens_purchased,
+                amount=int(tokens_purchased),
                 description="Paystack Top-Up",
                 reference=transaction.get("reference") if transaction else "paystack_tx"
             )

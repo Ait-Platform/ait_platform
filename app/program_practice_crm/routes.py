@@ -119,8 +119,21 @@ def migrate_db():
         if not SignupBonus.query.filter_by(program_slug='practice_crm').first():
             db.session.add(SignupBonus(program_slug='practice_crm', bonus_tokens=100))
             
-        # Give 100 free tokens (10000 cents) to any existing test practices that were stuck at 0
-        db.session.execute(text("UPDATE crm_practice SET wallet_balance_cents = 10000 WHERE wallet_balance_cents = 0"))
+        # Migrate existing HP CRM practices to use AitTokenWallet
+        from app.models.auth import AitTokenWallet, AitTokenTransaction
+        db.session.execute(text("""
+            INSERT INTO ait_token_wallet (user_id, balance)
+            SELECT owner_id, COALESCE(wallet_balance_cents / 100, 0)
+            FROM crm_practice
+            WHERE owner_id NOT IN (SELECT user_id FROM ait_token_wallet)
+        """))
+        
+        # We also need to seed the new test accounts with the 100 token bonus if they don't have it
+        db.session.execute(text("""
+            UPDATE ait_token_wallet 
+            SET balance = 100 
+            WHERE balance = 0 AND user_id IN (SELECT owner_id FROM crm_practice)
+        """))
         
             
         # Migrate Cultural Fire token costs to new universal table
@@ -316,9 +329,21 @@ def setup():
     if request.method == "POST":
         if not practice:
             from app.models.billing import SignupBonus
+            from app.models.auth import AitTokenWallet, AitTokenTransaction
             bonus = SignupBonus.query.filter_by(program_slug='practice_crm').first()
-            start_cents = (bonus.bonus_tokens * 100) if bonus else 0
-            practice = CrmPractice(owner_id=current_user.id, wallet_balance_cents=start_cents)
+            start_tokens = bonus.bonus_tokens if bonus else 0
+            
+            practice = CrmPractice(owner_id=current_user.id)
+            
+            # Check if owner has a wallet
+            wallet = AitTokenWallet.query.filter_by(user_id=current_user.id).first()
+            if not wallet:
+                wallet = AitTokenWallet(user_id=current_user.id, balance=start_tokens)
+                db.session.add(wallet)
+                if start_tokens > 0:
+                    db.session.flush()
+                    txn = AitTokenTransaction(wallet_id=wallet.id, amount=start_tokens, transaction_type="purchase", description="HP CRM Signup Bonus")
+                    db.session.add(txn)
             db.session.add(practice)
             
         practice.name = request.form.get("name")
@@ -376,9 +401,21 @@ def pipeline():
             if not practice:
                 # Create default practice if none exists for a new owner
                 from app.models.billing import SignupBonus
+                from app.models.auth import AitTokenWallet, AitTokenTransaction
                 bonus = SignupBonus.query.filter_by(program_slug='practice_crm').first()
-                start_cents = (bonus.bonus_tokens * 100) if bonus else 0
-                practice = CrmPractice(owner_id=current_user.id, name=f"{current_user.name or 'My'} Practice", wallet_balance_cents=start_cents)
+                start_tokens = bonus.bonus_tokens if bonus else 0
+                
+                practice = CrmPractice(owner_id=current_user.id, name=f"{current_user.name or 'My'} Practice")
+                
+                # Check if owner has a wallet
+                wallet = AitTokenWallet.query.filter_by(user_id=current_user.id).first()
+                if not wallet:
+                    wallet = AitTokenWallet(user_id=current_user.id, balance=start_tokens)
+                    db.session.add(wallet)
+                    if start_tokens > 0:
+                        db.session.flush()
+                        txn = AitTokenTransaction(wallet_id=wallet.id, amount=start_tokens, transaction_type="purchase", description="HP CRM Signup Bonus")
+                        db.session.add(txn)
                 db.session.add(practice)
                 db.session.commit()
                 
@@ -511,14 +548,23 @@ def new_enquiry():
         return redirect(url_for('practice_crm_bp.pipeline'))
         
     from app.models.billing import TokenTariff
-    tariff = TokenTariff.query.filter_by(program_slug='practice_crm', action_name='enquiry_intake').first()
-    enquiry_cost_cents = (tariff.base_token_cost * 100) if tariff else 1000
+    from app.models.auth import AitTokenWallet, AitTokenTransaction
     
-    if practice.wallet_balance_cents < enquiry_cost_cents:
+    tariff = TokenTariff.query.filter_by(program_slug='practice_crm', action_name='enquiry_intake').first()
+    enquiry_cost_tokens = tariff.base_token_cost if tariff else 10
+    
+    # Get practice owner's wallet
+    wallet = AitTokenWallet.query.filter_by(user_id=practice.owner_id).first()
+    token_balance = wallet.balance if wallet else 0
+    
+    if token_balance < enquiry_cost_tokens:
         flash("Insufficient tokens. Please top up your wallet to continue.", "warning")
         return redirect(url_for('practice_crm_bp.mock_bill'))
     
-    practice.wallet_balance_cents -= enquiry_cost_cents
+    # Deduct tokens
+    wallet.balance -= enquiry_cost_tokens
+    txn = AitTokenTransaction(wallet_id=wallet.id, amount=-enquiry_cost_tokens, transaction_type="purchase", description="HP CRM Enquiry Intake")
+    db.session.add(txn)
 
     patient_name = request.form.get('patient_name')
     patient_id_no = request.form.get('patient_id_no')
@@ -680,15 +726,20 @@ def mock_bill():
         flash("You do not have an active practice.", "warning")
         return redirect(url_for('practice_crm_bp.pipeline'))
         
-    return render_template("program_practice_crm/mock_bill.html", practice=practice)
+    from app.models.auth import AitTokenWallet
+    wallet = AitTokenWallet.query.filter_by(user_id=practice.owner_id).first()
+    token_balance = wallet.balance if wallet else 0
+        
+    return render_template("program_practice_crm/mock_bill.html", practice=practice, token_balance=token_balance)
 
 @practice_crm_bp.route("/topup", methods=["GET", "POST"])
 @login_required
 def topup():
-    """Route to redirect user to Paddle checkout for practice CRM tokens"""
+    """Route to redirect user to Paystack checkout for practice CRM tokens"""
     from flask import session
-    # 100 ZAR = 10000 cents
+    # 100 ZAR = 10000 cents, for a bundle of 100 Tokens
     session["practice_crm_topup_amount_cents"] = 10000 
+    session["topup_tokens"] = 100
     return redirect(url_for('paystack_bp.paystack_start', subject='practice_crm_topup', email=current_user.email))
 
 

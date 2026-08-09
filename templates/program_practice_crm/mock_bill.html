@@ -2,7 +2,7 @@
 {% block title %}Healthcare CRM - Insufficient Tokens{% endblock %}
 
 {# Override global flashes so we can place them inside the tile #}
-{% block flash_messages %}{% endblock %}
+{% block flashes %}{% endblock %}
 
 {% block content %}
 <div class="min-h-screen bg-slate-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
@@ -39,7 +39,7 @@
         <div class="bg-slate-50 rounded-xl p-5 border border-slate-100 flex justify-between items-center">
           <div>
             <p class="text-xs text-slate-500 font-bold uppercase tracking-wide mb-1">Current Balance</p>
-            <p class="text-2xl font-bold text-slate-900">{{ "%.2f"|format(practice.wallet_balance_cents / 100) }}</p>
+            <p class="text-2xl font-bold text-slate-900">{{ token_balance }} <span class="text-sm font-medium text-slate-500 uppercase">Tokens</span></p>
           </div>
           <div class="h-10 w-10 bg-white rounded-full flex items-center justify-center text-slate-400 shadow-sm border border-slate-200">
             <i class="fas fa-wallet"></i>

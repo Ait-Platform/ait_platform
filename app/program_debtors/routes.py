@@ -5,7 +5,7 @@ from flask import render_template, redirect, url_for, flash, request, current_ap
 from flask_login import login_required, current_user
 from app.program_debtors import debtors_bp
 from app.models.auth import AuthSubject, UserEnrollment
-from app.models.debtors import SoaProfile, Debtor, DebtorLedger, DebtorChargeMap, BusinessBankAccount
+from app.models.debtors import SoaProfile, Debtor, DebtorLedger, DebtorChargeMap, BusinessBankAccount, SenderProfile
 from app.models.auth import AitTokenWallet, AitTokenTransaction
 from app.extensions import db
 from app.program_debtors.forms import SoaProfileForm, DebtorForm, BankAccountForm

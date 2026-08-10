@@ -51,6 +51,7 @@ class Debtor(db.Model):
     
     opening_balance = db.Column(db.Integer, default=0) # In cents
     apply_interest = db.Column(db.Boolean, default=True)
+    interest_rate = db.Column(db.Float, nullable=True) # Custom interest rate for this debtor (overrides profile)
     
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     is_active = db.Column(db.Boolean, default=True)

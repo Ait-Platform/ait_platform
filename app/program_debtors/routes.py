@@ -202,6 +202,28 @@ def add_recurring_charge(debtor_id):
         flash("Recurring charge added successfully.", "success")
     return redirect(url_for('debtors_bp.debtor_financials', debtor_id=debtor.id))
 
+@debtors_bp.route("/debtor/<int:debtor_id>/update_interest", methods=["POST"])
+@login_required
+def update_interest(debtor_id):
+    debtor = Debtor.query.filter_by(id=debtor_id, user_id=current_user.id).first_or_404()
+    
+    apply_interest = request.form.get('apply_interest') == 'on'
+    interest_rate_str = request.form.get('interest_rate')
+    
+    debtor.apply_interest = apply_interest
+    if interest_rate_str and interest_rate_str.strip():
+        try:
+            debtor.interest_rate = float(interest_rate_str)
+        except ValueError:
+            flash("Invalid interest rate format.", "danger")
+            return redirect(url_for('debtors_bp.dashboard'))
+    else:
+        debtor.interest_rate = None
+        
+    db.session.commit()
+    flash("Interest settings updated.", "success")
+    return redirect(url_for('debtors_bp.dashboard'))
+
 @debtors_bp.route("/debtor/<int:debtor_id>/delete_charge/<int:charge_id>", methods=["POST"])
 @login_required
 def delete_recurring_charge(debtor_id, charge_id):
@@ -221,7 +243,7 @@ def run_billing():
     current_month_year = datetime.utcnow().strftime("%Y_%m")
     
     profile = SoaProfile.query.filter_by(user_id=current_user.id).first()
-    interest_rate = profile.interest_rate if profile and profile.interest_rate else 0.0
+    global_interest_rate = profile.interest_rate if profile and profile.interest_rate else 0.0
     
     charges_applied = 0
     interest_applied = 0
@@ -231,16 +253,19 @@ def run_billing():
         total_credits = sum(l.amount for l in debtor.ledgers if l.kind == 'credit')
         current_balance = total_debits - total_credits
 
+        # Determine the applicable interest rate
+        applicable_rate = debtor.interest_rate if debtor.interest_rate is not None else global_interest_rate
+
         # Apply interest first (if applicable)
-        if getattr(debtor, 'apply_interest', True) and current_balance > 0 and interest_rate > 0:
+        if getattr(debtor, 'apply_interest', True) and current_balance > 0 and applicable_rate > 0:
             interest_ref = f"interest_{current_month_year}"
             existing_interest = DebtorLedger.query.filter_by(debtor_id=debtor.id, ref=interest_ref).first()
             if not existing_interest:
-                interest_amount = int(round(current_balance * (interest_rate / 100)))
+                interest_amount = int(round(current_balance * (applicable_rate / 100)))
                 if interest_amount > 0:
                     ledger = DebtorLedger(
                         debtor_id=debtor.id,
-                        description=f"Monthly Arrears Interest ({interest_rate}%)",
+                        description=f"Monthly Arrears Interest ({applicable_rate}%)",
                         kind="debit",
                         amount=interest_amount,
                         ref=interest_ref,

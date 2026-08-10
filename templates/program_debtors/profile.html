@@ -19,29 +19,12 @@
             
             <!-- Tab Menu -->
             <div class="flex space-x-2 border-b border-gray-200 mb-6">
-                <button onclick="switchTab('global-settings')" id="tab-global-settings" class="px-4 py-2 border-b-2 font-medium text-sm text-blue-600 border-blue-600 focus:outline-none">Global Settings</button>
-                <button onclick="switchTab('sender-profiles')" id="tab-sender-profiles" class="px-4 py-2 border-b-2 font-medium text-sm text-gray-500 border-transparent hover:text-gray-700 hover:border-gray-300 focus:outline-none">Sender Profiles (Business)</button>
+                <button onclick="switchTab('sender-profiles')" id="tab-sender-profiles" class="px-4 py-2 border-b-2 font-medium text-sm text-blue-600 border-blue-600 focus:outline-none">Sender Profiles (Business)</button>
                 <button onclick="switchTab('bank-accounts')" id="tab-bank-accounts" class="px-4 py-2 border-b-2 font-medium text-sm text-gray-500 border-transparent hover:text-gray-700 hover:border-gray-300 focus:outline-none">Bank Accounts</button>
             </div>
             
-            <!-- SECTION 1: GLOBAL SETTINGS -->
-            <div id="content-global-settings" class="tab-content">
-                <p class="text-gray-600 mb-6">Configure global settings for all your Statements of Account.</p>
-                <form method="POST" action="">
-                    {{ form.hidden_tag() }}
-                    <div class="p-4 bg-yellow-50 border border-yellow-200 rounded-lg max-w-lg mb-6">
-                        {{ form.interest_rate.label(class="block text-sm font-bold text-yellow-800 mb-1") }}
-                        {{ form.interest_rate(class="w-full px-4 py-2 border border-yellow-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none transition-shadow") }}
-                        <p class="text-xs text-yellow-700 mt-2">This global rate is used to calculate monthly arrears on debtors by default (e.g., 2.0 = 2% per month).</p>
-                    </div>
-                    <div class="flex justify-end border-t pt-4">
-                        {{ form.submit(class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-md font-medium cursor-pointer") }}
-                    </div>
-                </form>
-            </div>
-            
-            <!-- SECTION 2: SENDER PROFILES -->
-            <div id="content-sender-profiles" class="tab-content hidden">
+            <!-- SECTION 1: SENDER PROFILES -->
+            <div id="content-sender-profiles" class="tab-content">
                 <div class="flex justify-between items-center mb-4">
                     <p class="text-gray-600 text-sm">Define the Business Name, Address, and Logo that appear on the SOA letterhead. You can create multiple profiles and assign them to different debtors.</p>
                     <button onclick="openSenderModal()" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-semibold text-sm transition shadow-sm whitespace-nowrap">+ Add Profile</button>

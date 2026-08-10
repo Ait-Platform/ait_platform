@@ -4,9 +4,7 @@ from wtforms import StringField, TextAreaField, IntegerField, FloatField, Select
 from wtforms.validators import DataRequired, Email, Optional
 
 class SoaProfileForm(FlaskForm):
-    # This form is now just for global settings, but we keep the old fields for backward compatibility if needed, or remove them.
-    # Actually, the user wants a redesign, so we will only keep global settings in SoaProfile Form.
-    interest_rate = FloatField("Global Monthly Interest Rate (%)", validators=[Optional()], default=2.0)
+    # This form is now just for global settings
     submit = SubmitField("Save Global Settings")
 
 class SenderProfileForm(FlaskForm):

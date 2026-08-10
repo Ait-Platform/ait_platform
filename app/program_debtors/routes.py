@@ -58,8 +58,6 @@ def profile():
             profile_record = SoaProfile(user_id=current_user.id)
             db.session.add(profile_record)
             
-        profile_record.interest_rate = form.interest_rate.data
-            
         db.session.commit()
         flash("Global settings updated successfully.", "success")
         return redirect(url_for("debtors_bp.profile"))
@@ -309,9 +307,6 @@ def run_billing():
     debtors = Debtor.query.filter_by(user_id=current_user.id, is_active=True).all()
     current_month_year = datetime.utcnow().strftime("%Y_%m")
     
-    profile = SoaProfile.query.filter_by(user_id=current_user.id).first()
-    global_interest_rate = profile.interest_rate if profile and profile.interest_rate else 0.0
-    
     charges_applied = 0
     interest_applied = 0
     for debtor in debtors:
@@ -321,7 +316,7 @@ def run_billing():
         current_balance = total_debits - total_credits
 
         # Determine the applicable interest rate
-        applicable_rate = debtor.interest_rate if debtor.interest_rate is not None else global_interest_rate
+        applicable_rate = debtor.interest_rate if debtor.interest_rate is not None else 0.0
 
         # Apply interest first (if applicable)
         if getattr(debtor, 'apply_interest', True) and current_balance > 0 and applicable_rate > 0:

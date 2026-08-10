@@ -654,9 +654,57 @@ def email_soa():
 @debtors_bp.route("/topup")
 @login_required
 def topup():
+    wallet = AitTokenWallet.query.filter_by(user_id=current_user.id).first()
+    
+    # Try to find user enrollment for Debtors to determine local currency
+    auth_subject = AuthSubject.query.filter(AuthSubject.slug.ilike('debtors')).first()
+    currency = "ZAR"
+    currency_symbol = "R"
+    if auth_subject:
+        enrollment = UserEnrollment.query.filter_by(user_id=current_user.id, subject_id=auth_subject.id).first()
+        if enrollment and enrollment.local_currency:
+            currency = enrollment.local_currency
+            
+    if currency == "USD": currency_symbol = "$"
+    elif currency == "GBP": currency_symbol = "£"
+    elif currency == "EUR": currency_symbol = "€"
+    elif currency == "NGN": currency_symbol = "₦"
+    elif currency == "GHS": currency_symbol = "₵"
+    elif currency == "KES": currency_symbol = "KSh "
+            
+    packages = [
+        {"name": "Starter", "tokens": 50, "price": 50, "popular": False},
+        {"name": "Standard", "tokens": 100, "price": 100, "popular": True},
+        {"name": "Pro", "tokens": 200, "price": 200, "popular": False},
+        {"name": "Enterprise", "tokens": 500, "price": 500, "popular": False}
+    ]
+    
+    return render_template("program_debtors/wallet_topup.html", wallet=wallet, packages=packages, currency=currency, currency_symbol=currency_symbol)
+
+@debtors_bp.route("/wallet_checkout", methods=["POST"])
+@login_required
+def wallet_checkout():
+    tokens = int(request.form.get("tokens", 0))
+    price = int(request.form.get("price", 0))
+    
+    if tokens not in [50, 100, 200, 500]:
+        flash("Invalid token package selected.", "danger")
+        return redirect(url_for('debtors_bp.topup'))
+        
+    amount_cents = price * 100
+    
+    auth_subject = AuthSubject.query.filter(AuthSubject.slug.ilike('debtors')).first()
+    currency = "ZAR"
+    if auth_subject:
+        enrollment = UserEnrollment.query.filter_by(user_id=current_user.id, subject_id=auth_subject.id).first()
+        if enrollment and enrollment.local_currency:
+            currency = enrollment.local_currency
+            
     from flask import session
-    session["debtors_topup_amount_cents"] = 10000 
-    session["topup_tokens"] = 100
+    session["debtors_topup_amount_cents"] = amount_cents
+    session["debtors_topup_currency"] = currency
+    session["topup_tokens"] = tokens
+    
     return redirect(url_for('paystack_bp.paystack_start', subject='debtors_topup', email=current_user.email))
 
 

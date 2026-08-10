@@ -203,6 +203,7 @@ def start():
         
     if subject == "debtors_topup":
         amount_cents = int(session.get("debtors_topup_amount_cents", 0))
+        currency = session.get("debtors_topup_currency", "ZAR")
         
     if amount_cents <= 0:
         u = User.query.filter_by(email=email).first()

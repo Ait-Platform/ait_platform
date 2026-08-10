@@ -1,5 +1,6 @@
 {% extends "layout.html" %}
 {% block title %}Pricing & Wallet - Metro Billing{% endblock %}
+{% block flashes %}{% endblock %}
 
 {% block content %}
 <div class="max-w-4xl mx-auto px-4 py-8">
@@ -15,7 +16,7 @@
         <h1 class="text-2xl md:text-3xl font-bold text-slate-900">Pricing & Wallet</h1>
         <a href="{{ url_for('billing_bp.billing_about') }}"
            class="inline-flex items-center gap-2 rounded border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition">
-          <span>+?</span><span>Back to Info</span>
+          <span>&larr;</span><span>Back to Info</span>
         </a>
       </div>
 
@@ -25,13 +26,19 @@
           Metro Billing operates on a transparent, <strong>pay-as-you-go</strong> model. No expensive monthly subscriptions. You can capture properties and enter all meter readings completely for free. You only pay when you are ready to generate and unlock the monthly PDF statements.
         </p>
 
+        <!-- Country Selector -->
+        <div class="mb-8 flex flex-col md:flex-row items-start md:items-center gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
+          <label class="text-sm font-semibold text-slate-700 whitespace-nowrap">Select your country for local pricing:</label>
+          {% from 'shared/country_selector.html' import render_country_selector %}
+          {{ render_country_selector(countries, subject_slug='billing') }}
+        </div>
+
         <!-- Pricing Cards -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
           
           <!-- Registration -->
           <div class="bg-slate-50 rounded-2xl p-6 border border-slate-100 flex flex-col justify-between h-full">
             <div>
-              <span class="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full font-bold mb-3 uppercase tracking-wide">30-Day Free Trial</span>
               <div class="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center text-orange-600 mb-4">
                 <i class="fas fa-building text-xl"></i>
               </div>
@@ -41,24 +48,36 @@
               </p>
             </div>
               <div class="mt-6">
-                <span class="text-2xl font-bold text-orange-600">R {{ "%.2f"|format(settings.base_price_cents / 100) }}</span>
-                <span class="text-slate-500 text-sm ml-1">once-off</span>
-              </div>
+                <span id="registration_price" class="text-2xl font-bold text-orange-600">
+                  {% if price.has_quote %}
+                    {% if price.local_currency == 'ZAR' %}R {% else %}{{ price.local_currency }} {% endif %}{{ "%.2f"|format(price.local_amount / 100) }}
+                  {% else %}
+                    <i class="fas fa-spinner fa-spin text-lg"></i>
+                  {% endif %}
+                </span>
+              <span id="once_off_label" class="text-slate-500 text-sm ml-1">once-off</span>
+            </div>
           </div>
 
           <!-- Micro-transactions -->
           <div class="bg-slate-50 rounded-2xl p-6 border border-slate-100 flex flex-col justify-between h-full">
             <div>
-              <span class="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full font-bold mb-3 uppercase tracking-wide">30-Day Free Trial</span>
               <div class="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center text-orange-600 mb-4">
                 <i class="fas fa-file-invoice text-xl"></i>
               </div>
               <h3 class="text-lg font-bold text-slate-900 mb-2">Prepaid Wallet Usage</h3>
               <p class="text-slate-600 text-sm leading-relaxed">
-                Top up your internal wallet. We only deduct tokens when you actively generate statements for your tenants. 
-                <br><br>
-                • <strong>Statement Generation:</strong> <span class="inline-flex items-center rounded-md bg-indigo-50 px-2 py-0.5 text-sm font-bold text-indigo-700 ring-1 ring-inset ring-indigo-700/10 shadow-sm mx-1">R{{ "%.2f"|format(settings.extra_meter_price_cents / 100) }}</span> per statement.
+                Top up your internal wallet. We only deduct tokens when you actively generate statements for your tenants.
               </p>
+              
+              <div class="mt-4 p-3 bg-amber-50 rounded-lg border border-amber-200 text-amber-900 text-xs">
+                <div class="font-bold mb-1"><i class="fas fa-info-circle mr-1"></i>Token-Based Billing</div>
+                We operate entirely on a Token System. 1 Token = 1 Local Parity Unit (e.g. 1 Rand, 1 Dollar, 1 Pound, etc.). You top up your internal wallet and we only deduct tokens when you generate value. We operate on a 200% parity model, which automatically credits your digital wallet with an initial bundle of <strong>200 BIL Tokens</strong> upon registration!
+              </div>
+
+              <ul class="list-disc pl-5 mt-4 space-y-2 text-sm text-slate-600">
+                <li><strong>Statement Generation:</strong> <span class="inline-flex items-center rounded-md bg-orange-50 px-2 py-0.5 text-xs font-bold text-orange-700 ring-1 ring-inset ring-orange-700/10 shadow-sm mx-1">{{ (settings.extra_meter_price_cents / 100)|int }} Tokens</span> / statement</li>
+              </ul>
             </div>
             <div class="mt-6">
               <span class="text-2xl font-bold text-orange-600">Pay-As-You-Go</span>
@@ -71,8 +90,8 @@
         <div class="border-t border-slate-100 pt-8 text-center">
           <h4 class="text-lg font-bold text-slate-900 mb-4">Ready to automate your billing?</h4>
           
-          <a href="{{ url_for('auth_bp.register', subject='billing', next=url_for('billing_bp.learner_dashboard')) }}"
-             class="inline-block bg-orange-600 text-white py-3 px-8 rounded-xl font-bold text-lg hover:bg-orange-700 transition shadow-sm">Register to start your free trial</a>
+          <a id="register_btn" href="{{ url_for('auth_bp.register', subject='billing', next=url_for('billing_bp.learner_dashboard')) }}"
+             class="inline-block bg-orange-600 text-white py-3 px-8 rounded-xl font-bold text-lg hover:bg-orange-700 transition shadow-sm">Register & Get Started</a>
           
           <p class="text-sm text-slate-500 mt-4">
             Once registered, simply 
@@ -85,4 +104,48 @@
   </div>
 
 </div>
+{% endblock %}
+
+{% block scripts %}
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const priceDisplay = document.getElementById('registration_price');
+      const registerBtn = document.getElementById('register_btn');
+      const onceOffLabel = document.getElementById('once_off_label');
+      const baseUrl = "{{ url_for('auth_bp.register') }}";
+      const nextUrl = "{{ url_for('billing_bp.learner_dashboard') }}";
+      
+      document.addEventListener('countryPriceLoading', function(e) {
+        const country = e.detail.country;
+        registerBtn.href = `${baseUrl}?subject=billing&next=${encodeURIComponent(nextUrl)}&country_code=${country}`;
+        priceDisplay.innerHTML = '<i class="fas fa-spinner fa-spin text-lg"></i>';
+        if (onceOffLabel) onceOffLabel.style.display = 'inline';
+      });
+
+      document.addEventListener('countryPriceSuccess', function(e) {
+        const data = e.detail.data;
+        if(data.error) {
+          priceDisplay.innerHTML = '<span class="text-lg font-medium">Charged once-off if you continue with program</span>';
+          if (onceOffLabel) onceOffLabel.style.display = 'none';
+        } else {
+          priceDisplay.textContent = data.display_price;
+          if (onceOffLabel) onceOffLabel.style.display = 'inline';
+        }
+      });
+      
+      document.addEventListener('countryPriceError', function(e) {
+        priceDisplay.innerHTML = '<span class="text-sm text-red-500">Error loading price</span>';
+      });
+
+      registerBtn.addEventListener('click', function(e) {
+        const selector = document.getElementById('uniform_country_selector');
+        if (selector && !selector.value) {
+          e.preventDefault();
+          selector.classList.remove('border-slate-300');
+          selector.classList.add('border-red-500', 'border-2');
+          alert("Please select your country from the dropdown before registering.");
+        }
+      });
+    });
+  </script>
 {% endblock %}

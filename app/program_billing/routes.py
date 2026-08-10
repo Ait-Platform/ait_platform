@@ -98,6 +98,11 @@ def billing_about():
 @billing_bp.route('/billing/price')
 def billing_price():
     from app.models.billing import BilPlatformSettings
+    from app.models.auth import AuthSubject
+    from app.enrollment.logic import get_quote_for_subject_country
+    from flask import request, session
+    from flask_login import current_user
+    
     settings = BilPlatformSettings.query.first()
     if not settings:
         settings = BilPlatformSettings(
@@ -107,7 +112,59 @@ def billing_price():
         )
         db.session.add(settings)
         db.session.commit()
-    return render_template("program_billing/price.html", settings=settings)
+
+    subject = AuthSubject.query.filter(db.func.lower(AuthSubject.slug) == 'billing').first()
+    if not subject:
+        flash("Subject not found.", "warning")
+        return redirect(url_for('public_bp.welcome'))
+
+    country_code = (request.args.get("country") or "").strip().upper()
+    if not country_code and current_user.is_authenticated:
+        from sqlalchemy import text
+        ent = db.session.execute(text("""
+            SELECT ue.country_code 
+              FROM user_enrollment ue
+              JOIN auth_subject s ON s.id = ue.subject_id
+             WHERE ue.user_id = :uid AND s.slug = 'billing'
+        """), {"uid": current_user.id}).mappings().first()
+        if ent and ent["country_code"]:
+            country_code = ent["country_code"]
+
+    if not country_code:
+        country_code = session.get("country_code", "")
+
+    if country_code:
+        session["country_code"] = country_code
+
+    price_ctx = {
+        "has_quote": False,
+        "price_id": None,
+        "country_code": None,
+        "local_amount": None,
+        "local_currency": None,
+        "estimated_zar": None,
+        "fx_rate": None,
+        "is_discount": False,
+    }
+
+    if country_code:
+        row = get_quote_for_subject_country(subject.id, country_code)
+        if row:
+            price_ctx.update({
+                "price_id": row.id,
+                "country_code": row.country_code,
+                "local_amount": row.local_amount_cents,
+                "local_currency": row.local_currency,
+                "estimated_zar": row.zar_amount_cents,
+                "fx_rate": getattr(row, "fx_rate", None),
+                "is_discount": getattr(row, "is_discount", False),
+            })
+            price_ctx["has_quote"] = True
+
+    from app.utils.country import get_active_countries
+    countries = get_active_countries()
+
+    return render_template("program_billing/price.html", settings=settings, price=price_ctx, subject=subject, countries=countries)
 
 @billing_bp.route("/billing/portfolio", methods=["GET", "POST"])
 @login_required

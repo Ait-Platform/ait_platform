@@ -1,164 +1,151 @@
 {% extends "layout.html" %}
-{% block title %}Price – BudgetCash{% endblock %}
+{% block title %}Pricing & Wallet - BudgetCash{% endblock %}
+{% block flashes %}{% endblock %}
 
 {% block content %}
-<div class="mx-auto max-w-4xl mt-10 px-4">
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<div class="max-w-4xl mx-auto px-4 py-8">
 
-    {# -----------------------------
-       LEFT TILE: Country + Local Price
-       ----------------------------- #}
-    <div class="bg-white rounded-xl shadow overflow-hidden flex flex-col">
-      <div class="h-2 bg-amber-500"></div>
-      <div class="p-6 flex-1">
-        {% include "partials/flash_messages.html" %}
-        
-        <div class="flex items-center justify-between">
-          <h1 class="text-lg font-semibold text-slate-800">Check Your Premium Rate</h1>
-          <div class="text-xs text-slate-500">BudgetCash</div>
-        </div>
+  <!-- Single Main Tile -->
+  <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+    <!-- Color strip on top -->
+    <div class="h-2 bg-amber-600"></div>
 
-        <p class="mt-2 text-sm text-slate-600">
-          We use value-based parity pricing. Check your localized cost before you start your free trial.
+    <div class="p-6 md:p-8 space-y-6">
+      <!-- First Row: Title & Back Button -->
+      <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+        <h1 class="text-2xl md:text-3xl font-bold text-slate-900">Pricing & Wallet</h1>
+        <a href="{{ url_for('budget_bp.about') }}"
+           class="inline-flex items-center gap-2 rounded border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition">
+          <span>&larr;</span><span>Back to Info</span>
+        </a>
+      </div>
+
+      <!-- Content Body -->
+      <div>
+        <p class="text-slate-600 leading-relaxed mb-6">
+          BudgetCash operates on a transparent, <strong>pay-as-you-go</strong> model. No expensive monthly subscriptions. You can organize your accounts and import statements completely for free. You only pay when you generate finalized snapshots.
         </p>
 
-        <div class="mt-5">
-          <label class="block text-sm font-medium text-slate-700 mb-2">Select Your Country</label>
+        <!-- Country Selector -->
+        <div class="mb-8 flex flex-col md:flex-row items-start md:items-center gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
+          <label class="text-sm font-semibold text-slate-700 whitespace-nowrap">Select your country for local pricing:</label>
           {% from 'shared/country_selector.html' import render_country_selector %}
-          {{ render_country_selector(countries, subject_slug='budget', selected_code=price.country_code) }}
-          <p class="mt-2 text-xs text-slate-500">
-            Don't see your country? Choose any country that uses your currency.
+          {{ render_country_selector(countries, subject_slug='budget') }}
+        </div>
+
+        <!-- Pricing Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+          
+          <!-- Registration -->
+          <div class="bg-slate-50 rounded-2xl p-6 border border-slate-100 flex flex-col justify-between h-full">
+            <div>
+              <div class="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center text-amber-600 mb-4">
+                <i class="fas fa-wallet text-xl"></i>
+              </div>
+              <h3 class="text-lg font-bold text-slate-900 mb-2">Once-Off Registration</h3>
+              <p class="text-slate-600 text-sm leading-relaxed">
+                Unlock full access to the BudgetCash platform with a single registration fee. This gets your account set up and ready immediately.
+              </p>
+            </div>
+              <div class="mt-6">
+                <span id="registration_price" class="text-2xl font-bold text-amber-600">
+                  {% if price.has_quote %}
+                    {% if price.local_currency == 'ZAR' %}R {% else %}{{ price.local_currency }} {% endif %}{{ "%.2f"|format(price.local_amount / 100) }}
+                  {% else %}
+                    <i class="fas fa-spinner fa-spin text-lg"></i>
+                  {% endif %}
+                </span>
+              <span id="once_off_label" class="text-slate-500 text-sm ml-1">once-off</span>
+            </div>
+          </div>
+
+          <!-- Micro-transactions -->
+          <div class="bg-slate-50 rounded-2xl p-6 border border-slate-100 flex flex-col justify-between h-full">
+            <div>
+              <div class="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center text-amber-600 mb-4">
+                <i class="fas fa-coins text-xl"></i>
+              </div>
+              <h3 class="text-lg font-bold text-slate-900 mb-2">Prepaid Wallet Usage</h3>
+              <p class="text-slate-600 text-sm leading-relaxed">
+                Top up your internal wallet. We only deduct tokens when you actively generate statements and snapshots.
+              </p>
+              
+              <div class="mt-4 p-3 bg-amber-50 rounded-lg border border-amber-200 text-amber-900 text-xs">
+                <div class="font-bold mb-1"><i class="fas fa-info-circle mr-1"></i>Token-Based Billing</div>
+                We operate entirely on a Token System. 1 Token = 1 Local Parity Unit (e.g. 1 Rand, 1 Dollar, 1 Pound, etc.). You top up your internal wallet and we only deduct tokens when you generate value. We operate on a 200% parity model, which automatically credits your digital wallet with an initial bundle of <strong>200 BC Tokens</strong> upon registration!
+              </div>
+
+              <ul class="list-disc pl-5 mt-4 space-y-2 text-sm text-slate-600">
+                <li><strong>Snapshot Generation:</strong> <span class="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-xs font-bold text-amber-700 ring-1 ring-inset ring-amber-700/10 shadow-sm mx-1">10 Tokens</span> / snapshot</li>
+              </ul>
+            </div>
+            <div class="mt-6">
+              <span class="text-2xl font-bold text-amber-600">Pay-As-You-Go</span>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- CTA -->
+        <div class="border-t border-slate-100 pt-8 text-center">
+          <h4 class="text-lg font-bold text-slate-900 mb-4">Ready to track your budget?</h4>
+          
+          <a id="register_btn" href="{{ url_for('auth_bp.register', subject='budget', next=url_for('budget_bp.dashboard')) }}"
+             class="inline-block bg-amber-600 text-white py-3 px-8 rounded-xl font-bold text-lg hover:bg-amber-700 transition shadow-sm">Register & Get Started</a>
+          
+          <p class="text-sm text-slate-500 mt-4">
+            Once registered, simply 
+            <a href="{{ url_for('auth_bp.login', next=url_for('budget_bp.dashboard')) }}" class="text-amber-600 font-semibold hover:underline">log in to your dashboard</a>.
           </p>
         </div>
 
-        {% set has_quote = price and price.has_quote %}
-        {% set disabled_class = '' if has_quote else 'opacity-50' %}
-
-        <div class="mt-6">
-          <div class="text-sm font-medium text-slate-700 mb-2">BudgetCash Monthly Price</div>
-          <div id="price_container" class="flex items-center gap-2 {{ disabled_class }}">
-            <div id="budget_local_amount" class="flex-1 rounded-lg border bg-slate-50 px-3 py-2 text-right text-sm text-slate-800 font-medium">
-              {% if has_quote and price.local_amount is not none %}
-                {{ '%.2f' % (price.local_amount / 100) }}
-              {% else %}
-                —
-              {% endif %}
-            </div>
-            <div id="budget_local_currency" class="rounded-lg border px-3 py-2 text-sm text-slate-700 font-medium">
-              {{ price.local_currency if has_quote else '—' }}
-            </div>
-          </div>
-          <p id="discount_msg" class="mt-2 text-xs text-amber-600" style="display: {% if has_quote and price.is_discount %}block{% else %}none{% endif %};">Regional parity discount applied.</p>
-        </div>
       </div>
     </div>
-
-    {# -----------------------------
-       RIGHT TILE: Free Trial
-       ----------------------------- #}
-    <div class="bg-white rounded-xl shadow overflow-hidden flex flex-col">
-      <div class="h-2 bg-amber-600"></div>
-      <div class="p-6 flex flex-col justify-between flex-1">
-        <div>
-          <div class="flex items-center justify-between">
-            <h2 class="text-lg font-semibold text-slate-800">14-Day Free Trial</h2>
-            <div class="text-xs font-bold text-amber-600 uppercase">Start Now</div>
-          </div>
-
-          <div class="mt-4 p-4 bg-amber-50 rounded border border-amber-100">
-            <p class="text-sm text-amber-800 mb-2 font-medium">What's included?</p>
-            <ul class="list-disc list-inside text-sm text-amber-700 space-y-1">
-              <li>Full Platform Access</li>
-              <li>Unlimited Account Creation</li>
-              <li>Statement Imports & Snapshots</li>
-              <li>Automatic Balance Sheets</li>
-            </ul>
-          </div>
-          
-          <div class="mt-4">
-             <p class="text-xs text-slate-500 leading-relaxed">
-               Start your trial to explore BudgetCash. If you choose to continue after the trial expires, the rate calculated on the left will be securely locked in for your account.
-             </p>
-          </div>
-        </div>
-
-        <div class="mt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <a href="{{ url_for('budget_bp.about') }}"
-             class="rounded-lg border px-4 py-2 text-sm hover:bg-slate-50 w-full sm:w-auto text-center">
-            ← Back to Info
-          </a>
-
-          <a id="register_btn" href="#"
-             class="inline-flex items-center justify-center rounded bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700 shadow-sm transition-colors w-full sm:w-auto opacity-50 cursor-not-allowed"
-             style="pointer-events: none;">
-            Start Free Trial
-          </a>
-        </div>
-      </div>
-    </div>
-
   </div>
+
 </div>
 {% endblock %}
 
 {% block scripts %}
-<script>
-  document.addEventListener('DOMContentLoaded', function() {
-    const is_authenticated = {{ 'true' if current_user.is_authenticated else 'false' }};
-    const registerBtn = document.getElementById('register_btn');
-    const priceContainer = document.getElementById('price_container');
-    const budgetLocalAmount = document.getElementById('budget_local_amount');
-    const budgetLocalCurrency = document.getElementById('budget_local_currency');
-    const discountMsg = document.getElementById('discount_msg');
-    
-    const paddleUrl = "{{ url_for('paystack_bp.paystack_start', email=current_user.email if current_user.is_authenticated else '', subject='budget')|safe }}";
-    const registerUrlBase = "{{ url_for('auth_bp.register') }}";
-    const nextUrl = "{{ url_for('auth_bp.bridge_dashboard') }}";
-    
-    function updateRegisterButton(countryCode, priceId) {
-      registerBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-      registerBtn.style.pointerEvents = 'auto';
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const priceDisplay = document.getElementById('registration_price');
+      const registerBtn = document.getElementById('register_btn');
+      const onceOffLabel = document.getElementById('once_off_label');
+      const baseUrl = "{{ url_for('auth_bp.register') }}";
+      const nextUrl = "{{ url_for('budget_bp.dashboard') }}";
       
-      if (is_authenticated) {
-        registerBtn.href = `${paddleUrl}&country_code=${countryCode}`;
-      } else {
-        registerBtn.href = `${registerUrlBase}?subject=budget&plan=trial&next=${encodeURIComponent(nextUrl)}&price_id=${priceId}&country_code=${countryCode}`;
-      }
-    }
+      document.addEventListener('countryPriceLoading', function(e) {
+        const country = e.detail.country;
+        registerBtn.href = `${baseUrl}?subject=budget&next=${encodeURIComponent(nextUrl)}&country_code=${country}`;
+        priceDisplay.innerHTML = '<i class="fas fa-spinner fa-spin text-lg"></i>';
+        if (onceOffLabel) onceOffLabel.style.display = 'inline';
+      });
 
-    // Handle pre-loaded quote if form submitted earlier
-    {% if price and price.has_quote %}
-      updateRegisterButton("{{ price.country_code }}", "{{ price.price_id }}");
-    {% endif %}
+      document.addEventListener('countryPriceSuccess', function(e) {
+        const data = e.detail.data;
+        if(data.error) {
+          priceDisplay.innerHTML = '<span class="text-lg font-medium">Charged once-off if you continue with program</span>';
+          if (onceOffLabel) onceOffLabel.style.display = 'none';
+        } else {
+          priceDisplay.textContent = data.display_price;
+          if (onceOffLabel) onceOffLabel.style.display = 'inline';
+        }
+      });
+      
+      document.addEventListener('countryPriceError', function(e) {
+        priceDisplay.innerHTML = '<span class="text-sm text-red-500">Error loading price</span>';
+      });
 
-    document.addEventListener('countryPriceLoading', function(e) {
-      budgetLocalAmount.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-      budgetLocalCurrency.innerHTML = '';
-      priceContainer.classList.remove('opacity-50');
-      registerBtn.classList.add('opacity-50', 'cursor-not-allowed');
-      registerBtn.style.pointerEvents = 'none';
-      registerBtn.href = '#';
+      registerBtn.addEventListener('click', function(e) {
+        const selector = document.getElementById('uniform_country_selector');
+        if (selector && !selector.value) {
+          e.preventDefault();
+          selector.classList.remove('border-slate-300');
+          selector.classList.add('border-red-500', 'border-2');
+          alert("Please select your country from the dropdown before registering.");
+        }
+      });
     });
-
-    document.addEventListener('countryPriceSuccess', function(e) {
-      const data = e.detail.data;
-      if (data.error) {
-        budgetLocalAmount.textContent = '—';
-        budgetLocalCurrency.textContent = '—';
-        discountMsg.style.display = 'none';
-      } else {
-        budgetLocalAmount.textContent = (data.amount / 100).toFixed(2);
-        budgetLocalCurrency.textContent = data.currency;
-        discountMsg.style.display = data.is_discount ? 'block' : 'none';
-        
-        updateRegisterButton(e.detail.country, data.price_id);
-      }
-    });
-
-    document.addEventListener('countryPriceError', function(e) {
-      budgetLocalAmount.innerHTML = '<span class="text-sm text-red-500">Error</span>';
-      budgetLocalCurrency.innerHTML = '';
-    });
-  });
-</script>
+  </script>
 {% endblock %}

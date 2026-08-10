@@ -15,7 +15,7 @@
         <h1 class="text-2xl md:text-3xl font-bold text-slate-900">Pricing & Wallet</h1>
         <a href="{{ url_for('mechanic_bp.about') }}"
            class="inline-flex items-center gap-2 rounded border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition">
-          <span>←</span><span>Back to Info</span>
+          <span>&larr;</span><span>Back to Info</span>
         </a>
       </div>
 
@@ -38,7 +38,6 @@
           <!-- Registration -->
           <div class="bg-slate-50 rounded-2xl p-6 border border-slate-100 flex flex-col justify-between h-full">
             <div>
-              <span class="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full font-bold mb-3 uppercase tracking-wide">30-Day Free Trial</span>
               <div class="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center text-indigo-600 mb-4">
                 <i class="fas fa-store text-xl"></i>
               </div>
@@ -65,20 +64,23 @@
           <!-- Micro-transactions -->
           <div class="bg-slate-50 rounded-2xl p-6 border border-slate-100 flex flex-col justify-between h-full">
             <div>
-              <span class="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full font-bold mb-3 uppercase tracking-wide">30-Day Free Trial</span>
               <div class="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center text-indigo-600 mb-4">
                 <i class="fas fa-coins text-xl"></i>
               </div>
               <h3 class="text-lg font-bold text-slate-900 mb-2">Prepaid Wallet Usage</h3>
               <p class="text-slate-600 text-sm leading-relaxed">
-                Top up your internal wallet. We only deduct credits when you actively generate value for your shop. 
-                <br><br>
-                {% set curr = price.local_currency|upper if price.local_currency else '' %}
-                {% set sym_map = {'ZAR': 'R ', 'USD': '$ ', 'EUR': '€ ', 'GBP': '£ ', 'AUD': '$ ', 'CAD': '$ '} %}
-                {% set sym = sym_map.get(curr, '') if curr else '' %}
-                • <strong>Quotes:</strong> <span class="inline-flex items-center rounded-md bg-blue-50 px-2 py-0.5 text-sm font-bold text-blue-700 ring-1 ring-inset ring-blue-700/10 shadow-sm mx-1 dynamic-wallet-price" data-amount="{{ "%.2f"|format(quote_cents / 100) }}">{% if price.has_quote %}<span class="dynamic-currency">{{ sym }}</span>{{ "%.2f"|format(quote_cents / 100) }}{% else %}...{% endif %}</span><br>
-                • <strong>Invoices & Statements:</strong> <span class="inline-flex items-center rounded-md bg-blue-50 px-2 py-0.5 text-sm font-bold text-blue-700 ring-1 ring-inset ring-blue-700/10 shadow-sm mx-1 dynamic-wallet-price" data-amount="{{ "%.2f"|format(invoice_cents / 100) }}">{% if price.has_quote %}<span class="dynamic-currency">{{ sym }}</span>{{ "%.2f"|format(invoice_cents / 100) }}{% else %}...{% endif %}</span>
+                Top up your internal wallet. We only deduct tokens when you actively generate value for your shop. 
               </p>
+
+              <div class="mt-4 p-3 bg-amber-50 rounded-lg border border-amber-200 text-amber-900 text-xs">
+                <div class="font-bold mb-1"><i class="fas fa-info-circle mr-1"></i>Token-Based Billing</div>
+                We operate entirely on a Token System. 1 Token = 1 Local Parity Unit (e.g. 1 Rand, 1 Dollar, 1 Pound, etc.). You top up your internal wallet and we only deduct tokens when you actively generate quotes and invoices. We operate on a 200% parity model, which automatically credits your digital wallet with an initial bundle of <strong>200 Tokens</strong> upon registration!
+              </div>
+
+              <ul class="list-disc pl-5 mt-4 space-y-2 text-sm text-slate-600">
+                <li><strong>Quotes:</strong> <span class="inline-flex items-center rounded-md bg-blue-50 px-2 py-0.5 text-xs font-bold text-blue-700 ring-1 ring-inset ring-blue-700/10 shadow-sm mx-1">{{ (quote_cents / 100)|int }} Tokens</span> / quote</li>
+                <li><strong>Invoices & Statements:</strong> <span class="inline-flex items-center rounded-md bg-blue-50 px-2 py-0.5 text-xs font-bold text-blue-700 ring-1 ring-inset ring-blue-700/10 shadow-sm mx-1">{{ (invoice_cents / 100)|int }} Tokens</span> / invoice</li>
+              </ul>
             </div>
             <div class="mt-6">
               <span class="text-2xl font-bold text-indigo-600">Pay-As-You-Go</span>
@@ -92,7 +94,7 @@
           <h4 class="text-lg font-bold text-slate-900 mb-4">Ready to modernize your shop?</h4>
           
           <a id="register_btn" href="{{ url_for('auth_bp.register', subject='mechanic', next=url_for('mechanic_bp.mechanic_dashboard')) }}"
-             class="inline-block bg-indigo-600 text-white py-3 px-8 rounded-xl font-bold text-lg hover:bg-indigo-700 transition shadow-sm">Register to start your free trial</a>
+             class="inline-block bg-indigo-600 text-white py-3 px-8 rounded-xl font-bold text-lg hover:bg-indigo-700 transition shadow-sm">Register & Get Started</a>
           
           <p class="text-sm text-slate-500 mt-4">
             Once registered, simply 
@@ -128,20 +130,9 @@
       if(data.error) {
         priceDisplay.innerHTML = '<span class="text-lg font-medium">Charged once-off if you continue with program</span>';
         if (onceOffLabel) onceOffLabel.style.display = 'none';
-        document.querySelectorAll('.dynamic-wallet-price').forEach(el => {
-          el.innerHTML = '...';
-        });
       } else {
         priceDisplay.textContent = data.display_price;
         if (onceOffLabel) onceOffLabel.style.display = 'inline';
-        
-        let symMap = {'ZAR': 'R ', 'USD': '$ ', 'EUR': '€ ', 'GBP': '£ ', 'AUD': '$ ', 'CAD': '$ '};
-        let currencyStr = (data.currency && symMap[data.currency]) ? symMap[data.currency] : '';
-        
-        document.querySelectorAll('.dynamic-wallet-price').forEach(el => {
-          let amount = el.getAttribute('data-amount');
-          el.innerHTML = `<span class="dynamic-currency">${currencyStr}</span>${amount}`;
-        });
       }
     });
     

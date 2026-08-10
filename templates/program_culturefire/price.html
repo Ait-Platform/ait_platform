@@ -1,62 +1,157 @@
 {% extends "layout.html" %}
+{% block title %}Cultural Fire - Pricing{% endblock %}
+{% block flashes %}{% endblock %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto p-6">
+<div class="max-w-4xl mx-auto px-4 py-8">
 
-  <!-- Cultural Fire Price Tile -->
-  <div class="bg-white rounded-2xl shadow overflow-hidden">
+  <!-- Single Main Tile -->
+  <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+    <!-- Color strip on top -->
     <div class="h-2 bg-red-600"></div>
 
-    <!-- Header Row -->
-    <div class="flex justify-between items-center p-6 border-b border-gray-100 mb-2">
-      <!-- Left: Title -->
-      <div>
-        <h1 class="text-3xl font-bold text-slate-900 mb-1">
-          Cultural Fire Pricing
-        </h1>
-      </div>
-
-      <!-- Right: Back button -->
-      <a href="javascript:history.back()" class="bg-gray-200 text-gray-800 px-4 py-2 rounded font-medium hover:bg-gray-300 transition-colors shadow-sm">
-        Back
-      </a>
-    </div>
-
-    <div class="px-6 pb-6">
-      <div class="space-y-6 text-gray-800 mb-8">
-        <div class="bg-gray-50 p-5 rounded-xl border border-gray-200">
-          <h3 class="text-lg font-bold text-gray-900 mb-2">1. One-Off Registration & Top-ups</h3>
-          <p class="text-base leading-relaxed">To join Cultural Fire, there is a single, once-off registration fee based on your <strong>local currency parity</strong>. We operate on a 200% parity model, which automatically credits your digital wallet with an initial bundle of <strong>200 CFI Tokens</strong>! You can purchase additional tokens in standard local parity units.</p>
-        </div>
-
-        <div class="bg-gray-50 p-5 rounded-xl border border-gray-200">
-          <h3 class="text-lg font-bold text-gray-900 mb-3">2. Token-Based Participation</h3>
-          <p class="text-base mb-3 leading-relaxed">Participating in the show deducts tokens from your wallet based on your role:</p>
-          <ul class="list-disc pl-8 text-base space-y-2">
-            <li><strong>MC (Master of Ceremony):</strong> {{ prices.mc }} Tokens per assignment</li>
-            <li><strong>Judge:</strong> {{ prices.judge }} Tokens per show</li>
-            <li><strong>Advertiser (Show Ad):</strong> {{ prices.ad }} Tokens per insertion</li>
-            <li><strong>Pageant Entry:</strong> {{ prices.pageant }} Tokens per submission</li>
-            <li><strong>General Talent Entry:</strong> {{ prices.talent }} Tokens per submission</li>
-          </ul>
-        </div>
-        
-        <div class="bg-gray-50 p-5 rounded-xl border border-gray-200">
-          <h3 class="text-lg font-bold text-gray-900 mb-2">3. The Culture Fire Award</h3>
-          <p class="text-base leading-relaxed">Once you have successfully participated in shows and depleted your token balance to zero, you will be awarded the official <strong>Culture Fire Award</strong> certificate to commemorate your contributions!</p>
-        </div>
-      </div>
-
-      <!-- Register button -->
-      <div class="flex justify-end">
-        <a href="{{ url_for('quote_bp.quote', subject='cultural_fire') }}"
-            class="inline-flex items-center justify-center rounded-lg bg-sky-600 px-6 py-3 text-base font-bold text-white hover:bg-sky-700 shadow-md transition-colors">
-        Pick Country
+    <div class="p-6 md:p-8 space-y-6">
+      <!-- First Row: Title & Back Button -->
+      <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+        <h1 class="text-2xl md:text-3xl font-bold text-slate-900">Pricing & Wallet</h1>
+        <a href="{{ url_for('cultural_bp.about') }}"
+           class="inline-flex items-center gap-2 rounded border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition">
+          <span>&larr;</span><span>Back to Info</span>
         </a>
       </div>
 
+      <!-- Content Body -->
+      <div>
+        <p class="text-slate-600 leading-relaxed mb-6">
+          Cultural Fire operates on a transparent, <strong>pay-as-you-go</strong> model. No expensive monthly subscriptions, no hidden fees. You only pay for what you use.
+        </p>
+
+        <!-- Country Selector -->
+        <div class="mb-8 flex flex-col md:flex-row items-start md:items-center gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
+          <label class="text-sm font-semibold text-slate-700 whitespace-nowrap">Select your country for local pricing:</label>
+          {% from 'shared/country_selector.html' import render_country_selector %}
+          {{ render_country_selector(countries, subject_slug='cultural_fire') }}
+        </div>
+
+        <!-- Pricing Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+          
+          <!-- Registration -->
+          <div class="bg-slate-50 rounded-2xl p-6 border border-slate-100 flex flex-col justify-between h-full">
+            <div>
+              <!-- No trial badge -->
+              <div class="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center text-red-600 mb-4">
+                <i class="fas fa-store text-xl"></i>
+              </div>
+              <h3 class="text-lg font-bold text-slate-900 mb-2">Once-Off Registration</h3>
+              <p class="text-slate-600 text-sm leading-relaxed">
+                Unlock full access to the Cultural Fire platform with a single registration fee. This gets you set up and ready to participate immediately.
+              </p>
+            </div>
+              <div class="mt-6">
+                <span id="registration_price" class="text-2xl font-bold text-red-600">
+                  {% if price.has_quote %}
+                    {% if price.local_currency == 'ZAR' %}R {% else %}{{ price.local_currency }} {% endif %}{{ "%.2f"|format(price.local_amount / 100) }}
+                  {% else %}
+                    <i class="fas fa-spinner fa-spin text-lg"></i>
+                  {% endif %}
+                </span>
+              <span id="once_off_label" class="text-slate-500 text-sm ml-1">once-off</span>
+            </div>
+          </div>
+
+          <!-- Micro-transactions -->
+          <div class="bg-slate-50 rounded-2xl p-6 border border-slate-100 flex flex-col justify-between h-full">
+            <div>
+              <!-- No trial badge -->
+              <div class="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center text-red-600 mb-4">
+                <i class="fas fa-coins text-xl"></i>
+              </div>
+              <h3 class="text-lg font-bold text-slate-900 mb-2">Prepaid Wallet Usage</h3>
+              <p class="text-slate-600 text-sm leading-relaxed">
+                Top up your internal wallet. We only deduct credits when you actively participate in Cultural Fire activities.
+              </p>
+              
+              <div class="mt-4 p-3 bg-amber-50 rounded-lg border border-amber-200 text-amber-900 text-xs">
+                <div class="font-bold mb-1"><i class="fas fa-info-circle mr-1"></i>Token-Based Billing</div>
+                We operate entirely on a Token System. 1 Token = 1 Local Parity Unit (e.g. 1 Rand, 1 Dollar, 1 Pound, etc.). You top up your internal wallet and we only deduct tokens when you actively participate. We operate on a 200% parity model, which automatically credits your digital wallet with an initial bundle of <strong>200 CFI Tokens</strong> upon registration!
+              </div>
+
+              <ul class="list-disc pl-5 mt-4 space-y-2 text-sm text-slate-600">
+                <li><strong>MC:</strong> <span class="inline-flex items-center rounded-md bg-rose-50 px-2 py-0.5 text-xs font-bold text-rose-700 ring-1 ring-inset ring-rose-700/10 shadow-sm mx-1">{{ prices.mc }} Tokens</span> / assignment</li>
+                <li><strong>Judge:</strong> <span class="inline-flex items-center rounded-md bg-rose-50 px-2 py-0.5 text-xs font-bold text-rose-700 ring-1 ring-inset ring-rose-700/10 shadow-sm mx-1">{{ prices.judge }} Tokens</span> / show</li>
+                <li><strong>Advertiser:</strong> <span class="inline-flex items-center rounded-md bg-rose-50 px-2 py-0.5 text-xs font-bold text-rose-700 ring-1 ring-inset ring-rose-700/10 shadow-sm mx-1">{{ prices.ad }} Tokens</span> / insertion</li>
+                <li><strong>Pageant Entry:</strong> <span class="inline-flex items-center rounded-md bg-rose-50 px-2 py-0.5 text-xs font-bold text-rose-700 ring-1 ring-inset ring-rose-700/10 shadow-sm mx-1">{{ prices.pageant }} Tokens</span> / submission</li>
+                <li><strong>Talent Entry:</strong> <span class="inline-flex items-center rounded-md bg-rose-50 px-2 py-0.5 text-xs font-bold text-rose-700 ring-1 ring-inset ring-rose-700/10 shadow-sm mx-1">{{ prices.talent }} Tokens</span> / submission</li>
+              </ul>
+            </div>
+            <div class="mt-6">
+              <span class="text-2xl font-bold text-red-600">Pay-As-You-Go</span>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- CTA -->
+        <div class="border-t border-slate-100 pt-8 text-center">
+          <h4 class="text-lg font-bold text-slate-900 mb-4">Ready to join Cultural Fire?</h4>
+          
+          <a id="register_btn" href="{{ url_for('auth_bp.register', subject='cultural_fire', next=url_for('cultural_bp.cultural_fire_dashboard')) }}"
+             class="inline-block bg-red-600 text-white py-3 px-8 rounded-xl font-bold text-lg hover:bg-red-700 transition shadow-sm">Register & Get Started</a>
+          
+          <p class="text-sm text-slate-500 mt-4">
+            Once registered, simply 
+            <a href="{{ url_for('auth_bp.login', next=url_for('cultural_bp.cultural_fire_dashboard')) }}" class="text-red-600 font-semibold hover:underline">log in to your portal</a>.
+          </p>
+        </div>
+
+      </div>
     </div>
   </div>
 
 </div>
+{% endblock %}
+
+{% block scripts %}
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const priceDisplay = document.getElementById('registration_price');
+      const registerBtn = document.getElementById('register_btn');
+      const onceOffLabel = document.getElementById('once_off_label');
+      const baseUrl = "{{ url_for('auth_bp.register') }}";
+      const nextUrl = "{{ url_for('cultural_bp.cultural_fire_dashboard') }}";
+      
+      document.addEventListener('countryPriceLoading', function(e) {
+        const country = e.detail.country;
+        registerBtn.href = `${baseUrl}?subject=cultural_fire&next=${encodeURIComponent(nextUrl)}&country_code=${country}`;
+        priceDisplay.innerHTML = '<i class="fas fa-spinner fa-spin text-lg"></i>';
+        if (onceOffLabel) onceOffLabel.style.display = 'inline';
+      });
+
+      document.addEventListener('countryPriceSuccess', function(e) {
+        const data = e.detail.data;
+        if(data.error) {
+          priceDisplay.innerHTML = '<span class="text-lg font-medium">Charged once-off if you continue with program</span>';
+          if (onceOffLabel) onceOffLabel.style.display = 'none';
+        } else {
+          priceDisplay.textContent = data.display_price;
+          if (onceOffLabel) onceOffLabel.style.display = 'inline';
+        }
+      });
+      
+      document.addEventListener('countryPriceError', function(e) {
+        priceDisplay.innerHTML = '<span class="text-sm text-red-500">Error loading price</span>';
+      });
+
+      registerBtn.addEventListener('click', function(e) {
+        const selector = document.getElementById('uniform_country_selector');
+        if (selector && !selector.value) {
+          e.preventDefault();
+          selector.classList.remove('border-slate-300');
+          selector.classList.add('border-red-500', 'border-2');
+          alert("Please select your country from the dropdown before registering.");
+        }
+      });
+    });
+  </script>
 {% endblock %}

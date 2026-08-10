@@ -1,16 +1,14 @@
 {% extends "admin/admin_layout.html" %}
 
-{% block admin_title %}Manage Token Tariffs{% endblock %}
+
 {% block admin_color %}bg-indigo-600{% endblock %}
 
-{% block admin_content %}
-<div class="bg-white shadow rounded-lg overflow-hidden max-w-6xl mx-auto my-6 border border-slate-200">
-  <div class="px-6 py-4 border-b flex justify-between items-center bg-slate-50">
-    <h1 class="text-2xl font-bold text-slate-800">Platform Token Tariffs</h1>
-    <a href="{{ url_for('admin_bp.index') }}" class="bg-slate-200 text-slate-800 px-4 py-2 rounded hover:bg-slate-300 font-medium">Back to Admin Hub</a>
-  </div>
+{% block admin_title %}Platform Token Tariffs{% endblock %}
+{% block admin_back_url %}{{ url_for('admin_bp.index') }}{% endblock %}
+{% block admin_back_text %}Back to Admin Hub{% endblock %}
 
-  <div class="p-6">
+{% block admin_content %}
+  <div>
     <div class="mb-6 bg-indigo-50 border-l-4 border-indigo-500 p-4 rounded-r">
       <p class="text-sm text-indigo-700">
         <strong>Note:</strong> These token tariffs determine the token cost deducted from user wallets across different modules. 
@@ -109,5 +107,4 @@
       </table>
     </div>
   </div>
-</div>
 {% endblock %}

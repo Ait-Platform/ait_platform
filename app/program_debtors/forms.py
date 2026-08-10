@@ -8,7 +8,6 @@ class SoaProfileForm(FlaskForm):
     address = TextAreaField("Address", validators=[Optional()])
     phone = StringField("Phone", validators=[Optional()])
     email = StringField("Email", validators=[Optional(), Email()])
-    bank_details = TextAreaField("Bank Details (e.g. Account No, Branch)", validators=[Optional()])
     logo_file = FileField("Upload Logo (Optional)", validators=[
         FileAllowed(['jpg', 'png', 'jpeg'], 'Images only!')
     ])
@@ -22,6 +21,7 @@ class DebtorForm(FlaskForm):
     email = StringField("Email Address", validators=[Optional(), Email()])
     phone = StringField("Phone Number", validators=[Optional()])
     apply_interest = BooleanField("Apply Monthly Arrears Interest", default=True)
+    bank_account_id = SelectField("Assigned Bank Account", coerce=int, validators=[Optional()])
     submit = SubmitField("Save Setup")
 
 class OpeningBalanceForm(FlaskForm):
@@ -47,3 +47,12 @@ class TransactionForm(FlaskForm):
     amount = FloatField("Amount", validators=[DataRequired()])
     ref = StringField("Reference (Optional)", validators=[Optional()])
     submit = SubmitField("Add Transaction")
+
+class BankAccountForm(FlaskForm):
+    bank_name = StringField("Bank Name", validators=[DataRequired()])
+    account_name = StringField("Account Name", validators=[DataRequired()])
+    account_number = StringField("Account Number", validators=[DataRequired()])
+    bsb_branch = StringField("Branch Code / BSB", validators=[Optional()])
+    swift_code = StringField("SWIFT Code", validators=[Optional()])
+    is_default = BooleanField("Set as Default Account", default=False)
+    submit = SubmitField("Save Bank Account")

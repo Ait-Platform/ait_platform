@@ -1,14 +1,14 @@
-﻿import os
+import os
 import time
 from werkzeug.utils import secure_filename
 from flask import render_template, redirect, url_for, flash, request, current_app, session
 from flask_login import login_required, current_user
 from app.program_debtors import debtors_bp
 from app.models.auth import AuthSubject, UserEnrollment
-from app.models.debtors import SoaProfile, Debtor, DebtorLedger, DebtorChargeMap
+from app.models.debtors import SoaProfile, Debtor, DebtorLedger, DebtorChargeMap, BusinessBankAccount
 from app.models.auth import AitTokenWallet, AitTokenTransaction
 from app.extensions import db
-from app.program_debtors.forms import SoaProfileForm, DebtorForm
+from app.program_debtors.forms import SoaProfileForm, DebtorForm, BankAccountForm
 
 @debtors_bp.route("/about")
 def about():
@@ -71,13 +71,62 @@ def profile():
         db.session.commit()
         flash("SOA Profile updated successfully.", "success")
         return redirect(url_for("debtors_bp.dashboard"))
+    bank_accounts = BusinessBankAccount.query.filter_by(user_id=current_user.id).order_by(BusinessBankAccount.created_at.desc()).all()
+    bank_form = BankAccountForm()
         
-    return render_template("program_debtors/profile.html", form=form, profile=profile_record)
+    return render_template("program_debtors/profile.html", form=form, profile=profile_record, bank_accounts=bank_accounts, bank_form=bank_form)
+
+@debtors_bp.route("/add_bank_account", methods=["POST"])
+@login_required
+def add_bank_account():
+    form = BankAccountForm()
+    if form.validate_on_submit():
+        if form.is_default.data:
+            BusinessBankAccount.query.filter_by(user_id=current_user.id).update({'is_default': False})
+            
+        new_acc = BusinessBankAccount(
+            user_id=current_user.id,
+            bank_name=form.bank_name.data,
+            account_name=form.account_name.data,
+            account_number=form.account_number.data,
+            bsb_branch=form.bsb_branch.data,
+            swift_code=form.swift_code.data,
+            is_default=form.is_default.data
+        )
+        
+        if BusinessBankAccount.query.filter_by(user_id=current_user.id).count() == 0:
+            new_acc.is_default = True
+            
+        db.session.add(new_acc)
+        db.session.commit()
+        flash("Bank account added successfully.", "success")
+    return redirect(url_for("debtors_bp.profile"))
+
+@debtors_bp.route("/bank_account/<int:account_id>/set_default", methods=["POST"])
+@login_required
+def set_default_bank_account(account_id):
+    acc = BusinessBankAccount.query.filter_by(id=account_id, user_id=current_user.id).first_or_404()
+    BusinessBankAccount.query.filter_by(user_id=current_user.id).update({'is_default': False})
+    acc.is_default = True
+    db.session.commit()
+    flash("Default bank account updated.", "success")
+    return redirect(url_for("debtors_bp.profile"))
+
+@debtors_bp.route("/bank_account/<int:account_id>/delete", methods=["POST"])
+@login_required
+def delete_bank_account(account_id):
+    acc = BusinessBankAccount.query.filter_by(id=account_id, user_id=current_user.id).first_or_404()
+    db.session.delete(acc)
+    db.session.commit()
+    flash("Bank account deleted.", "success")
+    return redirect(url_for("debtors_bp.profile"))
 
 @debtors_bp.route("/add_debtor", methods=["GET", "POST"])
 @login_required
 def add_debtor():
     form = DebtorForm()
+    bank_accounts = BusinessBankAccount.query.filter_by(user_id=current_user.id).all()
+    form.bank_account_id.choices = [(0, 'Use Default Account')] + [(a.id, f"{a.bank_name} - {a.account_number}") for a in bank_accounts]
     
     if form.validate_on_submit():
         new_debtor = Debtor(
@@ -85,7 +134,8 @@ def add_debtor():
             name=form.name.data,
             email=form.email.data,
             phone=form.phone.data,
-            apply_interest=form.apply_interest.data
+            apply_interest=form.apply_interest.data,
+            bank_account_id=form.bank_account_id.data if form.bank_account_id.data != 0 else None
         )
         db.session.add(new_debtor)
         db.session.commit()
@@ -98,15 +148,21 @@ def add_debtor():
 def edit_debtor(debtor_id):
     debtor = Debtor.query.filter_by(id=debtor_id, user_id=current_user.id).first_or_404()
     form = DebtorForm(obj=debtor)
+    bank_accounts = BusinessBankAccount.query.filter_by(user_id=current_user.id).all()
+    form.bank_account_id.choices = [(0, 'Use Default Account')] + [(a.id, f"{a.bank_name} - {a.account_number}") for a in bank_accounts]
+    
+    if request.method == 'GET':
+        form.bank_account_id.data = debtor.bank_account_id or 0
     
     if form.validate_on_submit():
         debtor.name = form.name.data
         debtor.email = form.email.data
         debtor.phone = form.phone.data
         debtor.apply_interest = form.apply_interest.data
+        debtor.bank_account_id = form.bank_account_id.data if form.bank_account_id.data != 0 else None
         
         db.session.commit()
-        flash("SOA Profile updated successfully.", "success")
+        flash("SOA Setup updated successfully.", "success")
         return redirect(url_for('debtors_bp.dashboard'))
         
     return render_template('program_debtors/edit_debtor.html', form=form, debtor=debtor)
@@ -332,6 +388,11 @@ def generate_soa(debtor_id):
     debtor = Debtor.query.filter_by(id=debtor_id, user_id=current_user.id).first_or_404()
     profile = SoaProfile.query.filter_by(user_id=current_user.id).first()
     
+    if debtor.bank_account_id:
+        bank_account = BusinessBankAccount.query.get(debtor.bank_account_id)
+    else:
+        bank_account = BusinessBankAccount.query.filter_by(user_id=current_user.id, is_default=True).first()
+    
     start_date_str = request.args.get('start_date')
     end_date_str = request.args.get('end_date')
     
@@ -377,7 +438,8 @@ def generate_soa(debtor_id):
                                    running_balance=running_balance,
                                    period_opening_balance=period_opening_balance,
                                    start_date=start_date,
-                                   end_date=end_date)
+                                   end_date=end_date,
+                                   bank_account=bank_account)
     
     if request.args.get('pdf') == '1':
         try:

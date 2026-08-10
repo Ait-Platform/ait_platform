@@ -17,10 +17,30 @@ class SoaProfile(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+class BusinessBankAccount(db.Model):
+    __tablename__ = 'business_bank_account'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    
+    bank_name = db.Column(db.String(150), nullable=True)
+    account_name = db.Column(db.String(150), nullable=True)
+    account_number = db.Column(db.String(50), nullable=True)
+    bsb_branch = db.Column(db.String(50), nullable=True)
+    swift_code = db.Column(db.String(50), nullable=True)
+    raw_details = db.Column(db.Text, nullable=True) # Legacy unstructured text
+    
+    is_default = db.Column(db.Boolean, default=False)
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    debtors = db.relationship('Debtor', backref='bank_account', lazy='dynamic')
+
 class Debtor(db.Model):
     __tablename__ = 'debtor'
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    bank_account_id = db.Column(db.Integer, db.ForeignKey('business_bank_account.id'), nullable=True)
     
     slug_reference = db.Column(db.String(50), nullable=True) # e.g. 'billing', 'mechanic'
     reference_id = db.Column(db.Integer, nullable=True) # e.g. tenant_id or client_id

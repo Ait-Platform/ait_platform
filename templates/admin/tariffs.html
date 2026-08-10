@@ -44,7 +44,7 @@
               <form method="POST" action="{{ url_for('admin_bp.global_tariffs') }}" class="flex items-center gap-2">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="tariff_id" value="{{ tariff.id }}">
-                <input type="number" name="base_token_cost" value="{{ tariff.base_token_cost }}" min="0" required class="border-slate-300 rounded shadow-sm focus:ring-indigo-500 focus:border-indigo-500 w-32 px-2 py-1 border">
+                <input type="number" name="base_token_cost" value="{{ tariff.base_token_cost }}" min="0" required class="border-slate-300 rounded shadow-sm focus:ring-indigo-500 focus:border-indigo-500 px-2 py-1 border" style="min-width: 120px; max-width: 180px;">
                 <button type="submit" class="bg-indigo-600 text-white px-3 py-1.5 rounded hover:bg-indigo-700 font-medium text-sm transition">
                   Save
                 </button>
@@ -91,7 +91,7 @@
               <form method="POST" action="{{ url_for('admin_bp.global_tariffs') }}" class="flex items-center gap-2">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="bonus_id" value="{{ bonus.id }}">
-                <input type="number" name="bonus_tokens" value="{{ bonus.bonus_tokens }}" min="0" required class="border-slate-300 rounded shadow-sm focus:ring-emerald-500 focus:border-emerald-500 w-32 px-2 py-1 border">
+                <input type="number" name="bonus_tokens" value="{{ bonus.bonus_tokens }}" min="0" required class="border-slate-300 rounded shadow-sm focus:ring-emerald-500 focus:border-emerald-500 px-2 py-1 border" style="min-width: 120px; max-width: 180px;">
                 <button type="submit" class="bg-emerald-600 text-white px-3 py-1.5 rounded hover:bg-emerald-700 font-medium text-sm transition">
                   Save
                 </button>

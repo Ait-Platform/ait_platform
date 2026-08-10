@@ -1,4 +1,4 @@
-{% extends "layout.html" %}
+﻿{% extends "layout.html" %}
 {% block title %}Admin - Platform Pricing{% endblock %}
 {% block flashes %}{% endblock %}
 
@@ -35,12 +35,12 @@
 
       <div class="space-y-8">
         
-        <!-- ProTrade CRM -->
+        <!-- ProTrade -->
         <form method="POST" action="{{ url_for('admin_bp.global_settings') }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <div class="bg-blue-50 rounded-xl border border-blue-200 p-6">
             <h2 class="text-lg font-semibold text-blue-800 mb-4 flex items-center justify-between">
-              ProTrade CRM Pricing
+              ProTrade Pricing
             </h2>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
@@ -70,7 +70,7 @@
             </div>
             <div class="mt-6 flex justify-end">
               <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg text-sm shadow-sm transition">
-                Update Mechanic Pricing
+                Update ProTrade Pricing
               </button>
             </div>
           </div>
@@ -228,3 +228,4 @@
   </div>
 </div>
 {% endblock %}
+

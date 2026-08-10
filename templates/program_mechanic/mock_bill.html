@@ -1,5 +1,5 @@
-{% extends "layout.html" %}
-{% block title %}ProTrade CRM - Trial Ended{% endblock %}
+﻿{% extends "layout.html" %}
+{% block title %}ProTrade - Trial Ended{% endblock %}
 {% block flashes %}{% endblock %}
 
 {% block content %}
@@ -20,7 +20,7 @@
 
       <h1 class="text-3xl font-extrabold text-slate-900">Your 30-Day Trial Has Ended!</h1>
       <p class="text-lg text-slate-600 max-w-xl mx-auto">
-        We hope you've enjoyed standardizing your mechanic shop with our platform. Let's take a look at the immense value you generated this month!
+        We hope you've enjoyed standardizing your workshop with our platform. Let's take a look at the immense value you generated this month!
       </p>
 
       <!-- Mock Bill Card -->
@@ -34,7 +34,7 @@
 
       <!-- Value Proposition -->
       <div class="bg-blue-50 border-l-4 border-blue-500 p-6 text-left text-blue-900 rounded-r-xl max-w-lg mx-auto mb-8">
-        <p class="font-semibold mb-2">💡 How to cover this cost effortlessly:</p>
+        <p class="font-semibold mb-2">ðŸ’¡ How to cover this cost effortlessly:</p>
         <p class="text-sm">
           If your monthly usage cost is {{ currency_sym }}{{ "%.2f"|format(shop.shadow_spent_cents / 100) }}, you only need to increase your future client bills by <strong>{{ currency_sym }}10.00</strong> per invoice to completely cover the platform cost! You pass the tech fee on seamlessly while running a modernized shop.
         </p>
@@ -55,3 +55,4 @@
   </div>
 </div>
 {% endblock %}
+

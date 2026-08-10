@@ -201,6 +201,9 @@ def start():
     if subject == "practice_crm_topup":
         amount_cents = int(session.get("practice_crm_topup_amount_cents", 0))
         
+    if subject == "debtors_topup":
+        amount_cents = int(session.get("debtors_topup_amount_cents", 0))
+        
     if amount_cents <= 0:
         u = User.query.filter_by(email=email).first()
         if u:

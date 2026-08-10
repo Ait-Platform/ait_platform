@@ -309,73 +309,7 @@ def delete_recurring_charge(debtor_id, charge_id):
     flash("Recurring charge deleted.", "success")
     return redirect(url_for('debtors_bp.debtor_financials', debtor_id=debtor.id))
 
-@debtors_bp.route("/run_billing", methods=["POST"])
-@login_required
-def run_billing():
-    from datetime import datetime
-    debtors = Debtor.query.filter_by(user_id=current_user.id, is_active=True).all()
-    current_month_year = datetime.utcnow().strftime("%Y_%m")
-    
-    charges_applied = 0
-    interest_applied = 0
-    for debtor in debtors:
-        # Calculate current balance before this month's charges
-        total_debits = sum(l.amount for l in debtor.ledgers if l.kind == 'debit')
-        total_credits = sum(l.amount for l in debtor.ledgers if l.kind == 'credit')
-        current_balance = total_debits - total_credits
 
-        # Determine the applicable interest rate
-        applicable_rate = debtor.interest_rate if debtor.interest_rate is not None else 0.0
-
-        # Apply interest first (if applicable)
-        if getattr(debtor, 'apply_interest', True) and current_balance > 0 and applicable_rate > 0:
-            interest_ref = f"interest_{current_month_year}"
-            existing_interest = DebtorLedger.query.filter_by(debtor_id=debtor.id, ref=interest_ref).first()
-            if not existing_interest:
-                interest_amount = int(round(current_balance * (applicable_rate / 100)))
-                if interest_amount > 0:
-                    ledger = DebtorLedger(
-                        debtor_id=debtor.id,
-                        description=f"Monthly Arrears Interest ({applicable_rate}%)",
-                        kind="debit",
-                        amount=interest_amount,
-                        ref=interest_ref,
-                        txn_date=datetime.utcnow()
-                    )
-                    db.session.add(ledger)
-                    interest_applied += 1
-
-        today = datetime.utcnow().date()
-        for cmap in debtor.charge_maps:
-            if cmap.start_date and today < cmap.start_date:
-                continue
-            if cmap.end_date and today > cmap.end_date:
-                continue
-                
-            ref_id = f"recurring_{cmap.id}_{current_month_year}"
-            
-            # Check if this charge was already applied this month
-            existing_ledger = DebtorLedger.query.filter_by(debtor_id=debtor.id, ref=ref_id).first()
-            if not existing_ledger:
-                # Apply the charge
-                ledger = DebtorLedger(
-                    debtor_id=debtor.id,
-                    description=cmap.charge_description,
-                    kind="debit",
-                    amount=cmap.amount,
-                    ref=ref_id,
-                    txn_date=datetime.utcnow()
-                )
-                db.session.add(ledger)
-                charges_applied += 1
-                
-    if charges_applied > 0 or interest_applied > 0:
-        db.session.commit()
-        flash(f"Applied {charges_applied} recurring charge(s) and {interest_applied} interest charge(s).", "success")
-    else:
-        flash("All recurring charges for the current month have already been applied.", "info")
-        
-    return redirect(url_for("debtors_bp.dashboard"))
 
 @debtors_bp.route("/migrate_charge_dates")
 def migrate_charge_dates():
@@ -641,7 +575,7 @@ def email_soa():
     to_email = request.form.get("to_email")
     if not debtor_id or not to_email:
         flash("Debtor and email are required.", "danger")
-        return redirect(url_for('debtors_bp.debtor_view', debtor_id=debtor_id))
+        return redirect(url_for('debtors_bp.generate_soa', debtor_id=debtor_id, start_date=request.form.get('start_date'), end_date=request.form.get('end_date')))
         
     debtor = Debtor.query.filter_by(id=debtor_id, user_id=current_user.id).first_or_404()
     if debtor.sender_profile_id:
@@ -715,7 +649,15 @@ def email_soa():
         current_app.logger.error(f"Failed to email SOA PDF: {e}")
         flash(f"Error sending email: {e}", "danger")
         
-    return redirect(url_for('debtors_bp.debtor_view', debtor_id=debtor.id))
+    return redirect(url_for('debtors_bp.generate_soa', debtor_id=debtor.id, start_date=start_date_str, end_date=end_date_str))
+
+@debtors_bp.route("/topup")
+@login_required
+def topup():
+    from flask import session
+    session["debtors_topup_amount_cents"] = 10000 
+    session["topup_tokens"] = 100
+    return redirect(url_for('paystack_bp.paystack_start', subject='debtors_topup', email=current_user.email))
 
 
 @debtors_bp.route("/debtor/<int:debtor_id>/pay")

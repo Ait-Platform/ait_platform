@@ -449,6 +449,32 @@ def fulfill_order(email, subject, transaction=None):
             db.session.add(tx)
             db.session.commit()
         return
+        
+    # ---------- DEBTORS TOPUP ----------
+    if subject == "debtors_topup":
+        from app.models.auth import AitTokenWallet, AitTokenTransaction
+        total = int(transaction.get("amount", 0)) if transaction else 0
+        if total > 0:
+            tokens_purchased = transaction.get("metadata", {}).get("tokens_purchased")
+            if tokens_purchased is None:
+                tokens_purchased = total // 100 # Default conversion rate
+                
+            wallet = AitTokenWallet.query.filter_by(user_id=u.id).first()
+            if not wallet:
+                wallet = AitTokenWallet(user_id=u.id, balance=0)
+                db.session.add(wallet)
+                db.session.flush()
+            wallet.balance += int(tokens_purchased)
+            tx = AitTokenTransaction(
+                wallet_id=wallet.id,
+                transaction_type="purchase",
+                amount=int(tokens_purchased),
+                description="Paystack Top-Up (Debtors)",
+                reference=transaction.get("reference") if transaction else "paystack_tx"
+            )
+            db.session.add(tx)
+            db.session.commit()
+        return
 
     # ---------- METRO BILLING (DEBTORS) SUBSCRIPTION ----------
     if subject == "metro_billing":

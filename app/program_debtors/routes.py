@@ -440,6 +440,12 @@ def debtor_view(debtor_id):
     running_balance = 0
     all_ledgers = DebtorLedger.query.filter_by(debtor_id=debtor.id).order_by(DebtorLedger.txn_date, DebtorLedger.id).all()
     
+    if all_ledgers:
+        if not start_date:
+            start_date = all_ledgers[0].txn_date
+        if not end_date:
+            end_date = all_ledgers[-1].txn_date
+    
     visible_ledgers = []
     balance_brought_forward = 0
     has_filtered_older = False
@@ -635,7 +641,7 @@ def email_soa():
     to_email = request.form.get("to_email")
     if not debtor_id or not to_email:
         flash("Debtor and email are required.", "danger")
-        return redirect(url_for('debtors_bp.dashboard'))
+        return redirect(url_for('debtors_bp.debtor_view', debtor_id=debtor_id))
         
     debtor = Debtor.query.filter_by(id=debtor_id, user_id=current_user.id).first_or_404()
     if debtor.sender_profile_id:
@@ -643,27 +649,57 @@ def email_soa():
     else:
         profile = SenderProfile.query.filter_by(user_id=current_user.id, is_default=True).first()
         
-    # Calculate running balance and fetch ledgers for the entire history (or you could pass dates)
+    if debtor.bank_account_id:
+        bank_account = BusinessBankAccount.query.get(debtor.bank_account_id)
+    else:
+        bank_account = BusinessBankAccount.query.filter_by(user_id=current_user.id, is_default=True).first()
+        
+    start_date_str = request.form.get('start_date')
+    end_date_str = request.form.get('end_date')
+    start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date() if start_date_str else None
+    end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date() if end_date_str else None
+    
+    # Calculate running balance and fetch ledgers for the entire history
     running_balance = 0
     period_ledgers = []
     ledgers = DebtorLedger.query.filter_by(debtor_id=debtor.id).order_by(DebtorLedger.txn_date, DebtorLedger.id).all()
+    
+    period_opening_balance = 0
+    calculated_opening_yet = False
     
     for l in ledgers:
         if l.kind == 'debit':
             running_balance += l.amount
         else:
             running_balance -= l.amount
+            
         l.running_balance = running_balance
+        
+        if start_date and l.txn_date < start_date:
+            continue
+            
+        if not calculated_opening_yet:
+            prev_balance = running_balance - l.amount if l.kind == 'debit' else running_balance + l.amount
+            period_opening_balance = prev_balance
+            calculated_opening_yet = True
+            
+        if end_date and l.txn_date > end_date:
+            continue
+            
         period_ledgers.append(l)
+        
+    if not calculated_opening_yet:
+        period_opening_balance = running_balance
         
     html_content = render_template("program_debtors/soa_template.html", 
                                    debtor=debtor, 
                                    ledgers=period_ledgers, 
                                    profile=profile, 
                                    running_balance=running_balance,
-                                   period_opening_balance=0,
-                                   start_date=None,
-                                   end_date=None)
+                                   period_opening_balance=period_opening_balance,
+                                   bank_account=bank_account,
+                                   start_date=start_date,
+                                   end_date=end_date)
                                    
     try:
         pdf_bytes = html_to_pdf_bytes(html_content, base_url=request.host_url)
@@ -679,7 +715,7 @@ def email_soa():
         current_app.logger.error(f"Failed to email SOA PDF: {e}")
         flash(f"Error sending email: {e}", "danger")
         
-    return redirect(url_for('debtors_bp.dashboard'))
+    return redirect(url_for('debtors_bp.debtor_view', debtor_id=debtor.id))
 
 
 @debtors_bp.route("/debtor/<int:debtor_id>/pay")

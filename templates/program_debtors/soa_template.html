@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Statement of Account - {{ debtor.name }}</title>
     <!-- We don't extend layout.html because this is a clean, printable document -->
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    
     <style>
         @page {
             size: A4;
@@ -16,6 +16,116 @@
             .no-print { display: none; }
             .print-container { box-shadow: none; max-width: none; width: 100%; margin: 0; padding: 40px; box-sizing: border-box; }
         }
+    
+        /* Custom CSS to replace Tailwind for SOA */
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f3f4f6; color: #1f2937; line-height: 1.5; }
+        .max-w-4xl { max-width: 56rem; margin-left: auto; margin-right: auto; }
+        .mb-8 { margin-bottom: 2rem; }
+        .mt-6 { margin-top: 1.5rem; }
+        .bg-white { background-color: #ffffff; }
+        .rounded-xl { border-radius: 0.75rem; }
+        .shadow { box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06); }
+        .shadow-lg { box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); }
+        .border { border-width: 1px; border-style: solid; }
+        .border-slate-200 { border-color: #e2e8f0; }
+        .border-gray-200 { border-color: #e5e7eb; }
+        .border-gray-300 { border-color: #d1d5db; }
+        .border-gray-800 { border-color: #1f2937; }
+        .border-b-2 { border-bottom-width: 2px; border-bottom-style: solid; }
+        .border-b { border-bottom-width: 1px; border-bottom-style: solid; }
+        .overflow-hidden { overflow: hidden; }
+        .h-2 { height: 0.5rem; }
+        .bg-blue-600 { background-color: #2563eb; }
+        .text-blue-600 { color: #2563eb; }
+        .bg-blue-50 { background-color: #eff6ff; }
+        .border-blue-200 { border-color: #bfdbfe; }
+        .text-blue-800 { color: #1e40af; }
+        .p-6 { padding: 1.5rem; }
+        .p-4 { padding: 1rem; }
+        .p-10 { padding: 2.5rem; }
+        .py-8 { padding-top: 2rem; padding-bottom: 2rem; }
+        .py-2 { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+        .px-3 { padding-left: 0.75rem; padding-right: 0.75rem; }
+        .px-4 { padding-left: 1rem; padding-right: 1rem; }
+        .pb-6 { padding-bottom: 1.5rem; }
+        .pb-4 { padding-bottom: 1rem; }
+        .flex { display: flex; }
+        .justify-between { justify-content: space-between; }
+        .justify-end { justify-content: flex-end; }
+        .items-center { align-items: center; }
+        .items-start { align-items: flex-start; }
+        .items-end { align-items: flex-end; }
+        .mb-4 { margin-bottom: 1rem; }
+        .mb-2 { margin-bottom: 0.5rem; }
+        .mb-1 { margin-bottom: 0.25rem; }
+        .mt-4 { margin-top: 1rem; }
+        .mt-2 { margin-top: 0.5rem; }
+        .mt-1 { margin-top: 0.25rem; }
+        .text-3xl { font-size: 1.875rem; line-height: 2.25rem; }
+        .text-2xl { font-size: 1.5rem; line-height: 2rem; }
+        .text-lg { font-size: 1.125rem; line-height: 1.75rem; }
+        .text-sm { font-size: 0.875rem; line-height: 1.25rem; }
+        .text-xs { font-size: 0.75rem; line-height: 1rem; }
+        .font-bold { font-weight: 700; }
+        .font-semibold { font-weight: 600; }
+        .font-medium { font-weight: 500; }
+        .font-extrabold { font-weight: 800; }
+        .text-slate-800 { color: #1e293b; }
+        .text-gray-900 { color: #111827; }
+        .text-gray-800 { color: #1f2937; }
+        .text-gray-700 { color: #374151; }
+        .text-gray-600 { color: #4b5563; }
+        .text-gray-500 { color: #6b7280; }
+        .text-gray-400 { color: #9ca3af; }
+        .text-red-600 { color: #dc2626; }
+        .text-green-600 { color: #16a34a; }
+        .bg-gray-200 { background-color: #e5e7eb; }
+        .bg-gray-100 { background-color: #f3f4f6; }
+        .bg-gray-50 { background-color: #f9fafb; }
+        .text-white { color: #ffffff; }
+        .rounded { border-radius: 0.25rem; }
+        .shadow-sm { box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); }
+        .transition { transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter; transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1); transition-duration: 150ms; }
+        .w-1\/3 { width: 33.333333%; }
+        .w-2\/3 { width: 66.666667%; }
+        .w-full { width: 100%; }
+        .w-24 { width: 6rem; }
+        .w-28 { width: 7rem; }
+        .w-32 { width: 8rem; }
+        .text-right { text-align: right; }
+        .text-center { text-align: center; }
+        .uppercase { text-transform: uppercase; }
+        .tracking-wide { letter-spacing: 0.025em; }
+        .tracking-wider { letter-spacing: 0.05em; }
+        .tracking-widest { letter-spacing: 0.1em; }
+        .leading-tight { line-height: 1.25; }
+        .whitespace-pre-line { white-space: pre-line; }
+        .whitespace-nowrap { white-space: nowrap; }
+        .object-contain { object-fit: contain; }
+        .max-h-24 { max-height: 6rem; }
+        .h-24 { height: 6rem; }
+        .w-48 { width: 12rem; }
+        .border-collapse { border-collapse: collapse; }
+        .italic { font-style: italic; }
+        .min-h-\[1056px\] { min-height: 1056px; }
+        .relative { position: relative; }
+        .block { display: block; }
+        .inline-block { display: inline-block; }
+        a { text-decoration: none; cursor: pointer; }
+        
+        /* Modal specific */
+        .fixed { position: fixed; }
+        .inset-0 { top: 0; right: 0; bottom: 0; left: 0; }
+        .z-50 { z-index: 50; }
+        .bg-black { background-color: #000000; }
+        .bg-opacity-50 { background-color: rgba(0, 0, 0, 0.5); }
+        .hidden { display: none !important; }
+        .max-w-md { max-width: 28rem; }
+        .focus\:outline-none:focus { outline: 2px solid transparent; outline-offset: 2px; }
+        .focus\:border-blue-500:focus { border-color: #3b82f6; }
+        
+        button { border: none; cursor: pointer; font-family: inherit; }
+
     </style>
 </head>
 <body class="bg-gray-100 py-8 text-gray-800 font-sans">
@@ -30,10 +140,15 @@
         <a href="{{ url_for('debtors_bp.debtor_view', debtor_id=debtor.id) }}" class="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 font-semibold text-sm shadow-sm transition">Back</a>
       </div>
       
-      <!-- Row 2: Any other buttons right aligned -->
-      <div class="flex justify-end items-center">
-        <a href="{{ url_for('debtors_bp.generate_soa', debtor_id=debtor.id, pdf='1') }}" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-semibold text-sm shadow-sm transition">Print / Save PDF</a>
+      <!-- Row 2: Actions -->
+      <div class="mb-4 text-sm text-gray-600 bg-blue-50 p-3 rounded border border-blue-200">
+        <p><strong>Download PDF:</strong> Saves a copy to your computer for printing or archiving.</p>
+        <p class="mt-1"><strong>Email Statement:</strong> Instantly sends this exact statement directly to the client's email inbox.</p>
       </div>
+      <div class="flex justify-end items-center" style="gap: 1rem;">
+        <a href="{{ url_for('debtors_bp.generate_soa', debtor_id=debtor.id, pdf='1', start_date=start_date, end_date=end_date) }}" class="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 font-semibold text-sm shadow-sm transition">Download PDF</a>
+        <button onclick="document.getElementById('email-soa-modal').classList.remove('hidden')" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-semibold text-sm shadow-sm transition">Email Statement</button>
+      </div></div>
     </div>
   </div>
 </div>
@@ -171,16 +286,31 @@
     </table>
     
 
-    <!-- Pay Now Section -->
-    {% if running_balance > 0 %}
-    <div class="mt-12 pt-8 border-t border-gray-300 text-center no-print">
-        <p class="text-sm text-gray-600 mb-4">You can pay this outstanding balance securely online.</p>
-        <a href="{{ url_for('debtors_bp.pay_soa', debtor_id=debtor.id, _external=True) }}" class="inline-block px-8 py-3 bg-blue-600 text-white font-bold rounded shadow hover:bg-blue-700 transition">
-            Pay Outstanding Balance
-        </a>
-    </div>
-    {% endif %}
+    
 
+</div>
+
+
+<!-- Email SOA Modal -->
+<div id="email-soa-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden no-print">
+  <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+    <div class="flex justify-between items-center mb-4 border-b pb-2">
+      <h3 class="text-lg font-bold text-slate-800">Email SOA to {{ debtor.name }}</h3>
+      <button onclick="document.getElementById('email-soa-modal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 font-bold text-xl bg-transparent">&times;</button>
+    </div>
+    <form action="{{ url_for('debtors_bp.email_soa') }}" method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        <input type="hidden" name="debtor_id" value="{{ debtor.id }}"/>
+        {% if start_date %}<input type="hidden" name="start_date" value="{{ start_date }}"/>{% endif %}
+        {% if end_date %}<input type="hidden" name="end_date" value="{{ end_date }}"/>{% endif %}
+      <div class="mb-6 mt-4">
+        <label class="block text-sm font-semibold text-gray-700 mb-2">Recipient Email Address</label>
+        <input type="email" name="to_email" value="{{ debtor.email or '' }}" required class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500" placeholder="client@example.com">
+        <p class="text-xs text-gray-500 mt-2">You can change this before sending.</p>
+      </div>
+      <button type="submit" class="w-full bg-blue-600 text-white font-bold py-3 rounded hover:bg-blue-700 transition">Send Email Now</button>
+    </form>
+  </div>
 </div>
 
 </body>

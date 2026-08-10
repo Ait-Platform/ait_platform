@@ -267,9 +267,10 @@ def add_recurring_charge(debtor_id):
         flash("Recurring charge added.", "success")
         return redirect(url_for("debtors_bp.debtor_financials", debtor_id=debtor.id))
         
+    my_debtors = Debtor.query.filter_by(user_id=current_user.id).all()
+    my_debtor_ids = [d.id for d in my_debtors]
     user_descriptions = db.session.query(DebtorLedger.description)\
-        .join(Debtor)\
-        .filter(Debtor.user_id == current_user.id)\
+        .filter(DebtorLedger.debtor_id.in_(my_debtor_ids))\
         .distinct().all()
     coa_list = [d[0] for d in user_descriptions if d[0]]
         
@@ -499,9 +500,10 @@ def add_transaction(debtor_id):
             for error in errors:
                 flash(f"Error in {getattr(form, field).label.text}: {error}", "danger")
                 
+    my_debtors = Debtor.query.filter_by(user_id=current_user.id).all()
+    my_debtor_ids = [d.id for d in my_debtors]
     user_descriptions = db.session.query(DebtorLedger.description)\
-        .join(Debtor)\
-        .filter(Debtor.user_id == current_user.id)\
+        .filter(DebtorLedger.debtor_id.in_(my_debtor_ids))\
         .distinct().all()
     coa_list = [d[0] for d in user_descriptions if d[0]]
                 

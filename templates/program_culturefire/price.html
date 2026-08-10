@@ -1,4 +1,4 @@
-﻿{% extends "layout.html" %}
+{% extends "layout.html" %}
 {% block title %}Cultural Fire - Pricing{% endblock %}
 {% block flashes %}{% endblock %}
 
@@ -74,7 +74,7 @@
               
               <div class="mt-4 p-3 bg-amber-50 rounded-lg border border-amber-200 text-amber-900 text-xs">
                 <div class="font-bold mb-1"><i class="fas fa-info-circle mr-1"></i>Token-Based Billing</div>
-                We operate entirely on a Token System. 1 Token = 1 Local Parity Unit (e.g. 1 Rand, 1 Dollar, 1 Pound, etc.). You top up your internal wallet and we only deduct tokens when you actively participate. We operate on a 200% parity model, which automatically credits your digital wallet with an initial bundle of <strong>200 CFI Tokens</strong> upon registration!
+                We operate entirely on a Token System. 1 Token = 1 Local Parity Unit (e.g. 1 Rand, 1 Dollar, 1 Pound, etc.). You top up your internal wallet and we only deduct tokens when you actively participate. We operate on a 200% parity model, which automatically credits your digital wallet with an initial bundle of <strong>{{ bonus_tokens }} CFI Tokens</strong> upon registration!
               </div>
 
               <ul class="list-disc pl-5 mt-4 space-y-2 text-sm text-slate-600">
@@ -96,12 +96,12 @@
         <div class="border-t border-slate-100 pt-8 text-center">
           <h4 class="text-lg font-bold text-slate-900 mb-4">Ready to join Cultural Fire?</h4>
           
-          <a id="register_btn" href="{{ url_for('auth_bp.register', subject='cultural_fire', next=url_for('cultural_bp.cultural_fire_dashboard')) }}"
+          <a id="register_btn" href="{{ url_for('auth_bp.register', subject='cultural_fire', next=url_for('auth_bp.bridge_dashboard')) }}"
              class="inline-block bg-red-600 text-white py-3 px-8 rounded-xl font-bold text-lg hover:bg-red-700 transition shadow-sm">Register & Get Started</a>
           
           <p class="text-sm text-slate-500 mt-4">
             Once registered, simply 
-            <a href="{{ url_for('auth_bp.login', next=url_for('cultural_bp.cultural_fire_dashboard')) }}" class="text-red-600 font-semibold hover:underline">log in to your portal</a>.
+            <a href="{{ url_for('auth_bp.login', next=url_for('auth_bp.bridge_dashboard')) }}" class="text-red-600 font-semibold hover:underline">log in to your portal</a>.
           </p>
         </div>
 
@@ -119,7 +119,7 @@
       const registerBtn = document.getElementById('register_btn');
       const onceOffLabel = document.getElementById('once_off_label');
       const baseUrl = "{{ url_for('auth_bp.register') }}";
-      const nextUrl = "{{ url_for('cultural_bp.cultural_fire_dashboard') }}";
+      const nextUrl = "{{ url_for('auth_bp.bridge_dashboard') }}";
       
       document.addEventListener('countryPriceLoading', function(e) {
         const country = e.detail.country;

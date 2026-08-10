@@ -126,6 +126,10 @@ def cultural_fire_price():
     from app.utils.country import get_active_countries
     countries = get_active_countries()
 
+    from app.models.billing import SignupBonus
+    bonus_row = SignupBonus.query.filter((SignupBonus.program_slug == 'culturalfire') | (SignupBonus.program_slug == 'cultural_fire')).first()
+    bonus_tokens = bonus_row.bonus_tokens if bonus_row else 200
+
     prices = {
         "mc": get_token_cost('mc_assignment', 70),
         "judge": get_token_cost('judge_assignment', 50),
@@ -133,7 +137,7 @@ def cultural_fire_price():
         "pageant": get_token_cost('talent_submission_pageant', 20),
         "talent": get_token_cost('talent_submission_other', 20)
     }
-    return render_template("program_culturefire/price.html", prices=prices, price=price_ctx, subject=subject, countries=countries)
+    return render_template("program_culturefire/price.html", prices=prices, bonus_tokens=bonus_tokens, price=price_ctx, subject=subject, countries=countries)
 
 @cultural_bp.route("/program/cultural_fire/sponsor/topup/<int:participant_id>", methods=["GET"])
 @login_required

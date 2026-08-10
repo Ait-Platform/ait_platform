@@ -1,4 +1,4 @@
-{% extends "layout.html" %}
+﻿{% extends "layout.html" %}
 {% block title %}Cultural Fire - Pricing{% endblock %}
 {% block flashes %}{% endblock %}
 
@@ -14,7 +14,7 @@
       <!-- First Row: Title & Back Button -->
       <div class="flex items-center justify-between border-b border-slate-100 pb-4">
         <h1 class="text-2xl md:text-3xl font-bold text-slate-900">Pricing & Wallet</h1>
-        <a href="{{ url_for('cultural_bp.about') }}"
+        <a href="{{ url_for('cultural_bp.cultural_fire_about') }}"
            class="inline-flex items-center gap-2 rounded border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition">
           <span>&larr;</span><span>Back to Info</span>
         </a>
@@ -155,3 +155,4 @@
     });
   </script>
 {% endblock %}
+

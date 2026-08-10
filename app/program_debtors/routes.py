@@ -372,6 +372,20 @@ def run_billing():
         
     return redirect(url_for("debtors_bp.dashboard"))
 
+@debtors_bp.route("/migrate_charge_dates")
+def migrate_charge_dates():
+    from sqlalchemy import text
+    try:
+        db.session.execute(text("ALTER TABLE debtor_charge_map ADD COLUMN start_date DATE"))
+    except Exception as e:
+        pass
+    try:
+        db.session.execute(text("ALTER TABLE debtor_charge_map ADD COLUMN end_date DATE"))
+    except Exception as e:
+        pass
+    db.session.commit()
+    return "Migration complete."
+
 @debtors_bp.route("/debtor/<int:debtor_id>/add_opening_balance", methods=["POST"])
 @login_required
 def add_opening_balance(debtor_id):

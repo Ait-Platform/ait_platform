@@ -185,8 +185,7 @@ def onboarding_start():
             phone="555-1234",
             email="extracted@example.com",
             terms_and_conditions="Payment strictly within 30 days.",
-            onboarding_status='draft_review',
-            trial_ends_at=datetime.utcnow() + timedelta(days=30)
+            onboarding_status='draft_review'
         )
         db.session.add(draft_shop)
         db.session.commit()
@@ -200,8 +199,7 @@ def onboarding_process():
     if not shop:
         shop = MechShop(
             user_id=current_user.id,
-            onboarding_status='active',
-            trial_ends_at=datetime.utcnow() + timedelta(days=30)
+            onboarding_status='active'
         )
         db.session.add(shop)
         
@@ -257,19 +255,25 @@ def generate_invoice(id):
     if request.method == "POST":
         setting = db.session.execute(text("SELECT value FROM system_settings WHERE key = 'mechanic_invoice_cents'")).fetchone()
         invoice_cost = int(setting[0]) if setting else 1000
+        token_cost = invoice_cost // 100
 
-        if active_shop.trial_ends_at and datetime.utcnow() < active_shop.trial_ends_at:
-            active_shop.shadow_spent_cents += invoice_cost
-            db.session.commit()
-            flash(f"Invoice generated successfully! (Shadow Billed R{invoice_cost/100:.2f})", "success")
-        else:
-            if active_shop.wallet_balance_cents < invoice_cost:
-                flash("Insufficient tokens. Please top up or pay your registration fee.", "warning")
-                return redirect(url_for("mechanic_bp.mock_bill"))
-                
-            active_shop.wallet_balance_cents -= invoice_cost
-            db.session.commit()
-            flash(f"Invoice generated successfully! (R{invoice_cost/100:.2f} deducted)", "success")
+        from app.models.auth import AitTokenWallet, AitTokenTransaction
+        wallet = AitTokenWallet.query.filter_by(user_id=current_user.id).first()
+
+        if not wallet or wallet.balance < token_cost:
+            flash("Insufficient tokens. Please top up your wallet.", "warning")
+            return redirect(url_for("mechanic_bp.mock_bill"))
+            
+        wallet.balance -= token_cost
+        txn = AitTokenTransaction(
+            wallet_id=wallet.id,
+            amount=-token_cost,
+            transaction_type='usage',
+            description=f"Generated invoice for shop {active_shop.id}"
+        )
+        db.session.add(txn)
+        db.session.commit()
+        flash(f"Invoice generated successfully! ({token_cost} Tokens deducted)", "success")
             
         job_card = MechJobCard.query.get_or_404(id)
         labor_total = sum(l.hours * l.rate_per_hour for l in job_card.labor_lines)
@@ -339,15 +343,23 @@ def new_quote():
     if request.method == "POST":
         setting = db.session.execute(text("SELECT value FROM system_settings WHERE key = 'mechanic_quote_cents'")).fetchone()
         quote_cost = int(setting[0]) if setting else 500
+        token_cost = quote_cost // 100
 
-        if active_shop.trial_ends_at and datetime.utcnow() < active_shop.trial_ends_at:
-            active_shop.shadow_spent_cents += quote_cost
-        else:
-            if active_shop.wallet_balance_cents < quote_cost:
-                flash("Insufficient tokens. Please top up or pay your registration fee.", "warning")
-                return redirect(url_for("mechanic_bp.mock_bill"))
-                
-            active_shop.wallet_balance_cents -= quote_cost
+        from app.models.auth import AitTokenWallet, AitTokenTransaction
+        wallet = AitTokenWallet.query.filter_by(user_id=current_user.id).first()
+
+        if not wallet or wallet.balance < token_cost:
+            flash("Insufficient tokens. Please top up your wallet.", "warning")
+            return redirect(url_for("mechanic_bp.mock_bill"))
+            
+        wallet.balance -= token_cost
+        txn = AitTokenTransaction(
+            wallet_id=wallet.id,
+            amount=-token_cost,
+            transaction_type='usage',
+            description=f"Generated quote for shop {active_shop.id}"
+        )
+        db.session.add(txn)
         
         customer_name = request.form.get("customer_name")
         vehicle_reg = request.form.get("vehicle_reg")

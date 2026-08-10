@@ -72,17 +72,12 @@ def billing_checkout(month):
     session["metro_billing_amount_cents"] = cost_cents
     
     main_prop = props[0] if props else None
-    from datetime import datetime
-    # Hardcode trial to True for testing
-    is_trial = True
     
     return render_template("program_billing/checkout_summary.html", 
                            month=month, 
-                           meter_count=meter_count, 
                            cost_cents=cost_cents, 
                            settings=settings,
-                           main_prop=main_prop,
-                           is_trial=is_trial)
+                           main_prop=main_prop)
 
 @billing_bp.route('/billing/about')
 def billing_about():
@@ -3880,23 +3875,30 @@ def billing_unlock(month):
     cost_cents = session.get("metro_billing_amount_cents", 0)
     meters_billed = session.get("metro_billing_meters", 0)
     
-    # Check trial
-    is_trial = True # Hardcoded for testing
+    token_cost = cost_cents // 100
     
-    if not is_trial:
-        main_prop = BilProperty.query.filter_by(manager_id=current_user.id).first()
-        if not main_prop or main_prop.wallet_balance_cents < cost_cents:
-            flash("Insufficient tokens to unlock.", "danger")
-            return redirect(url_for('billing_bp.billing_checkout', month=month))
-        # Deduct
-        main_prop.wallet_balance_cents -= cost_cents
-        db.session.add(main_prop)
+    from app.models.auth import AitTokenWallet, AitTokenTransaction
+    wallet = AitTokenWallet.query.filter_by(user_id=current_user.id).first()
+    
+    if not wallet or wallet.balance < token_cost:
+        flash(f"Insufficient tokens to unlock. You need {token_cost} tokens.", "danger")
+        return redirect(url_for('billing_bp.billing_checkout', month=month))
+        
+    # Deduct
+    wallet.balance -= token_cost
+    txn = AitTokenTransaction(
+        wallet_id=wallet.id,
+        amount=-token_cost,
+        transaction_type='usage',
+        description=f"Unlocked statements for {month} ({meters_billed} meters)"
+    )
+    db.session.add(txn)
     
     new_payment = BilStatementPayment(
         manager_id=current_user.id,
         month=month,
         meters_billed=meters_billed,
-        amount_paid_cents=cost_cents if not is_trial else 1 # Just needs to be > 0
+        amount_paid_cents=cost_cents
     )
     db.session.add(new_payment)
     db.session.commit()

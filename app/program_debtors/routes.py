@@ -58,7 +58,39 @@ def profile():
             profile_record = SoaProfile(user_id=current_user.id)
             db.session.add(profile_record)
             
-        form.populate_obj(profile_record)
+        profile_record.interest_rate = form.interest_rate.data
+            
+        db.session.commit()
+        flash("Global settings updated successfully.", "success")
+        return redirect(url_for("debtors_bp.profile"))
+        
+    bank_accounts = BusinessBankAccount.query.filter_by(user_id=current_user.id).order_by(BusinessBankAccount.created_at.desc()).all()
+    bank_form = BankAccountForm()
+    
+    sender_profiles = SenderProfile.query.filter_by(user_id=current_user.id).order_by(SenderProfile.created_at.desc()).all()
+    sender_form = SenderProfileForm()
+        
+    return render_template("program_debtors/profile.html", form=form, profile=profile_record, 
+                           bank_accounts=bank_accounts, bank_form=bank_form, 
+                           sender_profiles=sender_profiles, sender_form=sender_form)
+
+@debtors_bp.route("/add_sender_profile", methods=["POST"])
+@login_required
+def add_sender_profile():
+    form = SenderProfileForm()
+    if form.validate_on_submit():
+        # Unset previous default if this is default
+        if form.is_default.data:
+            SenderProfile.query.filter_by(user_id=current_user.id, is_default=True).update({'is_default': False})
+            
+        new_sp = SenderProfile(
+            user_id=current_user.id,
+            business_name=form.business_name.data,
+            address=form.address.data,
+            phone=form.phone.data,
+            email=form.email.data,
+            is_default=form.is_default.data
+        )
         
         logo_file = form.logo_file.data
         if logo_file:
@@ -66,15 +98,37 @@ def profile():
             upload_folder = os.path.join(current_app.root_path, "static", "uploads", "debtors")
             os.makedirs(upload_folder, exist_ok=True)
             logo_file.save(os.path.join(upload_folder, filename))
-            profile_record.logo_url = filename
+            new_sp.logo_url = filename
             
+        db.session.add(new_sp)
         db.session.commit()
-        flash("SOA Profile updated successfully.", "success")
-        return redirect(url_for("debtors_bp.dashboard"))
-    bank_accounts = BusinessBankAccount.query.filter_by(user_id=current_user.id).order_by(BusinessBankAccount.created_at.desc()).all()
-    bank_form = BankAccountForm()
+        flash("Sender profile added successfully.", "success")
+    return redirect(url_for("debtors_bp.profile"))
+
+@debtors_bp.route("/set_default_sender_profile/<int:profile_id>", methods=["POST"])
+@login_required
+def set_default_sender_profile(profile_id):
+    SenderProfile.query.filter_by(user_id=current_user.id, is_default=True).update({'is_default': False})
+    sp = SenderProfile.query.filter_by(id=profile_id, user_id=current_user.id).first_or_404()
+    sp.is_default = True
+    db.session.commit()
+    flash("Default sender profile updated.", "success")
+    return redirect(url_for("debtors_bp.profile"))
+
+@debtors_bp.route("/delete_sender_profile/<int:profile_id>", methods=["POST"])
+@login_required
+def delete_sender_profile(profile_id):
+    sp = SenderProfile.query.filter_by(id=profile_id, user_id=current_user.id).first_or_404()
+    
+    # Check if assigned to any debtors
+    if sp.debtors.count() > 0:
+        flash("Cannot delete this profile because it is currently assigned to one or more debtors.", "danger")
+        return redirect(url_for("debtors_bp.profile"))
         
-    return render_template("program_debtors/profile.html", form=form, profile=profile_record, bank_accounts=bank_accounts, bank_form=bank_form)
+    db.session.delete(sp)
+    db.session.commit()
+    flash("Sender profile deleted.", "success")
+    return redirect(url_for("debtors_bp.profile"))
 
 @debtors_bp.route("/add_bank_account", methods=["POST"])
 @login_required
@@ -128,6 +182,9 @@ def add_debtor():
     bank_accounts = BusinessBankAccount.query.filter_by(user_id=current_user.id).all()
     form.bank_account_id.choices = [(0, 'Use Default Account')] + [(a.id, f"{a.bank_name} - {a.account_number}") for a in bank_accounts]
     
+    sender_profiles = SenderProfile.query.filter_by(user_id=current_user.id).all()
+    form.sender_profile_id.choices = [(0, 'Use Default Sender Profile')] + [(sp.id, sp.business_name or 'Unnamed Profile') for sp in sender_profiles]
+    
     if form.validate_on_submit():
         new_debtor = Debtor(
             user_id=current_user.id,
@@ -135,7 +192,8 @@ def add_debtor():
             email=form.email.data,
             phone=form.phone.data,
             apply_interest=form.apply_interest.data,
-            bank_account_id=form.bank_account_id.data if form.bank_account_id.data != 0 else None
+            bank_account_id=form.bank_account_id.data if form.bank_account_id.data != 0 else None,
+            sender_profile_id=form.sender_profile_id.data if form.sender_profile_id.data != 0 else None
         )
         db.session.add(new_debtor)
         db.session.commit()
@@ -148,18 +206,24 @@ def add_debtor():
 def edit_debtor(debtor_id):
     debtor = Debtor.query.filter_by(id=debtor_id, user_id=current_user.id).first_or_404()
     form = DebtorForm(obj=debtor)
+    
     bank_accounts = BusinessBankAccount.query.filter_by(user_id=current_user.id).all()
     form.bank_account_id.choices = [(0, 'Use Default Account')] + [(a.id, f"{a.bank_name} - {a.account_number}") for a in bank_accounts]
     
-    if request.method == 'GET':
-        form.bank_account_id.data = debtor.bank_account_id or 0
+    sender_profiles = SenderProfile.query.filter_by(user_id=current_user.id).all()
+    form.sender_profile_id.choices = [(0, 'Use Default Sender Profile')] + [(sp.id, sp.business_name or 'Unnamed Profile') for sp in sender_profiles]
     
+    if request.method == 'GET':
+        form.bank_account_id.data = debtor.bank_account_id if debtor.bank_account_id else 0
+        form.sender_profile_id.data = debtor.sender_profile_id if debtor.sender_profile_id else 0
+        
     if form.validate_on_submit():
         debtor.name = form.name.data
         debtor.email = form.email.data
         debtor.phone = form.phone.data
         debtor.apply_interest = form.apply_interest.data
         debtor.bank_account_id = form.bank_account_id.data if form.bank_account_id.data != 0 else None
+        debtor.sender_profile_id = form.sender_profile_id.data if form.sender_profile_id.data != 0 else None
         
         db.session.commit()
         flash("SOA Setup updated successfully.", "success")
@@ -411,8 +475,12 @@ def soa_redirect():
 def generate_soa(debtor_id):
     from datetime import datetime
     debtor = Debtor.query.filter_by(id=debtor_id, user_id=current_user.id).first_or_404()
-    profile = SoaProfile.query.filter_by(user_id=current_user.id).first()
     
+    if debtor.sender_profile_id:
+        profile = SenderProfile.query.get(debtor.sender_profile_id)
+    else:
+        profile = SenderProfile.query.filter_by(user_id=current_user.id, is_default=True).first()
+        
     if debtor.bank_account_id:
         bank_account = BusinessBankAccount.query.get(debtor.bank_account_id)
     else:
@@ -486,16 +554,19 @@ from app.utils.mailer import send_pdf_email
 @debtors_bp.route("/email_soa", methods=["POST"])
 @login_required
 def email_soa():
+    from datetime import datetime
     debtor_id = request.form.get("debtor_id")
     to_email = request.form.get("to_email")
-    
     if not debtor_id or not to_email:
-        flash("Debtor and Email Address are required.", "danger")
+        flash("Debtor and email are required.", "danger")
         return redirect(url_for('debtors_bp.dashboard'))
         
     debtor = Debtor.query.filter_by(id=debtor_id, user_id=current_user.id).first_or_404()
-    profile = SoaProfile.query.filter_by(user_id=current_user.id).first()
-    
+    if debtor.sender_profile_id:
+        profile = SenderProfile.query.get(debtor.sender_profile_id)
+    else:
+        profile = SenderProfile.query.filter_by(user_id=current_user.id, is_default=True).first()
+        
     # Calculate running balance and fetch ledgers for the entire history (or you could pass dates)
     running_balance = 0
     period_ledgers = []

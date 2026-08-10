@@ -36,11 +36,29 @@ class BusinessBankAccount(db.Model):
     
     debtors = db.relationship('Debtor', backref='bank_account', lazy='dynamic')
 
+class SenderProfile(db.Model):
+    __tablename__ = 'sender_profile'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    
+    business_name = db.Column(db.String(255), nullable=True)
+    address = db.Column(db.Text, nullable=True)
+    phone = db.Column(db.String(50), nullable=True)
+    email = db.Column(db.String(150), nullable=True)
+    logo_url = db.Column(db.String(500), nullable=True)
+    is_default = db.Column(db.Boolean, default=False)
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    debtors = db.relationship('Debtor', backref='sender_profile', lazy='dynamic')
+
 class Debtor(db.Model):
     __tablename__ = 'debtor'
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     bank_account_id = db.Column(db.Integer, db.ForeignKey('business_bank_account.id'), nullable=True)
+    sender_profile_id = db.Column(db.Integer, db.ForeignKey('sender_profile.id'), nullable=True)
     
     slug_reference = db.Column(db.String(50), nullable=True) # e.g. 'billing', 'mechanic'
     reference_id = db.Column(db.Integer, nullable=True) # e.g. tenant_id or client_id

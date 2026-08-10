@@ -1,9 +1,15 @@
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileAllowed
-from wtforms import StringField, TextAreaField, IntegerField, FloatField, SelectField, DateField, SubmitField
+from wtforms import StringField, TextAreaField, IntegerField, FloatField, SelectField, DateField, SubmitField, BooleanField
 from wtforms.validators import DataRequired, Email, Optional
 
 class SoaProfileForm(FlaskForm):
+    # This form is now just for global settings, but we keep the old fields for backward compatibility if needed, or remove them.
+    # Actually, the user wants a redesign, so we will only keep global settings in SoaProfile Form.
+    interest_rate = FloatField("Global Monthly Interest Rate (%)", validators=[Optional()], default=2.0)
+    submit = SubmitField("Save Global Settings")
+
+class SenderProfileForm(FlaskForm):
     business_name = StringField("Business Name", validators=[DataRequired()])
     address = TextAreaField("Address", validators=[Optional()])
     phone = StringField("Phone", validators=[Optional()])
@@ -11,16 +17,15 @@ class SoaProfileForm(FlaskForm):
     logo_file = FileField("Upload Logo (Optional)", validators=[
         FileAllowed(['jpg', 'png', 'jpeg'], 'Images only!')
     ])
-    interest_rate = FloatField("Global Monthly Interest Rate (%)", validators=[Optional()], default=2.0)
-    submit = SubmitField("Save Profile")
-
-from wtforms import BooleanField
+    is_default = BooleanField("Set as Default Profile", default=False)
+    submit = SubmitField("Save Sender Profile")
 
 class DebtorForm(FlaskForm):
     name = StringField("SOA Client Name / Company", validators=[DataRequired()])
     email = StringField("Email Address", validators=[Optional(), Email()])
     phone = StringField("Phone Number", validators=[Optional()])
     apply_interest = BooleanField("Apply Monthly Arrears Interest", default=True)
+    sender_profile_id = SelectField("Sender Profile (Business Details)", coerce=int, validators=[Optional()])
     bank_account_id = SelectField("Assigned Bank Account", coerce=int, validators=[Optional()])
     submit = SubmitField("Save Setup")
 

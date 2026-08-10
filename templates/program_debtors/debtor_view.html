@@ -33,15 +33,33 @@
           
         <!-- Ledger View -->
         <div>
-            <div class="flex justify-between items-end mb-4">
-                <h2 class="text-lg font-bold text-gray-800">Transaction Ledger</h2>
-                <div class="text-right">
+              <div class="flex justify-between items-end mb-4">
+                  <h2 class="text-lg font-bold text-gray-800">Transaction Ledger</h2>
+                  
+                  <form method="GET" action="{{ url_for('debtors_bp.debtor_view', debtor_id=debtor.id) }}" class="flex items-center gap-2">
+                      <div>
+                          <label for="start_date" class="block text-xs font-medium text-gray-500 mb-1">Start Date</label>
+                          <input type="date" name="start_date" id="start_date" value="{{ start_date or '' }}" class="px-2 py-1 text-sm border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500">
+                      </div>
+                      <div>
+                          <label for="end_date" class="block text-xs font-medium text-gray-500 mb-1">End Date</label>
+                          <input type="date" name="end_date" id="end_date" value="{{ end_date or '' }}" class="px-2 py-1 text-sm border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500">
+                      </div>
+                      <div class="flex items-end self-end">
+                          <button type="submit" class="px-3 py-1 bg-gray-600 text-white text-sm font-semibold rounded hover:bg-gray-700 transition h-[30px]">Filter</button>
+                          {% if start_date or end_date %}
+                          <a href="{{ url_for('debtors_bp.debtor_view', debtor_id=debtor.id) }}" class="ml-2 text-xs text-blue-600 hover:underline flex items-center h-[30px]">Clear</a>
+                          {% endif %}
+                      </div>
+                  </form>
+                  
+                  <div class="text-right">
                     <span class="text-sm text-gray-500">Current Balance:</span>
                     <span class="text-lg font-bold {% if debtor.current_balance > 0 %}text-red-600{% elif debtor.current_balance < 0 %}text-green-600{% else %}text-gray-800{% endif %}">
                         {{ '{:,.2f}'.format(debtor.current_balance / 100) }}
                     </span>
                 </div>
-            </div>
+              </div>
             
             <div class="border rounded-lg overflow-hidden">
                 <table class="w-full text-left border-collapse text-sm">
@@ -55,8 +73,20 @@
                       <th class="py-2 px-3 font-semibold text-right border-b">Action</th>
                     </tr>
                   </thead>
-                  <tbody class="divide-y divide-gray-200 bg-white">
-                    {% for l in ledgers %}
+                    <tbody class="divide-y divide-gray-200 bg-white">
+                      {% if has_filtered_older %}
+                      <tr class="bg-gray-50 text-gray-700 font-semibold italic">
+                          <td class="py-2 px-3 whitespace-nowrap text-xs text-gray-500">Prior to {{ start_date }}</td>
+                          <td class="py-2 px-3">Balance Brought Forward</td>
+                          <td class="py-2 px-3 text-right"></td>
+                          <td class="py-2 px-3 text-right"></td>
+                          <td class="py-2 px-3 text-right {% if balance_brought_forward > 0 %}text-red-600{% elif balance_brought_forward < 0 %}text-green-600{% else %}text-gray-800{% endif %}">
+                              {{ '{:,.2f}'.format(balance_brought_forward / 100) }}
+                          </td>
+                          <td class="py-2 px-3 text-right"></td>
+                      </tr>
+                      {% endif %}
+                      {% for l in ledgers %}
                     <tr class="hover:bg-slate-50 group">
                       <td class="py-2 px-3 whitespace-nowrap">{{ l.txn_date.strftime('%Y-%m-%d') }}</td>
                       <td class="py-2 px-3">

@@ -267,7 +267,13 @@ def add_recurring_charge(debtor_id):
         flash("Recurring charge added.", "success")
         return redirect(url_for("debtors_bp.debtor_financials", debtor_id=debtor.id))
         
-    return render_template("program_debtors/add_recurring_charge.html", form=form, debtor=debtor)
+    user_descriptions = db.session.query(DebtorLedger.description)\
+        .join(Debtor)\
+        .filter(Debtor.user_id == current_user.id)\
+        .distinct().all()
+    coa_list = [d[0] for d in user_descriptions if d[0]]
+        
+    return render_template("program_debtors/add_recurring_charge.html", form=form, debtor=debtor, coa_list=coa_list)
 
 @debtors_bp.route("/debtor/<int:debtor_id>/update_interest", methods=["POST"])
 @login_required
@@ -413,22 +419,59 @@ from app.program_debtors.forms import TransactionForm
 def debtor_view(debtor_id):
     debtor = Debtor.query.filter_by(id=debtor_id, user_id=current_user.id).first_or_404()
     
+    start_date_str = request.args.get('start_date')
+    end_date_str = request.args.get('end_date')
+    
+    start_date = None
+    end_date = None
+    if start_date_str:
+        try:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+        except ValueError:
+            pass
+    if end_date_str:
+        try:
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+        except ValueError:
+            pass
+
     # Calculate running balance per ledger entry
     running_balance = 0
-    # we need ledgers sorted by date then id (to maintain order for same date)
-    ledgers = DebtorLedger.query.filter_by(debtor_id=debtor.id).order_by(DebtorLedger.txn_date, DebtorLedger.id).all()
+    all_ledgers = DebtorLedger.query.filter_by(debtor_id=debtor.id).order_by(DebtorLedger.txn_date, DebtorLedger.id).all()
     
-    for l in ledgers:
+    visible_ledgers = []
+    balance_brought_forward = 0
+    has_filtered_older = False
+    
+    for l in all_ledgers:
         if l.kind == 'debit':
             running_balance += l.amount
         else:
             running_balance -= l.amount
         l.running_balance = running_balance
         
+        include = True
+        if start_date and l.txn_date < start_date:
+            include = False
+            balance_brought_forward = running_balance
+            has_filtered_older = True
+        if end_date and l.txn_date > end_date:
+            include = False
+            
+        if include:
+            visible_ledgers.append(l)
+            
     debtor.current_balance = running_balance
     
-    form = TransactionForm() # for inline addition
-    return render_template("program_debtors/debtor_view.html", debtor=debtor, ledgers=ledgers, form=form)
+    return render_template(
+        "program_debtors/debtor_view.html", 
+        debtor=debtor, 
+        ledgers=visible_ledgers, 
+        start_date=start_date_str, 
+        end_date=end_date_str,
+        balance_brought_forward=balance_brought_forward,
+        has_filtered_older=has_filtered_older
+    )
 
 @debtors_bp.route("/debtor/<int:debtor_id>/add_transaction", methods=["GET", "POST"])
 @login_required
@@ -455,7 +498,14 @@ def add_transaction(debtor_id):
         for field, errors in form.errors.items():
             for error in errors:
                 flash(f"Error in {getattr(form, field).label.text}: {error}", "danger")
-    return render_template("program_debtors/add_transaction.html", form=form, debtor=debtor)
+                
+    user_descriptions = db.session.query(DebtorLedger.description)\
+        .join(Debtor)\
+        .filter(Debtor.user_id == current_user.id)\
+        .distinct().all()
+    coa_list = [d[0] for d in user_descriptions if d[0]]
+                
+    return render_template("program_debtors/add_transaction.html", form=form, debtor=debtor, coa_list=coa_list)
 
 @debtors_bp.route("/transaction/<int:txn_id>/edit", methods=["GET", "POST"])
 @login_required

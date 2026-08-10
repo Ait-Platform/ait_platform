@@ -13,7 +13,7 @@ hero_image_html = '''
         {% endif %}
 '''
 
-for file_path in glob.glob('templates/subject_home/chapter*_theory.html'):
+for file_path in glob.glob('templates/subject_home/chapter*_practical.html'):
     with open(file_path, 'r', encoding='utf-8') as f:
         content = f.read()
         
@@ -26,3 +26,10 @@ for file_path in glob.glob('templates/subject_home/chapter*_theory.html'):
         with open(file_path, 'w', encoding='utf-8') as f:
             f.write(content)
         print(f'Updated {file_path}')
+    else:
+        # If no objective block, just put it after the header block
+        header_end = content.find('</div>', content.find('<!-- Header -->')) + 6
+        content = content[:header_end] + "\n" + hero_image_html + content[header_end:]
+        with open(file_path, 'w', encoding='utf-8') as f:
+            f.write(content)
+        print(f'Updated {file_path} (after Header)')

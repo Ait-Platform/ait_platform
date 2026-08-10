@@ -92,7 +92,7 @@ def welcome():
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             '''))
-            db.session.execute(text("INSERT INTO system_settings (key, value) VALUES ('mechanic_quote_cents', '500') ON CONFLICT DO NOTHING"))
+            db.session.execute(text("INSERT INTO system_settings (key, value) VALUES ('mechanic_quote_cents', '1000') ON CONFLICT DO NOTHING"))
             db.session.execute(text("INSERT INTO system_settings (key, value) VALUES ('mechanic_invoice_cents', '1000') ON CONFLICT DO NOTHING"))
             db.session.commit()
             rows = db.session.execute(text("SELECT key, value FROM system_settings")).fetchall()

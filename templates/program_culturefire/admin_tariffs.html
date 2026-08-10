@@ -41,7 +41,7 @@
               <form method="POST" action="{{ url_for('cultural_bp.admin_tariffs') }}" class="flex items-center gap-2">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="tariff_id" value="{{ tariff.id }}">
-                <input type="number" name="base_token_cost" value="{{ tariff.base_token_cost }}" min="0" required class="border-gray-300 rounded shadow-sm focus:ring-blue-500 focus:border-blue-500 w-24">
+                <input type="number" name="base_token_cost" value="{{ tariff.base_token_cost }}" min="0" required class="border-gray-300 rounded shadow-sm focus:ring-blue-500 focus:border-blue-500 w-32">
                 <button type="submit" class="bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700 font-medium text-sm transition">
                   Save
                 </button>

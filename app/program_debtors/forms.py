@@ -41,8 +41,10 @@ class RecurringChargeForm(FlaskForm):
         ('monthly', 'Monthly'),
         ('weekly', 'Weekly'),
         ('once', 'Once-off')
-    ], default='monthly')
-    day_of_month = IntegerField("Day of Month (1-31)", validators=[Optional()], default=1)
+    ])
+    day_of_month = IntegerField("Day (1-31)", validators=[Optional()], default=1)
+    start_date = DateField("Start Date (Optional)", validators=[Optional()])
+    end_date = DateField("End Date (Optional)", validators=[Optional()])
     submit = SubmitField("Add Charge")
 
 class TransactionForm(FlaskForm):

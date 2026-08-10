@@ -259,7 +259,9 @@ def add_recurring_charge(debtor_id):
             charge_description=form.charge_description.data,
             amount=int(round(form.charge_amount.data * 100)),
             frequency=form.charge_frequency.data,
-            day_of_month=form.day_of_month.data
+            day_of_month=form.day_of_month.data,
+            start_date=form.start_date.data,
+            end_date=form.end_date.data
         )
         db.session.add(cmap)
         db.session.commit()
@@ -338,7 +340,13 @@ def run_billing():
                     db.session.add(ledger)
                     interest_applied += 1
 
+        today = datetime.utcnow().date()
         for cmap in debtor.charge_maps:
+            if cmap.start_date and today < cmap.start_date:
+                continue
+            if cmap.end_date and today > cmap.end_date:
+                continue
+                
             ref_id = f"recurring_{cmap.id}_{current_month_year}"
             
             # Check if this charge was already applied this month

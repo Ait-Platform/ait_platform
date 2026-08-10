@@ -99,5 +99,7 @@ class DebtorChargeMap(db.Model):
     amount = db.Column(db.Integer, nullable=False) # In cents
     frequency = db.Column(db.String(50), default='monthly') # e.g. 'monthly', 'weekly', 'once'
     day_of_month = db.Column(db.Integer, default=1) # 1-31
+    start_date = db.Column(db.Date, nullable=True) # Optional start date for recurring charge
+    end_date = db.Column(db.Date, nullable=True) # Optional end date for recurring charge
     
     created_at = db.Column(db.DateTime, default=datetime.utcnow)

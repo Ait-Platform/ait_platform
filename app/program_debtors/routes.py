@@ -8,7 +8,7 @@ from app.models.auth import AuthSubject, UserEnrollment
 from app.models.debtors import SoaProfile, Debtor, DebtorLedger, DebtorChargeMap, BusinessBankAccount, SenderProfile
 from app.models.auth import AitTokenWallet, AitTokenTransaction
 from app.extensions import db
-from app.program_debtors.forms import SoaProfileForm, DebtorForm, BankAccountForm
+from app.program_debtors.forms import SoaProfileForm, DebtorForm, BankAccountForm, SenderProfileForm
 
 @debtors_bp.route("/about")
 def about():
@@ -244,8 +244,9 @@ def debtor_financials(debtor_id):
     
     # Check if opening balance is already set in ledger
     has_opening_balance = DebtorLedger.query.filter_by(debtor_id=debtor.id, ref='OPENING').first() is not None
+    all_debtors = Debtor.query.filter_by(user_id=current_user.id).order_by(Debtor.name.asc()).all()
     
-    return render_template('program_debtors/debtor_financials.html', debtor=debtor, charges=charges, rc_form=rc_form, ob_form=ob_form, has_opening_balance=has_opening_balance)
+    return render_template('program_debtors/debtor_financials.html', debtor=debtor, charges=charges, rc_form=rc_form, ob_form=ob_form, has_opening_balance=has_opening_balance, all_debtors=all_debtors)
 
 @debtors_bp.route("/debtor/<int:debtor_id>/add_charge", methods=["POST"])
 @login_required

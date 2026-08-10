@@ -38,18 +38,17 @@
           </h2>
           <p class="text-sm text-slate-600 mt-1">Tokens are used to upload videos, apply for judgeship, and complete your biodata. Base pricing is in ZAR (200% parity: 100 ZAR = 200 Tokens).</p>
           
-          <form action="{{ url_for('cultural_bp.wallet_topup') }}" method="POST" class="mt-4 flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <div class="flex-1 bg-white border border-gray-300 rounded p-3 shadow-sm">
-                <p class="text-sm font-semibold text-gray-800">
-                    Standard Top-up: 200 Tokens for {{ local_currency }} {{ local_amount }}
-                </p>
-                <p class="text-xs text-gray-500 mt-1">You can purchase this standard package as many times as you like.</p>
-            </div>
-            <button type="submit" class="bg-orange-600 text-white px-5 py-3 rounded font-bold shadow hover:bg-orange-700 transition whitespace-nowrap">
-              Buy 200 Tokens
-            </button>
-          </form>
+          <div class="mt-4 flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+              <div class="flex-1 bg-white border border-gray-300 rounded p-3 shadow-sm">
+                  <p class="text-sm font-semibold text-gray-800">
+                      Standard Top-up: 100 Tokens at native local rate
+                  </p>
+                  <p class="text-xs text-gray-500 mt-1">You can purchase this standard package as many times as you like.</p>
+              </div>
+              <a href="{{ url_for('payment_bp.wallet_topup', subject_slug='cultural_fire') }}" class="bg-orange-600 text-white px-5 py-3 rounded font-bold shadow hover:bg-orange-700 transition whitespace-nowrap text-center">
+                Top Up Wallet
+              </a>
+          </div>
         </div>
 
 

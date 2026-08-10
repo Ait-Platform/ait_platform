@@ -1,4 +1,4 @@
-﻿{% extends "layout.html" %}
+{% extends "layout.html" %}
 {% block title %}ProTrade - Trial Ended{% endblock %}
 {% block flashes %}{% endblock %}
 
@@ -45,7 +45,7 @@
         <h4 class="text-lg font-bold text-slate-900">Ready to continue?</h4>
         <p class="text-sm text-slate-500 mb-6">Pay your once-off registration fee and top up your wallet to retain your data and keep generating quotes.</p>
         
-        <a href="{{ url_for('auth_bp.register', subject='mechanic', next=url_for('mechanic_bp.topup')) }}"
+        <a href="{{ url_for('auth_bp.register', subject='mechanic', next=url_for('payment_bp.wallet_topup', subject_slug='mechanic')) }}"
            class="inline-block w-full sm:w-auto bg-indigo-600 text-white font-bold text-lg py-3 px-8 rounded-xl shadow-sm hover:bg-indigo-700 transition">
           Register to Continue
         </a>

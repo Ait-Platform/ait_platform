@@ -177,3 +177,69 @@ def pricing_index():
         anchor_zar_cents=anchor_zar_cents,
         countries=countries,
     )
+
+@payment_bp.route("/wallet/topup/<subject_slug>")
+def wallet_topup(subject_slug):
+    from flask import session
+    from flask_login import current_user, login_required
+    if not current_user.is_authenticated:
+        return redirect(url_for("auth_bp.login"))
+        
+    from app.models.auth import AitTokenWallet, AuthSubject, UserEnrollment
+    wallet = AitTokenWallet.query.filter_by(user_id=current_user.id).first()
+    
+    auth_subject = AuthSubject.query.filter_by(slug=subject_slug).first()
+    if not auth_subject:
+        flash(f"Invalid module: {subject_slug}", "error")
+        return redirect("/")
+        
+    currency = "ZAR"
+    currency_symbol = "R"
+    price_cents = 10000
+    
+    enrollment = UserEnrollment.query.filter_by(user_id=current_user.id, subject_id=auth_subject.id).first()
+    if enrollment:
+        country_code = enrollment.country_code or session.get("country_code", "")
+        
+        # Fetch the CURRENT live price from SubjectCountryPrice
+        from app.enrollment.logic import get_quote_for_subject_country
+        quote = get_quote_for_subject_country(auth_subject.id, country_code)
+        
+        if quote:
+            currency = quote.local_currency
+            price_cents = quote.local_amount_cents
+        elif enrollment.local_currency:
+            currency = enrollment.local_currency
+            price_cents = enrollment.local_amount_cents
+            
+    if currency == "USD": currency_symbol = "$"
+    elif currency == "GBP": currency_symbol = "£"
+    elif currency == "EUR": currency_symbol = "€"
+    elif currency == "NGN": currency_symbol = "₦"
+    elif currency == "GHS": currency_symbol = "₵"
+    elif currency == "KES": currency_symbol = "KSh "
+    
+    price_display = f"{price_cents / 100:.2f}"
+            
+    return render_template("wallet_topup.html", wallet=wallet, currency=currency, currency_symbol=currency_symbol, price_display=price_display, price_cents=price_cents, subject_slug=subject_slug)
+
+@payment_bp.route("/wallet/checkout", methods=["POST"])
+def wallet_checkout():
+    from flask import session
+    from flask_login import current_user
+    if not current_user.is_authenticated:
+        return redirect(url_for("auth_bp.login"))
+        
+    tokens = 100
+    price_cents = int(request.form.get("price_cents", 10000))
+    currency = request.form.get("currency", "ZAR")
+    subject_slug = request.form.get("subject_slug", "debtors")
+            
+    session["topup_amount_cents"] = price_cents
+    session["topup_currency"] = currency
+    session["topup_tokens"] = tokens
+    
+    # Send directly to the unified Paystack handler using the generic format
+    checkout_subject = f"{subject_slug}_topup"
+    
+    return redirect(url_for('paystack_bp.paystack_start', subject=checkout_subject, email=current_user.email))

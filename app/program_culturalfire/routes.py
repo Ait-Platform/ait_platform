@@ -3137,27 +3137,7 @@ def wallet_dashboard():
 
     return render_template("program_culturefire/wallet.html", wallet=wallet, transactions=transactions, award=award, local_currency=local_currency, local_amount=local_amount, zar_amount_cents=zar_amount_cents)
 
-@cultural_bp.route("/wallet/topup", methods=["POST"])
-@login_required
-def wallet_topup():
-    from app.models.auth import AuthSubject, UserEnrollment
-    cf_subject = AuthSubject.query.filter_by(slug='cultural_fire').first()
-    enrollment = UserEnrollment.query.filter_by(user_id=current_user.id, subject_id=cf_subject.id).first() if cf_subject else None
-    
-    zar_cents = enrollment.zar_amount_cents if (enrollment and enrollment.zar_amount_cents) else 15000
-    tokens = 300
 
-    if zar_cents < 1000:
-        flash("Minimum payment amount is 10 ZAR.", "danger")
-        return redirect(url_for("cultural_bp.wallet_dashboard"))
-    
-    session["topup_tokens"] = tokens
-    session["zar_amount_cents"] = zar_cents
-    session["subject_slug"] = "cultural_fire_topup"
-    session["just_paid_subject_id"] = None
-    
-    # Route to checkout via Yoco
-    return redirect(url_for("paystack_bp.paystack_start", subject="cultural_fire_topup"))
 
 
 @cultural_bp.route("/stakeholder/dashboard")

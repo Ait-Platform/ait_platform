@@ -195,15 +195,9 @@ def start():
     if subject == "metro_billing":
         amount_cents = int(session.get("metro_billing_amount_cents", 0))
 
-    if subject == "mechanic_topup":
-        amount_cents = int(session.get("mechanic_topup_amount_cents", 0))
-        
-    if subject == "practice_crm_topup":
-        amount_cents = int(session.get("practice_crm_topup_amount_cents", 0))
-        
-    if subject == "debtors_topup":
-        amount_cents = int(session.get("debtors_topup_amount_cents", 0))
-        currency = session.get("debtors_topup_currency", "ZAR")
+    if subject == "debtors_topup" or subject.endswith("_topup"):
+        amount_cents = int(session.get("topup_amount_cents", 0))
+        currency = session.get("topup_currency", "ZAR")
         
     if amount_cents <= 0:
         u = User.query.filter_by(email=email).first()
@@ -401,8 +395,8 @@ def fulfill_order(email, subject, transaction=None):
                 db.session.commit()
         return
 
-    # ---------- PRACTICE CRM TOPUP ----------
-    if subject == "practice_crm_topup":
+    # ---------- UNIVERSAL TOKEN TOPUP ----------
+    if subject.endswith("_topup"):
         from app.models.auth import AitTokenWallet, AitTokenTransaction
         total = int(transaction.get("amount", 0)) if transaction else 0
         if total > 0:
@@ -421,59 +415,7 @@ def fulfill_order(email, subject, transaction=None):
                 wallet_id=wallet.id,
                 transaction_type="purchase",
                 amount=int(tokens_purchased),
-                description="Paystack Top-Up (HP CRM)",
-                reference=transaction.get("reference") if transaction else "paystack_tx"
-            )
-            db.session.add(tx)
-            db.session.commit()
-        return
-
-    # ---------- CFI TOPUP ----------
-    if subject == "cultural_fire_topup":
-        from app.models.auth import AitTokenWallet, AitTokenTransaction
-        total = int(transaction.get("amount", 0)) if transaction else 0
-        if total > 0:
-            tokens_purchased = transaction.get("metadata", {}).get("tokens_purchased")
-            if tokens_purchased is None:
-                tokens_purchased = total // 100 # Legacy fallback
-                
-            wallet = AitTokenWallet.query.filter_by(user_id=u.id).first()
-            if not wallet:
-                wallet = AitTokenWallet(user_id=u.id, balance=0)
-                db.session.add(wallet)
-                db.session.flush()
-            wallet.balance += int(tokens_purchased)
-            tx = AitTokenTransaction(
-                wallet_id=wallet.id,
-                transaction_type="purchase",
-                amount=int(tokens_purchased),
-                description="Paystack Top-Up",
-                reference=transaction.get("reference") if transaction else "paystack_tx"
-            )
-            db.session.add(tx)
-            db.session.commit()
-        return
-        
-    # ---------- DEBTORS TOPUP ----------
-    if subject == "debtors_topup":
-        from app.models.auth import AitTokenWallet, AitTokenTransaction
-        total = int(transaction.get("amount", 0)) if transaction else 0
-        if total > 0:
-            tokens_purchased = transaction.get("metadata", {}).get("tokens_purchased")
-            if tokens_purchased is None:
-                tokens_purchased = total // 100 # Default conversion rate
-                
-            wallet = AitTokenWallet.query.filter_by(user_id=u.id).first()
-            if not wallet:
-                wallet = AitTokenWallet(user_id=u.id, balance=0)
-                db.session.add(wallet)
-                db.session.flush()
-            wallet.balance += int(tokens_purchased)
-            tx = AitTokenTransaction(
-                wallet_id=wallet.id,
-                transaction_type="purchase",
-                amount=int(tokens_purchased),
-                description="Paystack Top-Up (Debtors)",
+                description=f"Paystack Top-Up ({subject.replace('_topup', '').replace('_', ' ').title()})",
                 reference=transaction.get("reference") if transaction else "paystack_tx"
             )
             db.session.add(tx)

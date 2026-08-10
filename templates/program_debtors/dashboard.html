@@ -46,7 +46,7 @@
                 <div class="text-teal-700 font-bold text-base md:text-lg">Wallet</div>
                 <div class="text-sm font-semibold text-teal-600">{{ wallet.balance if wallet else 0 }} Tokens</div>
             </div>
-            <a href="{{ url_for('debtors_bp.topup') }}" class="w-full bg-teal-600 text-white font-semibold py-1 px-3 rounded hover:bg-teal-700 transition text-center text-sm shadow-sm">
+            <a href="{{ url_for('payment_bp.wallet_topup', subject_slug='debtors') }}" class="w-full bg-teal-600 text-white font-semibold py-1 px-3 rounded hover:bg-teal-700 transition text-center text-sm shadow-sm">
                 Token Topup
             </a>
         </div>

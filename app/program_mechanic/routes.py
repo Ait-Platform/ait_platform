@@ -102,28 +102,6 @@ def price_page():
 
 from app.models.mechanic import MechShop, MechCatalogPart
 
-@mechanic_bp.route("/mechanic/topup")
-@login_required
-def topup():
-    active_shop = MechShop.query.filter_by(user_id=current_user.id, onboarding_status='active').first()
-    if not active_shop:
-        flash("You need an active shop to top up.", "warning")
-        return redirect(url_for('mechanic_bp.mechanic_dashboard'))
-    return render_template("program_mechanic/topup.html", active_shop=active_shop)
-
-@mechanic_bp.route("/mechanic/process_topup", methods=["POST"])
-@login_required
-def process_topup():
-    amount_cents = request.form.get("amount_cents")
-    if not amount_cents or int(amount_cents) < 5000:
-        flash("Invalid top up amount.", "danger")
-        return redirect(url_for('mechanic_bp.topup'))
-    
-    session["mechanic_topup_amount_cents"] = int(amount_cents)
-    
-    return redirect(url_for('paystack_bp.paystack_start', subject='mechanic_topup', email=current_user.email, next_url=url_for('mechanic_bp.mechanic_dashboard')))
-
-
 @mechanic_bp.route("/mechanic/mock_bill")
 @login_required
 def mock_bill():

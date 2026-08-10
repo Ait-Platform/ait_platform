@@ -25,8 +25,8 @@
             <div class="text-lg font-bold text-slate-900">R {{ "%.2f"|format(active_shop.wallet_balance_cents / 100) }}</div>
           </div>
         </div>
-        <a href="{{ url_for('mechanic_bp.topup') }}" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-3 rounded-lg text-sm font-semibold shadow-sm transition">
-          Top Up
+        <a href="{{ url_for('payment_bp.wallet_topup', subject_slug='mechanic') }}" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-3 rounded-lg text-sm font-semibold shadow-sm transition">
+          Top Up Tokens
         </a>
         {% endif %}
       </div>
@@ -77,7 +77,7 @@
           </a>
         {% endif %}
         
-        <a href="{{ url_for('mechanic_bp.topup') }}" class="block rounded-xl border p-6 shadow-sm transition hover:shadow bg-white border-slate-200 hover:border-indigo-300 group">
+        <a href="{{ url_for('payment_bp.wallet_topup', subject_slug='mechanic') }}" class="block rounded-xl border p-6 shadow-sm transition hover:shadow bg-white border-slate-200 hover:border-indigo-300 group">
           <div class="font-semibold text-slate-900 group-hover:text-indigo-600">2. Top Up Wallet</div>
           <div class="mt-1 text-sm text-slate-600">Add credits to generate quotes and invoices.</div>
         </a>

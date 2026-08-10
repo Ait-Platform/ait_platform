@@ -1,4 +1,4 @@
-﻿{% extends "layout.html" %}
+{% extends "layout.html" %}
 {% block title %}Token Wallet | Medical Practice CRM{% endblock %}
 
 {# Override global flashes so we can place them inside the tile #}
@@ -59,12 +59,9 @@
                 </div>
                 <div class="mt-2 sm:mt-0 w-full sm:w-auto">
                     <!-- Row 2: Right aligned button -->
-                    <form action="{{ url_for('practice_crm_bp.topup') }}" method="POST">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                        <button type="submit" class="w-full sm:w-auto bg-slate-800 text-white font-bold px-6 py-3 rounded-lg shadow hover:bg-slate-900 transition">
-                            Top Up Wallet
-                        </button>
-                    </form>
+                    <a href="{{ url_for('payment_bp.wallet_topup', subject_slug='practice_crm') }}" class="w-full sm:w-auto bg-slate-800 text-white font-bold px-6 py-3 rounded-lg shadow hover:bg-slate-900 transition inline-block text-center">
+                        Top Up Wallet
+                    </a>
                 </div>
             </div>
             

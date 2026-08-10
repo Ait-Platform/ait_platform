@@ -800,15 +800,3 @@ def mock_bill():
     token_balance = wallet.balance if wallet else 0
         
     return render_template("program_practice_crm/mock_bill.html", practice=practice, token_balance=token_balance)
-
-@practice_crm_bp.route("/topup", methods=["GET", "POST"])
-@login_required
-def topup():
-    """Route to redirect user to Paystack checkout for practice CRM tokens"""
-    from flask import session
-    # 100 ZAR = 10000 cents, for a bundle of 100 Tokens
-    session["practice_crm_topup_amount_cents"] = 10000 
-    session["topup_tokens"] = 100
-    return redirect(url_for('paystack_bp.paystack_start', subject='practice_crm_topup', email=current_user.email))
-
-

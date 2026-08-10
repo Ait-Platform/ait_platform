@@ -651,58 +651,7 @@ def email_soa():
         
     return redirect(url_for('debtors_bp.generate_soa', debtor_id=debtor.id, start_date=start_date_str, end_date=end_date_str))
 
-@debtors_bp.route("/topup")
-@login_required
-def topup():
-    wallet = AitTokenWallet.query.filter_by(user_id=current_user.id).first()
-    
-    # Try to find user enrollment for Debtors to determine local currency
-    auth_subject = AuthSubject.query.filter(AuthSubject.slug.ilike('debtors')).first()
-    currency = "ZAR"
-    currency_symbol = "R"
-    price_cents = 10000
-    
-    if auth_subject:
-        enrollment = UserEnrollment.query.filter_by(user_id=current_user.id, subject_id=auth_subject.id).first()
-        if enrollment:
-            country_code = enrollment.country_code or session.get("country_code", "")
-            
-            # Fetch the CURRENT live price from SubjectCountryPrice
-            from app.enrollment.logic import get_quote_for_subject_country
-            quote = get_quote_for_subject_country(auth_subject.id, country_code)
-            
-            if quote:
-                currency = quote.local_currency
-                price_cents = quote.local_amount_cents
-            elif enrollment.local_currency:
-                currency = enrollment.local_currency
-                price_cents = enrollment.local_amount_cents
-            
-    if currency == "USD": currency_symbol = "$"
-    elif currency == "GBP": currency_symbol = "£"
-    elif currency == "EUR": currency_symbol = "€"
-    elif currency == "NGN": currency_symbol = "₦"
-    elif currency == "GHS": currency_symbol = "₵"
-    elif currency == "KES": currency_symbol = "KSh "
-    
-    price_display = f"{price_cents / 100:.2f}"
-            
-    return render_template("program_debtors/wallet_topup.html", wallet=wallet, currency=currency, currency_symbol=currency_symbol, price_display=price_display, price_cents=price_cents)
 
-@debtors_bp.route("/wallet_checkout", methods=["POST"])
-@login_required
-def wallet_checkout():
-    # Only 100 tokens allowed
-    tokens = 100
-    price_cents = int(request.form.get("price_cents", 10000))
-    currency = request.form.get("currency", "ZAR")
-            
-    from flask import session
-    session["debtors_topup_amount_cents"] = price_cents
-    session["debtors_topup_currency"] = currency
-    session["topup_tokens"] = tokens
-    
-    return redirect(url_for('paystack_bp.paystack_start', subject='debtors_topup', email=current_user.email))
 
 
 @debtors_bp.route("/debtor/<int:debtor_id>/pay")

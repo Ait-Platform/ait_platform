@@ -16,82 +16,45 @@
                     <h1 class="text-2xl font-bold text-gray-800">Financial Setup: {{ debtor.name }}</h1>
                     <a href="{{ url_for('debtors_bp.dashboard') }}" class="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 font-semibold text-sm shadow-sm transition">Back</a>
                 </div>
-                <!-- Row 2: Action Buttons -->
-                <div class="flex flex-wrap gap-2 justify-end items-center">
-                    <select onchange="if(this.value) window.location.href=this.value" class="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-semibold text-sm cursor-pointer hover:bg-gray-50 transition">
+                <!-- Switch Debtor Dropdown -->
+                <div class="flex justify-end items-center mb-6">
+                    <select onchange="if(this.value) window.location.href=this.value" class="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-semibold text-sm cursor-pointer hover:bg-gray-50 transition w-64">
                         <option value="">Switch Debtor...</option>
                         {% for d in all_debtors %}
                         <option value="{{ url_for('debtors_bp.debtor_financials', debtor_id=d.id) }}" {% if d.id == debtor.id %}selected{% endif %}>{{ d.name }}</option>
                         {% endfor %}
                     </select>
-                    <a href="{{ url_for('debtors_bp.debtor_view', debtor_id=debtor.id) }}" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-semibold text-sm shadow-sm transition">View Ledger</a>
-                    <a href="{{ url_for('debtors_bp.debtor_view', debtor_id=debtor.id) }}#capture" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 font-semibold text-sm shadow-sm transition">Capture Transaction</a>
                 </div>
             </div>
             
             <div class="flex flex-col space-y-8">
-                <!-- Top Section: Forms -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Financial Setup Tiles Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <!-- Add Recurring Charge Tile -->
+                    <a href="{{ url_for('debtors_bp.add_recurring_charge', debtor_id=debtor.id) }}" class="flex flex-col items-center justify-center p-6 bg-blue-50 border border-blue-200 rounded-xl hover:bg-blue-100 transition group shadow-sm">
+                        <div class="text-blue-600 font-bold mb-2 text-lg">Add Recurring Charge</div>
+                        <div class="text-sm text-slate-500 text-center">Setup automatic monthly billing</div>
+                    </a>
+
+                    <!-- Add Opening Balance Tile (only if not set) -->
                     {% if not has_opening_balance %}
-                    <div class="bg-slate-50 border rounded-lg p-5">
-                        <h3 class="text-md font-bold text-gray-800 mb-3 border-b pb-2">Set Opening Balance</h3>
-                        <form method="POST" action="{{ url_for('debtors_bp.add_opening_balance', debtor_id=debtor.id) }}">
-                            {{ ob_form.hidden_tag() }}
-                            <div class="space-y-3">
-                                <div>
-                                    {{ ob_form.opening_balance.label(class="block text-sm font-medium text-gray-700 mb-1") }}
-                                    {{ ob_form.opening_balance(class="w-full px-3 py-2 border border-gray-400 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm", placeholder="e.g. 50.00", step="0.01", autofocus=True) }}
-                                </div>
-                                <div>
-                                    {{ ob_form.txn_date.label(class="block text-sm font-medium text-gray-700 mb-1") }}
-                                    {{ ob_form.txn_date(class="w-full px-3 py-2 border border-gray-400 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm", type="date") }}
-                                </div>
-                                <div class="pt-2">
-                                    {{ ob_form.submit(class="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded transition shadow-sm cursor-pointer") }}
-                                </div>
-                            </div>
-                        </form>
-                    </div>
+                    <a href="{{ url_for('debtors_bp.add_opening_balance', debtor_id=debtor.id) }}" class="flex flex-col items-center justify-center p-6 bg-yellow-50 border border-yellow-200 rounded-xl hover:bg-yellow-100 transition group shadow-sm">
+                        <div class="text-yellow-600 font-bold mb-2 text-lg">Set Opening Balance</div>
+                        <div class="text-sm text-slate-500 text-center">Define the starting ledger amount</div>
+                    </a>
                     {% endif %}
-                    
-                    <div class="bg-slate-50 border rounded-lg p-5">
-                        <h3 class="text-md font-bold text-gray-800 mb-3 border-b pb-2">Add Recurring Charge</h3>
-                        <form method="POST" action="{{ url_for('debtors_bp.add_recurring_charge', debtor_id=debtor.id) }}">
-                            {{ rc_form.hidden_tag() }}
-                            <div class="space-y-3">
-                                <div>
-                                    {{ rc_form.charge_description.label(class="block text-xs font-medium text-gray-700 mb-1") }}
-                                    {{ rc_form.charge_description(class="w-full px-3 py-2 border border-gray-400 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm", placeholder="e.g. Monthly Retainer", autofocus=has_opening_balance) }}
-                                </div>
-                                <div>
-                                    {{ rc_form.charge_amount.label(class="block text-xs font-medium text-gray-700 mb-1") }}
-                                    {{ rc_form.charge_amount(class="w-full px-3 py-2 border border-gray-400 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm", placeholder="e.g. 50.00", step="0.01") }}
-                                </div>
-                                <div>
-                                    {{ rc_form.charge_frequency.label(class="block text-xs font-medium text-gray-700 mb-1") }}
-                                    {{ rc_form.charge_frequency(class="w-full px-3 py-2 border border-gray-400 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm") }}
-                                </div>
-                                <div>
-                                    {{ rc_form.day_of_month.label(class="block text-xs font-medium text-gray-700 mb-1") }}
-                                    {{ rc_form.day_of_month(class="w-full px-3 py-2 border border-gray-400 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm", placeholder="e.g. 1") }}
-                                    <p class="text-xs text-gray-500 mt-1">1-31 (Caps out on short months)</p>
-                                </div>
-                                <div class="grid grid-cols-2 gap-3">
-                                    <div>
-                                        {{ rc_form.start_date.label(class="block text-xs font-medium text-gray-700 mb-1") }}
-                                        {{ rc_form.start_date(class="w-full px-3 py-2 border border-gray-400 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm", type="date") }}
-                                    </div>
-                                    <div>
-                                        {{ rc_form.end_date.label(class="block text-xs font-medium text-gray-700 mb-1") }}
-                                        {{ rc_form.end_date(class="w-full px-3 py-2 border border-gray-400 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm", type="date") }}
-                                    </div>
-                                </div>
-                                <div class="pt-2">
-                                    {{ rc_form.submit(class="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded transition shadow-sm cursor-pointer") }}
-                                </div>
-                            </div>
-                        </form>
-                    </div>
+
+                    <!-- Capture Transaction Tile -->
+                    <a href="{{ url_for('debtors_bp.add_transaction', debtor_id=debtor.id) }}" class="flex flex-col items-center justify-center p-6 bg-green-50 border border-green-200 rounded-xl hover:bg-green-100 transition group shadow-sm">
+                        <div class="text-green-600 font-bold mb-2 text-lg">Capture Transaction</div>
+                        <div class="text-sm text-slate-500 text-center">Manually add a debit or credit</div>
+                    </a>
+
+                    <!-- View Ledger Tile (Always Last) -->
+                    <a href="{{ url_for('debtors_bp.debtor_view', debtor_id=debtor.id) }}" class="flex flex-col items-center justify-center p-6 bg-purple-50 border border-purple-200 rounded-xl hover:bg-purple-100 transition group shadow-sm lg:col-start-4">
+                        <div class="text-purple-600 font-bold mb-2 text-lg">View Ledger</div>
+                        <div class="text-sm text-slate-500 text-center">See the full statement history</div>
+                    </a>
                 </div>
                 
                 <!-- Bottom Section: List of existing financials -->

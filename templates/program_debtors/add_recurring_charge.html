@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto mt-8 px-4">
+    <div class="mb-6 flex justify-between items-center">
+        <h2 class="text-3xl font-extrabold text-gray-900 tracking-tight">Add Recurring Charge</h2>
+        <a href="{{ url_for('debtors_bp.debtor_financials', debtor_id=debtor.id) }}" class="text-blue-600 hover:text-blue-800 font-semibold">&larr; Back to Financial Setup</a>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-8">
+        <div class="p-6 bg-slate-50 border-b border-slate-200">
+            <h3 class="text-xl font-bold text-gray-800">New Charge for {{ debtor.name }}</h3>
+            <p class="text-gray-600 mt-1">Configure a recurring charge to automatically run during the monthly billing cycle.</p>
+        </div>
+        <div class="p-6">
+            <form method="POST" action="{{ url_for('debtors_bp.add_recurring_charge', debtor_id=debtor.id) }}">
+                {{ form.hidden_tag() }}
+                <div class="space-y-5 max-w-xl">
+                    <div>
+                        {{ form.charge_description.label(class="block text-sm font-semibold text-gray-700 mb-1") }}
+                        {{ form.charge_description(class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-800 transition shadow-sm", placeholder="e.g. Monthly Retainer", autofocus=True) }}
+                    </div>
+                    <div>
+                        {{ form.charge_amount.label(class="block text-sm font-semibold text-gray-700 mb-1") }}
+                        {{ form.charge_amount(class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-800 transition shadow-sm", placeholder="e.g. 50.00", step="0.01") }}
+                    </div>
+                    <div>
+                        {{ form.charge_frequency.label(class="block text-sm font-semibold text-gray-700 mb-1") }}
+                        {{ form.charge_frequency(class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-800 transition shadow-sm") }}
+                    </div>
+                    <div>
+                        {{ form.day_of_month.label(class="block text-sm font-semibold text-gray-700 mb-1") }}
+                        {{ form.day_of_month(class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-800 transition shadow-sm", placeholder="e.g. 1") }}
+                        <p class="text-xs text-gray-500 mt-1">1-31 (Caps out on short months)</p>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            {{ form.start_date.label(class="block text-sm font-semibold text-gray-700 mb-1") }}
+                            {{ form.start_date(class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-800 transition shadow-sm", type="date") }}
+                        </div>
+                        <div>
+                            {{ form.end_date.label(class="block text-sm font-semibold text-gray-700 mb-1") }}
+                            {{ form.end_date(class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-800 transition shadow-sm", type="date") }}
+                        </div>
+                    </div>
+                    <div class="pt-4">
+                        {{ form.submit(class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-lg rounded-lg transition shadow-md cursor-pointer") }}
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

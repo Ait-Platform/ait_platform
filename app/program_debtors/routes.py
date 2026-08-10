@@ -246,7 +246,7 @@ def debtor_financials(debtor_id):
     
     return render_template('program_debtors/debtor_financials.html', debtor=debtor, charges=charges, rc_form=rc_form, ob_form=ob_form, has_opening_balance=has_opening_balance, all_debtors=all_debtors)
 
-@debtors_bp.route("/debtor/<int:debtor_id>/add_charge", methods=["POST"])
+@debtors_bp.route("/debtor/<int:debtor_id>/add_charge", methods=["GET", "POST"])
 @login_required
 def add_recurring_charge(debtor_id):
     debtor = Debtor.query.filter_by(id=debtor_id, user_id=current_user.id).first_or_404()
@@ -264,8 +264,10 @@ def add_recurring_charge(debtor_id):
         )
         db.session.add(cmap)
         db.session.commit()
-        flash("Recurring charge added successfully.", "success")
-    return redirect(url_for('debtors_bp.debtor_financials', debtor_id=debtor.id))
+        flash("Recurring charge added.", "success")
+        return redirect(url_for("debtors_bp.debtor_financials", debtor_id=debtor.id))
+        
+    return render_template("program_debtors/add_recurring_charge.html", form=form, debtor=debtor)
 
 @debtors_bp.route("/debtor/<int:debtor_id>/update_interest", methods=["POST"])
 @login_required
@@ -382,7 +384,7 @@ def migrate_charge_dates():
     db.session.commit()
     return "Migration complete."
 
-@debtors_bp.route("/debtor/<int:debtor_id>/add_opening_balance", methods=["POST"])
+@debtors_bp.route("/debtor/<int:debtor_id>/add_opening_balance", methods=["GET", "POST"])
 @login_required
 def add_opening_balance(debtor_id):
     debtor = Debtor.query.filter_by(id=debtor_id, user_id=current_user.id).first_or_404()
@@ -401,7 +403,8 @@ def add_opening_balance(debtor_id):
             db.session.add(ledger)
             db.session.commit()
             flash("Opening balance set successfully.", "success")
-    return redirect(url_for('debtors_bp.debtor_financials', debtor_id=debtor.id))
+        return redirect(url_for('debtors_bp.debtor_financials', debtor_id=debtor.id))
+    return render_template("program_debtors/add_opening_balance.html", form=form, debtor=debtor)
 
 from app.program_debtors.forms import TransactionForm
 
@@ -427,7 +430,7 @@ def debtor_view(debtor_id):
     form = TransactionForm() # for inline addition
     return render_template("program_debtors/debtor_view.html", debtor=debtor, ledgers=ledgers, form=form)
 
-@debtors_bp.route("/debtor/<int:debtor_id>/add_transaction", methods=["POST"])
+@debtors_bp.route("/debtor/<int:debtor_id>/add_transaction", methods=["GET", "POST"])
 @login_required
 def add_transaction(debtor_id):
     debtor = Debtor.query.filter_by(id=debtor_id, user_id=current_user.id).first_or_404()
@@ -445,11 +448,14 @@ def add_transaction(debtor_id):
         db.session.add(txn)
         db.session.commit()
         flash("Transaction added successfully.", "success")
+        if request.form.get("action") == "save_and_add_another":
+            return redirect(url_for("debtors_bp.add_transaction", debtor_id=debtor.id))
+        return redirect(url_for("debtors_bp.debtor_view", debtor_id=debtor.id))
     else:
         for field, errors in form.errors.items():
             for error in errors:
                 flash(f"Error in {getattr(form, field).label.text}: {error}", "danger")
-    return redirect(url_for("debtors_bp.debtor_view", debtor_id=debtor.id))
+    return render_template("program_debtors/add_transaction.html", form=form, debtor=debtor)
 
 @debtors_bp.route("/transaction/<int:txn_id>/edit", methods=["GET", "POST"])
 @login_required

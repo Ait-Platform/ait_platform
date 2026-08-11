@@ -70,6 +70,14 @@ def global_tariffs():
         return redirect(url_for('admin_bp.global_tariffs'))
         
     tariffs = TokenTariff.query.order_by(TokenTariff.program_slug, TokenTariff.action_name).all()
+    
+    # Auto-seed core modules so they show up in the admin Token Tile
+    core_modules = ['practice_crm', 'cultural_fire', 'debtors', 'mechanic']
+    for slug in core_modules:
+        if not SignupBonus.query.filter_by(program_slug=slug).first():
+            db.session.add(SignupBonus(program_slug=slug, bonus_tokens=100))
+    db.session.commit()
+    
     bonuses = SignupBonus.query.order_by(SignupBonus.program_slug).all()
     return render_template('admin/tariffs.html', tariffs=tariffs, bonuses=bonuses)
 

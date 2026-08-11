@@ -37,6 +37,27 @@ def debtors_router():
 @login_required
 def dashboard():
     wallet = AitTokenWallet.query.filter_by(user_id=current_user.id).first()
+    if not wallet:
+        from app.models.billing import SignupBonus
+        bonus = SignupBonus.query.filter_by(program_slug='debtors').first()
+        if not bonus:
+            bonus = SignupBonus(program_slug='debtors', bonus_tokens=100)
+            db.session.add(bonus)
+            db.session.flush()
+            
+        wallet = AitTokenWallet(user_id=current_user.id, balance=bonus.bonus_tokens)
+        db.session.add(wallet)
+        db.session.flush()
+        
+        if bonus.bonus_tokens > 0:
+            tx = AitTokenTransaction(
+                wallet_id=wallet.id,
+                amount=bonus.bonus_tokens,
+                description="Initial Signup Bonus (Debtors)",
+                transaction_type="purchase"
+            )
+            db.session.add(tx)
+        db.session.commit()
     debtors = Debtor.query.filter_by(user_id=current_user.id, is_active=True).all()
     
     # Calculate balances for each debtor dynamically (or we could store it)

@@ -218,6 +218,8 @@ def wallet_topup(subject_slug):
     elif currency == "NGN": currency_symbol = "₦"
     elif currency == "GHS": currency_symbol = "₵"
     elif currency == "KES": currency_symbol = "KSh "
+    elif currency == "RWF": currency_symbol = "FRw "
+    elif currency != "ZAR": currency_symbol = ""
     
     price_display = f"{price_cents / 100:.2f}"
             

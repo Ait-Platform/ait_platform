@@ -148,6 +148,8 @@ def create_paystack_transaction(amount_cents, display_name, subject, email, curr
     }
     
     try:
+        from flask import current_app
+        current_app.logger.warning(f"PAYSTACK INITIALIZE PAYLOAD: {payload}")
         r = requests.post(url, json=payload, headers=headers)
         r.raise_for_status()
         data = r.json()

@@ -246,7 +246,6 @@ def generate_invoice(id):
         txn = AitTokenTransaction(
             wallet_id=wallet.id,
             amount=-token_cost,
-            transaction_type='usage',
             description=f"Generated invoice for shop {active_shop.id}"
         )
         db.session.add(txn)
@@ -334,7 +333,6 @@ def new_quote():
         txn = AitTokenTransaction(
             wallet_id=wallet.id,
             amount=-token_cost,
-            transaction_type='usage',
             description=f"Generated quote for shop {active_shop.id}"
         )
         db.session.add(txn)

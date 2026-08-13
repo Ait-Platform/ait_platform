@@ -413,10 +413,8 @@ def fulfill_order(email, subject, transaction=None):
             wallet.balance += int(tokens_purchased)
             tx = AitTokenTransaction(
                 wallet_id=wallet.id,
-                transaction_type="purchase",
                 amount=int(tokens_purchased),
-                description=f"Paystack Top-Up ({subject.replace('_topup', '').replace('_', ' ').title()})",
-                reference=transaction.get("reference") if transaction else "paystack_tx"
+                description=f"Paystack Top-Up ({subject.replace('_topup', '').replace('_', ' ').title()})"
             )
             db.session.add(tx)
             db.session.commit()

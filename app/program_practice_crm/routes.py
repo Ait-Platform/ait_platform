@@ -398,7 +398,7 @@ def setup():
                 db.session.add(wallet)
                 if start_tokens > 0:
                     db.session.flush()
-                    txn = AitTokenTransaction(wallet_id=wallet.id, amount=start_tokens, transaction_type="purchase", description="HP CRM Signup Bonus")
+                    txn = AitTokenTransaction(wallet_id=wallet.id, amount=start_tokens, description="HP CRM Signup Bonus")
                     db.session.add(txn)
             db.session.add(practice)
             
@@ -470,7 +470,7 @@ def pipeline():
                     db.session.add(wallet)
                     if start_tokens > 0:
                         db.session.flush()
-                        txn = AitTokenTransaction(wallet_id=wallet.id, amount=start_tokens, transaction_type="purchase", description="HP CRM Signup Bonus")
+                        txn = AitTokenTransaction(wallet_id=wallet.id, amount=start_tokens, description="HP CRM Signup Bonus")
                         db.session.add(txn)
                 db.session.add(practice)
                 db.session.commit()
@@ -623,7 +623,7 @@ def new_enquiry():
     
     # Deduct tokens
     wallet.balance -= enquiry_cost_tokens
-    txn = AitTokenTransaction(wallet_id=wallet.id, amount=-enquiry_cost_tokens, transaction_type="purchase", description="HP CRM Enquiry Intake")
+    txn = AitTokenTransaction(wallet_id=wallet.id, amount=-enquiry_cost_tokens, description="HP CRM Enquiry Intake")
     db.session.add(txn)
 
     patient_name = request.form.get('patient_name')

@@ -503,6 +503,17 @@ def register_decision():
             return redirect(url_for("auth_bp.bridge_dashboard"))
     # ---------- END FREE SPECIAL CASE ----------
 
+    # ---------- WALLET TOKEN SUBJECTS (NO REGISTRATION FEE, USES WALLET BALANCE) ----------
+    if subject in ("cultural_fire", "culturalfire", "debtors"):
+        mark_loss_enrollment_free(enrollment_id)
+        session.pop("reg_ctx", None)
+        session.pop("just_paid_subject_id", None)
+        
+        # We assume the 100 token trial bonus was added during user creation.
+        if subject in ("cultural_fire", "culturalfire"):
+            return redirect(url_for("cultural_bp.cultural_fire_router"))
+        elif subject == "debtors":
+            return redirect(url_for("debtors_bp.debtors_router"))
 
     # ---------- SPECIAL CASE: MECHANIC FLAT ZAR REGISTRATION ----------
     if subject == "mechanic":

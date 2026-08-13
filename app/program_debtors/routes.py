@@ -53,8 +53,7 @@ def dashboard():
             tx = AitTokenTransaction(
                 wallet_id=wallet.id,
                 amount=bonus.bonus_tokens,
-                description="Initial Signup Bonus (Debtors)",
-                transaction_type="purchase"
+                description="Initial Signup Bonus (Debtors)"
             )
             db.session.add(tx)
         db.session.commit()

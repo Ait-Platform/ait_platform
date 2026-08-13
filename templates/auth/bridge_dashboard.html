@@ -36,7 +36,7 @@
 
   <div class="{% if subjects|length == 1 %}max-w-2xl mx-auto grid grid-cols-1{% else %}grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3{% endif %} gap-6">
     {% for s in subjects %}
-      {% if s.slug != 'admin_general' %}
+      {% if s.slug not in ['admin_general', 'staff'] %}
       {% set is_admin    = (s.access_level == 'admin') %}
       {% if not (is_admin and s.slug != 'admin') %}
       {% set is_enrolled = (s.access_level == 'enrolled') %}
@@ -71,8 +71,7 @@
           {% set primary_href = url_for('spv_bp.investor_dashboard') %}
         {% elif s.slug == 'healthcore' %}
           {% set primary_href = url_for('healthcore_bp.healthcore_dashboard') %}
-        {% elif s.slug == 'staff' %}
-          {% set primary_href = url_for('home_bp.teacher_dashboard') %}
+
         {% else %}
           {% set primary_href = url_for('auth_bp.learner_subject_dashboard', subject=s.slug) %}
         {% endif %}
@@ -145,14 +144,7 @@
                     <li><span class="font-bold">3. Prepare:</span> Master topics to unlock exam dates</li>
                   </ul>
                 </div>
-              {% elif s.slug == 'staff' %}
-                <div class="bg-amber-50 border border-amber-100 rounded-lg p-3 text-slate-700">
-                  <p class="font-bold text-amber-700 mb-1 flex items-center">
-                    <svg class="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                    Tutor Dashboard
-                  </p>
-                  <p class="text-xs">Access your tutor dashboard to view your linked learners and grade their practical exercises.</p>
-                </div>
+
               {% else %}
                 <p>{% if is_admin %}Manage content, settings, and reports for {{ s.name }}.{% else %}Continue your learning in {{ s.name }}.{% endif %}</p>
               {% endif %}

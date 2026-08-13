@@ -3889,8 +3889,7 @@ def billing_unlock(month):
     txn = AitTokenTransaction(
         wallet_id=wallet.id,
         amount=-token_cost,
-        transaction_type='usage',
-        description=f"Unlocked statements for {month} ({meters_billed} meters)"
+        description=f"[usage] Unlocked statements for {month} ({meters_billed} meters)"
     )
     db.session.add(txn)
     

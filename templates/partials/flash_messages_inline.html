@@ -1,0 +1,18 @@
+{% with msgs = get_flashed_messages(with_categories=true) %}
+  {% if msgs %}
+    <div class="flex flex-col gap-3 w-full mb-4 px-6 mt-4">
+      {% for cat, msg in msgs %}
+        <div class="flex items-start justify-between rounded-lg border px-4 py-3 shadow-sm
+                    {% if cat == 'success' %}border-emerald-200 bg-emerald-50 text-emerald-800
+                    {% elif cat == 'warning' %}border-amber-200 bg-amber-50 text-amber-800
+                    {% elif cat == 'danger' or cat == 'error' %}border-rose-200 bg-rose-50 text-rose-800
+                    {% else %}border-blue-200 bg-blue-50 text-blue-800{% endif %}">
+          <div class="text-sm font-medium pr-4">{{ msg }}</div>
+          <button type="button" onclick="this.parentElement.remove();" class="text-gray-400 hover:text-gray-600 focus:outline-none transition-colors -mr-1">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+          </button>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}

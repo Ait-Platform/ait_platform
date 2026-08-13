@@ -196,6 +196,7 @@ def wallet_topup(subject_slug):
     currency = "ZAR"
     currency_symbol = "R"
     price_cents = 10000
+    zar_price_cents = 10000
     
     enrollment = UserEnrollment.query.filter_by(user_id=current_user.id, subject_id=auth_subject.id).first()
     if enrollment:
@@ -208,9 +209,11 @@ def wallet_topup(subject_slug):
         if quote:
             currency = quote.local_currency or "ZAR"
             price_cents = quote.local_amount_cents or 10000
+            zar_price_cents = quote.zar_amount_cents or 10000
         elif enrollment.local_currency:
             currency = enrollment.local_currency
             price_cents = enrollment.local_amount_cents
+            zar_price_cents = enrollment.zar_amount_cents or 10000
             
     if currency == "USD": currency_symbol = "$"
     elif currency == "GBP": currency_symbol = "£"
@@ -223,7 +226,7 @@ def wallet_topup(subject_slug):
     
     price_display = f"{price_cents / 100:.2f}"
             
-    return render_template("wallet_topup.html", wallet=wallet, currency=currency, currency_symbol=currency_symbol, price_display=price_display, price_cents=price_cents, subject_slug=subject_slug)
+    return render_template("wallet_topup.html", wallet=wallet, currency=currency, currency_symbol=currency_symbol, price_display=price_display, price_cents=price_cents, zar_price_cents=zar_price_cents, subject_slug=subject_slug)
 
 @payment_bp.route("/wallet/checkout", methods=["POST"])
 def wallet_checkout():
@@ -234,13 +237,16 @@ def wallet_checkout():
         
     tokens = 100
     price_cents = int(request.form.get("price_cents", 10000))
+    zar_price_cents = int(request.form.get("zar_price_cents", 10000))
     currency = request.form.get("currency", "ZAR")
     if currency == "None" or not currency:
         currency = "ZAR"
     subject_slug = request.form.get("subject_slug", "debtors")
             
-    session["topup_amount_cents"] = price_cents
-    session["topup_currency"] = currency
+    # For Paystack, we MUST use ZAR if the local currency isn't supported by their active channels.
+    # We will just charge in ZAR across the board for wallet topups to be safe.
+    session["topup_amount_cents"] = zar_price_cents
+    session["topup_currency"] = "ZAR"
     session["topup_tokens"] = tokens
     
     # Send directly to the unified Paystack handler using the generic format

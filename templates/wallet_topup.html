@@ -51,11 +51,17 @@
                         <div class="text-3xl font-black text-indigo-900">
                             {{ currency_symbol }}{{ price_display }} <span class="text-sm font-medium text-indigo-600 ml-1">{{ currency }}</span>
                         </div>
+                        {% if currency != 'ZAR' %}
+                        <div class="text-xs text-slate-500 mt-2 font-medium">
+                            (You will be charged R{{ "%.2f"|format(zar_price_cents / 100) }} ZAR)
+                        </div>
+                        {% endif %}
                     </div>
                     
                     <form action="{{ url_for('payment_bp.wallet_checkout') }}" method="POST">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         <input type="hidden" name="price_cents" value="{{ price_cents }}">
+                        <input type="hidden" name="zar_price_cents" value="{{ zar_price_cents }}">
                         <input type="hidden" name="currency" value="{{ currency }}">
                         <input type="hidden" name="subject_slug" value="{{ subject_slug }}">
                         

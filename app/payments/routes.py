@@ -206,8 +206,8 @@ def wallet_topup(subject_slug):
         quote = get_quote_for_subject_country(auth_subject.id, country_code)
         
         if quote:
-            currency = quote.local_currency
-            price_cents = quote.local_amount_cents
+            currency = quote.local_currency or "ZAR"
+            price_cents = quote.local_amount_cents or 10000
         elif enrollment.local_currency:
             currency = enrollment.local_currency
             price_cents = enrollment.local_amount_cents
@@ -235,6 +235,8 @@ def wallet_checkout():
     tokens = 100
     price_cents = int(request.form.get("price_cents", 10000))
     currency = request.form.get("currency", "ZAR")
+    if currency == "None" or not currency:
+        currency = "ZAR"
     subject_slug = request.form.get("subject_slug", "debtors")
             
     session["topup_amount_cents"] = price_cents

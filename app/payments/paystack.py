@@ -132,6 +132,7 @@ def create_paystack_transaction(amount_cents, display_name, subject, email, curr
         "email": email,
         "amount": amount_in_lowest_denom,
         "currency": currency_code,
+        "channels": ["card", "eft", "bank"],
         "callback_url": url_for("paystack_bp.paystack_success", subject=subject, email=email, _external=True),
         "metadata": {
             "subject": subject,

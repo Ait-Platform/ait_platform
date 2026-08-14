@@ -1,0 +1,194 @@
+{% extends "layout.html" %}
+{% block title %}Reading Programme Timetable{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-slate-50 py-10 px-4 sm:px-6 lg:px-8 flex justify-center">
+  <div class="w-full max-w-4xl">
+    
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-8">
+      <div>
+        <h1 class="text-3xl font-extrabold text-slate-900">Reading CPTD Workshop</h1>
+        <p class="text-slate-600 mt-1">LITRE Methodology • Date: {{ reg.workshop_date.strftime('%d %B %Y') }}</p>
+      </div>
+      <a href="{{ url_for('cptd_bp.hub') }}" class="text-indigo-600 hover:text-indigo-800 font-bold bg-indigo-50 px-4 py-2 rounded-lg border border-indigo-100 transition shadow-sm">
+        &larr; Back to Hub
+      </a>
+    </div>
+    
+    <div class="px-2 pt-2 pb-6">
+      {% include "partials/flash_messages.html" %}
+    </div>
+
+    <!-- Timetable -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
+      
+      <div class="space-y-6">
+        
+        <!-- Module 1 -->
+        {% set m1 = progress.get('1') %}
+        <div class="flex items-start gap-4">
+          <div class="flex flex-col items-center mt-1">
+            <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm
+              {% if m1 and m1.status == 'completed' %} bg-green-500 text-white
+              {% elif m1 and m1.status == 'unlocked' %} bg-blue-600 text-white ring-4 ring-blue-100
+              {% else %} bg-slate-200 text-slate-500 {% endif %}">
+              {% if m1 and m1.status == 'completed' %}<i class="fas fa-check"></i>{% else %}1{% endif %}
+            </div>
+            <div class="w-0.5 h-16 bg-slate-200 my-2"></div>
+          </div>
+          <div class="flex-grow pb-6">
+            <div class="flex justify-between items-start">
+              <div>
+                <h3 class="text-lg font-bold text-slate-900">Module 1: The Blending Machine</h3>
+                <p class="text-sm text-slate-500 mt-1">08:00 - 10:00 • Introduction and Drawing the Palm</p>
+              </div>
+              {% if m1 and m1.status == 'unlocked' %}
+                <a href="{{ url_for('cptd_bp.reading_module', module_id='1') }}" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow transition">Start Module</a>
+              {% elif m1 and m1.status == 'completed' %}
+                <a href="{{ url_for('cptd_bp.reading_module', module_id='1') }}" class="text-indigo-600 hover:text-indigo-800 text-sm font-bold px-3 py-1 bg-indigo-50 rounded">Review</a>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        <!-- Tea Break -->
+        <div class="flex items-start gap-4 opacity-75">
+          <div class="flex flex-col items-center mt-1">
+            <div class="w-8 h-8 rounded-full flex items-center justify-center bg-amber-100 text-amber-600">
+              <i class="fas fa-coffee text-sm"></i>
+            </div>
+            <div class="w-0.5 h-16 bg-slate-200 my-2"></div>
+          </div>
+          <div class="flex-grow pb-6">
+            <h3 class="text-lg font-bold text-slate-700">Tea Break</h3>
+            <p class="text-sm text-slate-500 mt-1">10:00 - 10:20</p>
+          </div>
+        </div>
+
+        <!-- Module 2 -->
+        {% set m2 = progress.get('2') %}
+        <div class="flex items-start gap-4">
+          <div class="flex flex-col items-center mt-1">
+            <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm
+              {% if m2 and m2.status == 'completed' %} bg-green-500 text-white
+              {% elif m2 and m2.status == 'unlocked' %} bg-blue-600 text-white ring-4 ring-blue-100
+              {% else %} bg-slate-200 text-slate-500 {% endif %}">
+              {% if m2 and m2.status == 'completed' %}<i class="fas fa-check"></i>{% else %}2{% endif %}
+            </div>
+            <div class="w-0.5 h-16 bg-slate-200 my-2"></div>
+          </div>
+          <div class="flex-grow pb-6">
+            <div class="flex justify-between items-start">
+              <div class="{% if not m2 or m2.status == 'locked' %}opacity-50{% endif %}">
+                <h3 class="text-lg font-bold text-slate-900">Module 2: The English Family</h3>
+                <p class="text-sm text-slate-500 mt-1">10:20 - 11:30 • Checkpoint 2</p>
+              </div>
+              {% if m2 and m2.status == 'unlocked' %}
+                <a href="{{ url_for('cptd_bp.reading_module', module_id='2') }}" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow transition">Start Module</a>
+              {% elif m2 and m2.status == 'completed' %}
+                <a href="{{ url_for('cptd_bp.reading_module', module_id='2') }}" class="text-indigo-600 hover:text-indigo-800 text-sm font-bold px-3 py-1 bg-indigo-50 rounded">Review</a>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        
+        <!-- Module 3 -->
+        {% set m3 = progress.get('3') %}
+        <div class="flex items-start gap-4">
+          <div class="flex flex-col items-center mt-1">
+            <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm
+              {% if m3 and m3.status == 'completed' %} bg-green-500 text-white
+              {% elif m3 and m3.status == 'unlocked' %} bg-blue-600 text-white ring-4 ring-blue-100
+              {% else %} bg-slate-200 text-slate-500 {% endif %}">
+              {% if m3 and m3.status == 'completed' %}<i class="fas fa-check"></i>{% else %}3{% endif %}
+            </div>
+            <div class="w-0.5 h-16 bg-slate-200 my-2"></div>
+          </div>
+          <div class="flex-grow pb-6">
+            <div class="flex justify-between items-start">
+              <div class="{% if not m3 or m3.status == 'locked' %}opacity-50{% endif %}">
+                <h3 class="text-lg font-bold text-slate-900">Module 3: Meet the Vowels</h3>
+                <p class="text-sm text-slate-500 mt-1">11:30 - 12:30 • Memory Activity</p>
+              </div>
+              {% if m3 and m3.status == 'unlocked' %}
+                <a href="{{ url_for('cptd_bp.reading_module', module_id='3') }}" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow transition">Start Module</a>
+              {% elif m3 and m3.status == 'completed' %}
+                <a href="{{ url_for('cptd_bp.reading_module', module_id='3') }}" class="text-indigo-600 hover:text-indigo-800 text-sm font-bold px-3 py-1 bg-indigo-50 rounded">Review</a>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        <!-- Lunch Break -->
+        <div class="flex items-start gap-4 opacity-75">
+          <div class="flex flex-col items-center mt-1">
+            <div class="w-8 h-8 rounded-full flex items-center justify-center bg-rose-100 text-rose-600">
+              <i class="fas fa-utensils text-sm"></i>
+            </div>
+            <div class="w-0.5 h-16 bg-slate-200 my-2"></div>
+          </div>
+          <div class="flex-grow pb-6">
+            <h3 class="text-lg font-bold text-slate-700">Lunch Break</h3>
+            <p class="text-sm text-slate-500 mt-1">12:30 - 13:30</p>
+          </div>
+        </div>
+
+        <!-- Module 4 -->
+        {% set m4 = progress.get('4') %}
+        <div class="flex items-start gap-4">
+          <div class="flex flex-col items-center mt-1">
+            <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm
+              {% if m4 and m4.status == 'completed' %} bg-green-500 text-white
+              {% elif m4 and m4.status == 'unlocked' %} bg-blue-600 text-white ring-4 ring-blue-100
+              {% else %} bg-slate-200 text-slate-500 {% endif %}">
+              {% if m4 and m4.status == 'completed' %}<i class="fas fa-check"></i>{% else %}4{% endif %}
+            </div>
+            <div class="w-0.5 h-16 bg-slate-200 my-2"></div>
+          </div>
+          <div class="flex-grow pb-6">
+            <div class="flex justify-between items-start">
+              <div class="{% if not m4 or m4.status == 'locked' %}opacity-50{% endif %}">
+                <h3 class="text-lg font-bold text-slate-900">Module 4: The Meeting</h3>
+                <p class="text-sm text-slate-500 mt-1">13:30 - 14:30 • Final Checkpoint</p>
+              </div>
+              {% if m4 and m4.status == 'unlocked' %}
+                <a href="{{ url_for('cptd_bp.reading_module', module_id='4') }}" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow transition">Start Module</a>
+              {% elif m4 and m4.status == 'completed' %}
+                <a href="{{ url_for('cptd_bp.reading_module', module_id='4') }}" class="text-indigo-600 hover:text-indigo-800 text-sm font-bold px-3 py-1 bg-indigo-50 rounded">Review</a>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        <!-- Evaluation -->
+        {% set ev = progress.get('eval') %}
+        <div class="flex items-start gap-4">
+          <div class="flex flex-col items-center mt-1">
+            <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm
+              {% if ev and ev.status == 'completed' %} bg-green-500 text-white
+              {% elif ev and ev.status == 'unlocked' %} bg-blue-600 text-white ring-4 ring-blue-100
+              {% else %} bg-slate-200 text-slate-500 {% endif %}">
+              <i class="fas fa-star"></i>
+            </div>
+          </div>
+          <div class="flex-grow pb-2">
+            <div class="flex justify-between items-start">
+              <div class="{% if not ev or ev.status == 'locked' %}opacity-50{% endif %}">
+                <h3 class="text-lg font-bold text-slate-900">Final Evaluation</h3>
+                <p class="text-sm text-slate-500 mt-1">14:45 - 15:00</p>
+              </div>
+              {% if ev and ev.status == 'unlocked' %}
+                <a href="{{ url_for('cptd_bp.reading_evaluate') }}" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow transition">Evaluate & Finish</a>
+              {% elif ev and ev.status == 'completed' %}
+                <span class="text-green-600 font-bold bg-green-50 px-3 py-1 rounded">Submitted</span>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

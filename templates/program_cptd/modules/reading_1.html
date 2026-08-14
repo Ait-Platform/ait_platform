@@ -1,0 +1,83 @@
+{% extends "layout.html" %}
+{% block title %}Module 1: The Blending Machine{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-slate-50 py-10 px-4 flex justify-center">
+  <div class="w-full max-w-4xl">
+    
+    <!-- Top Action Bar -->
+    <div class="flex items-center justify-between mb-8">
+      <a href="{{ url_for('cptd_bp.reading_timetable') }}" class="text-slate-600 hover:text-slate-900 font-bold flex items-center gap-2">
+        <span>&larr;</span> Back to Timetable
+      </a>
+      <span class="bg-indigo-100 text-indigo-800 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">Module 1</span>
+    </div>
+
+    <!-- Main Content Container -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+      
+      <!-- Content Section (What you learn) -->
+      <div class="p-8 md:p-12 border-b border-slate-100">
+        <h1 class="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight mb-4">Build the Blending Machine</h1>
+        
+        <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-8 rounded-r-lg flex gap-4">
+          <button class="bg-blue-600 text-white rounded-full w-10 h-10 flex-shrink-0 flex items-center justify-center hover:bg-blue-700 shadow-sm transition">
+            <i class="fas fa-play"></i>
+          </button>
+          <div>
+            <h4 class="font-bold text-blue-900">Listen to the Facilitator</h4>
+            <p class="text-sm text-blue-800">Play this audio guide while you work through the activity.</p>
+          </div>
+        </div>
+
+        <div class="prose max-w-none text-slate-600 space-y-6">
+          <p class="text-lg">The LITRE method begins with a very physical, concrete tool: your own hand. We call this the <strong>Blending Machine</strong>.</p>
+          <p>Your palm represents the "meeting place" for letters, while your fingers represent the specific sounds that are coming together.</p>
+          
+          <div class="bg-slate-50 p-6 rounded-xl border border-slate-200 mt-8">
+            <h3 class="text-xl font-bold text-slate-900 mb-3"><i class="fas fa-video mr-2 text-indigo-600"></i> Instruction Video</h3>
+            <div class="aspect-w-16 aspect-h-9 bg-slate-900 rounded-lg flex items-center justify-center text-slate-400">
+              <span class="font-medium">Video Player Placeholder: 2IntroLitre.mp4</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Activity Section (What you do) -->
+      <div class="p-8 md:p-12 bg-indigo-50 border-b border-indigo-100">
+        <h2 class="text-2xl font-bold text-indigo-900 mb-4">Practical Activity</h2>
+        <div class="bg-white p-6 rounded-xl shadow-sm space-y-4 text-slate-700">
+          <p><strong>Step 1:</strong> Take your blank sheet of paper and place your non-dominant hand flat on it.</p>
+          <p><strong>Step 2:</strong> Use a thick marker to trace the outline of your entire hand.</p>
+          <p><strong>Step 3:</strong> Draw a large circle inside the palm area. This is the <em>Meeting Place</em>.</p>
+        </div>
+      </div>
+
+      <!-- Evidence Section (What AIT records) -->
+      <div class="p-8 md:p-12 bg-white">
+        <h2 class="text-2xl font-bold text-slate-900 mb-4">Checkpoint</h2>
+        <p class="text-slate-600 mb-6">Confirm that you have successfully drawn your blending machine and showed it to the facilitator.</p>
+        
+        <form action="{{ url_for('cptd_bp.submit_checkpoint', module_id='1') }}" method="POST">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+          
+          <div class="mb-6">
+            <label class="flex items-start gap-3 p-4 border-2 border-slate-200 rounded-xl cursor-pointer hover:border-indigo-500 transition">
+              <input type="checkbox" name="evidence" value="Facilitator Approved" required class="mt-1 w-5 h-5 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500">
+              <div>
+                <span class="block font-bold text-slate-900">Facilitator Approval</span>
+                <span class="block text-sm text-slate-500 mt-1">I have demonstrated my drawn blending machine to the room facilitator.</span>
+              </div>
+            </label>
+          </div>
+
+          <button type="submit" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold text-lg py-4 rounded-xl shadow-sm transition">
+            Complete Checkpoint & Unlock Next Module
+          </button>
+        </form>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}

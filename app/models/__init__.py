@@ -29,3 +29,6 @@ from .debtors import SoaProfile, Debtor, DebtorLedger, DebtorChargeMap
 
 import app.models.culturalfire
 import app.models.healthcore
+
+from .cptd import CptdRegistration, CptdProgress, CptdEvaluation
+__all__.extend(['CptdRegistration', 'CptdProgress', 'CptdEvaluation'])

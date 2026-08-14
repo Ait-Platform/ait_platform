@@ -504,7 +504,7 @@ def register_decision():
     # ---------- END FREE SPECIAL CASE ----------
 
     # ---------- WALLET TOKEN SUBJECTS (NO REGISTRATION FEE, USES WALLET BALANCE) ----------
-    if subject in ("cultural_fire", "culturalfire", "debtors"):
+    if subject in ("cultural_fire", "culturalfire", "debtors", "mechanic"):
         mark_loss_enrollment_free(enrollment_id)
         session.pop("reg_ctx", None)
         session.pop("just_paid_subject_id", None)
@@ -514,6 +514,8 @@ def register_decision():
             return redirect(url_for("cultural_bp.cultural_fire_router"))
         elif subject == "debtors":
             return redirect(url_for("debtors_bp.debtors_router"))
+        elif subject == "mechanic":
+            return redirect(url_for("mechanic_bp.mechanic_dashboard"))
 
     # ---------- SPECIAL CASE: MECHANIC FLAT ZAR REGISTRATION ----------
     if subject == "mechanic":

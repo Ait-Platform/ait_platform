@@ -97,6 +97,19 @@ def create_app(test_config=None):
             db.session.commit()
         except Exception:
             db.session.rollback()
+
+        try:
+            db.session.execute(text("ALTER TABLE mech_shops ADD COLUMN letterhead_url VARCHAR(255);"))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+        try:
+            # For SQLite it might be BOOLEAN or INTEGER, for Postgres it's BOOLEAN
+            db.session.execute(text("ALTER TABLE mech_shops ADD COLUMN use_custom_letterhead BOOLEAN DEFAULT FALSE;"))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
         
         try:
             db.session.execute(text("UPDATE auth_subject SET paid_days = NULL WHERE slug = 'reading'"))
@@ -514,9 +527,12 @@ def create_app(test_config=None):
     from app.program_hds.routes import hds_bp
     from app.program_debtors.routes import debtors_bp
 
+    from app.program_cptd.routes import cptd_bp
+    
     #app.logger.warning("registered checkout_bp at /checkout")
 
     #app.register_blueprint(checkout_bp)
+    app.register_blueprint(cptd_bp)
     app.register_blueprint(public_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(reading_bp)

@@ -147,11 +147,21 @@
           document.getElementById(`name-${pos}`).innerText = p.name;
           document.getElementById(`cards-${pos}`).innerText = p.hand;
           document.getElementById(`avatar-${pos}`).classList.add(p.team === 'A' ? 'border-green-500' : 'border-blue-500');
+          if (gameState.current_turn === p.seat) {
+            document.getElementById(`avatar-${pos}`).classList.add('ring-4', 'ring-yellow-400');
+          } else {
+            document.getElementById(`avatar-${pos}`).classList.remove('ring-4', 'ring-yellow-400');
+          }
         }
       }
       
       // Render me
-      document.getElementById('name-me').innerText = me.name + (me.team === 'A' ? ' (Team A)' : ' (Team B)');
+      document.getElementById('name-me').innerText = me.name + (me.team === 'A' ? ' (Team A)' : ' (Team B)') + (gameState.current_turn === mySeat ? ' [YOUR TURN]' : '');
+      if (gameState.current_turn === mySeat) {
+        document.getElementById('name-me').classList.add('bg-yellow-300', 'text-yellow-900');
+      } else {
+        document.getElementById('name-me').classList.remove('bg-yellow-300', 'text-yellow-900');
+      }
       
       // Render my cards
       const handDiv = document.getElementById('my-hand');
@@ -167,10 +177,94 @@
             <div class="text-xl font-bold">${card.rank}</div>
             <div class="text-3xl">${symbol}</div>
           `;
+          cardEl.onclick = () => playCard(card.suit, card.rank);
           handDiv.appendChild(cardEl);
         });
       }
     }
+    
+    // 5. Render Bidding UI if it's my turn to bid
+    const trickArea = document.getElementById('trick-area');
+    if (gameState.status === 'bidding' && gameState.current_turn === mySeat) {
+      trickArea.innerHTML = `
+        <div class="absolute inset-0 flex flex-col items-center justify-center bg-black bg-opacity-70 rounded-full z-10 text-white p-4 text-center">
+          <p class="font-bold mb-2">Your Turn to Call Trump</p>
+          <div class="grid grid-cols-2 gap-2">
+            <button onclick="callTrump('Hearts')" class="bg-white text-red-600 font-bold py-1 px-3 rounded shadow">♥ Hearts</button>
+            <button onclick="callTrump('Diamonds')" class="bg-white text-red-600 font-bold py-1 px-3 rounded shadow">♦ Diamonds</button>
+            <button onclick="callTrump('Clubs')" class="bg-white text-slate-900 font-bold py-1 px-3 rounded shadow">♣ Clubs</button>
+            <button onclick="callTrump('Spades')" class="bg-white text-slate-900 font-bold py-1 px-3 rounded shadow">♠ Spades</button>
+          </div>
+        </div>
+      `;
+    } else {
+      // 6. Render Trick Cards
+      trickArea.innerHTML = '';
+      if (gameState.trick && gameState.trick.cards_played) {
+        gameState.trick.cards_played.forEach(play => {
+          // Determine position relative to mySeat
+          let pos = 'center';
+          if (play.seat === mySeat) pos = 'bottom-0 left-1/2 transform -translate-x-1/2 translate-y-8';
+          else if (play.seat === (mySeat + 1) % 4) pos = 'left-0 top-1/2 transform -translate-y-1/2 -translate-x-8';
+          else if (play.seat === (mySeat + 2) % 4) pos = 'top-0 left-1/2 transform -translate-x-1/2 -translate-y-8';
+          else if (play.seat === (mySeat + 3) % 4) pos = 'right-0 top-1/2 transform -translate-y-1/2 translate-x-8';
+          
+          let color = (play.card.suit === 'Hearts' || play.card.suit === 'Diamonds') ? 'text-red-600' : 'text-slate-900';
+          let symbol = {'Hearts': '♥', 'Diamonds': '♦', 'Clubs': '♣', 'Spades': '♠'}[play.card.suit];
+          
+          let cardEl = document.createElement('div');
+          cardEl.className = `absolute ${pos} w-16 h-24 bg-white rounded shadow-md border border-slate-200 flex flex-col items-center justify-center ${color} z-10`;
+          cardEl.innerHTML = `
+            <div class="text-sm font-bold">${play.card.rank}</div>
+            <div class="text-xl">${symbol}</div>
+          `;
+          trickArea.appendChild(cardEl);
+        });
+      }
+      
+      // Render Trump suit indicator if playing
+      if (gameState.status === 'playing' && gameState.trump_suit) {
+        let symbol = {'Hearts': '♥', 'Diamonds': '♦', 'Clubs': '♣', 'Spades': '♠'}[gameState.trump_suit];
+        let color = (gameState.trump_suit === 'Hearts' || gameState.trump_suit === 'Diamonds') ? 'text-red-500' : 'text-slate-400';
+        trickArea.innerHTML += `<div class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-20"><div class="text-9xl ${color}">${symbol}</div></div>`;
+      }
+    }
+  }
+
+  async function callTrump(suit) {
+    if (gameState.current_turn !== mySeat || gameState.status !== 'bidding') return;
+    try {
+      await fetch(`/thunee/call_trump/${GAME_ID}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify({suit})
+      });
+      fetchState();
+    } catch (e) { console.error(e); }
+  }
+
+  async function playCard(suit, rank) {
+    if (gameState.current_turn !== mySeat || gameState.status !== 'playing') return;
+    try {
+      const res = await fetch(`/thunee/play_card/${GAME_ID}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify({card: {suit, rank}})
+      });
+      
+      if (!res.ok) {
+        const error = await res.json();
+        alert(error.error || 'Invalid play');
+      } else {
+        fetchState();
+      }
+    } catch (e) { console.error(e); }
   }
 
   async function addBot() {

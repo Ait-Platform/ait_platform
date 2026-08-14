@@ -77,9 +77,17 @@
           </a>
         {% endif %}
         
-        <a href="{{ url_for('payment_bp.wallet_topup', subject_slug='mechanic') }}" class="block rounded-xl border p-6 shadow-sm transition hover:shadow bg-white border-slate-200 hover:border-indigo-300 group">
-          <div class="font-semibold text-slate-900 group-hover:text-indigo-600">2. Top Up Wallet</div>
-          <div class="mt-1 text-sm text-slate-600">Add credits to generate quotes and invoices.</div>
+        <!-- Wallet Tile -->
+        <a href="{{ url_for('mechanic_bp.price_page') }}" class="block rounded-xl border p-6 shadow-sm transition hover:shadow bg-white border-slate-200 hover:border-teal-300 group">
+          <div class="font-semibold text-slate-900 group-hover:text-teal-600">Wallet</div>
+          <div class="mt-1 text-sm font-semibold text-teal-600 mb-1">{{ wallet.balance if wallet else 0 }} Tokens</div>
+          <div class="text-sm text-slate-600">Topup & Manage</div>
+        </a>
+
+        <!-- Transfer Tokens Tile -->
+        <a href="{{ url_for('cultural_bp.wallet_transfer_page') }}" class="block rounded-xl border p-6 shadow-sm transition hover:shadow bg-white border-slate-200 hover:border-orange-300 group">
+          <div class="font-semibold text-slate-900 group-hover:text-orange-600">Transfer Tokens</div>
+          <div class="mt-1 text-sm text-slate-600">Send & Generate Vouchers</div>
         </a>
 
         {% if active_shop %}

@@ -42,12 +42,7 @@ cultural_bp = Blueprint("cultural_bp", __name__)
 @cultural_bp.route("/program/cultural_fire")
 @login_required
 def cultural_fire_home():
-    user_id = current_user.id
-    subj_id = request.args.get("subject_id")
-
-    enrollment = UserEnrollment.query.filter_by(user_id=user_id, subject_id=subj_id).first()
-    return render_template("auth/bridge_dashboard.html")
-    #return render_template("bridge/index.html", dashboards=dashboards)
+    return redirect(url_for('cultural_bp.cultural_fire_router'))
 
 @cultural_bp.route("/program/cultural_fire/about", methods=["GET"])
 def cultural_fire_about():

@@ -16,19 +16,6 @@
         <h1 class="text-3xl font-extrabold text-slate-800 tracking-tight">ProTrade Dashboard</h1>
         <p class="text-slate-500 mt-2">Manage your shop, quotes, and workflow below.</p>
       </div>
-      <div class="mt-4 md:mt-0 flex items-center gap-4">
-        {% if active_shop %}
-        <div class="bg-indigo-50 border border-indigo-100 rounded-lg px-4 py-2 flex items-center gap-3">
-          <i class="fas fa-wallet text-indigo-500 text-xl"></i>
-          <div>
-            <div class="text-xs text-indigo-600 font-semibold uppercase tracking-wider">Wallet Balance</div>
-            <div class="text-lg font-bold text-slate-900">R {{ "%.2f"|format(active_shop.wallet_balance_cents / 100) }}</div>
-          </div>
-        </div>
-        <a href="{{ url_for('payment_bp.wallet_topup', subject_slug='mechanic') }}" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-3 rounded-lg text-sm font-semibold shadow-sm transition">
-          Top Up Tokens
-        </a>
-        {% endif %}
       </div>
     </div>
 
@@ -60,45 +47,45 @@
             <div class="mt-1 text-sm text-slate-600">Enter your business name, address, and logo manually.</div>
           </button>
         {% else %}
-          <!-- User has shop set up -->
-          <button type="button" onclick="document.getElementById('manual-setup-modal').classList.remove('hidden')" class="block text-left rounded-xl border p-6 shadow-sm transition hover:shadow bg-white border-slate-200 hover:border-indigo-300 group">
-            <div class="font-semibold text-slate-900 group-hover:text-indigo-600">Update Shop Profile</div>
-            <div class="mt-1 text-sm text-slate-600">Edit business details, terms, and logo.</div>
+          <!-- User has shop set up -->        {% if active_shop %}
+          <button type="button" onclick="document.getElementById('manual-setup-modal').classList.remove('hidden')" class="block text-left rounded-xl border-2 p-6 shadow-sm transition hover:shadow-md bg-blue-50 border-blue-200 hover:border-blue-400 group">
+            <div class="font-bold text-slate-900 group-hover:text-blue-700 text-lg">Update Shop Profile</div>
+            <div class="mt-1 text-sm text-slate-700">Edit business details, terms, and logo.</div>
           </button>
-          
-          <a href="{{ url_for('mechanic_bp.catalog_manage') }}" class="block text-left rounded-xl border p-6 shadow-sm transition hover:shadow bg-white border-slate-200 hover:border-indigo-300 group">
-            <div class="font-semibold text-slate-900 group-hover:text-indigo-600">Manage Catalog</div>
-            <div class="mt-1 text-sm text-slate-600">Add custom parts and set your local prices.</div>
+
+          <a href="{{ url_for('mechanic_bp.catalog_manage') }}" class="block text-left rounded-xl border-2 p-6 shadow-sm transition hover:shadow-md bg-purple-50 border-purple-200 hover:border-purple-400 group">
+            <div class="font-bold text-slate-900 group-hover:text-purple-700 text-lg">Manage Catalog</div>
+            <div class="mt-1 text-sm text-slate-700">Add custom parts and set your local prices.</div>
           </a>
 
-          <a href="{{ url_for('mechanic_bp.communication_logs') }}" class="block text-left rounded-xl border p-6 shadow-sm transition hover:shadow bg-white border-slate-200 hover:border-indigo-300 group">
-            <div class="font-semibold text-slate-900 group-hover:text-indigo-600">Communication Logs</div>
-            <div class="mt-1 text-sm text-slate-600">View history of WhatsApp reminders and invites.</div>
+          <a href="{{ url_for('mechanic_bp.communication_logs') }}" class="block text-left rounded-xl border-2 p-6 shadow-sm transition hover:shadow-md bg-pink-50 border-pink-200 hover:border-pink-400 group">
+            <div class="font-bold text-slate-900 group-hover:text-pink-700 text-lg">Communication Logs</div>
+            <div class="mt-1 text-sm text-slate-700">View history of WhatsApp reminders and invites.</div>
           </a>
         {% endif %}
-        
+
         <!-- Wallet Tile -->
-        <a href="{{ url_for('mechanic_bp.price_page') }}" class="block rounded-xl border p-6 shadow-sm transition hover:shadow bg-white border-slate-200 hover:border-teal-300 group">
-          <div class="font-semibold text-slate-900 group-hover:text-teal-600">Wallet</div>
-          <div class="mt-1 text-sm font-semibold text-teal-600 mb-1">{{ wallet.balance if wallet else 0 }} Tokens</div>
-          <div class="text-sm text-slate-600">Topup & Manage</div>
+        <a href="{{ url_for('mechanic_bp.price_page') }}" class="block rounded-xl border-2 p-6 shadow-sm transition hover:shadow-md bg-teal-50 border-teal-200 hover:border-teal-400 group">
+          <div class="font-bold text-slate-900 group-hover:text-teal-700 text-lg">Wallet</div>
+          <div class="mt-1 text-base font-bold text-teal-600 mb-1">{{ wallet.balance if wallet else 0 }} Tokens</div>
+          <div class="text-sm text-slate-700">Topup & Manage</div>
         </a>
 
         <!-- Transfer Tokens Tile -->
-        <a href="{{ url_for('cultural_bp.wallet_transfer_page') }}" class="block rounded-xl border p-6 shadow-sm transition hover:shadow bg-white border-slate-200 hover:border-orange-300 group">
-          <div class="font-semibold text-slate-900 group-hover:text-orange-600">Transfer Tokens</div>
-          <div class="mt-1 text-sm text-slate-600">Send & Generate Vouchers</div>
+        <a href="{{ url_for('cultural_bp.wallet_transfer_page') }}" class="block rounded-xl border-2 p-6 shadow-sm transition hover:shadow-md bg-orange-50 border-orange-200 hover:border-orange-400 group">
+          <div class="font-bold text-slate-900 group-hover:text-orange-700 text-lg">Transfer Tokens</div>
+          <div class="mt-1 text-sm text-slate-700">Send & Generate Vouchers</div>
         </a>
 
         {% if active_shop %}
-          <a href="{{ url_for('mechanic_bp.new_quote') }}" class="block rounded-xl border p-6 shadow-sm transition hover:shadow bg-green-50 border-green-100 hover:bg-green-100 group">
-            <div class="font-semibold text-slate-900 group-hover:text-green-700">3. Create Quote</div>
-            <div class="mt-1 text-sm text-slate-600">Add Customer & Select Parts for a new quote.</div>
+          <a href="{{ url_for('mechanic_bp.new_quote') }}" class="block rounded-xl border-2 p-6 shadow-sm transition hover:shadow-md bg-green-50 border-green-200 hover:border-green-400 group">
+            <div class="font-bold text-slate-900 group-hover:text-green-700 text-lg">Create Quote</div>
+            <div class="mt-1 text-sm text-slate-700">Add Customer & Select Parts for a new quote.</div>
           </a>
         {% else %}
-          <div class="block rounded-xl border p-6 shadow-sm bg-slate-50 border-slate-200 opacity-75 cursor-not-allowed">
-            <div class="font-semibold text-slate-900">3. Create Quote</div>
-            <div class="mt-1 text-sm text-slate-600">Requires an active Shop Profile to start quoting.</div>
+          <div class="block rounded-xl border-2 p-6 shadow-sm bg-slate-50 border-slate-200 opacity-75 cursor-not-allowed">
+            <div class="font-bold text-slate-900 text-lg">Create Quote</div>
+            <div class="mt-1 text-sm text-slate-700">Requires an active Shop Profile to start quoting.</div>
           </div>
         {% endif %}
       </div>
@@ -157,46 +144,49 @@
 
   <!-- Manual Setup Modal -->
   <div id="manual-setup-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-slate-900 bg-opacity-50 p-4 sm:p-6" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-    <div class="bg-white rounded-xl shadow-xl w-full max-w-xl overflow-y-auto max-h-[90vh] relative">
-      <div class="px-6 py-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
-        <h3 class="font-bold text-slate-800 text-lg">Shop Profile Setup</h3>
-        <button onclick="document.getElementById('manual-setup-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 text-2xl leading-none">&times;</button>
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-y-auto max-h-[90vh] relative">
+      <div class="px-8 py-5 border-b border-slate-200 bg-slate-50 flex justify-between items-center rounded-t-2xl">
+        <h3 class="font-extrabold text-slate-800 text-xl">Shop Profile Setup</h3>
+        <button onclick="document.getElementById('manual-setup-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 text-3xl leading-none">&times;</button>
       </div>
       <form action="{{ url_for('mechanic_bp.onboarding_process') }}" method="POST" enctype="multipart/form-data">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-        <div class="p-6 space-y-4">
-          <p class="text-sm text-slate-500 mb-4">Please enter your business details.</p>
-          
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="p-8 space-y-6">
+          <p class="text-base text-slate-600 mb-2">Please enter your business details to configure your quotes and invoices.</p>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <div class="sm:col-span-2">
-              <label class="block text-sm font-medium text-slate-700">Business Name</label>
-              <input type="text" name="business_name" value="{{ active_shop.business_name if active_shop else '' }}" required autofocus class="mt-1 block w-full rounded-md border border-slate-300 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:text-sm">
+              <label class="block text-sm font-bold text-slate-700 mb-1">Business Name</label>
+              <input type="text" name="business_name" value="{{ active_shop.business_name if active_shop else '' }}" required autofocus class="block w-full rounded-lg border-2 border-indigo-200 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-base p-3 transition">
             </div>
             <div class="sm:col-span-2">
-              <label class="block text-sm font-medium text-slate-700">Address</label>
-              <input type="text" name="address" value="{{ active_shop.address if active_shop else '' }}" class="mt-1 block w-full rounded-md border border-slate-300 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:text-sm">
+              <label class="block text-sm font-bold text-slate-700 mb-1">Address</label>
+              <input type="text" name="address" value="{{ active_shop.address if active_shop else '' }}" class="block w-full rounded-lg border-2 border-indigo-200 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-base p-3 transition">
             </div>
             <div>
-              <label class="block text-sm font-medium text-slate-700">Phone</label>
-              <input type="text" name="phone" value="{{ active_shop.phone if active_shop else '' }}" class="mt-1 block w-full rounded-md border border-slate-300 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:text-sm">
+              <label class="block text-sm font-bold text-slate-700 mb-1">Phone</label>
+              <input type="text" name="phone" value="{{ active_shop.phone if active_shop else '' }}" class="block w-full rounded-lg border-2 border-indigo-200 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-base p-3 transition">
             </div>
             <div>
-              <label class="block text-sm font-medium text-slate-700">Email</label>
-              <input type="email" name="email" value="{{ active_shop.email if active_shop else '' }}" class="mt-1 block w-full rounded-md border border-slate-300 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:text-sm">
+              <label class="block text-sm font-bold text-slate-700 mb-1">Email</label>
+              <input type="email" name="email" value="{{ active_shop.email if active_shop else '' }}" class="block w-full rounded-lg border-2 border-indigo-200 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-base p-3 transition">
             </div>
             <div class="sm:col-span-2">
-              <label class="block text-sm font-medium text-slate-700">Shop Logo (Optional)</label>
-              <input type="file" name="logo_file" accept="image/*" class="mt-1 block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+              <label class="block text-sm font-bold text-slate-700 mb-1">Shop Logo (Optional)</label>
+              <input type="file" name="logo_file" accept="image/*" class="block w-full text-base text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-bold file:bg-indigo-100 file:text-indigo-700 hover:file:bg-indigo-200 transition cursor-pointer border-2 border-dashed border-indigo-200 p-4 rounded-lg">
             </div>
             <div class="sm:col-span-2">
-              <label class="block text-sm font-medium text-slate-700">Terms and Conditions</label>
-              <textarea name="terms_and_conditions" rows="3" class="mt-1 block w-full rounded-md border border-slate-300 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:text-sm">{{ active_shop.terms_and_conditions if active_shop else '' }}</textarea>
+              <div class="flex justify-between items-end mb-1">
+                <label class="block text-sm font-bold text-slate-700">Terms and Conditions</label>
+                <button type="button" onclick="document.getElementById('tc-textarea').value = '1. All quotes are valid for 7 days.\n2. 50% deposit required on special order parts.\n3. Vehicles left at owner\'s risk.\n4. Full payment required upon collection.'" class="text-xs font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 px-2 py-1 rounded border border-indigo-100 transition">Use Standard T&Cs</button>
+              </div>
+              <textarea id="tc-textarea" name="terms_and_conditions" rows="4" class="block w-full rounded-lg border-2 border-indigo-200 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-base p-3 transition">{{ active_shop.terms_and_conditions if active_shop else '' }}</textarea>
             </div>
           </div>
         </div>
-        <div class="bg-slate-50 px-6 py-4 border-t border-slate-200 flex justify-end gap-3">
-          <button type="button" onclick="document.getElementById('manual-setup-modal').classList.add('hidden')" class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">Cancel</button>
-          <button type="submit" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 shadow-sm transition">Save Profile</button>
+        <div class="bg-slate-50 px-8 py-5 border-t border-slate-200 flex justify-end gap-4 rounded-b-2xl">
+          <button type="button" onclick="document.getElementById('manual-setup-modal').classList.add('hidden')" class="rounded-xl border-2 border-slate-300 bg-white px-6 py-3 text-base font-bold text-slate-700 hover:bg-slate-50 transition shadow-sm">Cancel</button>
+          <button type="submit" class="rounded-xl bg-indigo-600 px-6 py-3 text-base font-bold text-white hover:bg-indigo-700 shadow-md transition">Save Profile</button>
         </div>
       </form>
     </div>

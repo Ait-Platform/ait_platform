@@ -18,14 +18,20 @@
       <div>
         <h1 class="text-2xl font-bold text-slate-900">Invoice: {{ job_card.job_number }}</h1>
       </div>
-      <div class="flex space-x-3">
-        <button onclick="window.print()" class="inline-flex items-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition">
-          <i class="fas fa-print mr-2"></i> Print
-        </button>
-        <a href="{{ url_for('mechanic_bp.job_card_detail', id=job_card.id) }}" class="inline-flex items-center rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-100 transition shadow-sm">
-          <span>&larr;</span><span class="ml-1">Back to Job Card</span>
-        </a>
-      </div>
+        <div class="flex flex-col sm:flex-row gap-3 mt-6 print:hidden">
+          <button onclick="window.print()" class="inline-flex items-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition">
+            <i class="fas fa-print mr-2"></i> Print
+          </button>
+          {% if job_card.id == 0 %}
+          <a href="{{ url_for('mechanic_bp.mechanic_dashboard') }}" class="inline-flex items-center rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-100 transition shadow-sm">
+            <span>&larr;</span><span class="ml-1">Back to Setup</span>
+          </a>
+          {% else %}
+          <a href="{{ url_for('mechanic_bp.job_card_detail', id=job_card.id) }}" class="inline-flex items-center rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-100 transition shadow-sm">
+            <span>&larr;</span><span class="ml-1">Back to Job Card</span>
+          </a>
+          {% endif %}
+        </div>
     </div>
 
     <!-- Invoice Document -->

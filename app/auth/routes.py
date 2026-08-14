@@ -300,6 +300,7 @@ def register():
         email=email_norm,
         full_name=full_name,
         next_url=next_url,
+        country_code=cc,
     )
     
     voucher = (request.form.get("voucher") or "").strip()

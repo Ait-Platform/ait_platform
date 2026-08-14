@@ -1,0 +1,196 @@
+{% extends "layout.html" %}
+{% block title %}Thunee Table{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-green-900 flex flex-col font-sans select-none" id="app">
+  
+  <!-- Header / Scoreboard -->
+  <div class="bg-slate-900 bg-opacity-80 text-white p-4 shadow-lg flex justify-between items-center sticky top-0 z-10">
+    <div>
+      <h1 class="text-xl font-bold">Thunee</h1>
+      <p class="text-xs text-slate-300">Game ID: {{ game.id }} <span id="game-status" class="ml-2 px-2 py-0.5 rounded bg-amber-600 text-white font-bold uppercase">{{ game.status }}</span></p>
+    </div>
+    
+    <div class="flex gap-6 text-center">
+      <div class="bg-slate-800 px-4 py-2 rounded-lg border border-slate-700">
+        <div class="text-xs uppercase text-slate-400 font-bold tracking-widest">Team A</div>
+        <div class="text-xl font-bold text-green-400"><span id="score-balls-a">0</span> <span class="text-sm text-slate-500 font-normal">balls</span></div>
+      </div>
+      <div class="bg-slate-800 px-4 py-2 rounded-lg border border-slate-700">
+        <div class="text-xs uppercase text-slate-400 font-bold tracking-widest">Team B</div>
+        <div class="text-xl font-bold text-blue-400"><span id="score-balls-b">0</span> <span class="text-sm text-slate-500 font-normal">balls</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Game Area -->
+  <div class="flex-grow relative flex flex-col justify-between p-4 overflow-hidden">
+    
+    <!-- Players Row (Opponents) -->
+    <div class="flex justify-between items-start pt-4 px-10">
+      
+      <!-- Left Opponent -->
+      <div class="flex flex-col items-center">
+        <div class="w-16 h-16 bg-slate-800 rounded-full border-4 border-slate-700 flex items-center justify-center text-xl text-white shadow-lg mb-2" id="avatar-left">
+          <i class="fas fa-user"></i>
+        </div>
+        <div class="bg-white bg-opacity-90 px-3 py-1 rounded text-sm font-bold shadow text-center" id="name-left">Waiting...</div>
+        <div class="text-white text-xs mt-1"><span id="cards-left">0</span> cards</div>
+      </div>
+      
+      <!-- Top Opponent (Partner) -->
+      <div class="flex flex-col items-center">
+        <div class="w-16 h-16 bg-slate-800 rounded-full border-4 border-slate-700 flex items-center justify-center text-xl text-white shadow-lg mb-2" id="avatar-top">
+          <i class="fas fa-user"></i>
+        </div>
+        <div class="bg-white bg-opacity-90 px-3 py-1 rounded text-sm font-bold shadow text-center" id="name-top">Waiting...</div>
+        <div class="text-white text-xs mt-1"><span id="cards-top">0</span> cards</div>
+      </div>
+
+      <!-- Right Opponent -->
+      <div class="flex flex-col items-center">
+        <div class="w-16 h-16 bg-slate-800 rounded-full border-4 border-slate-700 flex items-center justify-center text-xl text-white shadow-lg mb-2" id="avatar-right">
+          <i class="fas fa-user"></i>
+        </div>
+        <div class="bg-white bg-opacity-90 px-3 py-1 rounded text-sm font-bold shadow text-center" id="name-right">Waiting...</div>
+        <div class="text-white text-xs mt-1"><span id="cards-right">0</span> cards</div>
+      </div>
+
+    </div>
+
+    <!-- The Table Center -->
+    <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+      <div class="w-64 h-64 border-2 border-white border-opacity-10 rounded-full flex items-center justify-center relative">
+        <div class="text-white text-opacity-20 font-bold text-2xl uppercase tracking-widest absolute">AIT Thunee</div>
+        
+        <!-- Cards played will be injected here -->
+        <div id="trick-area" class="w-full h-full relative"></div>
+      </div>
+    </div>
+
+    <!-- Lobby Controls (Only shown if game in lobby) -->
+    <div id="lobby-controls" class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-60 z-20 hidden">
+      <div class="bg-white p-8 rounded-2xl shadow-2xl text-center max-w-sm w-full">
+        <h2 class="text-2xl font-bold text-slate-900 mb-2">Waiting for Players</h2>
+        <p class="text-slate-600 mb-6">Share the Game ID with 3 friends to start playing.</p>
+        <div class="bg-slate-100 p-3 rounded border border-slate-300 font-mono text-sm mb-6 select-all">{{ game.id }}</div>
+        
+        <div class="space-y-3">
+          <button onclick="addBot()" class="w-full bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold py-3 px-4 rounded-lg shadow-sm transition">
+            <i class="fas fa-robot mr-2"></i> Add Bot Player
+          </button>
+          <button onclick="startGame()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg shadow transition">
+            Start Game
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- My Hand -->
+    <div class="flex flex-col items-center pb-8 z-10">
+      <div class="bg-white bg-opacity-90 px-4 py-1 rounded-full text-sm font-bold shadow mb-4" id="name-me">You</div>
+      <div class="flex justify-center -space-x-4" id="my-hand">
+        <!-- Cards injected via JS -->
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  const GAME_ID = "{{ game.id }}";
+  const csrfToken = "{{ csrf_token() }}";
+  let mySeat = -1;
+  let gameState = null;
+
+  async function fetchState() {
+    try {
+      const res = await fetch(`/thunee/api/state/${GAME_ID}`);
+      if(res.ok) {
+        gameState = await res.json();
+        render();
+      }
+    } catch (e) {
+      console.error("Polling error", e);
+    }
+  }
+
+  function render() {
+    // 1. Update status and lobby screen
+    document.getElementById('game-status').innerText = gameState.status;
+    if (gameState.status === 'lobby') {
+      document.getElementById('lobby-controls').classList.remove('hidden');
+    } else {
+      document.getElementById('lobby-controls').classList.add('hidden');
+    }
+
+    // 2. Score
+    document.getElementById('score-balls-a').innerText = gameState.score.team_a_balls;
+    document.getElementById('score-balls-b').innerText = gameState.score.team_b_balls;
+
+    // 3. Find my seat
+    const me = gameState.players.find(p => p.is_me);
+    if(me) mySeat = me.seat;
+
+    // 4. Render players
+    const positions = ['left', 'top', 'right'];
+    let posIndex = 0;
+    
+    // Iterate seats starting from mySeat + 1 (clockwise)
+    if (mySeat !== -1) {
+      for(let offset=1; offset<=3; offset++) {
+        let seatToCheck = (mySeat + offset) % 4;
+        let p = gameState.players.find(x => x.seat === seatToCheck);
+        let pos = positions[posIndex++];
+        
+        if (p) {
+          document.getElementById(`name-${pos}`).innerText = p.name;
+          document.getElementById(`cards-${pos}`).innerText = p.hand;
+          document.getElementById(`avatar-${pos}`).classList.add(p.team === 'A' ? 'border-green-500' : 'border-blue-500');
+        }
+      }
+      
+      // Render me
+      document.getElementById('name-me').innerText = me.name + (me.team === 'A' ? ' (Team A)' : ' (Team B)');
+      
+      // Render my cards
+      const handDiv = document.getElementById('my-hand');
+      handDiv.innerHTML = '';
+      if(Array.isArray(me.hand)) {
+        me.hand.forEach(card => {
+          let cardEl = document.createElement('div');
+          let color = (card.suit === 'Hearts' || card.suit === 'Diamonds') ? 'text-red-600' : 'text-slate-900';
+          let symbol = {'Hearts': '♥', 'Diamonds': '♦', 'Clubs': '♣', 'Spades': '♠'}[card.suit];
+          
+          cardEl.className = `w-20 h-28 bg-white rounded-lg shadow-xl border border-slate-200 flex flex-col items-center justify-center transform hover:-translate-y-4 transition cursor-pointer ${color}`;
+          cardEl.innerHTML = `
+            <div class="text-xl font-bold">${card.rank}</div>
+            <div class="text-3xl">${symbol}</div>
+          `;
+          handDiv.appendChild(cardEl);
+        });
+      }
+    }
+  }
+
+  async function addBot() {
+    await fetch(`/thunee/add_bot/${GAME_ID}`, {
+      method: 'POST',
+      headers: {'X-CSRFToken': csrfToken}
+    });
+    fetchState();
+  }
+
+  async function startGame() {
+    await fetch(`/thunee/start/${GAME_ID}`, {
+      method: 'POST',
+      headers: {'X-CSRFToken': csrfToken}
+    });
+    fetchState();
+  }
+
+  // Start polling
+  setInterval(fetchState, 2000);
+  fetchState();
+</script>
+{% endblock %}

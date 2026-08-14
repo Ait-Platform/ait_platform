@@ -25,6 +25,7 @@ from flask_mail import Message  # only Message here
 from app.extensions import mail, db, login_manager, csrf
 from app.models.loss import LcaRun, LcaResult
 from app.models.auth import User
+from app.models.thunee import ThuneeGame, ThuneePlayer, ThuneeTrick, ThuneeScore
 from config import DEFAULT_LOGIN_EMAIL, Config
 from os import getenv
 import os  # sqlite3 no longer needed
@@ -558,6 +559,8 @@ def create_app(test_config=None):
     app.register_blueprint(practice_crm_bp, url_prefix="/practice-crm")
     app.register_blueprint(hds_bp, url_prefix="/hds")
     app.register_blueprint(debtors_bp, url_prefix="/debtors")
+    from app.program_thunee import thunee_bp
+    app.register_blueprint(thunee_bp)
 
     #csrf.exempt(checkout_bp)  # keeps webhook/start happy
     # Exempt the Paystack webhook route

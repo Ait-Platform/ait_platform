@@ -1,0 +1,73 @@
+{% extends "layout.html" %}
+{% block title %}Thunee Lobby{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-green-900 py-10 px-4 flex flex-col items-center font-sans">
+  <div class="w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
+    
+    <div class="bg-indigo-600 px-6 py-8 text-center">
+      <h1 class="text-4xl font-extrabold text-white tracking-tight">Thunee Card Game</h1>
+      <p class="text-indigo-100 mt-2 text-lg">Play the classic South African trick-taking game.</p>
+    </div>
+
+    <div class="p-8 space-y-8">
+      {% include "partials/flash_messages.html" %}
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        
+        <!-- Create Game -->
+        <div class="bg-slate-50 border border-slate-200 p-6 rounded-xl flex flex-col items-center text-center hover:shadow-md transition">
+          <div class="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-4">
+            <i class="fas fa-plus text-2xl"></i>
+          </div>
+          <h2 class="text-xl font-bold text-slate-800 mb-2">Host a Game</h2>
+          <p class="text-slate-600 text-sm mb-6 flex-grow">Create a new 4-player game room and invite your friends to join.</p>
+          <form action="{{ url_for('thunee_bp.create_game') }}" method="POST" class="w-full">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg shadow transition">
+              Create Room
+            </button>
+          </form>
+        </div>
+
+        <!-- Join Game -->
+        <div class="bg-slate-50 border border-slate-200 p-6 rounded-xl flex flex-col items-center text-center hover:shadow-md transition">
+          <div class="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mb-4">
+            <i class="fas fa-sign-in-alt text-2xl"></i>
+          </div>
+          <h2 class="text-xl font-bold text-slate-800 mb-2">Join a Game</h2>
+          <p class="text-slate-600 text-sm mb-6 flex-grow">Paste the Game ID provided by the host to join their table.</p>
+          <div class="w-full flex gap-2">
+            <input type="text" id="game_id_input" placeholder="Paste Game ID..." class="w-full rounded-lg border-2 border-slate-200 p-2 text-sm focus:border-blue-500 focus:outline-none">
+            <button type="button" onclick="joinGame()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow transition">
+              Join
+            </button>
+          </div>
+        </div>
+
+      </div>
+      
+    </div>
+  </div>
+</div>
+
+<script>
+  function joinGame() {
+    const gameId = document.getElementById('game_id_input').value.trim();
+    if (!gameId) return alert("Please enter a Game ID");
+    
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = `/thunee/join/${gameId}`;
+    
+    const csrf = document.createElement('input');
+    csrf.type = 'hidden';
+    csrf.name = 'csrf_token';
+    csrf.value = '{{ csrf_token() }}';
+    
+    form.appendChild(csrf);
+    document.body.appendChild(form);
+    form.submit();
+  }
+</script>
+{% endblock %}

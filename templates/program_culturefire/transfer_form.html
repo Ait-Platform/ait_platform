@@ -33,6 +33,7 @@
         </div>
       </div>
 
+      {% if token_balance > 0 %}
       <form method="POST" action="{{ url_for('cultural_bp.wallet_transfer') }}" class="space-y-6">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         
@@ -55,6 +56,16 @@
           </button>
         </div>
       </form>
+      {% else %}
+      <div class="text-center py-8">
+        <i class="fas fa-exclamation-circle text-4xl text-amber-500 mb-4"></i>
+        <h3 class="text-xl font-bold text-gray-800 mb-2">Insufficient Tokens</h3>
+        <p class="text-gray-600">You need to have tokens in your wallet before you can transfer them to another user.</p>
+        <a href="{{ url_for('mechanic_bp.mechanic_dashboard') }}" class="inline-block mt-4 bg-indigo-600 text-white px-6 py-2 rounded font-semibold hover:bg-indigo-700 transition shadow-sm">
+          Return to Dashboard
+        </a>
+      </div>
+      {% endif %}
     </div>
   </div>
 </div>

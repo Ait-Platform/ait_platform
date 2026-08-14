@@ -42,10 +42,12 @@
           {% from 'shared/country_selector.html' import render_country_selector %}
           {{ render_country_selector(countries, subject_slug='mechanic') }}
         </div>
+        {% endif %}
 
         <!-- Pricing Cards -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
           
+          {% if not is_enrolled %}
           <!-- Registration -->
           <div class="bg-slate-50 rounded-2xl p-6 border border-slate-100 flex flex-col justify-between h-full">
             <div>
@@ -71,15 +73,16 @@
               <span id="once_off_label" class="text-slate-500 text-sm ml-1">once-off</span>
             </div>
           </div>
+          {% endif %}
 
           <!-- Micro-transactions -->
-          <div class="bg-slate-50 rounded-2xl p-6 border border-slate-100 flex flex-col justify-between h-full">
+          <div class="bg-slate-50 rounded-2xl p-6 border border-slate-100 flex flex-col justify-between h-full {% if is_enrolled %}md:col-span-2 md:w-1/2 md:mx-auto{% endif %}">
             <div>
-              <div class="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center text-indigo-600 mb-4">
+              <div class="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center text-indigo-600 mb-4 {% if is_enrolled %}mx-auto{% endif %}">
                 <i class="fas fa-coins text-xl"></i>
               </div>
-              <h3 class="text-lg font-bold text-slate-900 mb-2">Prepaid Wallet Usage</h3>
-              <p class="text-slate-600 text-sm leading-relaxed">
+              <h3 class="text-lg font-bold text-slate-900 mb-2 {% if is_enrolled %}text-center{% endif %}">Prepaid Wallet Usage</h3>
+              <p class="text-slate-600 text-sm leading-relaxed {% if is_enrolled %}text-center{% endif %}">
                 Top up your internal wallet. We only deduct tokens when you actively generate value for your shop. 
               </p>
 
@@ -100,7 +103,6 @@
             </div>
           </div>
         </div>
-        {% endif %}
 
         <!-- CTA -->
         <div class="border-t border-slate-100 pt-8 text-center">

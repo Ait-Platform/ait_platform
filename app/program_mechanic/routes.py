@@ -47,16 +47,17 @@ def price_page():
 
     is_enrolled = False
     country_code = (request.args.get("country") or "").strip().upper()
-    if not country_code and current_user.is_authenticated:
+    
+    if current_user.is_authenticated:
         ent = db.session.execute(text("""
             SELECT ue.country_code 
               FROM user_enrollment ue
               JOIN auth_subject s ON s.id = ue.subject_id
-             WHERE ue.user_id = :uid AND s.slug = 'mechanic'
+             WHERE ue.user_id = :uid AND lower(s.slug) = 'mechanic'
         """), {"uid": current_user.id}).mappings().first()
         if ent:
             is_enrolled = True
-            if ent["country_code"]:
+            if not country_code and ent["country_code"]:
                 country_code = ent["country_code"]
 
     if not country_code:

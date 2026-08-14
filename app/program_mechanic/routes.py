@@ -145,7 +145,7 @@ def document_preview():
             {'part_name': 'Brake Pads (Front)', 'quantity': 1, 'markup_price': 850.0}
         ],
         'labor_lines': [
-            {'description': 'Replace front brake pads', 'hours': 1.5, 'hourly_rate': 450.0}
+            {'description': 'Replace front brake pads', 'hours': 1.5, 'rate_per_hour': 450.0}
         ]
     }
     

@@ -54,9 +54,10 @@ def price_page():
               JOIN auth_subject s ON s.id = ue.subject_id
              WHERE ue.user_id = :uid AND s.slug = 'mechanic'
         """), {"uid": current_user.id}).mappings().first()
-        if ent and ent["country_code"]:
-            country_code = ent["country_code"]
+        if ent:
             is_enrolled = True
+            if ent["country_code"]:
+                country_code = ent["country_code"]
 
     if not country_code:
         country_code = session.get("country_code", "")

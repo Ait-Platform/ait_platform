@@ -13,6 +13,7 @@ class MechShop(db.Model):
     registration_number = db.Column(db.String(100))
     tax_number = db.Column(db.String(100))
     logo_url = db.Column(db.String(255))
+    use_custom_letterhead = db.Column(db.Boolean, default=False)
     terms_and_conditions = db.Column(db.Text)
     onboarding_status = db.Column(db.String(50), default='draft_setup') # draft_setup, draft_review, active
     created_at = db.Column(db.DateTime, default=datetime.utcnow)

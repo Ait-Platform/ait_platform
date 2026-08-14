@@ -113,6 +113,44 @@ def mock_bill():
         return redirect(url_for('mechanic_bp.mechanic_dashboard'))
     return render_template("program_mechanic/mock_bill.html", shop=active_shop)
 
+@mechanic_bp.route("/mechanic/document_preview")
+@login_required
+def document_preview():
+    active_shop = MechShop.query.filter_by(user_id=current_user.id, onboarding_status='active').first()
+    if not active_shop:
+        flash("You must complete your shop setup first.", "warning")
+        return redirect(url_for('mechanic_bp.mechanic_dashboard'))
+        
+    from datetime import datetime
+    
+    mock_job = {
+        'id': 0,
+        'job_number': 'PREVIEW-001',
+        'created_at': datetime.utcnow(),
+        'invoices': [{'status': 'Unpaid'}],
+        'vehicle': {
+            'client': {
+                'id': 0,
+                'name': 'John Doe',
+                'phone': '555-0192',
+                'email': 'john@example.com'
+            },
+            'make': 'Toyota',
+            'model': 'Corolla',
+            'year': 2019,
+            'registration_number': 'ABC 123',
+            'vin': 'JT1234567890'
+        },
+        'part_lines': [
+            {'part_name': 'Brake Pads (Front)', 'quantity': 1, 'markup_price': 850.0}
+        ],
+        'labor_lines': [
+            {'description': 'Replace front brake pads', 'hours': 1.5, 'hourly_rate': 450.0}
+        ]
+    }
+    
+    return render_template("program_mechanic/invoice_view.html", job_card=mock_job, shop=active_shop)
+
 
 @mechanic_bp.route("/mechanic/dashboard")
 @login_required
@@ -193,6 +231,7 @@ def onboarding_process():
     shop.phone = request.form.get("phone")
     shop.email = request.form.get("email")
     shop.terms_and_conditions = request.form.get("terms_and_conditions")
+    shop.use_custom_letterhead = True if request.form.get("use_custom_letterhead") else False
     shop.onboarding_status = 'active'
     
     logo_file = request.files.get("logo_file")

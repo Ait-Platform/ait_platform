@@ -3414,7 +3414,8 @@ def advertiser_dashboard():
 @login_required
 def upload_ad(show_id):
     from app.program_culturalfire.helpers import get_token_cost, charge_tokens
-    cost = get_token_cost('ad_upload', 40)
+    # Changed default from 40 to 10 tokens per user request
+    cost = get_token_cost('ad_upload', 10)
     if not charge_tokens(current_user.id, cost, f"Uploaded Ad for Show ID: {show_id}"):
         flash(f"Insufficient tokens to upload an ad. You need {cost} tokens.", "danger")
         return redirect(url_for('cultural_bp.advertiser_dashboard'))
@@ -3901,7 +3902,8 @@ def delete_ad(ad_id):
     db.session.commit()
     
     # Refund the tokens based on the current upload cost
-    cost = get_token_cost('ad_upload', 40)
+    # Changed default from 40 to 10 tokens per user request
+    cost = get_token_cost('ad_upload', 10)
     charge_tokens(current_user.id, -cost, f"Refund for deleted Ad ID: {ad_id}")
     
     flash(f"Ad successfully deleted and {cost} tokens refunded.", "success")

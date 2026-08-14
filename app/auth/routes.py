@@ -734,9 +734,26 @@ def register_decision():
                 "version": "2026-testing"
             }
         elif subject in ("cultural_fire", "culturalfire") or is_free:
+            _c = "ZA"
+            _curr = "ZAR"
+            if q:
+                _c = q.get("country_code", "ZA")
+                _curr = q.get("currency", "ZAR")
+            else:
+                _c = (
+                    (ctx.get("country_code") or "").strip().upper()
+                    or getattr(g, "country_iso2", "ZA")
+                    or "ZA"
+                )
+                try:
+                    from app.payments.pricing import currency_for_country_code
+                    _curr = currency_for_country_code(_c) or "ZAR"
+                except Exception:
+                    pass
+
             q = {
-                "country_code": "ZA",
-                "currency": "ZAR",
+                "country_code": _c,
+                "currency": _curr,
                 "amount_cents": 0,
                 "zar_amount_cents": 0,
                 "est_zar_cents": 0,

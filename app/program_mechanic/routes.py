@@ -138,11 +138,15 @@ def mechanic_dashboard():
         ]
         db.session.bulk_save_objects(default_parts)
         db.session.commit()
+        
+    from app.models.auth import AitTokenWallet
+    wallet = AitTokenWallet.query.filter_by(user_id=current_user.id).first()
 
     return render_template("program_mechanic/dashboard.html", 
                            job_cards=job_cards, 
                            draft_shop=draft_shop, 
-                           active_shop=active_shop)
+                           active_shop=active_shop,
+                           wallet=wallet)
 
 @mechanic_bp.route("/mechanic/onboarding/start", methods=["POST"])
 @login_required

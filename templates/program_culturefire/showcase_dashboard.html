@@ -97,7 +97,7 @@
 
     <div class="p-6">
       <h2 class="text-2xl font-bold text-fuchsia-800 mb-4">Your Private Shows</h2>
-      <p class="text-gray-600 mb-4">You have access to these exclusive shows. Viewing a private show costs 10 tokens.</p>
+      <p class="text-gray-600 mb-4">You have access to these exclusive shows. Viewing a private show costs {{ view_cost }} tokens.</p>
     </div>
 
     <!-- Table of Private Shows -->
@@ -129,7 +129,7 @@
               <button onclick="unlockPrivateShow({{ show.id }}, '{{ url_for('cultural_bp.show_program', show_id=show.id, origin=origin, enrollment_id=enrollment_id) }}')"
                  class="bg-fuchsia-600 text-white px-4 py-2 rounded font-bold hover:bg-fuchsia-700 shadow-sm flex items-center gap-2 transition">
                  <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" fill-rule="evenodd"></path></svg>
-                 Unlock (10 Tokens)
+                 Unlock ({{ view_cost }} Tokens)
               </button>
               {% endif %}
             </td>
@@ -144,8 +144,9 @@
 </div>
 
 <script>
+const view_cost = {{ view_cost }};
 function unlockPrivateShow(showId, programUrl) {
-  if (!confirm("This will deduct 10 tokens from your wallet to unlock the private show. Continue?")) return;
+  if (!confirm("This will deduct " + view_cost + " tokens from your wallet to unlock the private show. Continue?")) return;
 
   fetch(`/private_show/unlock/${showId}`, {
     method: 'POST',

@@ -1342,6 +1342,9 @@ def showcase_dashboard():
     judge_assignments = CfiJudgeAssignment.query.filter_by(judge_id=current_user.id).all()
     user_submissions = CfiTalentSubmission.query.filter_by(user_id=current_user.id).all()
 
+    from app.program_culturalfire.helpers import get_token_cost
+    view_cost = get_token_cost('private_show_view', 10)
+
     return render_template(
         "program_culturefire/showcase_dashboard.html",
         shows=shows,
@@ -1357,7 +1360,8 @@ def showcase_dashboard():
         enrollment_id=enrollment_id,
         parent_id=parent_id,
         supporter_id=supporter_id,
-        sponsor_id=sponsor_id
+        sponsor_id=sponsor_id,
+        view_cost=view_cost
     )
 
 @cultural_bp.route("/showcase/program/<int:show_id>")
@@ -2589,6 +2593,9 @@ def talent_dashboard(enrollment_id):
             pageant_category_id = c.id
             break
 
+    from app.program_culturalfire.helpers import get_token_cost
+    view_cost = get_token_cost('private_show_view', 10)
+
     return render_template(
         "program_culturefire/talent_dashboard.html",
         enrollment=enrollment,
@@ -2603,7 +2610,8 @@ def talent_dashboard(enrollment_id):
         talents=talents,
         show_all=show_all,
         showing_count=len(talents),
-        total_count=len(talents_all)
+        total_count=len(talents_all),
+        view_cost=view_cost
     )
 
 
@@ -2954,6 +2962,9 @@ def judge_dashboard():
                 "is_participant": bool(is_participant)
             })
             
+    from app.program_culturalfire.helpers import get_token_cost
+    judge_cost = get_token_cost('judge_assignment', 10)
+    
     return render_template(
         "program_culturefire/judge_dashboard.html", 
         assignments=active_assignments,
@@ -2961,7 +2972,8 @@ def judge_dashboard():
         available_shows=available_shows,
         token_balance=token_balance,
         back_origin=back_origin,
-        back_enrollment_id=back_enrollment_id
+        back_enrollment_id=back_enrollment_id,
+        judge_cost=judge_cost
     )
 
 @cultural_bp.route("/judge/select_show/<int:show_id>", methods=["POST"])
@@ -3192,6 +3204,9 @@ def mc_dashboard():
                 "is_participant": bool(is_participant)
             })
             
+    from app.program_culturalfire.helpers import get_token_cost
+    mc_cost = get_token_cost('mc_assignment', 10)
+    
     return render_template(
         "program_culturefire/mc_dashboard.html", 
         assignments=active_assignments,
@@ -3199,7 +3214,8 @@ def mc_dashboard():
         available_shows=available_shows,
         token_balance=token_balance,
         back_origin=back_origin,
-        back_enrollment_id=back_enrollment_id
+        back_enrollment_id=back_enrollment_id,
+        mc_cost=mc_cost
     )
 
 @cultural_bp.route("/mc/select_show/<int:show_id>", methods=["POST"])
@@ -3408,7 +3424,9 @@ def advertiser_dashboard():
     ads = CfiShowAd.query.filter_by(user_id=current_user.id).all()
     wallet = AitTokenWallet.query.filter_by(user_id=current_user.id).first()
     token_balance = wallet.balance if wallet else 0
-    return render_template("program_culturefire/ad_dashboard.html", shows=shows, ads=ads, token_balance=token_balance)
+    from app.program_culturalfire.helpers import get_token_cost
+    ad_cost = get_token_cost('ad_upload', 10)
+    return render_template("program_culturefire/ad_dashboard.html", shows=shows, ads=ads, token_balance=token_balance, ad_cost=ad_cost)
 
 @cultural_bp.route("/advertiser/upload/<int:show_id>", methods=["POST"])
 @login_required

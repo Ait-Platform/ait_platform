@@ -15,7 +15,6 @@ class MechShop(db.Model):
     logo_url = db.Column(db.String(255))
     terms_and_conditions = db.Column(db.Text)
     onboarding_status = db.Column(db.String(50), default='draft_setup') # draft_setup, draft_review, active
-    shadow_spent_cents = db.Column(db.Integer, default=0, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 class MechCatalogPart(db.Model):

@@ -176,9 +176,18 @@
               <input type="file" name="logo_file" accept="image/*" class="block w-full text-base text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-bold file:bg-indigo-100 file:text-indigo-700 hover:file:bg-indigo-200 transition cursor-pointer border-2 border-dashed border-indigo-200 p-4 rounded-lg">
             </div>
             <div class="sm:col-span-2">
-              <div class="flex justify-between items-end mb-1">
+              <div class="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-2 gap-2">
                 <label class="block text-sm font-bold text-slate-700">Terms and Conditions</label>
-                <button type="button" onclick="document.getElementById('tc-textarea').value = '1. All quotes are valid for 7 days.\n2. 50% deposit required on special order parts.\n3. Vehicles left at owner\'s risk.\n4. Full payment required upon collection.'" class="text-xs font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 px-2 py-1 rounded border border-indigo-100 transition">Use Standard T&Cs</button>
+                <div class="flex items-center gap-2 w-full sm:w-auto">
+                  <select id="tc-template-select" class="block w-full sm:w-auto rounded-lg border-2 border-indigo-200 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm p-2 transition bg-indigo-50 text-indigo-700 font-medium">
+                    <option value="">-- Insert a Template --</option>
+                    <option value="mechanic">General Mechanic</option>
+                    <option value="panel">Panel Beater</option>
+                    <option value="auto_elec">Auto Electrician</option>
+                    <option value="generic">Generic Trade</option>
+                  </select>
+                  <button type="button" onclick="insertTCTemplate()" class="text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 px-3 py-2 rounded-lg shadow-sm transition whitespace-nowrap">Apply</button>
+                </div>
               </div>
               <textarea id="tc-textarea" name="terms_and_conditions" rows="4" class="block w-full rounded-lg border-2 border-indigo-200 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-base p-3 transition">{{ active_shop.terms_and_conditions if active_shop else '' }}</textarea>
             </div>
@@ -207,4 +216,22 @@
   });
 </script>
 {% endif %}
+
+<script>
+  const tcTemplates = {
+    'mechanic': '1. All quotes are valid for 7 days.\n2. 50% deposit required on special order parts.\n3. Vehicles left at owner\'s risk.\n4. Full payment required upon collection.\n5. Warranty on parts as per manufacturer.',
+    'panel': '1. All quotes are valid for 14 days.\n2. 60% deposit required before ordering panels/paint.\n3. Vehicles left at owner\'s risk.\n4. Full payment required before vehicle release.\n5. Paint matching subject to original vehicle condition.',
+    'auto_elec': '1. All quotes are valid for 7 days.\n2. Diagnostic fees apply even if repair is declined.\n3. Vehicles left at owner\'s risk.\n4. Full payment required upon collection.\n5. Warranty covers electrical workmanship for 3 months.',
+    'generic': '1. Quotes are valid for 7 days.\n2. Deposit may be required prior to commencement of work.\n3. Goods remain the property of the business until paid in full.\n4. Late payments may incur additional fees.'
+  };
+
+  function insertTCTemplate() {
+    const select = document.getElementById('tc-template-select');
+    const textarea = document.getElementById('tc-textarea');
+    if (select.value && tcTemplates[select.value]) {
+      textarea.value = tcTemplates[select.value];
+    }
+  }
+</script>
+
 {% endblock %}

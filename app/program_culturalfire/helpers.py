@@ -169,7 +169,7 @@ def moderate_video_with_gemini(filepath):
         return is_safe
     except Exception as e:
         print(f"Gemini Moderation Error: {e}")
-        return True
+        return True # Fail open if API fails
 
 def curate_shows(cutoff=10):
     submissions = CfiTalentSubmission.query.filter(CfiTalentSubmission.show_id == None).all()

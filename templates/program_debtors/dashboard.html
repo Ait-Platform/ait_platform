@@ -40,11 +40,16 @@
             <div class="text-indigo-600 font-bold mb-1 text-base md:text-lg">Financial Setup</div>
             <div class="text-sm text-slate-500 text-center">Manage client financials</div>
         </a>
-        <!-- Token Operations -->
+        <!-- Wallet -->
         <a href="{{ url_for('debtors_bp.price_page') }}" class="flex flex-col items-center justify-center p-4 bg-teal-50 border border-teal-200 rounded-xl hover:bg-teal-100 transition group">
-            <div class="text-teal-600 font-bold mb-1 text-base md:text-lg">Token Operations</div>
+            <div class="text-teal-600 font-bold mb-1 text-base md:text-lg">Wallet</div>
             <div class="text-sm font-semibold text-teal-600 mb-1">{{ wallet.balance if wallet else 0 }} Tokens</div>
-            <div class="text-xs text-slate-500 text-center">Pricing & Wallet Topup</div>
+            <div class="text-xs text-slate-500 text-center">Topup & Manage</div>
+        </a>
+        <!-- Transfer Tokens -->
+        <a href="{{ url_for('cultural_bp.wallet_transfer_page') }}" class="flex flex-col items-center justify-center p-4 bg-orange-50 border border-orange-200 rounded-xl hover:bg-orange-100 transition group">
+            <div class="text-orange-600 font-bold mb-1 text-base md:text-lg">Transfer Tokens</div>
+            <div class="text-sm text-slate-500 text-center">Send & Generate Vouchers</div>
         </a>
       </div>
 

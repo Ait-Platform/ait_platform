@@ -18,8 +18,8 @@ def inject_currency():
             enrollment = UserEnrollment.query.filter_by(user_id=current_user.id, subject_id=subject.id).first()
             if enrollment and enrollment.local_currency:
                 curr = enrollment.local_currency.upper()
-                sym_map = {'ZAR': 'R ', 'USD': '$ ', 'EUR': '€ ', 'GBP': '£ ', 'AUD': '$ ', 'CAD': '$ '}
-                sym = sym_map.get(curr, '') if curr else ''
+                sym_map = {'ZAR': 'R ', 'USD': '$ ', 'EUR': '€ ', 'GBP': '£ ', 'AUD': '$ ', 'CAD': '$ ', 'NGN': '₦ ', 'KES': 'KSh ', 'GHS': 'GH₵ '}
+                sym = sym_map.get(curr, curr + ' ') if curr else ''
                 return dict(currency_sym=sym)
     # Default fallback for unauthenticated or un-enrolled
     return dict(currency_sym='R ')

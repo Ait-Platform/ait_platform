@@ -504,7 +504,7 @@ def register_decision():
     # ---------- END FREE SPECIAL CASE ----------
 
     # ---------- WALLET TOKEN SUBJECTS (NO REGISTRATION FEE, USES WALLET BALANCE) ----------
-    if subject in ("cultural_fire", "culturalfire", "debtors", "mechanic"):
+    if subject in ("cultural_fire", "culturalfire", "debtors", "mechanic", "cptd"):
         mark_loss_enrollment_free(enrollment_id)
         session.pop("reg_ctx", None)
         session.pop("just_paid_subject_id", None)
@@ -516,13 +516,16 @@ def register_decision():
             return redirect(url_for("debtors_bp.debtors_router"))
         elif subject == "mechanic":
             return redirect(url_for("mechanic_bp.mechanic_dashboard"))
+        elif subject == "cptd":
+            return redirect(url_for("cptd_bp.hub_dashboard"))
 
     # ---------- SPECIAL CASE: MECHANIC FLAT ZAR REGISTRATION ----------
     if subject == "mechanic":
         # BYPASS Paystack ON INITIAL REGISTRATION (30-DAY TRIAL SHADOW BILLING)
+        existing_q = ctx.get("quote", {})
         ctx["quote"] = {
-            "country_code": "ZA",
-            "currency": "ZAR",
+            "country_code": existing_q.get("country_code", "ZA"),
+            "currency": existing_q.get("currency", "ZAR"),
             "amount_cents": 0,
             "zar_amount_cents": 0,
             "est_zar_cents": 0,
@@ -531,9 +534,10 @@ def register_decision():
         
     if subject == "mechanic_registration":
         # POST-TRIAL REGISTRATION FEE
+        existing_q = ctx.get("quote", {})
         ctx["quote"] = {
-            "country_code": "ZA",
-            "currency": "ZAR",
+            "country_code": existing_q.get("country_code", "ZA"),
+            "currency": existing_q.get("currency", "ZAR"),
             "amount_cents": 10000,
             "zar_amount_cents": 10000,
             "est_zar_cents": 10000,
@@ -1256,6 +1260,8 @@ def bridge_dashboard():
             return redirect(url_for('home_bp.learner_dashboard'))
         elif slug == 'billing':
             return redirect(url_for('billing_bp.learner_dashboard'))
+        elif slug == 'cptd':
+            return redirect(url_for('cptd_bp.hub_dashboard'))
         elif slug == 'mechanic':
             return redirect(url_for('mechanic_bp.mechanic_dashboard'))
         elif slug == 'hds':

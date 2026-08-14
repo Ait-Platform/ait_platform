@@ -45,6 +45,7 @@ def price_page():
         flash("Subject not found.", "warning")
         return redirect(url_for('public_bp.welcome'))
 
+    is_enrolled = False
     country_code = (request.args.get("country") or "").strip().upper()
     if not country_code and current_user.is_authenticated:
         ent = db.session.execute(text("""
@@ -55,6 +56,7 @@ def price_page():
         """), {"uid": current_user.id}).mappings().first()
         if ent and ent["country_code"]:
             country_code = ent["country_code"]
+            is_enrolled = True
 
     if not country_code:
         country_code = session.get("country_code", "")
@@ -98,7 +100,7 @@ def price_page():
     val_invoice = db.session.execute(text("SELECT value FROM system_settings WHERE key = 'mechanic_invoice_cents'")).scalar()
     invoice_cents = int(float(val_invoice)) if val_invoice else 1000
 
-    return render_template("program_mechanic/price.html", price=price_ctx, subject=subject, countries=countries, quote_cents=quote_cents, invoice_cents=invoice_cents)
+    return render_template("program_mechanic/price.html", price=price_ctx, subject=subject, countries=countries, quote_cents=quote_cents, invoice_cents=invoice_cents, is_enrolled=is_enrolled)
 
 from app.models.mechanic import MechShop, MechCatalogPart
 

@@ -91,15 +91,26 @@
 
         <!-- CTA -->
         <div class="border-t border-slate-100 pt-8 text-center">
-          <h4 class="text-lg font-bold text-slate-900 mb-4">Ready to modernize your shop?</h4>
-          
-          <a id="register_btn" href="{{ url_for('auth_bp.register', subject='mechanic', next=url_for('mechanic_bp.mechanic_dashboard')) }}"
-             class="inline-block bg-indigo-600 text-white py-3 px-8 rounded-xl font-bold text-lg hover:bg-indigo-700 transition shadow-sm">Register & Get Started</a>
-          
-          <p class="text-sm text-slate-500 mt-4">
-            Once registered, simply 
-            <a href="{{ url_for('auth_bp.login', next=url_for('mechanic_bp.mechanic_dashboard')) }}" class="text-indigo-600 font-semibold hover:underline">log in to your dashboard</a>.
-          </p>
+          {% if is_enrolled %}
+            <h4 class="text-lg font-bold text-slate-900 mb-4">Manage your ProTrade Wallet</h4>
+            
+            <a href="{{ url_for('payments_bp.wallet_topup', subject_slug='mechanic') }}"
+               class="inline-block bg-teal-600 text-white py-3 px-8 rounded-xl font-bold text-lg hover:bg-teal-700 transition shadow-sm">Top Up Wallet</a>
+            
+            <p class="text-sm text-slate-500 mt-4">
+              Or <a href="{{ url_for('mechanic_bp.mechanic_dashboard') }}" class="text-indigo-600 font-semibold hover:underline">return to your dashboard</a>.
+            </p>
+          {% else %}
+            <h4 class="text-lg font-bold text-slate-900 mb-4">Ready to modernize your shop?</h4>
+            
+            <a id="register_btn" href="{{ url_for('auth_bp.register', subject='mechanic', next=url_for('mechanic_bp.mechanic_dashboard')) }}"
+               class="inline-block bg-indigo-600 text-white py-3 px-8 rounded-xl font-bold text-lg hover:bg-indigo-700 transition shadow-sm">Register & Get Started</a>
+            
+            <p class="text-sm text-slate-500 mt-4">
+              Once registered, simply 
+              <a href="{{ url_for('auth_bp.login', next=url_for('mechanic_bp.mechanic_dashboard')) }}" class="text-indigo-600 font-semibold hover:underline">log in to your dashboard</a>.
+            </p>
+          {% endif %}
         </div>
 
       </div>

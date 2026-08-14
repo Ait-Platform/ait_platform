@@ -1,7 +1,7 @@
 {% with msgs = get_flashed_messages(with_categories=true) %}
   {% if msgs %}
-    <!-- Floating Toast Container -->
-    <div id="flash-toast-container" class="fixed top-6 right-6 z-[9999] flex flex-col gap-3 max-w-sm w-full pointer-events-none">
+    <!-- Static Alert Container -->
+    <div id="flash-toast-container" class="flex flex-col gap-3 w-full my-4 px-4">
       {% for cat, msg in msgs %}
         <div class="pointer-events-auto flex items-start justify-between rounded-lg border px-4 py-3 shadow-xl backdrop-blur-sm transition-all duration-500 transform
                     {% if cat == 'success' %}border-emerald-200 bg-emerald-50/95 text-emerald-800

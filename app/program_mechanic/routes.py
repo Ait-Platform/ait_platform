@@ -676,3 +676,173 @@ def client_soa(client_id):
         flash('No Statement of Account exists for this client yet.', 'info')
         return redirect(url_for('mechanic_bp.mechanic_dashboard'))
     return redirect(url_for('debtors_bp.generate_soa', debtor_id=debtor.id))
+
+
+@mechanic_bp.route("/mechanic/quote/new", methods=["GET", "POST"])
+@login_required
+def new_quote():
+    active_shop = MechShop.query.filter_by(user_id=current_user.id, onboarding_status='active').first()
+    if not active_shop:
+        flash("You must complete your shop setup first.", "warning")
+        return redirect(url_for("mechanic_bp.mechanic_dashboard"))
+        
+    all_parts = MechCatalogPart.query.filter(
+        (MechCatalogPart.user_id == None) | (MechCatalogPart.user_id == current_user.id)
+    ).all()
+    
+    part_dict = {}
+    for p in all_parts:
+        name_lower = p.part_name.lower().strip()
+        if name_lower not in part_dict:
+            part_dict[name_lower] = p
+        else:
+            if p.user_id == current_user.id:
+                part_dict[name_lower] = p
+    
+    catalog_parts = list(part_dict.values())
+    catalog_parts.sort(key=lambda x: x.part_name)
+    
+    if request.method == "POST":
+        setting = db.session.execute(text("SELECT value FROM system_settings WHERE key = 'mechanic_quote_cents'")).fetchone()
+        quote_cost = int(setting[0]) if setting else 500
+        token_cost = quote_cost // 100
+
+        from app.models.auth import AitTokenWallet, AitTokenTransaction
+        wallet = AitTokenWallet.query.filter_by(user_id=current_user.id).first()
+
+        if not wallet or wallet.balance < token_cost:
+            flash("Insufficient tokens. Please top up your wallet.", "warning")
+            return redirect(url_for("mechanic_bp.mock_bill"))
+            
+        wallet.balance -= token_cost
+        txn = AitTokenTransaction(
+            wallet_id=wallet.id,
+            amount=-token_cost,
+            description=f"Generated quote for shop {active_shop.id}"
+        )
+        db.session.add(txn)
+        
+        customer_name = request.form.get("customer_name")
+        vehicle_reg = request.form.get("vehicle_reg")
+        vin_number = request.form.get("vin_number")
+        make = request.form.get("make")
+        model = request.form.get("model")
+        year_str = request.form.get("year")
+        year = int(year_str) if year_str and year_str.isdigit() else None
+        # Process dynamic labor and parts arrays
+        labor_descs = request.form.getlist('labor_desc[]')
+        labor_ins = request.form.getlist('labor_in[]')
+        labor_outs = request.form.getlist('labor_out[]')
+        labor_rates = request.form.getlist('labor_rate[]')
+
+        part_qtys = request.form.getlist('part_qty[]')
+        part_descs = request.form.getlist('part_desc[]')
+        part_rates = request.form.getlist('part_rate[]')
+        
+        from app.models.mechanic import MechClient, MechVehicle, MechJobCard, MechPartLine, MechLaborLine
+        import uuid
+        
+        # Mock finding or creating client
+        client = MechClient.query.filter_by(name=customer_name).first()
+        if not client:
+            client = MechClient(name=customer_name)
+            db.session.add(client)
+            db.session.flush()
+            
+        vehicle = MechVehicle.query.filter_by(license_plate=vehicle_reg, client_id=client.id).first()
+        if not vehicle:
+            vehicle = MechVehicle(license_plate=vehicle_reg, make="Unknown", client_id=client.id)
+            db.session.add(vehicle)
+            db.session.flush()
+
+        import os
+        from werkzeug.utils import secure_filename
+        
+        license_disk_image = request.files.get("license_disk_image")
+        filename = None
+        if license_disk_image and license_disk_image.filename:
+            upload_folder = os.path.join(current_app.root_path, "static", "uploads", "mechanic")
+            os.makedirs(upload_folder, exist_ok=True)
+            filename = secure_filename(license_disk_image.filename)
+            import time
+            filename = f"{int(time.time())}_{filename}"
+            license_disk_image.save(os.path.join(upload_folder, filename))
+            
+        if vin_number: vehicle.vin = vin_number
+        if make: vehicle.make = make
+        if model: vehicle.model = model
+        if year: vehicle.year = year
+        if filename: vehicle.license_disk_url = filename
+
+            
+        job_card = MechJobCard(
+            job_number=f"JOB-{uuid.uuid4().hex[:6].upper()}",
+            vehicle_id=vehicle.id,
+            status='Quote',
+            vat_rate=active_shop.vat_rate
+        )
+        db.session.add(job_card)
+        db.session.flush()
+        
+        # Process Labor Lines
+        for i in range(len(labor_descs)):
+            desc = labor_descs[i].strip()
+            if not desc:
+                continue
+            t_in = labor_ins[i] if i < len(labor_ins) else ""
+            t_out = labor_outs[i] if i < len(labor_outs) else ""
+            rate_str = labor_rates[i] if i < len(labor_rates) else "0"
+            rate = float(rate_str) if rate_str else 0.0
+            
+            hours = 0.0
+            if t_in and t_out:
+                try:
+                    h1, m1 = map(int, t_in.split(':'))
+                    h2, m2 = map(int, t_out.split(':'))
+                    diff = (h2 + m2/60.0) - (h1 + m1/60.0)
+                    if diff < 0:
+                        diff += 24.0
+                    hours = round(diff, 2)
+                except Exception:
+                    pass
+
+            labor = MechLaborLine(
+                job_card_id=job_card.id,
+                mechanic_name="Shop Tech",
+                description=desc,
+                time_in=t_in,
+                time_out=t_out,
+                hours=hours,
+                rate_per_hour=rate
+            )
+            db.session.add(labor)
+        
+        # Process Part Lines
+        for i in range(len(part_descs)):
+            desc = part_descs[i].strip()
+            if not desc:
+                continue
+            qty_str = part_qtys[i] if i < len(part_qtys) else "1"
+            qty = int(qty_str) if qty_str else 1
+            rate_str = part_rates[i] if i < len(part_rates) else "0"
+            rate = float(rate_str) if rate_str else 0.0
+            
+            pline = MechPartLine(
+                job_card_id=job_card.id,
+                part_number="Custom/Selected",
+                description=desc,
+                quantity=qty,
+                unit_cost=rate,
+                markup_price=rate
+            )
+            db.session.add(pline)
+                
+        db.session.commit()
+            
+        flash("Quote created and Job Card generated successfully!", "success")
+        return redirect(url_for("mechanic_bp.job_card_detail", id=job_card.id))
+        
+    return render_template("program_mechanic/quote_form.html", catalog_parts=catalog_parts, shop=active_shop)
+
+from app.models.auth import DirectMessage
+

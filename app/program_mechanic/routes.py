@@ -284,15 +284,39 @@ def job_card_detail(id):
 
 @mechanic_bp.route("/mechanic/invoice/<int:id>", methods=["GET", "POST"])
 @login_required
-@mechanic_bp.route("/mechanic/email/<int:id>", methods=["POST"])
+@mechanic_bp.route("/mechanic/email/<int:id>", methods=["GET", "POST"])
 @login_required
 def email_document(id):
     from app.utils.mailer import send_email
     job_card = MechJobCard.query.get_or_404(id)
     
-    if not job_card.vehicle or not job_card.vehicle.client or not job_card.vehicle.client.email:
-        flash("Client does not have an email address on file.", "danger")
+    doc_type = "Invoice" if job_card.status == 'Billed' else "Quote"
+    default_email = ""
+    if job_card.vehicle and job_card.vehicle.client and job_card.vehicle.client.email:
+        default_email = job_card.vehicle.client.email
+
+    if request.method == "POST":
+        target_email = request.form.get("email")
+        if not target_email:
+            flash("Please provide an email address.", "warning")
+            return redirect(url_for('mechanic_bp.email_document', id=id))
+            
+        subject = f"Your {doc_type} #{job_card.job_number} from AIT ProTrade"
+        doc_url = url_for('mechanic_bp.job_card_detail', id=id, _external=True)
+        
+        body = f"Hello,\n\nYour {doc_type} #{job_card.job_number} is ready. You can view it here: {doc_url}\n\nThank you for choosing us!"
+        html = f"<p>Hello,</p><p>Your {doc_type} <strong>#{job_card.job_number}</strong> is ready. You can view it here: <a href='{doc_url}'>{doc_url}</a></p><p>Thank you for choosing us!</p>"
+        
+        success = send_email(subject=subject, recipients=[target_email], body=body, html=html)
+        
+        if success:
+            flash(f"{doc_type} successfully emailed to {target_email}", "success")
+        else:
+            flash("Failed to send email. Please check server logs.", "danger")
+            
         return redirect(url_for('mechanic_bp.job_card_detail', id=id))
+        
+    return render_template("program_mechanic/email_preview.html", job_card=job_card, doc_type=doc_type, default_email=default_email)
         
     client_email = job_card.vehicle.client.email
     doc_type = "Invoice" if job_card.status == 'Billed' else "Quote"
@@ -601,3 +625,4 @@ def client_soa(client_id):
         flash('No Statement of Account exists for this client yet.', 'info')
         return redirect(url_for('mechanic_bp.mechanic_dashboard'))
     return redirect(url_for('debtors_bp.generate_soa', debtor_id=debtor.id))
+

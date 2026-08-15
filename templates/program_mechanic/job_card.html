@@ -53,12 +53,9 @@
               </button>
             </form>
           {% endif %}
-          <form action="{{ url_for('mechanic_bp.email_document', id=job_card.id) }}" method="POST" class="inline">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-            <button type="submit" class="inline-flex items-center rounded-lg border border-indigo-200 bg-white px-4 py-2 text-sm font-semibold text-indigo-700 shadow-sm hover:bg-indigo-50 transition">
-              <i class="fas fa-paper-plane mr-2"></i> Email {{ 'Invoice' if job_card.status == 'Billed' else 'Quote' }}
-            </button>
-          </form>
+          <a href="{{ url_for('mechanic_bp.email_document', id=job_card.id) }}" class="inline-flex items-center rounded-lg border border-indigo-200 bg-white px-4 py-2 text-sm font-semibold text-indigo-700 shadow-sm hover:bg-indigo-50 transition">
+            <i class="fas fa-paper-plane mr-2"></i> Email {{ 'Invoice' if job_card.status == 'Billed' else 'Quote' }}
+          </a>
         </div>
       </div>
 

@@ -284,6 +284,34 @@ def job_card_detail(id):
 
 @mechanic_bp.route("/mechanic/invoice/<int:id>", methods=["GET", "POST"])
 @login_required
+@mechanic_bp.route("/mechanic/email/<int:id>", methods=["POST"])
+@login_required
+def email_document(id):
+    from app.utils.mailer import send_email
+    job_card = MechJobCard.query.get_or_404(id)
+    
+    if not job_card.vehicle or not job_card.vehicle.client or not job_card.vehicle.client.email:
+        flash("Client does not have an email address on file.", "danger")
+        return redirect(url_for('mechanic_bp.job_card_detail', id=id))
+        
+    client_email = job_card.vehicle.client.email
+    doc_type = "Invoice" if job_card.status == 'Billed' else "Quote"
+    
+    subject = f"Your {doc_type} #{job_card.job_number} from AIT ProTrade"
+    doc_url = url_for('mechanic_bp.job_card_detail', id=id, _external=True)
+    
+    body = f"Hello {job_card.vehicle.client.name},\n\nYour {doc_type} #{job_card.job_number} is ready. You can view it here: {doc_url}\n\nThank you for choosing us!"
+    html = f"<p>Hello {job_card.vehicle.client.name},</p><p>Your {doc_type} <strong>#{job_card.job_number}</strong> is ready. You can view it here: <a href='{doc_url}'>{doc_url}</a></p><p>Thank you for choosing us!</p>"
+    
+    success = send_email(subject=subject, recipients=[client_email], body=body, html=html)
+    
+    if success:
+        flash(f"{doc_type} successfully emailed to {client_email}", "success")
+    else:
+        flash("Failed to send email. Please check server logs.", "danger")
+        
+    return redirect(url_for('mechanic_bp.job_card_detail', id=id))
+
 def generate_invoice(id):
     active_shop = MechShop.query.filter_by(user_id=current_user.id, onboarding_status='active').first()
     if not active_shop:

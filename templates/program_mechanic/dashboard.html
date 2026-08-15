@@ -46,6 +46,11 @@
             <div class="font-semibold text-slate-900 group-hover:text-indigo-600">1. Complete Shop Setup</div>
             <div class="mt-1 text-sm text-slate-600">Enter your business name, address, and logo manually.</div>
           </button>
+          
+          <div class="block rounded-xl border-2 p-6 shadow-sm bg-slate-50 border-slate-200 opacity-75 cursor-not-allowed">
+            <div class="font-bold text-slate-900 text-lg">Create Quote</div>
+            <div class="mt-1 text-sm text-slate-700">Requires an active Shop Profile to start quoting.</div>
+          </div>
         {% else %}
           <!-- User has shop set up -->
           <div class="flex flex-col gap-2">
@@ -63,19 +68,10 @@
             <div class="mt-1 text-sm text-slate-700">Add custom parts and set your local prices.</div>
           </a>
 
-        {% if active_shop %}
           <a href="{{ url_for('mechanic_bp.new_quote') }}" class="block rounded-xl border-2 p-6 shadow-sm transition hover:shadow-md bg-green-50 border-green-200 hover:border-green-400 group">
             <div class="font-bold text-slate-900 group-hover:text-green-700 text-lg">Create Quote</div>
             <div class="mt-1 text-sm text-slate-700">Add Customer & Select Parts for a new quote.</div>
           </a>
-        {% else %}
-          <div class="block rounded-xl border-2 p-6 shadow-sm bg-slate-50 border-slate-200 opacity-75 cursor-not-allowed">
-            <div class="font-bold text-slate-900 text-lg">Create Quote</div>
-            <div class="mt-1 text-sm text-slate-700">Requires an active Shop Profile to start quoting.</div>
-          </div>
-        {% endif %}
-
-
         {% endif %}
 
         <!-- Wallet Tile -->
@@ -90,19 +86,19 @@
           <div class="font-bold text-slate-900 group-hover:text-orange-700 text-lg">Transfer Tokens</div>
           <div class="mt-1 text-sm text-slate-700">Send & Generate Vouchers</div>
         </a>
-
+        
+        {% if active_shop %}
           <a href="{{ url_for('mechanic_bp.communication_logs') }}" class="block text-left rounded-xl border-2 p-6 shadow-sm transition hover:shadow-md bg-pink-50 border-pink-200 hover:border-pink-400 group">
             <div class="font-bold text-slate-900 group-hover:text-pink-700 text-lg">Communication Logs</div>
             <div class="mt-1 text-sm text-slate-700">View history of WhatsApp reminders and invites.</div>
           </a>
+        {% endif %}
+
         <!-- Recent Job Cards Tile -->
         <a href="{{ url_for('mechanic_bp.job_cards_list') }}" class="block rounded-xl border-2 p-6 shadow-sm transition hover:shadow-md bg-indigo-50 border-indigo-200 hover:border-indigo-400 group">
           <div class="font-bold text-slate-900 group-hover:text-indigo-700 text-lg">Recent Job Cards</div>
           <div class="mt-1 text-sm text-slate-700">View and manage all active quotes and billed jobs.</div>
         </a>
-
-
-        
 
         <!-- Debtors SOA Tile -->
         <a href="{{ url_for('debtors_bp.dashboard') }}" class="block rounded-xl border-2 p-6 shadow-sm transition hover:shadow-md bg-sky-50 border-sky-200 hover:border-sky-400 group">
@@ -118,8 +114,6 @@
       </div>
     </div>
 
-    
-{% endif %}
 
 <script>
   const tcTemplates = {

@@ -37,9 +37,9 @@ def register(programme):
         db.session.add(reg)
         
         # Initialize timetable progress items
-        modules = ['1', '2', '3', '4', 'eval']
+        modules = ['intro', 'palm', 'family', 'vowels', 't_meets', 'm_meets', 'word_const', 'classroom', 'eval']
         for mod in modules:
-            status = 'unlocked' if mod == '1' else 'locked'
+            status = 'unlocked' if mod == 'intro' else 'locked'
             progress = CptdProgress(
                 user_id=current_user.id,
                 programme=programme,
@@ -79,16 +79,39 @@ def reading_module(module_id):
 @cptd_bp.route("/cptd/reading/checkpoint/<module_id>", methods=["POST"])
 @login_required
 def submit_checkpoint(module_id):
+    import os
+    from werkzeug.utils import secure_filename
     progress = CptdProgress.query.filter_by(user_id=current_user.id, programme='reading', module_id=module_id).first_or_404()
     
     # Save evidence if any
     evidence = request.form.get("evidence", "")
+    
+    # Handle optional file upload for classroom application
+    if 'evidence_file' in request.files:
+        file = request.files['evidence_file']
+        if file and file.filename != '':
+            filename = secure_filename(f"{current_user.id}_{module_id}_{file.filename}")
+            upload_folder = os.path.join(current_app.root_path, 'static', 'uploads', 'cptd')
+            os.makedirs(upload_folder, exist_ok=True)
+            file.save(os.path.join(upload_folder, filename))
+            # Store filename in evidence_data, alongside text if any
+            evidence = f"{evidence}\n[FILE]: {filename}" if evidence else f"[FILE]: {filename}"
+
     progress.evidence_data = evidence
     progress.status = 'completed'
     progress.completed_at = datetime.utcnow()
     
     # Unlock next module
-    next_map = {'1': '2', '2': '3', '3': '4', '4': 'eval'}
+    next_map = {
+        'intro': 'palm',
+        'palm': 'family',
+        'family': 'vowels',
+        'vowels': 't_meets',
+        't_meets': 'm_meets',
+        'm_meets': 'word_const',
+        'word_const': 'classroom',
+        'classroom': 'eval'
+    }
     if module_id in next_map:
         next_mod = CptdProgress.query.filter_by(user_id=current_user.id, programme='reading', module_id=next_map[module_id]).first()
         if next_mod and next_mod.status == 'locked':

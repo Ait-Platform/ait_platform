@@ -1,0 +1,52 @@
+{% extends "layout.html" %}
+{% block title %}Reading Module - M Meets the Vowels{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-slate-50 py-10 px-4 sm:px-6 lg:px-8 flex justify-center">
+  <div class="w-full max-w-3xl">
+    
+    <div class="mb-6 flex justify-between items-center">
+      <h1 class="text-3xl font-extrabold text-slate-900">M Meets the Vowels</h1>
+      <a href="{{ url_for('cptd_bp.reading_timetable') }}" class="text-indigo-600 font-bold hover:underline">
+        &larr; Back to Timetable
+      </a>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 mb-6">
+      
+      <div class="aspect-w-16 aspect-h-9 mb-8 bg-slate-100 rounded-xl flex items-center justify-center border border-slate-200">
+        <!-- Placeholder for Video -->
+        <div class="text-center p-10">
+          <i class="fas fa-play-circle text-5xl text-slate-300 mb-2"></i>
+          <p class="text-slate-500 font-bold">LITRE Presentation Video: M Meets the Vowels</p>
+        </div>
+      </div>
+      
+      <div class="prose max-w-none text-slate-700">
+        <h3>Instructions</h3>
+        <p>Watch the presentation above. Please follow along with your facilitator and complete the activities.</p>
+      </div>
+
+    </div>
+
+    <div class="bg-indigo-50 border border-indigo-200 rounded-2xl p-8">
+      <h3 class="text-xl font-bold text-indigo-900 mb-4">Module Checkpoint</h3>
+      <p class="text-indigo-700 mb-6">Confirm that you have completed this activity to unlock the next module.</p>
+      
+      {% if progress.status == 'completed' %}
+        <div class="bg-green-100 border border-green-300 text-green-800 px-4 py-3 rounded-xl font-bold flex items-center">
+          <i class="fas fa-check-circle mr-2 text-xl"></i> Module Completed
+        </div>
+      {% else %}
+        <form action="{{ url_for('cptd_bp.submit_checkpoint', module_id='m_meets') }}" method="POST">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+          <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-xl shadow transition">
+            Mark as Complete &rarr;
+          </button>
+        </form>
+      {% endif %}
+    </div>
+
+  </div>
+</div>
+{% endblock %}

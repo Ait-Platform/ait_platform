@@ -39,67 +39,76 @@
         </div>
 
         <!-- Labor Section -->
-        <div class="mb-8 border-b border-slate-100 pb-8">
-          <div class="flex justify-between items-center mb-4">
-            <h3 class="text-lg font-bold text-slate-800">Labor Charges</h3>
-            <button type="button" onclick="addLaborRow()" class="text-sm bg-indigo-100 text-indigo-700 px-3 py-1 rounded-md font-semibold hover:bg-indigo-200">+ Add Labor</button>
+        <div class="mb-8 border-2 border-indigo-400 rounded-xl p-6 bg-indigo-50/40 shadow-sm">
+          <div class="flex justify-between items-center mb-6 border-b border-indigo-200 pb-2">
+            <h3 class="text-xl font-black text-indigo-900 uppercase tracking-wide">Labor Charges</h3>
+            <button type="button" onclick="addLaborRow()" class="text-sm bg-indigo-600 text-white px-4 py-2 rounded-lg font-bold shadow-sm hover:bg-indigo-700 transition">+ Add Labor</button>
           </div>
           
           <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-slate-200">
+            <table class="min-w-full divide-y divide-indigo-200">
               <thead>
                 <tr>
-                  <th class="px-2 py-2 text-left text-xs font-medium text-slate-500 uppercase">Description</th>
-                  <th class="px-2 py-2 text-left text-xs font-medium text-slate-500 uppercase">Time In</th>
-                  <th class="px-2 py-2 text-left text-xs font-medium text-slate-500 uppercase">Time Out</th>
-                  <th class="px-2 py-2 text-left text-xs font-medium text-slate-500 uppercase">Rate/Hr</th>
-                  <th class="px-2 py-2 text-left text-xs font-medium text-slate-500 uppercase">Hours</th>
-                  <th class="px-2 py-2 text-right text-xs font-medium text-slate-500 uppercase">Total</th>
+                  <th class="px-2 py-2 text-left text-xs font-bold text-indigo-800 uppercase tracking-wider">Description</th>
+                  <th class="px-2 py-2 text-left text-xs font-bold text-indigo-800 uppercase tracking-wider">Time In</th>
+                  <th class="px-2 py-2 text-left text-xs font-bold text-indigo-800 uppercase tracking-wider">Time Out</th>
+                  <th class="px-2 py-2 text-left text-xs font-bold text-indigo-800 uppercase tracking-wider">Rate/Hr</th>
+                  <th class="px-2 py-2 text-left text-xs font-bold text-indigo-800 uppercase tracking-wider">Hours</th>
+                  <th class="px-2 py-2 text-right text-xs font-bold text-indigo-800 uppercase tracking-wider">Total</th>
                   <th class="px-2 py-2"></th>
                 </tr>
               </thead>
-              <tbody id="labor-body" class="divide-y divide-slate-100">
+              <tbody id="labor-body" class="divide-y divide-indigo-100">
                 <tr class="labor-row">
-                  <td class="px-2 py-2"><input type="text" name="labor_desc[]" class="w-full text-sm border-slate-300 rounded" placeholder="Diagnostics" required></td>
-                  <td class="px-2 py-2"><input type="time" name="labor_in[]" class="w-full text-sm border-slate-300 rounded time-input" onchange="calcRow(this)"></td>
-                  <td class="px-2 py-2"><input type="time" name="labor_out[]" class="w-full text-sm border-slate-300 rounded time-input" onchange="calcRow(this)"></td>
-                  <td class="px-2 py-2"><input type="number" step="0.01" name="labor_rate[]" class="w-24 text-sm border-slate-300 rounded rate-input" value="350.00" oninput="calcRow(this)"></td>
-                  <td class="px-2 py-2 text-sm text-slate-700 hours-display">0.00</td>
-                  <td class="px-2 py-2 text-sm text-slate-700 text-right total-display">0.00</td>
-                  <td class="px-2 py-2 text-center"><button type="button" onclick="this.closest('tr').remove(); calcGrand()" class="text-red-500 hover:text-red-700">&times;</button></td>
+                  <td class="px-2 py-3"><input type="text" name="labor_desc[]" list="labor-tasks" class="w-full text-sm border-indigo-300 rounded focus:ring-indigo-500 focus:border-indigo-500 shadow-sm font-medium" placeholder="e.g. Diagnostics" required></td>
+                  <td class="px-2 py-3"><input type="time" name="labor_in[]" class="w-full text-sm border-indigo-300 rounded focus:ring-indigo-500 focus:border-indigo-500 shadow-sm time-input" onchange="calcRow(this)"></td>
+                  <td class="px-2 py-3"><input type="time" name="labor_out[]" class="w-full text-sm border-indigo-300 rounded focus:ring-indigo-500 focus:border-indigo-500 shadow-sm time-input" onchange="calcRow(this)"></td>
+                  <td class="px-2 py-3"><input type="number" step="0.01" name="labor_rate[]" class="w-24 text-sm border-indigo-300 rounded focus:ring-indigo-500 focus:border-indigo-500 shadow-sm rate-input" value="350.00" oninput="calcRow(this)"></td>
+                  <td class="px-2 py-3 text-sm font-bold text-indigo-900 hours-display">0.00</td>
+                  <td class="px-2 py-3 text-sm font-black text-indigo-900 text-right total-display">0.00</td>
+                  <td class="px-2 py-3 text-center"><button type="button" onclick="this.closest('tr').remove(); calcGrand()" class="text-rose-500 hover:text-rose-700 bg-white rounded-full p-1 shadow-sm">&times;</button></td>
                 </tr>
               </tbody>
             </table>
           </div>
+          
+          <datalist id="labor-tasks">
+            <option value="Diagnostics">
+            <option value="General Service">
+            <option value="Engine Repair">
+            <option value="Brake Replacement">
+            <option value="Electrical Work">
+            <option value="Suspension Check">
+          </datalist>
         </div>
 
         <!-- Materials Section -->
-        <div class="mb-4">
-          <div class="flex justify-between items-center mb-4">
-            <h3 class="text-lg font-bold text-slate-800">Materials & Parts</h3>
-            <button type="button" onclick="addPartRow()" class="text-sm bg-indigo-100 text-indigo-700 px-3 py-1 rounded-md font-semibold hover:bg-indigo-200">+ Add Part</button>
+        <div class="mb-4 border-2 border-emerald-400 rounded-xl p-6 bg-emerald-50/40 shadow-sm">
+          <div class="flex justify-between items-center mb-6 border-b border-emerald-200 pb-2">
+            <h3 class="text-xl font-black text-emerald-900 uppercase tracking-wide">Materials & Parts</h3>
+            <button type="button" onclick="addPartRow()" class="text-sm bg-emerald-600 text-white px-4 py-2 rounded-lg font-bold shadow-sm hover:bg-emerald-700 transition">+ Add Part</button>
           </div>
           
           <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-slate-200">
+            <table class="min-w-full divide-y divide-emerald-200">
               <thead>
                 <tr>
-                  <th class="px-2 py-2 text-left text-xs font-medium text-slate-500 uppercase w-16">Qty</th>
-                  <th class="px-2 py-2 text-left text-xs font-medium text-slate-500 uppercase">Description</th>
-                  <th class="px-2 py-2 text-left text-xs font-medium text-slate-500 uppercase">Unit Price</th>
-                  <th class="px-2 py-2 text-right text-xs font-medium text-slate-500 uppercase">Total</th>
+                  <th class="px-2 py-2 text-left text-xs font-bold text-emerald-800 uppercase tracking-wider w-20">Qty</th>
+                  <th class="px-2 py-2 text-left text-xs font-bold text-emerald-800 uppercase tracking-wider">Description</th>
+                  <th class="px-2 py-2 text-left text-xs font-bold text-emerald-800 uppercase tracking-wider">Unit Price</th>
+                  <th class="px-2 py-2 text-right text-xs font-bold text-emerald-800 uppercase tracking-wider">Total</th>
                   <th class="px-2 py-2"></th>
                 </tr>
               </thead>
-              <tbody id="part-body" class="divide-y divide-slate-100">
+              <tbody id="part-body" class="divide-y divide-emerald-100">
                 <tr class="part-row">
-                  <td class="px-2 py-2"><input type="number" name="part_qty[]" class="w-full text-sm border-slate-300 rounded qty-input" value="1" min="1" oninput="calcPartRow(this)"></td>
-                  <td class="px-2 py-2">
-                    <input type="text" name="part_desc[]" class="w-full text-sm border-slate-300 rounded" placeholder="e.g. Engine Oil" list="catalog-parts-list" required>
+                  <td class="px-2 py-3"><input type="number" name="part_qty[]" class="w-full text-sm border-emerald-300 rounded focus:ring-emerald-500 focus:border-emerald-500 shadow-sm qty-input" value="1" min="1" oninput="calcPartRow(this)"></td>
+                  <td class="px-2 py-3">
+                    <input type="text" name="part_desc[]" class="w-full text-sm border-emerald-300 rounded focus:ring-emerald-500 focus:border-emerald-500 shadow-sm font-medium" placeholder="e.g. Engine Oil" list="catalog-parts-list" oninput="handlePartSelect(this)" required>
                   </td>
-                  <td class="px-2 py-2"><input type="number" step="0.01" name="part_rate[]" class="w-32 text-sm border-slate-300 rounded rate-input" value="0.00" oninput="calcPartRow(this)"></td>
-                  <td class="px-2 py-2 text-sm text-slate-700 text-right total-display">0.00</td>
-                  <td class="px-2 py-2 text-center"><button type="button" onclick="this.closest('tr').remove(); calcGrand()" class="text-red-500 hover:text-red-700">&times;</button></td>
+                  <td class="px-2 py-3"><input type="number" step="0.01" name="part_rate[]" class="w-32 text-sm border-emerald-300 rounded focus:ring-emerald-500 focus:border-emerald-500 shadow-sm rate-input" value="0.00" oninput="calcPartRow(this)"></td>
+                  <td class="px-2 py-3 text-sm font-black text-emerald-900 text-right total-display">0.00</td>
+                  <td class="px-2 py-3 text-center"><button type="button" onclick="this.closest('tr').remove(); calcGrand()" class="text-rose-500 hover:text-rose-700 bg-white rounded-full p-1 shadow-sm">&times;</button></td>
                 </tr>
               </tbody>
             </table>
@@ -107,21 +116,21 @@
           
           <datalist id="catalog-parts-list">
             {% for part in catalog_parts %}
-              <option value="{{ part.part_name }} ({{ currency_sym }}{{ "%.2f"|format(part.default_price) }})">
+              <option value="{{ part.part_name }}">
             {% endfor %}
           </datalist>
-          <p class="mt-2 text-xs text-slate-500">You can type a custom part or select one from your catalog.</p>
+          <p class="mt-4 text-xs font-bold text-emerald-700 bg-emerald-100/50 p-2 rounded-lg inline-block">Type a custom part or select one from your catalog to auto-fill the price.</p>
         </div>
         
       </div>
       
       <!-- Second Row: Secondary Buttons (Right Aligned) -->
       <div class="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-between items-center">
-        <div class="text-lg font-bold text-indigo-900">
-          Total Estimated: <span id="grand-total">{{ currency_sym }}0.00</span>
+        <div class="text-xl font-black text-slate-900">
+          Total Estimated: <span id="grand-total" class="text-indigo-600">{{ currency_sym }}0.00</span>
         </div>
-        <button type="submit" class="inline-flex justify-center rounded-lg bg-indigo-600 px-6 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition">
-          Save Quote
+        <button type="submit" class="inline-flex justify-center rounded-xl bg-indigo-600 px-8 py-3 text-sm font-black text-white shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition uppercase tracking-wide">
+          Save Quote &rarr;
         </button>
       </div>
     </form>
@@ -129,6 +138,20 @@
 </div>
 
 <script>
+  const partPrices = {
+    {% for part in catalog_parts %}
+    "{{ part.part_name }}": {{ part.default_price }},
+    {% endfor %}
+  };
+
+  function handlePartSelect(input) {
+    if (partPrices[input.value] !== undefined) {
+      const row = input.closest('tr');
+      row.querySelector('[name="part_rate[]"]').value = partPrices[input.value].toFixed(2);
+      calcPartRow(input);
+    }
+  }
+
   function calcRow(el) {
     const row = el.closest('tr');
     const tin = row.querySelector('[name="labor_in[]"]').value;

@@ -1,6 +1,6 @@
 from app.models.auth import DirectMessage
 from app.models.mechanic import MechShop, MechCatalogPart
-from flask import render_template, redirect, url_for, flash, request, session
+from flask import render_template, redirect, url_for, flash, request, session, current_app
 from flask_login import login_required, current_user
 from sqlalchemy import text
 from app.extensions import db
@@ -851,4 +851,5 @@ from app.models.auth import DirectMessage
 def help_center():
     flash("Help Center is coming soon!", "info")
     return redirect(url_for('mechanic_bp.mechanic_dashboard'))
+
 

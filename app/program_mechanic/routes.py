@@ -282,8 +282,6 @@ def job_card_detail(id):
     job_card = MechJobCard.query.get_or_404(id)
     return render_template("program_mechanic/job_card.html", job_card=job_card)
 
-@mechanic_bp.route("/mechanic/invoice/<int:id>", methods=["GET", "POST"])
-@login_required
 @mechanic_bp.route("/mechanic/email/<int:id>", methods=["GET", "POST"])
 @login_required
 def email_document(id):
@@ -317,25 +315,9 @@ def email_document(id):
         return redirect(url_for('mechanic_bp.job_card_detail', id=id))
         
     return render_template("program_mechanic/email_preview.html", job_card=job_card, doc_type=doc_type, default_email=default_email)
-        
-    client_email = job_card.vehicle.client.email
-    doc_type = "Invoice" if job_card.status == 'Billed' else "Quote"
-    
-    subject = f"Your {doc_type} #{job_card.job_number} from AIT ProTrade"
-    doc_url = url_for('mechanic_bp.job_card_detail', id=id, _external=True)
-    
-    body = f"Hello {job_card.vehicle.client.name},\n\nYour {doc_type} #{job_card.job_number} is ready. You can view it here: {doc_url}\n\nThank you for choosing us!"
-    html = f"<p>Hello {job_card.vehicle.client.name},</p><p>Your {doc_type} <strong>#{job_card.job_number}</strong> is ready. You can view it here: <a href='{doc_url}'>{doc_url}</a></p><p>Thank you for choosing us!</p>"
-    
-    success = send_email(subject=subject, recipients=[client_email], body=body, html=html)
-    
-    if success:
-        flash(f"{doc_type} successfully emailed to {client_email}", "success")
-    else:
-        flash("Failed to send email. Please check server logs.", "danger")
-        
-    return redirect(url_for('mechanic_bp.job_card_detail', id=id))
 
+@mechanic_bp.route("/mechanic/invoice/<int:id>", methods=["GET", "POST"])
+@login_required
 def generate_invoice(id):
     active_shop = MechShop.query.filter_by(user_id=current_user.id, onboarding_status='active').first()
     if not active_shop:
@@ -625,4 +607,5 @@ def client_soa(client_id):
         flash('No Statement of Account exists for this client yet.', 'info')
         return redirect(url_for('mechanic_bp.mechanic_dashboard'))
     return redirect(url_for('debtors_bp.generate_soa', debtor_id=debtor.id))
+
 

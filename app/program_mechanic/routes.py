@@ -442,6 +442,14 @@ def generate_invoice(id):
 
         customer_name = request.form.get("customer_name")
         vehicle_reg = request.form.get("vehicle_reg")
+        
+        if not customer_name or not customer_name.strip():
+            flash("Customer Name is required.", "danger")
+            return redirect(url_for('mechanic_bp.new_quote'))
+            
+        if not vehicle_reg or not vehicle_reg.strip():
+            flash("Vehicle Registration is required.", "danger")
+            return redirect(url_for('mechanic_bp.new_quote'))
         vin_number = request.form.get("vin_number")
         make = request.form.get("make")
         model = request.form.get("model")
@@ -724,6 +732,14 @@ def new_quote():
         
         customer_name = request.form.get("customer_name")
         vehicle_reg = request.form.get("vehicle_reg")
+        
+        if not customer_name or not customer_name.strip():
+            flash("Customer Name is required.", "danger")
+            return redirect(url_for('mechanic_bp.new_quote'))
+            
+        if not vehicle_reg or not vehicle_reg.strip():
+            flash("Vehicle Registration is required.", "danger")
+            return redirect(url_for('mechanic_bp.new_quote'))
         vin_number = request.form.get("vin_number")
         make = request.form.get("make")
         model = request.form.get("model")
@@ -772,7 +788,12 @@ def new_quote():
         if make: vehicle.make = make
         if model: vehicle.model = model
         if year: vehicle.year = year
-        if filename: vehicle.license_disk_url = filename
+        # Check if an AJAX-uploaded filename was passed as hidden input
+        hidden_filename = request.form.get("uploaded_disk_filename")
+        if hidden_filename:
+            vehicle.license_disk_url = hidden_filename
+        elif filename: 
+            vehicle.license_disk_url = filename
 
             
         job_card = MechJobCard(
@@ -853,3 +874,41 @@ def help_center():
     return redirect(url_for('mechanic_bp.mechanic_dashboard'))
 
 
+@mechanic_bp.route("/mechanic/jobs")
+@login_required
+def job_cards_list():
+    active_shop = MechShop.query.filter_by(user_id=current_user.id, onboarding_status='active').first()
+    job_cards = []
+    if active_shop:
+        job_cards = MechJobCard.query.join(MechVehicle).join(MechClient).filter(
+            MechClient.id.in_([c.id for c in active_shop.clients])
+        ).order_by(MechJobCard.created_at.desc()).all()
+    return render_template("program_mechanic/job_cards_list.html", job_cards=job_cards)
+
+@mechanic_bp.route("/mechanic/api/upload_disk", methods=["POST"])
+@login_required
+def upload_disk():
+    import os
+    import time
+    from werkzeug.utils import secure_filename
+    from flask import jsonify
+
+    if "license_disk_image" not in request.files:
+        return jsonify({"error": "No file part"}), 400
+
+    file = request.files["license_disk_image"]
+    if file.filename == "":
+        return jsonify({"error": "No selected file"}), 400
+
+    if file:
+        upload_folder = os.path.join(current_app.root_path, "static", "uploads", "mechanic")
+        os.makedirs(upload_folder, exist_ok=True)
+        filename = secure_filename(file.filename)
+        filename = f"{int(time.time())}_{filename}"
+        file.save(os.path.join(upload_folder, filename))
+        
+        # Return URL for preview and the filename for saving
+        file_url = url_for('static', filename=f'uploads/mechanic/{filename}')
+        return jsonify({"url": file_url, "filename": filename})
+
+    return jsonify({"error": "Upload failed"}), 500

@@ -63,10 +63,19 @@
             <div class="mt-1 text-sm text-slate-700">Add custom parts and set your local prices.</div>
           </a>
 
-          <a href="{{ url_for('mechanic_bp.communication_logs') }}" class="block text-left rounded-xl border-2 p-6 shadow-sm transition hover:shadow-md bg-pink-50 border-pink-200 hover:border-pink-400 group">
-            <div class="font-bold text-slate-900 group-hover:text-pink-700 text-lg">Communication Logs</div>
-            <div class="mt-1 text-sm text-slate-700">View history of WhatsApp reminders and invites.</div>
+        {% if active_shop %}
+          <a href="{{ url_for('mechanic_bp.new_quote') }}" class="block rounded-xl border-2 p-6 shadow-sm transition hover:shadow-md bg-green-50 border-green-200 hover:border-green-400 group">
+            <div class="font-bold text-slate-900 group-hover:text-green-700 text-lg">Create Quote</div>
+            <div class="mt-1 text-sm text-slate-700">Add Customer & Select Parts for a new quote.</div>
           </a>
+        {% else %}
+          <div class="block rounded-xl border-2 p-6 shadow-sm bg-slate-50 border-slate-200 opacity-75 cursor-not-allowed">
+            <div class="font-bold text-slate-900 text-lg">Create Quote</div>
+            <div class="mt-1 text-sm text-slate-700">Requires an active Shop Profile to start quoting.</div>
+          </div>
+        {% endif %}
+
+
         {% endif %}
 
         <!-- Wallet Tile -->
@@ -82,17 +91,18 @@
           <div class="mt-1 text-sm text-slate-700">Send & Generate Vouchers</div>
         </a>
 
-                {% if active_shop %}
-          <a href="{{ url_for('mechanic_bp.new_quote') }}" class="block rounded-xl border-2 p-6 shadow-sm transition hover:shadow-md bg-green-50 border-green-200 hover:border-green-400 group">
-            <div class="font-bold text-slate-900 group-hover:text-green-700 text-lg">Create Quote</div>
-            <div class="mt-1 text-sm text-slate-700">Add Customer & Select Parts for a new quote.</div>
+          <a href="{{ url_for('mechanic_bp.communication_logs') }}" class="block text-left rounded-xl border-2 p-6 shadow-sm transition hover:shadow-md bg-pink-50 border-pink-200 hover:border-pink-400 group">
+            <div class="font-bold text-slate-900 group-hover:text-pink-700 text-lg">Communication Logs</div>
+            <div class="mt-1 text-sm text-slate-700">View history of WhatsApp reminders and invites.</div>
           </a>
-        {% else %}
-          <div class="block rounded-xl border-2 p-6 shadow-sm bg-slate-50 border-slate-200 opacity-75 cursor-not-allowed">
-            <div class="font-bold text-slate-900 text-lg">Create Quote</div>
-            <div class="mt-1 text-sm text-slate-700">Requires an active Shop Profile to start quoting.</div>
-          </div>
-        {% endif %}
+        <!-- Recent Job Cards Tile -->
+        <a href="{{ url_for('mechanic_bp.job_cards_list') }}" class="block rounded-xl border-2 p-6 shadow-sm transition hover:shadow-md bg-indigo-50 border-indigo-200 hover:border-indigo-400 group">
+          <div class="font-bold text-slate-900 group-hover:text-indigo-700 text-lg">Recent Job Cards</div>
+          <div class="mt-1 text-sm text-slate-700">View and manage all active quotes and billed jobs.</div>
+        </a>
+
+
+        
 
         <!-- Debtors SOA Tile -->
         <a href="{{ url_for('debtors_bp.dashboard') }}" class="block rounded-xl border-2 p-6 shadow-sm transition hover:shadow-md bg-sky-50 border-sky-200 hover:border-sky-400 group">
@@ -108,178 +118,7 @@
       </div>
     </div>
 
-    <!-- Job Cards Table -->
-    <div class="px-6 py-8">
-      <h2 class="text-lg font-bold text-slate-800 mb-4">Recent Job Cards</h2>
-      <div class="border border-slate-200 rounded-xl overflow-x-auto shadow-sm">
-        <table class="min-w-full divide-y divide-slate-200">
-          <thead class="bg-slate-50">
-            <tr>
-              <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Job #</th>
-              <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Date</th>
-              <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Client & Vehicle</th>
-              <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Status</th>
-              <th scope="col" class="px-6 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Actions</th>
-            </tr>
-          </thead>
-          <tbody class="bg-white divide-y divide-slate-200">
-            {% for job in job_cards %}
-            <tr class="hover:bg-slate-50 transition">
-              <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">#{{ job.job_number }}</td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{{ job.created_at.strftime('%Y-%m-%d') }}</td>
-              <td class="px-6 py-4 whitespace-nowrap">
-                <div class="text-sm font-bold text-slate-900">{{ job.vehicle.client.name }}</div>
-                <div class="text-sm text-slate-500">{{ job.vehicle.registration_number }} ({{ job.vehicle.make }})</div>
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap">
-                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
-                  {% if job.status == 'Billed' %}bg-green-100 text-green-800
-                  {% elif job.status == 'Ready' %}bg-blue-100 text-blue-800
-                  {% else %}bg-amber-100 text-amber-800{% endif %}">
-                  {{ job.status }}
-                </span>
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
-                <a href="{{ url_for('mechanic_bp.job_card_detail', id=job.id) }}" class="text-indigo-600 hover:text-indigo-900">View Job</a>
-                {% if job.status == 'Billed' %}
-                  <span class="text-slate-300">|</span>
-                  <a href="{{ url_for('mechanic_bp.client_soa', client_id=job.vehicle.client.id) }}" class="text-green-600 hover:text-green-900">View SOA</a>
-                {% endif %}
-              </td>
-            </tr>
-            {% endfor %}
-            {% if not job_cards %}
-            <tr>
-              <td colspan="5" class="px-6 py-8 text-center text-sm text-slate-500">No job cards found. Start by generating a quote!</td>
-            </tr>
-            {% endif %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  <!-- Manual Setup Modal -->
-  <!-- Help Modal -->
-  <div id="help-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-slate-900 bg-opacity-50 p-4 sm:p-6" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden relative">
-      <div class="px-6 py-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center rounded-t-2xl">
-        <h3 class="font-extrabold text-slate-800 text-xl">How to use ProTrade & Debtors</h3>
-        <button onclick="document.getElementById('help-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 text-3xl leading-none">&times;</button>
-      </div>
-      <div class="p-6 space-y-4 text-slate-700 text-sm">
-        <p><strong>ProTrade (Mechanic)</strong> allows you to manage your workshop, generate quotes with granular labor/parts control, and issue formal invoices directly to clients.</p>
-        <p><strong>Debtors Control</strong> is a separate, dedicated financial module that links directly to ProTrade. It tracks statements of account (SOAs), interest, and ledger balances for clients who don't pay immediately.</p>
-        <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-emerald-800">
-          <p class="font-bold mb-1"><i class="fas fa-gift mr-1"></i> Special Offer!</p>
-          <p>By using both programs together, you unlock ultimate control over your shop's operations. If you haven't used Debtors before, you must register for it first. Registering for Debtors will give you <strong>200 tokens upfront</strong> to control your debtors over time!</p>
-        </div>
-        <div class="pt-4 flex justify-end">
-          <button type="button" onclick="document.getElementById('help-modal').classList.add('hidden')" class="rounded-lg bg-slate-100 px-4 py-2 font-bold text-slate-700 hover:bg-slate-200">Got it</button>
-        </div>
-      </div>
-    </div>
-  </div>
-  <div id="manual-setup-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-slate-900 bg-opacity-50 p-4 sm:p-6" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-y-auto max-h-[90vh] relative">
-      <div class="px-8 py-5 border-b border-slate-200 bg-slate-50 flex justify-between items-center rounded-t-2xl">
-        <h3 class="font-extrabold text-slate-800 text-xl">Shop Profile Setup</h3>
-        <button onclick="document.getElementById('manual-setup-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 text-3xl leading-none">&times;</button>
-      </div>
-      <form action="{{ url_for('mechanic_bp.onboarding_process') }}" method="POST" enctype="multipart/form-data">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-        <div class="p-8 space-y-6">
-          <p class="text-base text-slate-600 mb-2">Please enter your business details to configure your quotes and invoices.</p>
-
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <div class="sm:col-span-2">
-              <label class="block text-sm font-bold text-slate-700 mb-1">Business Name</label>
-              <input type="text" name="business_name" value="{{ active_shop.business_name if active_shop else '' }}" required autofocus class="block w-full rounded-lg border-2 border-indigo-200 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-base p-3 transition">
-            </div>
-            <div class="sm:col-span-2">
-              <label class="block text-sm font-bold text-slate-700 mb-1">Address</label>
-              <input type="text" name="address" value="{{ active_shop.address if active_shop else '' }}" class="block w-full rounded-lg border-2 border-indigo-200 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-base p-3 transition">
-            </div>
-            <div>
-              <label class="block text-sm font-bold text-slate-700 mb-1">Phone</label>
-              <input type="text" name="phone" value="{{ active_shop.phone if active_shop else '' }}" class="block w-full rounded-lg border-2 border-indigo-200 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-base p-3 transition">
-            </div>
-            <div>
-              <label class="block text-sm font-bold text-slate-700 mb-1">Email</label>
-              <input type="email" name="email" value="{{ active_shop.email if active_shop else '' }}" class="block w-full rounded-lg border-2 border-indigo-200 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-base p-3 transition">
-            </div>
-            <div class="sm:col-span-2">
-              <label class="block text-sm font-bold text-slate-700 mb-1">Shop Logo (Optional)</label>
-              {% if active_shop and active_shop.logo_url %}
-              <div class="mb-3">
-                <img src="{{ url_for('static', filename='uploads/mechanic/' + active_shop.logo_url) }}" alt="Shop Logo" class="h-16 w-auto object-contain rounded border border-slate-200 shadow-sm bg-white p-1">
-              </div>
-              {% endif %}
-              <input type="file" name="logo_file" accept="image/*" class="block w-full text-base text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-bold file:bg-indigo-100 file:text-indigo-700 hover:file:bg-indigo-200 transition cursor-pointer border-2 border-dashed border-indigo-200 p-4 rounded-lg">
-              
-              <div class="mt-6 border-t border-slate-200 pt-4">
-                <label class="block text-sm font-bold text-slate-700 mb-1">Custom Letterhead Banner (Optional)</label>
-                <p class="text-xs text-slate-500 mb-2">Upload a full-width image to replace the standard invoice header.</p>
-                {% if active_shop and active_shop.letterhead_url %}
-                <div class="mb-3">
-                  <img src="{{ url_for('static', filename='uploads/mechanic/' + active_shop.letterhead_url) }}" alt="Shop Letterhead" class="h-16 w-full object-cover rounded border border-slate-200 shadow-sm bg-white">
-                </div>
-                {% endif %}
-                <input type="file" name="letterhead_file" accept="image/*" class="block w-full text-base text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-bold file:bg-indigo-100 file:text-indigo-700 hover:file:bg-indigo-200 transition cursor-pointer border-2 border-dashed border-indigo-200 p-4 rounded-lg">
-              </div>
-              
-              <div class="mt-4 flex items-center bg-indigo-50 p-3 rounded-lg border border-indigo-100">
-                <input id="use_custom_letterhead" name="use_custom_letterhead" type="checkbox" value="1" {% if active_shop and active_shop.use_custom_letterhead %}checked{% endif %} class="h-5 w-5 rounded border-indigo-300 text-indigo-600 focus:ring-indigo-500 bg-white">
-                <label for="use_custom_letterhead" class="ml-3 block text-sm font-semibold text-indigo-900">
-                  Leave space for my own physical letterhead <span class="font-normal text-indigo-700">(Hides the system header entirely on PDF exports so you can print on pre-printed paper)</span>
-                </label>
-              </div>
-            </div>
-                          <div class="sm:col-span-2">
-                <label class="block text-sm font-bold text-slate-700 mb-2">VAT Rate (%)</label>
-                <input type="number" step="0.1" name="vat_rate" value="{{ active_shop.vat_rate if active_shop else '0' }}" class="block w-full rounded-lg border-2 border-indigo-200 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-base p-3 transition" placeholder="e.g. 15">
-                <p class="mt-1 text-xs text-slate-500">If set above 0, quotes will display VAT-exclusive subtotals and add VAT to the total.</p>
-              </div>
-              <div class="sm:col-span-2">
-                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-2 gap-2">
-                  <label class="block text-sm font-bold text-slate-700">Terms and Conditions</label>
-                <div class="flex items-center gap-2 w-full sm:w-auto">
-                  <select id="tc-template-select" class="block w-full sm:w-auto rounded-lg border-2 border-indigo-200 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm p-2 transition bg-indigo-50 text-indigo-700 font-medium">
-                    <option value="">-- Insert a Template --</option>
-                    <option value="mechanic">General Mechanic</option>
-                    <option value="panel">Panel Beater</option>
-                    <option value="auto_elec">Auto Electrician</option>
-                    <option value="generic">Generic Trade</option>
-                  </select>
-                  <button type="button" onclick="insertTCTemplate()" class="text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 px-3 py-2 rounded-lg shadow-sm transition whitespace-nowrap">Apply</button>
-                </div>
-              </div>
-              <textarea id="tc-textarea" name="terms_and_conditions" rows="4" class="block w-full rounded-lg border-2 border-indigo-200 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-base p-3 transition">{{ active_shop.terms_and_conditions if active_shop else '' }}</textarea>
-            </div>
-          </div>
-        </div>
-        <div class="bg-slate-50 px-8 py-5 border-t border-slate-200 flex justify-end gap-4 rounded-b-2xl">
-          <button type="button" onclick="document.getElementById('manual-setup-modal').classList.add('hidden')" class="rounded-xl border-2 border-slate-300 bg-white px-6 py-3 text-base font-bold text-slate-700 hover:bg-slate-50 transition shadow-sm">Cancel</button>
-          <button type="submit" class="rounded-xl bg-indigo-600 px-6 py-3 text-base font-bold text-white hover:bg-indigo-700 shadow-md transition">Save Profile</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- Temporarily disabled AI Modals -->
-  <!-- 
-  <div id="setup-modal">...</div>
-  <div id="review-modal">...</div>
-  -->
-
-</div>
-
-{% if request.args.get('view') == 'review' and draft_shop %}
-<script>
-  document.addEventListener("DOMContentLoaded", function() {
-    document.getElementById('review-modal').classList.remove('hidden');
-  });
-</script>
+    
 {% endif %}
 
 <script>

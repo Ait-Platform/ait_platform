@@ -641,6 +641,7 @@ def generate_soa(debtor_id):
     if not calculated_opening_yet:
         period_opening_balance = running_balance
 
+    return_url = request.args.get('return_url')
     html_content = render_template("program_debtors/soa_template.html",
                                    debtor=debtor,
                                    ledgers=period_ledgers,
@@ -649,7 +650,8 @@ def generate_soa(debtor_id):
                                    period_opening_balance=period_opening_balance,
                                    start_date=start_date,
                                    end_date=end_date,
-                                   bank_account=bank_account)
+                                   bank_account=bank_account,
+                                   return_url=return_url)
 
     if request.args.get('pdf') == '1':
         try:

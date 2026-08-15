@@ -16,7 +16,11 @@
     <!-- Actions Row -->
     <div class="flex items-center justify-between border-b border-slate-100 px-8 pb-4 pt-4 print:hidden">
       <div>
-        <h1 class="text-2xl font-bold text-slate-900">Invoice: {{ job_card.job_number }}</h1>
+        <h1 class="text-2xl font-bold text-slate-900">
+          {% if job_card.status == 'Quote' %}Quote / Tax Invoice
+          {% elif job_card.status in ['Approved', 'Billed'] %}Tax Invoice
+          {% else %}Job Card{% endif %}: {{ job_card.job_number }}
+        </h1>
       </div>
         <div class="flex flex-col sm:flex-row gap-3 mt-6 print:hidden">
           <button onclick="window.print()" class="inline-flex items-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition">
@@ -39,7 +43,7 @@
       
       <!-- Header -->
       <!-- Header -->
-      {% if shop.use_custom_letterhead %}
+      {% if shop.use_custom_letterhead and not is_email %}
         <div class="hidden print:block h-48 w-full"></div>
       {% elif shop.letterhead_url %}
         <div class="w-full mb-8">
@@ -47,7 +51,7 @@
         </div>
       {% endif %}
       
-      <div class="flex justify-between items-start {% if shop.use_custom_letterhead or shop.letterhead_url %}hidden{% endif %}">
+      <div class="flex justify-between items-start {% if (shop.use_custom_letterhead and not is_email) or shop.letterhead_url %}hidden{% endif %}">
         <div class="flex flex-col gap-3">
           {% if shop.logo_url %}
             <img src="{{ url_for('static', filename='uploads/mechanic/' + shop.logo_url) }}" alt="Shop Logo" class="h-16 w-auto object-contain">

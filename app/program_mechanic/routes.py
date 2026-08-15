@@ -320,8 +320,10 @@ def mechanic_intake():
 @mechanic_bp.route("/mechanic/job/<int:id>", methods=["GET", "POST"])
 @login_required
 def job_card_detail(id):
+    from datetime import datetime
     job_card = MechJobCard.query.get_or_404(id)
-    return render_template("program_mechanic/job_card.html", job_card=job_card)
+    today_date = datetime.utcnow().strftime('%Y-%m-%d')
+    return render_template("program_mechanic/job_card.html", job_card=job_card, today_date=today_date)
 
 
 @mechanic_bp.route("/mechanic/email/<int:id>", methods=["GET", "POST"])
@@ -363,236 +365,84 @@ def email_document(id):
 @mechanic_bp.route("/mechanic/job/<int:id>/approve", methods=["POST"])
 @login_required
 def approve_quote(id):
+    from datetime import datetime
     job_card = MechJobCard.query.get_or_404(id)
 
     if job_card.status != 'Quote':
         flash("Only Quotes can be approved.", "warning")
         return redirect(url_for("mechanic_bp.job_card_detail", id=id))
 
-    deposit_str = request.form.get("deposit_amount", "")
+    pop_amount_str = request.form.get("pop_amount", "0")
+    pop_ref = request.form.get("pop_ref", f"POP-{job_card.job_number}")
+    pop_date_str = request.form.get("pop_date")
+    
     try:
-        deposit = float(deposit_str) if deposit_str else 0.0
+        pop_amount = float(pop_amount_str) if pop_amount_str else 0.0
     except ValueError:
-        deposit = 0.0
+        pop_amount = 0.0
+        
+    pop_date = datetime.utcnow()
+    if pop_date_str:
+        try:
+            pop_date = datetime.strptime(pop_date_str, '%Y-%m-%d')
+        except ValueError:
+            pass
 
     job_card.status = 'Approved'
-    if deposit > 0:
-        job_card.deposit_amount = deposit
+    if pop_amount > 0:
+        job_card.deposit_amount = pop_amount
 
-        from app.models.debtors import Debtor, DebtorLedger
-        client = job_card.vehicle.client
-        debtor = Debtor.query.filter_by(
-            reference_id=client.id, slug_reference='mechanic', user_id=current_user.id).first()
+    # Ensure Debtors account exists
+    from app.models.debtors import Debtor, DebtorLedger
+    client = job_card.vehicle.client
+    debtor = Debtor.query.filter_by(
+        reference_id=client.id, slug_reference='mechanic', user_id=current_user.id).first()
 
-        if not debtor:
-            debtor = Debtor(
-                user_id=current_user.id,
-                name=client.name,
-                email=client.email,
-                phone=client.phone,
-                reference_id=client.id,
-                slug_reference='mechanic'
-            )
-            db.session.add(debtor)
-            db.session.flush()
-
-        ledger = DebtorLedger(
-            debtor_id=debtor.id,
-            kind='credit',
-            amount=int(deposit * 100),
-            description=f'Deposit for Job #{job_card.job_number}'
+    if not debtor:
+        debtor = Debtor(
+            user_id=current_user.id,
+            name=client.name,
+            email=client.email,
+            phone=client.phone,
+            reference_id=client.id,
+            slug_reference='mechanic'
         )
-        db.session.add(ledger)
+        db.session.add(debtor)
+        db.session.flush()
+
+    # Step 1: Charge the full quote amount as a Debit (if not already charged)
+    existing_charge = DebtorLedger.query.filter_by(
+        debtor_id=debtor.id, 
+        ref=f"JOB-{job_card.job_number}", 
+        kind='debit'
+    ).first()
+    
+    if not existing_charge and job_card.total > 0:
+        charge_ledger = DebtorLedger(
+            debtor_id=debtor.id,
+            txn_date=datetime.utcnow(),
+            kind='debit',
+            amount=int(job_card.total * 100),
+            description=f'Quote/Tax Invoice for Job #{job_card.job_number}',
+            ref=f"JOB-{job_card.job_number}"
+        )
+        db.session.add(charge_ledger)
+
+    # Step 2: Record the POP deposit as a Credit
+    if pop_amount > 0:
+        payment_ledger = DebtorLedger(
+            debtor_id=debtor.id,
+            txn_date=pop_date,
+            kind='credit',
+            amount=int(pop_amount * 100),
+            description=f'Proof of Payment Deposit',
+            ref=pop_ref
+        )
+        db.session.add(payment_ledger)
 
     db.session.commit()
-    flash("Quote approved and Job started successfully!", "success")
+    flash("Proof of Payment captured! Document converted to Tax Invoice.", "success")
     return redirect(url_for("mechanic_bp.job_card_detail", id=id))
-
-
-@mechanic_bp.route("/mechanic/invoice/<int:id>", methods=["GET", "POST"])
-@login_required
-def generate_invoice(id):
-    active_shop = MechShop.query.filter_by(
-        user_id=current_user.id, onboarding_status='active').first()
-    if not active_shop:
-        flash("You must complete your shop setup first.", "warning")
-        return redirect(url_for("mechanic_bp.mechanic_dashboard"))
-
-    if request.method == "POST":
-        setting = db.session.execute(text(
-            "SELECT value FROM system_settings WHERE key = 'mechanic_invoice_cents'")).fetchone()
-        invoice_cost = int(setting[0]) if setting else 1000
-        token_cost = invoice_cost // 100
-
-        from app.models.auth import AitTokenWallet, AitTokenTransaction
-        wallet = AitTokenWallet.query.filter_by(
-            user_id=current_user.id).first()
-
-        if not wallet or wallet.balance < token_cost:
-            flash("Insufficient tokens. Please top up your wallet.", "warning")
-            return redirect(url_for("mechanic_bp.mock_bill"))
-
-        wallet.balance -= token_cost
-        txn = AitTokenTransaction(
-            wallet_id=wallet.id,
-            amount=-token_cost,
-            description=f"Generated quote for shop {active_shop.id}"
-        )
-        db.session.add(txn)
-
-        customer_name = request.form.get("customer_name")
-        vehicle_reg = request.form.get("vehicle_reg")
-        
-        if not customer_name or not customer_name.strip():
-            flash("Customer Name is required.", "danger")
-            return redirect(url_for('mechanic_bp.new_quote'))
-            
-        if not vehicle_reg or not vehicle_reg.strip():
-            flash("Vehicle Registration is required.", "danger")
-            return redirect(url_for('mechanic_bp.new_quote'))
-        vin_number = request.form.get("vin_number")
-        make = request.form.get("make")
-        model = request.form.get("model")
-        year_str = request.form.get("year")
-        year = int(year_str) if year_str and year_str.isdigit() else None
-
-        # Process dynamic labor and parts arrays
-        labor_descs = request.form.getlist('labor_desc[]')
-        labor_ins = request.form.getlist('labor_in[]')
-        labor_outs = request.form.getlist('labor_out[]')
-        labor_rates = request.form.getlist('labor_rate[]')
-
-        part_qtys = request.form.getlist('part_qty[]')
-        part_descs = request.form.getlist('part_desc[]')
-        part_rates = request.form.getlist('part_rate[]')
-
-        from app.models.mechanic import MechClient, MechVehicle, MechJobCard, MechPartLine, MechLaborLine
-        import uuid
-
-        # Mock finding or creating client
-        client = MechClient.query.filter_by(name=customer_name).first()
-        if not client:
-            client = MechClient(name=customer_name)
-            db.session.add(client)
-            db.session.flush()
-
-        vehicle = MechVehicle.query.filter_by(
-            license_plate=vehicle_reg).first()
-        if not vehicle:
-            vehicle = MechVehicle(client_id=client.id,
-                                  license_plate=vehicle_reg)
-            db.session.add(vehicle)
-            db.session.flush()
-
-            import os
-        from werkzeug.utils import secure_filename
-
-        license_disk_image = request.files.get("license_disk_image")
-        filename = None
-        if license_disk_image and license_disk_image.filename:
-            upload_folder = os.path.join(
-                current_app.root_path, "static", "uploads", "mechanic")
-            os.makedirs(upload_folder, exist_ok=True)
-            filename = secure_filename(license_disk_image.filename)
-            import time
-            filename = f"{int(time.time())}_{filename}"
-            license_disk_image.save(os.path.join(upload_folder, filename))
-
-        if vin_number:
-            vehicle.vin = vin_number
-        if make:
-            vehicle.make = make
-        if model:
-            vehicle.model = model
-        if year:
-            vehicle.year = year
-        if filename:
-            vehicle.license_disk_url = filename
-
-        job_card = MechJobCard(
-            job_number=str(uuid.uuid4())[:8].upper(),
-            vehicle_id=vehicle.id,
-            status='Quote',
-            vat_rate=active_shop.vat_rate
-        )
-        db.session.add(job_card)
-        db.session.flush()
-
-        vehicle = MechVehicle.query.filter_by(
-            license_plate=vehicle_reg, client_id=client.id).first()
-        if not vehicle:
-            vehicle = MechVehicle(license_plate=vehicle_reg,
-                                  make="Unknown", client_id=client.id)
-            db.session.add(vehicle)
-            db.session.flush()
-
-        job_card = MechJobCard(
-            job_number=f"JOB-{uuid.uuid4().hex[:6].upper()}",
-            vehicle_id=vehicle.id,
-            status='Ready'
-        )
-        db.session.add(job_card)
-        db.session.flush()
-
-        # Process Labor Lines
-        for i in range(len(labor_descs)):
-            desc = labor_descs[i].strip()
-            if not desc:
-                continue
-            t_in = labor_ins[i] if i < len(labor_ins) else ""
-            t_out = labor_outs[i] if i < len(labor_outs) else ""
-            rate_str = labor_rates[i] if i < len(labor_rates) else "0"
-            rate = float(rate_str) if rate_str else 0.0
-
-            hours = 0.0
-            if t_in and t_out:
-                try:
-                    h1, m1 = map(int, t_in.split(':'))
-                    h2, m2 = map(int, t_out.split(':'))
-                    diff = (h2 + m2/60.0) - (h1 + m1/60.0)
-                    if diff < 0:
-                        diff += 24.0
-                    hours = round(diff, 2)
-                except Exception:
-                    pass
-
-            labor = MechLaborLine(
-                job_card_id=job_card.id,
-                mechanic_name="Shop Tech",
-                description=desc,
-                time_in=t_in,
-                time_out=t_out,
-                hours=hours,
-                rate_per_hour=rate
-            )
-            db.session.add(labor)
-
-        # Process Part Lines
-        for i in range(len(part_descs)):
-            desc = part_descs[i].strip()
-            if not desc:
-                continue
-            qty_str = part_qtys[i] if i < len(part_qtys) else "1"
-            qty = int(qty_str) if qty_str else 1
-            rate_str = part_rates[i] if i < len(part_rates) else "0"
-            rate = float(rate_str) if rate_str else 0.0
-
-            pline = MechPartLine(
-                job_card_id=job_card.id,
-                part_number="Custom/Selected",
-                description=desc,
-                quantity=qty,
-                unit_cost=rate,
-                markup_price=rate
-            )
-            db.session.add(pline)
-
-        db.session.commit()
-
-        flash("Quote created and Job Card generated successfully!", "success")
-        return redirect(url_for("mechanic_bp.job_card_detail", id=job_card.id))
-
-    return render_template("program_mechanic/quote_form.html", catalog_parts=catalog_parts, shop=active_shop)
 
 
 @mechanic_bp.route('/mechanic/messages', methods=['GET', 'POST'])
@@ -683,6 +533,9 @@ def client_soa(client_id):
     if not debtor:
         flash('No Statement of Account exists for this client yet.', 'info')
         return redirect(url_for('mechanic_bp.mechanic_dashboard'))
+    return_url = request.args.get('return_url')
+    if return_url:
+        return redirect(url_for('debtors_bp.generate_soa', debtor_id=debtor.id, return_url=return_url))
     return redirect(url_for('debtors_bp.generate_soa', debtor_id=debtor.id))
 
 

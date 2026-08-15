@@ -163,6 +163,18 @@ def create_app(test_config=None):
         except Exception:
             db.session.rollback()
 
+        try:
+            db.session.execute(text("ALTER TABLE mech_labor_lines ADD COLUMN time_in VARCHAR(10)"))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+        try:
+            db.session.execute(text("ALTER TABLE mech_labor_lines ADD COLUMN time_out VARCHAR(10)"))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
     # 4) Template helpers
     app.jinja_env.globals.update(csrf_token=generate_csrf)
     app.jinja_env.autoescape = select_autoescape(['html', 'htm', 'xml'])

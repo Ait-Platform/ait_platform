@@ -512,10 +512,24 @@ def generate_soa(debtor_id):
     from datetime import datetime
     debtor = Debtor.query.filter_by(id=debtor_id, user_id=current_user.id).first_or_404()
     
-    if debtor.sender_profile_id:
+        if debtor.sender_profile_id:
         profile = SenderProfile.query.get(debtor.sender_profile_id)
     else:
         profile = SenderProfile.query.filter_by(user_id=current_user.id, is_default=True).first()
+        
+    # Mock profile for mechanic integration if no Debtors profile exists
+    if not profile and debtor.slug_reference == 'mechanic':
+        from app.models.mechanic import MechShop
+        shop = MechShop.query.filter_by(user_id=current_user.id, onboarding_status='active').first()
+        if shop:
+            class MockProfile:
+                business_name = shop.business_name
+                address = shop.address
+                phone = shop.phone
+                email = shop.email
+                logo_url = shop.letterhead_url if shop.use_custom_letterhead else shop.logo_url
+                use_custom_letterhead = shop.use_custom_letterhead
+            profile = MockProfile()
         
     if debtor.bank_account_id:
         bank_account = BusinessBankAccount.query.get(debtor.bank_account_id)
@@ -598,10 +612,24 @@ def email_soa():
         return redirect(url_for('debtors_bp.generate_soa', debtor_id=debtor_id, start_date=request.form.get('start_date'), end_date=request.form.get('end_date')))
         
     debtor = Debtor.query.filter_by(id=debtor_id, user_id=current_user.id).first_or_404()
-    if debtor.sender_profile_id:
+        if debtor.sender_profile_id:
         profile = SenderProfile.query.get(debtor.sender_profile_id)
     else:
         profile = SenderProfile.query.filter_by(user_id=current_user.id, is_default=True).first()
+        
+    # Mock profile for mechanic integration if no Debtors profile exists
+    if not profile and debtor.slug_reference == 'mechanic':
+        from app.models.mechanic import MechShop
+        shop = MechShop.query.filter_by(user_id=current_user.id, onboarding_status='active').first()
+        if shop:
+            class MockProfile:
+                business_name = shop.business_name
+                address = shop.address
+                phone = shop.phone
+                email = shop.email
+                logo_url = shop.letterhead_url if shop.use_custom_letterhead else shop.logo_url
+                use_custom_letterhead = shop.use_custom_letterhead
+            profile = MockProfile()
         
     if debtor.bank_account_id:
         bank_account = BusinessBankAccount.query.get(debtor.bank_account_id)
@@ -758,5 +786,6 @@ def price_page():
     soa_cents = tariff.base_token_cost * 100 if tariff else 1000
 
     return render_template("program_debtors/price.html", price=price_ctx, subject=subject, countries=countries, soa_cents=soa_cents)
+
 
 

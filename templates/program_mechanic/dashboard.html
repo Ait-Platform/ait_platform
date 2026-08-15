@@ -82,7 +82,7 @@
           <div class="mt-1 text-sm text-slate-700">Send & Generate Vouchers</div>
         </a>
 
-        {% if active_shop %}
+                {% if active_shop %}
           <a href="{{ url_for('mechanic_bp.new_quote') }}" class="block rounded-xl border-2 p-6 shadow-sm transition hover:shadow-md bg-green-50 border-green-200 hover:border-green-400 group">
             <div class="font-bold text-slate-900 group-hover:text-green-700 text-lg">Create Quote</div>
             <div class="mt-1 text-sm text-slate-700">Add Customer & Select Parts for a new quote.</div>
@@ -93,6 +93,18 @@
             <div class="mt-1 text-sm text-slate-700">Requires an active Shop Profile to start quoting.</div>
           </div>
         {% endif %}
+
+        <!-- Debtors SOA Tile -->
+        <a href="{{ url_for('debtors_bp.debtors_dashboard') }}" class="block rounded-xl border-2 p-6 shadow-sm transition hover:shadow-md bg-sky-50 border-sky-200 hover:border-sky-400 group">
+          <div class="font-bold text-slate-900 group-hover:text-sky-700 text-lg">Debtors (SOA)</div>
+          <div class="mt-1 text-sm text-slate-700">Manage client accounts, invoices, and payments.</div>
+        </a>
+
+        <!-- Help Tile -->
+        <a href="{{ url_for('main_bp.help_center') }}" class="block rounded-xl border-2 p-6 shadow-sm transition hover:shadow-md bg-amber-50 border-amber-200 hover:border-amber-400 group">
+          <div class="font-bold text-slate-900 group-hover:text-amber-700 text-lg">Help Center</div>
+          <div class="mt-1 text-sm text-slate-700">Guides for ProTrade, Quotes, and Debtors tracking.</div>
+        </a>
       </div>
     </div>
 
@@ -223,9 +235,14 @@
                 </label>
               </div>
             </div>
-            <div class="sm:col-span-2">
-              <div class="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-2 gap-2">
-                <label class="block text-sm font-bold text-slate-700">Terms and Conditions</label>
+                          <div class="sm:col-span-2">
+                <label class="block text-sm font-bold text-slate-700 mb-2">VAT Rate (%)</label>
+                <input type="number" step="0.1" name="vat_rate" value="{{ active_shop.vat_rate if active_shop else '0' }}" class="block w-full rounded-lg border-2 border-indigo-200 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-base p-3 transition" placeholder="e.g. 15">
+                <p class="mt-1 text-xs text-slate-500">If set above 0, quotes will display VAT-exclusive subtotals and add VAT to the total.</p>
+              </div>
+              <div class="sm:col-span-2">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-2 gap-2">
+                  <label class="block text-sm font-bold text-slate-700">Terms and Conditions</label>
                 <div class="flex items-center gap-2 w-full sm:w-auto">
                   <select id="tc-template-select" class="block w-full sm:w-auto rounded-lg border-2 border-indigo-200 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm p-2 transition bg-indigo-50 text-indigo-700 font-medium">
                     <option value="">-- Insert a Template --</option>
@@ -283,3 +300,5 @@
 </script>
 
 {% endblock %}
+
+

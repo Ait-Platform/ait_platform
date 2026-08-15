@@ -22,23 +22,43 @@
       </a>
     </div>
 
-    <form action="{{ url_for('mechanic_bp.new_quote') }}" method="POST">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-      
-      <div class="p-6">
-        <h3 class="text-lg font-bold text-slate-800 mb-4">Customer & Vehicle Details</h3>
-        <div class="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-2 mb-8 border-b border-slate-100 pb-8">
-          <div>
-            <label class="block text-sm font-medium text-slate-700 mb-1">Customer Name</label>
-            <input type="text" name="customer_name" required autofocus class="block w-full rounded-md border border-slate-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:text-sm">
+          <form action="{{ url_for('mechanic_bp.new_quote') }}" method="POST" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        
+        <div class="p-6">
+          <h3 class="text-lg font-bold text-slate-800 mb-4">Customer & Vehicle Details</h3>
+          <div class="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-2 lg:grid-cols-3 mb-8 border-b border-slate-100 pb-8">
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1">Customer Name</label>
+              <input type="text" name="customer_name" required autofocus class="block w-full rounded-md border border-slate-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:text-sm">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1">Vehicle Registration</label>
+              <input type="text" name="vehicle_reg" required class="block w-full rounded-md border border-slate-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:text-sm">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1">VIN Number <span class="text-xs text-slate-400 font-normal">(Optional)</span></label>
+              <input type="text" name="vin_number" class="block w-full rounded-md border border-slate-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:text-sm uppercase" placeholder="17-Digit VIN">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1">Upload License Disk / VIN Image <span class="text-xs text-slate-400 font-normal">(Optional)</span></label>
+              <input type="file" name="license_disk_image" accept="image/*" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer border border-slate-300 rounded-md shadow-sm">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1">Make <span class="text-xs text-slate-400 font-normal">(Optional)</span></label>
+              <input type="text" name="make" class="block w-full rounded-md border border-slate-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:text-sm" placeholder="e.g. Toyota">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1">Model <span class="text-xs text-slate-400 font-normal">(Optional)</span></label>
+              <input type="text" name="model" class="block w-full rounded-md border border-slate-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:text-sm" placeholder="e.g. Hilux">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1">Year <span class="text-xs text-slate-400 font-normal">(Optional)</span></label>
+              <input type="number" name="year" class="block w-full rounded-md border border-slate-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:text-sm" placeholder="e.g. 2018">
+            </div>
           </div>
-          <div>
-            <label class="block text-sm font-medium text-slate-700 mb-1">Vehicle Registration</label>
-            <input type="text" name="vehicle_reg" required class="block w-full rounded-md border border-slate-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:text-sm">
-          </div>
-        </div>
 
-        <!-- Labor Section -->
+          <!-- Labor Section -->
         <div class="mb-8 border-2 border-indigo-400 rounded-xl p-6 bg-indigo-50/40 shadow-sm">
           <div class="flex justify-between items-center mb-6 border-b border-indigo-200 pb-2">
             <h3 class="text-xl font-black text-indigo-900 uppercase tracking-wide">Labor Charges</h3>
@@ -206,3 +226,5 @@
   }
 </script>
 {% endblock %}
+
+

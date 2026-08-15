@@ -230,7 +230,15 @@ def onboarding_process():
     shop.business_name = request.form.get("business_name") or "My Mechanic Shop"
     shop.address = request.form.get("address")
     shop.phone = request.form.get("phone")
-    shop.email = request.form.get("email")
+        shop.email = request.form.get("email")
+    shop.tax_number = request.form.get("tax_number")
+    
+    try:
+        vat_rate = float(request.form.get("vat_rate", 0))
+    except ValueError:
+        vat_rate = 0.0
+    shop.vat_rate = vat_rate
+    
     shop.terms_and_conditions = request.form.get("terms_and_conditions")
     shop.use_custom_letterhead = True if request.form.get("use_custom_letterhead") else False
     shop.onboarding_status = 'active'
@@ -279,87 +287,24 @@ def mechanic_intake():
 @mechanic_bp.route("/mechanic/job/<int:id>", methods=["GET", "POST"])
 @login_required
 def job_card_detail(id):
-    job_card = MechJobCard.query.get_or_404(id)
-    return render_template("program_mechanic/job_card.html", job_card=job_card)
-
-@mechanic_bp.route("/mechanic/email/<int:id>", methods=["GET", "POST"])
-@login_required
-def email_document(id):
-    from app.utils.mailer import send_email
-    job_card = MechJobCard.query.get_or_404(id)
-    
-    doc_type = "Invoice" if job_card.status == 'Billed' else "Quote"
-    default_email = ""
-    if job_card.vehicle and job_card.vehicle.client and job_card.vehicle.client.email:
-        default_email = job_card.vehicle.client.email
-
-    if request.method == "POST":
-        target_email = request.form.get("email")
-        if not target_email:
-            flash("Please provide an email address.", "warning")
-            return redirect(url_for('mechanic_bp.email_document', id=id))
-            
-        subject = f"Your {doc_type} #{job_card.job_number} from AIT ProTrade"
-        doc_url = url_for('mechanic_bp.job_card_detail', id=id, _external=True)
-        
-        body = f"Hello,\n\nYour {doc_type} #{job_card.job_number} is ready. You can view it here: {doc_url}\n\nThank you for choosing us!"
-        html = f"<p>Hello,</p><p>Your {doc_type} <strong>#{job_card.job_number}</strong> is ready. You can view it here: <a href='{doc_url}'>{doc_url}</a></p><p>Thank you for choosing us!</p>"
-        
-        success = send_email(subject=subject, recipients=[target_email], body=body, html=html)
-        
-        if success:
-            flash(f"{doc_type} successfully emailed to {target_email}", "success")
-        else:
-            flash("Failed to send email. Please check server logs.", "danger")
-            
-        return redirect(url_for('mechanic_bp.job_card_detail', id=id))
-        
-    return render_template("program_mechanic/email_preview.html", job_card=job_card, doc_type=doc_type, default_email=default_email)
-
-@mechanic_bp.route("/mechanic/invoice/<int:id>", methods=["GET", "POST"])
-@login_required
-def generate_invoice(id):
-    active_shop = MechShop.query.filter_by(user_id=current_user.id, onboarding_status='active').first()
-    if not active_shop:
-        flash("You must complete your shop setup first.", "warning")
-        return redirect(url_for("mechanic_bp.mechanic_dashboard"))
-
-    if request.method == "POST":
-        setting = db.session.execute(text("SELECT value FROM system_settings WHERE key = 'mechanic_invoice_cents'")).fetchone()
-        invoice_cost = int(setting[0]) if setting else 1000
-        token_cost = invoice_cost // 100
-
-        from app.models.auth import AitTokenWallet, AitTokenTransaction
-        wallet = AitTokenWallet.query.filter_by(user_id=current_user.id).first()
-
-        if not wallet or wallet.balance < token_cost:
-            flash("Insufficient tokens. Please top up your wallet.", "warning")
-            return redirect(url_for("mechanic_bp.mock_bill"))
-            
-        wallet.balance -= token_cost
-        txn = AitTokenTransaction(
-            wallet_id=wallet.id,
-            amount=-token_cost,
-            description=f"Generated invoice for shop {active_shop.id}"
-        )
-        db.session.add(txn)
-        db.session.commit()
-        flash(f"Invoice generated successfully! ({token_cost} Tokens deducted)", "success")
-            
-        job_card = MechJobCard.query.get_or_404(id)
+            job_card = MechJobCard.query.get_or_404(id)
         labor_total = sum(l.hours * l.rate_per_hour for l in job_card.labor_lines)
         parts_total = sum(p.quantity * p.markup_price for p in job_card.part_lines)
-        total = labor_total + parts_total
+        subtotal = labor_total + parts_total
+        
+        vat_rate = job_card.vat_rate if job_card.vat_rate else 0.0
+        vat_amount = subtotal * (vat_rate / 100.0)
+        total = subtotal + vat_amount
         
         from app.models.mechanic import MechInvoice
-        invoice = MechInvoice(job_card_id=job_card.id, subtotal=total, total=total, status='Unpaid')
+        invoice = MechInvoice(job_card_id=job_card.id, subtotal=subtotal, total=total, status='Unpaid')
         db.session.add(invoice)
         job_card.status = 'Billed'
         db.session.flush()
         
         from app.models.debtors import Debtor, DebtorLedger
         client = job_card.vehicle.client
-        debtor = Debtor.query.filter_by(reference_id=client.id, slug_reference='mechanic').first()
+        debtor = Debtor.query.filter_by(reference_id=client.id, slug_reference='mechanic', user_id=current_user.id).first()
         
         if not debtor:
             debtor = Debtor(
@@ -431,8 +376,14 @@ def new_quote():
         )
         db.session.add(txn)
         
-        customer_name = request.form.get("customer_name")
+                customer_name = request.form.get("customer_name")
         vehicle_reg = request.form.get("vehicle_reg")
+        vin_number = request.form.get("vin_number")
+        make = request.form.get("make")
+        model = request.form.get("model")
+        year_str = request.form.get("year")
+        year = int(year_str) if year_str and year_str.isdigit() else None
+        
         # Process dynamic labor and parts arrays
         labor_descs = request.form.getlist('labor_desc[]')
         labor_ins = request.form.getlist('labor_in[]')
@@ -452,6 +403,40 @@ def new_quote():
             client = MechClient(name=customer_name)
             db.session.add(client)
             db.session.flush()
+            
+        vehicle = MechVehicle.query.filter_by(license_plate=vehicle_reg).first()
+        if not vehicle:
+            vehicle = MechVehicle(client_id=client.id, license_plate=vehicle_reg)
+            db.session.add(vehicle)
+            db.session.flush()
+            
+                import os
+        from werkzeug.utils import secure_filename
+        
+        license_disk_image = request.files.get("license_disk_image")
+        filename = None
+        if license_disk_image and license_disk_image.filename:
+            upload_folder = os.path.join(current_app.root_path, "static", "uploads", "mechanic")
+            os.makedirs(upload_folder, exist_ok=True)
+            filename = secure_filename(license_disk_image.filename)
+            import time
+            filename = f"{int(time.time())}_{filename}"
+            license_disk_image.save(os.path.join(upload_folder, filename))
+            
+        if vin_number: vehicle.vin = vin_number
+        if make: vehicle.make = make
+        if model: vehicle.model = model
+        if year: vehicle.year = year
+        if filename: vehicle.license_disk_url = filename
+        
+        job_card = MechJobCard(
+            job_number=str(uuid.uuid4())[:8].upper(),
+            vehicle_id=vehicle.id,
+            status='Quote',
+            vat_rate=active_shop.vat_rate
+        )
+        db.session.add(job_card)
+        db.session.flush()
             
         vehicle = MechVehicle.query.filter_by(license_plate=vehicle_reg, client_id=client.id).first()
         if not vehicle:
@@ -607,5 +592,10 @@ def client_soa(client_id):
         flash('No Statement of Account exists for this client yet.', 'info')
         return redirect(url_for('mechanic_bp.mechanic_dashboard'))
     return redirect(url_for('debtors_bp.generate_soa', debtor_id=debtor.id))
+
+
+
+
+
 
 

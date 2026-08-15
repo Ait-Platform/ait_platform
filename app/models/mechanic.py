@@ -12,6 +12,7 @@ class MechShop(db.Model):
     email = db.Column(db.String(150))
     registration_number = db.Column(db.String(100))
     tax_number = db.Column(db.String(100))
+    vat_rate = db.Column(db.Float, default=0.0)
     logo_url = db.Column(db.String(255))
     letterhead_url = db.Column(db.String(255))
     use_custom_letterhead = db.Column(db.Boolean, default=False)
@@ -59,8 +60,10 @@ class MechJobCard(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     job_number = db.Column(db.String(50), unique=True, nullable=False)
     vehicle_id = db.Column(db.Integer, db.ForeignKey('mech_vehicles.id'), nullable=False)
-    status = db.Column(db.String(50), default='Intake') # Intake, Diagnosis, In Progress, Quality Check, Ready, Billed
+    status = db.Column(db.String(50), default='Quote') # Quote, Approved, In Progress, Quality Check, Ready, Billed
     description = db.Column(db.Text)
+    vat_rate = db.Column(db.Float, default=0.0)
+    deposit_amount = db.Column(db.Float, default=0.0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     completed_at = db.Column(db.DateTime)
     
@@ -98,3 +101,6 @@ class MechInvoice(db.Model):
     total = db.Column(db.Float, default=0.0)
     status = db.Column(db.String(50), default='Unpaid') # Unpaid, Paid, Void
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+

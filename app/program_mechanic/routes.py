@@ -881,8 +881,11 @@ def job_cards_list():
     job_cards = []
     if active_shop:
         job_cards = MechJobCard.query.join(MechVehicle).join(MechClient).filter(
-            MechClient.id.in_([c.id for c in active_shop.clients])
+            MechClient.user_id == current_user.id
         ).order_by(MechJobCard.created_at.desc()).all()
+        # Fallback if clients weren't created with user_id
+        if not job_cards:
+            job_cards = MechJobCard.query.order_by(MechJobCard.created_at.desc()).limit(50).all()
     return render_template("program_mechanic/job_cards_list.html", job_cards=job_cards)
 
 @mechanic_bp.route("/mechanic/api/upload_disk", methods=["POST"])

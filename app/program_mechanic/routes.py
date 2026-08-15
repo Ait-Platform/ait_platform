@@ -399,23 +399,16 @@ def new_quote():
         
         customer_name = request.form.get("customer_name")
         vehicle_reg = request.form.get("vehicle_reg")
-        new_part_name = request.form.get("new_part_name")
-        new_part_price = request.form.get("new_part_price")
+        # Process dynamic labor and parts arrays
+        labor_descs = request.form.getlist('labor_desc[]')
+        labor_ins = request.form.getlist('labor_in[]')
+        labor_outs = request.form.getlist('labor_out[]')
+        labor_rates = request.form.getlist('labor_rate[]')
+
+        part_qtys = request.form.getlist('part_qty[]')
+        part_descs = request.form.getlist('part_desc[]')
+        part_rates = request.form.getlist('part_rate[]')
         
-        selected_part_ids = request.form.getlist('selected_parts')
-        
-        if new_part_name and new_part_price:
-            learned_part = MechCatalogPart(
-                user_id=current_user.id,
-                part_name=new_part_name,
-                category='Custom',
-                default_price=float(new_part_price)
-            )
-            db.session.add(learned_part)
-            db.session.flush()
-            selected_part_ids.append(str(learned_part.id))
-            flash(f"Learned new part: {new_part_name}", "success")
-            
         from app.models.mechanic import MechClient, MechVehicle, MechJobCard, MechPartLine, MechLaborLine
         import uuid
         
@@ -440,22 +433,58 @@ def new_quote():
         db.session.add(job_card)
         db.session.flush()
         
-        # Add a default labor line
-        labor = MechLaborLine(job_card_id=job_card.id, mechanic_name="General", description="General Inspection", hours=1.0, rate_per_hour=350.0)
-        db.session.add(labor)
+        # Process Labor Lines
+        for i in range(len(labor_descs)):
+            desc = labor_descs[i].strip()
+            if not desc:
+                continue
+            t_in = labor_ins[i] if i < len(labor_ins) else ""
+            t_out = labor_outs[i] if i < len(labor_outs) else ""
+            rate_str = labor_rates[i] if i < len(labor_rates) else "0"
+            rate = float(rate_str) if rate_str else 0.0
+            
+            hours = 0.0
+            if t_in and t_out:
+                try:
+                    h1, m1 = map(int, t_in.split(':'))
+                    h2, m2 = map(int, t_out.split(':'))
+                    diff = (h2 + m2/60.0) - (h1 + m1/60.0)
+                    if diff < 0:
+                        diff += 24.0
+                    hours = round(diff, 2)
+                except Exception:
+                    pass
+
+            labor = MechLaborLine(
+                job_card_id=job_card.id,
+                mechanic_name="Shop Tech",
+                description=desc,
+                time_in=t_in,
+                time_out=t_out,
+                hours=hours,
+                rate_per_hour=rate
+            )
+            db.session.add(labor)
         
-        for p_id in selected_part_ids:
-            part_def = MechCatalogPart.query.get(p_id)
-            if part_def:
-                pline = MechPartLine(
-                    job_card_id=job_card.id,
-                    part_number=part_def.part_name,
-                    description=f"{part_def.category} part",
-                    quantity=1,
-                    unit_cost=part_def.default_price,
-                    markup_price=part_def.default_price
-                )
-                db.session.add(pline)
+        # Process Part Lines
+        for i in range(len(part_descs)):
+            desc = part_descs[i].strip()
+            if not desc:
+                continue
+            qty_str = part_qtys[i] if i < len(part_qtys) else "1"
+            qty = int(qty_str) if qty_str else 1
+            rate_str = part_rates[i] if i < len(part_rates) else "0"
+            rate = float(rate_str) if rate_str else 0.0
+            
+            pline = MechPartLine(
+                job_card_id=job_card.id,
+                part_number="Custom/Selected",
+                description=desc,
+                quantity=qty,
+                unit_cost=rate,
+                markup_price=rate
+            )
+            db.session.add(pline)
                 
         db.session.commit()
             

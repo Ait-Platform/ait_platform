@@ -270,7 +270,8 @@ def register():
     email_norm = email_in.lower()
     
     # ---------- resolve quote before existing user check ----------
-    cc = (request.form.get("country") or session.get("country_code") or "ZA").strip().upper()
+    reg_ctx = session.get("reg_ctx", {})
+    cc = (request.form.get("country") or reg_ctx.get("country_code") or session.get("country_code") or request.args.get("country_code") or "ZA").strip().upper()
     subj_id = subject_id_for(subject)
     
     local_cents    = session.get("local_amount_cents") or 0

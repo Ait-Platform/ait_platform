@@ -130,7 +130,11 @@
             <tr class="hover:bg-slate-50 transition">
               <td class="py-4 text-slate-800">
                 <div class="font-medium">Labor: {{ labor.mechanic_name or 'General' }}</div>
-                <div class="text-sm text-slate-500">{{ labor.description }}</div>
+                <div class="text-sm text-slate-500">{{ labor.description }}
+                  {% if labor.time_in and labor.time_out %}
+                  <span class="ml-2 italic">(In: {{ labor.time_in }} - Out: {{ labor.time_out }})</span>
+                  {% endif %}
+                </div>
               </td>
               <td class="py-4 text-slate-600 text-right text-sm">Labor</td>
               <td class="py-4 text-slate-600 text-right">{{ labor.hours }}</td>

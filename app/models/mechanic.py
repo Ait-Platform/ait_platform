@@ -74,6 +74,8 @@ class MechLaborLine(db.Model):
     job_card_id = db.Column(db.Integer, db.ForeignKey('mech_job_cards.id'), nullable=False)
     mechanic_name = db.Column(db.String(100))
     description = db.Column(db.String(255))
+    time_in = db.Column(db.String(10)) # e.g. 08:00
+    time_out = db.Column(db.String(10)) # e.g. 10:30
     hours = db.Column(db.Float, default=0.0)
     rate_per_hour = db.Column(db.Float, default=0.0)
 

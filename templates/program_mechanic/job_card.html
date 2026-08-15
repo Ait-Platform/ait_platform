@@ -112,7 +112,13 @@
               {% set line_total = l.hours * l.rate_per_hour %}
               {% set ns.total = ns.total + line_total %}
               <tr class="hover:bg-slate-50">
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-900"><span class="font-bold">Labor: {{ l.mechanic_name or 'General' }}</span><br><span class="text-slate-500 text-xs">{{ l.description }}</span></td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-900">
+                  <span class="font-bold">Labor: {{ l.mechanic_name or 'General' }}</span><br>
+                  <span class="text-slate-500 text-xs">{{ l.description }}</span>
+                  {% if l.time_in and l.time_out %}
+                  <span class="text-slate-400 text-xs italic block mt-1">(In: {{ l.time_in }} - Out: {{ l.time_out }})</span>
+                  {% endif %}
+                </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">Labor</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-slate-500">{{ l.hours }}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-slate-500">{{ currency_sym }}{{ "%.2f"|format(l.rate_per_hour) }}</td>

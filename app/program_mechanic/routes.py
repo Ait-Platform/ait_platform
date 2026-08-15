@@ -846,3 +846,9 @@ def new_quote():
 
 from app.models.auth import DirectMessage
 
+@mechanic_bp.route("/mechanic/help")
+@login_required
+def help_center():
+    flash("Help Center is coming soon!", "info")
+    return redirect(url_for('mechanic_bp.mechanic_dashboard'))
+

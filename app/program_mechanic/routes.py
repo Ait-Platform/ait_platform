@@ -824,8 +824,9 @@ def upload_business_card():
 
         uploaded_file = client.files.upload(file=filepath)
         response = client.models.generate_content(
-            model='gemini-2.5-pro',
-            contents=[uploaded_file, prompt]
+            model='gemini-2.5-flash',
+            contents=[uploaded_file, prompt],
+            config=types.GenerateContentConfig(response_mime_type="application/json")
         )
         
         try:
@@ -833,19 +834,12 @@ def upload_business_card():
         except Exception:
             pass
 
-        raw_text = response.text.strip()
-        if raw_text.startswith("`json"):
-            raw_text = raw_text[7:]
-        if raw_text.startswith("`"):
-            raw_text = raw_text[3:]
-        if raw_text.endswith("`"):
-            raw_text = raw_text[:-3]
-
-        parsed_data = json.loads(raw_text.strip())
+        parsed_data = json.loads(response.text.strip())
         
         return jsonify({"ai_data": parsed_data})
 
     except Exception as e:
+        print(f"Gemini AI Error: {e}")
         print(f"Gemini AI Error: {e}")
         return jsonify({"error": str(e)}), 500
 

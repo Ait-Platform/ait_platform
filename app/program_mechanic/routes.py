@@ -451,12 +451,19 @@ def approve_quote(id):
         kind='debit'
     ).first()
     
-    if not existing_charge and job_card.total > 0:
+    # Calculate total
+    labor_total = sum(l.hours * l.rate_per_hour for l in job_card.labor_lines)
+    parts_total = sum(p.quantity * p.markup_price for p in job_card.part_lines)
+    subtotal = labor_total + parts_total
+    vat_amount = subtotal * (job_card.vat_rate / 100.0)
+    job_card_total = subtotal + vat_amount
+
+    if not existing_charge and job_card_total > 0:
         charge_ledger = DebtorLedger(
             debtor_id=debtor.id,
             txn_date=datetime.utcnow(),
             kind='debit',
-            amount=int(job_card.total * 100),
+            amount=int(job_card_total * 100),
             description=f'Quote/Tax Invoice for Job #{job_card.job_number}',
             ref=f"JOB-{job_card.job_number}"
         )

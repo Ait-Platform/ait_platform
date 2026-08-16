@@ -22,6 +22,6 @@ def subject_dashboard(subject: str):
         abort(404)
         
     try:
-        return render_template(f"admin/programs/{subject}/dashboard.html", subject=subject, subject_name=subj_obj.name)
+        return render_template(f"admin/programs/{subject}/dashboard.html", subject=subject, subject_name=subj_obj.name, subj_obj=subj_obj)
     except TemplateNotFound:
-        return render_template("admin/programs/fallback_dashboard.html", subject=subject, subject_name=subj_obj.name)
+        return render_template("admin/programs/fallback_dashboard.html", subject=subject, subject_name=subj_obj.name, subj_obj=subj_obj)

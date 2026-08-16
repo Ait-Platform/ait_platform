@@ -152,3 +152,44 @@ def reading_evaluate():
         return redirect(url_for('cptd_bp.hub'))
         
     return render_template("program_cptd/evaluation.html", progress=progress)
+
+# ---------------------------------------------------------
+# SACE COMPLIANCE DOCUMENTS
+# ---------------------------------------------------------
+
+@cptd_bp.route("/cptd/compliance")
+@login_required
+def compliance_hub():
+    return render_template("program_cptd/compliance/index.html")
+
+@cptd_bp.route("/cptd/compliance/annexure_a")
+@login_required
+def annexure_a():
+    return render_template("program_cptd/compliance/annexure_a.html")
+
+@cptd_bp.route("/cptd/compliance/annexure_b")
+@login_required
+def annexure_b():
+    return render_template("program_cptd/compliance/annexure_b.html")
+
+@cptd_bp.route("/cptd/compliance/annexure_c")
+@login_required
+def annexure_c():
+    return render_template("program_cptd/compliance/annexure_c.html")
+
+@cptd_bp.route("/cptd/compliance/annexure_d")
+@login_required
+def annexure_d():
+    return render_template("program_cptd/compliance/annexure_d.html")
+
+@cptd_bp.route("/cptd/compliance/annexure_e")
+@login_required
+def annexure_e():
+    return render_template("program_cptd/compliance/annexure_e.html")
+
+@cptd_bp.route("/cptd/compliance/evidence")
+@login_required
+def compliance_evidence():
+    import datetime
+    today = datetime.datetime.utcnow().strftime('%Y-%m-%d')
+    return render_template("program_cptd/compliance/evidence.html", today=today)

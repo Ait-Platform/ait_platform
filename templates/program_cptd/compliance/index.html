@@ -1,0 +1,108 @@
+{% extends "layout.html" %}
+{% block title %}SACE Compliance Documents{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-slate-50 py-10 px-4 sm:px-6 lg:px-8 flex flex-col items-center">
+  <div class="w-full max-w-4xl">
+    
+    <div class="mb-8 flex items-center">
+      <a href="{{ url_for('cptd_bp.hub_dashboard') }}" class="text-indigo-600 hover:text-indigo-800 font-bold flex items-center bg-white px-4 py-2 rounded-lg border border-indigo-100 shadow-sm transition">
+        <i class="fas fa-arrow-left mr-2"></i> Back to Hub
+      </a>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
+      <h1 class="text-3xl font-extrabold text-slate-900 mb-2">SACE Compliance Documents</h1>
+      <p class="text-slate-600 mb-8">Click on any of the documents below to view and print them. These documents fulfill the SACE requirements for the Reading (LITRE Method) CPTD Workshop.</p>
+      
+      <div class="space-y-4">
+        
+        <!-- Annexure A -->
+        <div class="flex items-center justify-between p-4 border border-slate-200 rounded-xl hover:bg-slate-50 transition">
+          <div class="flex items-center gap-4">
+            <div class="h-12 w-12 bg-indigo-100 text-indigo-600 rounded-lg flex items-center justify-center font-bold text-xl">A</div>
+            <div>
+              <h3 class="font-bold text-slate-800">Annexure A</h3>
+              <p class="text-sm text-slate-500">Programme & Timetable</p>
+            </div>
+          </div>
+          <a href="{{ url_for('cptd_bp.annexure_a') }}" target="_blank" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-sm transition">
+            <i class="fas fa-print mr-1"></i> Print
+          </a>
+        </div>
+
+        <!-- Annexure B -->
+        <div class="flex items-center justify-between p-4 border border-slate-200 rounded-xl hover:bg-slate-50 transition">
+          <div class="flex items-center gap-4">
+            <div class="h-12 w-12 bg-indigo-100 text-indigo-600 rounded-lg flex items-center justify-center font-bold text-xl">B</div>
+            <div>
+              <h3 class="font-bold text-slate-800">Annexure B</h3>
+              <p class="text-sm text-slate-500">Facilitator Presentation Outline</p>
+            </div>
+          </div>
+          <a href="{{ url_for('cptd_bp.annexure_b') }}" target="_blank" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-sm transition">
+            <i class="fas fa-print mr-1"></i> Print
+          </a>
+        </div>
+
+        <!-- Annexure C -->
+        <div class="flex items-center justify-between p-4 border border-slate-200 rounded-xl hover:bg-slate-50 transition">
+          <div class="flex items-center gap-4">
+            <div class="h-12 w-12 bg-indigo-100 text-indigo-600 rounded-lg flex items-center justify-center font-bold text-xl">C</div>
+            <div>
+              <h3 class="font-bold text-slate-800">Annexure C</h3>
+              <p class="text-sm text-slate-500">Learning Activities / Participant Material</p>
+            </div>
+          </div>
+          <a href="{{ url_for('cptd_bp.annexure_c') }}" target="_blank" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-sm transition">
+            <i class="fas fa-print mr-1"></i> Print
+          </a>
+        </div>
+
+        <!-- Annexure D -->
+        <div class="flex items-center justify-between p-4 border border-slate-200 rounded-xl hover:bg-slate-50 transition">
+          <div class="flex items-center gap-4">
+            <div class="h-12 w-12 bg-indigo-100 text-indigo-600 rounded-lg flex items-center justify-center font-bold text-xl">D</div>
+            <div>
+              <h3 class="font-bold text-slate-800">Annexure D</h3>
+              <p class="text-sm text-slate-500">Assessment Tools & Evaluation Criteria</p>
+            </div>
+          </div>
+          <a href="{{ url_for('cptd_bp.annexure_d') }}" target="_blank" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-sm transition">
+            <i class="fas fa-print mr-1"></i> Print
+          </a>
+        </div>
+
+        <!-- Annexure E -->
+        <div class="flex items-center justify-between p-4 border border-slate-200 rounded-xl hover:bg-slate-50 transition">
+          <div class="flex items-center gap-4">
+            <div class="h-12 w-12 bg-indigo-100 text-indigo-600 rounded-lg flex items-center justify-center font-bold text-xl">E</div>
+            <div>
+              <h3 class="font-bold text-slate-800">Annexure E</h3>
+              <p class="text-sm text-slate-500">Facilitator Guide</p>
+            </div>
+          </div>
+          <a href="{{ url_for('cptd_bp.annexure_e') }}" target="_blank" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-sm transition">
+            <i class="fas fa-print mr-1"></i> Print
+          </a>
+        </div>
+
+        <!-- Evidence -->
+        <div class="flex items-center justify-between p-4 border border-slate-200 rounded-xl hover:bg-slate-50 transition">
+          <div class="flex items-center gap-4">
+            <div class="h-12 w-12 bg-green-100 text-green-600 rounded-lg flex items-center justify-center font-bold text-xl"><i class="fas fa-certificate"></i></div>
+            <div>
+              <h3 class="font-bold text-slate-800">Platform Evidence</h3>
+              <p class="text-sm text-slate-500">AIT Platform Access Evidence (System Generated)</p>
+            </div>
+          </div>
+          <a href="{{ url_for('cptd_bp.compliance_evidence') }}" target="_blank" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg shadow-sm transition">
+            <i class="fas fa-print mr-1"></i> Print
+          </a>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

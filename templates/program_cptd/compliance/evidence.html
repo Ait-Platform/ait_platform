@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>AIT Platform Access Evidence</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 40px; }
+        h1, h2, h3 { color: #1e3a8a; }
+        .header { text-align: center; border-bottom: 2px solid #1e3a8a; padding-bottom: 20px; margin-bottom: 30px; }
+        .print-btn { display: block; width: 150px; margin: 0 auto 30px; padding: 10px; background: #4f46e5; color: white; text-align: center; text-decoration: none; border-radius: 5px; cursor: pointer; }
+        .certificate-box { border: 4px double #1e3a8a; padding: 40px; text-align: center; margin-top: 20px; background: #f8fafc; }
+        @media print { .print-btn { display: none; } body { padding: 0; } }
+    </style>
+</head>
+<body>
+    <button class="print-btn" onclick="window.print()">Print Document</button>
+    <div class="header">
+        <h1>SACE Compliance</h1>
+        <h2>Platform Access Evidence</h2>
+    </div>
+    
+    <div class="certificate-box">
+        <h3>This document serves as formal evidence that:</h3>
+        <h1 style="color: #000; margin-top: 30px; border-bottom: 1px solid #ccc; display: inline-block; padding-bottom: 5px; min-width: 300px;">
+            {{ current_user.name if current_user else '___________________________' }}
+        </h1>
+        <p style="margin-top: 20px;">Successfully accessed and completed modules on the AIT Professional Development Platform for the <strong>Reading (LITRE Method)</strong> CPTD Workshop.</p>
+        
+        <div style="margin-top: 40px; text-align: left; padding-left: 20px;">
+            <p><strong>System Print Date:</strong> {{ today }}</p>
+            <p><strong>SACE Number:</strong> ______________________</p>
+            <p><strong>School:</strong> ______________________</p>
+            <p><strong>Facilitator Signature:</strong> ______________________</p>
+        </div>
+    </div>
+</body>
+</html>

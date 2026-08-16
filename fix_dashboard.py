@@ -1,24 +1,20 @@
-with open('app/program_billing/routes.py', 'r', encoding='utf-8') as f:
-    content = f.read()
-
 import re
 
-old_pattern = r'data = get_dashboard_data\(\)\s*return render_template\("program_billing/manager_dashboard\.html", data=data\)'
+with open('templates/program_mechanic/dashboard.html', 'r', encoding='utf-8') as f:
+    content = f.read()
 
-new_code = """data = get_dashboard_data()
+# Find the first script block that ends just before {% endblock %} {% block content %}
+start_str = "  <script>\n    // AI Business Card Upload\n    const cardUploadInput = document.getElementById('ajax_card_upload');"
+end_str = "  </script>\n  \n  {% endblock %}\n  {% block content %}"
 
-    # Check for any in-progress draft property to enable the next tiles
-    draft_property = BilProperty.query.filter(
-        BilProperty.manager_id == current_user.id,
-        BilProperty.onboarding_status.like('draft_%')
-    ).first()
+start_idx = content.find(start_str)
+end_idx = content.find(end_str)
 
-    return render_template("program_billing/manager_dashboard.html", data=data, draft_property=draft_property)"""
-
-if re.search(old_pattern, content):
-    content = re.sub(old_pattern, new_code, content)
-    with open('app/program_billing/routes.py', 'w', encoding='utf-8') as f:
+if start_idx != -1 and end_idx != -1:
+    # Remove it
+    content = content[:start_idx] + content[end_idx + len("  </script>\n  \n"):]
+    with open('templates/program_mechanic/dashboard.html', 'w', encoding='utf-8') as f:
         f.write(content)
-    print('Successfully updated!')
+    print("Replaced successfully")
 else:
-    print('Pattern not found!')
+    print(f"Could not find block. start: {start_idx}, end: {end_idx}")

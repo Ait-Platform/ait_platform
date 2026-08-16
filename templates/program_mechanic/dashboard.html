@@ -14,56 +14,7 @@
   </div>
 
 
-<script>
-  // AI Business Card Upload
-  const cardUploadInput = document.getElementById('ajax_card_upload');
-  const cardStatus = document.getElementById('card_upload_status');
 
-  if (cardUploadInput) {
-    cardUploadInput.addEventListener('change', function() {
-      if (this.files && this.files[0]) {
-        const formData = new FormData();
-        formData.append('business_card_image', this.files[0]);
-
-        cardStatus.classList.remove('hidden');
-        cardStatus.textContent = 'Scanning image with AI... Please wait.';
-
-        fetch('{{ url_for("mechanic_bp.upload_business_card") }}', {
-          method: 'POST',
-          body: formData,
-          headers: {
-            'X-CSRFToken': '{{ csrf_token() }}'
-          }
-        })
-        .then(response => response.json())
-        .then(data => {
-          if (data.error) {
-            cardStatus.textContent = 'Error: ' + data.error;
-            cardStatus.classList.remove('text-indigo-600');
-            cardStatus.classList.add('text-red-600');
-          } else {
-            cardStatus.textContent = 'AI Scan Complete! Profile fields auto-filled.';
-            cardStatus.classList.remove('text-indigo-600', 'text-red-600');
-            cardStatus.classList.add('text-green-600');
-
-            if (data.ai_data) {
-              if (data.ai_data.business_name) document.querySelector('input[name="business_name"]').value = data.ai_data.business_name;
-              if (data.ai_data.address) document.querySelector('input[name="address"]').value = data.ai_data.address;
-              if (data.ai_data.phone) document.querySelector('input[name="phone"]').value = data.ai_data.phone;
-              if (data.ai_data.email) document.querySelector('input[name="email"]').value = data.ai_data.email;
-            }
-          }
-        })
-        .catch(err => {
-          console.error(err);
-          cardStatus.textContent = 'Error connecting to AI service.';
-          cardStatus.classList.remove('text-indigo-600');
-          cardStatus.classList.add('text-red-600');
-        });
-      }
-    });
-  }
-</script>
 
 {% endblock %}
 {% block content %}

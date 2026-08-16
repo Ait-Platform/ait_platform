@@ -1,20 +1,37 @@
-with open('app/models/billing.py', 'r', encoding='utf-8') as f:
+with open('app/models/mechanic.py', 'r', encoding='utf-8') as f:
     content = f.read()
 
-target = '''    # ?? Link to the manager who owns this property
-    manager_id = db.Column('''
+model_original = '''class MechVehicle(db.Model):
+    __tablename__ = 'mech_vehicles'
+    id = db.Column(db.Integer, primary_key=True)
+    client_id = db.Column(db.Integer, db.ForeignKey('mech_clients.id'), nullable=False)
+    make = db.Column(db.String(50))
+    model = db.Column(db.String(50))
+    year = db.Column(db.Integer)
+    vin = db.Column(db.String(50), unique=True)
+    license_plate = db.Column(db.String(20))
+    mileage = db.Column(db.Integer)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)'''
 
-injection = '''    # ?? Onboarding State
-    onboarding_status = db.Column(db.String(50), default='active')
-    expected_bills = db.Column(db.Integer, default=0)
-    expected_tenants = db.Column(db.Integer, default=0)
-    is_bulk_metered = db.Column(db.Integer, default=0)
-    expected_sub_meters = db.Column(db.Integer, default=0)
+model_new = '''class MechVehicle(db.Model):
+    __tablename__ = 'mech_vehicles'
+    id = db.Column(db.Integer, primary_key=True)
+    client_id = db.Column(db.Integer, db.ForeignKey('mech_clients.id'), nullable=False)
+    make = db.Column(db.String(50))
+    model = db.Column(db.String(50))
+    year = db.Column(db.Integer)
+    vin = db.Column(db.String(50), unique=True)
+    license_plate = db.Column(db.String(20))
+    engine_no = db.Column(db.String(50))
+    gvm = db.Column(db.String(20))
+    tare = db.Column(db.String(20))
+    disk_license_no = db.Column(db.String(50))
+    mileage = db.Column(db.Integer)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)'''
 
-    # ?? Link to the manager who owns this property
-    manager_id = db.Column('''
+content = content.replace(model_original, model_new)
 
-content = content.replace(target, injection)
-
-with open('app/models/billing.py', 'w', encoding='utf-8') as f:
+with open('app/models/mechanic.py', 'w', encoding='utf-8') as f:
     f.write(content)
+
+print("Updated MechVehicle model")

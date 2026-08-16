@@ -328,6 +328,10 @@ document.addEventListener('DOMContentLoaded', function() {
                             if (data.ai_data.make) { document.querySelector('input[name="make"]').value = data.ai_data.make; filledCount++; }
                             if (data.ai_data.model) { document.querySelector('input[name="model"]').value = data.ai_data.model; filledCount++; }
                             if (data.ai_data.year) { document.querySelector('input[name="year"]').value = data.ai_data.year; filledCount++; }
+                            if (data.ai_data.engine_no) { document.querySelector('input[name="engine_no"]').value = data.ai_data.engine_no; filledCount++; }
+                            if (data.ai_data.gvm) { document.querySelector('input[name="gvm"]').value = data.ai_data.gvm.replace('kg','').trim(); filledCount++; }
+                            if (data.ai_data.tare) { document.querySelector('input[name="tare"]').value = data.ai_data.tare.replace('kg','').trim(); filledCount++; }
+                            if (data.ai_data.disk_license_no) { document.querySelector('input[name="disk_license_no"]').value = data.ai_data.disk_license_no; filledCount++; }
                             
                             if (filledCount > 0) {
                                 uploadStatus.textContent = "AI successfully analyzed the disk and auto-filled the vehicle details!";

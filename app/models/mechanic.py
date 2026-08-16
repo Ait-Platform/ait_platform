@@ -50,6 +50,10 @@ class MechVehicle(db.Model):
     year = db.Column(db.Integer)
     vin = db.Column(db.String(50), unique=True)
     license_plate = db.Column(db.String(20))
+    engine_no = db.Column(db.String(50))
+    gvm = db.Column(db.String(20))
+    tare = db.Column(db.String(20))
+    disk_license_no = db.Column(db.String(50))
     mileage = db.Column(db.Integer)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     

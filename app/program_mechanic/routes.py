@@ -837,8 +837,12 @@ def upload_disk():
                 - "make": The Make of the vehicle (e.g., NISSAN)
                 - "model": The Model or Description (e.g., Pick-up / Bakkie, or specific model if found)
                 - "year": The year of the vehicle. You can often infer this from the "Date of test", "Date of liability", or the expiry date minus 1 year.
+                - "engine_no": The Engine Number (Enjinnr.)
+                - "gvm": The GVM / BVM value
+                - "tare": The Tare / Tarra value
+                - "disk_license_no": The printed License number (Lisensienr.) usually at the top or near the VIN.
                 
-                Return the result strictly as a valid JSON object with the keys "vin", "reg", "make", "model", and "year".
+                Return the result strictly as a valid JSON object with the exact keys: "vin", "reg", "make", "model", "year", "engine_no", "gvm", "tare", "disk_license_no".
                 If a detail cannot be clearly read or found, return an empty string "" for that key. Do not include markdown formatting like `json.
                 """
                 

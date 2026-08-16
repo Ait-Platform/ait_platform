@@ -771,6 +771,22 @@ def email_soa():
             pdf_bytes=pdf_bytes,
             filename=f"SOA_{debtor.name.replace(' ', '_')}.pdf"
         )
+        
+        # Log Communications
+        from app.models.auth import InviteLog
+        log_whatsapp = request.form.get("log_whatsapp")
+        log_phone = request.form.get("log_phone")
+        program_slug = "debtors"
+        if debtor.slug_reference == 'mechanic':
+            program_slug = "mechanic"
+            
+        if log_whatsapp:
+            db.session.add(InviteLog(sender_id=current_user.id, recipient_phone=debtor.phone or "Unknown", program_slug=program_slug, invite_type="WhatsApp Message", status="Logged"))
+        if log_phone:
+            db.session.add(InviteLog(sender_id=current_user.id, recipient_phone=debtor.phone or "Unknown", program_slug=program_slug, invite_type="Phone Call", status="Logged"))
+        if log_whatsapp or log_phone:
+            db.session.commit()
+            
         flash(f"Statement successfully emailed to {to_email}", "success")
     except Exception as e:
         current_app.logger.error(f"Failed to email SOA PDF: {e}")

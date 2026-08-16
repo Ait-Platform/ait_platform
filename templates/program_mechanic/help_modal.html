@@ -1,0 +1,79 @@
+<!-- ProTrade Workflow Help Modal -->
+<div id="pt-help-modal" class="hidden fixed inset-0 z-[100] overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+  <!-- Background backdrop -->
+  <div class="fixed inset-0 bg-slate-900 bg-opacity-75 transition-opacity backdrop-blur-sm"></div>
+
+  <div class="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
+    <div class="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-4xl border border-slate-200">
+      
+      <!-- Header -->
+      <div class="bg-indigo-600 px-6 py-4 flex justify-between items-center">
+        <h3 class="text-xl font-bold leading-6 text-white flex items-center" id="modal-title">
+          <i class="fas fa-map-signs mr-3"></i> ProTrade Workflow Guide
+        </h3>
+        <button type="button" onclick="document.getElementById('pt-help-modal').classList.add('hidden')" class="rounded-md bg-indigo-700 text-indigo-200 hover:text-white focus:outline-none px-3 py-1 font-bold">
+          Close
+        </button>
+      </div>
+
+      <!-- Content -->
+      <div class="bg-white px-6 pb-8 pt-5 sm:p-8 sm:pb-10">
+        <p class="text-slate-600 mb-8 text-center max-w-2xl mx-auto">Follow this visual map to understand exactly how a vehicle moves from intake to final billing within the ProTrade system.</p>
+
+        <!-- Vertical Timeline -->
+        <div class="relative border-l-4 border-indigo-200 ml-3 md:ml-6 space-y-10">
+          
+          <!-- Step 1 -->
+          <div class="relative pl-8 md:pl-10">
+            <div class="absolute -left-[14px] top-1 h-6 w-6 rounded-full bg-indigo-600 border-4 border-white flex items-center justify-center shadow"></div>
+            <div class="bg-slate-50 border border-slate-200 rounded-xl p-5 shadow-sm hover:shadow-md transition">
+              <h4 class="text-lg font-bold text-slate-900 mb-2">1. Intake & Profile Setup</h4>
+              <p class="text-sm text-slate-600">When a new vehicle comes in, start here. Use the AI scanner to upload the vehicle's <strong>License Disk</strong> or the client's <strong>Business Card</strong> to instantly generate a new Profile.</p>
+            </div>
+          </div>
+
+          <!-- Step 2 -->
+          <div class="relative pl-8 md:pl-10">
+            <div class="absolute -left-[14px] top-1 h-6 w-6 rounded-full bg-blue-500 border-4 border-white flex items-center justify-center shadow"></div>
+            <div class="bg-slate-50 border border-slate-200 rounded-xl p-5 shadow-sm hover:shadow-md transition">
+              <h4 class="text-lg font-bold text-slate-900 mb-2">2. Quote Generation</h4>
+              <p class="text-sm text-slate-600">Open the Job Card and add specific <strong>Labor</strong> and <strong>Parts</strong> lines. The system will automatically calculate totals and generate a professional Quote.</p>
+            </div>
+          </div>
+
+          <!-- Step 3 -->
+          <div class="relative pl-8 md:pl-10">
+            <div class="absolute -left-[14px] top-1 h-6 w-6 rounded-full bg-amber-500 border-4 border-white flex items-center justify-center shadow"></div>
+            <div class="bg-amber-50 border border-amber-200 rounded-xl p-5 shadow-sm hover:shadow-md transition">
+              <h4 class="text-lg font-bold text-slate-900 mb-2">3. Client Approval</h4>
+              <p class="text-sm text-slate-600">From the Job Card, click to send the Quote to the client via <strong>WhatsApp</strong> or <strong>Email</strong>. Wait for them to confirm.</p>
+              <div class="mt-3 bg-white p-3 rounded border border-amber-100 text-sm font-semibold text-amber-800 flex items-start">
+                <i class="fas fa-exclamation-triangle mt-1 mr-2"></i>
+                <span>Crucial Step: Once the client confirms, change the status to <strong>Approved</strong>. A popup will appear allowing you to instantly convert the Quote into a working Invoice!</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 4 -->
+          <div class="relative pl-8 md:pl-10">
+            <div class="absolute -left-[14px] top-1 h-6 w-6 rounded-full bg-emerald-500 border-4 border-white flex items-center justify-center shadow"></div>
+            <div class="bg-slate-50 border border-slate-200 rounded-xl p-5 shadow-sm hover:shadow-md transition">
+              <h4 class="text-lg font-bold text-slate-900 mb-2">4. Job Completion & Billing</h4>
+              <p class="text-sm text-slate-600">The mechanics perform the work. Once the vehicle is ready and leaving the shop, change the status to <strong>Billed</strong>.</p>
+            </div>
+          </div>
+
+          <!-- Step 5 -->
+          <div class="relative pl-8 md:pl-10">
+            <div class="absolute -left-[14px] top-1 h-6 w-6 rounded-full bg-purple-600 border-4 border-white flex items-center justify-center shadow"></div>
+            <div class="bg-purple-50 border border-purple-200 rounded-xl p-5 shadow-sm hover:shadow-md transition">
+              <h4 class="text-lg font-bold text-slate-900 mb-2">5. Debtors & Payment Tracking</h4>
+              <p class="text-sm text-slate-600">Once Billed, the invoice automatically flows into your <strong>Debtors Module</strong>. Use the Debtors dashboard to track payments, send statements, and manage outstanding balances.</p>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

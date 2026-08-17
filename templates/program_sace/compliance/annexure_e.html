@@ -1,32 +1,44 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Annexure E - Facilitator Guide</title>
-    <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 40px; }
-        h1, h2, h3 { color: #1e3a8a; }
-        .header { text-align: center; border-bottom: 2px solid #1e3a8a; padding-bottom: 20px; margin-bottom: 30px; }
-        .print-btn { display: block; width: 150px; margin: 0 auto 30px; padding: 10px; background: #4f46e5; color: white; text-align: center; text-decoration: none; border-radius: 5px; cursor: pointer; }
-        .placeholder-box { border: 2px dashed #cbd5e1; padding: 40px; text-align: center; margin-top: 40px; color: #64748b; background: #f8fafc; }
-        @media print { .print-btn { display: none; } body { padding: 0; } }
-    </style>
-</head>
-<body>
-    <button class="print-btn" onclick="window.print()">Print Document</button>
-    <div class="header">
-        <h1>Annexure E</h1>
-        <h2>Facilitator Guide</h2>
-        <p>AIT Professional Development: Reading (LITRE Method)</p>
-    </div>
+{% extends "layout.html" %}
+
+{% block title %}Annexure E - Facilitator Guide{% endblock %}
+
+{% block flashes %}{% endblock %}
+
+{% block content %}
+<div class="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100 print:shadow-none print:border-none print:rounded-none">
+    <div class="h-2 w-full bg-teal-600 print:hidden"></div>
     
-    <h3>Facilitator Expectations</h3>
-    <p>The facilitator must ensure that all participants are actively logged into the AIT Platform and follow the sequential timetable unlocks. Manual verification of the practical exercises is required before unlocking the final evaluation.</p>
+    <div class="p-6 sm:p-8 print:p-0">
+        {% include "partials/flash_messages.html" %}
+        
+        <div class="flex justify-between items-center mb-6 print:hidden">
+            <h1 class="text-2xl font-bold text-gray-900">Annexure E: Facilitator Guide</h1>
+            <a href="{{ url_for('sace_bp.dashboard') }}" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200">
+                Back to Dashboard
+            </a>
+        </div>
+        
+        <div class="flex justify-end mb-6 space-x-3 print:hidden">
+            <button onclick="window.print()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700">
+                <i class="fas fa-print mr-2"></i> Print Document
+            </button>
+        </div>
+        
+        <div class="prose max-w-none text-slate-800">
+            <div class="text-center border-b-2 border-indigo-900 pb-5 mb-8">
+                <h1 class="text-4xl font-bold text-indigo-900 mb-2">Annexure E</h1>
+                <h2 class="text-2xl font-semibold text-indigo-800 mb-2">Facilitator Guide</h2>
+                <p class="text-lg text-slate-600">AIT Professional Development: Reading (LITRE Method)</p>
+            </div>
+            
+            <h3 class="text-xl font-bold text-indigo-800 mb-4">Facilitator Expectations</h3>
+            <p class="text-lg mb-8">The facilitator must ensure that all participants are actively logged into the AIT Platform and follow the sequential timetable unlocks. Manual verification of the practical exercises is required before unlocking the final evaluation.</p>
 
-    <div class="placeholder-box">
-        <h3>[Placeholder for Facilitator Guidebook]</h3>
-        <p>Attach the comprehensive facilitator instructions, troubleshooting guide, and moderation standards here.</p>
+            <div class="border-2 border-dashed border-slate-300 bg-slate-50 rounded-xl p-10 text-center mt-12">
+                <h3 class="text-xl font-bold text-slate-600 mb-2">[Placeholder for Facilitator Guidebook]</h3>
+                <p class="text-slate-500">Attach the comprehensive facilitator instructions, troubleshooting guide, and moderation standards here.</p>
+            </div>
+        </div>
     </div>
-</body>
-</html>
-
+</div>
+{% endblock %}

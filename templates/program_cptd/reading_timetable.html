@@ -1,301 +1,303 @@
 {% extends "layout.html" %}
 {% block title %}Reading Programme Timetable{% endblock %}
 
+{% block flashes %}{% endblock %}
+
 {% block content %}
-<div class="min-h-screen bg-slate-50 py-10 px-4 sm:px-6 lg:px-8 flex justify-center">
-  <div class="w-full max-w-4xl">
-    
-    <!-- Header -->
-    <div class="flex items-center justify-between mb-8">
-      <div>
-        <h1 class="text-3xl font-extrabold text-slate-900">Reading CPTD Workshop</h1>
-        <p class="text-slate-600 mt-1">LITRE Methodology &bull; Date: {{ reg.workshop_date.strftime('%d %B %Y') }}</p>
-      </div>
-      <a href="{{ url_for('cptd_bp.hub') }}" class="text-indigo-600 hover:text-indigo-800 font-bold bg-indigo-50 px-4 py-2 rounded-lg border border-indigo-100 transition shadow-sm">
-        &larr; Back to Hub
-      </a>
+<div class="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100 mb-12">
+        <div class="h-2 w-full bg-blue-600"></div>
+        
+        <div class="p-6 sm:p-8">
+            {% include "partials/flash_messages.html" %}
+            
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                  <h1 class="text-2xl font-bold text-gray-900">Reading CPTD Workshop</h1>
+                  <p class="text-slate-600 mt-1">LITRE Methodology &bull; Date: {{ reg.workshop_date.strftime('%d %B %Y') }}</p>
+                </div>
+                <a href="{{ url_for('cptd_bp.hub') }}" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200">
+                    Back to Hub
+                </a>
+            </div>
+        </div>
+
+        <!-- Timetable -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
+          <div class="space-y-4">
+            
+            <!-- Module 1: Intro -->
+            {% set m_intro = progress.get('intro') %}
+            <div class="flex items-start gap-4">
+              <div class="flex flex-col items-center mt-1">
+                <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm
+                  {% if m_intro and m_intro.status == 'completed' %} bg-green-500 text-white
+                  {% elif m_intro and m_intro.status == 'unlocked' %} bg-blue-600 text-white ring-4 ring-blue-100
+                  {% else %} bg-slate-200 text-slate-500 {% endif %}">
+                  {% if m_intro and m_intro.status == 'completed' %}<i class="fas fa-check"></i>{% else %}1{% endif %}
+                </div>
+                <div class="w-0.5 h-16 bg-slate-200 my-2"></div>
+              </div>
+              <div class="flex-grow pb-4">
+                <div class="flex justify-between items-start">
+                  <div>
+                    <h3 class="text-lg font-bold text-slate-900">Module 1: Introduction to LITRE</h3>
+                    <p class="text-sm text-slate-500 mt-1">08:00 - 08:30 &bull; Welcome and Overview</p>
+                  </div>
+                  {% if m_intro and m_intro.status == 'unlocked' %}
+                    <a href="{{ url_for('cptd_bp.reading_module', module_id='intro') }}" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow transition">Start Module</a>
+                  {% elif m_intro and m_intro.status == 'completed' %}
+                    <a href="{{ url_for('cptd_bp.reading_module', module_id='intro') }}" class="text-indigo-600 hover:text-indigo-800 text-sm font-bold px-3 py-1 bg-indigo-50 rounded">Review</a>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+
+            <!-- Module 2: Palm -->
+            {% set m_palm = progress.get('palm') %}
+            <div class="flex items-start gap-4">
+              <div class="flex flex-col items-center mt-1">
+                <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm
+                  {% if m_palm and m_palm.status == 'completed' %} bg-green-500 text-white
+                  {% elif m_palm and m_palm.status == 'unlocked' %} bg-blue-600 text-white ring-4 ring-blue-100
+                  {% else %} bg-slate-200 text-slate-500 {% endif %}">
+                  {% if m_palm and m_palm.status == 'completed' %}<i class="fas fa-check"></i>{% else %}2{% endif %}
+                </div>
+                <div class="w-0.5 h-16 bg-slate-200 my-2"></div>
+              </div>
+              <div class="flex-grow pb-4">
+                <div class="flex justify-between items-start">
+                  <div class="{% if not m_palm or m_palm.status == 'locked' %}opacity-50{% endif %}">
+                    <h3 class="text-lg font-bold text-slate-900">Module 2: Draw the Palm & Blending Machine</h3>
+                    <p class="text-sm text-slate-500 mt-1">08:30 - 09:30 &bull; Foundations of phonics</p>
+                  </div>
+                  {% if m_palm and m_palm.status == 'unlocked' %}
+                    <a href="{{ url_for('cptd_bp.reading_module', module_id='palm') }}" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow transition">Start Module</a>
+                  {% elif m_palm and m_palm.status == 'completed' %}
+                    <a href="{{ url_for('cptd_bp.reading_module', module_id='palm') }}" class="text-indigo-600 hover:text-indigo-800 text-sm font-bold px-3 py-1 bg-indigo-50 rounded">Review</a>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+            
+            <!-- Module 3: Family -->
+            {% set m_fam = progress.get('family') %}
+            <div class="flex items-start gap-4">
+              <div class="flex flex-col items-center mt-1">
+                <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm
+                  {% if m_fam and m_fam.status == 'completed' %} bg-green-500 text-white
+                  {% elif m_fam and m_fam.status == 'unlocked' %} bg-blue-600 text-white ring-4 ring-blue-100
+                  {% else %} bg-slate-200 text-slate-500 {% endif %}">
+                  {% if m_fam and m_fam.status == 'completed' %}<i class="fas fa-check"></i>{% else %}3{% endif %}
+                </div>
+                <div class="w-0.5 h-16 bg-slate-200 my-2"></div>
+              </div>
+              <div class="flex-grow pb-4">
+                <div class="flex justify-between items-start">
+                  <div class="{% if not m_fam or m_fam.status == 'locked' %}opacity-50{% endif %}">
+                    <h3 class="text-lg font-bold text-slate-900">Module 3: English Family</h3>
+                    <p class="text-sm text-slate-500 mt-1">09:30 - 10:30 &bull; Consonants and Vowels</p>
+                  </div>
+                  {% if m_fam and m_fam.status == 'unlocked' %}
+                    <a href="{{ url_for('cptd_bp.reading_module', module_id='family') }}" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow transition">Start Module</a>
+                  {% elif m_fam and m_fam.status == 'completed' %}
+                    <a href="{{ url_for('cptd_bp.reading_module', module_id='family') }}" class="text-indigo-600 hover:text-indigo-800 text-sm font-bold px-3 py-1 bg-indigo-50 rounded">Review</a>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+
+            <!-- Tea Break -->
+            <div class="flex items-start gap-4 opacity-75">
+              <div class="flex flex-col items-center mt-1">
+                <div class="w-8 h-8 rounded-full flex items-center justify-center bg-amber-100 text-amber-600">
+                  <i class="fas fa-coffee text-sm"></i>
+                </div>
+                <div class="w-0.5 h-12 bg-slate-200 my-2"></div>
+              </div>
+              <div class="flex-grow pb-2">
+                <h3 class="text-lg font-bold text-slate-700">Tea Break</h3>
+                <p class="text-sm text-slate-500 mt-1">10:30 - 10:45</p>
+              </div>
+            </div>
+
+            <!-- Module 4: Vowels -->
+            {% set m_vow = progress.get('vowels') %}
+            <div class="flex items-start gap-4">
+              <div class="flex flex-col items-center mt-1">
+                <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm
+                  {% if m_vow and m_vow.status == 'completed' %} bg-green-500 text-white
+                  {% elif m_vow and m_vow.status == 'unlocked' %} bg-blue-600 text-white ring-4 ring-blue-100
+                  {% else %} bg-slate-200 text-slate-500 {% endif %}">
+                  {% if m_vow and m_vow.status == 'completed' %}<i class="fas fa-check"></i>{% else %}4{% endif %}
+                </div>
+                <div class="w-0.5 h-16 bg-slate-200 my-2"></div>
+              </div>
+              <div class="flex-grow pb-4">
+                <div class="flex justify-between items-start">
+                  <div class="{% if not m_vow or m_vow.status == 'locked' %}opacity-50{% endif %}">
+                    <h3 class="text-lg font-bold text-slate-900">Module 4: Meet the Vowels</h3>
+                    <p class="text-sm text-slate-500 mt-1">10:45 - 11:45 &bull; The active letters</p>
+                  </div>
+                  {% if m_vow and m_vow.status == 'unlocked' %}
+                    <a href="{{ url_for('cptd_bp.reading_module', module_id='vowels') }}" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow transition">Start Module</a>
+                  {% elif m_vow and m_vow.status == 'completed' %}
+                    <a href="{{ url_for('cptd_bp.reading_module', module_id='vowels') }}" class="text-indigo-600 hover:text-indigo-800 text-sm font-bold px-3 py-1 bg-indigo-50 rounded">Review</a>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+            
+            <!-- Module 5: T Meets -->
+            {% set m_t = progress.get('t_meets') %}
+            <div class="flex items-start gap-4">
+              <div class="flex flex-col items-center mt-1">
+                <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm
+                  {% if m_t and m_t.status == 'completed' %} bg-green-500 text-white
+                  {% elif m_t and m_t.status == 'unlocked' %} bg-blue-600 text-white ring-4 ring-blue-100
+                  {% else %} bg-slate-200 text-slate-500 {% endif %}">
+                  {% if m_t and m_t.status == 'completed' %}<i class="fas fa-check"></i>{% else %}5{% endif %}
+                </div>
+                <div class="w-0.5 h-16 bg-slate-200 my-2"></div>
+              </div>
+              <div class="flex-grow pb-4">
+                <div class="flex justify-between items-start">
+                  <div class="{% if not m_t or m_t.status == 'locked' %}opacity-50{% endif %}">
+                    <h3 class="text-lg font-bold text-slate-900">Module 5: T meets the vowels</h3>
+                    <p class="text-sm text-slate-500 mt-1">11:45 - 12:30 &bull; Combining sounds</p>
+                  </div>
+                  {% if m_t and m_t.status == 'unlocked' %}
+                    <a href="{{ url_for('cptd_bp.reading_module', module_id='t_meets') }}" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow transition">Start Module</a>
+                  {% elif m_t and m_t.status == 'completed' %}
+                    <a href="{{ url_for('cptd_bp.reading_module', module_id='t_meets') }}" class="text-indigo-600 hover:text-indigo-800 text-sm font-bold px-3 py-1 bg-indigo-50 rounded">Review</a>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+
+            <!-- Lunch Break -->
+            <div class="flex items-start gap-4 opacity-75">
+              <div class="flex flex-col items-center mt-1">
+                <div class="w-8 h-8 rounded-full flex items-center justify-center bg-rose-100 text-rose-600">
+                  <i class="fas fa-utensils text-sm"></i>
+                </div>
+                <div class="w-0.5 h-12 bg-slate-200 my-2"></div>
+              </div>
+              <div class="flex-grow pb-2">
+                <h3 class="text-lg font-bold text-slate-700">Lunch Break</h3>
+                <p class="text-sm text-slate-500 mt-1">12:30 - 13:15</p>
+              </div>
+            </div>
+            
+            <!-- Module 6: M Meets -->
+            {% set m_m = progress.get('m_meets') %}
+            <div class="flex items-start gap-4">
+              <div class="flex flex-col items-center mt-1">
+                <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm
+                  {% if m_m and m_m.status == 'completed' %} bg-green-500 text-white
+                  {% elif m_m and m_m.status == 'unlocked' %} bg-blue-600 text-white ring-4 ring-blue-100
+                  {% else %} bg-slate-200 text-slate-500 {% endif %}">
+                  {% if m_m and m_m.status == 'completed' %}<i class="fas fa-check"></i>{% else %}6{% endif %}
+                </div>
+                <div class="w-0.5 h-16 bg-slate-200 my-2"></div>
+              </div>
+              <div class="flex-grow pb-4">
+                <div class="flex justify-between items-start">
+                  <div class="{% if not m_m or m_m.status == 'locked' %}opacity-50{% endif %}">
+                    <h3 class="text-lg font-bold text-slate-900">Module 6: M meets the vowels</h3>
+                    <p class="text-sm text-slate-500 mt-1">13:15 - 13:45 &bull; Continuing patterns</p>
+                  </div>
+                  {% if m_m and m_m.status == 'unlocked' %}
+                    <a href="{{ url_for('cptd_bp.reading_module', module_id='m_meets') }}" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow transition">Start Module</a>
+                  {% elif m_m and m_m.status == 'completed' %}
+                    <a href="{{ url_for('cptd_bp.reading_module', module_id='m_meets') }}" class="text-indigo-600 hover:text-indigo-800 text-sm font-bold px-3 py-1 bg-indigo-50 rounded">Review</a>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+            
+            <!-- Module 7: Word Const -->
+            {% set m_word = progress.get('word_const') %}
+            <div class="flex items-start gap-4">
+              <div class="flex flex-col items-center mt-1">
+                <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm
+                  {% if m_word and m_word.status == 'completed' %} bg-green-500 text-white
+                  {% elif m_word and m_word.status == 'unlocked' %} bg-blue-600 text-white ring-4 ring-blue-100
+                  {% else %} bg-slate-200 text-slate-500 {% endif %}">
+                  {% if m_word and m_word.status == 'completed' %}<i class="fas fa-check"></i>{% else %}7{% endif %}
+                </div>
+                <div class="w-0.5 h-16 bg-slate-200 my-2"></div>
+              </div>
+              <div class="flex-grow pb-4">
+                <div class="flex justify-between items-start">
+                  <div class="{% if not m_word or m_word.status == 'locked' %}opacity-50{% endif %}">
+                    <h3 class="text-lg font-bold text-slate-900">Module 7: Word Construction</h3>
+                    <p class="text-sm text-slate-500 mt-1">13:45 - 14:15 &bull; Synthesis</p>
+                  </div>
+                  {% if m_word and m_word.status == 'unlocked' %}
+                    <a href="{{ url_for('cptd_bp.reading_module', module_id='word_const') }}" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow transition">Start Module</a>
+                  {% elif m_word and m_word.status == 'completed' %}
+                    <a href="{{ url_for('cptd_bp.reading_module', module_id='word_const') }}" class="text-indigo-600 hover:text-indigo-800 text-sm font-bold px-3 py-1 bg-indigo-50 rounded">Review</a>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+            
+            <!-- Module 8: Classroom -->
+            {% set m_class = progress.get('classroom') %}
+            <div class="flex items-start gap-4">
+              <div class="flex flex-col items-center mt-1">
+                <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm
+                  {% if m_class and m_class.status == 'completed' %} bg-green-500 text-white
+                  {% elif m_class and m_class.status == 'unlocked' %} bg-blue-600 text-white ring-4 ring-blue-100
+                  {% else %} bg-slate-200 text-slate-500 {% endif %}">
+                  {% if m_class and m_class.status == 'completed' %}<i class="fas fa-check"></i>{% else %}8{% endif %}
+                </div>
+                <div class="w-0.5 h-16 bg-slate-200 my-2"></div>
+              </div>
+              <div class="flex-grow pb-4">
+                <div class="flex justify-between items-start">
+                  <div class="{% if not m_class or m_class.status == 'locked' %}opacity-50{% endif %}">
+                    <h3 class="text-lg font-bold text-slate-900">Module 8: Classroom Application</h3>
+                    <p class="text-sm text-slate-500 mt-1">14:15 - 14:45 &bull; Practical Implementation</p>
+                  </div>
+                  {% if m_class and m_class.status == 'unlocked' %}
+                    <a href="{{ url_for('cptd_bp.reading_module', module_id='classroom') }}" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow transition">Start Module</a>
+                  {% elif m_class and m_class.status == 'completed' %}
+                    <a href="{{ url_for('cptd_bp.reading_module', module_id='classroom') }}" class="text-indigo-600 hover:text-indigo-800 text-sm font-bold px-3 py-1 bg-indigo-50 rounded">Review</a>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+
+            <!-- Evaluation -->
+            {% set ev = progress.get('eval') %}
+            <div class="flex items-start gap-4">
+              <div class="flex flex-col items-center mt-1">
+                <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm
+                  {% if ev and ev.status == 'completed' %} bg-green-500 text-white
+                  {% elif ev and ev.status == 'unlocked' %} bg-blue-600 text-white ring-4 ring-blue-100
+                  {% else %} bg-slate-200 text-slate-500 {% endif %}">
+                  <i class="fas fa-star"></i>
+                </div>
+              </div>
+              <div class="flex-grow pb-2">
+                <div class="flex justify-between items-start">
+                  <div class="{% if not ev or ev.status == 'locked' %}opacity-50{% endif %}">
+                    <h3 class="text-lg font-bold text-slate-900">Module 9: Final Evaluation</h3>
+                    <p class="text-sm text-slate-500 mt-1">14:45 - 15:00</p>
+                  </div>
+                  {% if ev and ev.status == 'unlocked' %}
+                    <a href="{{ url_for('cptd_bp.reading_evaluate') }}" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow transition">Evaluate & Finish</a>
+                  {% elif ev and ev.status == 'completed' %}
+                    <span class="text-green-600 font-bold bg-green-50 px-3 py-1 rounded">Submitted</span>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
     </div>
-    
-    <div class="px-2 pt-2 pb-6">
-      {% include "partials/flash_messages.html" %}
-    </div>
-
-    <!-- Timetable -->
-    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
-      <div class="space-y-4">
-        
-        <!-- Module 1: Intro -->
-        {% set m_intro = progress.get('intro') %}
-        <div class="flex items-start gap-4">
-          <div class="flex flex-col items-center mt-1">
-            <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm
-              {% if m_intro and m_intro.status == 'completed' %} bg-green-500 text-white
-              {% elif m_intro and m_intro.status == 'unlocked' %} bg-blue-600 text-white ring-4 ring-blue-100
-              {% else %} bg-slate-200 text-slate-500 {% endif %}">
-              {% if m_intro and m_intro.status == 'completed' %}<i class="fas fa-check"></i>{% else %}1{% endif %}
-            </div>
-            <div class="w-0.5 h-16 bg-slate-200 my-2"></div>
-          </div>
-          <div class="flex-grow pb-4">
-            <div class="flex justify-between items-start">
-              <div>
-                <h3 class="text-lg font-bold text-slate-900">Module 1: Introduction to LITRE</h3>
-                <p class="text-sm text-slate-500 mt-1">08:00 - 08:30 &bull; Welcome and Overview</p>
-              </div>
-              {% if m_intro and m_intro.status == 'unlocked' %}
-                <a href="{{ url_for('cptd_bp.reading_module', module_id='intro') }}" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow transition">Start Module</a>
-              {% elif m_intro and m_intro.status == 'completed' %}
-                <a href="{{ url_for('cptd_bp.reading_module', module_id='intro') }}" class="text-indigo-600 hover:text-indigo-800 text-sm font-bold px-3 py-1 bg-indigo-50 rounded">Review</a>
-              {% endif %}
-            </div>
-          </div>
-        </div>
-
-        <!-- Module 2: Palm -->
-        {% set m_palm = progress.get('palm') %}
-        <div class="flex items-start gap-4">
-          <div class="flex flex-col items-center mt-1">
-            <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm
-              {% if m_palm and m_palm.status == 'completed' %} bg-green-500 text-white
-              {% elif m_palm and m_palm.status == 'unlocked' %} bg-blue-600 text-white ring-4 ring-blue-100
-              {% else %} bg-slate-200 text-slate-500 {% endif %}">
-              {% if m_palm and m_palm.status == 'completed' %}<i class="fas fa-check"></i>{% else %}2{% endif %}
-            </div>
-            <div class="w-0.5 h-16 bg-slate-200 my-2"></div>
-          </div>
-          <div class="flex-grow pb-4">
-            <div class="flex justify-between items-start">
-              <div class="{% if not m_palm or m_palm.status == 'locked' %}opacity-50{% endif %}">
-                <h3 class="text-lg font-bold text-slate-900">Module 2: Draw the Palm & Blending Machine</h3>
-                <p class="text-sm text-slate-500 mt-1">08:30 - 09:30 &bull; Foundations of phonics</p>
-              </div>
-              {% if m_palm and m_palm.status == 'unlocked' %}
-                <a href="{{ url_for('cptd_bp.reading_module', module_id='palm') }}" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow transition">Start Module</a>
-              {% elif m_palm and m_palm.status == 'completed' %}
-                <a href="{{ url_for('cptd_bp.reading_module', module_id='palm') }}" class="text-indigo-600 hover:text-indigo-800 text-sm font-bold px-3 py-1 bg-indigo-50 rounded">Review</a>
-              {% endif %}
-            </div>
-          </div>
-        </div>
-        
-        <!-- Module 3: Family -->
-        {% set m_fam = progress.get('family') %}
-        <div class="flex items-start gap-4">
-          <div class="flex flex-col items-center mt-1">
-            <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm
-              {% if m_fam and m_fam.status == 'completed' %} bg-green-500 text-white
-              {% elif m_fam and m_fam.status == 'unlocked' %} bg-blue-600 text-white ring-4 ring-blue-100
-              {% else %} bg-slate-200 text-slate-500 {% endif %}">
-              {% if m_fam and m_fam.status == 'completed' %}<i class="fas fa-check"></i>{% else %}3{% endif %}
-            </div>
-            <div class="w-0.5 h-16 bg-slate-200 my-2"></div>
-          </div>
-          <div class="flex-grow pb-4">
-            <div class="flex justify-between items-start">
-              <div class="{% if not m_fam or m_fam.status == 'locked' %}opacity-50{% endif %}">
-                <h3 class="text-lg font-bold text-slate-900">Module 3: English Family</h3>
-                <p class="text-sm text-slate-500 mt-1">09:30 - 10:30 &bull; Consonants and Vowels</p>
-              </div>
-              {% if m_fam and m_fam.status == 'unlocked' %}
-                <a href="{{ url_for('cptd_bp.reading_module', module_id='family') }}" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow transition">Start Module</a>
-              {% elif m_fam and m_fam.status == 'completed' %}
-                <a href="{{ url_for('cptd_bp.reading_module', module_id='family') }}" class="text-indigo-600 hover:text-indigo-800 text-sm font-bold px-3 py-1 bg-indigo-50 rounded">Review</a>
-              {% endif %}
-            </div>
-          </div>
-        </div>
-
-        <!-- Tea Break -->
-        <div class="flex items-start gap-4 opacity-75">
-          <div class="flex flex-col items-center mt-1">
-            <div class="w-8 h-8 rounded-full flex items-center justify-center bg-amber-100 text-amber-600">
-              <i class="fas fa-coffee text-sm"></i>
-            </div>
-            <div class="w-0.5 h-12 bg-slate-200 my-2"></div>
-          </div>
-          <div class="flex-grow pb-2">
-            <h3 class="text-lg font-bold text-slate-700">Tea Break</h3>
-            <p class="text-sm text-slate-500 mt-1">10:30 - 10:45</p>
-          </div>
-        </div>
-
-        <!-- Module 4: Vowels -->
-        {% set m_vow = progress.get('vowels') %}
-        <div class="flex items-start gap-4">
-          <div class="flex flex-col items-center mt-1">
-            <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm
-              {% if m_vow and m_vow.status == 'completed' %} bg-green-500 text-white
-              {% elif m_vow and m_vow.status == 'unlocked' %} bg-blue-600 text-white ring-4 ring-blue-100
-              {% else %} bg-slate-200 text-slate-500 {% endif %}">
-              {% if m_vow and m_vow.status == 'completed' %}<i class="fas fa-check"></i>{% else %}4{% endif %}
-            </div>
-            <div class="w-0.5 h-16 bg-slate-200 my-2"></div>
-          </div>
-          <div class="flex-grow pb-4">
-            <div class="flex justify-between items-start">
-              <div class="{% if not m_vow or m_vow.status == 'locked' %}opacity-50{% endif %}">
-                <h3 class="text-lg font-bold text-slate-900">Module 4: Meet the Vowels</h3>
-                <p class="text-sm text-slate-500 mt-1">10:45 - 11:45 &bull; The active letters</p>
-              </div>
-              {% if m_vow and m_vow.status == 'unlocked' %}
-                <a href="{{ url_for('cptd_bp.reading_module', module_id='vowels') }}" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow transition">Start Module</a>
-              {% elif m_vow and m_vow.status == 'completed' %}
-                <a href="{{ url_for('cptd_bp.reading_module', module_id='vowels') }}" class="text-indigo-600 hover:text-indigo-800 text-sm font-bold px-3 py-1 bg-indigo-50 rounded">Review</a>
-              {% endif %}
-            </div>
-          </div>
-        </div>
-        
-        <!-- Module 5: T Meets -->
-        {% set m_t = progress.get('t_meets') %}
-        <div class="flex items-start gap-4">
-          <div class="flex flex-col items-center mt-1">
-            <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm
-              {% if m_t and m_t.status == 'completed' %} bg-green-500 text-white
-              {% elif m_t and m_t.status == 'unlocked' %} bg-blue-600 text-white ring-4 ring-blue-100
-              {% else %} bg-slate-200 text-slate-500 {% endif %}">
-              {% if m_t and m_t.status == 'completed' %}<i class="fas fa-check"></i>{% else %}5{% endif %}
-            </div>
-            <div class="w-0.5 h-16 bg-slate-200 my-2"></div>
-          </div>
-          <div class="flex-grow pb-4">
-            <div class="flex justify-between items-start">
-              <div class="{% if not m_t or m_t.status == 'locked' %}opacity-50{% endif %}">
-                <h3 class="text-lg font-bold text-slate-900">Module 5: T meets the vowels</h3>
-                <p class="text-sm text-slate-500 mt-1">11:45 - 12:30 &bull; Combining sounds</p>
-              </div>
-              {% if m_t and m_t.status == 'unlocked' %}
-                <a href="{{ url_for('cptd_bp.reading_module', module_id='t_meets') }}" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow transition">Start Module</a>
-              {% elif m_t and m_t.status == 'completed' %}
-                <a href="{{ url_for('cptd_bp.reading_module', module_id='t_meets') }}" class="text-indigo-600 hover:text-indigo-800 text-sm font-bold px-3 py-1 bg-indigo-50 rounded">Review</a>
-              {% endif %}
-            </div>
-          </div>
-        </div>
-
-        <!-- Lunch Break -->
-        <div class="flex items-start gap-4 opacity-75">
-          <div class="flex flex-col items-center mt-1">
-            <div class="w-8 h-8 rounded-full flex items-center justify-center bg-rose-100 text-rose-600">
-              <i class="fas fa-utensils text-sm"></i>
-            </div>
-            <div class="w-0.5 h-12 bg-slate-200 my-2"></div>
-          </div>
-          <div class="flex-grow pb-2">
-            <h3 class="text-lg font-bold text-slate-700">Lunch Break</h3>
-            <p class="text-sm text-slate-500 mt-1">12:30 - 13:15</p>
-          </div>
-        </div>
-        
-        <!-- Module 6: M Meets -->
-        {% set m_m = progress.get('m_meets') %}
-        <div class="flex items-start gap-4">
-          <div class="flex flex-col items-center mt-1">
-            <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm
-              {% if m_m and m_m.status == 'completed' %} bg-green-500 text-white
-              {% elif m_m and m_m.status == 'unlocked' %} bg-blue-600 text-white ring-4 ring-blue-100
-              {% else %} bg-slate-200 text-slate-500 {% endif %}">
-              {% if m_m and m_m.status == 'completed' %}<i class="fas fa-check"></i>{% else %}6{% endif %}
-            </div>
-            <div class="w-0.5 h-16 bg-slate-200 my-2"></div>
-          </div>
-          <div class="flex-grow pb-4">
-            <div class="flex justify-between items-start">
-              <div class="{% if not m_m or m_m.status == 'locked' %}opacity-50{% endif %}">
-                <h3 class="text-lg font-bold text-slate-900">Module 6: M meets the vowels</h3>
-                <p class="text-sm text-slate-500 mt-1">13:15 - 13:45 &bull; Continuing patterns</p>
-              </div>
-              {% if m_m and m_m.status == 'unlocked' %}
-                <a href="{{ url_for('cptd_bp.reading_module', module_id='m_meets') }}" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow transition">Start Module</a>
-              {% elif m_m and m_m.status == 'completed' %}
-                <a href="{{ url_for('cptd_bp.reading_module', module_id='m_meets') }}" class="text-indigo-600 hover:text-indigo-800 text-sm font-bold px-3 py-1 bg-indigo-50 rounded">Review</a>
-              {% endif %}
-            </div>
-          </div>
-        </div>
-        
-        <!-- Module 7: Word Const -->
-        {% set m_word = progress.get('word_const') %}
-        <div class="flex items-start gap-4">
-          <div class="flex flex-col items-center mt-1">
-            <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm
-              {% if m_word and m_word.status == 'completed' %} bg-green-500 text-white
-              {% elif m_word and m_word.status == 'unlocked' %} bg-blue-600 text-white ring-4 ring-blue-100
-              {% else %} bg-slate-200 text-slate-500 {% endif %}">
-              {% if m_word and m_word.status == 'completed' %}<i class="fas fa-check"></i>{% else %}7{% endif %}
-            </div>
-            <div class="w-0.5 h-16 bg-slate-200 my-2"></div>
-          </div>
-          <div class="flex-grow pb-4">
-            <div class="flex justify-between items-start">
-              <div class="{% if not m_word or m_word.status == 'locked' %}opacity-50{% endif %}">
-                <h3 class="text-lg font-bold text-slate-900">Module 7: Word Construction</h3>
-                <p class="text-sm text-slate-500 mt-1">13:45 - 14:15 &bull; Synthesis</p>
-              </div>
-              {% if m_word and m_word.status == 'unlocked' %}
-                <a href="{{ url_for('cptd_bp.reading_module', module_id='word_const') }}" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow transition">Start Module</a>
-              {% elif m_word and m_word.status == 'completed' %}
-                <a href="{{ url_for('cptd_bp.reading_module', module_id='word_const') }}" class="text-indigo-600 hover:text-indigo-800 text-sm font-bold px-3 py-1 bg-indigo-50 rounded">Review</a>
-              {% endif %}
-            </div>
-          </div>
-        </div>
-        
-        <!-- Module 8: Classroom -->
-        {% set m_class = progress.get('classroom') %}
-        <div class="flex items-start gap-4">
-          <div class="flex flex-col items-center mt-1">
-            <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm
-              {% if m_class and m_class.status == 'completed' %} bg-green-500 text-white
-              {% elif m_class and m_class.status == 'unlocked' %} bg-blue-600 text-white ring-4 ring-blue-100
-              {% else %} bg-slate-200 text-slate-500 {% endif %}">
-              {% if m_class and m_class.status == 'completed' %}<i class="fas fa-check"></i>{% else %}8{% endif %}
-            </div>
-            <div class="w-0.5 h-16 bg-slate-200 my-2"></div>
-          </div>
-          <div class="flex-grow pb-4">
-            <div class="flex justify-between items-start">
-              <div class="{% if not m_class or m_class.status == 'locked' %}opacity-50{% endif %}">
-                <h3 class="text-lg font-bold text-slate-900">Module 8: Classroom Application</h3>
-                <p class="text-sm text-slate-500 mt-1">14:15 - 14:45 &bull; Practical Implementation</p>
-              </div>
-              {% if m_class and m_class.status == 'unlocked' %}
-                <a href="{{ url_for('cptd_bp.reading_module', module_id='classroom') }}" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow transition">Start Module</a>
-              {% elif m_class and m_class.status == 'completed' %}
-                <a href="{{ url_for('cptd_bp.reading_module', module_id='classroom') }}" class="text-indigo-600 hover:text-indigo-800 text-sm font-bold px-3 py-1 bg-indigo-50 rounded">Review</a>
-              {% endif %}
-            </div>
-          </div>
-        </div>
-
-        <!-- Evaluation -->
-        {% set ev = progress.get('eval') %}
-        <div class="flex items-start gap-4">
-          <div class="flex flex-col items-center mt-1">
-            <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm
-              {% if ev and ev.status == 'completed' %} bg-green-500 text-white
-              {% elif ev and ev.status == 'unlocked' %} bg-blue-600 text-white ring-4 ring-blue-100
-              {% else %} bg-slate-200 text-slate-500 {% endif %}">
-              <i class="fas fa-star"></i>
-            </div>
-          </div>
-          <div class="flex-grow pb-2">
-            <div class="flex justify-between items-start">
-              <div class="{% if not ev or ev.status == 'locked' %}opacity-50{% endif %}">
-                <h3 class="text-lg font-bold text-slate-900">Module 9: Final Evaluation</h3>
-                <p class="text-sm text-slate-500 mt-1">14:45 - 15:00</p>
-              </div>
-              {% if ev and ev.status == 'unlocked' %}
-                <a href="{{ url_for('cptd_bp.reading_evaluate') }}" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow transition">Evaluate & Finish</a>
-              {% elif ev and ev.status == 'completed' %}
-                <span class="text-green-600 font-bold bg-green-50 px-3 py-1 rounded">Submitted</span>
-              {% endif %}
-            </div>
-          </div>
-        </div>
-
-      </div>
-    </div>
-  </div>
 </div>
 {% endblock %}
+

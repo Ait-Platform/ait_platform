@@ -1,107 +1,110 @@
 {% extends "layout.html" %}
 {% block title %}CPTD Hub Dashboard{% endblock %}
 
+{% block flashes %}{% endblock %}
+
 {% block content %}
-<div class="min-h-screen bg-slate-50 py-10 px-4 sm:px-6 lg:px-8 flex flex-col items-center">
-  <div class="w-full max-w-5xl">
+<div class="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100 mb-12">
+    <div class="h-2 w-full bg-blue-600"></div>
     
-    <!-- Header -->
-    <div class="text-center mb-12">
-      <h1 class="text-4xl font-extrabold text-slate-900 tracking-tight mb-3">Professional Development Hub</h1>
-      <p class="text-lg text-slate-600">Access your registered CPTD workshops and continue your learning journey.</p>
-    </div>
+    <div class="p-6 sm:p-8">
+        {% include "partials/flash_messages.html" %}
+        
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-bold text-gray-900">Professional Development Hub</h1>
+            <a href="{{ url_for('public_bp.welcome') }}" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200">
+                Back to Welcome
+            </a>
+        </div>
+        
+        <p class="text-lg text-slate-600 mb-8">Access your registered CPTD workshops and continue your learning journey.</p>
 
-    <div class="px-6 pt-2 pb-6">
-      {% include "partials/flash_messages.html" %}
-    </div>
-
-    <!-- Programme Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-      
-      <!-- 1. Reading (LITRE Method) - OPEN -->
-      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition flex flex-col">
-        <div class="h-3 w-full bg-blue-600"></div>
-        <div class="p-8 flex-grow">
-          <div class="flex justify-between items-start mb-4">
-            <h2 class="text-2xl font-bold text-slate-900">Reading Programme</h2>
-            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Available</span>
-          </div>
-          <p class="text-slate-600 mb-6">Learn to teach reading fluently using the LITRE Method. A 1-day immersive workshop.</p>
-          
-          <div class="mt-auto">
-            {% if 'reading' in registrations %}
-              {% set reg = registrations['reading'] %}
-              {% if reg.status == 'completed' %}
-                <div class="w-full text-center py-3 px-4 bg-green-50 text-green-700 rounded-xl font-bold border border-green-200">
-                  <i class="fas fa-check-circle mr-2"></i> Workshop Completed
+        <!-- Programme Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            
+            <!-- 1. Reading (LITRE Method) - OPEN -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition flex flex-col">
+                <div class="h-3 w-full bg-blue-600"></div>
+                <div class="p-8 flex-grow">
+                    <div class="flex justify-between items-start mb-4">
+                        <h2 class="text-2xl font-bold text-slate-900">Reading Programme</h2>
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Available</span>
+                    </div>
+                    <p class="text-slate-600 mb-6">Learn to teach reading fluently using the LITRE Method. A 1-day immersive workshop.</p>
+                    
+                    <div class="mt-auto">
+                        {% if 'reading' in registrations %}
+                            {% set reg = registrations['reading'] %}
+                            {% if reg.status == 'completed' %}
+                                <div class="w-full text-center py-3 px-4 bg-green-50 text-green-700 rounded-xl font-bold border border-green-200">
+                                    <i class="fas fa-check-circle mr-2"></i> Workshop Completed
+                                </div>
+                            {% else %}
+                                <a href="{{ url_for('cptd_bp.reading_timetable') }}" class="block w-full text-center py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold shadow-sm transition">
+                                    Continue Workshop
+                                </a>
+                            {% endif %}
+                        {% else %}
+                            <form action="{{ url_for('cptd_bp.register', programme='reading') }}" method="POST">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                <button type="submit" class="w-full py-3 px-4 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold shadow-sm transition">
+                                    Enroll in Workshop
+                                </button>
+                            </form>
+                        {% endif %}
+                    </div>
                 </div>
-              {% else %}
-                <a href="{{ url_for('cptd_bp.reading_timetable') }}" class="block w-full text-center py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold shadow-sm transition">
-                  Continue Workshop
-                </a>
-              {% endif %}
-            {% else %}
-              <form action="{{ url_for('cptd_bp.register', programme='reading') }}" method="POST">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                <button type="submit" class="w-full py-3 px-4 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold shadow-sm transition">
-                  Enroll in Workshop
-                </button>
-              </form>
-            {% endif %}
-          </div>
-        </div>
-      </div>
+            </div>
 
-      <!-- 2. Cultural Fire (LOCKED) -->
-      <div class="bg-slate-50 rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col relative opacity-80">
-        <div class="absolute inset-0 bg-slate-100/50 backdrop-blur-[1px] flex items-center justify-center z-10 pointer-events-none rounded-2xl">
-          <div class="bg-white/90 px-4 py-2 rounded-lg shadow-sm border border-slate-200 font-bold text-slate-600">
-            <i class="fas fa-lock mr-2"></i> Coming Soon
-          </div>
-        </div>
-        <div class="h-3 w-full bg-red-500"></div>
-        <div class="p-8 flex-grow">
-          <div class="flex justify-between items-start mb-4">
-            <h2 class="text-2xl font-bold text-slate-900">Cultural Fire</h2>
-          </div>
-          <p class="text-slate-600 mb-6">Explore the rich heritage of Cultural Fire. Coming in next term's CPTD cycle.</p>
-        </div>
-      </div>
+            <!-- 2. Cultural Fire (LOCKED) -->
+            <div class="bg-slate-50 rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col relative opacity-80">
+                <div class="absolute inset-0 bg-slate-100/50 backdrop-blur-[1px] flex items-center justify-center z-10 pointer-events-none rounded-2xl">
+                    <div class="bg-white/90 px-4 py-2 rounded-lg shadow-sm border border-slate-200 font-bold text-slate-600">
+                        <i class="fas fa-lock mr-2"></i> Coming Soon
+                    </div>
+                </div>
+                <div class="h-3 w-full bg-red-500"></div>
+                <div class="p-8 flex-grow">
+                    <div class="flex justify-between items-start mb-4">
+                        <h2 class="text-2xl font-bold text-slate-900">Cultural Fire</h2>
+                    </div>
+                    <p class="text-slate-600 mb-6">Explore the rich heritage of Cultural Fire. Coming in next term's CPTD cycle.</p>
+                </div>
+            </div>
 
-      <!-- 3. LOLO (LOCKED) -->
-      <div class="bg-slate-50 rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col relative opacity-80">
-        <div class="absolute inset-0 bg-slate-100/50 backdrop-blur-[1px] flex items-center justify-center z-10 pointer-events-none rounded-2xl">
-          <div class="bg-white/90 px-4 py-2 rounded-lg shadow-sm border border-slate-200 font-bold text-slate-600">
-            <i class="fas fa-lock mr-2"></i> Coming Soon
-          </div>
-        </div>
-        <div class="h-3 w-full bg-amber-500"></div>
-        <div class="p-8 flex-grow">
-          <div class="flex justify-between items-start mb-4">
-            <h2 class="text-2xl font-bold text-slate-900">LOLO Maths</h2>
-          </div>
-          <p class="text-slate-600 mb-6">Master the Language of Learning and Observation for early mathematics.</p>
-        </div>
-      </div>
+            <!-- 3. LOLO (LOCKED) -->
+            <div class="bg-slate-50 rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col relative opacity-80">
+                <div class="absolute inset-0 bg-slate-100/50 backdrop-blur-[1px] flex items-center justify-center z-10 pointer-events-none rounded-2xl">
+                    <div class="bg-white/90 px-4 py-2 rounded-lg shadow-sm border border-slate-200 font-bold text-slate-600">
+                        <i class="fas fa-lock mr-2"></i> Coming Soon
+                    </div>
+                </div>
+                <div class="h-3 w-full bg-amber-500"></div>
+                <div class="p-8 flex-grow">
+                    <div class="flex justify-between items-start mb-4">
+                        <h2 class="text-2xl font-bold text-slate-900">LOLO Maths</h2>
+                    </div>
+                    <p class="text-slate-600 mb-6">Master the Language of Learning and Observation for early mathematics.</p>
+                </div>
+            </div>
 
-      <!-- 4. HOME (LOCKED) -->
-      <div class="bg-slate-50 rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col relative opacity-80">
-        <div class="absolute inset-0 bg-slate-100/50 backdrop-blur-[1px] flex items-center justify-center z-10 pointer-events-none rounded-2xl">
-          <div class="bg-white/90 px-4 py-2 rounded-lg shadow-sm border border-slate-200 font-bold text-slate-600">
-            <i class="fas fa-lock mr-2"></i> Coming Soon
-          </div>
-        </div>
-        <div class="h-3 w-full bg-teal-500"></div>
-        <div class="p-8 flex-grow">
-          <div class="flex justify-between items-start mb-4">
-            <h2 class="text-2xl font-bold text-slate-900">HOME Platform</h2>
-          </div>
-          <p class="text-slate-600 mb-6">Connect educators and parents through the HOME integration programme.</p>
-        </div>
-      </div>
+            <!-- 4. HOME (LOCKED) -->
+            <div class="bg-slate-50 rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col relative opacity-80">
+                <div class="absolute inset-0 bg-slate-100/50 backdrop-blur-[1px] flex items-center justify-center z-10 pointer-events-none rounded-2xl">
+                    <div class="bg-white/90 px-4 py-2 rounded-lg shadow-sm border border-slate-200 font-bold text-slate-600">
+                        <i class="fas fa-lock mr-2"></i> Coming Soon
+                    </div>
+                </div>
+                <div class="h-3 w-full bg-teal-500"></div>
+                <div class="p-8 flex-grow">
+                    <div class="flex justify-between items-start mb-4">
+                        <h2 class="text-2xl font-bold text-slate-900">HOME Platform</h2>
+                    </div>
+                    <p class="text-slate-600 mb-6">Connect educators and parents through the HOME integration programme.</p>
+                </div>
+            </div>
 
+        </div>
     </div>
-
-  </div>
 </div>
 {% endblock %}

@@ -1,20 +1,24 @@
 {% extends "layout.html" %}
 {% block title %}Reading Module - Introduction to LITRE{% endblock %}
 
-{% block content %}
-<div class="min-h-screen bg-slate-50 py-10 px-4 sm:px-6 lg:px-8 flex justify-center">
-  <div class="w-full max-w-3xl">
-    
-    <div class="mb-6 flex justify-between items-center">
-      <h1 class="text-3xl font-extrabold text-slate-900">Introduction to LITRE</h1>
-      <a href="{{ url_for('cptd_bp.reading_timetable') }}" class="text-indigo-600 font-bold hover:underline">
-        &larr; Back to Timetable
-      </a>
-    </div>
+{% block flashes %}{% endblock %}
 
-    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 mb-6">
-      
-      <div class="aspect-w-16 aspect-h-9 mb-8 bg-slate-100 rounded-xl flex items-center justify-center border border-slate-200">
+{% block content %}
+<div class="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100 mb-12">
+    <div class="h-2 w-full bg-blue-600"></div>
+    
+    <div class="p-6 sm:p-8">
+        {% include "partials/flash_messages.html" %}
+        
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-bold text-gray-900">Introduction to LITRE</h1>
+            <a href="{{ url_for('cptd_bp.reading_timetable') }}" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200">
+                Back to Map
+            </a>
+        </div>
+
+        <div class="mb-8">
+            <div class="aspect-w-16 aspect-h-9 mb-8 bg-slate-100 rounded-xl flex items-center justify-center border border-slate-200">
         <!-- Placeholder for Video -->
         <div class="text-center p-10">
           <i class="fas fa-play-circle text-5xl text-slate-300 mb-2"></i>
@@ -26,11 +30,10 @@
         <h3>Instructions</h3>
         <p>Watch the presentation above. Please follow along with your facilitator and complete the activities.</p>
       </div>
+        </div>
 
-    </div>
-
-    <div class="bg-indigo-50 border border-indigo-200 rounded-2xl p-8">
-      <h3 class="text-xl font-bold text-indigo-900 mb-4">Module Checkpoint</h3>
+        <div class="bg-blue-50 border border-blue-200 rounded-2xl p-8">
+            <h3 class="text-xl font-bold text-indigo-900 mb-4">Module Checkpoint</h3>
       <p class="text-indigo-700 mb-6">Confirm that you have completed this activity to unlock the next module.</p>
       
       {% if progress.status == 'completed' %}
@@ -45,8 +48,7 @@
           </button>
         </form>
       {% endif %}
+        </div>
     </div>
-
-  </div>
 </div>
 {% endblock %}

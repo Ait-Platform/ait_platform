@@ -1,18 +1,21 @@
 {% extends "layout.html" %}
 {% block title %}SACE Compliance Documents{% endblock %}
 
+{% block flashes %}{% endblock %}
+
 {% block content %}
-<div class="min-h-screen bg-slate-50 py-10 px-4 sm:px-6 lg:px-8 flex flex-col items-center">
-  <div class="w-full max-w-4xl">
+<div class="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100">
+  <div class="h-2 w-full bg-teal-600"></div>
+  
+  <div class="p-6 sm:p-8">
+    {% include "partials/flash_messages.html" %}
     
-    <div class="mb-8 flex items-center">
-      <a href="{{ url_for('public_bp.welcome') }}" class="text-teal-600 hover:text-teal-800 font-bold flex items-center bg-white px-4 py-2 rounded-lg border border-teal-100 shadow-sm transition">
-        <i class="fas fa-arrow-left mr-2"></i> Back to Welcome
+    <div class="flex justify-between items-center mb-6">
+      <h1 class="text-2xl font-bold text-slate-900">SACE Compliance Documents</h1>
+      <a href="{{ url_for('public_bp.welcome') }}" class="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 transition">
+        Back
       </a>
     </div>
-
-    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
-      <h1 class="text-3xl font-extrabold text-slate-900 mb-2">SACE Compliance Documents</h1>
       <p class="text-slate-600 mb-8">Click on any of the documents below to view and print them. These documents fulfill the SACE requirements for the Reading (LITRE Method) CPTD Workshop.</p>
       
       <div class="space-y-4">
@@ -104,6 +107,6 @@
       </div>
     </div>
   </div>
-</div>
 {% endblock %}
+
 

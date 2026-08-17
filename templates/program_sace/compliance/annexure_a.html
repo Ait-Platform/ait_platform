@@ -1,50 +1,64 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Annexure A - Programme & Timetable</title>
-    <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 40px; }
-        h1, h2, h3 { color: #1e3a8a; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { border: 1px solid #cbd5e1; padding: 12px; text-align: left; }
-        th { background-color: #f1f5f9; }
-        .header { text-align: center; border-bottom: 2px solid #1e3a8a; padding-bottom: 20px; margin-bottom: 30px; }
-        .print-btn { display: block; width: 150px; margin: 0 auto 30px; padding: 10px; background: #4f46e5; color: white; text-align: center; text-decoration: none; border-radius: 5px; cursor: pointer; }
-        @media print { .print-btn { display: none; } body { padding: 0; } }
-    </style>
-</head>
-<body>
-    <button class="print-btn" onclick="window.print()">Print Document</button>
-    <div class="header">
-        <h1>Annexure A</h1>
-        <h2>Programme & Timetable</h2>
-        <p>AIT Professional Development: Reading (LITRE Method)</p>
-    </div>
+{% extends "layout.html" %}
+
+{% block title %}Annexure A - Programme & Timetable{% endblock %}
+
+{% block flashes %}{% endblock %}
+
+{% block content %}
+<div class="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100 print:shadow-none print:border-none print:rounded-none">
+    <div class="h-2 w-full bg-teal-600 print:hidden"></div>
     
-    <p><strong>Date:</strong> ______________________</p>
-    <p><strong>Facilitator:</strong> ______________________</p>
-    <p><strong>Venue:</strong> ______________________</p>
+    <div class="p-6 sm:p-8 print:p-0">
+        {% include "partials/flash_messages.html" %}
+        
+        <div class="flex justify-between items-center mb-6 print:hidden">
+            <h1 class="text-2xl font-bold text-gray-900">Annexure A: Programme & Timetable</h1>
+            <a href="{{ url_for('sace_bp.dashboard') }}" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200">
+                Back to Dashboard
+            </a>
+        </div>
+        
+        <div class="flex justify-end mb-6 space-x-3 print:hidden">
+            <button onclick="window.print()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700">
+                <i class="fas fa-print mr-2"></i> Print Document
+            </button>
+        </div>
+        
+        <!-- Document Content (Visible in print) -->
+        <div class="prose max-w-none text-slate-800">
+            <div class="text-center border-b-2 border-indigo-900 pb-5 mb-8">
+                <h1 class="text-4xl font-bold text-indigo-900 mb-2">Annexure A</h1>
+                <h2 class="text-2xl font-semibold text-indigo-800 mb-2">Programme & Timetable</h2>
+                <p class="text-lg text-slate-600">AIT Professional Development: Reading (LITRE Method)</p>
+            </div>
+            
+            <div class="space-y-4 mb-8 text-lg">
+                <p><strong>Date:</strong> ______________________</p>
+                <p><strong>Facilitator:</strong> ______________________</p>
+                <p><strong>Venue:</strong> ______________________</p>
+            </div>
 
-    <table>
-        <thead>
-            <tr>
-                <th>Time</th>
-                <th>Activity / Module</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr><td>08:00 - 08:30</td><td>Arrival and Registration</td></tr>
-            <tr><td>08:30 - 09:30</td><td>Module 1: Introduction to LITRE Method</td></tr>
-            <tr><td>09:30 - 10:30</td><td>Module 2: The Palm Structure</td></tr>
-            <tr><td>10:30 - 11:00</td><td>Tea Break</td></tr>
-            <tr><td>11:00 - 12:00</td><td>Module 3: Family Contexts</td></tr>
-            <tr><td>12:00 - 13:00</td><td>Module 4: Vowels & Consonants</td></tr>
-            <tr><td>13:00 - 13:45</td><td>Lunch</td></tr>
-            <tr><td>13:45 - 14:45</td><td>Module 5: Practical Word Construction & Application</td></tr>
-            <tr><td>14:45 - 15:00</td><td>Evaluation and Closure</td></tr>
-        </tbody>
-    </table>
-</body>
-</html>
-
+            <table class="w-full border-collapse border border-slate-300">
+                <thead>
+                    <tr class="bg-slate-100">
+                        <th class="border border-slate-300 p-3 text-left font-semibold">Time</th>
+                        <th class="border border-slate-300 p-3 text-left font-semibold">Activity / Module</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td class="border border-slate-300 p-3">08:00 - 08:30</td><td class="border border-slate-300 p-3">Arrival and Registration</td></tr>
+                    <tr><td class="border border-slate-300 p-3">08:30 - 09:30</td><td class="border border-slate-300 p-3">Module 1: Introduction to LITRE Method</td></tr>
+                    <tr><td class="border border-slate-300 p-3">09:30 - 10:30</td><td class="border border-slate-300 p-3">Module 2: The Palm Structure</td></tr>
+                    <tr><td class="border border-slate-300 p-3 bg-slate-50">10:30 - 11:00</td><td class="border border-slate-300 p-3 bg-slate-50">Tea Break</td></tr>
+                    <tr><td class="border border-slate-300 p-3">11:00 - 12:00</td><td class="border border-slate-300 p-3">Module 3: Family Contexts</td></tr>
+                    <tr><td class="border border-slate-300 p-3">12:00 - 13:00</td><td class="border border-slate-300 p-3">Module 4: Vowels & Consonants</td></tr>
+                    <tr><td class="border border-slate-300 p-3 bg-slate-50">13:00 - 13:45</td><td class="border border-slate-300 p-3 bg-slate-50">Lunch</td></tr>
+                    <tr><td class="border border-slate-300 p-3">13:45 - 14:45</td><td class="border border-slate-300 p-3">Module 5: Practical Word Construction & Application</td></tr>
+                    <tr><td class="border border-slate-300 p-3">14:45 - 15:00</td><td class="border border-slate-300 p-3">Evaluation and Closure</td></tr>
+                </tbody>
+            </table>
+        </div>
+        
+    </div>
+</div>
+{% endblock %}

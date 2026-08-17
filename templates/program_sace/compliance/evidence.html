@@ -1,38 +1,50 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>AIT Platform Access Evidence</title>
-    <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 40px; }
-        h1, h2, h3 { color: #1e3a8a; }
-        .header { text-align: center; border-bottom: 2px solid #1e3a8a; padding-bottom: 20px; margin-bottom: 30px; }
-        .print-btn { display: block; width: 150px; margin: 0 auto 30px; padding: 10px; background: #4f46e5; color: white; text-align: center; text-decoration: none; border-radius: 5px; cursor: pointer; }
-        .certificate-box { border: 4px double #1e3a8a; padding: 40px; text-align: center; margin-top: 20px; background: #f8fafc; }
-        @media print { .print-btn { display: none; } body { padding: 0; } }
-    </style>
-</head>
-<body>
-    <button class="print-btn" onclick="window.print()">Print Document</button>
-    <div class="header">
-        <h1>SACE Compliance</h1>
-        <h2>Platform Access Evidence</h2>
-    </div>
+{% extends "layout.html" %}
+
+{% block title %}AIT Platform Access Evidence{% endblock %}
+
+{% block flashes %}{% endblock %}
+
+{% block content %}
+<div class="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100 print:shadow-none print:border-none print:rounded-none">
+    <div class="h-2 w-full bg-teal-600 print:hidden"></div>
     
-    <div class="certificate-box">
-        <h3>This document serves as formal evidence that:</h3>
-        <h1 style="color: #000; margin-top: 30px; border-bottom: 1px solid #ccc; display: inline-block; padding-bottom: 5px; min-width: 300px;">
-            {{ current_user.name if current_user else '___________________________' }}
-        </h1>
-        <p style="margin-top: 20px;">Successfully accessed and completed modules on the AIT Professional Development Platform for the <strong>Reading (LITRE Method)</strong> CPTD Workshop.</p>
+    <div class="p-6 sm:p-8 print:p-0">
+        {% include "partials/flash_messages.html" %}
         
-        <div style="margin-top: 40px; text-align: left; padding-left: 20px;">
-            <p><strong>System Print Date:</strong> {{ today }}</p>
-            <p><strong>SACE Number:</strong> ______________________</p>
-            <p><strong>School:</strong> ______________________</p>
-            <p><strong>Facilitator Signature:</strong> ______________________</p>
+        <div class="flex justify-between items-center mb-6 print:hidden">
+            <h1 class="text-2xl font-bold text-gray-900">Platform Access Evidence</h1>
+            <a href="{{ url_for('sace_bp.dashboard') }}" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200">
+                Back to Dashboard
+            </a>
+        </div>
+        
+        <div class="flex justify-end mb-6 space-x-3 print:hidden">
+            <button onclick="window.print()" class="px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700">
+                <i class="fas fa-print mr-2"></i> Print Document
+            </button>
+        </div>
+        
+        <div class="prose max-w-none text-slate-800">
+            <div class="text-center border-b-2 border-indigo-900 pb-5 mb-8">
+                <h1 class="text-4xl font-bold text-indigo-900 mb-2">SACE Compliance</h1>
+                <h2 class="text-2xl font-semibold text-indigo-800 mb-2">Platform Access Evidence</h2>
+            </div>
+            
+            <div class="border-4 border-double border-indigo-900 bg-slate-50 p-10 text-center mt-8">
+                <h3 class="text-xl font-bold text-slate-700">This document serves as formal evidence that:</h3>
+                <h1 class="text-3xl text-black mt-8 border-b border-gray-400 inline-block pb-2 min-w-[300px]">
+                    {{ current_user.name if current_user else '___________________________' }}
+                </h1>
+                <p class="mt-6 text-lg text-slate-700">Successfully accessed and completed modules on the AIT Professional Development Platform for the <strong>Reading (LITRE Method)</strong> CPTD Workshop.</p>
+                
+                <div class="mt-10 text-left pl-5 space-y-4 text-lg">
+                    <p><strong>System Print Date:</strong> {{ today }}</p>
+                    <p><strong>SACE Number:</strong> ______________________</p>
+                    <p><strong>School:</strong> ______________________</p>
+                    <p><strong>Facilitator Signature:</strong> ______________________</p>
+                </div>
+            </div>
         </div>
     </div>
-</body>
-</html>
-
+</div>
+{% endblock %}

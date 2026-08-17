@@ -1,16 +1,24 @@
 {% extends "layout.html" %}
 {% block title %}CPTD Workshop Evaluation{% endblock %}
 
-{% block content %}
-<div class="min-h-screen bg-slate-50 py-10 px-4 flex justify-center">
-  <div class="w-full max-w-3xl">
-    
-    <div class="text-center mb-8">
-      <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">Workshop Evaluation</h1>
-      <p class="text-slate-600 mt-2">Congratulations on completing the LITRE method modules!</p>
-    </div>
+{% block flashes %}{% endblock %}
 
-    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden p-8 md:p-12">
+{% block content %}
+<div class="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100 mb-12">
+    <div class="h-2 w-full bg-blue-600"></div>
+    
+    <div class="p-6 sm:p-8">
+        {% include "partials/flash_messages.html" %}
+        
+        <div class="flex justify-between items-center mb-6">
+            <div>
+              <h1 class="text-2xl font-bold text-gray-900">Workshop Evaluation</h1>
+              <p class="text-slate-600 mt-1">Congratulations on completing the LITRE method modules!</p>
+            </div>
+            <a href="{{ url_for('cptd_bp.reading_timetable') }}" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200">
+                Back to Map
+            </a>
+        </div>
       
       <form action="{{ url_for('cptd_bp.reading_evaluate') }}" method="POST" class="space-y-10">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
@@ -71,18 +79,16 @@
         <div>
           <label class="block text-xl font-bold text-slate-900 mb-2">4. Any open feedback or suggestions?</label>
           <p class="text-sm text-slate-500 mb-3">Tell us what you liked or how we can improve the workshop.</p>
-          <textarea name="feedback_text" rows="4" class="block w-full rounded-xl border-2 border-slate-200 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-base p-4 transition"></textarea>
+          <textarea name="feedback_text" autofocus rows="4" class="block w-full rounded-xl border-2 border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-base p-4 transition"></textarea>
         </div>
 
-        <div class="pt-6 border-t border-slate-100">
-          <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-lg py-4 rounded-xl shadow-md transition">
-            Submit Evaluation & Finish
+        <div class="pt-6 border-t border-slate-100 flex justify-end">
+          <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg shadow-md transition">
+            Submit Evaluation
           </button>
         </div>
 
       </form>
     </div>
-    
-  </div>
 </div>
 {% endblock %}

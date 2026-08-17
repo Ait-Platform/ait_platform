@@ -390,6 +390,8 @@ def email_document(id):
 
         if success:
             from app.models.mechanic import MechCommunication
+            from app.models.auth import InviteLog
+            
             comm = MechCommunication(
                 job_card_id=job_card.id,
                 comm_type="Email",
@@ -398,6 +400,19 @@ def email_document(id):
                 status="Success"
             )
             db.session.add(comm)
+            
+            phone = "Unknown Client"
+            if job_card.vehicle and job_card.vehicle.client:
+                phone = job_card.vehicle.client.phone or f"{job_card.vehicle.client.name} (Client)"
+            
+            ilog = InviteLog(
+                sender_id=current_user.id,
+                recipient_phone=phone,
+                program_slug="mechanic",
+                invite_type=f"Email {doc_type} #{job_card.job_number}",
+                status="Sent"
+            )
+            db.session.add(ilog)
             db.session.commit()
             
             flash(f"{doc_type} successfully emailed to {target_email}", "success")
@@ -767,6 +782,20 @@ def new_quote():
                 markup_price=rate
             )
             db.session.add(pline)
+            
+        from app.models.auth import InviteLog
+        phone = "Unknown Client"
+        if vehicle.client:
+            phone = vehicle.client.phone or f"{vehicle.client.name} (Client)"
+            
+        ilog = InviteLog(
+            sender_id=current_user.id,
+            recipient_phone=phone,
+            program_slug="mechanic",
+            invite_type=f"Created Job Card #{job_card.job_number}",
+            status="Logged"
+        )
+        db.session.add(ilog)
                 
         db.session.commit()
             

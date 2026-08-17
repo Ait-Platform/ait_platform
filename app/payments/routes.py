@@ -236,7 +236,7 @@ def wallet_checkout():
     if not current_user.is_authenticated:
         return redirect(url_for("auth_bp.login"))
         
-    tokens = 100
+    tokens = int(request.form.get("tokens", 100))
     price_cents = int(request.form.get("price_cents", 10000))
     zar_price_cents = int(request.form.get("zar_price_cents", 10000))
     currency = request.form.get("currency", "ZAR")

@@ -351,13 +351,15 @@ def update_client(client_id):
         return redirect(url_for('mechanic_bp.job_card_detail', id=job_id))
     return redirect(url_for('mechanic_bp.mechanic_dashboard'))
 
-@mechanic_bp.route("/mechanic/job/<int:id>", methods=["GET", "POST"])
+@mechanic_bp.route("/mechanic/job_card/<int:id>")
 @login_required
 def job_card_detail(id):
     from datetime import datetime
+    from app.models.mechanic import MechCommunication
     job_card = MechJobCard.query.get_or_404(id)
     today_date = datetime.utcnow().strftime('%Y-%m-%d')
-    return render_template("program_mechanic/job_card.html", job_card=job_card, today_date=today_date)
+    communications = MechCommunication.query.filter_by(job_card_id=id).order_by(MechCommunication.created_at.desc()).all()
+    return render_template("program_mechanic/job_card.html", job_card=job_card, today_date=today_date, communications=communications)
 
 
 @mechanic_bp.route("/mechanic/email/<int:id>", methods=["GET", "POST"])
@@ -968,3 +970,4 @@ def log_call(job_id):
     db.session.commit()
     
     return {"status": "success"}
+

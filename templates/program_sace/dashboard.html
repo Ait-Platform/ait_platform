@@ -1,0 +1,90 @@
+{% extends "layout.html" %}
+
+{% block title %}SACE Provider Dashboard | AIT Platform{% endblock %}
+
+{% block page_wrap_classes %}mx-auto max-w-7xl px-4 py-8{% endblock %}
+
+{% block content %}
+<div class="mb-8 flex justify-between items-end">
+    <div>
+        <h1 class="text-3xl font-bold text-gray-900">Provider Dashboard</h1>
+        <p class="mt-2 text-sm text-gray-600">Manage your program endorsement applications and provider details.</p>
+    </div>
+    <div>
+        <a href="{{ url_for('public_bp.welcome') }}" class="text-sm font-medium text-teal-600 hover:text-teal-800">
+            &larr; Back to Welcome
+        </a>
+    </div>
+</div>
+
+<!-- Placeholder for provider status -->
+<div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-8 flex items-center justify-between">
+    <div class="flex items-center space-x-4">
+        <div class="h-12 w-12 rounded-full bg-yellow-100 flex items-center justify-center text-yellow-600">
+            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+        </div>
+        <div>
+            <h3 class="text-lg font-bold text-gray-900">Provider Profile Incomplete</h3>
+            <p class="text-sm text-gray-500">Please complete your organizational profile before applying for program endorsement.</p>
+        </div>
+    </div>
+    <div>
+        <button class="px-4 py-2 bg-teal-600 text-white rounded-lg font-medium text-sm hover:bg-teal-700 transition">Complete Profile</button>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <!-- Active Applications -->
+    <div class="lg:col-span-2 space-y-6">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-xl font-bold text-gray-900">Your Endorsement Applications</h2>
+            <button class="px-3 py-1.5 text-sm bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-medium">
+                + New Application
+            </button>
+        </div>
+        
+        <!-- Empty State -->
+        <div class="bg-white border-2 border-dashed border-gray-300 rounded-2xl p-12 text-center">
+            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+            </svg>
+            <h3 class="mt-2 text-sm font-medium text-gray-900">No applications</h3>
+            <p class="mt-1 text-sm text-gray-500">Get started by creating a new program endorsement application.</p>
+        </div>
+    </div>
+    
+    <!-- Quick Links / Guidelines -->
+    <div class="space-y-6">
+        <h2 class="text-xl font-bold text-gray-900 mb-4">Resources</h2>
+        
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+            <div class="p-4 border-b border-gray-100 flex items-center hover:bg-gray-50 cursor-pointer">
+                <svg class="h-5 w-5 text-teal-500 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <div class="flex-1">
+                    <h4 class="text-sm font-medium text-gray-900">SACE Endorsement Guidelines</h4>
+                    <p class="text-xs text-gray-500">PDF Document (2.4MB)</p>
+                </div>
+                <svg class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+            </div>
+            <div class="p-4 flex items-center hover:bg-gray-50 cursor-pointer">
+                <svg class="h-5 w-5 text-teal-500 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <div class="flex-1">
+                    <h4 class="text-sm font-medium text-gray-900">Application Checklist</h4>
+                    <p class="text-xs text-gray-500">PDF Document (1.1MB)</p>
+                </div>
+                <svg class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

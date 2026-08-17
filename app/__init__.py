@@ -597,6 +597,9 @@ def create_app(test_config=None):
     app.register_blueprint(debtors_bp, url_prefix="/debtors")
     from app.program_thunee import thunee_bp
     app.register_blueprint(thunee_bp)
+    
+    from app.program_sace import sace_bp
+    app.register_blueprint(sace_bp)
 
     #csrf.exempt(checkout_bp)  # keeps webhook/start happy
     # Exempt the Paystack webhook route

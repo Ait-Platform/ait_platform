@@ -1,0 +1,68 @@
+{% extends "layout.html" %}
+
+{% block title %}Thunee Game | AIT Platform{% endblock %}
+
+{% block page_wrap_classes %}mx-auto max-w-7xl px-4 py-10{% endblock %}
+
+{% block content %}
+<div class="relative bg-white rounded-3xl shadow-xl overflow-hidden mb-12">
+    <div class="absolute inset-0">
+        <div class="absolute inset-0 bg-gradient-to-r from-red-600 to-orange-600 mix-blend-multiply"></div>
+    </div>
+    <div class="relative px-8 py-24 sm:px-12 sm:py-32 lg:px-16 text-center">
+        <h1 class="text-4xl font-extrabold tracking-tight text-white sm:text-5xl lg:text-6xl mb-6">
+            Master the Art of Thunee
+        </h1>
+        <p class="mt-6 max-w-3xl mx-auto text-xl text-red-100 mb-10">
+            Play the classic South African trick-taking card game online. Challenge your friends, play against intelligent bots, and prove you have what it takes to call Thunee.
+        </p>
+        <div class="mt-10 flex justify-center gap-4">
+            <a href="{{ url_for('auth_bp.start_registration', subject='thunee') }}" class="inline-flex items-center px-8 py-4 border border-transparent text-lg font-bold rounded-xl shadow-sm text-red-600 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-all duration-200">
+                Play Now
+                <svg class="ml-2 -mr-1 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd" />
+                </svg>
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="bg-gray-50 rounded-3xl p-8 md:p-12 shadow-sm border border-gray-100">
+    <h2 class="text-3xl font-bold text-gray-900 mb-8 text-center">Game Features</h2>
+    
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <!-- Feature 1 -->
+        <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+            <div class="h-12 w-12 bg-red-100 rounded-xl flex items-center justify-center text-red-600 mb-6">
+                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+            </div>
+            <h3 class="text-xl font-bold text-gray-900 mb-3">Multiplayer Lobbies</h3>
+            <p class="text-gray-600">Create private rooms or join public matches to play with enthusiasts across the platform.</p>
+        </div>
+        
+        <!-- Feature 2 -->
+        <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+            <div class="h-12 w-12 bg-orange-100 rounded-xl flex items-center justify-center text-orange-600 mb-6">
+                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+            </div>
+            <h3 class="text-xl font-bold text-gray-900 mb-3">AI Opponents</h3>
+            <p class="text-gray-600">Practice your skills against our built-in bots to learn the game or fill empty seats in your lobby.</p>
+        </div>
+        
+        <!-- Feature 3 -->
+        <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+            <div class="h-12 w-12 bg-yellow-100 rounded-xl flex items-center justify-center text-yellow-600 mb-6">
+                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+            </div>
+            <h3 class="text-xl font-bold text-gray-900 mb-3">Real-time Action</h3>
+            <p class="text-gray-600">Experience seamless gameplay with live updates, score tracking, and instant trick resolution.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

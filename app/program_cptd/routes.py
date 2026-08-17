@@ -11,6 +11,10 @@ def check_hard_close():
     # We will refine this later if needed
     pass
 
+@cptd_bp.route("/cptd/about")
+def cptd_about():
+    return render_template("program_cptd/about.html")
+
 @cptd_bp.route("/cptd/hub")
 @login_required
 def hub():

@@ -1,0 +1,95 @@
+{% extends "layout.html" %}
+
+{% block title %}SACE CPTD Workshops | AIT Platform{% endblock %}
+
+{% block page_wrap_classes %}mx-auto max-w-7xl px-4 py-10{% endblock %}
+
+{% block content %}
+<div class="relative bg-white rounded-3xl shadow-xl overflow-hidden mb-12">
+    <div class="absolute inset-0">
+        <div class="absolute inset-0 bg-gradient-to-r from-blue-700 to-indigo-800 mix-blend-multiply"></div>
+    </div>
+    <div class="relative px-8 py-24 sm:px-12 sm:py-32 lg:px-16 text-center">
+        <span class="inline-flex items-center px-4 py-1.5 rounded-full text-sm font-semibold bg-blue-100 text-blue-800 mb-6">
+            SACE Accredited
+        </span>
+        <h1 class="text-4xl font-extrabold tracking-tight text-white sm:text-5xl lg:text-6xl mb-6">
+            Professional Development Workshops
+        </h1>
+        <p class="mt-6 max-w-3xl mx-auto text-xl text-blue-100 mb-10">
+            Earn your CPTD points through our comprehensive online workshops. Designed specifically for South African educators to enhance teaching methodologies and classroom management.
+        </p>
+        <div class="mt-10 flex justify-center gap-4">
+            <a href="{{ url_for('auth_bp.start_registration', subject='cptd') }}" class="inline-flex items-center px-8 py-4 border border-transparent text-lg font-bold rounded-xl shadow-sm text-blue-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200">
+                Register Now
+                <svg class="ml-2 -mr-1 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd" />
+                </svg>
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="bg-gray-50 rounded-3xl p-8 md:p-12 shadow-sm border border-gray-100 mb-12">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+        <div>
+            <h2 class="text-3xl font-bold text-gray-900 mb-6">Workshop Curriculum</h2>
+            <p class="text-lg text-gray-600 mb-8">Our modules are carefully structured to provide actionable insights and practical strategies you can immediately implement in your classroom.</p>
+            
+            <div class="space-y-6">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <div class="flex items-center justify-center h-12 w-12 rounded-xl bg-blue-100 text-blue-600 font-bold text-lg">1</div>
+                    </div>
+                    <div class="ml-4">
+                        <h4 class="text-lg font-bold text-gray-900">Foundational Reading Strategies</h4>
+                        <p class="mt-1 text-gray-500">Implementing the Litre Method for early childhood development.</p>
+                    </div>
+                </div>
+                
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <div class="flex items-center justify-center h-12 w-12 rounded-xl bg-blue-100 text-blue-600 font-bold text-lg">2</div>
+                    </div>
+                    <div class="ml-4">
+                        <h4 class="text-lg font-bold text-gray-900">Advanced Mathematics Instruction</h4>
+                        <p class="mt-1 text-gray-500">Transitioning students from concrete visual models to abstract concepts.</p>
+                    </div>
+                </div>
+                
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <div class="flex items-center justify-center h-12 w-12 rounded-xl bg-blue-100 text-blue-600 font-bold text-lg">3</div>
+                    </div>
+                    <div class="ml-4">
+                        <h4 class="text-lg font-bold text-gray-900">Cultural Fire & Restorative Practices</h4>
+                        <p class="mt-1 text-gray-500">Building community and managing classroom behavior through restorative justice.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-white p-8 rounded-2xl shadow-sm border border-gray-200">
+            <h3 class="text-2xl font-bold text-gray-900 mb-4">Compliance Requirements</h3>
+            <ul class="space-y-4 text-gray-600">
+                <li class="flex items-start">
+                    <svg class="h-6 w-6 text-green-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                    <span>Complete all online modules and assessments</span>
+                </li>
+                <li class="flex items-start">
+                    <svg class="h-6 w-6 text-green-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                    <span>Submit Annexure A-E compliance documents directly through the platform</span>
+                </li>
+                <li class="flex items-start">
+                    <svg class="h-6 w-6 text-green-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                    <span>Upload required portfolio evidence (max 10MB per file)</span>
+                </li>
+                <li class="flex items-start">
+                    <svg class="h-6 w-6 text-green-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                    <span>Receive automated SACE points submission upon completion</span>
+                </li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}

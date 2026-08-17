@@ -7,6 +7,10 @@ from app.models.thunee import ThuneeGame, ThuneePlayer, ThuneeTrick, ThuneeScore
 from .engine import deal_initial, deal_remaining, determine_trick_winner, calculate_points
 from . import thunee_bp
 
+@thunee_bp.route('/thunee/about')
+def thunee_about():
+    return render_template('program_thunee/about.html')
+
 @thunee_bp.route('/thunee')
 @login_required
 def index():

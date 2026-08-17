@@ -32,6 +32,12 @@
     </div>
 
     <div class="flex items-center gap-4">
+      {% if request.endpoint and request.endpoint.startswith('mechanic_bp') %}
+        <button onclick="document.getElementById('pt-help-modal').classList.remove('hidden')" class="text-sm font-bold text-white bg-blue-600 border border-blue-400 px-3 py-1.5 rounded hover:bg-blue-500 transition shadow-sm flex items-center">
+          <i class="fas fa-map-signs mr-2"></i> Workflow Map
+        </button>
+      {% endif %}
+      
       <a href="{{ url_for('public_bp.contact') }}" class="hover:underline">Contact Us</a>
 
       {% if current_user.is_authenticated %}

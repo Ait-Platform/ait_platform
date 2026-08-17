@@ -108,3 +108,15 @@ class MechInvoice(db.Model):
 
 
 
+
+class MechCommunication(db.Model):
+    __tablename__ = 'mech_communications'
+    id = db.Column(db.Integer, primary_key=True)
+    job_card_id = db.Column(db.Integer, db.ForeignKey('mech_job_cards.id'), nullable=False)
+    comm_type = db.Column(db.String(50), nullable=False) # e.g. "Email", "Phone", "WhatsApp"
+    recipient = db.Column(db.String(150), nullable=True) # e.g. email address or phone number
+    message = db.Column(db.Text, nullable=True)
+    status = db.Column(db.String(50), default='Logged')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    job_card = db.relationship('MechJobCard', backref=db.backref('communications', lazy=True))

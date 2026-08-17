@@ -387,6 +387,17 @@ def email_document(id):
                              target_email], body=body, html=html)
 
         if success:
+            from app.models.mechanic import MechCommunication
+            comm = MechCommunication(
+                job_card_id=job_card.id,
+                comm_type="Email",
+                recipient=target_email,
+                message=f"Sent {doc_type} #{job_card.job_number}",
+                status="Success"
+            )
+            db.session.add(comm)
+            db.session.commit()
+            
             flash(f"{doc_type} successfully emailed to {target_email}", "success")
         else:
             flash("Failed to send email. Please check server logs.", "danger")
@@ -932,3 +943,28 @@ def upload_disk():
         return jsonify({"url": file_url, "filename": filename, "ai_data": ai_data})
 
     return jsonify({"error": "Upload failed"}), 500
+
+@mechanic_bp.route("/mechanic/log_call/<int:job_id>", methods=["POST"])
+@login_required
+def log_call(job_id):
+    from app.models.mechanic import MechJobCard, MechCommunication
+    job_card = MechJobCard.query.get_or_404(job_id)
+    
+    # Ensure they own it
+    active_shop = MechShop.query.filter_by(user_id=current_user.id, onboarding_status='active').first()
+    if not active_shop or job_card.vehicle.client.user_id != current_user.id:
+        return {"error": "Unauthorized"}, 403
+        
+    phone = job_card.vehicle.client.phone or "Unknown"
+    
+    comm = MechCommunication(
+        job_card_id=job_card.id,
+        comm_type="Phone Call",
+        recipient=phone,
+        message="Initiated phone call",
+        status="Logged"
+    )
+    db.session.add(comm)
+    db.session.commit()
+    
+    return {"status": "success"}

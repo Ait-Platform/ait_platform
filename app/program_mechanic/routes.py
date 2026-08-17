@@ -616,16 +616,19 @@ def new_quote():
             flash("Insufficient tokens. Please top up your wallet.", "warning")
             return redirect(url_for("mechanic_bp.mock_bill"))
             
+        vehicle_reg = request.form.get("vehicle_reg", "Unknown")
+        import uuid
+        job_number = f"JOB-{uuid.uuid4().hex[:6].upper()}"
+        
         wallet.balance -= token_cost
         txn = AitTokenTransaction(
             wallet_id=wallet.id,
             amount=-token_cost,
-            description=f"Generated quote for shop {active_shop.id}"
+            description=f"Generated quote {job_number} for {vehicle_reg}"
         )
         db.session.add(txn)
         
         customer_name = request.form.get("customer_name")
-        vehicle_reg = request.form.get("vehicle_reg")
         
         if not customer_name or not customer_name.strip():
             flash("Customer Name is required.", "danger")
@@ -691,7 +694,7 @@ def new_quote():
 
             
         job_card = MechJobCard(
-            job_number=f"JOB-{uuid.uuid4().hex[:6].upper()}",
+            job_number=job_number,
             vehicle_id=vehicle.id,
             status='Quote',
             vat_rate=active_shop.vat_rate

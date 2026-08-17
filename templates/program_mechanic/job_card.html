@@ -64,7 +64,11 @@
             </button>
           </div>
           <p class="font-bold text-slate-900 text-lg mb-1">{{ job_card.vehicle.client.name }}</p>
-          <p class="text-slate-600 text-sm"><i class="fas fa-phone mr-2 text-slate-400"></i>{{ job_card.vehicle.client.phone or 'No phone' }}</p>
+          <p class="text-slate-600 text-sm">
+            <a href="javascript:void(0)" onclick="{% if job_card.vehicle.client.phone %}fetch('/mechanic/log_call/{{ job_card.id }}', {method: 'POST', headers: {'X-CSRFToken': '{{ csrf_token() }}'}}).then(() => window.location.href='tel:{{ job_card.vehicle.client.phone }}');{% else %}alert('No phone number saved for this client. Please edit the client profile inside the Job Card.');{% endif %}" class="hover:text-indigo-600 transition" title="Call Client">
+              <i class="fas fa-phone mr-2 text-slate-400"></i>{{ job_card.vehicle.client.phone or 'No phone' }}
+            </a>
+          </p>
           <p class="text-slate-600 text-sm mt-1"><i class="fas fa-envelope mr-2 text-slate-400"></i>{{ job_card.vehicle.client.email or 'No email' }}</p>
         </div>
         <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
@@ -204,6 +208,7 @@
     </div>
   </div>
 {% endblock %}
+
 
 
 

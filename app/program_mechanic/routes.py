@@ -959,6 +959,16 @@ def log_call(job_id):
         
     phone = job_card.vehicle.client.phone or "Unknown"
     
+    from app.models.auth import InviteLog
+    ilog = InviteLog(
+        sender_id=current_user.id,
+        recipient_phone=phone,
+        program_slug="mechanic",
+        invite_type="Phone Call",
+        status="Logged"
+    )
+    db.session.add(ilog)
+    
     comm = MechCommunication(
         job_card_id=job_card.id,
         comm_type="Phone Call",
@@ -970,4 +980,5 @@ def log_call(job_id):
     db.session.commit()
     
     return {"status": "success"}
+
 

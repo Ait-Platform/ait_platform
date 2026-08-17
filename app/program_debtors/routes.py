@@ -899,3 +899,4 @@ def price_page():
     soa_cents = tariff.base_token_cost * 100 if tariff else 1000
 
     return render_template("program_debtors/price.html", price=price_ctx, subject=subject, countries=countries, soa_cents=soa_cents)
+

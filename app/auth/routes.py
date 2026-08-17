@@ -519,7 +519,7 @@ def register_decision():
         elif subject == "mechanic":
             return redirect(url_for("mechanic_bp.mechanic_dashboard"))
         elif subject == "cptd":
-            return redirect(url_for("cptd_bp.hub_dashboard"))
+            return redirect(url_for("cptd_bp.hub"))
 
     # ---------- SPECIAL CASE: MECHANIC FLAT ZAR REGISTRATION ----------
     if subject == "mechanic":
@@ -1280,7 +1280,7 @@ def bridge_dashboard():
         elif slug == 'billing':
             return redirect(url_for('billing_bp.learner_dashboard'))
         elif slug == 'cptd':
-            return redirect(url_for('cptd_bp.hub_dashboard'))
+            return redirect(url_for('cptd_bp.hub'))
         elif slug == 'mechanic':
             return redirect(url_for('mechanic_bp.mechanic_dashboard'))
         elif slug == 'hds':

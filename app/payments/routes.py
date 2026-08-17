@@ -201,19 +201,31 @@ def wallet_topup(subject_slug):
     enrollment = UserEnrollment.query.filter_by(user_id=current_user.id, subject_id=auth_subject.id).first()
     if enrollment:
         country_code = enrollment.country_code or session.get("country_code", "")
-        # Pull price directly from UserEnrollment
+        # Rule: 100 Tokens = 100 Local Currency units (10000 cents)
         if enrollment.local_currency and enrollment.local_amount_cents:
             currency = enrollment.local_currency
-            price_cents = enrollment.local_amount_cents
-            zar_price_cents = enrollment.zar_amount_cents or 10000
+            price_cents = 10000
+            if currency == "ZAR":
+                zar_price_cents = 10000
+            elif enrollment.zar_amount_cents:
+                exchange_rate = enrollment.zar_amount_cents / enrollment.local_amount_cents
+                zar_price_cents = int(price_cents * exchange_rate)
+            else:
+                zar_price_cents = 10000
         else:
             # Fall back to live quote if enrollment price is missing
             from app.enrollment.logic import get_quote_for_subject_country
             quote = get_quote_for_subject_country(auth_subject.id, country_code)
             if quote:
                 currency = quote.local_currency or "ZAR"
-                price_cents = quote.local_amount_cents or 10000
-                zar_price_cents = quote.zar_amount_cents or 10000
+                price_cents = 10000
+                if currency == "ZAR":
+                    zar_price_cents = 10000
+                elif quote.local_amount_cents and quote.zar_amount_cents:
+                    exchange_rate = quote.zar_amount_cents / quote.local_amount_cents
+                    zar_price_cents = int(price_cents * exchange_rate)
+                else:
+                    zar_price_cents = 10000
             
     if currency == "USD": currency_symbol = "$"
     elif currency == "GBP": currency_symbol = "£"

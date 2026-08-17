@@ -390,13 +390,7 @@ def email_document(id):
         # VERY IMPORTANT: doc_url must be the public job card URL
         doc_url = url_for('mechanic_bp.public_job_card', job_number=job_card.job_number, _external=True)
 
-        body = f"Hello,
-
-Your {doc_type} #{job_card.job_number} is ready. You can view it here: {doc_url}
-
-We have also attached a PDF copy for your records.
-
-Thank you for choosing us!"
+        body = f"Hello,\n\nYour {doc_type} #{job_card.job_number} is ready. You can view it here: {doc_url}\n\nWe have also attached a PDF copy for your records.\n\nThank you for choosing us!"
         
         # Prepare HTML Email Body
         letterhead_html = ""
@@ -1055,6 +1049,7 @@ def log_call(job_id):
     db.session.commit()
     
     return {"status": "success"}
+
 
 
 

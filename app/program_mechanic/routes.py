@@ -365,7 +365,12 @@ def job_card_detail(id):
 @mechanic_bp.route("/mechanic/email/<int:id>", methods=["GET", "POST"])
 @login_required
 def email_document(id):
-    from app.utils.mailer import send_email
+    from app.utils.mailer import send_email, send_pdf_email
+    from app.utils.pdf_render import html_to_pdf_bytes
+    from datetime import datetime
+    from flask_mail import Message
+    from app.extensions import mail
+    
     job_card = MechJobCard.query.get_or_404(id)
 
     doc_type = "Invoice" if job_card.status == 'Billed' else "Quote"
@@ -379,12 +384,21 @@ def email_document(id):
             flash("Please provide an email address.", "warning")
             return redirect(url_for('mechanic_bp.email_document', id=id))
 
-        subject = f"Your {doc_type} #{job_card.job_number} from AIT ProTrade"
-        doc_url = url_for('mechanic_bp.job_card_detail', id=id, _external=True)
-
-        body = f"Hello,\n\nYour {doc_type} #{job_card.job_number} is ready. You can view it here: {doc_url}\n\nThank you for choosing us!"
-        
         active_shop = MechShop.query.filter_by(user_id=current_user.id, onboarding_status='active').first()
+        subject = f"Your {doc_type} #{job_card.job_number} from {active_shop.business_name if active_shop else 'AIT ProTrade'}"
+        
+        # VERY IMPORTANT: doc_url must be the public job card URL
+        doc_url = url_for('mechanic_bp.public_job_card', job_number=job_card.job_number, _external=True)
+
+        body = f"Hello,
+
+Your {doc_type} #{job_card.job_number} is ready. You can view it here: {doc_url}
+
+We have also attached a PDF copy for your records.
+
+Thank you for choosing us!"
+        
+        # Prepare HTML Email Body
         letterhead_html = ""
         if active_shop and active_shop.use_custom_letterhead and active_shop.letterhead_url:
             lh_url = url_for('static', filename=f'uploads/mechanic/{active_shop.letterhead_url}', _external=True)
@@ -397,11 +411,28 @@ def email_document(id):
             <p style="text-align: center; margin: 30px 0;">
                 <a href='{doc_url}' style="background-color: #4f46e5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">View {doc_type}</a>
             </p>
+            <p>We have also attached a PDF copy for your convenience.</p>
             <p>Thank you for choosing us!</p>
         </div>"""
 
-        success = send_email(subject=subject, recipients=[
-                             target_email], body=body, html=html)
+        # Generate PDF Attachment
+        today_date = datetime.utcnow().strftime('%Y-%m-%d')
+        pdf_html_content = render_template("program_mechanic/public_job_card.html", job_card=job_card, shop=active_shop, today_date=today_date)
+        
+        success = False
+        try:
+            pdf_bytes = html_to_pdf_bytes(pdf_html_content, base_url=request.host_url)
+            file_name = f"{'Invoice' if job_card.status == 'Billed' else 'Quote'}_{job_card.job_number}.pdf"
+            
+            msg = Message(subject=subject, recipients=[target_email], body=body, html=html)
+            msg.sender = current_app.config.get("MAIL_DEFAULT_SENDER")
+            msg.attach(file_name, "application/pdf", pdf_bytes)
+            mail.send(msg)
+            success = True
+        except Exception as e:
+            current_app.logger.error(f"Failed to generate/send PDF: {e}")
+            # Fallback to standard email without attachment
+            success = send_email(subject=subject, recipients=[target_email], body=body, html=html)
 
         if success:
             from app.models.mechanic import MechCommunication

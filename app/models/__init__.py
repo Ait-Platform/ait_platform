@@ -32,3 +32,7 @@ import app.models.healthcore
 
 from .cptd import CptdRegistration, CptdProgress, CptdEvaluation
 __all__.extend(['CptdRegistration', 'CptdProgress', 'CptdEvaluation'])
+
+from .sace import SaceDocument
+__all__.extend(['SaceDocument'])
+

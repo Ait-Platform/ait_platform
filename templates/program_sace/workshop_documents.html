@@ -1,0 +1,115 @@
+{% extends "layout.html" %}
+{% block title %}Workshop Documents{% endblock %}
+
+{% block flashes %}{% endblock %}
+
+{% block content %}
+<div class="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100">
+  <div class="h-2 w-full bg-teal-600"></div>
+  
+  <div class="p-6 sm:p-8">
+    {% include "partials/flash_messages.html" %}
+    
+    <div class="flex justify-between items-center mb-6">
+      <h1 class="text-2xl font-bold text-slate-900">Reading Workshop Documents</h1>
+      <a href="{{ url_for('sace_bp.reading_hub') }}" class="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 transition">
+        Back to Reading Hub
+      </a>
+    </div>
+      <p class="text-slate-600 mb-8">Download the official SACE compliance documents below. These documents fulfill the requirements for the Reading (LITRE Method) CPTD Workshop.</p>
+      
+      <div class="space-y-4">
+        
+        <!-- Annexure A -->
+        <div class="flex items-center justify-between p-4 border border-slate-200 rounded-xl hover:bg-slate-50 transition">
+          <div class="flex items-center gap-4">
+            <div class="h-12 w-12 bg-indigo-100 text-indigo-600 rounded-lg flex items-center justify-center font-bold text-xl">A</div>
+            <div>
+              <h3 class="font-bold text-slate-800">Annexure A</h3>
+              <p class="text-sm text-slate-500">Programme & Timetable</p>
+            </div>
+          </div>
+          {% if doc_dict.get('annexure_a') %}
+          <a href="{{ url_for('sace_bp.download_document', doc_id=doc_dict.get('annexure_a').id) }}" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-sm transition">
+            <i class="fas fa-download mr-1"></i> Download PDF
+          </a>
+          {% else %}
+          <button disabled class="px-4 py-2 bg-slate-300 text-slate-500 font-bold rounded-lg cursor-not-allowed">Not Uploaded</button>
+          {% endif %}
+        </div>
+
+        <!-- Annexure B -->
+        <div class="flex items-center justify-between p-4 border border-slate-200 rounded-xl hover:bg-slate-50 transition">
+          <div class="flex items-center gap-4">
+            <div class="h-12 w-12 bg-indigo-100 text-indigo-600 rounded-lg flex items-center justify-center font-bold text-xl">B</div>
+            <div>
+              <h3 class="font-bold text-slate-800">Annexure B</h3>
+              <p class="text-sm text-slate-500">Facilitator Presentation Outline</p>
+            </div>
+          </div>
+          {% if doc_dict.get('annexure_b') %}
+          <a href="{{ url_for('sace_bp.download_document', doc_id=doc_dict.get('annexure_b').id) }}" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-sm transition">
+            <i class="fas fa-download mr-1"></i> Download PDF
+          </a>
+          {% else %}
+          <button disabled class="px-4 py-2 bg-slate-300 text-slate-500 font-bold rounded-lg cursor-not-allowed">Not Uploaded</button>
+          {% endif %}
+        </div>
+
+        <!-- Annexure C -->
+        <div class="flex items-center justify-between p-4 border border-slate-200 rounded-xl hover:bg-slate-50 transition">
+          <div class="flex items-center gap-4">
+            <div class="h-12 w-12 bg-indigo-100 text-indigo-600 rounded-lg flex items-center justify-center font-bold text-xl">C</div>
+            <div>
+              <h3 class="font-bold text-slate-800">Annexure C</h3>
+              <p class="text-sm text-slate-500">Learning Activities / Participant Material</p>
+            </div>
+          </div>
+          {% if doc_dict.get('annexure_c') %}
+          <a href="{{ url_for('sace_bp.download_document', doc_id=doc_dict.get('annexure_c').id) }}" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-sm transition">
+            <i class="fas fa-download mr-1"></i> Download PDF
+          </a>
+          {% else %}
+          <button disabled class="px-4 py-2 bg-slate-300 text-slate-500 font-bold rounded-lg cursor-not-allowed">Not Uploaded</button>
+          {% endif %}
+        </div>
+
+        <!-- Annexure D -->
+        <div class="flex items-center justify-between p-4 border border-slate-200 rounded-xl hover:bg-slate-50 transition">
+          <div class="flex items-center gap-4">
+            <div class="h-12 w-12 bg-indigo-100 text-indigo-600 rounded-lg flex items-center justify-center font-bold text-xl">D</div>
+            <div>
+              <h3 class="font-bold text-slate-800">Annexure D</h3>
+              <p class="text-sm text-slate-500">Assessment Tools & Evaluation Criteria</p>
+            </div>
+          </div>
+          {% if doc_dict.get('annexure_d') %}
+          <a href="{{ url_for('sace_bp.download_document', doc_id=doc_dict.get('annexure_d').id) }}" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-sm transition">
+            <i class="fas fa-download mr-1"></i> Download PDF
+          </a>
+          {% else %}
+          <button disabled class="px-4 py-2 bg-slate-300 text-slate-500 font-bold rounded-lg cursor-not-allowed">Not Uploaded</button>
+          {% endif %}
+        </div>
+
+        <!-- Annexure E -->
+        <div class="flex items-center justify-between p-4 border border-slate-200 rounded-xl hover:bg-slate-50 transition">
+          <div class="flex items-center gap-4">
+            <div class="h-12 w-12 bg-indigo-100 text-indigo-600 rounded-lg flex items-center justify-center font-bold text-xl">E</div>
+            <div>
+              <h3 class="font-bold text-slate-800">Annexure E</h3>
+              <p class="text-sm text-slate-500">Facilitator Guide</p>
+            </div>
+          </div>
+          {% if doc_dict.get('annexure_e') %}
+          <a href="{{ url_for('sace_bp.download_document', doc_id=doc_dict.get('annexure_e').id) }}" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-sm transition">
+            <i class="fas fa-download mr-1"></i> Download PDF
+          </a>
+          {% else %}
+          <button disabled class="px-4 py-2 bg-slate-300 text-slate-500 font-bold rounded-lg cursor-not-allowed">Not Uploaded</button>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}

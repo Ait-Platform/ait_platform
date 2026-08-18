@@ -43,3 +43,30 @@ def compliance_evidence():
     import datetime
     today = datetime.datetime.utcnow().strftime('%Y-%m-%d')
     return render_template("program_sace/compliance/evidence.html", today=today)
+from flask import send_from_directory
+import os
+
+@sace_bp.route("/sace/reading")
+@login_required
+def reading_hub():
+    from app.models.sace import SaceDocument
+    app_form = SaceDocument.query.filter_by(slug='reading', document_type='application_form').first()
+    return render_template("program_sace/reading_hub.html", app_form=app_form)
+
+@sace_bp.route("/sace/reading/workshop")
+@login_required
+def reading_workshop_docs():
+    from app.models.sace import SaceDocument
+    docs = SaceDocument.query.filter_by(slug='reading').all()
+    doc_dict = {d.document_type: d for d in docs}
+    return render_template("program_sace/workshop_documents.html", doc_dict=doc_dict)
+
+@sace_bp.route("/sace/download/<int:doc_id>")
+@login_required
+def download_document(doc_id):
+    from app.models.sace import SaceDocument
+    doc = SaceDocument.query.get_or_404(doc_id)
+    # file_path is like 'uploads/sace/filename.pdf'
+    # we need to send it from static folder
+    directory = os.path.join(current_app.static_folder)
+    return send_from_directory(directory, doc.file_path, as_attachment=True, download_name=doc.file_name)

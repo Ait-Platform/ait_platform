@@ -1,0 +1,72 @@
+{% extends "layout.html" %}
+{% block title %}SACE Reading Hub{% endblock %}
+
+{% block flashes %}{% endblock %}
+
+{% block content %}
+<div class="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100">
+  <div class="h-2 w-full bg-teal-600"></div>
+  
+  <div class="p-6 sm:p-8">
+    {% include "partials/flash_messages.html" %}
+    
+    <div class="flex justify-between items-center mb-6">
+      <h1 class="text-2xl font-bold text-slate-900">Reading (LITRE Method) Evaluation Package</h1>
+      <a href="{{ url_for('sace_bp.dashboard') }}" class="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 transition">
+        Back to Activity Hub
+      </a>
+    </div>
+    
+    <p class="text-slate-600 mb-8">Please review the Application Form, the associated Workshop Documents (Annexures A-E), and interact with our digital platform module for endorsement.</p>
+      
+    <div class="grid md:grid-cols-3 gap-6">
+        
+        <!-- Application Form -->
+        <div class="flex flex-col p-6 border border-slate-200 rounded-xl bg-slate-50 hover:bg-slate-100 transition shadow-sm">
+            <div class="flex items-center justify-between mb-4">
+                <div class="h-12 w-12 bg-indigo-100 text-indigo-600 rounded-lg flex items-center justify-center font-bold text-xl"><i class="fas fa-file-pdf"></i></div>
+            </div>
+            <h3 class="text-xl font-bold text-slate-900 mb-2">Application Form</h3>
+            <p class="text-sm text-slate-600 mb-6 flex-grow">The official SACE CPTD Endorsement application form containing provider details.</p>
+            
+            {% if app_form %}
+            <a href="{{ url_for('sace_bp.download_document', doc_id=app_form.id) }}" class="w-full text-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-sm transition">
+                <i class="fas fa-download mr-1"></i> Download PDF
+            </a>
+            {% else %}
+            <button disabled class="w-full text-center px-4 py-2 bg-slate-300 text-slate-500 font-bold rounded-lg cursor-not-allowed">
+                Not Uploaded Yet
+            </button>
+            {% endif %}
+        </div>
+
+        <!-- Workshop Documents -->
+        <a href="{{ url_for('sace_bp.reading_workshop_docs') }}" class="flex flex-col p-6 border-2 border-teal-500 rounded-xl bg-teal-50 hover:bg-teal-100 transition shadow-sm group">
+            <div class="flex items-center justify-between mb-4">
+                <div class="h-12 w-12 bg-teal-600 text-white rounded-lg flex items-center justify-center font-bold text-xl"><i class="fas fa-folder-open"></i></div>
+            </div>
+            <h3 class="text-xl font-bold text-slate-900 mb-2">Workshop Documents</h3>
+            <p class="text-sm text-slate-600 mb-6 flex-grow">Contains Annexures A-E: Timetable, Presentations, Activities, Assessments, and Facilitator Guide.</p>
+            
+            <div class="w-full text-center px-4 py-2 bg-teal-600 text-white font-bold rounded-lg shadow-sm group-hover:bg-teal-700 transition">
+                View Annexures &rarr;
+            </div>
+        </a>
+
+        <!-- AIT Reading Module -->
+        <a href="{{ url_for('cptd_bp.reading_timetable') }}" target="_blank" class="flex flex-col p-6 border border-slate-200 rounded-xl bg-slate-50 hover:bg-slate-100 transition shadow-sm group">
+            <div class="flex items-center justify-between mb-4">
+                <div class="h-12 w-12 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center font-bold text-xl"><i class="fas fa-laptop-code"></i></div>
+            </div>
+            <h3 class="text-xl font-bold text-slate-900 mb-2">AIT Reading Module</h3>
+            <p class="text-sm text-slate-600 mb-6 flex-grow">Access the live digital platform that educators will use during the workshop (Platform Access Evidence).</p>
+            
+            <div class="w-full text-center px-4 py-2 bg-blue-600 text-white font-bold rounded-lg shadow-sm group-hover:bg-blue-700 transition">
+                Launch Module <i class="fas fa-external-link-alt ml-1"></i>
+            </div>
+        </a>
+
+    </div>
+  </div>
+</div>
+{% endblock %}

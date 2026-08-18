@@ -1,5 +1,5 @@
 {% extends "layout.html" %}
-{% block title %}SACE Compliance Documents{% endblock %}
+{% block title %}SACE Activity Hub{% endblock %}
 
 {% block flashes %}{% endblock %}
 
@@ -11,102 +11,60 @@
     {% include "partials/flash_messages.html" %}
     
     <div class="flex justify-between items-center mb-6">
-      <h1 class="text-2xl font-bold text-slate-900">SACE Compliance Documents</h1>
+      <h1 class="text-2xl font-bold text-slate-900">SACE Activity Evaluation Hub</h1>
       <a href="{{ url_for('public_bp.welcome') }}" class="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 transition">
-        Back
+        Logout
       </a>
     </div>
-      <p class="text-slate-600 mb-8">Click on any of the documents below to view and print them. These documents fulfill the SACE requirements for the Reading (LITRE Method) CPTD Workshop.</p>
+    
+    <p class="text-slate-600 mb-8">Welcome to the AIT SACE Evaluator Portal. Please select an activity below to review its complete compliance documentation and digital learning modules.</p>
       
-      <div class="space-y-4">
+    <div class="grid md:grid-cols-2 gap-6">
         
-        <!-- Annexure A -->
-        <div class="flex items-center justify-between p-4 border border-slate-200 rounded-xl hover:bg-slate-50 transition">
-          <div class="flex items-center gap-4">
-            <div class="h-12 w-12 bg-indigo-100 text-indigo-600 rounded-lg flex items-center justify-center font-bold text-xl">A</div>
-            <div>
-              <h3 class="font-bold text-slate-800">Annexure A</h3>
-              <p class="text-sm text-slate-500">Programme & Timetable</p>
+        <!-- Reading (OPEN) -->
+        <a href="{{ url_for('sace_bp.reading_hub') }}" class="flex flex-col p-6 border-2 border-teal-500 rounded-xl bg-teal-50 hover:bg-teal-100 transition shadow-sm group">
+            <div class="flex items-center justify-between mb-4">
+                <div class="h-12 w-12 bg-teal-600 text-white rounded-lg flex items-center justify-center font-bold text-xl"><i class="fas fa-book-open"></i></div>
+                <span class="bg-teal-200 text-teal-800 text-xs px-2 py-1 rounded-full font-bold uppercase tracking-wide">Open for Review</span>
             </div>
-          </div>
-          <a href="{{ url_for('sace_bp.annexure_a') }}" target="_blank" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-sm transition">
-            <i class="fas fa-print mr-1"></i> Print
-          </a>
+            <h3 class="text-xl font-bold text-slate-900 mb-2">Reading (LITRE Method)</h3>
+            <p class="text-sm text-slate-600 mb-4 flex-grow">Comprehensive documentation and digital module access for the LITRE English reading methodology.</p>
+            <div class="flex items-center text-teal-700 font-bold text-sm group-hover:underline">
+                Review Package &rarr;
+            </div>
+        </a>
+
+        <!-- HOME (CLOSED) -->
+        <div class="flex flex-col p-6 border border-slate-200 rounded-xl bg-slate-50 opacity-75 cursor-not-allowed">
+            <div class="flex items-center justify-between mb-4">
+                <div class="h-12 w-12 bg-slate-200 text-slate-500 rounded-lg flex items-center justify-center font-bold text-xl"><i class="fas fa-calculator"></i></div>
+                <span class="bg-slate-200 text-slate-600 text-xs px-2 py-1 rounded-full font-bold uppercase tracking-wide"><i class="fas fa-lock mr-1"></i> Upcoming</span>
+            </div>
+            <h3 class="text-xl font-bold text-slate-700 mb-2">HOME (Math)</h3>
+            <p class="text-sm text-slate-500 mb-4 flex-grow">Hands-on Math Education evaluation package. Currently undergoing internal review.</p>
         </div>
 
-        <!-- Annexure B -->
-        <div class="flex items-center justify-between p-4 border border-slate-200 rounded-xl hover:bg-slate-50 transition">
-          <div class="flex items-center gap-4">
-            <div class="h-12 w-12 bg-indigo-100 text-indigo-600 rounded-lg flex items-center justify-center font-bold text-xl">B</div>
-            <div>
-              <h3 class="font-bold text-slate-800">Annexure B</h3>
-              <p class="text-sm text-slate-500">Facilitator Presentation Outline</p>
+        <!-- CFI (CLOSED) -->
+        <div class="flex flex-col p-6 border border-slate-200 rounded-xl bg-slate-50 opacity-75 cursor-not-allowed">
+            <div class="flex items-center justify-between mb-4">
+                <div class="h-12 w-12 bg-slate-200 text-slate-500 rounded-lg flex items-center justify-center font-bold text-xl"><i class="fas fa-theater-masks"></i></div>
+                <span class="bg-slate-200 text-slate-600 text-xs px-2 py-1 rounded-full font-bold uppercase tracking-wide"><i class="fas fa-lock mr-1"></i> Upcoming</span>
             </div>
-          </div>
-          <a href="{{ url_for('sace_bp.annexure_b') }}" target="_blank" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-sm transition">
-            <i class="fas fa-print mr-1"></i> Print
-          </a>
+            <h3 class="text-xl font-bold text-slate-700 mb-2">CFI (Cultural Fire)</h3>
+            <p class="text-sm text-slate-500 mb-4 flex-grow">Speech, Drama and English evaluation package. Not yet open for SACE review.</p>
         </div>
 
-        <!-- Annexure C -->
-        <div class="flex items-center justify-between p-4 border border-slate-200 rounded-xl hover:bg-slate-50 transition">
-          <div class="flex items-center gap-4">
-            <div class="h-12 w-12 bg-indigo-100 text-indigo-600 rounded-lg flex items-center justify-center font-bold text-xl">C</div>
-            <div>
-              <h3 class="font-bold text-slate-800">Annexure C</h3>
-              <p class="text-sm text-slate-500">Learning Activities / Participant Material</p>
+        <!-- LOSS (CLOSED) -->
+        <div class="flex flex-col p-6 border border-slate-200 rounded-xl bg-slate-50 opacity-75 cursor-not-allowed">
+            <div class="flex items-center justify-between mb-4">
+                <div class="h-12 w-12 bg-slate-200 text-slate-500 rounded-lg flex items-center justify-center font-bold text-xl"><i class="fas fa-hands-helping"></i></div>
+                <span class="bg-slate-200 text-slate-600 text-xs px-2 py-1 rounded-full font-bold uppercase tracking-wide"><i class="fas fa-lock mr-1"></i> Upcoming</span>
             </div>
-          </div>
-          <a href="{{ url_for('sace_bp.annexure_c') }}" target="_blank" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-sm transition">
-            <i class="fas fa-print mr-1"></i> Print
-          </a>
+            <h3 class="text-xl font-bold text-slate-700 mb-2">LOSS (Life Sciences)</h3>
+            <p class="text-sm text-slate-500 mb-4 flex-grow">School Counselling and Life Sciences evaluation package. Not yet open for SACE review.</p>
         </div>
 
-        <!-- Annexure D -->
-        <div class="flex items-center justify-between p-4 border border-slate-200 rounded-xl hover:bg-slate-50 transition">
-          <div class="flex items-center gap-4">
-            <div class="h-12 w-12 bg-indigo-100 text-indigo-600 rounded-lg flex items-center justify-center font-bold text-xl">D</div>
-            <div>
-              <h3 class="font-bold text-slate-800">Annexure D</h3>
-              <p class="text-sm text-slate-500">Assessment Tools & Evaluation Criteria</p>
-            </div>
-          </div>
-          <a href="{{ url_for('sace_bp.annexure_d') }}" target="_blank" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-sm transition">
-            <i class="fas fa-print mr-1"></i> Print
-          </a>
-        </div>
-
-        <!-- Annexure E -->
-        <div class="flex items-center justify-between p-4 border border-slate-200 rounded-xl hover:bg-slate-50 transition">
-          <div class="flex items-center gap-4">
-            <div class="h-12 w-12 bg-indigo-100 text-indigo-600 rounded-lg flex items-center justify-center font-bold text-xl">E</div>
-            <div>
-              <h3 class="font-bold text-slate-800">Annexure E</h3>
-              <p class="text-sm text-slate-500">Facilitator Guide</p>
-            </div>
-          </div>
-          <a href="{{ url_for('sace_bp.annexure_e') }}" target="_blank" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-sm transition">
-            <i class="fas fa-print mr-1"></i> Print
-          </a>
-        </div>
-
-        <!-- Evidence -->
-        <div class="flex items-center justify-between p-4 border border-slate-200 rounded-xl hover:bg-slate-50 transition">
-          <div class="flex items-center gap-4">
-            <div class="h-12 w-12 bg-green-100 text-green-600 rounded-lg flex items-center justify-center font-bold text-xl"><i class="fas fa-certificate"></i></div>
-            <div>
-              <h3 class="font-bold text-slate-800">Platform Evidence</h3>
-              <p class="text-sm text-slate-500">AIT Platform Access Evidence (System Generated)</p>
-            </div>
-          </div>
-          <a href="{{ url_for('sace_bp.compliance_evidence') }}" target="_blank" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg shadow-sm transition">
-            <i class="fas fa-print mr-1"></i> Print
-          </a>
-        </div>
-
-      </div>
     </div>
   </div>
+</div>
 {% endblock %}
-
-

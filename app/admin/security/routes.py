@@ -218,3 +218,98 @@ def global_settings():
     return render_template("admin/settings.html", settings=settings_dict, bil_settings=bil_settings)
 
 
+@admin_bp.route('/security/sace-management', methods=['GET', 'POST'], endpoint='sace_management')
+@login_required
+def sace_management():
+    if not (session.get('is_admin') or session.get('role') == 'admin'):
+        return redirect(url_for('public_bp.welcome'))
+        
+    from app.models.auth import User, UserEnrollment
+    try:
+        from app.models.subject import AuthSubject
+    except ImportError:
+        from app.models.auth import AuthSubject
+        
+    from app.models.sace import SaceDocument
+    from werkzeug.security import generate_password_hash
+    from werkzeug.utils import secure_filename
+    import os
+    
+    sace_subject = AuthSubject.query.filter_by(slug='sace').first()
+    upload_folder = os.path.join(current_app.static_folder, 'uploads', 'sace')
+    os.makedirs(upload_folder, exist_ok=True)
+    
+    if request.method == 'POST':
+        action = request.form.get('action')
+        
+        if action == 'create_evaluator':
+            name = request.form.get('name')
+            email = request.form.get('email')
+            password = request.form.get('password')
+            
+            if User.query.filter_by(email=email).first():
+                flash('Email already exists.', 'error')
+            else:
+                user = User(
+                    name=name,
+                    email=email,
+                    password_hash=generate_password_hash(password),
+                    is_active=1
+                )
+                db.session.add(user)
+                db.session.commit()
+                
+                # Enroll in SACE subject to grant access
+                if sace_subject:
+                    enrollment = UserEnrollment(
+                        user_id=user.id,
+                        subject_id=sace_subject.id,
+                        status='active'
+                    )
+                    db.session.add(enrollment)
+                    db.session.commit()
+                    flash(f'Created evaluator account for {email} and granted SACE access.', 'success')
+                else:
+                    flash('SACE subject not found in database.', 'error')
+                    
+        elif action == 'upload_document':
+            slug = request.form.get('slug')
+            doc_type = request.form.get('document_type')
+            file = request.files.get('file')
+            
+            if not file or file.filename == '':
+                flash('No file selected.', 'error')
+            else:
+                filename = secure_filename(file.filename)
+                save_path = os.path.join(upload_folder, f"{slug}_{doc_type}_{filename}")
+                file.save(save_path)
+                
+                # Update or create document record
+                existing_doc = SaceDocument.query.filter_by(slug=slug, document_type=doc_type).first()
+                if existing_doc:
+                    existing_doc.file_name = filename
+                    existing_doc.file_path = f"uploads/sace/{slug}_{doc_type}_{filename}"
+                    from datetime import datetime
+                    existing_doc.uploaded_at = datetime.utcnow()
+                else:
+                    new_doc = SaceDocument(
+                        slug=slug,
+                        document_type=doc_type,
+                        file_name=filename,
+                        file_path=f"uploads/sace/{slug}_{doc_type}_{filename}"
+                    )
+                    db.session.add(new_doc)
+                db.session.commit()
+                flash(f'Successfully uploaded {doc_type} for {slug}.', 'success')
+                    
+    # Get list of evaluators
+    evaluators = []
+    if sace_subject:
+        enrollments = UserEnrollment.query.filter_by(subject_id=sace_subject.id, status='active').all()
+        evaluators = [e.user for e in enrollments]
+        
+    documents = SaceDocument.query.all()
+    
+    return render_template('admin/security/sace_management.html', evaluators=evaluators, documents=documents)
+
+

@@ -235,7 +235,7 @@ def sace_management():
     from werkzeug.utils import secure_filename
     import os
     
-    sace_subject = AuthSubject.query.filter_by(slug='sace').first()
+    sace_subject = AuthSubject.query.filter_by(slug='sace_hub').first()
     upload_folder = os.path.join(current_app.static_folder, 'uploads', 'sace')
     os.makedirs(upload_folder, exist_ok=True)
     

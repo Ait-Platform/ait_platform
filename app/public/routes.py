@@ -23,24 +23,66 @@ BRIDGE_EP = "auth_bp.bridge_dashboard"
 @public_bp.route("/fix-sace")
 def fix_sace():
     from app.models.auth import AuthSubject
-    subjects = AuthSubject.query.all()
-    for s in subjects:
-        # 1. Hide CPTD from welcome and fix its broken start endpoint
-        if 'cptd' in s.name.lower() or s.slug == 'cptd':
-            s.show_on_welcome = False
-            s.start_endpoint = 'cptd_bp.hub'
-            s.bypass_dashboard_endpoint = 'cptd_bp.hub'
-            
-        # 2. Show SACE on welcome, point it to the dashboard (which requires login)
-        if 'sace' in s.name.lower() or s.slug == 'sace':
-            s.name = 'SACE Activity Approval Hub'
-            s.show_on_welcome = True
-            s.about_endpoint = 'auth_bp.login'
-            s.bypass_dashboard_endpoint = 'sace_bp.dashboard'
-            s.start_endpoint = 'sace_bp.dashboard'
+    
+    # 1. Deactivate old ones
+    old_subjects = AuthSubject.query.filter(
+        AuthSubject.slug.in_(['sace', 'cptd']) |
+        AuthSubject.name.ilike('%cptd%') |
+        AuthSubject.name.ilike('%sace%')
+    ).all()
+    
+    for s in old_subjects:
+        if s.slug == 'sace_hub':
+            continue
+        s.is_active = 0
+        if s.slug in ['sace', 'cptd']:
+            s.slug = f"{s.slug}_old_{s.id}"
+        s.show_on_welcome = False
+        s.is_hidden_on_bridge = True
             
     db.session.commit()
-    return "Database updated successfully! Please go back to the Welcome page."
+    
+    # 2. Create or update the new SACE Hub
+    new_sace = AuthSubject.query.filter_by(slug='sace_hub').first()
+    if not new_sace:
+        new_sace = AuthSubject(
+            slug="sace_hub",
+            name="SACE Activity Approval Hub",
+            is_active=1,
+            sort_order=100,
+            commercial_mode="free",
+            program_type="free",
+            enroll_policy="auto_enroll",
+            processor_default="yoco",
+            show_on_welcome=True,
+            about_endpoint="auth_bp.login",
+            bypass_dashboard_endpoint="sace_bp.dashboard",
+            start_endpoint="sace_bp.dashboard",
+            is_hidden_on_bridge=False
+        )
+        db.session.add(new_sace)
+    else:
+        new_sace.name = "SACE Activity Approval Hub"
+        new_sace.is_active = 1
+        new_sace.show_on_welcome = True
+        new_sace.is_hidden_on_bridge = False
+        new_sace.about_endpoint = "auth_bp.login"
+        new_sace.about_endpoint = "auth_bp.login"
+        new_sace.bypass_dashboard_endpoint = "sace_bp.dashboard"
+        new_sace.start_endpoint = "sace_bp.dashboard"
+        
+    db.session.commit()
+    
+    # 3. Migrate enrollments from old 'sace' to 'sace_hub'
+    from app.models.auth import UserEnrollment
+    for old_s in old_subjects:
+        if 'old' in old_s.slug:
+            enrollments = UserEnrollment.query.filter_by(subject_id=old_s.id).all()
+            for e in enrollments:
+                e.subject_id = new_sace.id
+    db.session.commit()
+    
+    return "Database updated successfully! Old tiles removed, new SACE Hub created, and enrollments migrated. Please go back to the Welcome page."
 
 @public_bp.route("/privacy-policy")
 def privacy_policy():

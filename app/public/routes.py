@@ -84,9 +84,7 @@ def fix_sace():
             enrollments = UserEnrollment.query.filter_by(subject_id=old_s.id).all()
             for e in enrollments:
                 existing = UserEnrollment.query.filter_by(user_id=e.user_id, subject_id=new_sace.id).first()
-                if existing:
-                    db.session.delete(e)
-                else:
+                if not existing:
                     e.subject_id = new_sace.id
     db.session.commit()
     

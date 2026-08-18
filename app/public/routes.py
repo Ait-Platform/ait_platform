@@ -20,6 +20,22 @@ public_bp = Blueprint("public_bp", __name__, template_folder="../../templates")
 
 BRIDGE_EP = "auth_bp.bridge_dashboard"
 
+@public_bp.route("/fix-sace")
+def fix_sace():
+    from app.models.auth import AuthSubject
+    subjects = AuthSubject.query.all()
+    for s in subjects:
+        # Hide CPTD and SACE from welcome
+        if 'sace' in s.name.lower() or 'cptd' in s.name.lower() or 'sace' in s.slug.lower():
+            s.show_on_welcome = False
+            
+        # Rename SACE Evaluation & Endorsement to SACE Activity Approval Hub
+        if 'sace evaluation' in s.name.lower() or s.slug == 'sace':
+            s.name = 'SACE Activity Approval Hub'
+            
+    db.session.commit()
+    return "Database updated successfully! Please go back to the Welcome page."
+
 @public_bp.route("/privacy-policy")
 def privacy_policy():
     return render_template("public/privacy_policy.html")

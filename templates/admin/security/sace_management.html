@@ -25,9 +25,9 @@
 
             <div class="grid md:grid-cols-2 gap-8">
                 
-                <!-- Create Evaluator -->
+                <!-- Create Personnel -->
                 <div class="bg-slate-50 rounded-xl p-6 border border-slate-200 shadow-sm">
-                    <h2 class="text-xl font-bold text-slate-800 mb-4">Create SACE Evaluator</h2>
+                    <h2 class="text-xl font-bold text-slate-800 mb-4">Create SACE Personnel Account</h2>
                     <p class="text-slate-600 text-sm mb-6">Manually create an account for a SACE official. They will bypass registration and get automatic access to the SACE Hub.</p>
                     
                     <form method="POST" action="{{ url_for('admin_bp.sace_management') }}">
@@ -53,28 +53,28 @@
                         </div>
                     </form>
 
-                    <h3 class="text-md font-bold text-slate-800 mt-8 mb-4">Existing Evaluators</h3>
-                    <div class="bg-white rounded border border-slate-200 overflow-hidden">
-                        <ul class="divide-y divide-slate-200">
+                    <h3 class="text-md font-bold text-slate-800 mt-8 mb-4">Existing SACE Personnel</h3>
+                    <ul class="border rounded-lg divide-y bg-slate-50 overflow-hidden shadow-inner">
+                        {% if evaluators %}
                             {% for user in evaluators %}
                             <li class="px-4 py-3 flex justify-between items-center text-sm">
                                 <div>
-                                    <span class="font-medium text-slate-900">{{ user.name }}</span>
-                                    <span class="text-slate-500 block">{{ user.email }}</span>
+                                    <div class="font-bold text-slate-700">{{ user.name }}</div>
+                                    <div class="text-sm text-slate-500">{{ user.email }}</div>
                                 </div>
-                                <span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full font-bold">Active</span>
+                                <span class="bg-indigo-100 text-indigo-700 px-2 py-1 rounded text-xs font-bold">Enrolled</span>
                             </li>
-                            {% else %}
-                            <li class="px-4 py-3 text-slate-500 text-sm italic">No evaluators registered.</li>
                             {% endfor %}
-                        </ul>
-                    </div>
+                        {% else %}
+                            <li class="px-4 py-3 text-slate-500 text-sm italic">No personnel registered.</li>
+                        {% endif %}
+                    </ul>
                 </div>
 
                 <!-- Document Management -->
                 <div class="bg-slate-50 rounded-xl p-6 border border-slate-200 shadow-sm">
-                    <h2 class="text-xl font-bold text-slate-800 mb-4">Upload Compliance Documents</h2>
-                    <p class="text-slate-600 text-sm mb-6">Upload the PDF packages for SACE endorsement. Evaluators will download these from their portal.</p>
+                    <h2 class="text-xl font-bold text-slate-800 mb-2">Document Management</h2>
+                    <p class="text-slate-600 text-sm mb-6">Upload the PDF packages for SACE endorsement. SACE personnel will download these from their portal.</p>
                     
                     <form method="POST" action="{{ url_for('admin_bp.sace_management') }}" enctype="multipart/form-data">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>

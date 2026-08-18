@@ -268,7 +268,7 @@ def sace_management():
                     )
                     db.session.add(enrollment)
                     db.session.commit()
-                    flash(f'Created evaluator account for {email} and granted SACE access.', 'success')
+                    flash(f'Created SACE personnel account for {email} and granted access.', 'success')
                 else:
                     flash('SACE subject not found in database.', 'error')
                     

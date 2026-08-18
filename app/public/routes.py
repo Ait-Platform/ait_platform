@@ -25,13 +25,19 @@ def fix_sace():
     from app.models.auth import AuthSubject
     subjects = AuthSubject.query.all()
     for s in subjects:
-        # Hide CPTD and SACE from welcome
-        if 'sace' in s.name.lower() or 'cptd' in s.name.lower() or 'sace' in s.slug.lower():
+        # 1. Hide CPTD from welcome and fix its broken start endpoint
+        if 'cptd' in s.name.lower() or s.slug == 'cptd':
             s.show_on_welcome = False
+            s.start_endpoint = 'cptd_bp.hub'
+            s.bypass_dashboard_endpoint = 'cptd_bp.hub'
             
-        # Rename SACE Evaluation & Endorsement to SACE Activity Approval Hub
-        if 'sace evaluation' in s.name.lower() or s.slug == 'sace':
+        # 2. Show SACE on welcome, point it to the dashboard (which requires login)
+        if 'sace' in s.name.lower() or s.slug == 'sace':
             s.name = 'SACE Activity Approval Hub'
+            s.show_on_welcome = True
+            s.about_endpoint = 'auth_bp.login'
+            s.bypass_dashboard_endpoint = 'sace_bp.dashboard'
+            s.start_endpoint = 'sace_bp.dashboard'
             
     db.session.commit()
     return "Database updated successfully! Please go back to the Welcome page."

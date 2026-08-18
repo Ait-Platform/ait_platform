@@ -32,6 +32,7 @@ WHERE
         )
     )
   )
+  AND COALESCE(s.is_hidden_on_bridge, false) = false
   AND (
     COALESCE(s.program_type, '') != 'admin'
     OR (SELECT is_admin_global FROM globals) = 1

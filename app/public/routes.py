@@ -67,9 +67,13 @@ def fix_sace():
         new_sace.show_on_welcome = True
         new_sace.is_hidden_on_bridge = False
         new_sace.about_endpoint = "auth_bp.login"
-        new_sace.about_endpoint = "auth_bp.login"
         new_sace.bypass_dashboard_endpoint = "sace_bp.dashboard"
         new_sace.start_endpoint = "sace_bp.dashboard"
+        new_sace.commercial_mode = "free"
+        new_sace.program_type = "free"
+        new_sace.enroll_policy = "auto_enroll"
+        new_sace.requires_price = 0
+        new_sace.processor_default = "yoco"
         
     db.session.commit()
     

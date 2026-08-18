@@ -149,12 +149,15 @@
             </button>
           </div>
           <p class="font-bold text-slate-900 text-lg mb-1">{{ job_card.vehicle.client.name }}</p>
-          <p class="text-slate-600 text-sm">
-            <a href="javascript:void(0)" onclick="{% if job_card.vehicle.client.phone %}document.getElementById('contact-modal').classList.remove('hidden'){% else %}alert('No phone number saved for this client. Please edit the client profile.');{% endif %}" class="hover:text-indigo-600 transition" title="Contact Client">
-                <i class="fas fa-phone mr-2 text-slate-400"></i>{{ job_card.vehicle.client.phone or 'No phone' }}
+          <div class="flex items-center gap-3">
+            <a href="javascript:void(0)" onclick="document.getElementById('contact-modal').classList.remove('hidden')" class="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 hover:text-slate-800 transition" title="Contact Client">
+                <i class="fas fa-phone-alt"></i>
             </a>
-          </p>
-          <p class="text-slate-600 text-sm mt-1"><i class="fas fa-envelope mr-2 text-slate-400"></i>{{ job_card.vehicle.client.email or 'No email' }}</p>
+            <div class="text-sm">
+                <p class="text-slate-600"><i class="fas fa-phone mr-2 text-slate-400"></i>{{ job_card.vehicle.client.phone or 'No phone' }}</p>
+                <p class="text-slate-600"><i class="fas fa-envelope mr-2 text-slate-400"></i>{{ job_card.vehicle.client.email or 'No email' }}</p>
+            </div>
+          </div>
         </div>
         <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
           <h3 class="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2">Vehicle Details</h3>
@@ -304,6 +307,25 @@
             <p class="mt-2 text-sm text-slate-500">How would you like to contact {{ job_card.vehicle.client.name }} ({{ job_card.vehicle.client.phone }})?</p>
           </div>
           <div class="p-6">
+            {% if not job_card.vehicle.client.phone or not job_card.vehicle.client.email %}
+            <div class="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-lg text-left">
+              <p class="text-sm text-amber-800 font-bold mb-3">Missing Contact Details. Please update:</p>
+              <form method="POST" action="{{ url_for('mechanic_bp.update_client', client_id=job_card.vehicle.client.id, job_id=job_card.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="grid grid-cols-1 gap-3 mb-3">
+                  {% if not job_card.vehicle.client.phone %}
+                  <input type="text" name="phone" placeholder="Phone Number" class="w-full rounded-md border-slate-300 p-2 text-sm" required>
+                  {% endif %}
+                  {% if not job_card.vehicle.client.email %}
+                  <input type="email" name="email" placeholder="Email Address" class="w-full rounded-md border-slate-300 p-2 text-sm" required>
+                  {% endif %}
+                </div>
+                <button type="submit" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-2 px-4 rounded transition text-sm">Save Details</button>
+              </form>
+            </div>
+            {% endif %}
+            
+            {% if job_card.vehicle.client.phone %}
             <div class="grid grid-cols-1 gap-4">
               <form method="POST" action="{{ url_for('mechanic_bp.log_call', job_id=job_card.id) }}" target="_blank" onsubmit="setTimeout(() => { document.getElementById('contact-modal').classList.add('hidden'); window.location.reload(); }, 1000);">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -323,6 +345,9 @@
                 </button>
               </form>
             </div>
+            {% else %}
+            <p class="text-sm text-slate-500 text-center italic mt-2">Please save a phone number above to enable WhatsApp and Phone calls.</p>
+            {% endif %}
           </div>
           <div class="px-6 py-4 bg-slate-50 flex justify-end rounded-b-xl border-t border-slate-100">
             <button type="button" onclick="document.getElementById('contact-modal').classList.add('hidden')" class="px-5 py-2.5 rounded-lg border border-slate-300 text-slate-700 font-bold hover:bg-slate-100 transition">Cancel</button>

@@ -46,6 +46,7 @@
                     >
                 </div>
                 
+                {% if doc_type != 'SOA' %}
                 <div class="mb-4 bg-slate-50 border border-slate-200 rounded-lg p-4">
                     <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Optional: Log Communications</p>
                     <label class="flex items-center gap-3 mb-3 cursor-pointer">
@@ -57,6 +58,7 @@
                         <span class="text-sm font-medium text-slate-700">I have also called the client via phone</span>
                     </label>
                 </div>
+                {% endif %}
                 
                 <!-- Row 2: Secondary buttons right-aligned -->
                 <div class="flex justify-end gap-3 mt-8 border-t border-slate-100 pt-6">

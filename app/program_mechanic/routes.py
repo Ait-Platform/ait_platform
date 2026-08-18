@@ -373,7 +373,7 @@ def email_document(id):
     
     job_card = MechJobCard.query.get_or_404(id)
 
-    doc_type = "Invoice" if job_card.status == 'Billed' else "Quote"
+    doc_type = "SOA" if job_card.status in ['Approved', 'Billed'] else "Quote"
     default_email = ""
     if job_card.vehicle and job_card.vehicle.client and job_card.vehicle.client.email:
         default_email = job_card.vehicle.client.email

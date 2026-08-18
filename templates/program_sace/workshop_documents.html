@@ -16,7 +16,7 @@
         Back to Reading Hub
       </a>
     </div>
-      <p class="text-slate-600 mb-8">Download the official SACE compliance documents below. These documents fulfill the requirements for the Reading (LITRE Method) CPTD Workshop.</p>
+      <p class="text-slate-600 mb-8">View the official digital SACE compliance documents below. These documents fulfill the requirements for the Reading (LITRE Method) CPTD Workshop.</p>
       
       <div class="space-y-4">
         
@@ -29,13 +29,9 @@
               <p class="text-sm text-slate-500">Programme & Timetable</p>
             </div>
           </div>
-          {% if doc_dict.get('annexure_a') %}
-          <a href="{{ url_for('sace_bp.download_document', doc_id=doc_dict.get('annexure_a').id) }}" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-sm transition">
-            <i class="fas fa-download mr-1"></i> Download PDF
+          <a href="{{ url_for('sace_bp.annexure_a') }}" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-sm transition">
+            <i class="fas fa-eye mr-1"></i> View Document
           </a>
-          {% else %}
-          <button disabled class="px-4 py-2 bg-slate-300 text-slate-500 font-bold rounded-lg cursor-not-allowed">Not Uploaded</button>
-          {% endif %}
         </div>
 
         <!-- Annexure B -->
@@ -47,13 +43,9 @@
               <p class="text-sm text-slate-500">Facilitator Presentation Outline</p>
             </div>
           </div>
-          {% if doc_dict.get('annexure_b') %}
-          <a href="{{ url_for('sace_bp.download_document', doc_id=doc_dict.get('annexure_b').id) }}" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-sm transition">
-            <i class="fas fa-download mr-1"></i> Download PDF
+          <a href="{{ url_for('sace_bp.annexure_b') }}" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-sm transition">
+            <i class="fas fa-eye mr-1"></i> View Document
           </a>
-          {% else %}
-          <button disabled class="px-4 py-2 bg-slate-300 text-slate-500 font-bold rounded-lg cursor-not-allowed">Not Uploaded</button>
-          {% endif %}
         </div>
 
         <!-- Annexure C -->
@@ -65,13 +57,9 @@
               <p class="text-sm text-slate-500">Learning Activities / Participant Material</p>
             </div>
           </div>
-          {% if doc_dict.get('annexure_c') %}
-          <a href="{{ url_for('sace_bp.download_document', doc_id=doc_dict.get('annexure_c').id) }}" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-sm transition">
-            <i class="fas fa-download mr-1"></i> Download PDF
+          <a href="{{ url_for('sace_bp.annexure_c') }}" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-sm transition">
+            <i class="fas fa-eye mr-1"></i> View Document
           </a>
-          {% else %}
-          <button disabled class="px-4 py-2 bg-slate-300 text-slate-500 font-bold rounded-lg cursor-not-allowed">Not Uploaded</button>
-          {% endif %}
         </div>
 
         <!-- Annexure D -->
@@ -83,13 +71,9 @@
               <p class="text-sm text-slate-500">Assessment Tools & Evaluation Criteria</p>
             </div>
           </div>
-          {% if doc_dict.get('annexure_d') %}
-          <a href="{{ url_for('sace_bp.download_document', doc_id=doc_dict.get('annexure_d').id) }}" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-sm transition">
-            <i class="fas fa-download mr-1"></i> Download PDF
+          <a href="{{ url_for('sace_bp.annexure_d') }}" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-sm transition">
+            <i class="fas fa-eye mr-1"></i> View Document
           </a>
-          {% else %}
-          <button disabled class="px-4 py-2 bg-slate-300 text-slate-500 font-bold rounded-lg cursor-not-allowed">Not Uploaded</button>
-          {% endif %}
         </div>
 
         <!-- Annexure E -->
@@ -101,13 +85,9 @@
               <p class="text-sm text-slate-500">Facilitator Guide</p>
             </div>
           </div>
-          {% if doc_dict.get('annexure_e') %}
-          <a href="{{ url_for('sace_bp.download_document', doc_id=doc_dict.get('annexure_e').id) }}" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-sm transition">
-            <i class="fas fa-download mr-1"></i> Download PDF
+          <a href="{{ url_for('sace_bp.annexure_e') }}" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-sm transition">
+            <i class="fas fa-eye mr-1"></i> View Document
           </a>
-          {% else %}
-          <button disabled class="px-4 py-2 bg-slate-300 text-slate-500 font-bold rounded-lg cursor-not-allowed">Not Uploaded</button>
-          {% endif %}
         </div>
       </div>
     </div>

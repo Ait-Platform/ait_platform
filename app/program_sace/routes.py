@@ -69,4 +69,4 @@ def download_document(doc_id):
     # file_path is like 'uploads/sace/filename.pdf'
     # we need to send it from static folder
     directory = os.path.join(current_app.static_folder)
-    return send_from_directory(directory, doc.file_path, as_attachment=True, download_name=doc.file_name)
+    return send_from_directory(directory, doc.file_path)

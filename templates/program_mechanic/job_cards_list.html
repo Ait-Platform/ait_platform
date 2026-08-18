@@ -80,7 +80,7 @@
                           </div>
                           <div class="p-6">
                             <div class="grid grid-cols-1 gap-4">
-                              <form method="POST" action="{{ url_for('mechanic_bp.log_contact', job_id=job.id) }}" target="_blank" onsubmit="setTimeout(() => { document.getElementById('contact-modal-{{ job.id }}').classList.add('hidden'); window.location.reload(); }, 1000);">
+                              <form method="POST" action="{{ url_for('mechanic_bp.log_call', job_id=job.id) }}" target="_blank" onsubmit="setTimeout(() => { document.getElementById('contact-modal-{{ job.id }}').classList.add('hidden'); window.location.reload(); }, 1000);">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <input type="hidden" name="contact_type" value="WhatsApp">
                                 <button type="submit" onclick="window.location.href='https://wa.me/{{ job.vehicle.client.phone|replace(' ', '')|replace('+', '')|replace('-', '') }}'" class="w-full flex items-center justify-center gap-3 px-4 py-3 bg-[#25D366] text-white rounded-lg font-bold hover:bg-[#128C7E] transition shadow-sm">
@@ -89,7 +89,7 @@
                                 </button>
                               </form>
                               
-                              <form method="POST" action="{{ url_for('mechanic_bp.log_contact', job_id=job.id) }}" target="_blank" onsubmit="setTimeout(() => { document.getElementById('contact-modal-{{ job.id }}').classList.add('hidden'); window.location.reload(); }, 1000);">
+                              <form method="POST" action="{{ url_for('mechanic_bp.log_call', job_id=job.id) }}" target="_blank" onsubmit="setTimeout(() => { document.getElementById('contact-modal-{{ job.id }}').classList.add('hidden'); window.location.reload(); }, 1000);">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <input type="hidden" name="contact_type" value="Phone Call">
                                 <button type="submit" onclick="window.location.href='tel:{{ job.vehicle.client.phone }}'" class="w-full flex items-center justify-center gap-3 px-4 py-3 bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-700 transition shadow-sm">

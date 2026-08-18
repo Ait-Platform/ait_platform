@@ -1058,3 +1058,16 @@ def log_call(job_id):
 
 
 
+
+@mechanic_bp.route('/mechanic/public/job_card/<job_number>')
+def public_job_card(job_number):
+    from app.models.mechanic import MechJobCard, MechShop
+    from datetime import datetime
+    
+    job_card = MechJobCard.query.filter_by(job_number=job_number).first_or_404()
+    shop = None
+    if job_card.vehicle and job_card.vehicle.client and job_card.vehicle.client.user_id:
+        shop = MechShop.query.filter_by(user_id=job_card.vehicle.client.user_id).first()
+        
+    today_date = datetime.utcnow().strftime('%Y-%m-%d')
+    return render_template('program_mechanic/public_job_card.html', job_card=job_card, shop=shop, today_date=today_date)

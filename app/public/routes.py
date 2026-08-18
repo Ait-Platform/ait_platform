@@ -83,7 +83,11 @@ def fix_sace():
         if 'old' in old_s.slug:
             enrollments = UserEnrollment.query.filter_by(subject_id=old_s.id).all()
             for e in enrollments:
-                e.subject_id = new_sace.id
+                existing = UserEnrollment.query.filter_by(user_id=e.user_id, subject_id=new_sace.id).first()
+                if existing:
+                    db.session.delete(e)
+                else:
+                    e.subject_id = new_sace.id
     db.session.commit()
     
     return "Database updated successfully! Old tiles removed, new SACE Hub created, and enrollments migrated. Please go back to the Welcome page."

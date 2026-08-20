@@ -650,6 +650,7 @@ def generate_soa(debtor_id):
         period_opening_balance = running_balance
 
     return_url = request.args.get('return_url')
+    is_pdf_request = (request.args.get('pdf') == '1')
     html_content = render_template("program_debtors/soa_template.html",
                                    debtor=debtor,
                                    ledgers=period_ledgers,
@@ -659,7 +660,8 @@ def generate_soa(debtor_id):
                                    start_date=start_date,
                                    end_date=end_date,
                                    bank_account=bank_account,
-                                   return_url=return_url)
+                                   return_url=return_url,
+                                   is_pdf=is_pdf_request)
 
     if request.args.get('pdf') == '1':
         try:
@@ -776,7 +778,8 @@ def email_soa():
                                    period_opening_balance=period_opening_balance,
                                    bank_account=bank_account,
                                    start_date=start_date,
-                                   end_date=end_date)
+                                   end_date=end_date,
+                                   is_pdf=True)
 
     try:
         pdf_bytes = html_to_pdf_bytes(html_content, base_url=request.host_url)

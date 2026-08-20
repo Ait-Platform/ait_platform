@@ -33,7 +33,7 @@
           </h1>
           <p class="mt-1 text-sm text-slate-500">Created: {{ job_card.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
       </div>
-      <a href="{{ url_for('mechanic_bp.mechanic_dashboard') }}" class="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition shadow-sm">
+      <a href="{{ url_for('mechanic_bp.job_cards_list') }}" class="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition shadow-sm">
         <span>&larr;</span><span>Back</span>
       </a>
     </div>

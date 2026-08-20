@@ -372,6 +372,11 @@ def email_document(id):
     from app.extensions import mail
     
     job_card = MechJobCard.query.get_or_404(id)
+    
+    client = job_card.vehicle.client if job_card.vehicle else None
+    if client and (not client.email or not client.phone):
+        flash("Please fill in both the client's email and phone number before sending documents.", "warning")
+        return redirect(url_for('mechanic_bp.job_card_detail', id=job_card.id))
 
     doc_type = "SOA" if job_card.status in ['Approved', 'Billed'] else "Quote"
     default_email = ""

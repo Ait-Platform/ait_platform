@@ -86,6 +86,12 @@ def create_app(test_config=None):
     # ⬇ add this near the end of create_app, before `return app`
     with app.app_context():
         db.create_all()
+        try:
+            db.session.execute(text("ALTER TABLE mech_shops ADD COLUMN shadow_spent_cents INTEGER DEFAULT 0;"))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
         
         try:
             db.session.execute(text("ALTER TABLE crm_practice ADD COLUMN clearing_house_provider VARCHAR(50);"))

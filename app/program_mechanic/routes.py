@@ -776,8 +776,6 @@ def client_soa(client_id):
     return redirect(url_for('debtors_bp.generate_soa', debtor_id=debtor.id))
 
 
-@mechanic_bp.route("/mechanic/quote/new", methods=["GET", "POST"])
-@login_required
 @mechanic_bp.route("/mechanic/quote/<int:id>/edit", methods=["GET", "POST"])
 @login_required
 def edit_quote(id):

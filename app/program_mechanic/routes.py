@@ -1375,8 +1375,8 @@ def reject_quote(id):
         # Log communication for the rejection reason
         comm = MechCommunication(
             job_card_id=job_card.id,
-            contact_type="Quote Rejected",
-            details=f"Reason: {reason}"
+            comm_type="System",
+            message=f"Quote Rejected. Reason: {reason}"
         )
         db.session.add(comm)
         db.session.commit()

@@ -389,6 +389,16 @@ document.addEventListener("DOMContentLoaded", function() {
     </div>
   </div>
 
+
+        <!-- Terms and Conditions -->
+        {% if shop and shop.terms_and_conditions %}
+        <div class="mt-8 bg-slate-50 border border-slate-200 rounded-xl p-5 shadow-sm">
+          <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wider mb-2">Terms & Conditions</h3>
+          <div class="text-sm text-slate-600 whitespace-pre-line">{{ shop.terms_and_conditions }}</div>
+          <p class="text-xs text-slate-400 mt-3 italic">This is automatically attached to the bottom of the PDF sent to the client. You can edit this in your Shop Settings on the Dashboard.</p>
+        </div>
+        {% endif %}
+
     <!-- Contact Client Modal -->
     <div id="contact-modal" class="fixed inset-0 z-50 hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
       <div class="flex items-end justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">

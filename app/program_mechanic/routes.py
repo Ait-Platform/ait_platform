@@ -885,6 +885,7 @@ def new_quote():
         if make: vehicle.make = make
         if model: vehicle.model = model
         if year: vehicle.year = year
+        if mileage and mileage.isdigit(): vehicle.mileage = int(mileage)
         # Check if an AJAX-uploaded filename was passed as hidden input
         hidden_filename = request.form.get("uploaded_disk_filename")
         if hidden_filename:

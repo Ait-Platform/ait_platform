@@ -57,6 +57,7 @@ class MechVehicle(db.Model):
     tare = db.Column(db.String(20))
     disk_license_no = db.Column(db.String(50))
     mileage = db.Column(db.Integer)
+    license_disk_url = db.Column(db.String(500))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     job_cards = db.relationship('MechJobCard', backref='vehicle', lazy=True)

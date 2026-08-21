@@ -71,6 +71,7 @@ class MechJobCard(db.Model):
     description = db.Column(db.Text)
     vat_rate = db.Column(db.Float, default=0.0)
     deposit_amount = db.Column(db.Float, default=0.0)
+    next_service_due = db.Column(db.String(100), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     completed_at = db.Column(db.DateTime)
     

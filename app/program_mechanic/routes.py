@@ -8,6 +8,23 @@ from sqlalchemy import text
 from app.extensions import db
 from . import mechanic_bp
 
+@mechanic_bp.route("/mechanic/debug_graham", methods=["GET"])
+@login_required
+def debug_graham():
+    from app.models.mechanic import MechClient, MechJobCard
+    clients = MechClient.query.all()
+    output = "CLIENTS:<br>"
+    for c in clients:
+        output += f"ID: {c.id}, Name: {c.name}, UserID: {c.user_id}<br>"
+    
+    jobs = MechJobCard.query.all()
+    output += "<br>JOBS:<br>"
+    for j in jobs:
+        output += f"ID: {j.id}, Job#: {j.job_number}, VehicleID: {j.vehicle_id}, Status: {j.status}<br>"
+        
+    return output
+
+
 @mechanic_bp.route("/mechanic/fix_quotes", methods=["GET"])
 @login_required
 def fix_quotes():

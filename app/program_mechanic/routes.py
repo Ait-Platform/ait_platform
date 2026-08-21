@@ -942,8 +942,8 @@ def job_cards_list():
     active_shop = MechShop.query.filter_by(user_id=current_user.id, onboarding_status='active').first()
     job_cards = []
     if active_shop:
-        job_cards = MechJobCard.query.filter(
-            MechJobCard.shop_id == active_shop.id
+        job_cards = MechJobCard.query.join(MechVehicle).join(MechClient).filter(
+            MechClient.user_id == current_user.id
         ).order_by(MechJobCard.created_at.desc()).all()
             
     # Get debtors with balances

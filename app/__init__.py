@@ -92,6 +92,18 @@ def create_app(test_config=None):
             db.session.commit()
         except Exception:
             db.session.rollback()
+        try:
+            db.session.execute(text("ALTER TABLE sender_profile ADD COLUMN letterhead_url VARCHAR(255);"))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+        try:
+            db.session.execute(text("ALTER TABLE sender_profile ADD COLUMN use_custom_letterhead BOOLEAN DEFAULT FALSE;"))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
             
         try:
             db.session.execute(text("ALTER TABLE crm_practice ADD COLUMN clearing_house_api_key VARCHAR(255);"))

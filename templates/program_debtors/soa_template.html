@@ -289,7 +289,7 @@
             {% for l in ledgers %}
             <tr class="{% if loop.index is even %}bg-gray-50{% else %}bg-white{% endif %}">
                 <td class="py-2 px-3 border border-gray-300 whitespace-nowrap">{{ l.txn_date.strftime('%Y-%m-%d') }}</td>
-                <td class="py-2 px-3 border border-gray-300">
+                <td class="py-2 px-3 border border-gray-300 break-words" style="word-wrap: break-word; overflow-wrap: break-word;">
                     <div class="font-medium text-gray-800">{{ l.description }}</div>
                     {% if l.ref %}<div class="text-xs text-gray-500">Ref: {{ l.ref }}</div>{% endif %}
                 </td>

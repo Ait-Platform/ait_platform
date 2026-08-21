@@ -158,7 +158,6 @@ document.addEventListener("DOMContentLoaded", function() {
         <div class="flex items-center justify-end gap-2 flex-wrap">
           {% if job_card.status == 'Quote' %}
               <a href="{{ url_for('mechanic_bp.edit_quote', id=job_card.id) }}" class="px-4 py-2 bg-slate-800 text-white font-bold rounded-lg hover:bg-slate-900 shadow-sm transition text-sm mr-2">Edit Quote</a>
-              <a href="{{ url_for('mechanic_bp.email_document', id=job_card.id) }}" class="px-4 py-2 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 shadow-sm transition text-sm mr-2"><i class="fas fa-paper-plane mr-2"></i>Send to Client</a>
               <form method="POST" action="{{ url_for('mechanic_bp.accept_quote', id=job_card.id) }}" class="inline m-0">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="px-4 py-2 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 shadow-sm transition text-sm">Mark as Accepted</button>

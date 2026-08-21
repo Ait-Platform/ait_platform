@@ -804,7 +804,7 @@ def new_quote():
         import uuid
         
         # Mock finding or creating client
-        client = MechClient.query.filter_by(name=customer_name).first()
+        client = MechClient.query.filter_by(name=customer_name, user_id=current_user.id).first()
         if not client:
             client = MechClient(name=customer_name, user_id=current_user.id)
             db.session.add(client)
@@ -942,12 +942,9 @@ def job_cards_list():
     active_shop = MechShop.query.filter_by(user_id=current_user.id, onboarding_status='active').first()
     job_cards = []
     if active_shop:
-        job_cards = MechJobCard.query.join(MechVehicle).join(MechClient).filter(
-            MechClient.user_id == current_user.id
+        job_cards = MechJobCard.query.filter(
+            MechJobCard.shop_id == active_shop.id
         ).order_by(MechJobCard.created_at.desc()).all()
-        # Fallback if clients weren't created with user_id
-        if not job_cards:
-            job_cards = MechJobCard.query.order_by(MechJobCard.created_at.desc()).limit(50).all()
             
     # Get debtors with balances
     from app.models.debtors import Debtor

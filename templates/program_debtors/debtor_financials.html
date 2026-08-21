@@ -14,7 +14,11 @@
                 <!-- Row 1: Title and Back button -->
                 <div class="flex justify-between items-center mb-4">
                     <h1 class="text-2xl font-bold text-gray-800">Financial Setup: {{ debtor.name }}</h1>
+                    {% if current_user.has_role('mechanic') %}
+                    <a href="{{ url_for('mechanic_bp.job_cards_list') }}" class="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 font-semibold text-sm shadow-sm transition">Back</a>
+                    {% else %}
                     <a href="{{ url_for('debtors_bp.dashboard') }}" class="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 font-semibold text-sm shadow-sm transition">Back</a>
+                    {% endif %}
                 </div>
                 <!-- Switch Debtor Dropdown -->
                 <div class="flex justify-end items-center mb-6">

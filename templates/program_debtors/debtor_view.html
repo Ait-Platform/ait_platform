@@ -19,7 +19,11 @@
                 {% if debtor.phone %}{{ debtor.phone }}{% endif %}
             </p>
         </div>
-        <a href="{{ url_for('debtors_bp.dashboard') }}" class="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 font-semibold text-sm shadow-sm transition">Back</a>
+        {% if current_user.has_role('mechanic') %}
+          <a href="{{ url_for('mechanic_bp.job_cards_list') }}" class="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 font-semibold text-sm shadow-sm transition">Back</a>
+          {% else %}
+          <a href="{{ url_for('debtors_bp.dashboard') }}" class="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 font-semibold text-sm shadow-sm transition">Back</a>
+          {% endif %}
       </div>
       
       <!-- Row 2: Any other buttons right aligned -->

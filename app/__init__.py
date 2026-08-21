@@ -123,6 +123,12 @@ def create_app(test_config=None):
             db.session.rollback()
 
         try:
+            db.session.execute(text("ALTER TABLE mech_vehicles DROP CONSTRAINT IF EXISTS mech_vehicles_vin_key;"))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+        try:
             db.session.execute(text("ALTER TABLE mech_vehicles ADD COLUMN mileage INTEGER;"))
             db.session.commit()
         except Exception:

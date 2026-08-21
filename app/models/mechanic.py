@@ -50,7 +50,7 @@ class MechVehicle(db.Model):
     make = db.Column(db.String(50))
     model = db.Column(db.String(50))
     year = db.Column(db.Integer)
-    vin = db.Column(db.String(50), unique=True)
+    vin = db.Column(db.String(50))
     license_plate = db.Column(db.String(20))
     engine_no = db.Column(db.String(50))
     gvm = db.Column(db.String(20))

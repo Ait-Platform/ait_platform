@@ -12,6 +12,8 @@ class SoaProfile(db.Model):
     email = db.Column(db.String(150), nullable=True)
     bank_details = db.Column(db.Text, nullable=True)
     logo_url = db.Column(db.String(500), nullable=True)
+    letterhead_url = db.Column(db.String(255))
+    use_custom_letterhead = db.Column(db.Boolean, default=False)
     interest_rate = db.Column(db.Float, default=2.0)
     
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -46,6 +48,8 @@ class SenderProfile(db.Model):
     phone = db.Column(db.String(50), nullable=True)
     email = db.Column(db.String(150), nullable=True)
     logo_url = db.Column(db.String(500), nullable=True)
+    letterhead_url = db.Column(db.String(255))
+    use_custom_letterhead = db.Column(db.Boolean, default=False)
     is_default = db.Column(db.Boolean, default=False)
     
     created_at = db.Column(db.DateTime, default=datetime.utcnow)

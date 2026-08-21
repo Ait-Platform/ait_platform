@@ -301,6 +301,21 @@ def onboarding_process():
         shop.letterhead_url = lh_filename
 
     db.session.commit()
+    
+    # Sync with SenderProfile for Debtors module
+    from app.models.debtors import SenderProfile
+    sender_profile = SenderProfile.query.filter_by(user_id=current_user.id, is_default=True).first()
+    if not sender_profile:
+        sender_profile = SenderProfile(user_id=current_user.id, is_default=True)
+        db.session.add(sender_profile)
+    sender_profile.business_name = shop.business_name
+    sender_profile.address = shop.address
+    sender_profile.phone = shop.phone
+    sender_profile.email = shop.email
+    sender_profile.logo_url = shop.logo_url
+    sender_profile.letterhead_url = shop.letterhead_url
+    sender_profile.use_custom_letterhead = shop.use_custom_letterhead
+    db.session.commit()
     flash("Shop profile successfully saved!", "success")
 
     return redirect(url_for("mechanic_bp.mechanic_dashboard"))
@@ -335,6 +350,12 @@ def update_client(client_id):
     client.phone = phone
     client.email = email
     
+    vin = request.form.get("vin")
+    if job_id and vin:
+        job_card = MechJobCard.query.get(job_id)
+        if job_card and job_card.vehicle:
+            job_card.vehicle.vin = vin
+    
     # Sync with Debtors profile if it exists
     debtor = Debtor.query.filter_by(
         reference_id=client.id, slug_reference='mechanic', user_id=current_user.id).first()
@@ -347,6 +368,10 @@ def update_client(client_id):
     db.session.commit()
     flash("Client details updated successfully.", "success")
     
+    return_url = request.args.get('return_url')
+    if return_url:
+        return redirect(return_url)
+    
     if job_id:
         return redirect(url_for('mechanic_bp.job_card_detail', id=job_id))
     return redirect(url_for('mechanic_bp.mechanic_dashboard'))
@@ -356,11 +381,58 @@ def update_client(client_id):
 def job_card_detail(id):
     from datetime import datetime
     from app.models.mechanic import MechCommunication
+    from app.models.debtors import Debtor
     job_card = MechJobCard.query.get_or_404(id)
     today_date = datetime.utcnow().strftime('%Y-%m-%d')
     communications = MechCommunication.query.filter_by(job_card_id=id).order_by(MechCommunication.created_at.desc()).all()
-    return render_template("program_mechanic/job_card.html", job_card=job_card, today_date=today_date, communications=communications)
+    
+    client_debtor = None
+    if job_card.vehicle and job_card.vehicle.client:
+        client_debtor = Debtor.query.filter(
+            Debtor.user_id == current_user.id,
+            Debtor.slug_reference == 'mechanic',
+            Debtor.name == job_card.vehicle.client.name
+        ).first()
 
+    return render_template("program_mechanic/job_card.html", job_card=job_card, today_date=today_date, communications=communications, client_debtor=client_debtor)
+
+
+
+@mechanic_bp.route("/mechanic/download/<int:id>", methods=["GET"])
+@login_required
+def download_document(id):
+    from app.utils.pdf_render import html_to_pdf_bytes
+    from datetime import datetime
+    import io
+    from flask import send_file
+    
+    job_card = MechJobCard.query.get_or_404(id)
+    
+    client = job_card.vehicle.client if job_card.vehicle else None
+    if (client and (not client.email or not client.phone)) or (job_card.vehicle and not job_card.vehicle.vin):
+        flash("Please fill in the client's email, phone, and vehicle VIN before generating documents.", "warning")
+        return redirect(url_for('mechanic_bp.job_card_detail', id=job_card.id))
+        
+    active_shop = MechShop.query.filter_by(user_id=current_user.id, onboarding_status='active').first()
+    today_date = datetime.utcnow().strftime('%Y-%m-%d')
+    
+    pdf_html_content = render_template("program_mechanic/public_job_card.html", job_card=job_card, shop=active_shop, today_date=today_date)
+    
+    try:
+        pdf_bytes = html_to_pdf_bytes(pdf_html_content, base_url=request.host_url)
+        doc_type = "Invoice" if job_card.status == 'Billed' else "Quote"
+        file_name = f"{doc_type}_{job_card.job_number}.pdf"
+        
+        return send_file(
+            io.BytesIO(pdf_bytes),
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=file_name
+        )
+    except Exception as e:
+        current_app.logger.error(f"Failed to generate PDF: {e}")
+        flash("Failed to generate PDF. Please try again.", "danger")
+        return redirect(url_for('mechanic_bp.job_card_detail', id=id))
 
 @mechanic_bp.route("/mechanic/email/<int:id>", methods=["GET", "POST"])
 @login_required
@@ -374,8 +446,8 @@ def email_document(id):
     job_card = MechJobCard.query.get_or_404(id)
     
     client = job_card.vehicle.client if job_card.vehicle else None
-    if client and (not client.email or not client.phone):
-        flash("Please fill in both the client's email and phone number before sending documents.", "warning")
+    if (client and (not client.email or not client.phone)) or (job_card.vehicle and not job_card.vehicle.vin):
+        flash("Please fill in the client's email, phone, and vehicle VIN before generating documents.", "warning")
         return redirect(url_for('mechanic_bp.job_card_detail', id=job_card.id))
 
     doc_type = "SOA" if job_card.status in ['Approved', 'Billed'] else "Quote"
@@ -395,7 +467,7 @@ def email_document(id):
         # VERY IMPORTANT: doc_url must be the public job card URL
         doc_url = url_for('mechanic_bp.public_job_card', job_number=job_card.job_number, _external=True)
 
-        body = f"Hello,\n\nYour {doc_type} #{job_card.job_number} is ready. You can view it here: {doc_url}\n\nWe have also attached a PDF copy for your records.\n\nThank you for choosing us!"
+        body = f"Hello,\n\nYour {doc_type} #{job_card.job_number} is ready. We have attached a PDF copy for your records.\n\nThank you for choosing us!"
         
         # Prepare HTML Email Body
         letterhead_html = ""
@@ -406,11 +478,8 @@ def email_document(id):
         html = f"""{letterhead_html}
         <div style="font-family: sans-serif; color: #334155; max-width: 600px; margin: 0 auto;">
             <p>Hello,</p>
-            <p>Your {doc_type} <strong>#{job_card.job_number}</strong> is ready. You can securely view and download it here:</p>
-            <p style="text-align: center; margin: 30px 0;">
-                <a href='{doc_url}' style="background-color: #4f46e5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">View {doc_type}</a>
-            </p>
-            <p>We have also attached a PDF copy for your convenience.</p>
+            <p>Your {doc_type} <strong>#{job_card.job_number}</strong> is ready. We have attached a PDF copy for your records.</p>
+            <br>
             <p>Thank you for choosing us!</p>
         </div>"""
 
@@ -731,8 +800,11 @@ def new_quote():
         # Mock finding or creating client
         client = MechClient.query.filter_by(name=customer_name).first()
         if not client:
-            client = MechClient(name=customer_name)
+            client = MechClient(name=customer_name, user_id=current_user.id)
             db.session.add(client)
+            db.session.flush()
+        elif not client.user_id:
+            client.user_id = current_user.id
             db.session.flush()
             
         vehicle = MechVehicle.query.filter_by(license_plate=vehicle_reg, client_id=client.id).first()
@@ -870,7 +942,23 @@ def job_cards_list():
         # Fallback if clients weren't created with user_id
         if not job_cards:
             job_cards = MechJobCard.query.order_by(MechJobCard.created_at.desc()).limit(50).all()
-    return render_template("program_mechanic/job_cards_list.html", job_cards=job_cards)
+            
+    # Get debtors with balances
+    from app.models.debtors import Debtor
+    debtors_with_balances = []
+    try:
+        all_debtors = Debtor.query.filter_by(user_id=current_user.id).all()
+        for d in all_debtors:
+            total_debits = sum(l.amount for l in d.ledgers if l.kind == 'debit')
+            total_credits = sum(l.amount for l in d.ledgers if l.kind == 'credit')
+            bal = total_debits - total_credits
+            if bal > 0:
+                d.current_balance = bal
+                debtors_with_balances.append(d)
+    except Exception as e:
+        current_app.logger.error(f"Error loading debtors: {e}")
+            
+    return render_template("program_mechanic/job_cards_list.html", job_cards=job_cards, debtors_with_balances=debtors_with_balances)
 
 
 @mechanic_bp.route("/upload_business_card", methods=["POST"])
@@ -1076,3 +1164,80 @@ def public_job_card(job_number):
         
     today_date = datetime.utcnow().strftime('%Y-%m-%d')
     return render_template('program_mechanic/public_job_card.html', job_card=job_card, shop=shop, today_date=today_date)
+
+@mechanic_bp.route("/mechanic/job_card/<int:id>/accept", methods=["POST"])
+@login_required
+def accept_quote(id):
+    job_card = MechJobCard.query.get_or_404(id)
+    if job_card.status == 'Quote':
+        job_card.status = 'Awaiting Deposit'
+        db.session.commit()
+        flash("Quote accepted! Waiting for deposit.", "success")
+    return redirect(url_for('mechanic_bp.job_card_detail', id=id))
+
+@mechanic_bp.route("/mechanic/job_card/<int:id>/reject", methods=["POST"])
+@login_required
+def reject_quote(id):
+    from app.models.mechanic import MechCommunication
+    job_card = MechJobCard.query.get_or_404(id)
+    reason = request.form.get("reason", "")
+    
+    if job_card.status == 'Quote':
+        job_card.status = 'Rejected'
+        
+        # Log communication for the rejection reason
+        comm = MechCommunication(
+            job_card_id=job_card.id,
+            contact_type="Quote Rejected",
+            details=f"Reason: {reason}"
+        )
+        db.session.add(comm)
+        db.session.commit()
+        flash("Quote marked as rejected.", "info")
+    return redirect(url_for('mechanic_bp.job_card_detail', id=id))
+
+@mechanic_bp.route("/mechanic/job_card/<int:id>/record_deposit", methods=["POST"])
+@login_required
+def record_deposit(id):
+    from app.models.debtors import Debtor, SenderProfile, DebtorLedger
+    from app.models.mechanic import MechShop
+    
+    job_card = MechJobCard.query.get_or_404(id)
+    deposit_amount = request.form.get("deposit_amount", type=float)
+    
+    if deposit_amount and deposit_amount > 0:
+        job_card.deposit_amount = (job_card.deposit_amount or 0) + deposit_amount
+        job_card.status = 'Approved' # Moving from Awaiting Deposit to Approved
+        
+        # Move to debtors!
+        client = job_card.vehicle.client
+        if client:
+            debtor = Debtor.query.filter_by(user_id=current_user.id, slug_reference='mechanic', name=client.name).first()
+            if not debtor:
+                sender_profile = SenderProfile.query.filter_by(user_id=current_user.id, is_default=True).first()
+                debtor = Debtor(
+                    user_id=current_user.id,
+                    name=client.name,
+                    phone=client.phone,
+                    email=client.email,
+                    slug_reference='mechanic',
+                    sender_profile_id=sender_profile.id if sender_profile else None
+                )
+                db.session.add(debtor)
+                db.session.flush() # get id
+                
+            # Log deposit as a credit transaction in DebtorLedger
+            ledger = DebtorLedger(
+                debtor_id=debtor.id,
+                date=db.func.current_date(),
+                ref=f"DEP-{job_card.job_number}",
+                description=f"Deposit for Job #{job_card.job_number}",
+                amount=deposit_amount,
+                kind="credit"
+            )
+            db.session.add(ledger)
+            
+        db.session.commit()
+        flash(f"Deposit of R {deposit_amount:.2f} recorded and synced to Debtors!", "success")
+        
+    return redirect(url_for('mechanic_bp.job_card_detail', id=id))

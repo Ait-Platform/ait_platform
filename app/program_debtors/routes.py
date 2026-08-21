@@ -594,8 +594,10 @@ def generate_soa(debtor_id):
                     address = shop.address if not profile else profile.address
                     phone = shop.phone if not profile else profile.phone
                     email = shop.email if not profile else profile.email
-                    logo_url = shop.letterhead_url if shop.use_custom_letterhead else shop.logo_url
+                    logo_url = shop.logo_url if not profile else getattr(profile, "logo_url", None)
+                    letterhead_url = shop.letterhead_url
                     use_custom_letterhead = shop.use_custom_letterhead
+                    terms_and_conditions = shop.terms_and_conditions
                 profile = MockProfile()
             else:
                 # Add the attribute dynamically so the template renders it
@@ -716,8 +718,10 @@ def email_soa():
                     address = shop.address if not profile else profile.address
                     phone = shop.phone if not profile else profile.phone
                     email = shop.email if not profile else profile.email
-                    logo_url = shop.letterhead_url if shop.use_custom_letterhead else shop.logo_url
+                    logo_url = shop.logo_url if not profile else getattr(profile, "logo_url", None)
+                    letterhead_url = shop.letterhead_url
                     use_custom_letterhead = shop.use_custom_letterhead
+                    terms_and_conditions = shop.terms_and_conditions
                 profile = MockProfile()
             else:
                 # Add the attribute dynamically so the template renders it

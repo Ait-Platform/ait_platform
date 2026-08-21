@@ -9,7 +9,7 @@
   <div class="w-full max-w-5xl bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
     
     <!-- Top Strip -->
-    <div class="h-2 w-full bg-indigo-500"></div>
+    <div class="h-2 w-full bg-slate-700"></div>
 
     <div class="px-6 pt-6 pb-2">
       {% include "partials/flash_messages.html" %}
@@ -141,6 +141,10 @@
       <div class="px-8 py-5 border-b border-slate-200 bg-slate-50 flex justify-between items-center rounded-t-2xl">
         <h3 class="font-extrabold text-slate-800 text-xl">Shop Profile Setup</h3>
         <button onclick="document.getElementById('manual-setup-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 text-3xl leading-none">&times;</button>
+      </div>
+
+      <div class="bg-blue-50 border-l-4 border-blue-500 p-4 text-sm text-blue-700 m-4 rounded">
+        <strong>Reminder:</strong> After setting up your shop here, don't forget to <a href="{{ url_for('debtors_bp.profile') }}" class="font-bold underline text-blue-800">add your Bank Account in the Debtors module</a> so your Statements of Account are complete!
       </div>
       
       <!-- Tabs Header -->

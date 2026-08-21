@@ -34,7 +34,18 @@
     <div class="invoice-box">
         <div class="header">
             {% if shop and shop.use_custom_letterhead and shop.letterhead_url %}
-            <img src="{{ url_for('static', filename='uploads/mechanic/' + shop.letterhead_url, _external=True) }}" alt="Shop Letterhead">
+              {% if shop.letterhead_url.startswith('http') %}
+                <img src="{{ shop.letterhead_url }}" alt="Shop Letterhead" style="max-height: 120px; width: 100%; object-fit: cover;">
+              {% else %}
+                <img src="{{ url_for('static', filename='uploads/mechanic/' + shop.letterhead_url, _external=True) }}" alt="Shop Letterhead" style="max-height: 120px; width: 100%; object-fit: cover;">
+              {% endif %}
+            {% elif shop and shop.logo_url %}
+              {% if shop.logo_url.startswith('http') %}
+                <img src="{{ shop.logo_url }}" alt="Shop Logo" style="max-height: 120px;">
+              {% else %}
+                <img src="{{ url_for('static', filename='uploads/mechanic/' + shop.logo_url, _external=True) }}" alt="Shop Logo" style="max-height: 120px;">
+              {% endif %}
+              <h1>{{ shop.business_name }}</h1>
             {% else %}
             <h1>{{ shop.business_name if shop else 'AIT ProTrade' }}</h1>
             {% endif %}
@@ -127,6 +138,14 @@
             </tbody>
         </table>
         
+        
+        {% if shop and shop.terms_and_conditions %}
+        <div style="margin-top: 40px; padding: 20px; border-top: 1px solid #e5e7eb; font-size: 11px; color: #6b7280;">
+            <h4 style="margin-top: 0; margin-bottom: 8px; color: #374151;">Terms & Conditions</h4>
+            <div style="white-space: pre-line;">{{ shop.terms_and_conditions }}</div>
+        </div>
+        {% endif %}
+
         <div class="footer">
             <p>Thank you for your business!</p>
             {% if shop %}

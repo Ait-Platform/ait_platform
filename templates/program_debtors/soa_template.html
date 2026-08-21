@@ -180,9 +180,9 @@
 <div class="max-w-4xl mx-auto bg-white p-10 shadow-lg print-container min-h-[1056px] border border-gray-200 relative">
     
         <!-- Header / Letterhead -->
-    {% if profile and profile.use_custom_letterhead and profile.logo_url %}
+    {% if profile and profile.use_custom_letterhead and profile.letterhead_url %}
     <div class="mb-8 w-full border-b-2 border-gray-800 pb-2">
-        <img src="{{ url_for('static', filename='uploads/mechanic/' + profile.logo_url, _external=True) }}" alt="Letterhead" class="w-full object-cover">
+        <img src="{{ url_for('static', filename='uploads/mechanic/' + profile.letterhead_url, _external=True) }}" alt="Letterhead" class="w-full object-cover">
     </div>
     {% else %}
     <div class="flex justify-between items-start border-b-2 border-gray-800 pb-6 mb-8">

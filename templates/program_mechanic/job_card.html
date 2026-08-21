@@ -9,7 +9,7 @@
   <div class="w-full max-w-4xl bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
     
     <!-- Top Strip -->
-    <div class="h-2 w-full bg-indigo-500"></div>
+    <div class="h-2 w-full bg-slate-700"></div>
 
     <div class="px-6 pt-6 pb-2">
       {% include "partials/flash_messages.html" %}
@@ -52,8 +52,17 @@
           </span>
         </div>
                   <div class="flex items-center gap-3">
-            {% if not job_card.vehicle.client.email or not job_card.vehicle.client.phone %}
-              <button type="button" onclick="document.getElementById('missing-contact-modal').classList.remove('hidden')" class="inline-flex items-center rounded-lg border border-indigo-200 bg-white px-4 py-2 text-sm font-semibold text-indigo-700 shadow-sm hover:bg-indigo-50 transition">
+            {% if not job_card.vehicle.client.email or not job_card.vehicle.client.phone or not job_card.vehicle.vin %}
+              <button type="button" onclick="document.getElementById('missing-contact-modal').classList.remove('hidden'); document.getElementById('missing-contact-form').action='{{ url_for('mechanic_bp.update_client', client_id=job_card.vehicle.client.id, job_id=job_card.id, return_url=url_for('mechanic_bp.download_document', id=job_card.id)) }}';" class="inline-flex items-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition">
+                <i class="fas fa-file-pdf mr-2"></i> Download PDF
+              </button>
+            {% else %}
+              <a href="{{ url_for('mechanic_bp.download_document', id=job_card.id) }}" class="inline-flex items-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition">
+                <i class="fas fa-file-pdf mr-2"></i> Download PDF
+              </a>
+            {% endif %}
+            {% if not job_card.vehicle.client.email or not job_card.vehicle.client.phone or not job_card.vehicle.vin %}
+              <button type="button" onclick="document.getElementById('missing-contact-modal').classList.remove('hidden'); document.getElementById('missing-contact-form').action='{{ url_for('mechanic_bp.update_client', client_id=job_card.vehicle.client.id, job_id=job_card.id, return_url=url_for('mechanic_bp.email_document', id=job_card.id)) }}';" class="inline-flex items-center rounded-lg border border-indigo-200 bg-white px-4 py-2 text-sm font-semibold text-indigo-700 shadow-sm hover:bg-indigo-50 transition">
                 <i class="fas fa-paper-plane mr-2"></i> Email {{ 'SOA' if job_card.status in ['Approved', 'Billed'] else 'Quote' }}
               </button>
             {% else %}
@@ -75,7 +84,7 @@
           </div>
           <p class="font-bold text-slate-900 text-lg mb-1">{{ job_card.vehicle.client.name }}</p>
           <div class="flex items-center gap-3">
-            <a href="javascript:void(0)" {% if not job_card.vehicle.client.email or not job_card.vehicle.client.phone %}onclick="document.getElementById('missing-contact-modal').classList.remove('hidden')"{% else %}onclick="document.getElementById('contact-modal').classList.remove('hidden')"{% endif %} class="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 hover:text-slate-800 transition" title="Contact Client">
+            <a href="javascript:void(0)" {% if not job_card.vehicle.client.email or not job_card.vehicle.client.phone or not job_card.vehicle.vin %}onclick="document.getElementById('missing-contact-modal').classList.remove('hidden')"{% else %}onclick="document.getElementById('contact-modal').classList.remove('hidden')"{% endif %} class="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 hover:text-slate-800 transition" title="Contact Client">
                 <i class="fas fa-phone-alt"></i>
             </a>
             <div class="text-sm">
@@ -190,9 +199,9 @@
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
           </button>
         </div>
-        <p class="text-slate-600 mb-6 text-sm">Please provide the client's email and phone number before proceeding.</p>
+        <p class="text-slate-600 mb-6 text-sm">Please provide the client's email, phone number, and vehicle VIN before proceeding.</p>
         
-        <form method="POST" action="{{ url_for('mechanic_bp.update_client', client_id=job_card.vehicle.client.id, job_id=job_card.id, return_url=url_for('mechanic_bp.email_document', id=job_card.id)) }}">
+        <form id="missing-contact-form" method="POST" action="{{ url_for('mechanic_bp.update_client', client_id=job_card.vehicle.client.id, job_id=job_card.id, return_url=url_for('mechanic_bp.email_document', id=job_card.id)) }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
           
           <div class="space-y-4">
@@ -203,6 +212,10 @@
             <div>
               <label class="block text-sm font-bold text-slate-700 mb-1">Email</label>
               <input type="email" name="email" value="{{ job_card.vehicle.client.email or '' }}" required class="block w-full rounded-lg border border-slate-300 focus:border-indigo-500 focus:ring-indigo-500 p-2">
+            </div>
+            <div>
+              <label class="block text-sm font-bold text-slate-700 mb-1">Vehicle VIN</label>
+              <input type="text" name="vin" value="{{ job_card.vehicle.vin or '' }}" required class="block w-full rounded-lg border border-slate-300 focus:border-indigo-500 focus:ring-indigo-500 p-2">
             </div>
           </div>
           

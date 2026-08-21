@@ -252,8 +252,8 @@ def onboarding_process():
         )
         db.session.add(shop)
 
-        shop.business_name = request.form.get(
-            "business_name") or "My Mechanic Shop"
+    
+    shop.business_name = request.form.get("business_name") or shop.business_name or "My Mechanic Shop"
     shop.address = request.form.get("address")
     shop.phone = request.form.get("phone")
     shop.email = request.form.get("email")
@@ -266,9 +266,9 @@ def onboarding_process():
     shop.vat_rate = vat_rate
 
     shop.terms_and_conditions = request.form.get("terms_and_conditions")
-    shop.use_custom_letterhead = True if request.form.get(
-        "use_custom_letterhead") else False
     shop.onboarding_status = 'active'
+    # Default to true if a checkbox is checked, but we'll override it later if they actually have a letterhead url
+    shop.use_custom_letterhead = True if request.form.get("use_custom_letterhead") else False
 
     logo_file = request.files.get("logo_file")
     if logo_file and logo_file.filename:
@@ -299,6 +299,11 @@ def onboarding_process():
         os.makedirs(upload_folder, exist_ok=True)
         letterhead_file.save(os.path.join(upload_folder, lh_filename))
         shop.letterhead_url = lh_filename
+        
+    if shop.letterhead_url:
+        shop.use_custom_letterhead = True
+    else:
+        shop.use_custom_letterhead = False
 
     db.session.commit()
     

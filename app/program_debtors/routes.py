@@ -587,21 +587,25 @@ def generate_soa(debtor_id):
             # We want to pull the Mechanic letterhead if the debtor sender profile lacks one
             has_logo = profile and getattr(profile, 'logo_url', None)
             
-            # If no profile, OR if the profile doesn't have a logo/letterhead, we use the shop's
-            if not profile or not has_logo:
+            # We now properly sync letterhead_url and use_custom_letterhead to SenderProfile
+            # so we only need MockProfile if there's no SenderProfile at all.
+            if not profile:
                 class MockProfile:
-                    business_name = shop.business_name if not profile else profile.business_name
-                    address = shop.address if not profile else profile.address
-                    phone = shop.phone if not profile else profile.phone
-                    email = shop.email if not profile else profile.email
-                    logo_url = shop.logo_url if not profile else getattr(profile, "logo_url", None)
+                    business_name = shop.business_name
+                    address = shop.address
+                    phone = shop.phone
+                    email = shop.email
+                    logo_url = shop.logo_url
                     letterhead_url = shop.letterhead_url
                     use_custom_letterhead = shop.use_custom_letterhead
                     terms_and_conditions = shop.terms_and_conditions
                 profile = MockProfile()
             else:
-                # Add the attribute dynamically so the template renders it
-                setattr(profile, 'use_custom_letterhead', False)
+                # If they have a profile, ensure the terms_and_conditions fallback exists
+                if not hasattr(profile, 'terms_and_conditions') or not profile.terms_and_conditions:
+                    setattr(profile, 'terms_and_conditions', shop.terms_and_conditions)
+                # It now natively has use_custom_letterhead and letterhead_url in the DB!
+
 
     if debtor.bank_account_id:
         bank_account = BusinessBankAccount.query.get(debtor.bank_account_id)
@@ -711,21 +715,25 @@ def email_soa():
             # We want to pull the Mechanic letterhead if the debtor sender profile lacks one
             has_logo = profile and getattr(profile, 'logo_url', None)
             
-            # If no profile, OR if the profile doesn't have a logo/letterhead, we use the shop's
-            if not profile or not has_logo:
+            # We now properly sync letterhead_url and use_custom_letterhead to SenderProfile
+            # so we only need MockProfile if there's no SenderProfile at all.
+            if not profile:
                 class MockProfile:
-                    business_name = shop.business_name if not profile else profile.business_name
-                    address = shop.address if not profile else profile.address
-                    phone = shop.phone if not profile else profile.phone
-                    email = shop.email if not profile else profile.email
-                    logo_url = shop.logo_url if not profile else getattr(profile, "logo_url", None)
+                    business_name = shop.business_name
+                    address = shop.address
+                    phone = shop.phone
+                    email = shop.email
+                    logo_url = shop.logo_url
                     letterhead_url = shop.letterhead_url
                     use_custom_letterhead = shop.use_custom_letterhead
                     terms_and_conditions = shop.terms_and_conditions
                 profile = MockProfile()
             else:
-                # Add the attribute dynamically so the template renders it
-                setattr(profile, 'use_custom_letterhead', False)
+                # If they have a profile, ensure the terms_and_conditions fallback exists
+                if not hasattr(profile, 'terms_and_conditions') or not profile.terms_and_conditions:
+                    setattr(profile, 'terms_and_conditions', shop.terms_and_conditions)
+                # It now natively has use_custom_letterhead and letterhead_url in the DB!
+
 
     if debtor.bank_account_id:
         bank_account = BusinessBankAccount.query.get(debtor.bank_account_id)

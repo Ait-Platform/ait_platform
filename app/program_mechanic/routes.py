@@ -1,5 +1,21 @@
 from app.models.auth import DirectMessage
 from app.models.mechanic import MechShop, MechCatalogPart
+@mechanic_bp.route("/mechanic/fix_wallet", methods=["GET"])
+@login_required
+def fix_wallet():
+    from app.models.auth import AitTokenWallet, AitTokenTransaction
+    wallet = AitTokenWallet.query.filter_by(user_id=current_user.id).first()
+    if not wallet:
+        wallet = AitTokenWallet(user_id=current_user.id, balance=0)
+        db.session.add(wallet)
+        db.session.flush()
+    wallet.balance += 200
+    tx = AitTokenTransaction(wallet_id=wallet.id, amount=200, description="Manual fix for missing Render tokens")
+    db.session.add(tx)
+    db.session.commit()
+    flash("200 Tokens injected successfully into Render DB!", "success")
+    return redirect(url_for('mechanic_bp.mechanic_dashboard'))
+
 from flask import render_template, redirect, url_for, flash, request, session, current_app
 from flask_login import login_required, current_user
 from sqlalchemy import text
@@ -956,7 +972,7 @@ def job_cards_list():
             total_credits = sum(l.amount for l in d.ledgers if l.kind == 'credit')
             bal = total_debits - total_credits
             if bal > 0:
-                d.current_balance = bal
+                d.current_balance = bal / 100.0
                 debtors_with_balances.append(d)
     except Exception as e:
         current_app.logger.error(f"Error loading debtors: {e}")

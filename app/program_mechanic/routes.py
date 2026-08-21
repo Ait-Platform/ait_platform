@@ -220,6 +220,18 @@ def document_preview():
 @mechanic_bp.route("/mechanic/dashboard")
 @login_required
 def mechanic_dashboard():
+    # Attempt to auto-upgrade the table if missing
+    try:
+        db.session.execute(text('ALTER TABLE mech_job_cards ADD COLUMN next_service_due VARCHAR(100);'))
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        
+    try:
+        db.session.execute(text('ALTER TABLE mech_job_cards ADD COLUMN IF NOT EXISTS next_service_due VARCHAR(100);'))
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
     draft_shop = MechShop.query.filter(
         MechShop.user_id == current_user.id,
         MechShop.onboarding_status.like('draft_%')

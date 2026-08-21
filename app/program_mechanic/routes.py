@@ -448,7 +448,9 @@ def job_card_detail(id):
             Debtor.name == job_card.vehicle.client.name
         ).first()
 
-    return render_template("program_mechanic/job_card.html", job_card=job_card, today_date=today_date, communications=communications, client_debtor=client_debtor)
+    from app.models.mechanic import MechShop
+    active_shop = MechShop.query.filter_by(user_id=current_user.id, onboarding_status='active').first()
+    return render_template("program_mechanic/job_card.html", job_card=job_card, today_date=today_date, communications=communications, client_debtor=client_debtor, shop=active_shop)
 
 
 

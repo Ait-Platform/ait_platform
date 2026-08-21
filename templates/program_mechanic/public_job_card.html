@@ -145,6 +145,14 @@
         </table>
         
         
+                
+        {% if shop and shop.bank_details %}
+        <div style="margin-top: 40px; padding: 20px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 14px; color: #334155;">
+            <h4 style="margin-top: 0; margin-bottom: 8px; color: #1e293b; font-size: 16px;">Bank Details</h4>
+            <div style="white-space: pre-line;">{{ shop.bank_details }}</div>
+        </div>
+        {% endif %}
+        
         {% if shop and shop.terms_and_conditions %}
         <div style="margin-top: 40px; padding: 20px; border-top: 1px solid #e5e7eb; font-size: 11px; color: #6b7280;">
             <h4 style="margin-top: 0; margin-bottom: 8px; color: #374151;">Terms & Conditions</h4>

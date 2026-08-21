@@ -1566,9 +1566,14 @@ def client_ledger(debtor_id):
             running_balance -= l.amount
         l.running_balance = running_balance
 
+    # Fetch job cards for this client
+    from app.models.mechanic import MechJobCard, MechVehicle, MechClient
+    job_cards = MechJobCard.query.join(MechVehicle).join(MechClient).filter(MechClient.name == debtor.name, MechClient.user_id == current_user.id).order_by(MechJobCard.created_at.desc()).all()
+
     return render_template("program_mechanic/client_ledger.html", 
                            debtor=debtor, 
                            ledgers=ledgers, 
+                           job_cards=job_cards,
                            start_date=start_date_str, 
                            end_date=end_date_str)
 

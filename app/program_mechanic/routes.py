@@ -970,10 +970,14 @@ def new_quote():
         )
         db.session.add(ilog)
                 
-        db.session.commit()
-            
-        flash("Quote created and Job Card generated successfully!", "success")
-        return redirect(url_for("mechanic_bp.job_card_detail", id=job_card.id))
+        try:
+            db.session.commit()
+            flash("Quote created and Job Card generated successfully!", "success")
+            return redirect(url_for("mechanic_bp.job_card_detail", id=job_card.id))
+        except Exception as e:
+            db.session.rollback()
+            flash(f"An error occurred while saving the quote. Your tokens were refunded. Error: {str(e).split('DETAIL:')[0].strip()[:100]}", "danger")
+            return redirect(url_for('mechanic_bp.new_quote'))
         
     return render_template("program_mechanic/quote_form.html", catalog_parts=catalog_parts, shop=active_shop)
 

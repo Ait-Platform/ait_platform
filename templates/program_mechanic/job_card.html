@@ -178,8 +178,11 @@ document.addEventListener("DOMContentLoaded", function() {
             </button>
           {% else %}
             <a href="{{ url_for('mechanic_bp.download_document', id=job_card.id) }}" class="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 hover:bg-slate-200 hover:text-slate-800 transition" title="Download PDF">
-              <i class="fas fa-file-pdf"></i>
-            </a>
+                <i class="fas fa-file-pdf"></i>
+              </a>
+              <a href="{{ url_for('mechanic_bp.email_document', id=job_card.id) }}" class="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 hover:bg-indigo-100 hover:text-indigo-800 transition" title="Email {{ 'SOA' if job_card.status in ['Approved', 'Billed'] else 'Quote' }}">
+                <i class="fas fa-paper-plane"></i>
+              </a>
             
           {% endif %}
         </div>

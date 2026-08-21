@@ -1,6 +1,19 @@
 from app.models.auth import DirectMessage
 from app.models.mechanic import MechShop, MechCatalogPart
 
+@mechanic_bp.route("/mechanic/fix_quotes", methods=["GET"])
+@login_required
+def fix_quotes():
+    from app.models.mechanic import MechClient
+    clients = MechClient.query.all()
+    count = 0
+    for c in clients:
+        c.user_id = current_user.id
+        count += 1
+    db.session.commit()
+    flash(f"Successfully recovered and linked {count} clients/quotes to your account!", "success")
+    return redirect(url_for('mechanic_bp.mechanic_dashboard'))
+
 from flask import render_template, redirect, url_for, flash, request, session, current_app
 from flask_login import login_required, current_user
 from sqlalchemy import text

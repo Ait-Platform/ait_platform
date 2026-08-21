@@ -87,6 +87,12 @@ def create_app(test_config=None):
     with app.app_context():
         db.create_all()
         try:
+            db.session.execute(text("ALTER TABLE mech_job_cards ADD COLUMN mileage VARCHAR(50);"))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+        try:
             db.session.execute(text("ALTER TABLE mech_shops ADD COLUMN shadow_spent_cents INTEGER DEFAULT 0;"))
             db.session.commit()
         except Exception:

@@ -789,6 +789,7 @@ def new_quote():
         model = request.form.get("model")
         year_str = request.form.get("year")
         year = int(year_str) if year_str and year_str.isdigit() else None
+        mileage = request.form.get("mileage")
         # Process dynamic labor and parts arrays
         labor_descs = request.form.getlist('labor_desc[]')
         labor_ins = request.form.getlist('labor_in[]')

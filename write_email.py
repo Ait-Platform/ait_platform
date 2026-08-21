@@ -1,0 +1,64 @@
+content = '''{% extends 'layout.html' %}
+{% block title %}Email {{ doc_type }}{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-slate-50 py-10 px-4 flex flex-col items-center">
+    <div class="w-full max-w-2xl bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        
+        <!-- Top Strip -->
+        <div class="h-2 w-full bg-indigo-500"></div>
+
+        <div class="px-6 pt-6 pb-2">
+            {% include "partials/flash_messages.html" %}
+        </div>
+
+        <!-- First Row: Title & Back Button -->
+        <div class="flex items-center justify-between border-b border-slate-100 px-6 pb-4">
+            <h1 class="text-2xl font-bold text-slate-900">Email {{ doc_type }}</h1>
+            <a href="{{ url_for('mechanic_bp.job_card_detail', id=job_card.id) }}" class="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition shadow-sm">
+                <span>&larr;</span><span>Back</span>
+            </a>
+        </div>
+        
+        <div class="p-8">
+            <p class="text-slate-600 mb-8">
+                Please confirm the email address where you would like us to send this {{ doc_type|lower }}. A formatted PDF document with your shop's letterhead will be attached to the email securely.
+            </p>
+
+            <form method="POST" action="{{ url_for('mechanic_bp.email_document', id=job_card.id) }}" onsubmit="document.getElementById('submit-btn').disabled=true; document.getElementById('submit-btn').innerText='Sending... Please wait';">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <div class="mb-8">
+                    <label for="email" class="block text-sm font-bold text-slate-700 mb-2">
+                        Client Email Address
+                    </label>
+                    <input 
+                        type="email" 
+                        id="email" 
+                        name="email" 
+                        value="{{ default_email }}"
+                        required
+                        autofocus
+                        class="w-full px-4 py-3 rounded-lg border-2 border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 shadow-sm transition"
+                        placeholder="e.g. client@example.com"
+                    >
+                </div>
+                
+                <!-- Row 2: Secondary buttons right-aligned -->
+                <div class="flex justify-end gap-3 mt-8 border-t border-slate-100 pt-6">
+                    <button 
+                        type="submit" 
+                        id="submit-btn"
+                        class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-6 rounded-lg shadow-sm transition flex items-center"
+                    >
+                        Send {{ doc_type }} &rarr;
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+'''
+with open('templates/program_mechanic/email_preview.html', 'w', encoding='utf-8') as f:
+    f.write(content)

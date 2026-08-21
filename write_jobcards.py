@@ -1,0 +1,133 @@
+content = '''{% extends 'layout.html' %}
+{% block title %}Recent Job Cards - ProTrade{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-slate-50 py-10 px-4 flex flex-col items-center">
+  <div class="w-full max-w-6xl bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+    
+    <!-- Top Strip -->
+    <div class="h-2 w-full bg-indigo-500"></div>
+
+    <div class="px-6 pt-6 pb-2">
+      {% include "partials/flash_messages.html" %}
+    </div>
+
+    <!-- First Row: Title & Back Button -->
+    <div class="flex items-center justify-between border-b border-slate-100 px-6 pb-4">
+      <div>
+        <h1 class="text-2xl md:text-3xl font-bold text-slate-900">Recent Job Cards</h1>
+      </div>
+      <a href="{{ url_for('mechanic_bp.mechanic_dashboard') }}" class="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition shadow-sm">
+        <span>&larr;</span><span>Back</span>
+      </a>
+    </div>
+
+    <div class="p-6">
+      <div class="border border-slate-200 rounded-xl overflow-x-auto shadow-sm bg-white">
+        <table class="min-w-full divide-y divide-slate-200">
+          <thead class="bg-slate-50">
+            <tr>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Job #</th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Date</th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Client & Vehicle</th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Status</th>
+              <th scope="col" class="px-6 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="bg-white divide-y divide-slate-200">
+            {% for job in job_cards %}
+            <tr class="hover:bg-slate-50 transition">
+              <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">#{{ job.job_number }}</td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{{ job.created_at.strftime('%Y-%m-%d') }}</td>
+              <td class="px-6 py-4 whitespace-nowrap">
+                <div class="text-sm font-bold text-slate-900">{{ job.vehicle.client.name }}</div>
+                <div class="text-sm text-slate-500">{{ job.vehicle.registration_number }} ({{ job.vehicle.make }})</div>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap">
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
+                  {% if job.status == 'Billed' %}bg-green-100 text-green-800
+                  {% elif job.status == 'Approved' %}bg-blue-100 text-blue-800
+                  {% else %}bg-amber-100 text-amber-800{% endif %}">
+                  {{ job.status }}
+                </span>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                <div class="flex justify-end gap-2">
+                  <a href="{{ url_for('mechanic_bp.job_card_detail', id=job.id) }}" class="text-indigo-600 hover:text-indigo-900 font-semibold bg-indigo-50 px-3 py-1 rounded-md transition hover:bg-indigo-100 border border-indigo-100">
+                    View &rarr;
+                  </a>
+                  {% if job.status == 'Quote' %}
+                  <button type="button" onclick="document.getElementById('pop-modal-{{ job.id }}').classList.remove('hidden')" class="text-green-700 hover:text-green-900 font-bold bg-green-100 px-3 py-1 rounded-md transition hover:bg-green-200 border border-green-200">
+                    POP
+                  </button>
+                  
+                  <!-- POP Modal for this job -->
+                  <div id="pop-modal-{{ job.id }}" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 text-left whitespace-normal">
+                    <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-[fadeIn_0.2s_ease-out]">
+                      <div class="p-6">
+                        <div class="flex justify-between items-center mb-4 border-b border-slate-100 pb-2">
+                          <h2 class="text-xl font-bold text-slate-800">Capture Proof of Payment</h2>
+                          <button type="button" onclick="document.getElementById('pop-modal-{{ job.id }}').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 transition">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                          </button>
+                        </div>
+                        <p class="text-slate-600 mb-6 text-sm">Capturing a deposit for Job #{{ job.job_number }} triggers the legal shift from a Quote to a Tax Invoice. The initial total will be charged to the client's Debtors account, and this deposit will be credited against it.</p>
+                        
+                        <form method="POST" action="{{ url_for('mechanic_bp.approve_quote', id=job.id) }}">
+                          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                          
+                          <div class="space-y-4">
+                            <div>
+                              <label class="block text-sm font-bold text-slate-700 mb-1">POP Date</label>
+                              <input type="date" name="pop_date" class="block w-full rounded-lg border border-slate-300 focus:border-indigo-500 focus:ring-indigo-500 p-2">
+                            </div>
+                            
+                            <div>
+                              <label class="block text-sm font-bold text-slate-700 mb-1">POP Reference / Note</label>
+                              <input type="text" name="pop_ref" value="POP-{{ job.job_number }}" class="block w-full rounded-lg border border-slate-300 focus:border-indigo-500 focus:ring-indigo-500 p-2">
+                            </div>
+                            
+                            <div>
+                              <label class="block text-sm font-bold text-slate-700 mb-1">Deposit Amount Received <span class="text-slate-400 font-normal">(Optional)</span></label>
+                              <input type="number" step="0.01" min="0" name="pop_amount" class="block w-full rounded-lg border-2 border-green-300 focus:border-green-500 focus:ring-green-500 text-lg p-3 font-medium text-slate-900 bg-green-50" placeholder="0.00">
+                            </div>
+                          </div>
+                          
+                          <div class="flex justify-end gap-3 mt-8 border-t border-slate-100 pt-4">
+                            <button type="button" onclick="document.getElementById('pop-modal-{{ job.id }}').classList.add('hidden')" class="px-5 py-2.5 rounded-lg border border-slate-300 text-slate-700 font-bold hover:bg-slate-50 transition">Cancel</button>
+                            <button type="submit" class="px-5 py-2.5 rounded-lg bg-green-600 text-white font-bold hover:bg-green-700 shadow-sm transition flex items-center"><i class="fas fa-check-circle mr-2"></i> Save & Approve</button>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+                  </div>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="5" class="px-6 py-8 text-center text-sm text-slate-500">
+                No job cards found. Start by creating a new quote!
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function() {
+    const today = new Date().toISOString().split("T")[0];
+    document.querySelectorAll("input[type=date][name=pop_date]").forEach(function(el) {
+      el.value = today;
+    });
+  });
+</script>
+{% endblock %}
+'''
+with open('templates/program_mechanic/job_cards_list.html', 'w', encoding='utf-8') as f:
+    f.write(content)

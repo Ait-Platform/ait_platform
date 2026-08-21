@@ -1,0 +1,38 @@
+@sace_bp.route("/sace/dashboard")
+@login_required
+def dashboard():
+    return render_template("program_sace/compliance/index.html")
+
+@sace_bp.route("/sace/compliance/annexure_a")
+@login_required
+def annexure_a():
+    return render_template("program_sace/compliance/annexure_a.html")
+
+@sace_bp.route("/sace/compliance/annexure_b")
+@login_required
+def annexure_b():
+    return render_template("program_sace/compliance/annexure_b.html")
+
+@sace_bp.route("/sace/compliance/annexure_c")
+@login_required
+def annexure_c():
+    return render_template("program_sace/compliance/annexure_c.html")
+
+@sace_bp.route("/sace/compliance/annexure_d")
+@login_required
+def annexure_d():
+    return render_template("program_sace/compliance/annexure_d.html")
+
+@sace_bp.route("/sace/compliance/annexure_e")
+@login_required
+def annexure_e():
+    return render_template("program_sace/compliance/annexure_e.html")
+
+@sace_bp.route("/sace/compliance/evidence")
+@login_required
+def compliance_evidence():
+    import datetime
+    today = datetime.datetime.utcnow().strftime('%Y-%m-%d')
+    return render_template("program_sace/compliance/evidence.html", today=today)
+
+

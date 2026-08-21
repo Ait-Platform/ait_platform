@@ -1,0 +1,141 @@
+content = '''<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ 'Tax Invoice' if job_card.status == 'Billed' else 'Quote' }} #{{ job_card.job_number }}</title>
+    <style>
+        body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #333; line-height: 1.5; margin: 0; padding: 20px; background: #fff; }
+        .invoice-box { max-width: 800px; margin: auto; padding: 30px; border: 1px solid #eee; border-radius: 8px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.15); }
+        .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #eee; padding-bottom: 20px; }
+        .header img { max-height: 120px; margin-bottom: 10px; }
+        .header h1 { margin: 0; color: #2c3e50; font-size: 28px; }
+        .header p { margin: 5px 0 0 0; color: #7f8c8d; font-size: 14px; }
+        .details-grid { display: table; width: 100%; margin-bottom: 30px; }
+        .col { display: table-cell; width: 50%; padding: 10px; vertical-align: top; border: 1px solid #f0f0f0; background: #fdfdfd; }
+        .col:first-child { border-right: 5px solid #fff; border-radius: 5px 0 0 5px; }
+        .col:last-child { border-left: 5px solid #fff; border-radius: 0 5px 5px 0; }
+        .col h3 { margin-top: 0; color: #34495e; font-size: 14px; text-transform: uppercase; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+        .col p { margin: 5px 0; font-size: 14px; }
+        .col strong { color: #2c3e50; }
+        table { width: 100%; line-height: inherit; text-align: left; border-collapse: collapse; margin-bottom: 30px; }
+        table th { background: #f8f9fa; border-bottom: 2px solid #ddd; padding: 10px; font-size: 13px; color: #6c757d; text-transform: uppercase; }
+        table td { padding: 10px; border-bottom: 1px solid #eee; font-size: 14px; }
+        table tr.item td { border-bottom: 1px solid #eee; }
+        table tr.item.last td { border-bottom: none; }
+        table tr.total td:first-child, table tr.subtotal td:first-child { border-top: none; }
+        table tr.subtotal td { border-top: 2px solid #eee; font-weight: bold; text-align: right; }
+        table tr.total td { border-top: 2px solid #333; font-weight: bold; text-align: right; font-size: 18px; color: #2c3e50; }
+        table td:nth-child(3), table td:nth-child(4), table td:nth-child(5), table th:nth-child(3), table th:nth-child(4), table th:nth-child(5) { text-align: right; }
+        .text-right { text-align: right; }
+        .footer { text-align: center; margin-top: 40px; color: #7f8c8d; font-size: 12px; border-top: 1px solid #eee; padding-top: 20px; }
+    </style>
+</head>
+<body>
+    <div class="invoice-box">
+        <div class="header">
+            {% if shop and shop.use_custom_letterhead and shop.letterhead_url %}
+            <img src="{{ url_for('static', filename='uploads/mechanic/' + shop.letterhead_url, _external=True) }}" alt="Shop Letterhead">
+            {% else %}
+            <h1>{{ shop.business_name if shop else 'AIT ProTrade' }}</h1>
+            {% endif %}
+            <h2>{{ 'Tax Invoice' if job_card.status == 'Billed' else 'Quote' }} #{{ job_card.job_number }}</h2>
+            <p>Created: {{ job_card.created_at.strftime('%Y-%m-%d') }} | Status: {{ job_card.status }}</p>
+        </div>
+
+        <div class="details-grid">
+            <div class="col">
+                <h3>Client Details</h3>
+                <p><strong>{{ job_card.vehicle.client.name }}</strong></p>
+                <p>Phone: {{ job_card.vehicle.client.phone or 'N/A' }}</p>
+                <p>Email: {{ job_card.vehicle.client.email or 'N/A' }}</p>
+            </div>
+            <div class="col">
+                <h3>Vehicle Details</h3>
+                <p><strong>{{ job_card.vehicle.registration_number }}</strong></p>
+                <p>Make: {{ job_card.vehicle.make }}</p>
+                <p>Model: {{ job_card.vehicle.model or 'N/A' }}</p>
+                <p>VIN: {{ job_card.vehicle.vin or 'N/A' }}</p>
+            </div>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Item Description</th>
+                    <th>Type</th>
+                    <th>Qty / Hrs</th>
+                    <th>Rate</th>
+                    <th>Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% set ns = namespace(subtotal=0) %}
+                
+                {% for p in job_card.part_lines %}
+                {% set line_total = p.quantity * p.markup_price %}
+                {% set ns.subtotal = ns.subtotal + line_total %}
+                <tr class="item">
+                    <td><strong>{{ p.part_number }}</strong><br><small style="color: #666;">{{ p.description }}</small></td>
+                    <td>Part</td>
+                    <td>{{ p.quantity }}</td>
+                    <td>{{ currency_sym }}{{ "%.2f"|format(p.markup_price) }}</td>
+                    <td>{{ currency_sym }}{{ "%.2f"|format(line_total) }}</td>
+                </tr>
+                {% endfor %}
+                
+                {% for l in job_card.labor_lines %}
+                {% set line_total = l.hours * l.rate_per_hour %}
+                {% set ns.subtotal = ns.subtotal + line_total %}
+                <tr class="item">
+                    <td><strong>Labor: {{ l.mechanic_name or 'General' }}</strong><br><small style="color: #666;">{{ l.description }}</small></td>
+                    <td>Labor</td>
+                    <td>{{ l.hours }}</td>
+                    <td>{{ currency_sym }}{{ "%.2f"|format(l.rate_per_hour) }}</td>
+                    <td>{{ currency_sym }}{{ "%.2f"|format(line_total) }}</td>
+                </tr>
+                {% endfor %}
+                
+                {% set vat_rate = job_card.vat_rate if job_card.vat_rate else 0.0 %}
+                {% set vat_amount = ns.subtotal * (vat_rate / 100.0) %}
+                {% set grand_total = ns.subtotal + vat_amount %}
+
+                {% if vat_rate > 0 %}
+                <tr class="subtotal">
+                    <td colspan="4">Subtotal (Excl. VAT)</td>
+                    <td>{{ currency_sym }}{{ "%.2f"|format(ns.subtotal) }}</td>
+                </tr>
+                <tr class="subtotal" style="border-top: none;">
+                    <td colspan="4">VAT ({{ vat_rate }}%)</td>
+                    <td>{{ currency_sym }}{{ "%.2f"|format(vat_amount) }}</td>
+                </tr>
+                {% endif %}
+                <tr class="total">
+                    <td colspan="4">Grand Total (Incl. VAT)</td>
+                    <td>{{ currency_sym }}{{ "%.2f"|format(grand_total) }}</td>
+                </tr>
+                
+                {% if job_card.deposit_amount and job_card.deposit_amount > 0 %}
+                <tr class="subtotal" style="border-top: none; color: #27ae60;">
+                    <td colspan="4">Less Deposit</td>
+                    <td>- {{ currency_sym }}{{ "%.2f"|format(job_card.deposit_amount) }}</td>
+                </tr>
+                <tr class="total" style="border-top: 1px solid #ddd;">
+                    <td colspan="4">Amount Due</td>
+                    <td>{{ currency_sym }}{{ "%.2f"|format(grand_total - job_card.deposit_amount) }}</td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+        
+        <div class="footer">
+            <p>Thank you for your business!</p>
+            {% if shop %}
+            <p>{{ shop.business_name }} | {{ shop.contact_email }} | {{ shop.contact_phone }}</p>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>
+'''
+with open('templates/program_mechanic/public_job_card.html', 'w', encoding='utf-8') as f:
+    f.write(content)

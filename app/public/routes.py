@@ -401,3 +401,17 @@ def programs_list():
     subjects = AuthSubject.query.filter_by(is_active=1, show_on_welcome=True).order_by(AuthSubject.name).all()
     return render_template("public/programs.html", subjects=subjects)
 
+
+
+@public_bp.route("/run_db_fix_sender")
+def run_db_fix_sender():
+    try:
+        db.session.execute(text('ALTER TABLE sender_profile ADD COLUMN letterhead_url VARCHAR(255)'))
+    except Exception as e:
+        db.session.rollback()
+    try:
+        db.session.execute(text('ALTER TABLE sender_profile ADD COLUMN use_custom_letterhead BOOLEAN DEFAULT FALSE'))
+    except Exception as e:
+        db.session.rollback()
+    db.session.commit()
+    return "DB Fix executed successfully. Please go back to the app."

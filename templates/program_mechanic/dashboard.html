@@ -120,7 +120,8 @@
     'mechanic': '1. All quotes are valid for 7 days.\n2. 50% deposit required on special order parts.\n3. Vehicles left at owner\'s risk.\n4. Full payment required upon collection.\n5. Warranty on parts as per manufacturer.',
     'panel': '1. All quotes are valid for 14 days.\n2. 60% deposit required before ordering panels/paint.\n3. Vehicles left at owner\'s risk.\n4. Full payment required before vehicle release.\n5. Paint matching subject to original vehicle condition.',
     'auto_elec': '1. All quotes are valid for 7 days.\n2. Diagnostic fees apply even if repair is declined.\n3. Vehicles left at owner\'s risk.\n4. Full payment required upon collection.\n5. Warranty covers electrical workmanship for 3 months.',
-    'generic': '1. Quotes are valid for 7 days.\n2. Deposit may be required prior to commencement of work.\n3. Goods remain the property of the business until paid in full.\n4. Late payments may incur additional fees.'
+    'generic': '1. Quotes are valid for 7 days.\n2. Deposit may be required prior to commencement of work.\n3. Goods remain the property of the business until paid in full.\n4. Late payments may incur additional fees.',
+      'protrade': '1. THANK YOU FOR YOUR SUPPORT!\n2. All work is completed to a high standard using genuine parts.\n3. Parts remain the property of the business until paid in full.\n4. Vehicles are stored and driven at owner\'s risk.'
   };
 
   function insertTCTemplate() {
@@ -251,6 +252,7 @@
                 <option value="panel">Panel Beater</option>
                 <option value="auto_elec">Auto Electrician</option>
                 <option value="generic">Generic Business</option>
+                  <option value="protrade">ProTrade Default</option>
               </select>
             </div>
             <textarea id="tc-textarea" name="terms_and_conditions" rows="4" class="block w-full rounded-lg border-2 border-indigo-200 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm p-3 transition">{{ active_shop.terms_and_conditions if active_shop else '' }}</textarea>

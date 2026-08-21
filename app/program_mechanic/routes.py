@@ -1394,7 +1394,8 @@ def record_deposit(id):
     
     if deposit_amount and deposit_amount > 0:
         job_card.deposit_amount = (job_card.deposit_amount or 0) + deposit_amount
-        job_card.status = 'Approved' # Moving from Awaiting Deposit to Approved
+        if job_card.status == 'Awaiting Deposit':
+            job_card.status = 'Approved' # Moving forward if it was awaiting
         
         # Move to debtors!
         client = job_card.vehicle.client

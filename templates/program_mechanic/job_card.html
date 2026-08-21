@@ -168,7 +168,7 @@ document.addEventListener("DOMContentLoaded", function() {
           {% endif %}
           
           {% if client_debtor %}
-            <a href="{{ url_for('debtors_bp.generate_soa', debtor_id=client_debtor.id, return_url=url_for('mechanic_bp.job_card_detail', id=job_card.id)) }}" class="px-4 py-2 border-2 border-indigo-600 text-indigo-700 bg-indigo-50 font-bold rounded-lg hover:bg-indigo-100 shadow-sm transition text-sm">View in Debtors</a>
+            <a href="{{ url_for('mechanic_bp.client_ledger', debtor_id=client_debtor.id) }}" class="px-4 py-2 border-2 border-indigo-600 text-indigo-700 bg-indigo-50 font-bold rounded-lg hover:bg-indigo-100 shadow-sm transition text-sm">View Client Ledger</a>
           {% endif %}
 
           <div class="h-6 border-l border-slate-300 mx-1"></div>

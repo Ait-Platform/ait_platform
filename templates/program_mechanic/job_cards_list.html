@@ -44,16 +44,16 @@
       
 <!-- Tabs Navigation (Styled as Buttons) -->
       <div class="flex flex-wrap gap-3 mt-4 mb-8">
-        <button onclick="switchTab('pending')" id="tab-btn-pending" class="flex items-center gap-2 px-4 py-2 rounded-lg font-bold shadow-sm transition bg-indigo-600 text-white border-2 border-indigo-700">
+        <button onclick="switchTab('pending')" id="tab-btn-pending" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold shadow-sm transition bg-indigo-600 text-white border-2 border-indigo-700">
           Pending Quotes <span class="bg-white text-indigo-700 py-0.5 px-2 rounded-full text-xs ml-1">{{ pending|length }}</span>
         </button>
-        <button onclick="switchTab('accepted')" id="tab-btn-accepted" class="flex items-center gap-2 px-4 py-2 rounded-lg font-bold shadow-sm transition bg-slate-100 text-slate-600 border-2 border-slate-200 hover:bg-slate-200">
+        <button onclick="switchTab('accepted')" id="tab-btn-accepted" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold shadow-sm transition bg-slate-100 text-slate-600 border-2 border-slate-200 hover:bg-slate-200">
           Accepted / In Progress <span class="bg-slate-300 text-slate-700 py-0.5 px-2 rounded-full text-xs ml-1">{{ accepted|length }}</span>
         </button>
-        <button onclick="switchTab('completed')" id="tab-btn-completed" class="flex items-center gap-2 px-4 py-2 rounded-lg font-bold shadow-sm transition bg-slate-100 text-slate-600 border-2 border-slate-200 hover:bg-slate-200">
+        <button onclick="switchTab('completed')" id="tab-btn-completed" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold shadow-sm transition bg-slate-100 text-slate-600 border-2 border-slate-200 hover:bg-slate-200">
           Completed / Billed <span class="bg-slate-300 text-slate-700 py-0.5 px-2 rounded-full text-xs ml-1">{{ completed|length }}</span>
         </button>
-        <button onclick="switchTab('rejected')" id="tab-btn-rejected" class="flex items-center gap-2 px-4 py-2 rounded-lg font-bold shadow-sm transition bg-slate-100 text-slate-600 border-2 border-slate-200 hover:bg-slate-200">
+        <button onclick="switchTab('rejected')" id="tab-btn-rejected" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold shadow-sm transition bg-slate-100 text-slate-600 border-2 border-slate-200 hover:bg-slate-200">
           Rejected <span class="bg-slate-300 text-slate-700 py-0.5 px-2 rounded-full text-xs ml-1">{{ rejected|length }}</span>
         </button>
       </div>
@@ -181,7 +181,7 @@ function switchTab(tabId) {
     tabs.forEach(t => {
         const btn = document.getElementById('tab-btn-' + t);
         if(btn) {
-            btn.className = "flex items-center gap-2 px-4 py-2 rounded-lg font-bold shadow-sm transition bg-slate-100 text-slate-600 border-2 border-slate-200 hover:bg-slate-200";
+            btn.className = "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold shadow-sm transition bg-slate-100 text-slate-600 border-2 border-slate-200 hover:bg-slate-200";
             // Update badge color
             const badge = btn.querySelector('span');
             if (badge) badge.className = "bg-slate-300 text-slate-700 py-0.5 px-2 rounded-full text-xs ml-1";
@@ -191,7 +191,7 @@ function switchTab(tabId) {
     // Highlight active button
     const activeBtn = document.getElementById('tab-btn-' + tabId);
     if(activeBtn) {
-        activeBtn.className = "flex items-center gap-2 px-4 py-2 rounded-lg font-bold shadow-sm transition bg-indigo-600 text-white border-2 border-indigo-700";
+        activeBtn.className = "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold shadow-sm transition bg-indigo-600 text-white border-2 border-indigo-700";
         const badge = activeBtn.querySelector('span');
         if (badge) badge.className = "bg-white text-indigo-700 py-0.5 px-2 rounded-full text-xs ml-1";
     }

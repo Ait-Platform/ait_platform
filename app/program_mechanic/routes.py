@@ -283,6 +283,7 @@ def onboarding_process():
     shop.vat_rate = vat_rate
 
     shop.terms_and_conditions = request.form.get("terms_and_conditions")
+    shop.bank_details = request.form.get("bank_details")
     shop.onboarding_status = 'active'
     # Default to true if a checkbox is checked, but we'll override it later if they actually have a letterhead url
     shop.use_custom_letterhead = True if request.form.get("use_custom_letterhead") else False

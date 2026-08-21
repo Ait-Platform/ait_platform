@@ -599,6 +599,7 @@ def generate_soa(debtor_id):
                     letterhead_url = shop.letterhead_url
                     use_custom_letterhead = shop.use_custom_letterhead
                     terms_and_conditions = shop.terms_and_conditions
+                    bank_details = shop.bank_details
                 profile = MockProfile()
             else:
                 # If they have a profile, ensure the terms_and_conditions fallback exists
@@ -727,6 +728,7 @@ def email_soa():
                     letterhead_url = shop.letterhead_url
                     use_custom_letterhead = shop.use_custom_letterhead
                     terms_and_conditions = shop.terms_and_conditions
+                    bank_details = shop.bank_details
                 profile = MockProfile()
             else:
                 # If they have a profile, ensure the terms_and_conditions fallback exists

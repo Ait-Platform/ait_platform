@@ -387,15 +387,7 @@ def fulfill_order(email, subject, transaction=None):
         db.session.flush()
 
     # ---------- MECHANIC TOPUP ----------
-    if subject == "mechanic_topup":
-        from app.models.mechanic import MechShop
-        shop = MechShop.query.filter_by(user_id=u.id).first()
-        if shop and transaction:
-            total = int(transaction.get("amount", 0))
-            if total > 0:
-                shop.wallet_balance_cents += total
-                db.session.commit()
-        return
+    # (Removed intercept so it falls through to Universal Token Topup)
 
     # ---------- UNIVERSAL TOKEN TOPUP ----------
     if subject.endswith("_topup"):

@@ -18,6 +18,9 @@
         <p class="mt-1 text-sm text-slate-500">Track all outstanding balances owed by your customers.</p>
       </div>
       <div class="flex items-center gap-3">
+        <button onclick="window.print()" class="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 hover:bg-slate-200 hover:text-slate-800 transition shadow-sm" title="Print Schedule">
+          <i class="fas fa-print"></i>
+        </button>
         <a href="{{ url_for('mechanic_bp.mechanic_dashboard') }}" class="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition shadow-sm">
           <span>&larr;</span><span>Dashboard</span>
         </a>

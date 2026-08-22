@@ -75,9 +75,20 @@
                 <p>VIN: {{ job_card.vehicle.vin or 'N/A' }}</p>
                 <p>Odometer: {{ "{:,.0f}".format(job_card.vehicle.mileage) ~ ' km' if job_card.vehicle.mileage else 'N/A' }}</p>
             </div>
-            <div class="col">
+                        <div class="col">
                 <h3>Banking Details</h3>
-                {% if shop and shop.bank_details %}
+                {% if bank_account %}
+                    {% if bank_account.raw_details %}
+                        <p style="font-size: 13px; white-space: pre-wrap;">{{ bank_account.raw_details }}</p>
+                    {% else %}
+                        <div style="font-size: 13px;">
+                            <div><strong>Bank:</strong> {{ bank_account.bank_name }}</div>
+                            <div><strong>Account Name:</strong> {{ bank_account.account_name }}</div>
+                            <div><strong>BSB:</strong> {{ bank_account.bsb_branch }} &nbsp; <strong>Account No:</strong> {{ bank_account.account_number }}</div>
+                            {% if bank_account.swift_code %}<div><strong>SWIFT:</strong> {{ bank_account.swift_code }}</div>{% endif %}
+                        </div>
+                    {% endif %}
+                {% elif shop and shop.bank_details %}
                     <p style="font-size: 13px;">{{ shop.bank_details | replace('
 ', '<br>') | safe }}</p>
                 {% else %}

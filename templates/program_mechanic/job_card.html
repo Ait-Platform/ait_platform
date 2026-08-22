@@ -223,17 +223,17 @@ document.addEventListener("DOMContentLoaded", function() {
                 {% if bank_account.raw_details %}
                     <p class="text-slate-600 text-sm whitespace-pre-wrap">{{ bank_account.raw_details }}</p>
                 {% else %}
-                    <p class="text-slate-600 text-sm"><span class="font-semibold">Bank:</span> {{ bank_account.bank_name }}</p>
-                    <p class="text-slate-600 text-sm mt-1"><span class="font-semibold">Account:</span> {{ bank_account.account_name }}</p>
-                    <p class="text-slate-600 text-sm mt-1"><span class="font-semibold">Account No:</span> {{ bank_account.account_number }}</p>
-                    <p class="text-slate-600 text-sm mt-1"><span class="font-semibold">BSB:</span> {{ bank_account.bsb_branch }}</p>
+                    <p class="text-slate-600 text-sm">Bank: <span class="font-bold text-slate-900">{{ bank_account.bank_name }}</span></p>
+                    <p class="text-slate-600 text-sm mt-1">Account Name: <span class="font-bold text-slate-900">{{ bank_account.account_name }}</span></p>
+                    <p class="text-slate-600 text-sm mt-1">Account No: <span class="font-bold text-slate-900">{{ bank_account.account_number }}</span></p>
+                    <p class="text-slate-600 text-sm mt-1">BSB: <span class="font-bold text-slate-900">{{ bank_account.bsb_branch }}</span></p>
                 {% endif %}
             {% elif shop and shop.bank_details %}
                 <p class="text-slate-600 text-sm whitespace-pre-wrap">{{ shop.bank_details }}</p>
             {% else %}
                 <p class="text-slate-500 text-sm italic">No bank details configured. <a href="{{ url_for('mechanic_bp.bank_accounts') }}" class="text-indigo-600 hover:underline">Add one</a>.</p>
             {% endif %}
-            <p class="text-slate-600 text-sm mt-3"><span class="font-semibold">Payment Reference:</span><br>{{ job_card.job_number.split('-')[-1] }}</p>
+            <p class="text-slate-600 text-sm mt-3">Payment Reference:<br><span class="font-bold text-slate-900">{{ job_card.job_number.split('-')[-1] }}</span></p>
           </div>
         </div>
 
@@ -248,12 +248,12 @@ document.addEventListener("DOMContentLoaded", function() {
             </div>
             <p class="text-slate-800 text-sm">
                 <strong class="text-slate-900 text-base">{{ job_card.vehicle.registration_number }}</strong> &mdash; 
-                <span class="font-semibold text-slate-600 ml-2">Make:</span> {{ job_card.vehicle.make }}
-                <span class="font-semibold text-slate-600 ml-3">Model:</span> {{ job_card.vehicle.model or 'N/A' }}
-                <span class="font-semibold text-slate-600 ml-3">Year:</span> {{ job_card.vehicle.year or 'N/A' }}
-                <span class="font-semibold text-slate-600 ml-3">VIN:</span> {{ job_card.vehicle.vin or 'N/A' }}
-                <span class="font-semibold text-slate-600 ml-3">Odometer:</span> {{ "{:,.0f}".format(job_card.vehicle.mileage) ~ ' km' if job_card.vehicle.mileage else 'N/A' }}
-                <span class="font-semibold text-slate-600 ml-3">Next Service Due:</span> {{ job_card.next_service_due if job_card.next_service_due else 'N/A' }}
+                <span class="text-slate-600 ml-2">Make:</span> <span class="font-bold text-slate-900">{{ job_card.vehicle.make }}</span>
+                <span class="text-slate-600 ml-3">Model:</span> <span class="font-bold text-slate-900">{{ job_card.vehicle.model or 'N/A' }}</span>
+                <span class="text-slate-600 ml-3">Year:</span> <span class="font-bold text-slate-900">{{ job_card.vehicle.year or 'N/A' }}</span>
+                <span class="text-slate-600 ml-3">VIN:</span> <span class="font-bold text-slate-900">{{ job_card.vehicle.vin or 'N/A' }}</span>
+                <span class="text-slate-600 ml-3">Odometer:</span> <span class="font-bold text-slate-900">{{ "{:,.0f}".format(job_card.vehicle.mileage) ~ ' km' if job_card.vehicle.mileage else 'N/A' }}</span>
+                <span class="text-slate-600 ml-3">Next Service Due:</span> <span class="font-bold text-slate-900">{{ job_card.next_service_due if job_card.next_service_due else 'N/A' }}</span>
             </p>
         </div>
 

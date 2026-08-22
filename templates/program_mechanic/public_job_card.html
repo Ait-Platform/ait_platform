@@ -95,11 +95,11 @@
                         <p style="font-size: 13px; white-space: pre-wrap;">{{ bank_account.raw_details }}</p>
                     {% else %}
                         <div style="font-size: 13px;">
-                            <div><strong>Bank:</strong> {{ bank_account.bank_name }}</div>
-                            <div><strong>Account Name:</strong> {{ bank_account.account_name }}</div>
-                            <div><strong>BSB:</strong> {{ bank_account.bsb_branch }}</div>
-                            <div><strong>Account No:</strong> {{ bank_account.account_number }}</div>
-                            {% if bank_account.swift_code %}<div><strong>SWIFT:</strong> {{ bank_account.swift_code }}</div>{% endif %}
+                            <div>Bank: <strong>{{ bank_account.bank_name }}</strong></div>
+                            <div>Account Name: <strong>{{ bank_account.account_name }}</strong></div>
+                            <div>BSB: <strong>{{ bank_account.bsb_branch }}</strong></div>
+                            <div>Account No: <strong>{{ bank_account.account_number }}</strong></div>
+                            {% if bank_account.swift_code %}<div>SWIFT: <strong>{{ bank_account.swift_code }}</strong></div>{% endif %}
                         </div>
                     {% endif %}
                 {% elif shop and shop.bank_details %}
@@ -108,18 +108,18 @@
                 {% else %}
                     <p style="font-size: 13px;">Please contact us for payment details.</p>
                 {% endif %}
-                <p style="margin-top: 10px; font-size: 13px;"><strong>Payment Reference:</strong><br>{{ job_card.job_number.split('-')[-1] }}</p>
+                <p style="margin-top: 10px; font-size: 13px;">Payment Reference:<br><strong>{{ job_card.job_number.split('-')[-1] }}</strong></p>
             </div>
         </div>
         
         <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 5px; padding: 15px; margin-bottom: 30px; color: #0f172a;">
             <h3 style="margin-top: 0; color: #0f172a; font-size: 14px; text-transform: uppercase; border-bottom: 2px solid #cbd5e1; padding-bottom: 5px;">Vehicle Details</h3>
             <p style="margin-bottom: 0;"><strong>{{ job_card.vehicle.registration_number }}</strong> &mdash; 
-               Make: {{ job_card.vehicle.make }} | 
-               Model: {{ job_card.vehicle.model or 'N/A' }} | 
-               Year: {{ job_card.vehicle.year or 'N/A' }} | 
-               VIN: {{ job_card.vehicle.vin or 'N/A' }} | 
-               Odometer: {{ "{:,.0f}".format(job_card.vehicle.mileage) ~ ' km' if job_card.vehicle.mileage else 'N/A' }}</p>
+               Make: <strong>{{ job_card.vehicle.make }}</strong> | 
+               Model: <strong>{{ job_card.vehicle.model or 'N/A' }}</strong> | 
+               Year: <strong>{{ job_card.vehicle.year or 'N/A' }}</strong> | 
+               VIN: <strong>{{ job_card.vehicle.vin or 'N/A' }}</strong> | 
+               Odometer: <strong>{{ "{:,.0f}".format(job_card.vehicle.mileage) ~ ' km' if job_card.vehicle.mileage else 'N/A' }}</strong></p>
         </div>
 
         <table>
@@ -190,22 +190,6 @@
                 {% endif %}
             </tbody>
         </table>        
-        {% if bank_account %}
-        <div style="margin-top: 40px; padding: 20px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 14px; color: #334155;">
-            <h4 style="margin-top: 0; margin-bottom: 8px; color: #1e293b; font-size: 16px;">Bank Details</h4>
-            {% if bank_account.raw_details %}
-            <div style="white-space: pre-line;">{{ bank_account.raw_details }}</div>
-            {% else %}
-            <div>
-                <strong>Bank:</strong> {{ bank_account.bank_name }}<br>
-                <strong>Account Name:</strong> {{ bank_account.account_name }}<br>
-                <strong>BSB / Branch:</strong> {{ bank_account.bsb_branch }}<br>
-                <strong>Account No:</strong> {{ bank_account.account_number }}<br>
-                {% if bank_account.swift_code %}<strong>SWIFT:</strong> {{ bank_account.swift_code }}<br>{% endif %}
-            </div>
-            {% endif %}
-        </div>
-        {% endif %}
         {% if shop and shop.terms_and_conditions %}
         <div style="margin-top: 40px; padding: 20px; border-top: 1px solid #e5e7eb; font-size: 11px; color: #6b7280;">
             <h4 style="margin-top: 0; margin-bottom: 8px; color: #374151;">Terms & Conditions</h4>

@@ -235,14 +235,14 @@
                     <p class="text-sm text-gray-700 whitespace-pre-line">{{ bank_account.raw_details }}</p>
                 {% else %}
                     <div class="text-sm text-gray-700">
-                        <div><strong>Bank:</strong> {{ bank_account.bank_name }}</div>
-                        <div><strong>Account Name:</strong> {{ bank_account.account_name }}</div>
-                        <div><strong>BSB:</strong> {{ bank_account.bsb_branch }}</div>
-                          <div><strong>Account No:</strong> {{ bank_account.account_number }}</div>
-                        {% if bank_account.swift_code %}<div><strong>SWIFT:</strong> {{ bank_account.swift_code }}</div>{% endif %}
+                        <div>Bank: <strong>{{ bank_account.bank_name }}</strong></div>
+                        <div>Account Name: <strong>{{ bank_account.account_name }}</strong></div>
+                        <div>BSB: <strong>{{ bank_account.bsb_branch }}</strong></div>
+                          <div>Account No: <strong>{{ bank_account.account_number }}</strong></div>
+                        {% if bank_account.swift_code %}<div>SWIFT: <strong>{{ bank_account.swift_code }}</strong></div>{% endif %}
                     </div>
                 {% endif %}
-                <div class="mt-2 text-sm text-gray-700"><strong>Payment Reference:</strong><br>{% if latest_job_card %}{{ latest_job_card.job_number.split('-')[-1] }}{% else %}Account: {{ debtor.name }}{% endif %}</div>
+                <div class="mt-2 text-sm text-gray-700">Payment Reference:<br><strong>{% if latest_job_card %}{{ latest_job_card.job_number.split('-')[-1] }}{% else %}{{ debtor.name }}{% endif %}</strong></div>
             </div>
             {% endif %}
         </div>
@@ -263,11 +263,11 @@
         <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 5px; padding: 15px; margin-bottom: 20px; color: #0f172a;">
             <h3 style="margin-top: 0; color: #0f172a; font-size: 14px; text-transform: uppercase; border-bottom: 2px solid #cbd5e1; padding-bottom: 5px;">Vehicle Details</h3>
             <p style="margin-bottom: 0; font-size: 13px;"><strong>{{ latest_job_card.vehicle.registration_number }}</strong> &mdash; 
-               Make: {{ latest_job_card.vehicle.make }} | 
-               Model: {{ latest_job_card.vehicle.model or 'N/A' }} | 
-               Year: {{ latest_job_card.vehicle.year or 'N/A' }} | 
-               VIN: {{ latest_job_card.vehicle.vin or 'N/A' }} | 
-               Odometer: {{ "{:,.0f}".format(latest_job_card.vehicle.mileage) ~ ' km' if latest_job_card.vehicle.mileage else 'N/A' }}</p>
+               Make: <strong>{{ latest_job_card.vehicle.make }}</strong> | 
+               Model: <strong>{{ latest_job_card.vehicle.model or 'N/A' }}</strong> | 
+               Year: <strong>{{ latest_job_card.vehicle.year or 'N/A' }}</strong> | 
+               VIN: <strong>{{ latest_job_card.vehicle.vin or 'N/A' }}</strong> | 
+               Odometer: <strong>{{ "{:,.0f}".format(latest_job_card.vehicle.mileage) ~ ' km' if latest_job_card.vehicle.mileage else 'N/A' }}</strong></p>
         </div>
         {% endif %}
         

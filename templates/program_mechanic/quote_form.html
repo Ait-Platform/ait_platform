@@ -50,7 +50,18 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+  document.getElementById('mileage_input').addEventListener('input', function(e) {
+      const val = parseInt(e.target.value);
+      const nextInput = document.getElementById('next_service_due_input');
+      if (!isNaN(val) && val > 0) {
+          nextInput.value = (val + 10000) + " km";
+      } else {
+          nextInput.value = "";
+      }
+  });
 </script>
+
 
 {% endblock %}
 {% block content %}
@@ -121,11 +132,11 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
                         <div>
               <label class="block text-sm font-medium text-slate-700 mb-1">Odometer / Mileage <span class="text-xs text-slate-400 font-normal">(Optional)</span></label>
-              <input type="number" name="mileage" class="block w-full rounded-md border border-slate-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:text-sm" value="{{ edit_card.vehicle.mileage if edit_card and edit_card.vehicle else '' }}" placeholder="e.g. 150000">
+              <input type="number" id="mileage_input" name="mileage" class="block w-full rounded-md border border-slate-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:text-sm" value="{{ edit_card.vehicle.mileage if edit_card and edit_card.vehicle else '' }}" placeholder="e.g. 150000">
             </div>
             <div>
               <label class="block text-sm font-medium text-slate-700 mb-1">Next Service Due <span class="text-xs text-slate-400 font-normal">(Optional)</span></label>
-              <input type="text" name="next_service_due" class="block w-full rounded-md border border-slate-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:text-sm" value="{{ edit_card.next_service_due if edit_card else '' }}" placeholder="e.g. 165,000 km or Dec 2026">
+              <input type="text" id="next_service_due_input" name="next_service_due" class="block w-full rounded-md border border-slate-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:text-sm" value="{{ edit_card.next_service_due if edit_card else '' }}" placeholder="e.g. 165,000 km or Dec 2026">
             </div>
 
           </div>

@@ -233,6 +233,7 @@ document.addEventListener("DOMContentLoaded", function() {
             {% else %}
                 <p class="text-slate-500 text-sm italic">No bank details configured. <a href="{{ url_for('mechanic_bp.bank_accounts') }}" class="text-indigo-600 hover:underline">Add one</a>.</p>
             {% endif %}
+            <p class="text-slate-600 text-sm mt-3"><span class="font-semibold">Payment Reference:</span><br>{{ job_card.job_number.split('-')[-1] }}</p>
           </div>
         </div>
 

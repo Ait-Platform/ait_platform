@@ -274,8 +274,16 @@ def ledger_add():
         return redirect(url_for("budget_bp.ledger"))
         
     # --- WALLET TOKEN CHECK ---
+    from app.models.billing import TokenTariff
     wallet = AitTokenWallet.query.filter_by(user_id=current_user.id).first()
-    token_cost = 10
+    
+    tariff = TokenTariff.query.filter_by(program_slug='budget', action_name='ledger_entry').first()
+    if not tariff:
+        tariff = TokenTariff(program_slug='budget', action_name='ledger_entry', base_token_cost=2)
+        db.session.add(tariff)
+        db.session.commit()
+        
+    token_cost = tariff.base_token_cost
     
     if not wallet or wallet.balance < token_cost:
         flash(f"You need at least {token_cost} tokens in your wallet to capture an entry.", "error")
@@ -306,7 +314,7 @@ def ledger_add():
         db.session.add(txn)
         
         db.session.commit()
-        flash("Payment added. 10 tokens deducted.", "success")
+        flash(f"Payment added. {token_cost} tokens deducted.", "success")
     except Exception:
         db.session.rollback()
         flash("Could not add entry.", "warning")

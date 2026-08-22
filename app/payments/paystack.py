@@ -342,6 +342,12 @@ def webhook():
         if event_type == "charge.success":
             tx_data = data.get("data", {})
             metadata = tx_data.get("metadata", {})
+            if isinstance(metadata, str):
+                import json
+                try:
+                    metadata = json.loads(metadata)
+                except:
+                    metadata = {}
             
             email = metadata.get("email") or tx_data.get("customer", {}).get("email", "")
             subject = metadata.get("subject", "")

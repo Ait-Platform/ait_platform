@@ -1794,4 +1794,4 @@ def edit_job_vehicle(id):
     
     db.session.commit()
     flash("Vehicle details updated successfully.", "success")
-    return redirect(url_for('mechanic_bp.job_card_view', id=job_card.id))
+    return redirect(url_for('mechanic_bp.job_card_detail', id=job_card.id))

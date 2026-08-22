@@ -1602,8 +1602,12 @@ def client_ledger_add_payment(debtor_id):
         amount_str = request.form.get('amount', '0')
         amount = int(float(amount_str) * 100)
         ref = request.form.get('ref', '')
-        desc = request.form.get('description', 'Manual Payment')
+        desc = request.form.get('description', 'Payment')
+        kind = request.form.get('kind', 'credit')
         
+        if kind not in ['credit', 'debit']:
+            kind = 'credit'
+            
         date_str = request.form.get('date')
         txn_date = datetime.strptime(date_str, '%Y-%m-%d').date() if date_str else db.func.current_date()
         
@@ -1613,7 +1617,7 @@ def client_ledger_add_payment(debtor_id):
                 txn_date=txn_date,
                 ref=ref,
                 description=desc,
-                kind='credit',
+                kind=kind,
                 amount=amount
             )
             db.session.add(ledger)

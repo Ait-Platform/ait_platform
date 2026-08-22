@@ -578,11 +578,20 @@ def generate_soa(debtor_id):
         profile = SenderProfile.query.filter_by(
             user_id=current_user.id, is_default=True).first()
 
-    # Fallback/Override for Mechanic Integration
+    latest_job_card = None
     if debtor.slug_reference == 'mechanic':
-        from app.models.mechanic import MechShop
+        from app.models.mechanic import MechShop, MechVehicle, MechJobCard
         shop = MechShop.query.filter_by(
             user_id=current_user.id, onboarding_status='active').first()
+            
+        # Get latest job card
+        from app.models.mechanic import MechClient
+        client = MechClient.query.get(debtor.reference_id)
+        if client:
+            latest_vehicle = MechVehicle.query.filter_by(client_id=client.id).order_by(MechVehicle.id.desc()).first()
+            if latest_vehicle:
+                latest_job_card = MechJobCard.query.filter_by(vehicle_id=latest_vehicle.id).order_by(MechJobCard.id.desc()).first()
+
         if shop:
             # We want to pull the Mechanic letterhead if the debtor sender profile lacks one
             has_logo = profile and getattr(profile, 'logo_url', None)
@@ -664,6 +673,7 @@ def generate_soa(debtor_id):
                                    profile=profile,
                                    running_balance=running_balance,
                                    period_opening_balance=period_opening_balance,
+                                   latest_job_card=latest_job_card,
                                    start_date=start_date,
                                    end_date=end_date,
                                    bank_account=bank_account,
@@ -707,11 +717,20 @@ def email_soa():
         profile = SenderProfile.query.filter_by(
             user_id=current_user.id, is_default=True).first()
 
-    # Fallback/Override for Mechanic Integration
+    latest_job_card = None
     if debtor.slug_reference == 'mechanic':
-        from app.models.mechanic import MechShop
+        from app.models.mechanic import MechShop, MechVehicle, MechJobCard
         shop = MechShop.query.filter_by(
             user_id=current_user.id, onboarding_status='active').first()
+            
+        # Get latest job card
+        from app.models.mechanic import MechClient
+        client = MechClient.query.get(debtor.reference_id)
+        if client:
+            latest_vehicle = MechVehicle.query.filter_by(client_id=client.id).order_by(MechVehicle.id.desc()).first()
+            if latest_vehicle:
+                latest_job_card = MechJobCard.query.filter_by(vehicle_id=latest_vehicle.id).order_by(MechJobCard.id.desc()).first()
+
         if shop:
             # We want to pull the Mechanic letterhead if the debtor sender profile lacks one
             has_logo = profile and getattr(profile, 'logo_url', None)
@@ -790,6 +809,7 @@ def email_soa():
                                    profile=profile,
                                    running_balance=running_balance,
                                    period_opening_balance=period_opening_balance,
+                                   latest_job_card=latest_job_card,
                                    bank_account=bank_account,
                                    start_date=start_date,
                                    end_date=end_date,

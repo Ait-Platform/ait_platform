@@ -1,0 +1,248 @@
+﻿{% extends 'layout.html' %}
+{% block title %}Tenant Ledger: {{ debtor.name }}{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-slate-50 py-10 px-4 flex flex-col items-center">
+  <div class="w-full max-w-6xl bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+    
+    <div class="h-2 w-full bg-slate-700"></div>
+
+    <div class="px-6 pt-6 pb-2">
+      {% include "partials/flash_messages.html" %}
+    </div>
+
+    <!-- First Row: Title & Back Button -->
+    <div class="flex items-center justify-between border-b border-slate-100 px-6 pb-4">
+      <div>
+        <h1 class="text-2xl md:text-3xl font-bold text-slate-900">{{ debtor.name }} - Ledger</h1>
+        <p class="mt-1 text-sm text-slate-500">
+            {% if debtor.email %}<i class="fas fa-envelope mr-1"></i>{{ debtor.email }} &nbsp;|&nbsp; {% endif %}
+            {% if debtor.phone %}<i class="fas fa-phone mr-1"></i>{{ debtor.phone }}{% endif %}
+        </p>
+      </div>
+      <a href="{{ url_for('billing_bp.tenant_accounts') }}" class="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition shadow-sm">
+        <span>&larr;</span><span>All Accounts</span>
+      </a>
+    </div>
+
+    <div class="p-6 space-y-8">
+      
+      <!-- Top Actions -->
+      <div class="flex flex-wrap items-center justify-between gap-4">
+        <form method="GET" action="{{ url_for('billing_bp.tenant_ledger', debtor_id=debtor.id) }}" class="flex items-end gap-2 bg-slate-50 p-3 rounded-lg border border-slate-200">
+            <div>
+                <label for="start_date" class="block text-xs font-bold text-slate-500 mb-1">Start Date</label>
+                <input type="date" name="start_date" id="start_date" value="{{ start_date or '' }}" class="px-3 py-1.5 text-sm border border-slate-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500">
+            </div>
+            <div>
+                <label for="end_date" class="block text-xs font-bold text-slate-500 mb-1">End Date</label>
+                <input type="date" name="end_date" id="end_date" value="{{ end_date or '' }}" class="px-3 py-1.5 text-sm border border-slate-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500">
+            </div>
+            <button type="submit" class="px-3 py-1.5 bg-slate-800 text-white text-sm font-semibold rounded-md hover:bg-slate-900 transition">Filter</button>
+        </form>
+
+                  <div class="flex items-center gap-2">
+            <button onclick="document.getElementById('add-payment-modal').classList.remove('hidden')" class="px-4 py-2 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 shadow-sm transition text-sm">
+              <i class="fas fa-money-bill-wave mr-1"></i> Record Transaction
+            </button>
+            <a href="{{ url_for('debtors_bp.generate_soa', debtor_id=debtor.id, start_date=start_date, end_date=end_date, return_url=url_for('billing_bp.tenant_ledger', debtor_id=debtor.id)) }}" title="Print / Download SOA" class="w-10 h-10 inline-flex items-center justify-center bg-indigo-100 text-indigo-700 rounded-full hover:bg-indigo-200 transition shadow-sm">
+              <i class="fas fa-file-pdf"></i>
+            </a>
+          </div>
+      </div>
+
+      <!-- Ledger Table -->
+      <div class="border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-white">
+        <table class="min-w-full divide-y divide-slate-200">
+          <thead class="bg-slate-50">
+            <tr>
+                <th scope="col" class="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Date</th>
+                <th scope="col" class="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Ref / Description</th>
+                <th scope="col" class="px-4 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Debit (Charge)</th>
+                <th scope="col" class="px-4 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Credit (Payment)</th>
+                <th scope="col" class="px-4 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Running Balance</th>
+            </tr>
+          </thead>
+          <tbody class="bg-white divide-y divide-slate-100">
+            {% if ledgers %}
+                {% for l in ledgers %}
+                <tr class="hover:bg-slate-50 transition">
+                    <td class="px-4 py-3 whitespace-nowrap text-sm text-slate-600 font-medium">
+                        {{ l.txn_date.strftime('%Y-%m-%d') if l.txn_date else 'N/A' }}
+                    </td>
+                    <td class="px-4 py-3 text-sm">
+                        <div class="font-bold text-slate-900">{{ l.ref or 'N/A' }}</div>
+                        <div class="text-slate-500 text-xs mt-0.5">{{ l.description or '' }}</div>
+                    </td>
+                    <td class="px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-slate-900">
+                        {% if l.kind == 'debit' %}R {{ "%.2f"|format(l.amount/100) }}{% else %}-{% endif %}
+                    </td>
+                    <td class="px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-green-600">
+                        {% if l.kind == 'credit' %}R {{ "%.2f"|format(l.amount/100) }}{% else %}-{% endif %}
+                    </td>
+                    <td class="px-4 py-3 whitespace-nowrap text-sm text-right font-bold {% if (l.running_balance|default(0)) > 0 %}text-red-600{% else %}text-green-600{% endif %}">
+                        R {{ "%.2f"|format((l.running_balance|default(0))/100) }}
+                    </td>
+                </tr>
+                {% endfor %}
+            {% else %}
+                <tr>
+                    <td colspan="5" class="px-6 py-8 text-center text-slate-500 text-sm">
+                        No transactions found for this period.
+                    </td>
+                </tr>
+            {% endif %}
+          </tbody>
+          <tfoot class="bg-slate-50 border-t-2 border-slate-200">
+            <tr>
+              <td colspan="4" class="px-4 py-3 text-right font-bold text-slate-700">Total Outstanding Balance:</td>
+              <td class="px-4 py-3 text-right font-black text-lg {% if (ledgers[-1].running_balance if ledgers else 0) > 0 %}text-red-600{% else %}text-green-600{% endif %}">
+                R {{ "%.2f"|format((ledgers[-1].running_balance if ledgers else 0)/100) }}
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+
+  <!-- Tenant Job Cards -->
+  <div class="mt-8 bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden mb-8">
+    <div class="bg-slate-50 px-6 py-4 border-b border-slate-200 flex justify-between items-center">
+      <h2 class="text-lg font-bold text-slate-800">Tenant Job Cards & Tax Invoices</h2>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-left border-collapse">
+        <thead>
+          <tr class="bg-white border-b border-slate-200 text-xs uppercase text-slate-500 tracking-wider">
+            <th class="px-6 py-3 font-bold">Date</th>
+            <th class="px-6 py-3 font-bold">Job #</th>
+            <th class="px-6 py-3 font-bold">Vehicle</th>
+            <th class="px-6 py-3 font-bold">Status</th>
+            <th class="px-6 py-3 font-bold text-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          {% for j in job_cards %}
+          <tr class="hover:bg-slate-50 transition">
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-700">{{ j.created_at.strftime('%Y-%m-%d') }}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-indigo-600">JOB-{{ j.job_number }}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">{{ j.vehicle.make }} {{ j.vehicle.model }}</td>
+            <td class="px-6 py-4 whitespace-nowrap">
+              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold 
+                {% if j.status == 'Billed' %}bg-green-100 text-green-800
+                {% elif j.status in ['Approved', 'Awaiting Deposit'] %}bg-blue-100 text-blue-800
+                {% elif j.status == 'Rejected' %}bg-slate-100 text-slate-800
+                {% else %}bg-amber-100 text-amber-800{% endif %}">
+                {{ j.status }}
+              </span>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+              <a href="{{ url_for('mechanic_bp.job_card_detail', id=j.id) }}" class="text-indigo-600 hover:text-indigo-900 font-bold mr-3" title="Open Job Card Hub">
+                <i class="fas fa-external-link-alt"></i> Open Hub
+              </a>
+              {% if j.status not in ['Quote', 'Rejected'] %}
+              <a href="{{ url_for('mechanic_bp.download_document', id=j.id) }}" class="text-slate-500 hover:text-slate-800 font-bold mr-3" title="Download Tax Invoice">
+                <i class="fas fa-file-pdf"></i> Tax Invoice
+              </a>
+              <a href="{{ url_for('mechanic_bp.email_document', id=j.id) }}" class="text-blue-500 hover:text-blue-800 font-bold" title="Email Tax Invoice">
+                <i class="fas fa-paper-plane"></i> Email
+              </a>
+              {% else %}
+              <span class="text-slate-400 italic text-xs">Waiting for Acceptance</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="5" class="px-6 py-8 text-center text-slate-500 text-sm">No job cards found for this client.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+<!-- Record Transaction Modal -->
+
+<div id="add-payment-modal" class="fixed inset-0 z-50 hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+  <div class="flex items-end justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+    <div class="fixed inset-0 transition-opacity bg-slate-900 bg-opacity-75 backdrop-blur-sm" aria-hidden="true" onclick="document.getElementById('add-payment-modal').classList.add('hidden')"></div>
+    <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+    <div class="inline-block overflow-hidden text-left align-bottom transition-all transform bg-white rounded-xl shadow-xl sm:my-8 sm:align-middle sm:max-w-lg sm:w-full border border-slate-200">
+      <form method="POST" action="{{ url_for('billing_bp.tenant_ledger_add_transaction', debtor_id=debtor.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="px-6 pt-6 pb-4 bg-white sm:p-6 sm:pb-4 border-b border-slate-100">
+                    <h3 class="text-xl font-bold text-slate-900" id="modal-title">Record Manual Transaction</h3>
+          <p class="mt-2 text-sm text-slate-500">Log a manual payment (credit) or refund (debit) for {{ debtor.name }}.</p>
+        </div>
+        <div class="p-6 space-y-4">
+                              <div>
+            <label class="block text-sm font-bold text-slate-700 mb-1">Type</label>
+            <select name="kind" id="transaction_kind" onchange="updateTransactionDescription()" class="block w-full rounded-lg border border-slate-300 focus:border-indigo-500 focus:ring-indigo-500 p-2.5">
+              <option value="credit">Payment Received (Credit Tenant)</option>
+              <option value="debit">Refund / Charge (Debit Tenant)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-bold text-slate-700 mb-1">Amount</label>
+            <input type="number" step="0.01" min="0.01" name="amount" required class="block w-full rounded-lg border border-slate-300 focus:border-indigo-500 focus:ring-indigo-500 p-2.5">
+          </div>
+          <div>
+            <label class="block text-sm font-bold text-slate-700 mb-1">Date</label>
+            <input type="date" name="date" required value="{{ start_date if start_date else '' }}" class="block w-full rounded-lg border border-slate-300 focus:border-indigo-500 focus:ring-indigo-500 p-2.5">
+          </div>
+          
+          <div>
+            <button type="button" onclick="document.getElementById('advanced_fields').classList.toggle('hidden')" class="text-sm text-indigo-600 hover:text-indigo-800 font-semibold">+ Add Custom Reference or Note</button>
+          </div>
+          
+          <div id="advanced_fields" class="hidden space-y-4 pt-2 border-t border-slate-100 mt-2">
+              <div>
+                <label class="block text-sm font-bold text-slate-700 mb-1">Reference</label>
+                <input type="text" name="ref" value="EFT" class="block w-full rounded-lg border border-slate-300 focus:border-indigo-500 focus:ring-indigo-500 p-2.5">
+              </div>
+              <div>
+                <label class="block text-sm font-bold text-slate-700 mb-1">Description</label>
+                <input type="text" name="description" id="transaction_desc" value="Thank you for this payment" class="block w-full rounded-lg border border-slate-300 focus:border-indigo-500 focus:ring-indigo-500 p-2.5">
+              </div>
+          </div>
+        </div>
+        <div class="px-6 py-4 bg-slate-50 flex justify-end gap-3 rounded-b-xl border-t border-slate-100">
+          <button type="button" onclick="document.getElementById('add-payment-modal').classList.add('hidden')" class="px-5 py-2.5 rounded-lg border border-slate-300 text-slate-700 font-bold hover:bg-slate-100 transition">Cancel</button>
+          <button type="submit" class="px-5 py-2.5 rounded-lg bg-green-600 text-white font-bold hover:bg-green-700 shadow-sm transition">Save Transaction</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+function updateTransactionDescription() {
+    const kind = document.getElementById('transaction_kind').value;
+    const descInput = document.getElementById('transaction_desc');
+    
+    if (kind === 'debit') {
+        if (descInput.value === 'Thank you for this payment') {
+            descInput.value = 'Refund issued';
+        }
+    } else {
+        if (descInput.value === 'Refund issued') {
+            descInput.value = 'Thank you for this payment';
+        }
+    }
+}
+</script>
+<script>
+  // default date
+  document.addEventListener('DOMContentLoaded', () => {
+      const dateInput = document.querySelector('input[name="date"]');
+      if (!dateInput.value) {
+          dateInput.value = new Date().toISOString().split('T')[0];
+      }
+  });
+</script>
+{% endblock %}

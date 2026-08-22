@@ -24,8 +24,11 @@
         
         <!-- Row 2: Dashboard Navigation -->
         <div class="flex justify-end border-b border-slate-200 mb-6 space-x-2">
-          <a href="{{ url_for('debtors_bp.dashboard') }}" class="px-6 py-3 text-sm font-semibold text-purple-700 bg-purple-50 hover:bg-purple-100 border-b-2 border-purple-600 rounded-t-md transition-colors">
-            SOA (Debtors) &rarr;
+          <a href="{{ url_for('billing_bp.bank_accounts') }}" class="px-6 py-3 text-sm font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border-b-2 border-blue-600 rounded-t-md transition-colors">
+            <i class="fas fa-university mr-1"></i> Bank Accounts
+          </a>
+          <a href="{{ url_for('billing_bp.tenant_accounts') }}" class="px-6 py-3 text-sm font-semibold text-purple-700 bg-purple-50 hover:bg-purple-100 border-b-2 border-purple-600 rounded-t-md transition-colors">
+            Tenant Accounts (Ledgers)
           </a>
           <a href="{{ url_for('billing_bp.utilities_hub') }}" class="px-6 py-3 text-sm font-semibold text-green-700 bg-green-50 hover:bg-green-100 border-b-2 border-green-600 rounded-t-md transition-colors">
             Utilities Hub &rarr;

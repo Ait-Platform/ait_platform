@@ -1,0 +1,129 @@
+﻿{% extends 'layout.html' %}
+{% block title %}Mechanic Bank Accounts{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto mt-8 px-4 sm:px-6 lg:px-8">
+  
+    <div class="mb-8">
+        <a href="{{ url_for('billing_bp.manager_dashboard') }}" class="text-indigo-600 hover:text-indigo-800 font-semibold mb-4 inline-block">&larr; Back to Dashboard</a>
+        <h1 class="text-3xl font-bold text-gray-900">Banking Details (For Payments)</h1>
+        <p class="text-sm text-gray-600 mt-2">These details will appear on your Tax Invoices and Statements of Account.</p>
+    </div>
+
+    {% include 'partials/flash_messages.html' %}
+
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-xl font-bold text-gray-800">Your Bank Accounts</h2>
+            <button onclick="openBankModal()" class="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 font-semibold text-sm transition shadow-sm">+ Add Account</button>
+        </div>
+        
+        {% if bank_accounts %}
+        <div class="overflow-x-auto rounded-lg border border-gray-200">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Account Details</th>
+                        <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Default</th>
+                        <th class="px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for acc in bank_accounts %}
+                    <tr>
+                        <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                            <div class="font-bold">{{ acc.bank_name }}</div>
+                            <div class="text-gray-500">{{ acc.account_name }}</div>
+                            <div class="text-gray-500">Acc: {{ acc.account_number }} | Branch: {{ acc.bsb_branch }}</div>
+                            {% if acc.swift_code %}<div class="text-gray-500">SWIFT: {{ acc.swift_code }}</div>{% endif %}
+                        </td>
+                        <td class="px-4 py-4 whitespace-nowrap">
+                            {% if acc.is_default %}
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Default</span>
+                            {% else %}
+                                <form action="{{ url_for('billing_bp.set_default_bank_account', account_id=acc.id) }}" method="POST" class="inline">
+                                    <button type="submit" class="text-sm text-indigo-600 hover:text-indigo-900 hover:underline">Set as Default</button>
+                                </form>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <form action="{{ url_for('billing_bp.delete_bank_account', account_id=acc.id) }}" method="POST" class="inline" onsubmit="return confirm('Are you sure you want to delete this bank account?');">
+                                <button type="submit" class="text-red-600 hover:text-red-900 ml-4"><i class="fas fa-trash"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-8 bg-gray-50 rounded-lg border border-dashed border-gray-300">
+            <p class="text-gray-500 italic">No bank accounts added yet.</p>
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+
+<!-- Add Bank Account Modal -->
+<div id="bankModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden overflow-y-auto h-full w-full z-50">
+    <div class="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-bold text-gray-900">Add Bank Account</h3>
+            <button onclick="closeBankModal()" class="text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        <form method="POST" action="{{ url_for('billing_bp.add_bank_account') }}">
+            {{ bank_form.hidden_tag() }}
+            
+            <div class="mb-4">
+                {{ bank_form.bank_name.label(class="block text-gray-700 text-sm font-bold mb-2") }}
+                {{ bank_form.bank_name(class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline focus:border-indigo-500") }}
+            </div>
+            
+            <div class="mb-4">
+                {{ bank_form.account_name.label(class="block text-gray-700 text-sm font-bold mb-2") }}
+                {{ bank_form.account_name(class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline focus:border-indigo-500") }}
+            </div>
+            
+            <div class="mb-4">
+                {{ bank_form.account_number.label(class="block text-gray-700 text-sm font-bold mb-2") }}
+                {{ bank_form.account_number(class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline focus:border-indigo-500") }}
+            </div>
+            
+            <div class="mb-4">
+                {{ bank_form.bsb_branch.label(class="block text-gray-700 text-sm font-bold mb-2") }}
+                {{ bank_form.bsb_branch(class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline focus:border-indigo-500") }}
+            </div>
+            
+            <div class="mb-4">
+                {{ bank_form.swift_code.label(class="block text-gray-700 text-sm font-bold mb-2") }}
+                {{ bank_form.swift_code(class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline focus:border-indigo-500") }}
+            </div>
+            
+            <div class="mb-6">
+                <label class="flex items-center">
+                    {{ bank_form.is_default(class="form-checkbox h-4 w-4 text-indigo-600") }}
+                    <span class="ml-2 text-sm text-gray-700">Set as default account</span>
+                </label>
+            </div>
+            
+            <div class="flex justify-end">
+                <button type="button" onclick="closeBankModal()" class="mr-2 px-4 py-2 text-gray-500 hover:text-gray-700 font-semibold">Cancel</button>
+                <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 font-semibold shadow-sm transition">Save Account</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function openBankModal() {
+        document.getElementById('bankModal').classList.remove('hidden');
+    }
+    
+    function closeBankModal() {
+        document.getElementById('bankModal').classList.add('hidden');
+    }
+</script>
+{% endblock %}

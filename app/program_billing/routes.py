@@ -3904,3 +3904,220 @@ def billing_unlock(month):
     
     flash(f"Successfully unlocked statements for {month}!", "success")
     return redirect(url_for('billing_bp.utilities_hub'))
+
+
+# ==========================================
+# BILLING WALLED GARDEN LEDGER (DEBTORS)
+# ==========================================
+
+@billing_bp.route("/manager/tenant_accounts")
+@login_required
+def tenant_accounts():
+    from app.models.debtors import Debtor
+    start_date_str = request.args.get('start_date', '')
+    end_date_str = request.args.get('end_date', '')
+    
+    try:
+        start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date() if start_date_str else None
+        end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date() if end_date_str else None
+    except ValueError:
+        start_date = None
+        end_date = None
+
+    try:
+        # Get all tenants (managed by Debtors table with slug_reference='billing')
+        debtors = Debtor.query.filter_by(user_id=current_user.id, slug_reference='billing').all()
+        total_owed = 0
+        
+        for d in debtors:
+            valid_ledgers = d.ledgers
+            if start_date:
+                valid_ledgers = [l for l in valid_ledgers if l.txn_date >= start_date]
+            if end_date:
+                valid_ledgers = [l for l in valid_ledgers if l.txn_date <= end_date]
+                
+            total_debits = sum(l.amount for l in valid_ledgers if l.kind == 'debit')
+            total_credits = sum(l.amount for l in valid_ledgers if l.kind == 'credit')
+            d.current_balance = (total_debits - total_credits) / 100.0
+            
+            if d.current_balance > 0:
+                total_owed += d.current_balance
+                
+    except Exception as e:
+        current_app.logger.error(f"Error loading tenant accounts: {e}")
+        debtors = []
+        total_owed = 0
+        
+    return render_template("program_billing/tenant_accounts.html", 
+                           debtors=debtors, 
+                           total_owed=total_owed,
+                           start_date=start_date_str,
+                           end_date=end_date_str)
+
+
+@billing_bp.route("/manager/tenant_ledger/<int:debtor_id>")
+@login_required
+def tenant_ledger(debtor_id):
+    from app.models.debtors import Debtor, BusinessBankAccount
+    debtor = Debtor.query.filter_by(id=debtor_id, user_id=current_user.id, slug_reference='billing').first_or_404()
+    
+    start_date_str = request.args.get('start_date', '')
+    end_date_str = request.args.get('end_date', '')
+    
+    try:
+        start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date() if start_date_str else None
+        end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date() if end_date_str else None
+    except ValueError:
+        start_date = None
+        end_date = None
+
+    # Filter ledgers based on date
+    filtered_ledgers = debtor.ledgers
+    if start_date:
+        filtered_ledgers = [l for l in filtered_ledgers if l.txn_date >= start_date]
+    if end_date:
+        filtered_ledgers = [l for l in filtered_ledgers if l.txn_date <= end_date]
+
+    filtered_ledgers.sort(key=lambda x: x.txn_date)
+
+    running_balance = 0
+    for l in filtered_ledgers:
+        if l.kind == 'debit':
+            running_balance += l.amount
+        elif l.kind == 'credit':
+            running_balance -= l.amount
+        l.running_balance = running_balance
+
+    # For statement generation shortcut
+    bank_account = BusinessBankAccount.query.filter_by(user_id=current_user.id, is_default=True).first()
+
+    return render_template("program_billing/tenant_ledger.html", 
+                           debtor=debtor, 
+                           ledgers=reversed(filtered_ledgers),
+                           bank_account=bank_account,
+                           start_date=start_date_str,
+                           end_date=end_date_str)
+
+
+@billing_bp.route("/manager/tenant_ledger/<int:debtor_id>/add_transaction", methods=["POST"])
+@login_required
+def tenant_ledger_add_transaction(debtor_id):
+    from app.models.debtors import Debtor, DebtorLedger
+    debtor = Debtor.query.filter_by(id=debtor_id, user_id=current_user.id, slug_reference='billing').first_or_404()
+
+    try:
+        txn_date_str = request.form.get("txn_date")
+        txn_date = datetime.strptime(txn_date_str, "%Y-%m-%d").date() if txn_date_str else datetime.utcnow().date()
+        kind = request.form.get("kind", "credit")  # default to payment/credit
+        amount = int(float(request.form.get("amount", 0)) * 100)
+        description = request.form.get("description", "Thank you for this payment")
+        ref = request.form.get("ref", "")
+
+        if amount > 0:
+            ledger_entry = DebtorLedger(
+                debtor_id=debtor.id,
+                description=description,
+                ref=ref,
+                kind=kind,
+                amount=amount,
+                txn_date=txn_date
+            )
+            db.session.add(ledger_entry)
+            db.session.commit()
+            flash("Transaction successfully recorded.", "success")
+        else:
+            flash("Amount must be greater than 0.", "error")
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Failed to add tenant transaction: {e}")
+        flash("Failed to record transaction. Invalid input.", "error")
+
+    return redirect(url_for('billing_bp.tenant_ledger', debtor_id=debtor.id))
+
+
+@billing_bp.route("/manager/bank_accounts")
+@login_required
+def bank_accounts():
+    from app.models.debtors import BusinessBankAccount
+    accounts = BusinessBankAccount.query.filter_by(user_id=current_user.id).all()
+    return render_template("program_billing/bank_accounts.html", accounts=accounts)
+
+@billing_bp.route("/manager/bank_accounts/add", methods=["POST"])
+@login_required
+def add_bank_account():
+    from app.models.debtors import BusinessBankAccount
+    bank_name = request.form.get("bank_name")
+    account_name = request.form.get("account_name")
+    bsb_branch = request.form.get("bsb_branch")
+    account_number = request.form.get("account_number")
+    swift_code = request.form.get("swift_code")
+    raw_details = request.form.get("raw_details")
+
+    # If first account, make it default
+    existing = BusinessBankAccount.query.filter_by(user_id=current_user.id).count()
+    is_default = (existing == 0)
+
+    try:
+        new_account = BusinessBankAccount(
+            user_id=current_user.id,
+            bank_name=bank_name,
+            account_name=account_name,
+            bsb_branch=bsb_branch,
+            account_number=account_number,
+            swift_code=swift_code,
+            raw_details=raw_details,
+            is_default=is_default
+        )
+        db.session.add(new_account)
+        db.session.commit()
+        flash("Bank account added successfully.", "success")
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Failed to add bank account: {e}")
+        flash("Failed to add bank account.", "error")
+
+    return redirect(url_for('billing_bp.bank_accounts'))
+
+
+@billing_bp.route("/manager/bank_accounts/set_default/<int:account_id>", methods=["POST"])
+@login_required
+def set_default_bank_account(account_id):
+    from app.models.debtors import BusinessBankAccount
+    account = BusinessBankAccount.query.filter_by(id=account_id, user_id=current_user.id).first_or_404()
+    
+    try:
+        BusinessBankAccount.query.filter_by(user_id=current_user.id).update({"is_default": False})
+        account.is_default = True
+        db.session.commit()
+        flash("Default bank account updated.", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash("Failed to update default account.", "error")
+        
+    return redirect(url_for('billing_bp.bank_accounts'))
+
+
+@billing_bp.route("/manager/bank_accounts/delete/<int:account_id>", methods=["POST"])
+@login_required
+def delete_bank_account(account_id):
+    from app.models.debtors import BusinessBankAccount
+    account = BusinessBankAccount.query.filter_by(id=account_id, user_id=current_user.id).first_or_404()
+    
+    try:
+        was_default = account.is_default
+        db.session.delete(account)
+        db.session.commit()
+        
+        # If we deleted the default, randomly assign a new default if accounts exist
+        if was_default:
+            first_remaining = BusinessBankAccount.query.filter_by(user_id=current_user.id).first()
+            if first_remaining:
+                first_remaining.is_default = True
+                db.session.commit()
+                
+        flash("Bank account deleted.", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash("Failed to delete account.", "error")
+        
+    return redirect(url_for('billing_bp.bank_accounts'))

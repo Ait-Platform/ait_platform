@@ -73,8 +73,8 @@
               <div class="font-bold text-slate-900 group-hover:text-purple-700 text-lg">Manage Catalog</div>
               <div class="mt-1 text-sm text-slate-700">Add custom parts and set your local prices.</div>
             </a>
-            <a href="{{ url_for('debtors_bp.dashboard', source='mechanic') }}" class="block text-center w-full rounded-xl border-2 border-sky-200 p-3 shadow-sm transition hover:shadow bg-sky-50 hover:border-sky-400 text-sky-900 font-semibold text-sm group">
-              <i class="fas fa-file-invoice-dollar mr-1 group-hover:text-sky-700"></i> Debtors (SOA)
+            <a href="{{ url_for('mechanic_bp.client_accounts') }}" class="block text-center w-full rounded-xl border-2 border-indigo-200 p-3 shadow-sm transition hover:shadow bg-indigo-50 hover:border-indigo-400 text-indigo-900 font-semibold text-sm group">
+              <i class="fas fa-file-invoice-dollar mr-1 group-hover:text-indigo-700"></i> Client Accounts (SOA)
             </a>
           </div>
 
@@ -144,9 +144,7 @@
         <button onclick="document.getElementById('manual-setup-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 text-3xl leading-none">&times;</button>
       </div>
 
-      <div class="bg-blue-50 border-l-4 border-blue-500 p-4 text-sm text-blue-700 m-4 rounded">
-        <strong>Reminder:</strong> After setting up your shop here, don't forget to <a href="{{ url_for('debtors_bp.profile') }}" class="font-bold underline text-blue-800">add your Bank Account in the Debtors module</a> so your Statements of Account are complete!
-      </div>
+      
       
       <!-- Tabs Header -->
       <div class="flex border-b border-slate-200 bg-white">

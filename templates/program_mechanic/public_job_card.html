@@ -108,7 +108,7 @@
                 {% else %}
                     <p style="font-size: 13px;">Please contact us for payment details.</p>
                 {% endif %}
-                <p style="margin-top: 10px; font-size: 13px;"><strong>Payment Reference:</strong><br>Job Card #{{ job_card.job_number }}</p>
+                <p style="margin-top: 10px; font-size: 13px;"><strong>Payment Reference:</strong><br>{{ job_card.job_number.split('-')[-1] }}</p>
             </div>
         </div>
         

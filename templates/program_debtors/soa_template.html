@@ -242,7 +242,7 @@
                         {% if bank_account.swift_code %}<div><strong>SWIFT:</strong> {{ bank_account.swift_code }}</div>{% endif %}
                     </div>
                 {% endif %}
-                <div class="mt-2 text-sm text-gray-700"><strong>Payment Reference:</strong><br>{% if latest_job_card %}Job Card #{{ latest_job_card.job_number }}{% else %}Account: {{ debtor.name }}{% endif %}</div>
+                <div class="mt-2 text-sm text-gray-700"><strong>Payment Reference:</strong><br>{% if latest_job_card %}{{ latest_job_card.job_number.split('-')[-1] }}{% else %}Account: {{ debtor.name }}{% endif %}</div>
             </div>
             {% endif %}
         </div>

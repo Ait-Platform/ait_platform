@@ -311,7 +311,7 @@ document.addEventListener("DOMContentLoaded", function() {
   <!-- Missing Contact for Email Modal -->
     <div id="missing-contact-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
       <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-y-auto max-h-[90vh] animate-[fadeIn_0.2s_ease-out]">
-        <div class="p-6">
+        <div class="p-6 overflow-y-auto">
           <div class="flex justify-between items-center mb-4 border-b border-slate-100 pb-2">
             <h2 class="text-xl font-bold text-slate-800">Missing Contact Details</h2>
             <button type="button" onclick="document.getElementById('missing-contact-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 transition">
@@ -356,8 +356,8 @@ document.addEventListener("DOMContentLoaded", function() {
     
 <!-- Edit Client Modal -->
   <div id="edit-client-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-    <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-[fadeIn_0.2s_ease-out]">
-      <div class="p-6">
+    <div class="bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-[fadeIn_0.2s_ease-out] flex flex-col max-h-[90vh]">
+      <div class="p-6 overflow-y-auto">
         <div class="flex justify-between items-center mb-4 border-b border-slate-100 pb-2">
           <h2 class="text-xl font-bold text-slate-800">Edit Client Details</h2>
           <button type="button" onclick="document.getElementById('edit-client-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 transition">
@@ -445,7 +445,7 @@ document.addEventListener("DOMContentLoaded", function() {
             <h3 class="text-xl font-bold text-slate-900" id="modal-title">Contact Client</h3>
             <p class="mt-2 text-sm text-slate-500">How would you like to contact {{ job_card.vehicle.client.name }} ({{ job_card.vehicle.client.phone }})?</p>
           </div>
-          <div class="p-6">
+          <div class="p-6 overflow-y-auto">
 {% if job_card.vehicle.client.phone %}
             <div class="grid grid-cols-1 gap-4">
               <form method="POST" action="{{ url_for('mechanic_bp.log_call', job_id=job_card.id) }}" target="_blank" onsubmit="setTimeout(() => { document.getElementById('contact-modal').classList.add('hidden'); window.location.reload(); }, 1000);">
@@ -530,8 +530,8 @@ document.addEventListener("DOMContentLoaded", function() {
 
 <!-- Edit Vehicle Modal -->
   <div id="edit-vehicle-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-    <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-[fadeIn_0.2s_ease-out]">
-      <div class="p-6">
+    <div class="bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-[fadeIn_0.2s_ease-out] flex flex-col max-h-[90vh]">
+      <div class="p-6 overflow-y-auto">
         <div class="flex justify-between items-center mb-4 border-b border-slate-100 pb-2">
           <h2 class="text-xl font-bold text-slate-800">Edit Vehicle Details</h2>
           <button type="button" onclick="document.getElementById('edit-vehicle-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 transition">
@@ -540,7 +540,7 @@ document.addEventListener("DOMContentLoaded", function() {
         </div>
         <form method="POST" action="{{ url_for('mechanic_bp.edit_job_vehicle', id=job_card.id) }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <div class="space-y-4">
+          <div class="grid grid-cols-2 gap-4">
             <div>
               <label class="block text-sm font-bold text-slate-700 mb-1">Make</label>
               <input type="text" name="make" value="{{ job_card.vehicle.make or '' }}" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none">
@@ -554,14 +554,14 @@ document.addEventListener("DOMContentLoaded", function() {
               <input type="number" name="year" value="{{ job_card.vehicle.year or '' }}" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none">
             </div>
             <div>
-              <label class="block text-sm font-bold text-slate-700 mb-1">VIN Number</label>
-              <input type="text" name="vin" value="{{ job_card.vehicle.vin or '' }}" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none">
-            </div>
-            <div>
               <label class="block text-sm font-bold text-slate-700 mb-1">Odometer (km)</label>
               <input type="number" id="modal_mileage" name="mileage" value="{{ job_card.vehicle.mileage or '' }}" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none">
             </div>
-            <div>
+            <div class="col-span-2">
+              <label class="block text-sm font-bold text-slate-700 mb-1">VIN Number</label>
+              <input type="text" name="vin" value="{{ job_card.vehicle.vin or '' }}" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none">
+            </div>
+            <div class="col-span-2">
               <label class="block text-sm font-bold text-slate-700 mb-1">Next Service Due</label>
               <input type="text" id="modal_next_service" name="next_service_due" value="{{ job_card.next_service_due or '' }}" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none">
             </div>

@@ -486,9 +486,11 @@ def download_document(id):
         return redirect(url_for('mechanic_bp.job_card_detail', id=job_card.id))
         
     active_shop = MechShop.query.filter_by(user_id=current_user.id, onboarding_status='active').first()
-    today_date = datetime.utcnow().strftime('%Y-%m-%d')
+    from app.models.debtors import BusinessBankAccount
+    bank_account = BusinessBankAccount.query.filter_by(user_id=job_card.vehicle.client.user_id, is_default=True).first()
     
-    pdf_html_content = render_template("program_mechanic/public_job_card.html", job_card=job_card, shop=active_shop, today_date=today_date)
+    today_date = datetime.utcnow().strftime('%Y-%m-%d')
+    pdf_html_content = render_template("program_mechanic/public_job_card.html", job_card=job_card, shop=active_shop, today_date=today_date, bank_account=bank_account)
     
     try:
         pdf_bytes = html_to_pdf_bytes(pdf_html_content, base_url=request.host_url)
@@ -557,7 +559,9 @@ def email_document(id):
 
         # Generate PDF Attachment
         today_date = datetime.utcnow().strftime('%Y-%m-%d')
-        pdf_html_content = render_template("program_mechanic/public_job_card.html", job_card=job_card, shop=active_shop, today_date=today_date)
+        from app.models.debtors import BusinessBankAccount
+        bank_account = BusinessBankAccount.query.filter_by(user_id=job_card.vehicle.client.user_id, is_default=True).first()
+        pdf_html_content = render_template("program_mechanic/public_job_card.html", job_card=job_card, shop=active_shop, today_date=today_date, bank_account=bank_account)
         
         success = False
         try:
@@ -1366,7 +1370,9 @@ def public_job_card(job_number):
         shop = MechShop.query.filter_by(user_id=job_card.vehicle.client.user_id).first()
         
     today_date = datetime.utcnow().strftime('%Y-%m-%d')
-    return render_template('program_mechanic/public_job_card.html', job_card=job_card, shop=shop, today_date=today_date)
+    from app.models.debtors import BusinessBankAccount
+    bank_account = BusinessBankAccount.query.filter_by(user_id=job_card.vehicle.client.user_id, is_default=True).first()
+    return render_template('program_mechanic/public_job_card.html', job_card=job_card, shop=shop, today_date=today_date, bank_account=bank_account)
 
 @mechanic_bp.route("/mechanic/job_card/<int:id>/accept", methods=["POST"])
 @login_required

@@ -1714,7 +1714,7 @@ def client_ledger_add_payment(debtor_id):
         db.session.rollback()
         flash(f"Error recording payment: {e}", "danger")
         
-    return redirect(url_for('mechanic_bp.job_card_detail', id=job_card.id))
+    return redirect(url_for('mechanic_bp.client_ledger', debtor_id=debtor.id))
 
 
 from app.models.debtors import BusinessBankAccount

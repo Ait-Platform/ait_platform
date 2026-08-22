@@ -28,6 +28,28 @@
         table td:nth-child(3), table td:nth-child(4), table td:nth-child(5), table th:nth-child(3), table th:nth-child(4), table th:nth-child(5) { text-align: right; }
         .text-right { text-align: right; }
         .footer { text-align: center; margin-top: 40px; color: #7f8c8d; font-size: 12px; border-top: 1px solid #eee; padding-top: 20px; }
+    
+        @page {
+            size: A4;
+            margin: 1cm 1cm 2cm 1cm;
+            @bottom-left {
+                content: "E.&O.E.";
+                font-size: 10px;
+                color: #9ca3af;
+                font-style: italic;
+            }
+            @bottom-center {
+                content: "Page " counter(page) " of " counter(pages);
+                font-size: 10px;
+                color: #9ca3af;
+            }
+            @bottom-right {
+                content: "Powered by AIT";
+                font-size: 10px;
+                color: #9ca3af;
+                font-style: italic;
+            }
+        }
     </style>
 </head>
 <body>
@@ -75,7 +97,8 @@
                         <div style="font-size: 13px;">
                             <div><strong>Bank:</strong> {{ bank_account.bank_name }}</div>
                             <div><strong>Account Name:</strong> {{ bank_account.account_name }}</div>
-                            <div><strong>BSB:</strong> {{ bank_account.bsb_branch }} &nbsp; <strong>Account No:</strong> {{ bank_account.account_number }}</div>
+                            <div><strong>BSB:</strong> {{ bank_account.bsb_branch }}</div>
+                            <div><strong>Account No:</strong> {{ bank_account.account_number }}</div>
                             {% if bank_account.swift_code %}<div><strong>SWIFT:</strong> {{ bank_account.swift_code }}</div>{% endif %}
                         </div>
                     {% endif %}
@@ -204,7 +227,7 @@
         <div style="margin-top: 30px; font-size: 12px; color: #4b5563; text-align: center; font-weight: bold;">
             Thank you for your business! Only genuine parts used. Professional services guaranteed.
         </div>
-        <div style="margin-top: 10px; font-size: 10px; color: #9ca3af; font-style: italic; text-align: left;">E.&O.E.</div>
+        
 
         <div class="footer">
             {% if shop %}

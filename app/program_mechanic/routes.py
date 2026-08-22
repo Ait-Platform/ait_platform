@@ -796,7 +796,7 @@ def client_soa(client_id):
     if not debtor:
         flash('No Statement of Account exists for this client yet.', 'info')
         return redirect(url_for('mechanic_bp.mechanic_dashboard'))
-    return redirect(url_for('mechanic_bp.client_ledger', debtor_id=debtor.id))
+    return redirect(url_for('mechanic_bp.job_card_detail', id=job_card.id))
 
 
 @mechanic_bp.route("/mechanic/quote/<int:id>/edit", methods=["GET", "POST"])
@@ -1450,7 +1450,7 @@ def accept_quote(id):
         flash("Quote accepted! Invoice posted to ledger.", "success")
         
         if debtor:
-            return redirect(url_for('mechanic_bp.client_ledger', debtor_id=debtor.id))
+            return redirect(url_for('mechanic_bp.job_card_detail', id=job_card.id))
             
     return redirect(url_for('mechanic_bp.job_card_detail', id=id))
 
@@ -1734,7 +1734,7 @@ def client_ledger_add_payment(debtor_id):
         db.session.rollback()
         flash(f"Error recording payment: {e}", "danger")
         
-    return redirect(url_for('mechanic_bp.client_ledger', debtor_id=debtor.id))
+    return redirect(url_for('mechanic_bp.job_card_detail', id=job_card.id))
 
 
 from app.models.debtors import BusinessBankAccount

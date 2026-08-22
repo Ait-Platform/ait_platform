@@ -163,7 +163,7 @@ document.addEventListener("DOMContentLoaded", function() {
             {% endif %}{% if job_card.status == 'Quote' %}
                 <form method="POST" action="{{ url_for('mechanic_bp.accept_quote', id=job_card.id) }}" class="inline m-0">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit" class="px-4 py-2 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 shadow-sm transition text-sm">Accept Quote & Create Tax Invoice</button>
+                    <button type="submit" class="px-4 py-2 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 shadow-sm transition text-sm">Confirm Job Card (Create Tax Invoice)</button>
                 </form>
             {% endif %}
             {% if client_debtor and job_card.status != 'Quote' %}

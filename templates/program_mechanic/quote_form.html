@@ -343,7 +343,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         uploadStatus.textContent = "Uploaded!";
                         uploadStatus.classList.replace('text-indigo-600', 'text-green-600');
                         
-                        if (data.ai_data) {
+                        
+                          if (data.error) {
+                              uploadStatus.textContent = "AI Error: " + data.error;
+                              uploadStatus.classList.replace('text-indigo-600', 'text-red-600');
+                          } else if (data.ai_data) {
                             let filledCount = 0;
                             if (data.ai_data.reg) { document.querySelector('input[name="vehicle_reg"]').value = data.ai_data.reg; filledCount++; }
                             if (data.ai_data.vin) { document.querySelector('input[name="vin_number"]').value = data.ai_data.vin; filledCount++; }

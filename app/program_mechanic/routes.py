@@ -1525,17 +1525,46 @@ def record_deposit(id):
 @login_required
 def client_accounts():
     from app.models.debtors import Debtor
+    from datetime import datetime
+    
+    start_date_str = request.args.get('start_date', '')
+    end_date_str = request.args.get('end_date', '')
+    
+    try:
+        start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date() if start_date_str else None
+        end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date() if end_date_str else None
+    except ValueError:
+        start_date = None
+        end_date = None
+
     try:
         debtors = Debtor.query.filter_by(user_id=current_user.id, slug_reference='mechanic').all()
+        total_owed = 0
+        
         for d in debtors:
-            total_debits = sum(l.amount for l in d.ledgers if l.kind == 'debit')
-            total_credits = sum(l.amount for l in d.ledgers if l.kind == 'credit')
+            valid_ledgers = d.ledgers
+            if start_date:
+                valid_ledgers = [l for l in valid_ledgers if l.txn_date >= start_date]
+            if end_date:
+                valid_ledgers = [l for l in valid_ledgers if l.txn_date <= end_date]
+                
+            total_debits = sum(l.amount for l in valid_ledgers if l.kind == 'debit')
+            total_credits = sum(l.amount for l in valid_ledgers if l.kind == 'credit')
             d.current_balance = (total_debits - total_credits) / 100.0
+            
+            if d.current_balance > 0:
+                total_owed += d.current_balance
+                
     except Exception as e:
         current_app.logger.error(f"Error loading client accounts: {e}")
         debtors = []
+        total_owed = 0
         
-    return render_template("program_mechanic/client_accounts.html", debtors=debtors)
+    return render_template("program_mechanic/client_accounts.html", 
+                           debtors=debtors, 
+                           total_owed=total_owed,
+                           start_date=start_date_str,
+                           end_date=end_date_str)
 
 
 @mechanic_bp.route("/mechanic/client_ledger/<int:debtor_id>")

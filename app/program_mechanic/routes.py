@@ -1778,7 +1778,7 @@ def edit_job_vehicle(id):
     job_card = MechJobCard.query.get_or_404(id)
     
     # Ensure ownership
-    if job_card.vehicle.client.shop.user_id != current_user.id:
+    if job_card.vehicle.client.user_id != current_user.id:
         flash("Unauthorized", "error")
         return redirect(url_for('mechanic_bp.mechanic_dashboard'))
         

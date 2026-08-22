@@ -80,8 +80,8 @@
                     <td class="px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-green-600">
                         {% if l.kind == 'credit' %}R {{ "%.2f"|format(l.amount/100) }}{% else %}-{% endif %}
                     </td>
-                    <td class="px-4 py-3 whitespace-nowrap text-sm text-right font-bold {% if getattr(l, 'running_balance', 0) > 0 %}text-red-600{% else %}text-green-600{% endif %}">
-                        R {{ "%.2f"|format(getattr(l, 'running_balance', 0)/100) }}
+                    <td class="px-4 py-3 whitespace-nowrap text-sm text-right font-bold {% if (l.running_balance|default(0)) > 0 %}text-red-600{% else %}text-green-600{% endif %}">
+                        R {{ "%.2f"|format((l.running_balance|default(0))/100) }}
                     </td>
                 </tr>
                 {% endfor %}

@@ -1525,11 +1525,53 @@ def record_deposit(id):
 @login_required
 def client_accounts():
     from app.models.debtors import Debtor
+    
+    try:
+        debtors = Debtor.query.filter_by(user_id=current_user.id, slug_reference='mechanic').all()
+        for d in debtors:
+            total_debits = sum(l.amount for l in d.ledgers if l.kind == 'debit')
+            total_credits = sum(l.amount for l in d.ledgers if l.kind == 'credit')
+            d.current_balance = (total_debits - total_credits) / 100.0
+    except Exception as e:
+        debtors = []
+        
+    return render_template("program_mechanic/client_accounts.html", debtors=debtors)
+
+@mechanic_bp.route("/mechanic/generate_debtors_schedule", methods=["POST"])
+@login_required
+def generate_debtors_schedule():
+    from app.models.debtors import Debtor
     from app.models.mechanic import MechShop
+    from app.models.auth import AitTokenWallet, AitTokenTransaction
+    from app.models.billing import TokenTariff
     from datetime import datetime
     
-    start_date_str = request.args.get('start_date', '')
-    end_date_str = request.args.get('end_date', '')
+    wallet = AitTokenWallet.query.filter_by(user_id=current_user.id).first()
+    
+    tariff = TokenTariff.query.filter_by(program_slug='mechanic', action_name='generate_schedule').first()
+    if not tariff:
+        tariff = TokenTariff(program_slug='mechanic', action_name='generate_schedule', base_token_cost=10)
+        db.session.add(tariff)
+        db.session.commit()
+        
+    token_cost = tariff.base_token_cost
+    
+    if not wallet or wallet.balance < token_cost:
+        flash(f"You need {token_cost} tokens to generate a Debtors Schedule.", "error")
+        return redirect(url_for("payment_bp.wallet_topup", subject_slug="mechanic"))
+        
+    # Deduct tokens
+    wallet.balance -= token_cost
+    txn = AitTokenTransaction(
+        wallet_id=wallet.id,
+        amount=-token_cost,
+        description="Generated Debtors Schedule (Balance Sheet)"
+    )
+    db.session.add(txn)
+    db.session.commit()
+    
+    start_date_str = request.form.get('start_date', '')
+    end_date_str = request.form.get('end_date', '')
     
     try:
         start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date() if start_date_str else None
@@ -1555,7 +1597,6 @@ def client_accounts():
             total_credits = sum(l.amount for l in valid_ledgers if l.kind == 'credit')
             d.current_balance = (total_debits - total_credits) / 100.0
             
-            # They want ALL debtors to show (even 0), but the total is just the sum of positive balances
             if d.current_balance > 0:
                 total_owed += d.current_balance
                 
@@ -1563,7 +1604,7 @@ def client_accounts():
         debtors = []
         total_owed = 0
         
-    return render_template("program_mechanic/client_accounts.html", 
+    return render_template("program_mechanic/debtors_schedule.html", 
                            debtors=debtors, 
                            total_owed=total_owed,
                            start_date=start_date_str,

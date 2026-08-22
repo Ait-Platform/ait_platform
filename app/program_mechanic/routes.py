@@ -1455,27 +1455,6 @@ def accept_quote(id):
             
     return redirect(url_for('mechanic_bp.job_card_detail', id=id))
 
-@mechanic_bp.route("/mechanic/job_card/<int:id>/reject", methods=["POST"])
-@login_required
-def reject_quote(id):
-    from app.models.mechanic import MechCommunication
-    job_card = MechJobCard.query.get_or_404(id)
-    reason = request.form.get("reason", "")
-    
-    if job_card.status == 'Quote':
-        job_card.status = 'Rejected'
-        
-        # Log communication for the rejection reason
-        comm = MechCommunication(
-            job_card_id=job_card.id,
-            comm_type="System",
-            message=f"Quote Rejected. Reason: {reason}"
-        )
-        db.session.add(comm)
-        db.session.commit()
-        flash("Quote marked as rejected.", "info")
-    return redirect(url_for('mechanic_bp.job_card_detail', id=id))
-
 @mechanic_bp.route("/mechanic/job_card/<int:id>/record_deposit", methods=["POST"])
 @login_required
 def record_deposit(id):

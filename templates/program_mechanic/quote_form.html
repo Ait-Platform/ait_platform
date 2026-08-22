@@ -345,7 +345,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         
                         
                           if (data.error) {
-                              uploadStatus.textContent = "AI Error: " + data.error;
+                              uploadStatus.textContent = "AI is currently unavailable due to high traffic. Please enter details manually.";
                               uploadStatus.classList.replace('text-indigo-600', 'text-red-600');
                           } else if (data.ai_data) {
                             let filledCount = 0;

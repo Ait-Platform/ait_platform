@@ -11,7 +11,7 @@
     </div>
     <form action="{{ url_for('mechanic_bp.generate_debtors_schedule') }}" method="POST" class="p-6">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <p class="text-sm text-slate-600 mb-4">Generate a snapshot balance sheet of all your debtors. Generating this report costs <strong class="text-slate-900">10 tokens</strong>.</p>
+      <p class="text-sm text-slate-600 mb-4">Generate a snapshot balance sheet of all your debtors.</p>
       
       <div class="space-y-4">
         <div>
@@ -26,7 +26,7 @@
       
       <div class="mt-6 flex justify-end gap-3">
         <button type="button" onclick="document.getElementById('scheduleModal').classList.add('hidden')" class="px-4 py-2 text-sm font-bold text-slate-600 hover:text-slate-900">Cancel</button>
-        <button type="submit" class="px-4 py-2 bg-indigo-600 text-white text-sm font-bold rounded-lg hover:bg-indigo-700 shadow-sm transition">Generate (10 Tokens)</button>
+        <button type="submit" class="px-4 py-2 bg-indigo-600 text-white text-sm font-bold rounded-lg hover:bg-indigo-700 shadow-sm transition">Generate Schedule</button>
       </div>
     </form>
   </div>
@@ -112,7 +112,7 @@
     </div>
     <form action="{{ url_for('mechanic_bp.generate_debtors_schedule') }}" method="POST" class="p-6">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <p class="text-sm text-slate-600 mb-4">Generate a snapshot balance sheet of all your debtors. Generating this report costs <strong class="text-slate-900">10 tokens</strong>.</p>
+      <p class="text-sm text-slate-600 mb-4">Generate a snapshot balance sheet of all your debtors.</p>
       
       <div class="space-y-4">
         <div>
@@ -127,7 +127,7 @@
       
       <div class="mt-6 flex justify-end gap-3">
         <button type="button" onclick="document.getElementById('scheduleModal').classList.add('hidden')" class="px-4 py-2 text-sm font-bold text-slate-600 hover:text-slate-900">Cancel</button>
-        <button type="submit" class="px-4 py-2 bg-indigo-600 text-white text-sm font-bold rounded-lg hover:bg-indigo-700 shadow-sm transition">Generate (10 Tokens)</button>
+        <button type="submit" class="px-4 py-2 bg-indigo-600 text-white text-sm font-bold rounded-lg hover:bg-indigo-700 shadow-sm transition">Generate Schedule</button>
       </div>
     </form>
   </div>

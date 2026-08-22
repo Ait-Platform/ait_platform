@@ -161,6 +161,10 @@ def price_page():
     val_invoice = db.session.execute(text(
         "SELECT value FROM system_settings WHERE key = 'mechanic_invoice_cents'")).scalar()
     invoice_cents = int(float(val_invoice)) if val_invoice else 1000
+    
+    from app.models.billing import TokenTariff
+    schedule_tariff = TokenTariff.query.filter_by(program_slug='mechanic', action_name='generate_schedule').first()
+    schedule_tokens = schedule_tariff.base_token_cost if schedule_tariff else 10
 
     return render_template("program_mechanic/price.html", price=price_ctx, subject=subject, countries=countries, quote_cents=quote_cents, invoice_cents=invoice_cents, is_enrolled=is_enrolled)
 

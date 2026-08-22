@@ -1378,6 +1378,21 @@ def public_job_card(job_number):
     bank_account = BusinessBankAccount.query.filter_by(user_id=(active_shop.user_id if "active_shop" in locals() and active_shop else shop.user_id)).order_by(BusinessBankAccount.is_default.desc()).first()
     return render_template('program_mechanic/public_job_card.html', job_card=job_card, shop=shop, today_date=today_date, bank_account=bank_account)
 
+
+@mechanic_bp.route("/mechanic/job_card/<int:id>/bill", methods=["POST"])
+@login_required
+def mark_billed(id):
+    from app.models.mechanic import MechJobCard
+    job_card = MechJobCard.query.get_or_404(id)
+    if job_card.status in ['Approved', 'Awaiting Deposit']:
+        job_card.status = 'Billed'
+        db.session.commit()
+        flash("Job Card marked as Completed / Billed!", "success")
+    else:
+        flash("Only approved jobs can be billed.", "warning")
+    return redirect(request.referrer or url_for('mechanic_bp.job_card_detail', id=id))
+
+
 @mechanic_bp.route("/mechanic/job_card/<int:id>/accept", methods=["POST"])
 @login_required
 def accept_quote(id):

@@ -1313,9 +1313,10 @@ def upload_disk():
         except Exception as e:
             current_app.logger.error(f"Failed to extract VIN details via AI: {e}")
         
+            ai_error = str(e)
         # Return URL for preview and the filename for saving
         file_url = url_for('static', filename=f'uploads/mechanic/{filename}')
-        return jsonify({"url": file_url, "filename": filename, "ai_data": ai_data})
+        return jsonify({"url": file_url, "filename": filename, "ai_data": ai_data, "error": ai_error if 'ai_error' in locals() else None})
 
     return jsonify({"error": "Upload failed"}), 500
 

@@ -67,40 +67,7 @@
 
     <div class="p-6 space-y-8">
       
-      <!-- DEBTORS WITH BALANCES -->
-      {% if debtors_with_balances %}
-      <div>
-        <div class="flex justify-between items-center mb-4">
-          <h2 class="text-xl font-bold text-red-600"><i class="fas fa-exclamation-circle mr-2"></i> Debtors (Outstanding Balances)</h2>
-        </div>
-        <div class="border border-red-200 rounded-xl overflow-x-auto shadow-sm bg-red-50">
-          <table class="min-w-full divide-y divide-red-200">
-            <thead class="bg-red-100">
-              <tr>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-red-700 uppercase tracking-wider">Client</th>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-red-700 uppercase tracking-wider">Email/Phone</th>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-red-700 uppercase tracking-wider">Balance Owed</th>
-                <th scope="col" class="px-6 py-3 text-right text-xs font-bold text-red-700 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody class="bg-white divide-y divide-red-100">
-              {% for d in debtors_with_balances %}
-              <tr class="hover:bg-red-50 transition">
-                <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-900">{{ d.name }}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">{{ d.email or d.phone }}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-red-600">R {{ "%.2f"|format(d.current_balance) }}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <a href="{{ url_for('debtors_bp.generate_soa', debtor_id=d.id, return_url=url_for('mechanic_bp.job_cards_list')) }}" class="text-white bg-red-600 hover:bg-red-700 px-3 py-1 rounded-md transition shadow-sm">
-                    View SOA &rarr;
-                  </a>
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      </div>
-      {% endif %}
+      
 
       <!-- MACRO FOR JOB CARD TABLES -->
       {% macro job_table(title, jobs, color, table_id) %}

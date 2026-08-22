@@ -4,14 +4,14 @@
     <meta charset="UTF-8">
     <title>{{ 'Quote' if job_card.status in ['Quote', 'Rejected'] else 'Tax Invoice' }} #{{ job_card.job_number }}</title>
     <style>
-        body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #333; line-height: 1.5; margin: 0; padding: 20px; background: #fff; }
+        body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #0f172a; line-height: 1.5; margin: 0; padding: 20px; background: #fff; font-weight: 500; }
         .invoice-box { max-width: 800px; margin: auto; padding: 30px; border: 1px solid #eee; border-radius: 8px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.15); }
         .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #eee; padding-bottom: 20px; }
         .header img { max-height: 120px; margin-bottom: 10px; }
         .header h1 { margin: 0; color: #2c3e50; font-size: 28px; }
         .header p { margin: 5px 0 0 0; color: #7f8c8d; font-size: 14px; }
         .details-grid { display: table; width: 100%; margin-bottom: 30px; }
-        .col { display: table-cell; width: 33.33%; padding: 10px; vertical-align: top; border: 1px solid #f0f0f0; background: #fdfdfd; }
+        .col { display: table-cell; width: 50%; padding: 15px; vertical-align: top; border: 1px solid #e2e8f0; background: #f8fafc; color: #0f172a; }
         .col:first-child { border-right: 5px solid #fff; border-radius: 5px 0 0 5px; }
         .col:last-child { border-left: 5px solid #fff; border-radius: 0 5px 5px 0; }
         .col h3 { margin-top: 0; color: #34495e; font-size: 14px; text-transform: uppercase; border-bottom: 1px solid #eee; padding-bottom: 5px; }
@@ -61,22 +61,13 @@
 
         <div class="details-grid">
             <div class="col">
-                <h3>Client Details</h3>
+                <h3 style="color: #0f172a; border-bottom: 2px solid #cbd5e1;">Client Details</h3>
                 <p><strong>{{ job_card.vehicle.client.name }}</strong></p>
                 <p>Phone: {{ job_card.vehicle.client.phone or 'N/A' }}</p>
                 <p>Email: {{ job_card.vehicle.client.email or 'N/A' }}</p>
             </div>
             <div class="col">
-                <h3>Vehicle Details</h3>
-                <p><strong>{{ job_card.vehicle.registration_number }}</strong></p>
-                <p>Make: {{ job_card.vehicle.make }}</p>
-                <p>Model: {{ job_card.vehicle.model or 'N/A' }}</p>
-                <p>Year: {{ job_card.vehicle.year or 'N/A' }}</p>
-                <p>VIN: {{ job_card.vehicle.vin or 'N/A' }}</p>
-                <p>Odometer: {{ "{:,.0f}".format(job_card.vehicle.mileage) ~ ' km' if job_card.vehicle.mileage else 'N/A' }}</p>
-            </div>
-                        <div class="col">
-                <h3>Banking Details</h3>
+                <h3 style="color: #0f172a; border-bottom: 2px solid #cbd5e1;">Banking Details</h3>
                 {% if bank_account %}
                     {% if bank_account.raw_details %}
                         <p style="font-size: 13px; white-space: pre-wrap;">{{ bank_account.raw_details }}</p>
@@ -96,6 +87,16 @@
                 {% endif %}
                 <p style="margin-top: 10px; font-size: 13px;"><strong>Payment Reference:</strong><br>Job Card #{{ job_card.job_number }}</p>
             </div>
+        </div>
+        
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 5px; padding: 15px; margin-bottom: 30px; color: #0f172a;">
+            <h3 style="margin-top: 0; color: #0f172a; font-size: 14px; text-transform: uppercase; border-bottom: 2px solid #cbd5e1; padding-bottom: 5px;">Vehicle Details</h3>
+            <p style="margin-bottom: 0;"><strong>{{ job_card.vehicle.registration_number }}</strong> &mdash; 
+               Make: {{ job_card.vehicle.make }} | 
+               Model: {{ job_card.vehicle.model or 'N/A' }} | 
+               Year: {{ job_card.vehicle.year or 'N/A' }} | 
+               VIN: {{ job_card.vehicle.vin or 'N/A' }} | 
+               Odometer: {{ "{:,.0f}".format(job_card.vehicle.mileage) ~ ' km' if job_card.vehicle.mileage else 'N/A' }}</p>
         </div>
 
         <table>

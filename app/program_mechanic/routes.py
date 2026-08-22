@@ -498,7 +498,7 @@ def download_document(id):
     
     try:
         pdf_bytes = html_to_pdf_bytes(pdf_html_content, base_url=request.host_url)
-        doc_type = "Invoice" if job_card.status == 'Billed' else "Quote"
+        doc_type = "Tax_Invoice" if job_card.status not in ['Quote', 'Rejected'] else "Quote"
         file_name = f"{doc_type}_{job_card.job_number}.pdf"
         
         return send_file(
@@ -528,7 +528,7 @@ def email_document(id):
         flash("Please fill in the client's email, phone, and vehicle VIN before generating documents.", "warning")
         return redirect(url_for('mechanic_bp.job_card_detail', id=job_card.id))
 
-    doc_type = "SOA" if job_card.status in ['Approved', 'Billed'] else "Quote"
+    doc_type = "SOA" if job_card.status == 'Billed' else ("Tax Invoice" if job_card.status not in ['Quote', 'Rejected'] else "Quote")
     default_email = ""
     if job_card.vehicle and job_card.vehicle.client and job_card.vehicle.client.email:
         default_email = job_card.vehicle.client.email

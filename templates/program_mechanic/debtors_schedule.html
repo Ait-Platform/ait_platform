@@ -1,0 +1,96 @@
+﻿{% extends 'layout.html' %}
+{% block title %}Client Accounts - ProTrade{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-slate-50 py-10 px-4 flex flex-col items-center">
+  <div class="w-full max-w-6xl bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+    
+    <div class="h-2 w-full bg-slate-700"></div>
+
+    <div class="px-6 pt-6 pb-2">
+      {% include "partials/flash_messages.html" %}
+    </div>
+
+        <!-- First Row: Title & Back Button -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between border-b border-slate-100 px-6 pb-4 gap-4">
+      <div>
+        <h1 class="text-2xl md:text-3xl font-bold text-slate-900">Debtors Control / Client Accounts</h1>
+        <p class="mt-1 text-sm text-slate-500">Track all outstanding balances owed by your customers.</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <button onclick="window.print()" class="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 hover:bg-slate-200 hover:text-slate-800 transition shadow-sm" title="Print Schedule">
+          <i class="fas fa-print"></i>
+        </button>
+        <a href="{{ url_for('mechanic_bp.client_accounts') }}" class="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition shadow-sm">
+          <span>&larr;</span><span>Client Accounts</span>
+        </a>
+      </div>
+    </div>
+    
+    <div class="px-6 py-4 bg-indigo-50 border-b border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4">
+        <form method="GET" action="{{ url_for('mechanic_bp.debtors_schedule') }}" class="flex items-end gap-3 flex-wrap">
+            <div>
+                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Start Date</label>
+                <input type="date" name="start_date" value="{{ start_date }}" class="rounded-lg border border-slate-300 p-2 text-sm">
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">End Date</label>
+                <input type="date" name="end_date" value="{{ end_date }}" class="rounded-lg border border-slate-300 p-2 text-sm">
+            </div>
+            <button type="submit" class="px-4 py-2 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 shadow-sm transition text-sm">Filter</button>
+            {% if start_date or end_date %}
+                <a href="{{ url_for('mechanic_bp.debtors_schedule') }}" class="px-4 py-2 bg-white text-slate-600 border border-slate-300 font-bold rounded-lg hover:bg-slate-50 shadow-sm transition text-sm">Clear</a>
+            {% endif %}
+        </form>
+        
+        <div class="bg-white p-3 rounded-lg border border-indigo-100 shadow-sm text-right">
+            <div class="text-xs font-bold text-slate-500 uppercase">Total Outstanding (Period)</div>
+            <div class="text-2xl font-bold text-red-600">R {{ "{:,.2f}".format(total_owed) }}</div>
+        </div>
+    </div>
+
+    <div class="px-6 pt-4 pb-2">
+        <p class="text-xs text-slate-500 italic"><i class="fas fa-info-circle mr-1"></i> Disclaimer: This schedule reflects amounts invoiced to clients. It does not deduct the cost of materials or moneys owed to creditors (e.g. parts bought for cash).</p>
+    </div>
+
+    <div class="p-6">
+      {% if debtors %}
+        <div class="border border-slate-200 rounded-xl overflow-x-auto shadow-sm bg-white">
+          <table class="min-w-full divide-y divide-slate-200">
+            <thead class="bg-slate-50">
+              <tr>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Client</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Contact</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Balance Owed</th>
+                <th scope="col" class="px-6 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-slate-100">
+              {% for d in debtors %}
+              <tr class="hover:bg-slate-50 transition">
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-900">{{ d.name }}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">{{ d.email or d.phone or 'N/A' }}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-bold {% if d.current_balance > 0 %}text-red-600{% else %}text-green-600{% endif %}">
+                  R {{ "%.2f"|format(d.current_balance) }}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                  <a href="{{ url_for('mechanic_bp.client_ledger', debtor_id=d.id) }}" class="text-white bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded-md transition shadow-sm font-semibold">
+                    View Ledger &rarr;
+                  </a>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="text-center py-12">
+          <i class="fas fa-check-circle text-4xl text-green-400 mb-3"></i>
+          <h3 class="text-lg font-bold text-slate-700">No Outstanding Balances</h3>
+          <p class="text-slate-500 mt-1">None of your clients owe any money for this period. Clients will appear here when their Job Card is approved and unpaid.</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

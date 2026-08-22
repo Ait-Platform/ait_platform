@@ -1525,6 +1525,21 @@ def record_deposit(id):
 @login_required
 def client_accounts():
     from app.models.debtors import Debtor
+    try:
+        debtors = Debtor.query.filter_by(user_id=current_user.id, slug_reference='mechanic').all()
+        for d in debtors:
+            total_debits = sum(l.amount for l in d.ledgers if l.kind == 'debit')
+            total_credits = sum(l.amount for l in d.ledgers if l.kind == 'credit')
+            d.current_balance = (total_debits - total_credits) / 100.0
+    except Exception as e:
+        debtors = []
+        
+    return render_template("program_mechanic/client_accounts.html", debtors=debtors)
+
+@mechanic_bp.route("/mechanic/debtors_schedule")
+@login_required
+def debtors_schedule():
+    from app.models.debtors import Debtor
     from datetime import datetime
     
     start_date_str = request.args.get('start_date', '')
@@ -1558,11 +1573,10 @@ def client_accounts():
                 debtors.append(d)
                 
     except Exception as e:
-        current_app.logger.error(f"Error loading client accounts: {e}")
         debtors = []
         total_owed = 0
         
-    return render_template("program_mechanic/client_accounts.html", 
+    return render_template("program_mechanic/debtors_schedule.html", 
                            debtors=debtors, 
                            total_owed=total_owed,
                            start_date=start_date_str,

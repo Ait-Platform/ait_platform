@@ -605,20 +605,14 @@ def generate_soa(debtor_id):
                 # If they have a profile, ensure the terms_and_conditions fallback exists
                 if not hasattr(profile, 'terms_and_conditions') or not profile.terms_and_conditions:
                     setattr(profile, 'terms_and_conditions', shop.terms_and_conditions)
-                # It now natively has use_custom_letterhead and letterhead_url in the DB!    import types
-    if debtor.slug_reference == 'mechanic':
-        from app.models.mechanic import MechShop
-        shop = MechShop.query.filter_by(user_id=current_user.id).first()
-        if shop and shop.bank_details:
-            bank_account = types.SimpleNamespace(raw_details=shop.bank_details)
-        else:
-            bank_account = None
+                # It now natively has use_custom_letterhead and letterhead_url in the DB!
+
+
+    if debtor.bank_account_id:
+        bank_account = BusinessBankAccount.query.get(debtor.bank_account_id)
     else:
-        if debtor.bank_account_id:
-            bank_account = BusinessBankAccount.query.get(debtor.bank_account_id)
-        else:
-            bank_account = BusinessBankAccount.query.filter_by(
-                user_id=current_user.id, is_default=True).first()
+        bank_account = BusinessBankAccount.query.filter_by(
+            user_id=current_user.id, is_default=True).first()
 
     start_date_str = request.args.get('start_date')
     end_date_str = request.args.get('end_date')
@@ -740,20 +734,14 @@ def email_soa():
                 # If they have a profile, ensure the terms_and_conditions fallback exists
                 if not hasattr(profile, 'terms_and_conditions') or not profile.terms_and_conditions:
                     setattr(profile, 'terms_and_conditions', shop.terms_and_conditions)
-                # It now natively has use_custom_letterhead and letterhead_url in the DB!    import types
-    if debtor.slug_reference == 'mechanic':
-        from app.models.mechanic import MechShop
-        shop = MechShop.query.filter_by(user_id=current_user.id).first()
-        if shop and shop.bank_details:
-            bank_account = types.SimpleNamespace(raw_details=shop.bank_details)
-        else:
-            bank_account = None
+                # It now natively has use_custom_letterhead and letterhead_url in the DB!
+
+
+    if debtor.bank_account_id:
+        bank_account = BusinessBankAccount.query.get(debtor.bank_account_id)
     else:
-        if debtor.bank_account_id:
-            bank_account = BusinessBankAccount.query.get(debtor.bank_account_id)
-        else:
-            bank_account = BusinessBankAccount.query.filter_by(
-                user_id=current_user.id, is_default=True).first()
+        bank_account = BusinessBankAccount.query.filter_by(
+            user_id=current_user.id, is_default=True).first()
 
     start_date_str = request.form.get('start_date')
     end_date_str = request.form.get('end_date')

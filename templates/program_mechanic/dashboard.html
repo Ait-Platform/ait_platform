@@ -233,11 +233,11 @@
           </div>
           
           <!-- Banking Details -->
-            <div class="border-t border-slate-200 pt-6 mb-6">
-              <label class="block text-sm font-bold text-slate-700 mb-1">Banking Details (For Payments)</label>
-              <p class="text-xs text-slate-500 mb-2">These details will appear on your Invoices and Statements.</p>
-              <textarea name="bank_details" rows="3" class="block w-full rounded-lg border-2 border-indigo-200 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm p-3 transition" placeholder="Bank Name: ...&#10;Account Name: ...&#10;Account No: ...&#10;Branch Code: ...">{{ active_shop.bank_details if active_shop else '' }}</textarea>
-            </div>
+                          <div class="border-t border-slate-200 pt-6 mb-6">
+                <label class="block text-sm font-bold text-slate-700 mb-1">Banking Details (For Payments)</label>
+                <p class="text-xs text-slate-500 mb-2">These details will appear on your Invoices and Statements.</p>
+                <a href="{{ url_for('mechanic_bp.bank_accounts') }}" class="inline-block px-4 py-2 bg-indigo-50 border border-indigo-200 text-indigo-700 font-bold rounded-lg hover:bg-indigo-100 transition shadow-sm w-full text-center">Manage Bank Accounts</a>
+              </div>
             
             <!-- ALWAYS VISIBLE: Terms & Conditions -->
           <div class="border-t border-slate-200 pt-6">

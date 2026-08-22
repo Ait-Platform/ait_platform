@@ -1538,10 +1538,11 @@ def client_accounts():
         end_date = None
 
     try:
-        debtors = Debtor.query.filter_by(user_id=current_user.id, slug_reference='mechanic').all()
+        all_debtors = Debtor.query.filter_by(user_id=current_user.id, slug_reference='mechanic').all()
         total_owed = 0
+        debtors = []
         
-        for d in debtors:
+        for d in all_debtors:
             valid_ledgers = d.ledgers
             if start_date:
                 valid_ledgers = [l for l in valid_ledgers if l.txn_date >= start_date]
@@ -1554,6 +1555,7 @@ def client_accounts():
             
             if d.current_balance > 0:
                 total_owed += d.current_balance
+                debtors.append(d)
                 
     except Exception as e:
         current_app.logger.error(f"Error loading client accounts: {e}")

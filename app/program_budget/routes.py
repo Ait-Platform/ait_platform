@@ -106,7 +106,9 @@ def start():
 @budget_bp.get("/dashboard")
 @login_required
 def dashboard():
-    return render_template("program_budget/dashboard.html")
+    from app.models.auth import AitTokenWallet
+    wallet = AitTokenWallet.query.filter_by(user_id=current_user.id).first()
+    return render_template("program_budget/dashboard.html", wallet=wallet)
 
 @budget_bp.get("/next")
 @login_required
@@ -255,6 +257,8 @@ def ledger_edit(ledger_id: int):
 @budget_bp.route("/ledger/add", methods=["POST"])
 @login_required
 def ledger_add():
+    from app.models.auth import AitTokenWallet, AitTokenTransaction
+    
     account_id = (request.form.get("account_id") or "").strip()
     txn_date = (request.form.get("txn_date") or "").strip()
     amount = (request.form.get("amount") or "").strip()
@@ -268,8 +272,16 @@ def ledger_add():
     except Exception:
         flash("Invalid amount.", "warning")
         return redirect(url_for("budget_bp.ledger"))
+        
+    # --- WALLET TOKEN CHECK ---
+    wallet = AitTokenWallet.query.filter_by(user_id=current_user.id).first()
+    token_cost = 10
+    
+    if not wallet or wallet.balance < token_cost:
+        flash(f"You need at least {token_cost} tokens in your wallet to capture an entry.", "error")
+        return redirect(url_for("payment_bp.wallet_topup", subject_slug="budget"))
 
-    # ✅ Always show a consistent meaning in the ledger table
+    # 🔹 Always show a consistent meaning in the ledger table
     description = "Paid"
 
     try:
@@ -283,8 +295,18 @@ def ledger_add():
             "desc": description,
             "c": int(cents),
         })
+        
+        # Deduct tokens
+        wallet.balance -= token_cost
+        txn = AitTokenTransaction(
+            wallet_id=wallet.id,
+            amount=-token_cost,
+            description=f"Captured Cashbook Entry (Account ID {account_id})"
+        )
+        db.session.add(txn)
+        
         db.session.commit()
-        flash("Payment added.", "success")
+        flash("Payment added. 10 tokens deducted.", "success")
     except Exception:
         db.session.rollback()
         flash("Could not add entry.", "warning")

@@ -35,9 +35,9 @@
         <div class="header">
             {% if shop and shop.use_custom_letterhead and shop.letterhead_url %}
               {% if shop.letterhead_url.startswith('http') %}
-                <img src="{{ shop.letterhead_url }}" alt="Shop Letterhead" style="max-height: 120px; width: 100%; object-fit: cover;">
+                <img src="{{ shop.letterhead_url }}" alt="Shop Letterhead" style="max-height: 120px; width: 100%; object-fit: contain;">
               {% else %}
-                <img src="{{ url_for('static', filename='uploads/mechanic/' + shop.letterhead_url, _external=True) }}" alt="Shop Letterhead" style="max-height: 120px; width: 100%; object-fit: cover;">
+                <img src="{{ url_for('static', filename='uploads/mechanic/' + shop.letterhead_url, _external=True) }}" alt="Shop Letterhead" style="max-height: 120px; width: 100%; object-fit: contain;">
               {% endif %}
             {% elif shop and shop.logo_url %}
               {% if shop.logo_url.startswith('http') %}

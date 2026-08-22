@@ -1786,6 +1786,12 @@ def edit_job_vehicle(id):
     job_card.vehicle.model = request.form.get("model")
     job_card.vehicle.vin = request.form.get("vin")
     
+    year_str = request.form.get("year")
+    if year_str and year_str.isdigit():
+        job_card.vehicle.year = int(year_str)
+    else:
+        job_card.vehicle.year = None
+    
     mileage_str = request.form.get("mileage")
     if mileage_str and mileage_str.isdigit():
         job_card.vehicle.mileage = int(mileage_str)

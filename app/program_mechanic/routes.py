@@ -1233,8 +1233,8 @@ def repair_tracker_api(reg_number):
             # 4. Job Completed (Billed)
             if job.status == 'Billed':
                 timeline.append({
-                    "timestamp": job.updated_at or job.created_at,
-                    "date": (job.updated_at or job.created_at).strftime('%Y-%m-%d'),
+                    "timestamp": job.completed_at or job.created_at,
+                    "date": (job.completed_at or job.created_at).strftime('%Y-%m-%d'),
                     "time": "Workshop",
                     "event": f"Job Card #{job.job_number} Marked as Completed/Billed",
                     "color": "green",

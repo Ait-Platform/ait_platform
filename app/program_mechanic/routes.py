@@ -1275,6 +1275,17 @@ def repair_tracker_api(reg_number):
 @mechanic_bp.route("/mechanic/jobs")
 @login_required
 def job_cards_list():
+    # Auto-migrate payment_method column if it doesn't exist
+    from sqlalchemy import inspect, text
+    try:
+        inspector = inspect(db.engine)
+        columns = [col['name'] for col in inspector.get_columns('mech_job_cards')]
+        if 'payment_method' not in columns:
+            db.session.execute(text("ALTER TABLE mech_job_cards ADD COLUMN payment_method VARCHAR(50) DEFAULT 'EFT'"))
+            db.session.commit()
+    except Exception as e:
+        current_app.logger.error(f"Migration error: {e}")
+
     active_shop = MechShop.query.filter_by(user_id=current_user.id, onboarding_status='active').first()
     job_cards = []
     if active_shop:

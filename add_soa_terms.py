@@ -3,17 +3,23 @@
 with open('templates/program_debtors/soa_template.html', 'r', encoding='utf-8') as f:
     content = f.read()
 
-terms_html = '''
+old_footer = '''        <!-- Footer/Payment info -->
+        <div class="mt-8 pt-4 border-t border-slate-200">
+            {% if bank_account %}'''
+
+new_footer = '''        <!-- Terms and Conditions -->
         {% if profile and profile.terms_and_conditions %}
-        <div class="mt-12 pt-6 border-t border-gray-200 text-xs text-gray-500">
-            <h4 class="font-bold text-gray-700 mb-2">Terms & Conditions</h4>
+        <div class="mt-8 pt-4 border-t border-slate-200 text-xs text-slate-500">
+            <h4 class="font-bold text-slate-700 mb-1">Terms & Conditions</h4>
             <div class="whitespace-pre-line">{{ profile.terms_and_conditions }}</div>
         </div>
         {% endif %}
-'''
+        
+        <!-- Footer/Payment info -->
+        <div class="mt-8 pt-4 border-t border-slate-200">
+            {% if bank_account %}'''
 
-# insert before <!-- Footer -->
-content = content.replace('<!-- Footer -->', terms_html + '\n        <!-- Footer -->')
+content = content.replace(old_footer, new_footer)
 
 with open('templates/program_debtors/soa_template.html', 'w', encoding='utf-8') as f:
     f.write(content)

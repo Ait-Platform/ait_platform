@@ -1,14 +1,8 @@
-import os
-import sys
-sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
+﻿import re
 
-from app import create_app
-from app.models.auth import AuthSubject
+with open('templates/program_debtors/soa_template.html', 'r', encoding='utf-8') as f:
+    content = f.read()
 
-app = create_app()
-with app.app_context():
-    subj = AuthSubject.query.filter_by(slug='soa').first()
-    if subj:
-        print(f"SOA found: {subj.name}, start_endpoint: {subj.start_endpoint}")
-    else:
-        print("SOA not found")
+# Let's see what the table header looks like
+print(re.search(r'<thead.*?</thead>', content, re.DOTALL).group(0))
+

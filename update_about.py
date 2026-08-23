@@ -1,0 +1,95 @@
+﻿import re
+
+with open('templates/program_mechanic/about.html', 'r', encoding='utf-8') as f:
+    content = f.read()
+
+new_content = '''{% extends "layout.html" %}
+
+{% block content %}
+<div class="min-h-screen bg-slate-50 flex flex-col items-center py-10 px-4">
+  
+  <!-- Unified Tile with Color Strip -->
+  <div class="w-full max-w-4xl bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
+    
+    <!-- Top Color Strip -->
+    <div class="h-2 w-full bg-slate-700"></div>
+    
+    <div class="p-8">
+      
+      <!-- Row 1: Title & Back Button -->
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 pb-4 border-b border-slate-100 gap-4">
+        <h1 class="text-2xl md:text-3xl font-bold text-slate-800 flex items-center">
+          <span class="mr-2"></span> ProTrade (Mechanic)
+        </h1>
+        <a href="{{ url_for('public_bp.welcome') }}" class="inline-flex items-center text-sm font-medium text-slate-700 hover:text-slate-900 transition bg-slate-100 hover:bg-slate-200 px-4 py-2 rounded-lg border border-slate-300 shadow-sm">
+          <span>&larr;</span><span class="ml-1">Back</span>
+        </a>
+      </div>
+      
+      <!-- Content -->
+      <div class="prose max-w-none text-slate-600 space-y-6">
+        <p class="text-lg leading-relaxed">
+          <strong class="text-indigo-700">ProTrade</strong> is a powerful, AI-driven platform designed specifically for mechanics and tradesmen to automate their workshop, from the moment a car pulls in, to the final invoice.
+        </p>
+
+        <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
+          <h3 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">The ProTrade Advantage</h3>
+          
+          <div class="flex items-start">
+            <div class="flex-shrink-0 mt-1">
+              <i class="fas fa-robot text-indigo-500 text-lg w-6 text-center"></i>
+            </div>
+            <div class="ml-3">
+              <h4 class="font-bold text-slate-800 text-lg">AI-Powered Intake</h4>
+              <p class="text-sm mt-1">Skip the manual data entry. Simply scan a customer's business card or snap a photo of a vehicle's license disk, and our AI instantly extracts the VIN, Registration, Make, and contact details to build their profile in seconds.</p>
+            </div>
+          </div>
+          
+          <div class="flex items-start pt-3">
+            <div class="flex-shrink-0 mt-1">
+              <i class="fas fa-file-invoice text-rose-500 text-lg w-6 text-center"></i>
+            </div>
+            <div class="ml-3">
+              <h4 class="font-bold text-slate-800 text-lg">Automated Legal Compliance</h4>
+              <p class="text-sm mt-1">Generate beautiful digital Quotes that legally transform into Tax Invoices the second a client accepts. The system automatically emails the Tax Invoice to the client as a formal demand for deposit, with built-in toggles for Cash, eWallet, or EFT payments.</p>
+            </div>
+          </div>
+
+          <div class="flex items-start pt-3">
+            <div class="flex-shrink-0 mt-1">
+              <i class="fas fa-chart-line text-emerald-500 text-lg w-6 text-center"></i>
+            </div>
+            <div class="ml-3">
+              <h4 class="font-bold text-slate-800 text-lg">The Repair Tracker</h4>
+              <p class="text-sm mt-1">Keep your receptionists and customers perfectly in sync. As you add parts, generate quotes, and log payments, ProTrade automatically constructs a real-time, chronological Repair Timeline for every vehicle in your shop.</p>
+            </div>
+          </div>
+
+          <div class="flex items-start pt-3">
+            <div class="flex-shrink-0 mt-1">
+              <i class="fas fa-coins text-amber-500 text-lg w-6 text-center"></i>
+            </div>
+            <div class="ml-3">
+              <h4 class="font-bold text-slate-800 text-lg">Integrated Debtor Ledgers</h4>
+              <p class="text-sm mt-1">Unlike standard quoting apps, ProTrade is built on top of an enterprise ledger. Recording a deposit automatically syncs to the client's financial profile, allowing you to instantly generate Statements of Account (SOAs) and track installments flawlessly.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    
+    <!-- Footer Section inside tile (Right aligned enroll button) -->
+    <div class="bg-slate-50 p-6 border-t border-slate-100 flex justify-end">
+      <a href="{{ url_for('mechanic_bp.price_page') }}" class="rounded bg-indigo-600 px-6 py-2 text-sm font-semibold text-white hover:bg-indigo-700 shadow-sm transition-colors">
+        View Pricing & Register
+      </a>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+'''
+
+with open('templates/program_mechanic/about.html', 'w', encoding='utf-8') as f:
+    f.write(new_content)

@@ -1,0 +1,147 @@
+﻿content = '''{% extends 'layout.html' %}
+{% block title %}Mechanic Bank Accounts{% endblock %}
+
+{% block flashes %}{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-slate-50 py-10 px-4 flex flex-col items-center">
+  <div class="w-full max-w-5xl bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+    
+    <!-- Top Strip -->
+    <div class="h-2 w-full bg-slate-700"></div>
+
+    <div class="px-6 pt-6 pb-2">
+      {% include "partials/flash_messages.html" %}
+    </div>
+
+    <!-- Row 1: Title & Back Button -->
+    <div class="flex items-center justify-between border-b border-slate-100 px-6 pb-4">
+      <div>
+        <h1 class="text-2xl md:text-3xl font-bold text-slate-900">Banking Details (For Payments)</h1>
+        <p class="mt-1 text-sm text-slate-500">These details will appear on your Tax Invoices and Statements of Account.</p>
+      </div>
+      <a href="{{ url_for('mechanic_bp.mechanic_dashboard') }}" class="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition shadow-sm">
+        <span>&larr;</span><span>Back</span>
+      </a>
+    </div>
+
+    <!-- Row 2: Actions -->
+    <div class="px-6 py-4 flex justify-end">
+        <button onclick="openBankModal()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-bold text-sm transition shadow-sm">+ Add Account</button>
+    </div>
+
+    <div class="px-6 pb-8">
+        {% if bank_accounts %}
+        <div class="overflow-hidden rounded-xl border border-slate-200 shadow-sm">
+            <table class="min-w-full divide-y divide-slate-200">
+                <thead class="bg-slate-50">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Account Details</th>
+                        <th class="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Status</th>
+                        <th class="px-4 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-slate-200">
+                    {% for acc in bank_accounts %}
+                    <tr class="hover:bg-slate-50 transition">
+                        <td class="px-4 py-4 text-sm text-slate-900">
+                            <div class="font-bold text-base">{{ acc.bank_name }}</div>
+                            <div class="text-slate-600 mt-1">{{ acc.account_name }}</div>
+                            <div class="text-slate-600 mt-1"><span class="font-semibold">Acc:</span> {{ acc.account_number }} | <span class="font-semibold">BSB:</span> {{ acc.bsb_branch }}</div>
+                            {% if acc.swift_code %}<div class="text-slate-600 mt-1"><span class="font-semibold">SWIFT:</span> {{ acc.swift_code }}</div>{% endif %}
+                        </td>
+                        <td class="px-4 py-4 whitespace-nowrap">
+                            {% if acc.is_default %}
+                                <span class="px-3 py-1 inline-flex text-xs leading-5 font-bold rounded-full bg-green-100 text-green-800 border border-green-200">Default</span>
+                            {% else %}
+                                <form action="{{ url_for('mechanic_bp.set_default_bank_account', account_id=acc.id) }}" method="POST" class="inline m-0">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="text-sm font-bold text-indigo-600 hover:text-indigo-900 bg-indigo-50 px-3 py-1 rounded-full border border-indigo-100 hover:bg-indigo-100 transition">Set as Default</button>
+                                </form>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <form action="{{ url_for('mechanic_bp.delete_bank_account', account_id=acc.id) }}" method="POST" class="inline m-0" onsubmit="return confirm('Are you sure you want to delete this bank account?');">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-3 py-1 rounded-lg font-bold transition">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-10 bg-slate-50 rounded-xl border border-dashed border-slate-300">
+            <p class="text-slate-500 text-sm">You haven't added any bank accounts yet.</p>
+        </div>
+        {% endif %}
+    </div>
+
+  </div>
+</div>
+
+<!-- Add Bank Account Modal -->
+<div id="add-bank-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
+    <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-[fadeIn_0.2s_ease-out]">
+        <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+            <h2 class="text-lg font-bold text-slate-800">Add Bank Account</h2>
+            <button type="button" onclick="closeBankModal()" class="text-slate-400 hover:text-slate-600 transition">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+        
+        <form method="POST" action="{{ url_for('mechanic_bp.add_bank_account') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="p-6 space-y-4">
+                
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-1">Bank Name</label>
+                    <input type="text" id="bank_name" name="bank_name" required class="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition shadow-sm" placeholder="e.g. FNB">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-1">Account Name</label>
+                    <input type="text" name="account_name" required class="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition shadow-sm" placeholder="e.g. John Doe">
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-1">Account Number</label>
+                        <input type="text" name="account_number" required class="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition shadow-sm" placeholder="123456789">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-1">BSB / Branch Code</label>
+                        <input type="text" name="bsb_branch" required class="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition shadow-sm" placeholder="250655">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-1">SWIFT Code (Optional)</label>
+                    <input type="text" name="swift_code" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition shadow-sm" placeholder="For international payments">
+                </div>
+            </div>
+            
+            <div class="px-6 py-4 bg-slate-50 flex justify-end gap-3 rounded-b-2xl border-t border-slate-100">
+                <button type="button" onclick="closeBankModal()" class="px-5 py-2.5 rounded-lg border border-slate-300 text-slate-700 font-bold hover:bg-slate-100 transition">Cancel</button>
+                <button type="submit" class="px-5 py-2.5 rounded-lg bg-indigo-600 text-white font-bold hover:bg-indigo-700 shadow-sm transition">Save Account</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function openBankModal() {
+        document.getElementById('add-bank-modal').classList.remove('hidden');
+        setTimeout(() => {
+            document.getElementById('bank_name').focus();
+        }, 100);
+    }
+    function closeBankModal() {
+        document.getElementById('add-bank-modal').classList.add('hidden');
+    }
+</script>
+{% endblock %}'''
+
+with open('templates/program_mechanic/bank_accounts.html', 'w', encoding='utf-8') as f:
+    f.write(content)

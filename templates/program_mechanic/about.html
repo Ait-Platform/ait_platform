@@ -14,7 +14,7 @@
       <!-- Row 1: Title & Back Button -->
       <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 pb-4 border-b border-slate-100 gap-4">
         <h1 class="text-2xl md:text-3xl font-bold text-slate-800 flex items-center">
-          <span class="mr-2"></span> ProTrade
+          <span class="mr-2"></span> ProTrade (Mechanic)
         </h1>
         <a href="{{ url_for('public_bp.welcome') }}" class="inline-flex items-center text-sm font-medium text-slate-700 hover:text-slate-900 transition bg-slate-100 hover:bg-slate-200 px-4 py-2 rounded-lg border border-slate-300 shadow-sm">
           <span>&larr;</span><span class="ml-1">Back</span>
@@ -24,19 +24,39 @@
       <!-- Content -->
       <div class="prose max-w-none text-slate-600 space-y-6">
         <p class="text-lg leading-relaxed">
-          <strong class="text-indigo-700">ProTrade</strong> is a comprehensive, professional platform designed to completely streamline your workshop management and elevate your customer experience.
+          <strong class="text-indigo-700">ProTrade</strong> is a powerful, AI-driven platform designed specifically for mechanics and tradesmen to automate their workshop, from the moment a car pulls in, to the final invoice.
         </p>
 
         <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
-          <h3 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Why Mechanics Choose ProTrade</h3>
+          <h3 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">The ProTrade Advantage</h3>
           
           <div class="flex items-start">
             <div class="flex-shrink-0 mt-1">
-              <i class="fas fa-file-pdf text-rose-500 text-lg w-6 text-center"></i>
+              <i class="fas fa-robot text-indigo-500 text-lg w-6 text-center"></i>
             </div>
             <div class="ml-3">
-              <h4 class="font-bold text-slate-800 text-lg">Top-Tier Professionalism</h4>
-              <p class="text-sm mt-1">Instantly generate beautifully formatted, digital PDF quotes and invoices with your shop's logo. Send them directly to your customer's phone via email. Build immediate trust and look like a high-end dealership, making customers much more likely to approve jobs.</p>
+              <h4 class="font-bold text-slate-800 text-lg">AI-Powered Intake</h4>
+              <p class="text-sm mt-1">Skip the manual data entry. Simply scan a customer's business card or snap a photo of a vehicle's license disk, and our AI instantly extracts the VIN, Registration, Make, and contact details to build their profile in seconds.</p>
+            </div>
+          </div>
+          
+          <div class="flex items-start pt-3">
+            <div class="flex-shrink-0 mt-1">
+              <i class="fas fa-file-invoice text-rose-500 text-lg w-6 text-center"></i>
+            </div>
+            <div class="ml-3">
+              <h4 class="font-bold text-slate-800 text-lg">Automated Legal Compliance</h4>
+              <p class="text-sm mt-1">Generate beautiful digital Quotes that legally transform into Tax Invoices the second a client accepts. The system automatically emails the Tax Invoice to the client as a formal demand for deposit, with built-in toggles for Cash, eWallet, or EFT payments.</p>
+            </div>
+          </div>
+
+          <div class="flex items-start pt-3">
+            <div class="flex-shrink-0 mt-1">
+              <i class="fas fa-chart-line text-emerald-500 text-lg w-6 text-center"></i>
+            </div>
+            <div class="ml-3">
+              <h4 class="font-bold text-slate-800 text-lg">The Repair Tracker</h4>
+              <p class="text-sm mt-1">Keep your receptionists and customers perfectly in sync. As you add parts, generate quotes, and log payments, ProTrade automatically constructs a real-time, chronological Repair Timeline for every vehicle in your shop.</p>
             </div>
           </div>
 
@@ -45,18 +65,8 @@
               <i class="fas fa-coins text-amber-500 text-lg w-6 text-center"></i>
             </div>
             <div class="ml-3">
-              <h4 class="font-bold text-slate-800 text-lg">Zero Risk, Zero Monthly Fees</h4>
-              <p class="text-sm mt-1">ProTrade uses a simple Pay-As-You-Go token system with no expensive monthly subscriptions. <strong>We even give you 100 free tokens when you sign up!</strong> This means your first 10+ jobs are completely free. Once you secure jobs, you can simply build the tiny token cost into your customer quotes, meaning the software effectively pays for itself.</p>
-            </div>
-          </div>
-
-          <div class="flex items-start pt-3">
-            <div class="flex-shrink-0 mt-1">
-              <i class="fas fa-hand-holding-usd text-emerald-500 text-lg w-6 text-center"></i>
-            </div>
-            <div class="ml-3">
-              <h4 class="font-bold text-slate-800 text-lg">Seamless Debt Collection</h4>
-              <p class="text-sm mt-1">Struggling with customers who need to pay slowly? ProTrade seamlessly bridges into our enterprise-level <strong>Debtors</strong> module. The system automatically tracks running balances, tracks installments, and generates Statements of Account (SOAs) so you never lose track of who owes you money.</p>
+              <h4 class="font-bold text-slate-800 text-lg">Integrated Debtor Ledgers</h4>
+              <p class="text-sm mt-1">Unlike standard quoting apps, ProTrade is built on top of an enterprise ledger. Recording a deposit automatically syncs to the client's financial profile, allowing you to instantly generate Statements of Account (SOAs) and track installments flawlessly.</p>
             </div>
           </div>
         </div>

@@ -224,6 +224,21 @@ def document_preview():
 @mechanic_bp.route("/mechanic/dashboard")
 @login_required
 def mechanic_dashboard():
+    # Auto-migrate payment_method column if it doesn't exist
+    from sqlalchemy import inspect, text
+    try:
+        inspector = inspect(db.engine)
+        columns = [col['name'] for col in inspector.get_columns('mech_job_cards')]
+        if 'payment_method' not in columns:
+            # Handle SQLite vs Postgres
+            if db.engine.dialect.name == 'sqlite':
+                db.session.execute(text("ALTER TABLE mech_job_cards ADD COLUMN payment_method VARCHAR(50) DEFAULT 'EFT'"))
+            else:
+                db.session.execute(text("ALTER TABLE mech_job_cards ADD COLUMN payment_method VARCHAR(50) DEFAULT 'EFT'"))
+            db.session.commit()
+    except Exception as e:
+        current_app.logger.error(f"Migration error: {e}")
+
     # Attempt to auto-upgrade the table if missing
     try:
         db.session.execute(text('ALTER TABLE mech_job_cards ADD COLUMN next_service_due VARCHAR(100);'))
@@ -1282,7 +1297,36 @@ def job_cards_list():
     except Exception as e:
         current_app.logger.error(f"Error loading debtors: {e}")
             
+    
+    # FIX: Ensure every MechClient has a matching Debtor profile (backfill for old clients)
+    from app.models.mechanic import MechClient
+    from app.models.debtors import SenderProfile
+    
+    clients = MechClient.query.filter_by(user_id=current_user.id).all()
+    debtor_names = {d.name for d in all_debtors} if "all_debtors" in locals() else set()
+    
+    new_debtors_added = False
+    for c in clients:
+        if c.name not in debtor_names:
+            sender_profile = SenderProfile.query.filter_by(user_id=current_user.id, is_default=True).first()
+            new_d = Debtor(
+                user_id=current_user.id,
+                name=c.name,
+                phone=c.phone,
+                email=c.email,
+                slug_reference='mechanic',
+                sender_profile_id=sender_profile.id if sender_profile else None
+            )
+            db.session.add(new_d)
+            new_debtors_added = True
+            
+    if new_debtors_added:
+        db.session.commit()
+        # Re-fetch all debtors
+        all_debtors = Debtor.query.filter_by(user_id=current_user.id).all()
+        
     total_debtors_count = len(all_debtors) if "all_debtors" in locals() else 0
+
     all_vehicles = []
     if active_shop:
         all_vehicles = MechVehicle.query.join(MechClient).filter(MechClient.user_id == current_user.id).all()
@@ -1517,9 +1561,27 @@ def mark_billed(id):
 def accept_quote(id):
     from app.models.debtors import Debtor, SenderProfile, DebtorLedger
     from datetime import datetime
-    
-    job_card = MechJobCard.query.get_or_404(id)
-    if job_card.status == 'Quote':
+        from app.models.auth import AitTokenWallet, AitTokenTransaction
+        from sqlalchemy import text
+        
+        # Charge tokens for generating Tax Invoice
+        setting = db.session.execute(text("SELECT value FROM system_settings WHERE key = 'mechanic_quote_cents'")).fetchone()
+        quote_cost = int(setting[0]) if setting else 500
+        token_cost = quote_cost // 100  # Default 5 tokens, but using same variable to keep it consistent
+        
+        wallet = AitTokenWallet.query.filter_by(user_id=current_user.id).first()
+        if not wallet or wallet.balance < token_cost:
+            flash("Insufficient tokens to generate Tax Invoice. Please top up your wallet.", "danger")
+            return redirect(url_for("mechanic_bp.mock_bill"))
+            
+        wallet.balance -= token_cost
+        txn = AitTokenTransaction(
+            wallet_id=wallet.id,
+            amount=-token_cost,
+            description=f"Generated and sent Tax Invoice {job_card.job_number}"
+        )
+        db.session.add(txn)
+        
         job_card.status = 'Awaiting Deposit'
         
         # Ensure Debtor profile exists
@@ -1564,10 +1626,63 @@ def accept_quote(id):
                         ref=f"JOB-{job_card.job_number}"
                     )
                     db.session.add(charge_ledger)
-        
         db.session.commit()
-        flash("Quote accepted! Invoice posted to ledger.", "success")
+        # AUTO-EMAIL TAX INVOICE LOGIC
+        if client and client.email:
+            try:
+                from app.utils.mailer import send_pdf_email
+                from app.utils.pdf_render import html_to_pdf_bytes
+                from datetime import datetime
+                
+                active_shop = MechShop.query.filter_by(user_id=current_user.id, onboarding_status='active').first()
+                from app.models.debtors import BusinessBankAccount
+                bank_account = BusinessBankAccount.query.filter_by(user_id=current_user.id).order_by(BusinessBankAccount.is_default.desc()).first()
+                
+                doc_type = "Tax Invoice"
+                subject = f"Your {doc_type} #{job_card.job_number} from {active_shop.business_name if active_shop else 'AIT ProTrade'}"
+                
+                body = f"Hello,
+
+Your {doc_type} #{job_card.job_number} is ready. We have attached a PDF copy for your records.
+
+Thank you for choosing us!"
+                
+                letterhead_html = ""
+                if active_shop and active_shop.use_custom_letterhead and active_shop.letterhead_url:
+                    lh_url = url_for('static', filename=f'uploads/mechanic/{active_shop.letterhead_url}', _external=True)
+                    letterhead_html = f'<div style="text-align: center; margin-bottom: 20px;"><img src="{lh_url}" alt="Shop Letterhead" style="max-width: 100%; height: auto; max-height: 150px; border-radius: 8px;"></div><hr style="border: 0; border-top: 1px solid #e2e8f0; margin-bottom: 20px;">'
         
+                html = f"""{letterhead_html}
+                <div style="font-family: sans-serif; color: #334155; max-width: 600px; margin: 0 auto;">
+                    <p>Hello,</p>
+                    <p>Your {doc_type} <strong>#{job_card.job_number}</strong> is ready. We have attached a PDF copy for your records.</p>
+                    <br>
+                    <p>Thank you for choosing us!</p>
+                </div>"""
+                
+                today_date = datetime.utcnow().strftime('%Y-%m-%d')
+                pdf_html_content = render_template("program_mechanic/public_job_card.html", job_card=job_card, shop=active_shop, today_date=today_date, bank_account=bank_account)
+                pdf_bytes = html_to_pdf_bytes(pdf_html_content, base_url=request.host_url)
+                
+                file_name = f"{doc_type.replace(' ', '_')}_{job_card.job_number}.pdf"
+                
+                send_pdf_email(
+                    to_email=client.email,
+                    subject=subject,
+                    body=body,
+                    html=html,
+                    pdf_bytes=pdf_bytes,
+                    filename=file_name
+                )
+                
+                flash("Quote Confirmed and Tax Invoice automatically emailed to client!", "success")
+                
+            except Exception as e:
+                current_app.logger.error(f"Auto-email failed: {e}")
+                flash("Quote Confirmed! WARNING: Auto-email failed. Please print and send the Tax Invoice manually.", "warning")
+        else:
+            flash("Quote Confirmed! WARNING: Client has no email address. Please WhatsApp or Print the Tax Invoice manually to remain legally compliant.", "warning")
+            
         if debtor:
             return redirect(url_for('mechanic_bp.job_card_detail', id=job_card.id))
             
@@ -1958,4 +2073,24 @@ def edit_job_vehicle(id):
     
     db.session.commit()
     flash("Vehicle details updated successfully.", "success")
+    return redirect(url_for('mechanic_bp.job_card_detail', id=job_card.id))
+
+
+@mechanic_bp.route("/mechanic/job_card/<int:id>/payment_method", methods=["POST"])
+@login_required
+def update_payment_method(id):
+    from app.models.mechanic import MechJobCard
+    job_card = MechJobCard.query.get_or_404(id)
+    
+    # Ensure ownership
+    if job_card.vehicle.client.user_id != current_user.id:
+        flash("Unauthorized", "danger")
+        return redirect(url_for('mechanic_bp.mechanic_dashboard'))
+        
+    pm = request.form.get("payment_method")
+    if pm in ['EFT', 'eWallet', 'Cash']:
+        job_card.payment_method = pm
+        db.session.commit()
+        flash(f"Payment method updated to {pm}.", "success")
+        
     return redirect(url_for('mechanic_bp.job_card_detail', id=job_card.id))

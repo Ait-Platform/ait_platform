@@ -1,0 +1,87 @@
+﻿import re
+
+with open('templates/program_mechanic/help_modal.html', 'r', encoding='utf-8') as f:
+    content = f.read()
+
+new_content = '''<!-- ProTrade Workflow Help Modal -->
+<div id="pt-help-modal" class="hidden fixed inset-0 z-[100] overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+  <!-- Background backdrop -->
+  <div class="fixed inset-0 bg-slate-900 bg-opacity-75 transition-opacity backdrop-blur-sm"></div>
+
+  <div class="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
+    <div class="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-4xl border border-slate-200">
+      
+      <!-- Header -->
+      <div class="bg-indigo-600 px-6 py-4 flex justify-between items-center">
+        <h3 class="text-xl font-bold leading-6 text-white flex items-center" id="modal-title">
+          <i class="fas fa-map-signs mr-3"></i> ProTrade Workflow Guide
+        </h3>
+        <button type="button" onclick="document.getElementById('pt-help-modal').classList.add('hidden')" class="rounded-md bg-indigo-700 text-indigo-200 hover:text-white focus:outline-none px-3 py-1 font-bold">
+          Close
+        </button>
+      </div>
+
+      <!-- Content -->
+      <div class="bg-white px-6 pb-8 pt-5 sm:p-8 sm:pb-10">
+        <p class="text-slate-600 mb-8 text-center max-w-2xl mx-auto">Follow this visual map to understand exactly how a job moves from a simple quote to a fully paid invoice within the ProTrade system.</p>
+
+        <!-- Vertical Timeline -->
+        <div class="relative border-l-4 border-indigo-200 ml-3 md:ml-6 space-y-10">
+          
+          <!-- Step 1 -->
+          <div class="relative pl-8 md:pl-10">
+            <div class="absolute -left-[14px] top-1 h-6 w-6 rounded-full bg-indigo-600 border-4 border-white flex items-center justify-center shadow"></div>
+            <div class="bg-slate-50 border border-slate-200 rounded-xl p-5 shadow-sm hover:shadow-md transition">
+              <h4 class="text-lg font-bold text-slate-900 mb-2">Step 0: Create</h4>
+              <p class="text-sm text-slate-600 mb-3">Start here! Use the AI scanner to upload the client's Business Card or License Disk. Add your Labor and Parts to instantly generate a digital <strong>Quotation</strong>.</p>
+              <div class="bg-white p-3 rounded border border-indigo-100 text-sm text-slate-700 flex items-start">
+                <i class="fas fa-file-contract mt-1 mr-2 text-indigo-500"></i>
+                <span><strong>Customizing Payment Methods:</strong> You can select whether you want the client to pay via Bank Transfer, eWallet, or Cash directly on the Job Card!</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 2 -->
+          <div class="relative pl-8 md:pl-10">
+            <div class="absolute -left-[14px] top-1 h-6 w-6 rounded-full bg-amber-500 border-4 border-white flex items-center justify-center shadow"></div>
+            <div class="bg-amber-50 border border-amber-200 rounded-xl p-5 shadow-sm hover:shadow-md transition">
+              <h4 class="text-lg font-bold text-slate-900 mb-2">Pending (List of Quotes)</h4>
+              <p class="text-sm text-slate-600">All created quotes sit in the Pending list. You can email or WhatsApp them to the client. Once the client agrees to the work, click the <strong>Confirm</strong> button to legally convert the Quotation into a <strong>Tax Invoice</strong>.</p>
+              <div class="mt-3 bg-white p-3 rounded border border-amber-100 text-sm font-semibold text-amber-800 flex items-start">
+                <i class="fas fa-paper-plane mt-1 mr-2"></i>
+                <span><strong>Automated Delivery:</strong> Clicking Confirm automatically emails the Tax Invoice to the client as a formal demand for payment!</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 3 -->
+          <div class="relative pl-8 md:pl-10">
+            <div class="absolute -left-[14px] top-1 h-6 w-6 rounded-full bg-emerald-500 border-4 border-white flex items-center justify-center shadow"></div>
+            <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-5 shadow-sm hover:shadow-md transition">
+              <h4 class="text-lg font-bold text-slate-900 mb-2">Confirmed (Debtor Creation & Ledger)</h4>
+              <p class="text-sm text-slate-600 mb-3">When a Job Card is confirmed, the client's financial <strong>Debtor</strong> profile is finalized. Once you actually receive the money in hand, open their <strong>Ledger</strong> and record the payment.</p>
+              <div class="bg-white p-3 rounded border border-emerald-100 text-sm text-slate-700 flex items-start">
+                <i class="fas fa-file-invoice-dollar mt-1 mr-2 text-emerald-500"></i>
+                <span><strong>Smart Syncing:</strong> Recording a payment in the Ledger automatically updates their balance and upgrades the Job Card status!</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 4 -->
+          <div class="relative pl-8 md:pl-10">
+            <div class="absolute -left-[14px] top-1 h-6 w-6 rounded-full bg-blue-500 border-4 border-white flex items-center justify-center shadow"></div>
+            <div class="bg-slate-50 border border-slate-200 rounded-xl p-5 shadow-sm hover:shadow-md transition">
+              <h4 class="text-lg font-bold text-slate-900 mb-2">Repair Tracker</h4>
+              <p class="text-sm text-slate-600">As you move through these stages—creating quotes, confirming jobs, and logging ledger payments—the <strong>Repair Tracker</strong> automatically builds a chronological timeline. Both you and the receptionist can easily track the exact status of any vehicle without lifting a finger.</p>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+'''
+
+with open('templates/program_mechanic/help_modal.html', 'w', encoding='utf-8') as f:
+    f.write(new_content)

@@ -1299,7 +1299,6 @@ def job_cards_list():
             
     
     # FIX: Ensure every MechClient has a matching Debtor profile (backfill for old clients)
-    from app.models.mechanic import MechClient
     from app.models.debtors import SenderProfile
     
     clients = MechClient.query.filter_by(user_id=current_user.id).all()

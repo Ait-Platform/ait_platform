@@ -1151,7 +1151,7 @@ def repair_tracker_api(reg_number):
     from app.models.mechanic import MechJobCard, MechVehicle
     from app.models.debtors import Debtor, DebtorLedger
     from flask import jsonify
-    import pytz
+    
     
     # Standardize reg number search (remove spaces, uppercase)
     search_reg = reg_number.strip().upper().replace(" ", "")
@@ -1905,6 +1905,29 @@ def delete_bank_account(account_id):
     flash("Bank account deleted.", "info")
     return redirect(url_for("mechanic_bp.bank_accounts"))
 
+
+
+@mechanic_bp.route("/mechanic/job_card/<int:id>/quick_odometer", methods=["POST"])
+@login_required
+def quick_update_odometer(id):
+    from app.models.mechanic import MechJobCard
+    job_card = MechJobCard.query.get_or_404(id)
+    
+    if job_card.vehicle.client.user_id != current_user.id:
+        flash("Unauthorized", "danger")
+        return redirect(url_for('mechanic_bp.mechanic_dashboard'))
+        
+    mileage_str = request.form.get('mileage')
+    try:
+        mileage = int(mileage_str)
+        job_card.vehicle.mileage = mileage
+        job_card.next_service_due = f"{mileage + 15000:,.0f} km"
+        db.session.commit()
+        flash("Odometer updated successfully.", "success")
+    except ValueError:
+        flash("Invalid odometer reading.", "danger")
+        
+    return redirect(url_for('mechanic_bp.job_card_detail', id=job_card.id))
 
 @mechanic_bp.route("/mechanic/job_card/<int:id>/edit_vehicle", methods=["POST"])
 @login_required

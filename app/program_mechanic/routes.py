@@ -1169,7 +1169,8 @@ def job_cards_list():
     except Exception as e:
         current_app.logger.error(f"Error loading debtors: {e}")
             
-    return render_template("program_mechanic/job_cards_list.html", job_cards=job_cards, debtors_with_balances=debtors_with_balances)
+    total_debtors_count = len(all_debtors) if "all_debtors" in locals() else 0
+    return render_template("program_mechanic/job_cards_list.html", job_cards=job_cards, debtors_with_balances=debtors_with_balances, total_debtors_count=total_debtors_count, all_debtors=all_debtors if "all_debtors" in locals() else [])
 
 
 @mechanic_bp.route("/upload_business_card", methods=["POST"])

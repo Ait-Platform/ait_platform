@@ -56,7 +56,7 @@
             <span class="mb-1">Completed</span>
             <span class="bg-slate-300 text-slate-700 py-0.5 px-2 rounded-full font-black">{{ completed|length }}</span>
           </button>
-          <a href="{{ url_for('debtors_bp.debtors_dashboard') }}" id="tab-btn-ledger" class="flex flex-col items-center justify-center px-3 py-2 rounded-lg text-xs font-bold shadow-sm transition bg-slate-100 text-slate-600 border-2 border-slate-200 hover:bg-slate-200 text-center leading-tight min-w-[80px] ml-4">
+          <a href="{{ url_for('debtors_bp.dashboard') }}" id="tab-btn-ledger" class="flex flex-col items-center justify-center px-3 py-2 rounded-lg text-xs font-bold shadow-sm transition bg-slate-100 text-slate-600 border-2 border-slate-200 hover:bg-slate-200 text-center leading-tight min-w-[80px] ml-4">
             <span class="mb-1">Ledger</span>
             <span class="bg-slate-300 text-slate-700 py-0.5 px-2 rounded-full font-black">{{ total_debtors_count }}</span>
           </a>

@@ -43,27 +43,26 @@
 
       
 <!-- Tabs Navigation (Styled as Buttons) -->
-              <div class="flex flex-wrap gap-3 mt-4 mb-8">
-          <button onclick="switchTab('pending')" id="tab-btn-pending" class="flex flex-col items-center justify-center px-3 py-2 rounded-lg text-xs font-bold shadow-sm transition bg-indigo-600 text-white border-2 border-indigo-700 text-center leading-tight min-w-[80px]">
-            <span class="mb-1">Pending</span>
-            <span class="bg-white text-indigo-700 py-0.5 px-2 rounded-full font-black">{{ pending|length }}</span>
-          </button>
-          <button onclick="switchTab('accepted')" id="tab-btn-accepted" class="flex flex-col items-center justify-center px-3 py-2 rounded-lg text-xs font-bold shadow-sm transition bg-slate-100 text-slate-600 border-2 border-slate-200 hover:bg-slate-200 text-center leading-tight min-w-[80px]">
-            <span class="mb-1">Confirmed</span>
-            <span class="bg-slate-300 text-slate-700 py-0.5 px-2 rounded-full font-black">{{ accepted|length }}</span>
-          </button>
-          <a href="{{ url_for('mechanic_bp.client_accounts') }}" id="tab-btn-ledger" class="flex flex-col items-center justify-center px-3 py-2 rounded-lg text-xs font-bold shadow-sm transition bg-slate-100 text-slate-600 border-2 border-slate-200 hover:bg-slate-200 text-center leading-tight min-w-[80px] ml-4">
-            <span class="mb-1">Ledger</span>
-            <span class="bg-slate-300 text-slate-700 py-0.5 px-2 rounded-full font-black">{{ total_debtors_count }}</span>
-          </a>
-          <button onclick="switchTab('tracker')" id="tab-btn-tracker" class="flex flex-col items-center justify-center px-3 py-2 rounded-lg text-xs font-bold shadow-sm transition bg-slate-100 text-slate-600 border-2 border-slate-200 hover:bg-slate-200 text-center leading-tight min-w-[80px]">
-            <span class="mb-1">Repair<br>Tracker</span>
-            <span class="bg-slate-300 text-slate-700 py-0.5 px-2 rounded-full font-black"><i class="fas fa-search"></i></span>
-          </button>
-        </div>
-
-      
-</div>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6 mb-8 bg-slate-50 p-4 rounded-xl border border-slate-200 shadow-inner">
+            <button onclick="switchTab('pending')" id="tab-btn-pending" class="flex flex-col items-center justify-center px-4 py-3 rounded-lg text-sm font-bold shadow-sm transition bg-indigo-600 text-white border-2 border-indigo-700 text-center w-full">
+              <span class="mb-2 uppercase tracking-wider text-xs">Pending</span>
+              <span class="bg-white text-indigo-700 py-1 px-3 rounded-full font-black text-lg">{{ pending|length }}</span>
+            </button>
+            <button onclick="switchTab('accepted')" id="tab-btn-accepted" class="flex flex-col items-center justify-center px-4 py-3 rounded-lg text-sm font-bold shadow-sm transition bg-white text-slate-600 border-2 border-slate-200 hover:bg-slate-100 hover:text-slate-800 hover:border-slate-300 text-center w-full">
+              <span class="mb-2 uppercase tracking-wider text-xs">Confirmed</span>
+              <span class="bg-slate-100 text-slate-600 py-1 px-3 rounded-full font-black text-lg group-hover:bg-slate-200">{{ accepted|length }}</span>
+            </button>
+            <a href="{{ url_for('mechanic_bp.client_accounts') }}" id="tab-btn-ledger" class="flex flex-col items-center justify-center px-4 py-3 rounded-lg text-sm font-bold shadow-sm transition bg-white text-slate-600 border-2 border-slate-200 hover:bg-slate-100 hover:text-slate-800 hover:border-slate-300 text-center w-full group">
+              <span class="mb-2 uppercase tracking-wider text-xs flex items-center gap-2"><i class="fas fa-file-invoice-dollar text-slate-400 group-hover:text-emerald-500 transition"></i> Ledger</span>
+              <span class="bg-slate-100 text-slate-600 py-1 px-3 rounded-full font-black text-lg group-hover:bg-slate-200">{{ total_debtors_count }}</span>
+            </a>
+            <button onclick="switchTab('tracker')" id="tab-btn-tracker" class="flex flex-col items-center justify-center px-4 py-3 rounded-lg text-sm font-bold shadow-sm transition bg-white text-slate-600 border-2 border-slate-200 hover:bg-slate-100 hover:text-slate-800 hover:border-slate-300 text-center w-full group">
+              <span class="mb-2 uppercase tracking-wider text-xs flex items-center gap-2"><i class="fas fa-search text-slate-400 group-hover:text-blue-500 transition"></i> Tracker</span>
+              <span class="bg-slate-100 text-slate-600 py-1 px-3 rounded-full font-black text-lg group-hover:bg-slate-200"><i class="fas fa-car-side"></i></span>
+            </button>
+          </div>
+  
+      </div>
 
     <div class="p-6 space-y-8">
       
@@ -216,10 +215,10 @@ function switchTab(tabId) {
     tabs.forEach(t => {
         const btn = document.getElementById('tab-btn-' + t);
         if(btn) {
-            btn.className = "flex flex-col items-center justify-center px-3 py-2 rounded-lg text-xs font-bold shadow-sm transition bg-slate-100 text-slate-600 border-2 border-slate-200 hover:bg-slate-200 text-center leading-tight min-w-[80px]";
+            btn.className = "flex flex-col items-center justify-center px-4 py-3 rounded-lg text-sm font-bold shadow-sm transition bg-white text-slate-600 border-2 border-slate-200 hover:bg-slate-100 hover:text-slate-800 hover:border-slate-300 text-center w-full group";
             // Update badge color
-            const badge = btn.querySelector('span');
-            if (badge) badge.className = "bg-slate-300 text-slate-700 py-0.5 px-2 rounded-full text-xs ml-1";
+            const badge = btn.querySelectorAll('span')[1];
+            if (badge) badge.className = "bg-slate-100 text-slate-600 py-1 px-3 rounded-full font-black text-lg group-hover:bg-slate-200";
         }
     });
     

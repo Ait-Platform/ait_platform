@@ -61,6 +61,11 @@ def reading_workshop_docs():
     doc_dict = {d.document_type: d for d in docs}
     return render_template("program_sace/workshop_documents.html", doc_dict=doc_dict)
 
+@sace_bp.route("/sace/reading/interactive_workshop")
+@login_required
+def interactive_workshop():
+    return render_template("program_sace/interactive_workshop.html")
+
 @sace_bp.route("/sace/download/<int:doc_id>")
 @login_required
 def download_document(doc_id):

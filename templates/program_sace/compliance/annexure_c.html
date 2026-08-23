@@ -1,6 +1,6 @@
 {% extends "layout.html" %}
 
-{% block title %}Annexure C - Learning Activities{% endblock %}
+{% block title %}Annexure C - Participant Workbook{% endblock %}
 
 {% block flashes %}{% endblock %}
 
@@ -12,7 +12,7 @@
         {% include "partials/flash_messages.html" %}
         
         <div class="flex justify-between items-center mb-6 print:hidden">
-            <h1 class="text-2xl font-bold text-gray-900">Annexure C: Learning Activities</h1>
+            <h1 class="text-2xl font-bold text-gray-900">Annexure C: Participant Workbook (Print Track)</h1>
             <a href="{{ url_for('sace_bp.reading_workshop_docs') }}" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200">
                 Back to Workshop Docs
             </a>
@@ -27,46 +27,93 @@
         <div class="prose max-w-none text-slate-800">
             <div class="text-center border-b-2 border-indigo-900 pb-5 mb-8">
                 <h1 class="text-4xl font-bold text-indigo-900 mb-2">Annexure C</h1>
-                <h2 class="text-2xl font-semibold text-indigo-800 mb-2">Learning Activities & Participant Material</h2>
+                <h2 class="text-2xl font-semibold text-indigo-800 mb-2">Participant Workbook & Evidence Sheet</h2>
                 <p class="text-lg text-slate-600">AIT Professional Development: Reading (LITRE Method)</p>
             </div>
+
+            <!-- Participant Info (Crucial for physical collection) -->
+            <div class="border-2 border-slate-300 p-4 mb-8 print:border-black rounded-lg">
+                <div class="grid grid-cols-2 gap-4">
+                    <div><strong>Name:</strong> ___________________________</div>
+                    <div><strong>SACE No:</strong> ________________________</div>
+                    <div><strong>School:</strong> __________________________</div>
+                    <div><strong>Date:</strong> ___________________________</div>
+                </div>
+            </div>
             
-            <h3 class="text-xl font-bold text-indigo-800 mb-4">Workshop Activities & Worksheets</h3>
-            <div class="space-y-6">
+            <h3 class="text-xl font-bold text-indigo-800 mb-4 border-b pb-2">Module 1: Introduction & Context (08:30 - 09:15)</h3>
+            
+            <div class="space-y-8">
                 
-                <div class="border border-slate-300 rounded-xl overflow-hidden">
-                    <div class="bg-indigo-50 border-b border-slate-300 p-4">
-                        <h4 class="font-bold text-lg text-indigo-900">Activity 1: Palm Tracing & Syllable Mapping</h4>
-                        <p class="text-sm text-indigo-700">Time Allocation: 45 Minutes | Format: Individual Worksheet</p>
+                <!-- SLIDE 1: PRE-TEST -->
+                <div class="border border-slate-300 rounded-xl overflow-hidden print:border-black">
+                    <div class="bg-indigo-50 border-b border-slate-300 p-4 print:bg-transparent print:border-b-2 print:border-black">
+                        <div class="flex justify-between items-center">
+                            <h4 class="font-bold text-lg text-indigo-900 m-0">Slide 1: The Pre-Test</h4>
+                            <span class="text-sm font-bold border px-2 py-1 bg-white print:border-black">08:30 AM</span>
+                        </div>
                     </div>
-                    <div class="p-5 bg-white">
-                        <p class="mb-3"><strong>Instructions for Teachers:</strong></p>
-                        <ol class="list-decimal pl-5 space-y-2 text-slate-700">
-                            <li>Trace your dominant hand onto the provided A4 paper.</li>
-                            <li>Label the thumb as the "Root Vowel" (A, E, I, O, U).</li>
-                            <li>Label the remaining four fingers with common contextual consonants (e.g., M, B, P, T).</li>
-                            <li>In the palm center, combine the root vowel and consonants to construct 5 unique syllables.</li>
-                            <li>Write the syllables aloud and practice the tactile memory movement.</li>
-                        </ol>
-                        <div class="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800">
-                            <strong>Objective:</strong> To physically link abstract phonetic sounds to a concrete, tactile map that children can carry with them anywhere.
+                    <div class="p-6 bg-white">
+                        <p class="font-bold text-xl mb-6">Q: Is there a crisis in reading in South African schools?</p>
+                        
+                        <div class="flex space-x-12 ml-4">
+                            <label class="flex items-center space-x-3 cursor-pointer">
+                                <div class="w-8 h-8 border-2 border-slate-400 rounded-md print:border-black"></div>
+                                <span class="text-xl font-bold">TRUE</span>
+                            </label>
+                            
+                            <label class="flex items-center space-x-3 cursor-pointer">
+                                <div class="w-8 h-8 border-2 border-slate-400 rounded-md print:border-black"></div>
+                                <span class="text-xl font-bold">FALSE</span>
+                            </label>
+                        </div>
+                        
+                        <p class="mt-8 text-sm italic text-slate-500">Wait for the facilitator to reveal the 2030 Reading Panel's report before continuing.</p>
+                    </div>
+                </div>
+
+                <!-- SLIDE 2: THE PROBLEM -->
+                <div class="border border-slate-300 rounded-xl overflow-hidden print:border-black">
+                    <div class="bg-indigo-50 border-b border-slate-300 p-4 print:bg-transparent print:border-b-2 print:border-black">
+                        <h4 class="font-bold text-lg text-indigo-900 m-0">Slide 2: The Problem (Making Blending Concrete)</h4>
+                    </div>
+                    <div class="p-6 bg-white">
+                        <p class="font-bold mb-4">What is the biggest barrier you face when teaching blending in your classroom?</p>
+                        <div class="space-y-4">
+                            <div class="border-b border-slate-400 w-full h-6 print:border-black"></div>
+                            <div class="border-b border-slate-400 w-full h-6 print:border-black"></div>
+                            <div class="border-b border-slate-400 w-full h-6 print:border-black"></div>
                         </div>
                     </div>
                 </div>
 
-                <div class="border border-slate-300 rounded-xl overflow-hidden">
-                    <div class="bg-indigo-50 border-b border-slate-300 p-4">
-                        <h4 class="font-bold text-lg text-indigo-900">Activity 2: Word Construction Workshop</h4>
-                        <p class="text-sm text-indigo-700">Time Allocation: 60 Minutes | Format: Group Work</p>
+                <!-- SLIDE 3 & 4: LITRE & CASE STUDY -->
+                <div class="border border-slate-300 rounded-xl overflow-hidden print:border-black">
+                    <div class="bg-indigo-50 border-b border-slate-300 p-4 print:bg-transparent print:border-b-2 print:border-black">
+                        <h4 class="font-bold text-lg text-indigo-900 m-0">Slides 3 & 4: Introduction to LiTRE & The Case Study</h4>
                     </div>
-                    <div class="p-5 bg-white">
-                        <p class="mb-3"><strong>Instructions for Teachers:</strong></p>
-                        <ol class="list-decimal pl-5 space-y-2 text-slate-700">
-                            <li>Form groups of 3-4 educators.</li>
-                            <li>Using the syllables generated in Activity 1, construct at least 10 complete words.</li>
-                            <li>Ensure that at least 5 of these words relate directly to the "Family Context" (e.g., Mother, Food, Home).</li>
-                            <li>Present your word list to the adjacent group and demonstrate the physical hand movements used to construct them.</li>
-                        </ol>
+                    <div class="p-6 bg-white">
+                        <p class="font-bold mb-4">Can a 14-year-old Grade 7 learner still catch up using the LiTRE method?</p>
+                        <div class="flex space-x-12 ml-4 mb-6">
+                            <label class="flex items-center space-x-3">
+                                <div class="w-6 h-6 border-2 border-slate-400 rounded-full print:border-black"></div>
+                                <span class="text-lg font-bold">YES</span>
+                            </label>
+                            <label class="flex items-center space-x-3">
+                                <div class="w-6 h-6 border-2 border-slate-400 rounded-full print:border-black"></div>
+                                <span class="text-lg font-bold">NO</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Facilitator Sign Off -->
+                <div class="mt-8 p-4 border-2 border-dashed border-slate-400 bg-slate-50 print:bg-transparent print:border-black">
+                    <p class="font-bold text-center mb-2 text-slate-800">FACILITATOR VERIFICATION - MODULE 1</p>
+                    <p class="text-sm text-center mb-4">I confirm this participant actively completed the Pre-Test and engaged in the Module 1 discussion.</p>
+                    <div class="flex justify-between px-8">
+                        <div>Signature: ______________________</div>
+                        <div>Time: ______________</div>
                     </div>
                 </div>
 

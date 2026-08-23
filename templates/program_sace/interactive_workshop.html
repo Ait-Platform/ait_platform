@@ -1,0 +1,181 @@
+{% extends "layout.html" %}
+
+{% block title %}Interactive Workshop Simulation{% endblock %}
+
+{% block flashes %}{% endblock %}
+
+{% block content %}
+<div class="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100 min-h-[80vh] flex flex-col">
+    <div class="h-2 w-full bg-purple-600"></div>
+    
+    <div class="p-6 sm:p-8 flex-grow flex flex-col">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-bold text-gray-900">Workshop Simulation: Module 1</h1>
+            <a href="{{ url_for('sace_bp.reading_hub') }}" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200">
+                Exit Simulation
+            </a>
+        </div>
+        
+        <div class="flex-grow grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Projector Screen (Slides) -->
+            <div class="lg:col-span-2 flex flex-col">
+                <div class="bg-black rounded-xl p-4 flex-grow flex items-center justify-center relative min-h-[400px]">
+                    
+                    <!-- Slide 0 (The Hook / Pre-test State) -->
+                    <div id="slide-0" class="slide-container absolute inset-0 flex flex-col items-center justify-center text-white text-center p-8">
+                        <i class="fas fa-projector text-6xl text-slate-600 mb-4"></i>
+                        <h2 class="text-3xl font-bold text-slate-400 mb-2">Projector Off</h2>
+                        <p class="text-slate-500">Wait for participants to complete the Pre-Test on their devices before revealing Slide 1.</p>
+                    </div>
+
+                    <!-- Slide 1 -->
+                    <div id="slide-1" class="slide-container absolute inset-0 hidden items-center justify-center">
+                        <img src="{{ url_for('static', filename='uploads/sace_slides/1ReadingState.png') }}" class="max-h-full max-w-full object-contain" alt="Slide 1: Reading State">
+                    </div>
+
+                    <!-- Slide 2 -->
+                    <div id="slide-2" class="slide-container absolute inset-0 hidden items-center justify-center">
+                        <img src="{{ url_for('static', filename='uploads/sace_slides/2Problem.png') }}" class="max-h-full max-w-full object-contain" alt="Slide 2: The Problem">
+                    </div>
+
+                    <!-- Slide 3 -->
+                    <div id="slide-3" class="slide-container absolute inset-0 hidden items-center justify-center">
+                        <img src="{{ url_for('static', filename='uploads/sace_slides/3Intro.png') }}" class="max-h-full max-w-full object-contain" alt="Slide 3: Introduction">
+                    </div>
+
+                    <!-- Slide 4 -->
+                    <div id="slide-4" class="slide-container absolute inset-0 hidden items-center justify-center">
+                        <img src="{{ url_for('static', filename='uploads/sace_slides/4Course.png') }}" class="max-h-full max-w-full object-contain" alt="Slide 4: Case Study">
+                    </div>
+
+                </div>
+                
+                <!-- Slide Controls -->
+                <div class="flex justify-between items-center mt-4 bg-slate-100 p-3 rounded-lg border border-slate-200">
+                    <button onclick="prevSlide()" class="px-4 py-2 bg-white text-slate-700 font-bold rounded shadow-sm hover:bg-slate-50 border border-slate-300">
+                        <i class="fas fa-chevron-left mr-1"></i> Prev
+                    </button>
+                    <span id="slide-counter" class="font-bold text-slate-600">0 / 4</span>
+                    <button onclick="nextSlide()" class="px-4 py-2 bg-purple-600 text-white font-bold rounded shadow-sm hover:bg-purple-700">
+                        Next <i class="fas fa-chevron-right ml-1"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Participant App Interface (The Interactive Compliance) -->
+            <div class="bg-slate-50 border-2 border-slate-200 rounded-xl overflow-hidden flex flex-col relative">
+                <div class="bg-slate-800 text-white p-3 text-center text-sm font-bold flex justify-between items-center">
+                    <span><i class="fas fa-wifi text-xs"></i> 4G</span>
+                    <span>Teacher App View</span>
+                    <span><i class="fas fa-battery-full text-xs"></i></span>
+                </div>
+                
+                <div class="p-6 flex-grow overflow-y-auto">
+                    
+                    <!-- App View: Pre-test (Slide 0) -->
+                    <div id="app-view-0" class="app-view">
+                        <h3 class="text-xl font-bold text-indigo-900 mb-4 border-b-2 border-indigo-100 pb-2">Compliance Trap: Module 1</h3>
+                        <p class="mb-4 text-slate-700">Welcome! Before the facilitator begins, please answer the following question to unlock today's session:</p>
+                        
+                        <div class="bg-white p-5 rounded-lg border border-indigo-200 shadow-sm mb-6">
+                            <p class="font-bold text-lg mb-4 text-slate-800">Q: Is there a crisis in reading in South African schools?</p>
+                            <button class="w-full py-3 bg-red-100 text-red-700 hover:bg-red-200 font-bold rounded-lg mb-3 border border-red-300 transition" onclick="selectAnswer(this)">FALSE (No Crisis)</button>
+                            <button class="w-full py-3 bg-green-100 text-green-700 hover:bg-green-200 font-bold rounded-lg border border-green-300 transition" onclick="selectAnswer(this)">TRUE (Crisis Exists)</button>
+                        </div>
+                        
+                        <div class="text-sm text-slate-500 italic text-center">
+                            <i class="fas fa-lock mr-1"></i> Submitting this answer logs your attendance at 08:30 AM for SACE verification.
+                        </div>
+                    </div>
+
+                    <!-- App View: Slide 1 -->
+                    <div id="app-view-1" class="app-view hidden">
+                        <div class="bg-green-100 border border-green-300 text-green-800 p-4 rounded-lg mb-6 flex items-start">
+                            <i class="fas fa-check-circle mt-1 mr-3 text-xl"></i>
+                            <div>
+                                <h4 class="font-bold">Attendance Verified</h4>
+                                <p class="text-sm">Your answer has been logged. The facilitator is now presenting the 2030 Reading Panel data.</p>
+                            </div>
+                        </div>
+                        <p class="text-slate-600">Please direct your attention to the projector screen.</p>
+                    </div>
+
+                    <!-- App View: Slide 2 -->
+                    <div id="app-view-2" class="app-view hidden">
+                        <h3 class="text-xl font-bold text-indigo-900 mb-4 border-b-2 border-indigo-100 pb-2">Reflection Activity</h3>
+                        <div class="bg-white p-5 rounded-lg border border-indigo-200 shadow-sm">
+                            <p class="font-bold text-slate-800 mb-3">Based on the screen, what is the biggest barrier you face?</p>
+                            <textarea class="w-full border border-slate-300 rounded p-3 h-24 mb-3" placeholder="Type your reflection here..."></textarea>
+                            <button class="w-full py-2 bg-indigo-600 text-white font-bold rounded shadow-sm hover:bg-indigo-700">Save Note</button>
+                        </div>
+                    </div>
+
+                    <!-- App View: Slide 3 & 4 -->
+                    <div id="app-view-3" class="app-view hidden">
+                        <h3 class="text-xl font-bold text-indigo-900 mb-4 border-b-2 border-indigo-100 pb-2">The Catch-Up Approach</h3>
+                        <p class="text-slate-600 mb-4">Follow the case study of the 14-year-old on the screen.</p>
+                        <div class="bg-indigo-50 border border-indigo-200 p-4 rounded-lg text-center">
+                            <p class="font-bold text-indigo-800 mb-2">Can a 14-year-old catch up?</p>
+                            <div class="flex justify-center space-x-4">
+                                <button class="px-6 py-2 bg-white border border-indigo-300 rounded shadow-sm hover:bg-indigo-100 font-bold text-indigo-700">YES</button>
+                                <button class="px-6 py-2 bg-white border border-indigo-300 rounded shadow-sm hover:bg-indigo-100 font-bold text-indigo-700">NO</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentSlide = 0;
+    const totalSlides = 4;
+
+    function updateView() {
+        // Update projector
+        document.querySelectorAll('.slide-container').forEach(el => el.classList.remove('flex'));
+        document.querySelectorAll('.slide-container').forEach(el => el.classList.add('hidden'));
+        const activeSlide = document.getElementById(`slide-${currentSlide}`);
+        activeSlide.classList.remove('hidden');
+        activeSlide.classList.add('flex');
+
+        // Update counter
+        document.getElementById('slide-counter').innerText = `${currentSlide} / ${totalSlides}`;
+
+        // Update App View mapping
+        document.querySelectorAll('.app-view').forEach(el => el.classList.add('hidden'));
+        
+        let appViewIndex = currentSlide;
+        if (currentSlide === 4) appViewIndex = 3; // Slides 3 and 4 share the same app view for now
+        
+        document.getElementById(`app-view-${appViewIndex}`).classList.remove('hidden');
+    }
+
+    function prevSlide() {
+        if (currentSlide > 0) {
+            currentSlide--;
+            updateView();
+        }
+    }
+
+    function nextSlide() {
+        if (currentSlide < totalSlides) {
+            currentSlide++;
+            updateView();
+        }
+    }
+
+    function selectAnswer(btn) {
+        btn.classList.add('ring-4', 'ring-indigo-300');
+        setTimeout(() => {
+            alert('SACE Trap Triggered: Your answer is logged on the facilitator dashboard. Facilitator will now reveal Slide 1.');
+            nextSlide(); // Auto move to slide 1 for the demo
+        }, 600);
+    }
+    
+    // Initialize
+    updateView();
+</script>
+{% endblock %}

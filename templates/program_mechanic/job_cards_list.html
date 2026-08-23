@@ -52,10 +52,6 @@
             <span class="mb-1">Confirmed</span>
             <span class="bg-slate-300 text-slate-700 py-0.5 px-2 rounded-full font-black">{{ accepted|length }}</span>
           </button>
-          <button onclick="switchTab('completed')" id="tab-btn-completed" class="flex flex-col items-center justify-center px-3 py-2 rounded-lg text-xs font-bold shadow-sm transition bg-slate-100 text-slate-600 border-2 border-slate-200 hover:bg-slate-200 text-center leading-tight min-w-[80px]">
-            <span class="mb-1">Completed</span>
-            <span class="bg-slate-300 text-slate-700 py-0.5 px-2 rounded-full font-black">{{ completed|length }}</span>
-          </button>
           <a href="{{ url_for('mechanic_bp.client_accounts') }}" id="tab-btn-ledger" class="flex flex-col items-center justify-center px-3 py-2 rounded-lg text-xs font-bold shadow-sm transition bg-slate-100 text-slate-600 border-2 border-slate-200 hover:bg-slate-200 text-center leading-tight min-w-[80px] ml-4">
             <span class="mb-1">Ledger</span>
             <span class="bg-slate-300 text-slate-700 py-0.5 px-2 rounded-full font-black">{{ total_debtors_count }}</span>
@@ -149,9 +145,6 @@
       <div id="tab-content-accepted" class="tab-pane hidden">
         {{ job_table("Confirmed Job Cards (CJC)", accepted, "blue", "table-accepted") }}
       </div>
-      <div id="tab-content-completed" class="tab-pane hidden">
-        {{ job_table("Completed / Billed", completed, "green", "table-completed") }}
-      </div>
 
         <div id="tab-content-tracker" class="tab-pane hidden mt-8">
           <div class="bg-white border-2 border-slate-200 rounded-xl shadow-sm p-6 max-w-3xl mx-auto">
@@ -219,7 +212,7 @@ function switchTab(tabId) {
     }
     
     // Reset all buttons
-    const tabs = ['pending', 'accepted', 'completed', 'tracker', 'rejected'];
+    const tabs = ['pending', 'accepted', 'tracker', 'rejected'];
     tabs.forEach(t => {
         const btn = document.getElementById('tab-btn-' + t);
         if(btn) {

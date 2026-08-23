@@ -159,7 +159,13 @@
             <p class="text-sm text-slate-500 mb-6">Enter a vehicle registration number to instantly view its complete physical and financial timeline on the workshop floor.</p>
             
             <div class="flex space-x-3 mb-8">
-              <input type="text" id="tracker-input" placeholder="e.g. XYZ 123" class="flex-1 rounded-lg border-2 border-slate-300 px-4 py-3 font-bold text-lg uppercase focus:border-indigo-500 focus:ring-indigo-500 shadow-sm" onkeypress="if(event.key === 'Enter') searchTracker()">
+              <input type="text" id="tracker-input" list="vehicles-list" placeholder="Search by Registration or Client..." class="flex-1 rounded-lg border-2 border-slate-300 px-4 py-3 font-bold text-lg uppercase focus:border-indigo-500 focus:ring-indigo-500 shadow-sm" onkeypress="if(event.key === 'Enter') searchTracker()">
+              
+              <datalist id="vehicles-list">
+                {% for v in all_vehicles %}
+                  <option value="{{ v.license_plate }}">{{ v.client.name }} ({{ v.make }} {{ v.model }})</option>
+                {% endfor %}
+              </datalist>
               <button onclick="searchTracker()" class="bg-indigo-600 text-white px-6 py-3 rounded-lg font-bold shadow-sm hover:bg-indigo-700 transition">Search</button>
             </div>
             

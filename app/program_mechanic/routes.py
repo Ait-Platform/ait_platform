@@ -1156,9 +1156,16 @@ def repair_tracker_api(reg_number):
     # Standardize reg number search (remove spaces, uppercase)
     search_reg = reg_number.strip().upper().replace(" ", "")
     
-    # Find vehicles matching this reg
-    vehicles = MechVehicle.query.join(MechJobCard).filter(
-        MechVehicle.license_plate.ilike(f"%{reg_number.strip()}%")
+    # Find vehicles matching reg, client name, or job number
+    from app.models.mechanic import MechClient
+    search_term = f"%{reg_number.strip()}%"
+    
+    vehicles = MechVehicle.query.join(MechJobCard).join(MechClient).filter(
+        db.or_(
+            MechVehicle.license_plate.ilike(search_term),
+            MechClient.name.ilike(search_term),
+            MechJobCard.job_number.ilike(search_term)
+        )
     ).all()
     
     if not vehicles:
@@ -1269,7 +1276,11 @@ def job_cards_list():
         current_app.logger.error(f"Error loading debtors: {e}")
             
     total_debtors_count = len(all_debtors) if "all_debtors" in locals() else 0
-    return render_template("program_mechanic/job_cards_list.html", job_cards=job_cards, debtors_with_balances=debtors_with_balances, total_debtors_count=total_debtors_count, all_debtors=all_debtors if "all_debtors" in locals() else [])
+    all_vehicles = []
+    if active_shop:
+        all_vehicles = MechVehicle.query.join(MechClient).filter(MechClient.user_id == current_user.id).all()
+    
+    return render_template("program_mechanic/job_cards_list.html", job_cards=job_cards, debtors_with_balances=debtors_with_balances, total_debtors_count=total_debtors_count, all_debtors=all_debtors if "all_debtors" in locals() else [], all_vehicles=all_vehicles)
 
 
 @mechanic_bp.route("/upload_business_card", methods=["POST"])

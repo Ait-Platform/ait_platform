@@ -1707,6 +1707,18 @@ def client_ledger_add_payment(debtor_id):
             db.session.add(ledger)
             db.session.commit()
             flash(f"Payment of R {amount/100.0:.2f} recorded successfully.", "success")
+            # Auto-upgrade any active job cards for this client to 'Billed'
+            from app.models.mechanic import MechJobCard, MechVehicle, MechClient
+            active_jobs = MechJobCard.query.join(MechVehicle).join(MechClient).filter(
+                MechClient.name == debtor.name,
+                MechClient.user_id == current_user.id,
+                MechJobCard.status.in_(['Awaiting Deposit', 'Approved'])
+            ).all()
+            
+            for j in active_jobs:
+                j.status = 'Billed'
+            db.session.commit()
+
         else:
             flash("Amount must be greater than 0.", "warning")
             

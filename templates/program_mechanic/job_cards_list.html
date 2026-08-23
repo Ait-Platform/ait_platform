@@ -156,7 +156,7 @@
               
               <datalist id="vehicles-list">
                 {% for v in all_vehicles %}
-                  <option value="{{ v.license_plate }}">{{ v.client.name }} ({{ v.make }} {{ v.model }})</option>
+                  <option value="{{ v.license_plate }} - {{ v.client.name }}">{{ v.make }} {{ v.model }}</option>
                 {% endfor %}
               </datalist>
               <button onclick="searchTracker()" class="bg-indigo-600 text-white px-6 py-3 rounded-lg font-bold shadow-sm hover:bg-indigo-700 transition">Search</button>
@@ -255,6 +255,7 @@ function toggleTable(tableId, btn) {
   function searchTracker() {
       const reg = document.getElementById('tracker-input').value.trim();
       if(!reg) return;
+      document.getElementById('tracker-input').value = '';
       
       document.getElementById('tracker-results').classList.add('hidden');
       document.getElementById('tracker-empty').classList.add('hidden');

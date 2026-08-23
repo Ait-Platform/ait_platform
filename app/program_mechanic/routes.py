@@ -1158,14 +1158,21 @@ def repair_tracker_api(reg_number):
     
     # Find vehicles matching reg, client name, or job number
     from app.models.mechanic import MechClient
-    search_term = f"%{reg_number.strip()}%"
+    # Support datalist selections like "XYZ123 - Graham"
+    actual_search = reg_number.split(" - ")[0].strip()
+    search_term = f"%{actual_search}%"
+    clean_reg = actual_search.replace(" ", "")
+    search_term_clean = f"%{clean_reg}%"
     
     vehicles = MechVehicle.query.join(MechJobCard).join(MechClient).filter(
         db.or_(
             MechVehicle.license_plate.ilike(search_term),
+            MechVehicle.license_plate.ilike(search_term_clean),
+            db.func.replace(MechVehicle.license_plate, ' ', '').ilike(search_term_clean),
             MechClient.name.ilike(search_term),
             MechJobCard.job_number.ilike(search_term)
-        )
+        ),
+        MechClient.user_id == current_user.id
     ).all()
     
     if not vehicles:

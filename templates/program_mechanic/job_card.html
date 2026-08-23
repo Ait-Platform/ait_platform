@@ -248,7 +248,16 @@ document.addEventListener("DOMContentLoaded", function() {
                 <span class="text-slate-600 ml-3">Year:</span> <span class="font-bold text-slate-900">{{ job_card.vehicle.year or 'N/A' }}</span>
                 <span class="text-slate-600 ml-3">VIN:</span> <span class="font-bold text-slate-900">{{ job_card.vehicle.vin or 'N/A' }}</span>
                 <span class="text-slate-600 ml-3">Odometer:</span> <span class="font-bold text-slate-900">{{ "{:,.0f}".format(job_card.vehicle.mileage) ~ ' km' if job_card.vehicle.mileage else 'N/A' }}</span>
-                <span class="text-slate-600 ml-3">Next Service Due:</span> <span class="font-bold text-slate-900">{{ job_card.next_service_due if job_card.next_service_due else 'N/A' }}</span>
+                <span class="text-slate-600 ml-3">Next Service Due:</span> 
+                {% if job_card.next_service_due and job_card.next_service_due|lower != 'n/a' %}
+                    <span class="font-bold text-slate-900">{{ job_card.next_service_due }}</span>
+                {% elif job_card.vehicle and job_card.vehicle.mileage %}
+                    <span class="font-bold text-slate-900">{{ "{:,.0f}".format(job_card.vehicle.mileage + 15000) }} km</span>
+                {% else %}
+                    <button onclick="document.getElementById('quick-odo-modal').classList.remove('hidden')" class="font-bold text-rose-600 hover:text-rose-800 bg-rose-50 px-2 py-0.5 rounded border border-rose-200 transition">
+                        <i class="fas fa-exclamation-circle mr-1"></i> To Be Determined (Add Odometer)
+                    </button>
+                {% endif %}
             </p>
         </div>
 

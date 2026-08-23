@@ -1561,13 +1561,18 @@ def mark_billed(id):
 def accept_quote(id):
     from app.models.debtors import Debtor, SenderProfile, DebtorLedger
     from datetime import datetime
-        from app.models.auth import AitTokenWallet, AitTokenTransaction
-        from sqlalchemy import text
+    from app.models.auth import AitTokenWallet, AitTokenTransaction
+    from sqlalchemy import text
+    from app.utils.mailer import send_pdf_email
+    from app.utils.pdf_render import html_to_pdf_bytes
+    
+    job_card = MechJobCard.query.get_or_404(id)
+    if job_card.status == 'Quote':
         
         # Charge tokens for generating Tax Invoice
         setting = db.session.execute(text("SELECT value FROM system_settings WHERE key = 'mechanic_quote_cents'")).fetchone()
         quote_cost = int(setting[0]) if setting else 500
-        token_cost = quote_cost // 100  # Default 5 tokens, but using same variable to keep it consistent
+        token_cost = quote_cost // 100
         
         wallet = AitTokenWallet.query.filter_by(user_id=current_user.id).first()
         if not wallet or wallet.balance < token_cost:
@@ -1626,14 +1631,12 @@ def accept_quote(id):
                         ref=f"JOB-{job_card.job_number}"
                     )
                     db.session.add(charge_ledger)
+                    
         db.session.commit()
+        
         # AUTO-EMAIL TAX INVOICE LOGIC
         if client and client.email:
             try:
-                from app.utils.mailer import send_pdf_email
-                from app.utils.pdf_render import html_to_pdf_bytes
-                from datetime import datetime
-                
                 active_shop = MechShop.query.filter_by(user_id=current_user.id, onboarding_status='active').first()
                 from app.models.debtors import BusinessBankAccount
                 bank_account = BusinessBankAccount.query.filter_by(user_id=current_user.id).order_by(BusinessBankAccount.is_default.desc()).first()
@@ -1641,11 +1644,7 @@ def accept_quote(id):
                 doc_type = "Tax Invoice"
                 subject = f"Your {doc_type} #{job_card.job_number} from {active_shop.business_name if active_shop else 'AIT ProTrade'}"
                 
-                body = f"Hello,
-
-Your {doc_type} #{job_card.job_number} is ready. We have attached a PDF copy for your records.
-
-Thank you for choosing us!"
+                body = f"""Hello,\n\nYour {doc_type} #{job_card.job_number} is ready. We have attached a PDF copy for your records.\n\nThank you for choosing us!"""
                 
                 letterhead_html = ""
                 if active_shop and active_shop.use_custom_letterhead and active_shop.letterhead_url:

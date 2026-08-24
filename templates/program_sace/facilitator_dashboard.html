@@ -306,13 +306,13 @@
     let pollInterval = null;
 
     function startWorkshop() {
-        fetch('/sace/workshop/start', {method: 'POST'})
+        fetch('/sace/workshop/start', {method: 'POST', headers: {'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')}})
             .then(() => fetchState());
     }
 
     function resetWorkshop() {
         if(confirm("Are you sure? This resets all connected devices back to the lobby.")) {
-            fetch('/sace/workshop/reset', {method: 'POST'})
+            fetch('/sace/workshop/reset', {method: 'POST', headers: {'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')}})
                 .then(() => fetchState());
         }
     }
@@ -378,15 +378,16 @@
         
     }
 
-    function prevSlide() { if(currentSlide > 0) { currentSlide--; fetch('/sace/workshop/set_slide', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({slide: currentSlide})}); updateView(); }
+    function prevSlide() { if(currentSlide > 0) { currentSlide--; fetch('/sace/workshop/set_slide', {method: 'POST', headers: {'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')}, body: JSON.stringify({slide: currentSlide})}); updateView(); }
     }
 
-    function nextSlide() { if(currentSlide < totalSlides) { currentSlide++; fetch('/sace/workshop/set_slide', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({slide: currentSlide})}); updateView(); }
+    function nextSlide() { if(currentSlide < totalSlides) { currentSlide++; fetch('/sace/workshop/set_slide', {method: 'POST', headers: {'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')}, body: JSON.stringify({slide: currentSlide})}); updateView(); }
     }
     
     // Initialize
     fetchState();
 </script>
 {% endblock %}
+
 
 

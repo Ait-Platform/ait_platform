@@ -181,7 +181,7 @@
         const pin = document.getElementById('room-pin').value;
         if(pin.length < 3) { alert("Please enter a valid PIN."); return; }
         
-        fetch('/sace/workshop/join', {method: 'POST'})
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content'); fetch('/sace/workshop/join', {method: 'POST', headers: {'X-CSRFToken': csrfToken}})
             .then(res => res.json())
             .then(data => {
                 hasJoinedLocally = true;
@@ -248,6 +248,7 @@
 
 
 {% endblock %}
+
 
 
 

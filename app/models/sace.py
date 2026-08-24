@@ -12,3 +12,14 @@ class SaceDocument(db.Model):
     
     uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
     uploaded_by = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True)
+
+class SaceWorkshopInteraction(db.Model):
+    __tablename__ = 'sace_workshop_interactions'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
+    workshop_session_id = db.Column(db.String(50), nullable=True, default='demo-session-1')
+    activity_slug = db.Column(db.String(50), nullable=False)
+    response_data = db.Column(db.Text, nullable=False)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+

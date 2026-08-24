@@ -1,0 +1,134 @@
+{% extends "layout.html" %}
+
+{% block title %}Live Facilitator Dashboard{% endblock %}
+
+{% block content %}
+<div class="bg-slate-900 rounded-xl shadow-2xl overflow-hidden min-h-[80vh] flex flex-col border border-slate-700 text-white">
+    <div class="h-2 w-full bg-indigo-500"></div>
+    
+    <div class="p-6 sm:p-8 flex-grow flex flex-col">
+        <div class="flex justify-between items-center mb-8 border-b border-slate-700 pb-4">
+            <h1 class="text-3xl font-bold text-indigo-400"><i class="fas fa-satellite-dish mr-3"></i>Live SACE Facilitator Dashboard</h1>
+            <a href="{{ url_for('sace_bp.reading_hub') }}" class="px-4 py-2 text-sm font-bold text-white bg-slate-700 rounded-lg hover:bg-slate-600 transition">
+                Exit Dashboard
+            </a>
+        </div>
+        
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 flex-grow">
+            <!-- Projector Preview -->
+            <div class="flex flex-col">
+                <h2 class="text-xl font-bold mb-4 text-slate-300">Live Room Data (Module 1: Pre-Test)</h2>
+                
+                <div class="bg-slate-800 rounded-xl p-8 flex-grow flex flex-col items-center justify-center border-2 border-indigo-500/30 shadow-[0_0_15px_rgba(99,102,241,0.2)]">
+                    <p class="text-xl text-slate-400 mb-8 font-semibold">Q: Is there a crisis in reading in SA?</p>
+                    
+                    <div class="w-full max-w-md space-y-6">
+                        <!-- True Bar -->
+                        <div>
+                            <div class="flex justify-between text-lg font-bold mb-1">
+                                <span class="text-green-400">TRUE (Crisis Exists)</span>
+                                <span id="true-count" class="text-green-400">0</span>
+                            </div>
+                            <div class="w-full bg-slate-700 rounded-full h-6">
+                                <div id="true-bar" class="bg-green-500 h-6 rounded-full transition-all duration-1000" style="width: 0%"></div>
+                            </div>
+                        </div>
+                        
+                        <!-- False Bar -->
+                        <div>
+                            <div class="flex justify-between text-lg font-bold mb-1">
+                                <span class="text-red-400">FALSE (No Crisis)</span>
+                                <span id="false-count" class="text-red-400">0</span>
+                            </div>
+                            <div class="w-full bg-slate-700 rounded-full h-6">
+                                <div id="false-bar" class="bg-red-500 h-6 rounded-full transition-all duration-1000" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-12 text-center">
+                        <p class="text-slate-500 text-sm font-bold uppercase tracking-widest mb-1">Total Active Participants</p>
+                        <p id="total-participants" class="text-5xl font-black text-white">0</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Facilitator Controls -->
+            <div class="flex flex-col">
+                <h2 class="text-xl font-bold mb-4 text-slate-300">Room Controls</h2>
+                
+                <div class="bg-slate-800 rounded-xl p-6 border border-slate-700 space-y-6">
+                    <div class="p-4 bg-indigo-900/30 border border-indigo-500/50 rounded-lg">
+                        <h3 class="font-bold text-indigo-300 mb-2"><i class="fas fa-lightbulb text-yellow-400 mr-2"></i>Facilitator Note: The Trap</h3>
+                        <p class="text-slate-300 text-sm leading-relaxed">Wait for the room to log their answers. If you see participants voting "FALSE", use this data to spark a debate before you reveal Slide 1 (The 2030 Panel Report).</p>
+                    </div>
+                    
+                    <div>
+                        <button onclick="pollData()" class="w-full py-3 bg-slate-700 hover:bg-slate-600 font-bold rounded-lg transition text-slate-200 border border-slate-600 mb-3">
+                            <i class="fas fa-sync-alt mr-2"></i> Manual Refresh Data
+                        </button>
+                        <button class="w-full py-3 bg-indigo-600 hover:bg-indigo-500 font-bold rounded-lg transition shadow-[0_0_15px_rgba(79,70,229,0.5)]">
+                            <i class="fas fa-play mr-2"></i> Reveal Slide 1 to Projector
+                        </button>
+                    </div>
+                    
+                    <!-- Dummy Data Injector (For Testing) -->
+                    <div class="mt-8 p-4 border-t border-slate-700">
+                        <h4 class="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4">Evaluator Tools (Simulate Room)</h4>
+                        <div class="flex space-x-2">
+                            <button onclick="simulateVote('True')" class="flex-1 py-2 bg-green-900/50 hover:bg-green-800 text-green-400 border border-green-700 rounded text-sm font-bold transition">
+                                +1 True Vote
+                            </button>
+                            <button onclick="simulateVote('False')" class="flex-1 py-2 bg-red-900/50 hover:bg-red-800 text-red-400 border border-red-700 rounded text-sm font-bold transition">
+                                +1 False Vote
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function updateDashboard(data) {
+        const total = data.total || 0;
+        const trueVotes = data.breakdown['True'] || 0;
+        const falseVotes = data.breakdown['False'] || 0;
+        
+        document.getElementById('total-participants').innerText = total;
+        document.getElementById('true-count').innerText = `${trueVotes} (${total > 0 ? Math.round((trueVotes/total)*100) : 0}%)`;
+        document.getElementById('false-count').innerText = `${falseVotes} (${total > 0 ? Math.round((falseVotes/total)*100) : 0}%)`;
+        
+        document.getElementById('true-bar').style.width = total > 0 ? `${(trueVotes/total)*100}%` : '0%';
+        document.getElementById('false-bar').style.width = total > 0 ? `${(falseVotes/total)*100}%` : '0%';
+    }
+
+    function pollData() {
+        fetch('/sace/workshop/facilitator/live_stats?session_id=demo-session-1&activity_slug=module-1-pretest')
+            .then(res => res.json())
+            .then(data => {
+                updateDashboard(data);
+            });
+    }
+
+    function simulateVote(answer) {
+        fetch('/sace/workshop/submit_interaction', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                activity_slug: 'module-1-pretest',
+                response_data: answer,
+                workshop_session_id: 'demo-session-1'
+            })
+        }).then(() => pollData());
+    }
+
+    // Auto-poll every 3 seconds
+    setInterval(pollData, 3000);
+    // Initial fetch
+    pollData();
+</script>
+{% endblock %}

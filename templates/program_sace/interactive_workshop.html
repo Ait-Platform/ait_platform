@@ -2,222 +2,358 @@
 
 {% block title %}Interactive Workshop Simulation{% endblock %}
 
+{% block flashes %}{% endblock %}
+
 {% block content %}
-<div class="bg-slate-900 rounded-xl shadow-2xl overflow-hidden min-h-[85vh] flex flex-col border border-slate-700 text-white relative">
-    <div class="h-2 w-full bg-indigo-500"></div>
+<div class="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100 min-h-[80vh] flex flex-col">
+    <div class="h-2 w-full bg-purple-600"></div>
     
-    <div class="p-6 sm:p-8 flex-grow flex flex-col relative z-10">
+    <div class="p-6 sm:p-8 flex-grow flex flex-col">
         <div class="flex justify-between items-center mb-6">
             <div>
-                <h1 class="text-3xl font-bold text-indigo-400">Evaluator Walkthrough</h1>
-                <p class="text-slate-400">Experience the integrated flow of facilitator slides and interactive participant activities.</p>
+                <h1 class="text-2xl font-bold text-gray-900">Teacher App Simulation</h1>
+                <p class="text-gray-500">Test the participant phone app flow (synchronized with the Facilitator Dashboard).</p>
             </div>
-            <a href="{{ url_for('sace_bp.reading_hub') }}" class="px-4 py-2 font-bold text-white bg-slate-800 rounded-lg border border-slate-600 hover:bg-slate-700 transition">
-                Exit Walkthrough
-            </a>
+            <div class="flex items-center space-x-4">
+                <div class="flex items-center bg-indigo-50 text-indigo-700 px-4 py-2 rounded-lg border border-indigo-100 font-mono font-bold text-lg shadow-inner">
+                    <i class="far fa-clock mr-2"></i><span id="session-timer">00:00:00</span>
+                </div>
+                <a href="{{ url_for('sace_bp.reading_hub') }}" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200">
+                    Exit Simulation
+                </a>
+            </div>
         </div>
         
-        <div class="flex-grow flex items-center justify-center">
-            
-            <!-- VIEW 0: Pre-Test Activity -->
-            <div id="view-0" class="view-container w-full max-w-4xl text-center">
-                <h2 class="text-4xl font-bold text-indigo-300 mb-6"><i class="fas fa-clipboard-check mr-3"></i>Welcome Activity</h2>
-                <p class="text-2xl text-slate-300 mb-12">Is there a crisis in reading in South Africa?</p>
-                <div class="flex justify-center space-x-6">
-                    <button onclick="nextView()" class="px-12 py-6 bg-green-600 hover:bg-green-500 text-white text-2xl font-bold rounded-xl shadow-lg transition">TRUE (Crisis Exists)</button>
-                    <button onclick="nextView()" class="px-12 py-6 bg-red-600 hover:bg-red-500 text-white text-2xl font-bold rounded-xl shadow-lg transition">FALSE (No Crisis)</button>
-                </div>
-            </div>
-
-            <!-- VIEW 1: Slide 1 (Video) -->
-            <div id="view-1" class="view-container w-full max-w-5xl hidden flex-col items-center justify-center">
-                <div class="w-full aspect-video bg-black rounded-lg overflow-hidden border border-slate-700 relative shadow-2xl">
-                    <img src="{{ url_for('static', filename='uploads/spv/1ReadingState.png') }}" alt="Slide 1" class="w-full h-full object-contain">
-                    <div class="absolute inset-0 flex items-center justify-center bg-black/50 hover:bg-black/30 transition cursor-pointer">
-                        <i class="fas fa-play-circle text-6xl text-white opacity-80"></i>
+        <div class="flex-grow grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Projector Screen (Slides) -->
+            <div class="lg:col-span-2 flex flex-col">
+                <div class="bg-white rounded-xl p-4 flex-grow flex items-center justify-center relative min-h-[400px] border-2 border-slate-200">
+                    
+                    <!-- Slide 0 (The Hook / Pre-test State) -->
+                    <div id="slide-0" class="slide-container absolute inset-0 flex flex-col items-center justify-center text-slate-800 text-center p-8">
+                        <i class="fas fa-projector text-6xl text-slate-400 mb-4"></i>
+                        <h2 class="text-3xl font-bold text-slate-700 mb-2">Projector Off</h2>
+                        <p class="text-slate-500">Wait for participants to complete the Pre-Test on their devices before revealing Slide 1.</p>
                     </div>
-                </div>
-            </div>
 
-            <!-- VIEW 2: Slide 2 (Results) -->
-            <div id="view-2" class="view-container w-full max-w-4xl hidden text-center">
-                <h2 class="text-4xl font-bold text-indigo-400 mb-12"><i class="fas fa-satellite-dish mr-3"></i>Live Room Data: Pre-Test</h2>
-                <div class="w-full space-y-8 text-left bg-slate-800 p-8 rounded-xl border border-slate-700">
-                    <div>
-                        <div class="flex justify-between text-2xl font-bold mb-2">
-                            <span class="text-green-400">TRUE (Crisis Exists)</span>
-                            <span class="text-green-400">100%</span>
+                    <!-- Slide 1 -->
+                    <div id="slide-1" class="slide-container absolute inset-0 hidden flex-col items-center justify-center">
+                        <img src="{{ url_for('static', filename='sace_slides/1ReadingState.png') }}" class="max-h-full max-w-full object-contain" alt="Slide 1: Reading State">
+                        <audio class="hidden">
+                            <source src="{{ url_for('static', filename='sace_slides/1_audio.wav') }}" type="audio/wav">
+                        </audio>
+                    </div>
+
+                    <!-- Slide 2 (Live Survey Results) -->
+                    <div id="slide-2" class="slide-container absolute inset-0 hidden flex-col items-center justify-center p-8 bg-slate-900 text-white rounded-xl">
+                        <h2 class="text-3xl font-bold text-indigo-400 mb-8"><i class="fas fa-poll mr-3"></i>Live Room Data: Pre-Test</h2>
+                        <p class="text-xl text-slate-300 mb-8 font-semibold">Q: Is there a crisis in reading in SA?</p>
+                        
+                        <div class="w-full max-w-2xl space-y-8">
+                            <!-- True Bar -->
+                            <div>
+                                <div class="flex justify-between text-xl font-bold mb-2">
+                                    <span class="text-green-400">TRUE (Crisis Exists)</span>
+                                    <span id="true-count-slide" class="text-green-400">0</span>
+                                </div>
+                                <div class="w-full bg-slate-700 rounded-full h-8">
+                                    <div id="true-bar-slide" class="bg-green-500 h-8 rounded-full transition-all duration-1000" style="width: 0%"></div>
+                                </div>
+                            </div>
+                            
+                            <!-- False Bar -->
+                            <div>
+                                <div class="flex justify-between text-xl font-bold mb-2">
+                                    <span class="text-red-400">FALSE (No Crisis)</span>
+                                    <span id="false-count-slide" class="text-red-400">0</span>
+                                </div>
+                                <div class="w-full bg-slate-700 rounded-full h-8">
+                                    <div id="false-bar-slide" class="bg-red-500 h-8 rounded-full transition-all duration-1000" style="width: 0%"></div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="w-full bg-slate-700 rounded-full h-8"><div class="bg-green-500 h-8 rounded-full" style="width: 100%"></div></div>
                     </div>
-                    <div>
-                        <div class="flex justify-between text-2xl font-bold mb-2">
-                            <span class="text-red-400">FALSE</span>
-                            <span class="text-red-400">0%</span>
+
+                    <!-- Slide 3 (The Problem) -->
+                    <div id="slide-3" class="slide-container absolute inset-0 hidden flex-col items-center justify-center">
+                        <img src="{{ url_for('static', filename='sace_slides/2Problem.png') }}" class="max-h-full max-w-full object-contain" alt="Slide 2: The Problem">
+                        <audio class="hidden">
+                            <source src="{{ url_for('static', filename='sace_slides/2_audio.wav') }}" type="audio/wav">
+                        </audio>
+                    </div>
+
+                    <!-- Slide 4 (Root Cause Poll Results) -->
+                    <div id="slide-4" class="slide-container absolute inset-0 hidden flex-col items-center justify-center p-8 bg-slate-900 text-white rounded-xl">
+                        <h2 class="text-3xl font-bold text-indigo-400 mb-8"><i class="fas fa-chart-bar mr-3"></i>Live Room Data: Root Cause</h2>
+                        <p class="text-xl text-slate-300 mb-8 font-semibold">What is the biggest contributor to the reading crisis?</p>
+                        <div class="w-full max-w-2xl space-y-6">
+                            <div class="flex items-center">
+                                <div class="w-1/3 text-right pr-4 font-bold text-slate-400">Resources</div>
+                                <div class="w-2/3 bg-slate-700 rounded-full h-6"><div class="bg-blue-500 h-6 rounded-full" style="width: 25%"></div></div>
+                            </div>
+                            <div class="flex items-center">
+                                <div class="w-1/3 text-right pr-4 font-bold text-slate-400">Class Size</div>
+                                <div class="w-2/3 bg-slate-700 rounded-full h-6"><div class="bg-amber-500 h-6 rounded-full" style="width: 15%"></div></div>
+                            </div>
+                            <div class="flex items-center">
+                                <div class="w-1/3 text-right pr-4 font-bold text-slate-400">Language Barriers</div>
+                                <div class="w-2/3 bg-slate-700 rounded-full h-6"><div class="bg-rose-500 h-6 rounded-full" style="width: 45%"></div></div>
+                            </div>
+                            <div class="flex items-center">
+                                <div class="w-1/3 text-right pr-4 font-bold text-slate-400">Methods</div>
+                                <div class="w-2/3 bg-slate-700 rounded-full h-6"><div class="bg-green-500 h-6 rounded-full" style="width: 15%"></div></div>
+                            </div>
                         </div>
-                        <div class="w-full bg-slate-700 rounded-full h-8"><div class="bg-red-500 h-8 rounded-full" style="width: 0%"></div></div>
                     </div>
+
+                    <!-- Slide 5 (Personal Reflection) -->
+                    <div id="slide-5" class="slide-container absolute inset-0 hidden flex-col items-center justify-center p-8 bg-slate-900 text-white rounded-xl">
+                        <h2 class="text-3xl font-bold text-indigo-400 mb-8"><i class="fas fa-comments mr-3"></i>Live Room Data: Reflections</h2>
+                        <p class="text-xl text-slate-300 mb-8 font-semibold text-center">In one sentence, describe the biggest reading challenge you face.</p>
+                        <div class="grid grid-cols-2 gap-4 w-full max-w-4xl">
+                            <div class="bg-slate-800 p-4 rounded border border-slate-700 shadow-sm text-slate-300 italic">"I have 60 learners in my class and no time for individual reading."</div>
+                            <div class="bg-slate-800 p-4 rounded border border-slate-700 shadow-sm text-slate-300 italic">"There are no books in the learners' home languages."</div>
+                            <div class="bg-slate-800 p-4 rounded border border-slate-700 shadow-sm text-slate-300 italic">"Parents are not able to help with reading at home."</div>
+                            <div class="bg-slate-800 p-4 rounded border border-slate-700 shadow-sm text-slate-300 italic">"We lack basic phonics charts."</div>
+                        </div>
+                    </div>
+
+                    <!-- Slide 6 (Guessing Game Results) -->
+                    <div id="slide-6" class="slide-container absolute inset-0 hidden flex-col items-center justify-center p-8 bg-slate-900 text-white rounded-xl text-center">
+                        <h2 class="text-3xl font-bold text-indigo-400 mb-4"><i class="fas fa-exclamation-triangle mr-3"></i>The Harsh Reality</h2>
+                        <p class="text-xl text-slate-300 mb-8 font-semibold">Percentage of Grade 4 learners who cannot read for meaning:</p>
+                        <div class="text-[8rem] font-black text-rose-500 leading-none drop-shadow-lg mb-4">81%</div>
+                        <p class="text-slate-400 text-lg">PIRLS 2021 Study</p>
+                    </div>
+
+                    <!-- Slide 7 (Intro) -->
+                    <div id="slide-7" class="slide-container absolute inset-0 hidden items-center justify-center">
+                        <img src="{{ url_for('static', filename='sace_slides/3Intro.png') }}" class="max-h-full max-w-full object-contain" alt="Slide 3: Introduction">
+                    </div>
+
+                    <!-- Slide 8 (Case Study) -->
+                    <div id="slide-8" class="slide-container absolute inset-0 hidden flex-col items-center justify-center">
+                        <img src="{{ url_for('static', filename='sace_slides/4Course.png') }}" class="max-h-full max-w-full object-contain" alt="Slide 4: Case Study">
+                        <audio class="hidden">
+                            <source src="{{ url_for('static', filename='sace_slides/4_audio.wav') }}" type="audio/wav">
+                        </audio>
+                    </div>
+
+                    <!-- Slide 9 (Case Study Results) -->
+                    <div id="slide-9" class="slide-container absolute inset-0 hidden flex-col items-center justify-center p-8 bg-slate-900 text-white rounded-xl">
+                        <h2 class="text-3xl font-bold text-indigo-400 mb-8"><i class="fas fa-balance-scale mr-3"></i>Live Room Data: The Catch-Up Approach</h2>
+                        <p class="text-xl text-slate-300 mb-8 font-semibold">Can a 14-year-old catch up?</p>
+                        
+                        <div class="w-full max-w-2xl space-y-8">
+                            <!-- Yes Bar -->
+                            <div>
+                                <div class="flex justify-between text-xl font-bold mb-2">
+                                    <span class="text-green-400">YES</span>
+                                    <span class="text-green-400">62%</span>
+                                </div>
+                                <div class="w-full bg-slate-700 rounded-full h-8">
+                                    <div class="bg-green-500 h-8 rounded-full" style="width: 62%"></div>
+                                </div>
+                            </div>
+                            
+                            <!-- No Bar -->
+                            <div>
+                                <div class="flex justify-between text-xl font-bold mb-2">
+                                    <span class="text-red-400">NO</span>
+                                    <span class="text-red-400">38%</span>
+                                </div>
+                                <div class="w-full bg-slate-700 rounded-full h-8">
+                                    <div class="bg-red-500 h-8 rounded-full" style="width: 38%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
-            </div>
-            
-            <!-- VIEW 3: Slide 3 (The Problem) -->
-            <div id="view-3" class="view-container w-full max-w-5xl hidden flex-col items-center justify-center">
-                <div class="w-full aspect-video bg-white rounded-lg overflow-hidden shadow-2xl flex items-center justify-center">
-                    <h1 class="text-7xl font-black text-slate-800 text-center px-12 leading-tight">The Problem:<br><span class="text-rose-600">The Reading State</span></h1>
+                
+                <!-- Slide Controls -->
+                <div class="flex justify-between items-center mt-4 bg-slate-100 p-3 rounded-lg border border-slate-200">
+                    <button onclick="prevSlide()" class="px-4 py-2 bg-white text-slate-700 font-bold rounded shadow-sm hover:bg-slate-50 border border-slate-300">
+                        <i class="fas fa-chevron-left mr-1"></i> Prev
+                    </button>
+                    <span id="slide-counter" class="font-bold text-slate-600">0 / 4</span>
+                    <button onclick="nextSlide()" class="px-4 py-2 bg-purple-600 text-white font-bold rounded shadow-sm hover:bg-purple-700">
+                        Next <i class="fas fa-chevron-right ml-1"></i>
+                    </button>
                 </div>
             </div>
 
-            <!-- VIEW 4: Activity (Reflection) -->
-            <div id="view-4" class="view-container w-full max-w-3xl hidden text-center">
-                <h2 class="text-4xl font-bold text-indigo-300 mb-8"><i class="fas fa-comments mr-3"></i>Reflection Activity</h2>
-                <p class="text-2xl text-slate-300 mb-8">Which reading challenge is most prevalent in your classroom?</p>
-                <div class="flex flex-col space-y-4">
-                    <button onclick="nextView()" class="p-6 bg-slate-800 border border-slate-600 rounded-xl hover:bg-slate-700 text-left text-xl font-bold text-slate-200 transition">A) "I have many learners in my class..."</button>
-                    <button onclick="nextView()" class="p-6 bg-slate-800 border border-slate-600 rounded-xl hover:bg-slate-700 text-left text-xl font-bold text-slate-200 transition">B) "There are no books in the home language..."</button>
-                    <button onclick="nextView()" class="p-6 bg-slate-800 border border-slate-600 rounded-xl hover:bg-slate-700 text-left text-xl font-bold text-slate-200 transition">C) "Parents are not able to help..."</button>
-                    <button onclick="nextView()" class="p-6 bg-slate-800 border border-slate-600 rounded-xl hover:bg-slate-700 text-left text-xl font-bold text-slate-200 transition">D) "We lack basic phonics charts."</button>
+            <!-- Participant App Interface (The Interactive Compliance) -->
+            <div class="bg-slate-50 border-2 border-slate-200 rounded-xl overflow-hidden flex flex-col relative w-full max-w-md shadow-2xl">
+                <div class="bg-slate-800 text-white p-3 text-center text-sm font-bold flex justify-between items-center">
+                    <span><i class="fas fa-wifi text-xs"></i> 4G</span>
+                    <span>Teacher App View</span>
+                    <span><i class="fas fa-battery-full text-xs"></i></span>
                 </div>
-            </div>
+                
+                <div class="p-6 flex-grow overflow-y-auto">
+                    
+                    <!-- App View: Pre-test (Slide 0) -->
+                    <div id="app-view-0" class="app-view">
+                        <h3 class="text-xl font-bold text-indigo-900 mb-4 border-b-2 border-indigo-100 pb-2">Activity: Slide 1 - Reading State</h3>
+                        <p class="mb-4 text-slate-700">Welcome! Before the facilitator begins, please answer the following question to unlock today's session:</p>
+                        
+                        <div class="bg-white p-5 rounded-lg border border-indigo-200 shadow-sm mb-6">
+                            <p class="font-bold text-lg mb-4 text-slate-800">Q: Is there a crisis in reading in South African schools?</p>
+                            <button class="w-full py-3 bg-red-100 text-red-700 hover:bg-red-200 font-bold rounded-lg mb-3 border border-red-300 transition" onclick="selectAnswer(this)">FALSE (No Crisis)</button>
+                            <button class="w-full py-3 bg-green-100 text-green-700 hover:bg-green-200 font-bold rounded-lg border border-green-300 transition" onclick="selectAnswer(this)">TRUE (Crisis Exists)</button>
+                        </div>
+                        
+                        
+                    </div>
 
-            <!-- VIEW 5: Slide 5 (Reflection Results) -->
-            <div id="view-5" class="view-container w-full max-w-4xl hidden text-center">
-                <h2 class="text-4xl font-bold text-indigo-400 mb-12"><i class="fas fa-chart-pie mr-3"></i>Live Room Data: Top Challenges</h2>
-                <div class="w-full space-y-8 bg-slate-800 p-8 rounded-xl border border-slate-700">
-                    <div class="flex items-center">
-                        <div class="w-1/2 text-right pr-6 font-bold text-slate-300 text-xl italic">"I have many learners..."</div>
-                        <div class="w-1/2 bg-slate-700 rounded-full h-8"><div class="bg-indigo-500 h-8 rounded-full" style="width: 40%"></div></div>
+                    <!-- App View: Slide 1 -->
+                    <div id="app-view-1" class="app-view hidden">
+                        <div class="bg-green-100 border border-green-300 text-green-800 p-4 rounded-lg mb-6 flex items-start">
+                            <i class="fas fa-check-circle mt-1 mr-3 text-xl"></i>
+                            <div>
+                                <h4 class="font-bold">Attendance Verified</h4>
+                                <p class="text-sm">Your answer has been logged. The facilitator is now presenting the 2030 Reading Panel data.</p>
+                            </div>
+                        </div>
+                        <p class="text-slate-600">Please direct your attention to the projector screen.</p>
                     </div>
-                    <div class="flex items-center">
-                        <div class="w-1/2 text-right pr-6 font-bold text-slate-300 text-xl italic">"There are no books..."</div>
-                        <div class="w-1/2 bg-slate-700 rounded-full h-8"><div class="bg-teal-500 h-8 rounded-full" style="width: 30%"></div></div>
-                    </div>
-                    <div class="flex items-center">
-                        <div class="w-1/2 text-right pr-6 font-bold text-slate-300 text-xl italic">"Parents are not able..."</div>
-                        <div class="w-1/2 bg-slate-700 rounded-full h-8"><div class="bg-fuchsia-500 h-8 rounded-full" style="width: 20%"></div></div>
-                    </div>
-                    <div class="flex items-center">
-                        <div class="w-1/2 text-right pr-6 font-bold text-slate-300 text-xl italic">"We lack basic phonics..."</div>
-                        <div class="w-1/2 bg-slate-700 rounded-full h-8"><div class="bg-cyan-500 h-8 rounded-full" style="width: 10%"></div></div>
-                    </div>
-                </div>
-            </div>
 
-            <!-- VIEW 6: Activity (Guessing Game) -->
-            <div id="view-6" class="view-container w-full max-w-3xl hidden text-center">
-                <h2 class="text-4xl font-bold text-rose-400 mb-8"><i class="fas fa-question-circle mr-3"></i>Guessing Game</h2>
-                <p class="text-2xl text-slate-300 mb-8">What percentage of Grade 4 learners in SA cannot read for meaning?</p>
-                <div class="grid grid-cols-2 gap-6">
-                    <button onclick="nextView()" class="p-8 bg-slate-800 border border-slate-600 rounded-xl hover:bg-rose-900/50 hover:border-rose-500 text-3xl font-black text-slate-200 transition">52%</button>
-                    <button onclick="nextView()" class="p-8 bg-slate-800 border border-slate-600 rounded-xl hover:bg-rose-900/50 hover:border-rose-500 text-3xl font-black text-slate-200 transition">65%</button>
-                    <button onclick="nextView()" class="p-8 bg-slate-800 border border-slate-600 rounded-xl hover:bg-rose-900/50 hover:border-rose-500 text-3xl font-black text-slate-200 transition">78%</button>
-                    <button onclick="nextView()" class="p-8 bg-slate-800 border border-slate-600 rounded-xl hover:bg-rose-900/50 hover:border-rose-500 text-3xl font-black text-slate-200 transition">81%</button>
-                </div>
-            </div>
-
-            <!-- VIEW 7: Slide 6 (Harsh Reality) -->
-            <div id="view-7" class="view-container w-full max-w-4xl hidden text-center">
-                <h2 class="text-5xl font-black text-rose-500 mb-6"><i class="fas fa-exclamation-triangle mr-3"></i>The Harsh Reality</h2>
-                <p class="text-3xl text-slate-300 mb-12">Percentage of Grade 4 learners who cannot read for meaning:</p>
-                <div class="text-[12rem] font-black text-white leading-none drop-shadow-[0_0_30px_rgba(225,29,72,0.5)]">
-                    81%
-                </div>
-            </div>
-            
-            <!-- VIEW 8: Slide 10 (What is LiTRE) -->
-            <div id="view-8" class="view-container w-full max-w-5xl hidden flex-col items-center justify-center">
-                <h2 class="text-5xl font-bold text-indigo-300 mb-16"><i class="fas fa-book-reader mr-4"></i>What is LiTRE?</h2>
-                <div class="flex items-center space-x-6 text-3xl font-bold text-slate-100">
-                    <div class="flex flex-col items-center"><div class="h-28 w-28 bg-indigo-600 rounded-full flex items-center justify-center mb-4 shadow-lg"><i class="fas fa-book-open"></i></div>Story</div>
-                    <i class="fas fa-arrow-right text-indigo-400"></i>
-                    <div class="flex flex-col items-center"><div class="h-28 w-28 bg-indigo-600 rounded-full flex items-center justify-center mb-4 shadow-lg"><i class="fas fa-eye"></i></div>See</div>
-                    <i class="fas fa-arrow-right text-indigo-400"></i>
-                    <div class="flex flex-col items-center"><div class="h-28 w-28 bg-indigo-600 rounded-full flex items-center justify-center mb-4 shadow-lg"><i class="fas fa-hand-paper"></i></div>Do</div>
-                    <i class="fas fa-arrow-right text-indigo-400"></i>
-                    <div class="flex flex-col items-center"><div class="h-28 w-28 bg-indigo-600 rounded-full flex items-center justify-center mb-4 shadow-lg"><i class="fas fa-blender"></i></div>Blend</div>
-                    <i class="fas fa-arrow-right text-indigo-400"></i>
-                    <div class="flex flex-col items-center"><div class="h-28 w-28 bg-indigo-600 rounded-full flex items-center justify-center mb-4 shadow-lg"><i class="fas fa-font"></i></div>Read</div>
-                </div>
-            </div>
-
-            <!-- VIEW 9: Slide 11 (Draw Palm) + Activity -->
-            <div id="view-9" class="view-container w-full max-w-5xl hidden text-center">
-                <h2 class="text-5xl font-bold text-indigo-400 mb-4">Draw the Palm <span class="text-slate-400 text-3xl">(Practical Part 1)</span></h2>
-                <p class="text-2xl text-slate-300 mb-8">Vowels on the fingers, consonants on the palm!</p>
-                <div class="flex justify-center items-center space-x-12">
-                    <i class="fas fa-hand-paper text-[12rem] text-amber-200/50"></i>
-                    <div class="bg-indigo-900/50 p-8 rounded-2xl border-2 border-dashed border-indigo-400 cursor-pointer hover:bg-indigo-800/50 transition max-w-sm" onclick="nextView()">
-                        <i class="fas fa-camera text-5xl text-indigo-300 mb-4"></i>
-                        <h3 class="text-2xl font-bold text-white mb-2">Upload Evidence</h3>
-                        <p class="text-slate-300">Tap to take a photo of your drawn palm structure for SACE verification.</p>
+                    <!-- App View 2: Root Cause Poll -->
+                    <div id="app-view-2" class="app-view hidden">
+                        <h3 class="text-xl font-bold text-indigo-900 mb-4 border-b-2 border-indigo-100 pb-2">The Root Cause</h3>
+                        <div class="bg-white p-5 rounded-lg border border-indigo-200 shadow-sm">
+                            <p class="font-bold text-slate-800 mb-3">What is the biggest contributor to the reading crisis?</p>
+                            <div class="flex flex-col space-y-2">
+                                <button class="px-4 py-3 bg-white border border-indigo-300 rounded shadow-sm hover:bg-indigo-50 text-left font-semibold text-slate-700" onclick="alert('Logged!')">A) Lack of resources/books</button>
+                                <button class="px-4 py-3 bg-white border border-indigo-300 rounded shadow-sm hover:bg-indigo-50 text-left font-semibold text-slate-700" onclick="alert('Logged!')">B) Overcrowded classrooms</button>
+                                <button class="px-4 py-3 bg-white border border-indigo-300 rounded shadow-sm hover:bg-indigo-50 text-left font-semibold text-slate-700" onclick="alert('Logged!')">C) Language barriers (HL vs English)</button>
+                                <button class="px-4 py-3 bg-white border border-indigo-300 rounded shadow-sm hover:bg-indigo-50 text-left font-semibold text-slate-700" onclick="alert('Logged!')">D) Outdated teaching methods</button>
+                            </div>
+                        </div>
                     </div>
-                </div>
-            </div>
 
-            <!-- VIEW 10: Slide 12 (Nano Blending) + Activity -->
-            <div id="view-10" class="view-container w-full max-w-5xl hidden text-center">
-                <h2 class="text-5xl font-bold text-rose-400 mb-12"><i class="fas fa-home mr-4"></i>Who is Leaving Home?</h2>
-                <div class="flex justify-center items-center space-x-12 mb-12">
-                    <div class="bg-slate-800 p-12 rounded-2xl shadow-lg border border-slate-700 text-center">
-                        <div class="text-[8rem] font-black text-white leading-none">B</div>
+                    <!-- App View 3: Personal Reflection -->
+                    <div id="app-view-3" class="app-view hidden">
+                        <h3 class="text-xl font-bold text-indigo-900 mb-4 border-b-2 border-indigo-100 pb-2">Personal Reflection</h3>
+                        <div class="bg-white p-5 rounded-lg border border-indigo-200 shadow-sm">
+                            <p class="font-bold text-slate-800 mb-3">In one sentence, describe the biggest reading challenge you face in your specific classroom.</p>
+                            <textarea class="w-full border border-slate-300 rounded p-3 h-24 mb-3" placeholder="Type your reflection here..."></textarea>
+                            <button class="w-full py-3 bg-indigo-600 text-white font-bold rounded shadow-sm hover:bg-indigo-700" onclick="alert('Submitted!')">Submit Reflection</button>
+                        </div>
                     </div>
-                    <div class="text-7xl text-rose-500 font-black">+</div>
-                    <div class="bg-slate-800 p-12 rounded-2xl shadow-lg border border-slate-700 text-center">
-                        <div class="text-[8rem] font-black text-white leading-none">A</div>
-                    </div>
-                </div>
-                <div class="bg-slate-800 p-8 rounded-xl border border-slate-700 max-w-2xl mx-auto">
-                    <p class="text-2xl font-bold text-white mb-6">Select the correct answer to continue:</p>
-                    <div class="flex space-x-4">
-                        <button onclick="nextView()" class="flex-1 py-6 bg-slate-700 hover:bg-indigo-600 text-xl font-bold rounded-lg transition border border-slate-600">Vowels leave home</button>
-                        <button onclick="nextView()" class="flex-1 py-6 bg-slate-700 hover:bg-indigo-600 text-xl font-bold rounded-lg transition border border-slate-600">Consonants leave home</button>
-                    </div>
-                </div>
-            </div>
 
-        </div>
+                    <!-- App View 4: Guessing Game -->
+                    <div id="app-view-4" class="app-view hidden">
+                        <h3 class="text-xl font-bold text-indigo-900 mb-4 border-b-2 border-indigo-100 pb-2">Did You Know?</h3>
+                        <div class="bg-white p-5 rounded-lg border border-indigo-200 shadow-sm text-center">
+                            <p class="font-bold text-slate-800 mb-6">What percentage of Grade 4 learners do you think cannot read for meaning?</p>
+                            <div class="flex items-center space-x-4 mb-6">
+                                <span class="font-bold text-slate-500">0%</span>
+                                <input type="range" min="0" max="100" value="50" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer" oninput="document.getElementById('guess-val').innerText = this.value + '%'">
+                                <span class="font-bold text-slate-500">100%</span>
+                            </div>
+                            <div class="text-4xl font-black text-indigo-600 mb-6" id="guess-val">50%</div>
+                            <button class="w-full py-3 bg-indigo-600 text-white font-bold rounded shadow-sm hover:bg-indigo-700" onclick="alert('Guess locked in!')">Lock in Guess</button>
+                        </div>
+                    </div>
 
-        <div class="absolute bottom-8 left-8 right-8 flex justify-between items-center z-20">
-            <button onclick="prevView()" class="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-lg transition border border-slate-600"><i class="fas fa-chevron-left mr-2"></i> Previous</button>
-            <div class="text-slate-400 font-bold tracking-widest"><span id="view-counter">1</span> / 11</div>
-            <button onclick="nextView()" class="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg transition shadow-lg">Next <i class="fas fa-chevron-right ml-2"></i></button>
+                    <!-- App View 5: Case Study -->
+                    <div id="app-view-5" class="app-view hidden">
+                        <h3 class="text-xl font-bold text-indigo-900 mb-4 border-b-2 border-indigo-100 pb-2">The Catch-Up Approach</h3>
+                        <p class="text-slate-600 mb-4">Follow the case study of the 14-year-old on the screen.</p>
+                        <div class="bg-indigo-50 border border-indigo-200 p-4 rounded-lg text-center">
+                            <p class="font-bold text-indigo-800 mb-2">Can a 14-year-old catch up?</p>
+                            <div class="flex justify-center space-x-4">
+                                <button class="px-6 py-2 bg-white border border-indigo-300 rounded shadow-sm hover:bg-indigo-100 font-bold text-indigo-700" onclick="alert('Logged!')">YES</button>
+                                <button class="px-6 py-2 bg-white border border-indigo-300 rounded shadow-sm hover:bg-indigo-100 font-bold text-indigo-700" onclick="alert('Logged!')">NO</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                </div>
+                                <!-- App View 6: Draw Palm -->
+                    <div id="app-view-6" class="app-view hidden">
+                        <h3 class="text-xl font-bold text-indigo-900 mb-4 border-b-2 border-indigo-100 pb-2">Activity: Draw the Palm</h3>
+                        <p class="text-slate-600 mb-4">Please draw the palm structure on your worksheet, take a photo, and upload it below as evidence.</p>
+                        <div class="bg-indigo-50 border-2 border-dashed border-indigo-300 p-8 rounded-lg text-center cursor-pointer hover:bg-indigo-100 transition" onclick="alert('Photo uploaded!')">
+                            <i class="fas fa-camera text-4xl text-indigo-400 mb-4"></i>
+                            <p class="font-bold text-indigo-800">Tap to Camera</p>
+                        </div>
+                    </div>
+
+                    <!-- App View 7: Nano Blending -->
+                    <div id="app-view-7" class="app-view hidden">
+                        <h3 class="text-xl font-bold text-indigo-900 mb-4 border-b-2 border-indigo-100 pb-2">Reflection Activity</h3>
+                        <div class="bg-white p-5 rounded-lg border border-indigo-200 shadow-sm">
+                            <p class="font-bold text-slate-800 mb-3">Which letters are "leaving home" in the Nano Blending Machine?</p>
+                            <div class="flex flex-col space-y-2">
+                                <button class="px-4 py-3 bg-white border border-indigo-300 rounded shadow-sm hover:bg-indigo-50 text-left font-semibold text-slate-700" onclick="alert('Submitted!')">A) Vowels</button>
+                                <button class="px-4 py-3 bg-white border border-indigo-300 rounded shadow-sm hover:bg-indigo-50 text-left font-semibold text-slate-700" onclick="alert('Submitted!')">B) Consonants</button>
+                            </div>
+                        </div>
+                    </div>
+
+</div>
         </div>
     </div>
 </div>
 
 <script>
-    let currentView = 0;
-    const totalViews = 10;
+    let currentSlide = 0;
+    
+    // Time Tracker
+    const startTime = new Date();
+    setInterval(() => {
+        const now = new Date();
+        const diff = new Date(now - startTime);
+        const hh = String(diff.getUTCHours()).padStart(2, '0');
+        const mm = String(diff.getUTCMinutes()).padStart(2, '0');
+        const ss = String(diff.getUTCSeconds()).padStart(2, '0');
+        const timer = document.getElementById('session-timer');
+        if (timer) timer.innerText = hh + ':' + mm + ':' + ss;
+    }, 1000);
 
-    function renderView() {
-        document.querySelectorAll('.view-container').forEach(el => el.classList.add('hidden'));
-        document.querySelectorAll('.view-container').forEach(el => el.classList.remove('flex'));
+    function updateView() {
+        document.querySelectorAll('.app-view').forEach(el => el.classList.add('hidden'));
         
-        const activeView = document.getElementById('view-' + currentView);
-        if(activeView) {
-            activeView.classList.remove('hidden');
-            if(activeView.classList.contains('flex-col')) {
-                activeView.classList.add('flex');
-            }
-        }
+        let appViewIndex = 1; // Default to Look at projector
+        if (currentSlide === 0) appViewIndex = 0;
+        if (currentSlide === 3) appViewIndex = 2; // Slide 3 (The Problem) -> Root Cause Poll
+        if (currentSlide === 4) appViewIndex = 3; // Slide 4 (Poll Results) -> Personal Reflection
+        if (currentSlide === 5) appViewIndex = 4; // Slide 5 (Reflection Results) -> Guessing Game
+        if (currentSlide === 8) appViewIndex = 5; // Slide 8 (Case Study) -> Case Study YES/NO
+        if (currentSlide === 9) appViewIndex = 1; // Slide 9 (Case Study Results) -> Look at projector
+        if (currentSlide === 11) appViewIndex = 6; // Slide 11 (Draw Palm) -> App View 6
+        if (currentSlide === 12) appViewIndex = 7; // Slide 12 (Nano Blending) -> App View 7
         
-        document.getElementById('view-counter').innerText = (currentView + 1);
+        const activeView = document.getElementById('app-view-' + appViewIndex);
+        if(activeView) activeView.classList.remove('hidden');
     }
 
-    function prevView() {
-        if(currentView > 0) {
-            currentView--;
-            renderView();
-        }
-    }
+    // Sync with facilitator
+    setInterval(() => {
+        fetch('/sace/workshop/get_slide')
+            .then(res => res.json())
+            .then(data => {
+                if(data.slide !== currentSlide) {
+                    currentSlide = data.slide;
+                    updateView();
+                }
+            });
+    }, 1000);
 
-    function nextView() {
-        if(currentView < totalViews) {
-            currentView++;
-            renderView();
-        }
+    function selectAnswer(btn) {
+        btn.classList.add('ring-4', 'ring-indigo-300');
+        setTimeout(() => {
+            alert('Response Recorded: Your answer is logged on the facilitator dashboard.');
+        }, 600);
     }
-
+    
     // Initialize
-    renderView();
+    updateView();
 </script>
+
 {% endblock %}
+
+

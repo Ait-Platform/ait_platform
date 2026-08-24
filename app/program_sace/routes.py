@@ -3,6 +3,22 @@ from flask_login import login_required, current_user
 from app.extensions import db
 from . import sace_bp
 
+# Global state for the demo to sync the facilitator projector with the teacher app
+demo_state = {"current_slide": 0}
+
+@sace_bp.route('/sace/workshop/get_slide')
+@login_required
+def get_slide():
+    return jsonify({"slide": demo_state["current_slide"]})
+
+@sace_bp.route('/sace/workshop/set_slide', methods=['POST'])
+@login_required
+def set_slide():
+    data = request.get_json()
+    if 'slide' in data:
+        demo_state["current_slide"] = data['slide']
+    return jsonify({"success": True, "slide": demo_state["current_slide"]})
+
 @sace_bp.route("/sace/about")
 def sace_about():
     return render_template("program_sace/about.html")

@@ -1,4 +1,4 @@
-{% extends "layout.html" %}
+﻿{% extends "layout.html" %}
 
 {% block title %}Interactive Workshop Simulation{% endblock %}
 
@@ -11,8 +11,8 @@
     <div class="p-6 sm:p-8 flex-grow flex flex-col">
         <div class="flex justify-between items-center mb-6">
             <div>
-                <h1 class="text-2xl font-bold text-gray-900">Workshop Simulation: Slide 1 - Reading State</h1>
-                <p class="text-gray-500">Test the exact flow of the facilitator slides and participant phone app.</p>
+                <h1 class="text-2xl font-bold text-gray-900">Teacher App Simulation</h1>
+                <p class="text-gray-500">Test the participant phone app flow (synchronized with the Facilitator Dashboard).</p>
             </div>
             <div class="flex items-center space-x-4">
                 <div class="flex items-center bg-indigo-50 text-indigo-700 px-4 py-2 rounded-lg border border-indigo-100 font-mono font-bold text-lg shadow-inner">
@@ -184,7 +184,7 @@
             </div>
 
             <!-- Participant App Interface (The Interactive Compliance) -->
-            <div class="bg-slate-50 border-2 border-slate-200 rounded-xl overflow-hidden flex flex-col relative">
+            <div class="bg-slate-50 border-2 border-slate-200 rounded-xl overflow-hidden flex flex-col relative w-full max-w-md shadow-2xl">
                 <div class="bg-slate-800 text-white p-3 text-center text-sm font-bold flex justify-between items-center">
                     <span><i class="fas fa-wifi text-xs"></i> 4G</span>
                     <span>Teacher App View</span>
@@ -274,15 +274,35 @@
                     </div>
                     
                 </div>
-            </div>
+                                <!-- App View 6: Draw Palm -->
+                    <div id="app-view-6" class="app-view hidden">
+                        <h3 class="text-xl font-bold text-indigo-900 mb-4 border-b-2 border-indigo-100 pb-2">Compliance Trap: Draw the Palm</h3>
+                        <p class="text-slate-600 mb-4">Please draw the palm structure on your worksheet, take a photo, and upload it below as evidence.</p>
+                        <div class="bg-indigo-50 border-2 border-dashed border-indigo-300 p-8 rounded-lg text-center cursor-pointer hover:bg-indigo-100 transition" onclick="alert('Photo uploaded!')">
+                            <i class="fas fa-camera text-4xl text-indigo-400 mb-4"></i>
+                            <p class="font-bold text-indigo-800">Tap to Camera</p>
+                        </div>
+                    </div>
+
+                    <!-- App View 7: Nano Blending -->
+                    <div id="app-view-7" class="app-view hidden">
+                        <h3 class="text-xl font-bold text-indigo-900 mb-4 border-b-2 border-indigo-100 pb-2">Reflection Activity</h3>
+                        <div class="bg-white p-5 rounded-lg border border-indigo-200 shadow-sm">
+                            <p class="font-bold text-slate-800 mb-3">Which letters are "leaving home" in the Nano Blending Machine?</p>
+                            <div class="flex flex-col space-y-2">
+                                <button class="px-4 py-3 bg-white border border-indigo-300 rounded shadow-sm hover:bg-indigo-50 text-left font-semibold text-slate-700" onclick="alert('Submitted!')">A) Vowels</button>
+                                <button class="px-4 py-3 bg-white border border-indigo-300 rounded shadow-sm hover:bg-indigo-50 text-left font-semibold text-slate-700" onclick="alert('Submitted!')">B) Consonants</button>
+                            </div>
+                        </div>
+                    </div>
+
+</div>
         </div>
     </div>
 </div>
 
 <script>
     let currentSlide = 0;
-    const totalSlides = 9;
-    let pollInterval = null;
     
     // Time Tracker
     const startTime = new Date();
@@ -292,47 +312,11 @@
         const hh = String(diff.getUTCHours()).padStart(2, '0');
         const mm = String(diff.getUTCMinutes()).padStart(2, '0');
         const ss = String(diff.getUTCSeconds()).padStart(2, '0');
-        document.getElementById('session-timer').innerText = `${hh}:${mm}:${ss}`;
+        const timer = document.getElementById('session-timer');
+        if (timer) timer.innerText = hh + ':' + mm + ':' + ss;
     }, 1000);
 
     function updateView() {
-        // Pause any currently playing audio
-        document.querySelectorAll('audio').forEach(audio => {
-            audio.pause();
-            audio.currentTime = 0;
-        });
-
-        // Clear polling if leaving slide 2
-        if (pollInterval) {
-            clearInterval(pollInterval);
-            pollInterval = null;
-        }
-
-        // Update projector
-        document.querySelectorAll('.slide-container').forEach(el => el.classList.remove('flex'));
-        document.querySelectorAll('.slide-container').forEach(el => el.classList.add('hidden'));
-        const activeSlide = document.getElementById(`slide-${currentSlide}`);
-        activeSlide.classList.remove('hidden');
-        activeSlide.classList.add('flex');
-
-        // Play audio 1 second after slide reveals
-        const audioEl = activeSlide.querySelector('audio');
-        if (audioEl) {
-            setTimeout(() => {
-                audioEl.play().catch(e => console.log('Autoplay blocked by browser:', e));
-            }, 1000);
-        }
-
-        // Start polling live stats if on slide 2
-        if (currentSlide === 2) {
-            fetchStats(); // Fetch immediately
-            pollInterval = setInterval(fetchStats, 2000); // Then every 2 seconds
-        }
-
-        // Update counter
-        document.getElementById('slide-counter').innerText = `${currentSlide} / ${totalSlides}`;
-
-        // Update App View mapping
         document.querySelectorAll('.app-view').forEach(el => el.classList.add('hidden'));
         
         let appViewIndex = 1; // Default to Look at projector
@@ -342,50 +326,35 @@
         if (currentSlide === 5) appViewIndex = 4; // Slide 5 (Reflection Results) -> Guessing Game
         if (currentSlide === 8) appViewIndex = 5; // Slide 8 (Case Study) -> Case Study YES/NO
         if (currentSlide === 9) appViewIndex = 1; // Slide 9 (Case Study Results) -> Look at projector
+        if (currentSlide === 11) appViewIndex = 6; // Slide 11 (Draw Palm) -> App View 6
+        if (currentSlide === 12) appViewIndex = 7; // Slide 12 (Nano Blending) -> App View 7
         
-        document.getElementById(`app-view-${appViewIndex}`).classList.remove('hidden');
+        const activeView = document.getElementById('app-view-' + appViewIndex);
+        if(activeView) activeView.classList.remove('hidden');
     }
 
-    function fetchStats() {
-        fetch("{{ url_for('sace_bp.live_stats') }}")
+    // Sync with facilitator
+    setInterval(() => {
+        fetch('/sace/workshop/get_slide')
             .then(res => res.json())
             .then(data => {
-                const total = data.total || 1; // prevent div by zero
-                const truePct = (data.true_count / total) * 100;
-                const falsePct = (data.false_count / total) * 100;
-                
-                document.getElementById('true-count-slide').innerText = data.true_count;
-                document.getElementById('true-bar-slide').style.width = truePct + '%';
-                
-                document.getElementById('false-count-slide').innerText = data.false_count;
-                document.getElementById('false-bar-slide').style.width = falsePct + '%';
-            })
-            .catch(err => console.error("Error fetching stats:", err));
-    }
-
-    function prevSlide() {
-        if (currentSlide > 0) {
-            currentSlide--;
-            updateView();
-        }
-    }
-
-    function nextSlide() {
-        if (currentSlide < totalSlides) {
-            currentSlide++;
-            updateView();
-        }
-    }
+                if(data.slide !== currentSlide) {
+                    currentSlide = data.slide;
+                    updateView();
+                }
+            });
+    }, 1000);
 
     function selectAnswer(btn) {
         btn.classList.add('ring-4', 'ring-indigo-300');
         setTimeout(() => {
-            alert('SACE Trap Triggered: Your answer is logged on the facilitator dashboard. Facilitator will now reveal Slide 1.');
-            nextSlide(); // Auto move to slide 1 for the demo
+            alert('SACE Trap Triggered: Your answer is logged on the facilitator dashboard.');
         }, 600);
     }
     
     // Initialize
     updateView();
 </script>
+
 {% endblock %}
+

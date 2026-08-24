@@ -321,10 +321,21 @@
         fetch('/sace/workshop/get_state')
             .then(res => res.json())
             .then(data => {
-                sessionState = data.status;
-                currentSlide = data.slide;
+                let changed = false;
+                if(sessionState !== data.status) {
+                    sessionState = data.status;
+                    changed = true;
+                }
+                if(currentSlide !== data.slide) {
+                    currentSlide = data.slide;
+                    changed = true;
+                }
+                
                 document.getElementById('attendance-counter').innerText = data.attendance;
-                updateView();
+                
+                if (changed) {
+                    updateView();
+                }
             });
     }
 
@@ -385,9 +396,12 @@
     }
     
     // Initialize
+    updateView();
     fetchState();
 </script>
 {% endblock %}
+
+
 
 
 

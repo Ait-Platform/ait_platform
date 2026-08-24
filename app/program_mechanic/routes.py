@@ -166,7 +166,7 @@ def price_page():
     schedule_tariff = TokenTariff.query.filter_by(program_slug='mechanic', action_name='generate_schedule').first()
     schedule_tokens = schedule_tariff.base_token_cost if schedule_tariff else 10
 
-    return render_template("program_mechanic/price.html", price=price_ctx, subject=subject, countries=countries, quote_cents=quote_cents, invoice_cents=invoice_cents, is_enrolled=is_enrolled)
+    return render_template("program_mechanic/price.html", price=price_ctx, subject=subject, countries=countries, quote_cents=quote_cents, invoice_cents=invoice_cents, is_enrolled=is_enrolled, schedule_tokens=schedule_tokens)
 
 
 @mechanic_bp.route("/mechanic/mock_bill")

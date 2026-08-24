@@ -1,23 +1,31 @@
+﻿import os
 from flask import render_template, request, redirect, url_for, flash, current_app, jsonify, send_from_directory
 from flask_login import login_required, current_user
 from app.extensions import db
 from . import sace_bp
-
-# Global state for the demo to sync the facilitator projector with the teacher app
-demo_state = {"current_slide": 0}
+from app.models.sace import SaceWorkshopInteraction
 
 @sace_bp.route('/sace/workshop/get_slide')
 @login_required
 def get_slide():
-    return jsonify({"slide": demo_state["current_slide"]})
+    interaction = SaceWorkshopInteraction.query.filter_by(workshop_session_id='demo-session-1', activity_slug='current_slide').first()
+    slide = int(interaction.response_data) if interaction else 0
+    return jsonify({"slide": slide})
 
 @sace_bp.route('/sace/workshop/set_slide', methods=['POST'])
 @login_required
 def set_slide():
     data = request.get_json()
     if 'slide' in data:
-        demo_state["current_slide"] = data['slide']
-    return jsonify({"success": True, "slide": demo_state["current_slide"]})
+        interaction = SaceWorkshopInteraction.query.filter_by(workshop_session_id='demo-session-1', activity_slug='current_slide').first()
+        if not interaction:
+            interaction = SaceWorkshopInteraction(user_id=current_user.id, workshop_session_id='demo-session-1', activity_slug='current_slide', response_data=str(data['slide']))
+            db.session.add(interaction)
+        else:
+            interaction.response_data = str(data['slide'])
+        db.session.commit()
+        return jsonify({"success": True, "slide": int(interaction.response_data)})
+    return jsonify({"error": "No slide provided"}), 400
 
 @sace_bp.route("/sace/about")
 def sace_about():
@@ -124,4 +132,5 @@ def live_stats():
 @login_required
 def facilitator_dashboard():
     return render_template('program_sace/facilitator_dashboard.html')
+
 

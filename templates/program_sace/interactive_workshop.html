@@ -195,7 +195,7 @@
                     
                     <!-- App View: Pre-test (Slide 0) -->
                     <div id="app-view-0" class="app-view">
-                        <h3 class="text-xl font-bold text-indigo-900 mb-4 border-b-2 border-indigo-100 pb-2">Compliance Trap: Slide 1 - Reading State</h3>
+                        <h3 class="text-xl font-bold text-indigo-900 mb-4 border-b-2 border-indigo-100 pb-2">Activity: Slide 1 - Reading State</h3>
                         <p class="mb-4 text-slate-700">Welcome! Before the facilitator begins, please answer the following question to unlock today's session:</p>
                         
                         <div class="bg-white p-5 rounded-lg border border-indigo-200 shadow-sm mb-6">
@@ -204,9 +204,7 @@
                             <button class="w-full py-3 bg-green-100 text-green-700 hover:bg-green-200 font-bold rounded-lg border border-green-300 transition" onclick="selectAnswer(this)">TRUE (Crisis Exists)</button>
                         </div>
                         
-                        <div class="text-sm text-slate-500 italic text-center">
-                            <i class="fas fa-lock mr-1"></i> Submitting this answer logs your attendance at 08:30 AM for SACE verification.
-                        </div>
+                        
                     </div>
 
                     <!-- App View: Slide 1 -->
@@ -276,7 +274,7 @@
                 </div>
                                 <!-- App View 6: Draw Palm -->
                     <div id="app-view-6" class="app-view hidden">
-                        <h3 class="text-xl font-bold text-indigo-900 mb-4 border-b-2 border-indigo-100 pb-2">Compliance Trap: Draw the Palm</h3>
+                        <h3 class="text-xl font-bold text-indigo-900 mb-4 border-b-2 border-indigo-100 pb-2">Activity: Draw the Palm</h3>
                         <p class="text-slate-600 mb-4">Please draw the palm structure on your worksheet, take a photo, and upload it below as evidence.</p>
                         <div class="bg-indigo-50 border-2 border-dashed border-indigo-300 p-8 rounded-lg text-center cursor-pointer hover:bg-indigo-100 transition" onclick="alert('Photo uploaded!')">
                             <i class="fas fa-camera text-4xl text-indigo-400 mb-4"></i>
@@ -348,7 +346,7 @@
     function selectAnswer(btn) {
         btn.classList.add('ring-4', 'ring-indigo-300');
         setTimeout(() => {
-            alert('SACE Trap Triggered: Your answer is logged on the facilitator dashboard.');
+            alert('Response Recorded: Your answer is logged on the facilitator dashboard.');
         }, 600);
     }
     
@@ -357,4 +355,5 @@
 </script>
 
 {% endblock %}
+
 

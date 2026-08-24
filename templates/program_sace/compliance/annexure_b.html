@@ -1,4 +1,4 @@
-{% extends "layout.html" %}
+﻿{% extends "layout.html" %}
 
 {% block title %}Annexure B - Facilitator Presentation{% endblock %}
 
@@ -9,10 +9,8 @@
     <div class="h-2 w-full bg-teal-600 print:hidden"></div>
     
     <div class="p-6 sm:p-8 print:p-0">
-        {% include "partials/flash_messages.html" %}
-        
         <div class="flex justify-between items-center mb-6 print:hidden">
-            <h1 class="text-2xl font-bold text-gray-900">Annexure B: Facilitator Presentation</h1>
+            <h1 class="text-2xl font-bold text-gray-900">Annexure B: Facilitator Presentation Outline</h1>
             <a href="{{ url_for('sace_bp.reading_workshop_docs') }}" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200">
                 Back to Workshop Docs
             </a>
@@ -29,52 +27,56 @@
             <div class="text-center border-b-2 border-indigo-900 pb-5 mb-8">
                 <h1 class="text-4xl font-bold text-indigo-900 mb-2">Annexure B</h1>
                 <h2 class="text-2xl font-semibold text-indigo-800 mb-2">Facilitator Presentation Outline</h2>
-                <p class="text-lg text-slate-600">AIT Professional Development: Reading (LITRE Method)</p>
+                <p class="text-lg text-slate-600">AIT Professional Development: Reading (LiTRE Method)</p>
             </div>
             
-            <h3 class="text-xl font-bold text-indigo-800 mb-4">Presentation Overview</h3>
+            <h3 class="text-xl font-bold text-indigo-800 mb-4">Slide-by-Slide Overview & App Integration</h3>
+            <p class="mb-6 text-slate-600">This outline provides the paper trail for the digital application, linking the exact facilitator slides to the participant app interactions (T/T).</p>
+            
             <div class="space-y-6">
                 
                 <div class="bg-slate-50 p-5 rounded-lg border border-slate-200">
-                    <h4 class="font-bold text-lg text-indigo-700">08:30 - 09:15: Introduction & Context (Slides 1-5, 8)</h4>
-                    <ul class="list-disc pl-5 mt-2 space-y-1">
-                        <li><strong>Slide 1:</strong> Current state of Reading in SA (References the 2030 Panel's 2026 report). Includes the PRE-TEST.</li>
-                        <li><strong>Slide 2:</strong> The Problem (Making blending concrete, visible, memorable).</li>
-                        <li><strong>Slide 3:</strong> Introduction to the LiTRE Method (Catch-up approach).</li>
-                        <li><strong>Slide 4:</strong> Case Study (Why LiTRE was developed / 14-year-old Grade 7 learner).</li>
-                        <li><strong>Slide 5:</strong> What is LiTRE? (Story ➔ See ➔ Do ➔ Blend ➔ Read).</li>
-                        <li><strong>Slide 8:</strong> The English Family - adapting stories for classroom demographics.</li>
+                    <h4 class="font-bold text-lg text-indigo-700">08:00 - 08:45: Registration & The Reading Crisis</h4>
+                    <ul class="list-disc pl-5 mt-2 space-y-2">
+                        <li><strong>Lobby Registration:</strong> Projector displays Room PIN. App tracks check-in.</li>
+                        <li><strong>Slide 0 (Welcome Activity):</strong> Is there a reading crisis? (App Pre-Test: True/False).</li>
+                        <li><strong>Slide 1 (Reading State):</strong> Current state of Reading in SA (References the 2030 Panel's report).</li>
+                        <li><strong>Slide 2 (Live Results):</strong> Real-time display of the room's Pre-Test answers.</li>
                     </ul>
                 </div>
 
                 <div class="bg-slate-50 p-5 rounded-lg border border-slate-200">
-                    <h4 class="font-bold text-lg text-indigo-700">09:15 - 11:00: Mechanics & Practical (Slides 6-7, 9-10)</h4>
-                    <ul class="list-disc pl-5 mt-2 space-y-1">
-                        <li><strong>Slide 10:</strong> The LiTRE Blending Machine (Facilitator Demonstration).</li>
-                        <li><strong>Slide 6:</strong> Draw the Palm (Participant Practical: The Hand as a Cognitive Map).</li>
-                        <li><strong>Slide 7:</strong> Who is Leaving Home? (Nano Blending Machine).</li>
-                        <li><strong>Slide 9:</strong> Introducing the Vowels (Kinesthetic Vowel Games).</li>
+                    <h4 class="font-bold text-lg text-indigo-700">08:45 - 09:30: The Problem & Realities</h4>
+                    <ul class="list-disc pl-5 mt-2 space-y-2">
+                        <li><strong>Slide 3 (The Problem):</strong> Identifying the core issue in literacy.</li>
+                        <li><strong>Slide 4 (Top Challenges):</strong> Participant Reflection - What is your biggest challenge? (App Multiple Choice).</li>
+                        <li><strong>Slide 5 (Guessing Game):</strong> What percentage cannot read for meaning? (App Interaction).</li>
+                        <li><strong>Slide 6 (The Harsh Reality):</strong> The 81% statistic revealed.</li>
+                        <li><strong>Slide 7 (Catch-Up Approach):</strong> Framing the methodology for foundational phase learners.</li>
+                        <li><strong>Slides 8 & 9 (Case Study):</strong> The story of a 14-year-old Grade 7 learner and the resulting app poll.</li>
                     </ul>
                 </div>
 
                 <div class="bg-slate-50 p-5 rounded-lg border border-slate-200">
-                    <h4 class="font-bold text-lg text-indigo-700">11:00 - 12:45: Word Building & Catch-up (Slides 11-13a, 15)</h4>
-                    <ul class="list-disc pl-5 mt-2 space-y-1">
-                        <li><strong>Slide 11:</strong> Letter t meets vowels.</li>
-                        <li><strong>Slide 12:</strong> Letter m meets vowels.</li>
-                        <li><strong>Slide 13a:</strong> Tomato (Syllable Mapping in action).</li>
-                        <li><strong>Slide 13 (Time Catcher):</strong> Triggered if activities finish early—"Are we answering the problem?"</li>
-                        <li><strong>Slide 15:</strong> Class Activity - Guided word reading and worksheets.</li>
+                    <h4 class="font-bold text-lg text-indigo-700">09:30 - 10:00: Introduction to LiTRE</h4>
+                    <ul class="list-disc pl-5 mt-2 space-y-2">
+                        <li><strong>Slide 10 (What is LiTRE?):</strong> The sequence of instruction: Story z" See z" Do z" Blend z" Read.</li>
                     </ul>
                 </div>
 
                 <div class="bg-slate-50 p-5 rounded-lg border border-slate-200">
-                    <h4 class="font-bold text-lg text-indigo-700">13:15 - 15:00: Application & Assessment (Slides 16-18)</h4>
-                    <ul class="list-disc pl-5 mt-2 space-y-1">
-                        <li><strong>Participant Application:</strong> Teachers prepare to take LiTRE to their classrooms.</li>
-                        <li><strong>Slide 16:</strong> Assessment and feedback on participant progress.</li>
-                        <li><strong>Slide 17:</strong> Final Reflection.</li>
-                        <li><strong>Slide 18:</strong> Thank You and Programme Close.</li>
+                    <h4 class="font-bold text-lg text-indigo-700">10:15 - 11:00: Mechanics & Practical</h4>
+                    <ul class="list-disc pl-5 mt-2 space-y-2">
+                        <li><strong>Slide 11 (Draw the Palm - Practical 1):</strong> The hand as a cognitive map. App prompts users to take a photo of their drawing as compliance evidence.</li>
+                        <li><strong>Slide 12 (Who is Leaving Home? - Practical 2):</strong> Nano Blending Machine. App prompts users to choose between vowels or consonants.</li>
+                    </ul>
+                </div>
+
+                <div class="bg-slate-50 p-5 rounded-lg border border-slate-200">
+                    <h4 class="font-bold text-lg text-indigo-700">11:00 Onward: Word Building & Application</h4>
+                    <ul class="list-disc pl-5 mt-2 space-y-2">
+                        <li><strong>Slides 13-15:</strong> Guided word-reading activities, syllable mapping (e.g., Tomato), and worksheets.</li>
+                        <li><strong>14:00 Final Assessment:</strong> App pushes the mandatory post-workshop evaluation (Annexure D).</li>
                     </ul>
                 </div>
 

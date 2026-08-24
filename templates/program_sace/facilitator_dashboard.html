@@ -9,15 +9,20 @@
     <div class="p-6 sm:p-8 flex-grow flex flex-col">
         <div class="flex justify-between items-center mb-8 border-b border-slate-700 pb-4">
             <h1 class="text-3xl font-bold text-indigo-400"><i class="fas fa-satellite-dish mr-3"></i>Live SACE Facilitator Dashboard</h1>
-            <a href="{{ url_for('sace_bp.reading_hub') }}" class="px-4 py-2 text-sm font-bold text-white bg-slate-700 rounded-lg hover:bg-slate-600 transition">
-                Exit Dashboard
-            </a>
+            <div class="flex items-center space-x-4">
+                <div class="flex items-center bg-slate-800 text-indigo-400 px-4 py-2 rounded-lg border border-slate-600 font-mono font-bold text-lg shadow-inner">
+                    <i class="far fa-clock mr-2"></i><span id="session-timer">00:00:00</span>
+                </div>
+                <a href="{{ url_for('sace_bp.reading_hub') }}" class="px-4 py-2 text-sm font-bold text-white bg-slate-700 rounded-lg hover:bg-slate-600 transition">
+                    Exit Dashboard
+                </a>
+            </div>
         </div>
         
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 flex-grow">
             <!-- Projector Preview -->
             <div class="flex flex-col">
-                <h2 class="text-xl font-bold mb-4 text-slate-300">Live Room Data (Module 1: Pre-Test)</h2>
+                <h2 class="text-xl font-bold mb-4 text-slate-300">Live Room Data (Slide 1: Reading State)</h2>
                 
                 <div class="bg-slate-800 rounded-xl p-8 flex-grow flex flex-col items-center justify-center border-2 border-indigo-500/30 shadow-[0_0_15px_rgba(99,102,241,0.2)]">
                     <p class="text-xl text-slate-400 mb-8 font-semibold">Q: Is there a crisis in reading in SA?</p>
@@ -91,6 +96,17 @@
 </div>
 
 <script>
+    // Time Tracker
+    const startTime = new Date();
+    setInterval(() => {
+        const now = new Date();
+        const diff = new Date(now - startTime);
+        const hh = String(diff.getUTCHours()).padStart(2, '0');
+        const mm = String(diff.getUTCMinutes()).padStart(2, '0');
+        const ss = String(diff.getUTCSeconds()).padStart(2, '0');
+        document.getElementById('session-timer').innerText = `${hh}:${mm}:${ss}`;
+    }, 1000);
+
     function updateDashboard(data) {
         const total = data.total || 0;
         const trueVotes = data.breakdown['True'] || 0;

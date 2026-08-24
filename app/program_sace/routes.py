@@ -5,26 +5,63 @@ from app.extensions import db
 from . import sace_bp
 from app.models.sace import SaceWorkshopInteraction
 
+def get_workshop_state(key, default_val):
+    interaction = SaceWorkshopInteraction.query.filter_by(workshop_session_id='demo-session-1', activity_slug=key).first()
+    return interaction.response_data if interaction else default_val
+
+def set_workshop_state(key, value):
+    interaction = SaceWorkshopInteraction.query.filter_by(workshop_session_id='demo-session-1', activity_slug=key).first()
+    if not interaction:
+        interaction = SaceWorkshopInteraction(user_id=current_user.id, workshop_session_id='demo-session-1', activity_slug=key, response_data=str(value))
+        db.session.add(interaction)
+    else:
+        interaction.response_data = str(value)
+    db.session.commit()
+
+@sace_bp.route('/sace/workshop/get_state')
+@login_required
+def get_state():
+    return jsonify({
+        "status": get_workshop_state('session_state', 'lobby'),
+        "slide": int(get_workshop_state('current_slide', '0')),
+        "attendance": int(get_workshop_state('attendance_count', '0'))
+    })
+
+@sace_bp.route('/sace/workshop/join', methods=['POST'])
+@login_required
+def join_room():
+    count = int(get_workshop_state('attendance_count', '0'))
+    set_workshop_state('attendance_count', str(count + 1))
+    return jsonify({"success": True})
+
+@sace_bp.route('/sace/workshop/start', methods=['POST'])
+@login_required
+def start_workshop():
+    set_workshop_state('session_state', 'active')
+    set_workshop_state('current_slide', '0')
+    return jsonify({"success": True})
+
+@sace_bp.route('/sace/workshop/reset', methods=['POST'])
+@login_required
+def reset_workshop():
+    set_workshop_state('session_state', 'lobby')
+    set_workshop_state('current_slide', '0')
+    set_workshop_state('attendance_count', '0')
+    return jsonify({"success": True})
+
 @sace_bp.route('/sace/workshop/get_slide')
 @login_required
 def get_slide():
-    interaction = SaceWorkshopInteraction.query.filter_by(workshop_session_id='demo-session-1', activity_slug='current_slide').first()
-    slide = int(interaction.response_data) if interaction else 0
-    return jsonify({"slide": slide})
+    # Keep for backwards compatibility if needed, but get_state is better
+    return jsonify({"slide": int(get_workshop_state('current_slide', '0'))})
 
 @sace_bp.route('/sace/workshop/set_slide', methods=['POST'])
 @login_required
 def set_slide():
     data = request.get_json()
     if 'slide' in data:
-        interaction = SaceWorkshopInteraction.query.filter_by(workshop_session_id='demo-session-1', activity_slug='current_slide').first()
-        if not interaction:
-            interaction = SaceWorkshopInteraction(user_id=current_user.id, workshop_session_id='demo-session-1', activity_slug='current_slide', response_data=str(data['slide']))
-            db.session.add(interaction)
-        else:
-            interaction.response_data = str(data['slide'])
-        db.session.commit()
-        return jsonify({"success": True, "slide": int(interaction.response_data)})
+        set_workshop_state('current_slide', str(data['slide']))
+        return jsonify({"success": True, "slide": int(data['slide'])})
     return jsonify({"error": "No slide provided"}), 400
 
 @sace_bp.route("/sace/about")
@@ -132,5 +169,6 @@ def live_stats():
 @login_required
 def facilitator_dashboard():
     return render_template('program_sace/facilitator_dashboard.html')
+
 
 

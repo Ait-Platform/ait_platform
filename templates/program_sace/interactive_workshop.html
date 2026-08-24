@@ -30,19 +30,17 @@
 
                     <!-- Slide 1 -->
                     <div id="slide-1" class="slide-container absolute inset-0 hidden flex-col items-center justify-center">
-                        <img src="{{ url_for('static', filename='sace_slides/1ReadingState.png') }}" class="max-h-[85%] max-w-full object-contain mb-4" alt="Slide 1: Reading State">
-                        <audio controls class="w-2/3">
+                        <img src="{{ url_for('static', filename='sace_slides/1ReadingState.png') }}" class="max-h-full max-w-full object-contain" alt="Slide 1: Reading State">
+                        <audio class="hidden">
                             <source src="{{ url_for('static', filename='sace_slides/1_audio.wav') }}" type="audio/wav">
-                            Your browser does not support the audio element.
                         </audio>
                     </div>
 
                     <!-- Slide 2 -->
                     <div id="slide-2" class="slide-container absolute inset-0 hidden flex-col items-center justify-center">
-                        <img src="{{ url_for('static', filename='sace_slides/2Problem.png') }}" class="max-h-[85%] max-w-full object-contain mb-4" alt="Slide 2: The Problem">
-                        <audio controls class="w-2/3">
+                        <img src="{{ url_for('static', filename='sace_slides/2Problem.png') }}" class="max-h-full max-w-full object-contain" alt="Slide 2: The Problem">
+                        <audio class="hidden">
                             <source src="{{ url_for('static', filename='sace_slides/2_audio.wav') }}" type="audio/wav">
-                            Your browser does not support the audio element.
                         </audio>
                     </div>
 
@@ -53,10 +51,9 @@
 
                     <!-- Slide 4 -->
                     <div id="slide-4" class="slide-container absolute inset-0 hidden flex-col items-center justify-center">
-                        <img src="{{ url_for('static', filename='sace_slides/4Course.png') }}" class="max-h-[85%] max-w-full object-contain mb-4" alt="Slide 4: Case Study">
-                        <audio controls class="w-2/3">
+                        <img src="{{ url_for('static', filename='sace_slides/4Course.png') }}" class="max-h-full max-w-full object-contain" alt="Slide 4: Case Study">
+                        <audio class="hidden">
                             <source src="{{ url_for('static', filename='sace_slides/4_audio.wav') }}" type="audio/wav">
-                            Your browser does not support the audio element.
                         </audio>
                     </div>
 
@@ -146,12 +143,26 @@
     const totalSlides = 4;
 
     function updateView() {
+        // Pause any currently playing audio
+        document.querySelectorAll('audio').forEach(audio => {
+            audio.pause();
+            audio.currentTime = 0;
+        });
+
         // Update projector
         document.querySelectorAll('.slide-container').forEach(el => el.classList.remove('flex'));
         document.querySelectorAll('.slide-container').forEach(el => el.classList.add('hidden'));
         const activeSlide = document.getElementById(`slide-${currentSlide}`);
         activeSlide.classList.remove('hidden');
         activeSlide.classList.add('flex');
+
+        // Play audio 1 second after slide reveals
+        const audioEl = activeSlide.querySelector('audio');
+        if (audioEl) {
+            setTimeout(() => {
+                audioEl.play().catch(e => console.log('Autoplay blocked by browser:', e));
+            }, 1000);
+        }
 
         // Update counter
         document.getElementById('slide-counter').innerText = `${currentSlide} / ${totalSlides}`;

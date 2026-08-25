@@ -185,3 +185,14 @@ def facilitator_dashboard():
 
 
 
+
+@sace_bp.route('/sace/evaluator/report')
+@login_required
+def evaluator_report():
+    interactions = SaceWorkshopInteraction.query.filter_by(
+        user_id=current_user.id,
+        workshop_session_id='demo-session-1'
+    ).order_by(SaceWorkshopInteraction.created_at).all()
+    
+    return render_template('program_sace/evaluator_report.html', interactions=interactions)
+

@@ -127,7 +127,7 @@
                             <p class="font-bold text-indigo-800 mb-2"><i class="fas fa-comments text-indigo-500 mr-2"></i>Discussion Prompt</p>
                             <p class="text-sm text-slate-700 mb-4">How will you adapt this story for your specific classroom demographic?</p>
                             <textarea class="w-full p-3 border border-indigo-200 rounded text-sm focus:ring-2 focus:ring-indigo-500" rows="3" placeholder="Type your adaptation notes here..."></textarea>
-                            <button class="mt-3 w-full py-2 bg-indigo-600 text-white font-bold rounded shadow-sm hover:bg-indigo-700" onclick="alert('Notes submitted for CPTD portfolio.')">Submit Reflection</button>
+                            <button class="mt-3 w-full py-2 bg-indigo-600 text-white font-bold rounded shadow-sm hover:bg-indigo-700" onclick="submitLog('Submitted Demographic Adaptation Strategy')">Submit Reflection</button>
                         </div>
                     </div>
 
@@ -148,7 +148,7 @@
                                 <span class="bg-white px-3 py-1 rounded shadow-sm border border-indigo-100">O</span>
                                 <span class="bg-white px-3 py-1 rounded shadow-sm border border-indigo-100">U</span>
                             </div>
-                            <button class="w-full py-2.5 bg-indigo-600 text-white font-bold rounded-lg shadow hover:bg-indigo-700 transition" onclick="alert('Activity Completed!')">I completed the hops!</button>
+                            <button class="w-full py-2.5 bg-indigo-600 text-white font-bold rounded-lg shadow hover:bg-indigo-700 transition" onclick="submitLog('Completed Kinesthetic Drill: Vowel Hops')">I completed the hops!</button>
                         </div>
                     </div>
 
@@ -169,7 +169,7 @@
                                 <input type="checkbox" id="check-game2" class="mt-1 h-5 w-5 text-green-600 rounded">
                                 <span class="text-sm text-slate-700 font-medium">I confirm my partner successfully completed the Number Map game.</span>
                             </label>
-                            <button class="w-full py-2.5 bg-green-600 text-white font-bold rounded-lg shadow hover:bg-green-700 transition" onclick="if(document.getElementById('check-game2').checked) { alert('Peer Drill Logged!'); } else { alert('Please confirm first!'); }">Submit Verification</button>
+                            <button class="w-full py-2.5 bg-green-600 text-white font-bold rounded-lg shadow hover:bg-green-700 transition" onclick="if(document.getElementById('check-game2').checked) { submitLog('Completed Kinesthetic Drill: Number Map Peer Assessment'); } else { alert('Please confirm first!'); }">Submit Verification</button>
                         </div>
                     </div>
                     
@@ -190,7 +190,7 @@
                                 <span class="text-sm text-slate-700 font-medium">I confirm we have created our physical flashcards and tested each other.</span>
                             </label>
                             
-                            <button class="w-full py-2.5 bg-indigo-600 text-white font-bold rounded-lg shadow hover:bg-indigo-700 transition" onclick="if(document.getElementById('check-game3').checked) { alert('Flashcard Activity Logged!'); } else { alert('Please check the confirmation box!'); }">Submit Verification</button>
+                            <button class="w-full py-2.5 bg-indigo-600 text-white font-bold rounded-lg shadow hover:bg-indigo-700 transition" onclick="if(document.getElementById('check-game3').checked) { submitLog('Completed Tactile Engagement: Consonant Flashcards'); } else { alert('Please check the confirmation box!'); }">Submit Verification</button>
                         </div>
                     </div>
 
@@ -294,7 +294,22 @@
         }, 600);
     }
     
+    
+    function submitLog(message) {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content'); 
+        fetch('/sace/workshop/submit_interaction', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ slide: currentSlide, data: message })
+        })
+        .then(() => alert(message + ' (Logged for SACE Report)'));
+    }
+    
     // Initialize
+
     updateView();
 </script>
 <!-- Floating SACE Guide Button -->

@@ -1,4 +1,4 @@
-﻿{% extends "layout.html" %}
+{% extends "layout.html" %}
 {% block title %}Debtors (SOA) - Pricing{% endblock %}
 {% block flashes %}{% endblock %}
 
@@ -139,6 +139,7 @@
       
       document.addEventListener('countryPriceError', function(e) {
         priceDisplay.innerHTML = '<span class="text-sm text-red-500">Error loading price</span>';
+        if (onceOffLabel) onceOffLabel.style.display = 'none';
       });
 
       registerBtn.addEventListener('click', function(e) {

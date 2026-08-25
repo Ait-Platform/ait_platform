@@ -1,4 +1,4 @@
-# config.py
+﻿# config.py
 import os
 import re
 from pathlib import Path
@@ -144,12 +144,12 @@ class Config:
 
     if not _raw_db_url:
         raise RuntimeError(
-            "DATABASE_URL is not set – PostgreSQL is required (no SQLite fallback)."
+            "DATABASE_URL is not set â€“ PostgreSQL is required (no SQLite fallback)."
         )
 
     SQLALCHEMY_DATABASE_URI = _raw_db_url
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    SQLALCHEMY_ENGINE_OPTIONS = {"pool_pre_ping": True}
+    SQLALCHEMY_ENGINE_OPTIONS = {"pool_pre_ping": True, "pool_recycle": 300, "pool_size": 10, "max_overflow": 20}
 
     # ------------ Seeds ------------
     SEEDS_DIR = os.getenv("SEEDS_DIR")  # if set, overrides default
@@ -222,3 +222,4 @@ class Config:
         "PAYFAST_NOTIFY_URL",
         "http://127.0.0.1:5000/payments/notify",
     )
+

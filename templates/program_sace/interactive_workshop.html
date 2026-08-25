@@ -131,32 +131,41 @@
                         </div>
                     </div>
 
-                    <!-- App View 6: Vowel Checklist (Slide 10) -->
+                    <!-- App View 8: Vowel Hops (Slide 9) -->
+                    <div id="app-view-8" class="app-view hidden">
+                        <h3 class="text-xl font-bold text-indigo-900 mb-4 border-b-2 border-indigo-100 pb-2">Game 1: The Vowel Hops</h3>
+                        <div class="bg-indigo-50 border border-indigo-200 p-6 rounded-lg text-center shadow-inner">
+                            <i class="fas fa-running text-4xl text-indigo-400 mb-4"></i>
+                            <p class="font-bold text-indigo-800 mb-4">Kinesthetic Memory Activation</p>
+                            <ul class="text-sm text-slate-700 text-left space-y-2 mb-6 list-disc list-inside">
+                                <li><strong>Stand up!</strong> Take 5 small hops forward.</li>
+                                <li>On each hop, loudly pronounce the next vowel.</li>
+                            </ul>
+                            <div class="flex justify-center space-x-2 font-black text-xl text-indigo-900 mb-6">
+                                <span class="bg-white px-3 py-1 rounded shadow-sm border border-indigo-100">A</span>
+                                <span class="bg-white px-3 py-1 rounded shadow-sm border border-indigo-100">E</span>
+                                <span class="bg-white px-3 py-1 rounded shadow-sm border border-indigo-100">I</span>
+                                <span class="bg-white px-3 py-1 rounded shadow-sm border border-indigo-100">O</span>
+                                <span class="bg-white px-3 py-1 rounded shadow-sm border border-indigo-100">U</span>
+                            </div>
+                            <button class="w-full py-2.5 bg-indigo-600 text-white font-bold rounded-lg shadow hover:bg-indigo-700 transition" onclick="alert('Activity Completed!')">I completed the hops!</button>
+                        </div>
+                    </div>
+
+                    <!-- App View 6: Number Map (Slide 10) -->
                     <div id="app-view-6" class="app-view hidden">
-                        <h3 class="text-xl font-bold text-indigo-900 mb-4 border-b-2 border-indigo-100 pb-2">Peer Pronunciation Check</h3>
-                        <p class="text-slate-600 mb-4">Pair up with a colleague. Listen to them pronounce the vowels and grade their pronunciation below.</p>
-                        <div class="bg-indigo-50 border border-indigo-200 p-4 rounded-lg space-y-3">
-                            <div class="flex items-center justify-between bg-white p-2 border border-indigo-100 rounded">
-                                <span class="font-black text-lg text-indigo-900">a</span>
-                                <input type="checkbox" class="w-5 h-5 text-indigo-600 rounded">
+                        <h3 class="text-xl font-bold text-indigo-900 mb-4 border-b-2 border-indigo-100 pb-2">Game 2: The Number Map</h3>
+                        <div class="bg-indigo-50 border border-indigo-200 p-4 rounded-lg shadow-inner">
+                            <p class="font-bold text-indigo-800 mb-2"><i class="fas fa-user-friends mr-2"></i>Pair Up!</p>
+                            <p class="text-sm text-slate-700 mb-4">Partner A calls out a random number. Partner B must instantly shout the corresponding vowel. <strong>Then switch!</strong></p>
+                            <div class="grid grid-cols-5 gap-2 mb-6 text-center">
+                                <div class="bg-white py-3 rounded shadow-sm border border-indigo-100"><span class="block text-xs text-slate-400 font-bold mb-1">1</span><span class="font-black text-xl text-indigo-900">A</span></div>
+                                <div class="bg-white py-3 rounded shadow-sm border border-indigo-100"><span class="block text-xs text-slate-400 font-bold mb-1">2</span><span class="font-black text-xl text-indigo-900">E</span></div>
+                                <div class="bg-white py-3 rounded shadow-sm border border-indigo-100"><span class="block text-xs text-slate-400 font-bold mb-1">3</span><span class="font-black text-xl text-indigo-900">I</span></div>
+                                <div class="bg-white py-3 rounded shadow-sm border border-indigo-100"><span class="block text-xs text-slate-400 font-bold mb-1">4</span><span class="font-black text-xl text-indigo-900">O</span></div>
+                                <div class="bg-white py-3 rounded shadow-sm border border-indigo-100"><span class="block text-xs text-slate-400 font-bold mb-1">5</span><span class="font-black text-xl text-indigo-900">U</span></div>
                             </div>
-                            <div class="flex items-center justify-between bg-white p-2 border border-indigo-100 rounded">
-                                <span class="font-black text-lg text-indigo-900">e</span>
-                                <input type="checkbox" class="w-5 h-5 text-indigo-600 rounded">
-                            </div>
-                            <div class="flex items-center justify-between bg-white p-2 border border-indigo-100 rounded">
-                                <span class="font-black text-lg text-indigo-900">i</span>
-                                <input type="checkbox" class="w-5 h-5 text-indigo-600 rounded">
-                            </div>
-                            <div class="flex items-center justify-between bg-white p-2 border border-indigo-100 rounded">
-                                <span class="font-black text-lg text-indigo-900">o</span>
-                                <input type="checkbox" class="w-5 h-5 text-indigo-600 rounded">
-                            </div>
-                            <div class="flex items-center justify-between bg-white p-2 border border-indigo-100 rounded">
-                                <span class="font-black text-lg text-indigo-900">u</span>
-                                <input type="checkbox" class="w-5 h-5 text-indigo-600 rounded">
-                            </div>
-                            <button class="mt-4 w-full py-2 bg-green-600 text-white font-bold rounded shadow-sm hover:bg-green-700" onclick="alert('Peer Assessment Logged!')">Submit Grade</button>
+                            <button class="w-full py-2.5 bg-green-600 text-white font-bold rounded-lg shadow hover:bg-green-700 transition" onclick="alert('Peer Drill Logged!')">We completed the drill!</button>
                         </div>
                     </div>
 
@@ -225,7 +234,7 @@
         if (currentSlide === 4) appViewIndex = 3; // Slide 4 (Poll Results) -> Personal Reflection
         if (currentSlide === 5) appViewIndex = 4; // Slide 5 (Reflection Results) -> Guessing Game
         if (currentSlide === 8) appViewIndex = 5; // Slide 8 (English Family) -> Reflection
-        if (currentSlide === 9) appViewIndex = 1; // Slide 9 (Vowels) -> Look at projector
+        if (currentSlide === 9) appViewIndex = 8; // Slide 9 (Vowels) -> Vowel Hops
         if (currentSlide === 10) appViewIndex = 6; // Slide 10 (Blending Machine) -> Vowel Checklist
         if (currentSlide === 12) appViewIndex = 7; // Slide 12 (Nano Blending) -> App View 7
         
@@ -287,6 +296,12 @@
                 <p>Because the system strictly logs when a teacher enters the room PIN, how they answer reflection questions, and their final post-test score, it generates an airtight, automated paper trail for SACE CPTD points.</p>
             </div>
         </div>
+        
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm border-l-4 border-l-rose-500">
+                <h4 class="font-bold text-rose-800 mb-2"><i class="fas fa-running mr-2"></i>Kinesthetic Memory</h4>
+                <p>Instead of passive listening, the platform enforces physical movement and cognitive mapping (e.g., <strong>The Vowel Hops</strong> and <strong>The Number Map</strong>). This proves that the workshop actively uses multisensory learning methodologies.</p>
+            </div>
+
         <div class="p-4 border-t border-gray-100 bg-gray-50 text-center">
             <button onclick="document.getElementById('sace-guide-modal').classList.add('hidden')" class="px-8 py-2.5 bg-slate-800 text-white font-bold rounded-lg hover:bg-slate-700 transition shadow-md">Got it</button>
         </div>

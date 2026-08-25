@@ -1,4 +1,4 @@
-{% extends "layout.html" %}
+﻿{% extends "layout.html" %}
 
 {% block title %}Debtors Dashboard{% endblock %}
 {% block flashes %}{% endblock %}
@@ -17,7 +17,7 @@
         {% if request.args.get('source') == 'mechanic' %}
           <a href="{{ url_for('mechanic_bp.mechanic_dashboard') }}" class="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 font-semibold text-sm shadow-sm transition">Back</a>
         {% else %}
-          <a href="{{ url_for('auth_bp.bridge_dashboard', force=1) }}" class="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 font-semibold text-sm shadow-sm transition">Back</a>
+          <a href="{{ url_for('bridge_bp.bridge') }}" class="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 font-semibold text-sm shadow-sm transition">Back</a>
         {% endif %}
       </div>
       
@@ -151,3 +151,4 @@
     }
 </script>
 {% endblock %}
+

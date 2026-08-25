@@ -253,3 +253,14 @@ from flask import render_template
 def participant_join():
     return render_template('program_sace/participant_join.html')
 
+
+@sace_bp.route('/sace/workshop/reset', methods=['POST'])
+@login_required
+def reset_workshop():
+    SaceWorkshopInteraction.query.filter_by(workshop_session_id='demo-session-1').delete()
+    db.session.commit()
+    # Re-initialize the basic state so it doesn't break
+    set_workshop_state('session_state', 'lobby')
+    set_workshop_state('current_slide', '0')
+    return jsonify({"success": True})
+

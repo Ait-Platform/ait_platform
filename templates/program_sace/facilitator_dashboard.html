@@ -16,9 +16,8 @@
                 <button onclick="document.getElementById('roster-modal').classList.remove('hidden')" class="flex items-center px-4 py-2 bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 font-bold border border-indigo-200 shadow-sm transition">
                     <i class="fas fa-users mr-2"></i> Attendance: <span id="permanent-counter" class="ml-2 font-black">0</span>
                 </button>
-                <a href="{{ url_for('sace_bp.reading_hub') }}" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 border border-gray-300">
-                    Exit
-                </a>
+                <button onclick="document.getElementById('sace-guide-modal').classList.remove('hidden')" class="px-4 py-2 text-sm font-bold text-indigo-700 bg-indigo-50 rounded-lg hover:bg-indigo-100 border border-indigo-200 shadow-sm transition"><i class="fas fa-graduation-cap mr-2"></i>Evaluator Guide</button>
+                <a href="{{ url_for('sace_bp.reading_hub') }}" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 border border-gray-300 transition">Exit</a>
             </div>
 
         </div>
@@ -435,8 +434,36 @@
     </div>
 </div>
 
+<!-- SACE Guide Modal -->
+<div id="sace-guide-modal" class="hidden fixed inset-0 bg-slate-900/80 z-[100] flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden flex flex-col max-h-[90vh]">
+        <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-gradient-to-r from-indigo-600 to-blue-700 text-white">
+            <h3 class="font-bold text-lg"><i class="fas fa-star mr-2 text-yellow-300"></i>SACE Evaluator Guide</h3>
+            <button onclick="document.getElementById('sace-guide-modal').classList.add('hidden')" class="text-white hover:text-gray-200"><i class="fas fa-times text-xl"></i></button>
+        </div>
+        <div class="p-6 flex-grow overflow-y-auto bg-slate-50 space-y-5 text-sm text-slate-700">
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm border-l-4 border-l-indigo-500">
+                <h4 class="font-bold text-indigo-800 mb-2"><i class="fas fa-users mr-2"></i>Live Roster & Active Learning</h4>
+                <p>The platform completely replaces paper registers. The Facilitator Dashboard features a <strong>Live Roster</strong> that updates instantly. Facilitators use this roster to actively call on specific teachers by name (e.g., asking them to read an article excerpt aloud), ensuring maximum engagement and accountability.</p>
+            </div>
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm border-l-4 border-l-emerald-500">
+                <h4 class="font-bold text-emerald-800 mb-2"><i class="fas fa-mobile-alt mr-2"></i>Device Synchronization</h4>
+                <p>When the facilitator changes slides, this Participant App syncs automatically. Teachers cannot skip ahead or fall behind. They are required to interact with activities (polls, reflections, uploads) exactly when the facilitator prompts them.</p>
+            </div>
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm border-l-4 border-l-purple-500">
+                <h4 class="font-bold text-purple-800 mb-2"><i class="fas fa-shield-alt mr-2"></i>Airtight Compliance</h4>
+                <p>Because the system strictly logs when a teacher enters the room PIN, how they answer reflection questions, and their final post-test score, it generates an airtight, automated paper trail for SACE CPTD points.</p>
+            </div>
+        </div>
+        <div class="p-4 border-t border-gray-100 bg-gray-50 text-center">
+            <button onclick="document.getElementById('sace-guide-modal').classList.add('hidden')" class="px-8 py-2.5 bg-slate-800 text-white font-bold rounded-lg hover:bg-slate-700 transition shadow-md">Got it</button>
+        </div>
+    </div>
+</div>
+
 </script>
 {% endblock %}
+
 
 
 

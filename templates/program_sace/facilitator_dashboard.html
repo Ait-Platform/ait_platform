@@ -16,7 +16,7 @@
                 <button onclick="document.getElementById('roster-modal').classList.remove('hidden')" class="flex items-center px-4 py-2 bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 font-bold border border-indigo-200 shadow-sm transition">
                     <i class="fas fa-users mr-2"></i> Attendance: <span id="permanent-counter" class="ml-2 font-black">0</span>
                 </button>
-                <button onclick="document.getElementById('sace-guide-modal').classList.remove('hidden')" class="px-4 py-2 text-sm font-bold text-indigo-700 bg-indigo-50 rounded-lg hover:bg-indigo-100 border border-indigo-200 shadow-sm transition"><i class="fas fa-graduation-cap mr-2"></i>Evaluator Guide</button>
+                <button onclick="document.getElementById('sace-guide-modal').classList.remove('hidden')" class="px-4 py-2 text-sm font-bold text-indigo-700 bg-indigo-50 rounded-lg hover:bg-indigo-100 border border-indigo-200 shadow-sm transition"><i class="fas fa-graduation-cap mr-2"></i>Endorsement Guide</button>
                 <a href="{{ url_for('sace_bp.reading_hub') }}" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 border border-gray-300 transition">Exit</a>
             </div>
 
@@ -438,7 +438,7 @@
 <div id="sace-guide-modal" class="hidden fixed inset-0 bg-slate-900/80 z-[100] flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden flex flex-col max-h-[90vh]">
         <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-gradient-to-r from-indigo-600 to-blue-700 text-white">
-            <h3 class="font-bold text-lg"><i class="fas fa-star mr-2 text-yellow-300"></i>SACE Evaluator Guide</h3>
+            <h3 class="font-bold text-lg"><i class="fas fa-star mr-2 text-yellow-300"></i>SACE Endorsement Guide</h3>
             <button onclick="document.getElementById('sace-guide-modal').classList.add('hidden')" class="text-white hover:text-gray-200"><i class="fas fa-times text-xl"></i></button>
         </div>
         <div class="p-6 flex-grow overflow-y-auto bg-slate-50 space-y-5 text-sm text-slate-700">
@@ -463,6 +463,7 @@
 
 </script>
 {% endblock %}
+
 
 
 

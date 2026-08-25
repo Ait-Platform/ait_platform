@@ -159,66 +159,41 @@
                         <img src="{{ url_for('static', filename='sace_slides/3Intro.png') }}" class="max-h-full max-w-full object-contain" alt="Slide 3: Introduction">
                     </div>
 
-                    <!-- Slide 8 (Case Study) -->
-                    <div id="slide-8" class="slide-container absolute inset-0 hidden flex-col items-center justify-center">
-                        <img src="{{ url_for('static', filename='sace_slides/4Course.png') }}" class="max-h-full max-w-full object-contain" alt="Slide 4: Case Study">
-                        <audio class="hidden">
-                            <source src="{{ url_for('static', filename='sace_slides/4_audio.wav') }}" type="audio/wav">
-                        </audio>
+                    
+                    <!-- Slide 8 (The English Family) -->
+                    <div id="slide-8" class="slide-container absolute inset-0 hidden flex-col items-center justify-center p-8 bg-slate-900 text-white rounded-xl">
+                        <h2 class="text-3xl font-bold text-indigo-300 mb-6 uppercase tracking-wider">Slide 8: The English Family</h2>
+                        <p class="text-lg text-slate-300 max-w-2xl text-center mb-8">Once upon a time, there was a family with a very unique way of speaking...</p>
+                        <div class="bg-indigo-900/50 p-6 rounded-lg max-w-xl text-center border border-indigo-700">
+                            <h3 class="font-bold text-yellow-300 mb-2"><i class="fas fa-mobile-alt mr-2"></i>App Verification Active</h3>
+                            <p class="text-sm">Participants are currently submitting their demographic adaptation strategies.</p>
+                        </div>
                     </div>
 
-                    <!-- Slide 9 (Case Study Results) -->
+                    <!-- Slide 9 (Introducing the Vowels) -->
                     <div id="slide-9" class="slide-container absolute inset-0 hidden flex-col items-center justify-center p-8 bg-slate-900 text-white rounded-xl">
-                        <h2 class="text-3xl font-bold text-indigo-400 mb-8"><i class="fas fa-balance-scale mr-3"></i>Live Room Data: The Catch-Up Approach</h2>
-                        <p class="text-xl text-slate-300 mb-8 font-semibold">Can a 14-year-old catch up?</p>
-                        
-                        <div class="w-full max-w-2xl space-y-8">
-                            <!-- Yes Bar -->
-                            <div>
-                                <div class="flex justify-between text-xl font-bold mb-2">
-                                    <span class="text-green-400">YES</span>
-                                    <span class="text-green-400">62%</span>
-                                </div>
-                                <div class="w-full bg-slate-700 rounded-full h-8">
-                                    <div class="bg-green-500 h-8 rounded-full" style="width: 62%"></div>
-                                </div>
-                            </div>
-                            
-                            <!-- No Bar -->
-                            <div>
-                                <div class="flex justify-between text-xl font-bold mb-2">
-                                    <span class="text-red-400">NO</span>
-                                    <span class="text-red-400">38%</span>
-                                </div>
-                                <div class="w-full bg-slate-700 rounded-full h-8">
-                                    <div class="bg-red-500 h-8 rounded-full" style="width: 38%"></div>
-                                </div>
-                            </div>
+                        <h2 class="text-3xl font-bold text-indigo-300 mb-6 uppercase tracking-wider">Slide 9: Introducing the Vowels</h2>
+                        <p class="text-xl text-white font-black max-w-2xl text-center tracking-widest space-x-4">
+                            <span>A</span> <span>E</span> <span>I</span> <span>O</span> <span>U</span>
+                        </p>
+                        <p class="text-sm text-slate-400 mt-8">(Participants are directed to look at the projector)</p>
+                    </div>
+
+                    <!-- Slide 10 (The LiTRE Blending Machine) -->
+                    <div id="slide-10" class="slide-container absolute inset-0 hidden flex-col items-center justify-center p-8 bg-indigo-900 text-white rounded-xl border-4 border-indigo-500">
+                        <h2 class="text-3xl font-bold text-white mb-2 uppercase tracking-wider">Slide 10: The LiTRE Blending Machine</h2>
+                        <h3 class="text-xl text-indigo-200 mb-6 italic">The Palm as the Meeting Place</h3>
+                        <div class="bg-indigo-800/80 p-6 rounded-lg max-w-xl text-center border border-indigo-600 shadow-xl">
+                            <h3 class="font-bold text-yellow-300 mb-2"><i class="fas fa-mobile-alt mr-2"></i>App Verification Active</h3>
+                            <p class="text-sm text-indigo-100 mb-2">Participants are conducting a Peer Pronunciation Check.</p>
+                            <p class="text-xs text-indigo-300 italic">They must pair up and grade each other's vowel sounds.</p>
                         </div>
                     </div>
 
-                                    <!-- Slide 10 (What is LiTRE?) -->
-                    <div id="slide-10" class="slide-container absolute inset-0 hidden flex-col items-center justify-center p-8 bg-indigo-900 text-white rounded-xl">
-                        <h2 class="text-4xl font-bold text-indigo-200 mb-8"><i class="fas fa-book-reader mr-3"></i>What is LiTRE?</h2>
-                        <div class="flex items-center space-x-6 text-2xl font-bold text-slate-100">
-                            <div class="flex flex-col items-center"><div class="h-20 w-20 bg-indigo-600 rounded-full flex items-center justify-center mb-2 shadow-lg"><i class="fas fa-book-open"></i></div>Story</div>
-                            <i class="fas fa-arrow-right text-indigo-400"></i>
-                            <div class="flex flex-col items-center"><div class="h-20 w-20 bg-indigo-600 rounded-full flex items-center justify-center mb-2 shadow-lg"><i class="fas fa-eye"></i></div>See</div>
-                            <i class="fas fa-arrow-right text-indigo-400"></i>
-                            <div class="flex flex-col items-center"><div class="h-20 w-20 bg-indigo-600 rounded-full flex items-center justify-center mb-2 shadow-lg"><i class="fas fa-hand-paper"></i></div>Do</div>
-                            <i class="fas fa-arrow-right text-indigo-400"></i>
-                            <div class="flex flex-col items-center"><div class="h-20 w-20 bg-indigo-600 rounded-full flex items-center justify-center mb-2 shadow-lg"><i class="fas fa-blender"></i></div>Blend</div>
-                            <i class="fas fa-arrow-right text-indigo-400"></i>
-                            <div class="flex flex-col items-center"><div class="h-20 w-20 bg-indigo-600 rounded-full flex items-center justify-center mb-2 shadow-lg"><i class="fas fa-font"></i></div>Read</div>
-                        </div>
-                    </div>
-
-                    <!-- Slide 11 (Draw the Palm) -->
-                    <div id="slide-11" class="slide-container absolute inset-0 hidden flex-col items-center justify-center p-8 bg-white text-slate-800 rounded-xl border border-slate-200">
-                        <h2 class="text-4xl font-bold text-indigo-600 mb-4">Draw the Palm <span class="text-slate-400 text-2xl">(Practical Part 1)</span></h2>
-                        <p class="text-xl text-slate-600 mb-8">Follow along and draw the palm structure on your worksheet or app.</p>
-                        <i class="fas fa-hand-paper text-[10rem] text-amber-100 mb-4"></i>
-                        <p class="text-slate-500 font-bold">Vowels on the fingers, consonants on the palm!</p>
+                    <!-- Slide 11 (Practice) -->
+                    <div id="slide-11" class="slide-container absolute inset-0 hidden flex-col items-center justify-center p-8 bg-slate-900 text-white rounded-xl">
+                        <h2 class="text-3xl font-bold text-indigo-300 mb-6 uppercase tracking-wider">Slide 11: Practice Round</h2>
+                        <p class="text-lg text-slate-300 max-w-2xl text-center">Let's practice the palm method together.</p>
                     </div>
 
                     <!-- Slide 12 (Who is Leaving Home?) -->
@@ -463,6 +438,7 @@
 
 </script>
 {% endblock %}
+
 
 
 

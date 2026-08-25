@@ -119,27 +119,44 @@
                         </div>
                     </div>
 
-                    <!-- App View 5: Case Study -->
+                                        <!-- App View 5: The English Family -->
                     <div id="app-view-5" class="app-view hidden">
-                        <h3 class="text-xl font-bold text-indigo-900 mb-4 border-b-2 border-indigo-100 pb-2">The Catch-Up Approach</h3>
-                        <p class="text-slate-600 mb-4">Follow the case study of the 14-year-old on the screen.</p>
-                        <div class="bg-indigo-50 border border-indigo-200 p-4 rounded-lg text-center">
-                            <p class="font-bold text-indigo-800 mb-2">Can a 14-year-old catch up?</p>
-                            <div class="flex justify-center space-x-4">
-                                <button class="px-6 py-2 bg-white border border-indigo-300 rounded shadow-sm hover:bg-indigo-100 font-bold text-indigo-700" onclick="alert('Logged!')">YES</button>
-                                <button class="px-6 py-2 bg-white border border-indigo-300 rounded shadow-sm hover:bg-indigo-100 font-bold text-indigo-700" onclick="alert('Logged!')">NO</button>
-                            </div>
+                        <h3 class="text-xl font-bold text-indigo-900 mb-4 border-b-2 border-indigo-100 pb-2">The English Family Story</h3>
+                        <p class="text-slate-600 mb-4">Read the story on the projector.</p>
+                        <div class="bg-indigo-50 border border-indigo-200 p-4 rounded-lg">
+                            <p class="font-bold text-indigo-800 mb-2"><i class="fas fa-comments text-indigo-500 mr-2"></i>Discussion Prompt</p>
+                            <p class="text-sm text-slate-700 mb-4">How will you adapt this story for your specific classroom demographic?</p>
+                            <textarea class="w-full p-3 border border-indigo-200 rounded text-sm focus:ring-2 focus:ring-indigo-500" rows="3" placeholder="Type your adaptation notes here..."></textarea>
+                            <button class="mt-3 w-full py-2 bg-indigo-600 text-white font-bold rounded shadow-sm hover:bg-indigo-700" onclick="alert('Notes submitted for CPTD portfolio.')">Submit Reflection</button>
                         </div>
                     </div>
-                    
-                </div>
-                                <!-- App View 6: Draw Palm -->
+
+                    <!-- App View 6: Vowel Checklist (Slide 10) -->
                     <div id="app-view-6" class="app-view hidden">
-                        <h3 class="text-xl font-bold text-indigo-900 mb-4 border-b-2 border-indigo-100 pb-2">Activity: Draw the Palm</h3>
-                        <p class="text-slate-600 mb-4">Please draw the palm structure on your worksheet, take a photo, and upload it below as evidence.</p>
-                        <div class="bg-indigo-50 border-2 border-dashed border-indigo-300 p-8 rounded-lg text-center cursor-pointer hover:bg-indigo-100 transition" onclick="alert('Photo uploaded!')">
-                            <i class="fas fa-camera text-4xl text-indigo-400 mb-4"></i>
-                            <p class="font-bold text-indigo-800">Tap to Camera</p>
+                        <h3 class="text-xl font-bold text-indigo-900 mb-4 border-b-2 border-indigo-100 pb-2">Peer Pronunciation Check</h3>
+                        <p class="text-slate-600 mb-4">Pair up with a colleague. Listen to them pronounce the vowels and grade their pronunciation below.</p>
+                        <div class="bg-indigo-50 border border-indigo-200 p-4 rounded-lg space-y-3">
+                            <div class="flex items-center justify-between bg-white p-2 border border-indigo-100 rounded">
+                                <span class="font-black text-lg text-indigo-900">a</span>
+                                <input type="checkbox" class="w-5 h-5 text-indigo-600 rounded">
+                            </div>
+                            <div class="flex items-center justify-between bg-white p-2 border border-indigo-100 rounded">
+                                <span class="font-black text-lg text-indigo-900">e</span>
+                                <input type="checkbox" class="w-5 h-5 text-indigo-600 rounded">
+                            </div>
+                            <div class="flex items-center justify-between bg-white p-2 border border-indigo-100 rounded">
+                                <span class="font-black text-lg text-indigo-900">i</span>
+                                <input type="checkbox" class="w-5 h-5 text-indigo-600 rounded">
+                            </div>
+                            <div class="flex items-center justify-between bg-white p-2 border border-indigo-100 rounded">
+                                <span class="font-black text-lg text-indigo-900">o</span>
+                                <input type="checkbox" class="w-5 h-5 text-indigo-600 rounded">
+                            </div>
+                            <div class="flex items-center justify-between bg-white p-2 border border-indigo-100 rounded">
+                                <span class="font-black text-lg text-indigo-900">u</span>
+                                <input type="checkbox" class="w-5 h-5 text-indigo-600 rounded">
+                            </div>
+                            <button class="mt-4 w-full py-2 bg-green-600 text-white font-bold rounded shadow-sm hover:bg-green-700" onclick="alert('Peer Assessment Logged!')">Submit Grade</button>
                         </div>
                     </div>
 
@@ -207,9 +224,9 @@
         if (currentSlide === 3) appViewIndex = 2; // Slide 3 (The Problem) -> Root Cause Poll
         if (currentSlide === 4) appViewIndex = 3; // Slide 4 (Poll Results) -> Personal Reflection
         if (currentSlide === 5) appViewIndex = 4; // Slide 5 (Reflection Results) -> Guessing Game
-        if (currentSlide === 8) appViewIndex = 5; // Slide 8 (Case Study) -> Case Study YES/NO
-        if (currentSlide === 9) appViewIndex = 1; // Slide 9 (Case Study Results) -> Look at projector
-        if (currentSlide === 11) appViewIndex = 6; // Slide 11 (Draw Palm) -> App View 6
+        if (currentSlide === 8) appViewIndex = 5; // Slide 8 (English Family) -> Reflection
+        if (currentSlide === 9) appViewIndex = 1; // Slide 9 (Vowels) -> Look at projector
+        if (currentSlide === 10) appViewIndex = 6; // Slide 10 (Blending Machine) -> Vowel Checklist
         if (currentSlide === 12) appViewIndex = 7; // Slide 12 (Nano Blending) -> App View 7
         
         const activeView = document.getElementById('app-view-' + appViewIndex);
@@ -280,6 +297,7 @@
 
 
 {% endblock %}
+
 
 
 

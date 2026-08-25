@@ -245,3 +245,11 @@ def submit_poll():
     db.session.commit()
     return jsonify({"success": True})
 
+
+from flask import render_template
+
+@sace_bp.route('/sace/participant/join')
+@login_required
+def participant_join():
+    return render_template('program_sace/participant_join.html')
+

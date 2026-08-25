@@ -329,29 +329,15 @@
         if (timer) timer.innerText = hh + ':' + mm + ':' + ss;
     }, 1000);
 
-    function joinRoom() {
-        const pin = document.getElementById('room-pin').value;
-        if(pin.length < 3) { alert("Please enter a valid PIN."); return; }
-        
-        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content'); fetch('/sace/workshop/join', {method: 'POST', headers: {'X-CSRFToken': csrfToken}})
-            .then(res => res.json())
-            .then(data => {
-                hasJoinedLocally = true; sessionStorage.setItem('sace_joined', 'true'); updateView();
-            });
-    }
+    
 
     function updateView() {
-        document.querySelectorAll('.app-view').forEach(el => el.classList.add('hidden'));
-        
-        if (!hasJoinedLocally) {
-            document.getElementById('app-view-lobby').classList.remove('hidden');
+        if (!hasJoinedLocally || sessionState === 'lobby') {
+            window.location.href = '/sace/participant/join';
             return;
         }
 
-        if (sessionState === 'lobby') {
-            document.getElementById('app-view-waiting').classList.remove('hidden');
-            return;
-        }
+        document.querySelectorAll('.app-view').forEach(el => el.classList.add('hidden'));
 
         // Active State logic
         let appViewIndex = 1; // Default to Look at projector

@@ -163,7 +163,7 @@
 <script>
     let currentSlide = 0;
     let sessionState = 'lobby';
-    let hasJoinedLocally = false;
+    let hasJoinedLocally = sessionStorage.getItem('sace_joined') === 'true';
     
     // Time Tracker
     const startTime = new Date();
@@ -184,20 +184,20 @@
         const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content'); fetch('/sace/workshop/join', {method: 'POST', headers: {'X-CSRFToken': csrfToken}})
             .then(res => res.json())
             .then(data => {
-                hasJoinedLocally = true;
-                updateView();
+                hasJoinedLocally = true; sessionStorage.setItem('sace_joined', 'true'); updateView();
             });
     }
 
     function updateView() {
         document.querySelectorAll('.app-view').forEach(el => el.classList.add('hidden'));
         
+        if (!hasJoinedLocally) {
+            document.getElementById('app-view-lobby').classList.remove('hidden');
+            return;
+        }
+
         if (sessionState === 'lobby') {
-            if (hasJoinedLocally) {
-                document.getElementById('app-view-waiting').classList.remove('hidden');
-            } else {
-                document.getElementById('app-view-lobby').classList.remove('hidden');
-            }
+            document.getElementById('app-view-waiting').classList.remove('hidden');
             return;
         }
 
@@ -224,7 +224,7 @@
                 let changed = false;
                 if(data.status !== sessionState) {
                     sessionState = data.status;
-                    if(sessionState === 'lobby') hasJoinedLocally = false; // Reset if facilitator reset
+                    if(sessionState === 'lobby') { hasJoinedLocally = false; sessionStorage.removeItem('sace_joined'); }
                     changed = true;
                 }
                 if(data.slide !== currentSlide) {
@@ -248,6 +248,7 @@
 
 
 {% endblock %}
+
 
 
 

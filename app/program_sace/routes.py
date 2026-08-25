@@ -21,18 +21,43 @@ def set_workshop_state(key, value):
 @sace_bp.route('/sace/workshop/get_state')
 @login_required
 def get_state():
+    roster_rows = SaceWorkshopInteraction.query.filter_by(workshop_session_id='demo-session-1', activity_slug='participant_joined').all()
+    roster = [r.response_data for r in roster_rows]
     return jsonify({
         "status": get_workshop_state('session_state', 'lobby'),
         "slide": int(get_workshop_state('current_slide', '0')),
-        "attendance": int(get_workshop_state('attendance_count', '0'))
+        "attendance": len(roster),
+        "roster": roster
     })
 
 @sace_bp.route('/sace/workshop/join', methods=['POST'])
 @login_required
 def join_room():
-    count = int(get_workshop_state('attendance_count', '0'))
-    set_workshop_state('attendance_count', str(count + 1))
+    existing = SaceWorkshopInteraction.query.filter_by(workshop_session_id='demo-session-1', activity_slug='participant_joined', user_id=current_user.id).first()
+    if not existing:
+        name = getattr(current_user, 'name', None) or current_user.email
+        new_join = SaceWorkshopInteraction(user_id=current_user.id, workshop_session_id='demo-session-1', activity_slug='participant_joined', response_data=name)
+        db.session.add(new_join)
+        db.session.commit()
     return jsonify({"success": True})
+
+@sace_bp.route('/sace/workshop/start', methods=['POST'])
+@login_required
+def start_workshop():
+    set_workshop_state('session_state', 'active')
+    set_workshop_state('current_slide', '0')
+    return jsonify({"success": True})
+
+@sace_bp.route('/sace/workshop/reset', methods=['POST'])
+@login_required
+def reset_workshop():
+    set_workshop_state('session_state', 'lobby')
+    set_workshop_state('current_slide', '0')
+    set_workshop_state('attendance_count', '0')
+    SaceWorkshopInteraction.query.filter_by(workshop_session_id='demo-session-1', activity_slug='participant_joined').delete()
+    db.session.commit()
+    return jsonify({"success": True})
+
 
 @sace_bp.route('/sace/workshop/start', methods=['POST'])
 @login_required
@@ -169,6 +194,7 @@ def live_stats():
 @login_required
 def facilitator_dashboard():
     return render_template('program_sace/facilitator_dashboard.html')
+
 
 
 

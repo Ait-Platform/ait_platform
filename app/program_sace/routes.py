@@ -251,7 +251,7 @@ def participant_join():
 @sace_bp.route('/sace/workshop/reset', methods=['POST'])
 @login_required
 def reset_workshop():
-    SaceWorkshopInteraction.query.filter_by(workshop_session_id='demo-session-1').delete()
+    SaceWorkshopInteraction.query.filter_by(workshop_session_id='demo-session-1').delete(synchronize_session=False)
     db.session.commit()
     # Re-initialize the basic state so it doesn't break
     set_workshop_state('session_state', 'lobby')

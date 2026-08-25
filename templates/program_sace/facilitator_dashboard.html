@@ -304,12 +304,7 @@
             .then(() => fetchState());
     }
 
-    function resetWorkshop() {
-        if(confirm("Are you sure? This resets all connected devices back to the lobby.")) {
-            fetch('/sace/workshop/reset', {method: 'POST', headers: {'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')}})
-                .then(() => fetchState());
-        }
-    }
+
 
         function fetchState() {
         fetch('/sace/workshop/get_state')

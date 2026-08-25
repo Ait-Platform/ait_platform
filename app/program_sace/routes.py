@@ -258,3 +258,9 @@ def reset_workshop():
     set_workshop_state('current_slide', '0')
     return jsonify({"success": True})
 
+
+@sace_bp.route('/sace/evaluator/guide')
+@login_required
+def reviewer_guide():
+    return render_template('program_sace/reviewer_guide.html')
+

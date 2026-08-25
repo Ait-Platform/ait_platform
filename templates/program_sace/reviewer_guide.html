@@ -1,0 +1,54 @@
+﻿{% extends "layout.html" %}
+
+{% block title %}SACE Reviewer Guide{% endblock %}
+
+{% block content %}
+<div class="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100 max-w-4xl mx-auto my-8 print:shadow-none print:border-none print:my-0">
+    <div class="h-2 w-full bg-indigo-600 print:hidden"></div>
+    
+    <div class="p-8 sm:p-12 print:p-0">
+        <div class="flex justify-between items-center mb-8 print:hidden">
+            <h1 class="text-2xl font-bold text-gray-900">SACE Reviewer Guide</h1>
+            <div>
+                <button onclick="window.print()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 mr-2">
+                    <i class="fas fa-print mr-2"></i> Print to PDF
+                </button>
+                <a href="{{ url_for('sace_bp.reading_hub') }}" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200">
+                    Back to Hub
+                </a>
+            </div>
+        </div>
+
+        <div class="prose max-w-none text-slate-700">
+            <h2 class="text-3xl font-black text-slate-900 mb-2 border-b-2 border-slate-200 pb-4">Reviewer Guide: Evaluating the LITRE Digital Platform</h2>
+            
+            <p class="mb-6 mt-6">Dear SACE Evaluator,</p>
+            <p class="mb-6">As part of our provider application, we have included access to the <strong>LITRE Digital Workshop Platform</strong>. This system replaces traditional paper registers and passive PowerPoint presentations with a synchronized, multisensory digital environment.</p>
+            <p class="mb-8">Because the system is designed to synchronize 40+ participant phones to a main projector in real-time, we have built a dedicated <strong>"SACE Evaluator Mode"</strong> so you can easily review the content at your own pace without needing multiple devices.</p>
+
+            <h3 class="text-xl font-bold text-indigo-900 mt-8 mb-4">1. The Facilitator Dashboard (The Presenter's View)</h3>
+            <ul class="list-disc pl-6 mb-8 space-y-2">
+                <li><strong>Access:</strong> Click the "Facilitator Dashboard" button on the main hub.</li>
+                <li><strong>Evaluator Mode:</strong> In the top-right corner, click the <strong>"Evaluator Mode"</strong> button. This will disconnect the dashboard from our live servers. You can now use the "Next Slide" and "Previous Slide" buttons to freely read through all 18 presentation slides, view the live-graphing capabilities, and review the teaching prompts without affecting live sessions.</li>
+                <li><strong>SACE Guide:</strong> Click the "SACE Guide" button in the top-right to read how we enforce accountability and our formal Loadshedding Contingency Plan.</li>
+            </ul>
+
+            <h3 class="text-xl font-bold text-indigo-900 mt-8 mb-4">2. The Participant App (The Teacher's View)</h3>
+            <ul class="list-disc pl-6 mb-8 space-y-2">
+                <li><strong>Access:</strong> Return to the main hub and click "Participant App", then check in using the PIN.</li>
+                <li><strong>Evaluator Mode:</strong> In the bottom-left corner of the screen, click the <strong>Orange Shield Icon</strong>. A banner will drop down giving you private "Next" and "Prev" buttons.</li>
+                <li><strong>Reviewing Activities:</strong> You can now freely click through the interactive polls, the kinesthetic Vowel Hops checklist, and the Final Assessment (Annexure D) exactly as a participating teacher would experience them.</li>
+            </ul>
+
+            <h3 class="text-xl font-bold text-indigo-900 mt-8 mb-4">3. The Audit Trail (Post-Workshop Reporting)</h3>
+            <ul class="list-disc pl-6 mb-8 space-y-2">
+                <li>SACE requires a strict audit trail of attendance and competency. On the main Reading Hub dashboard, you can click the <strong>"Export Evaluation Report"</strong> button.</li>
+                <li>This generates a printable, timestamped PDF ledger proving exactly who attended, how they voted in the live polls, and their final assessment scores.</li>
+            </ul>
+            
+            <hr class="my-8">
+            <p class="italic text-sm text-slate-500">If you have any questions while navigating the platform, please do not hesitate to reach out to the provider.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -73,13 +73,7 @@ def start_workshop():
     set_workshop_state('current_slide', '0')
     return jsonify({"success": True})
 
-@sace_bp.route('/sace/workshop/reset', methods=['POST'])
-@login_required
-def reset_workshop():
-    set_workshop_state('session_state', 'lobby')
-    set_workshop_state('current_slide', '0')
-    set_workshop_state('attendance_count', '0')
-    return jsonify({"success": True})
+
 
 @sace_bp.route('/sace/workshop/get_slide')
 @login_required

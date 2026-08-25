@@ -61,8 +61,8 @@
                         
                         <div class="bg-white p-5 rounded-lg border border-indigo-200 shadow-sm mb-6">
                             <p class="font-bold text-lg mb-4 text-slate-800">Q: Is there a crisis in reading in South African schools?</p>
-                            <button class="w-full py-3 bg-red-100 text-red-700 hover:bg-red-200 font-bold rounded-lg mb-3 border border-red-300 transition" onclick="selectAnswer(this)">FALSE (No Crisis)</button>
-                            <button class="w-full py-3 bg-green-100 text-green-700 hover:bg-green-200 font-bold rounded-lg border border-green-300 transition" onclick="selectAnswer(this)">TRUE (Crisis Exists)</button>
+                            <button class="w-full py-3 bg-red-100 text-red-700 hover:bg-red-200 font-bold rounded-lg mb-3 border border-red-300 transition" onclick="submitPoll('poll_crisis', 'FALSE', this)">FALSE (No Crisis)</button>
+                            <button class="w-full py-3 bg-green-100 text-green-700 hover:bg-green-200 font-bold rounded-lg border border-green-300 transition" onclick="submitPoll('poll_crisis', 'TRUE', this)">TRUE (Crisis Exists)</button>
                         </div>
                         
                         
@@ -88,10 +88,10 @@
                         <div class="bg-white p-5 rounded-lg border border-indigo-200 shadow-sm">
                             <p class="font-bold text-slate-800 mb-3">What is the biggest contributor to the reading crisis?</p>
                             <div class="flex flex-col space-y-2">
-                                <button class="px-4 py-3 bg-white border border-indigo-300 rounded shadow-sm hover:bg-indigo-50 text-left font-semibold text-slate-700" onclick="alert('Logged!')">A) Lack of resources/books</button>
-                                <button class="px-4 py-3 bg-white border border-indigo-300 rounded shadow-sm hover:bg-indigo-50 text-left font-semibold text-slate-700" onclick="alert('Logged!')">B) Overcrowded classrooms</button>
-                                <button class="px-4 py-3 bg-white border border-indigo-300 rounded shadow-sm hover:bg-indigo-50 text-left font-semibold text-slate-700" onclick="alert('Logged!')">C) Language barriers (HL vs English)</button>
-                                <button class="px-4 py-3 bg-white border border-indigo-300 rounded shadow-sm hover:bg-indigo-50 text-left font-semibold text-slate-700" onclick="alert('Logged!')">D) Outdated teaching methods</button>
+                                <button class="px-4 py-3 bg-white border border-indigo-300 rounded shadow-sm hover:bg-indigo-50 text-left font-semibold text-slate-700" onclick="submitPoll('poll_root_cause', 'A', this)">A) Lack of resources/books</button>
+                                <button class="px-4 py-3 bg-white border border-indigo-300 rounded shadow-sm hover:bg-indigo-50 text-left font-semibold text-slate-700" onclick="submitPoll('poll_root_cause', 'B', this)">B) Overcrowded classrooms</button>
+                                <button class="px-4 py-3 bg-white border border-indigo-300 rounded shadow-sm hover:bg-indigo-50 text-left font-semibold text-slate-700" onclick="submitPoll('poll_root_cause', 'C', this)">C) Language barriers (HL vs English)</button>
+                                <button class="px-4 py-3 bg-white border border-indigo-300 rounded shadow-sm hover:bg-indigo-50 text-left font-semibold text-slate-700" onclick="submitPoll('poll_root_cause', 'D', this)">D) Outdated teaching methods</button>
                             </div>
                         </div>
                     </div>
@@ -289,12 +289,23 @@
             });
     }, 1000);
 
-    function selectAnswer(btn) {
+    
+    function submitPoll(pollId, answer, btn) {
         btn.classList.add('ring-4', 'ring-indigo-300');
-        setTimeout(() => {
-            alert('Response Recorded: Your answer is logged on the facilitator dashboard.');
-        }, 600);
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content'); 
+        fetch('/sace/workshop/submit_poll', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ poll_id: pollId, data: answer })
+        })
+        .then(() => {
+            setTimeout(() => alert('Response Recorded: Your answer is logged on the facilitator dashboard.'), 200);
+        });
     }
+
     
     
     function submitLog(message) {

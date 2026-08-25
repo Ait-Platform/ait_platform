@@ -23,11 +23,33 @@ def set_workshop_state(key, value):
 def get_state():
     roster_rows = SaceWorkshopInteraction.query.filter_by(workshop_session_id='demo-session-1', activity_slug='participant_joined').all()
     roster = [r.response_data for r in roster_rows]
+    
+    # Calculate poll aggregates
+    poll_data = {
+        'crisis': {'true': 0, 'false': 0},
+        'root_cause': {'resources': 0, 'class_size': 0, 'language': 0, 'methods': 0},
+    }
+    
+    # Pre-test (Slide 0)
+    crisis_votes = SaceWorkshopInteraction.query.filter_by(workshop_session_id='demo-session-1', activity_slug='poll_crisis').all()
+    for v in crisis_votes:
+        if v.response_data == 'TRUE': poll_data['crisis']['true'] += 1
+        elif v.response_data == 'FALSE': poll_data['crisis']['false'] += 1
+        
+    # Root Cause (Slide 3)
+    cause_votes = SaceWorkshopInteraction.query.filter_by(workshop_session_id='demo-session-1', activity_slug='poll_root_cause').all()
+    for v in cause_votes:
+        if v.response_data == 'A': poll_data['root_cause']['resources'] += 1
+        elif v.response_data == 'B': poll_data['root_cause']['class_size'] += 1
+        elif v.response_data == 'C': poll_data['root_cause']['language'] += 1
+        elif v.response_data == 'D': poll_data['root_cause']['methods'] += 1
+
     return jsonify({
         "status": get_workshop_state('session_state', 'lobby'),
         "slide": int(get_workshop_state('current_slide', '0')),
         "attendance": len(roster),
-        "roster": roster
+        "roster": roster,
+        "poll_data": poll_data
     })
 
 @sace_bp.route('/sace/workshop/join', methods=['POST'])
@@ -195,4 +217,31 @@ def evaluator_report():
     ).order_by(SaceWorkshopInteraction.created_at).all()
     
     return render_template('program_sace/evaluator_report.html', interactions=interactions)
+
+
+@sace_bp.route('/sace/workshop/submit_poll', methods=['POST'])
+@login_required
+def submit_poll():
+    data = request.json
+    slug = data.get('poll_id')
+    
+    interaction = SaceWorkshopInteraction.query.filter_by(
+        user_id=current_user.id,
+        workshop_session_id='demo-session-1',
+        activity_slug=slug
+    ).first()
+    
+    if interaction:
+        interaction.response_data = data.get('data')
+    else:
+        interaction = SaceWorkshopInteraction(
+            user_id=current_user.id,
+            workshop_session_id='demo-session-1',
+            activity_slug=slug,
+            response_data=data.get('data')
+        )
+        db.session.add(interaction)
+        
+    db.session.commit()
+    return jsonify({"success": True})
 

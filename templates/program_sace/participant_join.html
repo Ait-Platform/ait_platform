@@ -42,12 +42,12 @@
         })
         .then(res => res.json())
         .then(data => {
-            sessionStorage.setItem('sace_joined', 'true'); 
+            localStorage.setItem('sace_joined', 'true'); 
             window.location.href = '/sace/workshop/interactive';
         })
         .catch(err => {
             // Assume success for demo if fetch fails
-            sessionStorage.setItem('sace_joined', 'true'); 
+            localStorage.setItem('sace_joined', 'true'); 
             window.location.href = '/sace/workshop/interactive';
         });
     }

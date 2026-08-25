@@ -305,7 +305,7 @@
 <script>
     let currentSlide = 0;
     let sessionState = 'unknown';
-    let hasJoinedLocally = sessionStorage.getItem('sace_joined') === 'true';
+    let hasJoinedLocally = localStorage.getItem('sace_joined') === 'true';
     
     // Time Tracker
     const startTime = new Date();
@@ -365,8 +365,11 @@
             .then(data => {
                 let changed = false;
                 if(data.status !== sessionState) {
+                    if(sessionState === 'active' && data.status === 'lobby') { 
+                        hasJoinedLocally = false; 
+                        localStorage.removeItem('sace_joined'); 
+                    }
                     sessionState = data.status;
-                    if(sessionState === 'lobby') { hasJoinedLocally = false; sessionStorage.removeItem('sace_joined'); }
                     changed = true;
                 }
                 if(data.slide !== currentSlide) {

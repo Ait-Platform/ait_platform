@@ -34,16 +34,6 @@
                 <div class="flex-grow p-6 flex flex-col justify-center relative overflow-y-auto">
                     
                     <!-- LOBBY VIEW (-1) -->
-                    <div id="app-view-lobby" class="app-view text-center">
-                        <div class="h-20 w-20 bg-indigo-100 rounded-full flex items-center justify-center mb-6 mx-auto">
-                            <i class="fas fa-door-open text-4xl text-indigo-500"></i>
-                        </div>
-                        <h3 class="text-2xl font-bold text-slate-800 mb-2">Join Workshop</h3>
-                        <p class="text-slate-600 mb-6">Enter the Room PIN displayed on the projector to connect.</p>
-                        <input type="text" id="room-pin" placeholder="Enter PIN (e.g. 8842)" class="w-full text-center text-2xl font-bold tracking-widest p-4 border-2 border-slate-300 rounded-lg mb-4 focus:border-indigo-500 focus:ring-indigo-500">
-                        <button onclick="joinRoom()" class="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg shadow-lg text-lg">Check In</button>
-                    </div>
-
                     <!-- WAITING VIEW (-0.5) -->
                     <div id="app-view-waiting" class="app-view hidden text-center">
                         <div class="h-20 w-20 bg-green-100 rounded-full flex items-center justify-center mb-6 mx-auto">
@@ -55,7 +45,7 @@
                     </div>
 
                     <!-- App View: Pre-test (Slide 0) -->
-                    <div id="app-view-0" class="app-view">
+                    <div id="app-view-0" class="app-view hidden">
                         <h3 class="text-xl font-bold text-indigo-900 mb-4 border-b-2 border-indigo-100 pb-2">Activity: Slide 1 - Reading State</h3>
                         <p class="mb-4 text-slate-700">Welcome! Before the facilitator begins, please answer the following question to unlock today's session:</p>
                         
@@ -314,7 +304,7 @@
 
 <script>
     let currentSlide = 0;
-    let sessionState = 'lobby';
+    let sessionState = 'unknown';
     let hasJoinedLocally = sessionStorage.getItem('sace_joined') === 'true';
     
     // Time Tracker
@@ -331,11 +321,21 @@
 
     
 
+    let sessionState = 'unknown'; // don't default to lobby or it redirects instantly
+    
     function updateView() {
-        if (!hasJoinedLocally || sessionState === 'lobby') {
+        if (!hasJoinedLocally) {
             window.location.href = '/sace/participant/join';
             return;
         }
+
+        if (sessionState === 'lobby') {
+            document.querySelectorAll('.app-view').forEach(el => el.classList.add('hidden'));
+            document.getElementById('app-view-waiting').classList.remove('hidden');
+            return;
+        }
+        
+        if (sessionState === 'unknown') return; // wait for fetch
 
         document.querySelectorAll('.app-view').forEach(el => el.classList.add('hidden'));
 

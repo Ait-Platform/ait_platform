@@ -285,6 +285,25 @@
     let currentSlide = 0;
     const totalSlides = 18;
     let sessionState = 'lobby';
+
+    let evaluatorMode = false;
+    function toggleEvaluatorMode() {
+        evaluatorMode = !evaluatorMode;
+        const btn = document.getElementById('eval-mode-btn');
+        if (evaluatorMode) {
+            alert("SACE Evaluator Mode ENABLED.\n\nThis dashboard is now DISCONNECTED from the live database. You can click 'Next Slide' and 'Previous Slide' to freely explore the Facilitator flow without affecting any live participants.");
+            btn.classList.replace('bg-slate-700', 'bg-amber-500');
+            btn.classList.replace('hover:bg-slate-600', 'hover:bg-amber-600');
+            btn.innerHTML = '<i class="fas fa-unlink mr-2"></i>Offline Mode';
+        } else {
+            alert("Evaluator Mode DISABLED. Reconnecting to live server...");
+            btn.classList.replace('bg-amber-500', 'bg-slate-700');
+            btn.classList.replace('hover:bg-amber-600', 'hover:bg-slate-600');
+            btn.innerHTML = '<i class="fas fa-user-shield mr-2"></i>Evaluator Mode';
+            fetchState();
+        }
+    }
+
     let pollInterval = null;
 
     
@@ -307,6 +326,7 @@
 
 
         function fetchState() {
+        if(evaluatorMode) return;
         fetch('/sace/workshop/get_state')
             .then(res => res.json())
             .then(data => {

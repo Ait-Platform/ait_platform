@@ -41,22 +41,7 @@ def join_room():
         db.session.commit()
     return jsonify({"success": True})
 
-@sace_bp.route('/sace/workshop/start', methods=['POST'])
-@login_required
-def start_workshop():
-    set_workshop_state('session_state', 'active')
-    set_workshop_state('current_slide', '0')
-    return jsonify({"success": True})
 
-@sace_bp.route('/sace/workshop/reset', methods=['POST'])
-@login_required
-def reset_workshop():
-    set_workshop_state('session_state', 'lobby')
-    set_workshop_state('current_slide', '0')
-    set_workshop_state('attendance_count', '0')
-    SaceWorkshopInteraction.query.filter_by(workshop_session_id='demo-session-1', activity_slug='participant_joined').delete()
-    db.session.commit()
-    return jsonify({"success": True})
 
 
 @sace_bp.route('/sace/workshop/start', methods=['POST'])
@@ -194,6 +179,8 @@ def live_stats():
 @login_required
 def facilitator_dashboard():
     return render_template('program_sace/facilitator_dashboard.html')
+
+
 
 
 

@@ -272,14 +272,7 @@ def participant_onboarding():
     from app.extensions import db
     from app.models.sace import SaceWorkshopInteraction
     
-    # 1. If Evaluator/Admin, route them to the main Hub
-    from app.models.auth import ApprovedAdmin
-    is_eval = ApprovedAdmin.query.filter(db.func.lower(ApprovedAdmin.email) == current_user.email.lower()).first() is not None
-            
-    if is_eval:
-        return redirect(url_for('sace_bp.reading_hub'))
-
-    # 2. Check if they already entered their SACE number
+    # Check if they already entered their SACE number
     interaction = SaceWorkshopInteraction.query.filter_by(
         user_id=current_user.id, 
         activity_slug='sace_number'

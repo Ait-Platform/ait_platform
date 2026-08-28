@@ -1291,8 +1291,14 @@ def bridge_dashboard():
             return redirect(url_for('home_bp.learner_dashboard'))
         elif slug == 'billing':
             return redirect(url_for('billing_bp.learner_dashboard'))
-        elif 'sace' in slug or 'cptd' in slug:
+        elif slug == 'sace_evaluator':
+            return redirect(url_for('sace_bp.reading_hub'))
+        elif slug == 'sace_facilitator':
+            return redirect(url_for('sace_bp.facilitator_dashboard'))
+        elif slug == 'sace_participant':
             return redirect(url_for('sace_bp.participant_onboarding'))
+        elif slug == 'cptd':
+            return redirect(url_for('cptd_bp.hub'))
         elif slug == 'mechanic':
             return redirect(url_for('mechanic_bp.mechanic_dashboard'))
         elif slug == 'hds':

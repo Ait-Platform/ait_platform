@@ -30,10 +30,10 @@
                     <span id="slide-counter" class="text-sm font-bold text-slate-500 bg-slate-100 px-3 py-1 rounded-full">Lobby</span>
                 </div>
                 
-                <div class="bg-slate-900 border-[8px] border-slate-800 rounded-2xl w-full aspect-video relative overflow-hidden shadow-2xl">
+                <div class="bg-white border-[8px] border-slate-300 rounded-2xl w-full aspect-video relative overflow-hidden shadow-2xl">
                     
                     <!-- LOBBY SLIDE -->
-                    <div id="slide-lobby" class="slide-container absolute inset-0 flex flex-col items-center justify-center p-8 bg-slate-900 text-white rounded-xl text-center z-20">
+                    <div id="slide-lobby" class="slide-container absolute inset-0 flex flex-col items-center justify-center p-8 bg-white text-slate-800 rounded-xl text-center z-20">
                         <h2 class="text-4xl font-bold text-indigo-400 mb-4">Join the Room</h2>
                         <p class="text-xl text-slate-300 mb-8">Open your Participant App and enter PIN:</p>
                         <div class="text-[6rem] font-black tracking-widest text-white mb-8 border-4 border-indigo-500 px-12 py-4 rounded-xl bg-slate-800">8842</div>
@@ -41,7 +41,7 @@
                     </div>
 
                     <!-- Slide 0 (The Hook / Pre-test State) -->
-                    <div id="slide-0" class="slide-container absolute inset-0 flex flex-col items-center justify-center p-8 bg-slate-900 text-white rounded-xl text-center">
+                    <div id="slide-0" class="slide-container absolute inset-0 flex flex-col items-center justify-center p-8 bg-white text-slate-800 rounded-xl text-center">
                         <h2 class="text-4xl font-bold text-indigo-400 mb-8"><i class="fas fa-clipboard-check mr-3"></i>Welcome Activity</h2>
                         <p class="text-2xl text-slate-300 mb-6 font-semibold">Is there a crisis in reading in South Africa?</p>
                         <p class="text-lg text-slate-500 italic mb-8">Please log your answer on your Participant App to begin.</p>
@@ -55,13 +55,13 @@
                     <!-- Slide 1 -->
                     <div id="slide-1" class="slide-container absolute inset-0 hidden flex-col items-center justify-center">
                         <img src="{{ url_for('static', filename='sace_slides/1ReadingState.png') }}" class="max-h-full max-w-full object-contain" alt="Slide 1: Reading State">
-                        <audio class="hidden">
+                        <audio controls class="mt-4 mb-2 w-3/4 max-w-md shadow-sm rounded-full">
                             <source src="{{ url_for('static', filename='sace_slides/1_audio.wav') }}" type="audio/wav">
                         </audio>
                     </div>
 
                     <!-- Slide 2 (Live Survey Results) -->
-                    <div id="slide-2" class="slide-container absolute inset-0 hidden flex-col items-center justify-center p-8 bg-slate-900 text-white rounded-xl">
+                    <div id="slide-2" class="slide-container absolute inset-0 hidden flex-col items-center justify-center p-8 bg-white text-slate-800 rounded-xl">
                         <h2 class="text-3xl font-bold text-indigo-400 mb-8"><i class="fas fa-poll mr-3"></i>Live Room Data: Pre-Test</h2>
                         <p class="text-xl text-slate-300 mb-8 font-semibold">Q: Is there a crisis in reading in SA?</p>
                         
@@ -93,13 +93,13 @@
                     <!-- Slide 3 (The Problem) -->
                     <div id="slide-3" class="slide-container absolute inset-0 hidden flex-col items-center justify-center">
                         <img src="{{ url_for('static', filename='sace_slides/2Problem.png') }}" class="max-h-full max-w-full object-contain" alt="Slide 2: The Problem">
-                        <audio class="hidden">
+                        <audio controls class="mt-4 mb-2 w-3/4 max-w-md shadow-sm rounded-full">
                             <source src="{{ url_for('static', filename='sace_slides/2_audio.wav') }}" type="audio/wav">
                         </audio>
                     </div>
 
                     <!-- Slide 4 (Root Cause Poll Results) -->
-                    <div id="slide-4" class="slide-container absolute inset-0 hidden flex-col items-center justify-center p-8 bg-slate-900 text-white rounded-xl">
+                    <div id="slide-4" class="slide-container absolute inset-0 hidden flex-col items-center justify-center p-8 bg-white text-slate-800 rounded-xl">
                         <h2 class="text-3xl font-bold text-indigo-400 mb-8"><i class="fas fa-chart-bar mr-3"></i>Live Room Data: Root Cause</h2>
                         <p class="text-xl text-slate-300 mb-8 font-semibold">What is the biggest contributor to the reading crisis?</p>
                         <div class="w-full max-w-2xl space-y-6">
@@ -123,7 +123,7 @@
                     </div>
 
                     <!-- Slide 5 (Personal Reflection) -->
-                    <div id="slide-5" class="slide-container absolute inset-0 hidden flex-col items-center justify-center p-8 bg-slate-900 text-white rounded-xl">
+                    <div id="slide-5" class="slide-container absolute inset-0 hidden flex-col items-center justify-center p-8 bg-white text-slate-800 rounded-xl">
                         <h2 class="text-3xl font-bold text-indigo-400 mb-8"><i class="fas fa-chart-pie mr-3"></i>Live Room Data: Top Challenges</h2>
                         <p class="text-xl text-slate-300 mb-8 font-semibold text-center">Which reading challenge is most prevalent in your classroom?</p>
                         <div class="w-full max-w-4xl space-y-6">
@@ -147,7 +147,7 @@
                     </div>
 
                     <!-- Slide 6 (Guessing Game Results) -->
-                    <div id="slide-6" class="slide-container absolute inset-0 hidden flex-col items-center justify-center p-8 bg-slate-900 text-white rounded-xl text-center">
+                    <div id="slide-6" class="slide-container absolute inset-0 hidden flex-col items-center justify-center p-8 bg-white text-slate-800 rounded-xl text-center">
                         <h2 class="text-3xl font-bold text-indigo-400 mb-4"><i class="fas fa-exclamation-triangle mr-3"></i>The Harsh Reality</h2>
                         <p class="text-xl text-slate-300 mb-8 font-semibold">Percentage of Grade 4 learners who cannot read for meaning:</p>
                         <div class="text-[8rem] font-black text-rose-500 leading-none drop-shadow-lg mb-4">81%</div>
@@ -161,7 +161,7 @@
 
                     
                     <!-- Slide 8 (The English Family) -->
-                    <div id="slide-8" class="slide-container absolute inset-0 hidden flex-col items-center justify-center p-8 bg-slate-900 text-white rounded-xl">
+                    <div id="slide-8" class="slide-container absolute inset-0 hidden flex-col items-center justify-center p-8 bg-white text-slate-800 rounded-xl">
                         <h2 class="text-3xl font-bold text-indigo-300 mb-6 uppercase tracking-wider">Slide 8: The English Family</h2>
                         <p class="text-lg text-slate-300 max-w-2xl text-center mb-8">Once upon a time, there was a family with a very unique way of speaking...</p>
                         <div class="bg-indigo-900/50 p-6 rounded-lg max-w-xl text-center border border-indigo-700">
@@ -171,7 +171,7 @@
                     </div>
 
                     <!-- Slide 9 (Introducing the Vowels) -->
-                    <div id="slide-9" class="slide-container absolute inset-0 hidden flex-col items-center justify-center p-8 bg-slate-900 text-white rounded-xl border-4 border-rose-500">
+                    <div id="slide-9" class="slide-container absolute inset-0 hidden flex-col items-center justify-center p-8 bg-white text-slate-800 rounded-xl border-4 border-rose-500">
                         <h2 class="text-3xl font-bold text-rose-400 mb-2 uppercase tracking-wider">Slide 9: Game 1</h2>
                         <h3 class="text-xl text-slate-300 mb-6 italic">Kinesthetic Memory: The Vowel Hops</h3>
                         <p class="text-xl text-white font-black max-w-2xl text-center tracking-widest space-x-6 mb-8">
@@ -201,7 +201,7 @@
                     </div>
 
                     <!-- Slide 11 (Consonant Flashcards) -->
-                    <div id="slide-11" class="slide-container absolute inset-0 hidden flex-col items-center justify-center p-8 bg-slate-900 text-white rounded-xl border-4 border-emerald-500">
+                    <div id="slide-11" class="slide-container absolute inset-0 hidden flex-col items-center justify-center p-8 bg-white text-slate-800 rounded-xl border-4 border-emerald-500">
                         <h2 class="text-3xl font-bold text-emerald-400 mb-2 uppercase tracking-wider">Slide 11: Tactile Engagement</h2>
                         <h3 class="text-xl text-slate-300 mb-6 italic">Consonant Flashcards (10 Minutes)</h3>
                         <div class="bg-slate-800/80 p-6 rounded-lg max-w-xl text-center border border-slate-700 shadow-xl">
@@ -236,7 +236,7 @@
             <div class="flex flex-col">
                 <h2 class="text-xl font-bold mb-4 text-slate-800">Room Controls</h2>
                 
-                <div class="bg-slate-800 rounded-xl p-6 border border-slate-700 space-y-6 flex-grow text-white">
+                <div class="bg-white rounded-xl p-6 border border-slate-200 space-y-6 flex-grow text-slate-800 shadow-sm">
                     
                     <!-- LOBBY CONTROLS -->
                     <div id="controls-lobby" class="space-y-4">
@@ -358,14 +358,7 @@
             activeSlide.classList.add('flex');
         }
 
-        // Play audio 1 second after slide reveals
-        if (activeSlide) {
-            const audioEl = activeSlide.querySelector('audio');
-            if (audioEl) {
-                setTimeout(() => {
-                    audioEl.play().catch(e => console.log('Autoplay blocked by browser:', e));
-                }, 1000);
-            }
+        
         }
 
         // Update counter

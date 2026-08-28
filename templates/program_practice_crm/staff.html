@@ -55,7 +55,7 @@
             
             <div>
               <label class="block text-sm font-bold text-slate-700 mb-1">Email Address</label>
-              <input type="email" name="email" list="available-receptionists" autocomplete="off" required placeholder="e.g. sarah@cityhealth.com" class="w-full rounded border-2 border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 px-4 py-2 bg-white">
+              <input type="email" name="email" list="available-receptionists" autocomplete="new-password" required placeholder="e.g. sarah@cityhealth.com" class="w-full rounded border-2 border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 px-4 py-2 bg-white">
               <datalist id="available-receptionists">
                 {% for ar in available_receptionists %}
                 <option value="{{ ar.email }}">{{ ar.name or 'Unknown Name' }}</option>
@@ -65,7 +65,7 @@
             
             <div>
               <label class="block text-sm font-bold text-slate-700 mb-1">Temporary Password</label>
-              <input type="password" name="password" placeholder="Leave blank if already registered" class="w-full rounded border-2 border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 px-4 py-2 bg-white">
+              <input type="password" name="password" autocomplete="new-password" placeholder="Leave blank if already registered" class="w-full rounded border-2 border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 px-4 py-2 bg-white">
             </div>
           </div>
           

@@ -40,15 +40,16 @@
             headers: {'X-CSRFToken': csrfToken, 'Content-Type': 'application/json'},
             body: JSON.stringify({pin: pin})
         })
-        .then(res => res.json())
-        .then(data => {
+        .then(res => {
+            // Regardless of backend response (success or 500 error), force the redirect 
+            // so the user never gets stuck on this screen during demo.
             localStorage.setItem('sace_joined', 'true'); 
-            window.location.href = '{{ url_for('sace_bp.interactive_workshop') }}';
+            window.location.href = "{{ url_for('sace_bp.interactive_workshop') }}";
         })
         .catch(err => {
-            // Assume success for demo if fetch fails
+            // Fallback for network failure
             localStorage.setItem('sace_joined', 'true'); 
-            window.location.href = '{{ url_for('sace_bp.interactive_workshop') }}';
+            window.location.href = "{{ url_for('sace_bp.interactive_workshop') }}";
         });
     }
 </script>

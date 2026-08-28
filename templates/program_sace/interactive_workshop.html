@@ -1,4 +1,4 @@
-﻿{% extends "layout.html" %}
+{% extends "layout.html" %}
 
 {% block title %}LiTRE Participant App{% endblock %}
 
@@ -480,7 +480,7 @@
             // Build the result screen
             const container = document.getElementById('assessment-result-container');
             if (passed) {
-                container.innerHTML = 
+                container.innerHTML = `
                     <div class="h-20 w-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
                         <i class="fas fa-check text-4xl text-green-600"></i>
                     </div>
@@ -492,9 +492,9 @@
                         <p class="text-sm text-slate-700"><i class="fas fa-file-certificate text-indigo-500 mr-2"></i> Your official SACE certificate is being generated based on your attendance and this final assessment result.</p>
                     </div>
                     <p class="text-slate-500 italic text-sm">Please wait for the facilitator to conclude the workshop.</p>
-                ;
+                `;
             } else {
-                container.innerHTML = 
+                container.innerHTML = `
                     <div class="h-20 w-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
                         <i class="fas fa-times text-4xl text-red-600"></i>
                     </div>
@@ -502,7 +502,7 @@
                     <p class="text-4xl font-bold text-slate-800 mb-2">%</p>
                     <p class="text-slate-600 mb-6 text-sm">Score:  / </p>
                     <p class="text-sm text-slate-700 mb-6">You did not meet the 70% requirement. Please speak with your facilitator.</p>
-                ;
+                `;
             }
             
             // Advance view locally so they see it instantly (or wait for slide 17)

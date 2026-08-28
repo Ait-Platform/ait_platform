@@ -308,18 +308,22 @@
 
     
         function resetWorkshop() {
-            if(confirm("Are you sure you want to completely reset the room? This will clear all attendees, erase all poll data, and kick everyone back to the PIN screen.")) {
-                const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content'); 
-                fetch('/sace/workshop/reset', {
-                    method: 'POST',
-                    headers: {'X-CSRFToken': csrfToken}
+        if(confirm('End workshop?')) {
+            sessionState = 'lobby'; 
+            currentSlide = 0; 
+            updateView();
+        }
+    }
                 })
                 .then(() => location.reload());
             }
         }
 
         function startWorkshop() {
-        fetch('/sace/workshop/start', {method: 'POST', headers: {'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')}})
+        sessionState = 'active'; 
+        currentSlide = 1; 
+        updateView();
+    }})
             .then(() => fetchState());
     }
 

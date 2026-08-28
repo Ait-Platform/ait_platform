@@ -1,4 +1,4 @@
-
+﻿
 from flask import render_template, request, redirect, url_for, flash, abort, session
 from flask_login import current_user, login_required
 from sqlalchemy import text
@@ -800,3 +800,31 @@ def mock_bill():
     token_balance = wallet.balance if wallet else 0
         
     return render_template("program_practice_crm/mock_bill.html", practice=practice, token_balance=token_balance)
+
+@practice_crm_bp.route("/my-account", methods=["GET", "POST"])
+@login_required
+def my_account():
+    if request.method == "POST":
+        email = request.form.get("email", "").strip().lower()
+        name = request.form.get("name", "").strip()
+        password = request.form.get("password", "")
+        
+        if email and email != current_user.email:
+            existing = User.query.filter_by(email=email).first()
+            if existing:
+                flash("That email address is already in use by another account.", "error")
+                return redirect(url_for("practice_crm_bp.my_account"))
+            current_user.email = email
+            
+        if name:
+            current_user.name = name
+            
+        if password:
+            current_user.set_password(password)
+            
+        db.session.commit()
+        flash("Your account settings have been successfully updated.", "success")
+        return redirect(url_for("practice_crm_bp.my_account"))
+        
+    return render_template("program_practice_crm/my_account.html")
+

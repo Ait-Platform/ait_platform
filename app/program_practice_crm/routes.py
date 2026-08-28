@@ -288,8 +288,8 @@ def staff():
         user = User.query.filter_by(email=email).first()
         
         if not user:
-            if not password:
-                flash(f"A password is required to create a new account for {email}.", "error")
+            if not password or len(password) < 8:
+                flash(f"A temporary password of at least 8 characters is required to create a new account for {email}.", "error")
                 return redirect(url_for('practice_crm_bp.staff'))
             
             user = User(email=email, name=name, is_active=1)
@@ -347,6 +347,14 @@ def staff_edit(pu_id):
     if user:
         user.name = request.form.get("name", "").strip()
         pu.phone = request.form.get("phone", "").strip()
+        
+        new_pw = request.form.get("password", "")
+        if new_pw:
+            if len(new_pw) < 8:
+                flash("Password must be at least 8 characters.", "error")
+                return redirect(url_for('practice_crm_bp.staff'))
+            user.set_password(new_pw)
+            
         db.session.commit()
         flash("Receptionist details updated.", "success")
         

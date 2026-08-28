@@ -300,7 +300,7 @@
             btn.classList.replace('bg-amber-500', 'bg-slate-700');
             btn.classList.replace('hover:bg-amber-600', 'hover:bg-slate-600');
             btn.innerHTML = '<i class="fas fa-user-shield mr-2"></i>Evaluator Mode';
-            fetchState();
+            
         }
     }
 
@@ -325,62 +325,10 @@
 
 
 
-        function fetchState() {
-        if(evaluatorMode) return;
-        fetch('/sace/workshop/get_state')
-            .then(res => res.json())
-            .then(data => {
-                let changed = false;
-                if(sessionState !== data.status) {
-                    sessionState = data.status;
-                    changed = true;
-                }
-                if(currentSlide !== data.slide) {
-                    currentSlide = data.slide;
-                    changed = true;
-                }
-                
-                // Update counters
-                const attCounter = document.getElementById('attendance-counter');
-                if (attCounter) attCounter.innerText = data.attendance;
-                const permCounter = document.getElementById('permanent-counter');
-                if (permCounter) permCounter.innerText = data.attendance;
-                
-                // Update Roster Modal
-                const rosterList = document.getElementById('roster-list');
-                if (rosterList && data.roster) {
-                    if (data.roster.length === 0) {
-                        rosterList.innerHTML = '<li class="p-6 text-center text-gray-400 text-sm italic">No participants have checked in yet.</li>';
-                    } else {
-                        rosterList.innerHTML = data.roster.map(name => '<li class="p-4 px-6 flex items-center bg-white"><div class="h-8 w-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-sm mr-4"><i class="fas fa-user"></i></div><span class="font-semibold text-gray-700">' + name + '</span></li>').join('');
-                    }
-                }
-                
-                // Update Poll Data Dynamically
-                if (data.poll_data) {
-                    const totalVotes = data.poll_data.root_cause.resources + data.poll_data.root_cause.class_size + data.poll_data.root_cause.language + data.poll_data.root_cause.methods;
-                    if (totalVotes > 0) {
-                        const resPct = Math.round((data.poll_data.root_cause.resources / totalVotes) * 100);
-                        const classPct = Math.round((data.poll_data.root_cause.class_size / totalVotes) * 100);
-                        const langPct = Math.round((data.poll_data.root_cause.language / totalVotes) * 100);
-                        const methPct = Math.round((data.poll_data.root_cause.methods / totalVotes) * 100);
-                        
-                        if(document.getElementById('poll-res')) document.getElementById('poll-res').style.width = resPct + '%';
-                        if(document.getElementById('poll-class')) document.getElementById('poll-class').style.width = classPct + '%';
-                        if(document.getElementById('poll-lang')) document.getElementById('poll-lang').style.width = langPct + '%';
-                        if(document.getElementById('poll-meth')) document.getElementById('poll-meth').style.width = methPct + '%';
-                    }
-                }
-                
-                if (changed) {
-                    updateView();
-                }
-            });
-    }
-
+        
 
     // Auto-poll state every 2 seconds to get live attendance
-    setInterval(fetchState, 2000);
+    
 
     function updateView() {
         // Pause any currently playing audio
@@ -429,15 +377,13 @@
         
     }
 
-    function prevSlide() { if(currentSlide > 0) { currentSlide--; fetch('/sace/workshop/set_slide', {method: 'POST', headers: {'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')}, body: JSON.stringify({slide: currentSlide})}); updateView(); }
-    }
+    function prevSlide() { if(currentSlide > 0) { currentSlide--; updateView(); } }
 
-    function nextSlide() { if(currentSlide < totalSlides) { currentSlide++; fetch('/sace/workshop/set_slide', {method: 'POST', headers: {'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')}, body: JSON.stringify({slide: currentSlide})}); updateView(); }
-    }
+    function nextSlide() { if(currentSlide < totalSlides) { currentSlide++; updateView(); } }
     
     // Initialize
     updateView();
-    fetchState();
+    
 </script>
 <!-- Roster Modal -->
 <div id="roster-modal" class="hidden fixed inset-0 bg-slate-900/80 z-50 flex items-center justify-center">

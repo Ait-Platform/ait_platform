@@ -273,12 +273,8 @@ def participant_onboarding():
     from app.models.sace import SaceWorkshopInteraction
     
     # 1. If Evaluator/Admin, route them to the main Hub
-    # Safe admin check:
-    is_eval = False
-    for r in current_user.user_roles:
-        if r.role and r.role.slug == 'admin':
-            is_eval = True
-            break
+    from app.models.auth import ApprovedAdmin
+    is_eval = ApprovedAdmin.query.filter(db.func.lower(ApprovedAdmin.email) == current_user.email.lower()).first() is not None
             
     if is_eval:
         return redirect(url_for('sace_bp.reading_hub'))

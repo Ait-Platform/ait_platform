@@ -1,6 +1,30 @@
 {% extends "layout.html" %}
 
-{% block title %}LiTRE Participant App{% endblock %}
+{% block title %}LiTRE Participant App
+    <!-- Self-Paced Navigation Controls -->
+    <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-[60] flex justify-between items-center">
+        <button onclick="changeSlide(-1)" class="px-6 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition">
+            <i class="fas fa-arrow-left mr-2"></i> Previous
+        </button>
+        <div class="text-slate-500 font-bold text-sm tracking-widest uppercase">
+            Step <span id="nav-step">1</span> of 18
+        </div>
+        <button onclick="changeSlide(1)" class="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition shadow-md">
+            Next <i class="fas fa-arrow-right ml-2"></i>
+        </button>
+    </div>
+    
+    <script>
+    function changeSlide(dir) {
+        currentSlide += dir;
+        if(currentSlide < 0) currentSlide = 0;
+        if(currentSlide > 18) currentSlide = 18;
+        document.getElementById('nav-step').innerText = currentSlide || 1;
+        updateView();
+    }
+    </script>
+
+{% endblock %}
 
 {% block content %}
 <div class="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100 min-h-[80vh] flex flex-col">
@@ -317,8 +341,8 @@
 
 <script>
     let currentSlide = 0;
-    let sessionState = 'unknown';
-    let hasJoinedLocally = localStorage.getItem('sace_joined') === 'true';
+    let sessionState = 'active';
+    let hasJoinedLocally = true;
 
     let evaluatorMode = false;
     function toggleEvaluatorMode() {
@@ -398,29 +422,7 @@
         if(activeView) activeView.classList.remove('hidden');
     }
 
-    // Sync with facilitator
-    setInterval(() => {
-        if (evaluatorMode) return;
-        if(evaluatorMode) return;
-        fetch('/sace/workshop/get_state')
-            .then(res => res.json())
-            .then(data => {
-                let changed = false;
-                if(data.status !== sessionState) {
-                    if(sessionState === 'active' && data.status === 'lobby') { 
-                        hasJoinedLocally = false; 
-                        localStorage.removeItem('sace_joined'); 
-                    }
-                    sessionState = data.status;
-                    changed = true;
-                }
-                if(data.slide !== currentSlide) {
-                    currentSlide = data.slide;
-                    changed = true;
-                }
-                if(changed) updateView();
-            });
-    }, 1000);
+        }, 1000);
 
     
     function submitPoll(pollId, answer, btn) {
@@ -573,6 +575,30 @@
     </div>
 </div>
 
+
+
+    <!-- Self-Paced Navigation Controls -->
+    <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-[60] flex justify-between items-center">
+        <button onclick="changeSlide(-1)" class="px-6 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition">
+            <i class="fas fa-arrow-left mr-2"></i> Previous
+        </button>
+        <div class="text-slate-500 font-bold text-sm tracking-widest uppercase">
+            Step <span id="nav-step">1</span> of 18
+        </div>
+        <button onclick="changeSlide(1)" class="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition shadow-md">
+            Next <i class="fas fa-arrow-right ml-2"></i>
+        </button>
+    </div>
+    
+    <script>
+    function changeSlide(dir) {
+        currentSlide += dir;
+        if(currentSlide < 0) currentSlide = 0;
+        if(currentSlide > 18) currentSlide = 18;
+        document.getElementById('nav-step').innerText = currentSlide || 1;
+        updateView();
+    }
+    </script>
 
 {% endblock %}
 

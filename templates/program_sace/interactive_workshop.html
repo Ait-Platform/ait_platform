@@ -342,7 +342,7 @@
 <script>
     let currentSlide = 0;
     let sessionState = 'active';
-    let hasJoinedLocally = true;
+    
 
     let evaluatorMode = false;
     function toggleEvaluatorMode() {
@@ -388,10 +388,7 @@
 
     
     function updateView() {
-        if (!hasJoinedLocally) {
-            window.location.href = '/sace/participant/join';
-            return;
-        }
+        
 
         if (sessionState === 'lobby') {
             document.querySelectorAll('.app-view').forEach(el => el.classList.add('hidden'));

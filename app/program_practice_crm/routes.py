@@ -288,15 +288,8 @@ def staff():
         user = User.query.filter_by(email=email).first()
         
         if not user:
-            if not password or len(password) < 8:
-                flash(f"A temporary password of at least 8 characters is required to create a new account for {email}.", "error")
-                return redirect(url_for('practice_crm_bp.staff'))
-            
-            user = User(email=email, name=name, is_active=1)
-            user.set_password(password)
-            db.session.add(user)
-            db.session.flush() # flush to get user.id
-            flash(f"Successfully created a new account for {name}.", "success")
+            flash(f"No account found for {email}. Please use the WhatsApp Invite tool below to invite them to register first.", "error")
+            return redirect(url_for('practice_crm_bp.staff'))
             
         else:
             # If user exists but name was provided, maybe update it? Or just leave it.
@@ -348,12 +341,7 @@ def staff_edit(pu_id):
         user.name = request.form.get("name", "").strip()
         pu.phone = request.form.get("phone", "").strip()
         
-        new_pw = request.form.get("password", "")
-        if new_pw:
-            if len(new_pw) < 8:
-                flash("Password must be at least 8 characters.", "error")
-                return redirect(url_for('practice_crm_bp.staff'))
-            user.set_password(new_pw)
+
             
         db.session.commit()
         flash("Receptionist details updated.", "success")

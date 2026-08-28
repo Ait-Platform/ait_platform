@@ -273,9 +273,6 @@ def participant_onboarding():
     from app.models.sace import SaceWorkshopInteraction
     
     # 1. If Evaluator/Admin, route them to the main Hub
-    if current_user.is_admin_global():  # using is_admin_global() or similar? Let's just check roles
-        pass # we will do a safe check
-    
     # Safe admin check:
     is_eval = False
     for r in current_user.user_roles:

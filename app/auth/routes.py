@@ -1258,6 +1258,18 @@ def bridge_dashboard():
 
     banner = session.pop("payment_banner", None)
     
+    # Inject CRM Receptionist Access
+    if user_obj:
+        try:
+            from app.models.practice_crm import CrmPracticeUser
+            is_crm_staff = CrmPracticeUser.query.filter_by(user_id=user_obj.id, status='active').first()
+            if is_crm_staff and not any(getattr(r, 'slug', '') == 'practice_crm' for r in rows):
+                from types import SimpleNamespace
+                rows.append(SimpleNamespace(id=999, slug='practice_crm', name='Practice CRM', access_level='enrolled'))
+        except Exception:
+            pass
+
+    
     # Bypass bridge dashboard if they only have 1 enrollment
     force_bridge = request.args.get('force') == '1'
     is_admin = any(getattr(r, 'access_level', '') == 'admin' for r in rows)

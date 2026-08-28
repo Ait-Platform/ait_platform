@@ -319,6 +319,7 @@
         sessionState = 'active'; 
         currentSlide = 1; 
         updateView();
+        fetch('/sace/workshop/start', {method: 'POST', headers: {'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')}});
     }
 
 
@@ -368,9 +369,9 @@
         
     }
 
-    function prevSlide() { if(currentSlide > 0) { currentSlide--; updateView(); } }
+    function prevSlide() { if(currentSlide > 0) { currentSlide--; updateView(); fetch('/sace/workshop/set_slide', {method: 'POST', headers: {'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')}, body: JSON.stringify({slide: currentSlide})}); } }
 
-    function nextSlide() { if(currentSlide < totalSlides) { currentSlide++; updateView(); } }
+    function nextSlide() { if(currentSlide < totalSlides) { currentSlide++; updateView(); fetch('/sace/workshop/set_slide', {method: 'POST', headers: {'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')}, body: JSON.stringify({slide: currentSlide})}); } }
     
     // Initialize
     updateView();

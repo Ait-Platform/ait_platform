@@ -288,8 +288,12 @@ def staff():
         user = User.query.filter_by(email=email).first()
         
         if not user:
-            flash(f"No account found for {email}. Please use the WhatsApp Invite tool below to invite them to register first.", "error")
-            return redirect(url_for('practice_crm_bp.staff'))
+            # Auto-create with default password
+            user = User(email=email, name=name, is_active=1)
+            user.set_password('12345678')
+            db.session.add(user)
+            db.session.flush() # flush to get user.id
+            flash(f"Successfully created a new account for {name} with default password 12345678.", "success")
             
         else:
             # If user exists but name was provided, maybe update it? Or just leave it.

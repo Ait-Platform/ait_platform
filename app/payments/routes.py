@@ -265,3 +265,11 @@ def wallet_checkout():
     checkout_subject = f"{subject_slug}_topup"
     
     return redirect(url_for('paystack_bp.paystack_start', subject=checkout_subject, email=current_user.email))
+
+
+@quote_bp.route("/pricing/franchise-fork/<subject>")
+def franchise_fork(subject):
+    from app.models.auth import AuthSubject
+    subj_obj = AuthSubject.query.filter_by(slug=subject).first()
+    subject_name = subj_obj.name if subj_obj else subject.replace('_', ' ').title()
+    return render_template("payments/franchise_fork.html", subject=subject, subject_name=subject_name)

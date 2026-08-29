@@ -1,0 +1,97 @@
+﻿{% extends "layout.html" %}
+
+{% block title %}Enrollment Type: {{ subject_name }}{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-4xl mt-12 mb-16 px-4">
+    <div class="text-center mb-10">
+        <h1 class="text-4xl font-extrabold text-slate-900 mb-4">Choose Your Enrollment Type</h1>
+        <p class="text-lg text-slate-600">You are registering for <strong>{{ subject_name }}</strong>. Are you a solo learner, or are you bringing a class?</p>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-8">
+        
+        <!-- SOLO LEARNER -->
+        <div class="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden flex flex-col hover:shadow-xl transition transform hover:-translate-y-1">
+            <div class="h-3 w-full bg-slate-400"></div>
+            <div class="p-8 flex flex-col flex-grow">
+                <div class="h-16 w-16 bg-slate-100 text-slate-600 rounded-2xl flex items-center justify-center font-bold text-3xl mb-6 shadow-sm"><i class="fas fa-user-graduate"></i></div>
+                <h2 class="text-2xl font-bold text-slate-900 mb-2">Solo Participant</h2>
+                <p class="text-slate-600 mb-6 flex-grow">I am enrolling just for myself. I want to access the Participant Board to take this activity.</p>
+                <div class="bg-slate-50 p-4 rounded-lg mb-8 border border-slate-100">
+                    <ul class="text-sm text-slate-600 space-y-2">
+                        <li><i class="fas fa-check text-green-500 mr-2"></i> Single License</li>
+                        <li><i class="fas fa-check text-green-500 mr-2"></i> Standard Pricing</li>
+                        <li><i class="fas fa-check text-green-500 mr-2"></i> Instant Participant Access</li>
+                    </ul>
+                </div>
+                <a href="{{ url_for('quote_bp.quote', subject=subject) }}" class="w-full block text-center py-4 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl shadow-md transition text-lg">
+                    Continue as Solo
+                </a>
+            </div>
+        </div>
+
+        <!-- MICRO-FRANCHISE (FACILITATOR) -->
+        <div class="bg-white rounded-2xl shadow-2xl border-2 border-indigo-500 overflow-hidden flex flex-col hover:shadow-3xl transition transform hover:-translate-y-1 relative">
+            <div class="absolute top-0 right-0 bg-indigo-600 text-white text-xs font-bold px-4 py-1 rounded-bl-xl uppercase tracking-wider shadow-sm">
+                50% Bulk Discount
+            </div>
+            <div class="h-3 w-full bg-indigo-600"></div>
+            <div class="p-8 flex flex-col flex-grow">
+                <div class="h-16 w-16 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center font-bold text-3xl mb-6 shadow-sm"><i class="fas fa-chalkboard-teacher"></i></div>
+                <h2 class="text-2xl font-bold text-slate-900 mb-2">Micro-Franchise (Facilitator)</h2>
+                <p class="text-slate-600 mb-6 flex-grow">I want to host this workshop for my class. I will purchase seats for my students and control the presentation.</p>
+                
+                <!-- Bulk Calculator -->
+                <div class="bg-indigo-50 border border-indigo-200 p-5 rounded-xl mb-8">
+                    <label class="block text-sm font-bold text-indigo-900 mb-2">How many students in your class?</label>
+                    <div class="flex items-center">
+                        <input type="number" id="seatCount" min="5" value="20" class="w-24 text-center rounded-l-lg border-indigo-300 focus:ring-indigo-500 focus:border-indigo-500 text-lg font-bold text-indigo-900 py-3" onchange="updateCalc()">
+                        <div class="bg-white border border-l-0 border-indigo-300 rounded-r-lg px-4 py-3 flex-grow text-center text-sm font-semibold text-slate-600">
+                            Students
+                        </div>
+                    </div>
+                    <div class="mt-4 flex justify-between items-center text-sm">
+                        <span class="text-slate-500">Standard Price:</span>
+                        <span class="line-through text-slate-400 font-bold" id="calcStandard">ZAR 3000</span>
+                    </div>
+                    <div class="flex justify-between items-center mt-1">
+                        <span class="text-indigo-800 font-bold">Your Price (50% Off):</span>
+                        <span class="text-2xl font-black text-emerald-600" id="calcDiscount">ZAR 1500</span>
+                    </div>
+                </div>
+
+                <a href="#" id="franchiseCheckoutBtn" onclick="checkoutFranchise()" class="w-full block text-center py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-md transition text-lg">
+                    Buy Classroom License
+                </a>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+const basePrice = 150; // ZAR base price per seat
+
+function updateCalc() {
+    let seats = parseInt(document.getElementById('seatCount').value);
+    if(isNaN(seats) || seats < 1) seats = 1;
+    
+    let standard = seats * basePrice;
+    let discounted = standard * 0.5;
+    
+    document.getElementById('calcStandard').innerText = "ZAR " + standard;
+    document.getElementById('calcDiscount').innerText = "ZAR " + discounted;
+}
+
+function checkoutFranchise() {
+    let seats = parseInt(document.getElementById('seatCount').value);
+    if(isNaN(seats) || seats < 1) seats = 1;
+    // Route them to quote but with franchise params
+    window.location.href = "{{ url_for('quote_bp.quote', subject=subject) }}?mode=franchise&seats=" + seats;
+}
+
+// init
+updateCalc();
+</script>
+{% endblock %}

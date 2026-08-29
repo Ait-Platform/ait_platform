@@ -2307,8 +2307,7 @@ def franchise_register_students():
         
     # parse emails
     import re
-    email_list = [e.strip().lower() for e in re.split(r'[,;
-\s]+', emails_raw) if e.strip()]
+    email_list = [e.strip().lower() for e in re.split(r'[,;\s\n]+', emails_raw) if e.strip()]
     email_list = list(set(email_list)) # remove duplicates
     
     if not email_list:

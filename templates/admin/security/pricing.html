@@ -12,7 +12,7 @@
         <form id="subjectForm" method="GET" action="{{ url_for('admin_bp.manage_pricing') }}">
             <select name="subject_id" onchange="document.getElementById('subjectForm').submit()" class="w-full md:w-64 border border-slate-300 rounded-md shadow-sm p-2 focus:ring-2 focus:ring-teal-500 outline-none" autofocus>
                 {% for s in subjects %}
-                    <option value="{{ s.id }}" {% if s.id == selected_subject_id %}selected{% endif %}>{{ s.name }}</option>
+                    <option value="{{ s.id }}" {% if s.id == selected_subject_id %}selected{% endif %}>{{ s.name }} (ID: {{ s.id }} | Slug: {{ s.slug }})</option>
                 {% endfor %}
             </select>
         </form>

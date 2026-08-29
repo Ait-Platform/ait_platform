@@ -321,3 +321,12 @@ def catalog():
 @login_required
 def selection_hub(activity_slug):
     return render_template('program_sace/sace_selection_hub.html', activity_slug=activity_slug)
+
+@sace_bp.route("/sace/reading/simulator")
+@login_required
+def simulator():
+    from app.models.sace import SaceDocument
+    docs = SaceDocument.query.filter_by(slug='reading').all()
+    doc_dict = {d.document_type: d for d in docs}
+    
+    return render_template("program_sace/simulator.html", docs=doc_dict)

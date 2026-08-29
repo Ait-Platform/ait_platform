@@ -230,6 +230,8 @@ def welcome():
                 subj.about_url = url_for(subj.about_endpoint)
             except BuildError:
                 subj.about_url = None
+        else:
+            subj.about_url = url_for('auth_bp.register', subject=subj.slug)
 
     #print(settings)
 

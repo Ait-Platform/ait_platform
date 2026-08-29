@@ -259,12 +259,15 @@ def sace_management():
                 db.session.add(user)
                 db.session.commit()
                 
-                # Grant robust AuthSubjectAdmin rights to ALL sace_ subjects
+                # Grant robust AuthSubjectAdmin rights to ONLY the selected SACE subject
                 from app.models.auth import AuthSubjectAdmin
-                sace_subjects = AuthSubject.query.filter(AuthSubject.slug.like('sace_%')).all()
-                if not sace_subjects:
-                    flash('No SACE subjects found in the database to grant access to.', 'error')
+                assigned_slug = request.form.get('assigned_subject_slug')
+                
+                target_subject = AuthSubject.query.filter_by(slug=assigned_slug).first()
+                if not target_subject:
+                    flash(f'The selected SACE activity ({assigned_slug}) was not found in the database.', 'error')
                 else:
+                    # Optional: still enroll them in sace_hub for legacy dashboard access if needed
                     if sace_subject:
                         enrollment = UserEnrollment(
                             user_id=user.id,
@@ -273,12 +276,11 @@ def sace_management():
                         )
                         db.session.add(enrollment)
                         
-                    for s_subj in sace_subjects:
-                        admin_grant = AuthSubjectAdmin(email=email, subject_id=s_subj.id)
-                        db.session.add(admin_grant)
+                    admin_grant = AuthSubjectAdmin(email=email, subject_id=target_subject.id)
+                    db.session.add(admin_grant)
                         
                     db.session.commit()
-                    flash(f'Created SACE personnel account for {email} and granted SACE-wide admin access.', 'success')
+                    flash(f'Created SACE personnel account for {email} and granted access strictly to {target_subject.name}.', 'success')
                     
         elif action == 'upload_document':
             slug = request.form.get('slug')

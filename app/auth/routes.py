@@ -506,16 +506,7 @@ def register_decision():
     # ---------- END FREE SPECIAL CASE ----------
 
     # ---------- WALLET TOKEN SUBJECTS (NO REGISTRATION FEE, USES WALLET BALANCE) ----------
-    ctx_country = (session.get("reg_ctx", {}).get("country_code") or request.headers.get("CF-IPCountry", "ZA")).upper()
-    is_sace = subject in ("sace", "sace_hub", "sace_evaluator", "sace_facilitator", "sace_participant")
-    
-    is_free = False
     if subject in ("cultural_fire", "culturalfire", "debtors", "mechanic", "cptd"):
-        is_free = True
-    elif is_sace and ctx_country == "ZA":
-        is_free = True
-
-    if is_free:
         mark_loss_enrollment_free(enrollment_id)
         session.pop("reg_ctx", None)
         session.pop("just_paid_subject_id", None)
@@ -527,8 +518,11 @@ def register_decision():
             return redirect(url_for("debtors_bp.debtors_router"))
         elif subject == "mechanic":
             return redirect(url_for("mechanic_bp.mechanic_dashboard"))
-        elif subject == "cptd" or "sace" in subject:
+        elif subject == "cptd":
             return redirect(url_for("sace_bp.catalog"))
+        elif subject.startswith("sace_"):
+            activity = subject.replace("sace_", "")
+            return redirect(url_for("sace_bp.selection_hub", activity_slug=activity))
 
     # ---------- SPECIAL CASE: MECHANIC FLAT ZAR REGISTRATION ----------
     if subject == "mechanic":
@@ -1300,8 +1294,11 @@ def bridge_dashboard():
             return redirect(url_for('home_bp.learner_dashboard'))
         elif slug == 'billing':
             return redirect(url_for('billing_bp.learner_dashboard'))
-        elif slug == 'cptd' or 'sace' in slug:
+        elif slug == 'cptd':
             return redirect(url_for('sace_bp.catalog'))
+        elif slug.startswith('sace_'):
+            activity = slug.replace('sace_', '')
+            return redirect(url_for('sace_bp.selection_hub', activity_slug=activity))
         elif slug == 'mechanic':
             return redirect(url_for('mechanic_bp.mechanic_dashboard'))
         elif slug == 'hds':

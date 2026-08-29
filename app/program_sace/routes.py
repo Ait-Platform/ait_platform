@@ -298,7 +298,6 @@ def participant_onboarding():
     return render_template('program_sace/onboarding.html')
 
 @sace_bp.route('/sace/catalog')
-@login_required
 def catalog():
     activities = [
         {

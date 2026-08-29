@@ -265,9 +265,9 @@ def reviewer_guide():
     return render_template('program_sace/reviewer_guide.html')
 
 
-@sace_bp.route('/sace/participant/onboarding', methods=['GET', 'POST'])
+@sace_bp.route('/sace/participant/<activity_slug>/onboarding', methods=['GET', 'POST'])
 @login_required
-def participant_onboarding():
+def participant_onboarding(activity_slug):
     from flask_login import current_user
     from app.extensions import db
     from app.models.sace import SaceWorkshopInteraction
@@ -295,7 +295,7 @@ def participant_onboarding():
         else:
             flash("Please enter a valid SACE Registration Number.", "danger")
             
-    return render_template('program_sace/onboarding.html')
+    return render_template('program_sace/onboarding.html', activity_slug=activity_slug)
 
 @sace_bp.route('/sace/catalog')
 def catalog():

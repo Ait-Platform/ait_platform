@@ -318,10 +318,12 @@ def selection_hub(activity_slug):
 def enroll(activity_slug):
     from flask import request, session, redirect, url_for, render_template, g
     from app.payments.pricing import price_for_country
+    from app.models.auth import AuthSubject
     
     subject = f"sace_{activity_slug}"
+    subject_obj = AuthSubject.query.filter_by(slug=subject).first()
     country = getattr(g, "country_iso2", "ZA")
-    price_info = price_for_country(country, subject)
+    price_info = price_for_country(subject_obj.id if subject_obj else 0, country)
     
     if request.method == 'POST':
         action = request.form.get("action") # 'pay' or 'voucher'

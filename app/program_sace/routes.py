@@ -297,7 +297,20 @@ def participant_onboarding():
             
     return render_template('program_sace/onboarding.html')
 
-@sace_bp.route('/sace/hub')
+@sace_bp.route('/sace/catalog')
 @login_required
-def selection_hub():
-    return render_template('program_sace/sace_selection_hub.html')
+def catalog():
+    activities = [
+        {
+            "slug": "reading",
+            "name": "Litre Reading Workshop",
+            "desc": "Interactive reading methodology for early childhood development.",
+            "icon": "fa-book-open"
+        }
+    ]
+    return render_template('program_sace/sace_catalog.html', activities=activities)
+
+@sace_bp.route('/sace/hub/<activity_slug>')
+@login_required
+def selection_hub(activity_slug):
+    return render_template('program_sace/sace_selection_hub.html', activity_slug=activity_slug)

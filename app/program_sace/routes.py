@@ -296,3 +296,8 @@ def participant_onboarding():
             flash("Please enter a valid SACE Registration Number.", "danger")
             
     return render_template('program_sace/onboarding.html')
+
+@sace_bp.route('/sace/hub')
+@login_required
+def selection_hub():
+    return render_template('program_sace/sace_selection_hub.html')

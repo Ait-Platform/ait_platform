@@ -4,39 +4,54 @@
 
 {% block content %}
 <div class="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+    <!-- Tile Container -->
     <div class="max-w-md w-full bg-white rounded-2xl shadow-xl overflow-hidden">
-        <div class="bg-indigo-600 p-6 text-center">
-            <h2 class="text-3xl font-bold text-white mb-2">Welcome!</h2>
-            <p class="text-indigo-100">Let's get you set up for the workshop.</p>
-        </div>
+        
+        <!-- Color Strip matching subject (Teal for Teacher) -->
+        <div class="h-3 w-full bg-teal-600"></div>
         
         <div class="p-8">
+            <!-- Row 1: Title and Back Button -->
+            <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
+                <h1 class="text-2xl font-bold text-slate-800">Teacher Check-In</h1>
+                <a href="{{ url_for('sace_bp.selection_hub') }}" class="px-3 py-1.5 bg-slate-100 text-slate-700 hover:bg-slate-200 font-semibold rounded transition">
+                    <i class="fas fa-arrow-left mr-1"></i> Back
+                </a>
+            </div>
+            
+            <!-- Flash Messages INSIDE the tile -->
             {% with messages = get_flashed_messages(with_categories=true) %}
                 {% if messages %}
+                    <div class="mb-6">
                     {% for category, message in messages %}
-                        <div class="mb-4 p-4 rounded-lg bg-red-50 text-red-700 border border-red-200">
+                        <div class="p-4 rounded-lg bg-red-50 text-red-700 border border-red-200 mb-2">
                             {{ message }}
                         </div>
                     {% endfor %}
+                    </div>
                 {% endif %}
             {% endwith %}
             
             <form method="POST" action="{{ url_for('sace_bp.participant_onboarding') }}" class="space-y-6">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                
                 <div>
                     <label class="block text-slate-700 font-bold mb-2">SACE Registration Number</label>
                     <p class="text-sm text-slate-500 mb-4">Please enter your official SACE Registration Number below to ensure you receive your CPTD points for this workshop.</p>
-                    <input type="text" name="sace_number" required 
-                           class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-indigo-500 focus:ring focus:ring-indigo-200 outline-none transition text-lg"
+                    
+                    <!-- Textbox with outline and autofocus -->
+                    <input type="text" name="sace_number" required autofocus
+                           class="w-full px-4 py-3 border border-slate-300 rounded-xl focus:border-teal-500 focus:ring focus:ring-teal-200 outline-none transition text-lg text-slate-800 shadow-sm"
                            placeholder="e.g. 12345678">
                 </div>
                 
-                <button type="submit" class="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-lg shadow-md transition transform hover:-translate-y-0.5">
-                    Continue to Workshop <i class="fas fa-arrow-right ml-2"></i>
-                </button>
+                <!-- Row 2: Right-aligned buttons -->
+                <div class="flex justify-end pt-4 border-t border-slate-100">
+                    <button type="submit" class="px-6 py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl text-lg shadow-md transition transform hover:-translate-y-0.5">
+                        Join Workshop <i class="fas fa-arrow-right ml-2"></i>
+                    </button>
+                </div>
             </form>
-            
-
         </div>
     </div>
 </div>

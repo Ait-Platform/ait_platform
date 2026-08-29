@@ -1,0 +1,53 @@
+﻿{% extends "layout.html" %}
+{% block title %}{{ org.name }} - Resident Portal{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto px-4 mt-8 mb-16">
+    <div class="flex items-center justify-between mb-8 pb-4 border-b border-slate-200">
+        <div>
+            <span class="bg-indigo-100 text-indigo-800 text-xs px-2 py-1 rounded font-bold uppercase tracking-wide mb-2 inline-block">{{ org.name }}</span>
+            <h1 class="text-3xl font-extrabold text-slate-900">Resident Portal</h1>
+        </div>
+        <button class="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-sm transition flex items-center">
+            <i class="fas fa-plus mr-2"></i> Report Issue
+        </button>
+    </div>
+
+    {% include "partials/flash_messages.html" %}
+
+    <div class="grid md:grid-cols-3 gap-8">
+        <div class="md:col-span-2">
+            <h2 class="text-xl font-bold text-slate-900 mb-4">My Interactions</h2>
+            {% if interactions %}
+                <div class="space-y-4">
+                {% for ix in interactions %}
+                    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center">
+                        <div>
+                            <span class="text-xs font-bold text-slate-500 uppercase">{{ ix.reference }}</span>
+                            <h3 class="font-bold text-slate-900">{{ ix.title }}</h3>
+                            <p class="text-sm text-slate-600">{{ ix.created_at.strftime('%Y-%m-%d') }}</p>
+                        </div>
+                        <span class="px-3 py-1 text-xs font-bold rounded-full {% if ix.status == 'open' %}bg-amber-100 text-amber-800{% else %}bg-green-100 text-green-800{% endif %} uppercase tracking-wide">
+                            {{ ix.status }}
+                        </span>
+                    </div>
+                {% endfor %}
+                </div>
+            {% else %}
+                <div class="bg-slate-50 p-8 rounded-xl border border-slate-200 text-center">
+                    <p class="text-slate-500">You have no open issues or enquiries.</p>
+                </div>
+            {% endif %}
+        </div>
+        
+        <div>
+            <h2 class="text-xl font-bold text-slate-900 mb-4">Quick Links</h2>
+            <div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+                <a href="#" class="block p-4 border-b border-slate-100 hover:bg-slate-50 transition text-sm font-bold text-slate-700"><i class="fas fa-user-circle mr-2 text-slate-400"></i> My Profile</a>
+                <a href="#" class="block p-4 border-b border-slate-100 hover:bg-slate-50 transition text-sm font-bold text-slate-700"><i class="fas fa-envelope mr-2 text-slate-400"></i> My Communications</a>
+                <a href="#" class="block p-4 hover:bg-slate-50 transition text-sm font-bold text-slate-700"><i class="fas fa-file-pdf mr-2 text-slate-400"></i> My Documents</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -649,6 +649,9 @@ def create_app(test_config=None):
     #app.register_blueprint(checkout_bp)
     app.register_blueprint(cptd_bp)
     app.register_blueprint(public_bp)
+
+    from app.uip import uip_bp
+    app.register_blueprint(uip_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(reading_bp)
     app.register_blueprint(home_bp)

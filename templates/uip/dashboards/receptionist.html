@@ -1,0 +1,66 @@
+﻿{% extends "layout.html" %}
+{% block title %}{{ org.name }} - Virtual Reception{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto px-4 mt-8 mb-16">
+    <div class="flex items-center justify-between mb-8 pb-4 border-b border-slate-200">
+        <div>
+            <span class="bg-teal-100 text-teal-800 text-xs px-2 py-1 rounded font-bold uppercase tracking-wide mb-2 inline-block">Virtual Reception: {{ org.name }}</span>
+            <h1 class="text-3xl font-extrabold text-slate-900">Receptionist Dashboard</h1>
+        </div>
+    </div>
+
+    <div class="grid md:grid-cols-4 gap-6 mb-8">
+        <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+            <p class="text-sm font-bold text-slate-500 uppercase tracking-wide mb-1">New Enquiries</p>
+            <p class="text-3xl font-black text-slate-900">{{ open_interactions|length }}</p>
+        </div>
+        <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+            <p class="text-sm font-bold text-slate-500 uppercase tracking-wide mb-1">My Tasks</p>
+            <p class="text-3xl font-black text-slate-900">0</p>
+        </div>
+        <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+            <p class="text-sm font-bold text-slate-500 uppercase tracking-wide mb-1">Pending Follow-ups</p>
+            <p class="text-3xl font-black text-slate-900">0</p>
+        </div>
+        <div class="bg-white p-6 rounded-xl border-emerald-500 border-2 shadow-sm bg-emerald-50">
+            <p class="text-sm font-bold text-emerald-700 uppercase tracking-wide mb-1">My Remuneration</p>
+            <p class="text-3xl font-black text-emerald-900">R0.00</p>
+        </div>
+    </div>
+
+    <h2 class="text-xl font-bold text-slate-900 mb-4">Open Interactions Queue</h2>
+    {% if open_interactions %}
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <table class="min-w-full divide-y divide-slate-200">
+                <thead class="bg-slate-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Ref</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Type</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Title</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Resident</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Action</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-slate-200">
+                    {% for ix in open_interactions %}
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-900">{{ ix.reference }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500 uppercase">{{ ix.interaction_type }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-900">{{ ix.title }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">User #{{ ix.creator_id }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <a href="#" class="text-indigo-600 hover:text-indigo-900">Process &rarr;</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="bg-slate-50 p-8 rounded-xl border border-slate-200 text-center">
+            <p class="text-slate-500">The queue is currently empty. Great job!</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

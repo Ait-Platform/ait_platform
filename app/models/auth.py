@@ -146,6 +146,20 @@ class AuthSubject(db.Model):
             return "paid"
         return "unknown"
 
+
+class FranchiseLicense(db.Model):
+    __tablename__ = "franchise_license"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    subject_id = db.Column(db.Integer, db.ForeignKey('auth_subject.id'), nullable=False)
+    total_seats = db.Column(db.Integer, nullable=False, default=0)
+    used_seats = db.Column(db.Integer, nullable=False, default=0)
+    created_at = db.Column(db.DateTime, default=db.func.now())
+    
+    user = db.relationship("User", backref="franchise_licenses")
+    subject = db.relationship("AuthSubject", backref="franchise_licenses")
+
 class UserEnrollment(db.Model):
     __tablename__ = "user_enrollment"
 

@@ -1,4 +1,5 @@
 ﻿{% extends "layout.html" %}
+{% set hide_navbar = request.args.get('embed') == '1' %}
 
 {% block title %}LiTRE Facilitator Dashboard{% endblock %}
 

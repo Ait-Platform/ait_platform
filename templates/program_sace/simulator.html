@@ -65,7 +65,7 @@
             <div class="absolute top-0 left-0 w-full bg-purple-600 text-white text-center py-1 text-xs font-bold tracking-widest z-10 shadow-md">
                 PARTICIPANT BOARD (TABLET VIEW)
             </div>
-            <iframe src="{{ url_for('sace_bp.interactive_workshop') }}" class="w-full h-full pt-6 border-0" id="participantIframe"></iframe>
+            <iframe src="{{ url_for('sace_bp.interactive_workshop') }}?embed=1" class="w-full h-full pt-6 border-0" id="participantIframe"></iframe>
         </div>
         
         <!-- Right: Facilitator Board -->
@@ -73,7 +73,7 @@
             <div class="absolute top-0 left-0 w-full bg-amber-600 text-white text-center py-1 text-xs font-bold tracking-widest z-10 shadow-md">
                 FACILITATOR BOARD (CONTROL PANEL)
             </div>
-            <iframe src="{{ url_for('sace_bp.facilitator_dashboard') }}" class="w-full h-full pt-6 border-0" id="facilitatorIframe"></iframe>
+            <iframe src="{{ url_for('sace_bp.facilitator_dashboard') }}?embed=1" class="w-full h-full pt-6 border-0" id="facilitatorIframe"></iframe>
         </div>
         
     </div>

@@ -36,7 +36,9 @@
 
   <!-- Header / Navbar (hidden on print) -->
   <header class="print:hidden">
+    {% if not hide_navbar %}
     {% include "partials/navbar.html" %}
+  {% endif %}
 
     {# Breadcrumbs / Back — remove this whole <section> if you don't want it #}
     {% if breadcrumbs or nav_back_url %}

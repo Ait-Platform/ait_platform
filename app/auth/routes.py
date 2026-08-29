@@ -347,6 +347,15 @@ def register():
             session["user_name"] = existing_user.name or email_norm.split("@")[0]
             session.pop("just_paid_subject_id", None)
             
+            # SACE Pre-Registered Personnel Override
+            from app.models.auth import AuthSubjectAdmin, AuthSubject
+            is_sace_admin = AuthSubjectAdmin.query.join(AuthSubject).filter(
+                AuthSubjectAdmin.email == email_norm,
+                AuthSubject.slug.like('sace_%')
+            ).first()
+            if is_sace_admin:
+                return redirect(url_for("sace_bp.dashboard"))
+                
             return redirect(url_for("auth_bp.dashboard_info", subject=subject))
         else:
             flash("That email is already registered, but the password provided is incorrect.", "danger")

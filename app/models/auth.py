@@ -220,6 +220,16 @@ class UserEnrollment(db.Model):
         overlaps="group_memberships"
     )
     
+
+class AuthSubjectAdmin(db.Model):
+    __tablename__ = "auth_subject_admin"
+
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String, nullable=False, index=True)
+    subject_id = db.Column(db.Integer, db.ForeignKey('auth_subject.id'), nullable=False)
+    
+    subject = db.relationship("AuthSubject", backref="admins")
+
 class ApprovedAdmin(db.Model):
     __tablename__ = "auth_approved_admin"
 

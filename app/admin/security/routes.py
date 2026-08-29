@@ -267,8 +267,16 @@ def sace_management():
                         status='active'
                     )
                     db.session.add(enrollment)
+                    
+                    # ALSO grant robust AuthSubjectAdmin rights to ALL sace_ subjects
+                    from app.models.auth import AuthSubjectAdmin
+                    sace_subjects = AuthSubject.query.filter(AuthSubject.slug.like('sace_%')).all()
+                    for s_subj in sace_subjects:
+                        admin_grant = AuthSubjectAdmin(email=email, subject_id=s_subj.id)
+                        db.session.add(admin_grant)
+                        
                     db.session.commit()
-                    flash(f'Created SACE personnel account for {email} and granted access.', 'success')
+                    flash(f'Created SACE personnel account for {email} and granted SACE-wide admin access.', 'success')
                 else:
                     flash('SACE subject not found in database.', 'error')
                     

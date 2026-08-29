@@ -1087,6 +1087,11 @@ def login():
     session["role"] = "admin" if session.get("is_admin") else "user"
 
     # ---------- redirect ----------
+    
+    # SACE Pre-Registered Personnel / Evaluator Override
+    if email == 'nan@gmail.com' or 'sace' in admin_subjects:
+        return redirect(url_for("sace_bp.dashboard"))
+        
     from urllib.parse import urljoin, urlparse
     def _is_safe_url(target: str) -> bool:
         if not target:

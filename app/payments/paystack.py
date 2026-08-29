@@ -283,8 +283,15 @@ def success():
                     from app.models.payment import PaystackPayment
                     existing = PaystackPayment.query.filter_by(gateway_reference=reference).first()
                     if not existing:
-                        meta_email = tx_data.get("metadata", {}).get("email") or tx_data.get("customer", {}).get("email", "")
-                        meta_subject = tx_data.get("metadata", {}).get("subject", "")
+                        metadata = tx_data.get("metadata", {})
+                        if isinstance(metadata, str):
+                            import json
+                            try:
+                                metadata = json.loads(metadata)
+                            except:
+                                metadata = {}
+                        meta_email = email or metadata.get("email") or tx_data.get("customer", {}).get("email", "")
+                        meta_subject = subject or metadata.get("subject", "")
                         if meta_email and meta_subject:
                             fulfill_order(meta_email.strip().lower(), meta_subject.strip().lower(), tx_data)
                             flash("Payment verified and applied successfully!", "success")

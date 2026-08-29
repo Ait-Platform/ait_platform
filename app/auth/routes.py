@@ -1089,7 +1089,9 @@ def login():
     # ---------- redirect ----------
     
     # SACE Pre-Registered Personnel / Evaluator Override
-    if email == 'nan@gmail.com' or 'sace' in admin_subjects:
+    # Dynamically check if the user is an admin for any SACE subject
+    is_sace_admin = any(s.startswith('sace') for s in session.get("admin_subjects", []))
+    if is_sace_admin:
         return redirect(url_for("sace_bp.dashboard"))
         
     from urllib.parse import urljoin, urlparse

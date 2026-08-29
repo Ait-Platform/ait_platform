@@ -301,7 +301,10 @@ def participant_onboarding(activity_slug):
 def catalog():
     from flask_login import current_user
     from flask import redirect, url_for
-    if getattr(current_user, 'is_authenticated', False) and current_user.email == 'nan@gmail.com':
+    if getattr(current_user, 'is_authenticated', False):
+        from flask import session
+        is_sace_admin = any(s.startswith('sace') for s in session.get("admin_subjects", []))
+        if is_sace_admin:
         return redirect(url_for('sace_bp.dashboard'))
 
     activities = [

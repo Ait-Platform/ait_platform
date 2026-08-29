@@ -875,8 +875,9 @@ def register_decision():
 
 
 
-    # If they reach here, there is NO free access and NO trial, so we prompt them to pay or enter a voucher
-    return render_template("auth/checkout_decision.html", email=user_email, subject=subject)
+    # If they reach here, there is NO free access and NO trial, and we no longer use vouchers.
+    # Route directly to the payment gateway.
+    return redirect(url_for("paystack_bp.paystack_start", email=user_email, subject=subject, debug=0))
 
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login():

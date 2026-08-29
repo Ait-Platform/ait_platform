@@ -37,5 +37,5 @@ from .sace import SaceDocument, SaceWorkshopInteraction
 __all__.extend(['SaceDocument', 'SaceWorkshopInteraction'])
 
 
-from .core import CoreOrganization, CoreOrganizationMember, CoreRole, CorePermission, CoreRolePermission, CoreRoleAssignment, CoreInteraction, CoreTask, CoreRemunerationRule, CoreRemunerationEvent
-__all__.extend(['CoreOrganization', 'CoreOrganizationMember', 'CoreRole', 'CorePermission', 'CoreRolePermission', 'CoreRoleAssignment', 'CoreInteraction', 'CoreTask', 'CoreRemunerationRule', 'CoreRemunerationEvent'])
+from .core import CoreOrganization, CoreOrganizationMember, CoreRole, CorePermission, CoreRolePermission, CoreRoleAssignment, CoreInteraction, CoreTask, CoreRemunerationRule, CoreRemunerationEvent, CoreAuditEvent, CoreAiRequest, CoreAiUsage
+__all__.extend(['CoreOrganization', 'CoreOrganizationMember', 'CoreRole', 'CorePermission', 'CoreRolePermission', 'CoreRoleAssignment', 'CoreInteraction', 'CoreTask', 'CoreRemunerationRule', 'CoreRemunerationEvent', 'CoreAuditEvent', 'CoreAiRequest', 'CoreAiUsage'])

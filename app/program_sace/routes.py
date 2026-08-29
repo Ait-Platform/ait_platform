@@ -305,7 +305,7 @@ def catalog():
         from flask import session
         is_sace_admin = any(s.startswith('sace') for s in session.get("admin_subjects", []))
         if is_sace_admin:
-        return redirect(url_for('sace_bp.dashboard'))
+            return redirect(url_for('sace_bp.dashboard'))
 
     activities = [
         {

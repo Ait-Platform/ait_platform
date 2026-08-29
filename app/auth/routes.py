@@ -506,7 +506,16 @@ def register_decision():
     # ---------- END FREE SPECIAL CASE ----------
 
     # ---------- WALLET TOKEN SUBJECTS (NO REGISTRATION FEE, USES WALLET BALANCE) ----------
-    if subject in ("cultural_fire", "culturalfire", "debtors", "mechanic", "cptd", "sace", "sace_evaluator", "sace_facilitator", "sace_participant"):
+    ctx_country = (session.get("reg_ctx", {}).get("country_code") or request.headers.get("CF-IPCountry", "ZA")).upper()
+    is_sace = subject in ("sace", "sace_hub", "sace_evaluator", "sace_facilitator", "sace_participant")
+    
+    is_free = False
+    if subject in ("cultural_fire", "culturalfire", "debtors", "mechanic", "cptd"):
+        is_free = True
+    elif is_sace and ctx_country == "ZA":
+        is_free = True
+
+    if is_free:
         mark_loss_enrollment_free(enrollment_id)
         session.pop("reg_ctx", None)
         session.pop("just_paid_subject_id", None)

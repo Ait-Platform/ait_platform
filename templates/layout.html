@@ -100,6 +100,7 @@
 
   <!-- Footer (hidden on print) -->
   <!-- Footer (hidden on print) -->
+  {% if not hide_navbar %}
   <footer class="fixed inset-x-0 bottom-0 border-t bg-white/90 backdrop-blur print:hidden z-40">
   <!--footer class="mt-16 border-t bg-white/70 backdrop-blur print:hidden"-->
   <!-- Footer (hidden on print) >
@@ -126,6 +127,7 @@
       <small class="block mt-2">&copy; {{ now().year }} AIT Platform. Empowering learners worldwide.</small>
     </div>
   </footer>
+  {% endif %}
 
   <style>
     @media print {

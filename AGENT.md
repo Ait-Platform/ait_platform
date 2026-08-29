@@ -30,3 +30,8 @@
   - The Interactive App (/sace/workshop/interactive) contains NO lobby HTML. If a user hits it without joining, they are bounced back to the join route.
 - **Render Deployment Constraint:** Render takes 5-9 minutes to deploy. **Code Freezes** are required before live SACE evaluation demos. 
 
+
+
+## 6. Payment Portal
+- The official payment portal for the platform is **Paystack**, NOT Yoco.
+- When creating subjects or modifying payment constraints, ensure processor_default uses paystack.

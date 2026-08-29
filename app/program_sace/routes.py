@@ -316,12 +316,11 @@ def selection_hub(activity_slug):
 
 @sace_bp.route('/sace/enroll/<activity_slug>', methods=['GET', 'POST'])
 def enroll(activity_slug):
-    from flask import request, session, redirect, url_for, render_template
+    from flask import request, session, redirect, url_for, render_template, g
     from app.payments.pricing import price_for_country
-    from app.utils.country_list import resolve_country
     
     subject = f"sace_{activity_slug}"
-    country = resolve_country(request)
+    country = getattr(g, "country_iso2", "ZA")
     price_info = price_for_country(country, subject)
     
     if request.method == 'POST':

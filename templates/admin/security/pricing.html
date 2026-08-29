@@ -44,6 +44,7 @@
                     <th class="px-4 py-3 font-medium text-slate-600">Country Name</th>
                     <th class="px-4 py-3 font-medium text-slate-600">Currency</th>
                     <th class="px-4 py-3 font-medium text-slate-600">Configured Local Price</th>
+                    <th class="px-4 py-3 font-medium text-slate-600">ZAR Equivalent (For Paystack)</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-slate-200">
@@ -54,6 +55,9 @@
                     <td class="px-4 py-3 font-semibold text-teal-600">{{ p.currency }}</td>
                     <td class="px-4 py-3">
                         <input type="number" name="amount_{{ p.country_code }}" value="{% if p.local_amount_cents %}{{ p.local_amount_cents // 100 }}{% endif %}" placeholder="e.g. 100" class="w-24 border border-slate-300 rounded-md p-1 outline-none text-sm">
+                    </td>
+                    <td class="px-4 py-3 text-slate-500 font-mono">
+                        {% if p.zar_amount_cents %}ZAR {{ p.zar_amount_cents // 100 }}{% else %}-{% endif %}
                     </td>
                 </tr>
                 {% else %}

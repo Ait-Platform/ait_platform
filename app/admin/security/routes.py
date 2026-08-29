@@ -151,7 +151,7 @@ def manage_pricing():
     if selected_subject_id:
         prices = db.session.execute(
             text("""
-                SELECT c.alpha2 as country_code, c.name as country_name, c.currency, p.local_amount_cents
+                SELECT c.alpha2 as country_code, c.name as country_name, c.currency, p.local_amount_cents, p.zar_amount_cents
                 FROM ref_country_currency c
                 LEFT JOIN subject_country_price p ON c.alpha2 = p.country_code AND p.subject_id = :sid
                 WHERE c.is_active = true

@@ -66,11 +66,11 @@ def manage_pricing():
                         computed_zar = int(local_cents * fx)
                         if computed_zar < 3000:
                             local_cents = int(3000 / fx)
-                            computed_zar = int(local_cents * fx)
-                        p.local_amount_cents = local_cents
-                        p.zar_amount_cents = computed_zar
+                            computed_zar = max(3000, int(local_cents * fx))
+                        p.local_amount_cents = max(1, local_cents)
+                        p.zar_amount_cents = max(1, computed_zar)
                     else:
-                        p.local_amount_cents = local_cents
+                        p.local_amount_cents = max(1, local_cents)
                         p.zar_amount_cents = max(3000, computed_zar if 'computed_zar' in locals() else 3000)
                       
                 db.session.commit()
@@ -97,11 +97,11 @@ def manage_pricing():
                         computed_zar = int(local_cents * fx)
                         if computed_zar < 3000:
                             local_cents = int(3000 / fx)
-                            computed_zar = int(local_cents * fx)
-                        p.local_amount_cents = local_cents
-                        p.zar_amount_cents = computed_zar
+                            computed_zar = max(3000, int(local_cents * fx))
+                        p.local_amount_cents = max(1, local_cents)
+                        p.zar_amount_cents = max(1, computed_zar)
                     else:
-                        p.local_amount_cents = local_cents
+                        p.local_amount_cents = max(1, local_cents)
                         p.zar_amount_cents = max(3000, computed_zar if 'computed_zar' in locals() else 3000)
                         
                     db.session.commit()

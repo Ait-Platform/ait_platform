@@ -299,6 +299,11 @@ def participant_onboarding(activity_slug):
 
 @sace_bp.route('/sace/catalog')
 def catalog():
+    from flask_login import current_user
+    from flask import redirect, url_for
+    if getattr(current_user, 'is_authenticated', False) and current_user.email == 'nan@gmail.com':
+        return redirect(url_for('sace_bp.dashboard'))
+
     activities = [
         {
             "slug": "reading",

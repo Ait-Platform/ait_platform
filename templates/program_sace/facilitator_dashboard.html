@@ -316,7 +316,7 @@
     }
 
         function startWorkshop() {
-    if (window.parent && window.parent !== window) { window.parent.postMessage({action: 'switchToParticipant'}, '*'); }
+    
         sessionState = 'active'; 
         currentSlide = 1; 
         updateView();
@@ -371,10 +371,10 @@
     }
 
     function prevSlide() {
-    if (window.parent && window.parent !== window) { window.parent.postMessage({action: 'switchToParticipant'}, '*'); } if(currentSlide > 0) { currentSlide--; updateView(); fetch('/sace/workshop/set_slide', {method: 'POST', headers: {'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')}, body: JSON.stringify({slide: currentSlide})}); } }
+     if(currentSlide > 0) { currentSlide--; updateView(); fetch('/sace/workshop/set_slide', {method: 'POST', headers: {'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')}, body: JSON.stringify({slide: currentSlide})}); } }
 
     function nextSlide() {
-    if (window.parent && window.parent !== window) { window.parent.postMessage({action: 'switchToParticipant'}, '*'); } if(currentSlide < totalSlides) { currentSlide++; updateView(); fetch('/sace/workshop/set_slide', {method: 'POST', headers: {'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')}, body: JSON.stringify({slide: currentSlide})}); } }
+     if(currentSlide < totalSlides) { currentSlide++; updateView(); fetch('/sace/workshop/set_slide', {method: 'POST', headers: {'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')}, body: JSON.stringify({slide: currentSlide})}); } }
     
     
     

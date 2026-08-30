@@ -167,8 +167,25 @@ function switchTab(tabId) {
 
 // Add event listener to catch messages from iframe
 window.addEventListener('message', function(event) {
-    if (event.data && event.data.action === 'switchToParticipant') {
-        switchTab('p');
+    if (event.data) {
+        if (event.data.action === 'switchToParticipant') {
+            switchTab('p');
+        } else if (event.data.action === 'slideChanged') {
+            // Update auditor banner locally
+            updateAuditorBanner(event.data.slide);
+            
+            // Relay to participant board instantly
+            const pIframe = document.getElementById('participantIframe');
+            if (pIframe && pIframe.contentWindow) {
+                pIframe.contentWindow.postMessage({action: 'syncSlide', slide: event.data.slide, state: event.data.state}, '*');
+            }
+        } else if (event.data.action === 'participantAnswer') {
+            // Relay participant's answer to the F board
+            const fIframe = document.getElementById('facilitatorIframe');
+            if (fIframe && fIframe.contentWindow) {
+                fIframe.contentWindow.postMessage(event.data, '*');
+            }
+        }
     }
 });
 

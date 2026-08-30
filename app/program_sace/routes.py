@@ -322,6 +322,8 @@ def catalog():
 def selection_hub(activity_slug):
     return render_template('program_sace/sace_selection_hub.html', activity_slug=activity_slug)
 
+from flask import make_response
+
 @sace_bp.route("/sace/reading/simulator")
 @login_required
 def simulator():
@@ -329,7 +331,11 @@ def simulator():
     docs = SaceDocument.query.filter_by(slug='reading').all()
     doc_dict = {d.document_type: d for d in docs}
     
-    return render_template("program_sace/simulator.html", docs=doc_dict)
+    response = make_response(render_template("program_sace/simulator.html", docs=doc_dict))
+    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, post-check=0, pre-check=0, max-age=0'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '-1'
+    return response
 
 from app.models.core import CoreAuditEvent
 

@@ -3,26 +3,255 @@
 {% block title %}SACE Endorsement Simulator{% endblock %}
 
 {% block content %}
-<div class="container mx-auto px-4 py-8 max-w-4xl">
-    <div class="bg-white rounded-xl shadow-xl overflow-hidden border border-slate-200">
-        <div class="h-3 w-full bg-indigo-600"></div>
-        <div class="p-8 text-center">
-            <h1 class="text-4xl font-extrabold text-slate-900 mb-4"><i class="fas fa-play-circle text-indigo-600 mr-3"></i>Launch SACE Program</h1>
-            <p class="text-xl text-slate-600 mb-8">You are about to enter the live Facilitator Dashboard.</p>
+<div class="container mx-auto px-4 py-8 h-[90vh] flex flex-col">
+    
+    <!-- Traffic Robot Tabs -->
+    <div class="flex space-x-2 border-b-2 border-slate-700 pb-0">
+        <button id="btn-tab-a" onclick="showTab('a')" class="flex items-center px-6 py-3 bg-indigo-600 text-white font-bold rounded-t-lg transition border-b-2 border-indigo-400">
+            <i class="fas fa-book-open mr-2"></i> Guide (A)
+        </button>
+        <button id="btn-tab-f" onclick="showTab('f')" class="flex items-center px-6 py-3 bg-slate-800 text-slate-500 font-bold rounded-t-lg transition border-b-2 border-transparent opacity-50 hover:opacity-100 hover:bg-slate-700">
+            <div id="light-f" class="w-3 h-3 rounded-full bg-red-600 shadow-[0_0_8px_rgba(220,38,38,0.5)] mr-3"></div> Facilitator (F)
+        </button>
+        <button id="btn-tab-p" onclick="showTab('p')" class="flex items-center px-6 py-3 bg-slate-800 text-slate-500 font-bold rounded-t-lg transition border-b-2 border-transparent opacity-50 hover:opacity-100 hover:bg-slate-700">
+            <div id="light-p" class="w-3 h-3 rounded-full bg-red-600 shadow-[0_0_8px_rgba(220,38,38,0.5)] mr-3"></div> Participant (P)
+        </button>
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="bg-white border border-t-0 border-slate-200 shadow-xl rounded-b-xl flex-grow overflow-hidden relative">
+        
+        <!-- ========================================== -->
+        <!-- TAB A: GUIDE -->
+        <!-- ========================================== -->
+        <div id="tab-a" class="w-full h-full p-8 overflow-y-auto">
+            <h1 class="text-3xl font-extrabold text-indigo-900 mb-6">SACE Auditor Guide</h1>
+            <p class="text-lg text-slate-700 mb-8">Welcome to the Endorsement Simulator. This tool will guide you through the exact flow of the workshop to demonstrate how the Facilitator and Participant devices interact in real-time.</p>
             
-            <a href="{{ url_for('sace_bp.facilitator_dashboard') }}" class="inline-block px-10 py-5 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-2xl rounded-xl shadow-[0_0_20px_rgba(79,70,229,0.5)] transition transform hover:scale-105">
-                Go to Facilitator Dashboard <i class="fas fa-arrow-right ml-3"></i>
-            </a>
+            <div class="bg-slate-50 p-6 rounded-xl border border-slate-200 mb-8">
+                <h3 class="font-bold text-slate-800 mb-4"><i class="fas fa-traffic-light text-indigo-600 mr-2"></i> The Traffic Robot System</h3>
+                <p class="mb-2">Follow the <strong>Green Light</strong>. The green light tells you exactly which tab requires your attention.</p>
+                <ul class="list-disc list-inside text-slate-600 space-y-2">
+                    <li>When <strong>F is Green</strong>, you are acting as the Facilitator. Click the button to send the content.</li>
+                    <li>When <strong>P is Green</strong>, you are acting as the Teacher. Interact with the content that just arrived on your screen.</li>
+                </ul>
+            </div>
+
+            <button onclick="launchActivity(1)" class="px-8 py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xl rounded-xl shadow-lg transition flex items-center">
+                Launch Activity 1: The Program <i class="fas fa-arrow-right ml-3"></i>
+            </button>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- TAB F: FACILITATOR -->
+        <!-- ========================================== -->
+        <div id="tab-f" class="w-full h-full hidden flex-col">
+            <div class="bg-slate-900 text-white p-4 flex justify-between items-center shadow-md">
+                <h2 class="font-bold text-lg"><i class="fas fa-chalkboard-teacher mr-2"></i> Facilitator Projector</h2>
+                <span class="bg-indigo-600 px-3 py-1 rounded text-sm font-bold">Endorsement Mode</span>
+            </div>
             
-            <div class="mt-10 p-6 bg-slate-50 rounded-xl border border-slate-200 text-left">
-                <h3 class="font-bold text-slate-800 mb-2"><i class="fas fa-info-circle text-indigo-600 mr-2"></i> How to demonstrate:</h3>
-                <ol class="list-decimal list-inside space-y-2 text-slate-600">
-                    <li>Click the Launch button above to open the Facilitator Board.</li>
-                    <li>Once there, you will see the Lobby.</li>
-                    <li>To show the Participant view, you can open <a href="{{ url_for('sace_bp.interactive_workshop') }}" target="_blank" class="text-indigo-600 font-bold underline">this link</a> in a new tab or on your phone.</li>
-                </ol>
+            <div class="flex-grow p-8 bg-slate-100 flex items-center justify-center relative">
+                
+                <!-- F Activity 1: Program -->
+                <div id="f-act-1" class="hidden flex-col items-center justify-center text-center max-w-2xl bg-white p-10 rounded-2xl shadow-xl">
+                    <h2 class="text-3xl font-bold text-indigo-900 mb-6">1. The Program (Timetable)</h2>
+                    <p class="text-slate-600 mb-8 text-lg">You are now presenting the timetable to the room. Click below to push this program directly to every teacher's device.</p>
+                    <button onclick="sendToParticipant(1)" class="px-8 py-4 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xl rounded-xl shadow-[0_0_15px_rgba(16,185,129,0.5)] transition">
+                        <i class="fas fa-paper-plane mr-2"></i> Send Program to Teachers
+                    </button>
+                </div>
+
+                <!-- F Activity 2: Crisis Poll -->
+                <div id="f-act-2" class="hidden flex-col items-center justify-center text-center max-w-2xl bg-white p-10 rounded-2xl shadow-xl">
+                    <h2 class="text-3xl font-bold text-indigo-900 mb-6">2. The Hook (Crisis Poll)</h2>
+                    <p class="text-slate-600 mb-8 text-lg">Ask the room: "Is there a crisis in reading in South Africa?" Push the poll to their devices to force active engagement.</p>
+                    <button onclick="sendToParticipant(2)" class="px-8 py-4 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xl rounded-xl shadow-[0_0_15px_rgba(16,185,129,0.5)] transition">
+                        <i class="fas fa-paper-plane mr-2"></i> Send Poll to Teachers
+                    </button>
+                </div>
+
+                <!-- F Activity 3: Survey Results -->
+                <div id="f-act-3" class="hidden flex-col items-center justify-center text-center max-w-2xl bg-white p-10 rounded-2xl shadow-xl w-full">
+                    <h2 class="text-3xl font-bold text-indigo-900 mb-6"><i class="fas fa-chart-bar mr-2"></i> Live Poll Results</h2>
+                    <p class="text-slate-600 mb-6">The results animate in real-time as teachers answer.</p>
+                    <div class="w-full space-y-6 text-left">
+                        <div>
+                            <div class="flex justify-between font-bold mb-2"><span class="text-green-600">TRUE (Crisis Exists)</span><span>100%</span></div>
+                            <div class="w-full bg-slate-200 rounded-full h-6"><div class="bg-green-500 h-6 rounded-full w-full"></div></div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between font-bold mb-2"><span class="text-red-600">FALSE (No Crisis)</span><span>0%</span></div>
+                            <div class="w-full bg-slate-200 rounded-full h-6"><div class="bg-red-500 h-6 rounded-full w-0"></div></div>
+                        </div>
+                    </div>
+                    <button onclick="alert('End of Simulator Demo! This proves the interactive cause-and-effect flow for SACE endorsement.'); showTab('a');" class="mt-8 px-8 py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xl rounded-xl shadow-lg transition">
+                        Finish Demonstration
+                    </button>
+                </div>
+
             </div>
         </div>
+
+        <!-- ========================================== -->
+        <!-- TAB P: PARTICIPANT -->
+        <!-- ========================================== -->
+        <div id="tab-p" class="w-full h-full hidden flex-col">
+            <div class="bg-indigo-900 text-white p-4 flex justify-between items-center shadow-md">
+                <h2 class="font-bold text-lg"><i class="fas fa-mobile-alt mr-2"></i> Teacher's Device</h2>
+                <span class="bg-indigo-700 px-3 py-1 rounded text-sm font-bold">Synced</span>
+            </div>
+            
+            <div class="flex-grow p-4 md:p-8 bg-slate-50 flex items-start justify-center overflow-y-auto">
+                <!-- Mobile Frame Mockup -->
+                <div class="w-full max-w-sm bg-white rounded-[2rem] border-8 border-slate-800 shadow-2xl overflow-hidden h-[700px] flex flex-col">
+                    <div class="bg-indigo-600 p-4 text-center text-white font-bold">AIT Learning App</div>
+                    <div class="p-6 flex-grow flex flex-col">
+                        
+                        <!-- P Activity 1: Program -->
+                        <div id="p-act-1" class="hidden flex-col h-full">
+                            <h3 class="text-xl font-bold text-indigo-900 mb-4 border-b-2 border-indigo-100 pb-2">Workshop Program</h3>
+                            <ul class="space-y-4 mb-8 text-slate-700">
+                                <li class="flex items-center"><i class="fas fa-check-circle text-green-500 mr-3"></i> 09:00 - Introduction</li>
+                                <li class="flex items-center"><i class="fas fa-check-circle text-green-500 mr-3"></i> 09:30 - The Crisis Hook</li>
+                                <li class="flex items-center"><i class="fas fa-check-circle text-green-500 mr-3"></i> 10:15 - Active Reading</li>
+                            </ul>
+                            <div class="mt-auto">
+                                <button onclick="launchActivity(2)" class="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-md transition">
+                                    Continue to Next Activity <i class="fas fa-arrow-right ml-2"></i>
+                                </button>
+                                <p class="text-xs text-center text-slate-400 mt-2">(Returns you to F Board)</p>
+                            </div>
+                        </div>
+
+                        <!-- P Activity 2: Crisis Poll -->
+                        <div id="p-act-2" class="hidden flex-col h-full">
+                            <h3 class="text-xl font-bold text-indigo-900 mb-4 border-b-2 border-indigo-100 pb-2">Live Poll</h3>
+                            <p class="font-bold text-lg mb-6 text-slate-800">Q: Is there a crisis in reading in South African schools?</p>
+                            
+                            <div id="p-act-2-buttons" class="space-y-4">
+                                <button onclick="answerPoll()" class="w-full py-4 bg-green-100 text-green-700 hover:bg-green-200 font-bold text-lg rounded-xl border border-green-300 transition">TRUE (Crisis Exists)</button>
+                                <button onclick="answerPoll()" class="w-full py-4 bg-red-100 text-red-700 hover:bg-red-200 font-bold text-lg rounded-xl border border-red-300 transition">FALSE (No Crisis)</button>
+                            </div>
+                            
+                            <div id="p-act-2-success" class="hidden flex-col items-center justify-center py-8 text-center">
+                                <i class="fas fa-check-circle text-5xl text-green-500 mb-4"></i>
+                                <p class="font-bold text-lg text-slate-700 mb-8">Response Recorded!</p>
+                                <button onclick="launchActivity(3)" class="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-md transition">
+                                    See Live Results <i class="fas fa-arrow-right ml-2"></i>
+                                </button>
+                                <p class="text-xs text-center text-slate-400 mt-2">(Returns you to F Board)</p>
+                            </div>
+                        </div>
+
+                        <!-- P Activity 3: Look at Projector -->
+                        <div id="p-act-3" class="hidden flex-col items-center justify-center h-full text-center">
+                            <div class="h-24 w-24 bg-indigo-50 rounded-full flex items-center justify-center mb-6 mx-auto">
+                                <i class="fas fa-chalkboard-teacher text-5xl text-indigo-300"></i>
+                            </div>
+                            <h3 class="font-bold text-xl text-slate-800 mb-2">Look at the Projector</h3>
+                            <p class="text-slate-500">The facilitator is discussing the live results.</p>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </div>
 </div>
+
+<script>
+    // Tab switching and Traffic Light logic
+    function showTab(tabId) {
+        // Hide all tabs
+        document.getElementById('tab-a').classList.add('hidden');
+        document.getElementById('tab-f').classList.remove('flex');
+        document.getElementById('tab-f').classList.add('hidden');
+        document.getElementById('tab-p').classList.remove('flex');
+        document.getElementById('tab-p').classList.add('hidden');
+        
+        // Reset buttons to look "shut" and disabled
+        const inactiveClass = "flex items-center px-6 py-3 bg-slate-800 text-slate-500 font-bold rounded-t-lg transition border-b-2 border-transparent opacity-50 hover:opacity-100 hover:bg-slate-700";
+        document.getElementById('btn-tab-a').className = inactiveClass;
+        document.getElementById('btn-tab-f').className = inactiveClass;
+        document.getElementById('btn-tab-p').className = inactiveClass;
+        
+        // Show active tab
+        if (tabId === 'a') {
+            document.getElementById('tab-a').classList.remove('hidden');
+            document.getElementById('btn-tab-a').className = "flex items-center px-6 py-3 bg-indigo-600 text-white font-bold rounded-t-lg transition border-b-2 border-indigo-400";
+        } else if (tabId === 'f') {
+            document.getElementById('tab-f').classList.remove('hidden');
+            document.getElementById('tab-f').classList.add('flex');
+            document.getElementById('btn-tab-f').className = "flex items-center px-6 py-3 bg-white text-slate-900 font-bold rounded-t-lg transition border-b-2 border-slate-300";
+        } else if (tabId === 'p') {
+            document.getElementById('tab-p').classList.remove('hidden');
+            document.getElementById('tab-p').classList.add('flex');
+            document.getElementById('btn-tab-p').className = "flex items-center px-6 py-3 bg-white text-slate-900 font-bold rounded-t-lg transition border-b-2 border-slate-300";
+        }
+    }
+
+    function setLight(tab, color) {
+        const light = document.getElementById('light-' + tab);
+        if (!light) return;
+        if (color === 'green') {
+            light.className = "w-3 h-3 rounded-full bg-green-500 shadow-[0_0_12px_rgba(34,197,94,1)] mr-3 animate-pulse";
+        } else {
+            light.className = "w-3 h-3 rounded-full bg-red-600 shadow-[0_0_8px_rgba(220,38,38,0.5)] mr-3";
+        }
+    }
+
+    // Hide all activity blocks
+    function hideAllActivities() {
+        for(let i=1; i<=3; i++) {
+            document.getElementById('f-act-'+i).classList.add('hidden');
+            document.getElementById('f-act-'+i).classList.remove('flex');
+            document.getElementById('p-act-'+i).classList.add('hidden');
+            document.getElementById('p-act-'+i).classList.remove('flex');
+        }
+    }
+
+    // Step 1: Launch Activity (Auditor -> Facilitator)
+    function launchActivity(num) {
+        hideAllActivities();
+        
+        // Prepare the F and P content for this step
+        document.getElementById('f-act-'+num).classList.remove('hidden');
+        document.getElementById('f-act-'+num).classList.add('flex');
+        
+        document.getElementById('p-act-'+num).classList.remove('hidden');
+        document.getElementById('p-act-'+num).classList.add('flex');
+        
+        // Reset the poll UI if we are on step 2
+        if (num === 2) {
+            document.getElementById('p-act-2-buttons').classList.remove('hidden');
+            document.getElementById('p-act-2-success').classList.add('hidden');
+            document.getElementById('p-act-2-success').classList.remove('flex');
+        }
+
+        // Set Traffic Lights: Green for Facilitator
+        showTab('f');
+        setLight('f', 'green');
+        setLight('p', 'red');
+    }
+
+    // Step 2: Send Content (Facilitator -> Participant)
+    function sendToParticipant(num) {
+        // Set Traffic Lights: Red for Facilitator, Green for Participant
+        showTab('p');
+        setLight('f', 'red');
+        setLight('p', 'green');
+    }
+
+    // Specific Interaction: Teacher answers poll
+    function answerPoll() {
+        document.getElementById('p-act-2-buttons').classList.add('hidden');
+        document.getElementById('p-act-2-success').classList.remove('hidden');
+        document.getElementById('p-act-2-success').classList.add('flex');
+    }
+
+    // Initialize state on page load
+    showTab('a');
+</script>
 {% endblock %}

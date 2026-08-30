@@ -56,7 +56,7 @@
             <!-- ========================================== -->
             <!-- TAB F: FACILITATOR -->
             <!-- ========================================== -->
-            <div id="tab-f" class="w-full h-full hidden flex-col relative bg-slate-900">
+            <div id="tab-f" class="w-full h-full hidden flex-col relative bg-slate-100">
                 <div class="flex-grow relative overflow-hidden">
                     <div class="slide-container absolute inset-0 flex flex-col items-center justify-center p-8 bg-white text-slate-800 rounded-xl text-center z-20" id="slide-lobby">
 <h2 class="text-4xl font-bold text-indigo-600 mb-4">Welcome</h2>
@@ -212,9 +212,14 @@
                     <div class="text-slate-400 font-mono text-lg font-bold">
                         Step <span id="f-counter">0</span> of 11
                     </div>
-                    <button onclick="pushToParticipant()" class="px-8 py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xl rounded-xl transition shadow-[0_0_20px_rgba(16,185,129,0.5)]">
-                        Push to Teacher's Device <i class="fas fa-arrow-right ml-3"></i>
-                    </button>
+                    <div class="flex space-x-4 items-center">
+                        <button id="global-audio-btn" onclick="playCurrentSlideAudio()" class="hidden px-6 py-4 bg-purple-600 hover:bg-purple-500 text-white font-bold text-lg rounded-xl transition shadow-[0_0_15px_rgba(147,51,234,0.5)]">
+                            <i class="fas fa-play mr-2"></i> Play Audio
+                        </button>
+                        <button onclick="pushToParticipant()" class="px-8 py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xl rounded-xl transition shadow-[0_0_20px_rgba(16,185,129,0.5)]">
+                            Push to Teacher's Device <i class="fas fa-arrow-right ml-3"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -527,6 +532,30 @@
         showTab('f');
     }
 
+    function playCurrentSlideAudio() {
+        let fId = currentSlide === -1 ? 'slide-lobby' : 'slide-' + currentSlide;
+        const fSlide = document.getElementById(fId);
+        if (fSlide) {
+            const audio = fSlide.querySelector('audio');
+            if (audio) {
+                const btn = document.getElementById('global-audio-btn');
+                if (audio.paused) {
+                    audio.play();
+                    btn.innerHTML = '<i class="fas fa-pause mr-2"></i> Pause Audio';
+                    btn.classList.replace('bg-purple-600', 'bg-amber-500');
+                    btn.classList.replace('hover:bg-purple-500', 'hover:bg-amber-400');
+                    btn.classList.replace('shadow-[0_0_15px_rgba(147,51,234,0.5)]', 'shadow-[0_0_15px_rgba(245,158,11,0.5)]');
+                } else {
+                    audio.pause();
+                    btn.innerHTML = '<i class="fas fa-play mr-2"></i> Play Audio';
+                    btn.classList.replace('bg-amber-500', 'bg-purple-600');
+                    btn.classList.replace('hover:bg-amber-400', 'hover:bg-purple-500');
+                    btn.classList.replace('shadow-[0_0_15px_rgba(245,158,11,0.5)]', 'shadow-[0_0_15px_rgba(147,51,234,0.5)]');
+                }
+            }
+        }
+    }
+
     function pushToParticipant() {
         showTab('p');
     }
@@ -558,6 +587,21 @@
         }
         
         document.getElementById('f-counter').innerText = currentSlide;
+
+        // Audio Logic: Pause everything first
+        document.querySelectorAll('audio').forEach(audio => {
+            audio.pause();
+            audio.currentTime = 0;
+        });
+        
+        // Show/hide the global audio button if the slide has an audio tag
+        const audioBtn = document.getElementById('global-audio-btn');
+        if (fSlide && fSlide.querySelector('audio')) {
+            audioBtn.classList.remove('hidden');
+            audioBtn.innerHTML = '<i class="fas fa-play mr-2"></i> Play Audio';
+        } else {
+            audioBtn.classList.add('hidden');
+        }
 
         // Update P Views (exactly matching the old logic)
         let pIndex = 1; // default projector view

@@ -5,11 +5,11 @@ uip_bp = Blueprint("uip_bp", __name__, url_prefix="/uip")
 
 @uip_bp.before_request
 def establish_organization_context():
-    \"\"\"
+    """
     Middleware to automatically extract org_slug from the URL and
     inject the Organization into the global g context.
     Enforces tenant isolation globally for all UIP routes.
-    \"\"\"
+    """
     if request.view_args and 'org_slug' in request.view_args:
         org_slug = request.view_args['org_slug']
         

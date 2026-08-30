@@ -85,12 +85,7 @@ def create_app(test_config=None):
 
     # ⬇ add this near the end of create_app, before `return app`
     with app.app_context():
-        db.create_all()
-        try:
-            db.session.execute(text("ALTER TABLE mech_job_cards ADD COLUMN mileage VARCHAR(50);"))
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
+
 
         try:
             db.session.execute(text("ALTER TABLE mech_shops ADD COLUMN shadow_spent_cents INTEGER DEFAULT 0;"))
@@ -737,7 +732,7 @@ def create_app(test_config=None):
 
         # Setup globals
         app.jinja_env.globals['current_year'] = datetime.now().year
-        db.create_all()
+
 
         print("STATIC FOLDER:", app.static_folder)
         print("STATIC URL:", app.static_url_path)

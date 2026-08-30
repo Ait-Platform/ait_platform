@@ -50,7 +50,7 @@
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-900">{{ ix.title }}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">User #{{ ix.creator_id }}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <a href="#" class="text-indigo-600 hover:text-indigo-900">Process &rarr;</a>
+                            <a href="{{ url_for('uip_bp.view_interaction', org_slug=org.slug, reference=ix.reference) }}" class="text-indigo-600 hover:text-indigo-900">Process &rarr;</a>
                         </td>
                     </tr>
                     {% endfor %}

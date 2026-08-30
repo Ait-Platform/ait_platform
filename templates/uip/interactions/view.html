@@ -1,0 +1,146 @@
+﻿{% extends "layout.html" %}
+
+{% block title %}Interaction {{ interaction.reference }} - {{ org.name }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8 max-w-5xl">
+    
+    <!-- Header -->
+    <div class="flex justify-between items-start mb-6">
+        <div>
+            <div class="flex items-center space-x-3 mb-2">
+                <a href="{{ url_for('uip_bp.dashboard', org_slug=org.slug) }}" class="text-indigo-600 hover:text-indigo-800"><i class="fas fa-arrow-left"></i> Dashboard</a>
+                <span class="text-gray-400">/</span>
+                <span class="text-sm font-bold px-2 py-1 rounded bg-slate-100 text-slate-700 font-mono">{{ interaction.reference }}</span>
+                {% if interaction.status == 'NEW' %}
+                    <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide border border-blue-200"><i class="fas fa-star mr-1 text-blue-600"></i> New</span>
+                {% elif interaction.status == 'IN_PROGRESS' %}
+                    <span class="bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide border border-amber-200"><i class="fas fa-hammer mr-1 text-amber-600"></i> In Progress</span>
+                {% elif interaction.status == 'RESOLVED' %}
+                    <span class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide border border-green-200"><i class="fas fa-check-circle mr-1 text-green-600"></i> Resolved</span>
+                {% endif %}
+            </div>
+            <h1 class="text-3xl font-extrabold text-slate-900">{{ interaction.title }}</h1>
+            <p class="text-slate-500 mt-1">Logged by <span class="font-bold">{{ interaction.creator.first_name }} {{ interaction.creator.last_name }}</span> on {{ interaction.created_at.strftime('%d %b %Y, %H:%M') }}</p>
+        </div>
+        
+        {% if interaction.status != 'RESOLVED' and current_role in ['manager', 'receptionist'] %}
+        <form method="POST" action="{{ url_for('uip_bp.resolve_interaction', org_slug=org.slug, reference=interaction.reference) }}" onsubmit="return confirm('Are you sure you want to mark this interaction as resolved?');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-6 rounded-lg shadow transition flex items-center">
+                <i class="fas fa-check-double mr-2"></i> Mark Resolved
+            </button>
+        </form>
+        {% endif %}
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- Left Column: Details & Tasks -->
+        <div class="lg:col-span-2 space-y-6">
+            
+            <!-- Description Card -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                <h3 class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2">Description</h3>
+                <div class="prose max-w-none text-slate-700 whitespace-pre-wrap">{{ interaction.description }}</div>
+            </div>
+
+            <!-- Tasks Card -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="p-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
+                    <h3 class="font-bold text-slate-800"><i class="fas fa-tasks mr-2 text-indigo-600"></i> Action Tasks</h3>
+                </div>
+                
+                <div class="divide-y divide-slate-100">
+                    {% for task in interaction.tasks %}
+                    <div class="p-4 hover:bg-slate-50 transition flex items-start justify-between group">
+                        <div>
+                            <h4 class="font-bold text-slate-800 {% if task.status == 'completed' %}line-through text-slate-400{% endif %}">{{ task.title }}</h4>
+                            <p class="text-sm text-slate-500 mt-1">{{ task.description }}</p>
+                            
+                            <div class="flex items-center space-x-3 mt-3 text-xs">
+                                {% if task.assignee_id %}
+                                    <span class="bg-indigo-100 text-indigo-800 px-2 py-1 rounded font-medium"><i class="fas fa-user mr-1"></i> {{ task.assignee.first_name|default('Assigned') }}</span>
+                                {% else %}
+                                    <span class="bg-slate-100 text-slate-500 px-2 py-1 rounded font-medium"><i class="fas fa-ghost mr-1"></i> Unassigned</span>
+                                {% endif %}
+                                
+                                <span class="text-slate-400"><i class="far fa-clock mr-1"></i> Added {{ task.created_at.strftime('%d %b') }}</span>
+                            </div>
+                        </div>
+                        
+                        {% if task.status != 'completed' and current_role in ['manager', 'receptionist', 'provider'] %}
+                        <form method="POST" action="{{ url_for('uip_bp.complete_task', org_slug=org.slug, task_id=task.id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                            <button type="submit" class="text-slate-300 hover:text-emerald-500 transition tooltip" title="Mark Complete">
+                                <i class="far fa-circle text-2xl"></i>
+                            </button>
+                        </form>
+                        {% elif task.status == 'completed' %}
+                            <div class="text-emerald-500"><i class="fas fa-check-circle text-2xl"></i></div>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                    <div class="p-8 text-center text-slate-400 italic">
+                        No tasks have been created for this interaction yet.
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                {% if interaction.status != 'RESOLVED' and current_role in ['manager', 'receptionist'] %}
+                <div class="p-4 bg-slate-50 border-t border-slate-200">
+                    <form method="POST" action="{{ url_for('uip_bp.add_task', org_slug=org.slug, reference=interaction.reference) }}" class="space-y-3">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <div>
+                            <input type="text" name="title" required placeholder="New task title (e.g. Dispatch plumber)" class="w-full rounded-lg border-slate-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                        </div>
+                        <div class="flex space-x-2">
+                            <input type="text" name="description" placeholder="Optional details..." class="flex-grow rounded-lg border-slate-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm">
+                            <select name="assignee_id" class="rounded-lg border-slate-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm">
+                                <option value="">-- Unassigned --</option>
+                                {% for member in staff %}
+                                <option value="{{ member.id }}">{{ member.first_name }} {{ member.last_name }}</option>
+                                {% endfor %}
+                            </select>
+                            <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm transition whitespace-nowrap">
+                                Add Task
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                {% endif %}
+            </div>
+            
+        </div>
+        
+        <!-- Right Column: Meta & Audit -->
+        <div class="space-y-6">
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+                <h3 class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2">Properties</h3>
+                
+                <div class="space-y-4 text-sm">
+                    <div>
+                        <span class="block text-slate-500 text-xs mb-1">Category</span>
+                        <span class="font-medium text-slate-800">{{ interaction.category }}</span>
+                    </div>
+                    <div>
+                        <span class="block text-slate-500 text-xs mb-1">Channel</span>
+                        <span class="font-medium text-slate-800"><i class="fas fa-{{ 'phone' if interaction.channel == 'Phone' else 'globe' if interaction.channel == 'Web' else 'envelope' }} mr-1 text-slate-400"></i> {{ interaction.channel }}</span>
+                    </div>
+                    <div>
+                        <span class="block text-slate-500 text-xs mb-1">Priority</span>
+                        {% if interaction.priority == 'HIGH' %}
+                            <span class="font-bold text-rose-600"><i class="fas fa-exclamation-triangle mr-1"></i> HIGH</span>
+                        {% elif interaction.priority == 'LOW' %}
+                            <span class="font-medium text-slate-600">LOW</span>
+                        {% else %}
+                            <span class="font-medium text-amber-600">NORMAL</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+    </div>
+</div>
+{% endblock %}

@@ -8,9 +8,9 @@
             <span class="bg-indigo-100 text-indigo-800 text-xs px-2 py-1 rounded font-bold uppercase tracking-wide mb-2 inline-block">{{ org.name }}</span>
             <h1 class="text-3xl font-extrabold text-slate-900">Resident Portal</h1>
         </div>
-        <button class="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-sm transition flex items-center">
+        <a href="{{ url_for('uip_bp.new_interaction', org_slug=org.slug) }}" class="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-sm transition flex items-center">
             <i class="fas fa-plus mr-2"></i> Report Issue
-        </button>
+        </a>
     </div>
 
     {% include "partials/flash_messages.html" %}
@@ -21,7 +21,7 @@
             {% if interactions %}
                 <div class="space-y-4">
                 {% for ix in interactions %}
-                    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center">
+                    <a href="{{ url_for('uip_bp.view_interaction', org_slug=org.slug, reference=ix.reference) }}" class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center hover:shadow-md transition block">
                         <div>
                             <span class="text-xs font-bold text-slate-500 uppercase">{{ ix.reference }}</span>
                             <h3 class="font-bold text-slate-900">{{ ix.title }}</h3>
@@ -30,7 +30,7 @@
                         <span class="px-3 py-1 text-xs font-bold rounded-full {% if ix.status == 'open' %}bg-amber-100 text-amber-800{% else %}bg-green-100 text-green-800{% endif %} uppercase tracking-wide">
                             {{ ix.status }}
                         </span>
-                    </div>
+                    </a>
                 {% endfor %}
                 </div>
             {% else %}

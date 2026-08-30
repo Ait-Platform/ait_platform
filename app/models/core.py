@@ -7,6 +7,15 @@ class CoreOrganization(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255), nullable=False)
     slug = db.Column(db.String(255), unique=True, nullable=False, index=True)
+    
+    # Extended Functional Specification Fields
+    area = db.Column(db.String(255))
+    municipality_ref = db.Column(db.String(255))
+    contact_email = db.Column(db.String(255))
+    contact_phone = db.Column(db.String(50))
+    status = db.Column(db.String(50), default="active", index=True)
+    config_json = db.Column(db.Text) # Storing JSON configurations as Text
+    
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     # Relationships
@@ -19,7 +28,10 @@ class CoreOrganizationMember(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     organization_id = db.Column(db.Integer, db.ForeignKey("core_organization.id"), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
     joined_at = db.Column(db.DateTime, default=datetime.utcnow)
+    left_at = db.Column(db.DateTime, nullable=True)
 
     # Relationships
     organization = db.relationship("CoreOrganization", back_populates="members")
@@ -77,21 +89,36 @@ class CoreInteraction(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     reference = db.Column(db.String(50), unique=True, index=True) # e.g. "MG-00482"
     organization_id = db.Column(db.Integer, db.ForeignKey("core_organization.id"), nullable=False)
-    creator_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False) # e.g., the Resident
     
-    interaction_type = db.Column(db.String(50), nullable=False) # enquiry, complaint, request, etc.
+    # Audit Actors
+    creator_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    assigned_to = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    closed_by = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    
+    # Core Data
+    channel = db.Column(db.String(50)) # e.g., Telephone, Web, Walk-in
+    category = db.Column(db.String(100)) # e.g., Security, Maintenance
+    interaction_type = db.Column(db.String(50), nullable=False) 
+    
     title = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text)
     
-    status = db.Column(db.String(50), default="open", index=True)
-    priority = db.Column(db.String(50), default="normal")
+    status = db.Column(db.String(50), default="NEW", index=True)
+    priority = db.Column(db.String(50), default="NORMAL")
     
+    # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    closed_at = db.Column(db.DateTime, nullable=True)
 
     # Relationships
     organization = db.relationship("CoreOrganization", backref="interactions")
     tasks = db.relationship("CoreTask", back_populates="interaction", cascade="all, delete-orphan")
+    
+    # User Relationships (using foreign_keys to disambiguate)
+    creator = db.relationship("User", foreign_keys=[creator_id], backref="created_interactions")
+    assignee = db.relationship("User", foreign_keys=[assigned_to], backref="assigned_interactions")
+    closer = db.relationship("User", foreign_keys=[closed_by], backref="closed_interactions")
 
 class CoreTask(db.Model):
     __tablename__ = "core_task"

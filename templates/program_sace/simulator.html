@@ -60,8 +60,19 @@
                         </div>
                     </div>
                     
-                    <div class="bg-indigo-50 border-l-4 border-indigo-600 p-6 rounded-r-lg mb-8">
-                        <h4 class="font-bold text-indigo-900 mb-2">Live Evaluation Evidence</h4>
+                                        <div class="bg-indigo-50 border-l-4 border-indigo-600 p-6 rounded-r-lg mb-8">
+                        <h4 class="font-bold text-indigo-900 mb-2"><i class="fas fa-satellite-dish mr-2"></i>Live Room Status</h4>
+                        <div class="grid grid-cols-2 gap-4 mb-4">
+                            <div class="bg-white p-3 rounded shadow-sm border border-slate-200">
+                                <p class="text-xs text-slate-500 font-bold uppercase mb-1">Facilitator</p>
+                                <p id="a-status-f" class="font-bold text-amber-600"><i class="fas fa-clock mr-1"></i> Waiting for Start</p>
+                            </div>
+                            <div class="bg-white p-3 rounded shadow-sm border border-slate-200">
+                                <p class="text-xs text-slate-500 font-bold uppercase mb-1">Participants</p>
+                                <p id="a-status-p" class="font-bold text-slate-600"><i class="fas fa-users mr-1"></i> Joining Lobby</p>
+                            </div>
+                        </div>
+                        <h4 class="font-bold text-indigo-900 mb-2 mt-4">Evaluation Evidence</h4>
                         <p class="text-sm text-indigo-800 mb-4" id="auditorMessage">
                             Waiting for workshop to begin...
                         </p>
@@ -104,6 +115,19 @@ function switchTab(tabId) {
     const greenLight = "w-3 h-3 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.8)] mr-2";
     document.getElementById('light-f').className = redLight;
     document.getElementById('light-p').className = redLight;
+
+        // Log auditor navigation to database
+    fetch('/sace/log_event', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({
+            action: 'AUDITOR_VIEWED_TAB_' + tabId.toUpperCase(),
+            details: 'Auditor switched to ' + (tabId === 'a' ? 'Guide' : tabId === 'f' ? 'Facilitator Board' : 'Participant Board')
+        })
+    });
 
     // Show active tab
     document.getElementById('tab-' + tabId).classList.remove('hidden');
@@ -150,7 +174,12 @@ function updateAuditorBanner(slideNumber) {
     
     syncEl.innerText = "Slide " + slideNumber;
     
-    if(slideNumber == 1) {
+        if(slideNumber == 1) {
+        document.getElementById('a-status-f').innerHTML = '<i class="fas fa-play-circle mr-1"></i> Active (Slide 1)';
+        document.getElementById('a-status-f').className = 'font-bold text-green-600';
+        document.getElementById('a-status-p').innerHTML = '<i class="fas fa-sync fa-spin mr-1"></i> Synced to Timetable';
+        document.getElementById('a-status-p').className = 'font-bold text-green-600';
+
         msgEl.innerText = "Slide 1 - Observe how the Timetable is dynamically rendered to all Participants seamlessly.";
         {% if docs['annexure_a'] %}
         linkEl.href = "{{ url_for('sace_bp.download_document', doc_id=docs['annexure_a'].id) }}";
@@ -159,7 +188,10 @@ function updateAuditorBanner(slideNumber) {
         {% endif %}
         textEl.innerText = "View Annexure A: Timetable";
         linkEl.style.display = "inline-flex";
-    } else if(slideNumber == 2) {
+        } else if(slideNumber == 2) {
+        document.getElementById('a-status-f').innerHTML = '<i class="fas fa-play-circle mr-1"></i> Active (Slide 2)';
+        document.getElementById('a-status-p').innerHTML = '<i class="fas fa-sync fa-spin mr-1"></i> Synced to Presentation';
+
         msgEl.innerText = "Slide 2 - The presentation content begins. The Facilitator follows structured notes.";
         {% if docs['annexure_b'] %}
         linkEl.href = "{{ url_for('sace_bp.download_document', doc_id=docs['annexure_b'].id) }}";

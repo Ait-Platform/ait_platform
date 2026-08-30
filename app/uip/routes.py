@@ -723,3 +723,12 @@ def generate_ai_report(org_slug):
         flash(f"Luna Management Summary: {result['message']} (Cost: {result['cost_cents']} AIT)", "success")
         
     return redirect(url_for("uip_bp.org_reports", org_slug=org_slug))
+f r o m   f l a s k   i m p o r t   r e d i r e c t ,   u r l _ f o r  
+ f r o m   a p p . u i p   i m p o r t   u i p _ b p  
+  
+ @ u i p _ b p . r o u t e ( " / " )  
+ d e f   u i p _ s t a r t ( ) :  
+         #   A   s i m p l e   l a n d i n g / e n t r y   r o u t e   t h a t   r e d i r e c t s   t o   t h e   d e m o   t e n a n t   f o r   n o w .  
+         #   W e   w i l l   a s s u m e   ' m a n o r - g a r d e n s '   s i n c e   w e   s e e d e d   i t   e a r l i e r .  
+         r e t u r n   r e d i r e c t ( u r l _ f o r ( ' u i p _ b p . d a s h b o a r d ' ,   o r g _ s l u g = ' m a n o r - g a r d e n s ' ) )  
+ 

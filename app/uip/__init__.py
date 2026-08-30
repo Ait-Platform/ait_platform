@@ -95,6 +95,23 @@ def establish_organization_context():
                         is_active=True
                     )
                     db.session.add(membership)
+                    
+                    from app.models.core import CoreRole, CoreRoleAssignment
+                    manager_role = CoreRole.query.filter_by(slug='manager').first()
+                    if not manager_role:
+                        manager_role = CoreRole(name='Manager', slug='manager', access_level=10)
+                        db.session.add(manager_role)
+                        db.session.flush()
+                        
+                    assignment = CoreRoleAssignment.query.filter_by(user_id=current_user.id, organization_id=org.id).first()
+                    if not assignment:
+                        assignment = CoreRoleAssignment(
+                            user_id=current_user.id,
+                            organization_id=org.id,
+                            role_id=manager_role.id
+                        )
+                        db.session.add(assignment)
+                    
                     db.session.commit()
                 elif current_user.email != "sanjith@ait.com":
                     abort(403, description="Tenant Isolation Violation: You do not have access to this Organization.")

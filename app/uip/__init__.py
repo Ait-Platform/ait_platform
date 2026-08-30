@@ -1,4 +1,4 @@
-﻿from flask import Blueprint, g, request, abort
+from flask import Blueprint, g, request, abort
 from app.extensions import db
 
 uip_bp = Blueprint("uip_bp", __name__, url_prefix="/uip")

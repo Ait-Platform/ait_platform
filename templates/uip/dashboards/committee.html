@@ -1,0 +1,43 @@
+﻿{% extends "layout.html" %}
+
+{% block title %}Committee Dashboard - {{ org.name }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8 max-w-7xl">
+    
+    <div class="flex justify-between items-center mb-8">
+        <div>
+            <h1 class="text-3xl font-extrabold text-slate-900 mb-2"><i class="fas fa-gavel text-indigo-600 mr-2"></i> Committee Board</h1>
+            <p class="text-slate-500">Governance overview for {{ org.name }}</p>
+        </div>
+        <div class="flex space-x-3">
+            <a href="#" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg shadow transition">
+                <i class="fas fa-plus mr-2"></i> New Meeting
+            </a>
+            <a href="{{ url_for('uip_bp.org_settings', org_slug=org.slug) }}" class="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-2 px-4 rounded-lg shadow-sm transition">
+                <i class="fas fa-cog mr-2"></i> Settings
+            </a>
+        </div>
+    </div>
+    
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+            <h3 class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-2">Token Balance</h3>
+            <p class="text-3xl font-extrabold text-slate-900">{{ org.wallet.balance if org.wallet else 0 }} <span class="text-sm text-slate-500 font-normal">AIT</span></p>
+        </div>
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+            <h3 class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-2">Active Resolutions</h3>
+            <p class="text-3xl font-extrabold text-slate-900">0</p>
+        </div>
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+            <h3 class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-2">Open Referrals</h3>
+            <p class="text-3xl font-extrabold text-slate-900">0</p>
+        </div>
+    </div>
+    
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-8 text-center text-slate-500 italic">
+        Governance features (Resolutions, Voting, Board Packs) are currently being rolled out in Phase 1.
+    </div>
+
+</div>
+{% endblock %}

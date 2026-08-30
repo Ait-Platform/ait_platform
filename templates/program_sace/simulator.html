@@ -3,10 +3,10 @@
 {% block title %}SACE Endorsement Simulator{% endblock %}
 
 {% block content %}
-<div class="container mx-auto px-4 py-8 h-[90vh] flex flex-col">
+<div class="container mx-auto px-4 py-8 h-[90vh] flex flex-col max-w-7xl">
     
     <!-- Traffic Robot Tabs -->
-    <div class="flex space-x-2 border-b-2 border-slate-700 pb-0">
+    <div class="flex space-x-2 border-b-2 border-slate-700 pb-0 bg-white pt-4 px-4 rounded-t-xl shadow z-10">
         <button id="btn-tab-a" onclick="showTab('a')" class="flex items-center px-6 py-3 bg-indigo-600 text-white font-bold rounded-t-lg transition border-b-2 border-indigo-400">
             <i class="fas fa-book-open mr-2"></i> Guide (A)
         </button>
@@ -26,135 +26,576 @@
         <!-- ========================================== -->
         <div id="tab-a" class="w-full h-full p-8 overflow-y-auto">
             <h1 class="text-3xl font-extrabold text-indigo-900 mb-6">SACE Auditor Guide</h1>
-            <p class="text-lg text-slate-700 mb-8">Welcome to the Endorsement Simulator. This tool will guide you through the exact flow of the workshop to demonstrate how the Facilitator and Participant devices interact in real-time.</p>
+            <p class="text-lg text-slate-700 mb-8">Welcome to the Endorsement Simulator. This tool guides you through the exact flow of the workshop using the real slides.</p>
             
             <div class="bg-slate-50 p-6 rounded-xl border border-slate-200 mb-8">
                 <h3 class="font-bold text-slate-800 mb-4"><i class="fas fa-traffic-light text-indigo-600 mr-2"></i> The Traffic Robot System</h3>
-                <p class="mb-2">Follow the <strong>Green Light</strong>. The green light tells you exactly which tab requires your attention.</p>
+                <p class="mb-2">Follow the <strong>Green Light</strong> to understand how the facilitator controls the teacher's device.</p>
                 <ul class="list-disc list-inside text-slate-600 space-y-2">
-                    <li>When <strong>F is Green</strong>, you are acting as the Facilitator. Click the button to send the content.</li>
-                    <li>When <strong>P is Green</strong>, you are acting as the Teacher. Interact with the content that just arrived on your screen.</li>
+                    <li>When <strong>F is Green</strong>, you are the Facilitator. Use the 'Next Slide' button to present.</li>
+                    <li>When <strong>P is Green</strong>, you are the Teacher. Interact with the content that just arrived on your screen.</li>
                 </ul>
             </div>
 
-            <button onclick="launchActivity(1)" class="px-8 py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xl rounded-xl shadow-lg transition flex items-center">
-                Launch Activity 1: The Program <i class="fas fa-arrow-right ml-3"></i>
+            <button onclick="launchDemo()" class="px-8 py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xl rounded-xl shadow-lg transition flex items-center">
+                Launch Full SACE Program <i class="fas fa-arrow-right ml-3"></i>
             </button>
         </div>
 
         <!-- ========================================== -->
         <!-- TAB F: FACILITATOR -->
         <!-- ========================================== -->
-        <div id="tab-f" class="w-full h-full hidden flex-col">
-            <div class="bg-slate-900 text-white p-4 flex justify-between items-center shadow-md">
-                <h2 class="font-bold text-lg"><i class="fas fa-chalkboard-teacher mr-2"></i> Facilitator Projector</h2>
-                <span class="bg-indigo-600 px-3 py-1 rounded text-sm font-bold">Endorsement Mode</span>
-            </div>
-            
-            <div class="flex-grow p-8 bg-slate-100 flex items-center justify-center relative">
-                
-                <!-- F Activity 1: Program -->
-                <div id="f-act-1" class="hidden flex-col items-center justify-center text-center max-w-2xl bg-white p-10 rounded-2xl shadow-xl">
-                    <h2 class="text-3xl font-bold text-indigo-900 mb-6">1. The Program (Timetable)</h2>
-                    <p class="text-slate-600 mb-8 text-lg">You are now presenting the timetable to the room. Click below to push this program directly to every teacher's device.</p>
-                    <button onclick="sendToParticipant(1)" class="px-8 py-4 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xl rounded-xl shadow-[0_0_15px_rgba(16,185,129,0.5)] transition">
-                        <i class="fas fa-paper-plane mr-2"></i> Send Program to Teachers
-                    </button>
-                </div>
+        <div id="tab-f" class="w-full h-full hidden flex-col relative bg-slate-900">
+            <div class="flex-grow relative overflow-hidden">
+                <div id="slide-lobby" class="slide-container absolute inset-0 flex flex-col items-center justify-center p-8 bg-white text-slate-800 rounded-xl text-center z-20">
+                        <h2 class="text-4xl font-bold text-indigo-600 mb-4">Welcome</h2>
+                        <p class="text-xl text-slate-500 mb-8">Waiting for teachers to check in...</p>
+                        <div class="text-2xl font-bold text-green-400">Teachers Connected: <span id="attendance-counter">0</span></div>
+                    </div>
 
-                <!-- F Activity 2: Crisis Poll -->
-                <div id="f-act-2" class="hidden flex-col items-center justify-center text-center max-w-2xl bg-white p-10 rounded-2xl shadow-xl">
-                    <h2 class="text-3xl font-bold text-indigo-900 mb-6">2. The Hook (Crisis Poll)</h2>
-                    <p class="text-slate-600 mb-8 text-lg">Ask the room: "Is there a crisis in reading in South Africa?" Push the poll to their devices to force active engagement.</p>
-                    <button onclick="sendToParticipant(2)" class="px-8 py-4 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xl rounded-xl shadow-[0_0_15px_rgba(16,185,129,0.5)] transition">
-                        <i class="fas fa-paper-plane mr-2"></i> Send Poll to Teachers
-                    </button>
-                </div>
-
-                <!-- F Activity 3: Survey Results -->
-                <div id="f-act-3" class="hidden flex-col items-center justify-center text-center max-w-2xl bg-white p-10 rounded-2xl shadow-xl w-full">
-                    <h2 class="text-3xl font-bold text-indigo-900 mb-6"><i class="fas fa-chart-bar mr-2"></i> Live Poll Results</h2>
-                    <p class="text-slate-600 mb-6">The results animate in real-time as teachers answer.</p>
-                    <div class="w-full space-y-6 text-left">
-                        <div>
-                            <div class="flex justify-between font-bold mb-2"><span class="text-green-600">TRUE (Crisis Exists)</span><span>100%</span></div>
-                            <div class="w-full bg-slate-200 rounded-full h-6"><div class="bg-green-500 h-6 rounded-full w-full"></div></div>
-                        </div>
-                        <div>
-                            <div class="flex justify-between font-bold mb-2"><span class="text-red-600">FALSE (No Crisis)</span><span>0%</span></div>
-                            <div class="w-full bg-slate-200 rounded-full h-6"><div class="bg-red-500 h-6 rounded-full w-0"></div></div>
+                    <!-- Slide 0 (The Hook / Pre-test State) -->
+                    <div id="slide-0" class="slide-container absolute inset-0 flex flex-col items-center justify-center p-8 bg-white text-slate-800 rounded-xl text-center">
+                        <h2 class="text-4xl font-bold text-indigo-600 mb-8"><i class="fas fa-clipboard-check mr-3"></i>Welcome Activity</h2>
+                        <p class="text-2xl text-indigo-700 mb-6 font-semibold">Is there a crisis in reading in South Africa?</p>
+                        <p class="text-lg text-slate-500 italic mb-8">Please log your answer on your Participant App to begin.</p>
+                        <div class="flex space-x-6 justify-center">
+                            <div class="px-8 py-4 bg-green-900/50 text-green-400 font-bold rounded-lg border border-green-700/50">TRUE (Crisis Exists)</div>
+                            <div class="px-8 py-4 bg-red-900/50 text-red-400 font-bold rounded-lg border border-red-700/50">FALSE (No Crisis)</div>
                         </div>
                     </div>
-                    <button onclick="alert('End of Simulator Demo! This proves the interactive cause-and-effect flow for SACE endorsement.'); showTab('a');" class="mt-8 px-8 py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xl rounded-xl shadow-lg transition">
-                        Finish Demonstration
+
+
+                    <!-- Slide 1 -->
+                    <div id="slide-1" class="slide-container absolute inset-0 hidden flex-col items-center justify-center">
+                        <img src="{{ url_for('static', filename='sace_slides/1ReadingState.png') }}" class="max-h-full max-w-full object-contain" alt="Slide 1: Reading State">
+                        <audio controls class="mt-4 mb-2 w-3/4 max-w-md shadow-sm rounded-full">
+                            <source src="{{ url_for('static', filename='sace_slides/1_audio.wav') }}" type="audio/wav">
+                        </audio>
+                    </div>
+
+                    <!-- Slide 2 (Live Survey Results) -->
+                    <div id="slide-2" class="slide-container absolute inset-0 hidden flex-col items-center justify-center p-8 bg-white text-slate-800 rounded-xl">
+                        <h2 class="text-3xl font-bold text-indigo-600 mb-8"><i class="fas fa-poll mr-3"></i>Live Room Data: Pre-Test</h2>
+                        <p class="text-xl text-indigo-700 mb-8 font-semibold">Q: Is there a crisis in reading in SA?</p>
+                        
+                        <div class="w-full max-w-2xl space-y-8">
+                            <!-- True Bar -->
+                            <div>
+                                <div class="flex justify-between text-xl font-bold mb-2">
+                                    <span class="text-green-400">TRUE (Crisis Exists)</span>
+                                    <span id="true-count-slide" class="text-green-400">0</span>
+                                </div>
+                                <div class="w-full bg-slate-700 rounded-full h-8">
+                                    <div id="true-bar-slide" class="bg-green-500 h-8 rounded-full transition-all duration-1000" style="width: 0%"></div>
+                                </div>
+                            </div>
+                            
+                            <!-- False Bar -->
+                            <div>
+                                <div class="flex justify-between text-xl font-bold mb-2">
+                                    <span class="text-red-400">FALSE (No Crisis)</span>
+                                    <span id="false-count-slide" class="text-red-400">0</span>
+                                </div>
+                                <div class="w-full bg-slate-700 rounded-full h-8">
+                                    <div id="false-bar-slide" class="bg-red-500 h-8 rounded-full transition-all duration-1000" style="width: 0%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Slide 3 (The Problem) -->
+                    <div id="slide-3" class="slide-container absolute inset-0 hidden flex-col items-center justify-center">
+                        <img src="{{ url_for('static', filename='sace_slides/2Problem.png') }}" class="max-h-full max-w-full object-contain" alt="Slide 2: The Problem">
+                        <audio controls class="mt-4 mb-2 w-3/4 max-w-md shadow-sm rounded-full">
+                            <source src="{{ url_for('static', filename='sace_slides/2_audio.wav') }}" type="audio/wav">
+                        </audio>
+                    </div>
+
+                    <!-- Slide 4 (Root Cause Poll Results) -->
+                    <div id="slide-4" class="slide-container absolute inset-0 hidden flex-col items-center justify-center p-8 bg-white text-slate-800 rounded-xl">
+                        <h2 class="text-3xl font-bold text-indigo-600 mb-8"><i class="fas fa-chart-bar mr-3"></i>Live Room Data: Root Cause</h2>
+                        <p class="text-xl text-indigo-700 mb-8 font-semibold">What is the biggest contributor to the reading crisis?</p>
+                        <div class="w-full max-w-2xl space-y-6">
+                            <div class="flex items-center">
+                                <div class="w-1/3 text-right pr-4 font-bold text-slate-400">Resources</div>
+                                <div class="w-2/3 bg-slate-700 rounded-full h-6"><div id="poll-res" class="bg-blue-500 h-6 rounded-full transition-all duration-1000" style="width: 0%"></div></div>
+                            </div>
+                            <div class="flex items-center">
+                                <div class="w-1/3 text-right pr-4 font-bold text-slate-400">Class Size</div>
+                                <div class="w-2/3 bg-slate-700 rounded-full h-6"><div id="poll-class" class="bg-amber-500 h-6 rounded-full transition-all duration-1000" style="width: 0%"></div></div>
+                            </div>
+                            <div class="flex items-center">
+                                <div class="w-1/3 text-right pr-4 font-bold text-slate-400">Language Barriers</div>
+                                <div class="w-2/3 bg-slate-700 rounded-full h-6"><div id="poll-lang" class="bg-rose-500 h-6 rounded-full transition-all duration-1000" style="width: 0%"></div></div>
+                            </div>
+                            <div class="flex items-center">
+                                <div class="w-1/3 text-right pr-4 font-bold text-slate-400">Methods</div>
+                                <div class="w-2/3 bg-slate-700 rounded-full h-6"><div id="poll-meth" class="bg-green-500 h-6 rounded-full transition-all duration-1000" style="width: 0%"></div></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Slide 5 (Personal Reflection) -->
+                    <div id="slide-5" class="slide-container absolute inset-0 hidden flex-col items-center justify-center p-8 bg-white text-slate-800 rounded-xl">
+                        <h2 class="text-3xl font-bold text-indigo-600 mb-8"><i class="fas fa-chart-pie mr-3"></i>Live Room Data: Top Challenges</h2>
+                        <p class="text-xl text-indigo-700 mb-8 font-semibold text-center">Which reading challenge is most prevalent in your classroom?</p>
+                        <div class="w-full max-w-4xl space-y-6">
+                            <div class="flex items-center">
+                                <div class="w-1/2 text-right pr-4 font-bold text-slate-400 text-sm italic">"I have many learners..."</div>
+                                <div class="w-1/2 bg-slate-700 rounded-full h-6"><div class="bg-indigo-500 h-6 rounded-full" style="width: 40%"></div></div>
+                            </div>
+                            <div class="flex items-center">
+                                <div class="w-1/2 text-right pr-4 font-bold text-slate-400 text-sm italic">"There are no books..."</div>
+                                <div class="w-1/2 bg-slate-700 rounded-full h-6"><div class="bg-teal-500 h-6 rounded-full" style="width: 30%"></div></div>
+                            </div>
+                            <div class="flex items-center">
+                                <div class="w-1/2 text-right pr-4 font-bold text-slate-400 text-sm italic">"Parents are not able..."</div>
+                                <div class="w-1/2 bg-slate-700 rounded-full h-6"><div class="bg-fuchsia-500 h-6 rounded-full" style="width: 20%"></div></div>
+                            </div>
+                            <div class="flex items-center">
+                                <div class="w-1/2 text-right pr-4 font-bold text-slate-400 text-sm italic">"We lack basic phonics..."</div>
+                                <div class="w-1/2 bg-slate-700 rounded-full h-6"><div class="bg-cyan-500 h-6 rounded-full" style="width: 10%"></div></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Slide 6 (Guessing Game Results) -->
+                    <div id="slide-6" class="slide-container absolute inset-0 hidden flex-col items-center justify-center p-8 bg-white text-slate-800 rounded-xl text-center">
+                        <h2 class="text-3xl font-bold text-indigo-600 mb-4"><i class="fas fa-exclamation-triangle mr-3"></i>The Harsh Reality</h2>
+                        <p class="text-xl text-indigo-700 mb-8 font-semibold">Percentage of Grade 4 learners who cannot read for meaning:</p>
+                        <div class="text-[8rem] font-black text-rose-500 leading-none drop-shadow-lg mb-4">81%</div>
+                        <p class="text-slate-400 text-lg">PIRLS 2021 Study</p>
+                    </div>
+
+                    <!-- Slide 7 (Intro) -->
+                    <div id="slide-7" class="slide-container absolute inset-0 hidden items-center justify-center">
+                        <img src="{{ url_for('static', filename='sace_slides/3Intro.png') }}" class="max-h-full max-w-full object-contain" alt="Slide 3: Introduction">
+                    </div>
+
+                    
+                    <!-- Slide 8 (The English Family) -->
+                    <div id="slide-8" class="slide-container absolute inset-0 hidden flex-col items-center justify-center p-8 bg-white text-slate-800 rounded-xl">
+                        <h2 class="text-3xl font-bold text-indigo-900 mb-6 uppercase tracking-wider">Slide 8: The English Family</h2>
+                        <p class="text-lg text-indigo-700 max-w-2xl text-center mb-8">Once upon a time, there was a family with a very unique way of speaking...</p>
+                        <div class="bg-indigo-900/50 p-6 rounded-lg max-w-xl text-center border border-indigo-700">
+                            <h3 class="font-bold text-yellow-300 mb-2"><i class="fas fa-mobile-alt mr-2"></i>App Verification Active</h3>
+                            <p class="text-sm">Participants are currently submitting their demographic adaptation strategies.</p>
+                        </div>
+                    </div>
+
+                    <!-- Slide 9 (Introducing the Vowels) -->
+                    <div id="slide-9" class="slide-container absolute inset-0 hidden flex-col items-center justify-center p-8 bg-white text-slate-800 rounded-xl border-4 border-rose-500">
+                        <h2 class="text-3xl font-bold text-rose-400 mb-2 uppercase tracking-wider">Slide 9: Game 1</h2>
+                        <h3 class="text-xl text-indigo-700 mb-6 italic">Kinesthetic Memory: The Vowel Hops</h3>
+                        <p class="text-xl text-white font-black max-w-2xl text-center tracking-widest space-x-6 mb-8">
+                            <span>A</span> <span>E</span> <span>I</span> <span>O</span> <span>U</span>
+                        </p>
+                        <div class="bg-slate-800/80 p-6 rounded-lg max-w-xl text-center border border-slate-700 shadow-xl">
+                            <h3 class="font-bold text-yellow-300 mb-2"><i class="fas fa-mobile-alt mr-2"></i>App Integration</h3>
+                            <p class="text-sm text-slate-200">Participants have instructions on their app. Have them stand up, take 5 hops, and shout each vowel!</p>
+                        </div>
+                    </div>
+
+                    <!-- Slide 10 (The LiTRE Blending Machine) -->
+                    <div id="slide-10" class="slide-container absolute inset-0 hidden flex-col items-center justify-center p-8 bg-indigo-900 text-white rounded-xl border-4 border-indigo-500">
+                        <h2 class="text-3xl font-bold text-indigo-900 mb-2 uppercase tracking-wider">Slide 10: Game 2</h2>
+                        <h3 class="text-xl text-indigo-100 mb-6 italic">The Number Map (Blending Machine)</h3>
+                        <div class="grid grid-cols-5 gap-4 mb-8 text-center w-full max-w-2xl">
+                            <div class="bg-indigo-800 p-4 rounded-lg border border-indigo-600"><span class="block text-sm text-indigo-900 mb-2">1</span><span class="font-black text-3xl">A</span></div>
+                            <div class="bg-indigo-800 p-4 rounded-lg border border-indigo-600"><span class="block text-sm text-indigo-900 mb-2">2</span><span class="font-black text-3xl">E</span></div>
+                            <div class="bg-indigo-800 p-4 rounded-lg border border-indigo-600"><span class="block text-sm text-indigo-900 mb-2">3</span><span class="font-black text-3xl">I</span></div>
+                            <div class="bg-indigo-800 p-4 rounded-lg border border-indigo-600"><span class="block text-sm text-indigo-900 mb-2">4</span><span class="font-black text-3xl">O</span></div>
+                            <div class="bg-indigo-800 p-4 rounded-lg border border-indigo-600"><span class="block text-sm text-indigo-900 mb-2">5</span><span class="font-black text-3xl">U</span></div>
+                        </div>
+                        <div class="bg-indigo-800/80 p-6 rounded-lg max-w-xl text-center border border-indigo-600 shadow-xl">
+                            <h3 class="font-bold text-yellow-300 mb-2"><i class="fas fa-mobile-alt mr-2"></i>App Verification Active</h3>
+                            <p class="text-sm text-indigo-100">Participants are paired up calling out random numbers while their partner shouts the vowel.</p>
+                        </div>
+                    </div>
+
+                    <!-- Slide 11 (Consonant Flashcards) -->
+                    <div id="slide-11" class="slide-container absolute inset-0 hidden flex-col items-center justify-center p-8 bg-white text-slate-800 rounded-xl border-4 border-emerald-500">
+                        <h2 class="text-3xl font-bold text-emerald-400 mb-2 uppercase tracking-wider">Slide 11: Tactile Engagement</h2>
+                        <h3 class="text-xl text-indigo-700 mb-6 italic">Consonant Flashcards (10 Minutes)</h3>
+                        <div class="bg-slate-800/80 p-6 rounded-lg max-w-xl text-center border border-slate-700 shadow-xl">
+                            <h3 class="font-bold text-yellow-300 mb-2"><i class="fas fa-mobile-alt mr-2"></i>App Integration Active</h3>
+                            <p class="text-sm text-slate-200">Participants are downloading the Consonant Sheet PDF on their devices.<br><br>Instruct them to cut out the letters to create physical flashcards and test their partner!</p>
+                        </div>
+                    </div>
+                            <div class="flex items-center text-4xl text-rose-500 font-black">+</div>
+                            <div class="bg-slate-800 p-8 rounded-lg shadow-lg border border-slate-700 text-center">
+                                <div class="text-6xl font-black text-white mb-2">A</div>
+                                <div class="text-slate-400 uppercase tracking-widest text-sm font-bold">Vowel</div>
+                            </div>
+                        </div>
+                    </div>
+
+</div>
+                
+                <!-- Slide Controls -->
+                <div class="flex justify-between items-center mt-4 bg-slate-100 p-3 rounded-lg border border-slate-200">
+                    <button onclick="prevSlide()" class="px-4 py-2 bg-white text-slate-700 font-bold rounded shadow-sm hover:bg-slate-50 border border-slate-300">
+                        <i class="fas fa-chevron-left mr-1"></i> Prev
+                    </button>
+                    <span id="slide-counter" class="font-bold text-slate-600">0 / 18</span>
+                    <button onclick="nextSlide()" class="px-4 py-2 bg-purple-600 text-white font-bold rounded shadow-sm hover:bg-purple-700">
+                        Next <i class="fas fa-chevron-right ml-1"></i>
                     </button>
                 </div>
+            </div>
+</div>
 
+<!-- Facilitator Controls -->
+            <div class="flex flex-col">
+                <h2 class="text-xl font-bold mb-4 text-slate-800">Room Controls</h2>
+                
+                <div class="bg-white rounded-xl p-6 border border-slate-200 space-y-6 flex-grow text-slate-800 shadow-sm">
+                    
+                    <!-- LOBBY CONTROLS -->
+                    <div id="controls-lobby" class="space-y-4">
+                        <div class="p-4 bg-indigo-50 border border-indigo-200 shadow-sm rounded-lg">
+                            <h3 class="font-bold text-indigo-900 mb-2 text-lg"><i class="fas fa-play-circle mr-2 text-green-600"></i>Workshop Ready</h3>
+                              <p class="text-slate-700 text-base leading-relaxed">Click Start Show to begin the Reading Activity.</p>
+                        </div>
+                        <button onclick="startWorkshop()" class="w-full py-4 bg-green-600 hover:bg-green-500 font-bold rounded-lg transition shadow-[0_0_15px_rgba(34,197,94,0.5)] text-lg">
+                            <i class="fas fa-play mr-2"></i> Start Workshop
+                        </button>
+                    </div>
+
+                                        <!-- ACTIVE CONTROLS -->
+                    <div id="controls-active" class="hidden space-y-4">
+                        <div class="p-4 bg-indigo-50 border border-indigo-200 shadow-sm rounded-lg">
+                            <h3 class="font-bold text-indigo-900 mb-2"><i class="fas fa-lightbulb text-yellow-400 mr-2"></i>Facilitator Note</h3>
+                            <p class="text-indigo-700 text-sm leading-relaxed">Navigate the slides. Participant apps will automatically sync to active traps and activities.</p>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 items-center">
+                            <button onclick="prevSlide()" class="w-full py-4 bg-slate-700 hover:bg-slate-600 font-bold rounded-lg transition text-slate-200 border border-slate-600 text-lg">
+                                <i class="fas fa-chevron-left mr-2"></i> Prev Slide
+                            </button>
+                            <button onclick="pollData()" class="w-full py-4 bg-slate-700 hover:bg-slate-600 text-sm font-bold rounded-lg transition text-indigo-700 border border-slate-600">
+                                <i class="fas fa-sync-alt mr-2"></i> Refresh Data
+                            </button>
+                            <button onclick="nextSlide()" class="w-full py-4 bg-indigo-600 hover:bg-indigo-500 font-bold rounded-lg transition shadow-[0_0_15px_rgba(79,70,229,0.5)] text-white text-lg">
+                                Next Slide <i class="fas fa-chevron-right ml-2"></i>
+                            </button>
+                        </div>
+                        
+                        <div class="mt-4 pt-4 border-t border-slate-700 text-right">
+                            <button onclick="resetWorkshop()" class="py-2 px-6 bg-red-900/30 hover:bg-red-800/50 text-red-400 text-sm font-bold rounded border border-red-800/50 transition">
+                                <i class="fas fa-power-off mr-2"></i> Reset Room (Back to Lobby)
+                            </button>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+            </div>
+            
+            <!-- Persistent F Controller -->
+            <div class="bg-slate-800 p-4 border-t border-slate-700 flex justify-between items-center shadow-lg z-50">
+                <button onclick="prevFSlide()" class="px-6 py-3 bg-slate-700 hover:bg-slate-600 text-white font-bold rounded-lg transition">
+                    <i class="fas fa-chevron-left mr-2"></i> Prev Slide
+                </button>
+                <div class="text-center text-slate-400 font-mono">
+                    Slide <span id="f-counter">0</span> / 18
+                </div>
+                <div class="flex space-x-3">
+                    <button onclick="peekParticipant()" class="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg transition shadow-[0_0_15px_rgba(79,70,229,0.5)]">
+                        <i class="fas fa-mobile-alt mr-2"></i> View Teacher's Device
+                    </button>
+                    <button onclick="nextFSlide()" class="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg transition shadow-[0_0_15px_rgba(16,185,129,0.5)]">
+                        Next Slide <i class="fas fa-chevron-right ml-2"></i>
+                    </button>
+                </div>
             </div>
         </div>
 
         <!-- ========================================== -->
         <!-- TAB P: PARTICIPANT -->
         <!-- ========================================== -->
-        <div id="tab-p" class="w-full h-full hidden flex-col">
-            <div class="bg-indigo-900 text-white p-4 flex justify-between items-center shadow-md">
-                <h2 class="font-bold text-lg"><i class="fas fa-mobile-alt mr-2"></i> Teacher's Device</h2>
-                <span class="bg-indigo-700 px-3 py-1 rounded text-sm font-bold">Synced</span>
-            </div>
-            
-            <div class="flex-grow p-4 md:p-8 bg-slate-50 flex items-start justify-center overflow-y-auto">
+        <div id="tab-p" class="w-full h-full hidden flex-col bg-slate-100">
+            <div class="flex-grow p-4 md:p-8 flex items-start justify-center overflow-y-auto">
                 <!-- Mobile Frame Mockup -->
-                <div class="w-full max-w-sm bg-white rounded-[2rem] border-8 border-slate-800 shadow-2xl overflow-hidden h-[700px] flex flex-col">
-                    <div class="bg-indigo-600 p-4 text-center text-white font-bold">AIT Learning App</div>
-                    <div class="p-6 flex-grow flex flex-col">
+                <div class="w-full max-w-sm bg-white rounded-[2rem] border-[12px] border-slate-800 shadow-2xl overflow-hidden h-[750px] flex flex-col relative">
+                    <div class="bg-indigo-600 p-4 text-center text-white font-bold shadow-md z-10 flex justify-between items-center">
+                        <span>AIT App</span>
+                        <span class="text-xs bg-green-400 text-green-900 px-2 py-1 rounded-full"><i class="fas fa-link mr-1"></i>Synced</span>
+                    </div>
+                    
+                    <div class="flex-grow p-4 overflow-y-auto bg-slate-50" id="app-view-container">
+                        <div id="app-view-0" class="app-view hidden">
+                        <h3 class="text-xl font-bold text-indigo-900 mb-4 border-b-2 border-indigo-100 pb-2">Activity: Slide 1 - Reading State</h3>
+                        <p class="mb-4 text-slate-700">Welcome! Before the facilitator begins, please answer the following question to unlock today's session:</p>
                         
-                        <!-- P Activity 1: Program -->
-                        <div id="p-act-1" class="hidden flex-col h-full">
-                            <h3 class="text-xl font-bold text-indigo-900 mb-4 border-b-2 border-indigo-100 pb-2">Workshop Program</h3>
-                            <ul class="space-y-4 mb-8 text-slate-700">
-                                <li class="flex items-center"><i class="fas fa-check-circle text-green-500 mr-3"></i> 09:00 - Introduction</li>
-                                <li class="flex items-center"><i class="fas fa-check-circle text-green-500 mr-3"></i> 09:30 - The Crisis Hook</li>
-                                <li class="flex items-center"><i class="fas fa-check-circle text-green-500 mr-3"></i> 10:15 - Active Reading</li>
+                        <div class="bg-white p-5 rounded-lg border border-indigo-200 shadow-sm mb-6">
+                            <p class="font-bold text-lg mb-4 text-slate-800">Q: Is there a crisis in reading in South African schools?</p>
+                            <button class="w-full py-3 bg-red-100 text-red-700 hover:bg-red-200 font-bold rounded-lg mb-3 border border-red-300 transition" onclick="mockPoll('crisis')">FALSE (No Crisis)</button>
+                            <button class="w-full py-3 bg-green-100 text-green-700 hover:bg-green-200 font-bold rounded-lg border border-green-300 transition" onclick="mockPoll('crisis')">TRUE (Crisis Exists)</button>
+                        </div>
+                        
+                        
+                    </div>
+
+                    <!-- App View: Generic Fallback (Look at Projector) -->
+                    <div id="app-view-1" class="app-view hidden text-center">
+                        <div class="h-24 w-24 bg-slate-100 rounded-full flex items-center justify-center mb-6 mx-auto">
+                            <i class="fas fa-chalkboard-teacher text-5xl text-slate-400"></i>
+                        </div>
+                        <h3 class="text-2xl font-bold text-slate-800 mb-2">Eyes on the Projector</h3>
+                        <p class="text-slate-600 mb-6">The facilitator is currently presenting. Please direct your attention to the main screen.</p>
+                        <div class="inline-flex items-center bg-indigo-50 text-indigo-700 px-4 py-2 rounded-full text-sm font-bold border border-indigo-100 shadow-sm">
+                            <i class="fas fa-sync-alt fa-spin mr-2"></i> Waiting for next activity...
+                        </div>
+                    </div>
+
+                    <!-- App View 2: Root Cause Poll -->
+                    <div id="app-view-2" class="app-view hidden">
+                        <h3 class="text-xl font-bold text-indigo-900 mb-4 border-b-2 border-indigo-100 pb-2">The Root Cause</h3>
+                        <div class="bg-white p-5 rounded-lg border border-indigo-200 shadow-sm">
+                            <p class="font-bold text-slate-800 mb-3">What is the biggest contributor to the reading crisis?</p>
+                            <div class="flex flex-col space-y-2">
+                                <button class="px-4 py-3 bg-white border border-indigo-300 rounded shadow-sm hover:bg-indigo-50 text-left font-semibold text-slate-700" onclick="mockPoll('root')">A) Lack of resources/books</button>
+                                <button class="px-4 py-3 bg-white border border-indigo-300 rounded shadow-sm hover:bg-indigo-50 text-left font-semibold text-slate-700" onclick="mockPoll('root')">B) Overcrowded classrooms</button>
+                                <button class="px-4 py-3 bg-white border border-indigo-300 rounded shadow-sm hover:bg-indigo-50 text-left font-semibold text-slate-700" onclick="mockPoll('root')">C) Language barriers (HL vs English)</button>
+                                <button class="px-4 py-3 bg-white border border-indigo-300 rounded shadow-sm hover:bg-indigo-50 text-left font-semibold text-slate-700" onclick="mockPoll('root')">D) Outdated teaching methods</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- App View 3: Personal Reflection -->
+                    <div id="app-view-3" class="app-view hidden">
+                        <h3 class="text-xl font-bold text-indigo-900 mb-4 border-b-2 border-indigo-100 pb-2">Personal Reflection</h3>
+                        <div class="bg-white p-5 rounded-lg border border-indigo-200 shadow-sm">
+                            <p class="font-bold text-slate-800 mb-3">In one sentence, describe the biggest reading challenge you face in your specific classroom.</p>
+                            <textarea class="w-full border border-slate-300 rounded p-3 h-24 mb-3" placeholder="Type your reflection here..."></textarea>
+                            <button class="w-full py-3 bg-indigo-600 text-white font-bold rounded shadow-sm hover:bg-indigo-700" onclick="mockPoll('generic')">Submit Reflection</button>
+                        </div>
+                    </div>
+
+                    <!-- App View 4: Guessing Game -->
+                    <div id="app-view-4" class="app-view hidden">
+                        <h3 class="text-xl font-bold text-indigo-900 mb-4 border-b-2 border-indigo-100 pb-2">Did You Know?</h3>
+                        <div class="bg-white p-5 rounded-lg border border-indigo-200 shadow-sm text-center">
+                            <p class="font-bold text-slate-800 mb-6">What percentage of Grade 4 learners do you think cannot read for meaning?</p>
+                            <div class="flex items-center space-x-4 mb-6">
+                                <span class="font-bold text-slate-500">0%</span>
+                                <input type="range" min="0" max="100" value="50" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer" oninput="document.getElementById('guess-val').innerText = this.value + '%'">
+                                <span class="font-bold text-slate-500">100%</span>
+                            </div>
+                            <div class="text-4xl font-black text-indigo-600 mb-6" id="guess-val">50%</div>
+                            <button class="w-full py-3 bg-indigo-600 text-white font-bold rounded shadow-sm hover:bg-indigo-700" onclick="alert('Guess locked in!')">Lock in Guess</button>
+                        </div>
+                    </div>
+
+                                        <!-- App View 5: The English Family -->
+                    <div id="app-view-5" class="app-view hidden">
+                        <h3 class="text-xl font-bold text-indigo-900 mb-4 border-b-2 border-indigo-100 pb-2">The English Family Story</h3>
+                        <p class="text-slate-600 mb-4">Read the story on the projector.</p>
+                        <div class="bg-indigo-50 border border-indigo-200 p-4 rounded-lg">
+                            <p class="font-bold text-indigo-800 mb-2"><i class="fas fa-comments text-indigo-500 mr-2"></i>Discussion Prompt</p>
+                            <p class="text-sm text-slate-700 mb-4">How will you adapt this story for your specific classroom demographic?</p>
+                            <textarea class="w-full p-3 border border-indigo-200 rounded text-sm focus:ring-2 focus:ring-indigo-500" rows="3" placeholder="Type your adaptation notes here..."></textarea>
+                            <button class="mt-3 w-full py-2 bg-indigo-600 text-white font-bold rounded shadow-sm hover:bg-indigo-700" onclick="submitLog('Submitted Demographic Adaptation Strategy')">Submit Reflection</button>
+                        </div>
+                    </div>
+
+                    <!-- App View 8: Vowel Hops (Slide 9) -->
+                    <div id="app-view-8" class="app-view hidden">
+                        <h3 class="text-xl font-bold text-indigo-900 mb-4 border-b-2 border-indigo-100 pb-2">Game 1: The Vowel Hops</h3>
+                        <div class="bg-indigo-50 border border-indigo-200 p-6 rounded-lg text-center shadow-inner">
+                            <i class="fas fa-running text-4xl text-indigo-400 mb-4"></i>
+                            <p class="font-bold text-indigo-800 mb-4">Kinesthetic Memory Activation</p>
+                            <ul class="text-sm text-slate-700 text-left space-y-2 mb-6 list-disc list-inside">
+                                <li><strong>Stand up!</strong> Take 5 small hops forward.</li>
+                                <li>On each hop, loudly pronounce the next vowel.</li>
                             </ul>
-                            <div class="mt-auto">
-                                <button onclick="launchActivity(2)" class="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-md transition">
-                                    Continue to Next Activity <i class="fas fa-arrow-right ml-2"></i>
-                                </button>
-                                <p class="text-xs text-center text-slate-400 mt-2">(Returns you to F Board)</p>
+                            <div class="flex justify-center space-x-2 font-black text-xl text-indigo-900 mb-6">
+                                <span class="bg-white px-3 py-1 rounded shadow-sm border border-indigo-100">A</span>
+                                <span class="bg-white px-3 py-1 rounded shadow-sm border border-indigo-100">E</span>
+                                <span class="bg-white px-3 py-1 rounded shadow-sm border border-indigo-100">I</span>
+                                <span class="bg-white px-3 py-1 rounded shadow-sm border border-indigo-100">O</span>
+                                <span class="bg-white px-3 py-1 rounded shadow-sm border border-indigo-100">U</span>
                             </div>
+                            <button class="w-full py-2.5 bg-indigo-600 text-white font-bold rounded-lg shadow hover:bg-indigo-700 transition" onclick="submitLog('Completed Kinesthetic Drill: Vowel Hops')">I completed the hops!</button>
                         </div>
+                    </div>
 
-                        <!-- P Activity 2: Crisis Poll -->
-                        <div id="p-act-2" class="hidden flex-col h-full">
-                            <h3 class="text-xl font-bold text-indigo-900 mb-4 border-b-2 border-indigo-100 pb-2">Live Poll</h3>
-                            <p class="font-bold text-lg mb-6 text-slate-800">Q: Is there a crisis in reading in South African schools?</p>
-                            
-                            <div id="p-act-2-buttons" class="space-y-4">
-                                <button onclick="answerPoll()" class="w-full py-4 bg-green-100 text-green-700 hover:bg-green-200 font-bold text-lg rounded-xl border border-green-300 transition">TRUE (Crisis Exists)</button>
-                                <button onclick="answerPoll()" class="w-full py-4 bg-red-100 text-red-700 hover:bg-red-200 font-bold text-lg rounded-xl border border-red-300 transition">FALSE (No Crisis)</button>
+                    <!-- App View 6: Number Map (Slide 10) -->
+                    <div id="app-view-6" class="app-view hidden">
+                        <h3 class="text-xl font-bold text-indigo-900 mb-4 border-b-2 border-indigo-100 pb-2">Game 2: The Number Map</h3>
+                        <div class="bg-indigo-50 border border-indigo-200 p-4 rounded-lg shadow-inner">
+                            <p class="font-bold text-indigo-800 mb-2"><i class="fas fa-user-friends mr-2"></i>Pair Up!</p>
+                            <p class="text-sm text-slate-700 mb-4">Partner A calls out a random number. Partner B must instantly shout the corresponding vowel. <strong>Then switch!</strong></p>
+                            <div class="grid grid-cols-5 gap-2 mb-6 text-center">
+                                <div class="bg-white py-3 rounded shadow-sm border border-indigo-100"><span class="block text-xs text-slate-400 font-bold mb-1">1</span><span class="font-black text-xl text-indigo-900">A</span></div>
+                                <div class="bg-white py-3 rounded shadow-sm border border-indigo-100"><span class="block text-xs text-slate-400 font-bold mb-1">2</span><span class="font-black text-xl text-indigo-900">E</span></div>
+                                <div class="bg-white py-3 rounded shadow-sm border border-indigo-100"><span class="block text-xs text-slate-400 font-bold mb-1">3</span><span class="font-black text-xl text-indigo-900">I</span></div>
+                                <div class="bg-white py-3 rounded shadow-sm border border-indigo-100"><span class="block text-xs text-slate-400 font-bold mb-1">4</span><span class="font-black text-xl text-indigo-900">O</span></div>
+                                <div class="bg-white py-3 rounded shadow-sm border border-indigo-100"><span class="block text-xs text-slate-400 font-bold mb-1">5</span><span class="font-black text-xl text-indigo-900">U</span></div>
                             </div>
-                            
-                            <div id="p-act-2-success" class="hidden flex-col items-center justify-center py-8 text-center">
-                                <i class="fas fa-check-circle text-5xl text-green-500 mb-4"></i>
-                                <p class="font-bold text-lg text-slate-700 mb-8">Response Recorded!</p>
-                                <button onclick="launchActivity(3)" class="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-md transition">
-                                    See Live Results <i class="fas fa-arrow-right ml-2"></i>
-                                </button>
-                                <p class="text-xs text-center text-slate-400 mt-2">(Returns you to F Board)</p>
-                            </div>
+                            <label class="flex items-start space-x-3 mb-4 p-3 bg-white rounded border border-indigo-100 cursor-pointer">
+                                <input type="checkbox" id="check-game2" class="mt-1 h-5 w-5 text-green-600 rounded">
+                                <span class="text-sm text-slate-700 font-medium">I confirm my partner successfully completed the Number Map game.</span>
+                            </label>
+                            <button class="w-full py-2.5 bg-green-600 text-white font-bold rounded-lg shadow hover:bg-green-700 transition" onclick="if(document.getElementById('check-game2').checked) { submitLog('Completed Kinesthetic Drill: Number Map Peer Assessment'); } else { alert('Please confirm first!'); }">Submit Verification</button>
                         </div>
+                    </div>
+                    
+                    <!-- App View 9: Consonant Flashcards (Slide 11) -->
+                    <div id="app-view-9" class="app-view hidden">
+                        <h3 class="text-xl font-bold text-indigo-900 mb-4 border-b-2 border-indigo-100 pb-2">Tactile Engagement</h3>
+                        <div class="bg-indigo-50 border border-indigo-200 p-6 rounded-lg text-center shadow-inner">
+                            <i class="fas fa-cut text-4xl text-indigo-400 mb-4"></i>
+                            <p class="font-bold text-indigo-800 mb-2">Consonant Flashcards (10 Mins)</p>
+                            <div class="text-sm text-slate-700 mb-6 text-left bg-white p-4 rounded-lg shadow-sm border border-indigo-100">
+                                <p class="mb-2"><strong class="text-indigo-800">1. Fold:</strong> Take a blank A4 page and fold it in half (long edges touching). Fold it in half again, and then a third time to get exactly 8 equal pieces per page.</p>
+                                <p class="mb-2"><strong class="text-indigo-800">2. Cut:</strong> Repeat this with 3 to 4 pages, then cut along the folded lines.</p>
+                                <p><strong class="text-indigo-800">3. Write:</strong> Use a marker to write each letter A to Z on a separate card. You have just made your own physical teaching aid to take back to your classroom!</p>
+                            </div>
 
-                        <!-- P Activity 3: Look at Projector -->
-                        <div id="p-act-3" class="hidden flex-col items-center justify-center h-full text-center">
-                            <div class="h-24 w-24 bg-indigo-50 rounded-full flex items-center justify-center mb-6 mx-auto">
-                                <i class="fas fa-chalkboard-teacher text-5xl text-indigo-300"></i>
-                            </div>
-                            <h3 class="font-bold text-xl text-slate-800 mb-2">Look at the Projector</h3>
-                            <p class="text-slate-500">The facilitator is discussing the live results.</p>
+                            <label class="flex items-start space-x-3 mb-4 p-3 bg-white rounded border border-indigo-100 text-left cursor-pointer hover:bg-indigo-50 transition">
+                                <input type="checkbox" id="check-game3" class="mt-1 h-5 w-5 text-indigo-600 rounded">
+                                <span class="text-sm text-slate-700 font-medium">I confirm I have folded, cut out, and written my physical A-Z flashcards.</span>
+                            </label>
+                            
+                            <button class="w-full py-2.5 bg-indigo-600 text-white font-bold rounded-lg shadow hover:bg-indigo-700 transition" onclick="if(document.getElementById('check-game3').checked) { submitLog('Completed Tactile Engagement: Consonant Flashcards'); } else { alert('Please check the confirmation box!'); }">Submit Verification</button>
                         </div>
+                    </div>
+
+                    <!-- App View 7: Nano Blending -->
+                    <div id="app-view-7" class="app-view hidden">
+                        <h3 class="text-xl font-bold text-indigo-900 mb-4 border-b-2 border-indigo-100 pb-2">Reflection Activity</h3>
+                        <div class="bg-white p-5 rounded-lg border border-indigo-200 shadow-sm">
+                            <p class="font-bold text-slate-800 mb-3">Which letters are "leaving home" in the Nano Blending Machine?</p>
+                            <div class="flex flex-col space-y-2">
+                                <button class="px-4 py-3 bg-white border border-indigo-300 rounded shadow-sm hover:bg-indigo-50 text-left font-semibold text-slate-700" onclick="mockPoll('generic')">A) Vowels</button>
+                                <button class="px-4 py-3 bg-white border border-indigo-300 rounded shadow-sm hover:bg-indigo-50 text-left font-semibold text-slate-700" onclick="mockPoll('generic')">B) Consonants</button>
+                            </div>
+                        </div>
+                    </div>
+
+</div>
+        </div>
+    </div>
+
+                    <!-- App View 10: Final Assessment -->
+                    <div id="app-view-10" class="app-view hidden overflow-y-auto pb-20">
+                        <div class="bg-indigo-600 text-white p-4 rounded-t-xl mb-4 text-center">
+                            <h3 class="text-xl font-bold mb-1"><i class="fas fa-award mr-2"></i>Final Assessment</h3>
+                            <p class="text-xs text-indigo-200">Knowledge, Practical Demonstration, & Application</p>
+                        </div>
+                        
+                        <form id="assessment-form" onsubmit="event.preventDefault(); mockPoll('assessment');">
+                            
+                            <!-- Section A: Knowledge -->
+                            <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-200 mb-4">
+                                <h4 class="font-bold text-slate-800 mb-4 border-b pb-2">Section A: Knowledge (MCQ)</h4>
+                                
+                                <div class="mb-4">
+                                    <p class="font-semibold text-sm mb-2 text-slate-700">1. What is the purpose of the LITRE blending-machine concept?</p>
+                                    <div class="space-y-1 text-sm">
+                                        <label class="flex items-center p-2 bg-slate-50 rounded border border-slate-100"><input type="radio" name="q1" value="0" class="mr-2" required> A. To replace reading practice</label>
+                                        <label class="flex items-center p-2 bg-slate-50 rounded border border-slate-100"><input type="radio" name="q1" value="1" class="mr-2"> B. To provide a physical and visual representation of the blending process</label>
+                                        <label class="flex items-center p-2 bg-slate-50 rounded border border-slate-100"><input type="radio" name="q1" value="0" class="mr-2"> C. To test handwriting</label>
+                                        <label class="flex items-center p-2 bg-slate-50 rounded border border-slate-100"><input type="radio" name="q1" value="0" class="mr-2"> D. To teach mathematical concepts</label>
+                                    </div>
+                                </div>
+
+                                <div class="mb-4">
+                                    <p class="font-semibold text-sm mb-2 text-slate-700">2. What does the palm represent in the LITRE model?</p>
+                                    <div class="space-y-1 text-sm">
+                                        <label class="flex items-center p-2 bg-slate-50 rounded border border-slate-100"><input type="radio" name="q2" value="0" class="mr-2" required> A. The classroom</label>
+                                        <label class="flex items-center p-2 bg-slate-50 rounded border border-slate-100"><input type="radio" name="q2" value="1" class="mr-2"> B. The meeting place in the blending model</label>
+                                        <label class="flex items-center p-2 bg-slate-50 rounded border border-slate-100"><input type="radio" name="q2" value="0" class="mr-2"> C. The alphabet</label>
+                                        <label class="flex items-center p-2 bg-slate-50 rounded border border-slate-100"><input type="radio" name="q2" value="0" class="mr-2"> D. The worksheet</label>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-4">
+                                    <p class="font-semibold text-sm mb-2 text-slate-700">3. What is the teacher's role during guided practice?</p>
+                                    <div class="space-y-1 text-sm">
+                                        <label class="flex items-center p-2 bg-slate-50 rounded border border-slate-100"><input type="radio" name="q3" value="0" class="mr-2" required> A. Provide all answers</label>
+                                        <label class="flex items-center p-2 bg-slate-50 rounded border border-slate-100"><input type="radio" name="q3" value="0" class="mr-2"> B. Allow learners to work without guidance</label>
+                                        <label class="flex items-center p-2 bg-slate-50 rounded border border-slate-100"><input type="radio" name="q3" value="1" class="mr-2"> C. Demonstrate, guide, observe and provide corrective support</label>
+                                        <label class="flex items-center p-2 bg-slate-50 rounded border border-slate-100"><input type="radio" name="q3" value="0" class="mr-2"> D. Only mark worksheets</label>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-2">
+                                    <p class="font-semibold text-sm mb-2 text-slate-700">4. Why is repetition important in catch-up reading?</p>
+                                    <div class="space-y-1 text-sm">
+                                        <label class="flex items-center p-2 bg-slate-50 rounded border border-slate-100"><input type="radio" name="q4" value="1" class="mr-2" required> A. It provides additional opportunities for learners to practise and consolidate skills.</label>
+                                        <label class="flex items-center p-2 bg-slate-50 rounded border border-slate-100"><input type="radio" name="q4" value="0" class="mr-2"> B. It eliminates the need for teaching.</label>
+                                        <label class="flex items-center p-2 bg-slate-50 rounded border border-slate-100"><input type="radio" name="q4" value="0" class="mr-2"> C. It prevents learner participation.</label>
+                                        <label class="flex items-center p-2 bg-slate-50 rounded border border-slate-100"><input type="radio" name="q4" value="0" class="mr-2"> D. It replaces assessment.</label>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Section B: Practical Demonstration -->
+                            <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-200 mb-4">
+                                <h4 class="font-bold text-slate-800 mb-2 border-b pb-2">Section B: Practical Rubric</h4>
+                                <p class="text-xs text-slate-500 mb-4">Rate the physical demonstration of the LITRE sequence (0: Not demonstrated, 3: Clear/Strong)</p>
+                                
+                                <div class="space-y-2 text-sm">
+                                    <div class="flex justify-between items-center"><span class="w-2/3">Explains LITRE purpose</span> <select class="w-1/3 p-1 border rounded rubric-score" required><option value="">--</option><option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option></select></div>
+                                    <div class="flex justify-between items-center"><span class="w-2/3">Demonstrates palm model</span> <select class="w-1/3 p-1 border rounded rubric-score" required><option value="">--</option><option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option></select></div>
+                                    <div class="flex justify-between items-center"><span class="w-2/3">Introduces vowels</span> <select class="w-1/3 p-1 border rounded rubric-score" required><option value="">--</option><option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option></select></div>
+                                    <div class="flex justify-between items-center"><span class="w-2/3">Introduces consonants</span> <select class="w-1/3 p-1 border rounded rubric-score" required><option value="">--</option><option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option></select></div>
+                                    <div class="flex justify-between items-center"><span class="w-2/3">Demonstrates blending</span> <select class="w-1/3 p-1 border rounded rubric-score" required><option value="">--</option><option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option></select></div>
+                                    <div class="flex justify-between items-center"><span class="w-2/3">Provides learner guidance</span> <select class="w-1/3 p-1 border rounded rubric-score" required><option value="">--</option><option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option></select></div>
+                                    <div class="flex justify-between items-center"><span class="w-2/3">Uses questioning</span> <select class="w-1/3 p-1 border rounded rubric-score" required><option value="">--</option><option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option></select></div>
+                                    <div class="flex justify-between items-center"><span class="w-2/3">Provides corrective support</span> <select class="w-1/3 p-1 border rounded rubric-score" required><option value="">--</option><option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option></select></div>
+                                    <div class="flex justify-between items-center"><span class="w-2/3">Applies methodology to context</span> <select class="w-1/3 p-1 border rounded rubric-score" required><option value="">--</option><option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option></select></div>
+                                </div>
+                            </div>
+                            
+                            <!-- Section C: Classroom Application -->
+                            <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-200 mb-6">
+                                <h4 class="font-bold text-slate-800 mb-2 border-b pb-2">Section C: Classroom Application</h4>
+                                <p class="text-xs text-slate-500 mb-4">Check all that are successfully included in the lesson activity.</p>
+                                <div class="grid grid-cols-2 gap-2 text-xs font-medium text-slate-700">
+                                    <label class="flex items-center space-x-2 bg-slate-50 p-2 rounded border border-slate-100"><input type="checkbox" class="application-check" value="1"><span>Appropriate objective</span></label>
+                                    <label class="flex items-center space-x-2 bg-slate-50 p-2 rounded border border-slate-100"><input type="checkbox" class="application-check" value="1"><span>Correct sequence</span></label>
+                                    <label class="flex items-center space-x-2 bg-slate-50 p-2 rounded border border-slate-100"><input type="checkbox" class="application-check" value="1"><span>Practical demo</span></label>
+                                    <label class="flex items-center space-x-2 bg-slate-50 p-2 rounded border border-slate-100"><input type="checkbox" class="application-check" value="1"><span>Learner participation</span></label>
+                                    <label class="flex items-center space-x-2 bg-slate-50 p-2 rounded border border-slate-100"><input type="checkbox" class="application-check" value="1"><span>Teacher guidance</span></label>
+                                    <label class="flex items-center space-x-2 bg-slate-50 p-2 rounded border border-slate-100"><input type="checkbox" class="application-check" value="1"><span>Reading practice</span></label>
+                                    <label class="flex items-center space-x-2 bg-slate-50 p-2 rounded border border-slate-100"><input type="checkbox" class="application-check" value="1"><span>Assessment</span></label>
+                                    <label class="flex items-center space-x-2 bg-slate-50 p-2 rounded border border-slate-100"><input type="checkbox" class="application-check" value="1"><span>Reflection</span></label>
+                                </div>
+                            </div>
+                            
+                            <button type="submit" class="w-full py-4 bg-indigo-600 text-white font-bold rounded-lg shadow-lg hover:bg-indigo-700 transition">Submit Final Assessment</button>
+                        </form>
+                    </div>
+
+                    <!-- App View 11: Results / Certificate Status -->
+                    <div id="app-view-11" class="app-view hidden overflow-y-auto">
+                        <div id="assessment-result-container" class="bg-white p-6 rounded-xl shadow-lg border border-slate-200 text-center mt-10">
+                            <i class="fas fa-spinner fa-spin text-4xl text-indigo-500 mb-4"></i>
+                            <p class="text-slate-600">Awaiting assessment results...</p>
+                        </div>
+                    </div>
+
+</div>
+
 
                     </div>
                 </div>
+            </div>
+            
+            <!-- Persistent P Return -->
+            <div class="p-4 border-t border-slate-200 bg-white text-center shadow-[0_-5px_15px_rgba(0,0,0,0.05)] z-50">
+                <button onclick="showTab('f')" class="px-8 py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-lg transition">
+                    <i class="fas fa-undo mr-2"></i> Return to Facilitator View
+                </button>
             </div>
         </div>
 
@@ -162,22 +603,29 @@
 </div>
 
 <script>
-    // Tab switching and Traffic Light logic
+    let currentSlide = 0;
+    const totalSlides = 18;
+    
+    const mockAttendees = [
+        "Sipho Mkhize", "Jane Naidoo", "Sarah van der Merwe", "Tshepo Modise", 
+        "Fatima Patel", "David Smith", "Lerato Ndlovu", "Pieter de Klerk", 
+        "Aisha Khan", "Bongani Zungu", "Johan Botha", "Nadia Moodley", 
+        "Thandeka Zuma", "Brenda Williams", "Ravi Govender", "Ané Nel", 
+        "Kgomotso Phiri", "Michael O'Connor", "Zanele Dlamini", "Yusuf Desai"
+    ];
+
     function showTab(tabId) {
-        // Hide all tabs
         document.getElementById('tab-a').classList.add('hidden');
         document.getElementById('tab-f').classList.remove('flex');
         document.getElementById('tab-f').classList.add('hidden');
         document.getElementById('tab-p').classList.remove('flex');
         document.getElementById('tab-p').classList.add('hidden');
         
-        // Reset buttons to look "shut" and disabled
         const inactiveClass = "flex items-center px-6 py-3 bg-slate-800 text-slate-500 font-bold rounded-t-lg transition border-b-2 border-transparent opacity-50 hover:opacity-100 hover:bg-slate-700";
         document.getElementById('btn-tab-a').className = inactiveClass;
         document.getElementById('btn-tab-f').className = inactiveClass;
         document.getElementById('btn-tab-p').className = inactiveClass;
         
-        // Show active tab
         if (tabId === 'a') {
             document.getElementById('tab-a').classList.remove('hidden');
             document.getElementById('btn-tab-a').className = "flex items-center px-6 py-3 bg-indigo-600 text-white font-bold rounded-t-lg transition border-b-2 border-indigo-400";
@@ -185,10 +633,14 @@
             document.getElementById('tab-f').classList.remove('hidden');
             document.getElementById('tab-f').classList.add('flex');
             document.getElementById('btn-tab-f').className = "flex items-center px-6 py-3 bg-white text-slate-900 font-bold rounded-t-lg transition border-b-2 border-slate-300";
+            setLight('f', 'green');
+            setLight('p', 'red');
         } else if (tabId === 'p') {
             document.getElementById('tab-p').classList.remove('hidden');
             document.getElementById('tab-p').classList.add('flex');
             document.getElementById('btn-tab-p').className = "flex items-center px-6 py-3 bg-white text-slate-900 font-bold rounded-t-lg transition border-b-2 border-slate-300";
+            setLight('p', 'green');
+            setLight('f', 'red');
         }
     }
 
@@ -202,56 +654,146 @@
         }
     }
 
-    // Hide all activity blocks
-    function hideAllActivities() {
-        for(let i=1; i<=3; i++) {
-            document.getElementById('f-act-'+i).classList.add('hidden');
-            document.getElementById('f-act-'+i).classList.remove('flex');
-            document.getElementById('p-act-'+i).classList.add('hidden');
-            document.getElementById('p-act-'+i).classList.remove('flex');
-        }
-    }
-
-    // Step 1: Launch Activity (Auditor -> Facilitator)
-    function launchActivity(num) {
-        hideAllActivities();
-        
-        // Prepare the F and P content for this step
-        document.getElementById('f-act-'+num).classList.remove('hidden');
-        document.getElementById('f-act-'+num).classList.add('flex');
-        
-        document.getElementById('p-act-'+num).classList.remove('hidden');
-        document.getElementById('p-act-'+num).classList.add('flex');
-        
-        // Reset the poll UI if we are on step 2
-        if (num === 2) {
-            document.getElementById('p-act-2-buttons').classList.remove('hidden');
-            document.getElementById('p-act-2-success').classList.add('hidden');
-            document.getElementById('p-act-2-success').classList.remove('flex');
-        }
-
-        // Set Traffic Lights: Green for Facilitator
+    function launchDemo() {
+        currentSlide = 0;
+        updateSlides();
         showTab('f');
-        setLight('f', 'green');
-        setLight('p', 'red');
     }
 
-    // Step 2: Send Content (Facilitator -> Participant)
-    function sendToParticipant(num) {
-        // Set Traffic Lights: Red for Facilitator, Green for Participant
+    function prevFSlide() {
+        if (currentSlide > 0) {
+            currentSlide--;
+            updateSlides();
+        }
+    }
+
+    function nextFSlide() {
+        if (currentSlide < totalSlides) {
+            currentSlide++;
+            updateSlides();
+            
+            // Random Dice Roll for mock surveys
+            triggerRandomDice(currentSlide);
+            
+            // Auto-pop the P tab if it's an interactive slide to show cause and effect
+            if ([0, 3, 4, 5, 8, 9, 10, 11, 16].includes(currentSlide)) {
+                setTimeout(() => {
+                    peekParticipant();
+                }, 1500);
+            }
+        }
+    }
+
+    function peekParticipant() {
         showTab('p');
-        setLight('f', 'red');
-        setLight('p', 'green');
     }
 
-    // Specific Interaction: Teacher answers poll
-    function answerPoll() {
-        document.getElementById('p-act-2-buttons').classList.add('hidden');
-        document.getElementById('p-act-2-success').classList.remove('hidden');
-        document.getElementById('p-act-2-success').classList.add('flex');
+    function updateSlides() {
+        // Update F Slides
+        document.querySelectorAll('.slide-container').forEach(el => {
+            el.classList.remove('flex');
+            el.classList.add('hidden');
+        });
+        
+        let fId = currentSlide === 0 ? 'slide-lobby' : 'slide-' + currentSlide;
+        const fSlide = document.getElementById(fId);
+        if (fSlide) {
+            fSlide.classList.remove('hidden');
+            fSlide.classList.add('flex');
+        }
+        
+        document.getElementById('f-counter').innerText = currentSlide;
+
+        // Update P Views (exactly matching the old logic)
+        let pIndex = 1; // default projector view
+        if (currentSlide === 0) pIndex = 0;
+        if (currentSlide === 3) pIndex = 2;
+        if (currentSlide === 4) pIndex = 3;
+        if (currentSlide === 5) pIndex = 4;
+        if (currentSlide === 8) pIndex = 5;
+        if (currentSlide === 9) pIndex = 8;
+        if (currentSlide === 10) pIndex = 6;
+        if (currentSlide === 11) pIndex = 9;
+        if (currentSlide === 12) pIndex = 7;
+        if (currentSlide === 16) pIndex = 10;
+        if (currentSlide === 17 || currentSlide === 18) pIndex = 11;
+
+        document.querySelectorAll('.app-view').forEach(el => {
+            el.classList.add('hidden');
+        });
+        const pView = document.getElementById('app-view-' + pIndex);
+        if (pView) {
+            pView.classList.remove('hidden');
+        }
     }
 
-    // Initialize state on page load
+    function mockPoll(type) {
+        alert("Teacher response recorded locally! In the live app, this saves to PostgreSQL.");
+    }
+
+    // Make the survey results jump like a tossing dice
+    function triggerRandomDice(slideNum) {
+        // Slide 2: Pre-test true/false
+        if (slideNum === 2) {
+            const trues = Math.floor(Math.random() * 15) + 5; // 5 to 20
+            const falses = 20 - trues;
+            animateBar('slide-2', 0, trues, falses);
+        }
+        // Slide 4: Root Cause A/B/C/D
+        if (slideNum === 4) {
+            animateBar('slide-4', 0, Math.floor(Math.random() * 10), Math.floor(Math.random() * 5), Math.floor(Math.random() * 3), 2);
+        }
+        // Slide 5: Top Challenges
+        if (slideNum === 5) {
+            animateBar('slide-5', 0, Math.floor(Math.random() * 8), Math.floor(Math.random() * 8), Math.floor(Math.random() * 4));
+        }
+    }
+    
+    function animateBar(slideId, iter, ...values) {
+        const slide = document.getElementById(slideId);
+        if (!slide) return;
+        const bars = slide.querySelectorAll('.bg-slate-700 > div, .w-full > div');
+        if (bars.length === 0) return;
+        
+        let total = values.reduce((a, b) => a + b, 0) || 20;
+        
+        bars.forEach((bar, index) => {
+            if (values[index] !== undefined) {
+                // Add some random jitter if iter < 10 to simulate real-time voting
+                let currentVal = iter < 10 ? Math.floor(Math.random() * total) : values[index];
+                let pct = (currentVal / total) * 100;
+                bar.style.width = pct + '%';
+                bar.style.transition = 'width 0.5s ease';
+            }
+        });
+        
+        if (iter < 10) {
+            setTimeout(() => animateBar(slideId, iter + 1, ...values), 500);
+        }
+    }
+
+    
+    // Populate the lobby roster
+    document.addEventListener('DOMContentLoaded', function() {
+        const rosterList = document.getElementById('roster-list');
+        const counter = document.getElementById('permanent-counter');
+        const counterLobby = document.getElementById('attendance-counter');
+        
+        if (rosterList) {
+            rosterList.innerHTML = '';
+            mockAttendees.forEach((person, index) => {
+                let sace = "10" + Math.floor(Math.random() * 900000 + 100000);
+                rosterList.innerHTML += '<li class="p-4 hover:bg-white transition flex justify-between items-center">' +
+                    '<div><p class="font-bold text-slate-800">' + person + '</p>' +
+                    '<p class="text-xs text-slate-500 font-mono">SACE: ' + sace + '</p></div>' +
+                    '<span class="bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-bold"><i class="fas fa-check-circle mr-1"></i> Verified</span></li>';
+            });
+        }
+        if (counter) counter.innerText = mockAttendees.length;
+        if (counterLobby) counterLobby.innerText = mockAttendees.length;
+    });
+
+    // Setup initial state
     showTab('a');
 </script>
 {% endblock %}

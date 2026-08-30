@@ -1,4 +1,4 @@
-﻿{% extends "layout.html" %}
+{% extends "layout.html" %}
 
 {% block title %}Interaction {{ interaction.reference }} - {{ org.name }}{% endblock %}
 
@@ -24,14 +24,24 @@
             <p class="text-slate-500 mt-1">Logged by <span class="font-bold">{{ interaction.creator.first_name }} {{ interaction.creator.last_name }}</span> on {{ interaction.created_at.strftime('%d %b %Y, %H:%M') }}</p>
         </div>
         
+
         {% if interaction.status != 'RESOLVED' and current_role in ['manager', 'receptionist'] %}
-        <form method="POST" action="{{ url_for('uip_bp.resolve_interaction', org_slug=org.slug, reference=interaction.reference) }}" onsubmit="return confirm('Are you sure you want to mark this interaction as resolved?');">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-            <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-6 rounded-lg shadow transition flex items-center">
-                <i class="fas fa-check-double mr-2"></i> Mark Resolved
-            </button>
-        </form>
+        <div class="flex space-x-2">
+            <form method="POST" action="{{ url_for('uip_bp.summarize_interaction', org_slug=org.slug, reference=interaction.reference) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <button type="submit" class="bg-indigo-100 hover:bg-indigo-200 text-indigo-700 font-bold py-2 px-4 rounded-lg shadow-sm transition flex items-center">
+                    <i class="fas fa-magic mr-2"></i> Luna Summary
+                </button>
+            </form>
+            <form method="POST" action="{{ url_for('uip_bp.resolve_interaction', org_slug=org.slug, reference=interaction.reference) }}" onsubmit="return confirm('Are you sure you want to mark this interaction as resolved?');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-6 rounded-lg shadow transition flex items-center">
+                    <i class="fas fa-check-double mr-2"></i> Mark Resolved
+                </button>
+            </form>
+        </div>
         {% endif %}
+
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">

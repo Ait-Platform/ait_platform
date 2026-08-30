@@ -1,6 +1,25 @@
 ﻿from app.extensions import db
 from datetime import datetime
 
+class CoreOrganizationWallet(db.Model):
+    __tablename__ = "core_organization_wallet"
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('core_organization.id'), nullable=False, unique=True)
+    balance = db.Column(db.Integer, default=1000, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    transactions = db.relationship("CoreOrganizationLedger", back_populates="wallet", cascade="all, delete-orphan")
+
+class CoreOrganizationLedger(db.Model):
+    __tablename__ = "core_organization_ledger"
+    id = db.Column(db.Integer, primary_key=True)
+    wallet_id = db.Column(db.Integer, db.ForeignKey('core_organization_wallet.id'), nullable=False)
+    amount = db.Column(db.Integer, nullable=False)
+    description = db.Column(db.String(255))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    wallet = db.relationship("CoreOrganizationWallet", back_populates="transactions")
+
 class CoreOrganization(db.Model):
     __tablename__ = "core_organization"
 
@@ -20,6 +39,7 @@ class CoreOrganization(db.Model):
 
     # Relationships
     members = db.relationship("CoreOrganizationMember", back_populates="organization", cascade="all, delete-orphan")
+    wallet = db.relationship("CoreOrganizationWallet", uselist=False, backref="organization")
 
 
 class CoreOrganizationMember(db.Model):
@@ -136,6 +156,7 @@ class CoreTask(db.Model):
 
     # Relationships
     interaction = db.relationship("CoreInteraction", back_populates="tasks")
+    assignee = db.relationship("User", foreign_keys=[assignee_id])
 
 
 from app.extensions import db

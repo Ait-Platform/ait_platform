@@ -26,7 +26,7 @@
         
         <!-- Dynamic Compliance Info (visible when A is not active, or always) -->
         <div id="dynamicAuditorNote" class="flex items-center space-x-4 hidden">
-            <span class="text-amber-400 font-bold text-sm"><i class="fas fa-sync fa-spin mr-2"></i> Sync Active: <span id="syncText">Slide 1</span></span>
+            <span class="text-amber-400 font-bold text-sm"><i class="fas fa-sync mr-2"></i> Sync Active: <span id="syncText">Slide 1</span></span>
         </div>
     </div>
     
@@ -128,17 +128,23 @@ function switchTab(tabId) {
     document.getElementById('light-p').className = redLight;
 
         // Log auditor navigation to database
-    fetch('/sace/log_event', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-        },
-        body: JSON.stringify({
-            action: 'AUDITOR_VIEWED_TAB_' + tabId.toUpperCase(),
-            details: 'Auditor switched to ' + (tabId === 'a' ? 'Guide' : tabId === 'f' ? 'Facilitator Board' : 'Participant Board')
-        })
-    });
+    try {
+        const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+        const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
+        fetch('/sace/log_event', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({
+                action: 'AUDITOR_VIEWED_TAB_' + tabId.toUpperCase(),
+                details: 'Auditor switched to ' + (tabId === 'a' ? 'Guide' : tabId === 'f' ? 'Facilitator Board' : 'Participant Board')
+            })
+        });
+    } catch(e) {
+        console.error("Audit log failed", e);
+    }
 
     // Show active tab
     document.getElementById('tab-' + tabId).classList.remove('hidden');
@@ -205,7 +211,7 @@ function updateAuditorBanner(slideNumber) {
         if(slideNumber == 1) {
         document.getElementById('a-status-f').innerHTML = '<i class="fas fa-play-circle mr-1"></i> Active (Slide 1)';
         document.getElementById('a-status-f').className = 'font-bold text-green-600';
-        document.getElementById('a-status-p').innerHTML = '<i class="fas fa-sync fa-spin mr-1"></i> Synced to Timetable';
+        document.getElementById('a-status-p').innerHTML = '<i class="fas fa-sync mr-1"></i> Synced to Timetable';
         document.getElementById('a-status-p').className = 'font-bold text-green-600';
 
         msgEl.innerText = "Slide 1 - Observe how the Timetable is dynamically rendered to all Participants seamlessly.";
@@ -214,7 +220,7 @@ function updateAuditorBanner(slideNumber) {
         linkEl.style.display = "inline-flex";
         } else if(slideNumber == 2) {
         document.getElementById('a-status-f').innerHTML = '<i class="fas fa-play-circle mr-1"></i> Active (Slide 2)';
-        document.getElementById('a-status-p').innerHTML = '<i class="fas fa-sync fa-spin mr-1"></i> Synced to Presentation';
+        document.getElementById('a-status-p').innerHTML = '<i class="fas fa-sync mr-1"></i> Synced to Presentation';
 
         msgEl.innerText = "Slide 2 - The presentation content begins. The Facilitator follows structured notes.";
         

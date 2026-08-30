@@ -80,8 +80,8 @@
                         <p class="text-sm text-indigo-800 mb-4" id="auditorMessage">
                             Waiting for workshop to begin...
                         </p>
-                        <a id="complianceLink" href="#" target="_blank" class="inline-flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded shadow-sm transition">
-                            <i class="fas fa-file-pdf mr-2"></i>
+                        <a id="complianceLink" href="#" onclick="simulatePdfDownload(event)" class="inline-flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded shadow-sm transition">
+                            <i id="complianceIcon" class="fas fa-file-pdf mr-2"></i>
                             <span id="complianceText">View Current Annexure</span>
                         </a>
                     </div>
@@ -170,6 +170,23 @@ setInterval(function() {
         });
 }, 1000);
 
+
+function simulatePdfDownload(e) {
+    e.preventDefault();
+    const btnText = document.getElementById('complianceText');
+    const btnIcon = document.getElementById('complianceIcon');
+    const originalText = btnText.innerText;
+    
+    // Simulate opening in external PDF app
+    btnIcon.className = "fas fa-check-circle mr-2 text-green-300";
+    btnText.innerText = "Opened in external PDF App!";
+    
+    setTimeout(() => {
+        btnIcon.className = "fas fa-file-pdf mr-2";
+        btnText.innerText = originalText;
+    }, 3000);
+}
+
 function updateAuditorBanner(slideNumber) {
     const msgEl = document.getElementById('auditorMessage');
     const linkEl = document.getElementById('complianceLink');
@@ -185,11 +202,7 @@ function updateAuditorBanner(slideNumber) {
         document.getElementById('a-status-p').className = 'font-bold text-green-600';
 
         msgEl.innerText = "Slide 1 - Observe how the Timetable is dynamically rendered to all Participants seamlessly.";
-        {% if docs['annexure_a'] %}
-        linkEl.href = "{{ url_for('sace_bp.download_document', doc_id=docs['annexure_a'].id) }}";
-        {% else %}
-        linkEl.href = "#";
-        {% endif %}
+        
         textEl.innerText = "View Annexure A: Timetable";
         linkEl.style.display = "inline-flex";
         } else if(slideNumber == 2) {
@@ -197,11 +210,7 @@ function updateAuditorBanner(slideNumber) {
         document.getElementById('a-status-p').innerHTML = '<i class="fas fa-sync fa-spin mr-1"></i> Synced to Presentation';
 
         msgEl.innerText = "Slide 2 - The presentation content begins. The Facilitator follows structured notes.";
-        {% if docs['annexure_b'] %}
-        linkEl.href = "{{ url_for('sace_bp.download_document', doc_id=docs['annexure_b'].id) }}";
-        {% else %}
-        linkEl.href = "#";
-        {% endif %}
+        
         textEl.innerText = "View Annexure B: Presentation";
         linkEl.style.display = "inline-flex";
     }

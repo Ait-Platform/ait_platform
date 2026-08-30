@@ -86,7 +86,17 @@ def establish_organization_context():
                 else:
                     raise
             
-            if not membership and current_user.email != "sanjith@ait.com":
-                abort(403, description="Tenant Isolation Violation: You do not have access to this Organization.")
+            if not membership:
+                if org_slug == 'manor-gardens':
+                    # Auto-enroll the user into the demo organization so they can explore it
+                    membership = CoreOrganizationMember(
+                        organization_id=org.id,
+                        user_id=current_user.id,
+                        is_active=True
+                    )
+                    db.session.add(membership)
+                    db.session.commit()
+                elif current_user.email != "sanjith@ait.com":
+                    abort(403, description="Tenant Isolation Violation: You do not have access to this Organization.")
 
 from . import routes

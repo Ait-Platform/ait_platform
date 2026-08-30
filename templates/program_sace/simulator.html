@@ -116,7 +116,7 @@ function switchTab(tabId) {
     document.getElementById('tab-f').classList.add('hidden');
     document.getElementById('tab-p').classList.add('hidden');
     
-            // Reset buttons to look "shut" and disabled
+    // Reset buttons to look "shut" and disabled
     const inactiveClass = "flex items-center px-4 py-2 bg-slate-800 text-slate-500 font-bold rounded-t-lg transition border-b-2 border-transparent opacity-50 hover:opacity-100 hover:bg-slate-700";
     document.getElementById('btn-tab-a').className = inactiveClass;
     document.getElementById('btn-tab-f').className = inactiveClass;
@@ -125,10 +125,10 @@ function switchTab(tabId) {
     // Reset lights to RED (shut)
     const redLight = "w-3 h-3 rounded-full bg-red-600 shadow-[0_0_8px_rgba(220,38,38,0.5)] mr-2"; 
     const greenLight = "w-3 h-3 rounded-full bg-green-500 shadow-[0_0_12px_rgba(34,197,94,1)] mr-2";
-    document.getElementById('light-f').className = redLight;
-    document.getElementById('light-p').className = redLight;
+    if (document.getElementById('light-f')) document.getElementById('light-f').className = redLight;
+    if (document.getElementById('light-p')) document.getElementById('light-p').className = redLight;
 
-        // Log auditor navigation to database
+    // Log auditor navigation to database
     try {
         const csrfMeta = document.querySelector('meta[name="csrf-token"]');
         const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
@@ -156,11 +156,11 @@ function switchTab(tabId) {
         document.getElementById('dynamicAuditorNote').classList.add('hidden');
     } else if (tabId === 'f') {
         document.getElementById('btn-tab-f').className = "flex items-center px-4 py-2 bg-white text-slate-900 font-bold rounded-t-lg transition border-b-2 border-green-500";
-        document.getElementById('light-f').className = greenLight;
+        if (document.getElementById('light-f')) document.getElementById('light-f').className = greenLight;
         document.getElementById('dynamicAuditorNote').classList.remove('hidden');
     } else if (tabId === 'p') {
         document.getElementById('btn-tab-p').className = "flex items-center px-4 py-2 bg-white text-slate-900 font-bold rounded-t-lg transition border-b-2 border-green-500";
-        document.getElementById('light-p').className = greenLight;
+        if (document.getElementById('light-p')) document.getElementById('light-p').className = greenLight;
         document.getElementById('dynamicAuditorNote').classList.remove('hidden');
     }
 }
@@ -181,9 +181,8 @@ setInterval(function() {
         .then(response => response.json())
         .then(data => {
             updateAuditorBanner(data.active_slide || 1);
-        });
+        }).catch(err => console.error(err));
 }, 1000);
-
 
 function simulatePdfDownload(e) {
     e.preventDefault();
@@ -203,30 +202,24 @@ function simulatePdfDownload(e) {
 
 function updateAuditorBanner(slideNumber) {
     const msgEl = document.getElementById('auditorMessage');
-    const linkEl = document.getElementById('complianceLink');
-    const textEl = document.getElementById('complianceText');
     const syncEl = document.getElementById('syncText');
     
-    syncEl.innerText = "Slide " + slideNumber;
+    if (syncEl) syncEl.innerText = "Slide " + slideNumber;
     
-        if(slideNumber == 1) {
-        document.getElementById('a-status-f').innerHTML = '<i class="fas fa-play-circle mr-1"></i> Active (Slide 1)';
-        document.getElementById('a-status-f').className = 'font-bold text-green-600';
-        document.getElementById('a-status-p').innerHTML = '<i class="fas fa-sync mr-1"></i> Synced to Timetable';
-        document.getElementById('a-status-p').className = 'font-bold text-green-600';
-
-        msgEl.innerText = "Slide 1 - Observe how the Timetable is dynamically rendered to all Participants seamlessly.";
-        
-        textEl.innerText = "View Annexure A: Timetable";
-        linkEl.style.display = "inline-flex";
-        } else if(slideNumber == 2) {
-        document.getElementById('a-status-f').innerHTML = '<i class="fas fa-play-circle mr-1"></i> Active (Slide 2)';
-        document.getElementById('a-status-p').innerHTML = '<i class="fas fa-sync mr-1"></i> Synced to Presentation';
-
-        msgEl.innerText = "Slide 2 - The presentation content begins. The Facilitator follows structured notes.";
-        
-        textEl.innerText = "View Annexure B: Presentation";
-        linkEl.style.display = "inline-flex";
+    if(slideNumber == 1) {
+        if(document.getElementById('a-status-f')) {
+            document.getElementById('a-status-f').innerHTML = '<i class="fas fa-play-circle mr-1"></i> Active (Slide 1)';
+            document.getElementById('a-status-f').className = 'font-bold text-green-600';
+            document.getElementById('a-status-p').innerHTML = '<i class="fas fa-sync fa-spin mr-1"></i> Synced to Timetable';
+            document.getElementById('a-status-p').className = 'font-bold text-green-600';
+        }
+        if(msgEl) msgEl.innerText = "Slide 1 - Observe how the Timetable is dynamically rendered to all Participants seamlessly.";
+    } else if(slideNumber == 2) {
+        if(document.getElementById('a-status-f')) {
+            document.getElementById('a-status-f').innerHTML = '<i class="fas fa-play-circle mr-1"></i> Active (Slide 2)';
+            document.getElementById('a-status-p').innerHTML = '<i class="fas fa-sync fa-spin mr-1"></i> Synced to Presentation';
+        }
+        if(msgEl) msgEl.innerText = "Slide 2 - The presentation content begins. The Facilitator follows structured notes.";
     }
 }
 </script>

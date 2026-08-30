@@ -5,112 +5,95 @@
 {% block content %}
 <!-- STRICT AGENT.MD TILE STYLING -->
 <div class="container mx-auto px-4 py-8 max-w-7xl">
-    <div class="bg-white rounded-xl shadow-xl overflow-hidden border border-slate-200 flex flex-col h-[85vh]">
-        
-        <!-- Color Strip (Agent.md Rule 3) -->
-        <div class="h-3 w-full bg-indigo-600"></div>
-        
-        <!-- Row 1: Header (Agent.md Rule 4) -->
-        <div class="p-6 border-b border-slate-100 flex justify-between items-center">
-            <h1 class="text-2xl font-extrabold text-slate-800"><i class="fas fa-desktop text-indigo-600 mr-2"></i> SACE Endorsement Simulator</h1>
-            <a href="{{ url_for('sace_bp.dashboard') }}" class="text-slate-500 hover:text-slate-700 font-semibold"><i class="fas fa-arrow-left mr-1"></i> Back to Dashboard</a>
-        </div>
-
-        <!-- Traffic Robot Tabs -->
-        <div class="flex space-x-2 border-b-2 border-slate-700 pb-0 bg-slate-50 pt-2 px-4 shadow-inner z-10">
-            <button id="btn-tab-a" onclick="showTab('a')" class="flex items-center px-6 py-3 bg-indigo-600 text-white font-bold rounded-t-lg transition border-b-2 border-indigo-400">
-                <i class="fas fa-book-open mr-2"></i> Guide (A)
+<div class="bg-white rounded-xl shadow-xl overflow-hidden border border-slate-200 flex flex-col h-[85vh]">
+<!-- Color Strip (Agent.md Rule 3) -->
+<div class="h-3 w-full bg-indigo-600"></div>
+<!-- Row 1: Header (Agent.md Rule 4) -->
+<div class="p-6 border-b border-slate-100 flex justify-between items-center">
+<h1 class="text-2xl font-extrabold text-slate-800"><i class="fas fa-desktop text-indigo-600 mr-2"></i> SACE Endorsement Simulator</h1>
+<a class="text-slate-500 hover:text-slate-700 font-semibold" href="{{ url_for('sace_bp.dashboard') }}"><i class="fas fa-arrow-left mr-1"></i> Back to Dashboard</a>
+</div>
+<!-- Traffic Robot Tabs -->
+<div class="flex space-x-2 border-b-2 border-slate-700 pb-0 bg-slate-50 pt-2 px-4 shadow-inner z-10">
+<button class="flex items-center px-6 py-3 bg-indigo-600 text-white font-bold rounded-t-lg transition border-b-2 border-indigo-400" id="btn-tab-a" onclick="showTab('a')">
+<i class="fas fa-book-open mr-2"></i> Guide (A)
             </button>
-            <button id="btn-tab-f" onclick="showTab('f')" class="flex items-center px-6 py-3 bg-slate-800 text-slate-500 font-bold rounded-t-lg transition border-b-2 border-transparent opacity-50 hover:opacity-100 hover:bg-slate-700">
-                <div id="light-f" class="w-3 h-3 rounded-full bg-red-600 shadow-[0_0_8px_rgba(220,38,38,0.5)] mr-3"></div> Facilitator (F)
+<button class="flex items-center px-6 py-3 bg-slate-800 text-slate-500 font-bold rounded-t-lg transition border-b-2 border-transparent opacity-50 hover:opacity-100 hover:bg-slate-700" id="btn-tab-f" onclick="showTab('f')">
+<div class="w-3 h-3 rounded-full bg-red-600 shadow-[0_0_8px_rgba(220,38,38,0.5)] mr-3" id="light-f"></div> Facilitator (F)
             </button>
-            <button id="btn-tab-p" onclick="showTab('p')" class="flex items-center px-6 py-3 bg-slate-800 text-slate-500 font-bold rounded-t-lg transition border-b-2 border-transparent opacity-50 hover:opacity-100 hover:bg-slate-700">
-                <div id="light-p" class="w-3 h-3 rounded-full bg-red-600 shadow-[0_0_8px_rgba(220,38,38,0.5)] mr-3"></div> Participant (P)
+<button class="flex items-center px-6 py-3 bg-slate-800 text-slate-500 font-bold rounded-t-lg transition border-b-2 border-transparent opacity-50 hover:opacity-100 hover:bg-slate-700" id="btn-tab-p" onclick="showTab('p')">
+<div class="w-3 h-3 rounded-full bg-red-600 shadow-[0_0_8px_rgba(220,38,38,0.5)] mr-3" id="light-p"></div> Participant (P)
             </button>
-        </div>
-
-        <!-- Main Content Area -->
-        <div class="flex-grow overflow-hidden relative bg-slate-100">
-            
-            <!-- ========================================== -->
-            <!-- TAB A: GUIDE -->
-            <!-- ========================================== -->
-            <div id="tab-a" class="w-full h-full p-8 overflow-y-auto bg-white">
-                <h2 class="text-3xl font-extrabold text-indigo-900 mb-6">SACE Auditor Guide</h2>
-                <p class="text-lg text-slate-700 mb-8">Welcome to the Endorsement Simulator. This tool guides you through the exact flow of the workshop using the real slides.</p>
-                
-                <div class="bg-slate-50 p-6 rounded-xl border border-slate-200 mb-8">
-                    <h3 class="font-bold text-slate-800 mb-4"><i class="fas fa-traffic-light text-indigo-600 mr-2"></i> The Traffic Robot System</h3>
-                    <p class="mb-2">Follow the <strong>Green Light</strong> to understand how the facilitator controls the teacher's device.</p>
-                    <ul class="list-disc list-inside text-slate-600 space-y-2">
-                        <li>When <strong>F is Green</strong>, you are the Facilitator. Use the 'Next Slide' button to present.</li>
-                        <li>When <strong>P is Green</strong>, you are the Teacher. Interact with the content that just arrived on your screen.</li>
-                    </ul>
-                </div>
-
-                <button onclick="launchDemo()" class="px-8 py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xl rounded-xl shadow-lg transition flex items-center">
+</div>
+<!-- Main Content Area -->
+<div class="flex-grow overflow-hidden relative bg-slate-100">
+<!-- ========================================== -->
+<!-- TAB A: GUIDE -->
+<!-- ========================================== -->
+<div class="w-full h-full p-8 overflow-y-auto bg-white" id="tab-a">
+<h2 class="text-3xl font-extrabold text-indigo-900 mb-6">SACE Auditor Guide</h2>
+<p class="text-lg text-slate-700 mb-8">Welcome to the Endorsement Simulator. This tool guides you through the exact flow of the workshop using the real slides.</p>
+<div class="bg-slate-50 p-6 rounded-xl border border-slate-200 mb-8">
+<h3 class="font-bold text-slate-800 mb-4"><i class="fas fa-traffic-light text-indigo-600 mr-2"></i> The Traffic Robot System</h3>
+<p class="mb-2">Follow the <strong>Green Light</strong> to understand how the facilitator controls the teacher's device.</p>
+<ul class="list-disc list-inside text-slate-600 space-y-2">
+<li>When <strong>F is Green</strong>, you are the Facilitator. Use the 'Next Slide' button to present.</li>
+<li>When <strong>P is Green</strong>, you are the Teacher. Interact with the content that just arrived on your screen.</li>
+</ul>
+</div>
+<button class="px-8 py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xl rounded-xl shadow-lg transition flex items-center" onclick="launchDemo()">
                     Launch Full SACE Program <i class="fas fa-arrow-right ml-3"></i>
-                </button>
-            </div>
-
-            <!-- ========================================== -->
-            <!-- TAB F: FACILITATOR -->
-            <!-- ========================================== -->
-            <div id="tab-f" class="w-full h-full hidden flex-col relative bg-slate-900">
-                <div class="flex-grow relative overflow-hidden">
-                    <div class="slide-container absolute inset-0 flex flex-col overflow-y-auto items-center justify-center p-8 bg-white text-slate-800 rounded-xl text-center z-20" id="slide-lobby">
+</button>
+</div>
+<!-- ========================================== -->
+<!-- TAB F: FACILITATOR -->
+<!-- ========================================== -->
+<div class="w-full h-full hidden flex-col relative bg-slate-900" id="tab-f">
+<div class="flex-grow relative overflow-hidden">
+<div class="slide-container absolute inset-0 flex flex-col overflow-y-auto items-center justify-center p-8 bg-white text-slate-800 rounded-xl text-center z-20" id="slide-lobby">
 <h2 class="text-4xl font-bold text-indigo-600 mb-4">Welcome</h2>
 <p class="text-xl text-slate-500 mb-8">Waiting for teachers to check in...</p>
 <div class="text-2xl font-bold text-green-400">Teachers Connected: <span id="attendance-counter">0</span></div>
-</div>
-<div class="slide-container absolute inset-0 flex flex-col overflow-y-auto items-center justify-center p-8 bg-white text-slate-800 rounded-xl text-center" id="slide-0">
-<h2 class="text-4xl font-bold text-indigo-600 mb-8"><i class="fas fa-clipboard-check mr-3"></i>Welcome Activity</h2>
-<p class="text-2xl text-indigo-700 mb-6 font-semibold">Is there a crisis in reading in South Africa?</p>
-<p class="text-lg text-slate-500 italic mb-8">Please log your answer on your Participant App to begin.</p>
-<div class="flex space-x-6 justify-center">
-<div class="px-8 py-4 bg-green-900/50 text-green-400 font-bold rounded-lg border border-green-700/50">TRUE (Crisis Exists)</div>
-<div class="px-8 py-4 bg-red-900/50 text-red-400 font-bold rounded-lg border border-red-700/50">FALSE (No Crisis)</div>
-</div>
-</div>
-<div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-1">
-<img alt="Slide 1: Reading State" class="max-h-[60vh] max-w-full object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/1ReadingState.png') }}"/>
-<audio class="mt-4 mb-2 w-3/4 max-w-md shadow-sm rounded-full" controls="">
-<source src="{{ url_for('static', filename='sace_slides/1_audio.wav') }}" type="audio/wav"/>
-</audio>
-</div>
-<div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center p-8 bg-white text-slate-800 rounded-xl" id="slide-2">
-<h2 class="text-3xl font-bold text-indigo-600 mb-8"><i class="fas fa-poll mr-3"></i>Live Room Data: Pre-Test</h2>
-<p class="text-xl text-indigo-700 mb-8 font-semibold">Q: Is there a crisis in reading in SA?</p>
-<div class="w-full max-w-2xl space-y-8">
-<!-- True Bar -->
+</div><div class="slide-container absolute inset-0 flex flex-col overflow-y-auto items-center justify-center" id="slide-0">
+<img alt="Slide 1: Program" class="max-h-[60vh] max-w-full object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/1Program.png') }}"/>
+        <audio class="hidden"><source src="{{ url_for('static', filename='sace_slides/1_audio.wav') }}" type="audio/wav"></audio>
+</div><div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-1">
+<img alt="Slide 2: Crisis" class="max-h-[60vh] max-w-full object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/2Crisis.png') }}"/>
+        <audio class="hidden"><source src="{{ url_for('static', filename='sace_slides/2_audio.wav') }}" type="audio/wav"></audio>
+</div><div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center p-8 bg-white text-slate-800 rounded-xl" id="slide-2">
+<img alt="Slide 3: Survey" class="max-h-[40vh] max-w-full object-contain mx-auto mb-6 shadow-sm rounded" src="{{ url_for('static', filename='sace_slides/3Survey.png') }}"/>
+<h2 class="text-2xl font-bold text-indigo-600 mb-6"><i class="fas fa-poll mr-3"></i>Live Room Data Tally</h2>
+<div class="w-full max-w-2xl space-y-6">
 <div>
-<div class="flex justify-between text-xl font-bold mb-2">
-<span class="text-green-400">TRUE (Crisis Exists)</span>
-<span class="text-green-400" id="true-count-slide">0</span>
+<div class="flex justify-between text-sm font-bold text-slate-600 mb-1">
+<span>TRUE (Crisis Exists)</span>
+<span><span id="slide-2-true-pct">0</span>%</span>
 </div>
-<div class="w-full bg-slate-700 rounded-full h-8">
-<div class="bg-green-500 h-8 rounded-full transition-all duration-1000" id="true-bar-slide" style="width: 0%"></div>
+<div class="w-full bg-slate-200 rounded-full h-4 overflow-hidden shadow-inner">
+<div class="bg-emerald-500 h-4 rounded-full transition-all duration-500" style="width: 0%"></div>
 </div>
 </div>
-<!-- False Bar -->
 <div>
-<div class="flex justify-between text-xl font-bold mb-2">
-<span class="text-red-400">FALSE (No Crisis)</span>
-<span class="text-red-400" id="false-count-slide">0</span>
+<div class="flex justify-between text-sm font-bold text-slate-600 mb-1">
+<span>FALSE (No Crisis)</span>
+<span><span id="slide-2-false-pct">0</span>%</span>
 </div>
-<div class="w-full bg-slate-700 rounded-full h-8">
-<div class="bg-red-500 h-8 rounded-full transition-all duration-1000" id="false-bar-slide" style="width: 0%"></div>
-</div>
-</div>
+<div class="w-full bg-slate-200 rounded-full h-4 overflow-hidden shadow-inner">
+<div class="bg-rose-500 h-4 rounded-full transition-all duration-500" style="width: 0%"></div>
 </div>
 </div>
-<div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-3">
-<img alt="Slide 2: The Problem" class="max-h-[60vh] max-w-full object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/2Problem.png') }}"/>
-<audio class="mt-4 mb-2 w-3/4 max-w-md shadow-sm rounded-full" controls="">
-<source src="{{ url_for('static', filename='sace_slides/2_audio.wav') }}" type="audio/wav"/>
-</audio>
 </div>
-<div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center p-8 bg-white text-slate-800 rounded-xl" id="slide-4">
+</div><div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-3">
+<img alt="Slide 4: Study" class="max-h-[60vh] max-w-full object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/4Study.png') }}"/>
+        <audio class="hidden"><source src="{{ url_for('static', filename='sace_slides/4_audio.wav') }}" type="audio/wav"></audio>
+</div><div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-4">
+<img alt="Slide 5: Problem" class="max-h-[60vh] max-w-full object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/5Problem.png') }}"/>
+</div>
+
+
+
+
+<div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center p-8 bg-white text-slate-800 rounded-xl" id="slide-5">
 <h2 class="text-3xl font-bold text-indigo-600 mb-8"><i class="fas fa-chart-bar mr-3"></i>Live Room Data: Root Cause</h2>
 <p class="text-xl text-indigo-700 mb-8 font-semibold">What is the biggest contributor to the reading crisis?</p>
 <div class="w-full max-w-2xl space-y-6">
@@ -132,7 +115,7 @@
 </div>
 </div>
 </div>
-<div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center p-8 bg-white text-slate-800 rounded-xl" id="slide-5">
+<div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center p-8 bg-white text-slate-800 rounded-xl" id="slide-6">
 <h2 class="text-3xl font-bold text-indigo-600 mb-8"><i class="fas fa-chart-pie mr-3"></i>Live Room Data: Top Challenges</h2>
 <p class="text-xl text-indigo-700 mb-8 font-semibold text-center">Which reading challenge is most prevalent in your classroom?</p>
 <div class="w-full max-w-4xl space-y-6">
@@ -154,16 +137,16 @@
 </div>
 </div>
 </div>
-<div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center p-8 bg-white text-slate-800 rounded-xl text-center" id="slide-6">
+<div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center p-8 bg-white text-slate-800 rounded-xl text-center" id="slide-7">
 <h2 class="text-3xl font-bold text-indigo-600 mb-4"><i class="fas fa-exclamation-triangle mr-3"></i>The Harsh Reality</h2>
 <p class="text-xl text-indigo-700 mb-8 font-semibold">Percentage of Grade 4 learners who cannot read for meaning:</p>
 <div class="text-[8rem] font-black text-rose-500 leading-none drop-shadow-lg mb-4">81%</div>
 <p class="text-slate-400 text-lg">PIRLS 2021 Study</p>
 </div>
-<div class="slide-container absolute inset-0 hidden overflow-y-auto items-center justify-center" id="slide-7">
+<div class="slide-container absolute inset-0 hidden overflow-y-auto items-center justify-center" id="slide-8">
 <img alt="Slide 3: Introduction" class="max-h-[60vh] max-w-full object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/3Intro.png') }}"/>
 </div>
-<div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center p-8 bg-white text-slate-800 rounded-xl" id="slide-8">
+<div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center p-8 bg-white text-slate-800 rounded-xl" id="slide-9">
 <h2 class="text-3xl font-bold text-indigo-900 mb-6 uppercase tracking-wider">Slide 8: The English Family</h2>
 <p class="text-lg text-indigo-700 max-w-2xl text-center mb-8">Once upon a time, there was a family with a very unique way of speaking...</p>
 <div class="bg-indigo-900/50 p-6 rounded-lg max-w-xl text-center border border-indigo-700">
@@ -171,7 +154,7 @@
 <p class="text-sm">Participants are currently submitting their demographic adaptation strategies.</p>
 </div>
 </div>
-<div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center p-8 bg-white text-slate-800 rounded-xl border-4 border-rose-500" id="slide-9">
+<div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center p-8 bg-white text-slate-800 rounded-xl border-4 border-rose-500" id="slide-10">
 <h2 class="text-3xl font-bold text-rose-400 mb-2 uppercase tracking-wider">Slide 9: Game 1</h2>
 <h3 class="text-xl text-indigo-700 mb-6 italic">Kinesthetic Memory: The Vowel Hops</h3>
 <p class="text-xl text-white font-black max-w-2xl text-center tracking-widest space-x-6 mb-8">
@@ -182,7 +165,7 @@
 <p class="text-sm text-slate-200">Participants have instructions on their app. Have them stand up, take 5 hops, and shout each vowel!</p>
 </div>
 </div>
-<div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center p-8 bg-indigo-900 text-white rounded-xl border-4 border-indigo-500" id="slide-10">
+<div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center p-8 bg-indigo-900 text-white rounded-xl border-4 border-indigo-500" id="slide-11">
 <h2 class="text-3xl font-bold text-indigo-900 mb-2 uppercase tracking-wider">Slide 10: Game 2</h2>
 <h3 class="text-xl text-indigo-100 mb-6 italic">The Number Map (Blending Machine)</h3>
 <div class="grid grid-cols-5 gap-4 mb-8 text-center w-full max-w-2xl">
@@ -197,7 +180,7 @@
 <p class="text-sm text-indigo-100">Participants are paired up calling out random numbers while their partner shouts the vowel.</p>
 </div>
 </div>
-<div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center p-8 bg-white text-slate-800 rounded-xl border-4 border-emerald-500" id="slide-11">
+<div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center p-8 bg-white text-slate-800 rounded-xl border-4 border-emerald-500" id="slide-12">
 <h2 class="text-3xl font-bold text-emerald-400 mb-2 uppercase tracking-wider">Slide 11: Tactile Engagement</h2>
 <h3 class="text-xl text-indigo-700 mb-6 italic">Consonant Flashcards (10 Minutes)</h3>
 <div class="bg-slate-800/80 p-6 rounded-lg max-w-xl text-center border border-slate-700 shadow-xl">
@@ -205,38 +188,35 @@
 <p class="text-sm text-slate-200">Participants are downloading the Consonant Sheet PDF on their devices.<br/><br/>Instruct them to cut out the letters to create physical flashcards and test their partner!</p>
 </div>
 </div>
-                </div>
-                
-                <!-- Persistent F Controller -->
-                <div class="bg-slate-800 p-6 border-t border-slate-700 flex justify-between items-center shadow-lg z-50">
-                    <div class="text-slate-400 font-mono text-lg font-bold">
-                        Step <span id="f-counter">0</span> of 11
+</div>
+<!-- Persistent F Controller -->
+<div class="bg-slate-800 p-6 border-t border-slate-700 flex justify-between items-center shadow-lg z-50">
+<div class="text-slate-400 font-mono text-lg font-bold">
+                        Step <span id="f-counter">0</span> of 12
                     </div>
-                    <div class="flex space-x-4 items-center">
-                        <button id="global-audio-btn" onclick="playCurrentSlideAudio()" class="hidden px-6 py-4 bg-purple-600 hover:bg-purple-500 text-white font-bold text-lg rounded-xl transition shadow-[0_0_15px_rgba(147,51,234,0.5)]">
-                            <i class="fas fa-play mr-2"></i> Play Audio
+<div class="flex space-x-4 items-center">
+<button class="hidden px-6 py-4 bg-purple-600 hover:bg-purple-500 text-white font-bold text-lg rounded-xl transition shadow-[0_0_15px_rgba(147,51,234,0.5)]" id="global-audio-btn" onclick="playCurrentSlideAudio()">
+<i class="fas fa-play mr-2"></i> Play Audio
                         </button>
-                        <button onclick="pushToParticipant()" class="px-8 py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xl rounded-xl transition shadow-[0_0_20px_rgba(16,185,129,0.5)]">
+<button class="px-8 py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xl rounded-xl transition shadow-[0_0_20px_rgba(16,185,129,0.5)]" onclick="pushToParticipant()">
                             Push to Teacher's Device <i class="fas fa-arrow-right ml-3"></i>
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- ========================================== -->
-            <!-- TAB P: PARTICIPANT -->
-            <!-- ========================================== -->
-            <div id="tab-p" class="w-full h-full hidden flex-col bg-slate-100">
-                <div class="flex-grow p-4 md:p-8 flex items-start justify-center overflow-y-auto">
-                    <!-- Mobile Frame Mockup -->
-                    <div class="w-full max-w-sm bg-white rounded-[2rem] border-[12px] border-slate-800 shadow-2xl overflow-hidden h-[750px] flex flex-col relative">
-                        <div class="bg-indigo-600 p-4 text-center text-white font-bold shadow-md z-10 flex justify-between items-center">
-                            <span>AIT App</span>
-                            <span class="text-xs bg-green-400 text-green-900 px-2 py-1 rounded-full"><i class="fas fa-link mr-1"></i>Synced</span>
-                        </div>
-                        
-                        <div class="flex-grow p-4 overflow-y-auto bg-slate-50" id="app-view-container">
-                            <div class="app-view hidden text-center" id="app-view-waiting">
+</button>
+</div>
+</div>
+</div>
+<!-- ========================================== -->
+<!-- TAB P: PARTICIPANT -->
+<!-- ========================================== -->
+<div class="w-full h-full hidden flex-col bg-slate-100" id="tab-p">
+<div class="flex-grow p-4 md:p-8 flex items-start justify-center overflow-y-auto">
+<!-- Mobile Frame Mockup -->
+<div class="w-full max-w-sm bg-white rounded-[2rem] border-[12px] border-slate-800 shadow-2xl overflow-hidden h-[750px] flex flex-col relative">
+<div class="bg-indigo-600 p-4 text-center text-white font-bold shadow-md z-10 flex justify-between items-center">
+<span>AIT App</span>
+<span class="text-xs bg-green-400 text-green-900 px-2 py-1 rounded-full"><i class="fas fa-link mr-1"></i>Synced</span>
+</div>
+<div class="flex-grow p-4 overflow-y-auto bg-slate-50" id="app-view-container">
+<div class="app-view hidden text-center" id="app-view-waiting">
 <div class="h-20 w-20 bg-green-100 rounded-full flex items-center justify-center mb-6 mx-auto">
 <i class="fas fa-check text-4xl text-green-500"></i>
 </div>
@@ -457,26 +437,23 @@
 <p class="text-slate-600">Awaiting assessment results...</p>
 </div>
 </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Persistent P Return -->
-                <div class="p-6 border-t border-slate-200 bg-white flex justify-between items-center shadow-[0_-5px_20px_rgba(0,0,0,0.1)] z-50">
-                    <div class="text-slate-400 font-mono text-lg font-bold"><i class="fas fa-mobile-alt mr-2"></i> Teacher View Active</div>
-                    <button onclick="finishActivityAndNext()" class="px-8 py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xl rounded-xl transition shadow-[0_0_15px_rgba(79,70,229,0.5)]">
-                        Next Facilitator Slide <i class="fas fa-undo ml-3"></i>
-                    </button>
-                </div>
-            </div>
-
-        </div>
-    </div>
 </div>
-
+</div>
+</div>
+<!-- Persistent P Return -->
+<div class="p-6 border-t border-slate-200 bg-white flex justify-between items-center shadow-[0_-5px_20px_rgba(0,0,0,0.1)] z-50">
+<div class="text-slate-400 font-mono text-lg font-bold"><i class="fas fa-mobile-alt mr-2"></i> Teacher View Active</div>
+<button class="px-8 py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xl rounded-xl transition shadow-[0_0_15px_rgba(79,70,229,0.5)]" onclick="finishActivityAndNext()">
+                        Next Facilitator Slide <i class="fas fa-undo ml-3"></i>
+</button>
+</div>
+</div>
+</div>
+</div>
+</div>
 <script>
     let currentSlide = -1;
-    const totalSlides = 11;
+    const totalSlides = 12;
     
     const mockAttendees = [
         "Sipho Mkhize", "Jane Naidoo", "Sarah van der Merwe", "Tshepo Modise", 
@@ -605,14 +582,14 @@
 
         // Update P Views (exactly matching the old logic)
         let pIndex = 1; // default projector view
-        if (currentSlide === 0) pIndex = 0;
-        if (currentSlide === 3) pIndex = 2;
-        if (currentSlide === 4) pIndex = 3;
-        if (currentSlide === 5) pIndex = 4;
-        if (currentSlide === 8) pIndex = 5;
-        if (currentSlide === 9) pIndex = 8;
-        if (currentSlide === 10) pIndex = 6;
-        if (currentSlide === 11) pIndex = 9;
+        if (currentSlide === 1) pIndex = 0;
+        if (currentSlide === 4) pIndex = 2;
+        if (currentSlide === 5) pIndex = 3;
+        if (currentSlide === 6) pIndex = 4;
+        if (currentSlide === 9) pIndex = 5;
+        if (currentSlide === 10) pIndex = 8;
+        if (currentSlide === 11) pIndex = 6;
+        if (currentSlide === 12) pIndex = 9;
 
         document.querySelectorAll('.app-view').forEach(el => {
             el.classList.add('hidden');
@@ -629,19 +606,19 @@
 
     // Make the survey results jump like a tossing dice
     function triggerRandomDice(slideNum) {
-        // Slide 2: Pre-test true/false
+        // Slide 2: Pre-test true/false tally (moved from old 2 to new 2)
         if (slideNum === 2) {
             const trues = Math.floor(Math.random() * 15) + 5; // 5 to 20
             const falses = 20 - trues;
             animateBar('slide-2', 0, trues, falses);
         }
-        // Slide 4: Root Cause A/B/C/D
-        if (slideNum === 4) {
-            animateBar('slide-4', 0, Math.floor(Math.random() * 10), Math.floor(Math.random() * 5), Math.floor(Math.random() * 3), 2);
-        }
-        // Slide 5: Top Challenges
+        // Slide 5: Root Cause A/B/C/D (moved from 4 to 5)
         if (slideNum === 5) {
-            animateBar('slide-5', 0, Math.floor(Math.random() * 8), Math.floor(Math.random() * 8), Math.floor(Math.random() * 4));
+            animateBar('slide-5', 0, Math.floor(Math.random() * 10), Math.floor(Math.random() * 5), Math.floor(Math.random() * 3), 2);
+        }
+        // Slide 6: Top Challenges (moved from 5 to 6)
+        if (slideNum === 6) {
+            animateBar('slide-6', 0, Math.floor(Math.random() * 8), Math.floor(Math.random() * 8), Math.floor(Math.random() * 4));
         }
     }
     

@@ -402,6 +402,11 @@
     
     function submitPoll(pollId, answer, btn) {
         btn.classList.add('ring-4', 'ring-indigo-300');
+        
+        if (isEmbedded) {
+            window.parent.postMessage({action: 'participantAnswer', type: 'poll', pollId: pollId, answer: answer}, '*');
+        }
+        
         const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content'); 
         fetch('/sace/workshop/submit_poll', {
             method: 'POST',
@@ -489,6 +494,10 @@
     }
 
     function submitLog(message) {
+        if (isEmbedded) {
+            window.parent.postMessage({action: 'participantAnswer', type: 'log', message: message}, '*');
+        }
+        
         const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content'); 
         fetch('/sace/workshop/submit_interaction', {
             method: 'POST',

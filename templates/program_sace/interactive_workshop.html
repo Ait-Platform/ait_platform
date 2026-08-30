@@ -530,6 +530,29 @@
         }, 2000);
     }
     
+    
+    // REAL SERVER POLLING (Replaces Magic Sync)
+    setInterval(() => {
+        if (!hasJoinedLocally) return;
+        
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        fetch('/sace/workshop/get_state', {
+            headers: {'X-CSRFToken': csrfToken}
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                if (data.state && sessionState !== data.state) {
+                    sessionState = data.state;
+                }
+                if (data.slide !== undefined && currentSlide !== data.slide) {
+                    currentSlide = data.slide;
+                    updateView();
+                }
+            }
+        });
+    }, 2000);
+
     // Simulator Sync: Listen to Parent Window instead of polling Server
     window.addEventListener('message', function(event) {
         if (event.data && event.data.action === 'syncSlide') {

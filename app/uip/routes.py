@@ -728,9 +728,8 @@ from app.uip import uip_bp
 
 @uip_bp.route("/")
 def uip_start():
-    # A simple landing/entry route that redirects to the demo tenant for now.
-    # We will assume 'manor-gardens' since we seeded it earlier.
-    return redirect(url_for('uip_bp.dashboard', org_slug='manor-gardens'))
+    # Public marketing and landing page for UIPs
+    return render_template('uip/public_about.html')
 from flask import flash, redirect, url_for
 
 @uip_bp.route("/_seed")

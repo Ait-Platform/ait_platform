@@ -56,10 +56,10 @@
 <div class="text-2xl font-bold text-green-400">Teachers Connected: <span id="attendance-counter">0</span></div>
 </div><div class="slide-container absolute inset-0 flex flex-col overflow-y-auto items-center justify-center" id="slide-0">
 <img alt="Slide 1: Program" class="max-h-[60vh] max-w-full object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/1Program.png') }}"/>
-        <audio class="hidden"><source src="{{ url_for('static', filename='sace_slides/1_audio.wav') }}" type="audio/wav"></audio>
+<audio class="hidden"><source src="{{ url_for('static', filename='sace_slides/1_audio.wav') }}" type="audio/wav"/></audio>
 </div><div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-1">
 <img alt="Slide 2: Crisis" class="max-h-[60vh] max-w-full object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/2Crisis.png') }}"/>
-        <audio class="hidden"><source src="{{ url_for('static', filename='sace_slides/2_audio.wav') }}" type="audio/wav"></audio>
+<audio class="hidden"><source src="{{ url_for('static', filename='sace_slides/2_audio.wav') }}" type="audio/wav"/></audio>
 </div><div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center p-8 bg-white text-slate-800 rounded-xl" id="slide-2">
 <img alt="Slide 3: Survey" class="max-h-[40vh] max-w-full object-contain mx-auto mb-6 shadow-sm rounded" src="{{ url_for('static', filename='sace_slides/3Survey.png') }}"/>
 <h2 class="text-2xl font-bold text-indigo-600 mb-6"><i class="fas fa-poll mr-3"></i>Live Room Data Tally</h2>
@@ -85,15 +85,13 @@
 </div>
 </div><div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-3">
 <img alt="Slide 4: Study" class="max-h-[60vh] max-w-full object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/4Study.png') }}"/>
-        <audio class="hidden"><source src="{{ url_for('static', filename='sace_slides/4_audio.wav') }}" type="audio/wav"></audio>
+<audio class="hidden"><source src="{{ url_for('static', filename='sace_slides/4_audio.wav') }}" type="audio/wav"/></audio>
 </div><div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-4">
-<img alt="Slide 5: Problem" class="max-h-[60vh] max-w-full object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/5Problem.png') }}"/>
+<img alt="Slide 5: The Problem" class="max-h-[60vh] max-w-full object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/5The Problem.png') }}"/>
+</div><div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-5">
+<img alt="Slide 6: Root Cause" class="max-h-[60vh] max-w-full object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/6Root Cause.png') }}"/>
 </div>
-
-
-
-
-<div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center p-8 bg-white text-slate-800 rounded-xl" id="slide-5">
+<div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center p-8 bg-white text-slate-800 rounded-xl" id="slide-6">
 <h2 class="text-3xl font-bold text-indigo-600 mb-8"><i class="fas fa-chart-bar mr-3"></i>Live Room Data: Root Cause</h2>
 <p class="text-xl text-indigo-700 mb-8 font-semibold">What is the biggest contributor to the reading crisis?</p>
 <div class="w-full max-w-2xl space-y-6">
@@ -115,7 +113,7 @@
 </div>
 </div>
 </div>
-<div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center p-8 bg-white text-slate-800 rounded-xl" id="slide-6">
+<div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center p-8 bg-white text-slate-800 rounded-xl" id="slide-7">
 <h2 class="text-3xl font-bold text-indigo-600 mb-8"><i class="fas fa-chart-pie mr-3"></i>Live Room Data: Top Challenges</h2>
 <p class="text-xl text-indigo-700 mb-8 font-semibold text-center">Which reading challenge is most prevalent in your classroom?</p>
 <div class="w-full max-w-4xl space-y-6">
@@ -137,16 +135,20 @@
 </div>
 </div>
 </div>
-<div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center p-8 bg-white text-slate-800 rounded-xl text-center" id="slide-7">
+<div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center p-8 bg-white text-slate-800 rounded-xl text-center" id="slide-8">
 <h2 class="text-3xl font-bold text-indigo-600 mb-4"><i class="fas fa-exclamation-triangle mr-3"></i>The Harsh Reality</h2>
 <p class="text-xl text-indigo-700 mb-8 font-semibold">Percentage of Grade 4 learners who cannot read for meaning:</p>
 <div class="text-[8rem] font-black text-rose-500 leading-none drop-shadow-lg mb-4">81%</div>
 <p class="text-slate-400 text-lg">PIRLS 2021 Study</p>
 </div>
-<div class="slide-container absolute inset-0 hidden overflow-y-auto items-center justify-center" id="slide-8">
-<img alt="Slide 3: Introduction" class="max-h-[60vh] max-w-full object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/3Intro.png') }}"/>
+<div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-9">
+<img alt="Slide 7: Litre" class="max-h-[60vh] max-w-full object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/7Litre.png') }}"/>
+</div><div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-10">
+<img alt="Slide 8: Why Litre" class="max-h-[60vh] max-w-full object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/8Why Litre.png') }}"/>
+</div><div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-11">
+<img alt="Slide 9: What is Litre" class="max-h-[60vh] max-w-full object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/9What is Litre.png') }}"/>
 </div>
-<div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center p-8 bg-white text-slate-800 rounded-xl" id="slide-9">
+<div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center p-8 bg-white text-slate-800 rounded-xl" id="slide-12">
 <h2 class="text-3xl font-bold text-indigo-900 mb-6 uppercase tracking-wider">Slide 8: The English Family</h2>
 <p class="text-lg text-indigo-700 max-w-2xl text-center mb-8">Once upon a time, there was a family with a very unique way of speaking...</p>
 <div class="bg-indigo-900/50 p-6 rounded-lg max-w-xl text-center border border-indigo-700">
@@ -154,7 +156,7 @@
 <p class="text-sm">Participants are currently submitting their demographic adaptation strategies.</p>
 </div>
 </div>
-<div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center p-8 bg-white text-slate-800 rounded-xl border-4 border-rose-500" id="slide-10">
+<div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center p-8 bg-white text-slate-800 rounded-xl border-4 border-rose-500" id="slide-13">
 <h2 class="text-3xl font-bold text-rose-400 mb-2 uppercase tracking-wider">Slide 9: Game 1</h2>
 <h3 class="text-xl text-indigo-700 mb-6 italic">Kinesthetic Memory: The Vowel Hops</h3>
 <p class="text-xl text-white font-black max-w-2xl text-center tracking-widest space-x-6 mb-8">
@@ -165,7 +167,7 @@
 <p class="text-sm text-slate-200">Participants have instructions on their app. Have them stand up, take 5 hops, and shout each vowel!</p>
 </div>
 </div>
-<div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center p-8 bg-indigo-900 text-white rounded-xl border-4 border-indigo-500" id="slide-11">
+<div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center p-8 bg-indigo-900 text-white rounded-xl border-4 border-indigo-500" id="slide-14">
 <h2 class="text-3xl font-bold text-indigo-900 mb-2 uppercase tracking-wider">Slide 10: Game 2</h2>
 <h3 class="text-xl text-indigo-100 mb-6 italic">The Number Map (Blending Machine)</h3>
 <div class="grid grid-cols-5 gap-4 mb-8 text-center w-full max-w-2xl">
@@ -180,7 +182,7 @@
 <p class="text-sm text-indigo-100">Participants are paired up calling out random numbers while their partner shouts the vowel.</p>
 </div>
 </div>
-<div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center p-8 bg-white text-slate-800 rounded-xl border-4 border-emerald-500" id="slide-12">
+<div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center p-8 bg-white text-slate-800 rounded-xl border-4 border-emerald-500" id="slide-15">
 <h2 class="text-3xl font-bold text-emerald-400 mb-2 uppercase tracking-wider">Slide 11: Tactile Engagement</h2>
 <h3 class="text-xl text-indigo-700 mb-6 italic">Consonant Flashcards (10 Minutes)</h3>
 <div class="bg-slate-800/80 p-6 rounded-lg max-w-xl text-center border border-slate-700 shadow-xl">
@@ -192,7 +194,7 @@
 <!-- Persistent F Controller -->
 <div class="bg-slate-800 p-6 border-t border-slate-700 flex justify-between items-center shadow-lg z-50">
 <div class="text-slate-400 font-mono text-lg font-bold">
-                        Step <span id="f-counter">0</span> of 12
+                        Step <span id="f-counter">0</span> of 16
                     </div>
 <div class="flex space-x-4 items-center">
 <button class="hidden px-6 py-4 bg-purple-600 hover:bg-purple-500 text-white font-bold text-lg rounded-xl transition shadow-[0_0_15px_rgba(147,51,234,0.5)]" id="global-audio-btn" onclick="playCurrentSlideAudio()">
@@ -453,7 +455,7 @@
 </div>
 <script>
     let currentSlide = -1;
-    const totalSlides = 12;
+    const totalSlides = 16;
     
     const mockAttendees = [
         "Sipho Mkhize", "Jane Naidoo", "Sarah van der Merwe", "Tshepo Modise", 
@@ -583,13 +585,13 @@
         // Update P Views (exactly matching the old logic)
         let pIndex = 1; // default projector view
         if (currentSlide === 1) pIndex = 0;
-        if (currentSlide === 4) pIndex = 2;
-        if (currentSlide === 5) pIndex = 3;
-        if (currentSlide === 6) pIndex = 4;
-        if (currentSlide === 9) pIndex = 5;
-        if (currentSlide === 10) pIndex = 8;
-        if (currentSlide === 11) pIndex = 6;
-        if (currentSlide === 12) pIndex = 9;
+        if (currentSlide === 5) pIndex = 2;
+        if (currentSlide === 6) pIndex = 3;
+        if (currentSlide === 7) pIndex = 4;
+        if (currentSlide === 12) pIndex = 5;
+        if (currentSlide === 13) pIndex = 8;
+        if (currentSlide === 14) pIndex = 6;
+        if (currentSlide === 15) pIndex = 9;
 
         document.querySelectorAll('.app-view').forEach(el => {
             el.classList.add('hidden');
@@ -606,19 +608,16 @@
 
     // Make the survey results jump like a tossing dice
     function triggerRandomDice(slideNum) {
-        // Slide 2: Pre-test true/false tally (moved from old 2 to new 2)
         if (slideNum === 2) {
-            const trues = Math.floor(Math.random() * 15) + 5; // 5 to 20
+            const trues = Math.floor(Math.random() * 15) + 5;
             const falses = 20 - trues;
             animateBar('slide-2', 0, trues, falses);
         }
-        // Slide 5: Root Cause A/B/C/D (moved from 4 to 5)
-        if (slideNum === 5) {
-            animateBar('slide-5', 0, Math.floor(Math.random() * 10), Math.floor(Math.random() * 5), Math.floor(Math.random() * 3), 2);
+        if (slideNum === 6) { // Root Cause HTML Tally (Now slide 6)
+            animateBar('slide-6', 0, Math.floor(Math.random() * 10), Math.floor(Math.random() * 5), Math.floor(Math.random() * 3), 2);
         }
-        // Slide 6: Top Challenges (moved from 5 to 6)
-        if (slideNum === 6) {
-            animateBar('slide-6', 0, Math.floor(Math.random() * 8), Math.floor(Math.random() * 8), Math.floor(Math.random() * 4));
+        if (slideNum === 7) { // Top Challenges HTML Tally (Now slide 7)
+            animateBar('slide-7', 0, Math.floor(Math.random() * 8), Math.floor(Math.random() * 8), Math.floor(Math.random() * 4));
         }
     }
     

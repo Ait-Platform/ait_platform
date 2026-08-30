@@ -502,21 +502,38 @@
     }
     
     
-    // Magic Sync: Listen to Facilitator
-    setInterval(() => {
-        if (evaluatorMode) return;
-        fetch('/sace/workshop/get_state')
-            .then(res => res.json())
-            .then(data => {
-                // If facilitator has started, lock to their slide
-                if (data.status === 'active' && currentSlide !== data.slide) {
-                    currentSlide = data.slide;
-                    sessionState = 'active';
-                    updateView();
-                }
-            })
-            .catch(e => console.log('Sync error:', e));
-    }, 2000);
+    const isEmbedded = new URLSearchParams(window.location.search).get('embed') === '1';
+
+    // Magic Sync: Listen to Facilitator (ONLY if in Live Room, NOT Simulator)
+    if (!isEmbedded) {
+        setInterval(() => {
+            if (evaluatorMode) return;
+            fetch('/sace/workshop/get_state')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'active' && currentSlide !== data.slide) {
+                        currentSlide = data.slide;
+                        sessionState = 'active';
+                        updateView();
+                    }
+                })
+                .catch(e => console.log('Sync error:', e));
+        }, 2000);
+    }
+    
+    // Simulator Sync: Listen to Parent Window instead of polling Server
+    window.addEventListener('message', function(event) {
+        if (event.data && event.data.action === 'syncSlide') {
+            if (evaluatorMode) return;
+            
+            if (event.data.state === 'active') {
+                hasJoinedLocally = true;
+                sessionState = 'active';
+                currentSlide = event.data.slide;
+                updateView();
+            }
+        }
+    });
 
     // Initialize
 

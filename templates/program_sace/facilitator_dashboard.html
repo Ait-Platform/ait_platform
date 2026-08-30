@@ -331,6 +331,9 @@
     
 
     function updateView() {
+        if (window.parent && window.parent !== window) { 
+            window.parent.postMessage({action: 'slideChanged', slide: currentSlide, state: sessionState}, '*'); 
+        }
         // Pause any currently playing audio
         document.querySelectorAll('audio').forEach(audio => {
             audio.pause();

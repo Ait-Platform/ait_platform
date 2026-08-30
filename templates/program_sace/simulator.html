@@ -98,7 +98,7 @@
 
         <!-- Tab F: Facilitator Board -->
         <div id="tab-f" class="w-full h-full hidden relative">
-            <iframe src="{{ url_for('sace_bp.facilitator_dashboard') }}?embed=1&cb=1788072626" class="w-full h-full border-0" id="facilitatorIframe"></iframe>
+            <iframe src="{{ url_for('sace_bp.facilitator_dashboard') }}?embed=1&cb={{ range(1, 999999) | random }}" class="w-full h-full border-0" id="facilitatorIframe"></iframe>
         </div>
         
         <!-- Tab P: Participant Board -->
@@ -175,14 +175,7 @@ window.addEventListener('message', function(event) {
 // Ensure A is open on load
 switchTab('a');
 
-// Sync loop
-setInterval(function() {
-    fetch('/sace/workshop/get_state')
-        .then(response => response.json())
-        .then(data => {
-            updateAuditorBanner(data.active_slide || 1);
-        }).catch(err => console.error(err));
-}, 1000);
+
 
 function simulatePdfDownload(e) {
     e.preventDefault();

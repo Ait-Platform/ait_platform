@@ -3,88 +3,122 @@
 {% block title %}SACE Simulator: Reading (LITRE Method){% endblock %}
 
 {% block content %}
-<!-- Welcome Modal -->
-<div id="simulatorWelcomeModal" class="fixed inset-0 bg-slate-900/80 z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden">
-        <div class="h-3 w-full bg-indigo-600"></div>
-        <div class="p-8">
-            <h2 class="text-3xl font-bold text-slate-900 mb-4">Welcome to the SACE Evaluation Simulator</h2>
-            <p class="text-lg text-slate-700 mb-6">
-                To accurately evaluate this interactive workshop, you will experience it from both perspectives simultaneously.
-            </p>
-            
-            <div class="grid grid-cols-2 gap-6 mb-8">
-                <div class="bg-purple-50 p-4 rounded-xl border border-purple-200">
-                    <div class="h-10 w-10 bg-purple-600 text-white rounded-lg flex items-center justify-center font-bold text-xl mb-3"><i class="fas fa-mobile-alt"></i></div>
-                    <h3 class="font-bold text-slate-900 mb-2">1. On Your Left</h3>
-                    <p class="text-sm text-slate-600">You will see the live <strong>Participant View</strong> (what the educators see on their devices in the room).</p>
-                </div>
-                <div class="bg-amber-50 p-4 rounded-xl border border-amber-200">
-                    <div class="h-10 w-10 bg-amber-600 text-white rounded-lg flex items-center justify-center font-bold text-xl mb-3"><i class="fas fa-chalkboard-teacher"></i></div>
-                    <h3 class="font-bold text-slate-900 mb-2">2. On Your Right</h3>
-                    <p class="text-sm text-slate-600">You will see the <strong>Facilitator Controls</strong> (the teaching notes and slide progression tools).</p>
-                </div>
-            </div>
-            
-            <div class="bg-indigo-50 border border-indigo-200 p-4 rounded-lg mb-8">
-                <p class="text-sm text-indigo-800">
-                    <strong>Instructions:</strong> Use the Facilitator controls on the right to drive the presentation forward. Watch how the Participant screen on the left reacts in real-time. We have also included direct links to your SACE compliance annexures at the top of the screen as you progress.
-                </p>
-            </div>
-            
-            <button onclick="document.getElementById('simulatorWelcomeModal').style.display='none'" class="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-md transition text-lg">
-                Start Simulation
-            </button>
-        </div>
-    </div>
-</div>
-
 <!-- Main Simulator Layout (Full Height minus navbar) -->
 <div class="flex flex-col h-[calc(100vh-64px)] w-full overflow-hidden bg-slate-900">
     
-    <!-- Top Auditor Banner (Dynamic via JS) -->
-    <div id="auditorBanner" class="bg-indigo-900 text-white px-6 py-3 border-b border-indigo-700 flex justify-between items-center shrink-0">
-        <div class="flex items-center">
-            <span class="bg-indigo-600 px-2 py-1 rounded text-xs font-bold mr-3 tracking-widest uppercase">Auditor Note</span>
-            <span id="auditorMessage" class="font-medium text-sm">Slide 1 - Welcome & Timetable</span>
+    <!-- Top Auditor Banner with Tabs -->
+    <div id="auditorBanner" class="bg-slate-900 text-white px-6 py-3 border-b border-slate-700 flex justify-between items-center shrink-0">
+        
+        <div class="flex space-x-2">
+            <button onclick="switchTab('a')" id="btn-tab-a" class="flex items-center px-4 py-2 bg-indigo-600 text-white font-bold rounded-t-lg transition hover:bg-indigo-500">
+                <i class="fas fa-clipboard-check mr-2"></i> Auditor Guide (A)
+            </button>
+            <button onclick="switchTab('f')" id="btn-tab-f" class="flex items-center px-4 py-2 bg-slate-700 text-slate-300 font-bold rounded-t-lg transition hover:bg-slate-600 border-b-2 border-transparent">
+                <div class="w-3 h-3 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)] mr-2"></div>
+                Facilitator Board (F)
+            </button>
+            <button onclick="switchTab('p')" id="btn-tab-p" class="flex items-center px-4 py-2 bg-slate-700 text-slate-300 font-bold rounded-t-lg transition hover:bg-slate-600 border-b-2 border-transparent">
+                <div class="w-3 h-3 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.8)] mr-2"></div>
+                Participant Board (P)
+            </button>
         </div>
-        <div>
-            <!-- Dynamic Compliance Document Link -->
-            <a id="complianceLink" href="{% if docs['application_form'] %}{{ url_for('sace_bp.download_document', doc_id=docs['application_form'].id) }}{% else %}#{% endif %}" target="_blank" class="px-4 py-2 bg-indigo-700 hover:bg-indigo-600 text-white text-sm font-bold rounded shadow-sm transition border border-indigo-500 flex items-center gap-2">
-                <i class="fas fa-file-pdf"></i>
-                <span id="complianceText">View Annexure A: Timetable</span>
-            </a>
+        
+        <!-- Dynamic Compliance Info (visible when A is not active, or always) -->
+        <div id="dynamicAuditorNote" class="flex items-center space-x-4 hidden">
+            <span class="text-amber-400 font-bold text-sm"><i class="fas fa-sync fa-spin mr-2"></i> Sync Active: <span id="syncText">Slide 1</span></span>
         </div>
     </div>
     
-    <!-- Split Screen Area -->
-    <div class="flex flex-1 w-full overflow-hidden relative">
+    <!-- Tab Contents -->
+    <div class="flex flex-1 w-full overflow-hidden relative bg-slate-100">
         
-        <!-- Left: Participant Board -->
-        <div class="w-1/2 h-full border-r-4 border-slate-900 bg-slate-100 flex flex-col relative">
-            <div class="absolute top-0 left-0 w-full bg-purple-600 text-white text-center py-1 text-xs font-bold tracking-widest z-10 shadow-md">
-                PARTICIPANT BOARD (TABLET VIEW)
+        <!-- Tab A: Auditor Guide -->
+        <div id="tab-a" class="w-full h-full p-8 overflow-y-auto">
+            <div class="max-w-4xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-200">
+                <div class="h-3 w-full bg-indigo-600"></div>
+                <div class="p-8">
+                    <h2 class="text-3xl font-extrabold text-slate-900 mb-4">SACE Evaluation Simulator</h2>
+                    <p class="text-lg text-slate-700 mb-8">
+                        Welcome to the interactive Auditor portal. To accurately evaluate this platform, you can seamlessly toggle between the three operational layers of the software.
+                    </p>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                        <div class="bg-slate-50 p-6 rounded-xl border border-slate-200 shadow-sm">
+                            <div class="flex items-center mb-4">
+                                <div class="w-4 h-4 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)] mr-3"></div>
+                                <h3 class="font-bold text-slate-900 text-xl">Facilitator Board (F)</h3>
+                            </div>
+                            <p class="text-sm text-slate-600 mb-4">The control panel used by the presenter. Use this tab to start the workshop and advance the slides.</p>
+                        </div>
+                        <div class="bg-slate-50 p-6 rounded-xl border border-slate-200 shadow-sm">
+                            <div class="flex items-center mb-4">
+                                <div class="w-4 h-4 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.8)] mr-3"></div>
+                                <h3 class="font-bold text-slate-900 text-xl">Participant Board (P)</h3>
+                            </div>
+                            <p class="text-sm text-slate-600 mb-4">The interactive app used by teachers in the audience. It instantly syncs whenever the Facilitator changes the slide.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-indigo-50 border-l-4 border-indigo-600 p-6 rounded-r-lg mb-8">
+                        <h4 class="font-bold text-indigo-900 mb-2">Live Evaluation Evidence</h4>
+                        <p class="text-sm text-indigo-800 mb-4" id="auditorMessage">
+                            Waiting for workshop to begin...
+                        </p>
+                        <a id="complianceLink" href="#" target="_blank" class="inline-flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded shadow-sm transition">
+                            <i class="fas fa-file-pdf mr-2"></i>
+                            <span id="complianceText">View Current Annexure</span>
+                        </a>
+                    </div>
+                </div>
             </div>
-            <iframe src="{{ url_for('sace_bp.interactive_workshop') }}?embed=1" class="w-full h-full pt-6 border-0" id="participantIframe"></iframe>
         </div>
         
-        <!-- Right: Facilitator Board -->
-        <div class="w-1/2 h-full bg-white flex flex-col relative">
-            <div class="absolute top-0 left-0 w-full bg-amber-600 text-white text-center py-1 text-xs font-bold tracking-widest z-10 shadow-md">
-                FACILITATOR BOARD (CONTROL PANEL)
-            </div>
-            <iframe src="{{ url_for('sace_bp.facilitator_dashboard') }}?embed=1" class="w-full h-full pt-6 border-0" id="facilitatorIframe"></iframe>
+        <!-- Tab F: Facilitator Board -->
+        <div id="tab-f" class="w-full h-full hidden relative">
+            <iframe src="{{ url_for('sace_bp.facilitator_dashboard') }}?embed=1" class="w-full h-full border-0" id="facilitatorIframe"></iframe>
+        </div>
+        
+        <!-- Tab P: Participant Board -->
+        <div id="tab-p" class="w-full h-full hidden relative">
+            <iframe src="{{ url_for('sace_bp.interactive_workshop') }}?embed=1" class="w-full h-full border-0" id="participantIframe"></iframe>
         </div>
         
     </div>
 </div>
 
 <script>
-// We can use postMessage or simple local polling to keep the Auditor banner in sync with the slide state
-// Assuming the facilitator board sets the active slide in localStorage or the DB
+function switchTab(tabId) {
+    // Hide all tabs
+    document.getElementById('tab-a').classList.add('hidden');
+    document.getElementById('tab-f').classList.add('hidden');
+    document.getElementById('tab-p').classList.add('hidden');
+    
+    // Reset buttons
+    document.getElementById('btn-tab-a').className = "flex items-center px-4 py-2 bg-slate-700 text-slate-300 font-bold rounded-t-lg transition hover:bg-slate-600 border-b-2 border-transparent";
+    document.getElementById('btn-tab-f').className = "flex items-center px-4 py-2 bg-slate-700 text-slate-300 font-bold rounded-t-lg transition hover:bg-slate-600 border-b-2 border-transparent";
+    document.getElementById('btn-tab-p').className = "flex items-center px-4 py-2 bg-slate-700 text-slate-300 font-bold rounded-t-lg transition hover:bg-slate-600 border-b-2 border-transparent";
+    
+    // Show active tab
+    document.getElementById('tab-' + tabId).classList.remove('hidden');
+    
+    // Style active button
+    if (tabId === 'a') {
+        document.getElementById('btn-tab-a').className = "flex items-center px-4 py-2 bg-indigo-600 text-white font-bold rounded-t-lg transition border-b-2 border-indigo-400";
+        document.getElementById('dynamicAuditorNote').classList.add('hidden');
+    } else if (tabId === 'f') {
+        document.getElementById('btn-tab-f').className = "flex items-center px-4 py-2 bg-white text-slate-900 font-bold rounded-t-lg transition border-b-2 border-red-500";
+        document.getElementById('dynamicAuditorNote').classList.remove('hidden');
+    } else if (tabId === 'p') {
+        document.getElementById('btn-tab-p').className = "flex items-center px-4 py-2 bg-white text-slate-900 font-bold rounded-t-lg transition border-b-2 border-green-500";
+        document.getElementById('dynamicAuditorNote').classList.remove('hidden');
+    }
+}
+
+// Ensure A is open on load
+switchTab('a');
+
+// Sync loop
 setInterval(function() {
-    // Basic sync logic: The Facilitator board or the backend can communicate the current slide.
-    // For now, we listen for a localStorage key or we can just fetch it from the backend API we built.
     fetch('/sace/workshop/get_state')
         .then(response => response.json())
         .then(data => {
@@ -96,6 +130,9 @@ function updateAuditorBanner(slideNumber) {
     const msgEl = document.getElementById('auditorMessage');
     const linkEl = document.getElementById('complianceLink');
     const textEl = document.getElementById('complianceText');
+    const syncEl = document.getElementById('syncText');
+    
+    syncEl.innerText = "Slide " + slideNumber;
     
     if(slideNumber == 1) {
         msgEl.innerText = "Slide 1 - Observe how the Timetable is dynamically rendered to all Participants seamlessly.";
@@ -105,7 +142,7 @@ function updateAuditorBanner(slideNumber) {
         linkEl.href = "#";
         {% endif %}
         textEl.innerText = "View Annexure A: Timetable";
-        linkEl.style.display = "flex";
+        linkEl.style.display = "inline-flex";
     } else if(slideNumber == 2) {
         msgEl.innerText = "Slide 2 - The presentation content begins. The Facilitator follows structured notes.";
         {% if docs['annexure_b'] %}
@@ -114,9 +151,8 @@ function updateAuditorBanner(slideNumber) {
         linkEl.href = "#";
         {% endif %}
         textEl.innerText = "View Annexure B: Presentation";
-        linkEl.style.display = "flex";
+        linkEl.style.display = "inline-flex";
     }
-    // Expand this switch statement as we build more slides
 }
 </script>
 {% endblock %}

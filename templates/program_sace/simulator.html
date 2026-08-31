@@ -149,27 +149,11 @@
               <img alt="Slide 25" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/25Thank.png') }}"/>
           </div>
 
+    </div> <!-- Close flex-grow -->
 
-</div>
-</div>
-<!-- Persistent F Controller -->
-<div class="bg-slate-800 p-6 border-t border-slate-700 flex justify-between items-center shadow-lg z-50">
-<div class="text-slate-400 font-mono text-lg font-bold">
-                        Step <span id="f-counter">0</span> of 25
-                    </div>
-<div class="flex space-x-4 items-center">
-<button class="px-6 py-4 bg-slate-300 hover:bg-slate-400 text-slate-700 font-bold rounded-xl transition" onclick="nextSlide()">
-                                  Next Slide <i class="fas fa-chevron-right ml-2"></i>
-                              </button>
-                              <button class="hidden px-6 py-4 bg-purple-600 hover:bg-purple-500 text-white font-bold text-lg rounded-xl transition shadow-[0_0_15px_rgba(147,51,234,0.5)]" id="global-audio-btn" onclick="playCurrentSlideAudio()">
-<i class="fas fa-play mr-2"></i> Play Audio
-                        </button>
-<button class="px-8 py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xl rounded-xl transition shadow-[0_0_20px_rgba(16,185,129,0.5)]" onclick="pushToParticipant()">
-                            Push to Participant's Device <i class="fas fa-arrow-right ml-3"></i>
-</button>
-</div>
-</div>
-</div>
+
+</div> <!-- Close tab-f -->
+
 <!-- ========================================== -->
 <!-- TAB P: PARTICIPANT -->
 <!-- ========================================== -->
@@ -469,7 +453,26 @@
 </div>
 </div>
 </div>
+
+    <!-- Persistent Global Controller -->
+    <div class="bg-slate-800 p-4 md:p-6 border-t border-slate-700 flex justify-between items-center shadow-[0_-10px_20px_rgba(0,0,0,0.3)] z-[100] shrink-0" id="global-controller" style="display: none;">
+        <div class="text-slate-400 font-mono text-lg font-bold">
+            Step <span id="f-counter-global">0</span> of 25
+        </div>
+        <div class="flex space-x-4 items-center">
+            <button class="px-4 md:px-6 py-3 bg-slate-300 hover:bg-slate-400 text-slate-700 font-bold rounded-xl transition" onclick="nextSlide()">
+                Next Slide <i class="fas fa-chevron-right ml-2"></i>
+            </button>
+            <button class="hidden px-4 md:px-6 py-3 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl transition shadow-[0_0_15px_rgba(147,51,234,0.5)]" id="global-audio-btn" onclick="playCurrentSlideAudio()">
+                <i class="fas fa-play mr-2"></i> Play Audio
+            </button>
+            <button class="px-4 md:px-8 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-xl transition shadow-[0_0_20px_rgba(16,185,129,0.5)]" onclick="pushToParticipant()">
+                Push to Participant <i class="fas fa-arrow-right ml-2"></i>
+            </button>
+        </div>
+    </div>
 </div>
+
 <script>
     let currentSlide = -1;
     const totalSlides = 25;
@@ -526,6 +529,7 @@
         currentSlide = 0;
         updateSlides();
         showTab('f');
+        document.getElementById("global-controller").style.display = "flex";
     }
 
     function playCurrentSlideAudio() {
@@ -561,6 +565,7 @@
         if (currentSlide < totalSlides) {
             currentSlide++;
             updateSlides();
+            showTab('f'); // Automatically seesaw back to Projector
         } else {
             alert("Simulation Complete! Endorsement demonstration finished.");
             showTab('a');
@@ -600,7 +605,7 @@
             fSlide.classList.add('flex');
         }
         
-        document.getElementById('f-counter').innerText = currentSlide;
+        document.getElementById('f-counter-global').innerText = currentSlide;
 
         // Audio Logic: Pause everything first
         document.querySelectorAll('audio').forEach(audio => {

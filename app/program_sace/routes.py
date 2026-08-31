@@ -440,7 +440,7 @@ def email_certificate():
         # Generate the standard PDF
         pdf_bytes = _generate_certificate_pdf(
             certificate_id=cert_id,
-            learner_name=current_user.username,
+            learner_name=current_user.name,
             completed_at=completed_at,
             user_id=current_user.id
         )
@@ -448,7 +448,7 @@ def email_certificate():
         # Email it
         _email_certificate_pdf(
             to_email=target_email,
-            learner_name=current_user.username,
+            learner_name=current_user.name,
             certificate_id=cert_id,
             pdf_bytes=pdf_bytes
         )

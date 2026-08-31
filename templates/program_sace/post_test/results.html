@@ -1,5 +1,6 @@
 {% extends "layout.html" %}
 
+{% block flashes %}{% endblock %}
 {% block content %}
 <div class="max-w-4xl mx-auto py-8 px-4">
     <div class="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
@@ -17,15 +18,7 @@
         
         <!-- Flash Messages Block -->
         <div class="px-6 pt-4">
-            {% with messages = get_flashed_messages(with_categories=true) %}
-                {% if messages %}
-                    {% for category, message in messages %}
-                        <div class="mb-4 p-4 rounded-lg {% if category == 'success' %}bg-green-100 text-green-800 border border-green-200{% else %}bg-rose-100 text-rose-800 border border-rose-200{% endif %}">
-                            {{ message }}
-                        </div>
-                    {% endfor %}
-                {% endif %}
-            {% endwith %}
+            {% include "partials/flash_messages.html" %}
         </div>
 
         <div class="p-6">

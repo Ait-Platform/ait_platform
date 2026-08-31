@@ -50,145 +50,63 @@
 <!-- ========================================== -->
 <div class="w-full h-full hidden flex-col relative bg-slate-900" id="tab-f">
 <div class="flex-grow relative overflow-hidden">
-<div class="slide-container absolute inset-0 flex flex-col overflow-y-auto items-center justify-center p-8 bg-white text-slate-800 rounded-xl text-center z-20" id="slide-lobby">
-<h2 class="text-4xl font-bold text-indigo-600 mb-4">Welcome</h2>
-<p class="text-xl text-slate-500 mb-8">Waiting for participants to check in...</p>
-<div class="text-2xl font-bold text-green-400">participants Connected: <span id="attendance-counter">0</span></div>
-</div><div class="slide-container absolute inset-0 flex flex-col overflow-y-auto items-center justify-center" id="slide-0">
-<img alt="Slide 1: Program" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/1Program.png') }}"/>
-<audio class="hidden"><source src="{{ url_for('static', filename='sace_slides/1_audio.wav') }}" type="audio/wav"/></audio>
-</div><div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-1">
-<img alt="Slide 2: Crisis" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/2Crisis.png') }}"/>
-<audio class="hidden"><source src="{{ url_for('static', filename='sace_slides/2_audio.wav') }}" type="audio/wav"/></audio>
-</div><div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center p-8 bg-white text-slate-800 rounded-xl" id="slide-2">
-<img alt="Slide 3: Survey" class="w-full h-full p-2 object-contain mx-auto mb-6 shadow-sm rounded" src="{{ url_for('static', filename='sace_slides/3Survey.png') }}"/>
-<h2 class="text-2xl font-bold text-indigo-600 mb-6"><i class="fas fa-poll mr-3"></i>Live Room Data Tally</h2>
-<div class="w-full max-w-2xl space-y-6">
-<div>
-<div class="flex justify-between text-sm font-bold text-slate-600 mb-1">
-<span>TRUE (Crisis Exists)</span>
-<span><span id="slide-2-true-pct">0</span>%</span>
-</div>
-<div class="w-full bg-slate-200 rounded-full h-4 overflow-hidden shadow-inner">
-<div class="bg-emerald-500 h-4 rounded-full transition-all duration-500" style="width: 0%"></div>
-</div>
-</div>
-<div>
-<div class="flex justify-between text-sm font-bold text-slate-600 mb-1">
-<span>FALSE (No Crisis)</span>
-<span><span id="slide-2-false-pct">0</span>%</span>
-</div>
-<div class="w-full bg-slate-200 rounded-full h-4 overflow-hidden shadow-inner">
-<div class="bg-rose-500 h-4 rounded-full transition-all duration-500" style="width: 0%"></div>
-</div>
-</div>
-</div>
-</div><div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-3">
-<img alt="Slide 4: Study" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/4Study.png') }}"/>
-<audio class="hidden"><source src="{{ url_for('static', filename='sace_slides/4_audio.wav') }}" type="audio/wav"/></audio>
-</div><div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-4">
-<img alt="Slide 5: The Problem" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/5The Problem.png') }}"/>
-</div><div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-5">
-<img alt="Slide 6: Root Cause" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/6Root Cause.png') }}"/>
-</div>
-<div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center p-8 bg-white text-slate-800 rounded-xl" id="slide-6">
-<h2 class="text-3xl font-bold text-indigo-600 mb-8"><i class="fas fa-chart-bar mr-3"></i>Live Room Data: Root Cause</h2>
-<p class="text-xl text-indigo-700 mb-8 font-semibold">What is the biggest contributor to the reading crisis?</p>
-<div class="w-full max-w-2xl space-y-6">
-<div class="flex items-center">
-<div class="w-1/3 text-right pr-4 font-bold text-slate-400">Resources</div>
-<div class="w-2/3 bg-slate-700 rounded-full h-6"><div class="bg-blue-500 h-6 rounded-full transition-all duration-1000" id="poll-res" style="width: 0%"></div></div>
-</div>
-<div class="flex items-center">
-<div class="w-1/3 text-right pr-4 font-bold text-slate-400">Class Size</div>
-<div class="w-2/3 bg-slate-700 rounded-full h-6"><div class="bg-amber-500 h-6 rounded-full transition-all duration-1000" id="poll-class" style="width: 0%"></div></div>
-</div>
-<div class="flex items-center">
-<div class="w-1/3 text-right pr-4 font-bold text-slate-400">Language Barriers</div>
-<div class="w-2/3 bg-slate-700 rounded-full h-6"><div class="bg-rose-500 h-6 rounded-full transition-all duration-1000" id="poll-lang" style="width: 0%"></div></div>
-</div>
-<div class="flex items-center">
-<div class="w-1/3 text-right pr-4 font-bold text-slate-400">Methods</div>
-<div class="w-2/3 bg-slate-700 rounded-full h-6"><div class="bg-green-500 h-6 rounded-full transition-all duration-1000" id="poll-meth" style="width: 0%"></div></div>
-</div>
-</div>
-</div>
-<div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center p-8 bg-white text-slate-800 rounded-xl" id="slide-7">
-<h2 class="text-3xl font-bold text-indigo-600 mb-8"><i class="fas fa-chart-pie mr-3"></i>Live Room Data: Top Challenges</h2>
-<p class="text-xl text-indigo-700 mb-8 font-semibold text-center">Which reading challenge is most prevalent in your classroom?</p>
-<div class="w-full max-w-4xl space-y-6">
-<div class="flex items-center">
-<div class="w-1/2 text-right pr-4 font-bold text-slate-400 text-sm italic">"I have many learners..."</div>
-<div class="w-1/2 bg-slate-700 rounded-full h-6"><div class="bg-indigo-500 h-6 rounded-full" style="width: 40%"></div></div>
-</div>
-<div class="flex items-center">
-<div class="w-1/2 text-right pr-4 font-bold text-slate-400 text-sm italic">"There are no books..."</div>
-<div class="w-1/2 bg-slate-700 rounded-full h-6"><div class="bg-teal-500 h-6 rounded-full" style="width: 30%"></div></div>
-</div>
-<div class="flex items-center">
-<div class="w-1/2 text-right pr-4 font-bold text-slate-400 text-sm italic">"Parents are not able..."</div>
-<div class="w-1/2 bg-slate-700 rounded-full h-6"><div class="bg-fuchsia-500 h-6 rounded-full" style="width: 20%"></div></div>
-</div>
-<div class="flex items-center">
-<div class="w-1/2 text-right pr-4 font-bold text-slate-400 text-sm italic">"We lack basic phonics..."</div>
-<div class="w-1/2 bg-slate-700 rounded-full h-6"><div class="bg-cyan-500 h-6 rounded-full" style="width: 10%"></div></div>
-</div>
-</div>
-</div>
-<div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center p-8 bg-white text-slate-800 rounded-xl text-center" id="slide-8">
-<h2 class="text-3xl font-bold text-indigo-600 mb-4"><i class="fas fa-exclamation-triangle mr-3"></i>The Harsh Reality</h2>
-<p class="text-xl text-indigo-700 mb-8 font-semibold">Percentage of Grade 4 learners who cannot read for meaning:</p>
-<div class="text-[8rem] font-black text-rose-500 leading-none drop-shadow-lg mb-4">81%</div>
-<p class="text-slate-400 text-lg">PIRLS 2021 Study</p>
-</div>
-<div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-9">
-<img alt="Slide 7: Litre" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/7Litre.png') }}"/>
-</div><div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-10">
-<img alt="Slide 8: Why Litre" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/8Why Litre.png') }}"/>
-</div><div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-11">
-<img alt="Slide 9: What is Litre" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/9What is Litre.png') }}"/>
-</div>
-<div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center p-8 bg-white text-slate-800 rounded-xl" id="slide-12">
-<h2 class="text-3xl font-bold text-indigo-900 mb-6 uppercase tracking-wider">Slide 8: The English Family</h2>
-<p class="text-lg text-indigo-700 max-w-2xl text-center mb-8">Once upon a time, there was a family with a very unique way of speaking...</p>
-<div class="bg-indigo-900/50 p-6 rounded-lg max-w-xl text-center border border-indigo-700">
-<h3 class="font-bold text-yellow-300 mb-2"><i class="fas fa-mobile-alt mr-2"></i>App Verification Active</h3>
-<p class="text-sm">Participants are currently submitting their demographic adaptation strategies.</p>
-</div>
-</div>
-<div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center p-8 bg-white text-slate-800 rounded-xl border-4 border-rose-500" id="slide-13">
-<h2 class="text-3xl font-bold text-rose-400 mb-2 uppercase tracking-wider">Slide 9: Game 1</h2>
-<h3 class="text-xl text-indigo-700 mb-6 italic">Kinesthetic Memory: The Vowel Hops</h3>
-<p class="text-xl text-white font-black max-w-2xl text-center tracking-widest space-x-6 mb-8">
-<span>A</span> <span>E</span> <span>I</span> <span>O</span> <span>U</span>
-</p>
-<div class="bg-slate-800/80 p-6 rounded-lg max-w-xl text-center border border-slate-700 shadow-xl">
-<h3 class="font-bold text-yellow-300 mb-2"><i class="fas fa-mobile-alt mr-2"></i>App Integration</h3>
-<p class="text-sm text-slate-200">Participants have instructions on their app. Have them stand up, take 5 hops, and shout each vowel!</p>
-</div>
-</div>
-<div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center p-8 bg-indigo-900 text-white rounded-xl border-4 border-indigo-500" id="slide-14">
-<h2 class="text-3xl font-bold text-indigo-900 mb-2 uppercase tracking-wider">Slide 10: Game 2</h2>
-<h3 class="text-xl text-indigo-100 mb-6 italic">The Number Map (Blending Machine)</h3>
-<div class="grid grid-cols-5 gap-4 mb-8 text-center w-full max-w-2xl">
-<div class="bg-indigo-800 p-4 rounded-lg border border-indigo-600"><span class="block text-sm text-indigo-900 mb-2">1</span><span class="font-black text-3xl">A</span></div>
-<div class="bg-indigo-800 p-4 rounded-lg border border-indigo-600"><span class="block text-sm text-indigo-900 mb-2">2</span><span class="font-black text-3xl">E</span></div>
-<div class="bg-indigo-800 p-4 rounded-lg border border-indigo-600"><span class="block text-sm text-indigo-900 mb-2">3</span><span class="font-black text-3xl">I</span></div>
-<div class="bg-indigo-800 p-4 rounded-lg border border-indigo-600"><span class="block text-sm text-indigo-900 mb-2">4</span><span class="font-black text-3xl">O</span></div>
-<div class="bg-indigo-800 p-4 rounded-lg border border-indigo-600"><span class="block text-sm text-indigo-900 mb-2">5</span><span class="font-black text-3xl">U</span></div>
-</div>
-<div class="bg-indigo-800/80 p-6 rounded-lg max-w-xl text-center border border-indigo-600 shadow-xl">
-<h3 class="font-bold text-yellow-300 mb-2"><i class="fas fa-mobile-alt mr-2"></i>App Verification Active</h3>
-<p class="text-sm text-indigo-100">Participants are paired up calling out random numbers while their partner shouts the vowel.</p>
-</div>
-</div>
-<div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center p-8 bg-white text-slate-800 rounded-xl border-4 border-emerald-500" id="slide-15">
-<h2 class="text-3xl font-bold text-emerald-400 mb-2 uppercase tracking-wider">Slide 11: Tactile Engagement</h2>
-<h3 class="text-xl text-indigo-700 mb-6 italic">Consonant Flashcards (10 Minutes)</h3>
-<div class="bg-slate-800/80 p-6 rounded-lg max-w-xl text-center border border-slate-700 shadow-xl">
-<h3 class="font-bold text-yellow-300 mb-2"><i class="fas fa-mobile-alt mr-2"></i>App Integration Active</h3>
-<p class="text-sm text-slate-200">Participants are downloading the Consonant Sheet PDF on their devices.<br/><br/>Instruct them to cut out the letters to create physical flashcards and test their partner!</p>
-</div>
+
+          <div class="slide-container absolute inset-0 flex flex-col overflow-y-auto items-center justify-center p-8 bg-white text-slate-800 rounded-xl text-center z-20" id="slide-lobby">
+              <h2 class="text-4xl font-bold text-indigo-600 mb-4">Welcome</h2>
+              <p class="text-xl text-slate-500 mb-8">Waiting for participants to check in...</p>
+              <div class="text-2xl font-bold text-green-400">Participants Connected: <span id="attendance-counter">20</span></div>
+              <button onclick="document.getElementById('attendees-modal').classList.remove('hidden')" class="mt-4 px-6 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-lg transition"><i class="fas fa-users mr-2"></i> View Live Register</button>
+          </div>
+          <div class="slide-container absolute inset-0 flex flex-col overflow-y-auto items-center justify-center" id="slide-0">
+              <img alt="Slide 1: Program" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/1Program.png') }}"/>
+          </div>
+          <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-1">
+              <img alt="Slide 2: Crisis" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/2Crisis.png') }}"/>
+          </div>
+          <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-2">
+              <img alt="Slide 3: Survey" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/3Survey.png') }}"/>
+          </div>
+          <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-3">
+              <img alt="Slide 4: Study" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/4Study.png') }}"/>
+          </div>
+          <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-4">
+              <img alt="Slide 5: The Problem" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/5The Problem.png') }}"/>
+          </div>
+          <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-5">
+              <img alt="Slide 6: Root Cause" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/6Root Cause.png') }}"/>
+          </div>
+          <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-6">
+              <img alt="Slide 7: Litre" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/7Litre.png') }}"/>
+          </div>
+          <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-7">
+              <img alt="Slide 8: Why Litre" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/8Why Litre.png') }}"/>
+          </div>
+          <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-8">
+              <img alt="Slide 9: What is Litre" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/9What is Litre.png') }}"/>
+          </div>
+          <!-- Keep slide 9 to 15 unchanged, but make sure they don't break JS -->
+          <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center p-8 bg-white text-slate-800 rounded-xl" id="slide-9">
+              <h2 class="text-3xl font-bold text-indigo-900 mb-6 uppercase tracking-wider">Slide 10: Placeholder</h2>
+          </div>
+          <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center p-8 bg-white text-slate-800 rounded-xl" id="slide-10">
+              <h2 class="text-3xl font-bold text-indigo-900 mb-6 uppercase tracking-wider">Slide 11: Placeholder</h2>
+          </div>
+          <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center p-8 bg-white text-slate-800 rounded-xl" id="slide-11">
+              <h2 class="text-3xl font-bold text-indigo-900 mb-6 uppercase tracking-wider">Slide 12: Placeholder</h2>
+          </div>
+          <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center p-8 bg-white text-slate-800 rounded-xl" id="slide-12">
+              <h2 class="text-3xl font-bold text-indigo-900 mb-6 uppercase tracking-wider">Slide 13: Placeholder</h2>
+          </div>
+          <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center p-8 bg-white text-slate-800 rounded-xl border-4 border-rose-500" id="slide-13">
+              <h2 class="text-3xl font-bold text-rose-400 mb-2 uppercase tracking-wider">Slide 14: Game 1</h2>
+          </div>
+          <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center p-8 bg-indigo-900 text-white rounded-xl border-4 border-indigo-500" id="slide-14">
+              <h2 class="text-3xl font-bold text-indigo-900 mb-2 uppercase tracking-wider">Slide 15: Game 2</h2>
+          </div>
+          <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center p-8 bg-white text-slate-800 rounded-xl border-4 border-emerald-500" id="slide-15">
+              <h2 class="text-3xl font-bold text-emerald-400 mb-2 uppercase tracking-wider">Slide 16: Assessment</h2>
+          </div>
+
 </div>
 </div>
 <!-- Persistent F Controller -->
@@ -543,7 +461,7 @@
         if (currentSlide < totalSlides) {
             currentSlide++;
             updateSlides();
-            triggerRandomDice(currentSlide);
+            
             showTab('f');
         } else {
             alert("Simulation Complete! Endorsement demonstration finished.");

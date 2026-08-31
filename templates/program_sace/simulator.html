@@ -59,15 +59,18 @@
           </div>
           <div class="slide-container absolute inset-0 flex flex-col overflow-y-auto items-center justify-center" id="slide-0">
               <img alt="Slide 1: Program" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/1Program.png') }}"/>
+              <audio class="hidden"><source src="{{ url_for('static', filename='sace_slides/1_audio.wav') }}" type="audio/wav"/></audio>
           </div>
           <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-1">
               <img alt="Slide 2: Crisis" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/2Crisis.png') }}"/>
+              <audio class="hidden"><source src="{{ url_for('static', filename='sace_slides/2_audio.wav') }}" type="audio/wav"/></audio>
           </div>
           <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-2">
               <img alt="Slide 3: Survey" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/3Survey.png') }}"/>
           </div>
           <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-3">
               <img alt="Slide 4: Study" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/4Study.png') }}"/>
+              <audio class="hidden"><source src="{{ url_for('static', filename='sace_slides/4_audio.wav') }}" type="audio/wav"/></audio>
           </div>
           <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-4">
               <img alt="Slide 5: The Problem" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/5The Problem.png') }}"/>
@@ -115,7 +118,13 @@
                         Step <span id="f-counter">0</span> of 16
                     </div>
 <div class="flex space-x-4 items-center">
-<button class="hidden px-6 py-4 bg-purple-600 hover:bg-purple-500 text-white font-bold text-lg rounded-xl transition shadow-[0_0_15px_rgba(147,51,234,0.5)]" id="global-audio-btn" onclick="playCurrentSlideAudio()">
+<button class="px-6 py-4 bg-slate-300 hover:bg-slate-400 text-slate-700 font-bold rounded-xl transition" onclick="prevSlide()">
+                                  <i class="fas fa-chevron-left mr-2"></i> Prev Slide
+                              </button>
+                              <button class="px-6 py-4 bg-slate-300 hover:bg-slate-400 text-slate-700 font-bold rounded-xl transition" onclick="nextSlide()">
+                                  Next Slide <i class="fas fa-chevron-right ml-2"></i>
+                              </button>
+                              <button class="hidden px-6 py-4 bg-purple-600 hover:bg-purple-500 text-white font-bold text-lg rounded-xl transition shadow-[0_0_15px_rgba(147,51,234,0.5)]" id="global-audio-btn" onclick="playCurrentSlideAudio()">
 <i class="fas fa-play mr-2"></i> Play Audio
                         </button>
 <button class="px-8 py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xl rounded-xl transition shadow-[0_0_20px_rgba(16,185,129,0.5)]" onclick="pushToParticipant()">
@@ -455,6 +464,24 @@
 
     function pushToParticipant() {
         showTab('p');
+    }
+
+    
+    function nextSlide() {
+        if (currentSlide < totalSlides) {
+            currentSlide++;
+            updateSlides();
+        } else {
+            alert("Simulation Complete! Endorsement demonstration finished.");
+            showTab('a');
+        }
+    }
+
+    function prevSlide() {
+        if (currentSlide > 0) {
+            currentSlide--;
+            updateSlides();
+        }
     }
 
     function finishActivityAndNext() {

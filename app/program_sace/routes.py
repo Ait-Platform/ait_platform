@@ -326,9 +326,6 @@ def selection_hub(activity_slug):
 
 from flask import make_response
 
-@sace_bp.route("/sace/reading/simulator")
-@login_required
-
 @sace_bp.route("/sace/reading/presentation")
 @login_required
 def presentation():

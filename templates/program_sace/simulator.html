@@ -1,4 +1,4 @@
-{% extends "layout.html" %}
+﻿{% extends "layout.html" %}
 
 {% block title %}SACE Endorsement Simulator{% endblock %}
 
@@ -35,10 +35,10 @@
 <p class="text-lg text-slate-700 mb-8">Welcome to the Endorsement Simulator. This tool guides you through the exact flow of the workshop using the real slides.</p>
 <div class="bg-slate-50 p-6 rounded-xl border border-slate-200 mb-8">
 <h3 class="font-bold text-slate-800 mb-4"><i class="fas fa-traffic-light text-indigo-600 mr-2"></i> The Traffic Robot System</h3>
-<p class="mb-2">Follow the <strong>Green Light</strong> to understand how the facilitator controls the teacher's device.</p>
+<p class="mb-2">Follow the <strong>Green Light</strong> to understand how the facilitator controls the Participant's device.</p>
 <ul class="list-disc list-inside text-slate-600 space-y-2">
 <li>When <strong>F is Green</strong>, you are the Facilitator. Use the 'Next Slide' button to present.</li>
-<li>When <strong>P is Green</strong>, you are the Teacher. Interact with the content that just arrived on your screen.</li>
+<li>When <strong>P is Green</strong>, you are the Participant. Interact with the content that just arrived on your screen.</li>
 </ul>
 </div>
 <button class="px-8 py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xl rounded-xl shadow-lg transition flex items-center" onclick="launchDemo()">
@@ -52,8 +52,8 @@
 <div class="flex-grow relative overflow-hidden">
 <div class="slide-container absolute inset-0 flex flex-col overflow-y-auto items-center justify-center p-8 bg-white text-slate-800 rounded-xl text-center z-20" id="slide-lobby">
 <h2 class="text-4xl font-bold text-indigo-600 mb-4">Welcome</h2>
-<p class="text-xl text-slate-500 mb-8">Waiting for teachers to check in...</p>
-<div class="text-2xl font-bold text-green-400">Teachers Connected: <span id="attendance-counter">0</span></div>
+<p class="text-xl text-slate-500 mb-8">Waiting for participants to check in...</p>
+<div class="text-2xl font-bold text-green-400">participants Connected: <span id="attendance-counter">0</span></div>
 </div><div class="slide-container absolute inset-0 flex flex-col overflow-y-auto items-center justify-center" id="slide-0">
 <img alt="Slide 1: Program" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/1Program.png') }}"/>
 <audio class="hidden"><source src="{{ url_for('static', filename='sace_slides/1_audio.wav') }}" type="audio/wav"/></audio>
@@ -201,7 +201,7 @@
 <i class="fas fa-play mr-2"></i> Play Audio
                         </button>
 <button class="px-8 py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xl rounded-xl transition shadow-[0_0_20px_rgba(16,185,129,0.5)]" onclick="pushToParticipant()">
-                            Push to Teacher's Device <i class="fas fa-arrow-right ml-3"></i>
+                            Push to Participant's Device <i class="fas fa-arrow-right ml-3"></i>
 </button>
 </div>
 </div>
@@ -237,7 +237,7 @@
 </div>
 <div class="app-view hidden text-center" id="app-view-1">
 <div class="h-24 w-24 bg-slate-100 rounded-full flex items-center justify-center mb-6 mx-auto">
-<i class="fas fa-chalkboard-teacher text-5xl text-slate-400"></i>
+<i class="fas fa-chalkboard-Participant text-5xl text-slate-400"></i>
 </div>
 <h3 class="text-2xl font-bold text-slate-800 mb-2">Eyes on the Projector</h3>
 <p class="text-slate-600 mb-6">The facilitator is currently presenting. Please direct your attention to the main screen.</p>
@@ -381,7 +381,7 @@
 </div>
 </div>
 <div class="mb-4">
-<p class="font-semibold text-sm mb-2 text-slate-700">3. What is the teacher's role during guided practice?</p>
+<p class="font-semibold text-sm mb-2 text-slate-700">3. What is the Participant's role during guided practice?</p>
 <div class="space-y-1 text-sm">
 <label class="flex items-center p-2 bg-slate-50 rounded border border-slate-100"><input class="mr-2" name="q3" required="" type="radio" value="0"/> A. Provide all answers</label>
 <label class="flex items-center p-2 bg-slate-50 rounded border border-slate-100"><input class="mr-2" name="q3" type="radio" value="0"/> B. Allow learners to work without guidance</label>
@@ -424,7 +424,7 @@
 <label class="flex items-center space-x-2 bg-slate-50 p-2 rounded border border-slate-100"><input class="application-check" type="checkbox" value="1"/><span>Correct sequence</span></label>
 <label class="flex items-center space-x-2 bg-slate-50 p-2 rounded border border-slate-100"><input class="application-check" type="checkbox" value="1"/><span>Practical demo</span></label>
 <label class="flex items-center space-x-2 bg-slate-50 p-2 rounded border border-slate-100"><input class="application-check" type="checkbox" value="1"/><span>Learner participation</span></label>
-<label class="flex items-center space-x-2 bg-slate-50 p-2 rounded border border-slate-100"><input class="application-check" type="checkbox" value="1"/><span>Teacher guidance</span></label>
+<label class="flex items-center space-x-2 bg-slate-50 p-2 rounded border border-slate-100"><input class="application-check" type="checkbox" value="1"/><span>Participant guidance</span></label>
 <label class="flex items-center space-x-2 bg-slate-50 p-2 rounded border border-slate-100"><input class="application-check" type="checkbox" value="1"/><span>Reading practice</span></label>
 <label class="flex items-center space-x-2 bg-slate-50 p-2 rounded border border-slate-100"><input class="application-check" type="checkbox" value="1"/><span>Assessment</span></label>
 <label class="flex items-center space-x-2 bg-slate-50 p-2 rounded border border-slate-100"><input class="application-check" type="checkbox" value="1"/><span>Reflection</span></label>
@@ -444,7 +444,7 @@
 </div>
 <!-- Persistent P Return -->
 <div class="p-6 border-t border-slate-200 bg-white flex justify-between items-center shadow-[0_-5px_20px_rgba(0,0,0,0.1)] z-50">
-<div class="text-slate-400 font-mono text-lg font-bold"><i class="fas fa-mobile-alt mr-2"></i> Teacher View Active</div>
+<div class="text-slate-400 font-mono text-lg font-bold"><i class="fas fa-mobile-alt mr-2"></i> Participant View Active</div>
 <button class="px-8 py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xl rounded-xl transition shadow-[0_0_15px_rgba(79,70,229,0.5)]" onclick="finishActivityAndNext()">
                         Next Facilitator Slide <i class="fas fa-undo ml-3"></i>
 </button>
@@ -461,7 +461,7 @@
         "Sipho Mkhize", "Jane Naidoo", "Sarah van der Merwe", "Tshepo Modise", 
         "Fatima Patel", "David Smith", "Lerato Ndlovu", "Pieter de Klerk", 
         "Aisha Khan", "Bongani Zungu", "Johan Botha", "Nadia Moodley", 
-        "Thandeka Zuma", "Brenda Williams", "Ravi Govender", "Ané Nel", 
+        "Thandeka Zuma", "Brenda Williams", "Ravi Govender", "AnÃ© Nel", 
         "Kgomotso Phiri", "Michael O'Connor", "Zanele Dlamini", "Yusuf Desai"
     ];
 
@@ -603,7 +603,7 @@
     }
 
     function mockPoll(type) {
-        alert("Teacher response recorded locally! In the live app, this saves to PostgreSQL.");
+        alert("Participant response recorded locally! In the live app, this saves to PostgreSQL.");
     }
 
     // Make the survey results jump like a tossing dice

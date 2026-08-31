@@ -17,83 +17,73 @@
         </div>
         
         <div class="flex justify-end mb-6 space-x-3 print:hidden">
+            {% if tt_doc %}
+            <a href="{{ url_for('sace_bp.download_document', doc_id=tt_doc.id) }}" target="_blank" class="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700">
+                <i class="fas fa-external-link-alt mr-2"></i> Open Full Screen
+            </a>
+            {% else %}
             <button onclick="window.print()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700">
                 <i class="fas fa-print mr-2"></i> Print Document
             </button>
+            {% endif %}
         </div>
         
-        <!-- Document Content (Visible in print) -->
-        <div class="prose max-w-none text-slate-800">
-            <div class="text-center border-b-2 border-indigo-900 pb-5 mb-8">
-                <h1 class="text-4xl font-bold text-indigo-900 mb-2">Annexure A</h1>
-                <h2 class="text-2xl font-semibold text-indigo-800 mb-2">Programme & Timetable (T/T)</h2>
-                <p class="text-lg text-slate-600">AIT Professional Development: Reading (LiTRE Method)</p>
-            </div>
-            
-            <div class="space-y-4 mb-8 text-lg">
-                <p><strong>Date:</strong> ______________________</p>
-                <p><strong>Facilitator:</strong> ______________________</p>
-                <p><strong>Venue:</strong> ______________________</p>
-            </div>
+        <!-- Document Content -->
+        <div class="w-full">
+            {% if tt_doc %}
+                <div class="w-full border border-slate-200 rounded-lg bg-slate-50 flex items-center justify-center overflow-hidden" style="min-height: 80vh;">
+                    {% if tt_doc.file_path.endswith('.pdf') %}
+                        <iframe src="{{ url_for('static', filename=tt_doc.file_path.replace('app/static/', '')) }}" class="w-full h-full" style="min-height: 80vh;" frameborder="0"></iframe>
+                    {% else %}
+                        <img src="{{ url_for('static', filename=tt_doc.file_path.replace('app/static/', '')) }}" class="max-w-full h-auto" alt="Timetable" />
+                    {% endif %}
+                </div>
+            {% else %}
+                <div class="prose max-w-none text-slate-800">
+                    <div class="text-center border-b-2 border-indigo-900 pb-5 mb-8">
+                        <h1 class="text-4xl font-bold text-indigo-900 mb-2">Annexure A</h1>
+                        <h2 class="text-2xl font-semibold text-indigo-800 mb-2">Programme & Timetable (T/T)</h2>
+                        <p class="text-lg text-slate-600">AIT Professional Development: Reading (LiTRE Method)</p>
+                    </div>
+                    
+                    <div class="space-y-4 mb-8 text-lg">
+                        <p><strong>Date:</strong> ______________________</p>
+                        <p><strong>Facilitator:</strong> ______________________</p>
+                        <p><strong>Venue:</strong> ______________________</p>
+                    </div>
 
-            <table class="w-full border-collapse border border-slate-300">
-                <thead>
-                    <tr class="bg-slate-100">
-                        <th class="border border-slate-300 p-3 text-left font-semibold w-1/4">Time</th>
-                        <th class="border border-slate-300 p-3 text-left font-semibold">Activity & Digital App Alignment</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td class="border border-slate-300 p-3">08:00 - 08:30</td>
-                        <td class="border border-slate-300 p-3"><strong>Registration and Lobby:</strong> Teachers check-in via Participant App using Room PIN.</td>
-                    </tr>
-                    <tr>
-                        <td class="border border-slate-300 p-3">08:30 - 08:45</td>
-                        <td class="border border-slate-300 p-3"><strong>The Reading Crisis:</strong> Welcome Activity (Pre-Test), The Reading State, and Live Results <em>(Slides 0 - 2)</em>.</td>
-                    </tr>
-                    <tr>
-                        <td class="border border-slate-300 p-3">08:45 - 09:30</td>
-                        <td class="border border-slate-300 p-3"><strong>The Problem & Realities:</strong> Top Challenges Reflection, Guessing Game, Harsh Reality (81%), Catch-up Approach, and Case Study <em>(Slides 3 - 9)</em>.</td>
-                    </tr>
-                    <tr>
-                        <td class="border border-slate-300 p-3">09:30 - 10:00</td>
-                        <td class="border border-slate-300 p-3"><strong>Introduction to LiTRE:</strong> Story z" See z" Do z" Blend z" Read <em>(Slide 10)</em>.</td>
-                    </tr>
-                    <tr>
-                        <td class="border border-slate-300 p-3 bg-slate-50 font-bold">10:00 - 10:15</td>
-                        <td class="border border-slate-300 p-3 bg-slate-50 font-bold">Tea Break</td>
-                    </tr>
-                    <tr>
-                        <td class="border border-slate-300 p-3">10:15 - 11:00</td>
-                        <td class="border border-slate-300 p-3"><strong>Mechanics & Practical (Part 1 & 2):</strong> Draw the Palm (Vowels/Consonants) and Nano Blending Machine (Who is leaving home?) <em>(Slides 11 - 12)</em>.</td>
-                    </tr>
-                    <tr>
-                        <td class="border border-slate-300 p-3">11:00 - 11:45</td>
-                        <td class="border border-slate-300 p-3"><strong>Word Building:</strong> Guided word-reading activities (Syllable Mapping in action) <em>(Slides 13 - 15)</em>.</td>
-                    </tr>
-                    <tr>
-                        <td class="border border-slate-300 p-3">11:45 - 12:45</td>
-                        <td class="border border-slate-300 p-3"><strong>Classroom Application:</strong> Worksheets and using LiTRE with learners who need catch-up support.</td>
-                    </tr>
-                    <tr>
-                        <td class="border border-slate-300 p-3 bg-slate-50 font-bold">12:45 - 13:15</td>
-                        <td class="border border-slate-300 p-3 bg-slate-50 font-bold">Lunch Break</td>
-                    </tr>
-                    <tr>
-                        <td class="border border-slate-300 p-3">13:15 - 14:00</td>
-                        <td class="border border-slate-300 p-3"><strong>Participant Classroom Application:</strong> Teachers prepare to take LiTRE to their classrooms.</td>
-                    </tr>
-                    <tr>
-                        <td class="border border-slate-300 p-3">14:00 - 14:30</td>
-                        <td class="border border-slate-300 p-3"><strong>Final Assessment:</strong> SACE Post-Test via Participant App (Annexure D compliance tracking).</td>
-                    </tr>
-                    <tr>
-                        <td class="border border-slate-300 p-3">14:30 - 15:00</td>
-                        <td class="border border-slate-300 p-3"><strong>Reflection & Close:</strong> Final reflection, feedback, and programme close.</td>
-                    </tr>
-                </tbody>
-            </table>
+                    <table class="w-full border-collapse border border-slate-300">
+                        <thead>
+                            <tr class="bg-slate-100">
+                                <th class="border border-slate-300 p-3 text-left font-semibold w-1/4">Time</th>
+                                <th class="border border-slate-300 p-3 text-left font-semibold">Activity & Digital App Alignment</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="border border-slate-300 p-3">08:00 - 08:30</td>
+                                <td class="border border-slate-300 p-3"><strong>Registration and Lobby:</strong> Participants check-in via App using Room PIN.</td>
+                            </tr>
+                            <tr>
+                                <td class="border border-slate-300 p-3">08:30 - 08:45</td>
+                                <td class="border border-slate-300 p-3"><strong>The Reading Crisis:</strong> Welcome Activity (Pre-Test), The Reading State, and Live Results.</td>
+                            </tr>
+                            <tr>
+                                <td class="border border-slate-300 p-3">08:45 - 09:30</td>
+                                <td class="border border-slate-300 p-3"><strong>The Problem & Realities:</strong> Top Challenges Reflection, Guessing Game, Harsh Reality (81%), Catch-up Approach, and Case Study.</td>
+                            </tr>
+                            <tr>
+                                <td class="border border-slate-300 p-3 bg-slate-50 font-bold">10:00 - 10:15</td>
+                                <td class="border border-slate-300 p-3 bg-slate-50 font-bold">Tea Break</td>
+                            </tr>
+                            <tr>
+                                <td class="border border-slate-300 p-3">14:00 - 14:30</td>
+                                <td class="border border-slate-300 p-3"><strong>Final Assessment:</strong> SACE Post-Test via Participant App (Annexure D compliance tracking).</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            {% endif %}
         </div>
         
     </div>

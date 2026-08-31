@@ -102,7 +102,9 @@ def dashboard():
 @sace_bp.route("/sace/compliance/annexure_a")
 @login_required
 def annexure_a():
-    return render_template("program_sace/compliance/annexure_a.html")
+    from app.models.sace import SaceDocument
+    tt_doc = SaceDocument.query.filter_by(slug='reading', document_type='timetable').first()
+    return render_template("program_sace/compliance/annexure_a.html", tt_doc=tt_doc)
 
 @sace_bp.route("/sace/compliance/annexure_b")
 @login_required
@@ -208,7 +210,7 @@ def evaluator_report():
     interactions = SaceWorkshopInteraction.query.filter_by(
         user_id=current_user.id,
         workshop_session_id='demo-session-1'
-    ).order_by(SaceWorkshopInteraction.created_at).all()
+    ).order_by(SaceWorkshopInteraction.timestamp).all()
     
     return render_template('program_sace/evaluator_report.html', interactions=interactions)
 

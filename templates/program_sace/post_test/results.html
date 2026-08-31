@@ -1,0 +1,68 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="max-w-4xl mx-auto py-10 px-4">
+    
+    <!-- Success Banner -->
+    <div class="bg-green-600 rounded-2xl shadow-2xl overflow-hidden mb-8 transform hover:scale-105 transition duration-500">
+        <div class="p-10 text-center text-white">
+            <i class="fas fa-certificate text-6xl text-yellow-300 mb-6 drop-shadow-md"></i>
+            <h1 class="text-4xl font-extrabold mb-4">Workshop Attendance Confirmed!</h1>
+            <p class="text-xl text-green-100 mb-8 max-w-2xl mx-auto">Thank you for participating in the LITRE Reading Workshop. Your responses have been recorded, and your AIT Provider Certificate is now ready to download.</p>
+            
+            <a href="{{ url_for('sace_bp.certificate') }}" target="_blank" class="inline-block px-8 py-4 bg-yellow-400 hover:bg-yellow-300 text-yellow-900 font-black text-xl rounded-full shadow-[0_0_20px_rgba(250,204,21,0.5)] transition">
+                <i class="fas fa-download mr-2"></i> Download AIT Provider Certificate
+            </a>
+        </div>
+    </div>
+
+    <!-- Review Section -->
+    <div class="bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-200">
+        <div class="p-6 bg-slate-50 border-b border-slate-200">
+            <h2 class="text-2xl font-bold text-slate-800"><i class="fas fa-tasks text-indigo-500 mr-2"></i> Post-Test Review</h2>
+            <p class="text-slate-600 mt-1">Review your answers against the model solutions below.</p>
+        </div>
+        
+        <div class="p-6 space-y-6">
+            <!-- Q1 -->
+            <div class="p-4 rounded-lg {{ 'bg-green-50 border border-green-200' if answers.q1 == 'B' else 'bg-rose-50 border border-rose-200' }}">
+                <h4 class="font-bold text-slate-800 mb-2">1. What is the purpose of the LITRE blending-machine concept?</h4>
+                <div class="flex items-start">
+                    <div class="mr-4 text-slate-500">Your Answer: <strong class="text-slate-800">{{ answers.q1 }}</strong></div>
+                    <div class="text-green-700 font-bold"><i class="fas fa-check-circle mr-1"></i> Correct: B (To provide a physical and visual representation of the blending process)</div>
+                </div>
+            </div>
+
+            <!-- Q2 -->
+            <div class="p-4 rounded-lg {{ 'bg-green-50 border border-green-200' if answers.q2 == 'B' else 'bg-rose-50 border border-rose-200' }}">
+                <h4 class="font-bold text-slate-800 mb-2">2. What does the palm represent in the LITRE model?</h4>
+                <div class="flex items-start">
+                    <div class="mr-4 text-slate-500">Your Answer: <strong class="text-slate-800">{{ answers.q2 }}</strong></div>
+                    <div class="text-green-700 font-bold"><i class="fas fa-check-circle mr-1"></i> Correct: B (The meeting place in the blending model)</div>
+                </div>
+            </div>
+
+            <!-- Q3 -->
+            <div class="p-4 rounded-lg {{ 'bg-green-50 border border-green-200' if answers.q3 == 'C' else 'bg-rose-50 border border-rose-200' }}">
+                <h4 class="font-bold text-slate-800 mb-2">3. What is the teacher's role during guided practice?</h4>
+                <div class="flex items-start">
+                    <div class="mr-4 text-slate-500">Your Answer: <strong class="text-slate-800">{{ answers.q3 }}</strong></div>
+                    <div class="text-green-700 font-bold"><i class="fas fa-check-circle mr-1"></i> Correct: C (Demonstrate, guide, observe and provide corrective support)</div>
+                </div>
+            </div>
+
+            <!-- Q4 -->
+            <div class="p-4 rounded-lg {{ 'bg-green-50 border border-green-200' if answers.q4 == 'A' else 'bg-rose-50 border border-rose-200' }}">
+                <h4 class="font-bold text-slate-800 mb-2">4. Why is repetition important in catch-up reading?</h4>
+                <div class="flex items-start">
+                    <div class="mr-4 text-slate-500">Your Answer: <strong class="text-slate-800">{{ answers.q4 }}</strong></div>
+                    <div class="text-green-700 font-bold"><i class="fas fa-check-circle mr-1"></i> Correct: A (It provides additional opportunities for learners to practise and consolidate skills)</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="p-6 bg-slate-50 border-t border-slate-200 text-center">
+            <a href="{{ url_for('sace_bp.reading_index') }}" class="text-indigo-600 font-bold hover:text-indigo-800 transition"><i class="fas fa-arrow-left mr-2"></i> Return to SACE Reading Hub</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

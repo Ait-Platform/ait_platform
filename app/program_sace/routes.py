@@ -328,6 +328,14 @@ from flask import make_response
 
 @sace_bp.route("/sace/reading/simulator")
 @login_required
+
+@sace_bp.route("/sace/reading/presentation")
+@login_required
+def presentation():
+    return render_template("program_sace/presentation_ppp.html")
+
+@sace_bp.route("/sace/reading/simulator")
+@login_required
 def simulator():
     from app.models.sace import SaceDocument
     docs = SaceDocument.query.filter_by(slug='reading').all()

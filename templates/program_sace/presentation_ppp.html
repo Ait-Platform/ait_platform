@@ -1,0 +1,174 @@
+﻿{% extends "layout.html" %}
+{% block title %}SACE Presentation{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8 max-w-6xl">
+    <div class="bg-white rounded-2xl shadow-2xl overflow-hidden border border-slate-200 flex flex-col">
+        <!-- Header -->
+        <div class="bg-indigo-900 p-4 flex justify-between items-center text-white">
+            <h1 class="text-2xl font-bold flex items-center">
+                <i class="fas fa-chalkboard-teacher mr-3 text-indigo-300"></i>
+                SACE Evaluation Presentation
+            </h1>
+            <a href="{{ url_for('sace_bp.dashboard') }}" class="px-4 py-2 bg-indigo-700 hover:bg-indigo-600 rounded-lg text-sm font-bold transition flex items-center">
+                <i class="fas fa-arrow-left mr-2"></i> Exit to Hub
+            </a>
+        </div>
+
+        <!-- Note about eLearning -->
+        <div class="bg-indigo-50 border-b border-indigo-100 p-4 text-indigo-800 text-sm flex items-start shadow-inner">
+            <i class="fas fa-info-circle mt-1 mr-3 text-indigo-600 text-lg"></i>
+            <div>
+                <strong>Evaluator Note:</strong> This is a simplified linear presentation (PPP) of the program's methodology and flow. During live sessions, participants interact dynamically via their mobile devices in a synchronized "Seesaw" format with the facilitator's projector. 
+            </div>
+        </div>
+
+        <!-- Main Slide View -->
+        <div class="bg-slate-900 relative flex-grow flex items-center justify-center p-4 sm:p-8" style="min-h: 65vh;">
+            <!-- Loading Spinner -->
+            <div id="loader" class="absolute inset-0 flex items-center justify-center hidden">
+                <i class="fas fa-circle-notch fa-spin text-4xl text-indigo-500"></i>
+            </div>
+            
+            <!-- Image Container -->
+            <img id="slide-image" class="max-w-full max-h-[65vh] object-contain shadow-2xl rounded-lg border border-slate-700" src="" alt="Presentation Slide">
+        </div>
+
+        <!-- Footer Controls -->
+        <div class="bg-white p-6 border-t border-slate-200 flex flex-col sm:flex-row justify-between items-center gap-4">
+            
+            <!-- Audio Button -->
+            <button id="btn-audio" onclick="toggleAudio()" class="hidden px-6 py-3 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl transition shadow-[0_0_15px_rgba(147,51,234,0.4)] flex items-center w-full sm:w-auto justify-center">
+                <i id="audio-icon" class="fas fa-play mr-2"></i> <span id="audio-text">Play Audio</span>
+            </button>
+            <div id="no-audio-spacer" class="w-[160px] hidden sm:block"></div> <!-- Spacer to keep centered on desktop -->
+
+            <!-- Navigation -->
+            <div class="flex items-center space-x-6 w-full sm:w-auto justify-center">
+                <button onclick="prevSlide()" id="btn-prev" class="w-14 h-14 flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-full transition disabled:opacity-30 disabled:cursor-not-allowed">
+                    <i class="fas fa-chevron-left text-xl"></i>
+                </button>
+                
+                <div class="text-slate-500 font-mono font-bold text-lg w-24 text-center">
+                    <span id="counter-current" class="text-indigo-600">1</span> / <span id="counter-total">9</span>
+                </div>
+                
+                <button onclick="nextSlide()" id="btn-next" class="w-14 h-14 flex items-center justify-center bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg rounded-full transition disabled:opacity-30 disabled:cursor-not-allowed">
+                    <i class="fas fa-chevron-right text-xl"></i>
+                </button>
+            </div>
+            
+            <!-- Spacer to keep layout balanced -->
+            <div class="w-[160px] hidden sm:block"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const slides = [
+        { img: "{{ url_for('static', filename='sace_slides/1Program.png') }}", audio: "{{ url_for('static', filename='sace_slides/1_audio.wav') }}" },
+        { img: "{{ url_for('static', filename='sace_slides/2Crisis.png') }}", audio: "{{ url_for('static', filename='sace_slides/2_audio.wav') }}" },
+        { img: "{{ url_for('static', filename='sace_slides/3Survey.png') }}", audio: null },
+        { img: "{{ url_for('static', filename='sace_slides/4Study.png') }}", audio: "{{ url_for('static', filename='sace_slides/4_audio.wav') }}" },
+        { img: "{{ url_for('static', filename='sace_slides/5The Problem.png') }}", audio: null },
+        { img: "{{ url_for('static', filename='sace_slides/6Root Cause.png') }}", audio: null },
+        { img: "{{ url_for('static', filename='sace_slides/7Litre.png') }}", audio: null },
+        { img: "{{ url_for('static', filename='sace_slides/8Why Litre.png') }}", audio: null },
+        { img: "{{ url_for('static', filename='sace_slides/9What is Litre.png') }}", audio: null }
+    ];
+
+    let currentIndex = 0;
+    let currentAudio = null;
+
+    function renderSlide() {
+        // Pause any playing audio
+        if (currentAudio) {
+            currentAudio.pause();
+            currentAudio.currentTime = 0;
+        }
+
+        const slide = slides[currentIndex];
+        
+        // Update Image
+        document.getElementById('slide-image').src = slide.img;
+        
+        // Update Counter
+        document.getElementById('counter-current').innerText = currentIndex + 1;
+        document.getElementById('counter-total').innerText = slides.length;
+        
+        // Update Buttons
+        document.getElementById('btn-prev').disabled = (currentIndex === 0);
+        document.getElementById('btn-next').disabled = (currentIndex === slides.length - 1);
+        
+        // Setup Audio
+        const audioBtn = document.getElementById('btn-audio');
+        const spacer = document.getElementById('no-audio-spacer');
+        
+        if (slide.audio) {
+            currentAudio = new Audio(slide.audio);
+            audioBtn.classList.remove('hidden');
+            spacer.classList.add('hidden');
+            document.getElementById('audio-icon').className = "fas fa-play mr-2";
+            document.getElementById('audio-text').innerText = "Play Audio";
+            audioBtn.className = "px-6 py-3 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl transition shadow-[0_0_15px_rgba(147,51,234,0.4)] flex items-center w-full sm:w-auto justify-center";
+            
+            // Listen for audio end to reset button
+            currentAudio.onended = function() {
+                document.getElementById('audio-icon').className = "fas fa-play mr-2";
+                document.getElementById('audio-text').innerText = "Play Audio";
+                audioBtn.className = "px-6 py-3 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl transition shadow-[0_0_15px_rgba(147,51,234,0.4)] flex items-center w-full sm:w-auto justify-center";
+            };
+        } else {
+            currentAudio = null;
+            audioBtn.classList.add('hidden');
+            spacer.classList.remove('hidden');
+        }
+    }
+
+    function toggleAudio() {
+        if (!currentAudio) return;
+        
+        const audioBtn = document.getElementById('btn-audio');
+        const icon = document.getElementById('audio-icon');
+        const text = document.getElementById('audio-text');
+
+        if (currentAudio.paused) {
+            currentAudio.play();
+            icon.className = "fas fa-pause mr-2";
+            text.innerText = "Pause Audio";
+            audioBtn.className = "px-6 py-3 bg-amber-500 hover:bg-amber-400 text-white font-bold rounded-xl transition shadow-[0_0_15px_rgba(245,158,11,0.4)] flex items-center w-full sm:w-auto justify-center";
+        } else {
+            currentAudio.pause();
+            icon.className = "fas fa-play mr-2";
+            text.innerText = "Play Audio";
+            audioBtn.className = "px-6 py-3 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl transition shadow-[0_0_15px_rgba(147,51,234,0.4)] flex items-center w-full sm:w-auto justify-center";
+        }
+    }
+
+    function nextSlide() {
+        if (currentIndex < slides.length - 1) {
+            currentIndex++;
+            renderSlide();
+        }
+    }
+
+    function prevSlide() {
+        if (currentIndex > 0) {
+            currentIndex--;
+            renderSlide();
+        }
+    }
+
+    // Keyboard navigation
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'ArrowRight' || event.key === ' ') {
+            nextSlide();
+        } else if (event.key === 'ArrowLeft') {
+            prevSlide();
+        }
+    });
+
+    // Initialize
+    window.onload = renderSlide;
+</script>
+{% endblock %}

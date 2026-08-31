@@ -74,57 +74,81 @@
               <button onclick="document.getElementById('attendees-modal').classList.remove('hidden')" class="mt-4 px-6 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-lg transition"><i class="fas fa-users mr-2"></i> View Live Register</button>
           </div>
           <div class="slide-container absolute inset-0 flex flex-col overflow-y-auto items-center justify-center" id="slide-0">
-              <img alt="Slide 1: Program" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/1Program.png') }}"/>
-              <audio class="hidden"><source src="{{ url_for('static', filename='sace_slides/1_audio.wav') }}" type="audio/wav"/></audio>
+              <img alt="Slide 1" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/1Program.png') }}"/>
           </div>
           <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-1">
-              <img alt="Slide 2: Crisis" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/2Crisis.png') }}"/>
-              <audio class="hidden"><source src="{{ url_for('static', filename='sace_slides/2_audio.wav') }}" type="audio/wav"/></audio>
+              <img alt="Slide 2" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/2Crisis.png') }}"/>
           </div>
           <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-2">
-              <img alt="Slide 3: Survey" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/3Survey.png') }}"/>
+              <img alt="Slide 3" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/3Survey.png') }}"/>
           </div>
           <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-3">
-              <img alt="Slide 4: Study" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/4Study.png') }}"/>
-              <audio class="hidden"><source src="{{ url_for('static', filename='sace_slides/4_audio.wav') }}" type="audio/wav"/></audio>
+              <img alt="Slide 4" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/4Study.png') }}"/>
           </div>
           <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-4">
-              <img alt="Slide 5: The Problem" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/5The Problem.png') }}"/>
+              <img alt="Slide 5" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/5The Problem.png') }}"/>
           </div>
           <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-5">
-              <img alt="Slide 6: Root Cause" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/6Root Cause.png') }}"/>
+              <img alt="Slide 6" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/6Root Cause.png') }}"/>
           </div>
           <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-6">
-              <img alt="Slide 7: Litre" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/7Litre.png') }}"/>
+              <img alt="Slide 7" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/7Litre.png') }}"/>
           </div>
           <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-7">
-              <img alt="Slide 8: Why Litre" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/8Why Litre.png') }}"/>
+              <img alt="Slide 8" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/8Why Litre.png') }}"/>
           </div>
           <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-8">
-              <img alt="Slide 9: What is Litre" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/9What is Litre.png') }}"/>
+              <img alt="Slide 9" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/9What is Litre.png') }}"/>
           </div>
-          <!-- Keep slide 9 to 15 unchanged, but make sure they don't break JS -->
-          <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center p-8 bg-white text-slate-800 rounded-xl" id="slide-9">
-              <h2 class="text-3xl font-bold text-indigo-900 mb-6 uppercase tracking-wider">Slide 10: Placeholder</h2>
+          <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-9">
+              <img alt="Slide 10" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/10Program.png') }}"/>
           </div>
-          <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center p-8 bg-white text-slate-800 rounded-xl" id="slide-10">
-              <h2 class="text-3xl font-bold text-indigo-900 mb-6 uppercase tracking-wider">Slide 11: Placeholder</h2>
+          <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-10">
+              <img alt="Slide 11" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/11DrawPalm.png') }}"/>
           </div>
-          <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center p-8 bg-white text-slate-800 rounded-xl" id="slide-11">
-              <h2 class="text-3xl font-bold text-indigo-900 mb-6 uppercase tracking-wider">Slide 12: Placeholder</h2>
+          <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-11">
+              <img alt="Slide 12" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/12Home.png') }}"/>
           </div>
-          <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center p-8 bg-white text-slate-800 rounded-xl" id="slide-12">
-              <h2 class="text-3xl font-bold text-indigo-900 mb-6 uppercase tracking-wider">Slide 13: Placeholder</h2>
+          <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-12">
+              <img alt="Slide 13" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/13English Family.png') }}"/>
           </div>
-          <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center p-8 bg-white text-slate-800 rounded-xl border-4 border-rose-500" id="slide-13">
-              <h2 class="text-3xl font-bold text-rose-400 mb-2 uppercase tracking-wider">Slide 14: Game 1</h2>
+          <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-13">
+              <img alt="Slide 14" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/14Vowels.png') }}"/>
           </div>
-          <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center p-8 bg-indigo-900 text-white rounded-xl border-4 border-indigo-500" id="slide-14">
-              <h2 class="text-3xl font-bold text-indigo-900 mb-2 uppercase tracking-wider">Slide 15: Game 2</h2>
+          <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-14">
+              <img alt="Slide 15" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/15BlendingMachine.png') }}"/>
           </div>
-          <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center p-8 bg-white text-slate-800 rounded-xl border-4 border-emerald-500" id="slide-15">
-              <h2 class="text-3xl font-bold text-emerald-400 mb-2 uppercase tracking-wider">Slide 16: Assessment</h2>
+          <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-15">
+              <img alt="Slide 16" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/16Program.png') }}"/>
           </div>
+          <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-16">
+              <img alt="Slide 17" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/17ta.png') }}"/>
+          </div>
+          <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-17">
+              <img alt="Slide 18" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/18ma.png') }}"/>
+          </div>
+          <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-18">
+              <img alt="Slide 19" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/19tomato.png') }}"/>
+          </div>
+          <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-19">
+              <img alt="Slide 20" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/20pa.png') }}"/>
+          </div>
+          <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-20">
+              <img alt="Slide 21" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/21Catch Up.png') }}"/>
+          </div>
+          <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-21">
+              <img alt="Slide 22" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/22ClassActivity.png') }}"/>
+          </div>
+          <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-22">
+              <img alt="Slide 23" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/23Assessment.png') }}"/>
+          </div>
+          <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-23">
+              <img alt="Slide 24" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/24Reflection.png') }}"/>
+          </div>
+          <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-24">
+              <img alt="Slide 25" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/25Thank.png') }}"/>
+          </div>
+
 
 </div>
 </div>

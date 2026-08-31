@@ -10,7 +10,7 @@
                 <i class="fas fa-chalkboard-teacher mr-3 text-indigo-300"></i>
                 SACE Evaluation Presentation
             </h1>
-            <a href="{{ url_for('sace_bp.dashboard') }}" class="px-4 py-2 bg-indigo-700 hover:bg-indigo-600 rounded-lg text-sm font-bold transition flex items-center">
+            <a href="{{ url_for('sace_bp.reading_index') }}" class="px-4 py-2 bg-indigo-700 hover:bg-indigo-600 rounded-lg text-sm font-bold transition flex items-center">
                 <i class="fas fa-arrow-left mr-2"></i> Exit to Hub
             </a>
         </div>
@@ -30,6 +30,19 @@
                 <i class="fas fa-circle-notch fa-spin text-4xl text-indigo-500"></i>
             </div>
             
+            
+            <!-- Tactile Engagement Overlay -->
+            <div id="tactile-overlay" class="hidden absolute inset-0 bg-slate-900/90 flex flex-col items-center justify-center p-8 z-50 text-white">
+                <i class="fas fa-cut text-5xl text-indigo-400 mb-6"></i>
+                <h3 class="text-3xl font-bold text-white mb-6">Tactile Engagement: Consonant Flashcards</h3>
+                <div class="bg-white/10 p-8 rounded-xl max-w-2xl text-left border border-indigo-500/30">
+                    <p class="mb-4 text-lg"><strong class="text-indigo-300">1. Fold:</strong> Take a blank A4 page and fold it in half (long edges touching). Fold it in half again, and then a third time to get exactly 8 equal pieces per page.</p>
+                    <p class="mb-4 text-lg"><strong class="text-indigo-300">2. Cut:</strong> Repeat this with 3 to 4 pages, then cut along the folded lines.</p>
+                    <p class="text-lg"><strong class="text-indigo-300">3. Write:</strong> Use a marker to write each letter A to Z on a separate card. You have just made your own physical teaching aid to take back to your classroom!</p>
+                </div>
+                <button onclick="document.getElementById('tactile-overlay').classList.add('hidden')" class="mt-8 px-6 py-3 bg-indigo-600 hover:bg-indigo-500 rounded-lg font-bold transition">Close Exercise View</button>
+            </div>
+
             <!-- Image Container -->
             <img id="slide-image" class="max-w-full max-h-[65vh] object-contain shadow-2xl rounded-lg border border-slate-700" src="" alt="Presentation Slide">
         </div>
@@ -116,6 +129,15 @@
         document.getElementById('btn-prev').disabled = (currentIndex === 0);
         document.getElementById('btn-next').disabled = (currentIndex === slides.length - 1);
         
+        // Handle Tactile Engagement Overlay (Slide 22 / Index 21)
+        if (currentIndex === 21) {
+            document.getElementById('tactile-overlay').classList.remove('hidden');
+            document.getElementById('tactile-overlay').classList.add('flex');
+        } else {
+            document.getElementById('tactile-overlay').classList.add('hidden');
+            document.getElementById('tactile-overlay').classList.remove('flex');
+        }
+
         // Setup Audio
         const audioBtn = document.getElementById('btn-audio');
         const spacer = document.getElementById('no-audio-spacer');

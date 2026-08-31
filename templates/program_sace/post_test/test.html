@@ -8,6 +8,7 @@
         </div>
         
         <form action="{{ url_for('sace_bp.submit_post_test') }}" method="POST" class="p-8 space-y-8">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <!-- Question 1 -->
             <div class="bg-slate-50 p-6 rounded-xl border border-slate-200">
                 <h3 class="text-lg font-bold text-slate-800 mb-4">1. What is the purpose of the LITRE blending-machine concept?</h3>

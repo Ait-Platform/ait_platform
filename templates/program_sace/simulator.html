@@ -174,7 +174,7 @@
 <i class="fas fa-check text-4xl text-green-500"></i>
 </div>
 <h3 class="text-2xl font-bold text-slate-800 mb-2">You're Checked In!</h3>
-<p class="text-slate-600 mb-6">Waiting for activity to begin...</p>
+
 <div class="flex justify-center"><i class="fas fa-circle-notch fa-spin text-3xl text-indigo-300"></i></div>
 </div>
 <div class="app-view hidden" id="app-view-0">
@@ -475,8 +475,7 @@
 
 <script>
     const simSteps = [
-        { slide: -1, view: 'f' },
-        { slide: 0, view: 'f' },
+                { slide: 0, view: 'f' },
         { slide: 1, view: 'f' },
         { slide: 1, view: 'p', appView: 0 },
         { slide: 2, view: 'f' },
@@ -576,7 +575,7 @@
 
     function playCurrentSlideAudio() {
         let step = simSteps[currentStepIndex];
-        let fId = step.slide === -1 ? 'slide-lobby' : 'slide-' + step.slide;
+        let fId = 'slide-' + step.slide;
         const fSlide = document.getElementById(fId);
         if (fSlide) {
             const audio = fSlide.querySelector('audio');
@@ -623,7 +622,7 @@
             el.classList.add('hidden');
         });
         
-        let fId = step.slide === -1 ? 'slide-lobby' : 'slide-' + step.slide;
+        let fId = 'slide-' + step.slide;
         const fSlide = document.getElementById(fId);
         if (fSlide) {
             fSlide.classList.remove('hidden');

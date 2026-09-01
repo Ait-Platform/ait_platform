@@ -16,7 +16,7 @@
 <!-- Traffic Robot Tabs -->
 <div class="flex space-x-2 border-b-2 border-slate-700 pb-0 bg-slate-50 pt-2 px-4 shadow-inner z-10">
 <button class="flex items-center px-6 py-3 bg-indigo-600 text-white font-bold rounded-t-lg transition border-b-2 border-indigo-400" id="btn-tab-a" onclick="showTab('a')">
-<i class="fas fa-book-open mr-2"></i> Guide (A)
+<i class="fas fa-book-open mr-2"></i> SACE Auditor (A)
             </button>
 <button class="flex items-center px-6 py-3 bg-slate-200 text-slate-600 font-bold rounded-t-lg transition border-b-2 border-slate-300 hover:bg-slate-300" id="btn-tab-f" onclick="showTab('f')">
 <div class="w-3 h-3 rounded-full bg-red-600 shadow-[0_0_8px_rgba(220,38,38,0.5)] mr-3" id="light-f"></div> Facilitator (F)
@@ -28,7 +28,7 @@
 <!-- Main Content Area -->
 <div class="flex-grow overflow-hidden relative bg-slate-100 min-h-0">
 <!-- ========================================== -->
-<!-- TAB A: GUIDE -->
+<!-- TAB A: SACE AUDITOR -->
 <!-- ========================================== -->
 <div class="w-full h-full p-8 overflow-y-auto bg-white" id="tab-a">
 <h2 class="text-3xl font-extrabold text-indigo-900 mb-6">SACE Auditor Guide</h2>
@@ -67,87 +67,90 @@
 <div class="w-full h-full hidden flex-col relative bg-slate-900 min-h-0" id="tab-f">
 <div class="flex-grow relative overflow-hidden min-h-0">
 
-          <div class="slide-container absolute inset-0 flex flex-col overflow-y-auto items-center justify-center p-8 bg-white text-slate-800 rounded-xl text-center z-20" id="slide-lobby">
-              <h2 class="text-4xl font-bold text-indigo-600 mb-4">Welcome</h2>
-              <p class="text-xl text-slate-500 mb-8">Waiting for participants to check in...</p>
-              <div class="text-2xl font-bold text-green-400">Participants Connected: <span id="attendance-counter">20</span></div>
-              <button onclick="document.getElementById('attendees-modal').classList.remove('hidden')" class="mt-4 px-6 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-lg transition"><i class="fas fa-users mr-2"></i> View Live Register</button>
-          </div>
           <div class="slide-container absolute inset-0 flex flex-col overflow-y-auto items-center justify-center" id="slide-0">
-              <img alt="Slide 1" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/1Program.png') }}"/>
-          </div>
-          <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-1">
-              <img alt="Slide 2" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/2Crisis.png') }}"/>
-          </div>
-          <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-2">
-              <img alt="Slide 3" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/3Survey.png') }}"/>
-          </div>
-          <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-3">
-              <img alt="Slide 4" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/4Study.png') }}"/>
-          </div>
-          <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-4">
-              <img alt="Slide 5" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/5The Problem.png') }}"/>
-          </div>
-          <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-5">
-              <img alt="Slide 6" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/6Root Cause.png') }}"/>
-          </div>
-          <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-6">
-              <img alt="Slide 7" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/7Litre.png') }}"/>
-          </div>
-          <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-7">
-              <img alt="Slide 8" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/8Why Litre.png') }}"/>
-          </div>
-          <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-8">
-              <img alt="Slide 9" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/9What is Litre.png') }}"/>
-          </div>
-          <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-9">
-              <img alt="Slide 10" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/10Program.png') }}"/>
-          </div>
-          <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-10">
-              <img alt="Slide 11" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/11DrawPalm.png') }}"/>
-          </div>
-          <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-11">
-              <img alt="Slide 12" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/12Home.png') }}"/>
-          </div>
-          <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-12">
-              <img alt="Slide 13" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/13English Family.png') }}"/>
-          </div>
-          <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-13">
-              <img alt="Slide 14" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/14Vowels.png') }}"/>
-          </div>
-          <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-14">
-              <img alt="Slide 15" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/15BlendingMachine.png') }}"/>
-          </div>
-          <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-15">
-              <img alt="Slide 16" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/16Program.png') }}"/>
-          </div>
-          <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-16">
-              <img alt="Slide 17" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/17ta.png') }}"/>
-          </div>
-          <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-17">
-              <img alt="Slide 18" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/18ma.png') }}"/>
-          </div>
-          <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-18">
-              <img alt="Slide 19" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/19tomato.png') }}"/>
-          </div>
-          <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-19">
-              <img alt="Slide 20" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/20pa.png') }}"/>
-          </div>
-          <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-20">
-              <img alt="Slide 21" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/21Catch Up.png') }}"/>
-          </div>
-          <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-21">
-              <img alt="Slide 22" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/22ClassActivity.png') }}"/>
-          </div>
-          <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-22">
-              <img alt="Slide 23" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/23Assessment.png') }}"/>
-          </div>
-          <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-23">
-              <img alt="Slide 24" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/24Reflection.png') }}"/>
-          </div>
-          <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-24">
-              <img alt="Slide 25" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/25Thank.png') }}"/>
-          </div>
+                <img alt="Slide 1" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/1Program.png') }}"/>
+            </div>
+            <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-1">
+                <img alt="Slide 2" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/2Crisis.png') }}"/>
+            </div>
+            <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-2">
+                <img alt="Slide 3" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/3Survey.png') }}"/>
+            </div>
+            <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-3">
+                <img alt="Slide 4" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/4Study.png') }}"/>
+            </div>
+            <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-4">
+                <img alt="Slide 5" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/5The Problem.png') }}"/>
+            </div>
+            <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-5">
+                <img alt="Slide 6" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/6Root Cause.png') }}"/>
+            </div>
+            <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-6">
+                <img alt="Slide 7" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/7Litre.png') }}"/>
+            </div>
+            <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-7">
+                <img alt="Slide 8" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/8Why Litre.png') }}"/>
+            </div>
+            <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-8">
+                <img alt="Slide 9" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/9What is Litre.png') }}"/>
+            </div>
+            <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-9">
+                <img alt="Slide 10" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/10Program.png') }}"/>
+            </div>
+            <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-10">
+                <img alt="Slide 11" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/11DrawPalm.png') }}"/>
+            </div>
+            <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-11">
+                <img alt="Slide 12" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/12Home.png') }}"/>
+            </div>
+            <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-12">
+                <img alt="Slide 13" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/13English Family.png') }}"/>
+            </div>
+            <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-13">
+                <img alt="Slide 14" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/14Vowels.png') }}"/>
+            </div>
+            <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-14">
+                <img alt="Slide 15" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/15a Tactile.png') }}"/>
+            </div>
+            <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-15">
+                <img alt="Slide 16" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/15BlendingMachine.png') }}"/>
+            </div>
+            <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-16">
+                <img alt="Slide 17" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/16Program.png') }}"/>
+            </div>
+            <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-17">
+                <img alt="Slide 18" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/17ta.png') }}"/>
+            </div>
+            <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-18">
+                <img alt="Slide 19" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/18ma.png') }}"/>
+            </div>
+            <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-19">
+                <img alt="Slide 20" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/19aSign Language.png') }}"/>
+            </div>
+            <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-20">
+                <img alt="Slide 21" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/19bSign Language.png') }}"/>
+            </div>
+            <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-21">
+                <img alt="Slide 22" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/19tomato.png') }}"/>
+            </div>
+            <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-22">
+                <img alt="Slide 23" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/20pa.png') }}"/>
+            </div>
+            <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-23">
+                <img alt="Slide 24" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/21Catch Up.png') }}"/>
+            </div>
+            <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-24">
+                <img alt="Slide 25" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/22ClassActivity.png') }}"/>
+            </div>
+            <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-25">
+                <img alt="Slide 26" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/23Assessment.png') }}"/>
+            </div>
+            <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-26">
+                <img alt="Slide 27" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/24Reflection.png') }}"/>
+            </div>
+            <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-27">
+                <img alt="Slide 28" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/25Thank.png') }}"/>
+            </div>
 
     </div> <!-- Close flex-grow -->
 
@@ -171,7 +174,7 @@
 <i class="fas fa-check text-4xl text-green-500"></i>
 </div>
 <h3 class="text-2xl font-bold text-slate-800 mb-2">You're Checked In!</h3>
-<p class="text-slate-600 mb-6">Please look at the projector. The facilitator will begin the session shortly.</p>
+<p class="text-slate-600 mb-6">Waiting for activity to begin...</p>
 <div class="flex justify-center"><i class="fas fa-circle-notch fa-spin text-3xl text-indigo-300"></i></div>
 </div>
 <div class="app-view hidden" id="app-view-0">
@@ -457,31 +460,71 @@
     <!-- Persistent Global Controller -->
     <div class="bg-slate-800 p-4 md:p-6 border-t border-slate-700 flex justify-between items-center shadow-[0_-10px_20px_rgba(0,0,0,0.3)] z-[100] shrink-0" id="global-controller" style="display: none;">
         <div class="text-slate-400 font-mono text-lg font-bold">
-            Step <span id="f-counter-global">0</span> of 25
+            Step <span id="f-counter-global">0</span> of 28
         </div>
         <div class="flex space-x-4 items-center">
-            <button class="px-4 md:px-6 py-3 bg-slate-300 hover:bg-slate-400 text-slate-700 font-bold rounded-xl transition" onclick="nextSlide()">
-                Next Slide <i class="fas fa-chevron-right ml-2"></i>
-            </button>
             <button class="hidden px-4 md:px-6 py-3 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl transition shadow-[0_0_15px_rgba(147,51,234,0.5)]" id="global-audio-btn" onclick="playCurrentSlideAudio()">
                 <i class="fas fa-play mr-2"></i> Play Audio
             </button>
-            <button class="px-4 md:px-8 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-xl transition shadow-[0_0_20px_rgba(16,185,129,0.5)]" onclick="pushToParticipant()">
-                Push to Participant <i class="fas fa-arrow-right ml-2"></i>
+            <button class="px-6 md:px-10 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xl rounded-xl transition shadow-[0_0_20px_rgba(79,70,229,0.5)]" onclick="nextStep()">
+                Next <i class="fas fa-arrow-right ml-3"></i>
             </button>
         </div>
     </div>
 </div>
 
 <script>
-    let currentSlide = -1;
-    const totalSlides = 25;
+    const simSteps = [
+        { slide: -1, view: 'f' },
+        { slide: 0, view: 'f' },
+        { slide: 1, view: 'f' },
+        { slide: 1, view: 'p', appView: 0 },
+        { slide: 2, view: 'f' },
+        { slide: 3, view: 'f' },
+        { slide: 4, view: 'f' },
+        { slide: 5, view: 'f' },
+        { slide: 5, view: 'p', appView: 2 },
+        { slide: 6, view: 'f' },
+        { slide: 6, view: 'p', appView: 3 },
+        { slide: 7, view: 'f' },
+        { slide: 8, view: 'f' },
+        { slide: 8, view: 'p', appView: 4 },
+        { slide: 9, view: 'f' },
+        { slide: 10, view: 'f' },
+        { slide: 11, view: 'f' },
+        { slide: 12, view: 'f' },
+        { slide: 12, view: 'p', appView: 5 },
+        { slide: 13, view: 'f' },
+        { slide: 13, view: 'p', appView: 8 },
+        { slide: 14, view: 'f' },
+        { slide: 15, view: 'f' },
+        { slide: 15, view: 'p', appView: 6 },
+        { slide: 16, view: 'f' },
+        { slide: 17, view: 'f' },
+        { slide: 18, view: 'f' },
+        { slide: 19, view: 'f' },
+        { slide: 20, view: 'f' },
+        { slide: 21, view: 'f' },
+        { slide: 21, view: 'p', appView: 12 },
+        { slide: 22, view: 'f' },
+        { slide: 23, view: 'f' },
+        { slide: 24, view: 'f' },
+        { slide: 24, view: 'p', appView: 9 },
+        { slide: 25, view: 'f' },
+        { slide: 25, view: 'p', appView: 10 },
+        { slide: 26, view: 'f' },
+        { slide: 26, view: 'p', appView: 7 },
+        { slide: 27, view: 'f' },
+        { slide: 27, view: 'p', appView: 11 }
+    ];
+
+    let currentStepIndex = 0;
     
     const mockAttendees = [
         "Sipho Mkhize", "Jane Naidoo", "Sarah van der Merwe", "Tshepo Modise", 
         "Fatima Patel", "David Smith", "Lerato Ndlovu", "Pieter de Klerk", 
         "Aisha Khan", "Bongani Zungu", "Johan Botha", "Nadia Moodley", 
-        "Thandeka Zuma", "Brenda Williams", "Ravi Govender", "AnÃ© Nel", 
+        "Thandeka Zuma", "Brenda Williams", "Ravi Govender", "AnAc Nel", 
         "Kgomotso Phiri", "Michael O'Connor", "Zanele Dlamini", "Yusuf Desai"
     ];
 
@@ -526,14 +569,14 @@
     }
 
     function launchDemo() {
-        currentSlide = 0;
-        updateSlides();
-        showTab('f');
+        currentStepIndex = 0;
+        applyStep();
         document.getElementById("global-controller").style.display = "flex";
     }
 
     function playCurrentSlideAudio() {
-        let fId = currentSlide === -1 ? 'slide-lobby' : 'slide-' + currentSlide;
+        let step = simSteps[currentStepIndex];
+        let fId = step.slide === -1 ? 'slide-lobby' : 'slide-' + step.slide;
         const fSlide = document.getElementById(fId);
         if (fSlide) {
             const audio = fSlide.querySelector('audio');
@@ -556,56 +599,36 @@
         }
     }
 
-    function pushToParticipant() {
-        showTab('p');
-    }
-
-    
-    function nextSlide() {
-        if (currentSlide < totalSlides) {
-            currentSlide++;
-            updateSlides();
-            showTab('f'); // Automatically seesaw back to Projector
+    function nextStep() {
+        if (currentStepIndex < simSteps.length - 1) {
+            currentStepIndex++;
+            applyStep();
         } else {
             alert("Simulation Complete! Endorsement demonstration finished.");
+            document.getElementById("global-controller").style.display = "none";
             showTab('a');
         }
     }
 
-    function prevSlide() {
-        if (currentSlide > 0) {
-            currentSlide--;
-            updateSlides();
-        }
-    }
+    function applyStep() {
+        const step = simSteps[currentStepIndex];
+        
+        // Update Counter
+        let displaySlide = step.slide < 0 ? 0 : step.slide + 1;
+        document.getElementById('f-counter-global').innerText = displaySlide + " of 28";
 
-    function finishActivityAndNext() {
-        if (currentSlide < totalSlides) {
-            currentSlide++;
-            updateSlides();
-            
-            showTab('f');
-        } else {
-            alert("Simulation Complete! Endorsement demonstration finished.");
-            showTab('a');
-        }
-    }
-
-    function updateSlides() {
         // Update F Slides
         document.querySelectorAll('.slide-container').forEach(el => {
             el.classList.remove('flex');
             el.classList.add('hidden');
         });
         
-        let fId = currentSlide === -1 ? 'slide-lobby' : 'slide-' + currentSlide;
+        let fId = step.slide === -1 ? 'slide-lobby' : 'slide-' + step.slide;
         const fSlide = document.getElementById(fId);
         if (fSlide) {
             fSlide.classList.remove('hidden');
             fSlide.classList.add('flex');
         }
-        
-        document.getElementById('f-counter-global').innerText = currentSlide;
 
         // Audio Logic: Pause everything first
         document.querySelectorAll('audio').forEach(audio => {
@@ -613,7 +636,7 @@
             audio.currentTime = 0;
         });
         
-        // Show/hide the global audio button if the slide has an audio tag
+        // Show/hide the global audio button
         const audioBtn = document.getElementById('global-audio-btn');
         if (fSlide && fSlide.querySelector('audio')) {
             audioBtn.classList.remove('hidden');
@@ -622,46 +645,42 @@
             audioBtn.classList.add('hidden');
         }
 
-        // Update P Views (exactly matching the old logic)
-        let pIndex = 1; // default projector view
-        if (currentSlide === 1) pIndex = 0;
-        if (currentSlide === 5) pIndex = 2; // Root Cause
-        if (currentSlide === 6) pIndex = 3; // Personal Reflection
-        if (currentSlide === 8) pIndex = 4; // Did You Know?
-        if (currentSlide === 12) pIndex = 5; // English Family
-        if (currentSlide === 13) pIndex = 8; // Game 1
-        if (currentSlide === 14) pIndex = 6; // Game 2
-        if (currentSlide === 18) pIndex = 12; // LITRE Sign Language Game (tomato)
-        if (currentSlide === 21) pIndex = 9; // Tactile Engagement (Folding)
-        if (currentSlide === 22) pIndex = 10; // Final Assessment
-        if (currentSlide === 23) pIndex = 7; // Reflection Activity
-        if (currentSlide === 24) pIndex = 11; // Results
-
+        // Update P Views
         document.querySelectorAll('.app-view').forEach(el => {
             el.classList.add('hidden');
         });
-        const pView = document.getElementById('app-view-' + pIndex);
-        if (pView) {
-            pView.classList.remove('hidden');
+        
+        if (step.appView !== undefined) {
+            const pView = document.getElementById('app-view-' + step.appView);
+            if (pView) {
+                pView.classList.remove('hidden');
+            }
+            triggerRandomDice(step.slide);
+        } else {
+            const waitView = document.getElementById('app-view-waiting');
+            if (waitView) waitView.classList.remove('hidden');
         }
+        
+        // Switch to the correct tab automatically
+        showTab(step.view);
     }
 
     function mockPoll(type) {
         alert("Participant response recorded locally! In the live app, this saves to PostgreSQL.");
     }
 
-    // Make the survey results jump like a tossing dice
     function triggerRandomDice(slideNum) {
-        if (slideNum === 2) {
+        if (slideNum === 1) { // 2Crisis (index 1) uses animateBar on slide-2 ? No, wait. 
+            // In the original, it was checking slideNum 2 for slide-2. Now it is slide index 1.
             const trues = Math.floor(Math.random() * 15) + 5;
             const falses = 20 - trues;
-            animateBar('slide-2', 0, trues, falses);
+            animateBar('slide-1', 0, trues, falses);
         }
-        if (slideNum === 6) { // Root Cause HTML Tally (Now slide 6)
-            animateBar('slide-6', 0, Math.floor(Math.random() * 10), Math.floor(Math.random() * 5), Math.floor(Math.random() * 3), 2);
+        if (slideNum === 5) { // 6Root Cause
+            animateBar('slide-5', 0, Math.floor(Math.random() * 10), Math.floor(Math.random() * 5), Math.floor(Math.random() * 3), 2);
         }
-        if (slideNum === 7) { // Top Challenges HTML Tally (Now slide 7)
-            animateBar('slide-7', 0, Math.floor(Math.random() * 8), Math.floor(Math.random() * 8), Math.floor(Math.random() * 4));
+        if (slideNum === 6) { // 7Litre
+            animateBar('slide-6', 0, Math.floor(Math.random() * 8), Math.floor(Math.random() * 8), Math.floor(Math.random() * 4));
         }
     }
     
@@ -675,7 +694,6 @@
         
         bars.forEach((bar, index) => {
             if (values[index] !== undefined) {
-                // Add some random jitter if iter < 10 to simulate real-time voting
                 let currentVal = iter < 10 ? Math.floor(Math.random() * total) : values[index];
                 let pct = (currentVal / total) * 100;
                 bar.style.width = pct + '%';
@@ -688,7 +706,6 @@
         }
     }
 
-    // Populate the lobby roster
     document.addEventListener('DOMContentLoaded', function() {
         const rosterList = document.getElementById('roster-list');
         const counter = document.getElementById('permanent-counter');
@@ -708,7 +725,6 @@
         if (counterLobby) counterLobby.innerText = mockAttendees.length;
     });
 
-    // Setup initial state
     showTab('a');
 </script>
 {% endblock %}

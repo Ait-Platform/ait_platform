@@ -431,7 +431,7 @@ def email_certificate():
     target_email = request.form.get("email")
     if not target_email:
         flash("Email address is required.", "error")
-        return redirect(url_for("sace_bp.post_test_results"))
+        return redirect(url_for("reading_bp.subject_home"))
         
     cert_id = "AIT-WS-" + str(uuid.uuid4())[:8].upper()
     completed_at = datetime.utcnow()
@@ -458,7 +458,7 @@ def email_certificate():
         current_app.logger.error(f"Failed to email SACE workshop certificate: {e}")
         flash("Failed to email certificate. Please try again later.", "error")
         
-    return redirect(url_for("sace_bp.post_test_results"))
+    return redirect(url_for("reading_bp.subject_home"))
 
 
 def _generate_sace_certificate_pdf(certificate_id, learner_name, completed_at, user_id=None):
@@ -476,12 +476,18 @@ def _generate_sace_certificate_pdf(certificate_id, learner_name, completed_at, u
 
     completed_date = completed_at.strftime("%d %B %Y")
 
+    from app.utils.branding import get_logo_data_uri, get_seal_data_uri
+    logo_data_uri = get_logo_data_uri()
+    seal_data_uri = get_seal_data_uri()
+
     try:
         html_out = render_template(
             "program_sace/post_test/certificate_pdf.html",
             learner_name=learner_name,
             completed_date=completed_date,
             certificate_id=certificate_id,
+            logo_path=logo_data_uri,
+            seal_path=seal_data_uri,
         )
         pdf_bytes = generate_pdf_from_html(html_out)
         return pdf_bytes

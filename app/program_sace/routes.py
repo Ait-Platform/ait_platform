@@ -496,7 +496,7 @@ def email_certificate():
 def _generate_sace_certificate_pdf(certificate_id, learner_name, completed_at, user_id=None, answers=None):
     from flask import current_app, render_template
     from datetime import datetime
-    from app.pdf.generator import generate_pdf_from_html
+    from app.pdf.routes import html_to_pdf_bytes
     
     if isinstance(completed_at, str):
         try:
@@ -522,7 +522,7 @@ def _generate_sace_certificate_pdf(certificate_id, learner_name, completed_at, u
             seal_path=seal_data_uri,
             answers=answers,
         )
-        pdf_bytes = generate_pdf_from_html(html_out)
+        pdf_bytes = html_to_pdf_bytes(html_out)
         return pdf_bytes
     except Exception as e:
         current_app.logger.error(f"SACE PDF generation failed for {certificate_id}: {e}")

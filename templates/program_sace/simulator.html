@@ -1,4 +1,4 @@
-﻿{% extends "layout.html" %}
+{% extends "layout.html" %}
 
 {% block title %}SACE Interactive Demo{% endblock %}
 
@@ -29,7 +29,7 @@
         
         <div class="flex space-x-4 items-center pb-2" id="global-controller" style="display: none;">
             <div class="text-slate-500 font-mono text-sm font-bold border-r pr-4 border-slate-300" id="step-counter-container">
-                Step <span id="f-counter-global">0</span> of 30
+                Step <span id="f-counter-global"></span> of 30;0</span> of 30
             </div>
             <button class="hidden px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-lg transition shadow-[0_0_15px_rgba(147,51,234,0.5)] text-sm" id="global-audio-btn" onclick="playCurrentSlideAudio()">
                 <i class="fas fa-play mr-2"></i> Audio
@@ -367,6 +367,7 @@
   </div>
   
   <form id="assessment-form" action="{{ url_for('sace_bp.submit_post_test') }}" method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
     <input type="hidden" name="comp_objective" id="hidden_comp_objective" value="">
     <input type="hidden" name="comp_sequence" id="hidden_comp_sequence" value="">
     <input type="hidden" name="comp_demo" id="hidden_comp_demo" value="">
@@ -540,8 +541,8 @@ function syncChecks(el) {
         { slide: 26, view: 'f' },
         { slide: 27, view: 'f' },
         { slide: 28, view: 'f' },
-        { slide: 28, view: 'p', appView: 9 },
         { slide: 29, view: 'f' },
+        { slide: 29, view: 'p', appView: 9 },
         { slide: 29, view: 'p', appView: 10 }
     ];
 
@@ -642,7 +643,7 @@ function syncChecks(el) {
         
         // Update Counter
         let displaySlide = step.slide < 0 ? 0 : step.slide + 1;
-        if (step.appView === 9 || step.appView === 10 || step.slide === 28 || step.slide === 29) {
+        if (step.appView === 9 || step.appView === 10) {
             document.getElementById('step-counter-container').innerText = "Post-Test";
         } else {
             document.getElementById('step-counter-container').innerHTML = `Step <span id="f-counter-global">${displaySlide}</span> of 30`;

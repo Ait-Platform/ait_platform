@@ -32,9 +32,19 @@
       </form>
     </div>
 
-    <a href="{{ url_for('auth_bp.bridge_dashboard') }}" class="text-indigo-600 hover:text-indigo-700 text-sm font-medium">
-      &larr; No, take me back to dashboard
-    </a>
+    {% set is_sace = namespace(value=false) %}
+      {% for s in session.get('admin_subjects', []) %}
+        {% if s.startswith('sace') %}{% set is_sace.value = true %}{% endif %}
+      {% endfor %}
+      {% if is_sace.value %}
+      <a href="{{ url_for('sace_bp.reading_hub') }}" class="text-indigo-600 hover:text-indigo-700 text-sm font-medium">
+        &larr; No, take me back to SACE Hub
+      </a>
+      {% else %}
+      <a href="{{ url_for('auth_bp.bridge_dashboard') }}" class="text-indigo-600 hover:text-indigo-700 text-sm font-medium">
+        &larr; No, take me back to dashboard
+      </a>
+      {% endif %}
   </div>
 </div>
 {% endblock %}

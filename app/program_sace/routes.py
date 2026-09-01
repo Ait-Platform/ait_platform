@@ -487,7 +487,8 @@ def email_certificate():
         flash(f"Certificate successfully emailed to {target_email}", "success")
     except Exception as e:
         current_app.logger.error(f"Failed to email SACE workshop certificate: {e}")
-        flash("Failed to email certificate. Please try again later.", "error")
+        flash("Failed to email certificate. Please try again.", "error")
+        return redirect(url_for("sace_bp.post_test_results"))
         
     return redirect(url_for("reading_bp.subject_home"))
 

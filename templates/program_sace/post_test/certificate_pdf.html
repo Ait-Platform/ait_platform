@@ -15,16 +15,33 @@ Successfully completed the Workshop Simulation
 {% block competencies %}
 <table class="comp-table">
   <tr>
-    <th>Module</th>
+    <th>Classroom Application / Practical Demonstration</th>
     <th>Status</th>
   </tr>
-  <tr>
-    <td>LITRE Methodology & Practical Engagement</td>
-    <td>Completed</td>
-  </tr>
+  {% if answers and answers.competencies %}
+    {% for comp in answers.competencies %}
+    <tr>
+      <td>{{ comp }}</td>
+      <td>Demonstrated</td>
+    </tr>
+    {% endfor %}
+  {% else %}
+    <tr>
+      <td>LITRE Methodology & Practical Engagement</td>
+      <td>Completed</td>
+    </tr>
+  {% endif %}
 </table>
 {% endblock %}
 
 {% block disclaimer %}
 This certificate recognises successful participation and completion of the SACE endorsed workshop simulation.
+{% endblock %}
+
+{% block overall_result %}
+  {% if answers and answers.score is defined %}
+    Overall Result: {{ answers.score }}%
+  {% else %}
+    Overall Result: Pass
+  {% endif %}
 {% endblock %}

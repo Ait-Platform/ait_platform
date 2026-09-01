@@ -387,11 +387,30 @@ def submit_post_test():
     import json
     from app.models.sace import SaceWorkshopInteraction
     
+    q1 = request.form.get('q1')
+    q2 = request.form.get('q2')
+    q3 = request.form.get('q3')
+    q4 = request.form.get('q4')
+    
+    score = 0
+    if q1 == 'B': score += 25
+    if q2 == 'B': score += 25
+    if q3 == 'C': score += 25
+    if q4 == 'A': score += 25
+    
+    competencies = []
+    for key in ['comp_objective', 'comp_sequence', 'comp_demo', 'comp_participation', 'comp_guidance', 'comp_reading', 'comp_assessment', 'comp_reflection']:
+        val = request.form.get(key)
+        if val:
+            competencies.append(val)
+            
     answers = {
-        'q1': request.form.get('q1'),
-        'q2': request.form.get('q2'),
-        'q3': request.form.get('q3'),
-        'q4': request.form.get('q4')
+        'q1': q1,
+        'q2': q2,
+        'q3': q3,
+        'q4': q4,
+        'score': score,
+        'competencies': competencies
     }
     
     interaction = SaceWorkshopInteraction(
@@ -436,13 +455,25 @@ def email_certificate():
     cert_id = "AIT-WS-" + str(uuid.uuid4())[:8].upper()
     completed_at = datetime.utcnow()
     
+    from app.models.sace import SaceWorkshopInteraction
+    import json
+    interaction = SaceWorkshopInteraction.query.filter_by(
+        user_id=current_user.id,
+        activity_slug='workshop_post_test'
+    ).order_by(SaceWorkshopInteraction.timestamp.desc()).first()
+    
+    answers = {}
+    if interaction:
+        answers = json.loads(interaction.response_data)
+
     try:
         # Generate the standard PDF
         pdf_bytes = _generate_sace_certificate_pdf(
             certificate_id=cert_id,
             learner_name=current_user.name,
             completed_at=completed_at,
-            user_id=current_user.id
+            user_id=current_user.id,
+            answers=answers
         )
         
         # Email it
@@ -461,7 +492,7 @@ def email_certificate():
     return redirect(url_for("reading_bp.subject_home"))
 
 
-def _generate_sace_certificate_pdf(certificate_id, learner_name, completed_at, user_id=None):
+def _generate_sace_certificate_pdf(certificate_id, learner_name, completed_at, user_id=None, answers=None):
     from flask import current_app, render_template
     from datetime import datetime
     from app.pdf.generator import generate_pdf_from_html
@@ -488,6 +519,7 @@ def _generate_sace_certificate_pdf(certificate_id, learner_name, completed_at, u
             certificate_id=certificate_id,
             logo_path=logo_data_uri,
             seal_path=seal_data_uri,
+            answers=answers,
         )
         pdf_bytes = generate_pdf_from_html(html_out)
         return pdf_bytes

@@ -17,88 +17,117 @@
         <form id="standalone-test-form" action="{{ url_for('sace_bp.submit_post_test') }}" method="POST" class="p-6 space-y-6">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
 
-            <!-- STEP 1: Section B (Facilitator Rubric) -->
+            <!-- STEP 1: Evaluating F -->
             <div id="step-1" class="step-container">
                 <div class="bg-indigo-50 border border-indigo-200 p-6 rounded-xl mb-6">
-                    <h3 class="font-bold text-indigo-900 mb-2 text-xl">Section B: Practical Rubric</h3>
-                    <p class="text-sm text-slate-600">Rate the physical demonstration of the LITRE sequence (0: Not demonstrated, 3: Clear/Strong).</p>
+                    <h3 class="font-bold text-indigo-900 mb-2 text-xl">Evaluating F</h3>
+                    <p class="text-sm text-slate-600">Please rate the Facilitator (F) on the following aspects (0: Poor/Not demonstrated, 3: Clear/Strong). These scores are sent to the SACE Provider for quality assurance.</p>
                 </div>
 
                 <div class="space-y-6">
                     <div class="flex flex-col">
-                        <span class="font-semibold text-slate-800 mb-3">Clear vocalization</span>
+                        <span class="font-semibold text-slate-800 mb-3">Explained concepts clearly</span>
                         <div class="flex space-x-3">
-                            <label class="flex-1 text-center py-3 bg-slate-50 border border-slate-200 rounded-lg cursor-pointer hover:bg-indigo-50 transition"><input type="radio" name="rubric_vocalization" value="0" class="mr-2"> 0</label>
+                            <label class="flex-1 text-center py-3 bg-slate-50 border border-slate-200 rounded-lg cursor-pointer hover:bg-indigo-50 transition"><input type="radio" name="rubric_vocalization" value="0" class="mr-2" required> 0</label>
                             <label class="flex-1 text-center py-3 bg-slate-50 border border-slate-200 rounded-lg cursor-pointer hover:bg-indigo-50 transition"><input type="radio" name="rubric_vocalization" value="1" class="mr-2"> 1</label>
                             <label class="flex-1 text-center py-3 bg-slate-50 border border-slate-200 rounded-lg cursor-pointer hover:bg-indigo-50 transition"><input type="radio" name="rubric_vocalization" value="2" class="mr-2"> 2</label>
-                            <label class="flex-1 text-center py-3 bg-indigo-100 border border-indigo-300 rounded-lg cursor-pointer"><input type="radio" name="rubric_vocalization" value="3" checked class="mr-2"> 3</label>
+                            <label class="flex-1 text-center py-3 bg-slate-50 border border-slate-200 rounded-lg cursor-pointer hover:bg-indigo-50 transition"><input type="radio" name="rubric_vocalization" value="3" class="mr-2"> 3</label>
                         </div>
                     </div>
                     <div class="flex flex-col">
-                        <span class="font-semibold text-slate-800 mb-3">Correct hand positioning</span>
+                        <span class="font-semibold text-slate-800 mb-3">Demonstrated the LITRE sequence accurately</span>
                         <div class="flex space-x-3">
-                            <label class="flex-1 text-center py-3 bg-slate-50 border border-slate-200 rounded-lg cursor-pointer hover:bg-indigo-50 transition"><input type="radio" name="rubric_positioning" value="0" class="mr-2"> 0</label>
+                            <label class="flex-1 text-center py-3 bg-slate-50 border border-slate-200 rounded-lg cursor-pointer hover:bg-indigo-50 transition"><input type="radio" name="rubric_positioning" value="0" class="mr-2" required> 0</label>
                             <label class="flex-1 text-center py-3 bg-slate-50 border border-slate-200 rounded-lg cursor-pointer hover:bg-indigo-50 transition"><input type="radio" name="rubric_positioning" value="1" class="mr-2"> 1</label>
                             <label class="flex-1 text-center py-3 bg-slate-50 border border-slate-200 rounded-lg cursor-pointer hover:bg-indigo-50 transition"><input type="radio" name="rubric_positioning" value="2" class="mr-2"> 2</label>
-                            <label class="flex-1 text-center py-3 bg-indigo-100 border border-indigo-300 rounded-lg cursor-pointer"><input type="radio" name="rubric_positioning" value="3" checked class="mr-2"> 3</label>
+                            <label class="flex-1 text-center py-3 bg-slate-50 border border-slate-200 rounded-lg cursor-pointer hover:bg-indigo-50 transition"><input type="radio" name="rubric_positioning" value="3" class="mr-2"> 3</label>
                         </div>
                     </div>
                     <div class="flex flex-col">
-                        <span class="font-semibold text-slate-800 mb-3">Pacing for learners</span>
+                        <span class="font-semibold text-slate-800 mb-3">Maintained good pacing for adult learners</span>
                         <div class="flex space-x-3">
-                            <label class="flex-1 text-center py-3 bg-slate-50 border border-slate-200 rounded-lg cursor-pointer hover:bg-indigo-50 transition"><input type="radio" name="rubric_pacing" value="0" class="mr-2"> 0</label>
+                            <label class="flex-1 text-center py-3 bg-slate-50 border border-slate-200 rounded-lg cursor-pointer hover:bg-indigo-50 transition"><input type="radio" name="rubric_pacing" value="0" class="mr-2" required> 0</label>
                             <label class="flex-1 text-center py-3 bg-slate-50 border border-slate-200 rounded-lg cursor-pointer hover:bg-indigo-50 transition"><input type="radio" name="rubric_pacing" value="1" class="mr-2"> 1</label>
                             <label class="flex-1 text-center py-3 bg-slate-50 border border-slate-200 rounded-lg cursor-pointer hover:bg-indigo-50 transition"><input type="radio" name="rubric_pacing" value="2" class="mr-2"> 2</label>
-                            <label class="flex-1 text-center py-3 bg-indigo-100 border border-indigo-300 rounded-lg cursor-pointer"><input type="radio" name="rubric_pacing" value="3" checked class="mr-2"> 3</label>
+                            <label class="flex-1 text-center py-3 bg-slate-50 border border-slate-200 rounded-lg cursor-pointer hover:bg-indigo-50 transition"><input type="radio" name="rubric_pacing" value="3" class="mr-2"> 3</label>
                         </div>
                     </div>
                 </div>
 
                 <div class="pt-8 text-right border-t border-slate-100 mt-8">
                     <button type="button" onclick="goToStep(2)" class="px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow transition">
-                        Next: Section C <i class="fas fa-arrow-right ml-2"></i>
+                        Next: Evaluating W/S <i class="fas fa-arrow-right ml-2"></i>
                     </button>
                 </div>
             </div>
 
-            <!-- STEP 2: Section C (Classroom Application) -->
+            <!-- STEP 2: Evaluating W/S -->
             <div id="step-2" class="step-container hidden">
                 <div class="bg-teal-50 border border-teal-200 p-6 rounded-xl mb-6">
-                    <h3 class="font-bold text-teal-900 mb-2 text-xl">Section C: Classroom Application</h3>
-                    <p class="text-sm text-teal-800">Check all that are successfully included in the participant's practical/oral participation.</p>
+                    <h3 class="font-bold text-teal-900 mb-2 text-xl">Evaluating W/S</h3>
+                    <p class="text-sm text-teal-800">Please indicate Yes or No for the following activities. The activities marked 'Yes' will be officially printed on your SACE Certificate as Competencies Achieved.</p>
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm font-medium text-slate-700">
-                    <label class="flex items-center space-x-3 bg-white p-4 rounded-xl border border-slate-200 cursor-pointer hover:bg-teal-50 hover:border-teal-200 transition shadow-sm">
-                        <input name="comp_objective" type="checkbox" value="Appropriate objective" class="h-5 w-5 text-teal-600 rounded"><span>Appropriate objective</span>
-                    </label>
-                    <label class="flex items-center space-x-3 bg-white p-4 rounded-xl border border-slate-200 cursor-pointer hover:bg-teal-50 hover:border-teal-200 transition shadow-sm">
-                        <input name="comp_sequence" type="checkbox" value="Correct sequence" class="h-5 w-5 text-teal-600 rounded"><span>Correct sequence</span>
-                    </label>
-                    <label class="flex items-center space-x-3 bg-white p-4 rounded-xl border border-slate-200 cursor-pointer hover:bg-teal-50 hover:border-teal-200 transition shadow-sm">
-                        <input name="comp_demo" type="checkbox" value="Practical demo" class="h-5 w-5 text-teal-600 rounded"><span>Practical demo</span>
-                    </label>
-                    <label class="flex items-center space-x-3 bg-white p-4 rounded-xl border border-slate-200 cursor-pointer hover:bg-teal-50 hover:border-teal-200 transition shadow-sm">
-                        <input name="comp_participation" type="checkbox" value="Learner participation" class="h-5 w-5 text-teal-600 rounded"><span>Learner participation</span>
-                    </label>
-                    <label class="flex items-center space-x-3 bg-white p-4 rounded-xl border border-slate-200 cursor-pointer hover:bg-teal-50 hover:border-teal-200 transition shadow-sm">
-                        <input name="comp_guidance" type="checkbox" value="Participant guidance" class="h-5 w-5 text-teal-600 rounded"><span>Participant guidance</span>
-                    </label>
-                    <label class="flex items-center space-x-3 bg-white p-4 rounded-xl border border-slate-200 cursor-pointer hover:bg-teal-50 hover:border-teal-200 transition shadow-sm">
-                        <input name="comp_reading" type="checkbox" value="Reading practice" class="h-5 w-5 text-teal-600 rounded"><span>Reading practice</span>
-                    </label>
-                    <label class="flex items-center space-x-3 bg-white p-4 rounded-xl border border-slate-200 cursor-pointer hover:bg-teal-50 hover:border-teal-200 transition shadow-sm">
-                        <input name="comp_assessment" type="checkbox" value="Assessment" class="h-5 w-5 text-teal-600 rounded"><span>Assessment</span>
-                    </label>
-                    <label class="flex items-center space-x-3 bg-white p-4 rounded-xl border border-slate-200 cursor-pointer hover:bg-teal-50 hover:border-teal-200 transition shadow-sm">
-                        <input name="comp_reflection" type="checkbox" value="Reflection" class="h-5 w-5 text-teal-600 rounded"><span>Reflection</span>
-                    </label>
+                <div class="space-y-4 text-sm font-medium text-slate-700">
+                    <div class="flex items-center justify-between bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                        <span>Appropriate objective</span>
+                        <div class="flex space-x-4">
+                            <label class="cursor-pointer flex items-center"><input type="radio" name="comp_objective" value="Appropriate objective" class="mr-2 h-5 w-5 text-teal-600" required> Yes</label>
+                            <label class="cursor-pointer flex items-center"><input type="radio" name="comp_objective" value="" class="mr-2 h-5 w-5 text-slate-400"> No</label>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                        <span>Correct sequence</span>
+                        <div class="flex space-x-4">
+                            <label class="cursor-pointer flex items-center"><input type="radio" name="comp_sequence" value="Correct sequence" class="mr-2 h-5 w-5 text-teal-600" required> Yes</label>
+                            <label class="cursor-pointer flex items-center"><input type="radio" name="comp_sequence" value="" class="mr-2 h-5 w-5 text-slate-400"> No</label>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                        <span>Practical demo</span>
+                        <div class="flex space-x-4">
+                            <label class="cursor-pointer flex items-center"><input type="radio" name="comp_demo" value="Practical demo" class="mr-2 h-5 w-5 text-teal-600" required> Yes</label>
+                            <label class="cursor-pointer flex items-center"><input type="radio" name="comp_demo" value="" class="mr-2 h-5 w-5 text-slate-400"> No</label>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                        <span>Learner participation</span>
+                        <div class="flex space-x-4">
+                            <label class="cursor-pointer flex items-center"><input type="radio" name="comp_participation" value="Learner participation" class="mr-2 h-5 w-5 text-teal-600" required> Yes</label>
+                            <label class="cursor-pointer flex items-center"><input type="radio" name="comp_participation" value="" class="mr-2 h-5 w-5 text-slate-400"> No</label>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                        <span>Participant guidance</span>
+                        <div class="flex space-x-4">
+                            <label class="cursor-pointer flex items-center"><input type="radio" name="comp_guidance" value="Participant guidance" class="mr-2 h-5 w-5 text-teal-600" required> Yes</label>
+                            <label class="cursor-pointer flex items-center"><input type="radio" name="comp_guidance" value="" class="mr-2 h-5 w-5 text-slate-400"> No</label>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                        <span>Reading practice</span>
+                        <div class="flex space-x-4">
+                            <label class="cursor-pointer flex items-center"><input type="radio" name="comp_reading" value="Reading practice" class="mr-2 h-5 w-5 text-teal-600" required> Yes</label>
+                            <label class="cursor-pointer flex items-center"><input type="radio" name="comp_reading" value="" class="mr-2 h-5 w-5 text-slate-400"> No</label>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                        <span>Assessment</span>
+                        <div class="flex space-x-4">
+                            <label class="cursor-pointer flex items-center"><input type="radio" name="comp_assessment" value="Assessment" class="mr-2 h-5 w-5 text-teal-600" required> Yes</label>
+                            <label class="cursor-pointer flex items-center"><input type="radio" name="comp_assessment" value="" class="mr-2 h-5 w-5 text-slate-400"> No</label>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                        <span>Reflection</span>
+                        <div class="flex space-x-4">
+                            <label class="cursor-pointer flex items-center"><input type="radio" name="comp_reflection" value="Reflection" class="mr-2 h-5 w-5 text-teal-600" required> Yes</label>
+                            <label class="cursor-pointer flex items-center"><input type="radio" name="comp_reflection" value="" class="mr-2 h-5 w-5 text-slate-400"> No</label>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="pt-8 flex justify-between border-t border-slate-100 mt-8">
-                    <button type="button" onclick="goToStep(1)" class="px-6 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg transition">
-                        <i class="fas fa-arrow-left mr-2"></i> Back
-                    </button>
+                <div class="pt-8 text-right border-t border-slate-100 mt-8">
                     <button type="button" onclick="goToStep(3)" class="px-8 py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-lg shadow transition">
                         Next: Post-Test <i class="fas fa-arrow-right ml-2"></i>
                     </button>
@@ -155,10 +184,8 @@
                     </div>
                 </div>
 
-                <div class="pt-8 flex justify-between border-t border-slate-100 mt-8">
-                    <button type="button" onclick="goToStep(2)" class="px-6 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg transition">
-                        <i class="fas fa-arrow-left mr-2"></i> Back
-                    </button>
+                <div class="pt-8 text-right border-t border-slate-100 mt-8">
+                    
                     <button type="submit" class="px-8 py-3 bg-green-600 hover:bg-green-700 text-white text-lg font-black rounded-xl shadow-lg transition transform hover:-translate-y-1">
                         Submit & View Results <i class="fas fa-check-circle ml-2"></i>
                     </button>

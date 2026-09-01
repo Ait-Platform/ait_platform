@@ -19,7 +19,7 @@ Successfully completed the Workshop Simulation
     <th>Status</th>
   </tr>
   {% if answers and answers.competencies %}
-    {% for comp in answers.competencies %}
+    {% for comp in answers.get("competencies", []) %}
     <tr>
       <td>{{ comp }}</td>
       <td>Demonstrated</td>
@@ -39,7 +39,7 @@ This certificate recognises successful participation and completion of the SACE 
 {% endblock %}
 
 {% block overall_result %}
-  {% if answers and answers.score is defined %}
+  {% if answers and answers.get("score") is not none %}
     Overall Result: {{ answers.score }}%
   {% else %}
     Overall Result: Pass

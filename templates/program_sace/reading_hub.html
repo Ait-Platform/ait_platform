@@ -6,7 +6,7 @@
   <div class="h-2 w-full bg-indigo-600"></div>
   <div class="p-6 sm:p-8">
     <div class="flex justify-between items-center mb-6">
-      <h1 class="text-2xl font-bold text-slate-900">SACE Endorsement: LITRE Reading</h1>
+      <h1 class="text-2xl font-bold text-slate-900">LITRE Reading Activity</h1>
       <a href="{{ url_for('sace_bp.dashboard') }}" class="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 transition">
         &larr; Back to Hub
       </a>
@@ -55,7 +55,7 @@
             <i class="fas fa-vr-cardboard text-9xl"></i>
           </div>
           
-          <h2 class="text-3xl font-black text-white mb-4 relative z-10">SACE Endorsement Simulator (SES)</h2>
+          <h2 class="text-3xl font-black text-white mb-4 relative z-10">Reading Activity Simulator</h2>
           <p class="text-slate-300 mb-8 max-w-2xl mx-auto text-lg relative z-10">
             Launch the split-screen evaluation environment. This tool allows you to act as both the Facilitator and Participant simultaneously, visualizing the exact flow and testing live synchronization.
           </p>
@@ -64,9 +64,9 @@
 <div class="flex flex-col md:flex-row items-center justify-center gap-6 relative z-10">
     <div class="text-center w-full md:w-1/2">
         <a href="{{ url_for('sace_bp.presentation') }}" class="w-full inline-flex items-center justify-center px-8 py-4 text-lg font-bold text-white bg-indigo-600 rounded-xl hover:bg-indigo-500 hover:scale-105 transition shadow-[0_0_20px_rgba(79,70,229,0.4)]">
-            <i class="fas fa-desktop mr-3"></i> 1. View Linear Presentation (PPP)
+            <i class="fas fa-desktop mr-3"></i> 1. View Linear Presentation
         </a>
-        <p class="text-slate-400 text-sm mt-3">Start here. Review the actual content of the course linearly.</p>
+        <p class="text-slate-400 text-sm mt-3">Start here. Review a power point presentation of the course linearly.</p>
     </div>
     
     <div class="text-center w-full md:w-1/2">
@@ -77,15 +77,8 @@
     </div>
 </div>
 
-<div class="mt-8 pt-8 border-t border-slate-700 relative z-10 text-center">
-    <h3 class="text-xl font-bold text-white mb-4">Workshop Completion & Certification</h3>
-    <a href="{{ url_for('sace_bp.post_test') }}" class="inline-flex items-center justify-center px-8 py-3 text-lg font-bold text-indigo-900 bg-yellow-400 rounded-xl hover:bg-yellow-300 hover:scale-105 transition shadow-lg">
-        <i class="fas fa-clipboard-list mr-3"></i> Take Post-Test & Get Certificate
-    </a>
 </div>
-
-        </div>
-        <div class="bg-slate-800 p-4 border-t border-slate-700 text-center">
+          <div class="bg-slate-800 p-4 border-t border-slate-700 text-center">
           <p class="text-sm text-slate-400 font-medium"><i class="fas fa-info-circle text-indigo-400 mr-1"></i> Highly recommended testing method for SACE Evaluators.</p>
         </div>
       </div>

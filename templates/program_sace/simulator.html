@@ -29,7 +29,7 @@
         
         <div class="flex space-x-4 items-center pb-2" id="global-controller" style="display: none;">
             <div class="text-slate-500 font-mono text-sm font-bold border-r pr-4 border-slate-300">
-                Step <span id="f-counter-global">0</span> of 28
+                Step <span id="f-counter-global">0</span> of 30
             </div>
             <button class="hidden px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-lg transition shadow-[0_0_15px_rgba(147,51,234,0.5)] text-sm" id="global-audio-btn" onclick="playCurrentSlideAudio()">
                 <i class="fas fa-play mr-2"></i> Audio
@@ -82,88 +82,94 @@
 <div class="flex-grow relative overflow-hidden min-h-0">
 
           <div class="slide-container absolute inset-0 flex flex-col overflow-y-auto items-center justify-center" id="slide-0">
-                <img alt="Slide 1" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/1Program.png') }}"/>
+                <img alt="Slide 1" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/1.png') }}"/>
             </div>
             <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-1">
-                <img alt="Slide 2" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/2Crisis.png') }}"/>
+                <img alt="Slide 2" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/2.png') }}"/>
             </div>
             <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-2">
-                <img alt="Slide 3" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/3Survey.png') }}"/>
+                <img alt="Slide 3" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/3.png') }}"/>
             </div>
             <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-3">
-                <img alt="Slide 4" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/4Study.png') }}"/>
+                <img alt="Slide 4" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/4.png') }}"/>
             </div>
             <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-4">
-                <img alt="Slide 5" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/5The Problem.png') }}"/>
+                <img alt="Slide 5" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/5.png') }}"/>
             </div>
             <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-5">
-                <img alt="Slide 6" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/6Root Cause.png') }}"/>
+                <img alt="Slide 6" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/6.png') }}"/>
             </div>
             <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-6">
-                <img alt="Slide 7" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/7Litre.png') }}"/>
+                <img alt="Slide 7" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/7.png') }}"/>
             </div>
             <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-7">
-                <img alt="Slide 8" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/8Why Litre.png') }}"/>
+                <img alt="Slide 8" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/8.png') }}"/>
             </div>
             <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-8">
-                <img alt="Slide 9" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/9What is Litre.png') }}"/>
+                <img alt="Slide 9" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/9.png') }}"/>
             </div>
             <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-9">
-                <img alt="Slide 10" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/10Program.png') }}"/>
+                <img alt="Slide 10" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/10.png') }}"/>
             </div>
             <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-10">
-                <img alt="Slide 11" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/11DrawPalm.png') }}"/>
+                <img alt="Slide 11" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/11.png') }}"/>
             </div>
             <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-11">
-                <img alt="Slide 12" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/12Home.png') }}"/>
+                <img alt="Slide 12" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/12.png') }}"/>
             </div>
             <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-12">
-                <img alt="Slide 13" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/13English Family.png') }}"/>
+                <img alt="Slide 13" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/13.png') }}"/>
             </div>
             <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-13">
-                <img alt="Slide 14" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/14Vowels.png') }}"/>
+                <img alt="Slide 14" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/14.png') }}"/>
             </div>
             <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-14">
-                <img alt="Slide 15" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/15a Tactile.png') }}"/>
+                <img alt="Slide 15" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/15.png') }}"/>
             </div>
             <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-15">
-                <img alt="Slide 16" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/15BlendingMachine.png') }}"/>
+                <img alt="Slide 16" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/16.png') }}"/>
             </div>
             <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-16">
-                <img alt="Slide 17" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/16Program.png') }}"/>
+                <img alt="Slide 17" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/17.png') }}"/>
             </div>
             <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-17">
-                <img alt="Slide 18" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/17ta.png') }}"/>
+                <img alt="Slide 18" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/18.png') }}"/>
             </div>
             <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-18">
-                <img alt="Slide 19" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/18ma.png') }}"/>
+                <img alt="Slide 19" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/19.png') }}"/>
             </div>
             <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-19">
-                <img alt="Slide 20" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/19aSign Language.png') }}"/>
+                <img alt="Slide 20" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/20.png') }}"/>
             </div>
             <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-20">
-                <img alt="Slide 21" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/19bSign Language.png') }}"/>
+                <img alt="Slide 21" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/21.png') }}"/>
             </div>
             <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-21">
-                <img alt="Slide 22" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/19tomato.png') }}"/>
+                <img alt="Slide 22" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/22.png') }}"/>
             </div>
             <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-22">
-                <img alt="Slide 23" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/20pa.png') }}"/>
+                <img alt="Slide 23" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/23.png') }}"/>
             </div>
             <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-23">
-                <img alt="Slide 24" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/21Catch Up.png') }}"/>
+                <img alt="Slide 24" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/24.png') }}"/>
             </div>
             <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-24">
-                <img alt="Slide 25" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/22ClassActivity.png') }}"/>
+                <img alt="Slide 25" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/25.png') }}"/>
             </div>
             <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-25">
-                <img alt="Slide 26" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/23Assessment.png') }}"/>
+                <img alt="Slide 26" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/26.png') }}"/>
             </div>
             <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-26">
-                <img alt="Slide 27" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/24Reflection.png') }}"/>
+                <img alt="Slide 27" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/27.png') }}"/>
             </div>
             <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-27">
-                <img alt="Slide 28" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/25Thank.png') }}"/>
+                <img alt="Slide 28" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/28.png') }}"/>
+            </div>
+            <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-28">
+                <img alt="Slide 29" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/29.png') }}"/>
+            </div>
+            <div class="slide-container absolute inset-0 hidden flex-col overflow-y-auto items-center justify-center" id="slide-29">
+                <img alt="Slide 30" class="w-full h-full p-2 object-contain mx-auto" src="{{ url_for('static', filename='sace_slides/30.png') }}"/>
             </div>
 
     </div> <!-- Close flex-grow -->
@@ -469,14 +475,12 @@
 
 <script>
     const simSteps = [
-                { slide: 0, view: 'f' },
+        { slide: 0, view: 'f' },
         { slide: 1, view: 'f' },
-        { slide: 1, view: 'p', appView: 0 },
         { slide: 2, view: 'f' },
         { slide: 3, view: 'f' },
         { slide: 4, view: 'f' },
         { slide: 5, view: 'f' },
-        { slide: 5, view: 'p', appView: 2 },
         { slide: 6, view: 'f' },
         { slide: 7, view: 'f' },
         { slide: 8, view: 'f' },
@@ -485,27 +489,23 @@
         { slide: 11, view: 'f' },
         { slide: 12, view: 'f' },
         { slide: 13, view: 'f' },
-        { slide: 13, view: 'p', appView: 8 },
         { slide: 14, view: 'f' },
         { slide: 15, view: 'f' },
-        { slide: 15, view: 'p', appView: 6 },
         { slide: 16, view: 'f' },
         { slide: 17, view: 'f' },
         { slide: 18, view: 'f' },
         { slide: 19, view: 'f' },
         { slide: 20, view: 'f' },
         { slide: 21, view: 'f' },
-        { slide: 21, view: 'p', appView: 12 },
         { slide: 22, view: 'f' },
         { slide: 23, view: 'f' },
         { slide: 24, view: 'f' },
-        { slide: 24, view: 'p', appView: 9 },
         { slide: 25, view: 'f' },
-        { slide: 25, view: 'p', appView: 10 },
         { slide: 26, view: 'f' },
-        { slide: 26, view: 'p', appView: 7 },
         { slide: 27, view: 'f' },
-        { slide: 27, view: 'p', appView: 11 }
+        { slide: 28, view: 'f' },
+        { slide: 29, view: 'f' },
+        { slide: 29, view: 'p', appView: 10 }
     ];
 
     let currentStepIndex = 0;

@@ -14,22 +14,33 @@ def _find_wkhtml() -> str | None:
     return None
 
 def html_to_pdf_bytes(html: str, base_url: str | None = None, orientation: str = "Portrait") -> bytes:
-    # Try WeasyPrint on non-Windows; your error is Windows-specific.
+    # 1. Try xhtml2pdf (Cross-platform, no OS dependencies)
+    try:
+        from xhtml2pdf import pisa
+        import io
+        result = io.BytesIO()
+        pisa_status = pisa.CreatePDF(io.StringIO(html), dest=result)
+        if not pisa_status.err:
+            return result.getvalue()
+    except Exception:
+        pass
+
+    # 2. Try WeasyPrint on non-Windows
     if sys.platform != "win32":
         try:
             from weasyprint import HTML  # lazy import
-            # Weasyprint orientation is set in CSS usually, but ignore for now
             return HTML(string=html, base_url=base_url).write_pdf()
         except Exception:
             pass
 
+    # 3. Try wkhtmltopdf
     exe = _find_wkhtml()
     if not exe:
-        raise RuntimeError("wkhtmltopdf not found. Set WKHTMLTOPDF_EXE or install to the default path.")
+        raise RuntimeError("PDF generation failed: No PDF backend (xhtml2pdf, WeasyPrint, or wkhtmltopdf) was able to run in this environment.")
     cfg = pdfkit.configuration(wkhtmltopdf=exe)
     options = {
         "encoding": "UTF-8",
-        "enable-local-file-access": None,  # allow CSS/assets
+        "enable-local-file-access": None,
         "print-media-type": None,
         "quiet": None,
         "orientation": orientation,

@@ -667,7 +667,13 @@ def _ensure_enrollment_row():
     if row:
         # Check if this rdp_enrollment is stale/orphaned
         ue_status = row.get("ue_status")
-        is_orphaned = (ue_status is None)
+        is_sace = False
+        from flask import session
+        for s in session.get('admin_subjects', []):
+            if s.startswith('sace'):
+                is_sace = True
+                break
+        is_orphaned = (ue_status is None) and not is_sace
         is_stale_paid = (ue_status == "active" and row.get("completed_at") is not None)
         
         if is_orphaned or is_stale_paid:
@@ -880,7 +886,11 @@ def _get_enrollment(user_id: int | None = None):
 def _finalize_and_send_certificate(user_id: int):
     enr = _get_enrollment()
     if not enr:
-        abort(400)
+        # Gracefully ensure enrollment if missing
+        _ensure_enrollment_row()
+        enr = _get_enrollment()
+        if not enr:
+            abort(400)
 
     # make / reuse cert id
     cert_id = enr.certificate_id or _make_certificate_id(user_id)

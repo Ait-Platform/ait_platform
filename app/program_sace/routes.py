@@ -563,20 +563,22 @@ def secure_view(doc_type):
     """Secure on-site document viewer that logs the interaction and blocks downloads."""
     from app.models.sace import SaceWorkshopInteraction, SaceDocument
     
-    # Log that the user viewed this document
-    interaction = SaceWorkshopInteraction(
-        user_id=current_user.id,
-        activity_slug=f"viewed_{doc_type}",
-        response_data="Document opened in secure viewer"
-    )
-    db.session.add(interaction)
-    db.session.commit()
-    
-    # Retrieve the document URL
+    # Retrieve the document URL first
     doc = SaceDocument.query.filter_by(document_type=doc_type).first()
     if not doc:
         flash("Document not found or not uploaded yet.", "error")
         return redirect(url_for('sace_bp.reading_hub'))
+
+    # Log that the user viewed this document
+    interaction = SaceWorkshopInteraction.query.filter_by(user_id=current_user.id, activity_slug=f"viewed_{doc_type}").first()
+    if not interaction:
+        interaction = SaceWorkshopInteraction(
+            user_id=current_user.id,
+            activity_slug=f"viewed_{doc_type}",
+            response_data="Document opened in secure viewer"
+        )
+        db.session.add(interaction)
+        db.session.commit()
         
     doc_url = url_for('static', filename=doc.file_path.replace('app/static/', '').replace('static/', ''))
     

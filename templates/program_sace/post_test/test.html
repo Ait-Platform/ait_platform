@@ -197,6 +197,41 @@
 </div>
 
 <script>
+    function nextStep(currentStep, nextStepNum) {
+        // Validate current step
+        const stepContainer = document.getElementById('step-' + currentStep);
+        const radioGroups = new Set();
+        
+        // Find all radio buttons in this step
+        stepContainer.querySelectorAll('input[type="radio"]').forEach(radio => {
+            radioGroups.add(radio.name);
+        });
+        
+        // Check if every group has a checked radio
+        let allValid = true;
+        radioGroups.forEach(name => {
+            const checked = stepContainer.querySelector(input[name=""]:checked);
+            if (!checked) {
+                allValid = false;
+                // Highlight the missing section
+                const groupContainer = stepContainer.querySelector(input[name=""]).closest('.bg-white');
+                if (groupContainer) {
+                    groupContainer.classList.add('border-red-500', 'ring-2', 'ring-red-200');
+                    setTimeout(() => {
+                        groupContainer.classList.remove('border-red-500', 'ring-2', 'ring-red-200');
+                    }, 2000);
+                }
+            }
+        });
+        
+        if (!allValid) {
+            alert("Please answer all questions before proceeding.");
+            return;
+        }
+        
+        goToStep(nextStepNum);
+    }
+
     function goToStep(stepNum) {
         document.querySelectorAll('.step-container').forEach(el => el.classList.add('hidden'));
         document.getElementById('step-' + stepNum).classList.remove('hidden');

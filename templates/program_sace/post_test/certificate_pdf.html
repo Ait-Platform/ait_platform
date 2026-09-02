@@ -6,6 +6,16 @@
 {% block learner_name %}{{ learner_name }}{% endblock %}
 {% block issue_date %}{{ completed_date }}{% endblock %}
 {% block certificate_number %}{{ certificate_id }}{% endblock %}
+
+{% block extra_details %}
+<tr>
+    <th>Workshop Date</th>
+    <td>{{ completed_date }}</td>
+    <th>Location</th>
+    <td>Sandton Convention Centre, JHB</td>
+</tr>
+{% endblock %}
+
 {% block programme_name %}Sace approved activity : i learn to read using the LiTRE Method{% endblock %}
 
 {% block achievement %}

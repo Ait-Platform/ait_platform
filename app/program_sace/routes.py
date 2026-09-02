@@ -146,9 +146,13 @@ def reading_hub():
     interactions = SaceWorkshopInteraction.query.filter_by(user_id=current_user.id).all()
     completed_slugs = [i.activity_slug for i in interactions]
     
-    # Also check reading module progress
-    from app.models.reading import RDPEnrollment
-    reading_enr = RDPEnrollment.query.filter_by(user_id=current_user.id).first()
+    # Also check reading module progress via raw SQL (since it lacks an ORM model)
+    from sqlalchemy import text as sa_text
+    from app.extensions import db
+    reading_enr = db.session.execute(
+        sa_text("SELECT progress_percent, certificate_id FROM rdp_enrollment WHERE user_id = :uid LIMIT 1"),
+        {"uid": current_user.id}
+    ).fetchone()
     reading_completed = reading_enr is not None and reading_enr.progress_percent == 100 and reading_enr.certificate_id is not None
     
     progress = {

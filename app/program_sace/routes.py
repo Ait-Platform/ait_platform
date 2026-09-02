@@ -138,9 +138,35 @@ import os
 @sace_bp.route("/sace/reading")
 @login_required
 def reading_hub():
-    from app.models.sace import SaceDocument
-    app_form = SaceDocument.query.filter_by(slug='reading', document_type='application_form').first()
-    return render_template("program_sace/reading_hub.html", app_form=app_form)
+    from app.models.sace import SaceDocument, SaceWorkshopInteraction
+    
+    app_form = SaceDocument.query.filter_by(slug='reading', document_type='app_form').first()
+    
+    # Fetch user's interactions to build the progress map
+    interactions = SaceWorkshopInteraction.query.filter_by(user_id=current_user.id).all()
+    completed_slugs = [i.activity_slug for i in interactions]
+    
+    # Also check reading module progress
+    from app.models.reading import RDPEnrollment
+    reading_enr = RDPEnrollment.query.filter_by(user_id=current_user.id).first()
+    reading_completed = reading_enr is not None and reading_enr.progress_percent == 100 and reading_enr.certificate_id is not None
+    
+    progress = {
+        'app_form': 'viewed_app_form' in completed_slugs,
+        'reviewer_guide': 'viewed_reviewer_guide' in completed_slugs,
+        'patent': 'viewed_patent' in completed_slugs,
+        'annexures': 'viewed_annexures' in completed_slugs,
+        'ppp': 'viewed_ppp' in completed_slugs,
+        'demo_cert': 'workshop_post_test' in completed_slugs,
+        'reading_cert': reading_completed,
+        'survey': 'post_ws_survey' in completed_slugs
+    }
+    
+    return render_template(
+        "program_sace/reading_hub.html", 
+        app_form=app_form,
+        progress=progress
+    )
 
 @sace_bp.route("/sace/reading/workshop")
 @login_required
@@ -527,3 +553,72 @@ def _generate_sace_certificate_pdf(certificate_id, learner_name, completed_at, u
     except Exception as e:
         current_app.logger.error(f"SACE PDF generation failed for {certificate_id}: {e}")
         return b""
+
+@sace_bp.route("/sace/secure_view/<doc_type>")
+@login_required
+def secure_view(doc_type):
+    """Secure on-site document viewer that logs the interaction and blocks downloads."""
+    from app.models.sace import SaceWorkshopInteraction, SaceDocument
+    
+    # Log that the user viewed this document
+    interaction = SaceWorkshopInteraction(
+        user_id=current_user.id,
+        activity_slug=f"viewed_{doc_type}",
+        response_data="Document opened in secure viewer"
+    )
+    db.session.add(interaction)
+    db.session.commit()
+    
+    # Retrieve the document URL
+    doc = SaceDocument.query.filter_by(document_type=doc_type).first()
+    if not doc:
+        flash("Document not found or not uploaded yet.", "error")
+        return redirect(url_for('sace_bp.reading_hub'))
+        
+    doc_url = url_for('static', filename=doc.file_path.replace('app/static/', '').replace('static/', ''))
+    
+    # Map document types to readable titles
+    titles = {
+        'reviewer_guide': 'Reviewer Guide',
+        'app_form': 'Application Form',
+        'patent': 'Patent Documentation',
+        'annexures': 'Annexures A-E'
+    }
+    
+    return render_template("program_sace/secure_viewer.html", doc_url=doc_url, doc_title=titles.get(doc_type, 'Secure Document'))
+
+@sace_bp.route("/sace/post_ws_survey", methods=["GET", "POST"])
+@login_required
+def post_ws_survey():
+    from app.models.sace import SaceWorkshopInteraction
+    import json
+    
+    if request.method == "POST":
+        interaction = SaceWorkshopInteraction(
+            user_id=current_user.id,
+            activity_slug="post_ws_survey",
+            response_data=json.dumps(dict(request.form))
+        )
+        db.session.add(interaction)
+        db.session.commit()
+        flash("Survey submitted successfully. Thank you!", "success")
+        return redirect(url_for('sace_bp.reading_hub'))
+        
+    return render_template("program_sace/post_ws_survey.html")
+
+@sace_bp.route("/sace/log_ppp_view", methods=["POST"])
+@login_required
+def log_ppp_view():
+    from app.models.sace import SaceWorkshopInteraction
+    interaction = SaceWorkshopInteraction.query.filter_by(
+        user_id=current_user.id, activity_slug="viewed_ppp"
+    ).first()
+    if not interaction:
+        interaction = SaceWorkshopInteraction(
+            user_id=current_user.id,
+            activity_slug="viewed_ppp",
+            response_data="Completed PPP slide review"
+        )
+        db.session.add(interaction)
+        db.session.commit()
+    return {"status": "ok"}

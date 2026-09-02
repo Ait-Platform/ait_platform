@@ -1,0 +1,23 @@
+{% extends "layout.html" %}
+{% block title %}{{ doc_title }} - Secure View{% endblock %}
+
+{% block content %}
+<div class="h-screen flex flex-col bg-slate-900">
+    <div class="bg-slate-800 p-4 flex justify-between items-center shrink-0 border-b border-slate-700">
+        <h1 class="text-white font-bold text-lg"><i class="fas fa-lock text-emerald-400 mr-2"></i> {{ doc_title }}</h1>
+        <div class="flex items-center space-x-4">
+            <span class="text-xs text-slate-400"><i class="fas fa-shield-alt mr-1"></i> Anti-Theft Protection Active</span>
+            <a href="{{ url_for('sace_bp.reading_hub') }}" class="px-4 py-2 bg-indigo-600 text-white text-sm font-bold rounded hover:bg-indigo-500 transition">
+                Return to Hub
+            </a>
+        </div>
+    </div>
+    
+    <!-- Secure PDF container -->
+    <div class="flex-grow relative w-full h-full" id="secure-container" oncontextmenu="return false;">
+        <!-- Transparent overlay to catch clicks if they try to interact with native PDF controls -->
+        <div class="absolute inset-0 z-10 hidden" id="click-shield"></div>
+        <iframe src="{{ doc_url }}#toolbar=0&navpanes=0&scrollbar=0" class="w-full h-full border-none pointer-events-auto" style="pointer-events: auto;"></iframe>
+    </div>
+</div>
+{% endblock %}

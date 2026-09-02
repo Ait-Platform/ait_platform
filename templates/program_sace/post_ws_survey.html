@@ -1,0 +1,55 @@
+{% extends "layout.html" %}
+{% block title %}Post-Workshop Survey{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto py-12 px-4">
+    <div class="bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-200">
+        <div class="bg-purple-700 p-8 text-white">
+            <h1 class="text-3xl font-black mb-2">Longitudinal Study Baseline</h1>
+            <p class="text-purple-200">Please complete this survey to help us track the efficacy of the LITRE method over time.</p>
+        </div>
+        
+        <form method="POST" class="p-8 space-y-8">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            
+            <div class="space-y-4">
+                <h3 class="font-bold text-slate-800 text-lg border-b pb-2">1. Teacher Self-Efficacy</h3>
+                <p class="text-sm text-slate-600 mb-2">How confident do you feel in your ability to successfully implement the LITRE blending machine in your classroom?</p>
+                <div class="flex space-x-4">
+                    <label class="flex flex-col items-center p-3 border rounded-lg cursor-pointer hover:bg-purple-50 flex-1"><input type="radio" name="efficacy" value="1" required class="mb-2">1 (Low)</label>
+                    <label class="flex flex-col items-center p-3 border rounded-lg cursor-pointer hover:bg-purple-50 flex-1"><input type="radio" name="efficacy" value="2" class="mb-2">2</label>
+                    <label class="flex flex-col items-center p-3 border rounded-lg cursor-pointer hover:bg-purple-50 flex-1"><input type="radio" name="efficacy" value="3" class="mb-2">3</label>
+                    <label class="flex flex-col items-center p-3 border rounded-lg cursor-pointer hover:bg-purple-50 flex-1"><input type="radio" name="efficacy" value="4" class="mb-2">4</label>
+                    <label class="flex flex-col items-center p-3 border rounded-lg cursor-pointer hover:bg-purple-50 flex-1"><input type="radio" name="efficacy" value="5" class="mb-2">5 (High)</label>
+                </div>
+            </div>
+            
+            <div class="space-y-4">
+                <h3 class="font-bold text-slate-800 text-lg border-b pb-2">2. Perceived Utility</h3>
+                <p class="text-sm text-slate-600 mb-2">Do you believe the physical/visual representation of the LITRE method provides a significant advantage over traditional phonics instruction?</p>
+                <div class="space-y-2">
+                    <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-purple-50"><input type="radio" name="utility" value="yes" required class="mr-3">Yes, definitely</label>
+                    <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-purple-50"><input type="radio" name="utility" value="somewhat" class="mr-3">Somewhat</label>
+                    <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-purple-50"><input type="radio" name="utility" value="no" class="mr-3">No significant advantage</label>
+                </div>
+            </div>
+            
+            <div class="space-y-4">
+                <h3 class="font-bold text-slate-800 text-lg border-b pb-2">3. Implementation Fidelity</h3>
+                <p class="text-sm text-slate-600 mb-2">How closely do you intend to follow the provided lesson plans and step-by-step guidance?</p>
+                <div class="space-y-2">
+                    <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-purple-50"><input type="radio" name="fidelity" value="strict" required class="mr-3">Strictly as designed</label>
+                    <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-purple-50"><input type="radio" name="fidelity" value="modify" class="mr-3">I will modify it for my class</label>
+                    <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-purple-50"><input type="radio" name="fidelity" value="loose" class="mr-3">I will only use parts of it</label>
+                </div>
+            </div>
+            
+            <div class="pt-6">
+                <button type="submit" class="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-lg shadow-lg transition">
+                    Submit Baseline Data & Return to Hub
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

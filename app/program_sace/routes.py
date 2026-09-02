@@ -162,8 +162,7 @@ def reading_hub():
         'annexures': 'viewed_annexures' in completed_slugs,
         'ppp': 'viewed_ppp' in completed_slugs,
         'demo_cert': 'workshop_post_test' in completed_slugs,
-        'reading_cert': reading_completed,
-        'survey': 'post_ws_survey' in completed_slugs
+        'reading_cert': reading_completed
     }
     
     return render_template(
@@ -591,24 +590,6 @@ def secure_view(doc_type):
     
     return render_template("program_sace/secure_viewer.html", doc_url=doc_url, doc_title=titles.get(doc_type, 'Secure Document'))
 
-@sace_bp.route("/sace/post_ws_survey", methods=["GET", "POST"])
-@login_required
-def post_ws_survey():
-    from app.models.sace import SaceWorkshopInteraction
-    import json
-    
-    if request.method == "POST":
-        interaction = SaceWorkshopInteraction(
-            user_id=current_user.id,
-            activity_slug="post_ws_survey",
-            response_data=json.dumps(dict(request.form))
-        )
-        db.session.add(interaction)
-        db.session.commit()
-        flash("Survey submitted successfully. Thank you!", "success")
-        return redirect(url_for('sace_bp.reading_hub'))
-        
-    return render_template("program_sace/post_ws_survey.html")
 
 @sace_bp.route("/sace/log_ppp_view", methods=["POST"])
 @login_required

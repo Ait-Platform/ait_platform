@@ -24,7 +24,7 @@
         <!-- Roadmap Container -->
         <div class="bg-white p-8 rounded-b-2xl shadow-xl border-x border-b border-slate-200">
             
-            {% set total = 8 %}
+            {% set total = 7 %}
             {% set completed = 0 %}
             {% if progress.reviewer_guide %}{% set completed = completed + 1 %}{% endif %}
             {% if progress.app_form %}{% set completed = completed + 1 %}{% endif %}
@@ -33,7 +33,7 @@
             {% if progress.ppp %}{% set completed = completed + 1 %}{% endif %}
             {% if progress.demo_cert %}{% set completed = completed + 1 %}{% endif %}
             {% if progress.reading_cert %}{% set completed = completed + 1 %}{% endif %}
-            {% if progress.survey %}{% set completed = completed + 1 %}{% endif %}
+            
             {% set percent = (completed / total * 100) | round | int %}
 
             <!-- Progress Bar -->
@@ -155,28 +155,7 @@
                     </div>
                 </div>
 
-                <!-- Phase 5: Post-Workshop Survey -->
-                <div class="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
-                    <div class="flex items-center justify-center w-10 h-10 rounded-full border-4 border-white bg-slate-200 text-slate-500 font-bold shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2">
-                        5
-                    </div>
-                    <div class="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-5 rounded-xl border shadow-sm {% if progress.survey %}bg-emerald-50 border-emerald-200{% else %}bg-white border-slate-200{% endif %}">
-                        <div class="flex items-center justify-between mb-3">
-                            <h3 class="font-bold text-slate-800 text-lg">Path Analysis Survey</h3>
-                            <i class="fas fa-chart-line text-slate-400"></i>
-                        </div>
-                        <p class="text-sm text-slate-500 mb-4">Final baseline data collection for the longitudinal study.</p>
-                        
-                        <a href="{{ url_for('sace_bp.post_ws_survey') }}" class="w-full block text-center py-2.5 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-lg transition mb-3">
-                            Take Survey
-                        </a>
-                        
-                        <div class="flex items-center justify-between p-2 rounded bg-slate-50 border border-slate-100">
-                            <span class="text-slate-700 font-bold text-sm">Survey Completed</span>
-                            {% if progress.survey %}<i class="fas fa-check-circle text-green-500 text-xl"></i>{% else %}<span class="w-5 h-5 rounded-full border-2 border-slate-300"></span>{% endif %}
-                        </div>
-                    </div>
-                </div>
+                
 
             </div>
 

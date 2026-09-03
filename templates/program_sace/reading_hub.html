@@ -1,7 +1,17 @@
 {% extends "layout.html" %}
-{% block title %}Provider's SACE Activities{% endblock %}
+{% block title %}Sace Authorised User(s) Map{% endblock %}
 
 {% block content %}
+            {% set total = 7 %}
+            {% set completed = 0 %}
+            {% if progress.app_form %}{% set completed = completed + 1 %}{% endif %}
+            {% if progress.reviewer_guide %}{% set completed = completed + 1 %}{% endif %}
+            {% if progress.patent %}{% set completed = completed + 1 %}{% endif %}
+            {% if progress.annexures %}{% set completed = completed + 1 %}{% endif %}
+            {% if progress.ppp %}{% set completed = completed + 1 %}{% endif %}
+            {% if progress.demo_cert %}{% set completed = completed + 1 %}{% endif %}
+            {% if progress.reading_cert %}{% set completed = completed + 1 %}{% endif %}
+            {% set percent = (completed / total * 100) | round | int %}
 <div class="bg-slate-50 min-h-screen py-10 px-4">
     <div class="max-w-4xl mx-auto">
         
@@ -12,7 +22,7 @@
             </div>
             <div class="relative z-10 flex justify-between items-center">
                 <div>
-                    <h1 class="text-3xl font-black mb-2">Provider's SACE Activities</h1>
+                    <h1 class="text-3xl font-black mb-2">Sace Authorised User(s) Map</h1>
                     <p class="text-indigo-200 text-lg">LITRE Reading Programme Validation Flow</p>
                 </div>
                 <a href="{{ url_for('sace_bp.dashboard') }}" class="px-5 py-2 bg-indigo-800 hover:bg-indigo-700 rounded-lg text-white font-semibold transition border border-indigo-700">

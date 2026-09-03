@@ -22,13 +22,16 @@
 - The canonical local development directory for this project on the primary Windows machine is: D:\Users\yeshk\Documents\ait_platform
 
 ## 5. System Architecture (SACE Module)
+- **R Page (Reneilwe / SACE Admin Page):** We will design an "R page" for the SACE Admin later. This page will host the Audit Logs (/sace/audit_report). Do not place the Audit Logs button on the participant or evaluator hubs.
+- **Provider vs SACE Relationship (Critical Domain Context):** AIT is the *Provider*. We are giving SACE an activity for approval. The activities belong to the Provider (AIT), NOT SACE. SACE is merely an endorsement entity. When naming pages or UI elements, do not frame them as if SACE owns the activity (e.g., use "Provider's SACE Activities" rather than "SACE\'s Evaluation Hub").
 - **Facilitator-Participant Sync:** The SACE workshop operates on a strict singleton room design (demo-session-1).
 - **State Management:** The Facilitator Dashboard dictates the state (slides, lobby, active). The Participant App strictly polls /sace/workshop/get_state every 1 second.
 - **Interaction Logging:** All participant votes (polls, reflections) are securely UPSERTED/INSERTED into the Postgres SaceWorkshopInteraction table. This creates a permanent, crash-proof audit trail for the SACE evaluators.
 - **Routing Rules:** 
   - The Participant Check-In is completely separated into /sace/participant/join.
   - The Interactive App (/sace/workshop/interactive) contains NO lobby HTML. If a user hits it without joining, they are bounced back to the join route.
-- **Render Deployment Constraint:** Render takes 5-9 minutes to deploy. **Code Freezes** are required before live SACE evaluation demos. 
+- **Render Deployment Constraint:** Render takes 5-9 minutes to deploy. **Code Freezes** are required before live SACE evaluation demos.
+  - **Communication Note:** The user uses the acronym **"wew"** (While We Wait). This means we are waiting 4-9 minutes for Render to deploy. During a 'wew' phase, we look forward and plan what to do next without writing any code. 
 
 
 
@@ -50,3 +53,12 @@ All templates must strictly follow this Tailwind format:
 
 ## 8. Architectural Decision Making
 - Always default to the industry best-practice architectural approach. Do not present multiple options to the user if one is clearly the standard best practice; just implement the best practice and explain why.
+
+
+## 9. Certificates & Post-Test
+- **NEVER** build custom HTML certificates for download.
+- **ALWAYS** use the standardized _generate_certificate_pdf and _email_certificate_pdf functions (e.g., from pp.subject_reading.routes) to generate the official AIT PDF and email it to the user.
+- **Email Delivery:** Instead of direct download buttons, provide a form where the user can confirm/enter their email address to have the certificate sent to them.
+
+## 10. Strict UI Adherence
+- **CRITICAL:** Re-read and strictly follow Rule 7 for all new templates. Do not deviate with custom Tailwind structures (e.g., placing titles outside the main tile, or skipping the back button row). 

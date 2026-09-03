@@ -1,5 +1,5 @@
 {% extends "layout.html" %}
-{% block title %}SACE Activity Hub{% endblock %}
+{% block title %}Sace Authorised User(s) Map{% endblock %}
 
 {% block flashes %}{% endblock %}
 
@@ -11,11 +11,9 @@
     {% include "partials/flash_messages.html" %}
     
         <div class="flex justify-between items-center mb-6">
-      <h1 class="text-2xl font-bold text-slate-900">SACE Activity Evaluation Hub</h1>
+      <h1 class="text-2xl font-bold text-slate-900">Sace Authorised User(s) Map</h1>
       <div class="space-x-2">
-          <a href="{{ url_for('sace_bp.audit_report') }}" class="px-4 py-2 text-sm font-bold text-white bg-slate-800 rounded-lg hover:bg-slate-700 transition shadow-sm">
-            <i class="fas fa-clipboard-list mr-2"></i> Audit Logs
-          </a>
+
           <a href="{{ url_for('public_bp.welcome') }}" class="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 transition">
             Logout
           </a>

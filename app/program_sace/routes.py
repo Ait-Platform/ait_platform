@@ -497,7 +497,7 @@ def email_certificate():
     target_email = request.form.get("email")
     if not target_email:
         flash("Email address is required.", "error")
-        return redirect(url_for("reading_bp.subject_home"))
+        return redirect(url_for("sace_bp.reading_hub"))
         
     cert_id = "AIT-WS-" + str(uuid.uuid4())[:8].upper()
     completed_at = datetime.utcnow()
@@ -537,7 +537,7 @@ def email_certificate():
         flash("Failed to email certificate. Please try again.", "error")
         return redirect(url_for("sace_bp.post_test_results"))
         
-    return redirect(url_for("reading_bp.subject_home"))
+    return redirect(url_for("sace_bp.reading_hub"))
 
 
 def _generate_sace_certificate_pdf(certificate_id, learner_name, completed_at, user_id=None, answers=None):

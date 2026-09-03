@@ -1,5 +1,6 @@
 {% extends "layout.html" %}
 {% block title %}Sace Authorised User(s) Map{% endblock %}
+{% block flashes %}{% endblock %}
 
 {% block content %}
             {% set total = 7 %}
@@ -86,17 +87,9 @@
                 </div>
                 {% endif %}
                 
-                {% with messages = get_flashed_messages(with_categories=true) %}
-                  {% if messages %}
-                    <div class="mt-4">
-                    {% for category, message in messages %}
-                      <div class="p-3 rounded bg-red-100 text-red-700 border border-red-200 text-sm font-bold">
-                        {{ message }}
-                      </div>
-                    {% endfor %}
-                    </div>
-                  {% endif %}
-                {% endwith %}
+                <div class="mt-4">
+                  {% include "partials/flash_messages.html" %}
+                </div>
             </div>
 
             <!-- Vertical List Layout -->

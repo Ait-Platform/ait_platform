@@ -61,15 +61,15 @@
         <div class="mb-10">
             <h3 class="text-lg font-bold text-slate-800 border-b border-slate-200 pb-2 mb-4">Provider Submission Documents</h3>
             <div class="flex flex-wrap gap-4">
-                <a href="{{ url_for('sace_bp.secure_view', doc_type='app_form_1', return_to='control_centre') }}" target="_blank" class="flex items-center px-4 py-3 bg-white border border-slate-300 hover:border-indigo-400 rounded-lg shadow-sm transition group">
+                <a href="{{ url_for('static', filename='pdf/App_Form_1.pdf') }}" target="_blank" class="flex items-center px-4 py-3 bg-white border border-slate-300 hover:border-indigo-400 rounded-lg shadow-sm transition group">
                     <i class="fas fa-file-pdf text-red-500 mr-3 group-hover:scale-110 transition-transform"></i>
                     <span class="font-bold text-sm text-slate-700 group-hover:text-indigo-600">Application Form 1</span>
                 </a>
-                <a href="{{ url_for('sace_bp.secure_view', doc_type='app_form_2', return_to='control_centre') }}" target="_blank" class="flex items-center px-4 py-3 bg-white border border-slate-300 hover:border-indigo-400 rounded-lg shadow-sm transition group">
+                <a href="{{ url_for('static', filename='pdf/App_Form_2.pdf') }}" target="_blank" class="flex items-center px-4 py-3 bg-white border border-slate-300 hover:border-indigo-400 rounded-lg shadow-sm transition group">
                     <i class="fas fa-file-pdf text-red-500 mr-3 group-hover:scale-110 transition-transform"></i>
                     <span class="font-bold text-sm text-slate-700 group-hover:text-indigo-600">Application Form 2</span>
                 </a>
-                <a href="{{ url_for('sace_bp.secure_view', doc_type='f_cv', return_to='control_centre') }}" target="_blank" class="flex items-center px-4 py-3 bg-white border border-slate-300 hover:border-indigo-400 rounded-lg shadow-sm transition group">
+                <a href="{{ url_for('static', filename='pdf/Facilitator_CVs.pdf') }}" target="_blank" class="flex items-center px-4 py-3 bg-white border border-slate-300 hover:border-indigo-400 rounded-lg shadow-sm transition group">
                     <i class="fas fa-id-badge text-blue-500 mr-3 group-hover:scale-110 transition-transform"></i>
                     <span class="font-bold text-sm text-slate-700 group-hover:text-indigo-600">Facilitator CVs</span>
                 </a>

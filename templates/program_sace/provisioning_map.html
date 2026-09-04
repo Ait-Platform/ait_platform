@@ -1,66 +1,6 @@
 {% extends "layout.html" %}
-{% block title %}SACE Control Centre
-<!-- Post-Pledge Registration Modal -->
-<div id="reg-modal" class="fixed inset-0 z-[70] hidden bg-slate-900 bg-opacity-75 flex items-center justify-center p-4 backdrop-blur-sm">
-    <div class="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200 text-center relative">
-        <div class="p-8">
-            <div class="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <i class="fas fa-check text-emerald-600 text-3xl"></i>
-            </div>
-            <h3 class="font-black text-2xl text-slate-800 mb-2">Pledge Accepted!</h3>
-            <p class="text-slate-600 mb-6">Thank you for acknowledging the IP Pledge. To save your progress and securely manage your auditors across devices, please register a free account now.</p>
-            <a href="{{ url_for('auth_bp.register', next=request.path) }}" class="block w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-md transition text-lg mb-3">
-                Register Account
-            </a>
-            <button onclick="document.getElementById('reg-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 font-bold text-sm transition">
-                I'll do this later
-            </button>
-        </div>
-    </div>
-</div>
-
-{% with messages = get_flashed_messages(category_filter=["sace_reg_prompt"]) %}
-{% if messages %}
-<script>
-    document.addEventListener("DOMContentLoaded", function() {
-        document.getElementById('reg-modal').classList.remove('hidden');
-    });
-</script>
-{% endif %}
-{% endwith %}
-
-{% endblock %}
-{% block flashes %}
-<!-- Post-Pledge Registration Modal -->
-<div id="reg-modal" class="fixed inset-0 z-[70] hidden bg-slate-900 bg-opacity-75 flex items-center justify-center p-4 backdrop-blur-sm">
-    <div class="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200 text-center relative">
-        <div class="p-8">
-            <div class="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <i class="fas fa-check text-emerald-600 text-3xl"></i>
-            </div>
-            <h3 class="font-black text-2xl text-slate-800 mb-2">Pledge Accepted!</h3>
-            <p class="text-slate-600 mb-6">Thank you for acknowledging the IP Pledge. To save your progress and securely manage your auditors across devices, please register a free account now.</p>
-            <a href="{{ url_for('auth_bp.register', next=request.path) }}" class="block w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-md transition text-lg mb-3">
-                Register Account
-            </a>
-            <button onclick="document.getElementById('reg-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 font-bold text-sm transition">
-                I'll do this later
-            </button>
-        </div>
-    </div>
-</div>
-
-{% with messages = get_flashed_messages(category_filter=["sace_reg_prompt"]) %}
-{% if messages %}
-<script>
-    document.addEventListener("DOMContentLoaded", function() {
-        document.getElementById('reg-modal').classList.remove('hidden');
-    });
-</script>
-{% endif %}
-{% endwith %}
-
-{% endblock %}
+{% block title %}SACE Control Centre{% endblock %}
+{% block flashes %}{% endblock %}
 
 {% block content %}
 <div class="max-w-5xl mx-auto bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden mb-12">
@@ -100,6 +40,9 @@
             </button>
             {% endif %}
         </div>
+        
+
+
         {% if not has_pledged %}
         
         <!-- Locked State -->
@@ -315,32 +258,21 @@ function closeEditModal() { document.getElementById('edit-modal').classList.add(
 </script>
 
 <!-- Post-Pledge Registration Modal -->
-<div id="reg-modal" class="fixed inset-0 z-[70] hidden bg-slate-900 bg-opacity-75 flex items-center justify-center p-4 backdrop-blur-sm">
+{% if has_pledged and not current_user.is_authenticated %}
+<div id="reg-modal" class="fixed inset-0 z-[70] bg-slate-900 bg-opacity-75 flex items-center justify-center p-4 backdrop-blur-sm pointer-events-auto">
     <div class="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200 text-center relative">
         <div class="p-8">
             <div class="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <i class="fas fa-check text-emerald-600 text-3xl"></i>
             </div>
             <h3 class="font-black text-2xl text-slate-800 mb-2">Pledge Accepted!</h3>
-            <p class="text-slate-600 mb-6">Thank you for acknowledging the IP Pledge. To save your progress and securely manage your auditors across devices, please register a free account now.</p>
-            <a href="{{ url_for('auth_bp.register', next=request.path) }}" class="block w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-md transition text-lg mb-3">
-                Register Account
+            <p class="text-slate-600 mb-6">Thank you for acknowledging the IP Pledge. To generate your secure access links and return to this dashboard in the future, you must register a free account now.<br><br>Going forward, you will access this Control Centre via the standard AIT Sign In page.</p>
+            <a href="{{ url_for('auth_bp.register', next=request.path) }}" class="block w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-md transition text-lg mb-1">
+                Register My Account
             </a>
-            <button onclick="document.getElementById('reg-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 font-bold text-sm transition">
-                I'll do this later
-            </button>
         </div>
     </div>
 </div>
-
-{% with messages = get_flashed_messages(category_filter=["sace_reg_prompt"]) %}
-{% if messages %}
-<script>
-    document.addEventListener("DOMContentLoaded", function() {
-        document.getElementById('reg-modal').classList.remove('hidden');
-    });
-</script>
 {% endif %}
-{% endwith %}
 
 {% endblock %}

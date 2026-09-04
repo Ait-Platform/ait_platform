@@ -48,7 +48,7 @@ mx-auto max-w-7xl px-6 py-10
     <ul class="divide-y divide-slate-100">
     {% for subj in subjects %}
         {% set slug = subj.slug %}
-        {% if slug not in ["admin", "admin_general", "sms", "spv"] %}
+        {% if slug not in ["admin", "admin_general", "sms", "spv", "sace_cptd", "sace_evaluator", "sace_facilitator", "sace_participant", "staff"] %}
             {% set info = subject_info.get(slug, {"color":"slate", "desc":fallback_desc}) %}
             <li>
                 <a href="{{ url_for('auth_bp.start_registration', subject=slug) }}" class="block p-6 hover:bg-slate-50 transition-colors">

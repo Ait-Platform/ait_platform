@@ -761,6 +761,11 @@ def secure_view(doc_type):
     # TESTING FIX: If doc is missing, log interaction anyway and use a fallback title
     doc_title = doc.title if doc else doc_type.replace('_', ' ').title()
     doc_url = doc.document_url if doc else ""
+    
+    # HARDCODE P_GUIDE FOR TESTING
+    if doc_type == 'p_guide':
+        doc_title = "LITRE Participant Manual (P Guide)"
+        doc_url = url_for('static', filename='pdf/P_Guide.pdf')
 
     # Log that the user viewed this document
     interaction = SaceWorkshopInteraction.query.filter_by(user_id=current_user.id, activity_slug=f"viewed_{doc_type}").first()

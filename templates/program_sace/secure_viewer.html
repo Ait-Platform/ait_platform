@@ -7,9 +7,17 @@
         <h1 class="text-white font-bold text-lg"><i class="fas fa-lock text-emerald-400 mr-2"></i> {{ doc_title }}</h1>
         <div class="flex items-center space-x-4">
             <span class="text-xs text-slate-400"><i class="fas fa-shield-alt mr-1"></i> Anti-Theft Protection Active</span>
+            
+            {% if return_to == 'control_centre' %}
+            <a href="{{ url_for('sace_bp.provisioning_map') }}" class="px-4 py-2 bg-indigo-600 text-white text-sm font-bold rounded hover:bg-indigo-500 transition">
+                Return to Control Centre
+            </a>
+            {% else %}
             <a href="{{ url_for('sace_bp.reading_hub') }}" class="px-4 py-2 bg-indigo-600 text-white text-sm font-bold rounded hover:bg-indigo-500 transition">
                 Return to Hub
             </a>
+            {% endif %}
+
         </div>
     </div>
     

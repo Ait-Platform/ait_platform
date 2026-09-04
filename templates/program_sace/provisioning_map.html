@@ -1,6 +1,66 @@
 {% extends "layout.html" %}
-{% block title %}SACE Control Centre{% endblock %}
-{% block flashes %}{% endblock %}
+{% block title %}SACE Control Centre
+<!-- Post-Pledge Registration Modal -->
+<div id="reg-modal" class="fixed inset-0 z-[70] hidden bg-slate-900 bg-opacity-75 flex items-center justify-center p-4 backdrop-blur-sm">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200 text-center relative">
+        <div class="p-8">
+            <div class="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fas fa-check text-emerald-600 text-3xl"></i>
+            </div>
+            <h3 class="font-black text-2xl text-slate-800 mb-2">Pledge Accepted!</h3>
+            <p class="text-slate-600 mb-6">Thank you for acknowledging the IP Pledge. To save your progress and securely manage your auditors across devices, please register a free account now.</p>
+            <a href="{{ url_for('auth_bp.register', next=request.path) }}" class="block w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-md transition text-lg mb-3">
+                Register Account
+            </a>
+            <button onclick="document.getElementById('reg-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 font-bold text-sm transition">
+                I'll do this later
+            </button>
+        </div>
+    </div>
+</div>
+
+{% with messages = get_flashed_messages(category_filter=["sace_reg_prompt"]) %}
+{% if messages %}
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        document.getElementById('reg-modal').classList.remove('hidden');
+    });
+</script>
+{% endif %}
+{% endwith %}
+
+{% endblock %}
+{% block flashes %}
+<!-- Post-Pledge Registration Modal -->
+<div id="reg-modal" class="fixed inset-0 z-[70] hidden bg-slate-900 bg-opacity-75 flex items-center justify-center p-4 backdrop-blur-sm">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200 text-center relative">
+        <div class="p-8">
+            <div class="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fas fa-check text-emerald-600 text-3xl"></i>
+            </div>
+            <h3 class="font-black text-2xl text-slate-800 mb-2">Pledge Accepted!</h3>
+            <p class="text-slate-600 mb-6">Thank you for acknowledging the IP Pledge. To save your progress and securely manage your auditors across devices, please register a free account now.</p>
+            <a href="{{ url_for('auth_bp.register', next=request.path) }}" class="block w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-md transition text-lg mb-3">
+                Register Account
+            </a>
+            <button onclick="document.getElementById('reg-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 font-bold text-sm transition">
+                I'll do this later
+            </button>
+        </div>
+    </div>
+</div>
+
+{% with messages = get_flashed_messages(category_filter=["sace_reg_prompt"]) %}
+{% if messages %}
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        document.getElementById('reg-modal').classList.remove('hidden');
+    });
+</script>
+{% endif %}
+{% endwith %}
+
+{% endblock %}
 
 {% block content %}
 <div class="max-w-5xl mx-auto bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden mb-12">
@@ -13,7 +73,7 @@
         <div class="flex justify-between items-start border-b border-slate-100 pb-4 mb-4">
             <div>
                 <h1 class="text-2xl font-black text-slate-800">
-                    <i class="fas fa-book-reader text-indigo-600 mr-2"></i> I Learn to Read Using the LITRE Method
+                    <i class="fas fa-book-reader text-indigo-600 mr-2"></i> I Learn to Read Using the LITRE
                 </h1>
                 <p class="text-slate-500 font-bold mt-1 text-sm uppercase tracking-wide">SACE Control Centre</p>
             </div>
@@ -40,20 +100,6 @@
             </button>
             {% endif %}
         </div>
-        {% if has_pledged and not current_user.is_authenticated %}
-        <!-- Guest Registration Banner -->
-        <div class="bg-indigo-50 border border-indigo-200 rounded-xl p-5 mb-8 flex flex-col md:flex-row justify-between items-start md:items-center shadow-sm">
-            <div class="mb-4 md:mb-0">
-                <h4 class="font-bold text-indigo-900 text-lg"><i class="fas fa-user-shield mr-2 text-indigo-600"></i> Secure Your SACE Control Centre</h4>
-                <p class="text-sm text-indigo-800 mt-1 max-w-2xl">You are currently accessing this portal as a guest. Please <strong>register a free account</strong> to save your provisioned auditors and securely access this dashboard across all your devices.</p>
-            </div>
-            <a href="{{ url_for('auth_bp.register', next=request.path) }}" class="w-full md:w-auto text-center px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow transition whitespace-nowrap md:ml-4">
-                Register Account
-            </a>
-        </div>
-        {% endif %}
-
-
         {% if not has_pledged %}
         
         <!-- Locked State -->
@@ -72,15 +118,15 @@
         <div class="mb-10">
             <h3 class="text-lg font-bold text-slate-800 border-b border-slate-200 pb-2 mb-4">Provider Submission Documents</h3>
             <div class="flex flex-wrap gap-4">
-                <a href="{{ url_for('sace_bp.secure_view', doc_type='app_form_1') }}" target="_blank" class="flex items-center px-4 py-3 bg-white border border-slate-300 hover:border-indigo-400 rounded-lg shadow-sm transition group">
+                <a href="{{ url_for('sace_bp.secure_view', doc_type='app_form_1', return_to='control_centre') }}" target="_blank" class="flex items-center px-4 py-3 bg-white border border-slate-300 hover:border-indigo-400 rounded-lg shadow-sm transition group">
                     <i class="fas fa-file-pdf text-red-500 mr-3 group-hover:scale-110 transition-transform"></i>
                     <span class="font-bold text-sm text-slate-700 group-hover:text-indigo-600">Application Form 1</span>
                 </a>
-                <a href="{{ url_for('sace_bp.secure_view', doc_type='app_form_2') }}" target="_blank" class="flex items-center px-4 py-3 bg-white border border-slate-300 hover:border-indigo-400 rounded-lg shadow-sm transition group">
+                <a href="{{ url_for('sace_bp.secure_view', doc_type='app_form_2', return_to='control_centre') }}" target="_blank" class="flex items-center px-4 py-3 bg-white border border-slate-300 hover:border-indigo-400 rounded-lg shadow-sm transition group">
                     <i class="fas fa-file-pdf text-red-500 mr-3 group-hover:scale-110 transition-transform"></i>
                     <span class="font-bold text-sm text-slate-700 group-hover:text-indigo-600">Application Form 2</span>
                 </a>
-                <a href="{{ url_for('sace_bp.secure_view', doc_type='f_cv') }}" target="_blank" class="flex items-center px-4 py-3 bg-white border border-slate-300 hover:border-indigo-400 rounded-lg shadow-sm transition group">
+                <a href="{{ url_for('sace_bp.secure_view', doc_type='f_cv', return_to='control_centre') }}" target="_blank" class="flex items-center px-4 py-3 bg-white border border-slate-300 hover:border-indigo-400 rounded-lg shadow-sm transition group">
                     <i class="fas fa-id-badge text-blue-500 mr-3 group-hover:scale-110 transition-transform"></i>
                     <span class="font-bold text-sm text-slate-700 group-hover:text-indigo-600">Facilitator CVs</span>
                 </a>
@@ -209,12 +255,12 @@
 
 <!-- Pledge Modal -->
 <div id="pledge-modal" class="fixed inset-0 z-[60] hidden bg-slate-900 bg-opacity-75 flex items-center justify-center p-4 backdrop-blur-sm">
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden border border-slate-200">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden border border-slate-200 max-h-[95vh] flex flex-col">
         <div class="bg-slate-900 p-6 flex justify-between items-center">
             <h3 class="font-black text-xl text-white tracking-wide"><i class="fas fa-lock text-emerald-400 mr-3"></i> Intellectual Property Pledge</h3>
             <button onclick="closePledgeModal()" class="text-slate-400 hover:text-white transition"><i class="fas fa-times text-xl"></i></button>
         </div>
-        <div class="p-8">
+        <div class="p-8 overflow-y-auto">
             <div class="bg-slate-50 border border-slate-200 rounded-xl p-6 text-sm text-slate-700 leading-relaxed space-y-4 shadow-inner mb-6">
                 <p>By accessing the AIT Provider Platform, you acknowledge and agree to the following terms on behalf of SACE and its appointed representatives:</p>
                 <ul class="list-disc pl-5 space-y-2 font-medium">
@@ -267,4 +313,34 @@ function openEditModal(id, firstName, lastName, email) {
 }
 function closeEditModal() { document.getElementById('edit-modal').classList.add('hidden'); }
 </script>
+
+<!-- Post-Pledge Registration Modal -->
+<div id="reg-modal" class="fixed inset-0 z-[70] hidden bg-slate-900 bg-opacity-75 flex items-center justify-center p-4 backdrop-blur-sm">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200 text-center relative">
+        <div class="p-8">
+            <div class="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fas fa-check text-emerald-600 text-3xl"></i>
+            </div>
+            <h3 class="font-black text-2xl text-slate-800 mb-2">Pledge Accepted!</h3>
+            <p class="text-slate-600 mb-6">Thank you for acknowledging the IP Pledge. To save your progress and securely manage your auditors across devices, please register a free account now.</p>
+            <a href="{{ url_for('auth_bp.register', next=request.path) }}" class="block w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-md transition text-lg mb-3">
+                Register Account
+            </a>
+            <button onclick="document.getElementById('reg-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 font-bold text-sm transition">
+                I'll do this later
+            </button>
+        </div>
+    </div>
+</div>
+
+{% with messages = get_flashed_messages(category_filter=["sace_reg_prompt"]) %}
+{% if messages %}
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        document.getElementById('reg-modal').classList.remove('hidden');
+    });
+</script>
+{% endif %}
+{% endwith %}
+
 {% endblock %}

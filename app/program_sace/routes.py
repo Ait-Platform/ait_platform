@@ -470,6 +470,7 @@ def provisioning_map():
         try:
             data = json.loads(inv.response_data)
             data['date'] = inv.timestamp.strftime("%Y-%m-%d")
+            data['id'] = inv.id
             auditors.append(data)
         except Exception:
             pass

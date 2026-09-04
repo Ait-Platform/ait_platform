@@ -160,6 +160,8 @@ def register():
             return "sms"
         if "/spv" in n_url_lower or "/portfolio" in n_url_lower:
             return "spv"
+        if "/sace" in n_url_lower:
+            return "sace"
         if "/reading" in n_url_lower:
             return "reading"
         if "/cultural-fire" in n_url_lower or "/culturefire" in n_url_lower:
@@ -515,7 +517,7 @@ def register_decision():
     # ---------- END FREE SPECIAL CASE ----------
 
     # ---------- WALLET TOKEN SUBJECTS (NO REGISTRATION FEE, USES WALLET BALANCE) ----------
-    if subject in ("cultural_fire", "culturalfire", "debtors", "mechanic", "cptd"):
+    if subject in ("cultural_fire", "culturalfire", "debtors", "mechanic", "cptd", "sace"):
         mark_loss_enrollment_free(enrollment_id)
         session.pop("reg_ctx", None)
         session.pop("just_paid_subject_id", None)
@@ -529,6 +531,11 @@ def register_decision():
             return redirect(url_for("mechanic_bp.mechanic_dashboard"))
         elif subject == "cptd":
             return redirect(url_for("sace_bp.catalog"))
+        elif subject == "sace":
+            next_url_val = session.get("reg_ctx", {}).get("next_url") or "/"
+            if "/sace/provisioning" in next_url_val:
+                return redirect(next_url_val)
+            return redirect(url_for("sace_bp.dashboard"))
         elif subject.startswith("sace_"):
             activity = subject.replace("sace_", "")
             return redirect(url_for("sace_bp.selection_hub", activity_slug=activity))

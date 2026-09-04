@@ -533,6 +533,9 @@ def audit_report():
 
 @sace_bp.route("/sace/reading/post_test", methods=["GET"])
 @login_required
+
+@sace_bp.route("/sace/reading/post_test", methods=["GET"])
+@login_required
 def post_test():
     return render_template("program_sace/post_test/test.html")
 

@@ -372,9 +372,6 @@ def selection_hub(activity_slug):
 
 from flask import make_response
 
-@sace_bp.route("/sace/reading/presentation")
-@login_required
-
 @sace_bp.route("/sace/acknowledge_patent", methods=["POST"])
 @login_required
 def acknowledge_patent():
@@ -396,6 +393,26 @@ def acknowledge_patent():
 @login_required
 def presentation():
     return render_template("program_sace/presentation_ppp.html")
+
+@sace_bp.route("/sace/reading/presentation/complete")
+@login_required
+def presentation_complete():
+    from app.models.sace import SaceWorkshopInteraction
+    
+    # Log that the user viewed the PPP
+    interaction = SaceWorkshopInteraction.query.filter_by(user_id=current_user.id, activity_slug="viewed_ppp").first()
+    if not interaction:
+        interaction = SaceWorkshopInteraction(
+            user_id=current_user.id,
+            activity_slug="viewed_ppp",
+            response_data="Linear presentation completed"
+        )
+        db.session.add(interaction)
+        db.session.commit()
+        
+    flash("Linear Presentation completed successfully.", "success")
+    return redirect(url_for('sace_bp.reading_hub'))
+
 
 @sace_bp.route("/sace/reading/simulator")
 @login_required

@@ -8,7 +8,7 @@
         <div class="bg-indigo-900 p-4 flex justify-between items-center text-white">
             <h1 class="text-2xl font-bold flex items-center">
                 <i class="fas fa-chalkboard-teacher mr-3 text-indigo-300"></i>
-                SACE Evaluation Presentation
+                Litre Reading Presentation
             </h1>
             <a href="{{ url_for('sace_bp.reading_hub') }}" class="px-4 py-2 bg-indigo-700 hover:bg-indigo-600 rounded-lg text-sm font-bold transition flex items-center">
                 <i class="fas fa-arrow-left mr-2"></i> Exit to Hub
@@ -70,35 +70,35 @@
 
 <script>
     const slides = [
-    { img: "{{ url_for('static', filename='sace_slides/1.png') }}" },
-    { img: "{{ url_for('static', filename='sace_slides/2.png') }}" },
-    { img: "{{ url_for('static', filename='sace_slides/3.png') }}" },
-    { img: "{{ url_for('static', filename='sace_slides/4.png') }}" },
-    { img: "{{ url_for('static', filename='sace_slides/5.png') }}" },
-    { img: "{{ url_for('static', filename='sace_slides/6.png') }}" },
-    { img: "{{ url_for('static', filename='sace_slides/7.png') }}" },
-    { img: "{{ url_for('static', filename='sace_slides/8.png') }}" },
-    { img: "{{ url_for('static', filename='sace_slides/9.png') }}" },
-    { img: "{{ url_for('static', filename='sace_slides/10.png') }}" },
-    { img: "{{ url_for('static', filename='sace_slides/11.png') }}" },
-    { img: "{{ url_for('static', filename='sace_slides/12.png') }}" },
-    { img: "{{ url_for('static', filename='sace_slides/13.png') }}" },
-    { img: "{{ url_for('static', filename='sace_slides/14.png') }}" },
-    { img: "{{ url_for('static', filename='sace_slides/15.png') }}" },
-    { img: "{{ url_for('static', filename='sace_slides/16.png') }}" },
-    { img: "{{ url_for('static', filename='sace_slides/17.png') }}" },
-    { img: "{{ url_for('static', filename='sace_slides/18.png') }}" },
-    { img: "{{ url_for('static', filename='sace_slides/19.png') }}" },
-    { img: "{{ url_for('static', filename='sace_slides/20.png') }}" },
-    { img: "{{ url_for('static', filename='sace_slides/21.png') }}" },
-    { img: "{{ url_for('static', filename='sace_slides/22.png') }}" },
-    { img: "{{ url_for('static', filename='sace_slides/23.png') }}" },
-    { img: "{{ url_for('static', filename='sace_slides/24.png') }}" },
-    { img: "{{ url_for('static', filename='sace_slides/25.png') }}" },
-    { img: "{{ url_for('static', filename='sace_slides/26.png') }}" },
-    { img: "{{ url_for('static', filename='sace_slides/27.png') }}" },
-    { img: "{{ url_for('static', filename='sace_slides/28.png') }}" },
-    { img: "{{ url_for('static', filename='sace_slides/29.png') }}" },
+    { img: "{{ url_for('static', filename='sace_slides/1.png') }}", audio: "{{ url_for('static', filename='sace_slides/audio/1.mp3') }}" },
+    { img: "{{ url_for('static', filename='sace_slides/2.png') }}", audio: "{{ url_for('static', filename='sace_slides/audio/2.mp3') }}" },
+    { img: "{{ url_for('static', filename='sace_slides/3.png') }}", audio: "{{ url_for('static', filename='sace_slides/audio/3.mp3') }}" },
+    { img: "{{ url_for('static', filename='sace_slides/4.png') }}", audio: "{{ url_for('static', filename='sace_slides/audio/4.mp3') }}" },
+    { img: "{{ url_for('static', filename='sace_slides/5.png') }}", audio: "{{ url_for('static', filename='sace_slides/audio/5.mp3') }}" },
+    { img: "{{ url_for('static', filename='sace_slides/6.png') }}", audio: "{{ url_for('static', filename='sace_slides/audio/6.mp3') }}" },
+    { img: "{{ url_for('static', filename='sace_slides/7.png') }}", audio: "{{ url_for('static', filename='sace_slides/audio/7.mp3') }}" },
+    { img: "{{ url_for('static', filename='sace_slides/8.png') }}", audio: "{{ url_for('static', filename='sace_slides/audio/8.mp3') }}" },
+    { img: "{{ url_for('static', filename='sace_slides/9.png') }}", audio: "{{ url_for('static', filename='sace_slides/audio/9.mp3') }}" },
+    { img: "{{ url_for('static', filename='sace_slides/10.png') }}", audio: "{{ url_for('static', filename='sace_slides/audio/10.mp3') }}" },
+    { img: "{{ url_for('static', filename='sace_slides/11.png') }}", audio: "{{ url_for('static', filename='sace_slides/audio/11.mp3') }}" },
+    { img: "{{ url_for('static', filename='sace_slides/12.png') }}", audio: "{{ url_for('static', filename='sace_slides/audio/12.mp3') }}" },
+    { img: "{{ url_for('static', filename='sace_slides/13.png') }}", audio: "{{ url_for('static', filename='sace_slides/audio/13.mp3') }}" },
+    { img: "{{ url_for('static', filename='sace_slides/14.png') }}", audio: "{{ url_for('static', filename='sace_slides/audio/14.mp3') }}" },
+    { img: "{{ url_for('static', filename='sace_slides/15.png') }}", audio: "{{ url_for('static', filename='sace_slides/audio/15.mp3') }}" },
+    { img: "{{ url_for('static', filename='sace_slides/16.png') }}", audio: "{{ url_for('static', filename='sace_slides/audio/16.mp3') }}" },
+    { img: "{{ url_for('static', filename='sace_slides/17.png') }}", audio: "{{ url_for('static', filename='sace_slides/audio/17.mp3') }}" },
+    { img: "{{ url_for('static', filename='sace_slides/18.png') }}", audio: "{{ url_for('static', filename='sace_slides/audio/18.mp3') }}" },
+    { img: "{{ url_for('static', filename='sace_slides/19.png') }}", audio: "{{ url_for('static', filename='sace_slides/audio/19.mp3') }}" },
+    { img: "{{ url_for('static', filename='sace_slides/20.png') }}", audio: "{{ url_for('static', filename='sace_slides/audio/20.mp3') }}" },
+    { img: "{{ url_for('static', filename='sace_slides/21.png') }}", audio: "{{ url_for('static', filename='sace_slides/audio/21.mp3') }}" },
+    { img: "{{ url_for('static', filename='sace_slides/22.png') }}", audio: "{{ url_for('static', filename='sace_slides/audio/22.mp3') }}" },
+    { img: "{{ url_for('static', filename='sace_slides/23.png') }}", audio: "{{ url_for('static', filename='sace_slides/audio/23.mp3') }}" },
+    { img: "{{ url_for('static', filename='sace_slides/24.png') }}", audio: "{{ url_for('static', filename='sace_slides/audio/24.mp3') }}" },
+    { img: "{{ url_for('static', filename='sace_slides/25.png') }}", audio: "{{ url_for('static', filename='sace_slides/audio/25.mp3') }}" },
+    { img: "{{ url_for('static', filename='sace_slides/26.png') }}", audio: "{{ url_for('static', filename='sace_slides/audio/26.mp3') }}" },
+    { img: "{{ url_for('static', filename='sace_slides/27.png') }}", audio: "{{ url_for('static', filename='sace_slides/audio/27.mp3') }}" },
+    { img: "{{ url_for('static', filename='sace_slides/28.png') }}", audio: "{{ url_for('static', filename='sace_slides/audio/28.mp3') }}" },
+    { img: "{{ url_for('static', filename='sace_slides/29.png') }}", audio: "{{ url_for('static', filename='sace_slides/audio/29.mp3') }}" },
     { img: '{{ url_for('static', filename='sace_slides/30.png') }}' }
 ];
 

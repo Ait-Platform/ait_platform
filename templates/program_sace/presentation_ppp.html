@@ -57,8 +57,8 @@
                 <button onclick="nextSlide()" id="btn-next" class="w-14 h-14 flex items-center justify-center bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg rounded-full transition disabled:opacity-30 disabled:cursor-not-allowed">
                     <i class="fas fa-chevron-right text-xl"></i>
                 </button>
-                <a href="{{ url_for('sace_bp.post_test') }}" id="btn-finish" class="hidden px-6 py-3 items-center justify-center bg-green-500 hover:bg-green-400 text-white shadow-[0_0_15px_rgba(34,197,94,0.4)] rounded-xl font-bold transition">
-                    <i class="fas fa-flag-checkered mr-2"></i> Take Post-Test
+                <a href="{{ url_for('sace_bp.presentation_complete') }}" id="btn-finish" class="hidden px-6 py-3 items-center justify-center bg-green-500 hover:bg-green-400 text-white shadow-[0_0_15px_rgba(34,197,94,0.4)] rounded-xl font-bold transition flex">
+                    <i class="fas fa-flag-checkered mr-2"></i> Finish & Return
                 </a>
             </div>
             
@@ -176,6 +176,12 @@
         if (currentIndex < slides.length - 1) {
             currentIndex++;
             renderSlide();
+            
+            // If we just reached the last slide, show the finish button
+            if (currentIndex === slides.length - 1) {
+                document.getElementById('btn-next').classList.add('hidden');
+                document.getElementById('btn-finish').classList.remove('hidden');
+            }
         }
     }
 

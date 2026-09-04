@@ -175,8 +175,7 @@ def reading_hub():
     
     progress = {
         'app_form': 'viewed_app_form' in completed_slugs,
-        'reviewer_guide': 'viewed_reviewer_guide' in completed_slugs,
-        'patent': 'viewed_patent' in completed_slugs,
+                'patent': 'viewed_patent' in completed_slugs,
         'annexures': 'viewed_annexures' in completed_slugs,
         'ppp': 'viewed_ppp' in completed_slugs,
         'demo_cert': 'workshop_post_test' in completed_slugs,
@@ -372,6 +371,26 @@ def selection_hub(activity_slug):
     return render_template('program_sace/sace_selection_hub.html', activity_slug=activity_slug)
 
 from flask import make_response
+
+@sace_bp.route("/sace/reading/presentation")
+@login_required
+
+@sace_bp.route("/sace/acknowledge_patent", methods=["POST"])
+@login_required
+def acknowledge_patent():
+    from app.models.sace import SaceWorkshopInteraction
+    interaction = SaceWorkshopInteraction.query.filter_by(user_id=current_user.id, activity_slug="viewed_patent").first()
+    if not interaction:
+        interaction = SaceWorkshopInteraction(
+            user_id=current_user.id,
+            activity_slug="viewed_patent",
+            response_data="User acknowledged IP/Patent on hub."
+        )
+        db.session.add(interaction)
+        db.session.commit()
+        flash("Intellectual Property acknowledged.", "success")
+    return redirect(url_for('sace_bp.reading_hub'))
+
 
 @sace_bp.route("/sace/reading/presentation")
 @login_required

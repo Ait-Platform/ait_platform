@@ -453,17 +453,19 @@ def log_event():
 
 
 @sace_bp.route("/sace/provisioning")
-@login_required
 def provisioning_map():
     from app.models.sace import SaceWorkshopInteraction
     import json
     
+    # Use admin user 1 as a placeholder for the unauthenticated SACE admin guest
+    sace_user_id = current_user.id if current_user.is_authenticated else 1
+
     # Check if pledged
-    pledge = SaceWorkshopInteraction.query.filter_by(user_id=current_user.id, activity_slug="admin_patent_pledge").first()
+    pledge = SaceWorkshopInteraction.query.filter_by(user_id=sace_user_id, activity_slug="admin_patent_pledge").first()
     has_pledged = pledge is not None
     
     # Load provisioned auditors
-    invites = SaceWorkshopInteraction.query.filter_by(user_id=current_user.id, activity_slug="auditor_provisioned").order_by(SaceWorkshopInteraction.timestamp.desc()).all()
+    invites = SaceWorkshopInteraction.query.filter_by(user_id=sace_user_id, activity_slug="auditor_provisioned").order_by(SaceWorkshopInteraction.timestamp.desc()).all()
     
     auditors = []
     for inv in invites:
@@ -478,13 +480,13 @@ def provisioning_map():
     return render_template("program_sace/provisioning_map.html", has_pledged=has_pledged, auditors=auditors)
 
 @sace_bp.route("/sace/provisioning/pledge", methods=["POST"])
-@login_required
 def provisioning_pledge():
     from app.models.sace import SaceWorkshopInteraction
-    pledge = SaceWorkshopInteraction.query.filter_by(user_id=current_user.id, activity_slug="admin_patent_pledge").first()
+    sace_user_id = current_user.id if current_user.is_authenticated else 1
+    pledge = SaceWorkshopInteraction.query.filter_by(user_id=sace_user_id, activity_slug="admin_patent_pledge").first()
     if not pledge:
         interaction = SaceWorkshopInteraction(
-            user_id=current_user.id,
+            user_id=sace_user_id,
             activity_slug="admin_patent_pledge",
             response_data="Admin accepted IP pledge"
         )
@@ -494,7 +496,6 @@ def provisioning_pledge():
     return redirect(url_for('sace_bp.provisioning_map'))
 
 @sace_bp.route("/sace/provisioning/add_auditor", methods=["POST"])
-@login_required
 def provision_auditor():
     from app.models.sace import SaceWorkshopInteraction
     from app.utils.mailer import send_email
@@ -511,8 +512,9 @@ def provision_auditor():
             "email": email,
             "status": "Invite Sent"
         }
+        sace_user_id = current_user.id if current_user.is_authenticated else 1
         interaction = SaceWorkshopInteraction(
-            user_id=current_user.id,
+            user_id=sace_user_id,
             activity_slug="auditor_provisioned",
             response_data=json.dumps(data)
         )
@@ -520,7 +522,7 @@ def provision_auditor():
         db.session.flush()
         from app.models.core import CoreAuditEvent
         db.session.add(CoreAuditEvent(
-            user_id=current_user.id,
+            user_id=sace_user_id,
             action="SACE_AUDITOR_PROVISIONED",
             entity_type="SaceWorkshopInteraction",
             entity_id=interaction.id,
@@ -555,7 +557,6 @@ def provision_auditor():
     return redirect(url_for('sace_bp.provisioning_map'))
 
 @sace_bp.route("/sace/provisioning/edit_auditor/<int:auditor_id>", methods=["POST"])
-@login_required
 def edit_auditor(auditor_id):
     from app.models.sace import SaceWorkshopInteraction
     import json

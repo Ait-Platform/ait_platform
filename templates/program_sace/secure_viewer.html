@@ -2,7 +2,7 @@
 {% block title %}{{ doc_title }} - Secure View{% endblock %}
 
 {% block content %}
-<div class="h-screen flex flex-col bg-slate-900">
+<div class="h-screen flex flex-col bg-slate-900 select-none">
     <div class="bg-slate-800 p-4 flex justify-between items-center shrink-0 border-b border-slate-700">
         <h1 class="text-white font-bold text-lg"><i class="fas fa-lock text-emerald-400 mr-2"></i> {{ doc_title }}</h1>
         <div class="flex items-center space-x-4">
@@ -13,11 +13,131 @@
         </div>
     </div>
     
+    <!-- PDF controls -->
+    <div class="bg-slate-700 p-2 flex justify-center items-center space-x-4 text-white text-sm shrink-0">
+        <button id="prev-page" class="px-3 py-1 bg-slate-600 hover:bg-slate-500 rounded transition"><i class="fas fa-chevron-left"></i> Prev</button>
+        <span>Page <span id="page-num">1</span> of <span id="page-count">--</span></span>
+        <button id="next-page" class="px-3 py-1 bg-slate-600 hover:bg-slate-500 rounded transition">Next <i class="fas fa-chevron-right"></i></button>
+        <button id="zoom-out" class="px-3 py-1 bg-slate-600 hover:bg-slate-500 rounded ml-4 transition"><i class="fas fa-search-minus"></i></button>
+        <button id="zoom-in" class="px-3 py-1 bg-slate-600 hover:bg-slate-500 rounded transition"><i class="fas fa-search-plus"></i></button>
+    </div>
+
     <!-- Secure PDF container -->
-    <div class="flex-grow relative w-full h-full" id="secure-container" oncontextmenu="return false;">
-        <!-- Transparent overlay to catch clicks if they try to interact with native PDF controls -->
-        <div class="absolute inset-0 z-10 hidden" id="click-shield"></div>
-        <iframe src="{{ doc_url }}#toolbar=0&navpanes=0&scrollbar=0" class="w-full h-full border-none pointer-events-auto" style="pointer-events: auto;"></iframe>
+    <div class="flex-grow relative w-full h-full overflow-auto flex justify-center items-start p-4" id="secure-container" oncontextmenu="return false;">
+        <!-- Watermark -->
+        <div class="absolute inset-0 z-50 pointer-events-none flex flex-col justify-center items-center opacity-10 overflow-hidden" style="mix-blend-mode: overlay;">
+            <div class="transform -rotate-45 text-5xl font-black text-black tracking-widest whitespace-nowrap mb-32 select-none">AIT CONFIDENTIAL - SACE AUDIT COPY</div>
+            <div class="transform -rotate-45 text-5xl font-black text-black tracking-widest whitespace-nowrap mb-32 select-none">AIT CONFIDENTIAL - SACE AUDIT COPY</div>
+            <div class="transform -rotate-45 text-5xl font-black text-black tracking-widest whitespace-nowrap select-none">AIT CONFIDENTIAL - SACE AUDIT COPY</div>
+        </div>
+        
+        <canvas id="pdf-render" class="shadow-2xl border border-slate-600 max-w-full bg-white"></canvas>
     </div>
 </div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+<script>
+    // PDF.js worker from CDN
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+
+    let pdfDoc = null,
+        pageNum = 1,
+        pageRendering = false,
+        pageNumPending = null,
+        scale = 1.5,
+        canvas = document.getElementById('pdf-render'),
+        ctx = canvas.getContext('2d');
+
+    function renderPage(num) {
+        pageRendering = true;
+        
+        pdfDoc.getPage(num).then(function(page) {
+            let viewport = page.getViewport({scale: scale});
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+
+            let renderContext = {
+                canvasContext: ctx,
+                viewport: viewport
+            };
+            
+            let renderTask = page.render(renderContext);
+
+            renderTask.promise.then(function() {
+                pageRendering = false;
+                if (pageNumPending !== null) {
+                    renderPage(pageNumPending);
+                    pageNumPending = null;
+                }
+            });
+        });
+
+        document.getElementById('page-num').textContent = num;
+    }
+
+    function queueRenderPage(num) {
+        if (pageRendering) {
+            pageNumPending = num;
+        } else {
+            renderPage(num);
+        }
+    }
+
+    document.getElementById('prev-page').addEventListener('click', function() {
+        if (pageNum <= 1) return;
+        pageNum--;
+        queueRenderPage(pageNum);
+    });
+
+    document.getElementById('next-page').addEventListener('click', function() {
+        if (pageNum >= pdfDoc.numPages) return;
+        pageNum++;
+        queueRenderPage(pageNum);
+    });
+
+    document.getElementById('zoom-in').addEventListener('click', function() {
+        scale += 0.2;
+        queueRenderPage(pageNum);
+    });
+    
+    document.getElementById('zoom-out').addEventListener('click', function() {
+        if (scale <= 0.6) return;
+        scale -= 0.2;
+        queueRenderPage(pageNum);
+    });
+
+    // Load PDF
+    const url = "{{ doc_url }}";
+    pdfjsLib.getDocument(url).promise.then(function(pdfDoc_) {
+        pdfDoc = pdfDoc_;
+        document.getElementById('page-count').textContent = pdfDoc.numPages;
+        renderPage(pageNum);
+    }).catch(function(err) {
+        console.error("Error loading PDF: ", err);
+        // Fallback UI if PDF fails or doesn't exist
+        canvas.height = 400;
+        canvas.width = 600;
+        ctx.fillStyle = "#1e293b";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.font = "20px Arial";
+        ctx.fillStyle = "white";
+        ctx.textAlign = "center";
+        ctx.fillText("Document could not be loaded or was removed.", canvas.width/2, canvas.height/2);
+    });
+
+    // Anti-Theft Lockouts
+    document.addEventListener('contextmenu', event => event.preventDefault());
+    
+    document.addEventListener('keydown', function(e) {
+        // Prevent Ctrl+S, Ctrl+P, Ctrl+C, Ctrl+Shift+I, F12
+        if (e.ctrlKey && (e.key === 's' || e.key === 'p' || e.key === 'c' || e.key === 'S' || e.key === 'P' || e.key === 'C')) {
+            e.preventDefault();
+            return false;
+        }
+        if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i'))) {
+            e.preventDefault();
+            return false;
+        }
+    });
+</script>
 {% endblock %}

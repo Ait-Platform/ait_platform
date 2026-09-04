@@ -22,10 +22,18 @@ mx-auto max-w-5xl px-6 py-10
                 </h1>
                 <p class="text-slate-500 mt-1 font-medium text-sm">LITRE Blending Machine Administration</p>
             </div>
-            <a href="{{ url_for('sace_bp.dashboard') }}" class="mt-4 sm:mt-0 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition">
-                <i class="fas fa-arrow-left mr-1"></i> Back
-            </a>
+            <div class="flex flex-col items-end gap-2 mt-4 sm:mt-0">
+                <a href="{{ url_for('sace_bp.dashboard') }}" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition text-right">
+                    <i class="fas fa-arrow-left mr-1"></i> Back
+                </a>
+                <a href="{{ url_for('sace_bp.audit_report') }}" class="px-4 py-2 text-sm font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 transition text-right">
+                    <i class="fas fa-history mr-1"></i> View Platform Audit Logs
+                </a>
+            </div>
         </div>
+        <!-- Audit Log Explainer -->
+        <p class="text-xs text-slate-400 mb-6 -mt-2">Use the Platform Audit Logs link above to monitor the real-time activity of your assigned Auditors.</p>
+
 
         <!-- Flash Messages (Inside Tile) -->
         <div class="mb-6">
@@ -44,6 +52,10 @@ mx-auto max-w-5xl px-6 py-10
                 Through this portal, you will be able to securely provision access for your designated SACE Auditors and track their progress.
             </p>
             <div class="bg-white p-4 rounded border border-indigo-100 mt-4">
+                <p class="text-sm text-slate-700 mb-4 border-b border-indigo-50 pb-3">
+                    <i class="fas fa-info-circle text-indigo-400 mr-1"></i> 
+                    <strong>Note:</strong> By "Auditors", we are referring to the specific SACE-appointed Evaluators, Endorsement Committee Members, or Subject Matter Experts designated to review this submission.
+                </p>
                 <p class="font-bold text-sm mb-2">How to use this portal:</p>
                 <ol class="list-decimal pl-5 text-sm space-y-1">
                     <li>Acknowledge the brief Intellectual Property pledge below.</li>
@@ -157,12 +169,7 @@ mx-auto max-w-5xl px-6 py-10
             {% endif %}
         </div>
 
-        <!-- Audit Logs Quick Link -->
-        <div class="mt-8 text-center">
-            <a href="{{ url_for('sace_bp.audit_report') }}" class="inline-flex items-center px-6 py-3 bg-white border border-slate-200 hover:border-indigo-300 text-slate-600 hover:text-indigo-700 font-bold rounded-lg shadow-sm transition">
-                <i class="fas fa-history mr-2"></i> View Platform Audit Logs
-            </a>
-        </div>
+
         
         {% endif %}
 

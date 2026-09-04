@@ -488,6 +488,12 @@ def provisioning_pledge():
             response_data="Admin accepted IP pledge"
         )
         db.session.add(interaction)
+        db.session.flush()
+        from app.models.core import CoreAuditEvent
+        db.session.add(CoreAuditEvent(user_id=current_user.id, action="SACE_AUDITOR_PROVISIONED", entity_type="SaceWorkshopInteraction", entity_id=interaction.id, details=f"SACE Admin provisioned auditor: {first_name} {last_name} ({email})"))
+        db.session.flush()
+        from app.models.core import CoreAuditEvent
+        db.session.add(CoreAuditEvent(user_id=current_user.id, action="SACE_PLEDGE_ACCEPTED", entity_type="SaceWorkshopInteraction", entity_id=interaction.id, details="SACE Administrator accepted the Intellectual Property Pledge."))
         db.session.commit()
         flash("Intellectual Property pledge accepted. Provisioning unlocked.", "success")
     return redirect(url_for('sace_bp.provisioning_map'))
@@ -515,6 +521,9 @@ def provision_auditor():
             response_data=json.dumps(data)
         )
         db.session.add(interaction)
+        db.session.flush()
+        from app.models.core import CoreAuditEvent
+        db.session.add(CoreAuditEvent(user_id=current_user.id, action="SACE_AUDITOR_PROVISIONED", entity_type="SaceWorkshopInteraction", entity_id=interaction.id, details=f"SACE Admin provisioned auditor: {first_name} {last_name} ({email})"))
         db.session.commit()
         flash(f"Auditor {first_name} {last_name} has been provisioned. Access email sent to {email}.", "success")
     else:
@@ -574,6 +583,9 @@ def submit_post_test():
         response_data=json.dumps(answers)
     )
     db.session.add(interaction)
+      db.session.flush()
+      from app.models.core import CoreAuditEvent
+      db.session.add(CoreAuditEvent(user_id=current_user.id, action="SACE_EVALUATION_COMPLETED", entity_type="SaceWorkshopInteraction", entity_id=interaction.id, details=f"SACE Auditor submitted final evaluation. Score: {score}%"))
     db.session.commit()
     
     return redirect(url_for('sace_bp.post_test_results'))
@@ -704,6 +716,9 @@ def secure_view(doc_type):
             response_data="Document opened in secure viewer"
         )
         db.session.add(interaction)
+      db.session.flush()
+      from app.models.core import CoreAuditEvent
+      db.session.add(CoreAuditEvent(user_id=current_user.id, action="SACE_EVALUATION_COMPLETED", entity_type="SaceWorkshopInteraction", entity_id=interaction.id, details=f"SACE Auditor submitted final evaluation. Score: {score}%"))
         db.session.commit()
         
     if doc and doc.file_path:

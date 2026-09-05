@@ -2,104 +2,122 @@
 
 {% block title %}Manager Dashboard - {{ org.name }}{% endblock %}
 
+{% block flashes %}{% endblock %}
+
 {% block content %}
-<div class="container mx-auto px-4 py-8 max-w-7xl">
+<div class="max-w-7xl mx-auto bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden mb-12">
+    <!-- Rule 3: Color Strip -->
+    <div class="h-2 w-full bg-indigo-600"></div>
     
-    <div class="flex justify-between items-center mb-8">
-        <div>
-            <h1 class="text-3xl font-extrabold text-slate-900 mb-2"><i class="fas fa-briefcase text-indigo-600 mr-2"></i> Manager Dashboard</h1>
-            <p class="text-slate-500">Overview for {{ org.name }}</p>
+    <div class="p-6 sm:p-8">
+        
+        <!-- Rule 4: Row 1 Header & Back Button -->
+        <div class="flex justify-between items-start pb-4 border-b border-slate-100 mb-6">
+            <div>
+                <h1 class="text-3xl font-black text-slate-800 tracking-tight">
+                    <i class="fas fa-briefcase text-indigo-600 mr-2"></i> Manager Dashboard
+                </h1>
+                <p class="text-slate-500 font-bold mt-1 text-sm tracking-wide">Overview for {{ org.name }}</p>
+            </div>
+            <a href="{{ url_for('public_bp.welcome') }}" class="px-5 py-2.5 bg-slate-100 text-slate-700 hover:bg-slate-200 font-bold rounded-lg transition border border-slate-200 shadow-sm flex items-center ml-4">
+                <i class="fas fa-arrow-left mr-2"></i> Exit Dashboard
+            </a>
         </div>
-        <div class="flex space-x-3">
-            <a href="{{ url_for('uip_bp.new_interaction', org_slug=org.slug) }}" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg shadow transition">
+
+        <!-- Rule 6: Flashes inside tile -->
+        {% include "partials/flash_messages.html" %}
+
+        <!-- Rule 5: Row 2 Actions right-aligned -->
+        <div class="flex flex-wrap justify-end gap-3 mb-6 border-b border-slate-100 pb-6">
+            <a href="{{ url_for('uip_bp.new_interaction', org_slug=org.slug) }}" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg transition shadow-md flex items-center">
                 <i class="fas fa-plus mr-2"></i> Log Issue
             </a>
-            <a href="{{ url_for('uip_bp.org_settings', org_slug=org.slug) }}" class="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-2 px-4 rounded-lg shadow-sm transition">
+            <a href="{{ url_for('uip_bp.org_settings', org_slug=org.slug) }}" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg transition border border-slate-200 shadow-sm flex items-center">
                 <i class="fas fa-cog mr-2"></i> Settings
             </a>
         </div>
-    </div>
-    
-    <!-- Metrics -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex items-center justify-between">
-            <div>
-                <p class="text-slate-500 text-sm font-bold uppercase tracking-wide">Open Issues</p>
-                <p class="text-3xl font-extrabold text-slate-900 mt-1">{{ org.interactions | selectattr('status', 'ne', 'RESOLVED') | list | length }}</p>
+        
+        <!-- Metrics -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div class="bg-slate-50 rounded-xl shadow-sm border border-slate-200 p-6 flex items-center justify-between">
+                <div>
+                    <p class="text-slate-500 text-sm font-bold uppercase tracking-wide">Open Issues</p>
+                    <p class="text-3xl font-extrabold text-slate-900 mt-1">{{ org.interactions | selectattr('status', 'ne', 'RESOLVED') | list | length }}</p>
+                </div>
+                <div class="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-xl">
+                    <i class="fas fa-inbox"></i>
+                </div>
             </div>
-            <div class="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-xl">
-                <i class="fas fa-inbox"></i>
+            
+            <div class="bg-slate-50 rounded-xl shadow-sm border border-slate-200 p-6 flex items-center justify-between">
+                <div>
+                    <p class="text-slate-500 text-sm font-bold uppercase tracking-wide">Pending Tasks</p>
+                    <p class="text-3xl font-extrabold text-slate-900 mt-1">
+                        {% set ns = namespace(count=0) %}
+                        {% for ix in org.interactions %}
+                            {% for t in ix.tasks if t.status != 'completed' %}
+                                {% set ns.count = ns.count + 1 %}
+                            {% endfor %}
+                        {% endfor %}
+                        {{ ns.count }}
+                    </p>
+                </div>
+                <div class="h-12 w-12 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 text-xl">
+                    <i class="fas fa-tasks"></i>
+                </div>
             </div>
         </div>
         
-        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex items-center justify-between">
-            <div>
-                <p class="text-slate-500 text-sm font-bold uppercase tracking-wide">Pending Tasks</p>
-                <p class="text-3xl font-extrabold text-slate-900 mt-1">
-                    {% set ns = namespace(count=0) %}
-                    {% for ix in org.interactions %}
-                        {% for t in ix.tasks if t.status != 'completed' %}
-                            {% set ns.count = ns.count + 1 %}
+        <!-- Interactions List -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="p-5 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
+                <h2 class="font-bold text-lg text-slate-800">Active Interactions</h2>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
+                            <th class="p-4 font-bold border-b border-slate-200">Ref</th>
+                            <th class="p-4 font-bold border-b border-slate-200">Title</th>
+                            <th class="p-4 font-bold border-b border-slate-200">Status</th>
+                            <th class="p-4 font-bold border-b border-slate-200">Logged By</th>
+                            <th class="p-4 font-bold border-b border-slate-200">Date</th>
+                            <th class="p-4 border-b border-slate-200"></th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        {% for ix in org.interactions|sort(attribute='created_at', reverse=True) if ix.status != 'RESOLVED' %}
+                        <tr class="hover:bg-slate-50 transition group cursor-pointer" onclick="window.location.href='{{ url_for('uip_bp.view_interaction', org_slug=org.slug, reference=ix.reference) }}'">
+                            <td class="p-4 text-sm font-mono text-slate-500">{{ ix.reference }}</td>
+                            <td class="p-4">
+                                <div class="font-bold text-slate-800">{{ ix.title }}</div>
+                                <div class="text-xs text-slate-400 mt-1 truncate max-w-xs">{{ ix.description }}</div>
+                            </td>
+                            <td class="p-4">
+                                {% if ix.status == 'NEW' %}
+                                    <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide border border-blue-200"><i class="fas fa-star mr-1"></i> New</span>
+                                {% elif ix.status == 'IN_PROGRESS' %}
+                                    <span class="bg-amber-100 text-amber-800 px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide border border-amber-200"><i class="fas fa-hammer mr-1"></i> In Progress</span>
+                                {% endif %}
+                            </td>
+                            <td class="p-4 text-sm text-slate-600">
+                                {{ ix.creator.name or ix.creator.email.split('@')[0] }}
+                            </td>
+                            <td class="p-4 text-sm text-slate-500">
+                                {{ ix.created_at.strftime('%d %b, %H:%M') }}
+                            </td>
+                            <td class="p-4 text-right">
+                                <a href="{{ url_for('uip_bp.view_interaction', org_slug=org.slug, reference=ix.reference) }}" class="text-indigo-600 hover:text-indigo-800 font-bold text-sm bg-indigo-50 hover:bg-indigo-100 py-1.5 px-3 rounded transition opacity-0 group-hover:opacity-100">View</a>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="6" class="p-8 text-center text-slate-500 italic">No active interactions. Everything is caught up!</td>
+                        </tr>
                         {% endfor %}
-                    {% endfor %}
-                    {{ ns.count }}
-                </p>
+                    </tbody>
+                </table>
             </div>
-            <div class="h-12 w-12 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 text-xl">
-                <i class="fas fa-tasks"></i>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Interactions List -->
-    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-        <div class="p-5 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
-            <h2 class="font-bold text-lg text-slate-800">Active Interactions</h2>
-        </div>
-        <div class="overflow-x-auto">
-            <table class="w-full text-left border-collapse">
-                <thead>
-                    <tr class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
-                        <th class="p-4 font-bold border-b border-slate-200">Ref</th>
-                        <th class="p-4 font-bold border-b border-slate-200">Title</th>
-                        <th class="p-4 font-bold border-b border-slate-200">Status</th>
-                        <th class="p-4 font-bold border-b border-slate-200">Logged By</th>
-                        <th class="p-4 font-bold border-b border-slate-200">Date</th>
-                        <th class="p-4 border-b border-slate-200"></th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-slate-100">
-                    {% for ix in org.interactions|sort(attribute='created_at', reverse=True) if ix.status != 'RESOLVED' %}
-                    <tr class="hover:bg-slate-50 transition group cursor-pointer" onclick="window.location.href='{{ url_for('uip_bp.view_interaction', org_slug=org.slug, reference=ix.reference) }}'">
-                        <td class="p-4 text-sm font-mono text-slate-500">{{ ix.reference }}</td>
-                        <td class="p-4">
-                            <div class="font-bold text-slate-800">{{ ix.title }}</div>
-                            <div class="text-xs text-slate-400 mt-1 truncate max-w-xs">{{ ix.description }}</div>
-                        </td>
-                        <td class="p-4">
-                            {% if ix.status == 'NEW' %}
-                                <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-bold uppercase tracking-wide"><i class="fas fa-star mr-1"></i> New</span>
-                            {% elif ix.status == 'IN_PROGRESS' %}
-                                <span class="bg-amber-100 text-amber-800 px-2 py-1 rounded-full text-xs font-bold uppercase tracking-wide"><i class="fas fa-hammer mr-1"></i> In Progress</span>
-                            {% endif %}
-                        </td>
-                        <td class="p-4 text-sm text-slate-600">
-                            {{ ix.creator.first_name }} {{ ix.creator.last_name }}
-                        </td>
-                        <td class="p-4 text-sm text-slate-500">
-                            {{ ix.created_at.strftime('%d %b, %H:%M') }}
-                        </td>
-                        <td class="p-4 text-right">
-                            <a href="{{ url_for('uip_bp.view_interaction', org_slug=org.slug, reference=ix.reference) }}" class="text-indigo-600 hover:text-indigo-800 font-bold text-sm bg-indigo-50 hover:bg-indigo-100 py-1.5 px-3 rounded transition opacity-0 group-hover:opacity-100">View</a>
-                        </td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="6" class="p-8 text-center text-slate-500 italic">No active interactions. Everything is caught up!</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
         </div>
     </div>
 </div>

@@ -1062,6 +1062,10 @@ def claim_code():
             pass
             
     if found_inv:
+        if current_user.id == found_inv.user_id:
+            flash("You cannot claim an access code that you generated. Access codes must be claimed by the Auditor.", "warning")
+            return redirect(url_for('sace_bp.dashboard'))
+            
         data = json.loads(found_inv.response_data)
         if data.get('status') == "Unclaimed":
             data['status'] = f"Claimed"

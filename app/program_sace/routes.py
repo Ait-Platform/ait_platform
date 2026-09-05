@@ -495,66 +495,37 @@ def provisioning_pledge():
         flash("Intellectual Property pledge accepted. Provisioning unlocked.", "success")
     return redirect(url_for('sace_bp.provisioning_map'))
 
-@sace_bp.route("/sace/provisioning/add_auditor", methods=["POST"])
-def provision_auditor():
+@sace_bp.route("/sace/provisioning/generate_code", methods=["POST"])
+def generate_auditor_code():
     from app.models.sace import SaceWorkshopInteraction
-    from app.utils.mailer import send_email
     import json
-    import json
+    import random
+    import string
     
-    first_name = request.form.get("first_name")
-    last_name = request.form.get("last_name")
-    email = request.form.get("email")
+    sace_user_id = current_user.id if current_user.is_authenticated else 1
     
-    if first_name and last_name and email:
-        data = {
-            "first_name": first_name,
-            "last_name": last_name,
-            "email": email,
-            "status": "Invite Sent"
-        }
-        sace_user_id = current_user.id if current_user.is_authenticated else 1
-        interaction = SaceWorkshopInteraction(
-            user_id=sace_user_id,
-            activity_slug="auditor_provisioned",
-            response_data=json.dumps(data)
-        )
-        db.session.add(interaction)
-        db.session.flush()
-        from app.models.core import CoreAuditEvent
-        db.session.add(CoreAuditEvent(
-            user_id=sace_user_id,
-            action="SACE_AUDITOR_PROVISIONED",
-            entity_type="SaceWorkshopInteraction",
-            entity_id=interaction.id,
-            details=f"SACE Admin provisioned auditor: {first_name} {last_name} ({email})"
-        ))
-        db.session.commit()
-        
-        # Send Email
-        dashboard_url = url_for('sace_bp.dashboard', _external=True)
-        html_body = f"""
-        <p>Dear {first_name},</p>
-        <p>You have been provisioned by SACE to audit the AIT Provider Activity.</p>
-        <p>Please access your secure evaluation dashboard here:</p>
-        <p><a href="{dashboard_url}">{dashboard_url}</a></p>
-        <br>
-        <p>Best regards,<br>AIT Platform System</p>
-        """
-        success = send_email(
-            subject="Secure Access: SACE Auditor Dashboard",
-            recipients=[email],
-            body=f"Dear {first_name}, Please access your secure evaluation dashboard at: {dashboard_url}",
-            html=html_body
-        )
-        if success:
-            flash(f"Auditor provisioned and invite sent to {email}.", "success")
-        else:
-            flash(f"Auditor provisioned, but email failed to send to {email}.", "warning")
-            
-    else:
-        flash("All fields are required to provision an auditor.", "error")
-        
+    # Generate an 8-char code, split with hyphen for readability
+    chars = string.ascii_uppercase + string.digits
+    raw_code = ''.join(random.choice(chars) for _ in range(8))
+    code = f"{raw_code[:4]}-{raw_code[4:]}"
+    
+    data = {
+        "code": code,
+        "status": "Unclaimed",
+        "first_name": "",
+        "last_name": "",
+        "email": ""
+    }
+    
+    interaction = SaceWorkshopInteraction(
+        user_id=sace_user_id,
+        activity_slug="auditor_provisioned",
+        response_data=json.dumps(data)
+    )
+    db.session.add(interaction)
+    db.session.commit()
+    
+    flash(f"New Auditor Access Code generated: {code}", "success")
     return redirect(url_for('sace_bp.provisioning_map'))
 
 

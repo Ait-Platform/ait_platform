@@ -874,6 +874,10 @@ def register_decision():
                 db.session.commit()
             if subj_obj.slug in ["cultural_fire", "culturalfire"]:
                 return redirect(url_for("cultural_bp.cultural_fire_router"))
+                
+            if next_url and ("/sace/claim_code" in next_url or "/sace/provisioning" in next_url):
+                return redirect(next_url)
+                
             return redirect(url_for("auth_bp.bridge_dashboard"))
             
         # If the subject has a trial period, bypass payment and set trial expiration

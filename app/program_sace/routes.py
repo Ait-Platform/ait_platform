@@ -968,3 +968,112 @@ def provisioning_logs():
     # The existing template might need a slight tweak to show a back button to Control Centre.
     return render_template("program_sace/compliance/audit_report.html", events=events, is_control_centre=True)
 
+
+
+# ==========================================
+# AUDITOR JOIN FLOW (CODE REDEMPTION)
+# ==========================================
+
+@sace_bp.route("/sace/join", methods=["GET", "POST"])
+def auditor_join():
+    from app.models.sace import SaceWorkshopInteraction
+    import json
+    
+    if request.method == "POST":
+        code = (request.form.get("code") or "").strip().upper()
+        if not code:
+            flash("Please enter an access code.", "error")
+            return redirect(url_for('sace_bp.auditor_join'))
+            
+        # Strip SACE- if they included it
+        if code.startswith("SACE-"):
+            code = code[5:].strip()
+        if code.startswith("SACE "):
+            code = code[5:].strip()
+            
+        # Format if user forgot hyphen (assuming 8 chars)
+        code = code.replace(" ", "")
+        if len(code) == 8 and '-' not in code:
+            code = f"{code[:4]}-{code[4:]}"
+            
+        # Find the code in the DB (needs a scan since it's JSON, but it's a small table for SACE)
+        interactions = SaceWorkshopInteraction.query.filter_by(activity_slug="auditor_provisioned").all()
+        found_inv = None
+        for inv in interactions:
+            try:
+                data = json.loads(inv.response_data)
+                if data.get('code') == code:
+                    found_inv = inv
+                    break
+            except:
+                pass
+                
+        if not found_inv:
+            flash("Invalid or unrecognized Access Code.", "error")
+            return redirect(url_for('sace_bp.auditor_join'))
+            
+        data = json.loads(found_inv.response_data)
+        if data.get('status') != "Unclaimed":
+            flash("This Access Code has already been claimed.", "error")
+            return redirect(url_for('sace_bp.auditor_join'))
+            
+        # If valid, put it in session and redirect to registration
+        session['pending_sace_code'] = code
+        
+        # If they are magically already logged in (e.g. testing)
+        if current_user.is_authenticated:
+            return redirect(url_for('sace_bp.claim_code'))
+            
+        # Redirect to generic registration page, but pass subject=sace so it's free
+        # and next=/sace/claim_code so they return to claim the code.
+        return redirect(url_for('auth_bp.register', subject='sace', next=url_for('sace_bp.claim_code')))
+        
+    return render_template("program_sace/auditor_join.html")
+
+@sace_bp.route("/sace/claim_code")
+@login_required
+def claim_code():
+    from app.models.sace import SaceWorkshopInteraction
+    import json
+    
+    code = session.get('pending_sace_code')
+    if not code:
+        flash("No pending access code to claim.", "warning")
+        return redirect(url_for('sace_bp.auditor_join'))
+        
+    interactions = SaceWorkshopInteraction.query.filter_by(activity_slug="auditor_provisioned").all()
+    found_inv = None
+    for inv in interactions:
+        try:
+            data = json.loads(inv.response_data)
+            if data.get('code') == code:
+                found_inv = inv
+                break
+        except:
+            pass
+            
+    if found_inv:
+        data = json.loads(found_inv.response_data)
+        if data.get('status') == "Unclaimed":
+            data['status'] = f"Claimed"
+            data['first_name'] = current_user.name or current_user.email.split('@')[0]
+            data['last_name'] = ""
+            data['email'] = current_user.email
+            data['claimed_by_user_id'] = current_user.id
+            found_inv.response_data = json.dumps(data)
+            db.session.commit()
+            
+            # Ensure they are enrolled in sace_reading (or just clear session so they can go to the hub)
+            session.pop('pending_sace_code', None)
+            flash("Access Code successfully claimed. Welcome to the SACE Evaluation Hub.", "success")
+            
+            # Direct them instantly to the reading activity!
+            return redirect(url_for('sace_bp.selection_hub', activity_slug='reading'))
+            
+    flash("Failed to claim code or code already used.", "error")
+    return redirect(url_for('sace_bp.auditor_join'))
+
+@sace_bp.route("/sace/provisioning/print_slip/<code>")
+@login_required
+def print_access_slip(code):
+    return render_template("program_sace/print_slip.html", code=code)

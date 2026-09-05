@@ -1054,7 +1054,7 @@ def claim_code():
             flash("Access Code successfully claimed. Welcome to the SACE Evaluation Hub.", "success")
             
             # Direct them instantly to the reading activity!
-            return redirect(url_for('sace_bp.selection_hub', activity_slug='reading'))
+            return redirect(url_for('sace_bp.reading_hub'))
             
     flash("Failed to claim code or code already used.", "error")
     return redirect(url_for('sace_bp.auditor_join'))

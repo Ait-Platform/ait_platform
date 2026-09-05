@@ -1,0 +1,40 @@
+﻿                    <!-- Slide 10 (What is LiTRE?) -->
+                    <div id="slide-10" class="slide-container absolute inset-0 hidden flex-col items-center justify-center p-8 bg-indigo-900 text-white rounded-xl">
+                        <h2 class="text-4xl font-bold text-indigo-200 mb-8"><i class="fas fa-book-reader mr-3"></i>What is LiTRE?</h2>
+                        <div class="flex items-center space-x-6 text-2xl font-bold text-slate-100">
+                            <div class="flex flex-col items-center"><div class="h-20 w-20 bg-indigo-600 rounded-full flex items-center justify-center mb-2 shadow-lg"><i class="fas fa-book-open"></i></div>Story</div>
+                            <i class="fas fa-arrow-right text-indigo-400"></i>
+                            <div class="flex flex-col items-center"><div class="h-20 w-20 bg-indigo-600 rounded-full flex items-center justify-center mb-2 shadow-lg"><i class="fas fa-eye"></i></div>See</div>
+                            <i class="fas fa-arrow-right text-indigo-400"></i>
+                            <div class="flex flex-col items-center"><div class="h-20 w-20 bg-indigo-600 rounded-full flex items-center justify-center mb-2 shadow-lg"><i class="fas fa-hand-paper"></i></div>Do</div>
+                            <i class="fas fa-arrow-right text-indigo-400"></i>
+                            <div class="flex flex-col items-center"><div class="h-20 w-20 bg-indigo-600 rounded-full flex items-center justify-center mb-2 shadow-lg"><i class="fas fa-blender"></i></div>Blend</div>
+                            <i class="fas fa-arrow-right text-indigo-400"></i>
+                            <div class="flex flex-col items-center"><div class="h-20 w-20 bg-indigo-600 rounded-full flex items-center justify-center mb-2 shadow-lg"><i class="fas fa-font"></i></div>Read</div>
+                        </div>
+                    </div>
+
+                    <!-- Slide 11 (Draw the Palm) -->
+                    <div id="slide-11" class="slide-container absolute inset-0 hidden flex-col items-center justify-center p-8 bg-white text-slate-800 rounded-xl border border-slate-200">
+                        <h2 class="text-4xl font-bold text-indigo-600 mb-4">Draw the Palm <span class="text-slate-400 text-2xl">(Practical Part 1)</span></h2>
+                        <p class="text-xl text-slate-600 mb-8">Follow along and draw the palm structure on your worksheet or app.</p>
+                        <i class="fas fa-hand-paper text-[10rem] text-amber-100 mb-4"></i>
+                        <p class="text-slate-500 font-bold">Vowels on the fingers, consonants on the palm!</p>
+                    </div>
+
+                    <!-- Slide 12 (Who is Leaving Home?) -->
+                    <div id="slide-12" class="slide-container absolute inset-0 hidden flex-col items-center justify-center p-8 bg-slate-900 text-white rounded-xl">
+                        <h2 class="text-4xl font-bold text-rose-400 mb-4"><i class="fas fa-home mr-3"></i>Who is Leaving Home?</h2>
+                        <p class="text-xl text-slate-300 mb-8">Practical Part 2 - Nano Blending Machine</p>
+                        <div class="flex space-x-12">
+                            <div class="bg-slate-800 p-8 rounded-lg shadow-lg border border-slate-700 text-center">
+                                <div class="text-6xl font-black text-white mb-2">B</div>
+                                <div class="text-slate-400 uppercase tracking-widest text-sm font-bold">Consonant</div>
+                            </div>
+                            <div class="flex items-center text-4xl text-rose-500 font-black">+</div>
+                            <div class="bg-slate-800 p-8 rounded-lg shadow-lg border border-slate-700 text-center">
+                                <div class="text-6xl font-black text-white mb-2">A</div>
+                                <div class="text-slate-400 uppercase tracking-widest text-sm font-bold">Vowel</div>
+                            </div>
+                        </div>
+                    </div>

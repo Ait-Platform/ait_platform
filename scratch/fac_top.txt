@@ -1,0 +1,38 @@
+﻿{% extends "layout.html" %}
+
+{% block title %}LiTRE Facilitator Dashboard{% endblock %}
+
+{% block content %}
+<div class="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100 min-h-[85vh] flex flex-col">
+    <div class="h-2 w-full bg-indigo-600"></div>
+    
+    <div class="p-6 sm:p-8 flex-grow flex flex-col">
+        <div class="flex justify-between items-center mb-6">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900">LiTRE Facilitator Dashboard</h1>
+                <p class="text-gray-500">Live Room Management & Projector Controls.</p>
+            </div>
+            <div class="flex items-center space-x-4">
+                <a href="{{ url_for('sace_bp.reading_hub') }}" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 border border-gray-300">
+                    Exit
+                </a>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 flex-grow">
+            <!-- Projector Screen (Slides) -->
+            <div class="flex flex-col">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-bold text-slate-800">Projector Preview</h2>
+                    <span id="slide-counter" class="text-sm font-bold text-slate-500 bg-slate-100 px-3 py-1 rounded-full">Lobby</span>
+                </div>
+                
+                <div class="bg-slate-900 border-[8px] border-slate-800 rounded-2xl flex-grow relative overflow-hidden shadow-2xl min-h-[400px]">
+                    
+                    <!-- LOBBY SLIDE -->
+                    <div id="slide-lobby" class="slide-container absolute inset-0 flex flex-col items-center justify-center p-8 bg-slate-900 text-white rounded-xl text-center z-20">
+                        <h2 class="text-4xl font-bold text-indigo-400 mb-4">Join the Room</h2>
+                        <p class="text-xl text-slate-300 mb-8">Open your Participant App and enter PIN:</p>
+                        <div class="text-[6rem] font-black tracking-widest text-white mb-8 border-4 border-indigo-500 px-12 py-4 rounded-xl bg-slate-800">8842</div>
+                        <div class="text-2xl font-bold text-green-400">Teachers Connected: <span id="attendance-counter">0</span></div>
+                    </div>

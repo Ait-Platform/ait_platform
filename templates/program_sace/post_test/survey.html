@@ -1,0 +1,52 @@
+﻿{% extends "layout.html" %}
+{% block title %}Workshop Survey (Slide 33){% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-slate-50 py-8 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-4xl mx-auto">
+        <div class="mb-8">
+            <h1 class="text-3xl font-black text-slate-800">Slide 33: Workshop Survey</h1>
+            <p class="text-slate-500 mt-2">Please rate the following competencies based on the workshop.</p>
+        </div>
+
+        <form action="{{ url_for('sace_bp.submit_survey') }}" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+            <div class="bg-indigo-600 rounded-t-xl p-6 text-white">
+                <h2 class="text-2xl font-bold">Workshop Facilitator Rubric</h2>
+            </div>
+            
+            <div class="bg-white p-8 rounded-b-xl shadow-sm border border-slate-200 border-t-0 space-y-6">
+                {% set competencies = [
+                    ('comp_objective', '1. Clear statement of objective or topic'),
+                    ('comp_sequence', '2. Logical sequence of explanation'),
+                    ('comp_demo', '3. Demonstration of activity'),
+                    ('comp_participation', '4. Maximize participation'),
+                    ('comp_guidance', '5. Guidance of learners'),
+                    ('comp_reading', '6. Engaging reading methodology'),
+                    ('comp_assessment', '7. Conduct assessment'),
+                    ('comp_reflection', '8. Reflection on lesson')
+                ] %}
+                
+                {% for name, label in competencies %}
+                <div class="bg-slate-50 p-6 rounded-xl border border-slate-200">
+                    <label class="block font-bold text-slate-800 mb-4">{{ label }}</label>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <label class="flex items-center p-3 bg-white border border-slate-200 rounded-lg cursor-pointer hover:bg-indigo-50 transition"><input type="radio" name="{{ name }}" value="4" required class="h-4 w-4 text-indigo-600"><span class="ml-2 text-sm font-medium">4 - Excellent</span></label>
+                        <label class="flex items-center p-3 bg-white border border-slate-200 rounded-lg cursor-pointer hover:bg-indigo-50 transition"><input type="radio" name="{{ name }}" value="3" class="h-4 w-4 text-indigo-600"><span class="ml-2 text-sm font-medium">3 - Good</span></label>
+                        <label class="flex items-center p-3 bg-white border border-slate-200 rounded-lg cursor-pointer hover:bg-indigo-50 transition"><input type="radio" name="{{ name }}" value="2" class="h-4 w-4 text-indigo-600"><span class="ml-2 text-sm font-medium">2 - Fair</span></label>
+                        <label class="flex items-center p-3 bg-white border border-slate-200 rounded-lg cursor-pointer hover:bg-indigo-50 transition"><input type="radio" name="{{ name }}" value="1" class="h-4 w-4 text-indigo-600"><span class="ml-2 text-sm font-medium">1 - Poor</span></label>
+                    </div>
+                </div>
+                {% endfor %}
+                
+                <div class="pt-6 text-right border-t border-slate-100 mt-6">
+                    <button type="submit" class="px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg transition shadow-md">
+                        Submit Survey & Continue
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,95 @@
+﻿results_html = '''{% extends "layout.html" %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto py-8 px-4">
+    <div class="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
+        
+        <!-- Color Strip -->
+        <div class="h-2 bg-indigo-600 w-full"></div>
+
+        <!-- Row 1 (Header) -->
+        <div class="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+            <h1 class="text-2xl font-bold text-slate-800"><i class="fas fa-check-circle text-green-500 mr-2"></i> Workshop Attendance Confirmed!</h1>
+            <a href="{{ url_for('sace_bp.reading_hub') }}" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold rounded-lg transition text-sm">
+                <i class="fas fa-arrow-left mr-1"></i> Back to Hub
+            </a>
+        </div>
+        
+        <!-- Flash Messages Block -->
+        <div class="px-6 pt-4">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="mb-4 p-4 rounded-lg {% if category == 'success' %}bg-green-100 text-green-800 border border-green-200{% else %}bg-rose-100 text-rose-800 border border-rose-200{% endif %}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+        </div>
+
+        <div class="p-6">
+            <p class="text-lg text-slate-700 mb-6">Thank you for participating in the LITRE Reading Workshop. Your responses have been recorded.</p>
+            
+            <div class="bg-indigo-50 border border-indigo-200 p-6 rounded-xl mb-8">
+                <h3 class="font-bold text-indigo-900 mb-2"><i class="fas fa-certificate text-yellow-500 mr-2"></i> Email My Certificate</h3>
+                <p class="text-sm text-slate-600 mb-4">Your certificate of attendance is ready. Please confirm or update the email address where you would like it sent.</p>
+                <form action="{{ url_for('sace_bp.email_certificate') }}" method="POST" class="flex items-end gap-4">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <div class="flex-grow">
+                        <label class="block text-sm font-bold text-slate-700 mb-1">Email Address</label>
+                        <input type="email" name="email" value="{{ current_user.email }}" required autofocus class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition">
+                    </div>
+                    <button type="submit" class="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-sm transition">
+                        <i class="fas fa-paper-plane mr-2"></i> Send Certificate
+                    </button>
+                </form>
+            </div>
+
+            <!-- Review Section -->
+            <div class="border-t border-slate-200 pt-6">
+                <h2 class="text-xl font-bold text-slate-800 mb-4"><i class="fas fa-tasks text-indigo-500 mr-2"></i> Post-Test Review</h2>
+                <div class="space-y-4">
+                    <!-- Q1 -->
+                    <div class="p-4 rounded-lg {{ 'bg-green-50 border border-green-200' if answers.q1 == 'B' else 'bg-rose-50 border border-rose-200' }}">
+                        <h4 class="font-bold text-slate-800 mb-2">1. What is the purpose of the LITRE blending-machine concept?</h4>
+                        <div class="flex items-start text-sm">
+                            <div class="mr-4 text-slate-500">Your Answer: <strong class="text-slate-800">{{ answers.q1 }}</strong></div>
+                            <div class="text-green-700 font-bold"><i class="fas fa-check-circle mr-1"></i> Correct: B (To provide a physical and visual representation of the blending process)</div>
+                        </div>
+                    </div>
+                    <!-- Q2 -->
+                    <div class="p-4 rounded-lg {{ 'bg-green-50 border border-green-200' if answers.q2 == 'B' else 'bg-rose-50 border border-rose-200' }}">
+                        <h4 class="font-bold text-slate-800 mb-2">2. What does the palm represent in the LITRE model?</h4>
+                        <div class="flex items-start text-sm">
+                            <div class="mr-4 text-slate-500">Your Answer: <strong class="text-slate-800">{{ answers.q2 }}</strong></div>
+                            <div class="text-green-700 font-bold"><i class="fas fa-check-circle mr-1"></i> Correct: B (The meeting place in the blending model)</div>
+                        </div>
+                    </div>
+                    <!-- Q3 -->
+                    <div class="p-4 rounded-lg {{ 'bg-green-50 border border-green-200' if answers.q3 == 'C' else 'bg-rose-50 border border-rose-200' }}">
+                        <h4 class="font-bold text-slate-800 mb-2">3. What is the teacher's role during guided practice?</h4>
+                        <div class="flex items-start text-sm">
+                            <div class="mr-4 text-slate-500">Your Answer: <strong class="text-slate-800">{{ answers.q3 }}</strong></div>
+                            <div class="text-green-700 font-bold"><i class="fas fa-check-circle mr-1"></i> Correct: C (Demonstrate, guide, observe and provide corrective support)</div>
+                        </div>
+                    </div>
+                    <!-- Q4 -->
+                    <div class="p-4 rounded-lg {{ 'bg-green-50 border border-green-200' if answers.q4 == 'A' else 'bg-rose-50 border border-rose-200' }}">
+                        <h4 class="font-bold text-slate-800 mb-2">4. Why is repetition important in catch-up reading?</h4>
+                        <div class="flex items-start text-sm">
+                            <div class="mr-4 text-slate-500">Your Answer: <strong class="text-slate-800">{{ answers.q4 }}</strong></div>
+                            <div class="text-green-700 font-bold"><i class="fas fa-check-circle mr-1"></i> Correct: A (It provides additional opportunities for learners to practise and consolidate skills)</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+'''
+
+with open('templates/program_sace/post_test/results.html', 'w', encoding='utf-8') as f:
+    f.write(results_html)
+

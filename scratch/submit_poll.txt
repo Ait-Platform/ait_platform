@@ -1,0 +1,25 @@
+﻿@sace_bp.route('/sace/workshop/submit_poll', methods=['POST'])
+@login_required
+def submit_poll():
+    data = request.json
+    slug = data.get('poll_id')
+    
+    interaction = SaceWorkshopInteraction.query.filter_by(
+        user_id=current_user.id,
+        workshop_session_id='demo-session-1',
+        activity_slug=slug
+    ).first()
+    
+    if interaction:
+        interaction.response_data = data.get('data')
+    else:
+        interaction = SaceWorkshopInteraction(
+            user_id=current_user.id,
+            workshop_session_id='demo-session-1',
+            activity_slug=slug,
+            response_data=data.get('data')
+        )
+        db.session.add(interaction)
+        
+    db.session.commit()
+    return jsonify({"success": True})

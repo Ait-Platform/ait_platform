@@ -1,0 +1,504 @@
+def register_confirm():
+    action = (request.form.get("action") or "").strip()
+    role   = (request.form.get("role") or "").strip().lower()   # <-- per-role from the form
+    ctx    = session.get("reg_ctx") or {}
+    cemail = ctx.get("keep_email") or _canon_email_py(ctx.get("email",""))
+
+    if action != "archive_only" or not role:
+        flash("No action taken.", "info")
+        return redirect(url_for("auth_bp.register_decision"), code=303)
+
+    # Keep the lowest-id row active for this (email, role); others inactive.
+    sql = f"""
+    WITH dup AS (
+      SELECT u.id, ROW_NUMBER() OVER (ORDER BY u.id) AS rn
+      FROM "user" u
+      WHERE ({EMAIL_CANON_SQL}) = :cemail
+        AND lower(u.role) = :role
+    )
+    UPDATE "user"
+    SET is_active = CASE WHEN id = (SELECT id FROM dup WHERE rn=1) THEN 1 ELSE 0 END
+    WHERE id IN (SELECT id FROM dup);
+    """
+    db.session.execute(text(sql), {"cemail": cemail, "role": role})
+    db.session.commit()
+
+    flash(f"Consolidated duplicates for role '{role}'.", "success")
+    return redirect(url_for("auth_bp.register_decision", just_archived=1), code=303)
+
+@auth_bp.get("/api/countries")
+def api_countries():
+    q = (request.args.get("q") or "").strip()
+    return jsonify(search_countries(q, limit=20))
+
+@auth_bp.get("/api/price/<subject>/<country>")
+def api_price_for_country(subject, country):
+    from app.models.auth import AuthSubject
+    from app.extensions import db
+    from app.payments.pricing import price_for_country, price_cents_for, currency_for_country_code
+    
+    subj_id = db.session.execute(db.select(AuthSubject.id).filter_by(slug=subject)).scalar_one_or_none()
+    if not subj_id:
+        return jsonify({"error": "Subject not found"}), 404
+
+    # Try parity pricing first (subject_country_price)
+    local_cents, zar_cents, currency = price_for_country(subj_id, country)
+    
+    amount_cents = None
+    if local_cents == 0 and zar_cents == 0:
+        # Fall back to base auth_pricing
+        currency = currency_for_country_code(country) or "ZAR"
+        amount_cents = price_cents_for(subject, currency)
+        
+        # If no local currency base price exists, fallback to ZAR
+        if amount_cents is None:
+            amount_cents = price_cents_for(subject, "ZAR")
+            currency = "ZAR"
+        zar_cents = price_cents_for(subject, "ZAR")
+    else:
+        amount_cents = local_cents
+    
+    if amount_cents is None or amount_cents == 0:
+        return jsonify({"error": "Price not found"}), 404
+        
+    amount = amount_cents / 100.0
+    display_price = f"R {amount:,.2f}" if currency == "ZAR" else f"{currency} {amount:,.2f}"
+    
+    from app.enrollment.logic import get_quote_for_subject_country
+    row = get_quote_for_subject_country(subj_id, country)
+    price_id = row.id if row else None
+    is_discount = getattr(row, 'is_discount', False) if row else False
+
+    return jsonify({
+        "country": country,
+        "currency": currency,
+        "amount": amount_cents,
+        "amount_cents": amount_cents,
+        "zar_amount_cents": zar_cents,
+        "display_price": display_price,
+        "price_id": price_id,
+        "is_discount": is_discount
+    })
+
+def consolidate_duplicates_silently(cemail: str):
+    """Keep lowest-id per role for this canonical email. Move UE rows, deactivate losers."""
+    # 0) fresh temps
+    db.session.execute(text("DROP TABLE IF EXISTS tmp_cand"))
+    db.session.execute(text("DROP TABLE IF EXISTS tmp_keepers"))
+    db.session.execute(text("DROP TABLE IF EXISTS tmp_losers"))
+
+    # 1) candidates for this canonical email
+    db.session.execute(text(f"""
+        CREATE TEMP TABLE tmp_cand AS
+        SELECT u.id AS id, lower(u.role) AS role
+        FROM "user" u
+        WHERE ({EMAIL_CANON_SQL}) = :cemail
+    """), {"cemail": cemail})
+
+    # 2) survivor (lowest id) per role
+    db.session.execute(text("""
+        CREATE TEMP TABLE tmp_keepers AS
+        SELECT role, MIN(id) AS survivor_id
+        FROM tmp_cand
+        GROUP BY role
+    """))
+
+    # 3) losers (others in that role)
+    db.session.execute(text("""
+        CREATE TEMP TABLE tmp_losers AS
+        SELECT c.id AS loser_id, c.role, k.survivor_id
+        FROM tmp_cand c
+        JOIN tmp_keepers k ON k.role = c.role
+        WHERE c.id <> k.survivor_id
+    """))
+
+    # 4) move non-colliding enrollments loser -> survivor
+    db.session.execute(text("""
+        UPDATE user_enrollment
+        SET user_id = (
+          SELECT survivor_id FROM tmp_losers
+          WHERE loser_id = user_enrollment.user_id
+        )
+        WHERE user_id IN (SELECT loser_id FROM tmp_losers)
+          AND NOT EXISTS (
+            SELECT 1 FROM user_enrollment ue2
+            WHERE ue2.user_id = (
+                SELECT survivor_id FROM tmp_losers
+                WHERE loser_id = user_enrollment.user_id
+            )
+            AND ue2.subject_id = user_enrollment.subject_id
+          )
+    """))
+
+    # 5) delete duplicate enrollments remaining on losers
+    db.session.execute(text("""
+        DELETE FROM user_enrollment
+        WHERE user_id IN (SELECT loser_id FROM tmp_losers)
+          AND EXISTS (
+            SELECT 1 FROM user_enrollment ue2
+            WHERE ue2.user_id = (
+                SELECT survivor_id FROM tmp_losers
+                WHERE loser_id = user_enrollment.user_id
+            )
+            AND ue2.subject_id = user_enrollment.subject_id
+          )
+    """))
+
+    # 6) deactivate losers; ensure survivors active
+    db.session.execute(text("""UPDATE "user" SET is_active = 0
+                               WHERE id IN (SELECT loser_id FROM tmp_losers)"""))
+    db.session.execute(text("""UPDATE "user" SET is_active = 1
+                               WHERE id IN (SELECT survivor_id FROM tmp_keepers)"""))
+
+    # 7) (optional) clean up
+    db.session.execute(text("DROP TABLE IF EXISTS tmp_losers"))
+    db.session.execute(text("DROP TABLE IF EXISTS tmp_keepers"))
+    db.session.execute(text("DROP TABLE IF EXISTS tmp_cand"))
+
+    db.session.commit()
+
+def hash_password(password):
+    return generate_password_hash(password)
+
+def _canon_email_py(e: str) -> str:
+    e = (e or "").strip().lower()
+    if "@" not in e:
+        return e
+    local, domain = e.split("@", 1)
+    local = local.split("+", 1)[0]
+    return f"{local}@{domain}"
+
+EMAIL_CANON_SQL = """
+CASE
+  WHEN instr(lower(trim(u.email)),'@') > 0 THEN
+    CASE
+      WHEN instr(substr(lower(trim(u.email)),1,instr(lower(trim(u.email)),'@')-1), '+') > 0
+        THEN substr(lower(trim(u.email)),1, instr(lower(trim(u.email)),'+')-1)
+      ELSE substr(lower(trim(u.email)),1, instr(lower(trim(u.email)),'@')-1)
+    END || '@' || substr(lower(trim(u.email)), instr(lower(trim(u.email)),'@')+1)
+  ELSE lower(trim(u.email))
+END
+"""
+
+
+def _save_reg_ctx(role, subject, email, full_name, next_url, country_code=None):
+    """
+    Store in-progress registration data in session so later
+    steps (register_decision, payment, finalization) can read it.
+    We're going to extend this to include password_hash safely.
+    """
+    session["reg_ctx"] = {
+        "role": role,
+        "subject": subject,
+        "email": email,
+        "full_name": full_name,
+        "next_url": next_url,
+        "country_code": country_code,
+    }
+
+
+def _finalize_user_after_payment():
+    """
+    Call this right after payment success, *before* redirecting to dashboard.
+    Returns the created-or-existing user object.
+    """
+
+    reg_ctx = session.get("reg_ctx", {}) or {}
+
+    # 1) Inputs: add fallbacks; never raise
+    email_norm   = (reg_ctx.get("email") or reg_ctx.get("email_lower")
+                    or session.get("pending_email")
+                    or request.args.get("email", "")
+                ).strip().lower()
+    full_name    = (reg_ctx.get("full_name") or "").strip()
+    
+    #subject_slug = (reg_ctx.get("subject") or session.get("pending_subject") or "loss").strip().lower()
+
+    subject_slug = (
+        reg_ctx.get("subject")
+        or session.get("pending_subject")
+        or request.args.get("subject")
+        or ""
+    ).strip().lower()
+
+    if not subject_slug:
+        current_app.logger.error(
+            "[finalize_user_after_payment] Missing subject_slug"
+        )
+        return None, next_url
+    
+    staged_hash  = reg_ctx.get("password_hash") or generate_password_hash("PLEASE_RESET_PASSWORD")
+    next_url     = reg_ctx.get("next_url") or "/"
+    if not email_norm:
+        current_app.logger.error("[finalize_user_after_payment] no email available after return")
+        return None, next_url  # caller will show a gentle error
+
+    # 2) Create-or-get user; only set password_hash if creating
+    user = User.query.filter_by(email=email_norm).first()
+    if not user:
+        user = User(email=email_norm, name=(full_name or email_norm.split("@", 1)[0]))
+        user.password_hash = staged_hash
+        if hasattr(user, "password"):
+            try: setattr(user, "password", None)
+            except Exception: pass
+        db.session.add(user); db.session.flush()
+
+    # 3) Promote enrollment to active WITHOUT started_at column
+    sid = db.session.execute(sa_text(
+        "SELECT id FROM auth_subject WHERE slug=:s OR name=:s LIMIT 1"
+    ), {"s": subject_slug}).scalar()
+    if sid:
+        db.session.execute(sa_text("""
+            INSERT INTO user_enrollment (user_id, subject_id, status)
+            VALUES (:uid, :sid, 'active')
+            ON CONFLICT(user_id, subject_id) DO UPDATE SET status='active'
+        """), {"uid": user.id, "sid": int(sid)})
+
+    db.session.commit()
+
+
+    # Log them in and hydrate session, like login() does
+    login_user(user, remember=True, fresh=True)
+
+    # purge then repopulate session keys exactly the same shape as login() builds
+    for k in (
+        "is_authenticated", "email", "is_admin",
+        "admin_subjects", "enrolled_subjects",
+        "subjects_access", "user_id", "user_name",
+        "just_paid_subject_id", "payment_banner",
+        "pending_email", "pending_subject", "pending_session_ref",
+        "role",
+    ):
+        session.pop(k, None)
+
+    session["is_authenticated"] = True
+    session["email"] = email_norm
+    session["user_id"] = int(user.id)
+    session["user_name"] = full_name if full_name else email_norm.split("@", 1)[0]
+
+    # at signup they're just a learner
+    session["is_admin"] = False
+    session["admin_subjects"] = []
+
+    # enrolled_subjects snapshot: just this subject for now
+    session["enrolled_subjects"] = [subject_slug]
+    session["subjects_access"] = {subject_slug: "enrolled"}
+
+    session["role"] = "user"
+
+    return user, next_url
+
+def _compute_subject_start_url(slug: str) -> str:
+    """
+    Given a subject slug like "loss" or "reading",
+    return the URL the first Start button should go to.
+
+    This lets each subject own its own onboarding flow without
+    hardcoding if/elif inside the view.
+    """
+
+    slug = (slug or "").strip().lower()
+
+    # per-subject start endpoint priority:
+    # - list of endpoint names we try in order
+    # - first one that exists wins
+    SUBJECT_START_ENDPOINTS = {
+        # Loss: first go to the subject_home ("Getting ready for the assessment")
+        "loss": [
+            "loss_bp.subject_home",
+        ],
+
+        # Reading: try custom preflight first, fall back to subject_home
+        "reading": [
+            "reading_bp.preflight_reading",
+            "reading_bp.subject_home",
+        ],
+        
+        "home": [
+            "home_bp.learner_dashboard",
+        ],
+
+        # you can add more subjects here later, eg:
+        # "math": [
+        #     "math_bp.subject_welcome",
+        #     "math_bp.subject_home",
+        # ],
+    }
+
+    # default generic guess if not in SUBJECT_START_ENDPOINTS:
+    # we assume each subject has its own blueprint named "<slug>_bp"
+    # and that blueprint exposes .subject_home
+    if slug not in SUBJECT_START_ENDPOINTS:
+        SUBJECT_START_ENDPOINTS[slug] = [f"{slug}_bp.subject_home"]
+
+    # try each candidate endpoint until one resolves
+    for endpoint_name in SUBJECT_START_ENDPOINTS[slug]:
+        try:
+            return url_for(endpoint_name)
+        except BuildError as ex:
+            current_app.logger.debug(
+                f"_compute_subject_start_url: endpoint {endpoint_name} not available for {slug}: {ex}"
+            )
+            continue
+
+    # final safe fallback
+    return url_for("auth_bp.bridge_dashboard")
+
+def fetch_subject_price(subject_slug: str, role: str = "user"):
+    """
+    Returns (amount_cents:int|None, currency:str|None) for the subject+role
+    from auth_pricing. Role can be NULL (means any role).
+    Picks the best row: exact role first, else NULL role; newest active_from wins.
+    """
+    slug = (subject_slug or "").strip().lower()
+    r    = (role or "user").strip().lower()
+
+    row = db.session.execute(sa_text("""
+        SELECT p.amount_cents, p.currency
+        FROM auth_pricing p
+        JOIN auth_subject s ON s.id = p.subject_id
+        WHERE lower(s.slug) = :slug
+          AND p.plan = 'enrollment'
+          AND COALESCE(p.is_active, 1) = 1
+          AND (p.role IS NULL OR lower(p.role) = :role)
+          AND (p.active_to IS NULL OR p.active_to > CURRENT_TIMESTAMP)
+        ORDER BY
+          CASE WHEN p.role IS NULL THEN 1 ELSE 0 END,   -- exact role first
+          p.active_from DESC
+        LIMIT 1
+    """), {"slug": slug, "role": r}).first()
+
+    if not row:
+        return None, None
+
+    amt = int(row[0]) if row[0] is not None else None
+    cur = (row[1] or "ZAR").upper()
+    return amt, cur
+
+
+def _resolve_subject_from_request() -> tuple[int, str]:
+    """
+    Resolve (subject_id, subject_slug) from:
+    - ?subject / form["subject"]
+    - ?subject_id / form["subject_id"]
+    - reg_ctx["subject"]
+    """
+    reg_ctx = session.get("reg_ctx") or {}
+
+    slug = (
+        (request.values.get("subject") or request.args.get("subject") or "") or
+        (reg_ctx.get("subject") or "")
+    ).strip().lower()
+
+    sid = request.values.get("subject_id", type=int) or request.args.get("subject_id", type=int)
+
+    # slug only → look up id
+    if slug and not sid:
+        row = db.session.execute(
+            sa_text("SELECT id FROM auth_subject WHERE slug = :s"),
+            {"s": slug},
+        ).first()
+        if row:
+            sid = int(row.id)
+
+    # id only → look up slug
+    if sid and not slug:
+        row = db.session.execute(
+            sa_text("SELECT slug FROM auth_subject WHERE id = :sid"),
+            {"sid": sid},
+        ).first()
+        if row:
+            slug = row.slug
+
+    if not sid or not slug:
+        abort(400, "Missing subject")
+
+    # keep it in reg_ctx for later steps
+    reg_ctx["subject"] = slug
+    session["reg_ctx"] = reg_ctx
+    session.modified = True
+
+    return sid, slug
+
+@auth_bp.route("/api/invite/log", methods=["POST"])
+@login_required
+def log_invite():
+    from app.models.auth import InviteLog
+    data = request.get_json() or {}
+    phone = data.get("phone")
+    program = data.get("program")
+    invite_type = data.get("type", "generic")
+    
+    if phone and program:
+        log_entry = InviteLog(
+            sender_id=current_user.id,
+            recipient_phone=phone,
+            program_slug=program,
+            invite_type=invite_type
+        )
+        db.session.add(log_entry)
+        db.session.commit()
+        return {"status": "ok", "message": "Logged"}
+    
+    return {"status": "error", "message": "Missing phone or program"}, 400
+
+
+@auth_bp.route("/franchise/dashboard")
+@login_required
+def franchise_dashboard():
+    from app.models.auth import FranchiseLicense
+    # Get all licenses for this facilitator
+    licenses = FranchiseLicense.query.filter_by(user_id=current_user.id).all()
+    return render_template("auth/franchise_dashboard.html", licenses=licenses)
+
+@auth_bp.route("/franchise/register_students", methods=["POST"])
+@login_required
+def franchise_register_students():
+    from app.models.auth import FranchiseLicense, User, UserEnrollment
+    from werkzeug.security import generate_password_hash
+    
+    license_id = request.form.get("license_id")
+    emails_raw = request.form.get("emails")
+    
+    franchise = FranchiseLicense.query.filter_by(id=license_id, user_id=current_user.id).first()
+    if not franchise:
+        flash("Invalid license.", "danger")
+        return redirect(url_for("auth_bp.franchise_dashboard"))
+        
+    # parse emails
+    import re
+    email_list = [e.strip().lower() for e in re.split(r'[,;\s\n]+', emails_raw) if e.strip()]
+    email_list = list(set(email_list)) # remove duplicates
+    
+    if not email_list:
+        flash("No valid emails provided.", "warning")
+        return redirect(url_for("auth_bp.franchise_dashboard"))
+        
+    remaining = franchise.total_seats - franchise.used_seats
+    if len(email_list) > remaining:
+        flash(f"You only have {remaining} seats left, but you tried to add {len(email_list)} students. Please reduce the list.", "danger")
+        return redirect(url_for("auth_bp.franchise_dashboard"))
+        
+    registered_count = 0
+    for email in email_list:
+        # Check if user exists
+        student = User.query.filter(db.func.lower(User.email) == email).first()
+        if not student:
+            # Create the student account with a default password
+            # In a production environment, this would trigger a password reset email
+            default_pw = generate_password_hash("Student2026!")
+            student = User(email=email, name=email.split('@')[0], password_hash=default_pw, is_active=1)
+            db.session.add(student)
+            db.session.flush() # get ID
+            
+        # Check if they are already enrolled
+        existing_enrollment = UserEnrollment.query.filter_by(user_id=student.id, subject_id=franchise.subject_id).first()
+        if not existing_enrollment:
+            enrollment = UserEnrollment(user_id=student.id, subject_id=franchise.subject_id, status='active')
+            db.session.add(enrollment)
+            franchise.used_seats += 1
+            registered_count += 1
+            
+    db.session.commit()
+    flash(f"Successfully registered and granted access to {registered_count} students!", "success")
+    return redirect(url_for("auth_bp.franchise_dashboard"))

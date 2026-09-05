@@ -1,0 +1,40 @@
+﻿                    <!-- App View 5: The English Family -->
+                    <div id="app-view-5" class="app-view hidden">
+                        <h3 class="text-xl font-bold text-indigo-900 mb-4 border-b-2 border-indigo-100 pb-2">The English Family Story</h3>
+                        <p class="text-slate-600 mb-4">Read the story on the projector.</p>
+                        <div class="bg-indigo-50 border border-indigo-200 p-4 rounded-lg">
+                            <p class="font-bold text-indigo-800 mb-2"><i class="fas fa-comments text-indigo-500 mr-2"></i>Discussion Prompt</p>
+                            <p class="text-sm text-slate-700 mb-4">How will you adapt this story for your specific classroom demographic?</p>
+                            <textarea class="w-full p-3 border border-indigo-200 rounded text-sm focus:ring-2 focus:ring-indigo-500" rows="3" placeholder="Type your adaptation notes here..."></textarea>
+                            <button class="mt-3 w-full py-2 bg-indigo-600 text-white font-bold rounded shadow-sm hover:bg-indigo-700" onclick="alert('Notes submitted for CPTD portfolio.')">Submit Reflection</button>
+                        </div>
+                    </div>
+
+                    <!-- App View 6: Vowel Checklist (Slide 10) -->
+                    <div id="app-view-6" class="app-view hidden">
+                        <h3 class="text-xl font-bold text-indigo-900 mb-4 border-b-2 border-indigo-100 pb-2">Peer Pronunciation Check</h3>
+                        <p class="text-slate-600 mb-4">Pair up with a colleague. Listen to them pronounce the vowels and grade their pronunciation below.</p>
+                        <div class="bg-indigo-50 border border-indigo-200 p-4 rounded-lg space-y-3">
+                            <div class="flex items-center justify-between bg-white p-2 border border-indigo-100 rounded">
+                                <span class="font-black text-lg text-indigo-900">a</span>
+                                <input type="checkbox" class="w-5 h-5 text-indigo-600 rounded">
+                            </div>
+                            <div class="flex items-center justify-between bg-white p-2 border border-indigo-100 rounded">
+                                <span class="font-black text-lg text-indigo-900">e</span>
+                                <input type="checkbox" class="w-5 h-5 text-indigo-600 rounded">
+                            </div>
+                            <div class="flex items-center justify-between bg-white p-2 border border-indigo-100 rounded">
+                                <span class="font-black text-lg text-indigo-900">i</span>
+                                <input type="checkbox" class="w-5 h-5 text-indigo-600 rounded">
+                            </div>
+                            <div class="flex items-center justify-between bg-white p-2 border border-indigo-100 rounded">
+                                <span class="font-black text-lg text-indigo-900">o</span>
+                                <input type="checkbox" class="w-5 h-5 text-indigo-600 rounded">
+                            </div>
+                            <div class="flex items-center justify-between bg-white p-2 border border-indigo-100 rounded">
+                                <span class="font-black text-lg text-indigo-900">u</span>
+                                <input type="checkbox" class="w-5 h-5 text-indigo-600 rounded">
+                            </div>
+                            <button class="mt-4 w-full py-2 bg-green-600 text-white font-bold rounded shadow-sm hover:bg-green-700" onclick="alert('Peer Assessment Logged!')">Submit Grade</button>
+                        </div>
+                    </div>

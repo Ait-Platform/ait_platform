@@ -517,7 +517,7 @@ def register_decision():
     # ---------- END FREE SPECIAL CASE ----------
 
     # ---------- WALLET TOKEN SUBJECTS (NO REGISTRATION FEE, USES WALLET BALANCE) ----------
-    if subject in ("cultural_fire", "culturalfire", "debtors", "mechanic", "cptd", "sace"):
+    if subject in ("cultural_fire", "culturalfire", "debtors", "mechanic", "cptd", "sace", "uip"):
         mark_loss_enrollment_free(enrollment_id)
         session.pop("reg_ctx", None)
         session.pop("just_paid_subject_id", None)
@@ -527,6 +527,8 @@ def register_decision():
             return redirect(url_for("cultural_bp.cultural_fire_router"))
         elif subject == "debtors":
             return redirect(url_for("debtors_bp.debtors_router"))
+        elif subject == "uip":
+            return redirect(url_for("uip_bp.org_dashboard", org_slug="manor-gardens"))
         elif subject == "mechanic":
             return redirect(url_for("mechanic_bp.mechanic_dashboard"))
         elif subject == "cptd":
@@ -1348,6 +1350,9 @@ def bridge_dashboard():
             return redirect(url_for('spv_bp.investor_dashboard'))
         elif slug == 'healthcore':
             return redirect(url_for('healthcore_bp.healthcore_dashboard'))
+        elif slug == 'uip':
+            # For now, default to Manor Gardens org dashboard
+            return redirect(url_for('uip_bp.org_dashboard', org_slug='manor-gardens'))
         else:
             return redirect(url_for('auth_bp.dashboard_info', subject=slug))
             
@@ -1415,6 +1420,8 @@ def learner_subject_dashboard(subject):
     # -------------------------------------------------
     if slug in ('hiq', 'healthcore'):
         start_url = url_for("healthcore_bp.healthcore_dashboard")
+    elif slug == 'uip':
+        start_url = url_for("uip_bp.org_dashboard", org_slug="manor-gardens")
     elif row.get("start_endpoint"):
         try:
             start_url = url_for(row["start_endpoint"])

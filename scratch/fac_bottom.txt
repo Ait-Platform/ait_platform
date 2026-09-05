@@ -1,0 +1,151 @@
+﻿<!-- Facilitator Controls -->
+            <div class="flex flex-col">
+                <h2 class="text-xl font-bold mb-4 text-slate-800">Room Controls</h2>
+                
+                <div class="bg-slate-800 rounded-xl p-6 border border-slate-700 space-y-6 flex-grow text-white">
+                    
+                    <!-- LOBBY CONTROLS -->
+                    <div id="controls-lobby" class="space-y-4">
+                        <div class="p-4 bg-indigo-900/30 border border-indigo-500/50 rounded-lg">
+                            <h3 class="font-bold text-indigo-300 mb-2"><i class="fas fa-users mr-2"></i>Waiting for Participants</h3>
+                            <p class="text-slate-300 text-sm leading-relaxed">Instruct teachers to enter PIN 8842. Once everyone is connected, click Start to begin the CPTD Activity.</p>
+                        </div>
+                        <button onclick="startWorkshop()" class="w-full py-4 bg-green-600 hover:bg-green-500 font-bold rounded-lg transition shadow-[0_0_15px_rgba(34,197,94,0.5)] text-lg">
+                            <i class="fas fa-play mr-2"></i> Start Workshop
+                        </button>
+                    </div>
+
+                    <!-- ACTIVE CONTROLS -->
+                    <div id="controls-active" class="hidden space-y-4">
+                        <div class="p-4 bg-indigo-900/30 border border-indigo-500/50 rounded-lg">
+                            <h3 class="font-bold text-indigo-300 mb-2"><i class="fas fa-lightbulb text-yellow-400 mr-2"></i>Facilitator Note</h3>
+                            <p class="text-slate-300 text-sm leading-relaxed">Navigate the slides. Participant apps will automatically sync to active traps and activities.</p>
+                        </div>
+                        
+                        <div class="flex space-x-4 mb-4">
+                            <button onclick="prevSlide()" class="flex-1 py-3 bg-slate-700 hover:bg-slate-600 font-bold rounded-lg transition text-slate-200 border border-slate-600">
+                                <i class="fas fa-chevron-left mr-2"></i> Prev
+                            </button>
+                            <button onclick="nextSlide()" class="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 font-bold rounded-lg transition shadow-lg text-white">
+                                Next <i class="fas fa-chevron-right ml-2"></i>
+                            </button>
+                        </div>
+
+                        <button onclick="pollData()" class="w-full py-2 bg-slate-700 hover:bg-slate-600 text-sm font-bold rounded-lg transition text-slate-300 border border-slate-600 mb-3">
+                            <i class="fas fa-sync-alt mr-2"></i> Refresh Data
+                        </button>
+                        
+                        <div class="mt-8 pt-4 border-t border-slate-700">
+                            <button onclick="resetWorkshop()" class="w-full py-2 bg-red-900/30 hover:bg-red-800/50 text-red-400 text-sm font-bold rounded border border-red-800/50 transition">
+                                Reset Room (Back to Lobby)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentSlide = 0;
+    const totalSlides = 13;
+    let sessionState = 'lobby';
+    let pollInterval = null;
+
+    function startWorkshop() {
+        fetch('/sace/workshop/start', {method: 'POST'})
+            .then(() => fetchState());
+    }
+
+    function resetWorkshop() {
+        if(confirm("Are you sure? This resets all connected devices back to the lobby.")) {
+            fetch('/sace/workshop/reset', {method: 'POST'})
+                .then(() => fetchState());
+        }
+    }
+
+    function fetchState() {
+        fetch('/sace/workshop/get_state')
+            .then(res => res.json())
+            .then(data => {
+                sessionState = data.status;
+                currentSlide = data.slide;
+                document.getElementById('attendance-counter').innerText = data.attendance;
+                updateView();
+            });
+    }
+
+    // Auto-poll state every 2 seconds to get live attendance
+    setInterval(fetchState, 2000);
+
+    function updateView() {
+        // Pause any currently playing audio
+        document.querySelectorAll('audio').forEach(audio => {
+            audio.pause();
+            audio.currentTime = 0;
+        });
+
+        document.querySelectorAll('.slide-container').forEach(el => el.classList.remove('flex'));
+        document.querySelectorAll('.slide-container').forEach(el => el.classList.add('hidden'));
+
+        if (sessionState === 'lobby') {
+            document.getElementById('controls-lobby').classList.remove('hidden');
+            document.getElementById('controls-active').classList.add('hidden');
+            const lobbySlide = document.getElementById('slide-lobby');
+            lobbySlide.classList.remove('hidden');
+            lobbySlide.classList.add('flex');
+            document.getElementById('slide-counter').innerText = "Lobby";
+            return;
+        }
+
+        // ACTIVE STATE
+        document.getElementById('controls-lobby').classList.add('hidden');
+        document.getElementById('controls-active').classList.remove('hidden');
+
+        const activeSlide = document.getElementById('slide-' + currentSlide);
+        if (activeSlide) {
+            activeSlide.classList.remove('hidden');
+            activeSlide.classList.add('flex');
+        }
+
+        // Play audio 1 second after slide reveals
+        if (activeSlide) {
+            const audioEl = activeSlide.querySelector('audio');
+            if (audioEl) {
+                setTimeout(() => {
+                    audioEl.play().catch(e => console.log('Autoplay blocked by browser:', e));
+                }, 1000);
+            }
+        }
+
+        // Update counter
+        const counterEl = document.getElementById('slide-counter');
+        if (counterEl) counterEl.innerText = currentSlide + " / " + totalSlides;
+
+        // Sync with server (if we changed slide locally)
+        fetch('/sace/workshop/set_slide', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({slide: currentSlide})
+        });
+    }
+
+    function prevSlide() {
+        if (currentSlide > 0) {
+            currentSlide--;
+            updateView();
+        }
+    }
+
+    function nextSlide() {
+        if (currentSlide < totalSlides) {
+            currentSlide++;
+            updateView();
+        }
+    }
+    
+    // Initialize
+    fetchState();
+</script>
+{% endblock %}

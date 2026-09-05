@@ -1,0 +1,8 @@
+﻿            <div class="flex items-center space-x-4">
+                <button onclick="document.getElementById('roster-modal').classList.remove('hidden')" class="flex items-center px-4 py-2 bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 font-bold border border-indigo-200 shadow-sm transition">
+                    <i class="fas fa-users mr-2"></i> Attendance: <span id="permanent-counter" class="ml-2 font-black">0</span>
+                </button>
+                <a href="{{ url_for('sace_bp.reading_hub') }}" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 border border-gray-300">
+                    Exit
+                </a>
+            </div>

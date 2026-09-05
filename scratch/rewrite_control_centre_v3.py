@@ -1,0 +1,260 @@
+﻿html_content = '''{% extends "layout.html" %}
+{% block title %}SACE Control Centre{% endblock %}
+{% block flashes %}{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden mb-12">
+    <!-- Rule 3: Color Strip -->
+    <div class="h-2 w-full bg-indigo-600"></div>
+    
+    <div class="p-6 sm:p-8">
+        
+        <!-- Rule 4: Row 1 Header & Back Button -->
+        <div class="flex justify-between items-start border-b border-slate-100 pb-4 mb-4">
+            <div>
+                <h1 class="text-2xl font-black text-slate-800">
+                    <i class="fas fa-book-reader text-indigo-600 mr-2"></i> I Learn to Read Using the LITRE Method
+                </h1>
+                <p class="text-slate-500 font-bold mt-1 text-sm uppercase tracking-wide">SACE Control Centre</p>
+            </div>
+            <a href="{{ url_for('public_bp.welcome') }}" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg transition shadow-sm whitespace-nowrap ml-4">
+                <i class="fas fa-sign-out-alt mr-1"></i> Exit Platform
+            </a>
+        </div>
+
+        <!-- Rule 6: Flashes inside tile -->
+        {% include "partials/flash_messages.html" %}
+
+        <!-- Rule 5: Row 2 Actions right-aligned -->
+        <div class="flex flex-wrap justify-end gap-3 mb-8">
+            {% if has_pledged %}
+            <button onclick="openPledgeModal()" class="px-4 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-bold rounded-lg transition border border-emerald-200 shadow-sm">
+                <i class="fas fa-check-circle mr-1"></i> IP Pledge Signed
+            </button>
+            <a href="{{ url_for('sace_bp.audit_report') }}" class="px-4 py-2 bg-slate-800 text-white hover:bg-slate-700 font-bold rounded-lg transition shadow-sm">
+                <i class="fas fa-history mr-1"></i> View Audit Logs
+            </a>
+            {% else %}
+            <button onclick="openPledgeModal()" class="px-5 py-2 bg-red-600 text-white hover:bg-red-700 font-bold rounded-lg transition shadow-sm animate-pulse">
+                <i class="fas fa-file-signature mr-1"></i> Sign IP Pledge (Required)
+            </button>
+            {% endif %}
+        </div>
+
+        {% if not has_pledged %}
+        
+        <!-- Locked State -->
+        <div class="text-center py-16 px-4 bg-slate-50 border-2 border-dashed border-slate-300 rounded-xl">
+            <i class="fas fa-lock text-5xl text-slate-300 mb-4"></i>
+            <h2 class="text-xl font-bold text-slate-700 mb-2">Control Centre Locked</h2>
+            <p class="text-slate-500 max-w-md mx-auto mb-6">You must review and accept the AIT Intellectual Property Pledge before you can access submission documents or provision auditors.</p>
+            <button onclick="openPledgeModal()" class="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow transition">
+                Sign Pledge to Unlock
+            </button>
+        </div>
+
+        {% else %}
+        
+        <!-- Application Documents Section -->
+        <div class="mb-10">
+            <h3 class="text-lg font-bold text-slate-800 border-b border-slate-200 pb-2 mb-4">Provider Submission Documents</h3>
+            <div class="flex flex-wrap gap-4">
+                <a href="{{ url_for('sace_bp.secure_view', doc_type='app_form_1') }}" target="_blank" class="flex items-center px-4 py-3 bg-white border border-slate-300 hover:border-indigo-400 rounded-lg shadow-sm transition group">
+                    <i class="fas fa-file-pdf text-red-500 mr-3 group-hover:scale-110 transition-transform"></i>
+                    <span class="font-bold text-sm text-slate-700 group-hover:text-indigo-600">Application Form 1</span>
+                </a>
+                <a href="{{ url_for('sace_bp.secure_view', doc_type='app_form_2') }}" target="_blank" class="flex items-center px-4 py-3 bg-white border border-slate-300 hover:border-indigo-400 rounded-lg shadow-sm transition group">
+                    <i class="fas fa-file-pdf text-red-500 mr-3 group-hover:scale-110 transition-transform"></i>
+                    <span class="font-bold text-sm text-slate-700 group-hover:text-indigo-600">Application Form 2</span>
+                </a>
+                <a href="{{ url_for('sace_bp.secure_view', doc_type='f_cv') }}" target="_blank" class="flex items-center px-4 py-3 bg-white border border-slate-300 hover:border-indigo-400 rounded-lg shadow-sm transition group">
+                    <i class="fas fa-id-badge text-blue-500 mr-3 group-hover:scale-110 transition-transform"></i>
+                    <span class="font-bold text-sm text-slate-700 group-hover:text-indigo-600">Facilitator CVs</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- Auditor Provisioning Section -->
+        <div class="mb-4 flex justify-between items-end border-b border-slate-200 pb-2">
+            <div>
+                <h3 class="text-lg font-bold text-slate-800">Provisioned Auditors</h3>
+                <p class="text-xs text-slate-500 mt-1">SACE-appointed Evaluators and Endorsement Committee Members.</p>
+            </div>
+            <button onclick="openAddAuditorModal()" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-sm transition whitespace-nowrap">
+                <i class="fas fa-plus mr-1"></i> Provision New Auditor
+            </button>
+        </div>
+
+        <!-- HTML Table for Auditors -->
+        <div class="overflow-x-auto bg-white rounded-lg border border-slate-200 shadow-sm">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-slate-50 border-b border-slate-200">
+                        <th class="p-4 text-xs font-bold uppercase text-slate-500">Name</th>
+                        <th class="p-4 text-xs font-bold uppercase text-slate-500">Email</th>
+                        <th class="p-4 text-xs font-bold uppercase text-slate-500">Status</th>
+                        <th class="p-4 text-xs font-bold uppercase text-slate-500">Date Provisioned</th>
+                        <th class="p-4 text-xs font-bold uppercase text-slate-500 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% if auditors %}
+                        {% for aud in auditors %}
+                        <tr class="hover:bg-slate-50 transition">
+                            <td class="p-4 text-sm font-bold text-slate-800">{{ aud.first_name }} {{ aud.last_name }}</td>
+                            <td class="p-4 text-sm text-slate-600">{{ aud.email }}</td>
+                            <td class="p-4 text-sm">
+                                <span class="px-2 py-1 rounded text-[10px] font-bold border uppercase tracking-wider {% if 'Completed' in aud.status %}bg-slate-100 text-slate-500 border-slate-200{% elif 'Progress' in aud.status %}bg-blue-50 text-blue-600 border-blue-200{% else %}bg-emerald-50 text-emerald-600 border-emerald-200{% endif %}">
+                                    {{ aud.status }}
+                                </span>
+                            </td>
+                            <td class="p-4 text-sm text-slate-500">{{ aud.date }}</td>
+                            <td class="p-4 text-right">
+                                <button onclick="openEditModal('{{ aud.id }}', '{{ aud.first_name }}', '{{ aud.last_name }}', '{{ aud.email }}')" class="text-indigo-500 hover:text-indigo-700 font-bold text-sm bg-indigo-50 hover:bg-indigo-100 px-3 py-1 rounded transition">
+                                    <i class="fas fa-edit mr-1"></i> Edit
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="5" class="p-8 text-center text-slate-500">
+                                <i class="fas fa-user-shield text-3xl text-slate-300 mb-2"></i>
+                                <p class="text-sm">No auditors have been provisioned yet.</p>
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+
+        {% endif %}
+    </div>
+</div>
+
+<!-- Add Auditor Modal -->
+<div id="add-modal" class="fixed inset-0 z-[60] hidden bg-slate-900 bg-opacity-75 flex items-center justify-center p-4 backdrop-blur-sm">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-200">
+        <div class="bg-indigo-600 p-5 flex justify-between items-center text-white">
+            <h3 class="font-bold text-lg"><i class="fas fa-user-plus mr-2"></i> Provision New Auditor</h3>
+            <button onclick="closeAddAuditorModal()" class="text-indigo-200 hover:text-white transition"><i class="fas fa-times text-xl"></i></button>
+        </div>
+        <form action="{{ url_for('sace_bp.provision_auditor') }}" method="POST" class="p-6">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">First Name</label>
+                    <input type="text" name="first_name" required autofocus class="w-full p-3 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition shadow-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Last Name</label>
+                    <input type="text" name="last_name" required class="w-full p-3 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition shadow-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Email Address</label>
+                    <input type="email" name="email" required class="w-full p-3 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition shadow-sm">
+                </div>
+            </div>
+            <div class="mt-8 flex justify-end space-x-3 border-t border-slate-100 pt-5">
+                <button type="button" onclick="closeAddAuditorModal()" class="px-5 py-2 text-slate-500 hover:bg-slate-100 rounded-lg font-bold transition">Cancel</button>
+                <button type="submit" class="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-md transition"><i class="fas fa-paper-plane mr-2"></i> Send Invite</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Auditor Modal -->
+<div id="edit-modal" class="fixed inset-0 z-[60] hidden bg-slate-900 bg-opacity-75 flex items-center justify-center p-4 backdrop-blur-sm">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-200">
+        <div class="bg-indigo-600 p-5 flex justify-between items-center text-white">
+            <h3 class="font-bold text-lg"><i class="fas fa-user-edit mr-2"></i> Edit Provisioned Auditor</h3>
+            <button onclick="closeEditModal()" class="text-indigo-200 hover:text-white transition"><i class="fas fa-times text-xl"></i></button>
+        </div>
+        <form id="edit-form" method="POST" action="" class="p-6">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">First Name</label>
+                    <input type="text" name="first_name" id="edit-first-name" required class="w-full p-3 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Last Name</label>
+                    <input type="text" name="last_name" id="edit-last-name" required class="w-full p-3 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Email Address</label>
+                    <input type="email" name="email" id="edit-email" required class="w-full p-3 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition">
+                </div>
+            </div>
+            <div class="mt-8 flex justify-end space-x-3 border-t border-slate-100 pt-5">
+                <button type="button" onclick="closeEditModal()" class="px-5 py-2 text-slate-500 hover:bg-slate-100 rounded-lg font-bold transition">Cancel</button>
+                <button type="submit" class="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-md transition"><i class="fas fa-paper-plane mr-2"></i> Save & Resend</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Pledge Modal -->
+<div id="pledge-modal" class="fixed inset-0 z-[60] hidden bg-slate-900 bg-opacity-75 flex items-center justify-center p-4 backdrop-blur-sm">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden border border-slate-200">
+        <div class="bg-slate-900 p-6 flex justify-between items-center">
+            <h3 class="font-black text-xl text-white tracking-wide"><i class="fas fa-lock text-emerald-400 mr-3"></i> Intellectual Property Pledge</h3>
+            <button onclick="closePledgeModal()" class="text-slate-400 hover:text-white transition"><i class="fas fa-times text-xl"></i></button>
+        </div>
+        <div class="p-8">
+            <div class="bg-slate-50 border border-slate-200 rounded-xl p-6 text-sm text-slate-700 leading-relaxed space-y-4 shadow-inner mb-6">
+                <p>By accessing the AIT Provider Platform, you acknowledge and agree to the following terms on behalf of SACE and its appointed representatives:</p>
+                <ul class="list-disc pl-5 space-y-2 font-medium">
+                    <li>The <strong>LITRE Blending Machine</strong> methodology, physical apparatus designs, and digital simulators are the exclusive Intellectual Property of AIT.</li>
+                    <li>All SACE-appointed individuals granted access via this portal are bound by strict confidentiality and non-disclosure obligations.</li>
+                    <li>Secure access links are generated strictly for the purpose of activity evaluation and endorsement, and may not be shared, duplicated, or utilized for unauthorized training.</li>
+                    <li>Any attempt to bypass digital rights management, download secure documents, or reproduce the methodology without written authorization is strictly prohibited.</li>
+                </ul>
+            </div>
+            
+            {% if not has_pledged %}
+            <form action="{{ url_for('sace_bp.provisioning_pledge') }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <div class="flex items-center justify-between mt-4">
+                    <button type="button" onclick="closePledgeModal()" class="px-6 py-3 text-slate-500 hover:text-slate-700 font-bold transition">Cancel</button>
+                    <button type="submit" class="px-8 py-3 bg-emerald-600 hover:bg-emerald-700 text-white text-lg font-black rounded-xl shadow-lg hover:shadow-xl transition flex items-center group">
+                        <i class="fas fa-check-circle mr-3 group-hover:scale-110 transition-transform"></i> I Acknowledge & Accept
+                    </button>
+                </div>
+            </form>
+            {% else %}
+            <div class="mt-4 p-4 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-800 flex items-center justify-center font-bold">
+                <i class="fas fa-check-circle text-2xl mr-3"></i> You have successfully acknowledged these terms.
+            </div>
+            <div class="mt-6 flex justify-end">
+                <button type="button" onclick="closePledgeModal()" class="px-6 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-lg transition">Close</button>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+function openPledgeModal() { document.getElementById('pledge-modal').classList.remove('hidden'); }
+function closePledgeModal() { document.getElementById('pledge-modal').classList.add('hidden'); }
+
+function openAddAuditorModal() {
+    document.getElementById('add-modal').classList.remove('hidden');
+}
+function closeAddAuditorModal() {
+    document.getElementById('add-modal').classList.add('hidden');
+}
+
+function openEditModal(id, firstName, lastName, email) {
+    document.getElementById('edit-form').action = "/sace/provisioning/edit_auditor/" + id;
+    document.getElementById('edit-first-name').value = firstName;
+    document.getElementById('edit-last-name').value = lastName;
+    document.getElementById('edit-email').value = email;
+    document.getElementById('edit-modal').classList.remove('hidden');
+}
+function closeEditModal() { document.getElementById('edit-modal').classList.add('hidden'); }
+</script>
+{% endblock %}'''
+
+with open('templates/program_sace/provisioning_map.html', 'w', encoding='utf-8') as f:
+    f.write(html_content)

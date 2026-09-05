@@ -1,0 +1,87 @@
+﻿    let currentSlide = 0;
+    const totalSlides = 13; // We will have 13 slides
+    let pollInterval = null;
+
+    function updateView() {
+        // Pause any currently playing audio
+        document.querySelectorAll('audio').forEach(audio => {
+            audio.pause();
+            audio.currentTime = 0;
+        });
+
+        // Clear polling if leaving slide 2
+        if (pollInterval) {
+            clearInterval(pollInterval);
+            pollInterval = null;
+        }
+
+        // Update projector
+        document.querySelectorAll('.slide-container').forEach(el => el.classList.remove('flex'));
+        document.querySelectorAll('.slide-container').forEach(el => el.classList.add('hidden'));
+        const activeSlide = document.getElementById('slide-' + currentSlide);
+        if (activeSlide) {
+            activeSlide.classList.remove('hidden');
+            activeSlide.classList.add('flex');
+        }
+
+        // Play audio 1 second after slide reveals
+        if (activeSlide) {
+            const audioEl = activeSlide.querySelector('audio');
+            if (audioEl) {
+                setTimeout(() => {
+                    audioEl.play().catch(e => console.log('Autoplay blocked by browser:', e));
+                }, 1000);
+            }
+        }
+
+        // Start polling live stats if on slide 2
+        if (currentSlide === 2) {
+            fetchStats(); // Fetch immediately
+            pollInterval = setInterval(fetchStats, 2000); // Then every 2 seconds
+        }
+
+        // Update counter
+        const counterEl = document.getElementById('slide-counter');
+        if (counterEl) counterEl.innerText = currentSlide + " / " + totalSlides;
+
+        // Sync with server
+        fetch('/sace/workshop/set_slide', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({slide: currentSlide})
+        });
+    }
+
+    function fetchStats() {
+        fetch("/sace/workshop/facilitator/live_stats?session_id=demo-session-1&activity_slug=module-1-pretest")
+            .then(res => res.json())
+            .then(data => {
+                const total = data.total || 1; // prevent div by zero
+                const truePct = (data.breakdown['True'] || 0) / total * 100;
+                const falsePct = (data.breakdown['False'] || 0) / total * 100;
+                
+                document.getElementById('true-count-slide').innerText = data.breakdown['True'] || 0;
+                document.getElementById('true-bar-slide').style.width = truePct + '%';
+                
+                document.getElementById('false-count-slide').innerText = data.breakdown['False'] || 0;
+                document.getElementById('false-bar-slide').style.width = falsePct + '%';
+            })
+            .catch(err => console.error("Error fetching stats:", err));
+    }
+
+    function prevSlide() {
+        if (currentSlide > 0) {
+            currentSlide--;
+            updateView();
+        }
+    }
+
+    function nextSlide() {
+        if (currentSlide < totalSlides) {
+            currentSlide++;
+            updateView();
+        }
+    }
+    
+    // Initialize
+    updateView();

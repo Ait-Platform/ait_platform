@@ -27,6 +27,9 @@
 - **Facilitator-Participant Sync:** The SACE workshop operates on a strict singleton room design (demo-session-1).
 - **State Management:** The Facilitator Dashboard dictates the state (slides, lobby, active). The Participant App strictly polls /sace/workshop/get_state every 1 second.
 - **Interaction Logging:** All participant votes (polls, reflections) are securely UPSERTED/INSERTED into the Postgres SaceWorkshopInteraction table. This creates a permanent, crash-proof audit trail for the SACE evaluators.
+- **Terminology (Critical):** The physical machine/hardware is the "LITRE Blending Machine". However, the official SACE Provider Activity name is **"I Learn to Read English Using the LITRE Method"**. NEVER refer to the activity as "LITRE Blending Machine" or "Litre Reading" in the UI. Always use the full correct activity name.
+- **Auditors vs Evaluators:** When dealing with SACE's endorsement process, always refer to the individuals as "Auditors" (e.g. use "Provisioned Auditors"). You can provide examples of Auditors acting as "evaluators", but the official noun must be Auditors.
+- **Auditor Access Codes:** SACE evaluators do not receive emails to log in. The admin generates single-use access codes on the Control Centre and hands them out. Auditors join via /sace/join using these codes.
 - **Routing Rules:** 
   - The Participant Check-In is completely separated into /sace/participant/join.
   - The Interactive App (/sace/workshop/interactive) contains NO lobby HTML. If a user hits it without joining, they are bounced back to the join route.

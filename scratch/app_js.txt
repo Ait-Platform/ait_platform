@@ -1,0 +1,54 @@
+﻿<script>
+    let currentSlide = 0;
+    
+    // Time Tracker
+    const startTime = new Date();
+    setInterval(() => {
+        const now = new Date();
+        const diff = new Date(now - startTime);
+        const hh = String(diff.getUTCHours()).padStart(2, '0');
+        const mm = String(diff.getUTCMinutes()).padStart(2, '0');
+        const ss = String(diff.getUTCSeconds()).padStart(2, '0');
+        const timer = document.getElementById('session-timer');
+        if (timer) timer.innerText = hh + ':' + mm + ':' + ss;
+    }, 1000);
+
+    function updateView() {
+        document.querySelectorAll('.app-view').forEach(el => el.classList.add('hidden'));
+        
+        let appViewIndex = 1; // Default to Look at projector
+        if (currentSlide === 0) appViewIndex = 0;
+        if (currentSlide === 3) appViewIndex = 2; // Slide 3 (The Problem) -> Root Cause Poll
+        if (currentSlide === 4) appViewIndex = 3; // Slide 4 (Poll Results) -> Personal Reflection
+        if (currentSlide === 5) appViewIndex = 4; // Slide 5 (Reflection Results) -> Guessing Game
+        if (currentSlide === 8) appViewIndex = 5; // Slide 8 (Case Study) -> Case Study YES/NO
+        if (currentSlide === 9) appViewIndex = 1; // Slide 9 (Case Study Results) -> Look at projector
+        if (currentSlide === 11) appViewIndex = 6; // Slide 11 (Draw Palm) -> App View 6
+        if (currentSlide === 12) appViewIndex = 7; // Slide 12 (Nano Blending) -> App View 7
+        
+        const activeView = document.getElementById('app-view-' + appViewIndex);
+        if(activeView) activeView.classList.remove('hidden');
+    }
+
+    // Sync with facilitator
+    setInterval(() => {
+        fetch('/sace/workshop/get_slide')
+            .then(res => res.json())
+            .then(data => {
+                if(data.slide !== currentSlide) {
+                    currentSlide = data.slide;
+                    updateView();
+                }
+            });
+    }, 1000);
+
+    function selectAnswer(btn) {
+        btn.classList.add('ring-4', 'ring-indigo-300');
+        setTimeout(() => {
+            alert('SACE Trap Triggered: Your answer is logged on the facilitator dashboard.');
+        }, 600);
+    }
+    
+    // Initialize
+    updateView();
+</script>

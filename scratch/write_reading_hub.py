@@ -1,0 +1,190 @@
+﻿content = '''{% extends "layout.html" %}
+{% block title %}SACE Evaluation Roadmap{% endblock %}
+
+{% block content %}
+<div class="bg-slate-50 min-h-screen py-10 px-4">
+    <div class="max-w-4xl mx-auto">
+        
+        <!-- Header -->
+        <div class="bg-indigo-900 rounded-t-2xl p-8 text-white shadow-lg relative overflow-hidden">
+            <div class="absolute top-0 right-0 p-4 opacity-10">
+                <i class="fas fa-map-marked-alt text-9xl"></i>
+            </div>
+            <div class="relative z-10 flex justify-between items-center">
+                <div>
+                    <h1 class="text-3xl font-black mb-2">SACE Evaluation Roadmap</h1>
+                    <p class="text-indigo-200 text-lg">LITRE Reading Programme Validation Flow</p>
+                </div>
+                <a href="{{ url_for('sace_bp.dashboard') }}" class="px-5 py-2 bg-indigo-800 hover:bg-indigo-700 rounded-lg text-white font-semibold transition border border-indigo-700">
+                    Exit
+                </a>
+            </div>
+        </div>
+
+        <!-- Roadmap Container -->
+        <div class="bg-white p-8 rounded-b-2xl shadow-xl border-x border-b border-slate-200">
+            
+            {% set total = 8 %}
+            {% set completed = 0 %}
+            {% if progress.reviewer_guide %}{% set completed = completed + 1 %}{% endif %}
+            {% if progress.app_form %}{% set completed = completed + 1 %}{% endif %}
+            {% if progress.patent %}{% set completed = completed + 1 %}{% endif %}
+            {% if progress.annexures %}{% set completed = completed + 1 %}{% endif %}
+            {% if progress.ppp %}{% set completed = completed + 1 %}{% endif %}
+            {% if progress.demo_cert %}{% set completed = completed + 1 %}{% endif %}
+            {% if progress.reading_cert %}{% set completed = completed + 1 %}{% endif %}
+            {% if progress.survey %}{% set completed = completed + 1 %}{% endif %}
+            {% set percent = (completed / total * 100) | round | int %}
+
+            <!-- Progress Bar -->
+            <div class="mb-10 bg-slate-50 p-6 rounded-xl border border-slate-100">
+                <div class="flex justify-between items-end mb-2">
+                    <span class="font-bold text-slate-700">Overall Progress</span>
+                    <span class="font-black text-indigo-600 text-2xl">{{ percent }}%</span>
+                </div>
+                <div class="w-full bg-slate-200 rounded-full h-4">
+                    <div class="bg-indigo-500 h-4 rounded-full transition-all duration-1000" style="width: {{ percent }}%"></div>
+                </div>
+                {% if percent == 100 %}
+                <div class="mt-4 p-3 bg-green-100 text-green-800 rounded-lg border border-green-200 font-bold text-center">
+                    <i class="fas fa-check-circle mr-2"></i> Evaluation 100% Complete. You may exit the hub.
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="space-y-6 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-1 before:bg-gradient-to-b before:from-transparent before:via-slate-200 before:to-transparent">
+
+                <!-- Phase 1: Preparation -->
+                <div class="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
+                    <div class="flex items-center justify-center w-10 h-10 rounded-full border-4 border-white bg-slate-200 text-slate-500 font-bold shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2">
+                        1
+                    </div>
+                    <div class="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-5 rounded-xl border shadow-sm {% if progress.reviewer_guide and progress.app_form and progress.patent and progress.annexures %}bg-emerald-50 border-emerald-200{% else %}bg-white border-slate-200{% endif %}">
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="font-bold text-slate-800 text-lg">Secure Document Vault</h3>
+                            <i class="fas fa-lock text-slate-400"></i>
+                        </div>
+                        <p class="text-sm text-slate-500 mb-4">Read the proprietary materials in the anti-theft viewer.</p>
+                        <div class="space-y-2">
+                            <a href="{{ url_for('sace_bp.secure_view', doc_type='reviewer_guide') }}" class="flex items-center justify-between p-2 rounded hover:bg-slate-50 transition border border-transparent hover:border-slate-200">
+                                <span class="text-slate-700 font-medium text-sm"><i class="fas fa-book mr-2 text-indigo-400"></i> Reviewer Guide</span>
+                                {% if progress.reviewer_guide %}<i class="fas fa-check-circle text-green-500"></i>{% else %}<span class="w-5 h-5 rounded-full border-2 border-slate-300"></span>{% endif %}
+                            </a>
+                            <a href="{{ url_for('sace_bp.secure_view', doc_type='app_form') }}" class="flex items-center justify-between p-2 rounded hover:bg-slate-50 transition border border-transparent hover:border-slate-200">
+                                <span class="text-slate-700 font-medium text-sm"><i class="fas fa-file-contract mr-2 text-indigo-400"></i> Application Form</span>
+                                {% if progress.app_form %}<i class="fas fa-check-circle text-green-500"></i>{% else %}<span class="w-5 h-5 rounded-full border-2 border-slate-300"></span>{% endif %}
+                            </a>
+                            <a href="{{ url_for('sace_bp.secure_view', doc_type='patent') }}" class="flex items-center justify-between p-2 rounded hover:bg-slate-50 transition border border-transparent hover:border-slate-200">
+                                <span class="text-slate-700 font-medium text-sm"><i class="fas fa-certificate mr-2 text-indigo-400"></i> Patent Docs</span>
+                                {% if progress.patent %}<i class="fas fa-check-circle text-green-500"></i>{% else %}<span class="w-5 h-5 rounded-full border-2 border-slate-300"></span>{% endif %}
+                            </a>
+                            <a href="{{ url_for('sace_bp.secure_view', doc_type='annexures') }}" class="flex items-center justify-between p-2 rounded hover:bg-slate-50 transition border border-transparent hover:border-slate-200">
+                                <span class="text-slate-700 font-medium text-sm"><i class="fas fa-folder-open mr-2 text-indigo-400"></i> Annexures A-E</span>
+                                {% if progress.annexures %}<i class="fas fa-check-circle text-green-500"></i>{% else %}<span class="w-5 h-5 rounded-full border-2 border-slate-300"></span>{% endif %}
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Phase 2: Active Simulation -->
+                <div class="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
+                    <div class="flex items-center justify-center w-10 h-10 rounded-full border-4 border-white bg-slate-200 text-slate-500 font-bold shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2">
+                        2
+                    </div>
+                    <div class="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-5 rounded-xl border shadow-sm {% if progress.demo_cert %}bg-emerald-50 border-emerald-200{% else %}bg-white border-slate-200{% endif %}">
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="font-bold text-slate-800 text-lg">Interactive Demo</h3>
+                            <i class="fas fa-mobile-alt text-slate-400"></i>
+                        </div>
+                        <p class="text-sm text-slate-500 mb-4">Run the split-screen simulator and secure your Workshop Certificate.</p>
+                        
+                        <a href="{{ url_for('sace_bp.simulator') }}" class="w-full block text-center py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg transition mb-3">
+                            Launch Simulator
+                        </a>
+                        
+                        <div class="flex items-center justify-between p-2 rounded bg-slate-50 border border-slate-100">
+                            <span class="text-slate-700 font-bold text-sm">W/S Certificate</span>
+                            {% if progress.demo_cert %}<i class="fas fa-check-circle text-green-500 text-xl"></i>{% else %}<span class="w-5 h-5 rounded-full border-2 border-slate-300"></span>{% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Phase 3: Linear Review -->
+                <div class="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
+                    <div class="flex items-center justify-center w-10 h-10 rounded-full border-4 border-white bg-slate-200 text-slate-500 font-bold shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2">
+                        3
+                    </div>
+                    <div class="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-5 rounded-xl border shadow-sm {% if progress.ppp %}bg-emerald-50 border-emerald-200{% else %}bg-white border-slate-200{% endif %}">
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="font-bold text-slate-800 text-lg">Linear Presentation (PPP)</h3>
+                            <i class="fas fa-desktop text-slate-400"></i>
+                        </div>
+                        <p class="text-sm text-slate-500 mb-4">Narrated slide-by-slide review. {% if progress.demo_cert %}<br><strong class="text-amber-600">Since you have the W/S cert, you can stop at Slide 30.</strong>{% endif %}</p>
+                        
+                        <a href="{{ url_for('sace_bp.presentation') }}" class="w-full block text-center py-2.5 bg-slate-700 hover:bg-slate-600 text-white font-bold rounded-lg transition mb-3">
+                            View Slides
+                        </a>
+                        
+                        <div class="flex items-center justify-between p-2 rounded bg-slate-50 border border-slate-100">
+                            <span class="text-slate-700 font-bold text-sm">Slides Completed</span>
+                            {% if progress.ppp %}<i class="fas fa-check-circle text-green-500 text-xl"></i>{% else %}<span class="w-5 h-5 rounded-full border-2 border-slate-300"></span>{% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Phase 4: Reading Module -->
+                <div class="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
+                    <div class="flex items-center justify-center w-10 h-10 rounded-full border-4 border-white bg-slate-200 text-slate-500 font-bold shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2">
+                        4
+                    </div>
+                    <div class="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-5 rounded-xl border shadow-sm {% if progress.reading_cert %}bg-emerald-50 border-emerald-200{% else %}bg-white border-slate-200{% endif %}">
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="font-bold text-slate-800 text-lg">Reading Video Course</h3>
+                            <i class="fas fa-book-reader text-slate-400"></i>
+                        </div>
+                        <p class="text-sm text-slate-500 mb-4">Complete the 18 instructional videos for the methodology.</p>
+                        
+                        <a href="{{ url_for('reading_bp.subject_home') }}" class="w-full block text-center py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg transition mb-3">
+                            Start Reading Course
+                        </a>
+                        
+                        <div class="flex items-center justify-between p-2 rounded bg-slate-50 border border-slate-100">
+                            <span class="text-slate-700 font-bold text-sm">Reading Certificate</span>
+                            {% if progress.reading_cert %}<i class="fas fa-check-circle text-green-500 text-xl"></i>{% else %}<span class="w-5 h-5 rounded-full border-2 border-slate-300"></span>{% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Phase 5: Post-Workshop Survey -->
+                <div class="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
+                    <div class="flex items-center justify-center w-10 h-10 rounded-full border-4 border-white bg-slate-200 text-slate-500 font-bold shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2">
+                        5
+                    </div>
+                    <div class="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-5 rounded-xl border shadow-sm {% if progress.survey %}bg-emerald-50 border-emerald-200{% else %}bg-white border-slate-200{% endif %}">
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="font-bold text-slate-800 text-lg">Path Analysis Survey</h3>
+                            <i class="fas fa-chart-line text-slate-400"></i>
+                        </div>
+                        <p class="text-sm text-slate-500 mb-4">Final baseline data collection for the longitudinal study.</p>
+                        
+                        <a href="{{ url_for('sace_bp.post_ws_survey') }}" class="w-full block text-center py-2.5 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-lg transition mb-3">
+                            Take Survey
+                        </a>
+                        
+                        <div class="flex items-center justify-between p-2 rounded bg-slate-50 border border-slate-100">
+                            <span class="text-slate-700 font-bold text-sm">Survey Completed</span>
+                            {% if progress.survey %}<i class="fas fa-check-circle text-green-500 text-xl"></i>{% else %}<span class="w-5 h-5 rounded-full border-2 border-slate-300"></span>{% endif %}
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}
+'''
+
+with open('templates/program_sace/reading_hub.html', 'w', encoding='utf-8') as f:
+    f.write(content)

@@ -1,0 +1,35 @@
+﻿    function fetchState() {
+        fetch('/sace/workshop/get_state')
+            .then(res => res.json())
+            .then(data => {
+                let changed = false;
+                if(sessionState !== data.status) {
+                    sessionState = data.status;
+                    changed = true;
+                }
+                if(currentSlide !== data.slide) {
+                    currentSlide = data.slide;
+                    changed = true;
+                }
+                
+                // Update counters
+                const attCounter = document.getElementById('attendance-counter');
+                if (attCounter) attCounter.innerText = data.attendance;
+                const permCounter = document.getElementById('permanent-counter');
+                if (permCounter) permCounter.innerText = data.attendance;
+                
+                // Update Roster Modal
+                const rosterList = document.getElementById('roster-list');
+                if (rosterList && data.roster) {
+                    if (data.roster.length === 0) {
+                        rosterList.innerHTML = '<li class="p-6 text-center text-gray-400 text-sm italic">No participants have checked in yet.</li>';
+                    } else {
+                        rosterList.innerHTML = data.roster.map(name => <li class="p-4 px-6 flex items-center bg-white"><div class="h-8 w-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-sm mr-4"><i class="fas fa-user"></i></div><span class="font-semibold text-gray-700"></span></li>).join('');
+                    }
+                }
+                
+                if (changed) {
+                    updateView();
+                }
+            });
+    }

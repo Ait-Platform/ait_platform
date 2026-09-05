@@ -1,0 +1,67 @@
+﻿{% extends "layout.html" %}
+{% block title %}{{ org.name }} - Organisation Settings{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 mt-8 mb-16">
+    <div class="flex items-center justify-between mb-8 pb-4 border-b border-slate-200">
+        <div>
+            <span class="bg-slate-100 text-slate-800 text-xs px-2 py-1 rounded font-bold uppercase tracking-wide mb-2 inline-block">Settings</span>
+            <h1 class="text-3xl font-extrabold text-slate-900">{{ org.name }}</h1>
+        </div>
+        <a href="{{ url_for('uip_bp.dashboard', org_slug=org.slug) }}" class="px-4 py-2 border border-slate-300 text-slate-700 hover:bg-slate-50 font-bold rounded-lg shadow-sm transition">
+            Back to Dashboard
+        </a>
+    </div>
+
+    {% include "partials/flash_messages.html" %}
+
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <form method="POST" class="p-8">
+            <h2 class="text-xl font-bold text-slate-900 mb-6">Organisation Details</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-1">UIP Name</label>
+                    <input type="text" name="name" value="{{ org.name }}" required class="w-full rounded border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-1">Status</label>
+                    <select name="status" class="w-full rounded border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        <option value="active" {% if org.status == 'active' %}selected{% endif %}>Active</option>
+                        <option value="inactive" {% if org.status == 'inactive' %}selected{% endif %}>Inactive</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="mb-6">
+                <label class="block text-sm font-bold text-slate-700 mb-1">Geographic Area</label>
+                <input type="text" name="area" value="{{ org.area or '' }}" class="w-full rounded border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" placeholder="e.g. Manor Gardens, eThekwini">
+            </div>
+
+            <div class="mb-6">
+                <label class="block text-sm font-bold text-slate-700 mb-1">Municipality Relationship / Reference</label>
+                <input type="text" name="municipality_ref" value="{{ org.municipality_ref or '' }}" class="w-full rounded border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" placeholder="e.g. eThekwini SLA #9482">
+                <p class="text-xs text-slate-500 mt-1">Identifies the legal/operational framework mapping this UIP to the local government.</p>
+            </div>
+
+            <h3 class="text-lg font-bold text-slate-900 mb-4 mt-8 pt-6 border-t border-slate-100">Contact Details</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-1">Public Email</label>
+                    <input type="email" name="contact_email" value="{{ org.contact_email or '' }}" class="w-full rounded border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-1">Public Phone</label>
+                    <input type="text" name="contact_phone" value="{{ org.contact_phone or '' }}" class="w-full rounded border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                </div>
+            </div>
+
+            <div class="flex justify-end pt-4 border-t border-slate-100">
+                <button type="submit" class="px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-sm transition">
+                    Save Configuration
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

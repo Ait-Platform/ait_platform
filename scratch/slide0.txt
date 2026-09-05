@@ -1,0 +1,10 @@
+﻿                    <!-- Slide 0 (The Hook / Pre-test State) -->
+                    <div id="slide-0" class="slide-container absolute inset-0 flex flex-col items-center justify-center p-8 bg-slate-900 text-white rounded-xl text-center">
+                        <h2 class="text-4xl font-bold text-indigo-400 mb-8"><i class="fas fa-clipboard-check mr-3"></i>Welcome Activity</h2>
+                        <p class="text-2xl text-slate-300 mb-6 font-semibold">Is there a crisis in reading in South Africa?</p>
+                        <p class="text-lg text-slate-500 italic mb-8">Please log your answer on your Participant App to begin.</p>
+                        <div class="flex space-x-6 justify-center">
+                            <div class="px-8 py-4 bg-green-900/50 text-green-400 font-bold rounded-lg border border-green-700/50">TRUE (Crisis Exists)</div>
+                            <div class="px-8 py-4 bg-red-900/50 text-red-400 font-bold rounded-lg border border-red-700/50">FALSE (No Crisis)</div>
+                        </div>
+                    </div>

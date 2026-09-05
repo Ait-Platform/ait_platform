@@ -358,7 +358,7 @@ def catalog():
     activities = [
         {
             "slug": "reading",
-            "name": "Litre Reading Workshop",
+            "name": "I Learn to Read English Using the LITRE Method",
             "desc": "Interactive reading methodology for early childhood development.",
             "icon": "fa-book-open"
         }

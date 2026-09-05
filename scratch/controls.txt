@@ -1,0 +1,25 @@
+﻿                    <!-- ACTIVE CONTROLS -->
+                    <div id="controls-active" class="hidden space-y-4">
+                        <div class="p-4 bg-indigo-900/30 border border-indigo-500/50 rounded-lg">
+                            <h3 class="font-bold text-indigo-300 mb-2"><i class="fas fa-lightbulb text-yellow-400 mr-2"></i>Facilitator Note</h3>
+                            <p class="text-slate-300 text-sm leading-relaxed">Navigate the slides. Participant apps will automatically sync to active traps and activities.</p>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 items-center">
+                            <button onclick="prevSlide()" class="w-full py-4 bg-slate-700 hover:bg-slate-600 font-bold rounded-lg transition text-slate-200 border border-slate-600 text-lg">
+                                <i class="fas fa-chevron-left mr-2"></i> Prev Slide
+                            </button>
+                            <button onclick="pollData()" class="w-full py-4 bg-slate-700 hover:bg-slate-600 text-sm font-bold rounded-lg transition text-slate-300 border border-slate-600">
+                                <i class="fas fa-sync-alt mr-2"></i> Refresh Data
+                            </button>
+                            <button onclick="nextSlide()" class="w-full py-4 bg-indigo-600 hover:bg-indigo-500 font-bold rounded-lg transition shadow-[0_0_15px_rgba(79,70,229,0.5)] text-white text-lg">
+                                Next Slide <i class="fas fa-chevron-right ml-2"></i>
+                            </button>
+                        </div>
+                        
+                        <div class="mt-4 pt-4 border-t border-slate-700 text-right">
+                            <button onclick="resetWorkshop()" class="py-2 px-6 bg-red-900/30 hover:bg-red-800/50 text-red-400 text-sm font-bold rounded border border-red-800/50 transition">
+                                <i class="fas fa-power-off mr-2"></i> Reset Room (Back to Lobby)
+                            </button>
+                        </div>
+                    </div>

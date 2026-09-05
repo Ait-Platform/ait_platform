@@ -1,0 +1,138 @@
+﻿certificate_html = '''<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AIT Provider Certificate - LITRE Workshop</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Lato:wght@300;400;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap');
+        
+        @page {
+            size: A4 landscape;
+            margin: 0;
+        }
+        
+        body {
+            background-color: #f1f5f9;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .cert-container {
+            width: 297mm;
+            height: 210mm;
+            background: white;
+            padding: 20mm;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            position: relative;
+        }
+
+        @media print {
+            body {
+                background-color: white;
+                padding: 0;
+            }
+            .cert-container {
+                box-shadow: none;
+                width: 100%;
+                height: 100%;
+                padding: 15mm;
+            }
+            .no-print {
+                display: none !important;
+            }
+        }
+
+        .cert-border {
+            border: 4px solid #1e3a8a; /* deep blue */
+            padding: 6px;
+            height: 100%;
+        }
+
+        .cert-inner-border {
+            border: 2px solid #4338ca; /* lighter blue */
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 40px;
+            position: relative;
+            background: url('data:image/svg+xml;utf8,<svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><defs><pattern id="pattern" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="50" cy="50" r="1" fill="%234338ca" fill-opacity="0.1"/></pattern></defs><rect width="100%" height="100%" fill="url(%23pattern)"/></svg>');
+        }
+
+        .font-cinzel { font-family: 'Cinzel', serif; }
+        .font-playfair { font-family: 'Playfair Display', serif; }
+        .font-lato { font-family: 'Lato', sans-serif; }
+    </style>
+</head>
+<body>
+    
+    <button onclick="window.print()" class="no-print absolute top-4 right-4 bg-indigo-600 text-white px-6 py-3 rounded-lg shadow-lg font-bold hover:bg-indigo-700 transition">
+        Print / Save to PDF
+    </button>
+
+    <div class="cert-container text-center">
+        <div class="cert-border">
+            <div class="cert-inner-border">
+                
+                <!-- Header -->
+                <div>
+                    <h2 class="font-lato text-indigo-900 tracking-[0.3em] uppercase text-sm font-bold mb-2">AIT Professional Development</h2>
+                    <h1 class="font-cinzel text-5xl text-slate-800 font-bold mb-6">Certificate of Attendance</h1>
+                    <div class="w-24 h-1 bg-indigo-600 mx-auto rounded-full mb-8"></div>
+                </div>
+
+                <!-- Body -->
+                <div class="font-playfair text-2xl text-slate-700 italic mb-4">
+                    This is to certify that
+                </div>
+                
+                <div class="font-cinzel text-4xl text-indigo-900 font-bold mb-4 border-b border-slate-300 pb-2 inline-block px-12">
+                    {{ current_user.username }}
+                </div>
+                
+                <div class="font-lato text-lg text-slate-600 mb-8 max-w-2xl mx-auto leading-relaxed">
+                    has successfully participated in and completed the interactive workshop for the <br>
+                    <strong class="text-indigo-800 text-xl font-bold">LITRE Catch-up Reading Programme</strong>.
+                </div>
+
+                <!-- Footer -->
+                <div class="flex justify-between items-end mt-12 px-12">
+                    <div class="text-center w-48">
+                        <div class="border-b border-slate-400 pb-1 mb-2 font-lato text-slate-800">{{ date }}</div>
+                        <div class="font-lato text-xs text-slate-500 uppercase tracking-wider font-bold">Date of Completion</div>
+                    </div>
+                    
+                    <div class="w-32 h-32 flex items-center justify-center rounded-full border-2 border-yellow-500 bg-yellow-50 text-yellow-700 shadow-sm relative">
+                        <!-- Pseudo-seal -->
+                        <div class="absolute inset-2 border border-yellow-500 rounded-full border-dashed"></div>
+                        <div class="font-cinzel font-bold text-center leading-tight text-sm">
+                            AIT<br>Verified<br>Provider
+                        </div>
+                    </div>
+                    
+                    <div class="text-center w-48">
+                        <div class="border-b border-slate-400 pb-1 mb-2 font-playfair italic text-indigo-900 text-xl">Dr. LITRE Director</div>
+                        <div class="font-lato text-xs text-slate-500 uppercase tracking-wider font-bold">Programme Director</div>
+                    </div>
+                </div>
+                
+                <div class="absolute bottom-4 left-0 w-full text-center">
+                    <p class="font-lato text-[10px] text-slate-400">Certificate Reference: AIT-LITRE-{{ current_user.id }}-{{ session_id }}</p>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+'''
+
+with open('templates/program_sace/post_test/certificate.html', 'w', encoding='utf-8') as f:
+    f.write(certificate_html)
+

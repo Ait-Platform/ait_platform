@@ -470,12 +470,25 @@ def provisioning_map():
     from app.models.sace import SaceWorkshopInteraction
     import json
     
+    # If they are logged in and have a session pledge, save it to DB now
+    if current_user.is_authenticated and session.get('sace_admin_pledged'):
+        existing = SaceWorkshopInteraction.query.filter_by(user_id=current_user.id, activity_slug="admin_patent_pledge").first()
+        if not existing:
+            interaction = SaceWorkshopInteraction(
+                user_id=current_user.id,
+                activity_slug="admin_patent_pledge",
+                response_data="Admin accepted IP pledge"
+            )
+            db.session.add(interaction)
+            db.session.commit()
+        session.pop('sace_admin_pledged', None)
+
     # Use admin user 1 as a placeholder for the unauthenticated SACE admin guest
     sace_user_id = current_user.id if current_user.is_authenticated else 1
 
     # Check if pledged
     pledge = SaceWorkshopInteraction.query.filter_by(user_id=sace_user_id, activity_slug="admin_patent_pledge").first()
-    has_pledged = pledge is not None
+    has_pledged = pledge is not None or session.get('sace_admin_pledged', False)
     
     # Load provisioned auditors
     invites = SaceWorkshopInteraction.query.filter_by(user_id=sace_user_id, activity_slug="auditor_provisioned").order_by(SaceWorkshopInteraction.timestamp.desc()).all()
@@ -499,6 +512,10 @@ def provisioning_map():
 @sace_bp.route("/sace/provisioning/pledge", methods=["POST"])
 def provisioning_pledge():
     from app.models.sace import SaceWorkshopInteraction
+    
+    # Save to session so it survives registration
+    session['sace_admin_pledged'] = True
+    
     sace_user_id = current_user.id if current_user.is_authenticated else 1
     pledge = SaceWorkshopInteraction.query.filter_by(user_id=sace_user_id, activity_slug="admin_patent_pledge").first()
     if not pledge:

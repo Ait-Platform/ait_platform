@@ -1,25 +1,37 @@
 ﻿{% extends "layout.html" %}
-{% block title %}{{ org.name }} - Log Interaction{% endblock %}
+{% block title %}Log Interaction - {{ org.name }}{% endblock %}
+
+{% block flashes %}{% endblock %}
 
 {% block content %}
-<div class="max-w-3xl mx-auto px-4 mt-8 mb-16">
-    <div class="flex items-center justify-between mb-8 pb-4 border-b border-slate-200">
-        <div>
-            <span class="bg-indigo-100 text-indigo-800 text-xs px-2 py-1 rounded font-bold uppercase tracking-wide mb-2 inline-block">Reception</span>
-            <h1 class="text-3xl font-extrabold text-slate-900">Log New Interaction</h1>
+<div class="max-w-4xl mx-auto bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden mb-12">
+    <!-- Rule 3: Color Strip -->
+    <div class="h-2 w-full bg-indigo-600"></div>
+    
+    <div class="p-6 sm:p-8">
+        
+        <!-- Rule 4: Row 1 Header & Back Button -->
+        <div class="flex justify-between items-start pb-4 border-b border-slate-100 mb-6">
+            <div>
+                <h1 class="text-3xl font-black text-slate-800 tracking-tight">
+                    <i class="fas fa-plus-circle text-indigo-600 mr-2"></i> Log New Interaction
+                </h1>
+                <p class="text-slate-500 font-bold mt-1 text-sm tracking-wide uppercase">{{ org.name }} Reception</p>
+            </div>
+            <a href="{{ url_for('uip_bp.dashboard', org_slug=org.slug) }}" class="px-5 py-2.5 bg-slate-100 text-slate-700 hover:bg-slate-200 font-bold rounded-lg transition border border-slate-200 shadow-sm flex items-center ml-4">
+                <i class="fas fa-arrow-left mr-2"></i> Cancel
+            </a>
         </div>
-        <a href="{{ url_for('uip_bp.dashboard', org_slug=org.slug) }}" class="px-4 py-2 border border-slate-300 text-slate-700 hover:bg-slate-50 font-bold rounded-lg shadow-sm transition">
-            Cancel
-        </a>
-    </div>
 
-    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        <form method="POST" class="p-8">
+        <!-- Rule 6: Flashes inside tile -->
+        {% include "partials/flash_messages.html" %}
+
+        <form method="POST" class="mt-4">
             <!-- WHO -->
             <div class="mb-8 p-6 bg-slate-50 rounded-lg border border-slate-100">
                 <h3 class="text-lg font-bold text-slate-900 mb-4"><i class="fas fa-user mr-2 text-indigo-500"></i> WHO is reporting this?</h3>
                 <label class="block text-sm font-bold text-slate-700 mb-1">Search Resident / Contact Email</label>
-                <input type="email" name="resident_email" class="w-full rounded border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" placeholder="e.g. resident@manorgardens.com (Leave blank if anonymous/walk-in)">
+                <input autofocus type="email" name="resident_email" class="w-full rounded border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" placeholder="e.g. resident@manorgardens.com (Leave blank if anonymous/walk-in)">
             </div>
 
             <!-- WHAT -->
@@ -41,8 +53,16 @@
                         </select>
                     </div>
                     <div>
-                        <label class="block text-sm font-bold text-slate-700 mb-1">Short Title</label>
-                        <input type="text" name="title" required class="w-full rounded border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" placeholder="e.g. Broken Streetlight">
+                        <label class="block text-sm font-bold text-slate-700 mb-1">Short Title / Topic</label>
+                        <input type="text" name="title" list="title-suggestions" required class="w-full rounded border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" placeholder="e.g. Broken Streetlight">
+                        <datalist id="title-suggestions">
+                            <option value="Broken Streetlight">
+                            <option value="Pothole Report">
+                            <option value="Noise Complaint">
+                            <option value="Security Incident">
+                            <option value="Illegal Dumping">
+                            <option value="Levy Enquiry">
+                        </datalist>
                     </div>
                 </div>
                 <div>
@@ -75,12 +95,13 @@
                 </div>
             </div>
 
-            <div class="flex justify-between items-center pt-4 border-t border-slate-100">
-                <button type="button" class="px-4 py-2 bg-indigo-50 text-indigo-700 font-bold rounded-lg shadow-sm border border-indigo-200 hover:bg-indigo-100 transition">
+            <!-- Rule 5: Row 2 Actions right-aligned -->
+            <div class="flex justify-between items-center pt-6 border-t border-slate-100">
+                <button type="button" class="px-5 py-2.5 bg-indigo-50 text-indigo-700 font-bold rounded-lg shadow-sm border border-indigo-200 hover:bg-indigo-100 transition flex items-center">
                     <i class="fas fa-robot mr-2"></i> AI Assist
                 </button>
-                <button type="submit" class="px-8 py-4 bg-green-600 hover:bg-green-700 text-white font-bold text-lg rounded-lg shadow-[0_0_15px_rgba(34,197,94,0.3)] transition">
-                    CREATE INTERACTION
+                <button type="submit" class="px-8 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg shadow-md transition flex items-center">
+                    <i class="fas fa-check mr-2"></i> Create Interaction
                 </button>
             </div>
         </form>

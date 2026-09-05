@@ -55,12 +55,7 @@ function closePledgeModal() {
             <button onclick="openPledgeModal()" class="px-4 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-bold rounded-lg transition border border-emerald-200 shadow-sm flex items-center">
                 <i class="fas fa-check-circle mr-2"></i> IP Pledge Signed
             </button>
-            <form action="{{ url_for('sace_bp.generate_auditor_code') }}" method="POST" class="inline">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                <button type="submit" class="px-4 py-2 bg-indigo-600 text-white hover:bg-indigo-700 font-bold rounded-lg transition shadow-md flex items-center">
-                    <i class="fas fa-ticket-alt mr-2"></i> Generate Access Code
-                </button>
-            </form>
+            
             {% else %}
             <button onclick="openPledgeModal()" class="px-5 py-2.5 bg-red-600 text-white hover:bg-red-700 font-bold rounded-lg transition shadow-md animate-pulse flex items-center">
                 <i class="fas fa-file-signature mr-2"></i> Sign IP Pledge (Required)
@@ -100,7 +95,12 @@ function closePledgeModal() {
                 <h3 class="text-lg font-bold text-slate-800">Provisioned Auditors</h3>
                 <p class="text-xs text-slate-500 mt-1">SACE-appointed Auditors (e.g. Evaluators and Endorsement Committee Members).</p>
             </div>
-            
+            <form action="{{ url_for('sace_bp.generate_auditor_code') }}" method="POST" class="inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <button type="submit" class="px-4 py-2 bg-indigo-600 text-white hover:bg-indigo-700 font-bold rounded-lg transition shadow-md flex items-center">
+                    <i class="fas fa-ticket-alt mr-2"></i> Generate Access Code
+                </button>
+            </form>
         </div>
 
         <!-- HTML Table for Auditors -->

@@ -17,7 +17,14 @@ def auto_patch_database():
         ("core_organization", "config_json TEXT"),
         ("core_organization_member", "is_active BOOLEAN DEFAULT TRUE"),
         ("core_organization_member", "joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"),
-        ("core_organization_member", "left_at TIMESTAMP")
+        ("core_organization_member", "left_at TIMESTAMP"),
+        ("core_interaction", "assigned_to INTEGER"),
+        ("core_interaction", "closed_by INTEGER"),
+        ("core_interaction", "channel VARCHAR(50)"),
+        ("core_interaction", "category VARCHAR(100)"),
+        ("core_interaction", "interaction_type VARCHAR(50)"),
+        ("core_interaction", "priority VARCHAR(50)"),
+        ("core_interaction", "reference VARCHAR(50)")
     ]
     for table, col in patches:
         try:
@@ -68,6 +75,17 @@ def establish_organization_context():
         g.organization = org
         
         if current_user.is_authenticated:
+            # Force schema check on CoreInteraction so it auto-patches if missing
+            from app.models.core import CoreInteraction
+            try:
+                CoreInteraction.query.filter_by(organization_id=org.id).first()
+            except ProgrammingError as e:
+                db.session.rollback()
+                if "does not exist" in str(e) or "UndefinedColumn" in str(e):
+                    auto_patch_database()
+                else:
+                    raise
+
             try:
                 membership = CoreOrganizationMember.query.filter_by(
                     organization_id=org.id, 

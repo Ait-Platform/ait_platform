@@ -99,7 +99,7 @@ def establish_organization_context():
                     from app.models.core import CoreRole, CoreRoleAssignment
                     manager_role = CoreRole.query.filter_by(slug='manager').first()
                     if not manager_role:
-                        manager_role = CoreRole(name='Manager', slug='manager', access_level=10)
+                        manager_role = CoreRole(name='Manager', slug='manager')
                         db.session.add(manager_role)
                         db.session.flush()
                         

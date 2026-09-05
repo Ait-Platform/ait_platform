@@ -24,7 +24,10 @@ def auto_patch_database():
         ("core_interaction", "category VARCHAR(100)"),
         ("core_interaction", "interaction_type VARCHAR(50)"),
         ("core_interaction", "priority VARCHAR(50)"),
-        ("core_interaction", "reference VARCHAR(50)")
+        ("core_interaction", "reference VARCHAR(50)"),
+        ("core_interaction", "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"),
+        ("core_interaction", "updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"),
+        ("core_interaction", "closed_at TIMESTAMP")
     ]
     for table, col in patches:
         try:

@@ -496,6 +496,17 @@ def provisioning_pledge():
         )
         db.session.add(interaction)
         db.session.commit()
+        from app.models.core import CoreAuditEvent
+        ip_addr = request.headers.get('X-Forwarded-For', request.remote_addr)
+        audit = CoreAuditEvent(
+            user_id=sace_user_id,
+            action="PLEDGE_ACCEPTED",
+            entity_type="SACE_PLEDGE",
+            details="Admin accepted IP pledge",
+            ip_address=ip_addr
+        )
+        db.session.add(audit)
+        db.session.commit()
         flash("Intellectual Property pledge accepted. Provisioning unlocked.", "success")
     return redirect(url_for('sace_bp.provisioning_map'))
 
@@ -527,6 +538,18 @@ def generate_auditor_code():
         response_data=json.dumps(data)
     )
     db.session.add(interaction)
+    db.session.commit()
+    
+    from app.models.core import CoreAuditEvent
+    ip_addr = request.headers.get('X-Forwarded-For', request.remote_addr)
+    audit = CoreAuditEvent(
+        user_id=sace_user_id,
+        action="CODE_GENERATED",
+        entity_type="SACE_EVALUATOR_CODE",
+        details=f"Generated new SACE Evaluator Access Code: {code}",
+        ip_address=ip_addr
+    )
+    db.session.add(audit)
     db.session.commit()
     
     flash(f"New Auditor Access Code generated: {code}", "success")
@@ -826,6 +849,27 @@ def document_action(doc_id):
         db.session.add(interaction)
         db.session.commit()
         
+    
+    # Also log to Platform Audit Report
+    from app.models.core import CoreAuditEvent
+    ip_addr = request.headers.get('X-Forwarded-For', request.remote_addr)
+    doc_titles = {
+        "1": "SACE Provider Application Form",
+        "2": "SACE Activity Application Form",
+        "3": "SACE Endorsement Guidelines",
+        "4": "Facilitator CVs"
+    }
+    title = doc_titles.get(str(doc_id), f"Document {doc_id}")
+    audit = CoreAuditEvent(
+        user_id=sace_user_id,
+        action="DOCUMENT_ACCESSED" if action == "view" else "DOCUMENT_EMAILED",
+        entity_type="SACE_DOCUMENT",
+        details=f"Admin {action}ed '{title}'",
+        ip_address=ip_addr
+    )
+    db.session.add(audit)
+    db.session.commit()
+    
     doc_file_map = {
         "1": "pdf/App_Form_1.pdf",
         "2": "pdf/App_Form_1.pdf", # Same dummy file for now

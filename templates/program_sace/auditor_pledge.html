@@ -1,0 +1,35 @@
+{% extends "layout.html" %}
+{% block title %}SACE Evaluator IP Pledge{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden mt-12 mb-12">
+    <div class="h-2 w-full bg-indigo-600"></div>
+    <div class="p-8">
+        <h1 class="text-2xl font-black text-slate-800 tracking-tight mb-2">
+            <i class="fas fa-file-contract text-indigo-600 mr-2"></i> Evaluator IP Pledge
+        </h1>
+        <p class="text-slate-500 font-bold text-sm uppercase tracking-wide mb-6 border-b border-slate-100 pb-4">
+            I Learn to Read English Using the LITRE Method
+        </p>
+        
+        <div class="bg-slate-50 border border-slate-200 p-6 rounded-lg text-slate-700 leading-relaxed space-y-4 mb-8">
+            <p>Before proceeding to registration and evaluation, SACE Evaluators must acknowledge the following Intellectual Property agreement.</p>
+            <p>By accessing the evaluation hub, you acknowledge that the digital framework, visual mapping, and associated teaching methodologies are the protected Intellectual Property of the Archoney Institute of Technology (AIT).</p>
+            <ul class="list-disc list-inside ml-2 space-y-2 font-semibold">
+                <li>Access is provided solely for the purpose of SACE endorsement evaluation.</li>
+                <li>No part of the interactive platform or its proprietary methods may be copied, reproduced, or distributed.</li>
+            </ul>
+        </div>
+        
+        <form action="{{ url_for('sace_bp.auditor_pledge') }}" method="POST" class="flex justify-end gap-4">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <a href="{{ url_for('sace_bp.auditor_join') }}" class="px-6 py-3 bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 font-bold rounded-lg transition shadow-sm">
+                Decline
+            </a>
+            <button type="submit" class="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-md transition flex items-center">
+                <i class="fas fa-check mr-2"></i> I Agree & Continue
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}

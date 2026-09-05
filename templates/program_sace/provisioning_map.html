@@ -30,31 +30,35 @@
         <!-- About AIT Submission -->
         <div class="px-8 pb-6">
             <h3 class="text-lg font-bold text-slate-800 border-b border-slate-100 pb-2 mb-4"><i class="fas fa-info-circle text-indigo-500 mr-2"></i> About the AIT Submission</h3>
-            <p class="text-slate-600 text-sm leading-relaxed mb-4">
+            <p class="text-slate-600 text-base leading-relaxed mb-4">
                 The Archoney Institute of Technology (AIT) presents this submission for SACE endorsement of the <strong>LITRE Blending Machine</strong> reading intervention program. 
             </p>
-            <p class="text-slate-600 text-sm leading-relaxed mb-2">
-                Due to the proprietary nature of the AIT LITRE Simulator and interactive methodology, standard PDF document review is insufficient. AIT has generated this secure portal to allow you to seamlessly provision SACE Evaluators, generating secure access links for them to evaluate the digital framework firsthand while maintaining intellectual property compliance.
+            <p class="text-slate-600 text-base leading-relaxed mb-2">
+                Due to the proprietary nature of the AIT LITRE Simulator and interactive methodology, standard PDF document review is insufficient. AIT has generated this secure portal to allow you to seamlessly provision SACE Evaluators, generating secure access links for them to evaluate the digital framework firsthand while maintaining intellectual property compliance, and an integrated document tracker allowing you to monitor when required forms are viewed or downloaded.
             </p>
         </div>
 
-        <div class="flex flex-wrap justify-end gap-3 mb-8">
+        <div class="flex flex-wrap justify-end gap-3 mb-8 px-8 border-b border-slate-100 pb-8">
             {% if has_pledged %}
-            <button onclick="openPledgeModal()" class="px-4 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-bold rounded-lg transition border border-emerald-200 shadow-sm">
-                <i class="fas fa-check-circle mr-1"></i> IP Pledge Signed
-            </button>
-            <a href="{{ url_for('sace_bp.audit_report') }}" class="px-4 py-2 bg-slate-800 text-white hover:bg-slate-700 font-bold rounded-lg transition shadow-sm">
-                <i class="fas fa-history mr-1"></i> View Audit Logs
+            <a href="{{ url_for('sace_bp.provisioning_logs') }}" class="px-4 py-2 bg-slate-50 text-slate-700 hover:bg-slate-100 font-bold rounded-lg transition border border-slate-200 shadow-sm flex items-center">
+                <i class="fas fa-list-alt mr-2"></i> View Audit Logs
             </a>
+            <a href="{{ url_for('sace_bp.provider_documents') }}" class="px-4 py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 font-bold rounded-lg transition border border-indigo-200 shadow-sm flex items-center">
+                <i class="fas fa-folder-open mr-2"></i> Provider Documents
+            </a>
+            <button onclick="openPledgeModal()" class="px-4 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-bold rounded-lg transition border border-emerald-200 shadow-sm flex items-center">
+                <i class="fas fa-check-circle mr-2"></i> IP Pledge Signed
+            </button>
+            <button onclick="openAddAuditorModal()" class="px-4 py-2 bg-indigo-600 text-white hover:bg-indigo-700 font-bold rounded-lg transition shadow-md flex items-center">
+                <i class="fas fa-user-plus mr-2"></i> Provision New Auditor
+            </button>
             {% else %}
-            <button onclick="openPledgeModal()" class="px-5 py-2 bg-red-600 text-white hover:bg-red-700 font-bold rounded-lg transition shadow-sm animate-pulse">
-                <i class="fas fa-file-signature mr-1"></i> Sign IP Pledge (Required)
+            <button onclick="openPledgeModal()" class="px-5 py-2.5 bg-red-600 text-white hover:bg-red-700 font-bold rounded-lg transition shadow-md animate-pulse flex items-center">
+                <i class="fas fa-file-signature mr-2"></i> Sign IP Pledge (Required)
             </button>
             {% endif %}
         </div>
         
-
-
         {% if not has_pledged %}
         
         <!-- Locked State -->
@@ -70,24 +74,6 @@
         {% else %}
         
         <!-- Application Documents Section -->
-        <div class="mb-10">
-            <h3 class="text-lg font-bold text-slate-800 border-b border-slate-200 pb-2 mb-4">Provider Submission Documents</h3>
-            <div class="flex flex-wrap gap-4">
-                <a href="{{ url_for('static', filename='pdf/App_Form_1.pdf') }}" target="_blank" class="flex items-center px-4 py-3 bg-white border border-slate-300 hover:border-indigo-400 rounded-lg shadow-sm transition group">
-                    <i class="fas fa-file-pdf text-red-500 mr-3 group-hover:scale-110 transition-transform"></i>
-                    <span class="font-bold text-sm text-slate-700 group-hover:text-indigo-600">Application Form 1</span>
-                </a>
-                <a href="{{ url_for('static', filename='pdf/App_Form_2.pdf') }}" target="_blank" class="flex items-center px-4 py-3 bg-white border border-slate-300 hover:border-indigo-400 rounded-lg shadow-sm transition group">
-                    <i class="fas fa-file-pdf text-red-500 mr-3 group-hover:scale-110 transition-transform"></i>
-                    <span class="font-bold text-sm text-slate-700 group-hover:text-indigo-600">Application Form 2</span>
-                </a>
-                <a href="{{ url_for('static', filename='pdf/Facilitator_CVs.pdf') }}" target="_blank" class="flex items-center px-4 py-3 bg-white border border-slate-300 hover:border-indigo-400 rounded-lg shadow-sm transition group">
-                    <i class="fas fa-id-badge text-blue-500 mr-3 group-hover:scale-110 transition-transform"></i>
-                    <span class="font-bold text-sm text-slate-700 group-hover:text-indigo-600">Facilitator CVs</span>
-                </a>
-            </div>
-        </div>
-
         <!-- Auditor Provisioning Section -->
         <div class="mb-4 flex justify-between items-end border-b border-slate-200 pb-2">
             <div>
@@ -216,7 +202,7 @@
             <button onclick="closePledgeModal()" class="text-slate-400 hover:text-white transition"><i class="fas fa-times text-xl"></i></button>
         </div>
         <div class="p-8 overflow-y-auto">
-            <div class="bg-slate-50 border border-slate-200 rounded-xl p-6 text-sm text-slate-700 leading-relaxed space-y-4 shadow-inner mb-6">
+            <div class="bg-slate-50 border border-slate-200 rounded-xl p-6 text-base text-slate-700 leading-relaxed space-y-4 shadow-inner mb-6">
                 <p>By accessing the AIT Provider Platform, you acknowledge and agree to the following terms on behalf of SACE and its appointed representatives:</p>
                 <ul class="list-disc pl-5 space-y-2 font-medium">
                     <li>The <strong>LITRE Blending Machine</strong> methodology, physical apparatus designs, and digital simulators are the exclusive Intellectual Property of AIT.</li>

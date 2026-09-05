@@ -1,0 +1,99 @@
+﻿{% extends "layout.html" %}
+{% block content %}
+<div class="min-h-screen bg-slate-50 py-12 font-sans selection:bg-indigo-100 selection:text-indigo-900">
+    <div class="max-w-4xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-200">
+        
+        <!-- Header -->
+        <div class="bg-indigo-700 p-8 flex flex-col md:flex-row md:items-center justify-between relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full -mr-20 -mt-20"></div>
+            <div class="absolute bottom-0 left-0 w-40 h-40 bg-black opacity-10 rounded-full -ml-10 -mb-10"></div>
+            
+            <div class="relative z-10 mb-4 md:mb-0">
+                <span class="inline-block px-3 py-1 bg-indigo-800 text-indigo-100 text-xs font-black tracking-widest uppercase rounded mb-3 border border-indigo-600 shadow-inner">
+                    Document Tracking
+                </span>
+                <h1 class="text-3xl font-black text-white tracking-tight drop-shadow-sm mb-1">Provider Submission Documents</h1>
+            </div>
+            
+            <div class="relative z-10 flex gap-3">
+                <a href="{{ url_for('sace_bp.provisioning_map') }}" class="px-5 py-2.5 bg-slate-800 hover:bg-slate-900 text-slate-200 hover:text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition flex items-center group border border-slate-700">
+                    <i class="fas fa-arrow-left mr-2 group-hover:-translate-x-1 transition-transform"></i> Back to Control Centre
+                </a>
+            </div>
+        </div>
+        
+        <div class="p-8">
+            <p class="text-slate-600 text-base leading-relaxed mb-8 border-b border-slate-100 pb-6">
+                Below are the official provider application forms and guidelines required by SACE. Interacting with these documents will automatically log your progress. All documents can be downloaded or securely emailed to your designated recipients.
+            </p>
+
+            <div class="space-y-4">
+                {% for doc in documents %}
+                <div class="flex items-center justify-between p-5 bg-white border border-slate-200 rounded-xl shadow-sm hover:shadow-md transition">
+                    <div class="flex items-center space-x-4">
+                        <!-- Tracker Checkbox -->
+                        <div class="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center {% if doc.is_tracked %}bg-emerald-100 text-emerald-600 border border-emerald-200{% else %}bg-slate-100 text-slate-300 border border-slate-200{% endif %}">
+                            <i class="fas fa-check {% if doc.is_tracked %}opacity-100{% else %}opacity-20{% endif %}"></i>
+                        </div>
+                        
+                        <div>
+                            <h4 class="font-bold text-slate-800 text-lg">{{ doc.title }}</h4>
+                            <p class="text-sm text-slate-500">{{ doc.description }}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center space-x-3 ml-4">
+                        <a href="{{ url_for('sace_bp.document_action', doc_id=doc.id, action='view') }}" target="_blank" class="px-4 py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 font-bold rounded-lg transition border border-indigo-200 shadow-sm flex items-center">
+                            <i class="fas fa-eye mr-2"></i> View / Download
+                        </a>
+                        <button onclick="openEmailModal('{{ doc.id }}', '{{ doc.title|replace(\"'\", \"\") }}')" class="px-4 py-2 bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-800 font-bold rounded-lg transition border border-slate-200 shadow-sm flex items-center">
+                            <i class="fas fa-envelope mr-2"></i> Email
+                        </button>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Email Modal -->
+<div id="email-modal" class="fixed inset-0 z-[60] hidden bg-slate-900 bg-opacity-75 flex items-center justify-center p-4 backdrop-blur-sm">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-200">
+        <div class="bg-indigo-600 p-5 flex justify-between items-center text-white">
+            <h3 class="font-bold text-lg"><i class="fas fa-paper-plane mr-2"></i> Email Document</h3>
+            <button onclick="closeEmailModal()" class="text-indigo-200 hover:text-white transition"><i class="fas fa-times text-xl"></i></button>
+        </div>
+        <form id="email-form" method="POST" action="" class="p-6">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <input type="hidden" name="doc_id" id="email-doc-id" value=""/>
+            <input type="hidden" name="action" value="email"/>
+            
+            <p class="text-sm text-slate-600 mb-4">You are about to email the document: <strong id="email-doc-title" class="text-slate-800"></strong></p>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Recipient Email Address</label>
+                    <input type="email" name="recipient_email" required placeholder="name@example.com" class="w-full p-3 bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:bg-white transition">
+                </div>
+            </div>
+            <div class="mt-8 flex justify-end space-x-3 border-t border-slate-100 pt-5">
+                <button type="button" onclick="closeEmailModal()" class="px-5 py-2 text-slate-500 hover:bg-slate-100 rounded-lg font-bold transition">Cancel</button>
+                <button type="submit" class="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-md transition"><i class="fas fa-paper-plane mr-2"></i> Send Email</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function openEmailModal(docId, docTitle) {
+    document.getElementById('email-doc-id').value = docId;
+    document.getElementById('email-doc-title').innerText = docTitle;
+    document.getElementById('email-form').action = "/sace/provisioning/document/action/" + docId;
+    document.getElementById('email-modal').classList.remove('hidden');
+}
+function closeEmailModal() {
+    document.getElementById('email-modal').classList.add('hidden');
+}
+</script>
+{% endblock %}

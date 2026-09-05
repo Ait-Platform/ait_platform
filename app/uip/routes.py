@@ -746,7 +746,7 @@ def price_page():
     if not country_code:
         country_code = 'ZA'  # Default to SA
 
-    quote = get_quote_for_subject_country(subject.slug, country_code)
+    quote = get_quote_for_subject_country(subject.id, country_code)
     session["country_code"] = country_code
 
     return render_template(

@@ -471,6 +471,10 @@ def provisioning_map():
     for inv in invites:
         try:
             data = json.loads(inv.response_data)
+            # Hide old legacy test accounts that don't have access codes
+            if not data.get("code"):
+                continue
+                
             data['date'] = inv.timestamp.strftime("%Y-%m-%d")
             data['id'] = inv.id
             auditors.append(data)

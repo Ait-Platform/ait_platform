@@ -29,7 +29,7 @@
                 <div class="text-sm text-slate-500 font-bold uppercase tracking-wider mb-2">South Africa ({{ country_code }})</div>
                 <div class="text-5xl font-black text-slate-800 mb-2">
                     {% if quote %}
-                        {{ quote.currency_symbol }}{{ "%.2f"|format(quote.price) }}
+                        {{ quote.local_currency }} {{ "%.2f"|format(quote.local_amount_cents / 100) }}
                     {% else %}
                         ZAR 0.00
                     {% endif %}

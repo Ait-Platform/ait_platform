@@ -728,8 +728,34 @@ from app.uip import uip_bp
 
 @uip_bp.route("/")
 def uip_start():
-    # Public marketing and landing page for UIPs
     return render_template('uip/public_about.html')
+
+@uip_bp.route("/price")
+def price_page():
+    from app.models.auth import AuthSubject
+    from app.enrollment.logic import get_quote_for_subject_country
+    from flask import session
+
+    subject = AuthSubject.query.filter(
+        db.func.lower(AuthSubject.slug) == 'uip').first()
+    if not subject:
+        flash("Subject not found.", "warning")
+        return redirect(url_for('public_bp.welcome'))
+
+    country_code = (request.args.get("country") or "").strip().upper()
+    if not country_code:
+        country_code = 'ZA'  # Default to SA
+
+    quote = get_quote_for_subject_country(subject.slug, country_code)
+    session["country_code"] = country_code
+
+    return render_template(
+        "uip/price.html",
+        subject=subject,
+        country_code=country_code,
+        quote=quote
+    )
+
 from flask import flash, redirect, url_for
 
 @uip_bp.route("/_seed")

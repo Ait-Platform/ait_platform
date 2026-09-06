@@ -480,6 +480,17 @@ def provisioning_map():
                 response_data="Admin accepted IP pledge"
             )
             db.session.add(interaction)
+            
+            from app.models.core import CoreAuditEvent
+            ip_addr = request.headers.get('X-Forwarded-For', request.remote_addr)
+            audit = CoreAuditEvent(
+                user_id=current_user.id,
+                action="PLEDGE_ACCEPTED",
+                entity_type="SACE_PLEDGE",
+                details="Admin accepted IP pledge",
+                ip_address=ip_addr
+            )
+            db.session.add(audit)
             db.session.commit()
         session.pop('sace_admin_pledged', None)
 

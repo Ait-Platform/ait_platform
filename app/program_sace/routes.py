@@ -1052,7 +1052,7 @@ def auditor_pledge():
         if getattr(current_user, 'is_authenticated', False):
             return redirect(url_for('sace_bp.claim_code'))
             
-        return redirect(url_for('auth_bp.register', subject='sace', next=url_for('sace_bp.claim_code')))
+        return redirect(url_for('auth_bp.register', subject='sace_endorsement', next=url_for('sace_bp.claim_code')))
         
     return render_template("program_sace/auditor_pledge.html")
 

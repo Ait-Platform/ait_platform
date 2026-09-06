@@ -46,27 +46,30 @@ def _ensure_or_create_user_from_session(ctx: dict) -> int:
     ).scalar())
 
     # Create AitTokenWallet with 100 tokens for new users (Registration Trial Bonus)
-    db.session.execute(
-        sa_text("""
-            INSERT INTO ait_token_wallet (user_id, balance, created_at)
-            VALUES (:user_id, 100, CURRENT_TIMESTAMP)
-        """),
-        {"user_id": new_id}
-    )
-    db.session.flush()
-    
-    wallet_id = int(db.session.execute(
-        sa_text('SELECT id FROM ait_token_wallet WHERE user_id = :u'),
-        {"u": new_id}
-    ).scalar())
+    # Exclude SACE Endorsement users from receiving tokens/wallets
+    subject = (ctx.get("subject") or "").strip().lower()
+    if not subject.startswith("sace"):
+        db.session.execute(
+            sa_text("""
+                INSERT INTO ait_token_wallet (user_id, balance, created_at)
+                VALUES (:user_id, 100, CURRENT_TIMESTAMP)
+            """),
+            {"user_id": new_id}
+        )
+        db.session.flush()
+        
+        wallet_id = int(db.session.execute(
+            sa_text('SELECT id FROM ait_token_wallet WHERE user_id = :u'),
+            {"u": new_id}
+        ).scalar())
 
-    db.session.execute(
-        sa_text("""
-            INSERT INTO ait_token_transaction (wallet_id, amount, description, created_at)
-            VALUES (:wallet_id, 100, 'Registration Trial Bonus', CURRENT_TIMESTAMP)
-        """),
-        {"wallet_id": wallet_id}
-    )
+        db.session.execute(
+            sa_text("""
+                INSERT INTO ait_token_transaction (wallet_id, amount, description, created_at)
+                VALUES (:wallet_id, 100, 'Registration Trial Bonus', CURRENT_TIMESTAMP)
+            """),
+            {"wallet_id": wallet_id}
+        )
 
     db.session.commit()
 

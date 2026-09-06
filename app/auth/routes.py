@@ -161,7 +161,8 @@ def register():
         if "/spv" in n_url_lower or "/portfolio" in n_url_lower:
             return "spv"
         if "/sace" in n_url_lower:
-            return "sace"
+            return "sace_endorsement"
+            
         if "/reading" in n_url_lower:
             return "reading"
         if "/cultural-fire" in n_url_lower or "/culturefire" in n_url_lower:
@@ -517,7 +518,7 @@ def register_decision():
     # ---------- END FREE SPECIAL CASE ----------
 
     # ---------- WALLET TOKEN SUBJECTS (NO REGISTRATION FEE, USES WALLET BALANCE) ----------
-    if subject in ("cultural_fire", "culturalfire", "debtors", "mechanic", "cptd", "sace", "uip"):
+    if subject in ("cultural_fire", "culturalfire", "debtors", "mechanic", "cptd", "sace_endorsement", "sace", "uip"):
         mark_loss_enrollment_free(enrollment_id)
         session.pop("reg_ctx", None)
         session.pop("just_paid_subject_id", None)
@@ -533,7 +534,7 @@ def register_decision():
             return redirect(url_for("mechanic_bp.mechanic_dashboard"))
         elif subject == "cptd":
             return redirect(url_for("sace_bp.catalog"))
-        elif subject == "sace":
+        elif subject in ("sace", "sace_endorsement"):
             if next_url and ("/sace/provisioning" in next_url or "/sace/claim_code" in next_url):
                 return redirect(next_url)
             return redirect(url_for("sace_bp.dashboard"))

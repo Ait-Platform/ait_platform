@@ -848,16 +848,34 @@ def provider_documents():
             "is_tracked": "app1" in tracked_ids
         },
         {
-            "id": "f_cv",
-            "title": "Facilitator Compliance Portfolio",
-            "description": "Details of Presenters/Facilitators names, Certified copies of ID, Qualifications and comprehensive CV.",
-            "is_tracked": "f_cv" in tracked_ids
-        },
-        {
             "id": "app2",
             "title": "Application Form 2",
             "description": "The secondary SACE application form.",
             "is_tracked": "app2" in tracked_ids
+        },
+        {
+            "id": "tt",
+            "title": "Reading Timetable (T/T)",
+            "description": "Workshop schedule and session breakdown.",
+            "is_tracked": "tt" in tracked_ids
+        },
+        {
+            "id": "f_cv",
+            "title": "Facilitator CVs & Compliance",
+            "description": "Details of Presenters, Certified copies of ID, and comprehensive CV.",
+            "is_tracked": "f_cv" in tracked_ids
+        },
+        {
+            "id": "f_guide",
+            "title": "Facilitator Manual",
+            "description": "Educator slide notes and methodology guide.",
+            "is_tracked": "f_guide" in tracked_ids
+        },
+        {
+            "id": "ip_pledge",
+            "title": "AIT IP Pledge",
+            "description": "Blank Intellectual Property Pledge for manual signing.",
+            "is_tracked": "ip_pledge" in tracked_ids
         }
     ]
     
@@ -892,8 +910,11 @@ def document_action(doc_id):
     ip_addr = request.headers.get('X-Forwarded-For', request.remote_addr)
     doc_titles = {
         "app1": "SACE Application Form 1",
-        "f_cv": "Facilitator Compliance Portfolio",
-        "app2": "SACE Application Form 2"
+        "app2": "SACE Application Form 2",
+        "tt": "Reading Timetable (T/T)",
+        "f_cv": "Facilitator CVs & Compliance",
+        "f_guide": "Facilitator Manual",
+        "ip_pledge": "AIT IP Pledge"
     }
     title = doc_titles.get(str(doc_id), f"Document {doc_id}")
     audit = CoreAuditEvent(
@@ -908,8 +929,11 @@ def document_action(doc_id):
     
     doc_file_map = {
         "app1": "pdf/App_Form_1.pdf",
+        "app2": "pdf/App_Form_2.pdf",
+        "tt": "pdf/Reading Timetable.pdf",
         "f_cv": "pdf/Facilitator_CVs.pdf",
-        "app2": "pdf/App_Form_2.pdf"
+        "f_guide": "pdf/F_Guide.pdf",
+        "ip_pledge": "pdf/IP_Pledge.pdf"
     }
     
     filename = doc_file_map.get(doc_id, "pdf/App_Form_1.pdf")
@@ -922,8 +946,11 @@ def document_action(doc_id):
         if recipient:
             doc_names = {
                 "app1": "SACE Application Form 1",
-                "f_cv": "Facilitator Compliance Portfolio",
-                "app2": "SACE Application Form 2"
+                "app2": "SACE Application Form 2",
+                "tt": "Reading Timetable (T/T)",
+                "f_cv": "Facilitator CVs & Compliance",
+                "f_guide": "Facilitator Manual",
+                "ip_pledge": "AIT IP Pledge"
             }
             doc_name = doc_names.get(doc_id, "Document")
             

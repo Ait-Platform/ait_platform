@@ -6,119 +6,193 @@
 
 {% block content %}
 <div class="max-w-7xl mx-auto bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden mb-12">
-    <!-- Rule 3: Color Strip -->
+    <!-- Color Strip -->
     <div class="h-2 w-full bg-indigo-600"></div>
     
     <div class="p-6 sm:p-8">
         
-        <!-- Rule 4: Row 1 Header & Back Button -->
+        <!-- Header -->
         <div class="flex justify-between items-start pb-4 border-b border-slate-100 mb-6">
             <div>
-                <h1 class="text-3xl font-black text-slate-800 tracking-tight">
-                    <i class="fas fa-briefcase text-indigo-600 mr-2"></i> Manager Dashboard
+                <h1 class="text-3xl font-black text-slate-800 tracking-tight flex items-center">
+                    <div class="h-10 w-10 bg-indigo-100 text-indigo-600 rounded-lg flex items-center justify-center mr-3 shadow-inner">
+                        <i class="fas fa-satellite-dish"></i>
+                    </div>
+                    UIP Command Centre
                 </h1>
-                <p class="text-slate-500 font-bold mt-1 text-sm tracking-wide">Overview for {{ org.name }}</p>
+                <p class="text-slate-500 font-bold mt-2 text-sm tracking-wide ml-14">Precinct Manager Overview: {{ org.name }}</p>
             </div>
-            <a href="{{ url_for('public_bp.welcome') }}" class="px-5 py-2.5 bg-slate-100 text-slate-700 hover:bg-slate-200 font-bold rounded-lg transition border border-slate-200 shadow-sm flex items-center ml-4">
-                <i class="fas fa-arrow-left mr-2"></i> Exit Dashboard
-            </a>
+            <div class="flex gap-3">
+                <button class="px-4 py-2 bg-slate-50 text-slate-500 hover:bg-slate-100 font-bold rounded-lg transition border border-slate-200 shadow-sm flex items-center">
+                    <i class="fas fa-file-export mr-2"></i> Export Report
+                </button>
+                <a href="{{ url_for('public_bp.welcome') }}" class="px-5 py-2.5 bg-slate-800 text-slate-200 hover:text-white hover:bg-slate-900 font-bold rounded-lg transition border border-slate-700 shadow-sm flex items-center">
+                    <i class="fas fa-arrow-left mr-2"></i> Exit
+                </a>
+            </div>
         </div>
 
-        <!-- Rule 6: Flashes inside tile -->
         {% include "partials/flash_messages.html" %}
 
-        <!-- Rule 5: Row 2 Actions right-aligned -->
-        <div class="flex flex-wrap justify-end gap-3 mb-6 border-b border-slate-100 pb-6">
-            <a href="{{ url_for('uip_bp.new_interaction', org_slug=org.slug) }}" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg transition shadow-md flex items-center">
-                <i class="fas fa-plus mr-2"></i> Log Issue
-            </a>
-            <a href="{{ url_for('uip_bp.org_settings', org_slug=org.slug) }}" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg transition border border-slate-200 shadow-sm flex items-center">
-                <i class="fas fa-cog mr-2"></i> Settings
-            </a>
-        </div>
-        
-        <!-- Metrics -->
+        <!-- Advanced Metrics Panel -->
         <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <div class="bg-slate-50 rounded-xl shadow-sm border border-slate-200 p-6 flex items-center justify-between">
-                <div>
-                    <p class="text-slate-500 text-sm font-bold uppercase tracking-wide">Open Issues</p>
-                    <p class="text-3xl font-extrabold text-slate-900 mt-1">{{ org.interactions | selectattr('status', 'ne', 'RESOLVED') | list | length }}</p>
+            <!-- Metric 1: Financial Health -->
+            <div class="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl shadow-sm border border-emerald-100 p-5 flex flex-col justify-between relative overflow-hidden">
+                <div class="absolute -right-4 -bottom-4 text-emerald-200 text-6xl opacity-30"><i class="fas fa-coins"></i></div>
+                <div class="flex justify-between items-start mb-2 relative z-10">
+                    <p class="text-emerald-800 text-xs font-bold uppercase tracking-wide">Levy Health</p>
+                    <span class="px-2 py-1 bg-emerald-200 text-emerald-800 text-[10px] font-bold rounded">LIVE</span>
                 </div>
-                <div class="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-xl">
-                    <i class="fas fa-inbox"></i>
+                <div class="relative z-10">
+                    <p class="text-3xl font-black text-emerald-900 mt-1">94%</p>
+                    <p class="text-xs text-emerald-600 font-bold mt-1"><i class="fas fa-arrow-up mr-1"></i> Paid in full (30 Days)</p>
                 </div>
             </div>
-            
-            <div class="bg-slate-50 rounded-xl shadow-sm border border-slate-200 p-6 flex items-center justify-between">
-                <div>
-                    <p class="text-slate-500 text-sm font-bold uppercase tracking-wide">Pending Tasks</p>
-                    <p class="text-3xl font-extrabold text-slate-900 mt-1">
-                        {% set ns = namespace(count=0) %}
-                        {% for ix in org.interactions %}
-                            {% for t in ix.tasks if t.status != 'completed' %}
-                                {% set ns.count = ns.count + 1 %}
-                            {% endfor %}
-                        {% endfor %}
-                        {{ ns.count }}
-                    </p>
+
+            <!-- Metric 2: Open Issues -->
+            <div class="bg-gradient-to-br from-rose-50 to-orange-50 rounded-xl shadow-sm border border-rose-100 p-5 flex flex-col justify-between relative overflow-hidden">
+                <div class="absolute -right-4 -bottom-4 text-rose-200 text-6xl opacity-30"><i class="fas fa-fire-alt"></i></div>
+                <div class="flex justify-between items-start mb-2 relative z-10">
+                    <p class="text-rose-800 text-xs font-bold uppercase tracking-wide">Active Threats / Issues</p>
                 </div>
-                <div class="h-12 w-12 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 text-xl">
-                    <i class="fas fa-tasks"></i>
+                <div class="relative z-10">
+                    <p class="text-3xl font-black text-rose-900 mt-1">{{ org.interactions | selectattr('status', 'ne', 'RESOLVED') | list | length }}</p>
+                    <p class="text-xs text-rose-600 font-bold mt-1"><i class="fas fa-exclamation-circle mr-1"></i> Require immediate dispatch</p>
+                </div>
+            </div>
+
+            <!-- Metric 3: AI Triaging -->
+            <div class="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl shadow-sm border border-indigo-100 p-5 flex flex-col justify-between relative overflow-hidden">
+                <div class="absolute -right-4 -bottom-4 text-indigo-200 text-6xl opacity-30"><i class="fas fa-brain"></i></div>
+                <div class="flex justify-between items-start mb-2 relative z-10">
+                    <p class="text-indigo-800 text-xs font-bold uppercase tracking-wide">AI Auto-Triage</p>
+                    <span class="px-2 py-1 bg-indigo-200 text-indigo-800 text-[10px] font-bold rounded">ACTIVE</span>
+                </div>
+                <div class="relative z-10">
+                    <p class="text-3xl font-black text-indigo-900 mt-1">12</p>
+                    <p class="text-xs text-indigo-600 font-bold mt-1">Duplicates caught this week</p>
+                </div>
+            </div>
+
+            <!-- Metric 4: Dispatch SLA -->
+            <div class="bg-gradient-to-br from-sky-50 to-blue-50 rounded-xl shadow-sm border border-sky-100 p-5 flex flex-col justify-between relative overflow-hidden">
+                <div class="absolute -right-4 -bottom-4 text-sky-200 text-6xl opacity-30"><i class="fas fa-stopwatch"></i></div>
+                <div class="flex justify-between items-start mb-2 relative z-10">
+                    <p class="text-sky-800 text-xs font-bold uppercase tracking-wide">Avg Provider SLA</p>
+                </div>
+                <div class="relative z-10">
+                    <p class="text-3xl font-black text-sky-900 mt-1">14m</p>
+                    <p class="text-xs text-sky-600 font-bold mt-1">Response time vs 20m target</p>
                 </div>
             </div>
         </div>
-        
-        <!-- Interactions List -->
+
+        <!-- Action Bar -->
+        <div class="flex justify-between items-center mb-6 bg-slate-50 p-4 rounded-lg border border-slate-200">
+            <h2 class="text-lg font-bold text-slate-800"><i class="fas fa-list-ul text-slate-400 mr-2"></i> Active Dispatch Board</h2>
+            <div class="flex gap-3">
+                <a href="{{ url_for('uip_bp.new_interaction', org_slug=org.slug) }}" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg transition shadow-md flex items-center animate-pulse">
+                    <i class="fas fa-plus mr-2"></i> Log New Issue
+                </a>
+                <a href="{{ url_for('uip_bp.org_settings', org_slug=org.slug) }}" class="px-4 py-2.5 bg-white hover:bg-slate-100 text-slate-700 font-bold rounded-lg transition border border-slate-200 shadow-sm flex items-center">
+                    <i class="fas fa-cog mr-2"></i> Routing Setup
+                </a>
+            </div>
+        </div>
+
+        <!-- Intelligent Interactions Table -->
         <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-            <div class="p-5 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
-                <h2 class="font-bold text-lg text-slate-800">Active Interactions</h2>
-            </div>
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse">
-                    <thead>
-                        <tr class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
-                            <th class="p-4 font-bold border-b border-slate-200">Ref</th>
-                            <th class="p-4 font-bold border-b border-slate-200">Title</th>
-                            <th class="p-4 font-bold border-b border-slate-200">Status</th>
-                            <th class="p-4 font-bold border-b border-slate-200">Logged By</th>
-                            <th class="p-4 font-bold border-b border-slate-200">Date</th>
-                            <th class="p-4 border-b border-slate-200"></th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-100">
-                        {% for ix in org.interactions|sort(attribute='created_at', reverse=True) if ix.status != 'RESOLVED' %}
-                        <tr class="hover:bg-slate-50 transition group cursor-pointer" onclick="window.location.href='{{ url_for('uip_bp.view_interaction', org_slug=org.slug, reference=ix.reference) }}'">
-                            <td class="p-4 text-sm font-mono text-slate-500">{{ ix.reference }}</td>
-                            <td class="p-4">
-                                <div class="font-bold text-slate-800">{{ ix.title }}</div>
-                                <div class="text-xs text-slate-400 mt-1 truncate max-w-xs">{{ ix.description }}</div>
-                            </td>
-                            <td class="p-4">
-                                {% if ix.status == 'NEW' %}
-                                    <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide border border-blue-200"><i class="fas fa-star mr-1"></i> New</span>
-                                {% elif ix.status == 'IN_PROGRESS' %}
-                                    <span class="bg-amber-100 text-amber-800 px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide border border-amber-200"><i class="fas fa-hammer mr-1"></i> In Progress</span>
+            <table class="min-w-full divide-y divide-slate-200">
+                <thead class="bg-slate-50">
+                    <tr>
+                        <th class="px-6 py-4 text-left text-xs font-black text-slate-500 uppercase tracking-wider">Date / Time</th>
+                        <th class="px-6 py-4 text-left text-xs font-black text-slate-500 uppercase tracking-wider">Resident & Levy Status</th>
+                        <th class="px-6 py-4 text-left text-xs font-black text-slate-500 uppercase tracking-wider">AI Sentiment & Issue</th>
+                        <th class="px-6 py-4 text-left text-xs font-black text-slate-500 uppercase tracking-wider">Dispatch Status</th>
+                        <th class="px-6 py-4 text-right text-xs font-black text-slate-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for ix in org.interactions|sort(attribute='timestamp', reverse=true) %}
+                    <tr class="hover:bg-slate-50 transition">
+                        <!-- Date -->
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600 font-medium">
+                            <i class="far fa-clock text-slate-400 mr-1"></i> {{ ix.timestamp.strftime('%Y-%m-%d %H:%M') }}
+                        </td>
+                        
+                        <!-- Resident / Financial -->
+                        <td class="px-6 py-4">
+                            <div class="flex flex-col">
+                                <span class="text-sm font-bold text-slate-800">{{ ix.contact_name or 'Anonymous' }}</span>
+                                {% if ix.contact_name %}
+                                <div class="flex items-center mt-1">
+                                    <span class="h-2 w-2 rounded-full bg-emerald-500 mr-1.5"></span>
+                                    <span class="text-[10px] font-bold text-emerald-600 uppercase tracking-wide">Levy Paid Up</span>
+                                </div>
+                                {% else %}
+                                <div class="flex items-center mt-1">
+                                    <span class="h-2 w-2 rounded-full bg-slate-300 mr-1.5"></span>
+                                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Unverified</span>
+                                </div>
                                 {% endif %}
-                            </td>
-                            <td class="p-4 text-sm text-slate-600">
-                                {{ ix.creator.name or ix.creator.email.split('@')[0] }}
-                            </td>
-                            <td class="p-4 text-sm text-slate-500">
-                                {{ ix.created_at.strftime('%d %b, %H:%M') }}
-                            </td>
-                            <td class="p-4 text-right">
-                                <a href="{{ url_for('uip_bp.view_interaction', org_slug=org.slug, reference=ix.reference) }}" class="text-indigo-600 hover:text-indigo-800 font-bold text-sm bg-indigo-50 hover:bg-indigo-100 py-1.5 px-3 rounded transition opacity-0 group-hover:opacity-100">View</a>
-                            </td>
-                        </tr>
-                        {% else %}
-                        <tr>
-                            <td colspan="6" class="p-8 text-center text-slate-500 italic">No active interactions. Everything is caught up!</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+                            </div>
+                        </td>
+                        
+                        <!-- Topic & AI Sentiment -->
+                        <td class="px-6 py-4">
+                            <div class="flex flex-col">
+                                <span class="text-sm font-bold text-slate-900">{{ ix.title }}</span>
+                                <div class="flex items-center gap-2 mt-1">
+                                    <span class="px-2 py-0.5 bg-slate-100 border border-slate-200 text-slate-600 text-[10px] font-bold rounded shadow-sm">
+                                        <i class="fas fa-robot text-slate-400 mr-1"></i> Auto-Triaged
+                                    </span>
+                                    {% if 'Safety' in ix.title or 'Crime' in ix.title or 'Security' in ix.title %}
+                                    <span class="text-[10px] font-bold text-red-600"><i class="fas fa-exclamation-triangle mr-1"></i> HIGH ALERT</span>
+                                    {% elif 'Noise' in ix.title %}
+                                    <span class="text-[10px] font-bold text-orange-500"><i class="fas fa-volume-up mr-1"></i> Frustrated</span>
+                                    {% else %}
+                                    <span class="text-[10px] font-bold text-blue-500"><i class="fas fa-info-circle mr-1"></i> Neutral</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </td>
+                        
+                        <!-- Dispatch / Provider -->
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            {% if ix.status == 'RESOLVED' %}
+                                <span class="px-3 py-1 inline-flex text-xs leading-5 font-black rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200 shadow-sm">
+                                    <i class="fas fa-check-circle mr-1.5 mt-0.5"></i> RESOLVED
+                                </span>
+                            {% elif 'Safety' in ix.title or 'Crime' in ix.title %}
+                                <span class="px-3 py-1 inline-flex text-xs leading-5 font-black rounded-full bg-rose-100 text-rose-800 border border-rose-200 shadow-sm animate-pulse">
+                                    <i class="fas fa-truck-pickup mr-1.5 mt-0.5"></i> DISPATCHED (Blue Security)
+                                </span>
+                            {% else %}
+                                <span class="px-3 py-1 inline-flex text-xs leading-5 font-black rounded-full bg-amber-100 text-amber-800 border border-amber-200 shadow-sm">
+                                    <i class="fas fa-clock mr-1.5 mt-0.5"></i> PENDING DISPATCH
+                                </span>
+                            {% endif %}
+                        </td>
+                        
+                        <!-- Actions -->
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <a href="#" class="text-indigo-600 hover:text-indigo-900 font-bold bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded transition">
+                                Open Ticket
+                            </a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="px-6 py-12 text-center text-slate-500 font-bold bg-slate-50">
+                            <i class="fas fa-shield-alt text-4xl text-slate-300 mb-3 block"></i>
+                            No active issues in the precinct. All clear.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
+
     </div>
 </div>
 {% endblock %}

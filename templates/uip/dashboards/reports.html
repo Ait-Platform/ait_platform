@@ -13,8 +13,8 @@
         <div>
             <form method="POST" action="{{ url_for('uip_bp.generate_ai_report', org_slug=org.slug) }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-lg shadow-md transition flex items-center">
-                    <i class="fas fa-magic mr-2"></i> Generate AI Exec Summary
+                <button type="button" disabled aria-disabled="true" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-lg shadow-md transition flex items-center">
+                    <i class="fas fa-magic mr-2"></i> AI unavailable in this prototype
                 </button>
             </form>
         </div>
@@ -23,7 +23,7 @@
     <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-8 text-center text-slate-500 italic">
         <i class="fas fa-file-invoice-dollar text-5xl mb-4 text-slate-300"></i>
         <p class="text-xl">Financial & Operational Charts will be populated here.</p>
-        <p class="text-sm mt-2">Click 'Generate AI Exec Summary' to test the Luna Integration.</p>
+        <p class="text-sm mt-2">AI reporting is unavailable in this prototype.</p>
     </div>
 
 </div>

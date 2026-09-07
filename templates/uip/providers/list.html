@@ -1,0 +1,11 @@
+{% extends "layout.html" %}
+{% block title %}Provider register - {{ org.name }}{% endblock %}
+{% block flashes %}{% endblock %}
+{% block content %}
+<div class="max-w-5xl mx-auto my-8 bg-white rounded-xl shadow border border-slate-200 overflow-hidden">
+<div class="h-2 bg-indigo-600"></div><div class="p-6">
+<header class="flex justify-between items-center"><h1 class="text-2xl font-bold">Provider register</h1><a class="border border-slate-300 rounded px-4 py-2" href="{{ url_for('uip_bp.dashboard', org_slug=org.slug) }}">Back</a></header>
+<nav class="flex justify-end gap-4 my-4"><a href="{{ url_for('uip_bp.provider_form', org_slug=org.slug) }}">New provider</a></nav>
+{% include 'partials/flash_messages.html' %}
+<table class="w-full"><thead><tr><th>Name</th><th>Status</th><th>Availability</th></tr></thead><tbody>{% for provider in providers %}<tr><td><a href="{{ url_for('uip_bp.provider_view', org_slug=org.slug, provider_id=provider.id) }}">{{ provider.name }}</a></td><td>{{ 'Active' if provider.is_active else 'Inactive' }}</td><td>{{ provider.availability }}</td></tr>{% else %}<tr><td>No providers recorded.</td></tr>{% endfor %}</tbody></table>
+</div></div>{% endblock %}

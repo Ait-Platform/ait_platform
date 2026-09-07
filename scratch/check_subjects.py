@@ -1,8 +1,9 @@
-﻿from sqlalchemy import create_engine, text
+﻿from app import create_app
+from app.extensions import db
+from sqlalchemy import text
 
-DB_URL = "postgresql+psycopg2://ait_platform_db_user:b5LcEVWQeG0JyI6Vklo7zaQBZ1zsAfqj@dpg-d4bkqsf5r7bs73989ia0-a.oregon-postgres.render.com:5432/ait_platform_db"
-engine = create_engine(DB_URL)
-with engine.connect() as conn:
-    res = conn.execute(text("SELECT id, name, slug FROM auth_subject WHERE is_active = 1 ORDER BY name")).fetchall()
-    for r in res:
-        print(r)
+app = create_app()
+with app.app_context():
+    rows = db.session.execute(text("SELECT id, slug, name, commercial_mode FROM auth_subject ORDER BY id")).fetchall()
+    for r in rows:
+        print(f"ID: {r.id}, Slug: {r.slug}, Name: {r.name}, Mode: {r.commercial_mode}")

@@ -1,0 +1,95 @@
+﻿html_path = 'templates/program_sace/print_slip.html'
+
+html_content = '''{% extends "layout.html" %}
+
+{% block title %}SACE Evaluator Access Pass{% endblock %}
+
+{% block styles %}
+<style>
+    .ticket-container {
+        border: 2px dashed #94a3b8;
+    }
+    @media print {
+        body * {
+            visibility: hidden;
+        }
+        #printable-ticket, #printable-ticket * {
+            visibility: visible;
+        }
+        #printable-ticket {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            border: 2px dashed #000;
+            margin: 0;
+            padding: 40px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden mb-12">
+    <!-- Rule 3: Color Strip -->
+    <div class="h-2 w-full bg-indigo-600"></div>
+    
+    <div class="p-6 sm:p-8">
+        
+        <!-- Rule 4: Row 1 Header & Back Button -->
+        <div class="flex justify-between items-start pb-4 border-b border-slate-100 mb-6">
+            <div>
+                <h1 class="text-2xl font-black text-slate-800 tracking-tight">
+                    <i class="fas fa-ticket-alt text-indigo-600 mr-2"></i> Access Pass Generation
+                </h1>
+                <p class="text-slate-500 font-bold mt-1 text-sm uppercase tracking-wide">SACE Control Centre</p>
+            </div>
+            <a href="{{ url_for('sace_bp.provisioning_map') }}" class="px-5 py-2.5 bg-slate-100 text-slate-700 hover:bg-slate-200 font-bold rounded-lg transition border border-slate-200 shadow-sm flex items-center ml-4">
+                <i class="fas fa-arrow-left mr-2"></i> Back to Control Centre
+            </a>
+        </div>
+        
+        <!-- Rule 5: Row 2 Actions -->
+        <div class="flex justify-end mb-8">
+            <button onclick="window.print()" class="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-md transition flex items-center">
+                <i class="fas fa-print mr-2"></i> Print Access Pass
+            </button>
+        </div>
+
+        <!-- The Pass (Print Target) -->
+        <div id="printable-ticket" class="ticket-container bg-white p-8 max-w-2xl mx-auto rounded-xl">
+            <div class="text-center border-b border-slate-200 pb-6 mb-8">
+                <h1 class="text-2xl font-black text-slate-800 uppercase m-0">ARCHONEY INSTITUTE OF TECHNOLOGY (AIT)</h1>
+                <h2 class="text-base text-slate-600 font-normal mt-3">Provider Activity:<br><strong>I Learn to Read English Using the LITRE Method</strong></h2>
+                <h3 class="text-xl text-slate-900 tracking-widest mt-6 font-bold">SACE EVALUATOR ACCESS PASS</h3>
+            </div>
+            
+            <div class="text-base text-slate-700 leading-relaxed">
+                <p class="mb-4 text-center">You have been provisioned by SACE to access and evaluate the digital framework for this activity.</p>
+                <p class="mb-6 text-center font-bold text-slate-800">To access your secure evaluation dashboard, please follow these two steps:</p>
+                
+                <div class="mb-6 bg-slate-50 p-4 rounded-lg border border-slate-100 text-center">
+                    <strong class="block text-slate-900 mb-2">1. Go to the Secure Portal:</strong>
+                    <span class="text-xl font-bold text-indigo-600">🌐 ait.mathwithhands.com/sace/join</span>
+                </div>
+                
+                <div class="mb-6 text-center">
+                    <strong class="block text-slate-900 mb-3">2. Enter Your Unique Access Code:</strong>
+                    <div class="inline-block bg-slate-50 border-2 border-slate-300 px-8 py-4 rounded-lg">
+                        <div class="font-mono text-4xl font-black text-slate-900 tracking-widest">SACE-{{ code }}</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-8 pt-6 border-t border-slate-200 text-xs text-slate-500 text-center italic leading-relaxed px-4">
+                Security Note: This code is single-use. Once entered, your email address will be permanently bound to this evaluation slot. Please do not share this slip.
+            </div>
+        </div>
+        
+    </div>
+</div>
+{% endblock %}
+'''
+
+with open(html_path, 'w', encoding='utf-8') as f:
+    f.write(html_content)

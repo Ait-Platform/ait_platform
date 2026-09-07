@@ -191,20 +191,6 @@ def create_app(test_config=None):
         except Exception:
             db.session.rollback()
             
-        try:
-            # Enforce 15-day trials for existing auto_enroll subjects that were incorrectly granted as 'active'
-            db.session.execute(text("""
-                UPDATE user_enrollment ue
-                SET status = 'trial',
-                    trial_end = CURRENT_TIMESTAMP + interval '15 days'
-                FROM auth_subject s
-                WHERE ue.subject_id = s.id 
-                  AND s.enroll_policy = 'auto_enroll' 
-                  AND ue.status = 'active'
-            """))
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
             
         try:
             db.session.execute(text("ALTER TABLE spv_participations ADD COLUMN pseudonym VARCHAR(100)"))

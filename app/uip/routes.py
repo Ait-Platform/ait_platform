@@ -1,730 +1,315 @@
-from flask import render_template, redirect, url_for, flash, request, abort
+from datetime import datetime
+import random
+import uuid
 
-from flask_login import login_required, current_user
-
-from app.uip import uip_bp
-
-from app.models.core import CoreOrganization, CoreRoleAssignment, CoreInteraction
+from flask import abort, flash, g, redirect, render_template, request, url_for
+from flask_login import current_user, login_required
+from sqlalchemy.exc import IntegrityError
 
 from app.extensions import db
+from app.models.auth import User
+from app.models.core import CoreInteraction, CoreOrganizationMember, CoreRole, CoreRoleAssignment, CoreTask
+from app.models.uip import UipMunicipalReferral, UipProvider, UipWorkOrder
+from app.uip import uip_bp
+from app.uip.gateway import LunaGateway
+from app.uip.services import audit, register, providers, work_orders, operations
+from app.uip.services.dashboard import metrics
+from app.models.uip import (UipMemberProfile, UipProperty, UipPropertyMember,
+    UipMemberRepresentative, UipCommunicationPreference)
 
+
+STAFF_ROLES = ("manager", "receptionist")
+CATEGORIES = {"GENERAL ENQUIRY", "SERVICE ISSUE", "SECURITY", "CLEANING",
+              "MAINTENANCE", "MUNICIPAL SERVICE", "COMMUNITY MATTER", "FINANCIAL"}
+CHANNELS = {"Telephone", "Reception", "Email", "Web", "WhatsApp"}
+PRIORITIES = {"LOW", "NORMAL", "HIGH", "URGENT"}
+
+
+def _require_role(*allowed):
+    """Require active membership and an eligible role within this organisation."""
+    membership = CoreOrganizationMember.query.filter_by(
+        organization_id=g.organization.id, user_id=current_user.id, is_active=True
+    ).first()
+    if not membership:
+        abort(403)
+    query = CoreRoleAssignment.query.filter_by(
+        organization_id=g.organization.id, user_id=current_user.id
+    )
+    if allowed:
+        query = query.filter(CoreRoleAssignment.role.has(db.and_(CoreRole.slug.in_(allowed),
+            db.or_(CoreRole.organization_id.is_(None), CoreRole.organization_id == g.organization.id))))
+    query = query.filter(CoreRoleAssignment.role.has(db.or_(
+        CoreRole.organization_id.is_(None), CoreRole.organization_id == g.organization.id)))
+    assignments = query.all()
+    roles = [assignment.role.slug for assignment in assignments if assignment.role]
+    if allowed:
+        # Staff privileges take precedence over a second resident/provider role.
+        roles = [role for role in allowed if role in roles]
+    if not roles:
+        abort(403)
+    return roles[0]
+
+
+def _members_with_roles(*roles):
+    return User.query.join(
+        CoreOrganizationMember, CoreOrganizationMember.user_id == User.id
+    ).join(
+        CoreRoleAssignment, CoreRoleAssignment.user_id == User.id
+    ).filter(
+        CoreOrganizationMember.organization_id == g.organization.id,
+        CoreOrganizationMember.is_active.is_(True),
+        CoreRoleAssignment.organization_id == g.organization.id,
+        CoreRoleAssignment.role.has(db.and_(CoreRole.slug.in_(roles),
+            db.or_(CoreRole.organization_id.is_(None), CoreRole.organization_id == g.organization.id)))
+    ).distinct()
+
+
+def _interaction(reference):
+    return CoreInteraction.query.filter_by(
+        organization_id=g.organization.id, reference=reference
+    ).first_or_404()
+
+
+def _positive_id(value):
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        abort(400, description="Invalid record ID.")
+    if parsed <= 0:
+        abort(400, description="Invalid record ID.")
+    return parsed
 
 
 @uip_bp.route("/<org_slug>/dashboard")
-
 @login_required
-
 def dashboard(org_slug):
-
-    from flask import g
-
     org = g.organization
-
-    
-
-    # Check user's role in this org
-
-    assignment = CoreRoleAssignment.query.filter_by(user_id=current_user.id, organization_id=org.id).first()
-
-    
-
-    if not assignment:
-
-        flash("You do not have an active role in this UIP.", "warning")
-
-        return redirect(url_for("public_bp.welcome"))
-
-        
-
-    role_slug = assignment.role.slug
-
-    
-
-    # Route to the correct dashboard based on role
-
+    role_slug = _require_role("manager", "receptionist", "committee_member", "owner", "resident", "provider")
+    if role_slug == "provider":
+        return redirect(url_for("uip_bp.work_order_list", org_slug=org_slug))
     if role_slug == "resident":
-
-        interactions = CoreInteraction.query.filter_by(organization_id=org.id, creator_id=current_user.id).all()
-
+        interactions = CoreInteraction.query.filter_by(
+            organization_id=org.id, creator_id=current_user.id
+        ).all()
         return render_template("uip/dashboards/resident.html", org=org, interactions=interactions)
-
-        
-
-    elif role_slug == "receptionist":
-
-        open_interactions = CoreInteraction.query.filter_by(organization_id=org.id, status="open").all()
-
-        return render_template("uip/dashboards/receptionist.html", org=org, open_interactions=open_interactions)
-
-        
-
-    elif role_slug == "committee_member":
+    if role_slug == "receptionist":
+        open_interactions = CoreInteraction.query.filter(
+            CoreInteraction.organization_id == org.id,
+            CoreInteraction.status != "RESOLVED"
+        ).all()
+        return render_template("uip/dashboards/receptionist.html", org=org, open_interactions=open_interactions, metrics=metrics(org.id, current_user.id))
+    if role_slug == "committee_member":
         return render_template("uip/dashboards/committee.html", org=org)
-    elif role_slug == "manager":
-
-        return render_template("uip/dashboards/manager.html", org=org)
-
-        
-
-    else:
-
-        return f"Dashboard for {role_slug} under construction."
-
-
-
+    if role_slug == "manager":
+        interactions = CoreInteraction.query.filter_by(organization_id=org.id).order_by(
+            CoreInteraction.created_at.desc().nullslast(), CoreInteraction.id.desc()
+        ).all()
+        referral_count = UipMunicipalReferral.query.join(
+            CoreInteraction, UipMunicipalReferral.interaction_id == CoreInteraction.id
+        ).filter(CoreInteraction.organization_id == org.id).count()
+        return render_template("uip/dashboards/manager.html", org=org,
+                               interactions=interactions, referral_count=referral_count, metrics=metrics(org.id, current_user.id))
+    return "Dashboard for this role is under construction."
 
 
 @uip_bp.route("/<org_slug>/settings", methods=["GET", "POST"])
-
 @login_required
-
 def org_settings(org_slug):
-
-    from flask import g
-
+    _require_role("manager", "committee_member", "owner")
     org = g.organization
-
-    
-
-    # Check permissions (only Manager or Committee Member can edit)
-
-    assignment = CoreRoleAssignment.query.filter_by(user_id=current_user.id, organization_id=org.id).first()
-
-    if not assignment or assignment.role.slug not in ["manager", "committee_member", "owner"]:
-
-        flash("You do not have permission to access organisation settings.", "danger")
-
-        return redirect(url_for("uip_bp.dashboard", org_slug=org_slug))
-
-        
-
     if request.method == "POST":
-
-        org.name = request.form.get("name")
-
-        org.area = request.form.get("area")
-
-        org.municipality_ref = request.form.get("municipality_ref")
-
-        org.contact_email = request.form.get("contact_email")
-
-        org.contact_phone = request.form.get("contact_phone")
-
-        org.status = request.form.get("status")
-
+        name = (request.form.get("name") or "").strip()
+        status = request.form.get("status")
+        if not name or len(name) > 255 or status not in {"active", "inactive"}:
+            abort(400, description="Invalid organisation name or status.")
+        values = {}
+        for field, limit in (("area", 255), ("municipality_ref", 255),
+                             ("contact_email", 255), ("contact_phone", 50)):
+            values[field] = (request.form.get(field) or "").strip()
+            if len(values[field]) > limit:
+                abort(400, description="Organisation detail is too long.")
+        org.name, org.status = name, status
+        for field, value in values.items():
+            setattr(org, field, value)
+        audit.record(org.id, current_user.id, "organization.updated", org)
         db.session.commit()
-
         flash("Organisation settings updated successfully.", "success")
-
         return redirect(url_for("uip_bp.org_settings", org_slug=org_slug))
-
-        
-
     return render_template("uip/admin/settings.html", org=org)
 
 
-
-import random
-
-from app.models.auth import User
-
-
-
 @uip_bp.route("/<org_slug>/interaction/new", methods=["GET", "POST"])
-
 @login_required
-
 def new_interaction(org_slug):
-
-    from flask import g
-
+    _require_role("manager", "receptionist", "committee_member")
     org = g.organization
-
-    
-
-    # Check permissions (Receptionist or Manager)
-
-    assignment = CoreRoleAssignment.query.filter_by(user_id=current_user.id, organization_id=org.id).first()
-
-    if not assignment or assignment.role.slug not in ["manager", "receptionist", "committee_member"]:
-
-        flash("You do not have permission to create interactions.", "danger")
-
-        return redirect(url_for("uip_bp.dashboard", org_slug=org_slug))
-
-        
-
+    residents = _members_with_roles("resident").all()
+    register_members = register.members(org.id, current_user.id, active_only=True).all()
+    register_properties = register.properties(org.id, current_user.id, active_only=True).all()
     if request.method == "POST":
-
-        creator_id = current_user.id
-
-        # In a real app, 'contact_email' would be mapped to a resident ID via AJAX search
-
-        resident_email = request.form.get("resident_email")
-
-        resident = User.query.filter_by(email=resident_email).first()
-
-        if resident:
-
-            creator_id = resident.id # Receptionist logs it on behalf of the resident
-
-            
-
-        ref = f"{org.slug[:2].upper()}-{random.randint(10000, 99999)}"
-
-        
-
-        ix = CoreInteraction(
-
-            reference=ref,
-
-            organization_id=org.id,
-
-            creator_id=creator_id, # The person reporting it
-
-            title=request.form.get("title"),
-
-            description=request.form.get("description"),
-
-            channel=request.form.get("channel"),
-
-            category=request.form.get("category"),
-
-            interaction_type=request.form.get("category"), # Fallback for legacy Phase 3
-
-            priority=request.form.get("priority", "NORMAL"),
-
-            status="NEW"
-
-        )
-
-        db.session.add(ix)
-
-        db.session.commit()
-
-        
-
-        flash(f"Interaction {ref} logged successfully.", "success")
-
-        return redirect(url_for("uip_bp.dashboard", org_slug=org.slug))
-
-        
-
-    return render_template("uip/reception/new_interaction.html", org=org)
-
-from datetime import datetime
-
-
-
-from app.models.core import CoreTask, CoreRole
-
-
-
-
-
+        email = (request.form.get("resident_email") or "").strip()
+        resident = next((member for member in residents if member.email == email), None)
+        if email and not resident:
+            abort(400, description="Select an active resident of this organisation.")
+        member, property_record = register.intake_links(
+            org.id, current_user.id, request.form.get("member_id"), request.form.get("property_id"))
+        if resident and member and member.membership.user_id != resident.id:
+            abort(400, description="The selected member and resident account do not match.")
+        title = (request.form.get("title") or "").strip()
+        description = (request.form.get("description") or "").strip()
+        category = request.form.get("category")
+        channel = request.form.get("channel")
+        priority = request.form.get("priority")
+        if (not title or len(title) > 255 or not description
+                or category not in CATEGORIES or channel not in CHANNELS
+                or priority not in PRIORITIES):
+            abort(400, description="Complete the required issue fields with valid values.")
+        for attempt in range(5):
+            ref = f"{org.slug[:2].upper()}-{random.randint(10000, 99999)}"
+            ix = CoreInteraction(
+                reference=ref, organization_id=org.id,
+                creator_id=resident.id if resident else current_user.id,
+                title=title, description=description, channel=channel,
+                category=category, interaction_type=category, priority=priority, status="NEW",
+                member_id=member.id if member else None,
+                property_id=property_record.id if property_record else None,
+                recorded_by=current_user.id
+            )
+            db.session.add(ix)
+            try:
+                audit.record(org.id, current_user.id, "interaction.created", ix)
+                db.session.commit()
+            except IntegrityError:
+                db.session.rollback()
+                # Retry only reference collisions; do not conceal other database errors.
+                if not CoreInteraction.query.filter_by(reference=ref).first():
+                    raise
+            else:
+                flash(f"Interaction {ref} logged successfully.", "success")
+                return redirect(url_for("uip_bp.dashboard", org_slug=org.slug))
+        flash("Could not allocate an issue reference. Please try again.", "warning")
+        return render_template("uip/reception/new_interaction.html", org=org, residents=residents, register_members=register_members, register_properties=register_properties), 409
+    return render_template("uip/reception/new_interaction.html", org=org, residents=residents, register_members=register_members, register_properties=register_properties)
 
 
 @uip_bp.route("/<org_slug>/interaction/<reference>")
-
-
-
 @login_required
-
-
-
 def view_interaction(org_slug, reference):
-
-
-
-    from flask import g
-
-
-
-    org = g.organization
-
-
-
-    
-
-
-
-    ix = CoreInteraction.query.filter_by(organization_id=org.id, reference=reference).first_or_404()
-
-
-
-    
-
-
-
-    # Check permissions
-
-
-
-    assignment = CoreRoleAssignment.query.filter_by(user_id=current_user.id, organization_id=org.id).first()
-
-
-
-    if not assignment:
-
-
-
-        flash("You do not have access.", "danger")
-
-
-
-        return redirect(url_for("public_bp.welcome"))
-
-
-
-        
-
-
-
-    # Get staff for task assignment
-
-
-
-    staff_assignments = CoreRoleAssignment.query.filter(
-
-
-
-        CoreRoleAssignment.organization_id == org.id,
-
-
-
-        CoreRoleAssignment.role.has(CoreRole.slug.in_(["manager", "receptionist", "provider"]))
-
-
-
-    ).all()
-
-
-
-    staff_members = [a.user for a in staff_assignments]
-
-
-
-    
-
-
-
-    return render_template("uip/interactions/view.html", org=org, interaction=ix, staff=staff_members, current_role=assignment.role.slug)
-
-
-
-
-
+    role = _require_role("manager", "receptionist", "committee_member", "resident")
+    ix = _interaction(reference)
+    if role == "resident" and ix.creator_id != current_user.id:
+        abort(403)
+    return render_template("uip/interactions/view.html", org=g.organization,
+                           interaction=ix, staff=_members_with_roles(*STAFF_ROLES).all(),
+                           current_role=role, task_actionable=operations.actionable, request_key=str(uuid.uuid4()),
+                           eligible_providers=[p for p in UipProvider.query.filter_by(organization_id=g.organization.id, is_active=True).all() if providers.eligible(g.organization.id, p, ix.category)] if role in STAFF_ROLES else [],
+                           register_member=UipMemberProfile.query.filter_by(id=ix.member_id, organization_id=g.organization.id).first() if ix.member_id else None,
+                           register_property=UipProperty.query.filter_by(id=ix.property_id, organization_id=g.organization.id).first() if ix.property_id else None)
 
 
 @uip_bp.route("/<org_slug>/interaction/<reference>/task", methods=["POST"])
-
-
-
 @login_required
-
-
-
 def add_task(org_slug, reference):
-
-
-
-    from flask import g
-
-
-
-    org = g.organization
-
-
-
-    
-
-
-
-    ix = CoreInteraction.query.filter_by(organization_id=org.id, reference=reference).first_or_404()
-
-
-
-    
-
-
-
-    title = request.form.get("title")
-
-
-
-    description = request.form.get("description")
-
-
-
+    _require_role("manager", "receptionist")
+    ix = _interaction(reference)
+    title = (request.form.get("title") or "").strip()
+    if not title or len(title) > 255:
+        abort(400, description="A valid task title is required.")
     assignee_id = request.form.get("assignee_id")
-
-
-
-    
-
-
-
-    task = CoreTask(
-
-
-
-        interaction_id=ix.id,
-
-
-
-        assignee_id=assignee_id if assignee_id else None,
-
-
-
-        title=title,
-
-
-
-        description=description,
-
-
-
-        status="pending"
-
-
-
-    )
-
-
-
-    db.session.add(task)
-
-
-
-    
-
-
-
-    # Update interaction status if it's NEW
-
-
-
-    if ix.status == "NEW":
-
-
-
-        ix.status = "IN_PROGRESS"
-
-
-
-        
-
-
-
+    if assignee_id:
+        assignee_id = _positive_id(assignee_id)
+        if not _members_with_roles(*STAFF_ROLES).filter(User.id == assignee_id).first():
+            abort(400, description="Select active staff from this organisation.")
+    task = operations.add_task(g.organization.id, current_user.id, ix.id, title,
+                               request.form.get("description"), assignee_id or None)
     db.session.commit()
-
-
-
     flash("Task added successfully.", "success")
-
-
-
-    
-
-
-
     return redirect(url_for("uip_bp.view_interaction", org_slug=org_slug, reference=reference))
-
-
-
-
-
 
 
 @uip_bp.route("/<org_slug>/task/<int:task_id>/complete", methods=["POST"])
-
-
-
 @login_required
-
-
-
 def complete_task(org_slug, task_id):
-
-
-
-    from flask import g
-
-
-
-    org = g.organization
-
-
-
-    
-
-
-
-    task = CoreTask.query.get_or_404(task_id)
-
-
-
-    # verify task belongs to org
-
-
-
-    if task.interaction.organization_id != org.id:
-
-
-
-        abort(403)
-
-
-
-        
-
-
-
-    task.status = "completed"
-
-
-
-    task.completed_at = datetime.utcnow()
-
-
-
+    task = operations.finish_task(g.organization.id, current_user.id, task_id,
+                                  expected=request.form.get("expected_version"))
     db.session.commit()
-
-
-
-    
-
-
-
     flash("Task marked as completed.", "success")
-
-
-
     return redirect(url_for("uip_bp.view_interaction", org_slug=org_slug, reference=task.interaction.reference))
 
 
-
-
-
-
-
 @uip_bp.route("/<org_slug>/interaction/<reference>/resolve", methods=["POST"])
-
-
-
 @login_required
-
-
-
 def resolve_interaction(org_slug, reference):
-
-
-
-    from flask import g
-
-
-
-    org = g.organization
-
-
-
-    
-
-
-
-    ix = CoreInteraction.query.filter_by(organization_id=org.id, reference=reference).first_or_404()
-
-
-
-    
-
-
-
-    ix.status = "RESOLVED"
-
-
-
-    ix.closed_by = current_user.id
-
-
-
-    ix.closed_at = datetime.utcnow()
-
-
-
+    _require_role("manager", "receptionist")
+    ix = _interaction(reference)
+    operations.resolve(g.organization.id, current_user.id, ix.id)
     db.session.commit()
-
-
-
-    
-
-
-
     flash("Interaction resolved successfully.", "success")
-
-
-
     return redirect(url_for("uip_bp.view_interaction", org_slug=org_slug, reference=reference))
-
-
-
-
-
-from app.uip.gateway import LunaGateway
-
 
 
 @uip_bp.route("/<org_slug>/interaction/<reference>/summarize", methods=["POST"])
-
 @login_required
-
 def summarize_interaction(org_slug, reference):
-
-    from flask import g
-
-    org = g.organization
-
-    
-
-    ix = CoreInteraction.query.filter_by(organization_id=org.id, reference=reference).first_or_404()
-
-    
-
-    # Check permissions
-
-    assignment = CoreRoleAssignment.query.filter_by(user_id=current_user.id, organization_id=org.id).first()
-
-    if not assignment or assignment.role.slug not in ["manager", "receptionist"]:
-
-        abort(403)
-
-        
-
-    prompt = f"Please summarize this interaction briefly: {ix.description}"
-
-    
-
-    # Pass to AI Gateway
-
-    result = LunaGateway.ask_luna(prompt, interaction_id=ix.id)
-
-    
-
-    if result["status"] == "suspended":
-
-        flash(result["message"], "warning")
-
-    else:
-
-        # Add summary as a task or just flash it for now (simulating UI update)
-
-        summary = result["message"]
-
-        flash(f"Luna Summary: {summary} (Cost: {result['cost_cents']} credits, Remaining: {result['remaining_balance']})", "success")
-
-        
-
+    _require_role("manager", "receptionist")
+    ix = _interaction(reference)
+    result = LunaGateway.ask_luna("", interaction_id=ix.id)
+    flash(result["message"], "warning")
     return redirect(url_for("uip_bp.view_interaction", org_slug=org_slug, reference=reference))
 
-
-from app.models.uip import UipProvider, UipWorkOrder, UipMunicipalReferral
 
 @uip_bp.route("/<org_slug>/interaction/<reference>/provider", methods=["POST"])
 @login_required
 def assign_provider(org_slug, reference):
-    from flask import g
-    org = g.organization
-    
-    ix = CoreInteraction.query.filter_by(organization_id=org.id, reference=reference).first_or_404()
-    
-    # Needs manager or committee
-    assignment = CoreRoleAssignment.query.filter_by(user_id=current_user.id, organization_id=org.id).first()
-    if not assignment or assignment.role.slug not in ["manager", "committee_member"]:
-        abort(403)
-        
-    provider_id = request.form.get("provider_id")
-    description = request.form.get("description")
-    
-    if provider_id:
-        wo_ref = f"WO-{ix.reference}-{random.randint(100, 999)}"
-        wo = UipWorkOrder(
-            interaction_id=ix.id,
-            provider_id=provider_id,
-            reference=wo_ref,
-            description=description,
-            status="SENT"
-        )
-        db.session.add(wo)
-        
-        if ix.status == "NEW":
-            ix.status = "IN_PROGRESS"
-            
-        db.session.commit()
-        flash(f"Work Order {wo_ref} sent to provider.", "success")
-        
-    return redirect(url_for("uip_bp.view_interaction", org_slug=org_slug, reference=reference))
+    _require_role(*STAFF_ROLES)
+    ix = _interaction(reference)
+    provider_id = _positive_id(request.form.get("provider_id"))
+    if not UipProvider.query.filter_by(id=provider_id, organization_id=g.organization.id).first():
+        abort(400, description="Select a provider from this organisation.")
+    order = work_orders.create(g.organization.id, current_user.id, ix.id, provider_id,
+        request.form.get("description"), request.form.get("service_location"), request.form.get("request_key"))
+    db.session.commit()
+    flash("Work order created. Dispatch has not yet been recorded.", "success")
+    return redirect(url_for("uip_bp.work_order_view", org_slug=org_slug, order_id=order.id))
+
 
 @uip_bp.route("/<org_slug>/interaction/<reference>/municipal", methods=["POST"])
 @login_required
 def escalate_municipality(org_slug, reference):
-    from flask import g
-    org = g.organization
-    
-    ix = CoreInteraction.query.filter_by(organization_id=org.id, reference=reference).first_or_404()
-    
-    department = request.form.get("department")
-    mun_ref = request.form.get("municipality_reference")
-    
-    ref_record = UipMunicipalReferral(
-        interaction_id=ix.id,
-        department=department,
-        municipality_reference=mun_ref,
-        status="ESCALATED"
+    _require_role("manager", "committee_member")
+    ix = _interaction(reference)
+    department = (request.form.get("department") or "").strip()
+    mun_ref = (request.form.get("municipality_reference") or "").strip()
+    if not department or len(department) > 100 or len(mun_ref) > 100:
+        abort(400, description="A valid department and reference are required.")
+    referral = UipMunicipalReferral(
+        interaction_id=ix.id, department=department,
+        municipality_reference=mun_ref, status="ESCALATED"
     )
-    db.session.add(ref_record)
-    
+    db.session.add(referral)
     if ix.status == "NEW":
         ix.status = "IN_PROGRESS"
-        
+    audit.record(g.organization.id, current_user.id, "referral.recorded", referral)
     db.session.commit()
-    flash(f"Interaction escalated to Municipality ({department}).", "info")
-    
+    flash(f"Referral recorded ({department}).", "info")
     return redirect(url_for("uip_bp.view_interaction", org_slug=org_slug, reference=reference))
+
 
 @uip_bp.route("/<org_slug>/reports")
 @login_required
 def org_reports(org_slug):
-    from flask import g
-    org = g.organization
-    
-    assignment = CoreRoleAssignment.query.filter_by(user_id=current_user.id, organization_id=org.id).first()
-    if not assignment or assignment.role.slug not in ["manager", "committee_member"]:
-        abort(403)
-        
-    return render_template("uip/dashboards/reports.html", org=org)
+    _require_role("manager", "committee_member")
+    return render_template("uip/dashboards/reports.html", org=g.organization)
+
 
 @uip_bp.route("/<org_slug>/reports/generate_ai", methods=["POST"])
 @login_required
 def generate_ai_report(org_slug):
-    from flask import g
-    from app.uip.gateway import LunaGateway
-    org = g.organization
-    
-    # Compile raw data for Luna
-    open_ix = CoreInteraction.query.filter(CoreInteraction.organization_id == org.id, CoreInteraction.status != 'RESOLVED').count()
-    completed_wo = 0 # Dummy data for prototype
-    
-    prompt = f"Write a 3-sentence executive summary for the committee. Current metrics: {open_ix} open interactions, {completed_wo} completed work orders."
-    
-    result = LunaGateway.ask_luna(prompt)
-    if result["status"] == "suspended":
-        flash(result["message"], "warning")
-    else:
-        flash(f"Luna Management Summary: {result['message']} (Cost: {result['cost_cents']} AIT)", "success")
-        
+    _require_role("manager", "committee_member")
+    result = LunaGateway.ask_luna("")
+    flash(result["message"], "warning")
     return redirect(url_for("uip_bp.org_reports", org_slug=org_slug))
-from flask import redirect, url_for
-from app.uip import uip_bp
+
 
 @uip_bp.route("/")
 def uip_start():
@@ -756,91 +341,261 @@ def price_page():
         quote=quote
     )
 
-from flask import flash, redirect, url_for
 
-@uip_bp.route("/_seed")
-def seed_uip_live():
-    from app.extensions import db
-    from app.models.auth import AuthSubject
-    subj = AuthSubject.query.filter_by(slug='uip').first()
-    if not subj:
-        subj = AuthSubject(
-            slug='uip',
-            name='UIP Platform',
-            program_type='B2B',
-            show_on_welcome=True,
-            about_endpoint='uip_bp.uip_start',
-            processor_default='yoco'
-        )
-        db.session.add(subj)
-    else:
-        subj.show_on_welcome = True
-        subj.about_endpoint = 'uip_bp.uip_start'
-        subj.processor_default = 'yoco'
+@uip_bp.errorhandler(IntegrityError)
+def register_conflict(error):
+    db.session.rollback()
+    return "The record conflicts with an existing reference or relationship. Review the values and retry.", 409
+
+
+def _register_context():
+    return dict(org=g.organization,
+                can_manage=CoreRoleAssignment.query.filter(
+                    CoreRoleAssignment.organization_id == g.organization.id,
+                    CoreRoleAssignment.user_id == current_user.id,
+                    CoreRoleAssignment.role.has(db.and_(CoreRole.slug.in_(audit.WRITE_ROLES),
+                        db.or_(CoreRole.organization_id.is_(None), CoreRole.organization_id == g.organization.id)))
+                ).first() is not None)
+
+
+@uip_bp.route("/<org_slug>/members")
+@login_required
+def member_list(org_slug):
+    page = register.members(g.organization.id, current_user.id).paginate(
+        page=request.args.get("page", 1, type=int), per_page=30, error_out=False)
+    return render_template("uip/members/list.html", page=page, **_register_context())
+
+
+@uip_bp.route("/<org_slug>/members/new", methods=["GET", "POST"])
+@uip_bp.route("/<org_slug>/members/<int:member_id>/edit", methods=["GET", "POST"])
+@login_required
+def member_form(org_slug, member_id=None):
+    audit.authorize(g.organization.id, current_user.id, audit.WRITE_ROLES)
+    member = register.get(UipMemberProfile, g.organization.id, current_user.id, member_id) if member_id else None
+    if request.method == "POST":
+        member = register.save_member(g.organization.id, current_user.id, request.form, member_id)
+        db.session.commit()
+        flash("Member register saved. Application access and roles are unchanged.", "success")
+        return redirect(url_for("uip_bp.member_view", org_slug=org_slug, member_id=member.id))
+    return render_template("uip/members/form.html", member=member,
+        memberships=register.available_memberships(g.organization.id, current_user.id), **_register_context())
+
+
+@uip_bp.route("/<org_slug>/members/<int:member_id>")
+@login_required
+def member_view(org_slug, member_id):
+    member = register.get(UipMemberProfile, g.organization.id, current_user.id, member_id)
+    return render_template("uip/members/view.html", member=member,
+        members=register.members(g.organization.id, current_user.id).all(),
+        ownerships=UipPropertyMember.query.filter_by(organization_id=g.organization.id, member_id=member.id).all(),
+        representations=UipMemberRepresentative.query.filter_by(organization_id=g.organization.id, member_id=member.id).all(),
+        preferences=UipCommunicationPreference.query.filter_by(organization_id=g.organization.id, member_id=member.id).all(),
+        channels=register.CHANNELS, **_register_context())
+
+
+@uip_bp.route("/<org_slug>/members/<int:member_id>/representatives", methods=["POST"])
+@uip_bp.route("/<org_slug>/members/<int:member_id>/representatives/<int:link_id>", methods=["POST"])
+@login_required
+def member_representative(org_slug, member_id, link_id=None):
+    register.save_relationship(g.organization.id, current_user.id, request.form, member_id=member_id, link_id=link_id)
     db.session.commit()
-    flash("UIP module seeded into live database!", "success")
-    return redirect(url_for('admin_bp.modules_control'))
-from sqlalchemy import text
+    flash("Representation recorded; no voting or governance rights were granted.", "success")
+    return redirect(url_for("uip_bp.member_view", org_slug=org_slug, member_id=member_id))
 
-@uip_bp.route("/_db_fix")
-def fix_db():
-    from app.extensions import db
-    
-    # 1. Ensure all new tables are created (db.create_all ignores existing tables)
-    db.create_all()
-    
-    # 2. Add missing columns to core_organization if they don't exist
-    columns_to_add = [
-        "area VARCHAR(255)",
-        "municipality_ref VARCHAR(255)",
-        "contact_email VARCHAR(255)",
-        "contact_phone VARCHAR(50)",
-        "status VARCHAR(50) DEFAULT 'active'",
-        "config_json TEXT"
-    ]
-    
-    results = []
-    for col in columns_to_add:
-        col_name = col.split()[0]
+
+@uip_bp.route("/<org_slug>/members/<int:member_id>/preferences", methods=["POST"])
+@login_required
+def member_preference(org_slug, member_id):
+    register.set_preference(g.organization.id, current_user.id, member_id, request.form)
+    db.session.commit()
+    flash("Communication preference recorded. No message was sent.", "success")
+    return redirect(url_for("uip_bp.member_view", org_slug=org_slug, member_id=member_id))
+
+
+@uip_bp.route("/<org_slug>/properties")
+@login_required
+def property_list(org_slug):
+    page = register.properties(g.organization.id, current_user.id).paginate(
+        page=request.args.get("page", 1, type=int), per_page=30, error_out=False)
+    return render_template("uip/properties/list.html", page=page, **_register_context())
+
+
+@uip_bp.route("/<org_slug>/properties/new", methods=["GET", "POST"])
+@uip_bp.route("/<org_slug>/properties/<int:property_id>/edit", methods=["GET", "POST"])
+@login_required
+def property_form(org_slug, property_id=None):
+    audit.authorize(g.organization.id, current_user.id, audit.WRITE_ROLES)
+    item = register.get(UipProperty, g.organization.id, current_user.id, property_id) if property_id else None
+    if request.method == "POST":
+        item = register.save_property(g.organization.id, current_user.id, request.form, property_id)
+        db.session.commit()
+        flash("Property saved.", "success")
+        return redirect(url_for("uip_bp.property_view", org_slug=org_slug, property_id=item.id))
+    return render_template("uip/properties/form.html", item=item, **_register_context())
+
+
+@uip_bp.route("/<org_slug>/properties/<int:property_id>")
+@login_required
+def property_view(org_slug, property_id):
+    item = register.get(UipProperty, g.organization.id, current_user.id, property_id)
+    return render_template("uip/properties/view.html", item=item,
+        members=register.members(g.organization.id, current_user.id).all(),
+        ownerships=UipPropertyMember.query.filter_by(organization_id=g.organization.id, property_id=item.id).all(),
+        **_register_context())
+
+
+@uip_bp.route("/<org_slug>/properties/<int:property_id>/members", methods=["POST"])
+@uip_bp.route("/<org_slug>/properties/<int:property_id>/members/<int:link_id>", methods=["POST"])
+@login_required
+def property_member(org_slug, property_id, link_id=None):
+    register.save_relationship(g.organization.id, current_user.id, request.form, property_id=property_id, link_id=link_id)
+    db.session.commit()
+    flash("Property relationship recorded; eligibility is maintained separately.", "success")
+    return redirect(url_for("uip_bp.property_view", org_slug=org_slug, property_id=property_id))
+
+
+@uip_bp.route("/<org_slug>/audit")
+@login_required
+def audit_history(org_slug):
+    page = audit.events(g.organization.id, current_user.id).paginate(
+        page=request.args.get("page", 1, type=int), per_page=30, error_out=False)
+    return render_template("uip/audit/list.html", org=g.organization, page=page, event=None)
+
+
+@uip_bp.route("/<org_slug>/audit/<int:event_id>")
+@login_required
+def audit_event(org_slug, event_id):
+    event = audit.events(g.organization.id, current_user.id, event_id=event_id)
+    return render_template("uip/audit/list.html", org=g.organization, page=None, event=event)
+
+
+@uip_bp.route("/<org_slug>/task/<int:task_id>/cancel", methods=["POST"])
+@login_required
+def cancel_task(org_slug, task_id):
+    task = operations.finish_task(g.organization.id, current_user.id, task_id, cancel=True,
+        reason=request.form.get("reason"), expected=request.form.get("expected_version"))
+    db.session.commit()
+    flash("Internal task cancelled; its history is retained.", "success")
+    return redirect(url_for("uip_bp.view_interaction", org_slug=org_slug, reference=task.interaction.reference))
+
+
+@uip_bp.route("/<org_slug>/providers")
+@login_required
+def provider_list(org_slug):
+    _require_role("manager")
+    rows = UipProvider.query.filter_by(organization_id=g.organization.id).order_by(UipProvider.name).all()
+    return render_template("uip/providers/list.html", org=g.organization, providers=rows)
+
+
+@uip_bp.route("/<org_slug>/providers/new", methods=["GET", "POST"])
+@uip_bp.route("/<org_slug>/providers/<int:provider_id>/edit", methods=["GET", "POST"])
+@login_required
+def provider_form(org_slug, provider_id=None):
+    _require_role("manager")
+    provider = providers.get(g.organization.id, provider_id) if provider_id else None
+    if request.method == "POST":
+        provider = providers.save(g.organization.id, current_user.id, request.form,
+            request.form.getlist("capabilities"), provider_id, request.form.get("expected_version"))
+        db.session.commit()
+        flash("Provider saved.", "success")
+        return redirect(url_for("uip_bp.provider_view", org_slug=org_slug, provider_id=provider.id))
+    from app.models.uip import UipProviderCapability
+    selected = {c.category for c in UipProviderCapability.query.filter_by(organization_id=g.organization.id, provider_id=provider_id)} if provider else set()
+    return render_template("uip/providers/form.html", org=g.organization, provider=provider,
+                           categories=sorted(CATEGORIES), selected=selected)
+
+
+@uip_bp.route("/<org_slug>/providers/<int:provider_id>")
+@login_required
+def provider_view(org_slug, provider_id):
+    _require_role("manager")
+    from app.models.uip import UipProviderCapability, UipProviderUser
+    provider = providers.get(g.organization.id, provider_id)
+    links = db.session.query(UipProviderUser, User).join(CoreOrganizationMember,
+        CoreOrganizationMember.id == UipProviderUser.membership_id).join(User, User.id == CoreOrganizationMember.user_id).filter(
+        UipProviderUser.organization_id == g.organization.id, UipProviderUser.provider_id == provider_id,
+        CoreOrganizationMember.organization_id == g.organization.id).all()
+    members = db.session.query(CoreOrganizationMember, User).join(User, User.id == CoreOrganizationMember.user_id).filter(
+        CoreOrganizationMember.organization_id == g.organization.id, CoreOrganizationMember.is_active.is_(True),
+        User.id.in_([u.id for u in _members_with_roles("provider").all()])).all()
+    capabilities = UipProviderCapability.query.filter_by(organization_id=g.organization.id, provider_id=provider_id).all()
+    return render_template("uip/providers/view.html", org=g.organization, provider=provider, links=links, members=members, capabilities=capabilities)
+
+
+@uip_bp.route("/<org_slug>/providers/<int:provider_id>/deactivate", methods=["POST"])
+@login_required
+def provider_deactivate(org_slug, provider_id):
+    providers.deactivate(g.organization.id, current_user.id, provider_id, request.form.get("expected_version"))
+    db.session.commit()
+    flash("Provider deactivated.", "success")
+    return redirect(url_for("uip_bp.provider_view", org_slug=org_slug, provider_id=provider_id))
+
+
+@uip_bp.route("/<org_slug>/providers/<int:provider_id>/users", methods=["POST"])
+@login_required
+def provider_link(org_slug, provider_id):
+    providers.associate(g.organization.id, current_user.id, provider_id,
+        _positive_id(request.form.get("membership_id")), request.form.get("expected_version"))
+    db.session.commit()
+    flash("Provider association recorded. No role was granted.", "success")
+    return redirect(url_for("uip_bp.provider_view", org_slug=org_slug, provider_id=provider_id))
+
+
+@uip_bp.route("/<org_slug>/providers/<int:provider_id>/users/<int:link_id>/revoke", methods=["POST"])
+@login_required
+def provider_revoke(org_slug, provider_id, link_id):
+    providers.revoke(g.organization.id, current_user.id, provider_id, link_id, request.form.get("expected_version"))
+    db.session.commit()
+    flash("Provider association revoked.", "success")
+    return redirect(url_for("uip_bp.provider_view", org_slug=org_slug, provider_id=provider_id))
+
+
+@uip_bp.route("/<org_slug>/work-orders")
+@login_required
+def work_order_list(org_slug):
+    rows = work_orders.orders(g.organization.id, current_user.id).limit(200).all()
+    return render_template("uip/work_orders/list.html", org=g.organization,
+        orders=[work_orders.projection(g.organization.id, current_user.id, row.id) for row in rows])
+
+
+@uip_bp.route("/<org_slug>/work-orders/<int:order_id>")
+@login_required
+def work_order_view(org_slug, order_id):
+    from app.models.uip import UipWorkOrderAction
+    order = work_orders.get(g.organization.id, current_user.id, order_id)
+    staff_access = work_orders.is_staff(g.organization.id, current_user.id)
+    allowed = []
+    for action, (sources, destination, roles, reason_required) in work_orders.TRANSITIONS.items():
+        if order.status not in sources:
+            continue
+        from werkzeug.exceptions import Forbidden
         try:
-            # Check if column exists
-            db.session.execute(text(f"SELECT {col_name} FROM core_organization LIMIT 1"))
-            results.append(f"Column {col_name} already exists.")
-        except Exception as e:
-            db.session.rollback()
-            try:
-                # Add column
-                db.session.execute(text(f"ALTER TABLE core_organization ADD COLUMN {col}"))
-                db.session.commit()
-                results.append(f"Added column {col_name} successfully.")
-            except Exception as inner_e:
-                db.session.rollback()
-                results.append(f"Failed to add column {col_name}: {str(inner_e)}")
-                
-    return "<br>".join(results) + "<br><br><a href='/uip/manor-gardens/dashboard'>Go to Dashboard</a>"
-@uip_bp.route("/_seed_mg")
-def seed_mg():
-    from app.extensions import db
-    from app.models.core import CoreOrganization, CoreOrganizationWallet
-    
-    org = CoreOrganization.query.filter_by(slug='manor-gardens').first()
-    if not org:
-        org = CoreOrganization(
-            name='Manor Gardens UIP',
-            slug='manor-gardens',
-            area='Manor Gardens',
-            municipality_ref='eThekwini',
-            contact_email='admin@manorgardensuip.co.za',
-            contact_phone='031-555-0192',
-            status='active'
-        )
-        db.session.add(org)
-        db.session.commit()
-    
-    wallet = CoreOrganizationWallet.query.filter_by(organization_id=org.id).first()
-    if not wallet:
-        wallet = CoreOrganizationWallet(organization_id=org.id, balance=1000)
-        db.session.add(wallet)
-        db.session.commit()
-        
-    return "Manor Gardens Seeded! <br><br><a href='/uip/manor-gardens/dashboard'>Go to Dashboard</a>"
+            audit.authorize(g.organization.id, current_user.id, roles)
+        except Forbidden:
+            continue
+        if roles == ("provider",) and not providers.linked(g.organization.id, order.provider_id, current_user.id):
+            continue
+        if action in {"verified", "verification_rejected", "closed"} and providers.associated(g.organization.id, order.provider_id, current_user.id):
+            continue
+        allowed.append((action, reason_required))
+    journal = UipWorkOrderAction.query.filter_by(organization_id=g.organization.id, work_order_id=order.id).order_by(UipWorkOrderAction.resulting_version).all()
+    history = [dict(action=r.action, previous_state=r.previous_state, new_state=r.new_state,
+                    occurred_at=r.occurred_at, actor_user_id=r.actor_user_id if staff_access else None,
+                    version=r.resulting_version, reason_code=r.reason_code, dispatch_method=r.dispatch_method, note=r.note if staff_access or r.actor_user_id == current_user.id or r.action in {"verification_rejected", "cancelled"} else None)
+               for r in journal if staff_access or r.action != "created"]
+    return render_template("uip/work_orders/view.html" if staff_access else "uip/work_orders/provider_view.html",
+        org=g.organization, order=work_orders.projection(g.organization.id, current_user.id, order_id),
+        issue_reference=order.interaction.reference if staff_access else None, history=history,
+        actions=allowed, request_key=str(uuid.uuid4()), reason_codes=sorted(audit.REASON_CODES),
+        dispatch_methods=sorted(audit.DISPATCH_METHODS))
+
+
+@uip_bp.route("/<org_slug>/work-orders/<int:order_id>/actions", methods=["POST"])
+@login_required
+def work_order_action(org_slug, order_id):
+    order = work_orders.transition(g.organization.id, current_user.id, order_id, request.form.get("action"),
+        request.form.get("expected_version"), request.form.get("request_key"), request.form.get("note"),
+        request.form.get("reason_code"), request.form.get("dispatch_method"))
+    db.session.commit()
+    flash("Work-order action recorded.", "success")
+    return redirect(url_for("uip_bp.work_order_view", org_slug=org_slug, order_id=order.id))

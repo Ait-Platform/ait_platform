@@ -41,3 +41,11 @@ from .core import CoreOrganization, CoreOrganizationMember, CoreRole, CorePermis
 __all__.extend(['CoreOrganization', 'CoreOrganizationMember', 'CoreRole', 'CorePermission', 'CoreRolePermission', 'CoreRoleAssignment', 'CoreInteraction', 'CoreTask', 'CoreRemunerationRule', 'CoreRemunerationEvent', 'CoreAuditEvent', 'CoreAiRequest', 'CoreAiUsage'])
 
 from .uip import UipProvider, UipWorkOrder, UipMunicipalReferral, UipCommitteeMeeting, UipResolution
+
+from .uip import (UipMemberProfile, UipProperty, UipPropertyMember,
+                 UipMemberRepresentative, UipCommunicationPreference, UipAuditEvent)
+__all__.extend(["UipMemberProfile", "UipProperty", "UipPropertyMember",
+                "UipMemberRepresentative", "UipCommunicationPreference", "UipAuditEvent"])
+
+from .uip import UipProviderCapability, UipProviderUser, UipWorkOrderAction
+__all__.extend(["UipProviderCapability", "UipProviderUser", "UipWorkOrderAction"])

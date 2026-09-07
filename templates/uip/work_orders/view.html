@@ -1,0 +1,16 @@
+{% extends "layout.html" %}
+{% block title %}Work order - {{ org.name }}{% endblock %}
+{% block flashes %}{% endblock %}
+{% block content %}
+<div class="max-w-5xl mx-auto my-8 bg-white rounded-xl shadow border border-slate-200 overflow-hidden">
+<div class="h-2 bg-indigo-600"></div><div class="p-6">
+<header class="flex justify-between items-center"><h1 class="text-2xl font-bold">Work order</h1><a class="border border-slate-300 rounded px-4 py-2" href="{{ url_for('uip_bp.dashboard', org_slug=org.slug) }}">Back</a></header>
+<nav class="flex justify-end gap-4 my-4"><a href="{{ url_for('uip_bp.work_order_list', org_slug=org.slug) }}">Work orders</a><a href="{{ url_for('uip_bp.view_interaction', org_slug=org.slug, reference=issue_reference) }}">Internal issue</a></nav>
+{% include 'partials/flash_messages.html' %}
+<h2 class="text-xl font-bold">{{ order.reference }}</h2><p>{{ order.status }} ? Version {{ order.version }} ? Priority {{ order.priority }}</p><h3 class="font-bold mt-4">Approved work scope</h3><p class="whitespace-pre-wrap">{{ order.description }}</p><h3 class="font-bold mt-4">Service location</h3><p>{{ order.service_location }}</p>
+{% for action,reason_required in actions %}<form class="my-4 p-4 border border-slate-300 rounded" method="post" action="{{ url_for('uip_bp.work_order_action', org_slug=org.slug, order_id=order.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="expected_version" value="{{ order.version }}"><input type="hidden" name="request_key" value="{{ request_key }}"><input type="hidden" name="action" value="{{ action }}"><h3 class="font-bold">{{ action.replace('_',' ').title() }}</h3>
+{% if action == 'dispatched' %}<p>Record a dispatch that has actually occurred outside this application.</p><label>Dispatch method<select name="dispatch_method" required class="border border-slate-300 rounded p-2">{% for method in dispatch_methods %}<option>{{ method }}</option>{% endfor %}</select></label>{% endif %}
+{% if reason_required %}<label>Reason code<select name="reason_code" required class="border border-slate-300 rounded p-2">{% for reason in reason_codes %}<option>{{ reason }}</option>{% endfor %}</select></label>{% endif %}
+<label class="block">Operational note (may be shared with the assigned provider){% if reason_required %} (required){% endif %}<textarea name="note" maxlength="4000" class="w-full border border-slate-300 rounded p-2" {% if loop.first %}autofocus{% endif %} {% if reason_required %}required{% endif %}></textarea></label><button class="border border-slate-300 rounded px-4 py-2">Record {{ action.replace('_',' ') }}</button></form>{% endfor %}
+<h3 class="font-bold mt-6">Recorded action history</h3>{% for row in history %}<div class="border-b py-3"><p>{{ row.occurred_at }} ? {{ row.action.replace('_',' ') }} ? {{ row.previous_state or '?' }} ? {{ row.new_state }} ? version {{ row.version }}{% if row.actor_user_id %} ? actor #{{ row.actor_user_id }}{% endif %}{% if row.reason_code %} ? {{ row.reason_code }}{% endif %}{% if row.dispatch_method %} ? {{ row.dispatch_method }}{% endif %}</p>{% if row.note %}<p class="whitespace-pre-wrap">{{ row.note }}</p>{% endif %}</div>{% endfor %}
+</div></div>{% endblock %}

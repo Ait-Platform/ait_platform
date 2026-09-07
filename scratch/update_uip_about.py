@@ -1,0 +1,63 @@
+﻿html_content = '''{% extends "layout.html" %}
+{% block title %}Urban Improvement Precincts{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden mb-12">
+    <!-- Rule 3: Color Strip -->
+    <div class="h-2 w-full bg-indigo-600"></div>
+    
+    <div class="p-6 sm:p-8">
+        
+        <!-- Rule 4: Row 1 Header & Back Button -->
+        <div class="flex justify-between items-start pb-4 border-b border-slate-100 mb-8">
+            <div>
+                <h1 class="text-3xl font-black text-slate-800 tracking-tight">
+                    <i class="fas fa-city text-indigo-600 mr-2"></i> Urban Improvement Precincts (UIP)
+                </h1>
+                <p class="text-slate-500 font-bold mt-1 text-sm uppercase tracking-wide">AIT Specialized Platform</p>
+            </div>
+            <a href="{{ url_for('public_bp.welcome') }}" class="px-5 py-2.5 bg-slate-100 text-slate-700 hover:bg-slate-200 font-bold rounded-lg transition border border-slate-200 shadow-sm flex items-center ml-4">
+                <i class="fas fa-arrow-left mr-2"></i> Back to Hub
+            </a>
+        </div>
+        
+        <p class="text-xl text-slate-600 max-w-4xl mb-10 leading-relaxed font-medium">
+            Welcome to the AIT UIP Management Platform. This centralized ecosystem connects residents, municipal authorities, and local precinct managers to report issues, track work orders, and seamlessly manage public spaces.
+        </p>
+
+        <div class="grid md:grid-cols-3 gap-6 mb-12">
+            <div class="p-6 bg-slate-50 rounded-xl border border-slate-200 shadow-sm">
+                <i class="fas fa-bullhorn text-3xl text-indigo-500 mb-4"></i>
+                <h3 class="text-xl font-bold text-slate-800 mb-2">Resident Reporting</h3>
+                <p class="text-slate-600">Quickly snap photos and report localized issues like potholes, streetlights, or security concerns directly to your precinct.</p>
+            </div>
+            <div class="p-6 bg-slate-50 rounded-xl border border-slate-200 shadow-sm">
+                <i class="fas fa-tasks text-3xl text-teal-500 mb-4"></i>
+                <h3 class="text-xl font-bold text-slate-800 mb-2">Smart Work Orders</h3>
+                <p class="text-slate-600">Issues are automatically converted into tracked work orders for contractors, ensuring rapid resolution and municipal oversight.</p>
+            </div>
+            <div class="p-6 bg-slate-50 rounded-xl border border-slate-200 shadow-sm">
+                <i class="fas fa-robot text-3xl text-blue-500 mb-4"></i>
+                <h3 class="text-xl font-bold text-slate-800 mb-2">Luna AI Integration</h3>
+                <p class="text-slate-600">Powered by Luna AI to automatically draft committee reports, summarize weekly faults, and suggest resource allocations.</p>
+            </div>
+        </div>
+        
+        <div class="bg-indigo-50 rounded-2xl p-8 border border-indigo-100 flex flex-col md:flex-row items-center justify-between">
+            <div>
+                <h3 class="text-2xl font-bold text-indigo-900 mb-2">Ready to Connect?</h3>
+                <p class="text-indigo-700">South African precincts use the AIT Unified Wallet for subscription tokens.</p>
+            </div>
+            
+            <a href="{{ url_for('uip_bp.price_page', country='ZA') }}" class="mt-6 md:mt-0 px-8 py-4 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 transition shadow-lg whitespace-nowrap text-lg flex items-center">
+                Proceed to Registration <i class="fas fa-arrow-right ml-3"></i>
+            </a>
+        </div>
+        
+    </div>
+</div>
+{% endblock %}
+'''
+
+with open('templates/uip/public_about.html', 'w', encoding='utf-8') as f:
+    f.write(html_content)

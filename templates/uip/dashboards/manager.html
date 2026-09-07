@@ -1,4 +1,4 @@
-﻿{% extends "layout.html" %}
+ï»¿{% extends "layout.html" %}
 
 {% block title %}Manager Dashboard - {{ org.name }}{% endblock %}
 
@@ -23,8 +23,8 @@
                 <p class="text-slate-500 font-bold mt-2 text-sm tracking-wide ml-14">Precinct Manager Overview: {{ org.name }}</p>
             </div>
             <div class="flex gap-3">
-                <button class="px-4 py-2 bg-slate-50 text-slate-500 hover:bg-slate-100 font-bold rounded-lg transition border border-slate-200 shadow-sm flex items-center">
-                    <i class="fas fa-file-export mr-2"></i> Export Report
+                <button type="button" disabled aria-disabled="true" class="px-4 py-2 bg-slate-50 text-slate-500 hover:bg-slate-100 font-bold rounded-lg transition border border-slate-200 shadow-sm flex items-center">
+                    <i class="fas fa-file-export mr-2"></i> Export Report (Unavailable)
                 </button>
                 <a href="{{ url_for('public_bp.welcome') }}" class="px-5 py-2.5 bg-slate-800 text-slate-200 hover:text-white hover:bg-slate-900 font-bold rounded-lg transition border border-slate-700 shadow-sm flex items-center">
                     <i class="fas fa-arrow-left mr-2"></i> Exit
@@ -32,20 +32,20 @@
             </div>
         </div>
 
-        {% include "partials/flash_messages.html" %}
+        {% include "partials/flash_messages.html" %}<nav class="flex justify-end gap-4 my-4"><a href="{{ url_for('uip_bp.work_order_list', org_slug=org.slug) }}">Work orders</a><a href="{{ url_for('uip_bp.provider_list', org_slug=org.slug) }}">Provider register</a></nav><section class="grid grid-cols-2 md:grid-cols-4 gap-3 my-5" aria-label="Recorded operational metrics">{% for label,value in metrics.items() %}<div class="border border-slate-300 rounded p-3"><p>{{ label }}</p><strong class="text-2xl">{{ value }}</strong></div>{% endfor %}</section><nav class="flex justify-end gap-4 my-4"><a href="{{ url_for('uip_bp.member_list', org_slug=org.slug) }}">Members</a><a href="{{ url_for('uip_bp.property_list', org_slug=org.slug) }}">Properties</a><a href="{{ url_for('uip_bp.audit_history', org_slug=org.slug) }}">UIP audit</a></nav>
 
         <!-- Advanced Metrics Panel -->
         <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <!-- Metric 1: Financial Health -->
+            <!-- Metric 1: Municipal Escalations -->
             <div class="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl shadow-sm border border-emerald-100 p-5 flex flex-col justify-between relative overflow-hidden">
-                <div class="absolute -right-4 -bottom-4 text-emerald-200 text-6xl opacity-30"><i class="fas fa-coins"></i></div>
+                <div class="absolute -right-4 -bottom-4 text-emerald-200 text-6xl opacity-30"><i class="fas fa-city"></i></div>
                 <div class="flex justify-between items-start mb-2 relative z-10">
-                    <p class="text-emerald-800 text-xs font-bold uppercase tracking-wide">Levy Health</p>
-                    <span class="px-2 py-1 bg-emerald-200 text-emerald-800 text-[10px] font-bold rounded">LIVE</span>
+                    <p class="text-emerald-800 text-xs font-bold uppercase tracking-wide">Recorded municipal referrals</p>
+                    <span class="px-2 py-1 bg-emerald-200 text-emerald-800 text-[10px] font-bold rounded">RECORDED</span>
                 </div>
                 <div class="relative z-10">
-                    <p class="text-3xl font-black text-emerald-900 mt-1">94%</p>
-                    <p class="text-xs text-emerald-600 font-bold mt-1"><i class="fas fa-arrow-up mr-1"></i> Paid in full (30 Days)</p>
+                    <p class="text-3xl font-black text-emerald-900 mt-1">{{ referral_count }}</p>
+                    <p class="text-xs text-emerald-600 font-bold mt-1"><i class="fas fa-link mr-1"></i> Referral records</p>
                 </div>
             </div>
 
@@ -53,11 +53,11 @@
             <div class="bg-gradient-to-br from-rose-50 to-orange-50 rounded-xl shadow-sm border border-rose-100 p-5 flex flex-col justify-between relative overflow-hidden">
                 <div class="absolute -right-4 -bottom-4 text-rose-200 text-6xl opacity-30"><i class="fas fa-fire-alt"></i></div>
                 <div class="flex justify-between items-start mb-2 relative z-10">
-                    <p class="text-rose-800 text-xs font-bold uppercase tracking-wide">Active Threats / Issues</p>
+                    <p class="text-rose-800 text-xs font-bold uppercase tracking-wide">Unresolved issues</p>
                 </div>
                 <div class="relative z-10">
                     <p class="text-3xl font-black text-rose-900 mt-1">{{ org.interactions | selectattr('status', 'ne', 'RESOLVED') | list | length }}</p>
-                    <p class="text-xs text-rose-600 font-bold mt-1"><i class="fas fa-exclamation-circle mr-1"></i> Require immediate dispatch</p>
+                    <p class="text-xs text-rose-600 font-bold mt-1"><i class="fas fa-exclamation-circle mr-1"></i> Not marked resolved</p>
                 </div>
             </div>
 
@@ -66,11 +66,11 @@
                 <div class="absolute -right-4 -bottom-4 text-indigo-200 text-6xl opacity-30"><i class="fas fa-brain"></i></div>
                 <div class="flex justify-between items-start mb-2 relative z-10">
                     <p class="text-indigo-800 text-xs font-bold uppercase tracking-wide">AI Auto-Triage</p>
-                    <span class="px-2 py-1 bg-indigo-200 text-indigo-800 text-[10px] font-bold rounded">ACTIVE</span>
+                    <span class="px-2 py-1 bg-indigo-200 text-indigo-800 text-[10px] font-bold rounded">UNAVAILABLE</span>
                 </div>
                 <div class="relative z-10">
-                    <p class="text-3xl font-black text-indigo-900 mt-1">12</p>
-                    <p class="text-xs text-indigo-600 font-bold mt-1">Duplicates caught this week</p>
+                    <p class="text-3xl font-black text-indigo-900 mt-1">Unavailable</p>
+                    <p class="text-xs text-indigo-600 font-bold mt-1">Not connected</p>
                 </div>
             </div>
 
@@ -78,24 +78,24 @@
             <div class="bg-gradient-to-br from-sky-50 to-blue-50 rounded-xl shadow-sm border border-sky-100 p-5 flex flex-col justify-between relative overflow-hidden">
                 <div class="absolute -right-4 -bottom-4 text-sky-200 text-6xl opacity-30"><i class="fas fa-stopwatch"></i></div>
                 <div class="flex justify-between items-start mb-2 relative z-10">
-                    <p class="text-sky-800 text-xs font-bold uppercase tracking-wide">Avg Provider SLA</p>
+                    <p class="text-sky-800 text-xs font-bold uppercase tracking-wide">Provider SLA</p>
                 </div>
                 <div class="relative z-10">
-                    <p class="text-3xl font-black text-sky-900 mt-1">14m</p>
-                    <p class="text-xs text-sky-600 font-bold mt-1">Response time vs 20m target</p>
+                    <p class="text-3xl font-black text-sky-900 mt-1">Unavailable</p>
+                    <p class="text-xs text-sky-600 font-bold mt-1">Response times are not tracked</p>
                 </div>
             </div>
         </div>
 
         <!-- Action Bar -->
         <div class="flex justify-between items-center mb-6 bg-slate-50 p-4 rounded-lg border border-slate-200">
-            <h2 class="text-lg font-bold text-slate-800"><i class="fas fa-list-ul text-slate-400 mr-2"></i> Active Dispatch Board</h2>
+            <h2 class="text-lg font-bold text-slate-800"><i class="fas fa-list-ul text-slate-400 mr-2"></i> Issue Board</h2>
             <div class="flex gap-3">
                 <a href="{{ url_for('uip_bp.new_interaction', org_slug=org.slug) }}" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg transition shadow-md flex items-center animate-pulse">
                     <i class="fas fa-plus mr-2"></i> Log New Issue
                 </a>
                 <a href="{{ url_for('uip_bp.org_settings', org_slug=org.slug) }}" class="px-4 py-2.5 bg-white hover:bg-slate-100 text-slate-700 font-bold rounded-lg transition border border-slate-200 shadow-sm flex items-center">
-                    <i class="fas fa-cog mr-2"></i> Routing Setup
+                    <i class="fas fa-cog mr-2"></i> Organisation Settings
                 </a>
             </div>
         </div>
@@ -106,86 +106,58 @@
                 <thead class="bg-slate-50">
                     <tr>
                         <th class="px-6 py-4 text-left text-xs font-black text-slate-500 uppercase tracking-wider">Date / Time</th>
-                        <th class="px-6 py-4 text-left text-xs font-black text-slate-500 uppercase tracking-wider">Resident & Levy Status</th>
-                        <th class="px-6 py-4 text-left text-xs font-black text-slate-500 uppercase tracking-wider">AI Sentiment & Issue</th>
-                        <th class="px-6 py-4 text-left text-xs font-black text-slate-500 uppercase tracking-wider">Dispatch Status</th>
+                        <th class="px-6 py-4 text-left text-xs font-black text-slate-500 uppercase tracking-wider">Recorded reporter</th>
+                        <th class="px-6 py-4 text-left text-xs font-black text-slate-500 uppercase tracking-wider">Category, priority & issue</th>
+                        <th class="px-6 py-4 text-left text-xs font-black text-slate-500 uppercase tracking-wider">Issue status</th>
                         <th class="px-6 py-4 text-right text-xs font-black text-slate-500 uppercase tracking-wider">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">
-                    {% for ix in org.interactions|sort(attribute='timestamp', reverse=true) %}
+                    {% for ix in interactions %}
                     <tr class="hover:bg-slate-50 transition">
                         <!-- Date -->
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600 font-medium">
-                            <i class="far fa-clock text-slate-400 mr-1"></i> {{ ix.timestamp.strftime('%Y-%m-%d %H:%M') }}
+                            <i class="far fa-clock text-slate-400 mr-1"></i> {{ ix.created_at.strftime('%Y-%m-%d %H:%M') if ix.created_at else 'Unavailable' }}
                         </td>
                         
-                        <!-- Resident / Financial -->
-                        <td class="px-6 py-4">
-                            <div class="flex flex-col">
-                                <span class="text-sm font-bold text-slate-800">{{ ix.contact_name or 'Anonymous' }}</span>
-                                {% if ix.contact_name %}
-                                <div class="flex items-center mt-1">
-                                    <span class="h-2 w-2 rounded-full bg-emerald-500 mr-1.5"></span>
-                                    <span class="text-[10px] font-bold text-emerald-600 uppercase tracking-wide">Verified Resident</span>
-                                </div>
-                                {% else %}
-                                <div class="flex items-center mt-1">
-                                    <span class="h-2 w-2 rounded-full bg-slate-300 mr-1.5"></span>
-                                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Unverified</span>
-                                </div>
-                                {% endif %}
-                            </div>
-                        </td>
-                        
-                        <!-- Topic & AI Sentiment -->
-                        <td class="px-6 py-4">
-                            <div class="flex flex-col">
-                                <span class="text-sm font-bold text-slate-900">{{ ix.title }}</span>
-                                <div class="flex items-center gap-2 mt-1">
-                                    <span class="px-2 py-0.5 bg-slate-100 border border-slate-200 text-slate-600 text-[10px] font-bold rounded shadow-sm">
-                                        <i class="fas fa-robot text-slate-400 mr-1"></i> Auto-Triaged
-                                    </span>
-                                    {% if 'Safety' in ix.title or 'Crime' in ix.title or 'Security' in ix.title %}
-                                    <span class="text-[10px] font-bold text-red-600"><i class="fas fa-exclamation-triangle mr-1"></i> HIGH ALERT</span>
-                                    {% elif 'Noise' in ix.title %}
-                                    <span class="text-[10px] font-bold text-orange-500"><i class="fas fa-volume-up mr-1"></i> Frustrated</span>
-                                    {% else %}
-                                    <span class="text-[10px] font-bold text-blue-500"><i class="fas fa-info-circle mr-1"></i> Neutral</span>
-                                    {% endif %}
-                                </div>
-                            </div>
-                        </td>
-                        
-                        <!-- Dispatch / Provider -->
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            {% if ix.status == 'RESOLVED' %}
-                                <span class="px-3 py-1 inline-flex text-xs leading-5 font-black rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200 shadow-sm">
-                                    <i class="fas fa-check-circle mr-1.5 mt-0.5"></i> RESOLVED
-                                </span>
-                            {% elif 'Safety' in ix.title or 'Crime' in ix.title %}
-                                <span class="px-3 py-1 inline-flex text-xs leading-5 font-black rounded-full bg-rose-100 text-rose-800 border border-rose-200 shadow-sm animate-pulse">
-                                    <i class="fas fa-truck-pickup mr-1.5 mt-0.5"></i> DISPATCHED (Blue Security)
-                                </span>
+                        <!-- Recorded reporter -->
+                        <td class="px-6 py-4 text-sm text-slate-800">
+                            {% if ix.creator %}
+                                {{ ix.creator.name or 'Unavailable' }}
                             {% else %}
-                                <span class="px-3 py-1 inline-flex text-xs leading-5 font-black rounded-full bg-amber-100 text-amber-800 border border-amber-200 shadow-sm">
-                                    <i class="fas fa-clock mr-1.5 mt-0.5"></i> PENDING DISPATCH
-                                </span>
+                                Unavailable
                             {% endif %}
                         </td>
-                        
+
+                        <td class="px-6 py-4">
+                            <span class="text-sm font-bold text-slate-900">{{ ix.title }}</span>
+                            <div class="text-xs text-slate-600 mt-1">
+                                {{ ix.category or 'Unavailable' }} ? {{ ix.priority or 'Unavailable' }}
+                            </div>
+                        </td>
+
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-3 py-1 text-xs font-bold rounded-full bg-slate-100 text-slate-800">
+                                {{ ix.status or 'Unavailable' }}
+                            </span>
+                        </td>
+
                         <!-- Actions -->
                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            <a href="#" class="text-indigo-600 hover:text-indigo-900 font-bold bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded transition">
+                            {% if ix.reference %}
+                            <a href="{{ url_for('uip_bp.view_interaction', org_slug=org.slug, reference=ix.reference) }}" class="text-indigo-600 hover:text-indigo-900 font-bold bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded transition">
                                 Open Ticket
                             </a>
+                            {% else %}
+                            <span class="text-slate-400">Ticket unavailable</span>
+                            {% endif %}
                         </td>
                     </tr>
                     {% else %}
                     <tr>
                         <td colspan="5" class="px-6 py-12 text-center text-slate-500 font-bold bg-slate-50">
                             <i class="fas fa-shield-alt text-4xl text-slate-300 mb-3 block"></i>
-                            No active issues in the precinct. All clear.
+                            No issues have been recorded.
                         </td>
                     </tr>
                     {% endfor %}

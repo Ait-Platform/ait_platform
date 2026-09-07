@@ -65,3 +65,10 @@ All templates must strictly follow this Tailwind format:
 
 ## 10. Strict UI Adherence
 - **CRITICAL:** Re-read and strictly follow Rule 7 for all new templates. Do not deviate with custom Tailwind structures (e.g., placing titles outside the main tile, or skipping the back button row). 
+
+
+## SACE Audio Generation Guidelines
+When generating TTS (Text-to-Speech) audio for SACE Endorsement slides or modules:
+- STRICT DICTATION ONLY.
+- Do NOT add conversational narrative, filler words, or extra commentary (e.g., "Welcome to...", "As you can see...").
+- The audio must be a 1:1 reading of the slide content.

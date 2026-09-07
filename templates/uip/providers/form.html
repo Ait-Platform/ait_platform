@@ -1,0 +1,14 @@
+{% extends "layout.html" %}
+{% block title %}Provider details - {{ org.name }}{% endblock %}
+{% block flashes %}{% endblock %}
+{% block content %}
+<div class="max-w-5xl mx-auto my-8 bg-white rounded-xl shadow border border-slate-200 overflow-hidden">
+<div class="h-2 bg-indigo-600"></div><div class="p-6">
+<header class="flex justify-between items-center"><h1 class="text-2xl font-bold">Provider details</h1><a class="border border-slate-300 rounded px-4 py-2" href="{{ url_for('uip_bp.dashboard', org_slug=org.slug) }}">Back</a></header>
+<nav class="flex justify-end gap-4 my-4"></nav>
+{% include 'partials/flash_messages.html' %}
+<form method="post" class="space-y-4"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% if provider %}<input type="hidden" name="expected_version" value="{{ provider.version }}">{% endif %}
+{% for field,label,limit in [('name','Business name',255),('contact_email','Contact email',255),('contact_phone','Contact phone',50)] %}<label class="block">{{ label }}<input class="w-full border border-slate-300 rounded p-2" name="{{ field }}" maxlength="{{ limit }}" value="{{ provider[field] or '' if provider else '' }}" {% if loop.first %}autofocus required{% endif %}></label>{% endfor %}
+<label class="block">Availability<select name="availability" class="border border-slate-300 rounded p-2">{% for value in ['UNKNOWN','AVAILABLE','UNAVAILABLE'] %}<option {% if provider and provider.availability == value %}selected{% endif %}>{{ value }}</option>{% endfor %}</select></label>
+<fieldset><legend>Service capabilities</legend>{% for category in categories %}<label class="block"><input type="checkbox" name="capabilities" value="{{ category }}" {% if category in selected %}checked{% endif %}> {{ category }}</label>{% endfor %}</fieldset><button class="border border-slate-300 rounded p-2">Save provider</button></form>
+</div></div>{% endblock %}

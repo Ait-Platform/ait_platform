@@ -1,4 +1,4 @@
-﻿from app.extensions import db
+from app.extensions import db
 from datetime import datetime
 
 class CoreOrganizationWallet(db.Model):
@@ -47,11 +47,13 @@ class CoreOrganizationMember(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     organization_id = db.Column(db.Integer, db.ForeignKey("core_organization.id"), nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
     
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     joined_at = db.Column(db.DateTime, default=datetime.utcnow)
     left_at = db.Column(db.DateTime, nullable=True)
+
+    __table_args__ = (db.UniqueConstraint("id", "organization_id", name="uq_core_member_id_org"),)
 
     # Relationships
     organization = db.relationship("CoreOrganization", back_populates="members")
@@ -135,6 +137,20 @@ class CoreInteraction(db.Model):
     organization = db.relationship("CoreOrganization", backref="interactions")
     tasks = db.relationship("CoreTask", back_populates="interaction", cascade="all, delete-orphan")
     
+    # Optional register links; legacy attribution remains unchanged.
+    member_id = db.Column(db.Integer, nullable=True)
+    property_id = db.Column(db.Integer, nullable=True)
+    recorded_by = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    __table_args__ = (
+        db.UniqueConstraint("id", "organization_id", name="uq_uip_interaction_id_org"),
+        db.ForeignKeyConstraint(["member_id", "organization_id"],
+                                ["uip_member_profile.id", "uip_member_profile.organization_id"],
+                                name="fk_interaction_uip_member_org"),
+        db.ForeignKeyConstraint(["property_id", "organization_id"],
+                                ["uip_property.id", "uip_property.organization_id"],
+                                name="fk_interaction_uip_property_org"),
+    )
+
     # User Relationships (using foreign_keys to disambiguate)
     creator = db.relationship("User", foreign_keys=[creator_id], backref="created_interactions")
     assignee = db.relationship("User", foreign_keys=[assigned_to], backref="assigned_interactions")
@@ -153,6 +169,12 @@ class CoreTask(db.Model):
     due_date = db.Column(db.DateTime)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     completed_at = db.Column(db.DateTime)
+
+    # UIP terminal-task evidence; existing historical rows are not rewritten.
+    uip_version = db.Column(db.Integer, nullable=True)
+    uip_terminal_actor_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    uip_cancelled_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    uip_cancellation_reason = db.Column(db.Text, nullable=True)
 
     # Relationships
     interaction = db.relationship("CoreInteraction", back_populates="tasks")

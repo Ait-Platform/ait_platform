@@ -1,0 +1,11 @@
+{% extends 'layout.html' %}
+{% block title %}UIP audit history - {{ org.name }}{% endblock %}
+{% block flashes %}{% endblock %}
+{% block content %}
+<div class="max-w-6xl mx-auto bg-white rounded-xl shadow border border-slate-200 overflow-hidden mb-12">
+<div class="h-2 bg-indigo-600"></div><div class="p-6">
+<div class="flex justify-between border-b pb-4"><h1 class="text-2xl font-bold">UIP audit history</h1><a href="{{ url_for('uip_bp.dashboard', org_slug=org.slug) }}">Back</a></div>
+<div class="flex justify-end gap-4 my-4"></div>
+{% include 'partials/flash_messages.html' %}
+<p>Organisation: {{ org.name }}. Field names are recorded without contact details or message content.</p><table class="w-full text-left mt-4"><thead><tr><th>Time (UTC)</th><th>Actor user ID</th><th>Action</th><th>Entity</th><th>Safe change details</th></tr></thead><tbody>{% for row in ([event] if event else page.items) %}<tr class="border-t"><td class="py-3">{{ row.created_at }}</td><td>{{ row.actor_user_id }}</td><td>{{ row.action }}</td><td>{{ row.entity_type }} #{{ row.entity_id }}</td><td>{{ row.metadata_json.get('changed_fields', []) | join(', ') }}{% if 'new_state' in row.metadata_json %}<p>{{ row.metadata_json.get('previous_state') or '?' }} ? {{ row.metadata_json['new_state'] }} ? version {{ row.metadata_json.get('version', '?') }}</p>{% endif %}{% if row.metadata_json.get('reason_code') %}<p>{{ row.metadata_json['reason_code'] }}</p>{% endif %}{% if row.metadata_json.get('dispatch_method') %}<p>{{ row.metadata_json['dispatch_method'] }}</p>{% endif %}</td></tr>{% else %}<tr><td colspan="5">No UIP audit events recorded.</td></tr>{% endfor %}</tbody></table>{% if page %}{% include 'uip/register_pagination.html' %}{% endif %}</div></div>
+{% endblock %}

@@ -1,0 +1,17 @@
+{% extends "layout.html" %}
+{% block title %}Provider register entry - {{ org.name }}{% endblock %}
+{% block flashes %}{% endblock %}
+{% block content %}
+<div class="max-w-5xl mx-auto my-8 bg-white rounded-xl shadow border border-slate-200 overflow-hidden">
+<div class="h-2 bg-indigo-600"></div><div class="p-6">
+<header class="flex justify-between items-center"><h1 class="text-2xl font-bold">Provider register entry</h1><a class="border border-slate-300 rounded px-4 py-2" href="{{ url_for('uip_bp.dashboard', org_slug=org.slug) }}">Back</a></header>
+<nav class="flex justify-end gap-4 my-4"><a href="{{ url_for('uip_bp.provider_list', org_slug=org.slug) }}">Providers</a><a href="{{ url_for('uip_bp.provider_form', org_slug=org.slug, provider_id=provider.id) }}">Edit</a></nav>
+{% include 'partials/flash_messages.html' %}
+<h2 class="text-xl font-bold">{{ provider.name }}</h2><p>{{ provider.contact_email or 'No email' }} ? {{ provider.contact_phone or 'No phone' }}</p><p>{{ 'Active' if provider.is_active else 'Inactive' }} ? {{ provider.availability }}</p>
+<p>Capabilities: {% for capability in capabilities %}{{ capability.category }}{% if not loop.last %}, {% endif %}{% else %}None recorded{% endfor %}</p>
+{% if provider.is_active %}<form method="post" action="{{ url_for('uip_bp.provider_deactivate', org_slug=org.slug, provider_id=provider.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="expected_version" value="{{ provider.version }}"><button class="border border-slate-300 rounded p-2">Deactivate provider</button></form>{% endif %}
+<h2 class="font-bold mt-6">Authorised user associations</h2><p>Association grants access only to this provider's dispatched work. It does not grant staff roles.</p>
+{% for link,user in links %}<div class="border-b py-3">{{ user.name or user.email or ('User #' ~ user.id) }} ? {{ 'Active' if link.is_active else 'Revoked' }} ? linked {{ link.linked_at }}{% if not link.is_active %} ? revoked {{ link.revoked_at }}{% endif %}
+{% if link.is_active %}<form method="post" action="{{ url_for('uip_bp.provider_revoke', org_slug=org.slug, provider_id=provider.id, link_id=link.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="expected_version" value="{{ provider.version }}"><button class="border border-slate-300 rounded p-2">Revoke association</button></form>{% endif %}</div>{% endfor %}
+{% if provider.is_active %}<form class="mt-4" method="post" action="{{ url_for('uip_bp.provider_link', org_slug=org.slug, provider_id=provider.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="expected_version" value="{{ provider.version }}"><label>Existing provider-role member<select name="membership_id" required class="border border-slate-300 rounded p-2">{% for member,user in members %}<option value="{{ member.id }}">{{ user.name or user.email or ('User #' ~ user.id) }}</option>{% endfor %}</select></label><button class="border border-slate-300 rounded p-2">Link user</button></form>{% endif %}
+</div></div>{% endblock %}

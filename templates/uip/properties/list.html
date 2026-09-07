@@ -1,0 +1,11 @@
+{% extends 'layout.html' %}
+{% block title %}Properties - {{ org.name }}{% endblock %}
+{% block flashes %}{% endblock %}
+{% block content %}
+<div class="max-w-6xl mx-auto bg-white rounded-xl shadow border border-slate-200 overflow-hidden mb-12">
+<div class="h-2 bg-indigo-600"></div><div class="p-6">
+<div class="flex justify-between border-b pb-4"><h1 class="text-2xl font-bold">Properties</h1><a href="{{ url_for('uip_bp.dashboard', org_slug=org.slug) }}">Back</a></div>
+<div class="flex justify-end gap-4 my-4">{% if can_manage %}<a href="{{ url_for('uip_bp.property_form', org_slug=org.slug) }}">Add property</a>{% endif %}</div>
+{% include 'partials/flash_messages.html' %}
+<table class="w-full text-left"><thead><tr><th>Reference</th><th>Address</th><th>Status</th></tr></thead><tbody>{% for item in page.items %}<tr class="border-t"><td class="py-3"><a class="text-indigo-700 underline" href="{{ url_for('uip_bp.property_view', org_slug=org.slug, property_id=item.id) }}">{{ item.reference }}</a></td><td>{{ item.address }}</td><td>{{ 'Active' if item.is_active else 'Inactive' }}</td></tr>{% else %}<tr><td colspan="3">No records yet.</td></tr>{% endfor %}</tbody></table>{% include 'uip/register_pagination.html' %}</div></div>
+{% endblock %}

@@ -160,7 +160,15 @@ def save_relationship(organization_id, actor_user_id, data, property_id=None, me
         item = get(model, organization_id, actor_user_id, link_id)
         if any(getattr(item, key) != value for key, value in values.items()):
             abort(400, description="Existing relationship parties cannot be changed.")
+        if start != item.valid_from or (item.valid_to is not None and end != item.valid_to):
+            abort(400, description="Historical relationship dates cannot be rewritten. Keep the original start/end and add a new dated relationship.")
     else:
+        existing = model.query.filter_by(organization_id=organization_id, **values).filter(
+            db.or_(model.valid_to.is_(None), model.valid_to >= start))
+        if end:
+            existing = existing.filter(model.valid_from <= end)
+        if existing.first():
+            abort(409, description="This relationship already exists for overlapping dates. Review or end the existing relationship first.")
         item = model(organization_id=organization_id, **values)
         db.session.add(item)
     item.valid_from, item.valid_to, item.is_verified = start, end, verified

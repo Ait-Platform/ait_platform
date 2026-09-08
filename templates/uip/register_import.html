@@ -1,0 +1,16 @@
+{% extends 'layout.html' %}{% block content %}<main class="max-w-6xl mx-auto p-6 space-y-5">
+{% include 'uip/navigation.html' %}<h1 class="text-2xl font-bold">Import existing register (CSV)</h1>
+{% include 'partials/flash_messages.html' %}
+<p>Import members first, properties second, then their dated relationships. References are matched only within {{ org.name }}. Existing records are never overwritten. Use manual capture to resolve duplicates or record representatives and communication preferences.</p>
+<p>UTF-8 CSV, up to 200 rows / 256 KB. Dates: YYYY-MM-DD; booleans: true or false. Member type: person or business; eligibility: unverified, eligible or ineligible. Property classification: residential, business, mixed or other. Relationship: owner, occupier or representative.</p>
+{% for name, fields in columns.items() %}<p><strong>{{ name }}</strong><br><code>{{ fields|join(',') }}</code></p>{% endfor %}
+{% if error %}<p role="alert" class="text-red-700">{{ error }} Nothing imported.</p>{% endif %}
+<form method="post" enctype="multipart/form-data" class="space-y-3 border p-4">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<label>Import type<select name="kind">{% for name in columns %}<option value="{{ name }}" {% if kind == name %}selected{% endif %}>{{ name }}</option>{% endfor %}</select></label>
+<label>CSV file<input type="file" name="file" accept=".csv,text/csv" required></label>
+<button name="operation" value="preview" class="border p-2">Preview and validate</button>
+{% if preview_token %}<input type="hidden" name="preview_token" value="{{ preview_token }}"><p>Preview passed for {{ rows|length }} rows. Select the same file again to confirm. The complete file is revalidated before import; any conflict rejects the entire import.</p><button name="operation" value="commit" class="bg-indigo-700 text-white p-2">Confirm import</button>{% endif %}
+</form>
+{% if rows %}<div class="overflow-x-auto"><table><thead><tr>{% for name in columns[kind] %}<th class="p-2">{{ name }}</th>{% endfor %}</tr></thead><tbody>{% for row in rows %}<tr>{% for name in columns[kind] %}<td class="p-2 border">{{ row[name] }}</td>{% endfor %}</tr>{% endfor %}</tbody></table></div>{% endif %}
+</main>{% endblock %}

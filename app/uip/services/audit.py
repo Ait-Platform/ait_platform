@@ -32,6 +32,7 @@ ACTIONS = {
 
 ACTIONS.update({
     "sla.configured": ("UipSlaPolicy", ("manager",)),
+    "sla.deactivated": ("UipSlaPolicy", ("manager",)),
     "interaction.acknowledged": ("CoreInteraction", ("manager", "receptionist")),
     "task.cancelled": ("CoreTask", ("manager", "receptionist")),
     "provider.created": ("UipProvider", ("manager",)),
@@ -59,8 +60,9 @@ OPERATIONAL_ACTIONS = {
     "communication.recorded": ("UipCommunicationLog", ("manager", "receptionist")),
     **{action: (model, ("manager", "committee_member")) for action, model in {
         "document.folder_created": "UipDocumentFolder", "document.created": "UipDocument",
-        "document.replaced": "UipDocument", "quorum.configured": "UipQuorumRule",
-        "meeting.created": "UipCommitteeMeeting", "meeting.started": "UipCommitteeMeeting",
+        "document.replaced": "UipDocument", "document.metadata_updated": "UipDocument", "quorum.configured": "UipQuorumRule",
+        "meeting.created": "UipCommitteeMeeting", "meeting.updated": "UipCommitteeMeeting",
+        "meeting.cancelled": "UipCommitteeMeeting", "meeting.started": "UipCommitteeMeeting",
         "meeting.attendance": "UipMeetingParticipant", "meeting.concluded": "UipCommitteeMeeting",
         "survey.created": "UipSurvey", "survey.finalized": "UipSurvey",
         "decision.recorded": "UipResolution", "decision.status_recorded": "UipResolution",

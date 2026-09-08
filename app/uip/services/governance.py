@@ -82,6 +82,28 @@ def meeting(org, actor, values):
     return row
 
 
+def update_meeting(org, actor, meeting_id, values, cancel=False):
+    audit.authorize(org, actor, ADMIN)
+    row = UipCommitteeMeeting.query.filter_by(organization_id=org, id=meeting_id).populate_existing().with_for_update().first_or_404()
+    if row.status != "SCHEDULED" or row.eligibility_basis is not None:
+        abort(409, description="Only a scheduled meeting can be edited or cancelled. Started/concluded meeting history is retained.")
+    if cancel:
+        row.status = "CANCELLED"
+        row.minutes_text = text(values.get("reason"), 4000, True)
+        action = "meeting.cancelled"
+    else:
+        row.title = text(values.get("title"), 255, True)
+        row.meeting_type = text(values.get("meeting_type"), 50, True)
+        if not values.get("scheduled_at"):
+            abort(400, description="A scheduled date is required.")
+        row.scheduled_at = timestamp(values.get("scheduled_at"), future=True).replace(tzinfo=None)
+        row.location = text(values.get("location"), 255, True)
+        row.agenda = text(values.get("agenda"), 20000, True)
+        action = "meeting.updated"
+    audit.record(org, actor, action, row)
+    return row
+
+
 def start_meeting(org, actor, meeting_id):
     audit.authorize(org, actor, ADMIN)
     row = UipCommitteeMeeting.query.filter_by(organization_id=org, id=meeting_id).populate_existing().with_for_update().first_or_404()

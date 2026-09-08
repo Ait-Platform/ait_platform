@@ -2,6 +2,7 @@
 {% block title %}UIP audit history - {{ org.name }}{% endblock %}
 {% block flashes %}{% endblock %}
 {% block content %}
+{% include 'uip/navigation.html' %}
 <div class="max-w-6xl mx-auto bg-white rounded-xl shadow border border-slate-200 overflow-hidden mb-12">
 <div class="h-2 bg-indigo-600"></div><div class="p-6">
 <div class="flex justify-between border-b pb-4"><h1 class="text-2xl font-bold">UIP audit history</h1><a href="{{ url_for('uip_bp.dashboard', org_slug=org.slug) }}">Back</a></div>

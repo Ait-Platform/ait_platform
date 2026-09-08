@@ -2,6 +2,7 @@
 {% block title %}Provider register - {{ org.name }}{% endblock %}
 {% block flashes %}{% endblock %}
 {% block content %}
+{% include 'uip/navigation.html' %}
 <div class="max-w-5xl mx-auto my-8 bg-white rounded-xl shadow border border-slate-200 overflow-hidden">
 <div class="h-2 bg-indigo-600"></div><div class="p-6">
 <header class="flex justify-between items-center"><h1 class="text-2xl font-bold">Provider register</h1><a class="border border-slate-300 rounded px-4 py-2" href="{{ url_for('uip_bp.dashboard', org_slug=org.slug) }}">Back</a></header>

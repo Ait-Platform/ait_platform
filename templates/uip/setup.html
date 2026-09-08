@@ -1,0 +1,17 @@
+{% extends 'layout.html' %}
+{% block content %}<main class="max-w-5xl mx-auto p-6">
+{% include 'uip/navigation.html' %}<h1 class="text-2xl font-bold">Getting started — {{ org.name }}</h1>
+<p>Use these steps to set up real records. Registering a ratepayer does not require an AIT account.</p>
+<ol class="list-decimal pl-6 space-y-4 my-6">
+<li><a class="underline" href="{{ url_for('uip_bp.member_form', org_slug=org.slug) }}">Register a ratepayer</a> with contact details; review communication preferences on their record.</li>
+<li><a class="underline" href="{{ url_for('uip_bp.property_form', org_slug=org.slug) }}">Add a property</a>, then use “Add relationship” on its details page to link the ratepayer. Record dates and verification; end old relationships before adding replacements.</li>
+{% if 'manager' in uip_roles or 'committee_member' in uip_roles %}
+<li><a class="underline" href="{{ url_for('uip_bp.new_interaction', org_slug=org.slug) }}">Log interaction</a> for the registered person and property.</li>
+{% endif %}
+{% if 'manager' in uip_roles %}<li><a class="underline" href="{{ url_for('uip_bp.provider_form', org_slug=org.slug) }}">Register provider</a>, configure category capabilities and availability, and associate an existing provider-role account.</li>
+<li><a class="underline" href="{{ url_for('uip_bp.sla_page', org_slug=org.slug) }}">Configure SLA targets</a> and <a class="underline" href="{{ url_for('uip_bp.routing_page', org_slug=org.slug) }}">review routing</a> before dispatching work.</li>{% endif %}
+{% if 'manager' in uip_roles or 'committee_member' in uip_roles %}<li><a class="underline" href="{{ url_for('uip_bp.documents_page', org_slug=org.slug) }}">Add controlled documents</a>.</li>
+<li><a class="underline" href="{{ url_for('uip_bp.meetings_page', org_slug=org.slug) }}">Configure quorum and create a meeting</a>. Eligible participants require active, eligible members with verified dated property relationships; login roles alone do not qualify.</li>
+<li><a class="underline" href="{{ url_for('uip_bp.surveys_page', org_slug=org.slug) }}">Create a survey</a>. A member or their verified representative uses their linked account to respond.</li>{% endif %}
+</ol><a class="underline" href="{{ url_for('uip_bp.register_import', org_slug=org.slug) }}">Import an existing ratepayer list (CSV preview)</a>
+</main>{% endblock %}

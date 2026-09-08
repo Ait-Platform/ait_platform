@@ -2,10 +2,11 @@
 {% block title %}Members - {{ org.name }}{% endblock %}
 {% block flashes %}{% endblock %}
 {% block content %}
+{% include 'uip/navigation.html' %}
 <div class="max-w-6xl mx-auto bg-white rounded-xl shadow border border-slate-200 overflow-hidden mb-12">
 <div class="h-2 bg-indigo-600"></div><div class="p-6">
 <div class="flex justify-between border-b pb-4"><h1 class="text-2xl font-bold">Members</h1><a href="{{ url_for('uip_bp.dashboard', org_slug=org.slug) }}">Back</a></div>
 <div class="flex justify-end gap-4 my-4">{% if can_manage %}<a href="{{ url_for('uip_bp.member_form', org_slug=org.slug) }}">Add member</a>{% endif %}</div>
-{% include 'partials/flash_messages.html' %}
+{% include 'partials/flash_messages.html' %}{% if can_manage %}<p><a class="underline" href="{{ url_for('uip_bp.register_import', org_slug=org.slug) }}">Import existing ratepayer list (CSV preview)</a></p>{% endif %}
 <table class="w-full text-left"><thead><tr><th>Reference</th><th>Name</th><th>Status</th></tr></thead><tbody>{% for item in page.items %}<tr class="border-t"><td class="py-3"><a class="text-indigo-700 underline" href="{{ url_for('uip_bp.member_view', org_slug=org.slug, member_id=item.id) }}">{{ item.reference }}</a></td><td>{{ item.name }}</td><td>{{ 'Active' if item.is_active else 'Inactive' }}</td></tr>{% else %}<tr><td colspan="3">No records yet.</td></tr>{% endfor %}</tbody></table>{% include 'uip/register_pagination.html' %}</div></div>
 {% endblock %}

@@ -171,6 +171,7 @@ def client(app, data):
     def login(role="manager"):
         from flask import g
         g.pop("_login_user", None)
+        g.pop("csrf_token", None)
         user = data.outsider if role == "outsider" else data.users[role]
         with client.session_transaction() as session:
             session.clear(); session["_user_id"] = str(user.id); session["_fresh"] = True

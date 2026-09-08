@@ -1,10 +1,12 @@
-ï»¿{% extends "layout.html" %}
+{% extends "layout.html" %}
 
 {% block title %}Manager Dashboard - {{ org.name }}{% endblock %}
 
 {% block flashes %}{% endblock %}
 
 {% block content %}
+{% include 'uip/navigation.html' %}
+{% if needs_members or needs_properties %}<section class="border rounded p-5 my-5 bg-indigo-50"><h2 class="text-xl font-bold">Set up your UIP register</h2><p>Start with real ratepayers and properties, then link their dated relationships.</p><div class="flex flex-wrap gap-4 my-3">{% if needs_members %}<a class="underline" href="{{ url_for('uip_bp.member_form', org_slug=org.slug) }}">Register first ratepayer</a>{% endif %}{% if needs_properties %}<a class="underline" href="{{ url_for('uip_bp.property_form', org_slug=org.slug) }}">Add first property</a>{% endif %}<a class="underline" href="{{ url_for('uip_bp.setup_page', org_slug=org.slug) }}">Follow setup steps</a><a class="underline" href="{{ url_for('uip_bp.register_import', org_slug=org.slug) }}">Preview existing ratepayer CSV</a></div></section>{% endif %}
 {% include 'uip/operations/staff_links.html' %}
 <nav class="flex flex-wrap gap-4 my-4"><a href="{{ url_for('uip_bp.meetings_page', org_slug=org.slug) }}">Meetings</a><a href="{{ url_for('uip_bp.surveys_page', org_slug=org.slug) }}">Surveys</a><a href="{{ url_for('uip_bp.decisions_page', org_slug=org.slug) }}">Decisions</a></nav>
 <div class="max-w-7xl mx-auto bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden mb-12">

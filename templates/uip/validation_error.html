@@ -1,0 +1,5 @@
+{% extends 'layout.html' %}{% block content %}<main class="max-w-4xl mx-auto p-6">
+{% include 'uip/navigation.html' %}<h1 class="text-2xl font-bold">Please review the submitted details</h1>
+<p role="alert" class="my-4">{{ error }}</p><p>The requested change was not saved. Return to the form to correct the details; reload first if another operator changed the record.</p>
+<button type="button" class="border rounded p-3 my-4" onclick="history.back()">Return to form</button>
+</main>{% endblock %}

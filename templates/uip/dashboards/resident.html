@@ -1,7 +1,8 @@
-﻿{% extends "layout.html" %}
+{% extends "layout.html" %}
 {% block title %}{{ org.name }} - Resident Portal{% endblock %}
 
 {% block content %}
+{% include 'uip/navigation.html' %}
 <nav class="flex flex-wrap gap-4 my-4"><a href="{{ url_for('uip_bp.surveys_page', org_slug=org.slug) }}">Surveys</a><a href="{{ url_for('uip_bp.documents_page', org_slug=org.slug) }}">Organisation documents</a></nav>
 <div class="max-w-6xl mx-auto px-4 mt-8 mb-16">
     <div class="flex items-center justify-between mb-8 pb-4 border-b border-slate-200">
@@ -9,9 +10,7 @@
             <span class="bg-indigo-100 text-indigo-800 text-xs px-2 py-1 rounded font-bold uppercase tracking-wide mb-2 inline-block">{{ org.name }}</span>
             <h1 class="text-3xl font-extrabold text-slate-900">Resident Portal</h1>
         </div>
-        <a href="{{ url_for('uip_bp.new_interaction', org_slug=org.slug) }}" class="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-sm transition flex items-center">
-            <i class="fas fa-plus mr-2"></i> Report Issue
-        </a>
+        <p>Contact UIP reception to log a new interaction.</p>
     </div>
 
     {% include "partials/flash_messages.html" %}
@@ -44,9 +43,8 @@
         <div>
             <h2 class="text-xl font-bold text-slate-900 mb-4">Quick Links</h2>
             <div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-                <a href="#" class="block p-4 border-b border-slate-100 hover:bg-slate-50 transition text-sm font-bold text-slate-700"><i class="fas fa-user-circle mr-2 text-slate-400"></i> My Profile</a>
-                <a href="#" class="block p-4 border-b border-slate-100 hover:bg-slate-50 transition text-sm font-bold text-slate-700"><i class="fas fa-envelope mr-2 text-slate-400"></i> My Communications</a>
-                <a href="#" class="block p-4 hover:bg-slate-50 transition text-sm font-bold text-slate-700"><i class="fas fa-file-pdf mr-2 text-slate-400"></i> My Documents</a>
+                <a href="{{ url_for('uip_bp.documents_page', org_slug=org.slug) }}" class="block p-4 border-b border-slate-100 hover:bg-slate-50 transition text-sm font-bold text-slate-700"><i class="fas fa-user-circle mr-2 text-slate-400"></i> Organisation documents</a>
+                <a href="{{ url_for('uip_bp.surveys_page', org_slug=org.slug) }}" class="block p-4 hover:bg-slate-50 transition text-sm font-bold text-slate-700">Surveys / Polls</a>
             </div>
         </div>
     </div>

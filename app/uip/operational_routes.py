@@ -70,16 +70,23 @@ def sla_page(org_slug):
     org, actor = g.organization.id, current_user.id
     audit.authorize(org, actor, providers.STAFF)
     if request.method == "POST":
+        if request.form.get("operation") == "deactivate":
+            sla.deactivate(org, actor, reception.identifier(request.form.get("policy_id")))
+            return save()
         sla.configure(org, actor, *(request.form.get(k) for k in
             ("category", "priority", "stage", "target_minutes", "warning_minutes")))
         return save()
     forms = []
-    if is_admin():
+    from app.uip.completion_routes import navigation_context
+    if "manager" in navigation_context()["uip_roles"]:
         forms.append(form("Configure a target", "configure", [field("category", "Issue category", providers.CATEGORIES),
             field("priority", "Priority", {"LOW", "NORMAL", "HIGH", "URGENT"}), field("stage", "Stage", [(s, s.title()) for s in sla.STAGES]),
             field("target_minutes", "Target (elapsed minutes)", kind="number"),
             field("warning_minutes", "Warning lead time (minutes before target)", kind="number")]))
     policies = UipSlaPolicy.query.filter_by(organization_id=org, is_active=True).all()
+    if "manager" in navigation_context()["uip_roles"]:
+        for policy in policies:
+            forms.append(form(f"Deactivate {policy.category} / {policy.priority} / {policy.stage} policy", "deactivate", [], policy_id=policy.id))
     notes = ["Targets use elapsed UTC time. Unconfigured targets and historical records have no inferred SLA. New configuration applies when a stage starts; existing targets retain their policy.",
         "Starts: acknowledgement and dispatch at intake; acceptance at dispatch; commencement at acceptance; completion at commencement; closure at first completion. Rework does not reset closure. No automatic pauses."]
     notes += [f"{p.category} / {p.priority} / {p.stage}: {p.target_minutes} minutes; warning {p.warning_minutes} minutes before due." for p in policies]
@@ -189,7 +196,8 @@ def referral_page(org_slug, referral_id):
         field("note", "Response / reason", kind="textarea", required=False)], expected_version=row.version)] if choices else []
     events = UipReferralEvent.query.filter_by(organization_id=org, referral_id=row.id).order_by(UipReferralEvent.resulting_version).all()
     return page("Municipal referral — " + row.department, ["Version", "Date", "Actor", "From", "To", "Reference", "Note"],
-        [(e.resulting_version, e.occurred_at, e.actor_user_id, e.previous_state or "—", e.new_state, e.municipality_reference or "—", e.note or "—") for e in events], forms)
+        [(e.resulting_version, e.occurred_at, e.actor_user_id, e.previous_state or "—", e.new_state, e.municipality_reference or "—", e.note or "—") for e in events], forms,
+        [link("Related issue", "view_interaction", reference=operations.issue(org, row.interaction_id).reference)])
 
 
 @uip_bp.route("/<org_slug>/operations/documents", methods=["GET", "POST"])
@@ -229,6 +237,9 @@ def document_page(org_slug, document_id):
     if not documents.accessible(org, actor, row):
         abort(404)
     if request.method == "POST":
+        if request.form.get("operation") == "metadata":
+            documents.metadata(org, actor, document_id, request.form)
+            return save()
         row, path = documents.upload(org, actor, request.files.get("file"), request.form, document_id)
         try:
             return save()
@@ -239,6 +250,12 @@ def document_page(org_slug, document_id):
     versions = UipDocumentVersion.query.filter_by(organization_id=org, document_id=row.id).order_by(UipDocumentVersion.version.desc()).all()
     forms = [form("Replace document (preserves earlier versions)", "replace", [field("effective_date", "Effective date", kind="date"),
         field("replacement_reason", "Replacement reason", kind="textarea"), field("file", "File", kind="file")], expected_version=row.current_version)] if is_admin() else []
+    if is_admin():
+        folders = [(f.id, f.name) for f in UipDocumentFolder.query.filter_by(organization_id=org).all()]
+        forms.append(form("Edit current document metadata", "metadata", [field("title", "Title", value=row.title or row.filename),
+            field("category", "Category", value=row.category or ""),
+            field("folder_id", "Folder", [("", "No folder")] + folders, required=False, value=row.folder_id or ""),
+            field("access_classification", "Visibility", set(documents.VISIBILITY), value=row.access_classification)]))
     return page(row.title or row.filename, ["Version", "Status", "Effective date", "Uploader", "File", "Bytes", "Reason"],
         [(v.version, "Active" if v.version == row.current_version else "Superseded", v.effective_date, v.actor_user_id,
           link(v.filename, "document_download", document_id=row.id, version=v.version), v.size_bytes, v.replacement_reason) for v in versions], forms,
@@ -289,6 +306,8 @@ def meeting_page(org_slug, meeting_id):
         action = request.form.get("operation")
         if action == "start":
             governance.start_meeting(org, actor, meeting_id)
+        elif action in {"edit", "cancel"}:
+            governance.update_meeting(org, actor, meeting_id, request.form, cancel=action == "cancel")
         elif action == "attendance":
             governance.attendance(org, actor, meeting_id, request.form.get("member_id"), request.form.get("status"), request.form.get("proxy_id"))
         elif action == "conclude":
@@ -299,17 +318,33 @@ def meeting_page(org_slug, meeting_id):
     forms = []
     if row.status == "SCHEDULED":
         forms.append(form("Start meeting and capture eligibility", "start", []))
+        forms.append(form("Edit scheduled meeting", "edit", [field("title", "Title", value=row.title),
+            field("meeting_type", "Meeting type", value=row.meeting_type),
+            field("scheduled_at", "Date/time with UTC offset", value=sla.utc(row.scheduled_at).isoformat()),
+            field("location", "Venue", value=row.location), field("agenda", "Agenda", kind="textarea", value=row.agenda)]))
+        forms.append(form("Cancel scheduled meeting", "cancel", [field("reason", "Cancellation reason", kind="textarea")]))
     if row.status in {"SCHEDULED", "IN_PROGRESS"}:
-        members = [(m.id, m.name) for m in UipMemberProfile.query.filter_by(organization_id=org).all()]
+        rule = UipQuorumRule.query.filter_by(organization_id=org).first()
+        basis = row.eligibility_basis if row.eligibility_basis is not None else (
+            governance.eligibility(org, row.scheduled_at.date(), rule.relationship) if rule else {})
+        all_members = UipMemberProfile.query.filter_by(organization_id=org, is_active=True).all()
+        members = [(m.id, m.name) for m in all_members if str(m.id) in basis]
+        representatives = [(m.id, m.name) for m in all_members if any(
+            m.id == r["member_id"] for b in basis.values() for r in b["representatives"])]
         forms.append(form("Record invitation / attendance", "attendance", [field("member_id", "Member", members),
-            field("status", "Attendance", {"INVITED", "PRESENT", "APOLOGY", "ABSENT"}),
-            field("proxy_id", "Attending representative (optional)", [("", "Member attends directly")] + members, required=False)]))
+            field("status", "Attendance", {"INVITED", "PRESENT", "APOLOGY", "ABSENT"} if row.status == "IN_PROGRESS" else {"INVITED", "APOLOGY", "ABSENT"}),
+            field("proxy_id", "Attending representative (optional; verified against selected member)", [("", "Member attends directly")] + (representatives if row.status == "IN_PROGRESS" else []), required=False)]))
     if row.status == "IN_PROGRESS":
         forms.append(form("Conclude meeting and freeze quorum", "conclude", [field("minutes", "Minutes and decisions", kind="textarea")]))
     participants = UipMeetingParticipant.query.filter_by(organization_id=org, meeting_id=row.id).all()
-    return page(row.title, ["Member ID", "Attendance", "Attending member ID", "Eligible in snapshot"],
-        [(p.member_id, p.status, p.attended_by_member_id or "—", str(p.member_id) in (row.eligibility_basis or {})) for p in participants], forms,
-        [row.agenda or "No agenda recorded.", row.minutes_text or "Minutes not yet recorded."])
+    names = {m.id: m.name for m in UipMemberProfile.query.filter_by(organization_id=org).all()}
+    return page(row.title, ["Member", "Attendance", "Attending member", "Eligible in snapshot"],
+        [(names.get(p.member_id, p.member_id), p.status, names.get(p.attended_by_member_id, "—"), str(p.member_id) in (row.eligibility_basis or {})) for p in participants], forms,
+        [row.agenda or "No agenda recorded.", row.minutes_text or "Minutes not yet recorded.",
+         "Invitations are recorded here; this does not send an invitation. Only eligible dated register members are offered. Configure quorum and verify member/property relationships if the list is empty.",
+         f"Status: {row.status}. Frozen eligible count: {row.eligible_count}; present: {row.attendance_count}; required: {row.required_quorum}; quorum achieved: {row.quorum_achieved}.",
+         link("Meetings / quorum configuration", "meetings_page"),
+         link("Record formal decision from concluded meeting", "decisions_page", meeting_id=row.id)])
 
 
 @uip_bp.route("/<org_slug>/operations/surveys", methods=["GET", "POST"])
@@ -356,8 +391,10 @@ def survey_page(org_slug, survey_id):
     response_notes = []
     if row.status == "OPEN" and sla.utc(row.opens_at) <= now < sla.utc(row.closes_at):
         basis = governance.eligibility(org, now.date(), row.relationship)
-        my_members = {m.id for m in UipMemberProfile.query.filter_by(organization_id=org, is_active=True).all() if m.membership.user_id == actor}
-        eligible = [(b["member_id"], "Eligible member #" + str(b["member_id"])) for b in basis.values()
+        active_members = UipMemberProfile.query.filter_by(organization_id=org, is_active=True).all()
+        member_names = {m.id: m.name for m in active_members}
+        my_members = {m.id for m in active_members if m.membership.user_id == actor}
+        eligible = [(b["member_id"], member_names[b["member_id"]]) for b in basis.values()
                     if my_members.intersection({b["member_id"]} | {r["member_id"] for r in b["representatives"]})]
         submitted = {r.member_id for r in UipSurveyResponse.query.filter(UipSurveyResponse.organization_id == org,
             UipSurveyResponse.survey_id == row.id, UipSurveyResponse.member_id.in_([m for m, label in eligible])).all()}
@@ -375,6 +412,11 @@ def survey_page(org_slug, survey_id):
     if row.identifiable and is_admin() and row.status == "FINALIZED":
         for response in UipSurveyResponse.query.filter_by(organization_id=org, survey_id=row.id).all():
             notes.append(f"Member #{response.member_id}: " + "; ".join(q["title"] + ": " + response.answers[q["id"]] for q in row.questions))
+    if row.status == "OPEN" and not forms and not response_notes:
+        notes.append("Responses require an open survey and a linked account belonging to an eligible member or their verified dated representative. Administrator roles alone do not qualify.")
+    notes.append(link("Survey register", "surveys_page"))
+    if is_admin() and row.status == "FINALIZED":
+        notes.append(link("Record decision from these results", "decisions_page", survey_id=row.id))
     return page(row.title, ["Question", "Answer", "Count"], rows, forms, notes)
 
 
@@ -387,6 +429,9 @@ def decisions_page(org_slug):
     if request.method == "POST":
         if request.form.get("operation") == "status":
             governance.decision_status(org, actor, request.form.get("decision_id"), request.form.get("status"), request.form.get("note"))
+        elif request.form.get("operation") == "task":
+            operations.add_task(org, actor, reception.identifier(request.form.get("interaction_id")),
+                                request.form.get("title"), request.form.get("description"))
         else:
             governance.decision(org, actor, request.form)
         return save()
@@ -396,8 +441,8 @@ def decisions_page(org_slug):
     responsible = [(u.id, u.name or str(u.id)) for u in _members_with_roles("manager", "committee_member", "receptionist").all()]
     decisions = UipResolution.query.filter_by(organization_id=org).order_by(UipResolution.id).all()
     forms = [form("Record decision or correction", "decision", [field("title", "Title"), field("description", "Decision and voting basis", kind="textarea"),
-        field("meeting_id", "Source meeting (choose meeting OR survey)", [("", "None")] + meetings, required=False),
-        field("survey_id", "Source survey", [("", "None")] + surveys, required=False),
+        field("meeting_id", "Source meeting (choose meeting OR survey)", [("", "None")] + meetings, required=False, value=request.args.get("meeting_id", "")),
+        field("survey_id", "Source survey", [("", "None")] + surveys, required=False, value=request.args.get("survey_id", "")),
         field("votes_for", "Meeting votes for (required for a meeting decision)", kind="number", required=False),
         field("votes_against", "Meeting votes against", kind="number", required=False),
         field("abstentions", "Meeting abstentions", kind="number", required=False),
@@ -412,7 +457,14 @@ def decisions_page(org_slug):
         if status not in {"COMPLETED", "SUPERSEDED"}:
             forms.append(form(f"Update action status for decision #{d.id}", "status", [field("status", "Status", {"IN_PROGRESS", "COMPLETED"}),
                 field("note", "Reason / progress", kind="textarea")], decision_id=d.id))
-    return page("Governance decisions", ["ID", "Title", "Decision", "Date", "Action status", "Responsible user", "Internal task", "Supersedes"], rows, forms)
+    from app.uip.completion_routes import navigation_context
+    if "manager" in navigation_context()["uip_roles"]:
+        issues = [(i.id, i.reference + " — " + i.title) for i in CoreInteraction.query.filter(
+            CoreInteraction.organization_id == org, CoreInteraction.status != "RESOLVED").all()]
+        forms.append(form("Create internal decision follow-up task", "task", [field("interaction_id", "Related open issue", issues),
+            field("title", "Task title"), field("description", "Task details", kind="textarea", required=False)]))
+    return page("Governance decisions", ["ID", "Title", "Decision", "Date", "Action status", "Responsible user", "Internal task", "Supersedes"], rows, forms,
+        ["Create any required internal task first, then select it while recording the decision. Formal decision content is retained; correct it through supersession."])
 
 
 @uip_bp.route("/<org_slug>/operations/report.csv")

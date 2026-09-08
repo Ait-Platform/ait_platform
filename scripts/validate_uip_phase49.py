@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+import uuid
 from jinja2 import Environment
 from recover_uip_local_test import recover, ROOT
 
@@ -16,7 +17,8 @@ def main():
     failures = []
     commands = (
         ("UIP Phase 1–9 suite (including parity, migrations and security)", [sys.executable, "-B", "-m", "pytest",
-            "--confcutdir=tests/uip", "tests/uip", "-q", "-p", "no:cacheprovider", "--tb=short"]),
+            "--confcutdir=tests/uip", "tests/uip", "-q", "-p", "no:cacheprovider", "--tb=short",
+            "--basetemp=" + str(ROOT / "scratch" / ("uip_validation_" + uuid.uuid4().hex))]),
         ("Startup preservation", [sys.executable, "-B", "tests/test_startup_enrollment_preservation.py"]),
     )
     for label, command in commands:
@@ -52,7 +54,7 @@ def main():
     isolation = "Product isolation: application changes confined to UIP; existing migrations and CoreAuditEvent untouched."
     print(isolation)
     output.append(isolation)
-    log = ROOT / "scratch/uip_phase49_validation.txt"
+    log = ROOT / "scratch/uip_completion_validation.txt"
     log.write_text("\n\n".join(output), encoding="utf-8")
     print("Validation log:", log)
     return 1 if failures else 0

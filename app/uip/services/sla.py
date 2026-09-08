@@ -40,6 +40,15 @@ def configure(org, actor, category, priority, stage, minutes, warning):
     return policy
 
 
+def deactivate(org, actor, policy_id):
+    audit.authorize(org, actor, ("manager",))
+    CoreOrganization.query.filter_by(id=org).with_for_update().one()
+    policy = UipSlaPolicy.query.filter_by(organization_id=org, id=policy_id, is_active=True).first_or_404()
+    policy.is_active = False
+    audit.record(org, actor, "sla.deactivated", policy)
+    return policy
+
+
 def start(issue, stage, at, order=None):
     policy = UipSlaPolicy.query.filter_by(organization_id=issue.organization_id,
         category=issue.category, priority=issue.priority, stage=stage, is_active=True).first()

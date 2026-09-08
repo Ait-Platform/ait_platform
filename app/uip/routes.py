@@ -110,6 +110,8 @@ def dashboard(org_slug):
             CoreInteraction, UipMunicipalReferral.interaction_id == CoreInteraction.id
         ).filter(CoreInteraction.organization_id == org.id).count()
         return render_template("uip/dashboards/manager.html", org=org,
+                               needs_members=not UipMemberProfile.query.filter_by(organization_id=org.id).first(),
+                               needs_properties=not UipProperty.query.filter_by(organization_id=org.id).first(),
                                interactions=interactions, referral_count=referral_count, metrics=metrics(org.id, current_user.id))
     return "Dashboard for this role is under construction."
 
@@ -148,6 +150,10 @@ def new_interaction(org_slug):
     residents = _members_with_roles("resident").all()
     register_members = register.members(org.id, current_user.id, active_only=True).all()
     register_properties = register.properties(org.id, current_user.id, active_only=True).all()
+    selected_member, selected_property = register.intake_links(org.id, current_user.id,
+        request.args.get("member_id"), request.args.get("property_id"))
+    g.intake_member_id = selected_member.id if selected_member else None
+    g.intake_property_id = selected_property.id if selected_property else None
     if request.method == "POST":
         email = (request.form.get("resident_email") or "").strip()
         resident = next((member for member in residents if member.email == email), None)
@@ -189,7 +195,7 @@ def new_interaction(org_slug):
                     raise
             else:
                 flash(f"Interaction {ref} logged successfully.", "success")
-                return redirect(url_for("uip_bp.dashboard", org_slug=org.slug))
+                return redirect(url_for("uip_bp.view_interaction", org_slug=org.slug, reference=ix.reference))
         flash("Could not allocate an issue reference. Please try again.", "warning")
         return render_template("uip/reception/new_interaction.html", org=org, residents=residents, register_members=register_members, register_properties=register_properties), 409
     return render_template("uip/reception/new_interaction.html", org=org, residents=residents, register_members=register_members, register_properties=register_properties)
@@ -345,7 +351,8 @@ def price_page():
 @uip_bp.errorhandler(IntegrityError)
 def register_conflict(error):
     db.session.rollback()
-    return "The record conflicts with an existing reference or relationship. Review the values and retry.", 409
+    return render_template("uip/validation_error.html", org=getattr(g, "organization", None),
+        error="The record conflicts with an existing reference or relationship. Review the values and retry."), 409
 
 
 def _register_context():
@@ -376,8 +383,15 @@ def member_form(org_slug, member_id=None):
         member = register.save_member(g.organization.id, current_user.id, request.form, member_id)
         db.session.commit()
         flash("Member register saved. Application access and roles are unchanged.", "success")
+        if not member_id and request.args.get("return_to") == "intake":
+            return redirect(url_for("uip_bp.new_interaction", org_slug=org_slug, member_id=member.id,
+                                    property_id=request.args.get("property_id", type=int)))
         return redirect(url_for("uip_bp.member_view", org_slug=org_slug, member_id=member.id))
     return render_template("uip/members/form.html", member=member,
+        account_names={u.id: u.name or u.email or str(u.id) for u in User.query.join(
+            CoreOrganizationMember, CoreOrganizationMember.user_id == User.id).filter(
+                CoreOrganizationMember.organization_id == g.organization.id,
+                CoreOrganizationMember.is_active.is_(True)).all()},
         memberships=register.available_memberships(g.organization.id, current_user.id), **_register_context())
 
 
@@ -390,6 +404,8 @@ def member_view(org_slug, member_id):
         ownerships=UipPropertyMember.query.filter_by(organization_id=g.organization.id, member_id=member.id).all(),
         representations=UipMemberRepresentative.query.filter_by(organization_id=g.organization.id, member_id=member.id).all(),
         preferences=UipCommunicationPreference.query.filter_by(organization_id=g.organization.id, member_id=member.id).all(),
+        properties=register.properties(g.organization.id, current_user.id, active_only=True).all(),
+        prior_issues=CoreInteraction.query.filter_by(organization_id=g.organization.id, member_id=member.id).order_by(CoreInteraction.id.desc()).all(),
         channels=register.CHANNELS, **_register_context())
 
 
@@ -430,7 +446,11 @@ def property_form(org_slug, property_id=None):
         item = register.save_property(g.organization.id, current_user.id, request.form, property_id)
         db.session.commit()
         flash("Property saved.", "success")
-        return redirect(url_for("uip_bp.property_view", org_slug=org_slug, property_id=item.id))
+        if not property_id and request.args.get("return_to") == "intake":
+            return redirect(url_for("uip_bp.new_interaction", org_slug=org_slug, property_id=item.id,
+                                    member_id=request.args.get("member_id", type=int)))
+        return redirect(url_for("uip_bp.property_view", org_slug=org_slug, property_id=item.id,
+                                member_id=request.args.get("member_id", type=int)))
     return render_template("uip/properties/form.html", item=item, **_register_context())
 
 
@@ -441,6 +461,7 @@ def property_view(org_slug, property_id):
     return render_template("uip/properties/view.html", item=item,
         members=register.members(g.organization.id, current_user.id).all(),
         ownerships=UipPropertyMember.query.filter_by(organization_id=g.organization.id, property_id=item.id).all(),
+        prior_issues=CoreInteraction.query.filter_by(organization_id=g.organization.id, property_id=item.id).order_by(CoreInteraction.id.desc()).all(),
         **_register_context())
 
 

@@ -1,6 +1,7 @@
 {% extends "layout.html" %}
 {% block title %}{{ title }} — {{ org.name }}{% endblock %}
 {% block content %}
+{% include 'uip/navigation.html' %}
 <main class="max-w-6xl mx-auto p-6 space-y-6">
   <header><h1 class="text-2xl font-bold">{{ title }}</h1><p>{{ org.name }}</p></header>
   <nav class="flex flex-wrap gap-4" aria-label="UIP operations">
@@ -20,7 +21,7 @@
         <input type="hidden" name="operation" value="{{ form.operation }}">
         {% for name,value in form.hidden.items() %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
         {% for field in form.fields %}<label class="block">{{ field.label }}
-          {% if field.options is not none %}<select name="{{ field.name }}" class="block border rounded p-2 w-full" {% if field.required %}required{% endif %}>{% for value,label in field.options %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select>
+          {% if field.options is not none %}<select name="{{ field.name }}" class="block border rounded p-2 w-full" {% if field.required %}required{% endif %}>{% for value,label in field.options %}<option value="{{ value }}" {% if value|string == field.value|string %}selected{% endif %}>{{ label }}</option>{% else %}<option value="">No eligible records available</option>{% endfor %}</select>
           {% elif field.kind == 'textarea' %}<textarea name="{{ field.name }}" rows="4" class="block border rounded p-2 w-full" {% if field.required %}required{% endif %}>{{ field.value }}</textarea>
           {% else %}<input name="{{ field.name }}" type="{{ field.kind }}" value="{{ field.value }}" class="block border rounded p-2 w-full" {% if field.required %}required{% endif %}>{% endif %}
         </label>{% endfor %}

@@ -1,8 +1,9 @@
-﻿{% extends "layout.html" %}
+{% extends "layout.html" %}
 
 {% block title %}Committee Dashboard - {{ org.name }}{% endblock %}
 
 {% block content %}
+{% include 'uip/navigation.html' %}
 <nav class="flex flex-wrap gap-4 my-4"><a href="{{ url_for('uip_bp.meetings_page', org_slug=org.slug) }}">Meetings and quorum</a><a href="{{ url_for('uip_bp.surveys_page', org_slug=org.slug) }}">Surveys</a><a href="{{ url_for('uip_bp.decisions_page', org_slug=org.slug) }}">Decisions and actions</a><a href="{{ url_for('uip_bp.documents_page', org_slug=org.slug) }}">Controlled documents</a></nav>
 <div class="container mx-auto px-4 py-8 max-w-7xl">
     

@@ -1,9 +1,10 @@
-﻿{% extends "layout.html" %}
+{% extends "layout.html" %}
 {% block title %}Log Interaction - {{ org.name }}{% endblock %}
 
 {% block flashes %}{% endblock %}
 
 {% block content %}
+{% include 'uip/navigation.html' %}
 <div class="max-w-4xl mx-auto bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden mb-12">
     <!-- Rule 3: Color Strip -->
     <div class="h-2 w-full bg-indigo-600"></div>
@@ -28,25 +29,23 @@
 
         <form method="POST" class="mt-4">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <!-- WHO -->
-            <div class="mb-8 p-6 bg-slate-50 rounded-lg border border-slate-100">
-                <h3 class="text-lg font-bold text-slate-900 mb-4"><i class="fas fa-user mr-2 text-indigo-500"></i> WHO is reporting this?</h3>
-                <label class="block text-sm font-bold text-slate-700 mb-1">Select active resident</label>
-                <select name="resident_email" class="w-full py-3 rounded border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-slate-700 bg-white">
-                    <option value="">-- Record under my staff account --</option>
-                    {% for resident in residents %}
-                    <option value="{{ resident.email }}">{{ resident.name or 'Unnamed resident' }} - {{ resident.email }}</option>
-                    {% endfor %}
-                </select>
-            </div>
 
-            <div class="mb-8 p-6 bg-slate-50 rounded-lg border border-slate-100">
-                <label class="block font-bold">Register member (optional)</label>
-                <select name="member_id" class="w-full border border-slate-300 p-2 rounded"><option value="">No register member linked</option>{% for member in register_members %}<option value="{{ member.id }}">{{ member.reference }} ? {{ member.name }}</option>{% endfor %}</select>
-                <label class="block font-bold mt-3">Property (optional)</label>
-                <select name="property_id" class="w-full border border-slate-300 p-2 rounded"><option value="">No property linked</option>{% for item in register_properties %}<option value="{{ item.id }}">{{ item.reference }} ? {{ item.address }}</option>{% endfor %}</select>
-                <p class="mt-2">Linking a report does not establish ownership or eligibility. The staff member recording it is recorded separately.</p>
-            </div>
+            <section class="mb-8 p-6 bg-slate-50 rounded-lg border">
+              <h2 class="text-lg font-bold">WHO is reporting this?</h2>
+              <label for="member_id">Active member / ratepayer</label>
+              {% if not register_members %}<p>No registered members yet</p>{% endif %}
+              <select id="member_id" name="member_id" class="w-full border p-3">
+                <option value="">No registered member / general enquiry</option>
+                {% for member in register_members %}<option value="{{ member.id }}" {% if g.intake_member_id == member.id %}selected{% endif %}>{{ member.reference }} — {{ member.name }}</option>{% endfor %}
+              </select>
+              {% if uip_can_capture %}<a class="underline" href="{{ url_for('uip_bp.member_form', org_slug=org.slug, return_to='intake', property_id=g.intake_property_id) }}">Register new member</a>{% else %}<p>A manager or register-authorised operator can register a new member. General enquiries may be logged without one.</p>{% endif %}
+              <label for="property_id" class="block mt-4">Property (optional)</label>
+              {% if not register_properties %}<p>No registered properties yet</p>{% endif %}
+              <select id="property_id" name="property_id" class="w-full border p-3"><option value="">No property linked</option>
+              {% for item in register_properties %}<option value="{{ item.id }}" {% if g.intake_property_id == item.id %}selected{% endif %}>{{ item.reference }} — {{ item.address }}</option>{% endfor %}</select>
+              {% if uip_can_capture %}<a class="underline" href="{{ url_for('uip_bp.property_form', org_slug=org.slug, return_to='intake', member_id=g.intake_member_id) }}">Register new property</a>{% endif %}
+              <p class="mt-3">A ratepayer does not need an AIT login. Linking a report does not establish ownership or governance eligibility.</p>
+            </section>
             <!-- WHAT -->
             <div class="mb-8 p-6 bg-slate-50 rounded-lg border border-slate-100">
                 <h3 class="text-lg font-bold text-slate-900 mb-4"><i class="fas fa-tag mr-2 text-indigo-500"></i> WHAT is it about?</h3>
@@ -66,26 +65,8 @@
                         </select>
                     </div>
                     <div>
-                        <label class="block text-sm font-bold text-slate-700 mb-1">Short Title / Topic (Manor Gardens Survey Priorities)</label>
-                        <select name="title" required class="w-full py-3 rounded border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 bg-white">
-                            <option value="">-- Select Specific Priority Issue --</option>
-                            <option value="Safety & Security">1. Safety & Security</option>
-                            <option value="Crime to people">2. Crime to people</option>
-                            <option value="Crime to property">3. Crime to property</option>
-                            <option value="Water-related issues">4. Water-related issues</option>
-                            <option value="Electricity-related issues">5. Electricity-related issues</option>
-                            <option value="Sewerage-related issues">6. Sewerage-related issues</option>
-                            <option value="Refuse Removal">7. Refuse Removal</option>
-                            <option value="Maintenance of roads and street infrastructure">8. Maintenance of roads and street infrastructure</option>
-                            <option value="Condition of Street lights">9. Condition of Street lights</option>
-                            <option value="Street Cleanliness">10. Street Cleanliness</option>
-                            <option value="Illegal Buildings & Construction">11. Illegal Buildings & Construction</option>
-                            <option value="Trucks & Illegal Vehicles">12. Trucks & Illegal Vehicles</option>
-                            <option value="Cleaning & Greening Areas">13. Cleaning & Greening Areas</option>
-                            <option value="Vagrancy & Loitering">14. Vagrancy & Loitering</option>
-                            <option value="Public Spaces">15. Public Spaces</option>
-                            <option value="Noise Pollution">16. Noise Pollution</option>
-                        </select>
+                        <label class="block text-sm font-bold text-slate-700 mb-1">Short title / topic</label>
+                        <input name="title" type="text" maxlength="255" required class="w-full border p-3" placeholder="Briefly describe the enquiry or issue">
                     </div>
                 </div>
                 <div>

@@ -50,6 +50,24 @@ def root(org):
     return path.resolve()
 
 
+def metadata(org, actor, document_id, values):
+    audit.authorize(org, actor, WRITERS)
+    row = UipDocument.query.filter_by(organization_id=org, id=document_id).with_for_update().first_or_404()
+    if not accessible(org, actor, row):
+        abort(404)
+    classification = values.get("access_classification")
+    if classification not in VISIBILITY:
+        abort(400, description="Select a visibility classification.")
+    audit.authorize(org, actor, VISIBILITY[classification])
+    folder_id = values.get("folder_id")
+    folder_id = UipDocumentFolder.query.filter_by(organization_id=org, id=identifier(folder_id)).first_or_404().id if folder_id else None
+    row.title = text(values.get("title"), 255, True)
+    row.category = text(values.get("category"), 100, True)
+    row.folder_id, row.access_classification = folder_id, classification
+    audit.record(org, actor, "document.metadata_updated", row)
+    return row
+
+
 def upload(org, actor, file, values, document_id=None):
     audit.authorize(org, actor, WRITERS)
     if not file:

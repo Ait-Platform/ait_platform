@@ -1,0 +1,31 @@
+{% extends "layout.html" %}
+{% block title %}{{ title }} — {{ org.name }}{% endblock %}
+{% block content %}
+<main class="max-w-6xl mx-auto p-6 space-y-6">
+  <header><h1 class="text-2xl font-bold">{{ title }}</h1><p>{{ org.name }}</p></header>
+  <nav class="flex flex-wrap gap-4" aria-label="UIP operations">
+    <a href="{{ url_for('uip_bp.dashboard', org_slug=org.slug) }}">Dashboard</a>
+    {% for item in navigation %}<a href="{{ item.href }}">{{ item.label }}</a>{% endfor %}
+  </nav>
+  {% include 'partials/flash_messages.html' %}
+  {% for note in notes %}<p>{% if note is mapping %}<a class="underline" href="{{ note.href }}">{{ note.label }}</a>{% else %}{{ note }}{% endif %}</p>{% endfor %}
+  <div class="overflow-x-auto"><table class="w-full text-left border-collapse">
+    <thead><tr>{% for column in columns %}<th class="p-3 border-b">{{ column }}</th>{% endfor %}</tr></thead>
+    <tbody>{% for row in rows %}<tr>{% for cell in row %}<td class="p-3 border-b align-top whitespace-pre-wrap">{% if cell is mapping %}<a class="underline" href="{{ cell.href }}">{{ cell.label }}</a>{% else %}{{ cell if cell is not none else 'Not recorded' }}{% endif %}</td>{% endfor %}</tr>{% else %}<tr><td class="p-3" colspan="{{ columns|length }}">No records yet.</td></tr>{% endfor %}</tbody>
+  </table></div>
+  <div class="grid md:grid-cols-2 gap-6">{% for form in forms %}
+    <section class="border rounded-lg p-5 bg-white"><h2 class="font-bold text-lg mb-4">{{ form.title }}</h2>
+      <form method="post" enctype="multipart/form-data" class="space-y-4">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="operation" value="{{ form.operation }}">
+        {% for name,value in form.hidden.items() %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
+        {% for field in form.fields %}<label class="block">{{ field.label }}
+          {% if field.options is not none %}<select name="{{ field.name }}" class="block border rounded p-2 w-full" {% if field.required %}required{% endif %}>{% for value,label in field.options %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select>
+          {% elif field.kind == 'textarea' %}<textarea name="{{ field.name }}" rows="4" class="block border rounded p-2 w-full" {% if field.required %}required{% endif %}>{{ field.value }}</textarea>
+          {% else %}<input name="{{ field.name }}" type="{{ field.kind }}" value="{{ field.value }}" class="block border rounded p-2 w-full" {% if field.required %}required{% endif %}>{% endif %}
+        </label>{% endfor %}
+        <button class="bg-indigo-700 text-white rounded px-4 py-2" type="submit">{{ form.title }}</button>
+      </form>
+    </section>{% endfor %}</div>
+</main>
+{% endblock %}

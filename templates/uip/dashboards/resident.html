@@ -2,6 +2,7 @@
 {% block title %}{{ org.name }} - Resident Portal{% endblock %}
 
 {% block content %}
+<nav class="flex flex-wrap gap-4 my-4"><a href="{{ url_for('uip_bp.surveys_page', org_slug=org.slug) }}">Surveys</a><a href="{{ url_for('uip_bp.documents_page', org_slug=org.slug) }}">Organisation documents</a></nav>
 <div class="max-w-6xl mx-auto px-4 mt-8 mb-16">
     <div class="flex items-center justify-between mb-8 pb-4 border-b border-slate-200">
         <div>

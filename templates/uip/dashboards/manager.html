@@ -5,6 +5,8 @@
 {% block flashes %}{% endblock %}
 
 {% block content %}
+{% include 'uip/operations/staff_links.html' %}
+<nav class="flex flex-wrap gap-4 my-4"><a href="{{ url_for('uip_bp.meetings_page', org_slug=org.slug) }}">Meetings</a><a href="{{ url_for('uip_bp.surveys_page', org_slug=org.slug) }}">Surveys</a><a href="{{ url_for('uip_bp.decisions_page', org_slug=org.slug) }}">Decisions</a></nav>
 <div class="max-w-7xl mx-auto bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden mb-12">
     <!-- Color Strip -->
     <div class="h-2 w-full bg-indigo-600"></div>
@@ -23,9 +25,7 @@
                 <p class="text-slate-500 font-bold mt-2 text-sm tracking-wide ml-14">Precinct Manager Overview: {{ org.name }}</p>
             </div>
             <div class="flex gap-3">
-                <button type="button" disabled aria-disabled="true" class="px-4 py-2 bg-slate-50 text-slate-500 hover:bg-slate-100 font-bold rounded-lg transition border border-slate-200 shadow-sm flex items-center">
-                    <i class="fas fa-file-export mr-2"></i> Export Report (Unavailable)
-                </button>
+                <a href="{{ url_for('uip_bp.operations_export', org_slug=org.slug) }}" class="px-4 py-2 bg-slate-50 text-slate-700 font-bold rounded-lg border border-slate-200">Export issues</a>
                 <a href="{{ url_for('public_bp.welcome') }}" class="px-5 py-2.5 bg-slate-800 text-slate-200 hover:text-white hover:bg-slate-900 font-bold rounded-lg transition border border-slate-700 shadow-sm flex items-center">
                     <i class="fas fa-arrow-left mr-2"></i> Exit
                 </a>
@@ -81,8 +81,8 @@
                     <p class="text-sky-800 text-xs font-bold uppercase tracking-wide">Provider SLA</p>
                 </div>
                 <div class="relative z-10">
-                    <p class="text-3xl font-black text-sky-900 mt-1">Unavailable</p>
-                    <p class="text-xs text-sky-600 font-bold mt-1">Response times are not tracked</p>
+                    <p class="text-3xl font-black text-sky-900 mt-1">{{ metrics['Provider acceptance delays'] }}</p>
+                    <p class="text-xs text-sky-600 font-bold mt-1"><a href="{{ url_for('uip_bp.sla_page', org_slug=org.slug) }}">Acceptance targets breached — view configured SLA</a></p>
                 </div>
             </div>
         </div>

@@ -1,0 +1,6 @@
+<nav class="flex flex-wrap gap-4 my-4" aria-label="Operational tools">
+  <a href="{{ url_for('uip_bp.reception_page', org_slug=org.slug) }}">Reception actions</a>
+  <a href="{{ url_for('uip_bp.sla_page', org_slug=org.slug) }}">SLA targets</a>
+  <a href="{{ url_for('uip_bp.documents_page', org_slug=org.slug) }}">Controlled documents</a>
+  <a href="{{ url_for('uip_bp.provider_performance', org_slug=org.slug) }}">Provider workload and history</a>
+</nav>

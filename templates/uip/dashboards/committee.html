@@ -3,6 +3,7 @@
 {% block title %}Committee Dashboard - {{ org.name }}{% endblock %}
 
 {% block content %}
+<nav class="flex flex-wrap gap-4 my-4"><a href="{{ url_for('uip_bp.meetings_page', org_slug=org.slug) }}">Meetings and quorum</a><a href="{{ url_for('uip_bp.surveys_page', org_slug=org.slug) }}">Surveys</a><a href="{{ url_for('uip_bp.decisions_page', org_slug=org.slug) }}">Decisions and actions</a><a href="{{ url_for('uip_bp.documents_page', org_slug=org.slug) }}">Controlled documents</a></nav>
 <div class="container mx-auto px-4 py-8 max-w-7xl">
     
     <div class="flex justify-between items-center mb-8">
@@ -11,7 +12,7 @@
             <p class="text-slate-500">Governance overview for {{ org.name }}</p>
         </div>
         <div class="flex space-x-3">
-            <a href="#" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg shadow transition">
+            <a href="{{ url_for('uip_bp.meetings_page', org_slug=org.slug) }}" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg shadow transition">
                 <i class="fas fa-plus mr-2"></i> New Meeting
             </a>
             <a href="{{ url_for('uip_bp.org_settings', org_slug=org.slug) }}" class="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-2 px-4 rounded-lg shadow-sm transition">
@@ -27,16 +28,17 @@
         </div>
         <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
             <h3 class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-2">Active Resolutions</h3>
-            <p class="text-3xl font-extrabold text-slate-900">0</p>
+            <p class="text-3xl font-extrabold text-slate-900">{{ governance_metrics['Unresolved decisions'] }}</p>
         </div>
         <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
             <h3 class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-2">Open Referrals</h3>
-            <p class="text-3xl font-extrabold text-slate-900">0</p>
+            <p class="text-3xl font-extrabold text-slate-900">{{ governance_metrics['Open municipal referrals'] }}</p>
         </div>
     </div>
     
     <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-8 text-center text-slate-500 italic">
-        Governance features (Resolutions, Voting, Board Packs) are currently being rolled out in Phase 1.
+        Upcoming meetings: {{ governance_metrics['Upcoming meetings'] }}. Open surveys: {{ governance_metrics['Open surveys'] }}.
+        Use the governance links above to record attendance, quorum, decisions and actions.
     </div>
 
 </div>

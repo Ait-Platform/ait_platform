@@ -89,5 +89,10 @@ def resolve(org, actor, issue_id, verified_order=None):
         any(o.id != verified_order.id and o.status not in {"CLOSED","CANCELLED","REJECTED","FAILED"} for o in orders)):
         abort(409, description="A verified work order is required.")
     ix.status, ix.closed_by, ix.closed_at = "RESOLVED", actor, datetime.now(timezone.utc).replace(tzinfo=None)
+    from app.models.uip import UipSlaClock
+    for clock in UipSlaClock.query.filter_by(organization_id=org, interaction_id=ix.id,
+            work_order_id=None, finished_at=None, stopped_at=None).all():
+        clock.stopped_at = datetime.now(timezone.utc)
+        clock.stop_reason = "issue_resolved"
     audit.record(org, actor, "interaction.resolved", ix)
     return ix

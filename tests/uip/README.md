@@ -1,5 +1,11 @@
 # Isolated UIP PostgreSQL regression suite
 
+The current local development target is `uip_p49_operations`, descending from
+`uip_p3_work_orders`. Production has not been migrated by this implementation.
+See `../../UIP_PHASE4_9_IMPLEMENTATION.md` for the consolidated feature, schema,
+permission, validation and restored-production rehearsal handoff. The latest
+test fixture applies Phase 4–9 inside the same disposable-schema safeguards.
+
 Run from the repository root in a separate Python process:
 
 ```powershell
@@ -59,7 +65,7 @@ change normal application startup or analytics.
 
 ## Phase 3 local validation
 
-Current UIP target: `uip_p3_work_orders`, parent `a27c9e4b6102`. Its ancestry is
+Phase 3 target: `uip_p3_work_orders`, parent `a27c9e4b6102`. Its ancestry is
 `<base> -> uip_p2_prod_base -> a27c9e4b6102 -> uip_p3_work_orders`.
 The legacy branch is unchanged. After a separately approved restored-production
 rehearsal, backup and live migration approval, the scoped command would be:

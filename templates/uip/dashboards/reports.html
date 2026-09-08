@@ -21,8 +21,8 @@
     </div>
     
     <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-8 text-center text-slate-500 italic">
-        <i class="fas fa-file-invoice-dollar text-5xl mb-4 text-slate-300"></i>
-        <p class="text-xl">Financial & Operational Charts will be populated here.</p>
+        {% if report_role == 'manager' %}<a class="underline" href="{{ url_for('uip_bp.operations_export', org_slug=org.slug) }}">Download organisation issue report (CSV)</a>{% endif %}
+        <table class="w-full text-left my-4"><thead><tr><th>Recorded measure</th><th>Value</th></tr></thead><tbody>{% for label,value in report.items() %}<tr><td class="p-2">{{ label }}</td><td class="p-2">{{ value }}</td></tr>{% endfor %}</tbody></table>
         <p class="text-sm mt-2">AI reporting is unavailable in this prototype.</p>
     </div>
 

@@ -127,7 +127,7 @@ def test_only_uip_ancestry():
     assert [r.revision for r in ancestors]==["a27c9e4b6102","uip_p2_prod_base"]
     assert ancestors[1].down_revision is None
     assert "uip" in ancestors[1].branch_labels
-    assert set(scripts.get_heads())=={"uip_p3_work_orders","7da57fffdba9"}
+    assert set(scripts.get_heads())=={"uip_p49_operations","7da57fffdba9"}
 
 
 def test_real_graph_upgrade_preserves_business_data_and_protected_structures(production_baseline):

@@ -1,6 +1,51 @@
 from app.extensions import db
 from datetime import datetime
 
+
+class UipSlaPolicy(db.Model):
+    __tablename__ = "uip_sla_policy"
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey("core_organization.id"), nullable=False)
+    category = db.Column(db.String(100), nullable=False)
+    priority = db.Column(db.String(20), nullable=False)
+    stage = db.Column(db.String(30), nullable=False)
+    target_minutes = db.Column(db.Integer, nullable=False)
+    warning_minutes = db.Column(db.Integer, nullable=False)
+    created_by = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, server_default=db.func.now())
+    is_active = db.Column(db.Boolean, nullable=False, default=True)
+    __table_args__ = (
+        db.UniqueConstraint("id", "organization_id", name="uq_uip_sla_policy_org"),
+        db.CheckConstraint("target_minutes > 0 AND warning_minutes >= 0 AND warning_minutes <= target_minutes", name="ck_uip_sla_policy_minutes"),
+        db.CheckConstraint("stage IN ('acknowledgement','dispatch','acceptance','commencement','completion','closure')", name="ck_uip_sla_policy_stage"),
+        db.Index("uq_uip_sla_policy_active", "organization_id", "category", "priority", "stage", unique=True, postgresql_where=db.text("is_active")),
+    )
+
+
+class UipSlaClock(db.Model):
+    __tablename__ = "uip_sla_clock"
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, nullable=False)
+    interaction_id = db.Column(db.Integer, nullable=False)
+    work_order_id = db.Column(db.Integer)
+    policy_id = db.Column(db.Integer, nullable=False)
+    stage = db.Column(db.String(30), nullable=False)
+    started_at = db.Column(db.DateTime(timezone=True), nullable=False)
+    target_at = db.Column(db.DateTime(timezone=True), nullable=False)
+    warning_at = db.Column(db.DateTime(timezone=True), nullable=False)
+    finished_at = db.Column(db.DateTime(timezone=True))
+    stopped_at = db.Column(db.DateTime(timezone=True))
+    stop_reason = db.Column(db.String(30))
+    __table_args__ = (
+        db.ForeignKeyConstraint(["interaction_id", "organization_id"], ["core_interaction.id", "core_interaction.organization_id"], name="fk_uip_sla_issue_org"),
+        db.ForeignKeyConstraint(["work_order_id", "organization_id"], ["uip_work_order.id", "uip_work_order.organization_id"], name="fk_uip_sla_order_org"),
+        db.ForeignKeyConstraint(["policy_id", "organization_id"], ["uip_sla_policy.id", "uip_sla_policy.organization_id"], name="fk_uip_sla_policy_org"),
+        db.CheckConstraint("target_at >= warning_at AND warning_at >= started_at", name="ck_uip_sla_clock_dates"),
+        db.CheckConstraint("finished_at IS NULL OR finished_at >= started_at", name="ck_uip_sla_clock_finish"),
+        db.Index("uq_uip_sla_issue_stage", "interaction_id", "stage", unique=True, postgresql_where=db.text("work_order_id IS NULL")),
+        db.Index("uq_uip_sla_order_stage", "work_order_id", "stage", unique=True, postgresql_where=db.text("work_order_id IS NOT NULL")),
+    )
+
 # --- PROVIDERS (Step 13) ---
 
 class UipProvider(db.Model):
@@ -61,6 +106,12 @@ class UipMunicipalReferral(db.Model):
     __tablename__ = "uip_municipal_referral"
     id = db.Column(db.Integer, primary_key=True)
     interaction_id = db.Column(db.Integer, db.ForeignKey("core_interaction.id"), nullable=False)
+    organization_id = db.Column(db.Integer, db.ForeignKey("core_organization.id"), nullable=False)
+    version = db.Column(db.Integer, nullable=False, server_default="1")
+    __table_args__ = (
+        db.UniqueConstraint("id", "organization_id", name="uq_uip_referral_org"),
+        db.ForeignKeyConstraint(["interaction_id", "organization_id"], ["core_interaction.id", "core_interaction.organization_id"], name="fk_uip_referral_issue_org"),
+    )
     
     department = db.Column(db.String(100)) # e.g., Water & Sanitation, Parks
     municipality_reference = db.Column(db.String(100)) # The reference number given by the city
@@ -71,7 +122,7 @@ class UipMunicipalReferral(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     resolved_at = db.Column(db.DateTime, nullable=True)
     
-    interaction = db.relationship("CoreInteraction", backref="municipal_referrals")
+    interaction = db.relationship("CoreInteraction", backref="municipal_referrals", foreign_keys=[interaction_id])
 
 
 # --- GOVERNANCE (Step 15) ---
@@ -88,13 +139,37 @@ class UipCommitteeMeeting(db.Model):
     
     status = db.Column(db.String(50), default="SCHEDULED") # SCHEDULED, IN_PROGRESS, CONCLUDED
     minutes_text = db.Column(db.Text)
+    agenda = db.Column(db.Text)
+    eligibility_basis = db.Column(db.JSON)
+    quorum_rule = db.Column(db.JSON)
+    eligible_count = db.Column(db.Integer)
+    attendance_count = db.Column(db.Integer)
+    required_quorum = db.Column(db.Integer)
+    quorum_achieved = db.Column(db.Boolean)
+    quorum_recorded_at = db.Column(db.DateTime(timezone=True))
+    quorum_recorded_by = db.Column(db.Integer, db.ForeignKey("user.id"))
+    __table_args__ = (db.UniqueConstraint("id", "organization_id", name="uq_uip_meeting_org"),)
     
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 class UipResolution(db.Model):
     __tablename__ = "uip_resolution"
     id = db.Column(db.Integer, primary_key=True)
-    meeting_id = db.Column(db.Integer, db.ForeignKey("uip_committee_meeting.id"), nullable=False)
+    meeting_id = db.Column(db.Integer, db.ForeignKey("uip_committee_meeting.id"), nullable=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey("core_organization.id"), nullable=False)
+    survey_id = db.Column(db.Integer)
+    decision_date = db.Column(db.Date)
+    recorded_by = db.Column(db.Integer, db.ForeignKey("user.id"))
+    responsible_user_id = db.Column(db.Integer, db.ForeignKey("user.id"))
+    result_basis = db.Column(db.JSON)
+    supersedes_id = db.Column(db.Integer)
+    __table_args__ = (
+        db.UniqueConstraint("id", "organization_id", name="uq_uip_resolution_org"),
+        db.ForeignKeyConstraint(["meeting_id", "organization_id"], ["uip_committee_meeting.id", "uip_committee_meeting.organization_id"], name="fk_uip_resolution_meeting_org"),
+        db.ForeignKeyConstraint(["survey_id", "organization_id"], ["uip_survey.id", "uip_survey.organization_id"], name="fk_uip_resolution_survey_org"),
+        db.ForeignKeyConstraint(["supersedes_id", "organization_id"], ["uip_resolution.id", "uip_resolution.organization_id"], name="fk_uip_resolution_supersedes_org"),
+        db.CheckConstraint("(meeting_id IS NOT NULL) <> (survey_id IS NOT NULL)", name="ck_uip_resolution_source"),
+    )
     
     title = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text)
@@ -105,7 +180,7 @@ class UipResolution(db.Model):
     
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
-    meeting = db.relationship("UipCommitteeMeeting", backref="resolutions")
+    meeting = db.relationship("UipCommitteeMeeting", backref="resolutions", foreign_keys=[meeting_id])
     task = db.relationship("CoreTask", backref="governance_resolution")
 
 # --- DOCUMENTS & COMMUNICATIONS (Steps 16 & 17) ---
@@ -115,6 +190,14 @@ class UipDocument(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     organization_id = db.Column(db.Integer, db.ForeignKey("core_organization.id"), nullable=False)
     uploader_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    title = db.Column(db.String(255))
+    category = db.Column(db.String(100))
+    folder_id = db.Column(db.Integer)
+    current_version = db.Column(db.Integer, nullable=False, server_default="0")
+    __table_args__ = (
+        db.UniqueConstraint("id", "organization_id", name="uq_uip_document_org"),
+        db.ForeignKeyConstraint(["folder_id", "organization_id"], ["uip_document_folder.id", "uip_document_folder.organization_id"], name="fk_uip_document_folder_org"),
+    )
     
     filename = db.Column(db.String(255), nullable=False)
     file_type = db.Column(db.String(50)) # e.g. PDF, IMG
@@ -314,3 +397,8 @@ class UipWorkOrderAction(db.Model):
         db.UniqueConstraint("work_order_id", "resulting_version", name="uq_uip_action_version"),
         db.Index("ix_uip_action_order_time", "organization_id", "work_order_id", "occurred_at"),
     )
+
+
+# Register the additive UIP models with both the application and isolated harness.
+from .uip_operations import UipFollowUp, UipReferralEvent, UipCommunicationLog, UipDocumentFolder, UipDocumentVersion
+from .uip_governance import UipQuorumRule, UipMeetingParticipant, UipSurvey, UipSurveyResponse, UipDecisionEvent

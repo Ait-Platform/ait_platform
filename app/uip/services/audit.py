@@ -31,6 +31,8 @@ ACTIONS = {
 }
 
 ACTIONS.update({
+    "sla.configured": ("UipSlaPolicy", ("manager",)),
+    "interaction.acknowledged": ("CoreInteraction", ("manager", "receptionist")),
     "task.cancelled": ("CoreTask", ("manager", "receptionist")),
     "provider.created": ("UipProvider", ("manager",)),
     "provider.updated": ("UipProvider", ("manager",)),
@@ -48,6 +50,24 @@ STATE_VALUES = {"CREATED", "DISPATCHED", "ACCEPTED", "IN_PROGRESS", "COMPLETED",
                 "CLOSED", "CANCELLED", "REJECTED", "FAILED", "pending", "completed", "cancelled"}
 REASON_CODES = {"NOT_REQUIRED", "DUPLICATE", "UNABLE_TO_COMPLETE", "WORK_INCOMPLETE", "OTHER"}
 DISPATCH_METHODS = {"TELEPHONE", "EMAIL", "IN_PERSON", "EXTERNAL_OTHER"}
+
+OPERATIONAL_ACTIONS = {
+    "follow_up.recorded": ("UipFollowUp", ("manager", "receptionist")),
+    "follow_up.completed": ("UipFollowUp", ("manager", "receptionist")),
+    "referral.created": ("UipMunicipalReferral", ("manager", "receptionist", "committee_member")),
+    "referral.transitioned": ("UipMunicipalReferral", ("manager", "receptionist", "committee_member")),
+    "communication.recorded": ("UipCommunicationLog", ("manager", "receptionist")),
+    **{action: (model, ("manager", "committee_member")) for action, model in {
+        "document.folder_created": "UipDocumentFolder", "document.created": "UipDocument",
+        "document.replaced": "UipDocument", "quorum.configured": "UipQuorumRule",
+        "meeting.created": "UipCommitteeMeeting", "meeting.started": "UipCommitteeMeeting",
+        "meeting.attendance": "UipMeetingParticipant", "meeting.concluded": "UipCommitteeMeeting",
+        "survey.created": "UipSurvey", "survey.finalized": "UipSurvey",
+        "decision.recorded": "UipResolution", "decision.status_recorded": "UipResolution",
+    }.items()},
+    "survey.responded": ("UipSurvey", ("manager", "committee_member", "owner", "resident")),
+}
+ACTIONS.update(OPERATIONAL_ACTIONS)
 
 
 def authorize(organization_id, actor_user_id, roles):
@@ -73,10 +93,12 @@ def record(organization_id, actor_user_id, action, entity, metadata=None):
     from app.models.core import CoreInteraction, CoreOrganization, CoreTask
     from app.models.uip import (UipMemberProfile, UipProperty, UipPropertyMember,
         UipMemberRepresentative, UipCommunicationPreference, UipWorkOrder,
-        UipMunicipalReferral, UipAuditEvent, UipProvider, UipProviderUser)
+        UipMunicipalReferral, UipAuditEvent, UipProvider, UipProviderUser, UipSlaPolicy)
     models = {m.__name__: m for m in (CoreInteraction, CoreOrganization, CoreTask,
         UipMemberProfile, UipProperty, UipPropertyMember, UipMemberRepresentative,
-        UipCommunicationPreference, UipWorkOrder, UipMunicipalReferral, UipProvider, UipProviderUser)}
+        UipCommunicationPreference, UipWorkOrder, UipMunicipalReferral, UipProvider, UipProviderUser, UipSlaPolicy)}
+    from app.models import uip as uip_models
+    models.update({name: getattr(uip_models, name) for name, roles in OPERATIONAL_ACTIONS.values()})
     if action not in ACTIONS:
         raise ValueError("Unsupported UIP audit action")
     expected, roles = ACTIONS[action]

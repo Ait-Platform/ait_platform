@@ -13,6 +13,7 @@ from app.models.uip import UipMunicipalReferral, UipProvider, UipWorkOrder
 from app.uip import uip_bp
 from app.uip.gateway import LunaGateway
 from app.uip.services import audit, register, providers, work_orders, operations
+from app.uip.services import routing, sla, reception
 from app.uip.services.dashboard import metrics
 from app.models.uip import (UipMemberProfile, UipProperty, UipPropertyMember,
     UipMemberRepresentative, UipCommunicationPreference)
@@ -87,7 +88,7 @@ def dashboard(org_slug):
     role_slug = _require_role("manager", "receptionist", "committee_member", "owner", "resident", "provider")
     if role_slug == "provider":
         return redirect(url_for("uip_bp.work_order_list", org_slug=org_slug))
-    if role_slug == "resident":
+    if role_slug in {"resident", "owner"}:
         interactions = CoreInteraction.query.filter_by(
             organization_id=org.id, creator_id=current_user.id
         ).all()
@@ -99,7 +100,8 @@ def dashboard(org_slug):
         ).all()
         return render_template("uip/dashboards/receptionist.html", org=org, open_interactions=open_interactions, metrics=metrics(org.id, current_user.id))
     if role_slug == "committee_member":
-        return render_template("uip/dashboards/committee.html", org=org)
+        from app.uip.services.governance import overview
+        return render_template("uip/dashboards/committee.html", org=org, governance_metrics=overview(org.id, current_user.id))
     if role_slug == "manager":
         interactions = CoreInteraction.query.filter_by(organization_id=org.id).order_by(
             CoreInteraction.created_at.desc().nullslast(), CoreInteraction.id.desc()
@@ -178,6 +180,7 @@ def new_interaction(org_slug):
             db.session.add(ix)
             try:
                 audit.record(org.id, current_user.id, "interaction.created", ix)
+                sla.intake(ix)
                 db.session.commit()
             except IntegrityError:
                 db.session.rollback()
@@ -202,7 +205,7 @@ def view_interaction(org_slug, reference):
     return render_template("uip/interactions/view.html", org=g.organization,
                            interaction=ix, staff=_members_with_roles(*STAFF_ROLES).all(),
                            current_role=role, task_actionable=operations.actionable, request_key=str(uuid.uuid4()),
-                           eligible_providers=[p for p in UipProvider.query.filter_by(organization_id=g.organization.id, is_active=True).all() if providers.eligible(g.organization.id, p, ix.category)] if role in STAFF_ROLES else [],
+                           eligible_providers=[r["provider"] for r in routing.recommend(g.organization.id, current_user.id, ix.id)] if role in STAFF_ROLES else [],
                            register_member=UipMemberProfile.query.filter_by(id=ix.member_id, organization_id=g.organization.id).first() if ix.member_id else None,
                            register_property=UipProperty.query.filter_by(id=ix.property_id, organization_id=g.organization.id).first() if ix.property_id else None)
 
@@ -276,20 +279,15 @@ def assign_provider(org_slug, reference):
 @uip_bp.route("/<org_slug>/interaction/<reference>/municipal", methods=["POST"])
 @login_required
 def escalate_municipality(org_slug, reference):
-    _require_role("manager", "committee_member")
+    _require_role("manager", "receptionist", "committee_member")
     ix = _interaction(reference)
     department = (request.form.get("department") or "").strip()
     mun_ref = (request.form.get("municipality_reference") or "").strip()
     if not department or len(department) > 100 or len(mun_ref) > 100:
         abort(400, description="A valid department and reference are required.")
-    referral = UipMunicipalReferral(
-        interaction_id=ix.id, department=department,
-        municipality_reference=mun_ref, status="ESCALATED"
-    )
-    db.session.add(referral)
+    referral = reception.referral(g.organization.id, current_user.id, ix.id, department, reference=mun_ref)
     if ix.status == "NEW":
         ix.status = "IN_PROGRESS"
-    audit.record(g.organization.id, current_user.id, "referral.recorded", referral)
     db.session.commit()
     flash(f"Referral recorded ({department}).", "info")
     return redirect(url_for("uip_bp.view_interaction", org_slug=org_slug, reference=reference))
@@ -298,8 +296,10 @@ def escalate_municipality(org_slug, reference):
 @uip_bp.route("/<org_slug>/reports")
 @login_required
 def org_reports(org_slug):
-    _require_role("manager", "committee_member")
-    return render_template("uip/dashboards/reports.html", org=g.organization)
+    role = _require_role("manager", "committee_member")
+    from app.uip.services.governance import overview
+    report = metrics(g.organization.id, current_user.id) if role == "manager" else overview(g.organization.id, current_user.id)
+    return render_template("uip/dashboards/reports.html", org=g.organization, report=report, report_role=role)
 
 
 @uip_bp.route("/<org_slug>/reports/generate_ai", methods=["POST"])

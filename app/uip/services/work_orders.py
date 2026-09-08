@@ -90,11 +90,14 @@ def _journal(org, actor, order, action, previous, key, fingerprint, note=None, r
     event = audit.record(org, actor, "work_order." + action, order, metadata)
     db.session.flush()
     row = UipWorkOrderAction(organization_id=org, work_order_id=order.id, actor_user_id=actor,
+        occurred_at=datetime.now(timezone.utc),
         action=action, previous_state=previous, new_state=order.status, resulting_version=order.version,
         request_key=key, fingerprint=fingerprint, note=note, reason_code=reason_code,
         dispatch_method=dispatch_method, audit_event_id=event.id)
     db.session.add(row)
     db.session.flush()
+    from . import sla
+    sla.order_action(order.interaction, order, action, row.occurred_at)
     return row
 
 

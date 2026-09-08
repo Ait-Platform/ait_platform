@@ -10,7 +10,7 @@ from sqlalchemy.orm import scoped_session, sessionmaker
 from flask import Flask
 from werkzeug.exceptions import HTTPException
 from bootstrap import db, core, uip
-from conftest import safe_url, baseline, migrate, migrate_phase3, data as seed_data
+from conftest import safe_url, baseline, migrate, migrate_phase3, migrate_phase49, data as seed_data
 from phase3_helpers import provider, order, act, completed, key
 from app.uip.services import work_orders, operations
 
@@ -26,7 +26,7 @@ def concurrent_db():
     db.session=scoped_session(sessionmaker(bind=engine,expire_on_commit=False))
     app=Flask("uip_concurrency")
     try:
-        with engine.begin() as conn:baseline(conn);migrate(conn);migrate_phase3(conn)
+        with engine.begin() as conn:baseline(conn);migrate(conn);migrate_phase3(conn);migrate_phase49(conn)
         with app.app_context():
             data=seed_data.__wrapped__(app)
             p=provider(data);db.session.commit()

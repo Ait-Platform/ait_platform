@@ -1,0 +1,49 @@
+UIP Phase 1–9 suite (including parity, migrations and security)
+........................................................................ [ 25%]
+........................................................................ [ 50%]
+........................................................................ [ 75%]
+.....................................................................    [100%]
+============================== warnings summary ===============================
+tests/uip/test_audit.py: 360 warnings
+tests/uip/test_migration.py: 21 warnings
+tests/uip/test_phase1.py: 328 warnings
+tests/uip/test_phase49.py: 868 warnings
+tests/uip/test_phase49_concurrency.py: 44 warnings
+tests/uip/test_providers.py: 285 warnings
+tests/uip/test_register.py: 398 warnings
+tests/uip/test_work_order_access.py: 167 warnings
+tests/uip/test_work_order_concurrency.py: 124 warnings
+tests/uip/test_work_orders.py: 2596 warnings
+  D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\sqlalchemy\sql\schema.py:3624: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    return util.wrap_callable(lambda ctx: fn(), fn)  # type: ignore
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+285 passed, 5191 warnings in 36.05s
+
+
+Startup preservation
+test_explicit_trial_grant_still_uses_subject_configuration (__main__.StartupEnrollmentPreservationTests.test_explicit_trial_grant_still_uses_subject_configuration) ... D:\Users\yeshk\Documents\ait_platform\tests\test_startup_enrollment_preservation.py:117: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+  before = datetime.utcnow()
+isolated-explicit-trial-grant:892: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+D:\Users\yeshk\Documents\ait_platform\tests\test_startup_enrollment_preservation.py:120: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+  after = datetime.utcnow()
+isolated-explicit-trial-grant:892: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+ok
+test_neighbouring_failure_still_rolls_back_and_continues (__main__.StartupEnrollmentPreservationTests.test_neighbouring_failure_still_rolls_back_and_continues) ... ok
+test_neighbouring_startup_statements_and_commits_are_preserved (__main__.StartupEnrollmentPreservationTests.test_neighbouring_startup_statements_and_commits_are_preserved) ... ok
+test_repeated_worker_initialization_preserves_original_expiry (__main__.StartupEnrollmentPreservationTests.test_repeated_worker_initialization_preserves_original_expiry) ... ok
+test_startup_preserves_active_auto_enrollment (__main__.StartupEnrollmentPreservationTests.test_startup_preserves_active_auto_enrollment) ... ok
+
+----------------------------------------------------------------------
+Ran 5 tests in 0.091s
+
+OK
+
+
+Python/Jinja parsing: 36 Python files and 27 UIP templates passed.
+
+Migration ancestry: uip_p2_prod_base -> a27c9e4b6102 -> uip_p3_work_orders -> uip_p49_operations
+
+Product isolation: application changes confined to UIP; existing migrations and CoreAuditEvent untouched.
+
+Post-consolidation focused preservation check: municipal lifecycle retains the original resolution timestamp through closure. Strengthened test_municipal_lifecycle_reference_dates_and_original_issue: 1 passed in 0.98s. No full-suite rerun.

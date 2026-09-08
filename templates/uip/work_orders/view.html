@@ -5,7 +5,7 @@
 
 <div class="max-w-5xl mx-auto my-8 bg-white rounded-xl shadow border border-slate-200 overflow-hidden">
 <div class="h-2 bg-indigo-600"></div><div class="p-6">
-<header class="flex justify-between items-center"><h1 class="text-2xl font-bold">Work order</h1><a class="border border-slate-300 rounded px-4 py-2" href="{{ url_for('uip_bp.dashboard', org_slug=org.slug) }}">Back</a></header>
+<header class="flex justify-between items-center"><h1 class="text-2xl font-bold">Work order</h1><a class="ui-btn border border-slate-300 rounded px-4 py-2" href="{{ url_for('uip_bp.dashboard', org_slug=org.slug) }}">Back</a></header>
 <nav class="flex justify-end gap-4 my-4"><a href="{{ url_for('uip_bp.work_order_list', org_slug=org.slug) }}">Work orders</a><a href="{{ url_for('uip_bp.view_interaction', org_slug=org.slug, reference=issue_reference) }}">Internal issue</a></nav>
 {% include 'partials/flash_messages.html' %}
 <h2 class="text-xl font-bold">{{ order.reference }}</h2><p>{{ order.status }} ? Version {{ order.version }} ? Priority {{ order.priority }}</p><h3 class="font-bold mt-4">Approved work scope</h3><p class="whitespace-pre-wrap">{{ order.description }}</p><h3 class="font-bold mt-4">Service location</h3><p>{{ order.service_location }}</p>

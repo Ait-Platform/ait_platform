@@ -2,14 +2,14 @@
 {% block title %}{{ org.name }} - Organisation Settings{% endblock %}
 
 {% block content %}<p class="ui-help"><a href="{{ url_for('uip_bp.setup_page', org_slug=org.slug) }}">Getting started / setup guide</a></p>
-<section class="max-w-5xl mx-auto p-5"><h2 class="font-bold">Operational configuration</h2>{% if 'manager' in uip_roles %}<p><a class="underline" href="{{ url_for('uip_bp.sla_page', org_slug=org.slug) }}">SLA policies</a> · <a class="underline" href="{{ url_for('uip_bp.routing_page', org_slug=org.slug) }}">Provider routing and user associations</a></p>{% endif %}{% if 'manager' in uip_roles or 'committee_member' in uip_roles %}<p><a class="underline" href="{{ url_for('uip_bp.meetings_page', org_slug=org.slug) }}">Quorum configuration</a></p>{% endif %}</section>
+<section class="ui-card"><h2 class="font-bold">Operational configuration</h2>{% if 'manager' in uip_roles %}<p><a class="underline" href="{{ url_for('uip_bp.sla_page', org_slug=org.slug) }}">SLA policies</a> · <a class="underline" href="{{ url_for('uip_bp.routing_page', org_slug=org.slug) }}">Provider routing and user associations</a></p>{% endif %}{% if 'manager' in uip_roles or 'committee_member' in uip_roles %}<p><a class="underline" href="{{ url_for('uip_bp.meetings_page', org_slug=org.slug) }}">Quorum configuration</a></p>{% endif %}</section>
 <div class="max-w-4xl mx-auto px-4 mt-8 mb-16">
-    <div class="flex items-center justify-between mb-8 pb-4 border-b border-slate-200">
+    <div class="ui-page-head">
         <div>
             <span class="bg-slate-100 text-slate-800 text-xs px-2 py-1 rounded font-bold uppercase tracking-wide mb-2 inline-block">Settings</span>
             <h1 class="text-3xl font-extrabold text-slate-900">{{ org.name }}</h1>
         </div>
-        <a href="{{ url_for('uip_bp.dashboard', org_slug=org.slug) }}" class="px-4 py-2 border border-slate-300 text-slate-700 hover:bg-slate-50 font-bold rounded-lg shadow-sm transition">
+        <a href="{{ url_for('uip_bp.dashboard', org_slug=org.slug) }}" class="ui-btn px-4 py-2 border border-slate-300 text-slate-700 hover:bg-slate-50 font-bold rounded-lg shadow-sm transition">
             Back to Dashboard
         </a>
     </div>

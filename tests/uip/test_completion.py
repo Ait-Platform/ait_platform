@@ -39,7 +39,7 @@ def test_visible_navigation_matches_permissions(client, role):
 
 def test_intake_registration_roundtrip_and_empty_states(client, data):
     response = client.get(BASE + "/interaction/new")
-    assert b"No registered members yet" in response.data
+    assert b"No registered ratepayers yet" in response.data
     assert b"No registered properties yet" in response.data
     assert b'name="resident_email"' not in response.data
     member_url = next(p for p in links(response) if "/members/new?" in p)
@@ -117,7 +117,8 @@ def test_manager_full_visible_operational_journey(client, data, app, tmp_path, m
     """The 13 requested steps; only existing authorised accounts are fixture setup."""
     app.instance_path = str(tmp_path)
     dashboard = client.get(BASE + "/dashboard")
-    setup = visit_link(client, dashboard, "/getting-started")
+    settings = visit_link(client, dashboard, "/settings")
+    setup = visit_link(client, settings, "/getting-started")
     visit_link(client, setup, "/members/new")
     membership = core.CoreOrganizationMember.query.filter_by(organization_id=data.org.id,
         user_id=data.users["resident"].id).one()

@@ -1,114 +1,14 @@
-{% extends "layout.html" %}
-{% block title %}Log Interaction - {{ org.name }}{% endblock %}
-
-{% block flashes %}{% endblock %}
-
-{% block content %}
-{% include 'uip/navigation.html' %}
-<div class="max-w-4xl mx-auto bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden mb-12">
-    <!-- Rule 3: Color Strip -->
-    <div class="h-2 w-full bg-indigo-600"></div>
-    
-    <div class="p-6 sm:p-8">
-        
-        <!-- Rule 4: Row 1 Header & Back Button -->
-        <div class="flex justify-between items-start pb-4 border-b border-slate-100 mb-6">
-            <div>
-                <h1 class="text-3xl font-black text-slate-800 tracking-tight">
-                    <i class="fas fa-plus-circle text-indigo-600 mr-2"></i> Log New Interaction
-                </h1>
-                <p class="text-slate-500 font-bold mt-1 text-sm tracking-wide uppercase">{{ org.name }} Reception</p>
-            </div>
-            <a href="{{ url_for('uip_bp.dashboard', org_slug=org.slug) }}" class="px-5 py-2.5 bg-slate-100 text-slate-700 hover:bg-slate-200 font-bold rounded-lg transition border border-slate-200 shadow-sm flex items-center ml-4">
-                <i class="fas fa-arrow-left mr-2"></i> Cancel
-            </a>
-        </div>
-
-        <!-- Rule 6: Flashes inside tile -->
-        {% include "partials/flash_messages.html" %}
-
-        <form method="POST" class="mt-4">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-            <section class="mb-8 p-6 bg-slate-50 rounded-lg border">
-              <h2 class="text-lg font-bold">WHO is reporting this?</h2>
-              <label for="member_id">Active member / ratepayer</label>
-              {% if not register_members %}<p>No registered members yet</p>{% endif %}
-              <select id="member_id" name="member_id" class="w-full border p-3">
-                <option value="">No registered member / general enquiry</option>
-                {% for member in register_members %}<option value="{{ member.id }}" {% if g.intake_member_id == member.id %}selected{% endif %}>{{ member.reference }} — {{ member.name }}</option>{% endfor %}
-              </select>
-              {% if uip_can_capture %}<a class="underline" href="{{ url_for('uip_bp.member_form', org_slug=org.slug, return_to='intake', property_id=g.intake_property_id) }}">Register new member</a>{% else %}<p>A manager or register-authorised operator can register a new member. General enquiries may be logged without one.</p>{% endif %}
-              <label for="property_id" class="block mt-4">Property (optional)</label>
-              {% if not register_properties %}<p>No registered properties yet</p>{% endif %}
-              <select id="property_id" name="property_id" class="w-full border p-3"><option value="">No property linked</option>
-              {% for item in register_properties %}<option value="{{ item.id }}" {% if g.intake_property_id == item.id %}selected{% endif %}>{{ item.reference }} — {{ item.address }}</option>{% endfor %}</select>
-              {% if uip_can_capture %}<a class="underline" href="{{ url_for('uip_bp.property_form', org_slug=org.slug, return_to='intake', member_id=g.intake_member_id) }}">Register new property</a>{% endif %}
-              <p class="mt-3">A ratepayer does not need an AIT login. Linking a report does not establish ownership or governance eligibility.</p>
-            </section>
-            <!-- WHAT -->
-            <div class="mb-8 p-6 bg-slate-50 rounded-lg border border-slate-100">
-                <h3 class="text-lg font-bold text-slate-900 mb-4"><i class="fas fa-tag mr-2 text-indigo-500"></i> WHAT is it about?</h3>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                    <div>
-                        <label class="block text-sm font-bold text-slate-700 mb-1">Category</label>
-                        <select name="category" required class="w-full py-3 rounded border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                            <option value="">-- Select Category --</option>
-                            <option value="GENERAL ENQUIRY">General Enquiry</option>
-                            <option value="SERVICE ISSUE">Service Issue</option>
-                            <option value="SECURITY">Security</option>
-                            <option value="CLEANING">Cleaning</option>
-                            <option value="MAINTENANCE">Maintenance</option>
-                            <option value="MUNICIPAL SERVICE">Municipal Service</option>
-                            <option value="COMMUNITY MATTER">Community Matter</option>
-                            <option value="FINANCIAL">Financial</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-bold text-slate-700 mb-1">Short title / topic</label>
-                        <input name="title" type="text" maxlength="255" required class="w-full border p-3" placeholder="Briefly describe the enquiry or issue">
-                    </div>
-                </div>
-                <div>
-                    <label class="block text-sm font-bold text-slate-700 mb-1">Description of what happened</label>
-                    <textarea name="description" rows="4" required class="w-full rounded border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" placeholder="Provide as much detail as possible..."></textarea>
-                </div>
-            </div>
-
-            <!-- HOW & PRIORITY -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                <div class="p-6 bg-slate-50 rounded-lg border border-slate-100">
-                    <h3 class="text-lg font-bold text-slate-900 mb-4"><i class="fas fa-satellite-dish mr-2 text-indigo-500"></i> HOW did it arrive?</h3>
-                    <select name="channel" required class="w-full rounded border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                        <option value="Telephone">Telephone / Call</option>
-                        <option value="Reception">Walk-in / Physical Reception</option>
-                        <option value="Email">Email</option>
-                        <option value="Web">Web Form</option>
-                        <option value="WhatsApp">WhatsApp</option>
-                    </select>
-                </div>
-                
-                <div class="p-6 bg-slate-50 rounded-lg border border-slate-100">
-                    <h3 class="text-lg font-bold text-slate-900 mb-4"><i class="fas fa-exclamation-triangle mr-2 text-amber-500"></i> Priority</h3>
-                    <select name="priority" required class="w-full rounded border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                        <option value="LOW">Low</option>
-                        <option value="NORMAL" selected>Normal</option>
-                        <option value="HIGH">High</option>
-                        <option value="URGENT">Urgent</option>
-                    </select>
-                </div>
-            </div>
-
-            <!-- Rule 5: Row 2 Actions right-aligned -->
-            <div class="flex justify-between items-center pt-6 border-t border-slate-100">
-                <button type="button" disabled aria-disabled="true" class="px-5 py-2.5 bg-indigo-50 text-indigo-700 font-bold rounded-lg shadow-sm border border-indigo-200 hover:bg-indigo-100 transition flex items-center">
-                    <i class="fas fa-robot mr-2"></i> AI Assist (Unavailable)
-                </button>
-                <button type="submit" class="px-8 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg shadow-md transition flex items-center">
-                    <i class="fas fa-check mr-2"></i> Create Interaction
-                </button>
-            </div>
-        </form>
-    </div>
-</div>
-{% endblock %}
+{% extends 'uip/base.html' %}{% block title %}Log interaction — {{ org.name }}{% endblock %}{% block content %}<header class="ui-page-head"><div><p class="ui-eyebrow">Operations</p><h1>Log interaction</h1><p class="ui-subtitle">Who contacted the UIP, where, and what needs to happen?</p></div></header>{% include 'partials/flash_messages.html' %}
+<form method="post" class="ui-form-column"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<fieldset class="ui-form-section"><legend>1 · Reporter</legend><p class="ui-help">Choose a ratepayer, or record a general enquiry without one.</p>
+{% if not register_members %}<p class="ui-help">No registered ratepayers yet.</p>{% endif %}
+<label>Find ratepayer<input type="search" data-filter-select="member_id" placeholder="Search name or reference"></label><label>Ratepayer<select id="member_id" name="member_id"><option value="">No registered ratepayer / general enquiry</option>{% for member in register_members %}<option value="{{ member.id }}" {% if g.intake_member_id == member.id %}selected{% endif %}>{{ member.name }} · {{ member.reference }}</option>{% endfor %}</select></label>
+<div class="ui-actions">{% if uip_can_capture %}<a id="add-ratepayer" class="ui-btn" href="{{ url_for('uip_bp.member_form', org_slug=org.slug, return_to='intake', property_id=g.intake_property_id) }}">Add new ratepayer</a>{% endif %}<button type="button" class="ui-btn" id="general-enquiry">No registered ratepayer</button></div></fieldset>
+<fieldset class="ui-form-section"><legend>2 · Property</legend><p class="ui-help">Linked properties appear first. You can also choose another property.</p>{% if not register_properties %}<p class="ui-help">No registered properties yet.</p>{% endif %}
+<label>Find property<input type="search" data-filter-select="property_id" placeholder="Search address or reference"></label><label>Property<select id="property_id" name="property_id"><option value="">No property linked</option>{% for item in register_properties %}<option value="{{ item.id }}" data-members='{{ g.intake_property_members.get(item.id, [])|tojson }}' {% if g.intake_property_id == item.id %}selected{% endif %}>{{ item.address }} · {{ item.reference }}</option>{% endfor %}</select></label>
+{% if uip_can_capture %}<a id="add-property" class="ui-btn" href="{{ url_for('uip_bp.property_form', org_slug=org.slug, return_to='intake', member_id=g.intake_member_id) }}">Add new property</a>{% endif %}</fieldset>
+<fieldset class="ui-form-section"><legend>3 · Interaction</legend><div class="ui-two"><label>Method / channel<select name="channel" required>{% for v,l in [('Telephone','Telephone'),('Reception','In person'),('Email','Email'),('Web','Web'),('WhatsApp','WhatsApp')] %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select></label><label>Category<select name="category" required><option value="">Choose a category</option>{% for value in ['GENERAL ENQUIRY','SERVICE ISSUE','SECURITY','CLEANING','MAINTENANCE','MUNICIPAL SERVICE','COMMUNITY MATTER','FINANCIAL'] %}<option value="{{ value }}">{{ value|title }}</option>{% endfor %}</select></label></div>
+<label>Short title<input name="title" maxlength="255" required placeholder="For example: streetlight not working"></label><label>What happened?<textarea name="description" rows="4" required placeholder="Record the details needed to follow up."></textarea></label><label>Priority<select name="priority" required>{% for value in ['LOW','NORMAL','HIGH','URGENT'] %}<option {% if value == 'NORMAL' %}selected{% endif %}>{{ value }}</option>{% endfor %}</select></label><p class="ui-help">After saving, add tasks, follow-up dates or service work from the interaction.</p></fieldset><div class="ui-actions"><button type="submit">Save interaction</button><a class="ui-btn" href="{{ url_for('uip_bp.dashboard', org_slug=org.slug) }}">Cancel</a></div></form>
+{% endblock %}{% block scripts %}<script>
+const memberSelect=document.getElementById('member_id'),propertySelect=document.getElementById('property_id');const properties=Array.from(propertySelect.options).filter(o=>o.value);function updateProperties(){const selected=propertySelect.value;propertySelect.replaceChildren(new Option('No property linked',''));const linked=document.createElement('optgroup'),other=document.createElement('optgroup');linked.label='Linked properties';other.label='Other properties';properties.forEach(o=>{const ids=JSON.parse(o.dataset.members||'[]');(memberSelect.value&&ids.includes(Number(memberSelect.value))?linked:other).append(o);});if(linked.children.length)propertySelect.append(linked);if(other.children.length)propertySelect.append(other);propertySelect.value=selected;updateLinks();}function updateLinks(){[['add-ratepayer','property_id',propertySelect.value],['add-property','member_id',memberSelect.value]].forEach(([id,key,value])=>{const a=document.getElementById(id);if(a){const url=new URL(a.href);if(value)url.searchParams.set(key,value);else url.searchParams.delete(key);a.href=url;}});}memberSelect.addEventListener('change',updateProperties);propertySelect.addEventListener('change',updateLinks);document.getElementById('general-enquiry').addEventListener('click',()=>{memberSelect.value='';updateProperties();});document.querySelectorAll('[data-filter-select]').forEach(input=>input.addEventListener('input',()=>{const query=input.value.toLocaleLowerCase();Array.from(document.getElementById(input.dataset.filterSelect).options).forEach(o=>o.hidden=Boolean(o.value)&&!o.text.toLocaleLowerCase().includes(query));}));updateProperties();
+</script>{% endblock %}

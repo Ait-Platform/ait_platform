@@ -20,7 +20,7 @@ from app.uip.operational_routes import page, link
 @uip_bp.context_processor
 def navigation_context():
     if not current_user.is_authenticated or not getattr(g, "organization", None):
-        return dict(uip_navigation=[], uip_can_capture=False)
+        return dict(uip_navigation=[], uip_nav_groups={}, uip_roles=set(), uip_can_capture=False, uip_can_log=False)
     roles = {a.role.slug for a in CoreRoleAssignment.query.filter(
         CoreRoleAssignment.organization_id == g.organization.id,
         CoreRoleAssignment.user_id == current_user.id,
@@ -48,8 +48,35 @@ def navigation_context():
         ("Organisation settings", "org_settings", set(audit.WRITE_ROLES)),
         ("UIP audit", "audit_history", set(audit.AUDIT_ROLES)),
     )
-    return dict(uip_navigation=[link(label, endpoint) for label, endpoint, allowed in entries if roles & allowed],
-                uip_can_capture=bool(roles & set(audit.WRITE_ROLES)), uip_roles=roles)
+    sections = (
+        ("Command Centre", [("Overview", "dashboard")]),
+        ("Residents & Properties", [("Ratepayers", "member_list"), ("Properties", "property_list"), ("Import Register", "register_import")]),
+        ("Operations", [("Interactions & Issues", "reception_page"), ("Tasks / Follow-ups", "tasks_page"), ("Municipal Matters", "municipal_list"), ("Communications", "communications_list")]),
+        ("Service Providers", [("Providers", "provider_list"), ("Work Orders", "work_order_list"), ("Routing & SLA", "service_standards")]),
+        ("Governance", [("Meetings", "meetings_page"), ("Surveys", "surveys_page"), ("Decisions", "decisions_page"), ("Documents", "documents_page")]),
+        ("Reports", [("Reports / Exports", "org_reports")]),
+        ("Administration", [("Organisation Settings", "org_settings"), ("UIP Audit", "audit_history")]),
+    )
+    allowed = {target for label, target, permitted in entries if roles & permitted}
+    if roles & set(audit.WRITE_ROLES):
+        allowed.add("register_import")
+    if roles & staff:
+        allowed.add("service_standards")
+    if roles == {"provider"}:
+        allowed.discard("dashboard")
+    aliases = {"member_form": "member_list", "member_view": "member_list", "property_form": "property_list", "property_view": "property_list",
+        "new_interaction": "reception_page", "view_interaction": "reception_page", "reception_issue": "reception_page",
+        "provider_form": "provider_list", "provider_view": "provider_list", "work_order_view": "work_order_list",
+        "routing_page": "service_standards", "sla_page": "service_standards", "referral_page": "municipal_list",
+        "meeting_page": "meetings_page", "survey_page": "surveys_page", "document_page": "documents_page", "audit_event": "audit_history"}
+    endpoint = (request.endpoint or "").split(".")[-1]
+    active = aliases.get(endpoint, endpoint)
+    groups = {group: [dict(link(label, target), active=active == target) for label, target in items if target in allowed] for group, items in sections}
+    groups = {group: items for group, items in groups.items() if items}
+    from app.uip.presentation import current_relationship, display_value
+    return dict(uip_navigation=[item for items in groups.values() for item in items], uip_nav_groups=groups, uip_is_current=current_relationship, uip_display=display_value,
+                uip_can_capture=bool(roles & set(audit.WRITE_ROLES)), uip_roles=roles,
+                uip_can_log=bool(roles & (staff | {"committee_member"})))
 
 
 @uip_bp.route("/<org_slug>/getting-started")
@@ -77,7 +104,7 @@ def tasks_page(org_slug):
 def municipal_list(org_slug):
     audit.authorize(g.organization.id, current_user.id, ("manager", "receptionist", "committee_member"))
     rows = UipMunicipalReferral.query.filter_by(organization_id=g.organization.id).all()
-    return page("Municipal referrals", ["Department", "Municipal reference", "Status", "Issue"],
+    return page("Municipal Matters", ["Department", "Municipal reference", "Status", "Issue"],
         [(link(r.department, "referral_page", referral_id=r.id), r.municipality_reference, r.status,
           link("Related issue", "view_interaction", reference=CoreInteraction.query.filter_by(
               organization_id=g.organization.id, id=r.interaction_id).one().reference)) for r in rows],
@@ -106,6 +133,13 @@ def routing_page(org_slug):
         [(link(p.name, "provider_view", provider_id=p.id), p.availability, p.is_active) for p in rows],
         notes=["Configure category capabilities, availability and provider-user associations in each provider record. Eligible providers are selected from the related issue; suggestions are ordered by current workload.",
                link("Provider register", "provider_list"), link("Choose issue for work-order routing", "reception_page")])
+
+
+@uip_bp.route("/<org_slug>/service-standards")
+@login_required
+def service_standards(org_slug):
+    audit.authorize(g.organization.id, current_user.id, providers.STAFF)
+    return render_template("uip/service_standards.html", org=g.organization)
 
 
 CSV_COLUMNS = {

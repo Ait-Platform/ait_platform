@@ -1,12 +1,1 @@
-{% extends "layout.html" %}
-{% block title %}Work orders - {{ org.name }}{% endblock %}
-{% block flashes %}{% endblock %}
-{% block content %}
-{% include 'uip/navigation.html' %}
-<div class="max-w-5xl mx-auto my-8 bg-white rounded-xl shadow border border-slate-200 overflow-hidden">
-<div class="h-2 bg-indigo-600"></div><div class="p-6">
-<header class="flex justify-between items-center"><h1 class="text-2xl font-bold">Work orders</h1><a class="border border-slate-300 rounded px-4 py-2" href="{{ url_for('uip_bp.dashboard', org_slug=org.slug) }}">Back</a></header>
-<nav class="flex justify-end gap-4 my-4"></nav>
-{% include 'partials/flash_messages.html' %}
-<p class="mb-4">Most recent 200 authorised work orders. Creation does not mean dispatch.</p><table class="w-full"><thead><tr><th>Reference</th><th>Location</th><th>State</th></tr></thead><tbody>{% for order in orders %}<tr><td><a href="{{ url_for('uip_bp.work_order_view', org_slug=org.slug, order_id=order.id) }}">{{ order.reference }}</a></td><td>{{ order.service_location }}</td><td>{{ order.status }}</td></tr>{% else %}<tr><td>No authorised work orders.</td></tr>{% endfor %}</tbody></table>
-</div></div>{% endblock %}
+{% extends 'uip/base.html' %}{% block title %}Work Orders — {{ org.name }}{% endblock %}{% block content %}<header class="ui-page-head"><div><p class="ui-eyebrow">Service Providers</p><h1>Work Orders</h1><p class="ui-subtitle">Follow service work from assignment to verified closure.</p></div>{% if 'manager' in uip_roles or 'receptionist' in uip_roles %}<a class="ui-btn ui-btn-primary" href="{{ url_for('uip_bp.reception_page', org_slug=org.slug, status='unassigned') }}">Create work order</a>{% endif %}</header>{% include 'partials/flash_messages.html' %}<section class="ui-card"><p class="ui-help">Latest 200 work orders available to you. Open an order for its next permitted action.</p><div class="ui-table-wrap"><table><thead><tr><th>Work order</th><th>Service location</th><th>Status</th><th>Action</th></tr></thead><tbody>{% for order in orders %}<tr><td><strong>{{ order.reference }}</strong></td><td>{{ order.service_location }}</td><td><span class="ui-badge">{{ order.status.replace('_',' ')|title }}</span></td><td><a href="{{ url_for('uip_bp.work_order_view', org_slug=org.slug, order_id=order.id) }}">Open →</a></td></tr>{% else %}<tr><td colspan="4" class="ui-empty">No work orders available yet.</td></tr>{% endfor %}</tbody></table></div></section>{% endblock %}

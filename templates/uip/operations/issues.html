@@ -1,0 +1,5 @@
+{% extends 'uip/base.html' %}{% block title %}Interactions & Issues — {{ org.name }}{% endblock %}
+{% block content %}<header class="ui-page-head"><div><p class="ui-eyebrow">Operations</p><h1>Interactions & Issues</h1><p class="ui-subtitle">Track each enquiry from first contact to resolution.</p></div><a class="ui-btn ui-btn-primary" href="{{ url_for('uip_bp.new_interaction', org_slug=org.slug) }}">Log interaction</a></header>
+<section class="ui-card"><nav class="ui-tabs" aria-label="Issue status">{% for value,label in choices %}<a href="{{ url_for('uip_bp.reception_page', org_slug=org.slug, status=value, q=search) }}" {% if value == status %}aria-current="page"{% endif %}>{{ label }}</a>{% endfor %}</nav>
+<form class="ui-toolbar" method="get"><input type="hidden" name="status" value="{{ status }}"><label>Search issues<input type="search" name="q" value="{{ search }}" placeholder="Issue title or reference"></label><button type="submit">Search</button></form>
+{% include 'uip/issue_table.html' %}</section>{% endblock %}

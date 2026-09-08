@@ -99,14 +99,16 @@ def sla_page(org_slug):
 def reception_page(org_slug):
     org, actor = g.organization.id, current_user.id
     audit.authorize(org, actor, providers.STAFF)
-    issues = CoreInteraction.query.filter_by(organization_id=org).order_by(CoreInteraction.id.desc()).all()
-    follows = UipFollowUp.query.filter_by(organization_id=org, completed_at=None).all()
-    tasks = CoreTask.query.join(CoreInteraction).filter(CoreInteraction.organization_id == org).all()
-    return page("Reception actions", ["Issue", "Category", "Priority", "Status", "Outstanding follow-ups", "Open internal tasks"],
-        [(link(ix.reference, "reception_issue", issue_id=ix.id), ix.category, ix.priority, ix.status,
-          sum(f.interaction_id == ix.id and f.next_action != "NONE" for f in follows),
-          sum(t.interaction_id == ix.id and operations.actionable(t) for t in tasks)) for ix in issues],
-        notes=["Open an issue to record follow-up, contact, municipal referral, acknowledgement or an internal task."])
+    from app.uip.presentation import issue_rows
+    status = request.args.get("status", "open")
+    choices = [("open", "Open"), ("unassigned", "Unassigned"), ("in_progress", "In progress"), ("waiting", "Waiting"), ("resolved", "Resolved"), ("all", "All")]
+    if status not in dict(choices):
+        status = "open"
+    search = request.args.get("q", "").strip()[:120]
+    rows = [r for r in issue_rows(org, actor) if status in r["filters"]]
+    if search:
+        rows = [r for r in rows if search.casefold() in (r["issue"].reference + " " + r["issue"].title).casefold()]
+    return render_template("uip/operations/issues.html", org=g.organization, issue_rows=rows, choices=choices, status=status, search=search)
 
 
 @uip_bp.route("/<org_slug>/operations/reception/<int:issue_id>", methods=["GET", "POST"])

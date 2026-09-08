@@ -1,11 +1,11 @@
-{% extends 'layout.html' %}
-{% block title %}Members / Ratepayers - {{ org.name }}{% endblock %}
+{% extends 'uip/base.html' %}
+{% block title %}Ratepayer - {{ org.name }}{% endblock %}
 {% block flashes %}{% endblock %}
 {% block content %}
-{% include 'uip/navigation.html' %}
+
 <div class="max-w-6xl mx-auto bg-white rounded-xl shadow border border-slate-200 overflow-hidden mb-12">
 <div class="h-2 bg-indigo-600"></div><div class="p-6">
-<div class="flex justify-between border-b pb-4"><h1 class="text-2xl font-bold">Members / Ratepayers</h1><a href="{{ url_for('uip_bp.dashboard', org_slug=org.slug) }}">Back</a></div>
+<div class="flex justify-between border-b pb-4"><h1 class="text-2xl font-bold">Ratepayer</h1><a href="{{ url_for('uip_bp.dashboard', org_slug=org.slug) }}">Back</a></div>
 <div class="flex justify-end gap-4 my-4"></div>
 {% include 'partials/flash_messages.html' %}
 <form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><label class="block my-3">Reference<input class="block w-full border border-slate-300 rounded p-2" name="reference" type="text" value="{{ member.reference if member else '' }}" maxlength="50" required autofocus></label>
@@ -15,5 +15,5 @@
 <label class="block my-3">Contact phone<input class="block w-full border border-slate-300 rounded p-2" name="phone" type="text" value="{{ member.phone or '' if member else '' }}" maxlength="50"></label>
 <label class="block my-3">Register status<select class="block w-full border border-slate-300 rounded p-2" name="is_active"><option value="true" {% if ('false' if member and not member.is_active else 'true') == 'true' %}selected{% endif %}>Active</option><option value="false" {% if ('false' if member and not member.is_active else 'true') == 'false' %}selected{% endif %}>Inactive</option></select></label>
 <label class="block my-3">Recorded eligibility (independent of application roles)<select class="block w-full border border-slate-300 rounded p-2" name="eligibility_status"><option value="unverified" {% if (member.eligibility_status if member else 'unverified') == 'unverified' %}selected{% endif %}>Unverified</option><option value="eligible" {% if (member.eligibility_status if member else 'unverified') == 'eligible' %}selected{% endif %}>Eligible</option><option value="ineligible" {% if (member.eligibility_status if member else 'unverified') == 'ineligible' %}selected{% endif %}>Ineligible</option></select></label>
-{% if not member %}<label class="block my-3">Link existing AIT account (optional)<select name="membership_id" class="block w-full border border-slate-300 p-2"><option value="">Non-login register member</option>{% for m in memberships %}<option value="{{ m.id }}">{{ account_names.get(m.user_id, "Account #" ~ m.user_id) }}</option>{% endfor %}</select></label>{% endif %}<p class="my-3">Register status does not change application access. Recording eligibility does not grant voting or governance rights.</p><button class="px-4 py-2 bg-indigo-700 text-white rounded" type="submit">Save</button></form></div></div>
+{% if not member %}<label class="block my-3">Link existing AIT account (optional)<select name="membership_id" class="block w-full border border-slate-300 p-2"><option value="">Ratepayer without an AIT account</option>{% for m in memberships %}<option value="{{ m.id }}">{{ account_names.get(m.user_id, "Account #" ~ m.user_id) }}</option>{% endfor %}</select></label>{% endif %}<p class="my-3">Register status does not change application access. Recording eligibility does not grant voting or governance rights.</p><button class="px-4 py-2 bg-indigo-700 text-white rounded" type="submit">Save</button></form></div></div>
 {% endblock %}

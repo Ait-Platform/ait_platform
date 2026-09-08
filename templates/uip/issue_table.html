@@ -1,0 +1,9 @@
+<div class="ui-table-wrap"><table><thead><tr><th>Date</th><th>Resident / Property</th><th>Issue</th><th>Priority</th><th>Status</th><th>Assigned</th><th>Action</th></tr></thead>
+<tbody>{% for row in issue_rows %}{% set ix=row.issue %}<tr>
+<td>{{ ix.created_at.strftime('%d %b %Y') if ix.created_at else '—' }}</td>
+<td><strong>{{ row.member.name if row.member else 'General enquiry' }}</strong><small>{{ row.property.address if row.property else 'No property linked' }}</small></td>
+<td><strong>{{ ix.title }}</strong><small>{{ ix.reference }}</small></td>
+<td><span class="ui-badge {% if ix.priority == 'URGENT' %}ui-badge-urgent{% elif ix.priority == 'HIGH' %}ui-badge-high{% endif %}">{{ (ix.priority or 'Not set')|title }}</span></td>
+<td>{{ (ix.status or 'Not recorded').replace('_', ' ')|title }}</td><td>{{ row.assigned }}</td>
+<td><a href="{{ url_for('uip_bp.view_interaction', org_slug=org.slug, reference=ix.reference) }}">Open →</a></td></tr>
+{% else %}<tr><td colspan="7" class="ui-empty">No issues to show.</td></tr>{% endfor %}</tbody></table></div>

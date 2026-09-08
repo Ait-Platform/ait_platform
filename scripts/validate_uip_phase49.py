@@ -54,7 +54,7 @@ def main():
     isolation = "Product isolation: application changes confined to UIP; existing migrations and CoreAuditEvent untouched."
     print(isolation)
     output.append(isolation)
-    log = ROOT / "scratch/uip_completion_validation.txt"
+    log = ROOT / "scratch/uip_redesign_validation.txt"
     log.write_text("\n\n".join(output), encoding="utf-8")
     print("Validation log:", log)
     return 1 if failures else 0

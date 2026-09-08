@@ -1,12 +1,1 @@
-{% extends "layout.html" %}
-{% block title %}Provider register - {{ org.name }}{% endblock %}
-{% block flashes %}{% endblock %}
-{% block content %}
-{% include 'uip/navigation.html' %}
-<div class="max-w-5xl mx-auto my-8 bg-white rounded-xl shadow border border-slate-200 overflow-hidden">
-<div class="h-2 bg-indigo-600"></div><div class="p-6">
-<header class="flex justify-between items-center"><h1 class="text-2xl font-bold">Provider register</h1><a class="border border-slate-300 rounded px-4 py-2" href="{{ url_for('uip_bp.dashboard', org_slug=org.slug) }}">Back</a></header>
-<nav class="flex justify-end gap-4 my-4"><a href="{{ url_for('uip_bp.provider_form', org_slug=org.slug) }}">New provider</a></nav>
-{% include 'partials/flash_messages.html' %}
-<table class="w-full"><thead><tr><th>Name</th><th>Status</th><th>Availability</th></tr></thead><tbody>{% for provider in providers %}<tr><td><a href="{{ url_for('uip_bp.provider_view', org_slug=org.slug, provider_id=provider.id) }}">{{ provider.name }}</a></td><td>{{ 'Active' if provider.is_active else 'Inactive' }}</td><td>{{ provider.availability }}</td></tr>{% else %}<tr><td>No providers recorded.</td></tr>{% endfor %}</tbody></table>
-</div></div>{% endblock %}
+{% extends 'uip/base.html' %}{% block title %}Providers — {{ org.name }}{% endblock %}{% block content %}<header class="ui-page-head"><div><p class="ui-eyebrow">Service Providers</p><h1>Providers</h1><p class="ui-subtitle">Your service partners and their current workload.</p></div><a class="ui-btn ui-btn-primary" href="{{ url_for('uip_bp.provider_form', org_slug=org.slug) }}">Register provider</a></header>{% include 'partials/flash_messages.html' %}<section class="ui-card"><div class="ui-table-wrap"><table><thead><tr><th>Provider</th><th>Services</th><th>Availability</th><th>Active work</th><th>Status</th><th>Action</th></tr></thead><tbody>{% for provider in providers %}<tr><td><strong>{{ provider.name }}</strong><small>{{ provider.contact_email or provider.contact_phone or 'No contact recorded' }}</small></td><td>{{ services[provider.id]|map('title')|join(', ') or 'Not configured' }}</td><td>{{ provider.availability|title }}</td><td>{{ active_work.get(provider.id, 0) }}</td><td><span class="ui-badge {{ 'ui-badge-good' if provider.is_active else '' }}">{{ 'Active' if provider.is_active else 'Inactive' }}</span></td><td><a href="{{ url_for('uip_bp.provider_view', org_slug=org.slug, provider_id=provider.id) }}">Manage →</a></td></tr>{% else %}<tr><td colspan="6" class="ui-empty">No providers yet. Register a service partner to begin arranging work.</td></tr>{% endfor %}</tbody></table></div></section>{% endblock %}

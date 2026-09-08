@@ -9,7 +9,8 @@ def test_01_manager_dashboard(client):
     response = client.get(BASE + "/dashboard")
     assert response.status_code == 200
     assert b"Test issue" in response.data
-    assert b"Unavailable" in response.data or b"unavailable" in response.data
+    assert b"Attention Required" in response.data
+    assert b"unavailable" not in response.data.lower()
 
 
 def test_02_intake_and_settings_templates(client):

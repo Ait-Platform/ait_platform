@@ -94,26 +94,16 @@ def dashboard(org_slug):
         ).all()
         return render_template("uip/dashboards/resident.html", org=org, interactions=interactions)
     if role_slug == "receptionist":
-        open_interactions = CoreInteraction.query.filter(
-            CoreInteraction.organization_id == org.id,
-            CoreInteraction.status != "RESOLVED"
-        ).all()
-        return render_template("uip/dashboards/receptionist.html", org=org, open_interactions=open_interactions, metrics=metrics(org.id, current_user.id))
+        from app.uip.presentation import issue_rows
+        rows = [row for row in issue_rows(org.id, current_user.id) if "open" in row["filters"]]
+        return render_template("uip/dashboards/receptionist.html", org=org, issue_rows=rows)
     if role_slug == "committee_member":
         from app.uip.services.governance import overview
         return render_template("uip/dashboards/committee.html", org=org, governance_metrics=overview(org.id, current_user.id))
     if role_slug == "manager":
-        interactions = CoreInteraction.query.filter_by(organization_id=org.id).order_by(
-            CoreInteraction.created_at.desc().nullslast(), CoreInteraction.id.desc()
-        ).all()
-        referral_count = UipMunicipalReferral.query.join(
-            CoreInteraction, UipMunicipalReferral.interaction_id == CoreInteraction.id
-        ).filter(CoreInteraction.organization_id == org.id).count()
-        return render_template("uip/dashboards/manager.html", org=org,
-                               needs_members=not UipMemberProfile.query.filter_by(organization_id=org.id).first(),
-                               needs_properties=not UipProperty.query.filter_by(organization_id=org.id).first(),
-                               interactions=interactions, referral_count=referral_count, metrics=metrics(org.id, current_user.id))
-    return "Dashboard for this role is under construction."
+        from app.uip.presentation import executive
+        return render_template("uip/dashboards/manager.html", org=org, overview=executive(org.id, current_user.id))
+    abort(403)
 
 
 @uip_bp.route("/<org_slug>/settings", methods=["GET", "POST"])
@@ -154,6 +144,13 @@ def new_interaction(org_slug):
         request.args.get("member_id"), request.args.get("property_id"))
     g.intake_member_id = selected_member.id if selected_member else None
     g.intake_property_id = selected_property.id if selected_property else None
+    from app.uip.presentation import current_relationship
+    g.intake_property_members = {}
+    for relationship in UipPropertyMember.query.filter_by(organization_id=org.id).all():
+        if current_relationship(relationship):
+            g.intake_property_members.setdefault(relationship.property_id, []).append(relationship.member_id)
+    if selected_member:
+        register_properties.sort(key=lambda p: selected_member.id not in g.intake_property_members.get(p.id, []))
     if request.method == "POST":
         email = (request.form.get("resident_email") or "").strip()
         resident = next((member for member in residents if member.email == email), None)
@@ -368,9 +365,19 @@ def _register_context():
 @uip_bp.route("/<org_slug>/members")
 @login_required
 def member_list(org_slug):
-    page = register.members(g.organization.id, current_user.id).paginate(
+    query = register.members(g.organization.id, current_user.id)
+    search = request.args.get("q", "").strip()[:120]
+    status = request.args.get("status", "all")
+    if search:
+        query = query.filter(db.or_(UipMemberProfile.name.ilike(f"%{search}%"), UipMemberProfile.reference.ilike(f"%{search}%"), UipMemberProfile.email.ilike(f"%{search}%"), UipMemberProfile.phone.ilike(f"%{search}%")))
+    if status in {"active", "inactive"}:
+        query = query.filter_by(is_active=status == "active")
+    page = query.paginate(
         page=request.args.get("page", 1, type=int), per_page=30, error_out=False)
-    return render_template("uip/members/list.html", page=page, **_register_context())
+    from app.uip.presentation import register_links, current_relationship
+    members, properties, links = register_links(g.organization.id)
+    linked = {m.id: [properties[l.property_id] for l in links if l.member_id == m.id and current_relationship(l)] for m in page.items}
+    return render_template("uip/members/list.html", page=page, linked=linked, search=search, status=status, **_register_context())
 
 
 @uip_bp.route("/<org_slug>/members/new", methods=["GET", "POST"])
@@ -431,9 +438,19 @@ def member_preference(org_slug, member_id):
 @uip_bp.route("/<org_slug>/properties")
 @login_required
 def property_list(org_slug):
-    page = register.properties(g.organization.id, current_user.id).paginate(
+    query = register.properties(g.organization.id, current_user.id)
+    search = request.args.get("q", "").strip()[:120]
+    status = request.args.get("status", "all")
+    if search:
+        query = query.filter(db.or_(UipProperty.address.ilike(f"%{search}%"), UipProperty.reference.ilike(f"%{search}%"), UipProperty.rates_reference.ilike(f"%{search}%")))
+    if status in {"active", "inactive"}:
+        query = query.filter_by(is_active=status == "active")
+    page = query.paginate(
         page=request.args.get("page", 1, type=int), per_page=30, error_out=False)
-    return render_template("uip/properties/list.html", page=page, **_register_context())
+    from app.uip.presentation import register_links, current_relationship
+    members, properties, links = register_links(g.organization.id)
+    linked = {p.id: [members[l.member_id] for l in links if l.property_id == p.id and current_relationship(l)] for p in page.items}
+    return render_template("uip/properties/list.html", page=page, linked=linked, search=search, status=status, **_register_context())
 
 
 @uip_bp.route("/<org_slug>/properties/new", methods=["GET", "POST"])
@@ -505,7 +522,12 @@ def cancel_task(org_slug, task_id):
 def provider_list(org_slug):
     _require_role("manager")
     rows = UipProvider.query.filter_by(organization_id=g.organization.id).order_by(UipProvider.name).all()
-    return render_template("uip/providers/list.html", org=g.organization, providers=rows)
+    from app.models.uip import UipProviderCapability
+    caps = UipProviderCapability.query.filter_by(organization_id=g.organization.id).all()
+    active_work = dict(db.session.query(UipWorkOrder.provider_id, db.func.count(UipWorkOrder.id)).filter(
+        UipWorkOrder.organization_id == g.organization.id, UipWorkOrder.status.notin_(providers.TERMINAL)).group_by(UipWorkOrder.provider_id).all())
+    return render_template("uip/providers/list.html", org=g.organization, providers=rows,
+        services={p.id: [c.category for c in caps if c.provider_id == p.id] for p in rows}, active_work=active_work)
 
 
 @uip_bp.route("/<org_slug>/providers/new", methods=["GET", "POST"])

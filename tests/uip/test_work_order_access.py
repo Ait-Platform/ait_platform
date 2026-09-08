@@ -59,7 +59,7 @@ def test_manager_register_templates_and_post_forms(client,data):
     assert client.get(BASE+"/work-orders").status_code==200
     client.login("receptionist")
     response=client.get(BASE+"/dashboard")
-    assert response.status_code==200 and b"Created, not dispatched" in response.data
+    assert response.status_code==200 and b"Open issues" in response.data and b"Log interaction" in response.data
     assert client.get(BASE+"/providers").status_code==403
 
 
@@ -71,7 +71,9 @@ def test_staff_order_template_and_metrics(client,data):
     assert client.get(f"{BASE}/work-orders/{row.id}").status_code==200
     counts=metrics(data.org.id,data.users["manager"].id)
     assert counts["Created, not dispatched"]==1 and counts["Dispatched"]==0 and counts["Unassigned open issues"]==0
-    assert b"Created, not dispatched" in client.get(BASE+"/dashboard").data
+    assert b"Active work orders" in client.get(BASE+"/dashboard").data
+    orders_page = client.get(BASE+"/work-orders").data
+    assert row.reference.encode() in orders_page and b"Created" in orders_page
 
 
 def test_provider_receives_verification_rejection_reason_only_on_its_order(client,data):

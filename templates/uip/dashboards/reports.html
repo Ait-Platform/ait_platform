@@ -1,31 +1,6 @@
-{% extends "layout.html" %}
-
-{% block title %}Management Reports - {{ org.name }}{% endblock %}
-
+{% extends "uip/base.html" %}
+{% block title %}Reports - {{ org.name }}{% endblock %}
 {% block content %}
-{% include 'uip/navigation.html' %}
-<div class="container mx-auto px-4 py-8 max-w-7xl">
-    
-    <div class="flex justify-between items-center mb-8">
-        <div>
-            <h1 class="text-3xl font-extrabold text-slate-900 mb-2"><i class="fas fa-chart-line text-indigo-600 mr-2"></i> Management Reports</h1>
-            <p class="text-slate-500">Service delivery and operational analytics for {{ org.name }}</p>
-        </div>
-        <div>
-            <form method="POST" action="{{ url_for('uip_bp.generate_ai_report', org_slug=org.slug) }}">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                <button type="button" disabled aria-disabled="true" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-lg shadow-md transition flex items-center">
-                    <i class="fas fa-magic mr-2"></i> AI unavailable in this prototype
-                </button>
-            </form>
-        </div>
-    </div>
-    
-    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-8 text-center text-slate-500 italic">
-        {% if report_role == 'manager' %}<a class="underline" href="{{ url_for('uip_bp.operations_export', org_slug=org.slug) }}">Download organisation issue report (CSV)</a>{% endif %}
-        <table class="w-full text-left my-4"><thead><tr><th>Recorded measure</th><th>Value</th></tr></thead><tbody>{% for label,value in report.items() %}<tr><td class="p-2">{{ label }}</td><td class="p-2">{{ value }}</td></tr>{% endfor %}</tbody></table>
-        <p class="text-sm mt-2">AI reporting is unavailable in this prototype.</p>
-    </div>
-
-</div>
+<header class="ui-page-head"><div><h1>Reports</h1><p>Recorded service delivery and operational measures.</p></div>{% if report_role == 'manager' %}<a class="ui-btn" href="{{ url_for('uip_bp.operations_export', org_slug=org.slug) }}">Download issue report (CSV)</a>{% endif %}</header>
+<section class="ui-card"><div class="ui-table-wrap"><table><thead><tr><th>Measure</th><th>Value</th></tr></thead><tbody>{% for label,value in report.items() %}<tr><td>{{ label }}</td><td>{{ value }}</td></tr>{% endfor %}</tbody></table></div></section>
 {% endblock %}

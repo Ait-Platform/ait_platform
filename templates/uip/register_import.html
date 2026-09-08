@@ -1,5 +1,5 @@
-{% extends 'layout.html' %}{% block content %}<main class="max-w-6xl mx-auto p-6 space-y-5">
-{% include 'uip/navigation.html' %}<h1 class="text-2xl font-bold">Import existing register (CSV)</h1>
+{% extends 'uip/base.html' %}{% block content %}<main class="max-w-6xl mx-auto p-6 space-y-5">
+<h1 class="text-2xl font-bold">Import existing register (CSV)</h1>
 {% include 'partials/flash_messages.html' %}
 <p>Import members first, properties second, then their dated relationships. References are matched only within {{ org.name }}. Existing records are never overwritten. Use manual capture to resolve duplicates or record representatives and communication preferences.</p>
 <p>UTF-8 CSV, up to 200 rows / 256 KB. Dates: YYYY-MM-DD; booleans: true or false. Member type: person or business; eligibility: unverified, eligible or ineligible. Property classification: residential, business, mixed or other. Relationship: owner, occupier or representative.</p>

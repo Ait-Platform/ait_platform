@@ -1,32 +1,5 @@
-{% extends "layout.html" %}
-{% block title %}{{ title }} — {{ org.name }}{% endblock %}
-{% block content %}
-{% include 'uip/navigation.html' %}
-<main class="max-w-6xl mx-auto p-6 space-y-6">
-  <header><h1 class="text-2xl font-bold">{{ title }}</h1><p>{{ org.name }}</p></header>
-  <nav class="flex flex-wrap gap-4" aria-label="UIP operations">
-    <a href="{{ url_for('uip_bp.dashboard', org_slug=org.slug) }}">Dashboard</a>
-    {% for item in navigation %}<a href="{{ item.href }}">{{ item.label }}</a>{% endfor %}
-  </nav>
-  {% include 'partials/flash_messages.html' %}
-  {% for note in notes %}<p>{% if note is mapping %}<a class="underline" href="{{ note.href }}">{{ note.label }}</a>{% else %}{{ note }}{% endif %}</p>{% endfor %}
-  <div class="overflow-x-auto"><table class="w-full text-left border-collapse">
-    <thead><tr>{% for column in columns %}<th class="p-3 border-b">{{ column }}</th>{% endfor %}</tr></thead>
-    <tbody>{% for row in rows %}<tr>{% for cell in row %}<td class="p-3 border-b align-top whitespace-pre-wrap">{% if cell is mapping %}<a class="underline" href="{{ cell.href }}">{{ cell.label }}</a>{% else %}{{ cell if cell is not none else 'Not recorded' }}{% endif %}</td>{% endfor %}</tr>{% else %}<tr><td class="p-3" colspan="{{ columns|length }}">No records yet.</td></tr>{% endfor %}</tbody>
-  </table></div>
-  <div class="grid md:grid-cols-2 gap-6">{% for form in forms %}
-    <section class="border rounded-lg p-5 bg-white"><h2 class="font-bold text-lg mb-4">{{ form.title }}</h2>
-      <form method="post" enctype="multipart/form-data" class="space-y-4">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <input type="hidden" name="operation" value="{{ form.operation }}">
-        {% for name,value in form.hidden.items() %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
-        {% for field in form.fields %}<label class="block">{{ field.label }}
-          {% if field.options is not none %}<select name="{{ field.name }}" class="block border rounded p-2 w-full" {% if field.required %}required{% endif %}>{% for value,label in field.options %}<option value="{{ value }}" {% if value|string == field.value|string %}selected{% endif %}>{{ label }}</option>{% else %}<option value="">No eligible records available</option>{% endfor %}</select>
-          {% elif field.kind == 'textarea' %}<textarea name="{{ field.name }}" rows="4" class="block border rounded p-2 w-full" {% if field.required %}required{% endif %}>{{ field.value }}</textarea>
-          {% else %}<input name="{{ field.name }}" type="{{ field.kind }}" value="{{ field.value }}" class="block border rounded p-2 w-full" {% if field.required %}required{% endif %}>{% endif %}
-        </label>{% endfor %}
-        <button class="bg-indigo-700 text-white rounded px-4 py-2" type="submit">{{ form.title }}</button>
-      </form>
-    </section>{% endfor %}</div>
-</main>
-{% endblock %}
+{% extends 'uip/base.html' %}{% block title %}{{ title }} — {{ org.name }}{% endblock %}{% block content %}<header class="ui-page-head"><div><h1>{{ {'Meetings and quorum':'Meetings','Controlled documents':'Documents','Governance decisions':'Decisions','Reception actions':'Interactions & Issues','SLA':'Service standards & monitoring'}.get(title,title) }}</h1></div>{% if forms %}<a class="ui-btn ui-btn-primary" href="#workflow-actions">Actions ↓</a>{% endif %}</header>{% include 'partials/flash_messages.html' %}
+{% set parent_links=notes|select('mapping')|list %}{% if parent_links %}<div class="ui-actions" style="margin-bottom:20px">{% for note in parent_links %}<a class="ui-btn" href="{{ note.href }}">{{ note.label }}</a>{% endfor %}</div>{% endif %}
+<section class="ui-card"><div class="ui-table-wrap"><table><thead><tr>{% for column in columns %}<th>{{ column }}</th>{% endfor %}</tr></thead><tbody>{% for row in rows %}<tr>{% for cell in row %}<td>{% if cell is mapping %}<a href="{{ cell.href }}">{{ cell.label }}</a>{% else %}{{ uip_display(cell) }}{% endif %}</td>{% endfor %}</tr>{% else %}<tr><td class="ui-empty" colspan="{{ columns|length }}">No records yet.{% if forms %} Use the actions below to get started.{% endif %}</td></tr>{% endfor %}</tbody></table></div></section>
+<section id="workflow-actions">{% for form in forms %}<details class="ui-disclosure" {% if not rows and loop.first %}open{% endif %}><summary>{{ form.title }}</summary><div class="ui-disclosure-body"><form method="post" enctype="multipart/form-data" class="ui-form-column"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="operation" value="{{ form.operation }}">{% for name,value in form.hidden.items() %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}<div class="ui-two">{% for field in form.fields %}<label>{{ field.label }}{% if field.options is not none %}<select name="{{ field.name }}" {% if field.required %}required{% endif %}>{% for value,label in field.options %}<option value="{{ value }}" {% if value|string == field.value|string %}selected{% endif %}>{{ label }}</option>{% else %}<option value="">No eligible records available</option>{% endfor %}</select>{% elif field.kind == 'textarea' %}<textarea name="{{ field.name }}" rows="4" {% if field.required %}required{% endif %}>{{ field.value }}</textarea>{% else %}<input name="{{ field.name }}" type="{{ field.kind }}" value="{{ field.value }}" {% if field.required %}required{% endif %}>{% endif %}</label>{% endfor %}</div><button type="submit">{{ form.title }}</button></form></div></details>{% endfor %}</section>
+{% if notes|reject('mapping')|list %}<details class="ui-disclosure"><summary>Details & guidance</summary><div class="ui-disclosure-body">{% for note in notes if note is not mapping %}<p class="ui-help">{{ note }}</p>{% endfor %}</div></details>{% endif %}{% endblock %}

@@ -1,14 +1,157 @@
-{% extends 'uip/base.html' %}{% block title %}Command Centre — {{ org.name }}{% endblock %}
-{% block content %}<header class="ui-page-head"><div><p class="ui-eyebrow">{{ org.name }}</p><h1>Command Centre</h1><p class="ui-subtitle">Your precinct at a glance.</p></div><div class="ui-actions">
-<a class="ui-btn ui-btn-primary" href="{{ url_for('uip_bp.new_interaction', org_slug=org.slug) }}">+ Log interaction</a>
-<a class="ui-btn" href="{{ url_for('uip_bp.member_form', org_slug=org.slug) }}">Register ratepayer</a><a class="ui-btn" href="{{ url_for('uip_bp.property_form', org_slug=org.slug) }}">Add property</a><a class="ui-btn" href="{{ url_for('uip_bp.reception_page', org_slug=org.slug, status='unassigned') }}">Create work order</a></div></header>
+{% extends 'uip/base.html' %}
+{% block title %}Command Centre — {{ org.name }}{% endblock %}
+
+{% block content %}
+<header class="ui-page-head">
+    <div>
+        <p class="ui-eyebrow">{{ org.name }}</p>
+        <h1>Command Centre</h1>
+        <p class="ui-subtitle">Your precinct at a glance.</p>
+    </div>
+
+    <div class="ui-actions ui-command-actions">
+        <a class="ui-btn ui-btn-primary"
+           href="{{ url_for('uip_bp.new_interaction', org_slug=org.slug) }}">
+            + Log interaction
+        </a>
+        <a class="ui-btn"
+           href="{{ url_for('uip_bp.member_form', org_slug=org.slug) }}">
+            Register ratepayer
+        </a>
+        <a class="ui-btn"
+           href="{{ url_for('uip_bp.property_form', org_slug=org.slug) }}">
+            Add property
+        </a>
+        <a class="ui-btn"
+           href="{{ url_for('uip_bp.reception_page', org_slug=org.slug, status='unassigned') }}">
+            Create work order
+        </a>
+    </div>
+</header>
+
 {% include 'partials/flash_messages.html' %}
-{% if overview.empty %}<section class="ui-welcome"><div><h2>Set up {{ org.name }}</h2><p>Add ratepayers · Add properties · Link ratepayers and properties · Register providers · Configure service standards</p></div><a class="ui-btn" href="{{ url_for('uip_bp.setup_page', org_slug=org.slug) }}">Continue setup</a></section>{% endif %}
-<section class="ui-summary" aria-label="Operational summary">{% for label,value,endpoint in overview.cards %}<a class="ui-stat" href="{{ url_for('uip_bp.' ~ endpoint, org_slug=org.slug) }}"><span class="ui-stat-label">{{ label }}</span><strong>{{ value }}</strong></a>{% endfor %}</section>
-<div class="ui-split"><section class="ui-card"><header class="ui-card-head"><h2>Attention Required</h2><span class="ui-help">{{ overview.attention|length }} item{{ '' if overview.attention|length == 1 else 's' }}</span></header>
-{% for item in overview.attention[:5] %}<div class="ui-attention-row"><span class="ui-dot"></span><div><strong>{{ item.label }}</strong><small>{{ item.detail }}</small></div><a href="{{ url_for('uip_bp.' ~ item.endpoint, org_slug=org.slug, **item.params) }}">Review →</a></div>{% else %}<p class="ui-empty">Nothing currently requires urgent attention.</p>{% endfor %}
-{% if overview.attention|length > 5 %}<details class="ui-disclosure"><summary>Show {{ overview.attention|length - 5 }} more items</summary><div class="ui-disclosure-body">{% for item in overview.attention[5:] %}<div class="ui-attention-row"><div><strong>{{ item.label }}</strong><small>{{ item.detail }}</small></div><a href="{{ url_for('uip_bp.' ~ item.endpoint, org_slug=org.slug, **item.params) }}">Review →</a></div>{% endfor %}</div></details>{% endif %}</section>
-<section class="ui-card"><header class="ui-card-head"><h2>Recent activity</h2><span class="ui-help">Latest updates</span></header>{% for label,at in overview.activity %}<div class="ui-activity-row"><span class="ui-dot"></span><div>{{ label }}<small>{{ at.strftime('%d %b · %H:%M') }} UTC</small></div></div>{% else %}<p class="ui-empty">Your team's activity will appear here as work is recorded.</p>{% endfor %}</section></div>
-<section class="ui-card"><header class="ui-card-head"><h2>Current issues</h2><a href="{{ url_for('uip_bp.reception_page', org_slug=org.slug) }}">View all issues →</a></header>{% with issue_rows=overview.current_issues %}{% include 'uip/issue_table.html' %}{% endwith %}</section>
-<section class="ui-card"><header class="ui-card-head"><h2>Service performance</h2></header>{% if overview.performance %}<div class="ui-inline-stats">{% for label,value in overview.performance %}<div><strong>{{ value }}</strong><span>{{ label }}</span></div>{% endfor %}</div>{% else %}<p class="ui-help">Service performance statistics will appear once completed cases provide sufficient recorded data.</p>{% endif %}</section>
+
+{% if overview.empty %}
+<section class="ui-welcome">
+    <div>
+        <h2>Set up {{ org.name }}</h2>
+        <p>
+            Add ratepayers · Add properties · Link ratepayers and properties ·
+            Register providers · Configure service standards
+        </p>
+    </div>
+    <a class="ui-btn" href="{{ url_for('uip_bp.setup_page', org_slug=org.slug) }}">
+        Continue setup
+    </a>
+</section>
+{% endif %}
+
+<section class="ui-summary" aria-label="Operational summary">
+    {% for label, value, endpoint in overview.cards %}
+    <a class="ui-stat" href="{{ url_for('uip_bp.' ~ endpoint, org_slug=org.slug) }}">
+        <span class="ui-stat-label">{{ label }}</span>
+        <strong>{{ value }}</strong>
+    </a>
+    {% endfor %}
+</section>
+
+<div class="ui-split">
+    <section class="ui-card">
+        <header class="ui-card-head">
+            <h2>Attention Required</h2>
+            <span class="ui-help">
+                {{ overview.attention|length }}
+                item{{ '' if overview.attention|length == 1 else 's' }}
+            </span>
+        </header>
+
+        {% for item in overview.attention[:5] %}
+        <div class="ui-attention-row">
+            <span class="ui-dot"></span>
+            <div>
+                <strong>{{ item.label }}</strong>
+                <small>{{ item.detail }}</small>
+            </div>
+            <a href="{{ url_for('uip_bp.' ~ item.endpoint, org_slug=org.slug, **item.params) }}">
+                Review →
+            </a>
+        </div>
+        {% else %}
+        <p class="ui-empty">Nothing currently requires urgent attention.</p>
+        {% endfor %}
+
+        {% if overview.attention|length > 5 %}
+        <details class="ui-disclosure">
+            <summary>Show {{ overview.attention|length - 5 }} more items</summary>
+            <div class="ui-disclosure-body">
+                {% for item in overview.attention[5:] %}
+                <div class="ui-attention-row">
+                    <div>
+                        <strong>{{ item.label }}</strong>
+                        <small>{{ item.detail }}</small>
+                    </div>
+                    <a href="{{ url_for('uip_bp.' ~ item.endpoint, org_slug=org.slug, **item.params) }}">
+                        Review →
+                    </a>
+                </div>
+                {% endfor %}
+            </div>
+        </details>
+        {% endif %}
+    </section>
+
+    <section class="ui-card">
+        <header class="ui-card-head">
+            <h2>Recent activity</h2>
+            <span class="ui-help">Latest updates</span>
+        </header>
+
+        {% for label, at in overview.activity %}
+        <div class="ui-activity-row">
+            <span class="ui-dot"></span>
+            <div>
+                {{ label }}
+                <small>{{ at.strftime('%d %b · %H:%M') }} UTC</small>
+            </div>
+        </div>
+        {% else %}
+        <p class="ui-empty">Your team's activity will appear here as work is recorded.</p>
+        {% endfor %}
+    </section>
+</div>
+
+<section class="ui-card">
+    <header class="ui-card-head">
+        <h2>Current issues</h2>
+        <a href="{{ url_for('uip_bp.reception_page', org_slug=org.slug) }}">
+            View all issues →
+        </a>
+    </header>
+
+    {% with issue_rows=overview.current_issues %}
+        {% include 'uip/issue_table.html' %}
+    {% endwith %}
+</section>
+
+<section class="ui-card">
+    <header class="ui-card-head">
+        <h2>Service performance</h2>
+    </header>
+
+    {% if overview.performance %}
+    <div class="ui-inline-stats">
+        {% for label, value in overview.performance %}
+        <div>
+            <strong>{{ value }}</strong>
+            <span>{{ label }}</span>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="ui-help">
+        Service performance statistics will appear once completed cases provide
+        sufficient recorded data.
+    </p>
+    {% endif %}
+</section>
 {% endblock %}

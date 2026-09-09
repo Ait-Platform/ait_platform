@@ -402,3 +402,5 @@ class UipWorkOrderAction(db.Model):
 # Register the additive UIP models with both the application and isolated harness.
 from .uip_operations import UipFollowUp, UipReferralEvent, UipCommunicationLog, UipDocumentFolder, UipDocumentVersion
 from .uip_governance import UipQuorumRule, UipMeetingParticipant, UipSurvey, UipSurveyResponse, UipDecisionEvent
+
+from .uip_finance import UipFinanceTransaction, UipFinanceCommitment, UipFinanceBudgetLine, UipFinanceBudgetRevision, UipFinanceCommitmentRevision

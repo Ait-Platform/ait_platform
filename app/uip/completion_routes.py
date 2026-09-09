@@ -44,6 +44,7 @@ def navigation_context():
         ("Meetings / Attendance / Quorum", "meetings_page", admin),
         ("Surveys / Polls", "surveys_page", admin | {"resident", "owner"}),
         ("Governance decisions", "decisions_page", admin),
+        *((label, endpoint, {"manager", "committee_member", "owner", "resident"}) for label, endpoint in (("Finance overview", "finance_overview"), ("Transactions", "finance_transactions"), ("Budget", "finance_budget"), ("Commitments", "finance_commitments"))),
         ("Reports / Exports", "org_reports", admin),
         ("Organisation settings", "org_settings", set(audit.WRITE_ROLES)),
         ("UIP audit", "audit_history", set(audit.AUDIT_ROLES)),
@@ -54,6 +55,7 @@ def navigation_context():
         ("Operations", [("Interactions & Issues", "reception_page"), ("Tasks / Follow-ups", "tasks_page"), ("Municipal Matters", "municipal_list"), ("Communications", "communications_list")]),
         ("Service Providers", [("Providers", "provider_list"), ("Work Orders", "work_order_list"), ("Routing & SLA", "service_standards")]),
         ("Governance", [("Meetings", "meetings_page"), ("Surveys", "surveys_page"), ("Decisions", "decisions_page"), ("Documents", "documents_page")]),
+        ("Finance", [("Overview", "finance_overview"), ("Transactions", "finance_transactions"), ("Budget", "finance_budget"), ("Commitments", "finance_commitments")]),
         ("Reports", [("Reports / Exports", "org_reports")]),
         ("Administration", [("Organisation Settings", "org_settings"), ("UIP Audit", "audit_history")]),
     )
@@ -64,10 +66,10 @@ def navigation_context():
         allowed.add("service_standards")
     if roles == {"provider"}:
         allowed.discard("dashboard")
-    aliases = {"member_form": "member_list", "member_view": "member_list", "property_form": "property_list", "property_view": "property_list",
+    aliases = {"finance_transaction_new": "finance_transactions", "finance_transaction": "finance_transactions", "finance_commitment": "finance_commitments", "finance_report": "finance_overview", "setup_page": "org_settings","member_form": "member_list", "member_view": "member_list", "property_form": "property_list", "property_view": "property_list",
         "new_interaction": "reception_page", "view_interaction": "reception_page", "reception_issue": "reception_page",
         "provider_form": "provider_list", "provider_view": "provider_list", "work_order_view": "work_order_list",
-        "routing_page": "service_standards", "sla_page": "service_standards", "referral_page": "municipal_list",
+        "routing_page": "service_standards", "provider_performance": "service_standards", "sla_page": "service_standards", "referral_page": "municipal_list",
         "meeting_page": "meetings_page", "survey_page": "surveys_page", "document_page": "documents_page", "audit_event": "audit_history"}
     endpoint = (request.endpoint or "").split(".")[-1]
     active = aliases.get(endpoint, endpoint)

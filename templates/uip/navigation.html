@@ -1,4 +1,4 @@
 <nav aria-label="UIP Command Centre" class="ui-navigation">
-{% for group, items in uip_nav_groups.items() %}<section class="ui-nav-group"><h2>{{ group }}</h2>
-{% for item in items %}<a href="{{ item.href }}" {% if item.active %}aria-current="page"{% endif %}>{{ item.label }}</a>{% endfor %}</section>{% endfor %}
+{% for group, items in uip_nav_groups.items() %}<details class="ui-nav-group" {% if items|selectattr('active')|list %}open{% endif %}><summary>{{ group }}</summary>
+{% for item in items %}<a href="{{ item.href }}" {% if item.active %}aria-current="page"{% endif %}>{{ item.label }}</a>{% endfor %}</details>{% endfor %}
 </nav>

@@ -48,7 +48,7 @@
 
 <section class="ui-summary" aria-label="Operational summary">
     {% for label, value, endpoint in overview.cards %}
-    <a class="ui-stat" href="{{ url_for('uip_bp.' ~ endpoint, org_slug=org.slug) }}">
+    <a class="ui-stat ui-stat-{{ {'reception_page':'blue','tasks_page':'violet','work_order_list':'green','sla_page':'rose','municipal_list':'amber','meetings_page':'teal'}.get(endpoint,'blue') }}" href="{{ url_for('uip_bp.' ~ endpoint, org_slug=org.slug) }}">
         <span class="ui-stat-label">{{ label }}</span>
         <strong>{{ value }}</strong>
     </a>

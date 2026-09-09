@@ -64,6 +64,14 @@ def migrate_phase49(connection):
         module.upgrade()
 
 
+def migrate_phase10(connection):
+    spec = importlib.util.spec_from_file_location("uip_phase10_revision", ROOT / "migrations/versions/uip_p10_finance.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    with Operations.context(MigrationContext.configure(connection)):
+        module.upgrade()
+
+
 @pytest.fixture(scope="session")
 def phase2_engine():
     url = safe_url(os.environ.get("UIP_TEST_DATABASE_URL"))
@@ -100,6 +108,7 @@ def engine():
             migrate(connection)
             migrate_phase3(connection)
             migrate_phase49(connection)
+            migrate_phase10(connection)
         yield engine
     finally:
         engine.dispose()

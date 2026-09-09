@@ -26,3 +26,5 @@ def establish_organization_context():
 from . import routes
 from . import operational_routes
 from . import completion_routes
+
+from . import finance_routes

@@ -18,7 +18,7 @@ def test_executive_scoped_real_data_and_no_read_mutation(client, data):
     before = uip.UipAuditEvent.query.count()
     result = client.get(BASE + "/dashboard")
     assert result.status_code == 200
-    assert result.data.count(b'class="ui-stat"') == 6
+    assert len(re.findall(rb'class="ui-stat(?: |")', result.data)) == 6
     assert b"AI Auto-Triage" not in result.data and b"No recorded sample" not in result.data
     assert b"Other issue" not in result.data and b"OTHER-TEST" not in result.data
     assert b"Set up Manor Gardens" not in result.data  # Existing operational issue.
@@ -35,7 +35,7 @@ def test_empty_dashboard_compact_welcome(client, data):
     result = client.get(BASE + "/dashboard")
     assert b"Continue setup" in result.data
     assert b"Nothing currently requires urgent attention." in result.data
-    assert result.data.count(b'class="ui-stat"') == 6
+    assert len(re.findall(rb'class="ui-stat(?: |")', result.data)) == 6
 
 
 def test_register_search_filter_and_links(client, data):

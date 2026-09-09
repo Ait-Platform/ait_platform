@@ -145,9 +145,23 @@ def new_interaction(org_slug):
     g.intake_property_id = selected_property.id if selected_property else None
     from app.uip.presentation import current_relationship
     g.intake_property_members = {}
+    intake_relationships = []
     for relationship in UipPropertyMember.query.filter_by(organization_id=org.id).all():
         if current_relationship(relationship):
             g.intake_property_members.setdefault(relationship.property_id, []).append(relationship.member_id)
+            intake_relationships.append(dict(member_id=relationship.member_id,
+                property_id=relationship.property_id, relationship=relationship.relationship,
+                verified=relationship.is_verified))
+    # Only authorized, active records from this organisation enter the intake view.
+    member_ids = {m.id for m in register_members}
+    property_ids = {p.id for p in register_properties}
+    g.intake_register = dict(
+        members=[dict(id=m.id, name=m.name, reference=m.reference, email=m.email,
+                      phone=m.phone) for m in register_members],
+        properties=[dict(id=p.id, reference=p.reference, address=p.address,
+                         rates_reference=p.rates_reference) for p in register_properties],
+        relationships=[r for r in intake_relationships
+                       if r['member_id'] in member_ids and r['property_id'] in property_ids])
     if selected_member:
         register_properties.sort(key=lambda p: selected_member.id not in g.intake_property_members.get(p.id, []))
     if request.method == "POST":

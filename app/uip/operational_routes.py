@@ -392,7 +392,7 @@ def survey_page(org_slug, survey_id):
     forms, rows = [], []
     response_notes = []
     if row.status == "OPEN" and sla.utc(row.opens_at) <= now < sla.utc(row.closes_at):
-        basis = governance.eligibility(org, now.date(), row.relationship)
+        basis = row.eligibility_snapshot if row.eligibility_snapshot is not None else governance.eligibility(org, now.date(), row.relationship)
         active_members = UipMemberProfile.query.filter_by(organization_id=org, is_active=True).all()
         member_names = {m.id: m.name for m in active_members}
         my_members = {m.id for m in active_members if m.membership.user_id == actor}
@@ -417,6 +417,8 @@ def survey_page(org_slug, survey_id):
     if row.status == "OPEN" and not forms and not response_notes:
         notes.append("Responses require an open survey and a linked account belonging to an eligible member or their verified dated representative. Administrator roles alone do not qualify.")
     notes.append(link("Survey register", "surveys_page"))
+    if is_admin():
+        notes.append(link("Voting Invitations", "voting_invitations", survey_id=row.id))
     if is_admin() and row.status == "FINALIZED":
         notes.append(link("Record decision from these results", "decisions_page", survey_id=row.id))
     return page(row.title, ["Question", "Answer", "Count"], rows, forms, notes)

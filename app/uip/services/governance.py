@@ -195,6 +195,7 @@ def survey(org, actor, values, questions):
         purpose=text(values.get("purpose"), 4000, True), opens_at=opens, closes_at=closes,
         relationship=relationship, identifiable=identifiable == "yes", questions=clean,
         status="OPEN", created_by=actor)
+    row.eligibility_snapshot = eligibility(org, opens.date(), relationship)
     db.session.add(row)
     audit.record(org, actor, "survey.created", row)
     return row
@@ -204,18 +205,31 @@ def respond(org, actor, survey_id, member_id, answers):
     audit.authorize(org, actor, READ)
     member_id = identifier(member_id)
     row = UipSurvey.query.filter_by(organization_id=org, id=survey_id).populate_existing().with_for_update().first_or_404()
-    now = datetime.now(timezone.utc)
-    if row.status != "OPEN" or not utc(row.opens_at) <= now < utc(row.closes_at):
-        abort(409, description="This survey is not open for responses.")
-    basis = eligibility(org, now.date(), row.relationship).get(str(member_id))
-    if not basis:
-        abort(403, description="This member is not eligible under the dated register.")
+    basis = response_basis(row, member_id)
     allowed_members = [basis["member_id"]] + [r["member_id"] for r in basis["representatives"]]
     # The logged-in actor must be the member or their dated verified representative.
     candidates = UipMemberProfile.query.filter(UipMemberProfile.organization_id == org,
                                               UipMemberProfile.id.in_(allowed_members)).all()
     if not any(m.membership.user_id == actor for m in candidates):
         abort(403)
+    return store_response(row, actor, member_id, answers, basis)
+
+
+def response_basis(row, member_id):
+    now = datetime.now(timezone.utc)
+    if row.status != "OPEN" or not utc(row.opens_at) <= now < utc(row.closes_at):
+        abort(409, description="This survey is not open for responses.")
+    if row.eligibility_snapshot is None:
+        row.eligibility_snapshot = eligibility(row.organization_id, now.date(), row.relationship)
+    basis = row.eligibility_snapshot.get(str(member_id))
+    if not basis:
+        abort(403, description="This member is not in the survey eligibility snapshot.")
+    return basis
+
+
+def store_response(row, actor, member_id, answers, basis):
+    """Internal common ballot writer; callers authenticate login or invitation first."""
+    org = row.organization_id
     if UipSurveyResponse.query.filter_by(organization_id=org, survey_id=row.id, member_id=member_id).first():
         abort(409, description="A response is already recorded for this eligible member.")
     if not isinstance(answers, dict) or set(answers) != {q["id"] for q in row.questions}:
@@ -224,10 +238,14 @@ def respond(org, actor, survey_id, member_id, answers):
         if answers[question["id"]] not in question["options"]:
             abort(400, description="Choose an allowed answer.")
     response = UipSurveyResponse(organization_id=org, survey_id=row.id, member_id=member_id,
-        actor_user_id=actor, eligibility_basis=basis, answers=answers, responded_at=now)
+        actor_user_id=actor, eligibility_basis=basis, answers=answers, responded_at=datetime.now(timezone.utc))
     db.session.add(response)
-    # The survey is audited, not the identifiable response ID.
-    audit.record(org, actor, "survey.responded", row)
+    if actor is not None:
+        audit.record(org, actor, "survey.responded", row)
+    else:
+        from app.models.uip import UipAuditEvent
+        db.session.add(UipAuditEvent(organization_id=org, actor_user_id=None, action="survey.responded",
+            entity_type="UipSurvey", entity_id=row.id, metadata_json={"source": "secure_invitation"}))
     return response
 
 

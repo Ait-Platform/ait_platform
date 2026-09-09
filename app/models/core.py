@@ -8,6 +8,8 @@ class CoreOrganizationWallet(db.Model):
     balance = db.Column(db.Integer, default=1000, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
+    status = db.Column(db.String(20))
+    updated_at = db.Column(db.DateTime(timezone=True))
     transactions = db.relationship("CoreOrganizationLedger", back_populates="wallet", cascade="all, delete-orphan")
 
 class CoreOrganizationLedger(db.Model):
@@ -18,6 +20,12 @@ class CoreOrganizationLedger(db.Model):
     description = db.Column(db.String(255))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
+    reference = db.Column(db.String(80), unique=True)
+    entry_type = db.Column(db.String(30))
+    product = db.Column(db.String(30))
+    actor_user_id = db.Column(db.Integer, db.ForeignKey("user.id"))
+    request_id = db.Column(db.Integer, db.ForeignKey("core_ai_request.id"))
+    balance_after = db.Column(db.Integer)
     wallet = db.relationship("CoreOrganizationWallet", back_populates="transactions")
 
 class CoreOrganization(db.Model):
@@ -253,6 +261,13 @@ class CoreAiRequest(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
     interaction_id = db.Column(db.Integer, db.ForeignKey("core_interaction.id"), nullable=True)
     
+    request_key = db.Column(db.String(36))
+    product = db.Column(db.String(30))
+    feature = db.Column(db.String(50))
+    input_digest = db.Column(db.String(64))
+    credits = db.Column(db.Integer)
+    error_category = db.Column(db.String(50))
+    __table_args__ = (db.UniqueConstraint("organization_id", "product", "request_key", name="uq_core_ai_request_key"),)
     # Model Router: 'luna' (simple), 'terra' (complex), 'sol' (exceptional)
     model_requested = db.Column(db.String(50), default="luna")
     provider_used = db.Column(db.String(50)) # e.g., 'gemini', 'openai'
@@ -273,6 +288,8 @@ class CoreAiUsage(db.Model):
     tokens_out = db.Column(db.Integer, default=0)
     cost_cents = db.Column(db.Integer, default=0)
     
+    credits_charged = db.Column(db.Integer)
+    organization_ledger_id = db.Column(db.Integer, db.ForeignKey("core_organization_ledger.id"), unique=True)
     # Link to the legacy AitTokenTransaction when we debit the user's wallet
     ledger_transaction_id = db.Column(db.Integer, db.ForeignKey("ait_token_transaction.id"), nullable=True)
     

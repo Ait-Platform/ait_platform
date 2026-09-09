@@ -330,7 +330,7 @@ class UipAuditEvent(db.Model):
     __tablename__ = "uip_audit_event"
     id = db.Column(db.Integer, primary_key=True)
     organization_id = db.Column(db.Integer, db.ForeignKey("core_organization.id"), nullable=False)
-    actor_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    actor_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
     action = db.Column(db.String(80), nullable=False)
     entity_type = db.Column(db.String(50), nullable=False)
     entity_id = db.Column(db.Integer, nullable=False)
@@ -404,3 +404,5 @@ from .uip_operations import UipFollowUp, UipReferralEvent, UipCommunicationLog, 
 from .uip_governance import UipQuorumRule, UipMeetingParticipant, UipSurvey, UipSurveyResponse, UipDecisionEvent
 
 from .uip_finance import UipFinanceTransaction, UipFinanceCommitment, UipFinanceBudgetLine, UipFinanceBudgetRevision, UipFinanceCommitmentRevision
+
+from .uip_invitations import UipVotingInvitation

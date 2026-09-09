@@ -36,3 +36,5 @@
 .ui-finance-totals>div{flex-basis:210px}.ui-finance-totals strong{font-size:24px;overflow-wrap:anywhere}
 
 .ui-finance-detail{overflow-wrap:anywhere}
+
+.ui-topbar .ui-btn{display:inline-flex;padding:6px 9px;border:1px solid var(--control-border);border-radius:7px;background:#e8edf6;color:#293b58;font-size:13px;line-height:1.4}.ui-topbar .ui-btn:hover{background:#dce4f0}.ui-topbar{gap:10px;min-height:67px;height:auto;padding-top:12px;padding-bottom:12px}.ui-topbar>span{min-width:0;overflow-wrap:anywhere}.ui-topbar .ui-actions{flex-shrink:0}@media(max-width:540px){.ui-topbar{align-items:flex-start;flex-wrap:wrap}}

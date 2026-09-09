@@ -28,3 +28,11 @@ from . import operational_routes
 from . import completion_routes
 
 from . import finance_routes
+
+from . import pilot_routes
+
+
+@uip_bp.record_once
+def install_request_privacy(state):
+    from .log_privacy import install
+    install(state.app)

@@ -72,6 +72,14 @@ def migrate_phase10(connection):
         module.upgrade()
 
 
+def migrate_phase11(connection):
+    spec = importlib.util.spec_from_file_location("uip_phase11_revision", ROOT / "migrations/versions/uip_p11_completion.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    with Operations.context(MigrationContext.configure(connection)):
+        module.upgrade()
+
+
 @pytest.fixture(scope="session")
 def phase2_engine():
     url = safe_url(os.environ.get("UIP_TEST_DATABASE_URL"))
@@ -109,6 +117,7 @@ def engine():
             migrate_phase3(connection)
             migrate_phase49(connection)
             migrate_phase10(connection)
+            migrate_phase11(connection)
         yield engine
     finally:
         engine.dispose()
@@ -131,6 +140,7 @@ def app(engine):
     login_manager.user_loader(lambda uid: db.session.get(User, int(uid)))
     app.register_blueprint(uip_bp)
     app.add_url_rule("/", endpoint="public_bp.welcome", view_func=lambda: "Test home")
+    app.add_url_rule("/logout", endpoint="auth_bp.logout", view_func=lambda: "Logout link target")
     # Real UIP templates/layout; omit the unrelated global navigation.
     app.context_processor(lambda: dict(hide_navbar=True))
     with app.app_context():

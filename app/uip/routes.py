@@ -11,7 +11,6 @@ from app.models.auth import User
 from app.models.core import CoreInteraction, CoreOrganizationMember, CoreRole, CoreRoleAssignment, CoreTask
 from app.models.uip import UipMunicipalReferral, UipProvider, UipWorkOrder
 from app.uip import uip_bp
-from app.uip.gateway import LunaGateway
 from app.uip.services import audit, register, providers, work_orders, operations
 from app.uip.services import routing, sla, reception
 from app.uip.services.dashboard import metrics
@@ -259,9 +258,7 @@ def resolve_interaction(org_slug, reference):
 def summarize_interaction(org_slug, reference):
     _require_role("manager", "receptionist")
     ix = _interaction(reference)
-    result = LunaGateway.ask_luna("", interaction_id=ix.id)
-    flash(result["message"], "warning")
-    return redirect(url_for("uip_bp.view_interaction", org_slug=org_slug, reference=reference))
+    return redirect(url_for("uip_bp.ai_assistant", org_slug=org_slug, feature="issue", issue_id=ix.id))
 
 
 @uip_bp.route("/<org_slug>/interaction/<reference>/provider", methods=["POST"])
@@ -309,9 +306,7 @@ def org_reports(org_slug):
 @login_required
 def generate_ai_report(org_slug):
     _require_role("manager", "committee_member")
-    result = LunaGateway.ask_luna("")
-    flash(result["message"], "warning")
-    return redirect(url_for("uip_bp.org_reports", org_slug=org_slug))
+    return redirect(url_for("uip_bp.ai_assistant", org_slug=org_slug, feature="activity"))
 
 
 @uip_bp.route("/")

@@ -1,6 +1,7 @@
 """Register operations. No commits: routes own the complete transaction."""
 from datetime import date
 from flask import abort
+from werkzeug.exceptions import BadRequest
 from app.extensions import db
 from app.models.core import CoreOrganizationMember
 from app.models.uip import (UipMemberProfile, UipProperty, UipPropertyMember,
@@ -59,10 +60,17 @@ def text(data, key, limit, required=False):
     return value or None
 
 
+class InvalidRegisterOption(BadRequest):
+    """Carry the exact failed choice for CSV diagnostics; manual UI stays unchanged."""
+    def __init__(self, column, value, allowed):
+        super().__init__(description="Invalid register option.")
+        self.column, self.value, self.allowed = column, value, tuple(allowed)
+
+
 def choice(data, key, values):
     value = data.get(key)
     if value not in values:
-        abort(400, description="Invalid register option.")
+        raise InvalidRegisterOption(key, value, values)
     return value
 
 

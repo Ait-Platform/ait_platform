@@ -206,6 +206,13 @@ def import_rows(kind, content):
                     abort(409, description="Duplicate dated relationship.")
                 register.save_relationship(org, actor, dict(row, member_id=member.id), property_id=prop.id)
             db.session.flush()
+        except register.InvalidRegisterOption as error:
+            # Only echo the rejected option, never the rest of the contact row.
+            # ASCII escaping exposes invisible characters; Jinja escapes HTML.
+            value = error.value
+            shown = ascii(value[:80]) + ("... (truncated)" if len(value) > 80 else "") if isinstance(value, str) else ascii(value)
+            allowed = ", ".join(ascii(option) for option in error.allowed)
+            abort(400, description=f"CSV row {number}: column '{error.column}' has invalid value {shown}. Accepted values: {allowed} (case-sensitive).")
         except HTTPException as error:
             abort(error.code, description=f"CSV row {number}: {error.description}")
         except IntegrityError:

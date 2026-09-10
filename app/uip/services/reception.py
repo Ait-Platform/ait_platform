@@ -26,6 +26,113 @@ SHORT_TITLE_PRESETS = {
         ],
         "other_label": "Other cleaning issue",
     },
+
+    "GENERAL ENQUIRY": {
+        "presets": [
+            "General information request",
+            "Contact details request",
+            "Office hours enquiry",
+            "Service information request",
+            "Application / process enquiry",
+            "Status follow-up",
+            "Referral to correct department",
+            "Request for assistance",
+        ],
+        "other_label": "Other general enquiry",
+    },
+
+    "SERVICE ISSUE": {
+        "presets": [
+            "Service not provided",
+            "Service delayed",
+            "Poor service",
+            "Repeated service failure",
+            "Missed service request",
+            "Incorrect service provided",
+            "Service interruption",
+            "Previous complaint unresolved",
+        ],
+        "other_label": "Other service issue",
+    },
+
+    "SECURITY": {
+        "presets": [
+            "Suspicious activity",
+            "Vandalism",
+            "Theft reported",
+            "Break-in reported",
+            "Trespassing",
+            "Illegal occupation",
+            "Public safety concern",
+            "Damaged security infrastructure",
+            "Streetlight safety concern",
+        ],
+        "other_label": "Other security issue",
+    },
+
+    "MAINTENANCE": {
+        "presets": [
+            "Pothole",
+            "Road surface damaged",
+            "Pavement damaged",
+            "Kerb damaged",
+            "Public building repair",
+            "Fence / barrier damaged",
+            "Signage damaged",
+            "Stormwater infrastructure damaged",
+            "Public facility maintenance",
+            "Tree maintenance required",
+        ],
+        "other_label": "Other maintenance issue",
+    },
+
+    "MUNICIPAL SERVICE": {
+        "presets": [
+            "Water outage",
+            "Water leak",
+            "Low water pressure",
+            "Electricity outage",
+            "Streetlight not working",
+            "Sewer blockage / overflow",
+            "Stormwater drain blocked",
+            "Refuse collection issue",
+            "Municipal meter issue",
+            "Road / traffic signal issue",
+        ],
+        "other_label": "Other municipal service issue",
+    },
+
+    "COMMUNITY MATTER": {
+        "presets": [
+            "Community complaint",
+            "Neighbourhood concern",
+            "Public meeting enquiry",
+            "Community event enquiry",
+            "Noise complaint",
+            "Informal settlement concern",
+            "Public space concern",
+            "Community facility issue",
+            "Request for community assistance",
+            "Ward matter / referral",
+        ],
+        "other_label": "Other community matter",
+    },
+
+    "FINANCIAL": {
+        "presets": [
+            "Municipal account enquiry",
+            "Incorrect charge",
+            "Payment not reflected",
+            "Outstanding balance enquiry",
+            "Rates enquiry",
+            "Utility billing enquiry",
+            "Meter reading / billing query",
+            "Refund enquiry",
+            "Payment arrangement enquiry",
+            "Statement request",
+        ],
+        "other_label": "Other financial issue",
+    },
 }
 
 METHODS = {"TELEPHONE", "EMAIL", "WHATSAPP", "IN_PERSON", "INTERNAL", "OTHER"}

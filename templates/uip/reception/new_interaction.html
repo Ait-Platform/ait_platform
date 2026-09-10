@@ -9,8 +9,52 @@
 <label>Find property<input type="search" id="property-search" aria-controls="property_id" placeholder="Address, property reference or rates reference"></label><label>Property<select id="property_id" name="property_id"><option value="">No property linked</option>{% for item in register_properties %}<option value="{{ item.id }}" data-members='{{ g.intake_property_members.get(item.id, [])|tojson }}' {% if g.intake_property_id == item.id %}selected{% endif %}>{{ item.address }} · {{ item.reference }} · {{ item.rates_reference or 'No rates reference' }}</option>{% endfor %}</select></label>
 {% if uip_can_capture %}<a id="add-property" class="ui-btn" href="{{ url_for('uip_bp.property_form', org_slug=org.slug, return_to='intake', member_id=g.intake_member_id) }}">Add new property</a>{% endif %}</fieldset>
 <fieldset class="ui-form-section"><legend>3 · Interaction</legend>
-<section aria-label="Selected register information"><h2>Register information</h2><dl id="intake-register-summary" class="ui-two" aria-live="polite"></dl><p class="ui-help">These details come from the UIP register. Missing contact details must be updated through the authorised register-edit workflow.</p></section><div class="ui-two"><label>Method / channel<select name="channel" required>{% for v,l in [('Telephone','Telephone'),('Reception','In person'),('Email','Email'),('Web','Web'),('WhatsApp','WhatsApp')] %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select></label><label>Category<select name="category" required><option value="">Choose a category</option>{% for value in ['GENERAL ENQUIRY','SERVICE ISSUE','SECURITY','CLEANING','MAINTENANCE','MUNICIPAL SERVICE','COMMUNITY MATTER','FINANCIAL'] %}<option value="{{ value }}">{{ value|title }}</option>{% endfor %}</select></label></div>
-<label>Short title<input name="title" maxlength="255" required placeholder="For example: streetlight not working"></label><label>What happened?<textarea name="description" rows="4" required placeholder="Record the details needed to follow up."></textarea></label><label>Priority<select name="priority" required>{% for value in ['LOW','NORMAL','HIGH','URGENT'] %}<option {% if value == 'NORMAL' %}selected{% endif %}>{{ value }}</option>{% endfor %}</select></label><p class="ui-help">After saving, add tasks, follow-up dates or service work from the interaction.</p></fieldset><div class="ui-actions"><button type="submit">Save interaction</button><a class="ui-btn" href="{{ url_for('uip_bp.dashboard', org_slug=org.slug) }}">Cancel</a></div></form>
+<section aria-label="Selected register information"><h2>Register information</h2><dl id="intake-register-summary" class="ui-two" aria-live="polite"></dl><p class="ui-help">These details come from the UIP register. Missing contact details must be updated through the authorised register-edit workflow.</p></section><div class="ui-two"><label>Method / channel<select name="channel" required>{% for v,l in [('Telephone','Telephone'),('Reception','In person'),('Email','Email'),('Web','Web'),('WhatsApp','WhatsApp')] %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select></label><label>Category<select id="interaction-category" name="category" required><option value="">Choose a category</option>{% for value in ['GENERAL ENQUIRY','SERVICE ISSUE','SECURITY','CLEANING','MAINTENANCE','MUNICIPAL SERVICE','COMMUNITY MATTER','FINANCIAL'] %}<option value="{{ value }}">{{ value|title }}</option>{% endfor %}</select></label></div>
+<label id="title-preset-label" style="display:none">Short title<select id="title-preset" disabled></select></label>
+<label id="custom-title-label"><span id="custom-title-caption">Short title</span><input id="interaction-title" name="title" maxlength="255" required placeholder="For example: streetlight not working"></label><label>What happened?<textarea name="description" rows="4" required placeholder="Record the details needed to follow up."></textarea></label><label>Priority<select name="priority" required>{% for value in ['LOW','NORMAL','HIGH','URGENT'] %}<option {% if value == 'NORMAL' %}selected{% endif %}>{{ value }}</option>{% endfor %}</select></label><p class="ui-help">After saving, add tasks, follow-up dates or service work from the interaction.</p></fieldset><div class="ui-actions"><button type="submit">Save interaction</button><a class="ui-btn" href="{{ url_for('uip_bp.dashboard', org_slug=org.slug) }}">Cancel</a></div></form>
 {% endblock %}{% block scripts %}
 <script id="intake-register-data" type="application/json">{{ g.intake_register|tojson }}</script>
-<script>{% include 'uip/reception/intake.js' %}</script>{% endblock %}
+<script>{% include 'uip/reception/intake.js' %}</script>
+<script id="intake-title-presets" type="application/json">{{ g.intake_title_presets|tojson }}</script>
+<script>
+(() => {
+    const mapping = JSON.parse(document.getElementById('intake-title-presets').textContent);
+    const category = document.getElementById('interaction-category');
+    const preset = document.getElementById('title-preset');
+    const title = document.getElementById('interaction-title');
+    const presetLabel = document.getElementById('title-preset-label');
+    const customLabel = document.getElementById('custom-title-label');
+    const caption = document.getElementById('custom-title-caption');
+    function applyChoice() {
+        const custom = preset.disabled || preset.value === '__other__';
+        customLabel.style.display = custom ? '' : 'none';
+        caption.textContent = preset.disabled ? 'Short title' : 'Custom short title';
+        title.required = custom;
+        title.readOnly = !custom;
+        if (!custom) title.value = preset.value;
+    }
+    function updateCategory(restore = false) {
+        const previous = restore ? title.value : '';
+        const config = mapping[category.value];
+        preset.disabled = !config;
+        preset.required = !!config;
+        presetLabel.style.display = config ? '' : 'none';
+        preset.replaceChildren();
+        title.value = previous;
+        if (config) {
+            preset.add(new Option('Choose a short title', ''));
+            config.presets.forEach(value => preset.add(new Option(value, value)));
+            preset.add(new Option(config.other_label, '__other__'));
+            preset.value = previous ? (config.presets.includes(previous) ? previous : '__other__') : '';
+        }
+        applyChoice();
+    }
+    category.addEventListener('change', () => updateCategory());
+    preset.addEventListener('change', () => {
+        title.value = '';
+        applyChoice();
+        if (preset.value === '__other__') title.focus();
+    });
+    updateCategory(true);
+})();
+</script>{% endblock %}

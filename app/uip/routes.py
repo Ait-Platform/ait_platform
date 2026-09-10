@@ -135,6 +135,7 @@ def org_settings(org_slug):
 @login_required
 def new_interaction(org_slug):
     _require_role("manager", "receptionist", "committee_member")
+    g.intake_title_presets = reception.SHORT_TITLE_PRESETS
     org = g.organization
     residents = _members_with_roles("resident").all()
     register_members = register.members(org.id, current_user.id, active_only=True).all()

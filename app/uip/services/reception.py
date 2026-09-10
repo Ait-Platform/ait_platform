@@ -8,6 +8,26 @@ from app.models.uip_operations import UipFollowUp, UipCommunicationLog, UipRefer
 from . import audit, operations, providers
 from .sla import utc
 
+# Optional intake suggestions; unmapped categories retain free-text titles.
+SHORT_TITLE_PRESETS = {
+    "CLEANING": {
+        "presets": [
+            "Illegal dumping / rubble",
+            "Littering",
+            "Street sweeping required",
+            "Overflowing bin",
+            "Bin not collected",
+            "Public area needs cleaning",
+            "Overgrown verge",
+            "Blocked drain / debris",
+            "Dumping on vacant property",
+            "Dead animal removal",
+            "Graffiti removal",
+        ],
+        "other_label": "Other cleaning issue",
+    },
+}
+
 METHODS = {"TELEPHONE", "EMAIL", "WHATSAPP", "IN_PERSON", "INTERNAL", "OTHER"}
 OUTCOMES = {"CONTACTED", "NO_ANSWER", "UNREACHABLE", "INFORMATION_RECEIVED", "ESCALATED", "NO_CONTACT_REQUIRED"}
 NEXT_ACTIONS = {"NONE", "CONTACT", "REVIEW", "ASSIGN", "ESCALATE"}

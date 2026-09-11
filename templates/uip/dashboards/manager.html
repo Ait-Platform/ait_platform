@@ -15,12 +15,8 @@
             + Log interaction
         </a>
         <a class="ui-btn"
-           href="{{ url_for('uip_bp.member_form', org_slug=org.slug) }}">
-            Register ratepayer
-        </a>
-        <a class="ui-btn"
-           href="{{ url_for('uip_bp.property_form', org_slug=org.slug) }}">
-            Add property
+           href="{{ url_for('uip_bp.register_import', org_slug=org.slug) }}">
+            Import municipal data
         </a>
         <a class="ui-btn"
            href="{{ url_for('uip_bp.reception_page', org_slug=org.slug, status='unassigned') }}">

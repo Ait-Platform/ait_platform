@@ -97,8 +97,7 @@ def dashboard(org_slug):
         rows = [row for row in issue_rows(org.id, current_user.id) if "open" in row["filters"]]
         return render_template("uip/dashboards/receptionist.html", org=org, issue_rows=rows)
     if role_slug == "committee_member":
-        from app.uip.services.governance import overview
-        return render_template("uip/dashboards/committee.html", org=org, governance_metrics=overview(org.id, current_user.id))
+        return redirect(url_for("uip_bp.committee_dashboard", org_slug=org_slug))
     if role_slug == "manager":
         from app.uip.presentation import executive
         return render_template("uip/dashboards/manager.html", org=org, overview=executive(org.id, current_user.id))
@@ -363,13 +362,14 @@ def register_conflict(error):
 
 
 def _register_context():
-    return dict(org=g.organization,
-                can_manage=CoreRoleAssignment.query.filter(
-                    CoreRoleAssignment.organization_id == g.organization.id,
-                    CoreRoleAssignment.user_id == current_user.id,
-                    CoreRoleAssignment.role.has(db.and_(CoreRole.slug.in_(audit.WRITE_ROLES),
-                        db.or_(CoreRole.organization_id.is_(None), CoreRole.organization_id == g.organization.id)))
-                ).first() is not None)
+    from app.uip.services.register import require_register_admin
+    can_manage = False
+    try:
+        require_register_admin(g.organization.id, current_user.id)
+        can_manage = True
+    except Exception:
+        pass
+    return dict(org=g.organization, can_manage=can_manage)
 
 
 @uip_bp.route("/<org_slug>/members")
@@ -390,12 +390,12 @@ def member_list(org_slug):
     return render_template("uip/members/list.html", page=page, linked=linked, search=search, status=status, **_register_context())
 
 
-@uip_bp.route("/<org_slug>/members/new", methods=["GET", "POST"])
 @uip_bp.route("/<org_slug>/members/<int:member_id>/edit", methods=["GET", "POST"])
 @login_required
-def member_form(org_slug, member_id=None):
-    audit.authorize(g.organization.id, current_user.id, audit.WRITE_ROLES)
-    member = register.get(UipMemberProfile, g.organization.id, current_user.id, member_id) if member_id else None
+def member_form(org_slug, member_id):
+    from app.uip.services.register import require_register_admin
+    require_register_admin(g.organization.id, current_user.id)
+    member = register.get(UipMemberProfile, g.organization.id, current_user.id, member_id)
     if request.method == "POST":
         member = register.save_member(g.organization.id, current_user.id, request.form, member_id)
         db.session.commit()
@@ -463,21 +463,17 @@ def property_list(org_slug):
     return render_template("uip/properties/list.html", page=page, linked=linked, search=search, status=status, **_register_context())
 
 
-@uip_bp.route("/<org_slug>/properties/new", methods=["GET", "POST"])
 @uip_bp.route("/<org_slug>/properties/<int:property_id>/edit", methods=["GET", "POST"])
 @login_required
-def property_form(org_slug, property_id=None):
-    audit.authorize(g.organization.id, current_user.id, audit.WRITE_ROLES)
-    item = register.get(UipProperty, g.organization.id, current_user.id, property_id) if property_id else None
+def property_form(org_slug, property_id):
+    from app.uip.services.register import require_register_admin
+    require_register_admin(g.organization.id, current_user.id)
+    item = register.get(UipProperty, g.organization.id, current_user.id, property_id)
     if request.method == "POST":
         item = register.save_property(g.organization.id, current_user.id, request.form, property_id)
         db.session.commit()
         flash("Property saved.", "success")
-        if not property_id and request.args.get("return_to") == "intake":
-            return redirect(url_for("uip_bp.new_interaction", org_slug=org_slug, property_id=item.id,
-                                    member_id=request.args.get("member_id", type=int)))
-        return redirect(url_for("uip_bp.property_view", org_slug=org_slug, property_id=item.id,
-                                member_id=request.args.get("member_id", type=int)))
+        return redirect(url_for("uip_bp.property_view", org_slug=org_slug, property_id=item.id, member_id=request.args.get("member_id", type=int)))
     return render_template("uip/properties/form.html", item=item, **_register_context())
 
 

@@ -355,3 +355,12 @@ def overview(org, actor):
         "Open surveys": UipSurvey.query.filter(UipSurvey.organization_id == org, UipSurvey.status == "OPEN",
             UipSurvey.opens_at <= now, UipSurvey.closes_at > now).count(),
     }
+
+def has_delegation(org_id, user_id, delegation_type):
+    from app.models.uip_governance import UipDelegation
+    return UipDelegation.query.filter_by(
+        organization_id=org_id, 
+        delegated_user_id=user_id, 
+        delegation_type=delegation_type, 
+        status='ACTIVE'
+    ).first() is not None

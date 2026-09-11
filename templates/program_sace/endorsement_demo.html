@@ -1,0 +1,29 @@
+{% extends 'layout.html' %}
+{% block flashes %}{% endblock %}
+{% block content %}
+<div class="max-w-5xl mx-auto px-4 py-8"><div class="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
+<div class="h-2 bg-indigo-700"></div><div class="p-6 space-y-6">
+<div class="flex items-center justify-between gap-4"><h1 class="text-2xl font-bold text-slate-800">Forward-only Demo</h1><a class="border border-slate-300 rounded px-4 py-2" href="{{ url_for('sace_bp.reading_hub') }}">Back to Auditor Board</a></div>
+{% with messages = get_flashed_messages(with_categories=true) %}{% for category, message in messages %}<p class="border rounded p-3">{{ message }}</p>{% endfor %}{% endwith %}
+
+<p>Your position is saved on the server. Completed steps cannot be skipped or reset.</p>
+{% if step == 0 %}<p>Begin the workshop demonstration for I Learn to Read English Using the LITRE Method.</p>
+{% elif step <= 30 %}<p>Workshop presentation ? {{ step }} / 30</p><img id="demo-slide" class="w-full" src="{{ url_for('sace_bp.journey_slide',slide=step) }}" alt="Workshop slide {{ step }}"><audio controls src="{{ url_for('static',filename='sace_slides/audio/'~step~'.mp3') }}"></audio>
+{% elif step == 31 %}<h2 class="text-xl font-bold">31 ? Critique/evaluation of F's workshop presentation</h2><p>Record the existing AIT presentation critique ratings, from 0 to 3.</p>
+{% for key,label in [('vocalization','Clear vocalization'),('positioning','Correct hand positioning'),('pacing','Pacing for learners')] %}<label class="block">{{ label }}<select name="{{ key }}" class="border border-slate-300 rounded p-2" required><option value="">Select</option>{% for n in range(4) %}<option value="{{ n }}">{{ n }}</option>{% endfor %}</select></label>{% endfor %}
+{% elif step == 32 %}<h2 class="text-xl font-bold">32 ? P workshop engagement/completion evidence</h2><p>Exercise each activity and record your response as the test participant.</p>
+{% for key,label in [('objective','State the workshop objective'),('sequence','Describe the teaching sequence'),('demonstration','Describe your use of the LITRE Blending Machine'),('reflection','Reflect on the participant experience')] %}<label class="block">{{ label }}<textarea name="{{ key }}" class="block w-full border border-slate-300 rounded p-2" required {% if loop.first %}autofocus{% endif %}></textarea></label>{% endfor %}
+{% elif step == 33 %}<h2 class="text-xl font-bold">33 ? Longitudinal LITRE effectiveness study</h2><p>Test the existing study baseline. This records an Auditor test response, not longitudinal effectiveness findings.</p>
+<label class="block">How confident do you feel in your ability to successfully implement the LITRE Blending Machine in your classroom?<select name="efficacy" class="border border-slate-300 rounded p-2"><option value="">Select</option>{% for n in range(1,6) %}<option>{{ n }}</option>{% endfor %}</select></label>
+<label class="block">Do you believe the physical/visual representation of the LITRE method provides a significant advantage over traditional phonics instruction?<select name="utility" class="border border-slate-300 rounded p-2"><option value="">Select</option><option value="yes">Yes, definitely</option><option value="somewhat">Somewhat</option><option value="no">No significant advantage</option></select></label>
+<label class="block">How closely do you intend to follow the provided lesson plans and step-by-step guidance?<select name="fidelity" class="border border-slate-300 rounded p-2"><option value="">Select</option><option value="strict">Strictly as designed</option><option value="modify">Modify it for my class</option><option value="loose">Use parts of it</option></select></label>
+{% elif step == 34 %}<a class="text-indigo-700 underline" href="{{ url_for('sace_bp.post_test') }}">34 ? Workshop curriculum MCQ</a>
+{% else %}<p>Demo completed. Continue with certificate testing and the Reading course on the Auditor Board.</p>{% endif %}
+{% if step <= 33 %}<div class="flex justify-end"><button id="advance" class="bg-indigo-700 text-white rounded px-4 py-2 disabled:opacity-40">Save and continue</button></div><p id="error" role="alert"></p>
+<script>
+const button=document.getElementById('advance'),step={{ step }};if(step>0&&step<=30){const image=document.getElementById('demo-slide');button.disabled=!image.complete||image.naturalWidth===0;image.onload=()=>button.disabled=false;image.onerror=()=>button.disabled=true;}
+button.onclick=async()=>{button.disabled=true;let data={step};if(step===31){data.ratings={};for(const el of document.querySelectorAll('select'))data.ratings[el.name]=el.value===''?null:Number(el.value);}if(step===32){data.responses={};for(const el of document.querySelectorAll('textarea'))data.responses[el.name]=el.value;data.engagement=Object.keys(data.responses);}if(step===33){data.answers={};for(const el of document.querySelectorAll('select'))data.answers[el.name]=el.value;}
+try{const r=await fetch({{ url_for('sace_bp.demo_advance')|tojson }},{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':{{ csrf_token()|tojson }}},body:JSON.stringify(data)});if(!r.ok)throw Error('Progress was not saved. Complete every response, then retry; reload if this step is no longer current.');location.href=(await r.json()).next;}catch(e){document.getElementById('error').textContent=e.message;button.disabled=false;}};
+</script>{% endif %}
+</div></div></div>
+{% endblock %}

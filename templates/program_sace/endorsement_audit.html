@@ -1,0 +1,13 @@
+{% extends 'layout.html' %}
+{% block flashes %}{% endblock %}
+{% block content %}
+<div class="max-w-5xl mx-auto px-4 py-8"><div class="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
+<div class="h-2 bg-indigo-700"></div><div class="p-6 space-y-6">
+<div class="flex items-center justify-between gap-4"><h1 class="text-2xl font-bold text-slate-800">AIT activity evaluation audit</h1><a class="border border-slate-300 rounded px-4 py-2" href="{{ url_for('sace_bp.provisioning_map') }}">Back to Control Centre</a></div>
+{% with messages = get_flashed_messages(with_categories=true) %}{% for category, message in messages %}<p class="border rounded p-3">{{ message }}</p>{% endfor %}{% endwith %}
+
+<div class="flex justify-end"><a class="bg-indigo-700 text-white rounded px-4 py-2" href="{{ url_for('sace_bp.audit_export') }}">Download interaction audit (CSV)</a></div>
+<p>Completion notifications confirm the AIT activity evaluation journey only. SACE endorsement decisions remain external.</p>
+<div class="overflow-x-auto"><table class="w-full text-left"><thead><tr><th>Time</th><th>Assignment</th><th>Action</th><th>Evidence</th></tr></thead><tbody>{% for event in events %}<tr class="border-t"><td class="p-2">{{ event.timestamp }}</td><td class="p-2">{{ event.workshop_session_id }}</td><td class="p-2">{{ event.activity_slug }}</td><td class="p-2 whitespace-pre-wrap">{{ event.response_data }}</td></tr>{% endfor %}</tbody></table></div>
+</div></div></div>
+{% endblock %}

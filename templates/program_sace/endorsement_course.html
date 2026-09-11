@@ -1,0 +1,13 @@
+{% extends 'layout.html' %}
+{% block flashes %}{% endblock %}
+{% block content %}
+<div class="max-w-5xl mx-auto px-4 py-8"><div class="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
+<div class="h-2 bg-indigo-700"></div><div class="p-6 space-y-6">
+<div class="flex items-center justify-between gap-4"><h1 class="text-2xl font-bold text-slate-800">18-video Reading course</h1><a class="border border-slate-300 rounded px-4 py-2" href="{{ url_for('sace_bp.reading_hub') }}">Back to Auditor Board</a></div>
+{% with messages = get_flashed_messages(with_categories=true) %}{% for category, message in messages %}<p class="border rounded p-3">{{ message }}</p>{% endfor %}{% endwith %}
+
+<div class="flex justify-end"><a class="text-indigo-700 underline" href="{{ url_for('sace_bp.step35') }}">Continue to Step 35</a></div><p>I Learn to Read English Using the LITRE Method</p><p>{{ completed|length }} of 18 videos completed for this assignment.</p>
+{% if lessons|length != 18 %}<p role="alert">The course must contain exactly 18 videos. Course completion is unavailable until the content is ready.</p>{% endif %}
+<ol class="space-y-3">{% for lesson in lessons %}<li class="border rounded p-3">{{ lesson['order'] }}. {{ lesson.title }} ? {% if lesson.id in completed %}<a class="underline" href="{{ url_for('sace_bp.reading_lesson',lesson_id=lesson.id) }}">Completed; review</a>{% elif lesson.id == next_lesson %}<a class="underline text-indigo-700" href="{{ url_for('sace_bp.reading_lesson',lesson_id=lesson.id) }}">Play video</a>{% else %}Locked{% endif %}</li>{% endfor %}</ol>
+</div></div></div>
+{% endblock %}

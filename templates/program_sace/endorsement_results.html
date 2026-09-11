@@ -1,0 +1,13 @@
+{% extends 'layout.html' %}
+{% block flashes %}{% endblock %}
+{% block content %}
+<div class="max-w-5xl mx-auto px-4 py-8"><div class="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
+<div class="h-2 bg-indigo-700"></div><div class="p-6 space-y-6">
+<div class="flex items-center justify-between gap-4"><h1 class="text-2xl font-bold text-slate-800">34 ? Workshop curriculum MCQ results</h1><a class="border border-slate-300 rounded px-4 py-2" href="{{ url_for('sace_bp.reading_hub') }}">Back to Auditor Board</a></div>
+{% with messages = get_flashed_messages(with_categories=true) %}{% for category, message in messages %}<p class="border rounded p-3">{{ message }}</p>{% endfor %}{% endwith %}
+
+{% if answers %}<p>Score: {{ answers.score }}%. {{ 'Passed' if eligible else 'Not yet passed' }}.</p>{% endif %}
+{% if eligible %}<p>The workshop requirements are complete. Test certificate delivery using the standard AIT PDF.</p><form method="post" action="{{ url_for('sace_bp.email_certificate') }}" class="space-y-4"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><label class="block">Certificate email<input class="block border border-slate-300 rounded p-2" type="email" name="email" value="{{ current_user.email }}" autofocus required></label><div class="flex justify-end"><button class="bg-indigo-700 text-white rounded px-4 py-2 disabled:opacity-40">Email workshop certificate</button></div></form>
+{% else %}<p>Certificate delivery is locked until engagement and the workshop MCQ are complete.</p><a class="underline text-indigo-700" href="{{ url_for('sace_bp.simulator') }}">Continue Demo / retry MCQ</a>{% endif %}
+</div></div></div>
+{% endblock %}

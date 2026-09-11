@@ -36,3 +36,5 @@ from . import pilot_routes
 def install_request_privacy(state):
     from .log_privacy import install
     install(state.app)
+from . import founding_routes
+from . import committee_routes

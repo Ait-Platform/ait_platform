@@ -1,0 +1,12 @@
+{% extends 'layout.html' %}
+{% block flashes %}{% endblock %}
+{% block content %}
+<div class="max-w-5xl mx-auto px-4 py-8"><div class="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
+<div class="h-2 bg-indigo-700"></div><div class="p-6 space-y-6">
+<div class="flex items-center justify-between gap-4"><h1 class="text-2xl font-bold text-slate-800">Complete AIT activity evaluation journey</h1><a class="border border-slate-300 rounded px-4 py-2" href="{{ url_for('sace_bp.reading_hub') }}">Back to Auditor Board</a></div>
+{% with messages = get_flashed_messages(with_categories=true) %}{% for category, message in messages %}<p class="border rounded p-3">{{ message }}</p>{% endfor %}{% endwith %}
+
+<p>The final notification to R will say: ?A has completed the AIT activity evaluation journey.?</p><p>SACE endorsement remains a subsequent external SACE decision. Completing this journey closes your assignment access and preserves your audit trail for R to download.</p>
+{% if ready %}<form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><div class="flex justify-end"><button class="bg-indigo-700 text-white rounded px-4 py-2 disabled:opacity-40">Complete journey and notify R</button></div></form>{% else %}<p>Required activity evidence is still outstanding. Return to the Auditor Board to continue.</p><ul class="list-disc list-inside">{% for item in missing %}<li>{{ item|replace('_',' ') }}</li>{% endfor %}</ul>{% endif %}
+</div></div></div>
+{% endblock %}

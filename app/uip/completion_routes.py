@@ -41,6 +41,7 @@ def navigation_context():
         ("Municipal referrals", "municipal_list", staff | {"committee_member"}),
         ("Communications", "communications_list", staff),
         ("Documents", "documents_page", staff | admin | {"resident", "owner"}),
+        ("Committee Dashboard", "committee_dashboard", {"manager", "committee_member"}),
         ("Meetings / Attendance / Quorum", "meetings_page", admin),
         ("Surveys / Polls", "surveys_page", admin | {"resident", "owner"}),
         ("Governance decisions", "decisions_page", admin),
@@ -55,13 +56,21 @@ def navigation_context():
         ("Residents & Properties", [("Ratepayers", "member_list"), ("Properties", "property_list"), ("Import Register", "register_import")]),
         ("Operations", [("Interactions & Issues", "reception_page"), ("Tasks / Follow-ups", "tasks_page"), ("Municipal Matters", "municipal_list"), ("Communications", "communications_list")]),
         ("Service Providers", [("Providers", "provider_list"), ("Work Orders", "work_order_list"), ("Routing & SLA", "service_standards")]),
-        ("Governance", [("Meetings", "meetings_page"), ("Surveys", "surveys_page"), ("Decisions", "decisions_page"), ("Documents", "documents_page")]),
+        ("Governance", [("Committee Dashboard", "committee_dashboard"), ("Meetings", "meetings_page"), ("Surveys", "surveys_page"), ("Decisions", "decisions_page"), ("Documents", "documents_page")]),
         ("Finance", [("Overview", "finance_overview"), ("Transactions", "finance_transactions"), ("Budget", "finance_budget"), ("Commitments", "finance_commitments")]),
         ("Reports", [("Reports / Exports", "org_reports")]),
         ("Administration", [("Organisation Settings", "org_settings"), ("AI & Wallet", "ai_wallet"), ("UIP Audit", "audit_history")]),
     )
     allowed = {target for label, target, permitted in entries if roles & permitted}
-    if roles & set(audit.WRITE_ROLES):
+    from app.uip.services.register import require_register_admin
+    is_register_admin = False
+    try:
+        require_register_admin(g.organization.id, current_user.id)
+        is_register_admin = True
+    except Exception:
+        pass
+        
+    if is_register_admin:
         allowed.add("register_import")
     if roles & staff:
         allowed.add("service_standards")
@@ -160,99 +169,75 @@ def operational_validation(error):
                            error=error.description), error.code
 
 
-def import_rows(kind, content):
-    """All validation uses the same scoped, audited manual-capture services."""
-    if kind not in CSV_COLUMNS:
-        abort(400, description="Choose members, properties or relationships.")
-    try:
-        reader = csv.DictReader(io.StringIO(content.decode("utf-8-sig")), strict=True)
-        if not reader.fieldnames or len(reader.fieldnames) != len(set(reader.fieldnames)) or set(reader.fieldnames) != set(CSV_COLUMNS[kind]):
-            abort(400, description="Use the exact displayed CSV columns, without duplicates.")
-        rows = list(reader)
-    except (UnicodeError, csv.Error):
-        abort(400, description="Upload a valid UTF-8 CSV file.")
-    if not 1 <= len(rows) <= 200:
-        abort(400, description="Import between 1 and 200 rows at a time.")
-    org, actor = g.organization.id, current_user.id
-    preview = []
-    for number, row in enumerate(rows, 2):
-        try:
-            if None in row or any(v is None for v in row.values()):
-                abort(400, description="Column count does not match the header.")
-            row = {k: v.strip() for k, v in row.items()}
-            if kind == "members":
-                if UipMemberProfile.query.filter_by(organization_id=org, reference=row["reference"]).first():
-                    abort(409, description="Duplicate member reference. Existing records are never overwritten.")
-                if row["email"] and UipMemberProfile.query.filter(UipMemberProfile.organization_id == org,
-                    db.func.lower(UipMemberProfile.email) == row["email"].lower()).first():
-                    abort(409, description="Contact email already registered; review possible duplicate manually.")
-                register.save_member(org, actor, row)
-            elif kind == "properties":
-                if UipProperty.query.filter_by(organization_id=org, reference=row["reference"]).first():
-                    abort(409, description="Duplicate property reference. Existing records are never overwritten.")
-                if UipProperty.query.filter(UipProperty.organization_id == org,
-                    db.func.lower(UipProperty.address) == row["address"].lower()).first():
-                    abort(409, description="Address already registered; review possible duplicate manually.")
-                register.save_property(org, actor, row)
-            else:
-                from app.models.uip import UipPropertyMember
-                member = UipMemberProfile.query.filter_by(organization_id=org, reference=row["member_reference"]).first()
-                prop = UipProperty.query.filter_by(organization_id=org, reference=row["property_reference"]).first()
-                if not member or not prop:
-                    abort(400, description="Member and property references must already exist in this organisation.")
-                start, end = register.dates(row)
-                if UipPropertyMember.query.filter_by(organization_id=org, member_id=member.id, property_id=prop.id,
-                    relationship=row["relationship"], valid_from=start).first():
-                    abort(409, description="Duplicate dated relationship.")
-                register.save_relationship(org, actor, dict(row, member_id=member.id), property_id=prop.id)
-            db.session.flush()
-        except register.InvalidRegisterOption as error:
-            # Only echo the rejected option, never the rest of the contact row.
-            # ASCII escaping exposes invisible characters; Jinja escapes HTML.
-            value = error.value
-            shown = ascii(value[:80]) + ("... (truncated)" if len(value) > 80 else "") if isinstance(value, str) else ascii(value)
-            allowed = ", ".join(ascii(option) for option in error.allowed)
-            abort(400, description=f"CSV row {number}: column '{error.column}' has invalid value {shown}. Accepted values: {allowed} (case-sensitive).")
-        except HTTPException as error:
-            abort(error.code, description=f"CSV row {number}: {error.description}")
-        except IntegrityError:
-            abort(409, description=f"CSV row {number}: duplicate or conflicting record. Nothing imported.")
-        preview.append(row)
-    return preview
-
-
 @uip_bp.route("/<org_slug>/register/import", methods=["GET", "POST"])
 @login_required
 def register_import(org_slug):
-    audit.authorize(g.organization.id, current_user.id, audit.WRITE_ROLES)
+    from app.uip.services.register import require_register_admin, process_import_batch
+    from app.models.uip import UipDocument
+    from datetime import datetime
+    import csv, io
+    require_register_admin(g.organization.id, current_user.id)
     kind = request.form.get("kind", "members")
-    rows, token, error = [], None, None
+    rows, token, error, summary = [], None, None, None
     if request.method == "POST":
         upload = request.files.get("file")
         content = upload.read(256 * 1024 + 1) if upload else b""
         if not content or len(content) > 256 * 1024:
             abort(400, description="Choose a CSV file up to 256 KB.")
+            
         identity = [g.organization.id, current_user.id, kind, hashlib.sha256(content).hexdigest()]
         signer = URLSafeTimedSerializer(current_app.secret_key, salt="uip-register-preview")
         commit = request.form.get("operation") == "commit"
+        
         if commit:
             try:
                 if signer.loads(request.form.get("preview_token", ""), max_age=1800) != identity:
                     abort(400, description="Upload the same file and import type that you previewed.")
             except BadSignature:
                 abort(400, description="Preview expired or invalid. Preview the file again.")
+                
+        try:
+            reader = csv.DictReader(io.StringIO(content.decode("utf-8-sig")), strict=True)
+            if not reader.fieldnames or len(reader.fieldnames) != len(set(reader.fieldnames)) or set(reader.fieldnames) != set(CSV_COLUMNS[kind]):
+                abort(400, description="Use the exact displayed CSV columns, without duplicates.")
+            rows = list(reader)
+        except (UnicodeError, csv.Error):
+            abort(400, description="Upload a valid UTF-8 CSV file.")
+            
+        if not 1 <= len(rows) <= 200:
+            abort(400, description="Import between 1 and 200 rows at a time.")
+            
         try:
             transaction = db.session.begin_nested()
-            rows = import_rows(kind, content)
+            
+            # Save Document
+            doc = UipDocument(organization_id=g.organization.id, uploader_id=current_user.id, title=f"Import {kind} {datetime.now().strftime('%Y-%m-%d')}", category="MUNICIPAL_REGISTER")
+            db.session.add(doc)
+            db.session.flush()
+            
+            metadata = {
+                "source_identifier": request.form.get("source_identifier"),
+                "batch_reference": request.form.get("batch_reference"),
+                "date_received": datetime.utcnow().date(),
+                "effective_date": datetime.strptime(request.form.get("effective_date", datetime.utcnow().strftime("%Y-%m-%d")), "%Y-%m-%d").date(),
+                "document_id": doc.id
+            }
+            
+            batch, summary = process_import_batch(g.organization.id, current_user.id, kind, rows, metadata)
+            
             if commit:
                 transaction.commit()
                 db.session.commit()
-                flash(f"Imported {len(rows)} {kind}. No accounts or messages were created.", "success")
+                flash(f"Import {batch.status}. {summary['created']} created, {summary['updated']} updated, {summary['exceptions']} exceptions.", "success")
                 return redirect(url_for("uip_bp.register_import", org_slug=org_slug))
+            else:
+                transaction.rollback()
+                token = signer.dumps(identity)
+                
+        except Exception as err:
             transaction.rollback()
-            token = signer.dumps(identity)
-        except HTTPException as exc:
             db.session.rollback()
-            rows, error = [], exc.description
+            error = str(getattr(err, "description", err))
+            
     return render_template("uip/register_import.html", org=g.organization, columns=CSV_COLUMNS,
-        kind=kind, rows=rows, preview_token=token, error=error), (400 if error else 200)
+                           kind=kind, rows=rows, preview_token=token, summary=summary, error=error), (400 if error else 200)

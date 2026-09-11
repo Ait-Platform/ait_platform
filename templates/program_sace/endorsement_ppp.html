@@ -1,0 +1,20 @@
+{% extends 'layout.html' %}
+{% block flashes %}{% endblock %}
+{% block content %}
+<div class="max-w-5xl mx-auto px-4 py-8"><div class="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
+<div class="h-2 bg-indigo-700"></div><div class="p-6 space-y-6">
+<div class="flex items-center justify-between gap-4"><h1 class="text-2xl font-bold text-slate-800">PPP ? I Learn to Read English Using the LITRE Method</h1><a class="border border-slate-300 rounded px-4 py-2" href="{{ url_for('sace_bp.reading_hub') }}">Back to Auditor Board</a></div>
+{% with messages = get_flashed_messages(with_categories=true) %}{% for category, message in messages %}<p class="border rounded p-3">{{ message }}</p>{% endfor %}{% endwith %}
+
+<div class="flex justify-end gap-3"><button id="prev" class="border rounded p-2">Previous</button><button id="next" class="border rounded p-2">Next</button><a class="border rounded p-2" href="{{ url_for('sace_bp.presentation_complete') }}">Finish and return</a></div>
+<p id="status" role="status"></p><img id="slide" class="w-full" alt="PPP slide"><audio id="audio" controls class="w-full"></audio>
+<script>
+let index=1,busy=false;const image=document.getElementById('slide'),status=document.getElementById('status');
+function show(){busy=true;status.textContent=`Slide ${index} of 30`;document.getElementById('prev').disabled=index===1;document.getElementById('next').disabled=index===30;const captured=index;
+image.onload=async()=>{try{const r=await fetch({{ url_for('sace_bp.ppp_viewed',slide=0)|tojson }}.replace('/0','/'+captured),{method:'POST',headers:{'X-CSRFToken':{{ csrf_token()|tojson }}}});if(!r.ok)throw Error();}catch(e){status.textContent='Slide confirmation could not be saved. Reopen this slide to retry.';}finally{busy=false;}};
+image.onerror=()=>{status.textContent='Slide unavailable; no evidence recorded.';busy=false;};image.src={{ url_for('sace_bp.journey_slide',slide=0)|tojson }}.replace('/0','/'+index);
+const audio=document.getElementById('audio');audio.pause();audio.src={{ url_for('static',filename='sace_slides/audio/0.mp3')|tojson }}.replace('/0.mp3','/'+index+'.mp3');audio.hidden=index===30;}
+document.getElementById('prev').onclick=()=>{if(!busy&&index>1){index--;show();}};document.getElementById('next').onclick=()=>{if(!busy&&index<30){index++;show();}};show();
+</script>
+</div></div></div>
+{% endblock %}

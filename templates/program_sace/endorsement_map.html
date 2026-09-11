@@ -1,0 +1,15 @@
+{% extends 'layout.html' %}
+{% block flashes %}{% endblock %}
+{% block content %}
+<div class="max-w-5xl mx-auto px-4 py-8"><div class="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
+<div class="h-2 bg-indigo-700"></div><div class="p-6 space-y-6">
+<div class="flex items-center justify-between gap-4"><h1 class="text-2xl font-bold text-slate-800">Auditor Map</h1><a class="border border-slate-300 rounded px-4 py-2" href="{{ url_for('sace_bp.reading_hub') }}">Back to Auditor Board</a></div>
+{% with messages = get_flashed_messages(with_categories=true) %}{% for category, message in messages %}<p class="border rounded p-3">{{ message }}</p>{% endfor %}{% endwith %}
+
+<p>I Learn to Read English Using the LITRE Method</p>
+<ol class="list-decimal list-inside space-y-3"><li>Examine the activity application, Facilitator Manual and Participant Manual from the Auditor Board.</li><li>Examine all PPP slides. Previous and Next are available.</li><li>Complete the forward-only Demo and exercise AIT steps 31?34: F presentation critique, P engagement evidence, longitudinal LITRE study baseline, and workshop curriculum MCQ.</li><li>Test workshop certificate behaviour, complete the 18-video Reading course, test Step 35 when supplied, and test Reading certificate behaviour.</li><li>Return to the Auditor Board and finish the AIT evaluation journey. R receives a notification and can download your interaction audit. Your assignment then closes.</li></ol>
+<p>The intellectual property pledge accepted when claiming your code continues to apply to these controlled materials.</p>
+<p>SACE supplies and controls its own endorsement rubric outside AIT. No SACE endorsement criteria are created or assessed here.</p>
+<form method="post" action="{{ url_for('sace_bp.auditor_map') }}" class="space-y-4"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><label class="block"><input type="checkbox" name="reviewed" value="yes" required> I have reviewed this map and examined the listed controlled materials.</label><div class="flex justify-end"><button class="bg-indigo-700 text-white rounded px-4 py-2 disabled:opacity-40">Complete Auditor Map</button></div></form>
+</div></div></div>
+{% endblock %}

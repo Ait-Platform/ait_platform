@@ -1,0 +1,21 @@
+{% extends 'layout.html' %}
+{% block flashes %}{% endblock %}
+{% block content %}
+<div class="max-w-5xl mx-auto px-4 py-8"><div class="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
+<div class="h-2 bg-indigo-700"></div><div class="p-6 space-y-6">
+<div class="flex items-center justify-between gap-4"><h1 class="text-2xl font-bold text-slate-800">Auditor Board</h1><a class="border border-slate-300 rounded px-4 py-2" href="{{ url_for('sace_bp.reading_hub') }}">Back to Auditor Board</a></div>
+{% with messages = get_flashed_messages(with_categories=true) %}{% for category, message in messages %}<p class="border rounded p-3">{{ message }}</p>{% endfor %}{% endwith %}
+
+<div class="flex justify-end"><a class="bg-indigo-700 text-white rounded px-4 py-2" href="{{ url_for('sace_bp.finish_evaluation') }}">Review journey completion</a></div>
+<p>I Learn to Read English Using the LITRE Method</p>
+<p>Complete the AIT activity evaluation journey below. SACE controls its own external endorsement rubric and makes its subsequent endorsement decision.</p>
+<table class="w-full text-left"><thead><tr><th class="p-3">Activity</th><th class="p-3">Recorded progress</th></tr></thead><tbody>
+{% for slug,title,endpoint in [('map_complete','Auditor Map','auditor_map'),('ppp_complete','PPP: examine all 30 slides','presentation'),('demo_complete','Forward-only Demo, including steps 31?34','simulator'),('workshop_certificate','Workshop certificate behaviour','post_test_results'),('reading_complete','18-video Reading course','reading_course'),('step35','35 ? Reading video-course MCQ','step35'),('reading_certificate','Reading certificate behaviour','reading_certificate')] %}
+<tr class="border-t border-slate-200"><td class="p-3"><a class="text-indigo-700 underline" href="{{ url_for('sace_bp.'+endpoint) }}">{{ title }}</a></td><td class="p-3">{{ 'Recorded' if slug in ticks else 'Outstanding' }}</td></tr>
+{% endfor %}
+{% for kind,material in materials.items() %}<tr class="border-t"><td class="p-3"><a class="text-indigo-700 underline" href="{{ url_for('sace_bp.secure_view',doc_type=kind) }}">{{ material[0] }}</a></td><td class="p-3">{{ 'Examined' if kind in ticks else 'Outstanding' }}</td></tr>{% endfor %}
+</tbody></table>
+<p>Steps 31?35 are AIT activity testing and evidence components. Step 35 remains pending until its course questions are supplied.</p>
+<p>{{ 'All required evidence is recorded. Review completion to notify R and close this assignment.' if not missing else 'Progress is saved. Complete the outstanding activities before closing the assignment.' }}</p>
+</div></div></div>
+{% endblock %}

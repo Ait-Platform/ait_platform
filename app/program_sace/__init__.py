@@ -27,3 +27,5 @@ def auto_patch_sace(app):
 sace_bp.record(lambda state: auto_patch_sace(state.app))
 
 from . import routes
+
+from . import endorsement_routes

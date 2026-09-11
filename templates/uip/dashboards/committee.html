@@ -1,6 +1,118 @@
 {% extends "uip/base.html" %}
-{% block title %}Governance overview - {{ org.name }}{% endblock %}
+{% block title %}Committee Dashboard - {{ org.name }}{% endblock %}
+
 {% block content %}
-<header class="ui-page-head"><div><h1>Governance overview</h1><p>Meetings, consultation and decisions for {{ org.name }}.</p></div><a class="ui-btn ui-btn-primary" href="{{ url_for('uip_bp.meetings_page', org_slug=org.slug) }}">Manage meetings</a></header>
-<section class="ui-summary" aria-label="Governance summary">{% for label, key, endpoint in [('Upcoming meetings','Upcoming meetings','meetings_page'),('Open surveys','Open surveys','surveys_page'),('Unresolved decisions','Unresolved decisions','decisions_page'),('Open municipal matters','Open municipal referrals','municipal_list')] %}<a class="ui-stat ui-stat-{{ {'meetings_page':'teal','surveys_page':'blue','decisions_page':'violet','municipal_list':'amber'}.get(endpoint,'blue') }}" href="{{ url_for('uip_bp.' ~ endpoint, org_slug=org.slug) }}"><span>{{ label }}</span><strong>{{ governance_metrics[key] }}</strong></a>{% endfor %}</section>
+<header class="ui-page-head">
+    <div>
+        <p class="ui-eyebrow">{{ org.name }}</p>
+        <h1>Committee Dashboard</h1>
+        <p>Governance overview and management.</p>
+    </div>
+</header>
+
+{% include 'partials/flash_messages.html' %}
+
+<div class="ui-split">
+    <section class="ui-card">
+        <header class="ui-card-head">
+            <h2>Founding Information</h2>
+        </header>
+        <div class="ui-card-body">
+            {% if founding_meeting %}
+                <p><strong>Founding AGM:</strong> {{ founding_meeting.scheduled_at.strftime('%d %B %Y at %H:%M') }}</p>
+                <p><strong>Venue:</strong> {{ founding_meeting.location }}</p>
+            {% else %}
+                <p class="ui-empty">No founding meeting recorded.</p>
+            {% endif %}
+            
+            {% if election_resolution %}
+                <p><strong>Election Resolution:</strong> {{ election_resolution.description }}</p>
+            {% endif %}
+            
+            {% if manager_resolution %}
+                <p><strong>Manager Designation:</strong> {{ manager_resolution.description }}</p>
+            {% endif %}
+        </div>
+    </section>
+    
+    <section class="ui-card">
+        <header class="ui-card-head">
+            <h2>Elected Committee</h2>
+        </header>
+        <div class="ui-card-body">
+            <ul class="ui-list">
+            {% for u in elected_users %}
+                <li>
+                    <strong>{{ u.name }}</strong> ({{ u.email }})
+                    {% if current_manager and u.id == current_manager.id %}
+                        <span class="ui-badge ui-badge-primary">Manager</span>
+                    {% endif %}
+                    {% if u.id == current_user.id %}
+                        <span class="ui-badge">You</span>
+                    {% endif %}
+                </li>
+            {% else %}
+                <li class="ui-empty">No committee members elected yet.</li>
+            {% endfor %}
+            </ul>
+        </div>
+    </section>
+</div>
+
+<section class="ui-card">
+    <header class="ui-card-head">
+        <h2>My Role</h2>
+    </header>
+    <div class="ui-card-body">
+        <p><strong>Status:</strong> <span class="ui-badge ui-badge-success">Committee Member</span></p>
+        {% if "manager" in uip_roles %}
+            <p><strong>Status:</strong> <span class="ui-badge ui-badge-primary">Manager</span></p>
+        {% endif %}
+        
+        {% if delegated_responsibility %}
+            <p><strong>Delegated Responsibility:</strong> 
+                {% if delegated_responsibility.delegation_type == 'RATEPAYER_ADMIN' %}
+                    Ratepayer Register Administrator
+                {% else %}
+                    {{ delegated_responsibility.delegation_type }}
+                {% endif %}
+                <small class="ui-help">since {{ delegated_responsibility.effective_date.strftime('%Y-%m-%d') }}</small>
+            </p>
+        {% else %}
+            <p class="ui-empty">No operational responsibilities delegated to you.</p>
+        {% endif %}
+    </div>
+</section>
+
+{% if "manager" in uip_roles %}
+<section class="ui-card">
+    <header class="ui-card-head">
+        <h2>Manager Delegations</h2>
+    </header>
+    <div class="ui-card-body">
+        <form method="post" action="{{ url_for('uip_bp.delegate_ratepayer_admin', org_slug=org.slug) }}" class="ui-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="ui-field">
+                <label>Ratepayer Register Administrator</label>
+                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                    <select name="delegated_user_id" class="ui-input">
+                        <option value="">-- Not assigned --</option>
+                        {% for u in elected_users %}
+                            <option value="{{ u.id }}" {% if ratepayer_admin and ratepayer_admin.delegated_user_id == u.id %}selected{% endif %}>
+                                {{ u.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                    <button type="submit" class="ui-btn ui-btn-primary">Assign / Change</button>
+                </div>
+                {% if ratepayer_admin %}
+                    <p class="ui-help">Currently assigned. Changing this will revoke the current delegation.</p>
+                {% else %}
+                    <p class="ui-help">Not assigned.</p>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</section>
+{% endif %}
 {% endblock %}

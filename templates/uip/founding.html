@@ -1,0 +1,87 @@
+{% extends 'uip/base.html' %}
+{% block title %}Founding Committee Provisioning — {{ org.name }}{% endblock %}
+{% block content %}
+<header class="ui-page-head">
+    <div>
+        <p class="ui-eyebrow">Setup</p>
+        <h1>Founding Provisioning</h1>
+        <p class="ui-subtitle">Record the founding meeting, elected committee members, and the initial manager designation resolution.</p>
+    </div>
+</header>
+<section class="ui-card">
+    <form method="post" action="{{ url_for('uip_bp.founding', org_slug=org.slug) }}">
+        <fieldset class="ui-form-section">
+            <legend>1. Founding Meeting</legend>
+            <div class="ui-two">
+                <label>Venue
+                    <input type="text" name="venue" required placeholder="e.g. Town Hall">
+                </label>
+            </div>
+            <div class="ui-two">
+                <label>Date
+                    <input type="date" name="meeting_date" required>
+                </label>
+                <label>Time
+                    <input type="time" name="meeting_time" required>
+                </label>
+            </div>
+        </fieldset>
+        
+        <fieldset class="ui-form-section">
+            <legend>2. Elected Committee Members</legend>
+            <p class="ui-help">These members will be recorded in the register but will not receive application access until their accounts are fully activated. Once activated, they will receive the committee_member role.</p>
+            <div id="committee-members">
+                <div class="ui-two committee-member-row">
+                    <label>Name
+                        <input type="text" name="member_name[]" required placeholder="Full Name">
+                    </label>
+                    <label>Email
+                        <input type="email" name="member_email[]" required placeholder="Email Address">
+                    </label>
+                    <label>
+                        <input type="radio" name="manager_index" value="0" required> Designate as Manager
+                    </label>
+                </div>
+            </div>
+            <button type="button" class="ui-btn" onclick="addMember()">Add another member</button>
+        </fieldset>
+
+        <fieldset class="ui-form-section">
+            <legend>3. Manager Resolution</legend>
+            <p class="ui-help">The selected member above will be designated as the Manager via this resolution.</p>
+            <label>Resolution Text
+                <textarea name="resolution_text" rows="4" placeholder="Enter the formal resolution text designating the manager..." required></textarea>
+            </label>
+        </fieldset>
+
+        <div class="ui-actions">
+            <button type="submit">Record Founding Provisioning</button>
+            <a class="ui-btn" href="{{ url_for('uip_bp.dashboard', org_slug=org.slug) }}">Cancel</a>
+        </div>
+    </form>
+</section>
+{% endblock %}
+{% block scripts %}
+<script>
+    let memberCount = 1;
+    function addMember() {
+        const container = document.getElementById('committee-members');
+        const row = document.createElement('div');
+        row.className = 'ui-two committee-member-row';
+        row.style.marginTop = '10px';
+        row.innerHTML = `
+            <label>Name
+                <input type="text" name="member_name[]" required placeholder="Full Name">
+            </label>
+            <label>Email
+                <input type="email" name="member_email[]" required placeholder="Email Address">
+            </label>
+            <label>
+                <input type="radio" name="manager_index" value="${memberCount}" required> Designate as Manager
+            </label>
+        `;
+        container.appendChild(row);
+        memberCount++;
+    }
+</script>
+{% endblock %}

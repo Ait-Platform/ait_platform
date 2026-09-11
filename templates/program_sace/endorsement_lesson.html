@@ -1,0 +1,14 @@
+{% extends 'layout.html' %}
+{% block flashes %}{% endblock %}
+{% block content %}
+<div class="max-w-5xl mx-auto px-4 py-8"><div class="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
+<div class="h-2 bg-indigo-700"></div><div class="p-6 space-y-6">
+<div class="flex items-center justify-between gap-4"><h1 class="text-2xl font-bold text-slate-800">{{ lesson['order'] }}. {{ lesson.title }}</h1><a class="border border-slate-300 rounded px-4 py-2" href="{{ url_for('sace_bp.reading_hub') }}">Back to Auditor Board</a></div>
+{% with messages = get_flashed_messages(with_categories=true) %}{% for category, message in messages %}<p class="border rounded p-3">{{ message }}</p>{% endfor %}{% endwith %}
+
+<div class="flex justify-end"><a class="underline" href="{{ url_for('sace_bp.reading_course') }}">Return to course</a></div><p>{{ lesson.caption or '' }}</p>
+<video id="video" class="w-full" controls preload="metadata" src="{{ url_for('sace_bp.reading_video',lesson_id=lesson.id) }}"></video>
+<form method="post" id="complete"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="completed" value="yes"><button id="confirm" disabled class="bg-indigo-700 text-white rounded px-4 py-2 disabled:opacity-40">Save video completion</button></form><p id="status" role="status">Play the video to completion.</p>
+<script>const v=document.getElementById('video');v.onended=()=>{document.getElementById('confirm').disabled=false;document.getElementById('status').textContent='Video ended. Save your completion to continue.';};v.onerror=()=>{document.getElementById('status').textContent='Video unavailable. Completion has not been recorded.';document.getElementById('confirm').disabled=true;};</script>
+</div></div></div>
+{% endblock %}

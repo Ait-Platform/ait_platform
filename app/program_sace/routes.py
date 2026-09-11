@@ -156,37 +156,8 @@ def reset_evaluator_progress():
 @sace_bp.route("/sace/reading")
 @login_required
 def reading_hub():
-    from app.models.sace import SaceDocument, SaceWorkshopInteraction
-    
-    app_form = SaceDocument.query.filter_by(slug='reading', document_type='app_form').first()
-    
-    # Fetch user's interactions to build the progress map
-    interactions = SaceWorkshopInteraction.query.filter_by(user_id=current_user.id).all()
-    completed_slugs = [i.activity_slug for i in interactions]
-    
-    # Also check reading module progress via raw SQL (since it lacks an ORM model)
-    from sqlalchemy import text as sa_text
-    from app.extensions import db
-    reading_enr = db.session.execute(
-        sa_text("SELECT progress_percent, certificate_id FROM rdp_enrollment WHERE user_id = :uid LIMIT 1"),
-        {"uid": current_user.id}
-    ).fetchone()
-    reading_completed = reading_enr is not None and reading_enr.progress_percent == 100 and reading_enr.certificate_id is not None
-    
-    progress = {
-        'app_form': 'viewed_app_form' in completed_slugs,
-                'patent': 'viewed_patent' in completed_slugs,
-        'annexures': 'viewed_annexures' in completed_slugs,
-        'ppp': 'viewed_ppp' in completed_slugs,
-        'demo_cert': 'workshop_post_test' in completed_slugs,
-        'reading_cert': reading_completed
-    }
-    
-    return render_template(
-        "program_sace/reading_hub.html", 
-        app_form=app_form,
-        progress=progress
-    )
+    from . import endorsement_routes as journey
+    return journey.board()
 
 @sace_bp.route("/sace/reading/workshop")
 @login_required
@@ -405,40 +376,21 @@ def acknowledge_patent():
 @sace_bp.route("/sace/reading/presentation")
 @login_required
 def presentation():
-    return render_template("program_sace/presentation_ppp.html")
+    from . import endorsement_routes as journey
+    return journey.ppp()
 
 @sace_bp.route("/sace/reading/presentation/complete")
 @login_required
 def presentation_complete():
-    from app.models.sace import SaceWorkshopInteraction
-    
-    # Log that the user viewed the PPP
-    interaction = SaceWorkshopInteraction.query.filter_by(user_id=current_user.id, activity_slug="viewed_ppp").first()
-    if not interaction:
-        interaction = SaceWorkshopInteraction(
-            user_id=current_user.id,
-            activity_slug="viewed_ppp",
-            response_data="Linear presentation completed"
-        )
-        db.session.add(interaction)
-        db.session.commit()
-        
-    flash("Linear Presentation completed successfully.", "success")
-    return redirect(url_for('sace_bp.reading_hub'))
+    from . import endorsement_routes as journey
+    return journey.ppp_complete()
 
 
 @sace_bp.route("/sace/reading/simulator")
 @login_required
 def simulator():
-    from app.models.sace import SaceDocument
-    docs = SaceDocument.query.filter_by(slug='reading').all()
-    doc_dict = {d.document_type: d for d in docs}
-    
-    response = make_response(render_template("program_sace/simulator.html", docs=doc_dict))
-    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, post-check=0, pre-check=0, max-age=0'
-    response.headers['Pragma'] = 'no-cache'
-    response.headers['Expires'] = '-1'
-    return response
+    from . import endorsement_routes as journey
+    return journey.demo()
 
 from app.models.core import CoreAuditEvent
 
@@ -555,48 +507,8 @@ def provisioning_pledge():
 
 @sace_bp.route("/sace/provisioning/generate_code", methods=["POST"])
 def generate_auditor_code():
-    from app.models.sace import SaceWorkshopInteraction
-    import json
-    import random
-    import string
-    
-    sace_user_id = current_user.id if current_user.is_authenticated else 1
-    
-    # Generate an 8-char code, split with hyphen for readability
-    chars = string.ascii_uppercase + string.digits
-    raw_code = ''.join(random.choice(chars) for _ in range(8))
-    code = f"{raw_code[:4]}-{raw_code[4:]}"
-    
-    data = {
-        "code": code,
-        "status": "Unclaimed",
-        "first_name": "",
-        "last_name": "",
-        "email": ""
-    }
-    
-    interaction = SaceWorkshopInteraction(
-        user_id=sace_user_id,
-        activity_slug="auditor_provisioned",
-        response_data=json.dumps(data)
-    )
-    db.session.add(interaction)
-    db.session.commit()
-    
-    from app.models.core import CoreAuditEvent
-    ip_addr = request.headers.get('X-Forwarded-For', request.remote_addr)
-    audit = CoreAuditEvent(
-        user_id=sace_user_id,
-        action="CODE_GENERATED",
-        entity_type="SACE_EVALUATOR_CODE",
-        details=f"Generated new SACE Evaluator Access Code: {code}",
-        ip_address=ip_addr
-    )
-    db.session.add(audit)
-    db.session.commit()
-    
-    flash(f"New Auditor Access Code generated: {code}", "success")
-    return redirect(url_for('sace_bp.provisioning_map'))
+    from . import endorsement_routes as journey
+    return journey.generate_code()
 
 
 
@@ -606,125 +518,33 @@ def generate_auditor_code():
 @login_required
 def audit_report():
     # Only show events related to SACE and login
-    events = CoreAuditEvent.query.order_by(CoreAuditEvent.created_at.desc()).limit(100).all()
-    return render_template("program_sace/compliance/audit_report.html", events=events)
+    from . import endorsement_routes as journey
+    return journey.controller_audit()
 
 
 @sace_bp.route("/sace/reading/post_test", methods=["GET"])
 @login_required
 def post_test():
-    return render_template("program_sace/post_test/test.html")
+    from . import endorsement_routes as journey
+    return journey.post_test()
 
 @sace_bp.route("/sace/reading/post_test", methods=["POST"])
 @login_required
 def submit_post_test():
-    import json
-    from app.models.sace import SaceWorkshopInteraction
-    
-    q1 = request.form.get('q1')
-    q2 = request.form.get('q2')
-    q3 = request.form.get('q3')
-    q4 = request.form.get('q4')
-    
-    score = 0
-    if q1 == 'B': score += 25
-    if q2 == 'B': score += 25
-    if q3 == 'C': score += 25
-    if q4 == 'A': score += 25
-    
-    competencies = []
-    for key in ['comp_objective', 'comp_sequence', 'comp_demo', 'comp_participation', 'comp_guidance', 'comp_reading', 'comp_assessment', 'comp_reflection']:
-        val = request.form.get(key)
-        if val:
-            competencies.append(val)
-            
-    answers = {
-        'q1': q1,
-        'q2': q2,
-        'q3': q3,
-        'q4': q4,
-        'score': score,
-        'competencies': competencies
-    }
-    
-    interaction = SaceWorkshopInteraction(
-        user_id=current_user.id,
-        activity_slug='workshop_post_test',
-        response_data=json.dumps(answers)
-    )
-    db.session.add(interaction)
-    db.session.commit()
-    
-    return redirect(url_for('sace_bp.post_test_results'))
+    from . import endorsement_routes as journey
+    return journey.mark_workshop()
 
 @sace_bp.route("/sace/reading/post_test/results")
 @login_required
 def post_test_results():
-    import json
-    from app.models.sace import SaceWorkshopInteraction
-    
-    interaction = SaceWorkshopInteraction.query.filter_by(
-        user_id=current_user.id,
-        activity_slug='workshop_post_test'
-    ).order_by(SaceWorkshopInteraction.timestamp.desc()).first()
-    
-    answers = {}
-    if interaction:
-        answers = json.loads(interaction.response_data)
-        
-    return render_template("program_sace/post_test/results.html", answers=answers)
+    from . import endorsement_routes as journey
+    return journey.results()
 
 @sace_bp.route("/sace/reading/certificate/email", methods=["POST"])
 @login_required
 def email_certificate():
-    from datetime import datetime
-    import uuid
-    from app.subject_reading.routes import _email_certificate_pdf
-    
-    target_email = request.form.get("email")
-    if not target_email:
-        flash("Email address is required.", "error")
-        return redirect(url_for("sace_bp.reading_hub"))
-        
-    cert_id = "AIT-WS-" + str(uuid.uuid4())[:8].upper()
-    completed_at = datetime.utcnow()
-    
-    from app.models.sace import SaceWorkshopInteraction
-    import json
-    interaction = SaceWorkshopInteraction.query.filter_by(
-        user_id=current_user.id,
-        activity_slug='workshop_post_test'
-    ).order_by(SaceWorkshopInteraction.timestamp.desc()).first()
-    
-    answers = {}
-    if interaction:
-        answers = json.loads(interaction.response_data)
-
-    try:
-        # Generate the standard PDF
-        pdf_bytes = _generate_sace_certificate_pdf(
-            certificate_id=cert_id,
-            learner_name=current_user.name,
-            completed_at=completed_at,
-            user_id=current_user.id,
-            answers=answers
-        )
-        
-        # Email it
-        _email_certificate_pdf(
-            to_email=target_email,
-            learner_name=current_user.name,
-            certificate_id=cert_id,
-            pdf_bytes=pdf_bytes
-        )
-        
-        flash(f"Certificate successfully emailed to {target_email}", "success")
-    except Exception as e:
-        current_app.logger.error(f"Failed to email SACE workshop certificate: {e}")
-        flash("Failed to email certificate. Please try again.", "error")
-        return redirect(url_for("sace_bp.post_test_results"))
-        
-    return redirect(url_for("sace_bp.reading_hub"))
+    from . import endorsement_routes as journey
+    return journey.send_workshop_certificate()
 
 
 def _generate_sace_certificate_pdf(certificate_id, learner_name, completed_at, user_id=None, answers=None):
@@ -765,45 +585,8 @@ def _generate_sace_certificate_pdf(certificate_id, learner_name, completed_at, u
 @sace_bp.route("/sace/secure_view/<doc_type>")
 @login_required
 def secure_view(doc_type):
-    """Secure on-site document viewer that logs the interaction and blocks downloads."""
-    from app.models.sace import SaceWorkshopInteraction, SaceDocument
-    
-    # Retrieve the document URL first
-    doc = SaceDocument.query.filter_by(document_type=doc_type).first()
-    # TESTING FIX: If doc is missing, log interaction anyway and use a fallback title
-    doc_title = doc.title if doc else doc_type.replace('_', ' ').title()
-    doc_url = doc.document_url if doc else ""
-    
-    # HARDCODE P_GUIDE FOR TESTING
-    if doc_type == 'p_guide':
-        doc_title = "LITRE Participant Manual (P Guide)"
-        doc_url = url_for('static', filename='pdf/P_Guide.pdf')
-
-    # Log that the user viewed this document
-    interaction = SaceWorkshopInteraction.query.filter_by(user_id=current_user.id, activity_slug=f"viewed_{doc_type}").first()
-    if not interaction:
-        interaction = SaceWorkshopInteraction(
-            user_id=current_user.id,
-            activity_slug=f"viewed_{doc_type}",
-            response_data="Document opened in secure viewer"
-        )
-        db.session.add(interaction)
-        db.session.commit()
-        
-    if doc and doc.file_path:
-        doc_url = url_for('static', filename=doc.file_path.replace('app/static/', '').replace('static/', ''))
-    elif not doc_url:
-        doc_url = "about:blank"
-    
-    # Map document types to readable titles
-    titles = {
-        'reviewer_guide': 'Reviewer Guide',
-        'app_form': 'Application Form',
-        'patent': 'Patent Documentation',
-        'annexures': 'Annexures A-E'
-    }
-    
-    return render_template("program_sace/secure_viewer.html", doc_url=doc_url, doc_title=titles.get(doc_type, 'Secure Document'))
+    from . import endorsement_routes as journey
+    return journey.material(doc_type)
 
 
 @sace_bp.route("/sace/log_ppp_view", methods=["POST"])
@@ -982,38 +765,8 @@ def document_action(doc_id):
 @sace_bp.route("/sace/provisioning/logs")
 @login_required
 def provisioning_logs():
-    from app.models.core import CoreAuditEvent
-    from app.models.sace import SaceWorkshopInteraction
-    from app.models.auth import User
-    import json
-    
-    sace_user_id = current_user.id if current_user.is_authenticated else 1
-    
-    # Find auditor emails provisioned by this user
-    invites = SaceWorkshopInteraction.query.filter_by(user_id=sace_user_id, activity_slug="auditor_provisioned").all()
-    emails = []
-    for inv in invites:
-        try:
-            data = json.loads(inv.response_data)
-            if 'email' in data:
-                emails.append(data['email'].lower())
-        except:
-            pass
-            
-    auditor_ids = []
-    if emails:
-        auditor_users = User.query.filter(db.func.lower(User.email).in_(emails)).all()
-        auditor_ids = [u.id for u in auditor_users]
-        
-    target_ids = [sace_user_id] + auditor_ids
-    
-    # Query logs for these users
-    events = CoreAuditEvent.query.filter(CoreAuditEvent.user_id.in_(target_ids)).order_by(CoreAuditEvent.created_at.desc()).limit(100).all()
-    
-    # We will reuse the audit_report template but with a back button context if we want, 
-    # but the simplest is just to render it natively with these events.
-    # The existing template might need a slight tweak to show a back button to Control Centre.
-    return render_template("program_sace/compliance/audit_report.html", events=events, is_control_centre=True)
+    from . import endorsement_routes as journey
+    return journey.controller_audit()
 
 
 
@@ -1090,70 +843,8 @@ def auditor_pledge():
 @sace_bp.route("/sace/claim_code")
 @login_required
 def claim_code():
-    from app.models.sace import SaceWorkshopInteraction
-    import json
-    
-    code = session.get('pending_sace_code')
-    if not code:
-        flash("No pending access code to claim.", "warning")
-        return redirect(url_for('sace_bp.auditor_join'))
-        
-    interactions = SaceWorkshopInteraction.query.filter_by(activity_slug="auditor_provisioned").all()
-    found_inv = None
-    for inv in interactions:
-        try:
-            data = json.loads(inv.response_data)
-            if data.get('code') == code:
-                found_inv = inv
-                break
-        except:
-            pass
-            
-    if found_inv:
-        if current_user.id == found_inv.user_id:
-            flash("You cannot claim an access code that you generated. Access codes must be claimed by the Auditor.", "warning")
-            return redirect(url_for('sace_bp.dashboard'))
-            
-        data = json.loads(found_inv.response_data)
-        if data.get('status') == "Unclaimed":
-            data['status'] = f"Claimed"
-            data['first_name'] = current_user.name or current_user.email.split('@')[0]
-            data['last_name'] = ""
-            data['email'] = current_user.email
-            data['claimed_by_user_id'] = current_user.id
-            found_inv.response_data = json.dumps(data)
-            db.session.commit()
-            
-            if session.get('sace_evaluator_pledged'):
-                pledge_interaction = SaceWorkshopInteraction(
-                    user_id=current_user.id,
-                    activity_slug="viewed_patent",
-                    response_data="Evaluator accepted IP pledge during onboarding"
-                )
-                db.session.add(pledge_interaction)
-                
-                from app.models.core import CoreAuditEvent
-                ip_addr = request.headers.get('X-Forwarded-For', request.remote_addr)
-                audit = CoreAuditEvent(
-                    user_id=current_user.id,
-                    action="PLEDGE_ACCEPTED",
-                    entity_type="SACE_PLEDGE",
-                    details="Evaluator accepted IP pledge during onboarding",
-                    ip_address=ip_addr
-                )
-                db.session.add(audit)
-                db.session.commit()
-                session.pop('sace_evaluator_pledged', None)
-            
-            # Ensure they are enrolled in sace_reading (or just clear session so they can go to the hub)
-            session.pop('pending_sace_code', None)
-            flash("Access Code successfully claimed. Welcome to the SACE Evaluation Hub.", "success")
-            
-            # Direct them instantly to the reading activity!
-            return redirect(url_for('sace_bp.reading_hub'))
-            
-    flash("Failed to claim code or code already used.", "error")
-    return redirect(url_for('sace_bp.auditor_join'))
+    from . import endorsement_routes as journey
+    return journey.claim()
 
 @sace_bp.route("/sace/provisioning/print_slip/<code>")
 @login_required

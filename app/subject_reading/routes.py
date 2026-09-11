@@ -24,6 +24,19 @@ READING_SUBJECT_ID = 1  # <-- set this to the actual id for 'Reading' in subject
 def _set_ui_lang():
     g.ui_lang = (session.get("ui_lang") or "en").strip().lower()
 
+@reading_bp.before_request
+def _auditor_reading_journey():
+    if not current_user.is_authenticated:
+        return None
+    from app.program_sace import endorsement as flow
+    if not flow.assignments():
+        return None
+    flow.assignment()  # Closed assignments cannot re-enter through legacy course URLs.
+    if request.endpoint in ('reading_bp.get_certificate', 'reading_bp.report_exit', 'reading_bp.finish_report'):
+        return redirect(url_for('sace_bp.reading_certificate'), code=303)
+    return redirect(url_for('sace_bp.reading_course'), code=303)
+
+
 @reading_bp.route("/about", methods=["GET"], endpoint="about_reading")
 def about_reading():
     return render_template("subject_reading/about.html", subject_slug="reading", t=_t, ui_lang=g.ui_lang)
@@ -789,7 +802,7 @@ def _email_certificate_pdf(to_email, learner_name, certificate_id, pdf_bytes):
     )
 
     try:
-        send_pdf_email(
+        return send_pdf_email(
             to_email=to_email,
             subject=subject,
             body_text=body,
@@ -798,6 +811,7 @@ def _email_certificate_pdf(to_email, learner_name, certificate_id, pdf_bytes):
         )
     except Exception as e:
         current_app.logger.error(f"Send cert email failed: {e}")
+        return False
 
 def _t(label_key: str, lang: str):
     """

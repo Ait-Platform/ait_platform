@@ -1,0 +1,35 @@
+{% extends "uip/base.html" %}
+{% block title %}Activate Committee Account - {{ org.name }}{% endblock %}
+
+{% block content %}
+<header class="ui-page-head">
+    <div>
+        <p class="ui-eyebrow">{{ org.name }}</p>
+        <h1>Activate Committee Account</h1>
+        <p>Welcome, {{ user.name }}. Set a password to activate your account and access your governance dashboard.</p>
+    </div>
+</header>
+
+{% include 'partials/flash_messages.html' %}
+
+<section class="ui-card" style="max-width: 400px; margin: 2rem auto;">
+    <div class="ui-card-body">
+        <form method="post" class="ui-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            
+            <div class="ui-field">
+                <label>Email</label>
+                <input type="email" class="ui-input" value="{{ user.email }}" disabled>
+            </div>
+            
+            <div class="ui-field">
+                <label>New Password</label>
+                <input type="password" name="password" class="ui-input" required minlength="8">
+                <small class="ui-help">Must be at least 8 characters.</small>
+            </div>
+            
+            <button type="submit" class="ui-btn ui-btn-primary" style="width: 100%;">Activate Account</button>
+        </form>
+    </div>
+</section>
+{% endblock %}

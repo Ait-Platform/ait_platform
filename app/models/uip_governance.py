@@ -92,3 +92,19 @@ class UipDecisionEvent(db.Model):
         db.ForeignKeyConstraint(["decision_id", "organization_id"], ["uip_resolution.id", "uip_resolution.organization_id"], name="fk_uip_decision_event_org"),
         db.CheckConstraint("status IN ('RECORDED','IN_PROGRESS','COMPLETED','SUPERSEDED')", name="ck_uip_decision_status"),
     )
+
+class UipDelegation(db.Model):
+    __tablename__ = "uip_delegation"
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey("core_organization.id"), nullable=False)
+    delegated_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    appointed_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    delegation_type = db.Column(db.String(50), nullable=False)
+    status = db.Column(db.String(20), nullable=False, default="ACTIVE")
+    effective_date = db.Column(db.DateTime(timezone=True), nullable=False, server_default=db.func.now())
+    document_id = db.Column(db.Integer, db.ForeignKey("uip_document.id"), nullable=True)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, server_default=db.func.now())
+    updated_at = db.Column(db.DateTime(timezone=True), nullable=False, server_default=db.func.now(), onupdate=db.func.now())
+    __table_args__ = (
+        db.CheckConstraint("status IN ('ACTIVE','REVOKED')", name="ck_uip_delegation_status"),
+    )

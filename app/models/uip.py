@@ -228,6 +228,37 @@ class UipBroadcast(db.Model):
     sent_at = db.Column(db.DateTime, nullable=True)
 
 
+class UipRegisterImport(db.Model):
+    __tablename__ = "uip_register_import"
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey("core_organization.id"), nullable=False)
+    source_type = db.Column(db.String(50), nullable=False)
+    source_identifier = db.Column(db.String(255))
+    batch_reference = db.Column(db.String(100))
+    date_received = db.Column(db.Date, nullable=False)
+    effective_date = db.Column(db.Date, nullable=False)
+    imported_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    document_id = db.Column(db.Integer, db.ForeignKey("uip_document.id"))
+    status = db.Column(db.String(50), nullable=False)
+    notes = db.Column(db.Text)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, server_default=db.func.now())
+
+
+class UipRegisterImportException(db.Model):
+    __tablename__ = "uip_register_import_exception"
+    id = db.Column(db.Integer, primary_key=True)
+    import_id = db.Column(db.Integer, db.ForeignKey("uip_register_import.id"), nullable=False)
+    row_number = db.Column(db.Integer)
+    source_reference = db.Column(db.String(100))
+    reason = db.Column(db.String(255), nullable=False)
+    incoming_data = db.Column(db.JSON, nullable=False)
+    status = db.Column(db.String(50), nullable=False, server_default="OPEN")
+    resolution_notes = db.Column(db.Text)
+    resolved_at = db.Column(db.DateTime(timezone=True))
+    resolved_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id"))
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, server_default=db.func.now())
+
+
 # Phase 2: organisation register. Application roles never confer ownership/eligibility.
 class UipMemberProfile(db.Model):
     __tablename__ = "uip_member_profile"
@@ -241,6 +272,8 @@ class UipMemberProfile(db.Model):
     phone = db.Column(db.String(50))
     is_active = db.Column(db.Boolean, nullable=False, default=True)
     eligibility_status = db.Column(db.String(20), nullable=False, default="unverified")
+    record_source = db.Column(db.String(50), nullable=False, server_default="MANUAL")
+    last_import_id = db.Column(db.Integer, db.ForeignKey("uip_register_import.id"))
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, server_default=db.func.now())
     updated_at = db.Column(db.DateTime(timezone=True), nullable=False, server_default=db.func.now(), onupdate=db.func.now())
     __table_args__ = (
@@ -264,6 +297,8 @@ class UipProperty(db.Model):
     rates_reference = db.Column(db.String(100))
     classification = db.Column(db.String(20), nullable=False)
     is_active = db.Column(db.Boolean, nullable=False, default=True)
+    record_source = db.Column(db.String(50), nullable=False, server_default="MANUAL")
+    last_import_id = db.Column(db.Integer, db.ForeignKey("uip_register_import.id"))
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, server_default=db.func.now())
     updated_at = db.Column(db.DateTime(timezone=True), nullable=False, server_default=db.func.now(), onupdate=db.func.now())
     __table_args__ = (
@@ -283,6 +318,8 @@ class UipPropertyMember(db.Model):
     valid_from = db.Column(db.Date, nullable=False)
     valid_to = db.Column(db.Date)
     is_verified = db.Column(db.Boolean, nullable=False, default=False)
+    record_source = db.Column(db.String(50), nullable=False, server_default="MANUAL")
+    last_import_id = db.Column(db.Integer, db.ForeignKey("uip_register_import.id"))
     __table_args__ = (
         db.ForeignKeyConstraint(["property_id", "organization_id"], ["uip_property.id", "uip_property.organization_id"], name="fk_uip_property_member_property"),
         db.ForeignKeyConstraint(["member_id", "organization_id"], ["uip_member_profile.id", "uip_member_profile.organization_id"], name="fk_uip_property_member_member"),

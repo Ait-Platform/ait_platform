@@ -87,7 +87,11 @@
             </form>
         </div>
 
-        <!-- HTML Table for Auditors -->
+        <div id="journey-notifications" class="border border-indigo-200 rounded p-4 my-4" aria-live="polite"><h3 class="font-bold">AIT activity evaluation notifications</h3><ul id="journey-events"></ul></div>
+<script>
+(()=>{let after=0;async function poll(){try{const r=await fetch({{ url_for('sace_bp.controller_feed')|tojson }});if(!r.ok)return;const data=await r.json();const list=document.getElementById('journey-events');list.replaceChildren();for(const e of data.events){if(e.action==='controller_notification'){const li=document.createElement('li');li.textContent=e.assignment+': '+e.data.message;list.appendChild(li);}}}catch(e){} }poll();setInterval(poll,15000);})();
+</script>
+<!-- HTML Table for Auditors -->
         <div class="overflow-x-auto bg-white rounded-lg border border-slate-200 shadow-sm">
             <table class="w-full text-left border-collapse">
                 <thead>

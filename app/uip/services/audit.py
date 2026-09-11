@@ -121,7 +121,7 @@ def record(organization_id, actor_user_id, action, entity, metadata=None):
         raise ValueError("Unsafe audit metadata")
     # Record field names only, never their values, contact data or message bodies.
     operational = action.startswith("work_order.") or action in {"task.completed", "task.cancelled"}
-    allowed = {"changed_fields"} | ({"previous_state", "new_state", "version", "reason_code", "dispatch_method"} if operational else set())
+    allowed = {"changed_fields", "import_id"} | ({"previous_state", "new_state", "version", "reason_code", "dispatch_method"} if operational else set())
     if set(metadata) - allowed:
         raise ValueError("Unsafe audit metadata")
     fields = metadata.get("changed_fields", [])

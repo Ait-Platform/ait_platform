@@ -7,10 +7,21 @@
 {% if error %}<p role="alert" class="text-red-700">{{ error }} Nothing imported.</p>{% endif %}
 <form method="post" enctype="multipart/form-data" class="space-y-3 border p-4">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-<label>Import type<select name="kind">{% for name in columns %}<option value="{{ name }}" {% if kind == name %}selected{% endif %}>{{ name }}</option>{% endfor %}</select></label>
+<label>Import type<select name="kind">{% for name in columns %}<option value="{{ name }}" {% if kind == name %}selected{% endif %}>{{ name|title }}</option>{% endfor %}</select></label>
+<label>Source name / Municipality<input type="text" name="source_identifier" value="{{ request.form.source_identifier or '' }}" required placeholder="e.g. City of Cape Town"></label>
+<label>Batch reference (optional)<input type="text" name="batch_reference" value="{{ request.form.batch_reference or '' }}"></label>
+<label>Effective "as at" date<input type="date" name="effective_date" value="{{ request.form.effective_date or '' }}" required></label>
 <label>CSV file<input type="file" name="file" accept=".csv,text/csv" required></label>
 <button name="operation" value="preview" class="border p-2">Preview and validate</button>
-{% if preview_token %}<input type="hidden" name="preview_token" value="{{ preview_token }}"><p>Preview passed for {{ rows|length }} rows. Select the same file again to confirm. The complete file is revalidated before import; any conflict rejects the entire import.</p><button name="operation" value="commit" class="bg-indigo-700 text-white p-2">Confirm import</button>{% endif %}
+{% if preview_token %}<input type="hidden" name="preview_token" value="{{ preview_token }}">
+<p>Preview passed. <strong>{{ summary.received }}</strong> rows parsed.</p>
+<ul class="list-disc ml-5 mb-4">
+<li>{{ summary.created }} will be created</li>
+<li>{{ summary.updated }} will be updated</li>
+<li>{{ summary.unchanged }} unchanged</li>
+<li>{{ summary.exceptions }} exceptions generated</li>
+</ul>
+<p>Select the same file again to confirm. The complete file is revalidated before import.</p><button name="operation" value="commit" class="bg-indigo-700 text-white p-2">Confirm import</button>{% endif %}
 </form>
 {% if rows %}<div class="overflow-x-auto"><table><thead><tr>{% for name in columns[kind] %}<th class="p-2">{{ name }}</th>{% endfor %}</tr></thead><tbody>{% for row in rows %}<tr>{% for name in columns[kind] %}<td class="p-2 border">{{ row[name] }}</td>{% endfor %}</tr>{% endfor %}</tbody></table></div>{% endif %}
 </main>{% endblock %}

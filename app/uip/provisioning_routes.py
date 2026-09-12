@@ -10,9 +10,9 @@ from app.models.uip import UipCommitteeMeeting, UipResolution
 from . import uip_bp
 from .services import audit
 
-@uip_bp.route("/<org_slug>/founding", methods=["GET", "POST"])
+@uip_bp.route("/<org_slug>/provisioning", methods=["GET", "POST"])
 @login_required
-def founding(org_slug):
+def provisioning(org_slug):
     org = g.organization
     
     # Identify the trusted setup user as the chronologically first member of the organization
@@ -143,4 +143,4 @@ def founding(org_slug):
         flash("Founding committee successfully provisioned.", "success")
         return redirect(url_for("uip_bp.dashboard", org_slug=org.slug))
 
-    return render_template("uip/founding.html", org=org)
+    return render_template("uip/provisioning.html", org=org)

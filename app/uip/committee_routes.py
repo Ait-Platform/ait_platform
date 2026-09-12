@@ -1,110 +1,143 @@
 from flask import render_template, g, abort, redirect, url_for, request, flash, current_app
 from flask_login import login_required, current_user
-from itsdangerous import URLSafeTimedSerializer
+from itsdangerous import URLSafeTimedSerializer, BadSignature
 
 from app.extensions import db
 from app.models.auth import User
 from app.models.core import CoreOrganizationMember, CoreRoleAssignment, CoreRole
 from app.models.uip import UipCommitteeMeeting, UipResolution
-from app.models.uip_governance import UipDelegation
+from app.models.uip_governance import UipDelegation, UipCommitteeTerm, UipCommitteeMember
+
+from sqlalchemy import func
+from sqlalchemy.exc import ProgrammingError
 
 from . import uip_bp
 from .services import audit, governance
+from .routes import _require_role
 
 @uip_bp.route("/<org_slug>/committee-dashboard")
 @login_required
 def committee_dashboard(org_slug):
     org = g.organization
     
-    if "committee_member" not in g.uip_roles and "manager" not in g.uip_roles:
+    # 1. Authorize: Must be current committee member or manager
+    is_manager = _require_role("manager", abort_on_fail=False)
+    
+    try:
+        current_appointment = UipCommitteeMember.query.filter(
+            UipCommitteeMember.organization_id == org.id,
+            UipCommitteeMember.status == "CURRENT",
+            func.lower(UipCommitteeMember.email) == func.lower(current_user.email)
+        ).first()
+    except ProgrammingError:
+        db.session.rollback()
+        current_appointment = None
+
+    if not current_appointment and not is_manager:
         abort(403)
         
-    founding_meeting = UipCommitteeMeeting.query.filter_by(
-        organization_id=org.id, meeting_type="FOUNDING"
-    ).first()
+    current_term = None
+    try:
+        current_term = UipCommitteeTerm.query.filter_by(organization_id=org.id).order_by(UipCommitteeTerm.created_at.desc()).first()
+    except ProgrammingError:
+        db.session.rollback()
+        
+    committee_members = []
+    if current_term:
+        committee_members = UipCommitteeMember.query.filter_by(term_id=current_term.id).order_by(UipCommitteeMember.id).all()
+        
+    # Manager Resolution & Current Manager
+    manager_resolution = UipResolution.query.join(UipCommitteeMeeting).filter(
+        UipCommitteeMeeting.organization_id == org.id,
+        UipResolution.title == "Manager Designation"
+    ).order_by(UipResolution.created_at.desc()).first()
     
-    election_resolution = None
-    manager_resolution = None
-    elected_users = []
     current_manager = None
-    
-    if founding_meeting:
-        election_resolution = UipResolution.query.filter_by(
-            meeting_id=founding_meeting.id, title="Election of Committee Members"
-        ).first()
-        
-        manager_resolution = UipResolution.query.filter_by(
-            meeting_id=founding_meeting.id, title="Manager Designation"
-        ).first()
-        
-        if election_resolution and election_resolution.result_basis:
-            user_ids = election_resolution.result_basis.get("elected_committee_user_ids", [])
-            if user_ids:
-                elected_users = User.query.filter(User.id.in_(user_ids)).all()
-                
-        if manager_resolution and manager_resolution.responsible_user_id:
-            current_manager = User.query.get(manager_resolution.responsible_user_id)
+    if manager_resolution and manager_resolution.responsible_user_id:
+        current_manager = User.query.get(manager_resolution.responsible_user_id)
             
-    delegated_responsibility = UipDelegation.query.filter_by(
-        organization_id=org.id,
-        delegated_user_id=current_user.id,
-        status="ACTIVE"
-    ).first()
+    delegated_responsibility = None
+    try:
+        delegated_responsibility = UipDelegation.query.filter_by(
+            organization_id=org.id,
+            delegated_user_id=current_user.id,
+            status="ACTIVE"
+        ).first()
+    except ProgrammingError:
+        db.session.rollback()
     
     # Manager delegation controls
     ratepayer_admin = None
-    if "manager" in g.uip_roles:
-        ratepayer_admin = UipDelegation.query.filter_by(
-            organization_id=org.id,
-            delegation_type="RATEPAYER_ADMIN",
-            status="ACTIVE"
-        ).first()
+    ratepayer_admin_user = None
+    if is_manager:
+        try:
+            ratepayer_admin = UipDelegation.query.filter_by(
+                organization_id=org.id,
+                delegation_type="RATEPAYER_ADMIN",
+                status="ACTIVE"
+            ).first()
+            if ratepayer_admin:
+                ratepayer_admin_user = User.query.get(ratepayer_admin.delegated_user_id)
+        except ProgrammingError:
+            db.session.rollback()
         
     return render_template(
         "uip/dashboards/committee.html",
         org=org,
-        founding_meeting=founding_meeting,
-        election_resolution=election_resolution,
+        current_term=current_term,
+        committee_members=committee_members,
         manager_resolution=manager_resolution,
-        elected_users=elected_users,
         current_manager=current_manager,
         delegated_responsibility=delegated_responsibility,
-        ratepayer_admin=ratepayer_admin
+        ratepayer_admin=ratepayer_admin,
+        ratepayer_admin_user=ratepayer_admin_user,
+        is_manager=is_manager
     )
 
 @uip_bp.route("/<org_slug>/delegate/ratepayer-admin", methods=["POST"])
 @login_required
 def delegate_ratepayer_admin(org_slug):
     org = g.organization
-    if "manager" not in g.uip_roles:
+    if not _require_role("manager", abort_on_fail=False):
         abort(403)
         
-    delegated_user_id = request.form.get("delegated_user_id")
-    
-    # Revoke existing
-    existing = UipDelegation.query.filter_by(
-        organization_id=org.id,
-        delegation_type="RATEPAYER_ADMIN",
-        status="ACTIVE"
-    ).all()
-    for d in existing:
-        d.status = "REVOKED"
+    delegated_email = request.form.get("delegated_email")
+    if not delegated_email:
+        delegated_email = request.form.get("delegated_user_id") # Backwards compatibility for frontend
         
-    if not delegated_user_id:
+    # Revoke existing
+    try:
+        existing = UipDelegation.query.filter_by(
+            organization_id=org.id,
+            delegation_type="RATEPAYER_ADMIN",
+            status="ACTIVE"
+        ).all()
+        for d in existing:
+            d.status = "REVOKED"
+    except ProgrammingError:
+        db.session.rollback()
+        
+    if not delegated_email:
         audit.record(org.id, current_user.id, "delegation.revoked", None)
         db.session.commit()
         flash("Delegation successfully revoked.", "info")
         return redirect(url_for("uip_bp.committee_dashboard", org_slug=org.slug))
         
-    delegated_user_id = int(delegated_user_id)
+    # Find user by email
+    delegated_user = User.query.filter(func.lower(User.email) == func.lower(delegated_email.strip())).first()
+    if not delegated_user:
+        abort(400, description="User not found.")
     
-    # Must be an activated committee member
-    is_committee = CoreRoleAssignment.query.join(CoreRole).join(CoreOrganizationMember, CoreOrganizationMember.user_id == CoreRoleAssignment.user_id).filter(
-        CoreRoleAssignment.organization_id == org.id,
-        CoreRoleAssignment.user_id == delegated_user_id,
-        CoreRole.slug == "committee_member",
-        CoreOrganizationMember.is_active == True
-    ).first()
+    # Must be an activated committee member via UipCommitteeMember
+    try:
+        is_committee = UipCommitteeMember.query.filter(
+            UipCommitteeMember.organization_id == org.id,
+            UipCommitteeMember.status == "CURRENT",
+            func.lower(UipCommitteeMember.email) == func.lower(delegated_user.email)
+        ).first()
+    except ProgrammingError:
+        db.session.rollback()
+        is_committee = None
     
     if not is_committee:
         abort(400, description="User is not an active committee member.")
@@ -112,7 +145,7 @@ def delegate_ratepayer_admin(org_slug):
     # Create new
     new_delegation = UipDelegation(
         organization_id=org.id,
-        delegated_user_id=delegated_user_id,
+        delegated_user_id=delegated_user.id,
         appointed_by_user_id=current_user.id,
         delegation_type="RATEPAYER_ADMIN",
         status="ACTIVE"
@@ -141,25 +174,29 @@ def activate_committee(org_slug, token):
         return redirect(url_for("auth_bp.login"))
         
     if request.method == "POST":
-        # Check resolutions to assign roles
-        meeting = UipCommitteeMeeting.query.filter_by(
-            organization_id=org.id, meeting_type="FOUNDING"
-        ).first()
-        
-        is_elected = False
-        roles_to_assign = []
-        if meeting:
-            elec = UipResolution.query.filter_by(meeting_id=meeting.id, title="Election of Committee Members").first()
-            if elec and elec.result_basis and user.id in elec.result_basis.get("elected_committee_user_ids", []):
-                is_elected = True
-                roles_to_assign.append("committee_member")
-                
-            man = UipResolution.query.filter_by(meeting_id=meeting.id, title="Manager Designation").first()
-            if man and man.responsible_user_id == user.id:
-                roles_to_assign.append("manager")
-                
+        # Ensure they are currently an elected committee member
+        try:
+            is_elected = UipCommitteeMember.query.filter(
+                UipCommitteeMember.organization_id == org.id,
+                UipCommitteeMember.status == "CURRENT",
+                func.lower(UipCommitteeMember.email) == func.lower(user.email)
+            ).first()
+        except ProgrammingError:
+            db.session.rollback()
+            is_elected = None
+            
         if not is_elected:
-            abort(403, description="Only elected committee members can use this activation link.")
+            abort(403, description="Only current committee members can use this activation link.")
+            
+        roles_to_assign = []
+        # Check if they are designated as manager
+        man = UipResolution.query.join(UipCommitteeMeeting).filter(
+            UipCommitteeMeeting.organization_id == org.id,
+            UipResolution.title == "Manager Designation",
+            UipResolution.responsible_user_id == user.id
+        ).first()
+        if man:
+            roles_to_assign.append("manager")
             
         password = request.form.get("password")
         if not password or len(password) < 8:
@@ -186,3 +223,76 @@ def activate_committee(org_slug, token):
         return redirect(url_for("auth_bp.login"))
         
     return render_template("uip/activate_committee.html", org=org, user=user)
+
+@uip_bp.route("/<org_slug>/committee/manage", methods=["GET", "POST"])
+@login_required
+def manage_committee(org_slug):
+    org = g.organization
+    # Only Managers or current committee members can manage terms
+    is_manager = _require_role("manager", abort_on_fail=False)
+    
+    try:
+        is_committee = UipCommitteeMember.query.filter(
+            UipCommitteeMember.organization_id == org.id,
+            UipCommitteeMember.status == "CURRENT",
+            func.lower(UipCommitteeMember.email) == func.lower(current_user.email)
+        ).first()
+    except ProgrammingError:
+        db.session.rollback()
+        is_committee = None
+        
+    if not is_manager and not is_committee:
+        abort(403)
+        
+    if request.method == "POST":
+        term_name = request.form.get("term_name")
+        emails = request.form.getlist("member_email[]")
+        names = request.form.getlist("member_name[]")
+        positions = request.form.getlist("member_position[]")
+        
+        if not term_name:
+            flash("Term name is required.", "danger")
+            return redirect(request.url)
+            
+        # Create new term
+        new_term = UipCommitteeTerm(
+            organization_id=org.id,
+            term_name=term_name,
+            created_by=current_user.id
+        )
+        db.session.add(new_term)
+        db.session.flush()
+        
+        # Mark all old CURRENT members as FORMER
+        old_members = UipCommitteeMember.query.filter_by(
+            organization_id=org.id, status="CURRENT"
+        ).all()
+        for member in old_members:
+            member.status = "FORMER"
+            member.updated_by = current_user.id
+            
+        # Insert new members
+        for email, name, position in zip(emails, names, positions):
+            email = email.strip()
+            name = name.strip()
+            if not email or not name:
+                continue
+                
+            new_member = UipCommitteeMember(
+                term_id=new_term.id,
+                organization_id=org.id,
+                name=name,
+                email=email,
+                position=position,
+                status="CURRENT",
+                created_by=current_user.id
+            )
+            db.session.add(new_member)
+            
+        audit.record(org.id, current_user.id, "committee.term_created", None)
+        db.session.commit()
+        
+        flash(f"New committee term '{term_name}' created successfully.", "success")
+        return redirect(url_for("uip_bp.committee_dashboard", org_slug=org.slug))
+        
+    return render_template("uip/manage_committee.html", org=org)

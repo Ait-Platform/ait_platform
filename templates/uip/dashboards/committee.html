@@ -5,7 +5,7 @@
 <header class="ui-page-head" style="display: flex; justify-content: space-between; align-items: flex-start;">
     <div>
         <p class="ui-eyebrow">{{ org.name }}</p>
-        <h1>Founding Committee Dashboard</h1>
+        <h1>Committee Dashboard</h1>
         <p>Governance overview and management.</p>
         <p class="ui-subtitle mt-2">Logged in as: <strong>{{ current_user.name }}</strong> ({{ current_user.email }})</p>
     </div>
@@ -20,47 +20,48 @@
 
 <div class="ui-split">
     <section class="ui-card">
-        <header class="ui-card-head">
-            <h2>Founding Information</h2>
+        <header class="ui-card-head" style="display: flex; justify-content: space-between; align-items: center;">
+            <h2>Current Term: {% if current_term %}{{ current_term.term_name }}{% else %}Unknown{% endif %}</h2>
+            {% if is_manager %}
+            <a href="{{ url_for('uip_bp.manage_committee', org_slug=org.slug) }}" class="ui-btn ui-btn-primary ui-btn-sm">Manage Term</a>
+            {% endif %}
         </header>
         <div class="ui-card-body">
-            {% if founding_meeting %}
-                <p><strong>Founding AGM:</strong> {{ founding_meeting.scheduled_at.strftime('%d %B %Y at %H:%M') }}</p>
-                <p><strong>Venue:</strong> {{ founding_meeting.location }}</p>
+            <ul class="ui-list">
+            {% for u in committee_members %}
+                {% if u.status == 'CURRENT' %}
+                <li>
+                    <strong>{{ u.name }}</strong> ({{ u.email }})
+                    <br>
+                    <span class="text-sm text-slate-500">{{ u.position }}</span>
+                    {% if current_manager and u.email|lower == current_manager.email|lower %}
+                        <span class="ui-badge ui-badge-primary ml-2">Manager</span>
+                    {% endif %}
+                    {% if u.email|lower == current_user.email|lower %}
+                        <span class="ui-badge ml-2">You</span>
+                    {% endif %}
+                </li>
+                {% endif %}
             {% else %}
-                <p class="ui-empty">No founding meeting recorded.</p>
-            {% endif %}
-            
-            {% if election_resolution %}
-                <p><strong>Election Resolution:</strong> {{ election_resolution.description }}</p>
-            {% endif %}
-            
-            {% if manager_resolution %}
-                <p><strong>Manager Designation:</strong> {{ manager_resolution.description }}</p>
-            {% endif %}
+                <li class="ui-empty">No committee members elected yet.</li>
+            {% endfor %}
+            </ul>
         </div>
     </section>
     
     <section class="ui-card">
         <header class="ui-card-head">
-            <h2>Elected Committee</h2>
+            <h2>Manager Designation</h2>
         </header>
         <div class="ui-card-body">
-            <ul class="ui-list">
-            {% for u in elected_users %}
-                <li>
-                    <strong>{{ u.name }}</strong> ({{ u.email }})
-                    {% if current_manager and u.id == current_manager.id %}
-                        <span class="ui-badge ui-badge-primary">Manager</span>
-                    {% endif %}
-                    {% if u.id == current_user.id %}
-                        <span class="ui-badge">You</span>
-                    {% endif %}
-                </li>
+            {% if manager_resolution %}
+                <p><strong>Designation Resolution:</strong> {{ manager_resolution.description }}</p>
+                {% if current_manager %}
+                    <p><strong>Current Manager:</strong> {{ current_manager.name }} ({{ current_manager.email }})</p>
+                {% endif %}
             {% else %}
-                <li class="ui-empty">No committee members elected yet.</li>
-            {% endfor %}
-            </ul>
+                <p class="ui-empty">No manager designation recorded.</p>
+            {% endif %}
         </div>
     </section>
 </div>
@@ -70,9 +71,10 @@
         <h2>My Role</h2>
     </header>
     <div class="ui-card-body">
-        <p><strong>Status:</strong> <span class="ui-badge ui-badge-success">Committee Member</span></p>
-        {% if "manager" in uip_roles %}
+        {% if is_manager %}
             <p><strong>Status:</strong> <span class="ui-badge ui-badge-primary">Manager</span></p>
+        {% else %}
+            <p><strong>Status:</strong> <span class="ui-badge ui-badge-success">Committee Member</span></p>
         {% endif %}
         
         {% if delegated_responsibility %}
@@ -90,7 +92,7 @@
     </div>
 </section>
 
-{% if "manager" in uip_roles %}
+{% if is_manager %}
 <section class="ui-card">
     <header class="ui-card-head">
         <h2>Manager Delegations</h2>
@@ -101,18 +103,20 @@
             <div class="ui-field">
                 <label>Ratepayer Register Administrator</label>
                 <div style="display: flex; gap: 0.5rem; align-items: center;">
-                    <select name="delegated_user_id" class="ui-input">
+                    <select name="delegated_email" class="ui-input">
                         <option value="">-- Not assigned --</option>
-                        {% for u in elected_users %}
-                            <option value="{{ u.id }}" {% if ratepayer_admin and ratepayer_admin.delegated_user_id == u.id %}selected{% endif %}>
+                        {% for u in committee_members %}
+                            {% if u.status == 'CURRENT' %}
+                            <option value="{{ u.email }}" {% if ratepayer_admin_user and ratepayer_admin_user.email|lower == u.email|lower %}selected{% endif %}>
                                 {{ u.name }}
                             </option>
+                            {% endif %}
                         {% endfor %}
                     </select>
                     <button type="submit" class="ui-btn ui-btn-primary">Assign / Change</button>
                 </div>
                 {% if ratepayer_admin %}
-                    <p class="ui-help">Currently assigned. Changing this will revoke the current delegation.</p>
+                    <p class="ui-help">Currently assigned to {{ ratepayer_admin_user.name }}. Changing this will revoke the current delegation.</p>
                 {% else %}
                     <p class="ui-help">Not assigned.</p>
                 {% endif %}

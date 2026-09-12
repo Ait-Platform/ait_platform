@@ -1,35 +1,27 @@
-{% extends 'uip/base.html' %}
-{% block title %}Founding Committee Provisioning — {{ org.name }}{% endblock %}
+﻿{% extends 'uip/base.html' %}
+{% block title %}Manage Committee Term ?" {{ org.name }}{% endblock %}
 {% block content %}
 <header class="ui-page-head">
     <div>
-        <p class="ui-eyebrow">Setup</p>
-        <h1>Founding Provisioning</h1>
-        <p class="ui-subtitle">Record the founding meeting, elected committee members, and the initial manager designation resolution.</p>
+        <p class="ui-eyebrow">Governance</p>
+        <h1>Manage Committee Term</h1>
+        <p class="ui-subtitle">Record a new committee term. Current committee members will automatically be transitioned to FORMER status.</p>
     </div>
 </header>
 <section class="ui-card">
-    <form method="post" action="{{ url_for('uip_bp.founding', org_slug=org.slug) }}">
+    <form method="post" action="{{ url_for('uip_bp.manage_committee', org_slug=org.slug) }}">
         <fieldset class="ui-form-section">
-            <legend>1. Founding Meeting</legend>
+            <legend>New Term Details</legend>
             <div class="ui-two">
-                <label>Venue
-                    <input type="text" name="venue" required placeholder="e.g. Town Hall">
-                </label>
-            </div>
-            <div class="ui-two">
-                <label>Date
-                    <input type="date" name="meeting_date" required>
-                </label>
-                <label>Time
-                    <input type="time" name="meeting_time" required>
+                <label>Term Name
+                    <input type="text" name="term_name" required placeholder="e.g. 2026/2027 Term or 2026 AGM">
                 </label>
             </div>
         </fieldset>
         
         <fieldset class="ui-form-section">
-            <legend>2. Elected Committee Members</legend>
-            <p class="ui-help">These members will form the initial committee term. Their accounts will be verified by matching their email addresses.</p>
+            <legend>Elected Committee Members</legend>
+            <p class="ui-help">These members will form the new committee term. Their accounts will be verified by matching their email addresses.</p>
             <div id="committee-members">
                 <div class="flex gap-4 committee-member-row items-end mb-4">
                     <label class="flex-1">Name
@@ -48,37 +40,25 @@
                             <option value="Advisory Committee Member">Advisory Committee Member</option>
                         </select>
                     </label>
-                    <label class="flex items-center gap-2 pb-2">
-                        <input type="radio" name="manager_index" value="0" required> Designate Manager
-                    </label>
                 </div>
             </div>
             <button type="button" class="ui-btn mt-2" onclick="addMember()">Add another member</button>
         </fieldset>
 
-        <fieldset class="ui-form-section">
-            <legend>3. Manager Resolution</legend>
-            <p class="ui-help">The selected member above will receive the operational Manager authority via this resolution.</p>
-            <label>Resolution Text
-                <textarea name="resolution_text" rows="4" placeholder="Enter the formal resolution text designating the manager..." required></textarea>
-            </label>
-        </fieldset>
-
         <div class="ui-actions">
-            <button type="submit" class="ui-btn ui-btn-primary">Record Founding Provisioning</button>
-            <a class="ui-btn" href="{{ url_for('uip_bp.dashboard', org_slug=org.slug) }}">Cancel</a>
+            <button type="submit" class="ui-btn ui-btn-primary">Record New Committee Term</button>
+            <a class="ui-btn" href="{{ url_for('uip_bp.committee_dashboard', org_slug=org.slug) }}">Cancel</a>
         </div>
     </form>
 </section>
 {% endblock %}
 {% block scripts %}
 <script>
-    let memberCount = 1;
     function addMember() {
         const container = document.getElementById('committee-members');
         const row = document.createElement('div');
         row.className = 'flex gap-4 committee-member-row items-end mb-4';
-        row.innerHTML = `
+        row.innerHTML = \
             <label class="flex-1">Name
                 <input type="text" name="member_name[]" required placeholder="Full Name" class="w-full">
             </label>
@@ -95,12 +75,8 @@
                     <option value="Advisory Committee Member">Advisory Committee Member</option>
                 </select>
             </label>
-            <label class="flex items-center gap-2 pb-2">
-                <input type="radio" name="manager_index" value="${memberCount}" required> Designate Manager
-            </label>
-        `;
+        \;
         container.appendChild(row);
-        memberCount++;
     }
 </script>
 {% endblock %}

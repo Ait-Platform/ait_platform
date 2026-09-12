@@ -59,6 +59,7 @@ def founding(org_slug):
         # 2. Process Committee Members
         emails = request.form.getlist("member_email[]")
         names = request.form.getlist("member_name[]")
+        positions = request.form.getlist("member_position[]")
         manager_index_str = request.form.get("manager_index")
         
         try:
@@ -67,9 +68,18 @@ def founding(org_slug):
             manager_index = -1
             
         manager_user = None
-        elected_user_ids = []
 
-        for idx, (email, name) in enumerate(zip(emails, names)):
+        from app.models.uip_governance import UipCommitteeTerm, UipCommitteeMember
+        
+        term = UipCommitteeTerm(
+            organization_id=org.id,
+            term_name=f"Founding Term ({meeting_date})",
+            created_by=current_user.id
+        )
+        db.session.add(term)
+        db.session.flush()
+
+        for idx, (email, name, position) in enumerate(zip(emails, names, positions)):
             email = email.strip()
             name = name.strip()
             if not email or not name:
@@ -95,25 +105,23 @@ def founding(org_slug):
                 )
                 db.session.add(membership)
                 db.session.flush()
-            
-            elected_user_ids.append(user.id)
+                
+            # Add to Committee
+            member = UipCommitteeMember(
+                term_id=term.id,
+                organization_id=org.id,
+                name=name,
+                email=email,
+                position=position,
+                status="CURRENT",
+                created_by=current_user.id
+            )
+            db.session.add(member)
             
             if idx == manager_index:
                 manager_user = user
 
-        # 3. Process Committee Election Resolution
-        if elected_user_ids:
-            election_resolution = UipResolution(
-                organization_id=org.id,
-                meeting_id=meeting.id,
-                title="Election of Committee Members",
-                description="The following individuals were elected to the committee at the founding meeting.",
-                recorded_by=current_user.id,
-                result_basis={"elected_committee_user_ids": elected_user_ids}
-            )
-            db.session.add(election_resolution)
-
-        # 4. Process Manager Resolution
+        # 3. Process Manager Resolution
         if manager_user:
             resolution_text = (request.form.get("resolution_text") or "").strip()
             if not resolution_text:

@@ -44,6 +44,23 @@ def _require_role(*allowed, abort_on_fail=True):
         CoreRole.organization_id.is_(None), CoreRole.organization_id == g.organization.id)))
     assignments = query.all()
     roles = [assignment.role.slug for assignment in assignments if assignment.role]
+    
+    # Dynamically inject committee_member role based on current term records
+    if not allowed or "committee_member" in allowed:
+        from app.models.uip_governance import UipCommitteeMember
+        from sqlalchemy import func
+        from sqlalchemy.exc import ProgrammingError
+        try:
+            is_committee = UipCommitteeMember.query.filter(
+                UipCommitteeMember.organization_id == g.organization.id,
+                UipCommitteeMember.status == "CURRENT",
+                func.lower(UipCommitteeMember.email) == func.lower(current_user.email)
+            ).first()
+            if is_committee and "committee_member" not in roles:
+                roles.append("committee_member")
+        except ProgrammingError:
+            db.session.rollback()
+
     if allowed:
         # Staff privileges take precedence over a second resident/provider role.
         roles = [role for role in allowed if role in roles]
@@ -137,24 +154,32 @@ def verify_ratepayer(org_slug):
 @uip_bp.route("/<org_slug>/verify/committee", methods=["GET", "POST"])
 @login_required
 def verify_committee(org_slug):
-    # Check if they already have authority
-    role = _require_role("committee_member", abort_on_fail=False)
-    if role:
+    org = g.organization
+    
+    from sqlalchemy import func
+    from sqlalchemy.exc import ProgrammingError
+    from app.models.uip_governance import UipCommitteeMember
+    
+    try:
+        # Check if they are a current committee member by email match
+        appointment = UipCommitteeMember.query.filter(
+            UipCommitteeMember.organization_id == org.id,
+            UipCommitteeMember.status == "CURRENT",
+            func.lower(UipCommitteeMember.email) == func.lower(current_user.email)
+        ).first()
+    except ProgrammingError:
+        db.session.rollback()
+        appointment = None
+        
+    if appointment:
         return redirect(url_for("uip_bp.committee_dashboard", org_slug=org_slug))
         
-    # Check if they are in the founding resolution but not activated
-    from app.models.uip import UipCommitteeMeeting, UipResolution
-    org = g.organization
-    meeting = UipCommitteeMeeting.query.filter_by(
-        organization_id=org.id, meeting_type="FOUNDING"
-    ).first()
-    
-    if meeting:
-        elec = UipResolution.query.filter_by(meeting_id=meeting.id, title="Election of Committee Members").first()
-        if elec and elec.result_basis and current_user.id in elec.result_basis.get("elected_committee_user_ids", []):
-            return render_template("uip/verification_pending.html", org=org, intent="Elected Committee Member", message="You are recorded as an elected committee member but your account has not been activated for this role. Please use your activation link.")
-            
-    return render_template("uip/verification_pending.html", org=org, intent="Elected Committee Member", message="You are not recorded as an elected committee member in the founding resolution.")
+    return render_template(
+        "uip/verification_pending.html", 
+        org=org, 
+        intent="Committee Member", 
+        message="Committee verification required. Your account is not matched to a current committee record for {} UIP.".format(org.name)
+    )
 
 
 @uip_bp.route("/<org_slug>/verify/mo", methods=["GET", "POST"])

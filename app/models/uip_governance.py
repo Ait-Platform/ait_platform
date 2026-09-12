@@ -108,3 +108,29 @@ class UipDelegation(db.Model):
     __table_args__ = (
         db.CheckConstraint("status IN ('ACTIVE','REVOKED')", name="ck_uip_delegation_status"),
     )
+
+class UipCommitteeTerm(db.Model):
+    __tablename__ = "uip_committee_term"
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey("core_organization.id"), nullable=False)
+    term_name = db.Column(db.String(100), nullable=False)
+    created_by = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, server_default=db.func.now())
+
+class UipCommitteeMember(db.Model):
+    __tablename__ = "uip_committee_member"
+    id = db.Column(db.Integer, primary_key=True)
+    term_id = db.Column(db.Integer, db.ForeignKey("uip_committee_term.id"), nullable=False)
+    organization_id = db.Column(db.Integer, db.ForeignKey("core_organization.id"), nullable=False)
+    name = db.Column(db.String(255), nullable=False)
+    email = db.Column(db.String(255), nullable=False, index=True)
+    position = db.Column(db.String(50), nullable=False)
+    status = db.Column(db.String(20), nullable=False, default="CURRENT")
+    created_by = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, server_default=db.func.now())
+    updated_by = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    updated_at = db.Column(db.DateTime(timezone=True), onupdate=db.func.now())
+    __table_args__ = (
+        db.CheckConstraint("status IN ('CURRENT','FORMER','VACANT')", name="ck_uip_committee_member_status"),
+        db.CheckConstraint("position IN ('Chairperson','Vice-Chairperson','Treasurer','Secretary','Committee Member','Advisory Committee Member')", name="ck_uip_committee_member_position"),
+    )

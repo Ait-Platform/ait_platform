@@ -15,13 +15,17 @@ from .services import audit
 def provisioning(org_slug):
     org = g.organization
     
-    # Identify the trusted setup user as the chronologically first member of the organization
-    first_member = CoreOrganizationMember.query.filter_by(
-        organization_id=org.id
-    ).order_by(CoreOrganizationMember.id).first()
+    from app.models.uip_governance import UipDelegation
     
-    if not first_member or first_member.user_id != current_user.id:
-        abort(403, description="Only the initial setup user can perform founding provisioning.")
+    provisioner = UipDelegation.query.filter_by(
+        organization_id=org.id,
+        delegated_user_id=current_user.id,
+        delegation_type="PROVISIONER",
+        status="ACTIVE"
+    ).first()
+    
+    if not provisioner:
+        abort(403, description="Only the designated setup user can perform UIP provisioning.")
     
     # Restrict if a founding meeting already exists
     if UipCommitteeMeeting.query.filter_by(organization_id=org.id, meeting_type="FOUNDING").first():
@@ -138,6 +142,9 @@ def provisioning(org_slug):
             db.session.add(manager_resolution)
             
         audit.record(org.id, current_user.id, "founding.provisioned", meeting)
+        
+        # Revoke the provisioning authority now that setup is complete
+        provisioner.status = "REVOKED"
         db.session.commit()
         
         flash("Founding committee successfully provisioned.", "success")

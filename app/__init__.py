@@ -88,10 +88,14 @@ def create_app(test_config=None):
         # Auto-migrate database on boot (especially for Render)
         try:
             import flask_migrate
+            import sys
             flask_migrate.upgrade()
-            app.logger.info("Database auto-migrated successfully.")
+            print("Database auto-migrated successfully.", file=sys.stderr)
         except Exception as e:
-            app.logger.error(f"Auto-migration skipped or failed: {e}")
+            print(f"CRITICAL: Auto-migration failed: {e}", file=sys.stderr)
+            import traceback
+            traceback.print_exc()
+            sys.exit(1)
 
 
         try:

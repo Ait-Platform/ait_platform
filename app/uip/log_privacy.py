@@ -41,7 +41,8 @@ class UipTracePrivacy(logging.Filter):
         # Append short exception message if one exists, but strip stack traces
         if record.exc_info:
             exc_type, exc_val, _ = record.exc_info
-            record.msg += f" (exception: {exc_type.__name__}: {str(exc_val)})"
+            record.msg += " (exception: %s: %s)"
+            record.args = record.args + (exc_type.__name__, str(exc_val))
             
         # Exception messages/stack values can contain source text or credentials.
         # Preserve severity; operational actions remain in UipAuditEvent.

@@ -197,13 +197,18 @@ def verify_staff(org_slug):
     # Check if they have an operational role
     role = _require_role("manager", "receptionist", "provider", abort_on_fail=False)
     
+    from sqlalchemy.exc import ProgrammingError
     from app.models.uip_governance import UipDelegation
-    ratepayer_admin = UipDelegation.query.filter_by(
-        organization_id=g.organization.id,
-        delegation_type="RATEPAYER_ADMIN",
-        status="ACTIVE",
-        delegated_user_id=current_user.id
-    ).first()
+    try:
+        ratepayer_admin = UipDelegation.query.filter_by(
+            organization_id=g.organization.id,
+            delegation_type="RATEPAYER_ADMIN",
+            status="ACTIVE",
+            delegated_user_id=current_user.id
+        ).first()
+    except ProgrammingError:
+        db.session.rollback()
+        ratepayer_admin = None
     
     if role == "manager":
         return redirect(url_for("uip_bp.dashboard", org_slug=org_slug)) # Dashboard handles manager route

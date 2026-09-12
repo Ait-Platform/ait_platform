@@ -1,4 +1,4 @@
-﻿from flask import render_template, request, g, redirect, url_for, flash
+from flask import render_template, request, g, redirect, url_for, flash
 from flask_login import current_user
 from datetime import datetime, timezone
 
@@ -107,7 +107,16 @@ def provisioning(org_slug):
             )
             db.session.add(member)
             
-        audit.record(org.id, submitter_id, "founding.provisioned", meeting)
+        from app.models.uip import UipAuditEvent
+        event = UipAuditEvent(
+            organization_id=org.id,
+            actor_user_id=submitter_id,
+            action="founding.provisioned",
+            entity_type="UipCommitteeMeeting",
+            entity_id=meeting.id,
+            metadata_json={}
+        )
+        db.session.add(event)
         
         db.session.commit()
         

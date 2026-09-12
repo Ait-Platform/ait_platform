@@ -37,6 +37,12 @@ class UipTracePrivacy(logging.Filter):
         org_id = getattr(g, "org_id", getattr(org, "id", None) if org and getattr(org, "_sa_instance_state", None) and not org._sa_instance_state.expired else None)
         record.args = (event, rid, request.method, route, request.endpoint, status,
                        _identifier(org_id), user_id)
+        
+        # Append short exception message if one exists, but strip stack traces
+        if record.exc_info:
+            exc_type, exc_val, _ = record.exc_info
+            record.msg += f" (exception: {exc_type.__name__}: {str(exc_val)})"
+            
         # Exception messages/stack values can contain source text or credentials.
         # Preserve severity; operational actions remain in UipAuditEvent.
         record.exc_info = record.exc_text = record.stack_info = None

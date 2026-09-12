@@ -1,0 +1,49 @@
+﻿{% extends "admin/admin_layout.html" %}
+
+{% block admin_title %}UIP Provisioning Invitations{% endblock %}
+{% block admin_back_url %}{{ url_for('admin_bp.index') }}{% endblock %}
+{% block admin_back_text %}Back to Admin Hub{% endblock %}
+{% block admin_color %}bg-sky-600{% endblock %}
+
+{% block admin_content %}
+<div class="max-w-2xl mx-auto">
+    <div class="mb-6 bg-sky-50 border-l-4 border-sky-500 p-4 rounded-r">
+        <h2 class="text-lg font-bold text-sky-800 mb-1">Send Provisioning Invitation</h2>
+        <p class="text-sm text-sky-700">
+            Generate and email a single-use token to an external contact. This grants them temporary access to complete the initial UIP committee setup for a specific organization without granting any persistent roles.
+        </p>
+    </div>
+
+    <div class="bg-white border rounded-lg shadow-sm p-6">
+        <form method="POST" action="{{ url_for('admin_bp.uip_provisioning') }}" class="space-y-4">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            
+            <div>
+                <label for="org_slug" class="block text-sm font-medium text-slate-700 mb-1">UIP Organization</label>
+                <select name="org_slug" id="org_slug" required class="w-full border-slate-300 rounded shadow-sm focus:ring-sky-500 focus:border-sky-500 border p-2">
+                    <option value="">-- Select Organization --</option>
+                    {% for org in orgs %}
+                    <option value="{{ org.slug }}">{{ org.name }} ({{ org.slug }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div>
+                <label for="recipient_name" class="block text-sm font-medium text-slate-700 mb-1">Recipient Name</label>
+                <input type="text" name="recipient_name" id="recipient_name" required placeholder="e.g. Jane Doe" class="w-full border-slate-300 rounded shadow-sm focus:ring-sky-500 focus:border-sky-500 border p-2">
+            </div>
+            
+            <div>
+                <label for="recipient_email" class="block text-sm font-medium text-slate-700 mb-1">Recipient Email</label>
+                <input type="email" name="recipient_email" id="recipient_email" required placeholder="e.g. jane@example.com" class="w-full border-slate-300 rounded shadow-sm focus:ring-sky-500 focus:border-sky-500 border p-2">
+            </div>
+
+            <div class="pt-4 border-t border-slate-100">
+                <button type="submit" class="w-full bg-sky-600 text-white px-4 py-2 rounded font-medium shadow hover:bg-sky-700 transition">
+                    Send Provisioning Invitation
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -81,3 +81,58 @@ def global_tariffs():
     bonuses = SignupBonus.query.order_by(SignupBonus.program_slug).all()
     return render_template('admin/tariffs.html', tariffs=tariffs, bonuses=bonuses)
 
+@admin_bp.route('/uip-provisioning', methods=['GET', 'POST'])
+def uip_provisioning():
+    from app.models.core import CoreOrganization
+    from itsdangerous import URLSafeTimedSerializer
+    from flask import current_app, request, flash, url_for, redirect, render_template
+    from app.utils.mailer import send_email
+
+    if request.method == 'POST':
+        org_slug = request.form.get('org_slug')
+        recipient_name = request.form.get('recipient_name')
+        recipient_email = request.form.get('recipient_email')
+
+        if not org_slug or not recipient_name or not recipient_email:
+            flash("All fields are required.", "danger")
+            return redirect(url_for('admin_bp.uip_provisioning'))
+
+        org = CoreOrganization.query.filter_by(slug=org_slug).first()
+        if not org:
+            flash("Organization not found.", "danger")
+            return redirect(url_for('admin_bp.uip_provisioning'))
+
+        signer = URLSafeTimedSerializer(current_app.secret_key, salt="uip-provisioning")
+        token = signer.dumps({"org_slug": org.slug, "email": recipient_email})
+        
+        link = url_for("uip_bp.provisioning", org_slug=org.slug, token=token, _external=True)
+        
+        subject = f"UIP Committee Provisioning Invitation - {org.name}"
+        html = f"""
+        <p>Dear {recipient_name},</p>
+        <p>You have been designated to set up the initial committee provisioning for <strong>{org.name}</strong>.</p>
+        <p>Please consult with the relevant committee members and then enter the agreed committee names, emails, and positions using the secure link below.</p>
+        <p><a href="{link}" style="display:inline-block;padding:10px 15px;background:#2563eb;color:white;text-decoration:none;border-radius:5px;">Access Provisioning Form</a></p>
+        <p>Or paste this link into your browser:<br>{link}</p>
+        <p>This is a single-use link that will expire once the setup is successfully completed.</p>
+        <p>Regards,<br>AIT Admin Team</p>
+        """
+        
+        body = f"""Dear {recipient_name},
+
+You have been designated to set up the initial committee provisioning for {org.name}.
+
+Please consult with the relevant committee members and then enter the agreed committee names, emails, and positions using the secure link below:
+{link}
+
+This is a single-use link that will expire once the setup is successfully completed.
+
+Regards,
+AIT Admin Team"""
+
+        send_email(subject=subject, recipients=[recipient_email], body=body, html=html)
+        flash(f"Provisioning invitation sent to {recipient_email} for {org.name}.", "success")
+        return redirect(url_for('admin_bp.uip_provisioning'))
+
+    orgs = CoreOrganization.query.order_by(CoreOrganization.name).all()
+    return render_template('admin/uip_provisioning.html', orgs=orgs)

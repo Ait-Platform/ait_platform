@@ -89,8 +89,19 @@ def create_app(test_config=None):
         try:
             import flask_migrate
             import sys
-            flask_migrate.upgrade()
-            print("Database auto-migrated successfully.", file=sys.stderr)
+            try:
+                flask_migrate.upgrade()
+                print("Database auto-migrated successfully.", file=sys.stderr)
+            except Exception as inner_e:
+                error_str = str(inner_e)
+                if "already exists" in error_str or "DuplicateTable" in error_str:
+                    print("Detected desynchronized Alembic history (tables exist). Stamping to d3f70f6a0794...", file=sys.stderr)
+                    flask_migrate.stamp(revision='d3f70f6a0794')
+                    print("Stamp successful. Re-running upgrade for pending migrations...", file=sys.stderr)
+                    flask_migrate.upgrade()
+                    print("Database auto-migrated successfully after stamp.", file=sys.stderr)
+                else:
+                    raise inner_e
         except Exception as e:
             print(f"CRITICAL: Auto-migration failed: {e}", file=sys.stderr)
             import traceback

@@ -29,9 +29,7 @@ def test_anonymous_provisioning_flow(client, app):
         "meeting_time": "10:00",
         "member_name[]": ["Alice Chair", "Bob Member"],
         "member_email[]": ["alice@example.com", "bob@example.com"],
-        "member_position[]": ["Chairperson", "Committee Member"],
-        "manager_index": "0",
-        "resolution_text": "Alice is manager"
+        "member_position[]": ["Chairperson", "Committee Member"]
     }
     res = client.post('/uip/test-uip/provisioning', data=post_data, follow_redirects=True)
     assert res.status_code == 200
@@ -58,8 +56,7 @@ def test_anonymous_provisioning_flow(client, app):
         assert alice is not None
         assert alice.is_active == 0  # Still pending application login
         
-        # Alice is the manager in resolution, but does she have a CoreRoleAssignment?
-        # NO! Manager authority remains designated via resolution, not role assignment automatically by the form.
+        # Manager authority must not be created automatically.
         manager_role = CoreRole.query.filter_by(slug="uip_manager").first()
         if manager_role:
             assert CoreRoleAssignment.query.filter_by(user_id=alice.id, role_id=manager_role.id).count() == 0

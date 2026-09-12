@@ -53,14 +53,6 @@ def provisioning(org_slug):
         emails = request.form.getlist("member_email[]")
         names = request.form.getlist("member_name[]")
         positions = request.form.getlist("member_position[]")
-        manager_index_str = request.form.get("manager_index")
-        
-        try:
-            manager_index = int(manager_index_str) if manager_index_str else -1
-        except ValueError:
-            manager_index = -1
-            
-        manager_user = None
 
         from app.models.uip_governance import UipCommitteeTerm, UipCommitteeMember
         
@@ -110,25 +102,6 @@ def provisioning(org_slug):
                 created_by=submitter_id
             )
             db.session.add(member)
-            
-            if idx == manager_index:
-                manager_user = user
-
-        # 3. Process Manager Resolution
-        if manager_user:
-            resolution_text = (request.form.get("resolution_text") or "").strip()
-            if not resolution_text:
-                resolution_text = f"Resolution designating {manager_user.name} as Manager."
-                
-            manager_resolution = UipResolution(
-                organization_id=org.id,
-                meeting_id=meeting.id,
-                title="Manager Designation",
-                description=resolution_text,
-                recorded_by=submitter_id,
-                responsible_user_id=manager_user.id
-            )
-            db.session.add(manager_resolution)
             
         audit.record(org.id, submitter_id, "founding.provisioned", meeting)
         

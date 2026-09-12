@@ -1,5 +1,5 @@
-from flask import render_template, request, g, redirect, url_for, flash, abort
-from flask_login import login_required, current_user
+﻿from flask import render_template, request, g, redirect, url_for, flash
+from flask_login import current_user
 from datetime import datetime, timezone
 
 from app.extensions import db
@@ -11,34 +11,13 @@ from . import uip_bp
 from .services import audit
 
 @uip_bp.route("/<org_slug>/provisioning", methods=["GET", "POST"])
-@login_required
 def provisioning(org_slug):
     org = g.organization
     
-    from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
-    from flask import current_app
-    
-    token = request.args.get("token") or request.form.get("provisioning_token")
-    if not token:
-        abort(403, description="A valid provisioning token is required.")
-        
-    signer = URLSafeTimedSerializer(current_app.secret_key, salt="uip-provisioning")
-    try:
-        token_data = signer.loads(token, max_age=86400 * 7) # 7 days
-    except SignatureExpired:
-        abort(400, description="Provisioning link has expired.")
-    except BadSignature:
-        abort(400, description="Provisioning link is invalid.")
-        
-    if token_data.get("email") != current_user.email:
-        abort(403, description="This provisioning link was sent to a different email address.")
-    if token_data.get("org_slug") != org.slug:
-        abort(400, description="Provisioning link does not match this organisation.")
-    
     # Restrict if a founding meeting already exists
     if UipCommitteeMeeting.query.filter_by(organization_id=org.id, meeting_type="FOUNDING").first():
-        flash("Founding meeting has already been recorded.", "info")
-        return redirect(url_for("uip_bp.dashboard", org_slug=org.slug))
+        flash("This organisation has already been provisioned.", "info")
+        return redirect(url_for("uip_bp.router_page", org_slug=org.slug))
 
     if request.method == "POST":
         venue = (request.form.get("venue") or "").strip()
@@ -55,6 +34,8 @@ def provisioning(org_slug):
         except ValueError:
             flash("Invalid date or time.", "danger")
             return redirect(request.url)
+
+        submitter_id = getattr(current_user, 'id', None)
 
         # 1. Create the Founding Meeting
         meeting = UipCommitteeMeeting(
@@ -86,7 +67,7 @@ def provisioning(org_slug):
         term = UipCommitteeTerm(
             organization_id=org.id,
             term_name=f"Founding Term ({meeting_date})",
-            created_by=current_user.id
+            created_by=submitter_id
         )
         db.session.add(term)
         db.session.flush()
@@ -126,7 +107,7 @@ def provisioning(org_slug):
                 email=email,
                 position=position,
                 status="CURRENT",
-                created_by=current_user.id
+                created_by=submitter_id
             )
             db.session.add(member)
             
@@ -144,17 +125,16 @@ def provisioning(org_slug):
                 meeting_id=meeting.id,
                 title="Manager Designation",
                 description=resolution_text,
-                recorded_by=current_user.id,
+                recorded_by=submitter_id,
                 responsible_user_id=manager_user.id
             )
             db.session.add(manager_resolution)
             
-        audit.record(org.id, current_user.id, "founding.provisioned", meeting)
-        audit.record(org.id, current_user.id, "provisioning.token_used", None)
+        audit.record(org.id, submitter_id, "founding.provisioned", meeting)
         
         db.session.commit()
         
         flash("Founding committee successfully provisioned.", "success")
-        return redirect(url_for("uip_bp.dashboard", org_slug=org.slug))
+        return redirect(url_for("uip_bp.router_page", org_slug=org.slug))
 
-    return render_template("uip/provisioning.html", org=org, token=token)
+    return render_template("uip/provisioning.html", org=org)

@@ -50,7 +50,7 @@ class UipSurvey(db.Model):
     status = db.Column(db.String(20), nullable=False)
     eligibility_snapshot = db.Column(db.JSON)
     results = db.Column(db.JSON)
-    created_by = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    created_by = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, server_default=db.func.now())
     finalized_at = db.Column(db.DateTime(timezone=True))
     finalized_by = db.Column(db.Integer, db.ForeignKey("user.id"))
@@ -114,7 +114,7 @@ class UipCommitteeTerm(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     organization_id = db.Column(db.Integer, db.ForeignKey("core_organization.id"), nullable=False)
     term_name = db.Column(db.String(100), nullable=False)
-    created_by = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    created_by = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, server_default=db.func.now())
 
 class UipCommitteeMember(db.Model):
@@ -126,7 +126,7 @@ class UipCommitteeMember(db.Model):
     email = db.Column(db.String(255), nullable=False, index=True)
     position = db.Column(db.String(50), nullable=False)
     status = db.Column(db.String(20), nullable=False, default="CURRENT")
-    created_by = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    created_by = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, server_default=db.func.now())
     updated_by = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
     updated_at = db.Column(db.DateTime(timezone=True), onupdate=db.func.now())

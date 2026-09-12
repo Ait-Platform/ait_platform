@@ -88,25 +88,10 @@ def create_app(test_config=None):
         # Auto-migrate database on boot (especially for Render)
         try:
             import flask_migrate
-            import sys
-            try:
-                flask_migrate.upgrade()
-                print("Database auto-migrated successfully.", file=sys.stderr)
-            except Exception as inner_e:
-                error_str = str(inner_e)
-                if "already exists" in error_str or "DuplicateTable" in error_str:
-                    print("Detected desynchronized Alembic history (tables exist). Stamping to d3f70f6a0794...", file=sys.stderr)
-                    flask_migrate.stamp(revision='d3f70f6a0794')
-                    print("Stamp successful. Re-running upgrade for pending migrations...", file=sys.stderr)
-                    flask_migrate.upgrade()
-                    print("Database auto-migrated successfully after stamp.", file=sys.stderr)
-                else:
-                    raise inner_e
+            flask_migrate.upgrade()
+            app.logger.info("Database auto-migrated successfully.")
         except Exception as e:
-            print(f"CRITICAL: Auto-migration failed: {e}", file=sys.stderr)
-            import traceback
-            traceback.print_exc()
-            sys.exit(1)
+            app.logger.error(f"Auto-migration skipped or failed: {e}")
 
 
         try:

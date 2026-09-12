@@ -17,27 +17,23 @@ depends_on = None
 
 
 def upgrade():
-    conn = op.get_bind()
-    from sqlalchemy.engine.reflection import Inspector
-    inspector = Inspector.from_engine(conn)
-    if "uip_delegation" not in inspector.get_table_names():
-        op.create_table('uip_delegation',
-        sa.Column('id', sa.Integer(), nullable=False),
-        sa.Column('organization_id', sa.Integer(), nullable=False),
-        sa.Column('delegated_user_id', sa.Integer(), nullable=False),
-        sa.Column('appointed_by_user_id', sa.Integer(), nullable=False),
-        sa.Column('delegation_type', sa.String(length=50), nullable=False),
-        sa.Column('status', sa.String(length=20), nullable=False, server_default='ACTIVE'),
-        sa.Column('effective_date', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
-        sa.Column('document_id', sa.Integer(), nullable=True),
-        sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
-        sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
-        sa.ForeignKeyConstraint(['appointed_by_user_id'], ['user.id'], ),
-        sa.ForeignKeyConstraint(['delegated_user_id'], ['user.id'], ),
-        sa.ForeignKeyConstraint(['document_id'], ['uip_document.id'], ),
-        sa.ForeignKeyConstraint(['organization_id'], ['core_organization.id'], ),
-        sa.PrimaryKeyConstraint('id')
-        )
+    op.create_table('uip_delegation',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('organization_id', sa.Integer(), nullable=False),
+    sa.Column('delegated_user_id', sa.Integer(), nullable=False),
+    sa.Column('appointed_by_user_id', sa.Integer(), nullable=False),
+    sa.Column('delegation_type', sa.String(length=50), nullable=False),
+    sa.Column('status', sa.String(length=20), nullable=False, server_default='ACTIVE'),
+    sa.Column('effective_date', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.Column('document_id', sa.Integer(), nullable=True),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.ForeignKeyConstraint(['appointed_by_user_id'], ['user.id'], ),
+    sa.ForeignKeyConstraint(['delegated_user_id'], ['user.id'], ),
+    sa.ForeignKeyConstraint(['document_id'], ['uip_document.id'], ),
+    sa.ForeignKeyConstraint(['organization_id'], ['core_organization.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
 
 
 def downgrade():

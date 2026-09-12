@@ -132,7 +132,38 @@ def dashboard(org_slug):
     return redirect(url_for("uip_bp.router_page", org_slug=org_slug))
 
 
+
+@uip_bp.route("/<org_slug>/waiting-lounge")
+@login_required
+def waiting_lounge(org_slug):
+    from flask import request, render_template, g
+    claim = request.args.get("claim", "unknown")
+    return render_template("uip/waiting_lounge.html", org=g.organization, claim=claim)
+
+@uip_bp.route("/<org_slug>/waiting-lounge/dispute", methods=["POST"])
+@login_required
+def waiting_lounge_dispute(org_slug):
+    from flask import flash, redirect, url_for, g
+    from flask_login import current_user
+    from app.models.core import CoreInteraction
+    from app import db
+    
+    interaction = CoreInteraction(
+        organization_id=g.organization.id,
+        creator_id=current_user.id,
+        interaction_type="committee_dispute",
+        title="Committee Membership Verification Dispute",
+        body="User disputes their missing committee verification status.",
+        status="OPEN"
+    )
+    db.session.add(interaction)
+    db.session.commit()
+    
+    flash("Dispute lodged successfully. The administration team will review your status.", "success")
+    return redirect(url_for('uip_bp.waiting_lounge', org_slug=org_slug, claim='committee_nomatch'))
+
 @uip_bp.route("/<org_slug>/router")
+
 @login_required
 def router_page(org_slug):
     # Intent selection page; does not check roles
@@ -147,8 +178,7 @@ def verify_ratepayer(org_slug):
     if role:
         return redirect(url_for("uip_bp.dashboard", org_slug=org_slug))
     
-    # Otherwise, placeholder for municipal verification handoff
-    return render_template("uip/verification_pending.html", org=g.organization, intent="Ratepayer / Property Owner", message="Municipal Ratepayer Vault verification pending. AIT protects the record and must verify your status against authoritative municipal data.")
+    return redirect(url_for("uip_bp.waiting_lounge", org_slug=org_slug, claim="ratepayer"))
 
 
 @uip_bp.route("/<org_slug>/verify/committee", methods=["GET", "POST"])
@@ -156,30 +186,40 @@ def verify_ratepayer(org_slug):
 def verify_committee(org_slug):
     org = g.organization
     
-    from sqlalchemy import func
-    from sqlalchemy.exc import ProgrammingError
-    from app.models.uip_governance import UipCommitteeMember
+    from flask import request, redirect, url_for
+    from flask_login import current_user
     
-    try:
-        # Check if they are a current committee member by email match
-        appointment = UipCommitteeMember.query.filter(
-            UipCommitteeMember.organization_id == org.id,
-            UipCommitteeMember.status == "CURRENT",
-            func.lower(UipCommitteeMember.email) == func.lower(current_user.email)
-        ).first()
-    except ProgrammingError:
-        db.session.rollback()
-        appointment = None
+    if request.method == "POST":
+        is_committee = request.form.get("is_committee")
+        if is_committee == "no":
+            return redirect(url_for("uip_bp.router_page", org_slug=org_slug))
+            
+        from sqlalchemy import func
+        from sqlalchemy.exc import ProgrammingError
+        from app.models.uip_governance import UipCommitteeTerm, UipCommitteeMember
+        from app import db
         
-    if appointment:
-        return redirect(url_for("uip_bp.committee_dashboard", org_slug=org_slug))
-        
-    return render_template(
-        "uip/verification_pending.html", 
-        org=org, 
-        intent="Committee Member", 
-        message="Committee verification required. Your account is not matched to a current committee record for {} UIP.".format(org.name)
-    )
+        try:
+            term = UipCommitteeTerm.query.filter_by(organization_id=org.id).first()
+            if not term:
+                return redirect(url_for("uip_bp.provisioning", org_slug=org_slug))
+                
+            appointment = UipCommitteeMember.query.filter(
+                UipCommitteeMember.organization_id == org.id,
+                UipCommitteeMember.status == "CURRENT",
+                func.lower(UipCommitteeMember.email) == func.lower(current_user.email)
+            ).first()
+        except ProgrammingError:
+            db.session.rollback()
+            appointment = None
+            term = None
+            
+        if appointment:
+            return redirect(url_for("uip_bp.committee_dashboard", org_slug=org_slug))
+        else:
+            return redirect(url_for("uip_bp.waiting_lounge", org_slug=org_slug, claim="committee_nomatch"))
+            
+    return render_template("uip/committee_fork.html", org=org)
 
 
 @uip_bp.route("/<org_slug>/verify/mo", methods=["GET", "POST"])
@@ -190,7 +230,7 @@ def verify_mo(org_slug):
     if role:
         return redirect(url_for("uip_bp.mo_dashboard", org_slug=org_slug))
         
-    return render_template("uip/verification_pending.html", org=g.organization, intent="Municipal Officer", message="Municipal Officer access awaiting verification. Your authority must be approved by the municipality.")
+    return redirect(url_for("uip_bp.waiting_lounge", org_slug=org_slug, claim="mo"))
 
 
 @uip_bp.route("/<org_slug>/mo-dashboard")
@@ -207,7 +247,7 @@ def verify_subcommittee(org_slug):
     if role:
         return redirect(url_for("uip_bp.subcommittee_dashboard", org_slug=org_slug))
     
-    return render_template("uip/verification_pending.html", org=g.organization, intent="Subcommittee Member", message="Subcommittee access awaiting verification.")
+    return redirect(url_for("uip_bp.waiting_lounge", org_slug=org_slug, claim="subcommittee"))
 
 @uip_bp.route("/<org_slug>/subcommittee-dashboard")
 @login_required
@@ -244,7 +284,7 @@ def verify_staff(org_slug):
     if ratepayer_admin:
         return redirect(url_for("uip_bp.member_list", org_slug=org_slug))
         
-    return render_template("uip/verification_pending.html", org=g.organization, intent="UIP Staff / Service Provider", message="Staff or Service Provider access awaiting verification. You must be assigned an operational role or delegation.")
+    return redirect(url_for("uip_bp.waiting_lounge", org_slug=org_slug, claim="staff"))
 
 
 @uip_bp.route("/<org_slug>/verify/public", methods=["GET", "POST"])

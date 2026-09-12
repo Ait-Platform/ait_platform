@@ -1,0 +1,46 @@
+﻿{% extends "uip/base.html" %}
+{% block title %}UIP Waiting Lounge{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto px-4 py-12">
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-8 text-center">
+        <div class="w-20 h-20 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-6">
+            <i class="fas fa-hourglass-half text-3xl"></i>
+        </div>
+        
+        <h1 class="text-3xl font-extrabold text-slate-900 mb-4">UIP Waiting Lounge</h1>
+        <p class="text-lg text-slate-600 mb-8">We are confirming your UIP access.</p>
+        
+        <div class="bg-slate-50 rounded-lg p-6 max-w-lg mx-auto border border-slate-100">
+            <h2 class="text-sm font-bold text-slate-500 uppercase tracking-wider mb-2">Current Status</h2>
+            {% if claim == 'committee_nomatch' %}
+                <p class="text-lg font-medium text-slate-800">Committee membership awaiting confirmation</p>
+                <p class="text-sm text-slate-600 mt-2">Your registered details do not currently match the elected members list.</p>
+                
+                <form method="POST" action="{{ url_for('uip_bp.waiting_lounge_dispute', org_slug=org.slug) }}" class="mt-6">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="bg-indigo-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-indigo-700 transition">
+                        Lodge Dispute
+                    </button>
+                </form>
+            {% elif claim == 'ratepayer' %}
+                <p class="text-lg font-medium text-slate-800">Ratepayer status &mdash; Awaiting verification</p>
+            {% elif claim == 'mo' %}
+                <p class="text-lg font-medium text-slate-800">Municipal Officer status &mdash; Awaiting verification</p>
+            {% elif claim == 'staff' %}
+                <p class="text-lg font-medium text-slate-800">Staff / Service Provider status &mdash; Awaiting verification</p>
+            {% elif claim == 'subcommittee' %}
+                <p class="text-lg font-medium text-slate-800">Subcommittee Member status &mdash; Awaiting verification</p>
+            {% else %}
+                <p class="text-lg font-medium text-slate-800">Access awaiting verification</p>
+            {% endif %}
+        </div>
+        
+        <div class="mt-8">
+            <a href="{{ url_for('uip_bp.router_page', org_slug=org.slug) }}" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium">
+                &larr; Return to Options
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

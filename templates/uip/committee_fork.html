@@ -1,0 +1,25 @@
+﻿{% extends "uip/base.html" %}
+{% block title %}Committee Member Registration{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto px-4 py-12">
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-8 text-center">
+        <div class="w-16 h-16 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-6">
+            <i class="fas fa-gavel text-2xl"></i>
+        </div>
+        
+        <h1 class="text-2xl font-bold text-slate-900 mb-4">Committee Member Registration</h1>
+        <p class="text-slate-600 mb-8">Are you a founding/elected committee member of this UIP?</p>
+        
+        <form method="POST" action="{{ url_for('uip_bp.verify_committee', org_slug=org.slug) }}" class="flex flex-col sm:flex-row justify-center gap-4">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" name="is_committee" value="yes" class="bg-indigo-600 text-white px-8 py-3 rounded-lg font-medium hover:bg-indigo-700 transition">
+                Yes
+            </button>
+            <button type="submit" name="is_committee" value="no" class="bg-white text-slate-700 border border-slate-300 px-8 py-3 rounded-lg font-medium hover:bg-slate-50 transition">
+                No
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}

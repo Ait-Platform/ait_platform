@@ -107,17 +107,6 @@ def provisioning(org_slug):
             )
             db.session.add(member)
             
-        from app.models.uip import UipAuditEvent
-        event = UipAuditEvent(
-            organization_id=org.id,
-            actor_user_id=submitter_id,
-            action="founding.provisioned",
-            entity_type="UipCommitteeMeeting",
-            entity_id=meeting.id,
-            metadata_json={}
-        )
-        db.session.add(event)
-        
         db.session.commit()
         
         flash("Founding committee successfully provisioned.", "success")

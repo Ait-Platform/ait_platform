@@ -34,8 +34,9 @@ class UipTracePrivacy(logging.Filter):
         user_id = _identifier(getattr(request, "user_id", None)) or _identifier(getattr(cached_user, "id", None))
         route = request.url_rule.rule if request.url_rule else "(unmatched UIP route)"
         record.msg = "UIP %s request_id=%s method=%s route=%s endpoint=%s status=%s organization_id=%s user_id=%s (UIP request contents omitted)"
+        org_id = getattr(g, "org_id", getattr(org, "id", None) if org and getattr(org, "_sa_instance_state", None) and not org._sa_instance_state.expired else None)
         record.args = (event, rid, request.method, route, request.endpoint, status,
-                       _identifier(getattr(org, "id", None)), user_id)
+                       _identifier(org_id), user_id)
         # Exception messages/stack values can contain source text or credentials.
         # Preserve severity; operational actions remain in UipAuditEvent.
         record.exc_info = record.exc_text = record.stack_info = None

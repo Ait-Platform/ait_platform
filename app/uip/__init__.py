@@ -15,6 +15,7 @@ def establish_organization_context():
     if not org:
         abort(404)
     g.organization = org
+    g.org_id = org.id
     
     # Allow public endpoints and the router to be accessed without membership
     public_endpoints = {

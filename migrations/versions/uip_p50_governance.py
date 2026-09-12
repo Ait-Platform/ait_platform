@@ -49,11 +49,13 @@ def upgrade():
         batch_op.create_index(batch_op.f('ix_uip_committee_member_email'), ['email'], unique=False)
 
     # uip_committee_meeting agenda
-    try:
+    conn = op.get_bind()
+    from sqlalchemy.engine.reflection import Inspector
+    inspector = Inspector.from_engine(conn)
+    columns = [c['name'] for c in inspector.get_columns('uip_committee_meeting')]
+    if 'agenda' not in columns:
         with op.batch_alter_table('uip_committee_meeting', schema=None) as batch_op:
             batch_op.add_column(sa.Column('agenda', sa.Text(), nullable=True))
-    except Exception as e:
-        print(f"Warning adding agenda column: {e}")
 
 def downgrade():
     with op.batch_alter_table('uip_committee_meeting', schema=None) as batch_op:

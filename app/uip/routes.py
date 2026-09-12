@@ -25,13 +25,15 @@ CHANNELS = {"Telephone", "Reception", "Email", "Web", "WhatsApp"}
 PRIORITIES = {"LOW", "NORMAL", "HIGH", "URGENT"}
 
 
-def _require_role(*allowed):
+def _require_role(*allowed, abort_on_fail=True):
     """Require active membership and an eligible role within this organisation."""
     membership = CoreOrganizationMember.query.filter_by(
         organization_id=g.organization.id, user_id=current_user.id, is_active=True
     ).first()
     if not membership:
-        abort(403)
+        if abort_on_fail:
+            abort(403)
+        return None
     query = CoreRoleAssignment.query.filter_by(
         organization_id=g.organization.id, user_id=current_user.id
     )
@@ -46,7 +48,9 @@ def _require_role(*allowed):
         # Staff privileges take precedence over a second resident/provider role.
         roles = [role for role in allowed if role in roles]
     if not roles:
-        abort(403)
+        if abort_on_fail:
+            abort(403)
+        return None
     return roles[0]
 
 
@@ -84,7 +88,13 @@ def _positive_id(value):
 @login_required
 def dashboard(org_slug):
     org = g.organization
-    role_slug = _require_role("manager", "receptionist", "committee_member", "owner", "resident", "provider")
+    role_slug = _require_role("manager", "receptionist", "committee_member", "owner", "resident", "provider", "municipal_officer", abort_on_fail=False)
+    
+    if not role_slug:
+        return redirect(url_for("uip_bp.router_page", org_slug=org_slug))
+        
+    if role_slug == "municipal_officer":
+        return redirect(url_for("uip_bp.mo_dashboard", org_slug=org_slug))
     if role_slug == "provider":
         return redirect(url_for("uip_bp.work_order_list", org_slug=org_slug))
     if role_slug in {"resident", "owner"}:
@@ -101,7 +111,122 @@ def dashboard(org_slug):
     if role_slug == "manager":
         from app.uip.presentation import executive
         return render_template("uip/dashboards/manager.html", org=org, overview=executive(org.id, current_user.id))
-    abort(403)
+    
+    return redirect(url_for("uip_bp.router_page", org_slug=org_slug))
+
+
+@uip_bp.route("/<org_slug>/router")
+@login_required
+def router_page(org_slug):
+    # Intent selection page; does not check roles
+    return render_template("uip/router.html", org=g.organization)
+
+
+@uip_bp.route("/<org_slug>/verify/ratepayer", methods=["GET", "POST"])
+@login_required
+def verify_ratepayer(org_slug):
+    # Check if they already have authority
+    role = _require_role("owner", "resident", abort_on_fail=False)
+    if role:
+        return redirect(url_for("uip_bp.dashboard", org_slug=org_slug))
+    
+    # Otherwise, placeholder for municipal verification handoff
+    return render_template("uip/verification_pending.html", org=g.organization, intent="Ratepayer / Property Owner", message="Municipal Ratepayer Vault verification pending. AIT protects the record and must verify your status against authoritative municipal data.")
+
+
+@uip_bp.route("/<org_slug>/verify/committee", methods=["GET", "POST"])
+@login_required
+def verify_committee(org_slug):
+    # Check if they already have authority
+    role = _require_role("committee_member", abort_on_fail=False)
+    if role:
+        return redirect(url_for("uip_bp.committee_dashboard", org_slug=org_slug))
+        
+    # Check if they are in the founding resolution but not activated
+    from app.models.uip import UipCommitteeMeeting, UipResolution
+    org = g.organization
+    meeting = UipCommitteeMeeting.query.filter_by(
+        organization_id=org.id, meeting_type="FOUNDING"
+    ).first()
+    
+    if meeting:
+        elec = UipResolution.query.filter_by(meeting_id=meeting.id, title="Election of Committee Members").first()
+        if elec and elec.result_basis and current_user.id in elec.result_basis.get("elected_committee_user_ids", []):
+            return render_template("uip/verification_pending.html", org=org, intent="Elected Committee Member", message="You are recorded as an elected committee member but your account has not been activated for this role. Please use your activation link.")
+            
+    return render_template("uip/verification_pending.html", org=org, intent="Elected Committee Member", message="You are not recorded as an elected committee member in the founding resolution.")
+
+
+@uip_bp.route("/<org_slug>/verify/mo", methods=["GET", "POST"])
+@login_required
+def verify_mo(org_slug):
+    # Check if they already have authority
+    role = _require_role("municipal_officer", abort_on_fail=False)
+    if role:
+        return redirect(url_for("uip_bp.mo_dashboard", org_slug=org_slug))
+        
+    return render_template("uip/verification_pending.html", org=g.organization, intent="Municipal Officer", message="Municipal Officer access awaiting verification. Your authority must be approved by the municipality.")
+
+
+@uip_bp.route("/<org_slug>/mo-dashboard")
+@login_required
+def mo_dashboard(org_slug):
+    _require_role("municipal_officer")
+    return render_template("uip/dashboards/municipal_officer.html", org=g.organization)
+
+
+@uip_bp.route("/<org_slug>/verify/subcommittee", methods=["GET", "POST"])
+@login_required
+def verify_subcommittee(org_slug):
+    role = _require_role("subcommittee_member", abort_on_fail=False)
+    if role:
+        return redirect(url_for("uip_bp.subcommittee_dashboard", org_slug=org_slug))
+    
+    return render_template("uip/verification_pending.html", org=g.organization, intent="Subcommittee Member", message="Subcommittee access awaiting verification.")
+
+@uip_bp.route("/<org_slug>/subcommittee-dashboard")
+@login_required
+def subcommittee_dashboard(org_slug):
+    _require_role("subcommittee_member")
+    return render_template("uip/dashboards/subcommittee.html", org=g.organization)
+
+
+@uip_bp.route("/<org_slug>/verify/staff", methods=["GET", "POST"])
+@login_required
+def verify_staff(org_slug):
+    # Check if they have an operational role
+    role = _require_role("manager", "receptionist", "provider", abort_on_fail=False)
+    
+    from app.models.uip_governance import UipDelegation
+    ratepayer_admin = UipDelegation.query.filter_by(
+        organization_id=g.organization.id,
+        delegation_type="RATEPAYER_ADMIN",
+        status="ACTIVE",
+        delegated_user_id=current_user.id
+    ).first()
+    
+    if role == "manager":
+        return redirect(url_for("uip_bp.dashboard", org_slug=org_slug)) # Dashboard handles manager route
+    if role == "receptionist":
+        return redirect(url_for("uip_bp.dashboard", org_slug=org_slug))
+    if role == "provider":
+        return redirect(url_for("uip_bp.work_order_list", org_slug=org_slug))
+    if ratepayer_admin:
+        return redirect(url_for("uip_bp.member_list", org_slug=org_slug))
+        
+    return render_template("uip/verification_pending.html", org=g.organization, intent="UIP Staff / Service Provider", message="Staff or Service Provider access awaiting verification. You must be assigned an operational role or delegation.")
+
+
+@uip_bp.route("/<org_slug>/verify/public", methods=["GET", "POST"])
+def verify_public(org_slug):
+    # Public reporters don't need roles. Just go to intake.
+    return redirect(url_for("uip_bp.public_dashboard", org_slug=org_slug))
+
+
+@uip_bp.route("/<org_slug>/public-dashboard")
+def public_dashboard(org_slug):
+    # Placeholder for public reporting intake. No role checks required!
+    return render_template("uip/dashboards/public.html", org=g.organization)
 
 
 @uip_bp.route("/<org_slug>/settings", methods=["GET", "POST"])

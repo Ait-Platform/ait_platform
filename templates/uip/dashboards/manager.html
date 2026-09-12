@@ -2,14 +2,19 @@
 {% block title %}Command Centre — {{ org.name }}{% endblock %}
 
 {% block content %}
-<header class="ui-page-head">
+<header class="ui-page-head" style="display: flex; justify-content: space-between; align-items: flex-start;">
     <div>
         <p class="ui-eyebrow">{{ org.name }}</p>
-        <h1>Command Centre</h1>
+        <h1>Manager Command Centre</h1>
         <p class="ui-subtitle">Your precinct at a glance.</p>
+        <p class="ui-subtitle mt-2">Logged in as: <strong>{{ current_user.name }}</strong> ({{ current_user.email }})</p>
     </div>
 
-    <div class="ui-actions ui-command-actions">
+    <div class="ui-actions ui-command-actions" style="display: flex; flex-direction: column; align-items: flex-end;">
+        <a href="{{ url_for('uip_bp.router_page', org_slug=org.slug) }}" class="ui-btn ui-btn-outline mb-4">
+            &larr; Switch Participant Role
+        </a>
+        <div style="display: flex; gap: 0.5rem;">
         <a class="ui-btn ui-btn-primary"
            href="{{ url_for('uip_bp.new_interaction', org_slug=org.slug) }}">
             + Log interaction

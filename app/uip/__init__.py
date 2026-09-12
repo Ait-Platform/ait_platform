@@ -15,11 +15,26 @@ def establish_organization_context():
     if not org:
         abort(404)
     g.organization = org
+    
+    # Allow public endpoints and the router to be accessed without membership
+    public_endpoints = {
+        "uip_bp.router_page", 
+        "uip_bp.verify_public", 
+        "uip_bp.public_dashboard",
+        "uip_bp.verify_ratepayer",
+        "uip_bp.verify_committee",
+        "uip_bp.verify_mo",
+        "uip_bp.verify_staff",
+        "uip_bp.verify_subcommittee",
+        "uip_bp.mo_dashboard",
+        "uip_bp.subcommittee_dashboard"
+    }
+    
     if current_user.is_authenticated:
         membership = CoreOrganizationMember.query.filter_by(
             organization_id=org.id, user_id=current_user.id, is_active=True
         ).first()
-        if not membership:
+        if not membership and request.endpoint not in public_endpoints:
             abort(403)
 
 

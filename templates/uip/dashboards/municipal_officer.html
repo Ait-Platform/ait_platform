@@ -1,0 +1,27 @@
+﻿{% extends "uip/base.html" %}
+{% block title %}{{ org.name }} - Municipal Officer Dashboard{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto px-4 mt-8 mb-16">
+    <div class="flex items-center justify-between mb-8 pb-4 border-b border-slate-200">
+        <div>
+            <span class="bg-emerald-100 text-emerald-800 text-xs px-2 py-1 rounded font-bold uppercase tracking-wide mb-2 inline-block">{{ org.name }}</span>
+            <h1 class="text-3xl font-extrabold text-slate-900">Municipal Officer Dashboard</h1>
+            <p class="text-slate-600 mt-1">Logged in as: <strong>{{ current_user.name }}</strong> ({{ current_user.email }})</p>
+        </div>
+        <a href="{{ url_for('uip_bp.router_page', org_slug=org.slug) }}" class="ui-btn ui-btn-outline">
+            &larr; Switch Participant Role
+        </a>
+    </div>
+
+    {% include "partials/flash_messages.html" %}
+
+    <div class="bg-slate-50 p-12 rounded-xl border border-slate-200 text-center">
+        <div class="w-16 h-16 bg-white text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4 border border-slate-200 shadow-sm">
+            <i class="fas fa-university text-2xl"></i>
+        </div>
+        <h2 class="text-xl font-bold text-slate-900 mb-2">Municipal Dashboard Placeholder</h2>
+        <p class="text-slate-500 max-w-lg mx-auto">This area is currently under construction for Phase 1. When complete, verified Municipal Officers will have access to escalations, SLA tracking, and ratepayer data here.</p>
+    </div>
+</div>
+{% endblock %}

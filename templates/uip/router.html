@@ -1,0 +1,74 @@
+﻿{% extends "uip/base.html" %}
+{% block title %}{{ org.name }} - Choose Participant Type{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 mt-8 mb-16">
+    <div class="text-center mb-12">
+        <span class="bg-indigo-100 text-indigo-800 text-xs px-2 py-1 rounded font-bold uppercase tracking-wide mb-2 inline-block">{{ org.name }}</span>
+        <h1 class="text-3xl font-extrabold text-slate-900 mt-2">Welcome to {{ org.name }}</h1>
+        <p class="text-lg text-slate-600 mt-4 max-w-2xl mx-auto">Please select how you participate in this Urban Improvement Precinct. Your selection will route you to the correct verification process and dashboard.</p>
+    </div>
+
+    {% include "partials/flash_messages.html" %}
+
+    <div class="grid md:grid-cols-3 gap-6">
+        <!-- Ratepayer Tile -->
+        <a href="{{ url_for('uip_bp.verify_ratepayer', org_slug=org.slug) }}" class="ui-card bg-white p-8 rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-indigo-300 transition block text-center group">
+            <div class="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform">
+                <i class="fas fa-home text-2xl"></i>
+            </div>
+            <h2 class="text-xl font-bold text-slate-900 mb-2">Ratepayer / Property Owner</h2>
+            <p class="text-sm text-slate-600">Access your property records, log interactions, and pay municipal rates.</p>
+        </a>
+
+        <!-- Committee Tile -->
+        <a href="{{ url_for('uip_bp.verify_committee', org_slug=org.slug) }}" class="ui-card bg-white p-8 rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-amber-300 transition block text-center group">
+            <div class="w-16 h-16 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform">
+                <i class="fas fa-gavel text-2xl"></i>
+            </div>
+            <h2 class="text-xl font-bold text-slate-900 mb-2">Elected Committee Member</h2>
+            <p class="text-sm text-slate-600">Access governance, resolutions, and management oversight tools.</p>
+        </a>
+
+        <!-- Subcommittee Tile -->
+        <a href="{{ url_for('uip_bp.verify_subcommittee', org_slug=org.slug) }}" class="ui-card bg-white p-8 rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-purple-300 transition block text-center group">
+            <div class="w-16 h-16 bg-purple-50 text-purple-600 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform">
+                <i class="fas fa-users text-2xl"></i>
+            </div>
+            <h2 class="text-xl font-bold text-slate-900 mb-2">Subcommittee Member</h2>
+            <p class="text-sm text-slate-600">Access subcommittee management, tasks, and advisory boards.</p>
+        </a>
+
+        <!-- MO Tile -->
+        <a href="{{ url_for('uip_bp.verify_mo', org_slug=org.slug) }}" class="ui-card bg-white p-8 rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-emerald-300 transition block text-center group">
+            <div class="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform">
+                <i class="fas fa-university text-2xl"></i>
+            </div>
+            <h2 class="text-xl font-bold text-slate-900 mb-2">Municipal Officer (MO)</h2>
+            <p class="text-sm text-slate-600">Access municipal escalations, SLA tracking, and ratepayer data.</p>
+        </a>
+
+        <!-- Staff / Service Provider Tile -->
+        <a href="{{ url_for('uip_bp.verify_staff', org_slug=org.slug) }}" class="ui-card bg-white p-8 rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-blue-300 transition block text-center group">
+            <div class="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform">
+                <i class="fas fa-briefcase text-2xl"></i>
+            </div>
+            <h2 class="text-xl font-bold text-slate-900 mb-2">UIP Staff / Service Provider</h2>
+            <p class="text-sm text-slate-600">Access operational workspaces, reception, and management tools.</p>
+        </a>
+
+        <!-- Public Reporter Tile -->
+        <a href="{{ url_for('uip_bp.verify_public', org_slug=org.slug) }}" class="ui-card bg-white p-8 rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-orange-300 transition block text-center group">
+            <div class="w-16 h-16 bg-orange-50 text-orange-600 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform">
+                <i class="fas fa-bullhorn text-2xl"></i>
+            </div>
+            <h2 class="text-xl font-bold text-slate-900 mb-2">Public Reporter</h2>
+            <p class="text-sm text-slate-600">Report an issue in the Manor Gardens UIP area. No login required.</p>
+        </a>
+    </div>
+    
+    <div class="mt-12 text-center text-sm text-slate-500">
+        <p><i class="fas fa-shield-alt mr-1"></i> AIT Platform securely verifies all authoritative roles.</p>
+    </div>
+</div>
+{% endblock %}

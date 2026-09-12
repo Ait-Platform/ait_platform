@@ -1,6 +1,19 @@
 {% extends "uip/base.html" %}
 {% block title %}Reception - {{ org.name }}{% endblock %}
 {% block content %}
-<header class="ui-page-head"><div><h1>Reception</h1><p>Log enquiries and keep current issues moving.</p></div><a class="ui-btn ui-btn-primary" href="{{ url_for('uip_bp.new_interaction', org_slug=org.slug) }}">Log interaction</a></header>
+<header class="ui-page-head" style="display: flex; justify-content: space-between; align-items: flex-start;">
+    <div>
+        <p class="ui-eyebrow">{{ org.name }}</p>
+        <h1>Reception Dashboard</h1>
+        <p>Log enquiries and keep current issues moving.</p>
+        <p class="ui-subtitle mt-2">Logged in as: <strong>{{ current_user.name }}</strong> ({{ current_user.email }})</p>
+    </div>
+    <div style="display: flex; flex-direction: column; align-items: flex-end;">
+        <a href="{{ url_for('uip_bp.router_page', org_slug=org.slug) }}" class="ui-btn ui-btn-outline mb-4">
+            &larr; Switch Participant Role
+        </a>
+        <a class="ui-btn ui-btn-primary" href="{{ url_for('uip_bp.new_interaction', org_slug=org.slug) }}">Log interaction</a>
+    </div>
+</header>
 <section class="ui-card"><div class="ui-card-head"><h2>Open issues <span class="ui-badge">{{ issue_rows|length }}</span></h2><a href="{{ url_for('uip_bp.reception_page', org_slug=org.slug) }}">View all issues</a></div>{% include 'uip/issue_table.html' %}</section>
 {% endblock %}

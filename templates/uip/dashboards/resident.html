@@ -5,12 +5,18 @@
 
 
 <div class="max-w-6xl mx-auto px-4 mt-8 mb-16">
-    <div class="flex items-center justify-between mb-8 pb-4 border-b border-slate-200">
+    <div class="flex flex-col md:flex-row md:items-start justify-between mb-8 pb-4 border-b border-slate-200">
         <div>
             <span class="bg-indigo-100 text-indigo-800 text-xs px-2 py-1 rounded font-bold uppercase tracking-wide mb-2 inline-block">{{ org.name }}</span>
-            <h1 class="text-3xl font-extrabold text-slate-900">Resident Portal</h1>
+            <h1 class="text-3xl font-extrabold text-slate-900">Ratepayer Dashboard</h1>
+            <p class="text-slate-600 mt-1">Logged in as: <strong>{{ current_user.name }}</strong> ({{ current_user.email }})</p>
         </div>
-        <p>Contact UIP reception to log a new interaction.</p>
+        <div class="mt-4 md:mt-0 flex flex-col items-end">
+            <a href="{{ url_for('uip_bp.router_page', org_slug=org.slug) }}" class="ui-btn ui-btn-outline mb-2">
+                &larr; Switch Participant Role
+            </a>
+            <p class="text-sm text-slate-500">Contact UIP reception to log a new interaction.</p>
+        </div>
     </div>
 
     {% include "partials/flash_messages.html" %}

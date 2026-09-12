@@ -5,11 +5,12 @@
     <div>
         <p class="ui-eyebrow">Setup</p>
         <h1>Founding Provisioning</h1>
-        <p class="ui-subtitle">Record the founding meeting, elected committee members, and the initial manager designation resolution.</p>
+        <p class="ui-subtitle">Record the founding meeting and elected committee members.</p>
     </div>
 </header>
 <section class="ui-card">
     <form method="post" action="{{ url_for('uip_bp.provisioning', org_slug=org.slug) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <fieldset class="ui-form-section">
             <legend>1. Founding Meeting</legend>
             <div class="ui-two">
@@ -48,25 +49,14 @@
                             <option value="Advisory Committee Member">Advisory Committee Member</option>
                         </select>
                     </label>
-                    <label class="flex items-center gap-2 pb-2">
-                        <input type="radio" name="manager_index" value="0" required> Designate Manager
-                    </label>
                 </div>
             </div>
             <button type="button" class="ui-btn mt-2" onclick="addMember()">Add another member</button>
         </fieldset>
 
-        <fieldset class="ui-form-section">
-            <legend>3. Manager Resolution</legend>
-            <p class="ui-help">The selected member above will receive the operational Manager authority via this resolution.</p>
-            <label>Resolution Text
-                <textarea name="resolution_text" rows="4" placeholder="Enter the formal resolution text designating the manager..." required></textarea>
-            </label>
-        </fieldset>
-
         <div class="ui-actions">
             <button type="submit" class="ui-btn ui-btn-primary">Record Founding Provisioning</button>
-            <a class="ui-btn" href="{{ url_for('uip_bp.dashboard', org_slug=org.slug) }}">Cancel</a>
+            <a class="ui-btn" href="{{ url_for('uip_bp.router_page', org_slug=org.slug) }}">Cancel</a>
         </div>
     </form>
 </section>
@@ -78,7 +68,7 @@
         const container = document.getElementById('committee-members');
         const row = document.createElement('div');
         row.className = 'flex gap-4 committee-member-row items-end mb-4';
-        row.innerHTML = `
+        row.innerHTML = 
             <label class="flex-1">Name
                 <input type="text" name="member_name[]" required placeholder="Full Name" class="w-full">
             </label>
@@ -95,10 +85,7 @@
                     <option value="Advisory Committee Member">Advisory Committee Member</option>
                 </select>
             </label>
-            <label class="flex items-center gap-2 pb-2">
-                <input type="radio" name="manager_index" value="${memberCount}" required> Designate Manager
-            </label>
-        `;
+        ;
         container.appendChild(row);
         memberCount++;
     }

@@ -1,18 +1,28 @@
-{% extends 'uip/base.html' %}
-{% block title %}Founding Committee Provisioning — {{ org.name }}{% endblock %}
+﻿{% extends 'uip/base.html' %}
+{% block title %}UIP Provisioning{% endblock %}
 {% block content %}
 <header class="ui-page-head">
     <div>
         <p class="ui-eyebrow">Setup</p>
-        <h1>Founding Provisioning</h1>
-        <p class="ui-subtitle">Record the founding meeting and elected committee members.</p>
+        <h1>UIP Provisioning</h1>
+        <p class="ui-subtitle">Confirm the UIP name, record the founding meeting, and set the elected committee members.</p>
     </div>
 </header>
 <section class="ui-card">
     <form method="post" action="{{ url_for('uip_bp.provisioning', org_slug=org.slug) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        
         <fieldset class="ui-form-section">
-            <legend>1. Founding Meeting</legend>
+            <legend>1. Organisation Details</legend>
+            <div class="ui-two">
+                <label>UIP / Precinct Name
+                    <input type="text" name="org_name" required value="{{ org.name }}" placeholder="e.g. Manor Gardens UIP">
+                </label>
+            </div>
+        </fieldset>
+
+        <fieldset class="ui-form-section">
+            <legend>2. Founding Meeting</legend>
             <div class="ui-two">
                 <label>Venue
                     <input type="text" name="venue" required placeholder="e.g. Town Hall">
@@ -29,7 +39,7 @@
         </fieldset>
         
         <fieldset class="ui-form-section">
-            <legend>2. Elected Committee Members</legend>
+            <legend>3. Elected Committee Members</legend>
             <p class="ui-help">These members will form the initial committee term. Their accounts will be verified by matching their email addresses.</p>
             <div id="committee-members">
                 <div class="flex gap-4 committee-member-row items-end mb-4">

@@ -22,8 +22,9 @@ def test_anonymous_provisioning_flow(client, app):
     assert res.status_code == 200
     assert b"Founding Meeting" in res.data
     
-    # 2. anonymous POST can create the first committee term/list
+    # 2. anonymous POST can create the first committee term/list and rename org
     post_data = {
+        "org_name": "New Test Precinct Name",
         "venue": "Town Hall",
         "meeting_date": "2026-09-12",
         "meeting_time": "10:00",
@@ -36,6 +37,11 @@ def test_anonymous_provisioning_flow(client, app):
     assert b"Founding committee successfully provisioned." in res.data
     
     with app.app_context():
+        # Organization name updated, but slug intact
+        org = CoreOrganization.query.get(org_id)
+        assert org.name == "New Test Precinct Name"
+        assert org.slug == "test-uip"
+        
         # 3. first submission creates committee records correctly
         meeting = UipCommitteeMeeting.query.filter_by(organization_id=org_id, meeting_type="FOUNDING").first()
         assert meeting is not None

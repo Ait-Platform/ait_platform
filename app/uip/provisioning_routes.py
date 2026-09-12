@@ -20,12 +20,13 @@ def provisioning(org_slug):
         return redirect(url_for("uip_bp.router_page", org_slug=org.slug))
 
     if request.method == "POST":
+        org_name = (request.form.get("org_name") or "").strip()
         venue = (request.form.get("venue") or "").strip()
         meeting_date = request.form.get("meeting_date")
         meeting_time = request.form.get("meeting_time")
         
-        if not venue or not meeting_date or not meeting_time:
-            flash("Meeting details are required.", "danger")
+        if not org_name or not venue or not meeting_date or not meeting_time:
+            flash("Organisation and meeting details are required.", "danger")
             return redirect(request.url)
             
         try:
@@ -36,6 +37,9 @@ def provisioning(org_slug):
             return redirect(request.url)
 
         submitter_id = getattr(current_user, 'id', None)
+
+        # Update Org Name (but not slug)
+        org.name = org_name
 
         # 1. Create the Founding Meeting
         meeting = UipCommitteeMeeting(

@@ -15,17 +15,25 @@ from .services import audit
 def provisioning(org_slug):
     org = g.organization
     
-    from app.models.uip_governance import UipDelegation
+    from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
+    from flask import current_app
     
-    provisioner = UipDelegation.query.filter_by(
-        organization_id=org.id,
-        delegated_user_id=current_user.id,
-        delegation_type="PROVISIONER",
-        status="ACTIVE"
-    ).first()
-    
-    if not provisioner:
-        abort(403, description="Only the designated setup user can perform UIP provisioning.")
+    token = request.args.get("token") or request.form.get("provisioning_token")
+    if not token:
+        abort(403, description="A valid provisioning token is required.")
+        
+    signer = URLSafeTimedSerializer(current_app.secret_key, salt="uip-provisioning")
+    try:
+        token_data = signer.loads(token, max_age=86400 * 7) # 7 days
+    except SignatureExpired:
+        abort(400, description="Provisioning link has expired.")
+    except BadSignature:
+        abort(400, description="Provisioning link is invalid.")
+        
+    if token_data.get("email") != current_user.email:
+        abort(403, description="This provisioning link was sent to a different email address.")
+    if token_data.get("org_slug") != org.slug:
+        abort(400, description="Provisioning link does not match this organisation.")
     
     # Restrict if a founding meeting already exists
     if UipCommitteeMeeting.query.filter_by(organization_id=org.id, meeting_type="FOUNDING").first():
@@ -142,12 +150,11 @@ def provisioning(org_slug):
             db.session.add(manager_resolution)
             
         audit.record(org.id, current_user.id, "founding.provisioned", meeting)
+        audit.record(org.id, current_user.id, "provisioning.token_used", None)
         
-        # Revoke the provisioning authority now that setup is complete
-        provisioner.status = "REVOKED"
         db.session.commit()
         
         flash("Founding committee successfully provisioned.", "success")
         return redirect(url_for("uip_bp.dashboard", org_slug=org.slug))
 
-    return render_template("uip/provisioning.html", org=org)
+    return render_template("uip/provisioning.html", org=org, token=token)

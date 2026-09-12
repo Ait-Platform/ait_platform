@@ -10,6 +10,7 @@
 </header>
 <section class="ui-card">
     <form method="post" action="{{ url_for('uip_bp.provisioning', org_slug=org.slug) }}">
+        <input type="hidden" name="provisioning_token" value="{{ token }}">
         <fieldset class="ui-form-section">
             <legend>1. Founding Meeting</legend>
             <div class="ui-two">

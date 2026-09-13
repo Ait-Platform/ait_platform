@@ -821,3 +821,8 @@ def work_order_action(org_slug, order_id):
     db.session.commit()
     flash("Work-order action recorded.", "success")
     return redirect(url_for("uip_bp.work_order_view", org_slug=org_slug, order_id=order.id))
+@uip_bp.route("/<org_slug>/service-status")
+def service_status(org_slug):
+    from flask import g, render_template
+    # simple template
+    return render_template("uip/service_status.html", org=g.organization)

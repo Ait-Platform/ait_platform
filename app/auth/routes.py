@@ -436,6 +436,24 @@ def register_decision():
         )
     # ---------- END SPV PORTFOLIO REGISTRATION FEE ----------
 
+    # 2b) Organization Billing Scope Check
+    from app.models.auth import AuthSubject
+    subj_obj = AuthSubject.query.filter(db.func.lower(AuthSubject.slug) == subject).first()
+    
+    if subj_obj and getattr(subj_obj, 'billing_scope', 'user') == 'organization':
+        # Organization billed: bypass individual quote/payment/token hooks entirely
+        # 1. We still run _ensure_enrollment_row so they have the subject on their AIT Dashboard
+        #    but it is purely a participation record.
+        enrollment_id = _ensure_enrollment_row(user_id=user_id, subject_slug=subject)
+
+        session.pop("reg_ctx", None)
+        session.pop("just_paid_subject_id", None)
+        
+        if next_url and next_url.startswith("/") and not next_url.startswith("//"):
+            return redirect(next_url)
+        return redirect(url_for("uip_bp.uip_start"))
+
+    # User-billed path continues below...
     # 2) Ensure an enrollment row
     enrollment_id = _ensure_enrollment_row(user_id=user_id, subject_slug=subject)
 
@@ -518,7 +536,7 @@ def register_decision():
     # ---------- END FREE SPECIAL CASE ----------
 
     # ---------- WALLET TOKEN SUBJECTS (NO REGISTRATION FEE, USES WALLET BALANCE) ----------
-    if subject in ("cultural_fire", "culturalfire", "debtors", "mechanic", "cptd", "sace_endorsement", "sace", "uip"):
+    if subject in ("cultural_fire", "culturalfire", "debtors", "mechanic", "cptd", "sace_endorsement", "sace"):
         mark_loss_enrollment_free(enrollment_id)
         session.pop("reg_ctx", None)
         session.pop("just_paid_subject_id", None)
@@ -528,10 +546,7 @@ def register_decision():
             return redirect(url_for("cultural_bp.cultural_fire_router"))
         elif subject == "debtors":
             return redirect(url_for("debtors_bp.debtors_router"))
-        elif subject == "uip":
-            if next_url and next_url.startswith("/") and not next_url.startswith("//"):
-                return redirect(next_url)
-            return redirect(url_for("uip_bp.uip_start"))
+
         elif subject == "mechanic":
             return redirect(url_for("mechanic_bp.mechanic_dashboard"))
         elif subject == "cptd":

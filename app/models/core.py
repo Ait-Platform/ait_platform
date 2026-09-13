@@ -1,6 +1,23 @@
 from app.extensions import db
 from datetime import datetime
 
+class CoreOrganizationEntitlement(db.Model):
+    __tablename__ = "core_organization_entitlement"
+
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey("core_organization.id"), nullable=False)
+    subject_id = db.Column(db.Integer, db.ForeignKey("auth_subject.id"), nullable=False)
+    status = db.Column(db.String(50), default="active", nullable=False) # e.g. active, complimentary, suspended
+    start_date = db.Column(db.DateTime, default=datetime.utcnow)
+    end_date = db.Column(db.DateTime, nullable=True)
+    is_trial = db.Column(db.Boolean, default=False)
+    payment_provenance = db.Column(db.String(255), nullable=True) # E.g. invoice ref, stripe sub
+
+    __table_args__ = (db.UniqueConstraint('organization_id', 'subject_id', name='uq_org_subject_entitlement'),)
+
+    organization = db.relationship("CoreOrganization", backref=db.backref("entitlements", lazy="dynamic"))
+
+
 class CoreOrganizationWallet(db.Model):
     __tablename__ = "core_organization_wallet"
     id = db.Column(db.Integer, primary_key=True)

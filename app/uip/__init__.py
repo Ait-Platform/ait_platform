@@ -18,7 +18,7 @@ def establish_organization_context():
     g.org_id = org.id
 
     # Check whether the UIP founding record exists
-    from app.models.uip_governance import UipCommitteeMeeting
+    from app.models.uip import UipCommitteeMeeting
     founding_exists = UipCommitteeMeeting.query.filter_by(
         organization_id=org.id, meeting_type="FOUNDING"
     ).first() is not None

@@ -46,9 +46,9 @@ def _ensure_or_create_user_from_session(ctx: dict) -> int:
     ).scalar())
 
     # Create AitTokenWallet with 100 tokens for new users (Registration Trial Bonus)
-    # Exclude SACE Endorsement users from receiving tokens/wallets
+    # Exclude SACE Endorsement and UIP users from receiving tokens/wallets
     subject = (ctx.get("subject") or "").strip().lower()
-    if not subject.startswith("sace"):
+    if not subject.startswith("sace") and subject != "uip":
         db.session.execute(
             sa_text("""
                 INSERT INTO ait_token_wallet (user_id, balance, created_at)
@@ -57,7 +57,7 @@ def _ensure_or_create_user_from_session(ctx: dict) -> int:
             {"user_id": new_id}
         )
         db.session.flush()
-        
+
         wallet_id = int(db.session.execute(
             sa_text('SELECT id FROM ait_token_wallet WHERE user_id = :u'),
             {"u": new_id}
@@ -70,6 +70,7 @@ def _ensure_or_create_user_from_session(ctx: dict) -> int:
             """),
             {"wallet_id": wallet_id}
         )
+        db.session.flush()
 
     db.session.commit()
 

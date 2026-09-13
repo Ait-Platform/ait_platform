@@ -453,7 +453,7 @@ def register_decision():
         
         if next_url and next_url != "/" and next_url.startswith("/") and not next_url.startswith("//"):
             return redirect(next_url)
-        return redirect(url_for("uip_bp.uip_start"))
+        return redirect(url_for("auth_bp.bridge_dashboard"))
 
     # User-billed path continues below...
     # 2) Ensure an enrollment row

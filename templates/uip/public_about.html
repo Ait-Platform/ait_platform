@@ -1,12 +1,15 @@
 {% extends "layout.html" %}
 {% block title %}Urban Improvement Precincts{% endblock %}
 
+{% block flashes %}{% endblock %}
 {% block content %}
 <div class="max-w-5xl mx-auto bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden mb-12">
     <!-- Rule 3: Color Strip -->
     <div class="h-2 w-full bg-indigo-600"></div>
     
     <div class="p-6 sm:p-8">
+        
+        {% include "partials/flash_messages.html" %}
         
         <!-- Rule 4: Row 1 Header & Back Button -->
         <div class="flex justify-between items-start pb-4 border-b border-slate-100 mb-8">

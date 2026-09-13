@@ -27,6 +27,7 @@ WHERE
         AND lower(u.email) = lower(:email)
         AND (
            ue.status IN ('active', 'started', 'enrolled', 'paid', 'completed', 'teacher') OR
+           (ue.status = 'pending' AND COALESCE(s.billing_scope, 'user') = 'organization') OR
            (ue.trial_end IS NOT NULL AND ue.trial_end > CURRENT_TIMESTAMP) OR
            (ue.expires_at IS NOT NULL AND ue.expires_at > CURRENT_TIMESTAMP)
         )

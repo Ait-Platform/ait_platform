@@ -529,9 +529,13 @@ def uip_start():
 @uip_bp.route("/select", methods=["POST"])
 def select_org():
     from flask import request, redirect, url_for, flash
+    from flask_login import current_user
     org_slug = request.form.get("org_slug")
     if org_slug:
-        return redirect(url_for("uip_bp.router_page", org_slug=org_slug))
+        next_url = url_for("uip_bp.router_page", org_slug=org_slug)
+        if not current_user.is_authenticated:
+            return redirect(url_for("auth_bp.register", next=next_url))
+        return redirect(next_url)
     flash("Please select a valid precinct.", "warning")
     return redirect(url_for("uip_bp.uip_start"))
 

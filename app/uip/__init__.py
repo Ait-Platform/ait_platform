@@ -27,7 +27,16 @@ def establish_organization_context():
     # We exempt service_status globally.
     # If founding is NOT complete, we also exempt the bootstrap paths so they can set it up.
     is_exempt = request.endpoint == "uip_bp.service_status"
-    if not founding_exists and request.endpoint in ("uip_bp.router_page", "uip_bp.verify_committee", "uip_bp.provisioning", "uip_bp.waiting_lounge"):
+    if not founding_exists and request.endpoint in (
+        "uip_bp.router_page", 
+        "uip_bp.verify_committee", 
+        "uip_bp.verify_ratepayer",
+        "uip_bp.verify_mo",
+        "uip_bp.verify_staff",
+        "uip_bp.verify_subcommittee",
+        "uip_bp.provisioning", 
+        "uip_bp.waiting_lounge"
+    ):
         is_exempt = True
         
     if not is_exempt:

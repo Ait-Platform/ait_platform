@@ -136,15 +136,32 @@ def dashboard(org_slug):
 @uip_bp.route("/<org_slug>/waiting-lounge")
 @login_required
 def waiting_lounge(org_slug):
-    from flask import request, render_template, g
+    from flask import request, render_template, g, redirect, url_for, flash
+    from flask_login import current_user
+    from sqlalchemy import func
     from app.models.uip import UipCommitteeMeeting
+    from app.models.uip_governance import UipCommitteeMember
+    
+    org = g.organization
+    
+    # Auto-admit if they were verified while waiting
+    appointment = UipCommitteeMember.query.filter(
+        UipCommitteeMember.organization_id == org.id,
+        UipCommitteeMember.status == "CURRENT",
+        func.lower(UipCommitteeMember.email) == func.lower(current_user.email)
+    ).first()
+    
+    if appointment:
+        flash("Your committee membership has been verified!", "success")
+        return redirect(url_for("uip_bp.committee_dashboard", org_slug=org.slug))
+        
     claim = request.args.get("claim", "unknown")
     
     founding_exists = UipCommitteeMeeting.query.filter_by(
-        organization_id=g.organization.id, meeting_type="FOUNDING"
+        organization_id=org.id, meeting_type="FOUNDING"
     ).first() is not None
     
-    return render_template("uip/waiting_lounge.html", org=g.organization, claim=claim, founding_exists=founding_exists)
+    return render_template("uip/waiting_lounge.html", org=org, claim=claim, founding_exists=founding_exists)
 
 @uip_bp.route("/<org_slug>/waiting-lounge/dispute", methods=["POST"])
 @login_required
@@ -169,11 +186,35 @@ def waiting_lounge_dispute(org_slug):
     return redirect(url_for('uip_bp.waiting_lounge', org_slug=org_slug, claim='committee_nomatch'))
 
 @uip_bp.route("/<org_slug>/router")
-
 @login_required
 def router_page(org_slug):
+    org = g.organization
+    from flask import request, redirect, url_for
+    from flask_login import current_user
+    from sqlalchemy import func
+    
+    # 1. Auto-route if already verified committee
+    from app.models.uip_governance import UipCommitteeMember
+    appointment = UipCommitteeMember.query.filter(
+        UipCommitteeMember.organization_id == org.id,
+        UipCommitteeMember.status == "CURRENT",
+        func.lower(UipCommitteeMember.email) == func.lower(current_user.email)
+    ).first()
+    if appointment:
+        return redirect(url_for("uip_bp.committee_dashboard", org_slug=org.slug))
+        
+    # 2. Auto-route to Lobby if they have an active claim (and didn't click "Return to Options")
+    if not request.args.get("force"):
+        from app.models.core import CoreInteraction
+        claim = CoreInteraction.query.filter_by(
+            organization_id=org.id, creator_id=current_user.id, status="OPEN"
+        ).first()
+        if claim:
+            claim_type = claim.interaction_type.replace("_claim", "")
+            return redirect(url_for("uip_bp.waiting_lounge", org_slug=org.slug, claim=claim_type))
+
     # Intent selection page; does not check roles
-    return render_template("uip/router.html", org=g.organization)
+    return render_template("uip/router.html", org=org)
 
 
 @uip_bp.route("/<org_slug>/verify/ratepayer", methods=["GET", "POST"])
@@ -183,6 +224,22 @@ def verify_ratepayer(org_slug):
     role = _require_role("owner", "resident", abort_on_fail=False)
     if role:
         return redirect(url_for("uip_bp.dashboard", org_slug=org_slug))
+    
+    from app.models.core import CoreInteraction
+    from app import db
+    from flask_login import current_user
+    
+    claim = CoreInteraction.query.filter_by(
+        organization_id=g.organization.id, creator_id=current_user.id, interaction_type="ratepayer_claim", status="OPEN"
+    ).first()
+    if not claim:
+        claim = CoreInteraction(
+            organization_id=g.organization.id, creator_id=current_user.id,
+            interaction_type="ratepayer_claim", title="Ratepayer Claim",
+            body=f"User {current_user.email} claims to be a ratepayer.", status="OPEN"
+        )
+        db.session.add(claim)
+        db.session.commit()
     
     return redirect(url_for("uip_bp.waiting_lounge", org_slug=org_slug, claim="ratepayer"))
 
@@ -265,6 +322,22 @@ def verify_mo(org_slug):
     if role:
         return redirect(url_for("uip_bp.mo_dashboard", org_slug=org_slug))
         
+    from app.models.core import CoreInteraction
+    from app import db
+    from flask_login import current_user
+    
+    claim = CoreInteraction.query.filter_by(
+        organization_id=g.organization.id, creator_id=current_user.id, interaction_type="mo_claim", status="OPEN"
+    ).first()
+    if not claim:
+        claim = CoreInteraction(
+            organization_id=g.organization.id, creator_id=current_user.id,
+            interaction_type="mo_claim", title="Municipal Officer Claim",
+            body=f"User {current_user.email} claims to be a municipal officer.", status="OPEN"
+        )
+        db.session.add(claim)
+        db.session.commit()
+        
     return redirect(url_for("uip_bp.waiting_lounge", org_slug=org_slug, claim="mo"))
 
 
@@ -282,6 +355,22 @@ def verify_subcommittee(org_slug):
     if role:
         return redirect(url_for("uip_bp.subcommittee_dashboard", org_slug=org_slug))
     
+    from app.models.core import CoreInteraction
+    from app import db
+    from flask_login import current_user
+    
+    claim = CoreInteraction.query.filter_by(
+        organization_id=g.organization.id, creator_id=current_user.id, interaction_type="subcommittee_claim", status="OPEN"
+    ).first()
+    if not claim:
+        claim = CoreInteraction(
+            organization_id=g.organization.id, creator_id=current_user.id,
+            interaction_type="subcommittee_claim", title="Subcommittee Member Claim",
+            body=f"User {current_user.email} claims to be a subcommittee member.", status="OPEN"
+        )
+        db.session.add(claim)
+        db.session.commit()
+        
     return redirect(url_for("uip_bp.waiting_lounge", org_slug=org_slug, claim="subcommittee"))
 
 @uip_bp.route("/<org_slug>/subcommittee-dashboard")
@@ -318,6 +407,20 @@ def verify_staff(org_slug):
         return redirect(url_for("uip_bp.work_order_list", org_slug=org_slug))
     if ratepayer_admin:
         return redirect(url_for("uip_bp.member_list", org_slug=org_slug))
+        
+    from app.models.core import CoreInteraction
+    
+    claim = CoreInteraction.query.filter_by(
+        organization_id=g.organization.id, creator_id=current_user.id, interaction_type="staff_claim", status="OPEN"
+    ).first()
+    if not claim:
+        claim = CoreInteraction(
+            organization_id=g.organization.id, creator_id=current_user.id,
+            interaction_type="staff_claim", title="Staff / Provider Claim",
+            body=f"User {current_user.email} claims to be staff or service provider.", status="OPEN"
+        )
+        db.session.add(claim)
+        db.session.commit()
         
     return redirect(url_for("uip_bp.waiting_lounge", org_slug=org_slug, claim="staff"))
 

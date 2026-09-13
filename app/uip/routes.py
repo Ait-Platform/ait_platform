@@ -659,6 +659,7 @@ def generate_ai_report(org_slug):
 @uip_bp.route("/")
 def uip_start():
     from app.models.core import CoreOrganization, CoreOrganizationEntitlement
+    from app.models.uip import UipCommitteeMeeting
     from app.models.auth import AuthSubject
     from app import db
     
@@ -669,21 +670,43 @@ def uip_start():
         slug = name.lower().replace(" ", "-")
         org = CoreOrganization.query.filter_by(slug=slug).first()
         if not org:
-            org = CoreOrganization(name=name, slug=slug)
+            org = CoreOrganization(name=name, slug=slug, status="active")
             db.session.add(org)
             db.session.flush()
             
-        # Self-heal missing entitlements for these UIPs so they don't dead-end
-        if org and uip_subj:
+    # Self-heal missing entitlements for ALL orgs
+    all_orgs = CoreOrganization.query.all()
+    for org in all_orgs:
+        if uip_subj:
             ent = CoreOrganizationEntitlement.query.filter_by(organization_id=org.id, subject_id=uip_subj.id).first()
             if not ent:
                 ent = CoreOrganizationEntitlement(organization_id=org.id, subject_id=uip_subj.id, status="active", is_trial=True)
                 db.session.add(ent)
                 
+    # Clean up duplicate Manor Gardens
+    manor_orgs = CoreOrganization.query.filter(
+        CoreOrganization.name.ilike('%Manor Gardens%'),
+        CoreOrganization.status == "active"
+    ).all()
+    
+    if len(manor_orgs) > 1:
+        # Find the one that actually has a founding meeting (the real one)
+        real_org = None
+        for org in manor_orgs:
+            if UipCommitteeMeeting.query.filter_by(organization_id=org.id).first():
+                real_org = org
+                break
+        
+        # If we found the real one, mark the others as deleted
+        if real_org:
+            for org in manor_orgs:
+                if org.id != real_org.id:
+                    org.status = "deleted"
+                    
     db.session.commit()
     
     # Get all active organizations that might be UIPs.
-    orgs = CoreOrganization.query.order_by(CoreOrganization.name).all()
+    orgs = CoreOrganization.query.filter_by(status="active").order_by(CoreOrganization.name).all()
     return render_template('uip/public_about.html', orgs=orgs)
 
 @uip_bp.route("/select", methods=["POST"])

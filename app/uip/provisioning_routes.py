@@ -54,11 +54,8 @@ def provisioning(org_slug):
         db.session.flush()
 
         # 2. Process Committee Members & Close Claims
-        emails = request.form.getlist("member_email[]")
-        names = request.form.getlist("member_name[]")
-        positions = request.form.getlist("member_position[]")
-        claim_ids = request.form.getlist("claim_id[]")
-
+        admit_claim_ids = request.form.getlist("admit_claim_id[]")
+        
         from app.models.uip_governance import UipCommitteeTerm, UipCommitteeMember
         from app.models.core import CoreInteraction
         
@@ -70,27 +67,27 @@ def provisioning(org_slug):
         db.session.add(term)
         db.session.flush()
 
-        for idx, (email, name, position) in enumerate(zip(emails, names, positions)):
-            email = email.strip()
-            name = name.strip()
+        for claim_id in admit_claim_ids:
+            email = (request.form.get(f"member_email_{claim_id}") or "").strip()
+            name = (request.form.get(f"member_name_{claim_id}") or "").strip()
+            position = (request.form.get(f"member_position_{claim_id}") or "").strip()
+            
             if not email or not name:
                 continue
-                
-            # Close claim if it exists for this row
-            claim_id = claim_ids[idx] if idx < len(claim_ids) else ""
-            if claim_id:
-                claim = CoreInteraction.query.get(claim_id)
-                if claim and claim.interaction_type == "committee_claim":
-                    claim.status = "CLOSED"
-                    claim.closed_by = submitter_id
-                
+
+            # Close claim
+            claim = CoreInteraction.query.get(claim_id)
+            if claim and claim.interaction_type == "committee_claim":
+                claim.status = "CLOSED"
+                claim.closed_by = submitter_id
+
             # Create a pending User account for the application login
             user = User.query.filter_by(email=email).first()
             if not user:
                 user = User(name=name, email=email, is_active=0)
                 db.session.add(user)
                 db.session.flush()
-                
+
             # Create a core membership that is pending activation
             membership = CoreOrganizationMember.query.filter_by(
                 organization_id=org.id, user_id=user.id

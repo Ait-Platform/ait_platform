@@ -192,7 +192,7 @@ def waiting_lounge_dispute(org_slug):
     db.session.commit()
     
     flash("Dispute lodged successfully. The administration team will review your status.", "success")
-    return redirect(url_for('uip_bp.waiting_lounge', org_slug=org_slug, claim='committee_nomatch'))
+    return redirect(url_for('uip_bp.router_page', org_slug=org_slug, claim='committee_nomatch'))
 
 @uip_bp.route("/<org_slug>/router")
 @login_required
@@ -221,18 +221,24 @@ def router_page(org_slug):
         db.session.commit()
         return redirect(url_for("uip_bp.committee_dashboard", org_slug=org.slug))
         
-    # 2. Auto-route to Lobby if they have an active claim (and didn't click "Return to Options")
-    if not request.args.get("force"):
-        from app.models.core import CoreInteraction
-        claim = CoreInteraction.query.filter_by(
-            organization_id=org.id, creator_id=current_user.id, status="OPEN"
-        ).first()
-        if claim:
-            claim_type = claim.interaction_type.replace("_claim", "")
-            return redirect(url_for("uip_bp.waiting_lounge", org_slug=org.slug, claim=claim_type))
+    # 2. Fetch all OPEN claims for this user to display in the Access Table
+    from app.models.core import CoreInteraction
+    from app.models.uip import UipCommitteeMeeting
+    
+    open_claims = CoreInteraction.query.filter_by(
+        organization_id=org.id, creator_id=current_user.id, status="OPEN"
+    ).all()
+    
+    # Create a simple list of claim types (e.g., 'committee_claim', 'ratepayer_claim')
+    user_claims = [c.interaction_type for c in open_claims]
+    
+    # Check if a Founding Meeting exists
+    founding_exists = UipCommitteeMeeting.query.filter_by(
+        organization_id=org.id, meeting_type="FOUNDING"
+    ).first() is not None
 
     # Intent selection page; does not check roles
-    return render_template("uip/router.html", org=org)
+    return render_template("uip/router.html", org=org, user_claims=user_claims, founding_exists=founding_exists)
 
 
 @uip_bp.route("/<org_slug>/verify/ratepayer", methods=["GET", "POST"])
@@ -259,7 +265,7 @@ def verify_ratepayer(org_slug):
         db.session.add(claim)
         db.session.commit()
     
-    return redirect(url_for("uip_bp.waiting_lounge", org_slug=org_slug, claim="ratepayer"))
+    return redirect(url_for("uip_bp.router_page", org_slug=org_slug, claim="ratepayer"))
 
 
 @uip_bp.route("/<org_slug>/verify/committee", methods=["GET"])
@@ -296,7 +302,7 @@ def verify_committee(org_slug):
                 )
                 db.session.add(claim)
                 db.session.commit()
-            return redirect(url_for("uip_bp.waiting_lounge", org_slug=org_slug, claim="committee"))
+            return redirect(url_for("uip_bp.router_page", org_slug=org_slug, claim="committee"))
             
         appointment = UipCommitteeMember.query.filter(
             UipCommitteeMember.organization_id == org.id,
@@ -337,7 +343,7 @@ def verify_committee(org_slug):
             )
             db.session.add(claim)
             db.session.commit()
-        return redirect(url_for("uip_bp.waiting_lounge", org_slug=org_slug, claim="committee_nomatch"))
+        return redirect(url_for("uip_bp.router_page", org_slug=org_slug, claim="committee_nomatch"))
 
 
 @uip_bp.route("/<org_slug>/verify/mo", methods=["GET", "POST"])
@@ -364,7 +370,7 @@ def verify_mo(org_slug):
         db.session.add(claim)
         db.session.commit()
         
-    return redirect(url_for("uip_bp.waiting_lounge", org_slug=org_slug, claim="mo"))
+    return redirect(url_for("uip_bp.router_page", org_slug=org_slug, claim="mo"))
 
 
 @uip_bp.route("/<org_slug>/mo-dashboard")
@@ -397,7 +403,7 @@ def verify_subcommittee(org_slug):
         db.session.add(claim)
         db.session.commit()
         
-    return redirect(url_for("uip_bp.waiting_lounge", org_slug=org_slug, claim="subcommittee"))
+    return redirect(url_for("uip_bp.router_page", org_slug=org_slug, claim="subcommittee"))
 
 @uip_bp.route("/<org_slug>/subcommittee-dashboard")
 @login_required
@@ -448,7 +454,7 @@ def verify_staff(org_slug):
         db.session.add(claim)
         db.session.commit()
         
-    return redirect(url_for("uip_bp.waiting_lounge", org_slug=org_slug, claim="staff"))
+    return redirect(url_for("uip_bp.router_page", org_slug=org_slug, claim="staff"))
 
 
 @uip_bp.route("/<org_slug>/verify/public", methods=["GET", "POST"])

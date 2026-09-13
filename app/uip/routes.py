@@ -728,6 +728,26 @@ def uip_start():
             for org in manor_orgs:
                 if org.id != real_org.id:
                     org.status = "deleted"
+
+    # TEMPORARY TEST RESET: The user wants to test the Founding Form from scratch on Manor Gardens.
+    # Because they cleared users but not meetings, founding_exists is stuck on True.
+    # We will wipe the founding meetings for Manor Gardens here.
+    for org in manor_orgs:
+        # Wipe committee members
+        from app.models.uip_governance import UipCommitteeMember, UipCommitteeTerm
+        members = UipCommitteeMember.query.filter_by(organization_id=org.id).all()
+        for m in members:
+            db.session.delete(m)
+            
+        # Wipe committee terms
+        terms = UipCommitteeTerm.query.filter_by(organization_id=org.id).all()
+        for t in terms:
+            db.session.delete(t)
+
+        # Wipe meetings
+        meetings = UipCommitteeMeeting.query.filter_by(organization_id=org.id).all()
+        for m in meetings:
+            db.session.delete(m)
                     
     db.session.commit()
     

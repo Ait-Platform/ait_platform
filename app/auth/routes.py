@@ -163,6 +163,8 @@ def register():
         if "/sace" in n_url_lower:
             return "sace_endorsement"
             
+        if "/uip" in n_url_lower:
+            return "uip"
         if "/reading" in n_url_lower:
             return "reading"
         if "/cultural-fire" in n_url_lower or "/culturefire" in n_url_lower:
@@ -449,7 +451,7 @@ def register_decision():
         session.pop("reg_ctx", None)
         session.pop("just_paid_subject_id", None)
         
-        if next_url and next_url.startswith("/") and not next_url.startswith("//"):
+        if next_url and next_url != "/" and next_url.startswith("/") and not next_url.startswith("//"):
             return redirect(next_url)
         return redirect(url_for("uip_bp.uip_start"))
 
@@ -865,8 +867,12 @@ def register_decision():
     quoted_amount_cents = int(row[1] or 0) if row else 0
 
     if quoted_amount_cents <= 0:
-        flash("Pricing could not be determined. Please try again or contact us.", "danger")
-        return redirect(url_for("public_bp.welcome"))
+        if subject == "uip":
+            flash("Pricing could not be determined. Please try again or contact us.", "uip_pricing_error")
+            return redirect(url_for("uip_bp.uip_start"))
+        else:
+            flash("Pricing could not be determined. Please try again or contact us.", "danger")
+            return redirect(url_for("public_bp.welcome"))
 
     user_email = (
         (request.values.get("email") or "").strip().lower()

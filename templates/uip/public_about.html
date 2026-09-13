@@ -42,6 +42,16 @@
             <div>
                 <h3 class="text-2xl font-bold text-indigo-900 mb-2">Ready to Connect?</h3>
                 <p class="text-indigo-700">South African precincts use the AIT Unified Wallet for subscription tokens.</p>
+                
+                {% with messages = get_flashed_messages(category_filter=["uip_pricing_error"]) %}
+                  {% if messages %}
+                    {% for message in messages %}
+                      <div class="mt-4 p-3 bg-red-100 border border-red-200 text-red-700 rounded-lg text-sm max-w-lg shadow-sm">
+                        <i class="fas fa-exclamation-circle mr-1"></i> {{ message }}
+                      </div>
+                    {% endfor %}
+                  {% endif %}
+                {% endwith %}
             </div>
             
             <a href="{{ url_for('auth_bp.register', subject='uip') }}" class="ui-btn ui-btn-primary mt-6 md:mt-0 px-8 py-4 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 transition shadow-lg whitespace-nowrap text-lg flex items-center">

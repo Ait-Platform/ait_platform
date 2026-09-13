@@ -658,15 +658,28 @@ def generate_ai_report(org_slug):
 
 @uip_bp.route("/")
 def uip_start():
-    from app.models.core import CoreOrganization
+    from app.models.core import CoreOrganization, CoreOrganizationEntitlement
+    from app.models.auth import AuthSubject
     from app import db
+    
+    uip_subj = AuthSubject.query.filter_by(slug='uip').first()
     
     # Auto-seed requested UIPs for the dropdown
     for name in ["Manor Gardens UIP", "Glenwood UIP", "Pigeon Valley UIP"]:
         slug = name.lower().replace(" ", "-")
-        if not CoreOrganization.query.filter_by(slug=slug).first():
+        org = CoreOrganization.query.filter_by(slug=slug).first()
+        if not org:
             org = CoreOrganization(name=name, slug=slug)
             db.session.add(org)
+            db.session.flush()
+            
+        # Self-heal missing entitlements for these UIPs so they don't dead-end
+        if org and uip_subj:
+            ent = CoreOrganizationEntitlement.query.filter_by(organization_id=org.id, subject_id=uip_subj.id).first()
+            if not ent:
+                ent = CoreOrganizationEntitlement(organization_id=org.id, subject_id=uip_subj.id, status="active", is_trial=True)
+                db.session.add(ent)
+                
     db.session.commit()
     
     # Get all active organizations that might be UIPs.

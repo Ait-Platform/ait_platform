@@ -125,6 +125,16 @@ def provisioning(org_slug):
             pioneer_claim.status = "CLOSED"
             pioneer_claim.closed_by = submitter_id
 
+        # 3. Create a complimentary active entitlement so the UIP doesn't instantly dead-end
+        from app.models.core import CoreOrganizationEntitlement
+        from app.models.auth import AuthSubject
+        uip_subj = AuthSubject.query.filter_by(slug='uip').first()
+        if uip_subj:
+            ent = CoreOrganizationEntitlement.query.filter_by(organization_id=org.id, subject_id=uip_subj.id).first()
+            if not ent:
+                ent = CoreOrganizationEntitlement(organization_id=org.id, subject_id=uip_subj.id, status="active", is_trial=True)
+                db.session.add(ent)
+
         db.session.commit()
         
         flash("Founding committee successfully provisioned.", "success")

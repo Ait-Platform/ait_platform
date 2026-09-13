@@ -25,9 +25,10 @@ def establish_organization_context():
 
     # Check commercial entitlement
     # We exempt service_status globally.
-    # If founding is NOT complete, we also exempt the bootstrap paths so they can set it up.
+    # We also always exempt the router, lobby, and verify paths so users can queue up, 
+    # regardless of the commercial billing status of the UIP.
     is_exempt = request.endpoint == "uip_bp.service_status"
-    if not founding_exists and request.endpoint in (
+    if request.endpoint in (
         "uip_bp.router_page", 
         "uip_bp.verify_committee", 
         "uip_bp.verify_ratepayer",

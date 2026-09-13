@@ -2,8 +2,8 @@
 
 ## 1. Flask Templates (Critical)
 - The base template for this project is named layout.html. 
-- NEVER use base.html. 
-- ALWAYS use layout.html when creating new templates or modifying existing ones.
+- NEVER use base.html, with ONE EXCEPTION: The UIP module (pp/uip) uses its own separate layout architecture and internal UIP pages extend uip/base.html.
+- For all non-UIP internal pages, ALWAYS use layout.html when creating new templates or modifying existing ones.
 
 ## 2. Databases (Postgres Strict)
 - There is NO SQLite fallback in this project.

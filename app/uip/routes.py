@@ -185,7 +185,7 @@ def waiting_lounge_dispute(org_slug):
         creator_id=current_user.id,
         interaction_type="committee_dispute",
         title="Committee Membership Verification Dispute",
-        body="User disputes their missing committee verification status.",
+        description="User disputes their missing committee verification status.",
         status="OPEN"
     )
     db.session.add(interaction)
@@ -254,7 +254,7 @@ def verify_ratepayer(org_slug):
         claim = CoreInteraction(
             organization_id=g.organization.id, creator_id=current_user.id,
             interaction_type="ratepayer_claim", title="Ratepayer Claim",
-            body=f"User {current_user.email} claims to be a ratepayer.", status="OPEN"
+            description=f"User {current_user.email} claims to be a ratepayer.", status="OPEN"
         )
         db.session.add(claim)
         db.session.commit()
@@ -291,7 +291,7 @@ def verify_committee(org_slug):
                     creator_id=current_user.id,
                     interaction_type="committee_claim",
                     title="Committee Membership Claim",
-                    body=f"User {current_user.email} claims to be a committee member.",
+                    description=f"User {current_user.email} claims to be a committee member.",
                     status="OPEN"
                 )
                 db.session.add(claim)
@@ -332,7 +332,7 @@ def verify_committee(org_slug):
                 creator_id=current_user.id,
                 interaction_type="committee_claim",
                 title="Committee Membership Claim",
-                body=f"User {current_user.email} claims to be a committee member.",
+                description=f"User {current_user.email} claims to be a committee member.",
                 status="OPEN"
             )
             db.session.add(claim)
@@ -359,7 +359,7 @@ def verify_mo(org_slug):
         claim = CoreInteraction(
             organization_id=g.organization.id, creator_id=current_user.id,
             interaction_type="mo_claim", title="Municipal Officer Claim",
-            body=f"User {current_user.email} claims to be a municipal officer.", status="OPEN"
+            description=f"User {current_user.email} claims to be a municipal officer.", status="OPEN"
         )
         db.session.add(claim)
         db.session.commit()
@@ -392,7 +392,7 @@ def verify_subcommittee(org_slug):
         claim = CoreInteraction(
             organization_id=g.organization.id, creator_id=current_user.id,
             interaction_type="subcommittee_claim", title="Subcommittee Member Claim",
-            body=f"User {current_user.email} claims to be a subcommittee member.", status="OPEN"
+            description=f"User {current_user.email} claims to be a subcommittee member.", status="OPEN"
         )
         db.session.add(claim)
         db.session.commit()
@@ -443,7 +443,7 @@ def verify_staff(org_slug):
         claim = CoreInteraction(
             organization_id=g.organization.id, creator_id=current_user.id,
             interaction_type="staff_claim", title="Staff / Provider Claim",
-            body=f"User {current_user.email} claims to be staff or service provider.", status="OPEN"
+            description=f"User {current_user.email} claims to be staff or service provider.", status="OPEN"
         )
         db.session.add(claim)
         db.session.commit()

@@ -445,7 +445,7 @@ def register_decision():
     from app.models.auth import AuthSubject
     subj_obj = AuthSubject.query.filter(db.func.lower(AuthSubject.slug) == subject).first()
     
-    if subj_obj and getattr(subj_obj, 'billing_scope', 'user') == 'organization':
+    if (subj_obj and getattr(subj_obj, 'billing_scope', 'user') == 'organization') or subject == 'uip':
         # Organization billed: bypass individual quote/payment/token hooks entirely
         # 1. We still run _ensure_enrollment_row so they have the subject on their AIT Dashboard
         #    but it is purely a participation record.

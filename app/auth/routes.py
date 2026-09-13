@@ -344,14 +344,14 @@ def register():
             # Password matches, log them in seamlessly
             login_user(existing_user, fresh=True)
             flash("Welcome back! We logged you in automatically.", "success")
-            
+
             # Replicate login session scaffolding
             session["is_authenticated"] = True
             session["email"] = email_norm
             session["user_id"] = int(existing_user.id)
             session["user_name"] = existing_user.name or email_norm.split("@")[0]
             session.pop("just_paid_subject_id", None)
-            
+
             # SACE Pre-Registered Personnel Override
             from app.models.auth import AuthSubjectAdmin, AuthSubject
             is_sace_admin = AuthSubjectAdmin.query.join(AuthSubject).filter(
@@ -360,7 +360,10 @@ def register():
             ).first()
             if is_sace_admin:
                 return redirect(url_for("sace_bp.dashboard"))
-                
+
+            # Respect next_url if it exists, otherwise fallback to dashboard_info
+            if next_url and next_url != "/" and next_url.startswith("/") and not next_url.startswith("//"):
+                return redirect(next_url)
             return redirect(url_for("auth_bp.dashboard_info", subject=subject))
         else:
             flash("That email is already registered, but the password provided is incorrect.", "danger")

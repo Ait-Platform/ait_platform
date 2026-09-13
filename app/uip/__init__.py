@@ -17,20 +17,7 @@ def establish_organization_context():
     g.organization = org
     g.org_id = org.id
 
-    # Check commercial entitlement
-    if request.endpoint != "uip_bp.service_status" and request.endpoint != "uip_bp.provisioning":
-        from app.models.core import CoreOrganizationEntitlement
-        from app.models.auth import AuthSubject
-        uip_subject = AuthSubject.query.filter_by(slug='uip').first()
-        if uip_subject:
-            ent = CoreOrganizationEntitlement.query.filter_by(
-                organization_id=org.id, subject_id=uip_subject.id
-            ).first()
-            if not ent or ent.status not in ("active", "complimentary"):
-                from flask import redirect, url_for
-                return redirect(url_for('uip_bp.service_status', org_slug=org.slug))
-    
-    # Allow public endpoints and the router to be accessed without membership
+    # Allow public endpoints and the router to be accessed without membership or active entitlement
     public_endpoints = {
         "uip_bp.router_page", 
         "uip_bp.verify_public", 
@@ -47,6 +34,19 @@ def establish_organization_context():
         "uip_bp.service_status",
         "uip_bp.provisioning"
     }
+
+    # Check commercial entitlement
+    if request.endpoint not in public_endpoints:
+        from app.models.core import CoreOrganizationEntitlement
+        from app.models.auth import AuthSubject
+        uip_subject = AuthSubject.query.filter_by(slug='uip').first()
+        if uip_subject:
+            ent = CoreOrganizationEntitlement.query.filter_by(
+                organization_id=org.id, subject_id=uip_subject.id
+            ).first()
+            if not ent or ent.status not in ("active", "complimentary"):
+                from flask import redirect, url_for
+                return redirect(url_for('uip_bp.service_status', org_slug=org.slug))
     
     if current_user.is_authenticated:
         membership = CoreOrganizationMember.query.filter_by(

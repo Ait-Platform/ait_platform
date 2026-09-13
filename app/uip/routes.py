@@ -659,8 +659,17 @@ def generate_ai_report(org_slug):
 @uip_bp.route("/")
 def uip_start():
     from app.models.core import CoreOrganization
+    from app import db
+    
+    # Auto-seed requested UIPs for the dropdown
+    for name in ["Manor Gardens UIP", "Glenwood UIP", "Pigeon Valley UIP"]:
+        slug = name.lower().replace(" ", "-")
+        if not CoreOrganization.query.filter_by(slug=slug).first():
+            org = CoreOrganization(name=name, slug=slug)
+            db.session.add(org)
+    db.session.commit()
+    
     # Get all active organizations that might be UIPs.
-    # Currently assuming all active orgs are available for UIP selection, or we can filter by some criteria later.
     orgs = CoreOrganization.query.order_by(CoreOrganization.name).all()
     return render_template('uip/public_about.html', orgs=orgs)
 

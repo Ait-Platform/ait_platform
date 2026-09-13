@@ -152,6 +152,15 @@ def waiting_lounge(org_slug):
     ).first()
     
     if appointment:
+        from app.models.core import CoreOrganizationMember
+        from app import db
+        membership = CoreOrganizationMember.query.filter_by(organization_id=org.id, user_id=current_user.id).first()
+        if not membership:
+            membership = CoreOrganizationMember(organization_id=org.id, user_id=current_user.id, is_active=True)
+            db.session.add(membership)
+        elif not membership.is_active:
+            membership.is_active = True
+        db.session.commit()
         flash("Your committee membership has been verified!", "success")
         return redirect(url_for("uip_bp.committee_dashboard", org_slug=org.slug))
         
@@ -201,6 +210,15 @@ def router_page(org_slug):
         func.lower(UipCommitteeMember.email) == func.lower(current_user.email)
     ).first()
     if appointment:
+        from app.models.core import CoreOrganizationMember
+        from app import db
+        membership = CoreOrganizationMember.query.filter_by(organization_id=org.id, user_id=current_user.id).first()
+        if not membership:
+            membership = CoreOrganizationMember(organization_id=org.id, user_id=current_user.id, is_active=True)
+            db.session.add(membership)
+        elif not membership.is_active:
+            membership.is_active = True
+        db.session.commit()
         return redirect(url_for("uip_bp.committee_dashboard", org_slug=org.slug))
         
     # 2. Auto-route to Lobby if they have an active claim (and didn't click "Return to Options")
@@ -291,6 +309,14 @@ def verify_committee(org_slug):
         term = None
         
     if appointment:
+        from app.models.core import CoreOrganizationMember
+        membership = CoreOrganizationMember.query.filter_by(organization_id=org.id, user_id=current_user.id).first()
+        if not membership:
+            membership = CoreOrganizationMember(organization_id=org.id, user_id=current_user.id, is_active=True)
+            db.session.add(membership)
+        elif not membership.is_active:
+            membership.is_active = True
+        db.session.commit()
         return redirect(url_for("uip_bp.committee_dashboard", org_slug=org_slug))
     else:
         # Also log a claim for post-founding members so the Chair can review them

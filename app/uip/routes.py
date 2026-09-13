@@ -187,64 +187,74 @@ def verify_ratepayer(org_slug):
     return redirect(url_for("uip_bp.waiting_lounge", org_slug=org_slug, claim="ratepayer"))
 
 
-@uip_bp.route("/<org_slug>/verify/committee", methods=["GET", "POST"])
+@uip_bp.route("/<org_slug>/verify/committee", methods=["GET"])
 @login_required
 def verify_committee(org_slug):
     org = g.organization
     
     from flask import request, redirect, url_for
     from flask_login import current_user
+    from sqlalchemy import func
+    from sqlalchemy.exc import ProgrammingError
+    from app.models.uip_governance import UipCommitteeTerm, UipCommitteeMember
+    from app import db
+    from app.models.core import CoreInteraction
     
-    if request.method == "POST":
-        is_committee = request.form.get("is_committee")
-        if is_committee == "no":
-            return redirect(url_for("uip_bp.router_page", org_slug=org_slug))
-            
-        from sqlalchemy import func
-        from sqlalchemy.exc import ProgrammingError
-        from app.models.uip_governance import UipCommitteeTerm, UipCommitteeMember
-        from app import db
-        
-        try:
-            term = UipCommitteeTerm.query.filter_by(organization_id=org.id).first()
-            if not term:
-                from app.models.core import CoreInteraction
-                # Record the claim if it doesn't exist
-                claim = CoreInteraction.query.filter_by(
+    try:
+        term = UipCommitteeTerm.query.filter_by(organization_id=org.id).first()
+        if not term:
+            # Record the claim if it doesn't exist
+            claim = CoreInteraction.query.filter_by(
+                organization_id=org.id,
+                creator_id=current_user.id,
+                interaction_type="committee_claim",
+                status="OPEN"
+            ).first()
+            if not claim:
+                claim = CoreInteraction(
                     organization_id=org.id,
                     creator_id=current_user.id,
                     interaction_type="committee_claim",
+                    title="Committee Membership Claim",
+                    body=f"User {current_user.email} claims to be a committee member.",
                     status="OPEN"
-                ).first()
-                if not claim:
-                    claim = CoreInteraction(
-                        organization_id=org.id,
-                        creator_id=current_user.id,
-                        interaction_type="committee_claim",
-                        title="Committee Membership Claim",
-                        body=f"User {current_user.email} claims to be a committee member.",
-                        status="OPEN"
-                    )
-                    db.session.add(claim)
-                    db.session.commit()
-                return redirect(url_for("uip_bp.waiting_lounge", org_slug=org_slug, claim="committee"))
-                
-            appointment = UipCommitteeMember.query.filter(
-                UipCommitteeMember.organization_id == org.id,
-                UipCommitteeMember.status == "CURRENT",
-                func.lower(UipCommitteeMember.email) == func.lower(current_user.email)
-            ).first()
-        except ProgrammingError:
-            db.session.rollback()
-            appointment = None
-            term = None
+                )
+                db.session.add(claim)
+                db.session.commit()
+            return redirect(url_for("uip_bp.waiting_lounge", org_slug=org_slug, claim="committee"))
             
-        if appointment:
-            return redirect(url_for("uip_bp.committee_dashboard", org_slug=org_slug))
-        else:
-            return redirect(url_for("uip_bp.waiting_lounge", org_slug=org_slug, claim="committee_nomatch"))
-            
-    return render_template("uip/committee_fork.html", org=org)
+        appointment = UipCommitteeMember.query.filter(
+            UipCommitteeMember.organization_id == org.id,
+            UipCommitteeMember.status == "CURRENT",
+            func.lower(UipCommitteeMember.email) == func.lower(current_user.email)
+        ).first()
+    except ProgrammingError:
+        db.session.rollback()
+        appointment = None
+        term = None
+        
+    if appointment:
+        return redirect(url_for("uip_bp.committee_dashboard", org_slug=org_slug))
+    else:
+        # Also log a claim for post-founding members so the Chair can review them
+        claim = CoreInteraction.query.filter_by(
+            organization_id=org.id,
+            creator_id=current_user.id,
+            interaction_type="committee_claim",
+            status="OPEN"
+        ).first()
+        if not claim:
+            claim = CoreInteraction(
+                organization_id=org.id,
+                creator_id=current_user.id,
+                interaction_type="committee_claim",
+                title="Committee Membership Claim",
+                body=f"User {current_user.email} claims to be a committee member.",
+                status="OPEN"
+            )
+            db.session.add(claim)
+            db.session.commit()
+        return redirect(url_for("uip_bp.waiting_lounge", org_slug=org_slug, claim="committee_nomatch"))
 
 
 @uip_bp.route("/<org_slug>/verify/mo", methods=["GET", "POST"])

@@ -28,7 +28,9 @@ def establish_organization_context():
         "uip_bp.verify_staff",
         "uip_bp.verify_subcommittee",
         "uip_bp.mo_dashboard",
-        "uip_bp.subcommittee_dashboard"
+        "uip_bp.subcommittee_dashboard",
+        "uip_bp.waiting_lounge",
+        "uip_bp.waiting_lounge_dispute"
     }
     
     if current_user.is_authenticated:

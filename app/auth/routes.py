@@ -529,7 +529,9 @@ def register_decision():
         elif subject == "debtors":
             return redirect(url_for("debtors_bp.debtors_router"))
         elif subject == "uip":
-            return redirect(url_for("uip_bp.router_page", org_slug="manor-gardens"))
+            if next_url and next_url.startswith("/") and not next_url.startswith("//"):
+                return redirect(next_url)
+            return redirect(url_for("uip_bp.uip_start"))
         elif subject == "mechanic":
             return redirect(url_for("mechanic_bp.mechanic_dashboard"))
         elif subject == "cptd":

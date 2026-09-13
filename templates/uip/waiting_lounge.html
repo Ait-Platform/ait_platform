@@ -13,7 +13,16 @@
         
         <div class="bg-slate-50 rounded-lg p-6 max-w-lg mx-auto border border-slate-100">
             <h2 class="text-sm font-bold text-slate-500 uppercase tracking-wider mb-2">Current Status</h2>
-            {% if claim == 'committee_nomatch' %}
+            {% if claim == 'committee' and not founding_exists %}
+                <p class="text-lg font-medium text-slate-800 mb-4">The Founding Roster has not been recorded yet.</p>
+                <div class="p-4 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-sm mb-4">
+                    <p class="mb-2"><i class="fas fa-info-circle mr-2"></i>Please wait in this lobby while the Founding Setup is completed.</p>
+                    <p class="font-bold">Are you the Chairman / Pioneer?</p>
+                </div>
+                <a href="{{ url_for('uip_bp.provisioning', org_slug=org.slug) }}" class="inline-block bg-amber-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-amber-700 transition">
+                    Start Founding Setup
+                </a>
+            {% elif claim == 'committee' or claim == 'committee_nomatch' %}
                 <p class="text-lg font-medium text-slate-800">Committee membership awaiting confirmation</p>
                 <p class="text-sm text-slate-600 mt-2">Your registered details do not currently match the elected members list.</p>
                 

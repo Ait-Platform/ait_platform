@@ -53,12 +53,14 @@ def provisioning(org_slug):
         db.session.add(meeting)
         db.session.flush()
 
-        # 2. Process Committee Members
+        # 2. Process Committee Members & Close Claims
         emails = request.form.getlist("member_email[]")
         names = request.form.getlist("member_name[]")
         positions = request.form.getlist("member_position[]")
+        claim_ids = request.form.getlist("claim_id[]")
 
         from app.models.uip_governance import UipCommitteeTerm, UipCommitteeMember
+        from app.models.core import CoreInteraction
         
         term = UipCommitteeTerm(
             organization_id=org.id,
@@ -73,6 +75,14 @@ def provisioning(org_slug):
             name = name.strip()
             if not email or not name:
                 continue
+                
+            # Close claim if it exists for this row
+            claim_id = claim_ids[idx] if idx < len(claim_ids) else ""
+            if claim_id:
+                claim = CoreInteraction.query.get(claim_id)
+                if claim and claim.interaction_type == "committee_claim":
+                    claim.status = "CLOSED"
+                    claim.closed_by = submitter_id
                 
             # Create a pending User account for the application login
             user = User.query.filter_by(email=email).first()
@@ -107,9 +117,24 @@ def provisioning(org_slug):
             )
             db.session.add(member)
             
+        # Also close the Pioneer's own claim if they had one
+        pioneer_claim = CoreInteraction.query.filter_by(
+            organization_id=org.id, creator_id=submitter_id, interaction_type="committee_claim", status="OPEN"
+        ).first()
+        if pioneer_claim:
+            pioneer_claim.status = "CLOSED"
+            pioneer_claim.closed_by = submitter_id
+
         db.session.commit()
         
         flash("Founding committee successfully provisioned.", "success")
         return redirect(url_for("uip_bp.router_page", org_slug=org.slug))
 
-    return render_template("uip/provisioning.html", org=org)
+    from app.models.core import CoreInteraction
+    claims = CoreInteraction.query.filter_by(
+        organization_id=org.id,
+        interaction_type="committee_claim",
+        status="OPEN"
+    ).all()
+
+    return render_template("uip/provisioning.html", org=org, claims=claims)

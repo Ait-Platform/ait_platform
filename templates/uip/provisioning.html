@@ -40,26 +40,54 @@
         
         <fieldset class="ui-form-section">
             <legend>3. Elected Committee Members</legend>
-            <p class="ui-help">These members will form the initial committee term. Their accounts will be verified by matching their email addresses.</p>
+            <p class="ui-help">These members will form the initial committee term. We have pre-filled members waiting in the Lobby.</p>
             <div id="committee-members">
-                <div class="flex gap-4 committee-member-row items-end mb-4">
-                    <label class="flex-1">Name
-                        <input type="text" name="member_name[]" required placeholder="Full Name" class="w-full">
-                    </label>
-                    <label class="flex-1">Email
-                        <input type="email" name="member_email[]" required placeholder="Email Address" class="w-full">
-                    </label>
-                    <label class="flex-1">Position
-                        <select name="member_position[]" required class="w-full">
-                            <option value="Chairperson">Chairperson</option>
-                            <option value="Vice-Chairperson">Vice-Chairperson</option>
-                            <option value="Treasurer">Treasurer</option>
-                            <option value="Secretary">Secretary</option>
-                            <option value="Committee Member" selected>Committee Member</option>
-                            <option value="Advisory Committee Member">Advisory Committee Member</option>
-                        </select>
-                    </label>
-                </div>
+                {% if claims %}
+                    {% for claim in claims %}
+                    <div class="flex gap-4 committee-member-row items-end mb-4 p-4 bg-slate-50 border border-slate-200 rounded-lg relative">
+                        <input type="hidden" name="claim_id[]" value="{{ claim.id }}">
+                        <label class="flex-1">Name
+                            <input type="text" name="member_name[]" required value="{{ claim.creator.name or claim.creator.email.split('@')[0] }}" class="w-full">
+                        </label>
+                        <label class="flex-1">Email
+                            <input type="email" name="member_email[]" required value="{{ claim.creator.email }}" class="w-full" readonly>
+                        </label>
+                        <label class="flex-1">Position
+                            <select name="member_position[]" required class="w-full">
+                                <option value="Chairperson">Chairperson</option>
+                                <option value="Vice-Chairperson">Vice-Chairperson</option>
+                                <option value="Treasurer">Treasurer</option>
+                                <option value="Secretary">Secretary</option>
+                                <option value="Committee Member" selected>Committee Member</option>
+                                <option value="Advisory Committee Member">Advisory Committee Member</option>
+                            </select>
+                        </label>
+                        <button type="button" class="text-red-500 hover:text-red-700 p-2" onclick="this.closest('.committee-member-row').remove()" title="Remove this person">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="flex gap-4 committee-member-row items-end mb-4">
+                        <input type="hidden" name="claim_id[]" value="">
+                        <label class="flex-1">Name
+                            <input type="text" name="member_name[]" required placeholder="Full Name" class="w-full">
+                        </label>
+                        <label class="flex-1">Email
+                            <input type="email" name="member_email[]" required placeholder="Email Address" class="w-full">
+                        </label>
+                        <label class="flex-1">Position
+                            <select name="member_position[]" required class="w-full">
+                                <option value="Chairperson">Chairperson</option>
+                                <option value="Vice-Chairperson">Vice-Chairperson</option>
+                                <option value="Treasurer">Treasurer</option>
+                                <option value="Secretary">Secretary</option>
+                                <option value="Committee Member" selected>Committee Member</option>
+                                <option value="Advisory Committee Member">Advisory Committee Member</option>
+                            </select>
+                        </label>
+                    </div>
+                {% endif %}
             </div>
             <button type="button" class="ui-btn mt-2" onclick="addMember()">Add another member</button>
         </fieldset>
@@ -73,12 +101,13 @@
 {% endblock %}
 {% block scripts %}
 <script>
-    let memberCount = 1;
+    let memberCount = {{ claims|length if claims else 1 }};
     function addMember() {
         const container = document.getElementById('committee-members');
         const row = document.createElement('div');
         row.className = 'flex gap-4 committee-member-row items-end mb-4';
-        row.innerHTML = 
+        row.innerHTML = `
+            <input type="hidden" name="claim_id[]" value="">
             <label class="flex-1">Name
                 <input type="text" name="member_name[]" required placeholder="Full Name" class="w-full">
             </label>
@@ -95,7 +124,10 @@
                     <option value="Advisory Committee Member">Advisory Committee Member</option>
                 </select>
             </label>
-        ;
+            <button type="button" class="text-red-500 hover:text-red-700 p-2" onclick="this.closest('.committee-member-row').remove()" title="Remove this person">
+                <i class="fas fa-trash"></i>
+            </button>
+        `;
         container.appendChild(row);
         memberCount++;
     }

@@ -137,8 +137,14 @@ def dashboard(org_slug):
 @login_required
 def waiting_lounge(org_slug):
     from flask import request, render_template, g
+    from app.models.uip import UipCommitteeMeeting
     claim = request.args.get("claim", "unknown")
-    return render_template("uip/waiting_lounge.html", org=g.organization, claim=claim)
+    
+    founding_exists = UipCommitteeMeeting.query.filter_by(
+        organization_id=g.organization.id, meeting_type="FOUNDING"
+    ).first() is not None
+    
+    return render_template("uip/waiting_lounge.html", org=g.organization, claim=claim, founding_exists=founding_exists)
 
 @uip_bp.route("/<org_slug>/waiting-lounge/dispute", methods=["POST"])
 @login_required
@@ -202,7 +208,26 @@ def verify_committee(org_slug):
         try:
             term = UipCommitteeTerm.query.filter_by(organization_id=org.id).first()
             if not term:
-                return redirect(url_for("uip_bp.provisioning", org_slug=org_slug))
+                from app.models.core import CoreInteraction
+                # Record the claim if it doesn't exist
+                claim = CoreInteraction.query.filter_by(
+                    organization_id=org.id,
+                    creator_id=current_user.id,
+                    interaction_type="committee_claim",
+                    status="OPEN"
+                ).first()
+                if not claim:
+                    claim = CoreInteraction(
+                        organization_id=org.id,
+                        creator_id=current_user.id,
+                        interaction_type="committee_claim",
+                        title="Committee Membership Claim",
+                        body=f"User {current_user.email} claims to be a committee member.",
+                        status="OPEN"
+                    )
+                    db.session.add(claim)
+                    db.session.commit()
+                return redirect(url_for("uip_bp.waiting_lounge", org_slug=org_slug, claim="committee"))
                 
             appointment = UipCommitteeMember.query.filter(
                 UipCommitteeMember.organization_id == org.id,

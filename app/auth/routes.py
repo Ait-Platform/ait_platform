@@ -1378,8 +1378,7 @@ def bridge_dashboard():
         elif slug == 'healthcore':
             return redirect(url_for('healthcore_bp.healthcore_dashboard'))
         elif slug == 'uip':
-            # For now, default to Manor Gardens org dashboard
-            return redirect(url_for('uip_bp.router_page', org_slug='manor-gardens'))
+            return redirect(url_for('uip_bp.uip_start'))
         else:
             return redirect(url_for('auth_bp.dashboard_info', subject=slug))
             
@@ -1447,8 +1446,6 @@ def learner_subject_dashboard(subject):
     # -------------------------------------------------
     if slug in ('hiq', 'healthcore'):
         start_url = url_for("healthcore_bp.healthcore_dashboard")
-    elif slug == 'uip':
-        start_url = url_for("uip_bp.router_page", org_slug="manor-gardens")
     elif row.get("start_endpoint"):
         try:
             start_url = url_for(row["start_endpoint"])
@@ -1491,7 +1488,7 @@ def dashboard_info(subject: str):
         return redirect(url_for("auth_bp.login"))
 
     row = db.session.execute(
-        db.text("SELECT id, slug, name, program_type, commercial_mode FROM auth_subject WHERE slug = :slug AND is_active = 1"),
+        db.text("SELECT id, slug, name, program_type, commercial_mode, billing_scope FROM auth_subject WHERE slug = :slug AND is_active = 1"),
         {"slug": subject.strip().lower()}
     ).fetchone()
     
@@ -1504,7 +1501,11 @@ def dashboard_info(subject: str):
         {"uid": user, "sid": row.id}
     )
 
-    if ue_status in ("active", "expired", "completed", "paid", "started", "enrolled", "teacher"):
+    is_active = ue_status in ("active", "expired", "completed", "paid", "started", "enrolled", "teacher")
+    if not is_active and getattr(row, 'billing_scope', 'user') == 'organization' and ue_status == 'pending':
+        is_active = True
+
+    if is_active:
         if row.slug == 'practice_crm':
             return redirect(url_for("practice_crm_bp.pipeline"))
         flash(f"Welcome back to {row.name}!", "success")

@@ -520,7 +520,20 @@ def generate_ai_report(org_slug):
 
 @uip_bp.route("/")
 def uip_start():
-    return render_template('uip/public_about.html')
+    from app.models.core import CoreOrganization
+    # Get all active organizations that might be UIPs.
+    # Currently assuming all active orgs are available for UIP selection, or we can filter by some criteria later.
+    orgs = CoreOrganization.query.order_by(CoreOrganization.name).all()
+    return render_template('uip/public_about.html', orgs=orgs)
+
+@uip_bp.route("/select", methods=["POST"])
+def select_org():
+    from flask import request, redirect, url_for, flash
+    org_slug = request.form.get("org_slug")
+    if org_slug:
+        return redirect(url_for("uip_bp.router_page", org_slug=org_slug))
+    flash("Please select a valid precinct.", "warning")
+    return redirect(url_for("uip_bp.uip_start"))
 
 @uip_bp.route("/price")
 def price_page():

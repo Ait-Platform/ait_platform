@@ -221,6 +221,17 @@ def router_page(org_slug):
         db.session.commit()
         return redirect(url_for("uip_bp.committee_dashboard", org_slug=org.slug))
         
+    # 1b. Auto-route if active Ratepayer
+    from app.models.core import CoreOrganizationMember
+    membership = CoreOrganizationMember.query.filter_by(
+        organization_id=org.id, user_id=current_user.id, is_active=True
+    ).first()
+    
+    if membership:
+        # Since they don't have a committee appointment, but they are an active member,
+        # they are a Ratepayer (or other standard role).
+        return redirect(url_for("uip_bp.dashboard", org_slug=org.slug))
+
     # 2. Auto-route to Access Table if they have an active claim (and didn't click "Return to Options")
     if not request.args.get("force"):
         from app.models.core import CoreInteraction
@@ -292,19 +303,8 @@ def verify_secretary(org_slug):
     from flask import request, redirect, url_for
     from flask_login import current_user
     from app import db
-    from app.models.uip_governance import UipCommitteeMember
-    from sqlalchemy import func
+    from app.models.core import CoreInteraction
     
-    appointment = UipCommitteeMember.query.filter(
-        UipCommitteeMember.organization_id == org.id,
-        UipCommitteeMember.status == "CURRENT",
-        UipCommitteeMember.position == "Secretary",
-        func.lower(UipCommitteeMember.email) == func.lower(current_user.email)
-    ).first()
-    
-    if appointment:
-        return redirect(url_for("uip_bp.committee_dashboard", org_slug=org_slug))
-
     claim = CoreInteraction.query.filter_by(
         organization_id=org.id,
         creator_id=current_user.id,

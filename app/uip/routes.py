@@ -232,17 +232,19 @@ def router_page(org_slug):
         # they are a Ratepayer (or other standard role).
         return redirect(url_for("uip_bp.dashboard", org_slug=org.slug))
 
-    # 2. Auto-route to Access Table if they have an active claim (and didn't click "Return to Options")
-    if not request.args.get("force"):
-        from app.models.core import CoreInteraction
-        claim = CoreInteraction.query.filter_by(
-            organization_id=org.id, creator_id=current_user.id, status="OPEN"
-        ).first()
-        if claim:
-            return redirect(url_for("uip_bp.my_access", org_slug=org.slug))
-
-    # Intent selection page (6-tiles)
-    return render_template("uip/router.html", org=org)
+    # 2. Strangers / Unverified Users
+    from app.models.uip import UipCommitteeMeeting
+    founding_exists = UipCommitteeMeeting.query.filter_by(
+        organization_id=org.id, meeting_type="FOUNDING"
+    ).first() is not None
+    
+    if not founding_exists:
+        # Show the single 'Initialize UIP' tile
+        return render_template("uip/router.html", org=org)
+    else:
+        # The UIP is founded, but this user is not on the register.
+        # We no longer show tiles or waiting rooms. 
+        return render_template("uip/access_denied.html", org=org)
 
 @uip_bp.route("/<org_slug>/my-access")
 @login_required

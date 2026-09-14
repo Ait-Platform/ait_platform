@@ -1,0 +1,50 @@
+﻿<style>
+/* UIP Custom Theme Shades */
+:root {
+  --uip-primary-bg: #4f46e5;
+  --uip-primary-hover: #4338ca;
+  --uip-card-bg: #ffffff;
+  --uip-card-border: #e2e8f0;
+  --uip-btn-bg: #f8fafc;
+  --uip-btn-hover: #f1f5f9;
+  --uip-btn-border: #cbd5e1;
+}
+
+/* Base button shading */
+.ui-btn {
+    background-color: var(--uip-btn-bg);
+    border-color: var(--uip-btn-border);
+    transition: all 0.2s ease-in-out;
+}
+.ui-btn:hover {
+    background-color: var(--uip-btn-hover);
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+/* Primary button shading */
+.ui-btn.ui-btn-primary {
+    background-color: var(--uip-primary-bg);
+    border-color: var(--uip-primary-bg);
+    color: white;
+}
+.ui-btn.ui-btn-primary:hover {
+    background-color: var(--uip-primary-hover);
+    border-color: var(--uip-primary-hover);
+}
+
+/* Form cards and tiles shading */
+.ui-card, .ui-form-section, fieldset {
+    background-color: var(--uip-card-bg);
+    border-color: var(--uip-card-border);
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+    border-radius: 0.5rem;
+}
+
+/* Optional: Subtle background tint for form inputs */
+input[type="text"], input[type="date"], input[type="time"], select {
+    background-color: #fcfcfd;
+}
+input:focus, select:focus {
+    background-color: #ffffff;
+}
+</style>

@@ -1,29 +1,29 @@
 ﻿{% extends "uip/base.html" %}
-{% block title %}{{ org.name }} - Initialize UIP{% endblock %}
+{% block title %}Initialize Precinct Setup{% endblock %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto px-4 mt-16 mb-16">
-    <div class="text-center mb-12">
-        <span class="bg-indigo-100 text-indigo-800 text-xs px-2 py-1 rounded font-bold uppercase tracking-wide mb-2 inline-block">{{ org.name }}</span>
-        <h1 class="text-3xl font-extrabold text-slate-900 mt-2">Welcome to {{ org.name }}</h1>
-        <p class="text-lg text-slate-600 mt-4 max-w-2xl mx-auto">This Urban Improvement Precinct requires initialization. As the founding Secretary, please proceed to set up the official inaugural meeting records.</p>
+<header class="ui-page-head">
+    <div>
+        <p class="ui-eyebrow">Genesis</p>
+        <h1>Initialize Precinct Setup</h1>
+        <p class="ui-subtitle">This Urban Improvement Precinct requires initialization. As the founding Secretary, please proceed to set up the official inaugural meeting records.</p>
     </div>
+</header>
 
-    {% include "partials/flash_messages.html" %}
+{% include "partials/flash_messages.html" %}
 
-    <div class="grid grid-cols-1 gap-6 max-w-md mx-auto">
-        <!-- Secretary / Initialize Tile -->
-        <a href="{{ url_for('uip_bp.provisioning', org_slug=org.slug) }}" class="ui-card bg-white p-8 rounded-xl border border-slate-200 shadow-md hover:shadow-lg hover:border-slate-800 transition block text-center group">
-            <div class="w-20 h-20 bg-slate-800 text-white rounded-full flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform">
-                <i class="fas fa-clipboard-check text-3xl"></i>
-            </div>
-            <h2 class="text-xl font-bold text-slate-900 mb-2">Initialize UIP (Secretary)</h2>
-            <p class="text-sm text-slate-600">Launch the official founding form to set up the committee roster and public meeting records.</p>
-        </a>
-    </div>
-    
-    <div class="mt-12 text-center text-sm text-slate-500">
-        <p><i class="fas fa-shield-alt mr-1"></i> AIT Platform securely verifies all authoritative roles.</p>
-    </div>
+<div style="max-w: 24rem; margin-top: 2rem;">
+    <!-- Founding Secretary Setup Tile -->
+    <a href="{{ url_for('uip_bp.provisioning', org_slug=org.slug) }}" class="ui-card" style="display: block; text-align: center; padding: 2.5rem; text-decoration: none; border-top: 4px solid #1e293b; transition: transform 0.2s;">
+        <div style="width: 5rem; height: 5rem; background-color: #1e293b; color: white; border-radius: 9999px; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem auto;">
+            <i class="fas fa-clipboard-check" style="font-size: 2rem;"></i>
+        </div>
+        <h2 style="font-size: 1.25rem; font-weight: 700; color: #0f172a; margin-bottom: 0.5rem;">Founding Secretary Setup</h2>
+        <p style="font-size: 0.875rem; color: #475569;">Launch the official founding form to set up the committee roster and public meeting records.</p>
+    </a>
+</div>
+
+<div style="margin-top: 3rem; font-size: 0.875rem; color: #64748b;">
+    <p><i class="fas fa-shield-alt" style="margin-right: 0.25rem;"></i> AIT Platform securely verifies all authoritative roles.</p>
 </div>
 {% endblock %}

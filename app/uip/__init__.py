@@ -30,7 +30,7 @@ def establish_organization_context():
     is_exempt = request.endpoint == "uip_bp.service_status"
     if request.endpoint in (
         "uip_bp.router_page", "uip_bp.my_access", 
-        "uip_bp.verify_committee", 
+        "uip_bp.verify_committee", "uip_bp.verify_secretary", 
         "uip_bp.verify_ratepayer",
         "uip_bp.verify_mo",
         "uip_bp.verify_staff",
@@ -58,7 +58,7 @@ def establish_organization_context():
         "uip_bp.verify_public", 
         "uip_bp.public_dashboard",
         "uip_bp.verify_ratepayer",
-        "uip_bp.verify_committee",
+        "uip_bp.verify_committee", "uip_bp.verify_secretary",
         "uip_bp.verify_mo",
         "uip_bp.verify_staff",
         "uip_bp.verify_subcommittee",

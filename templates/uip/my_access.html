@@ -50,8 +50,41 @@
                     </td>
                 </tr>
 
+                <!-- Secretary Row -->
+                <tr class="border-b border-slate-100 hover:bg-slate-50 transition">
+                    <td class="p-4">
+                        <div class="flex items-center">
+                            <div class="w-10 h-10 bg-slate-800 text-white rounded-full flex items-center justify-center mr-4 shrink-0">
+                                <i class="fas fa-clipboard-check"></i>
+                            </div>
+                            <span class="font-bold text-slate-900">Secretary / Membership Admin</span>
+                        </div>
+                    </td>
+                    <td class="p-4 text-sm text-slate-600">Access verification tools, rosters, and setup.</td>
+                    <td class="p-4 text-center">
+                        {% if 'secretary_claim' in user_claims %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">Waiting for Verification</span>
+                        {% else %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-500">Unclaimed</span>
+                        {% endif %}
+                    </td>
+                    <td class="p-4 text-right">
+                        {% if 'secretary_claim' in user_claims %}
+                            {% if not founding_exists %}
+                                <a href="{{ url_for('uip_bp.provisioning', org_slug=org.slug) }}" class="inline-block bg-amber-600 text-white hover:bg-amber-700 px-4 py-2 rounded-lg text-sm font-medium transition shadow-sm border border-amber-700"><i class="fas fa-play-circle mr-1"></i> Fill Elected Officials</a>
+                            {% else %}
+                                <button disabled class="bg-slate-100 text-slate-400 px-4 py-2 rounded-lg text-sm font-medium cursor-not-allowed">Pending</button>
+                            {% endif %}
+                        {% else %}
+                            <form action="{{ url_for('uip_bp.verify_secretary', org_slug=org.slug) }}" method="GET" class="inline">
+                                <button type="submit" class="bg-white text-indigo-600 border border-indigo-200 hover:bg-indigo-50 px-4 py-2 rounded-lg text-sm font-medium transition shadow-sm">Claim Access</button>
+                            </form>
+                        {% endif %}
+                    </td>
+                </tr>
+
                 <!-- Committee Row -->
-                <tr class="hover:bg-slate-50 transition">
+                <tr class="border-b border-slate-100 hover:bg-slate-50 transition">
                     <td class="p-4">
                         <div class="flex items-center">
                             <div class="w-10 h-10 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center mr-4 shrink-0">

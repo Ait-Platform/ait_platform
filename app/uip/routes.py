@@ -285,6 +285,36 @@ def verify_ratepayer(org_slug):
     return redirect(url_for("uip_bp.my_access", org_slug=org_slug, claim="ratepayer"))
 
 
+@uip_bp.route("/<org_slug>/verify/secretary", methods=["GET"])
+@login_required
+def verify_secretary(org_slug):
+    org = g.organization
+    from flask import request, redirect, url_for
+    from flask_login import current_user
+    from app import db
+    from app.models.core import CoreInteraction
+    
+    claim = CoreInteraction.query.filter_by(
+        organization_id=org.id,
+        creator_id=current_user.id,
+        interaction_type="secretary_claim",
+        status="OPEN"
+    ).first()
+    
+    if not claim:
+        claim = CoreInteraction(
+            organization_id=org.id,
+            creator_id=current_user.id,
+            interaction_type="secretary_claim",
+            title="Secretary Claim",
+            description=f"User {current_user.email} claims the Secretary role.",
+            status="OPEN"
+        )
+        db.session.add(claim)
+        db.session.commit()
+        
+    return redirect(url_for("uip_bp.my_access", org_slug=org_slug, claim="secretary"))
+
 @uip_bp.route("/<org_slug>/verify/committee", methods=["GET"])
 @login_required
 def verify_committee(org_slug):

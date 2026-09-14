@@ -77,7 +77,7 @@ def provisioning(org_slug):
 
             # Close claim
             claim = CoreInteraction.query.get(claim_id)
-            if claim and claim.interaction_type == "committee_claim":
+            if claim and claim.interaction_type in ("committee_claim", "secretary_claim"):
                 claim.status = "CLOSED"
                 claim.closed_by = submitter_id
 
@@ -104,23 +104,27 @@ def provisioning(org_slug):
                 
             # Add to Committee
             member = UipCommitteeMember(
-                term_id=term.id,
                 organization_id=org.id,
-                name=name,
+                term_id=term.id,
+                user_id=user.id,
                 email=email,
+                name=name,
                 position=position,
                 status="CURRENT",
                 created_by=submitter_id
             )
             db.session.add(member)
             
-        # Also close the Pioneer's own claim if they had one
-        pioneer_claim = CoreInteraction.query.filter_by(
-            organization_id=org.id, creator_id=submitter_id, interaction_type="committee_claim", status="OPEN"
-        ).first()
-        if pioneer_claim:
-            pioneer_claim.status = "CLOSED"
-            pioneer_claim.closed_by = submitter_id
+        # Also close the Pioneer's own claims if they had any
+        pioneer_claims = CoreInteraction.query.filter(
+            CoreInteraction.organization_id == org.id,
+            CoreInteraction.creator_id == submitter_id,
+            CoreInteraction.interaction_type.in_(["committee_claim", "secretary_claim"]),
+            CoreInteraction.status == "OPEN"
+        ).all()
+        for pc in pioneer_claims:
+            pc.status = "CLOSED"
+            pc.closed_by = submitter_id
 
         # 3. Create a complimentary active entitlement so the UIP doesn't instantly dead-end
         from app.models.core import CoreOrganizationEntitlement
@@ -138,10 +142,10 @@ def provisioning(org_slug):
         return redirect(url_for("uip_bp.router_page", org_slug=org.slug))
 
     from app.models.core import CoreInteraction
-    claims = CoreInteraction.query.filter_by(
-        organization_id=org.id,
-        interaction_type="committee_claim",
-        status="OPEN"
+    claims = CoreInteraction.query.filter(
+        CoreInteraction.organization_id == org.id,
+        CoreInteraction.interaction_type.in_(["committee_claim", "secretary_claim"]),
+        CoreInteraction.status == "OPEN"
     ).all()
 
     return render_template("uip/provisioning.html", org=org, claims=claims)

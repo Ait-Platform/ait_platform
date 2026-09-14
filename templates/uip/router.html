@@ -21,6 +21,15 @@
             <p class="text-sm text-slate-600">Access your local property profile and log interactions.</p>
         </a>
 
+        <!-- Secretary Tile -->
+        <a href="{{ url_for('uip_bp.verify_secretary', org_slug=org.slug) }}" class="ui-card bg-white p-8 rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-slate-800 transition block text-center group">
+            <div class="w-16 h-16 bg-slate-800 text-white rounded-full flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform">
+                <i class="fas fa-clipboard-check text-2xl"></i>
+            </div>
+            <h2 class="text-xl font-bold text-slate-900 mb-2">Secretary / Membership Admin</h2>
+            <p class="text-sm text-slate-600">Access access-control verification tools, rosters, and administrative setup.</p>
+        </a>
+
         <!-- Committee Tile -->
         <a href="{{ url_for('uip_bp.verify_committee', org_slug=org.slug) }}" class="ui-card bg-white p-8 rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-amber-300 transition block text-center group">
             <div class="w-16 h-16 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform">

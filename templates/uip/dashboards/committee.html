@@ -2,143 +2,192 @@
 {% block title %}Committee Dashboard - {{ org.name }}{% endblock %}
 
 {% block content %}
-<header class="ui-page-head" style="display: flex; justify-content: space-between; align-items: flex-start;">
+<header class="ui-page-head flex justify-between items-start mb-8">
     <div>
-        <p class="ui-eyebrow">{{ org.name }}</p>
-        <h1>Committee Dashboard</h1>
-        <p>Governance overview and management.</p>
-        <p class="ui-subtitle mt-2">Logged in as: <strong>{{ current_user.name }}</strong> ({{ current_user.email }})</p>
+        <p class="ui-eyebrow uppercase tracking-widest text-slate-500 font-semibold">{{ org.name }}</p>
+        <h1 class="text-3xl font-extrabold text-slate-900 mt-1">Committee Dashboard</h1>
+        
+        <div class="mt-4">
+            <h2 class="text-lg text-slate-800">Welcome, <strong>{{ current_user.name }}</strong></h2>
+            <p class="text-sm text-slate-500 flex items-center mt-1">
+                <i class="fas fa-id-badge mr-2 text-indigo-400"></i>
+                {% if current_appointment %}
+                    Elected Committee Member &middot; {{ current_appointment.position }}
+                {% else %}
+                    Committee / Manager Access
+                {% endif %}
+            </p>
+        </div>
     </div>
-    <div style="margin-top: 1rem;">
-        <a href="{{ url_for('uip_bp.verify_ratepayer', org_slug=org.slug) }}" class="ui-btn ui-btn-outline"><i class="fas fa-home mr-2"></i> My Property / Ratepayer Profile</a>
+    
+    <div class="mt-2">
+        <a href="{{ url_for('uip_bp.verify_ratepayer', org_slug=org.slug) }}" class="ui-btn ui-btn-outline bg-white hover:bg-slate-50 text-slate-700 border-slate-300 transition-colors shadow-sm text-sm">
+            <i class="fas fa-home mr-2 text-slate-400"></i> My Property / Ratepayer Profile
+        </a>
     </div>
 </header>
 
 {% include 'partials/flash_messages.html' %}
 
-{% if current_appointment and current_appointment.position == 'Secretary' %}
-<section class="ui-card mb-6 border-indigo-200 shadow-sm" style="background-color: #f8fafc;">
-    <div class="ui-card-body flex items-center justify-between p-6">
-        <div>
-            <h2 class="text-lg font-bold text-slate-800 mb-1"><i class="fas fa-clipboard-list text-indigo-600 mr-2"></i> Secretary Tools</h2>
-            <p class="text-sm text-slate-600">Access the Intake Desk to review access claims and bundle them into digital resolutions.</p>
+<!-- GOVERNANCE OVERVIEW BANNER -->
+<section class="ui-card mb-8 border border-slate-200 shadow-sm bg-white overflow-hidden rounded-xl">
+    <div class="bg-slate-50 px-6 py-3 border-b border-slate-200">
+        <h2 class="text-xs font-bold text-slate-500 uppercase tracking-widest"><i class="fas fa-landmark mr-2"></i> Governance Overview</h2>
+    </div>
+    <div class="grid grid-cols-2 md:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-slate-100">
+        
+        <!-- Meetings -->
+        <div class="p-6 text-center hover:bg-slate-50 transition cursor-pointer">
+            <div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-3">
+                <i class="fas fa-calendar-alt text-lg"></i>
+            </div>
+            <h3 class="font-bold text-slate-900 mb-1">Meetings</h3>
+            <p class="text-sm text-slate-500">Upcoming: <strong class="text-indigo-600">{{ upcoming_meetings_count }}</strong></p>
         </div>
-        <div>
-            <a href="{{ url_for('uip_bp.secretary_workspace', org_slug=org.slug) }}" class="ui-btn ui-btn-primary">
-                Open Intake Desk &rarr;
-            </a>
+        
+        <!-- Resolutions -->
+        <div class="p-6 text-center hover:bg-slate-50 transition cursor-pointer">
+            <div class="w-10 h-10 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-3">
+                <i class="fas fa-file-signature text-lg"></i>
+            </div>
+            <h3 class="font-bold text-slate-900 mb-1">Resolutions</h3>
+            <p class="text-sm text-slate-500">Pending: <strong class="text-amber-600">{{ pending_resolutions_count }}</strong></p>
         </div>
+        
+        <!-- Committee -->
+        <div class="p-6 text-center hover:bg-slate-50 transition cursor-pointer">
+            <div class="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-3">
+                <i class="fas fa-users text-lg"></i>
+            </div>
+            <h3 class="font-bold text-slate-900 mb-1">Committee</h3>
+            <p class="text-sm text-slate-500">Members: <strong class="text-emerald-600">{{ committee_members_count }}</strong></p>
+        </div>
+        
+        <!-- Documents -->
+        <div class="p-6 text-center hover:bg-slate-50 transition cursor-pointer">
+            <div class="w-10 h-10 bg-slate-100 text-slate-600 rounded-full flex items-center justify-center mx-auto mb-3">
+                <i class="fas fa-folder-open text-lg"></i>
+            </div>
+            <h3 class="font-bold text-slate-900 mb-1">Documents</h3>
+            <p class="text-sm text-indigo-600 font-medium">View files &rarr;</p>
+        </div>
+        
     </div>
 </section>
-{% endif %}
 
-<div class="ui-split">
-    <section class="ui-card">
-        <header class="ui-card-head" style="display: flex; justify-content: space-between; align-items: center;">
-            <h2>Current Term: {% if current_term %}{{ current_term.term_name }}{% else %}Unknown{% endif %}</h2>
-            {% if is_manager %}
-            <a href="{{ url_for('uip_bp.manage_committee', org_slug=org.slug) }}" class="ui-btn ui-btn-primary ui-btn-sm">Manage Term</a>
-            {% endif %}
-        </header>
-        <div class="ui-card-body">
-            <ul class="ui-list">
-            {% for u in committee_members %}
-                {% if u.status == 'CURRENT' %}
-                <li>
-                    <strong>{{ u.name }}</strong> ({{ u.email }})
-                    <br>
-                    <span class="text-sm text-slate-500">{{ u.position }}</span>
-                    {% if current_manager and u.email|lower == current_manager.email|lower %}
-                        <span class="ui-badge ui-badge-primary ml-2">Manager</span>
-                    {% endif %}
-                    {% if u.email|lower == current_user.email|lower %}
-                        <span class="ui-badge ml-2">You</span>
-                    {% endif %}
-                </li>
-                {% endif %}
-            {% else %}
-                <li class="ui-empty">No committee members elected yet.</li>
-            {% endfor %}
-            </ul>
-        </div>
-    </section>
-    
-    <section class="ui-card">
-        <header class="ui-card-head">
-            <h2>Manager Designation</h2>
-        </header>
-        <div class="ui-card-body">
-            {% if manager_resolution %}
-                <p><strong>Designation Resolution:</strong> {{ manager_resolution.description }}</p>
-                {% if current_manager %}
-                    <p><strong>Current Manager:</strong> {{ current_manager.name }} ({{ current_manager.email }})</p>
-                {% endif %}
-            {% else %}
-                <p class="ui-empty">No manager designation recorded.</p>
-            {% endif %}
-        </div>
-    </section>
+<!-- SECRETARY TOOLS -->
+{% if current_appointment and current_appointment.position == 'Secretary' %}
+<div class="mb-4">
+    <h2 class="text-sm font-bold text-slate-500 uppercase tracking-widest"><i class="fas fa-tools mr-2 text-slate-400"></i> Secretary Tools</h2>
 </div>
 
-<section class="ui-card">
-    <header class="ui-card-head">
-        <h2>My Role</h2>
-    </header>
-    <div class="ui-card-body">
-        {% if is_manager %}
-            <p><strong>Status:</strong> <span class="ui-badge ui-badge-primary">Manager</span></p>
-        {% else %}
-            <p><strong>Status:</strong> <span class="ui-badge ui-badge-success">Committee Member</span></p>
-        {% endif %}
-        
-        {% if delegated_responsibility %}
-            <p><strong>Delegated Responsibility:</strong> 
-                {% if delegated_responsibility.delegation_type == 'RATEPAYER_ADMIN' %}
-                    Ratepayer Register Administrator
-                {% else %}
-                    {{ delegated_responsibility.delegation_type }}
-                {% endif %}
-                <small class="ui-help">since {{ delegated_responsibility.effective_date.strftime('%Y-%m-%d') }}</small>
-            </p>
-        {% else %}
-            <p class="ui-empty">No operational responsibilities delegated to you.</p>
-        {% endif %}
-    </div>
-</section>
-
-{% if is_manager %}
-<section class="ui-card">
-    <header class="ui-card-head">
-        <h2>Manager Delegations</h2>
-    </header>
-    <div class="ui-card-body">
-        <form method="post" action="{{ url_for('uip_bp.delegate_ratepayer_admin', org_slug=org.slug) }}" class="ui-form">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <div class="ui-field">
-                <label>Ratepayer Register Administrator</label>
-                <div style="display: flex; gap: 0.5rem; align-items: center;">
-                    <select name="delegated_email" class="ui-input">
-                        <option value="">-- Not assigned --</option>
-                        {% for u in committee_members %}
-                            {% if u.status == 'CURRENT' %}
-                            <option value="{{ u.email }}" {% if ratepayer_admin_user and ratepayer_admin_user.email|lower == u.email|lower %}selected{% endif %}>
-                                {{ u.name }}
-                            </option>
-                            {% endif %}
-                        {% endfor %}
-                    </select>
-                    <button type="submit" class="ui-btn ui-btn-primary">Assign / Change</button>
-                </div>
-                {% if ratepayer_admin %}
-                    <p class="ui-help">Currently assigned to {{ ratepayer_admin_user.name }}. Changing this will revoke the current delegation.</p>
-                {% else %}
-                    <p class="ui-help">Not assigned.</p>
-                {% endif %}
+<div class="grid md:grid-cols-2 gap-6 mb-12">
+    
+    <!-- Intake Desk -->
+    <a href="{{ url_for('uip_bp.secretary_workspace', org_slug=org.slug) }}" class="ui-card bg-white border border-slate-200 hover:border-indigo-300 hover:shadow-md transition block rounded-xl overflow-hidden relative group">
+        <div class="p-6">
+            <div class="flex items-center mb-4">
+                <i class="fas fa-inbox text-2xl text-indigo-600 mr-3"></i>
+                <h3 class="text-lg font-bold text-slate-900 uppercase tracking-wide">Intake Desk</h3>
             </div>
-        </form>
-    </div>
-</section>
+            <ul class="text-sm text-slate-600 space-y-2 mb-6 ml-1">
+                <li class="flex items-center justify-between"><span class="flex items-center"><i class="fas fa-circle text-[8px] text-slate-300 mr-3"></i> New matters</span> <strong class="text-indigo-600">{{ new_matters_count }}</strong></li>
+                <li class="flex items-center justify-between"><span class="flex items-center"><i class="fas fa-circle text-[8px] text-slate-300 mr-3"></i> Awaiting action</span> <strong class="text-slate-700">0</strong></li>
+            </ul>
+            <p class="text-indigo-600 text-sm font-bold group-hover:text-indigo-800 flex items-center">Open Intake Desk <i class="fas fa-arrow-right ml-2 transition-transform group-hover:translate-x-1"></i></p>
+        </div>
+        <div class="h-1 w-full bg-indigo-500 absolute bottom-0 left-0 scale-x-0 group-hover:scale-x-100 transition-transform origin-left"></div>
+    </a>
+    
+    <!-- Meetings -->
+    <a href="#" class="ui-card bg-white border border-slate-200 hover:border-amber-300 hover:shadow-md transition block rounded-xl overflow-hidden relative group">
+        <div class="p-6">
+            <div class="flex items-center mb-4">
+                <i class="fas fa-calendar-check text-2xl text-amber-600 mr-3"></i>
+                <h3 class="text-lg font-bold text-slate-900 uppercase tracking-wide">Meetings</h3>
+            </div>
+            <ul class="text-sm text-slate-600 space-y-2 mb-6 ml-1">
+                <li class="flex items-center"><i class="fas fa-circle text-[8px] text-slate-300 mr-3"></i> Prepare agenda</li>
+                <li class="flex items-center"><i class="fas fa-circle text-[8px] text-slate-300 mr-3"></i> Record attendance</li>
+                <li class="flex items-center"><i class="fas fa-circle text-[8px] text-slate-300 mr-3"></i> Record minutes</li>
+            </ul>
+            <p class="text-amber-600 text-sm font-bold group-hover:text-amber-800 flex items-center">Open Meetings <i class="fas fa-arrow-right ml-2 transition-transform group-hover:translate-x-1"></i></p>
+        </div>
+        <div class="h-1 w-full bg-amber-500 absolute bottom-0 left-0 scale-x-0 group-hover:scale-x-100 transition-transform origin-left"></div>
+    </a>
+    
+    <!-- Correspondence -->
+    <a href="#" class="ui-card bg-white border border-slate-200 hover:border-blue-300 hover:shadow-md transition block rounded-xl overflow-hidden relative group">
+        <div class="p-6">
+            <div class="flex items-center mb-4">
+                <i class="fas fa-envelope-open-text text-2xl text-blue-600 mr-3"></i>
+                <h3 class="text-lg font-bold text-slate-900 uppercase tracking-wide">Correspondence</h3>
+            </div>
+            <ul class="text-sm text-slate-600 space-y-2 mb-6 ml-1">
+                <li class="flex items-center"><i class="fas fa-circle text-[8px] text-slate-300 mr-3"></i> Incoming</li>
+                <li class="flex items-center"><i class="fas fa-circle text-[8px] text-slate-300 mr-3"></i> Outgoing</li>
+                <li class="flex items-center"><i class="fas fa-circle text-[8px] text-slate-300 mr-3"></i> Municipal queries</li>
+            </ul>
+            <p class="text-blue-600 text-sm font-bold group-hover:text-blue-800 flex items-center">View <i class="fas fa-arrow-right ml-2 transition-transform group-hover:translate-x-1"></i></p>
+        </div>
+        <div class="h-1 w-full bg-blue-500 absolute bottom-0 left-0 scale-x-0 group-hover:scale-x-100 transition-transform origin-left"></div>
+    </a>
+    
+    <!-- Governance Record -->
+    <a href="#" class="ui-card bg-white border border-slate-200 hover:border-emerald-300 hover:shadow-md transition block rounded-xl overflow-hidden relative group">
+        <div class="p-6">
+            <div class="flex items-center mb-4">
+                <i class="fas fa-book text-2xl text-emerald-600 mr-3"></i>
+                <h3 class="text-lg font-bold text-slate-900 uppercase tracking-wide">Governance Record</h3>
+            </div>
+            <ul class="text-sm text-slate-600 space-y-2 mb-6 ml-1">
+                <li class="flex items-center"><i class="fas fa-circle text-[8px] text-slate-300 mr-3"></i> Resolutions</li>
+                <li class="flex items-center"><i class="fas fa-circle text-[8px] text-slate-300 mr-3"></i> Founding record</li>
+                <li class="flex items-center"><i class="fas fa-circle text-[8px] text-slate-300 mr-3"></i> Committee terms</li>
+            </ul>
+            <p class="text-emerald-600 text-sm font-bold group-hover:text-emerald-800 flex items-center">View <i class="fas fa-arrow-right ml-2 transition-transform group-hover:translate-x-1"></i></p>
+        </div>
+        <div class="h-1 w-full bg-emerald-500 absolute bottom-0 left-0 scale-x-0 group-hover:scale-x-100 transition-transform origin-left"></div>
+    </a>
+    
+</div>
 {% endif %}
+
+<!-- RECENT ACTIVITY -->
+<div class="mb-4 mt-8">
+    <h2 class="text-sm font-bold text-slate-500 uppercase tracking-widest"><i class="fas fa-history mr-2 text-slate-400"></i> Recent Activity</h2>
+</div>
+<div class="ui-card bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden mb-16">
+    <table class="w-full text-left border-collapse text-sm">
+        <thead class="bg-slate-50 text-slate-500 border-b border-slate-200 uppercase tracking-wider text-xs">
+            <tr>
+                <th class="py-3 px-6 font-semibold">Date</th>
+                <th class="py-3 px-6 font-semibold">Description</th>
+                <th class="py-3 px-6 font-semibold text-right">Status</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100 text-slate-700">
+            {% for act in recent_activity %}
+            <tr class="hover:bg-slate-50 transition">
+                <td class="py-3 px-6 whitespace-nowrap text-slate-500">{{ act.created_at.strftime('%d %b') }}</td>
+                <td class="py-3 px-6 font-medium">{{ act.title }}</td>
+                <td class="py-3 px-6 text-right">
+                    {% if act.status == 'OPEN' %}
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">{{ act.status }}</span>
+                    {% elif act.status == 'CLOSED' %}
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-800">{{ act.status }}</span>
+                    {% else %}
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800">{{ act.status }}</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="3" class="py-8 text-center text-slate-500">No recent activity found.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
 {% endblock %}
-
-

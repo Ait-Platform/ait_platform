@@ -81,8 +81,39 @@ def committee_dashboard(org_slug):
         except ProgrammingError:
             db.session.rollback()
         
+    from app.models.uip import UipCommitteeMeeting, UipResolution
+    from app.models.core import CoreInteraction
+    
+    upcoming_meetings_count = UipCommitteeMeeting.query.filter(
+        UipCommitteeMeeting.organization_id == org.id,
+        UipCommitteeMeeting.status != 'CONCLUDED'
+    ).count()
+    
+    pending_resolutions_count = UipResolution.query.filter(
+        UipResolution.organization_id == org.id,
+        UipResolution.status.in_(['PROPOSED', 'DRAFT', 'PENDING'])
+    ).count()
+    
+    committee_members_count = len(committee_members)
+    
+    new_matters_count = CoreInteraction.query.filter(
+        CoreInteraction.organization_id == org.id,
+        CoreInteraction.status == 'OPEN',
+        CoreInteraction.interaction_type.in_(["ratepayer_claim", "subcommittee_claim", "mo_claim", "staff_claim"])
+    ).count()
+    
+    recent_activity = CoreInteraction.query.filter(
+        CoreInteraction.organization_id == org.id
+    ).order_by(CoreInteraction.created_at.desc()).limit(5).all()
+
     return render_template(
         "uip/dashboards/committee.html",
+        upcoming_meetings_count=upcoming_meetings_count,
+        pending_resolutions_count=pending_resolutions_count,
+        committee_members_count=committee_members_count,
+        new_matters_count=new_matters_count,
+        recent_activity=recent_activity,
+
         org=org,
         current_appointment=current_appointment,
         current_term=current_term,

@@ -155,7 +155,7 @@ class UipCommitteeMeeting(db.Model):
 class UipResolution(db.Model):
     __tablename__ = "uip_resolution"
     id = db.Column(db.Integer, primary_key=True)
-    meeting_id = db.Column(db.Integer, db.ForeignKey("uip_committee_meeting.id"), nullable=True)
+    meeting_id = db.Column(db.Integer, nullable=True)
     organization_id = db.Column(db.Integer, db.ForeignKey("core_organization.id"), nullable=False)
     survey_id = db.Column(db.Integer)
     decision_date = db.Column(db.Date)

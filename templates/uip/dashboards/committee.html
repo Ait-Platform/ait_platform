@@ -1,4 +1,4 @@
-{% extends "uip/base.html" %}
+﻿{% extends "uip/base.html" %}
 {% block title %}Committee Dashboard - {{ org.name }}{% endblock %}
 
 {% block content %}
@@ -10,7 +10,7 @@
         <p class="ui-subtitle mt-2">Logged in as: <strong>{{ current_user.name }}</strong> ({{ current_user.email }})</p>
     </div>
     <div style="margin-top: 1rem;">
-        <a href="{{ url_for('uip_bp.router_page', org_slug=org.slug) }}" class="ui-btn ui-btn-outline">
+        <a href="{{ url_for('uip_bp.router_page', org_slug=org.slug, force=1) }}" class="ui-btn ui-btn-outline">
             &larr; Switch Participant Role
         </a>
     </div>
@@ -142,3 +142,4 @@
 </section>
 {% endif %}
 {% endblock %}
+

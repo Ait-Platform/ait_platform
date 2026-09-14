@@ -105,7 +105,7 @@ def _positive_id(value):
 @login_required
 def dashboard(org_slug):
     org = g.organization
-    role_slug = _require_role("manager", "receptionist", "committee_member", "owner", "resident", "provider", "municipal_officer", abort_on_fail=False)
+    role_slug = _require_role("owner", "resident", abort_on_fail=False) if request.args.get("as_ratepayer") else _require_role("manager", "receptionist", "committee_member", "owner", "resident", "provider", "municipal_officer", abort_on_fail=False)
     
     if not role_slug:
         return redirect(url_for("uip_bp.my_access", org_slug=org_slug))
@@ -151,7 +151,7 @@ def waiting_lounge(org_slug):
         func.lower(UipCommitteeMember.email) == func.lower(current_user.email)
     ).first()
     
-    if appointment:
+    if appointment and not force_menu:
         from app.models.core import CoreOrganizationMember
         from app import db
         membership = CoreOrganizationMember.query.filter_by(organization_id=org.id, user_id=current_user.id).first()
@@ -201,6 +201,7 @@ def router_page(org_slug):
     from flask import request, redirect, url_for
     from flask_login import current_user
     from sqlalchemy import func
+    force_menu = request.args.get('force')
     
     # 1. Auto-route if already verified committee
     from app.models.uip_governance import UipCommitteeMember
@@ -209,7 +210,7 @@ def router_page(org_slug):
         UipCommitteeMember.status == "CURRENT",
         func.lower(UipCommitteeMember.email) == func.lower(current_user.email)
     ).first()
-    if appointment:
+    if appointment and not force_menu:
         from app.models.core import CoreOrganizationMember
         from app import db
         membership = CoreOrganizationMember.query.filter_by(organization_id=org.id, user_id=current_user.id).first()
@@ -227,7 +228,7 @@ def router_page(org_slug):
         organization_id=org.id, user_id=current_user.id, is_active=True
     ).first()
     
-    if membership:
+    if membership and not force_menu:
         # Since they don't have a committee appointment, but they are an active member,
         # they are a Ratepayer (or other standard role).
         return redirect(url_for("uip_bp.dashboard", org_slug=org.slug))
@@ -277,7 +278,7 @@ def verify_ratepayer(org_slug):
     # Check if they already have authority
     role = _require_role("owner", "resident", abort_on_fail=False)
     if role:
-        return redirect(url_for("uip_bp.dashboard", org_slug=org_slug))
+        return redirect(url_for("uip_bp.dashboard", org_slug=org_slug, as_ratepayer=1))
     
     from app.models.core import CoreInteraction
     from app import db
@@ -392,7 +393,7 @@ def verify_committee(org_slug):
         appointment = None
         term = None
         
-    if appointment:
+    if appointment and not force_menu:
         from app.models.core import CoreOrganizationMember
         membership = CoreOrganizationMember.query.filter_by(organization_id=org.id, user_id=current_user.id).first()
         if not membership:
@@ -1176,3 +1177,8 @@ def remove_trigger(org_slug):
     except Exception as e:
         db.session.rollback()
         return f"Error: {e}"
+
+
+
+
+

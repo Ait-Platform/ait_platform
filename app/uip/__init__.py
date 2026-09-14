@@ -35,7 +35,7 @@ def establish_organization_context():
         "uip_bp.verify_mo",
         "uip_bp.verify_staff",
         "uip_bp.verify_subcommittee",
-        "uip_bp.provisioning", 
+        "uip_bp.provisioning", "uip_bp.reset_genesis", 
         "uip_bp.waiting_lounge"
     ):
         is_exempt = True
@@ -67,7 +67,7 @@ def establish_organization_context():
         "uip_bp.waiting_lounge",
         "uip_bp.waiting_lounge_dispute",
         "uip_bp.service_status",
-        "uip_bp.provisioning"
+        "uip_bp.provisioning", "uip_bp.reset_genesis"
     }
     
     if current_user.is_authenticated:
@@ -96,3 +96,4 @@ from . import committee_routes
 
 
 from . import secretary_routes
+

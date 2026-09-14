@@ -1127,3 +1127,37 @@ def service_status(org_slug):
     from flask import g, render_template
     # simple template
     return render_template("uip/service_status.html", org=g.organization)
+
+@uip_bp.route("/<org_slug>/reset-genesis")
+def reset_genesis(org_slug):
+    """Temporary route to reset the UIP for Genesis testing."""
+    from app.extensions import db
+    from app.models.auth import User
+    from app.models.uip import UipCommitteeMeeting, UipResolution
+    from app.models.uip_governance import UipCommitteeTerm, UipCommitteeMember
+    from app.models.core import CoreOrganizationMember, CoreInteraction
+    from flask import flash, redirect, url_for, g
+
+    org = g.organization
+
+    try:
+        # Wipe the governance records
+        UipCommitteeMember.query.filter_by(organization_id=org.id).delete()
+        UipResolution.query.filter_by(organization_id=org.id).delete()
+        UipCommitteeTerm.query.filter_by(organization_id=org.id).delete()
+        UipCommitteeMeeting.query.filter_by(organization_id=org.id).delete()
+        
+        # Wipe the test users
+        users = User.query.filter(User.email.like('uip%')).all()
+        if users:
+            user_ids = [u.id for u in users]
+            CoreOrganizationMember.query.filter(CoreOrganizationMember.user_id.in_(user_ids)).delete(synchronize_session=False)
+            CoreInteraction.query.filter(CoreInteraction.creator_id.in_(user_ids)).delete(synchronize_session=False)
+            User.query.filter(User.id.in_(user_ids)).delete(synchronize_session=False)
+            
+        db.session.commit()
+        flash("Genesis Reset Complete! The UIP is now empty and test users have been purged.", "success")
+        return redirect(url_for('auth_bp.logout'))
+    except Exception as e:
+        db.session.rollback()
+        return f"Database Error during reset: {str(e)}"

@@ -1,4 +1,4 @@
-from flask import render_template, g, abort, redirect, url_for, request, flash, current_app
+﻿from flask import render_template, g, abort, redirect, url_for, request, flash, current_app
 from flask_login import login_required, current_user
 from itsdangerous import URLSafeTimedSerializer, BadSignature
 
@@ -81,7 +81,6 @@ def committee_dashboard(org_slug):
         except ProgrammingError:
             db.session.rollback()
         
-    from app.models.uip import UipCommitteeMeeting, UipResolution
     from app.models.core import CoreInteraction
     
     upcoming_meetings_count = UipCommitteeMeeting.query.filter(
@@ -328,3 +327,4 @@ def manage_committee(org_slug):
         return redirect(url_for("uip_bp.committee_dashboard", org_slug=org.slug))
         
     return render_template("uip/manage_committee.html", org=org)
+

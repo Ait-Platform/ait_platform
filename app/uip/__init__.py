@@ -1,4 +1,4 @@
-from flask import Blueprint, abort, g, request
+﻿from flask import Blueprint, abort, g, request
 from flask_login import current_user
 
 uip_bp = Blueprint("uip_bp", __name__, url_prefix="/uip")
@@ -93,3 +93,6 @@ def install_request_privacy(state):
     install(state.app)
 from . import provisioning_routes
 from . import committee_routes
+
+
+from . import secretary_routes

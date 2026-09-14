@@ -18,6 +18,22 @@
 
 {% include 'partials/flash_messages.html' %}
 
+{% if current_appointment and current_appointment.position == 'Secretary' %}
+<section class="ui-card mb-6 border-indigo-200 shadow-sm" style="background-color: #f8fafc;">
+    <div class="ui-card-body flex items-center justify-between p-6">
+        <div>
+            <h2 class="text-lg font-bold text-slate-800 mb-1"><i class="fas fa-clipboard-list text-indigo-600 mr-2"></i> Secretary Tools</h2>
+            <p class="text-sm text-slate-600">Access the Intake Desk to review access claims and bundle them into digital resolutions.</p>
+        </div>
+        <div>
+            <a href="{{ url_for('uip_bp.secretary_workspace', org_slug=org.slug) }}" class="ui-btn ui-btn-primary">
+                Open Intake Desk &rarr;
+            </a>
+        </div>
+    </div>
+</section>
+{% endif %}
+
 <div class="ui-split">
     <section class="ui-card">
         <header class="ui-card-head" style="display: flex; justify-content: space-between; align-items: center;">

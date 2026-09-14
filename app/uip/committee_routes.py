@@ -84,6 +84,7 @@ def committee_dashboard(org_slug):
     return render_template(
         "uip/dashboards/committee.html",
         org=org,
+        current_appointment=current_appointment,
         current_term=current_term,
         committee_members=committee_members,
         manager_resolution=manager_resolution,

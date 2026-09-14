@@ -797,6 +797,19 @@ def uip_start():
                     
     db.session.commit()
     
+    # Fast-path: If the user is already a member of exactly one active UIP, jump straight to it!
+    from flask_login import current_user
+    from flask import redirect, url_for
+    if current_user.is_authenticated:
+        from app.models.core import CoreOrganizationMember
+        memberships = CoreOrganizationMember.query.filter_by(user_id=current_user.id).all()
+        if memberships:
+            memberships.sort(key=lambda m: not m.is_active)
+            primary_org_id = memberships[0].organization_id
+            primary_org = CoreOrganization.query.get(primary_org_id)
+            if primary_org and primary_org.status == 'active':
+                return redirect(url_for('uip_bp.router_page', org_slug=primary_org.slug))
+
     # Get all active organizations that might be UIPs.
     orgs = CoreOrganization.query.filter_by(status="active").order_by(CoreOrganization.name).all()
     return render_template('uip/public_about.html', orgs=orgs)
@@ -1167,6 +1180,7 @@ def remove_trigger(org_slug):
     except Exception as e:
         db.session.rollback()
         return f"Error: {e}"
+
 
 
 

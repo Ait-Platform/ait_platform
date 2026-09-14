@@ -92,6 +92,13 @@ def create_app(test_config=None):
             app.logger.info("Database auto-migrated successfully.")
         except Exception as e:
             app.logger.error(f"Auto-migration skipped or failed: {e}")
+            
+        # Temporarily added to bootstrap missing UIP Governance tables
+        try:
+            db.create_all()
+            app.logger.info("Created missing DB tables via db.create_all()")
+        except Exception as e:
+            app.logger.error(f"Failed to create tables: {e}")
 
 
         try:

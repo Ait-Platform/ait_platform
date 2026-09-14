@@ -292,8 +292,19 @@ def verify_secretary(org_slug):
     from flask import request, redirect, url_for
     from flask_login import current_user
     from app import db
-    from app.models.core import CoreInteraction
+    from app.models.uip_governance import UipCommitteeMember
+    from sqlalchemy import func
     
+    appointment = UipCommitteeMember.query.filter(
+        UipCommitteeMember.organization_id == org.id,
+        UipCommitteeMember.status == "CURRENT",
+        UipCommitteeMember.position == "Secretary",
+        func.lower(UipCommitteeMember.email) == func.lower(current_user.email)
+    ).first()
+    
+    if appointment:
+        return redirect(url_for("uip_bp.committee_dashboard", org_slug=org_slug))
+
     claim = CoreInteraction.query.filter_by(
         organization_id=org.id,
         creator_id=current_user.id,
@@ -313,6 +324,15 @@ def verify_secretary(org_slug):
         db.session.add(claim)
         db.session.commit()
         
+    # Check if a Founding Meeting exists
+    from app.models.uip import UipCommitteeMeeting
+    founding_exists = UipCommitteeMeeting.query.filter_by(
+        organization_id=org.id, meeting_type="FOUNDING"
+    ).first() is not None
+    
+    if not founding_exists:
+        return redirect(url_for("uip_bp.provisioning", org_slug=org.slug))
+        
     return redirect(url_for("uip_bp.my_access", org_slug=org_slug, claim="secretary"))
 
 @uip_bp.route("/<org_slug>/verify/committee", methods=["GET"])
@@ -331,7 +351,7 @@ def verify_committee(org_slug):
     try:
         term = UipCommitteeTerm.query.filter_by(organization_id=org.id).first()
         if not term:
-            # Record the claim if it doesn't exist
+            # Also log a claim for post-founding members so the Chair can review them
             claim = CoreInteraction.query.filter_by(
                 organization_id=org.id,
                 creator_id=current_user.id,
@@ -349,7 +369,16 @@ def verify_committee(org_slug):
                 )
                 db.session.add(claim)
                 db.session.commit()
-            return redirect(url_for("uip_bp.my_access", org_slug=org_slug, claim="committee"))
+                
+            from app.models.uip import UipCommitteeMeeting
+            founding_exists = UipCommitteeMeeting.query.filter_by(
+                organization_id=org.id, meeting_type="FOUNDING"
+            ).first() is not None
+            
+            if not founding_exists:
+                return redirect(url_for("uip_bp.provisioning", org_slug=org.slug))
+                
+            return redirect(url_for("uip_bp.my_access", org_slug=org_slug, claim="committee_nomatch"))
             
         appointment = UipCommitteeMember.query.filter(
             UipCommitteeMember.organization_id == org.id,

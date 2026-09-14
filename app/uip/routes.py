@@ -1,4 +1,4 @@
-from datetime import datetime
+﻿from datetime import datetime
 import random
 import uuid
 
@@ -244,7 +244,7 @@ def router_page(org_slug):
     else:
         # The UIP is founded, but this user is not on the register.
         # We no longer show tiles or waiting rooms. 
-        return render_template("uip/access_denied.html", org=org)
+        return render_template("uip/router_founded.html", org=org)
 
 @uip_bp.route("/<org_slug>/my-access")
 @login_required
@@ -1161,3 +1161,5 @@ def reset_genesis(org_slug):
     except Exception as e:
         db.session.rollback()
         return f"Database Error during reset: {str(e)}"
+
+

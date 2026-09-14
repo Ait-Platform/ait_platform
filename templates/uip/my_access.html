@@ -23,6 +23,7 @@
             </thead>
             <tbody class="divide-y divide-slate-100 text-slate-700">
                 
+                {% if "ratepayer_claim" in user_claims %}
                 <!-- Ratepayer Row -->
                 <tr class="hover:bg-slate-50 transition">
                     <td class="p-4">
@@ -49,7 +50,9 @@
                         {% endif %}
                     </td>
                 </tr>
+                {% endif %}
 
+                {% if "secretary_claim" in user_claims %}
                 <!-- Secretary Row -->
                 <tr class="border-b border-slate-100 hover:bg-slate-50 transition">
                     <td class="p-4">
@@ -82,7 +85,9 @@
                         {% endif %}
                     </td>
                 </tr>
+                {% endif %}
 
+                {% if "committee_claim" in user_claims %}
                 <!-- Committee Row -->
                 <tr class="border-b border-slate-100 hover:bg-slate-50 transition">
                     <td class="p-4">
@@ -113,7 +118,9 @@
                         {% endif %}
                     </td>
                 </tr>
+                {% endif %}
 
+                {% if "subcommittee_claim" in user_claims %}
                 <!-- Subcommittee Row -->
                 <tr class="hover:bg-slate-50 transition">
                     <td class="p-4">
@@ -140,7 +147,9 @@
                         {% endif %}
                     </td>
                 </tr>
+                {% endif %}
 
+                {% if "mo_claim" in user_claims %}
                 <!-- MO Row -->
                 <tr class="hover:bg-slate-50 transition">
                     <td class="p-4">
@@ -167,7 +176,9 @@
                         {% endif %}
                     </td>
                 </tr>
+                {% endif %}
 
+                {% if "staff_claim" in user_claims %}
                 <!-- Staff Row -->
                 <tr class="hover:bg-slate-50 transition">
                     <td class="p-4">
@@ -194,6 +205,7 @@
                         {% endif %}
                     </td>
                 </tr>
+                {% endif %}
             </tbody>
         </table>
     </div>

@@ -106,7 +106,6 @@ def provisioning(org_slug):
             member = UipCommitteeMember(
                 organization_id=org.id,
                 term_id=term.id,
-                user_id=user.id,
                 email=email,
                 name=name,
                 position=position,

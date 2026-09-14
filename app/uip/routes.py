@@ -234,18 +234,8 @@ def router_page(org_slug):
         return redirect(url_for("uip_bp.dashboard", org_slug=org.slug))
 
     # 2. Strangers / Unverified Users
-    from app.models.uip import UipCommitteeMeeting
-    founding_exists = UipCommitteeMeeting.query.filter_by(
-        organization_id=org.id, meeting_type="FOUNDING"
-    ).first() is not None
-    
-    if not founding_exists:
-        # Show the single 'Initialize UIP' tile
-        return render_template("uip/router.html", org=org)
-    else:
-        # The UIP is founded, but this user is not on the register.
-        # We no longer show tiles or waiting rooms. 
-        return render_template("uip/router_founded.html", org=org)
+    # We now always show the 7 tiles. The verify routes will handle routing to provisioning vs waiting lounge based on founding_exists.
+    return render_template("uip/router.html", org=org)
 
 @uip_bp.route("/<org_slug>/my-access")
 @login_required

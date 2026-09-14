@@ -1163,3 +1163,16 @@ def reset_genesis(org_slug):
         return f"Database Error during reset: {str(e)}"
 
 
+
+@uip_bp.route("/<org_slug>/remove-trigger")
+def remove_trigger(org_slug):
+    """Temporary route to drop the immutable trigger."""
+    from app.extensions import db
+    from sqlalchemy import text
+    try:
+        db.session.execute(text("DROP FUNCTION IF EXISTS uip_p49_immutable CASCADE;"))
+        db.session.commit()
+        return "Successfully dropped uip_p49_immutable trigger function. You can now use /reset-genesis"
+    except Exception as e:
+        db.session.rollback()
+        return f"Error: {e}"

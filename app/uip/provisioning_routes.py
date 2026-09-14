@@ -101,7 +101,6 @@ def provisioning(org_slug):
         )
         db.session.add(res)
         
-        audit.record(org.id, submitter_id, "uip.founding_provisioned", None)
         
         db.session.commit()
         flash("Provisional setup complete! The inaugural meeting and your Secretary appointment have been officially recorded.", "success")
@@ -109,3 +108,4 @@ def provisioning(org_slug):
 
     # GET request - just render the form
     return render_template("uip/provisioning.html", org=org)
+

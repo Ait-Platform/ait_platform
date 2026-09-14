@@ -29,7 +29,7 @@ def establish_organization_context():
     # regardless of the commercial billing status of the UIP.
     is_exempt = request.endpoint == "uip_bp.service_status"
     if request.endpoint in (
-        "uip_bp.router_page", 
+        "uip_bp.router_page", "uip_bp.my_access", 
         "uip_bp.verify_committee", 
         "uip_bp.verify_ratepayer",
         "uip_bp.verify_mo",
@@ -54,7 +54,7 @@ def establish_organization_context():
 
     # Allow public endpoints and the router to be accessed without membership
     public_endpoints = {
-        "uip_bp.router_page", 
+        "uip_bp.router_page", "uip_bp.my_access", 
         "uip_bp.verify_public", 
         "uip_bp.public_dashboard",
         "uip_bp.verify_ratepayer",

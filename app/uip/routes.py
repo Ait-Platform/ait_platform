@@ -108,7 +108,7 @@ def dashboard(org_slug):
     role_slug = _require_role("manager", "receptionist", "committee_member", "owner", "resident", "provider", "municipal_officer", abort_on_fail=False)
     
     if not role_slug:
-        return redirect(url_for("uip_bp.router_page", org_slug=org_slug))
+        return redirect(url_for("uip_bp.my_access", org_slug=org_slug))
         
     if role_slug == "municipal_officer":
         return redirect(url_for("uip_bp.mo_dashboard", org_slug=org_slug))
@@ -129,7 +129,7 @@ def dashboard(org_slug):
         from app.uip.presentation import executive
         return render_template("uip/dashboards/manager.html", org=org, overview=executive(org.id, current_user.id))
     
-    return redirect(url_for("uip_bp.router_page", org_slug=org_slug))
+    return redirect(url_for("uip_bp.my_access", org_slug=org_slug))
 
 
 
@@ -192,7 +192,7 @@ def waiting_lounge_dispute(org_slug):
     db.session.commit()
     
     flash("Dispute lodged successfully. The administration team will review your status.", "success")
-    return redirect(url_for('uip_bp.router_page', org_slug=org_slug, claim='committee_nomatch'))
+    return redirect(url_for('uip_bp.my_access', org_slug=org_slug, claim='committee_nomatch'))
 
 @uip_bp.route("/<org_slug>/router")
 @login_required
@@ -221,15 +221,33 @@ def router_page(org_slug):
         db.session.commit()
         return redirect(url_for("uip_bp.committee_dashboard", org_slug=org.slug))
         
-    # 2. Fetch all OPEN claims for this user to display in the Access Table
+    # 2. Auto-route to Access Table if they have an active claim (and didn't click "Return to Options")
+    if not request.args.get("force"):
+        from app.models.core import CoreInteraction
+        claim = CoreInteraction.query.filter_by(
+            organization_id=org.id, creator_id=current_user.id, status="OPEN"
+        ).first()
+        if claim:
+            return redirect(url_for("uip_bp.my_access", org_slug=org.slug))
+
+    # Intent selection page (6-tiles)
+    return render_template("uip/router.html", org=org)
+
+@uip_bp.route("/<org_slug>/my-access")
+@login_required
+def my_access(org_slug):
+    org = g.organization
+    from flask import request, redirect, url_for
+    from flask_login import current_user
     from app.models.core import CoreInteraction
     from app.models.uip import UipCommitteeMeeting
     
+    # 1. Fetch all OPEN claims for this user to display in the Access Table
     open_claims = CoreInteraction.query.filter_by(
         organization_id=org.id, creator_id=current_user.id, status="OPEN"
     ).all()
     
-    # Create a simple list of claim types (e.g., 'committee_claim', 'ratepayer_claim')
+    # Create a simple list of claim types
     user_claims = [c.interaction_type for c in open_claims]
     
     # Check if a Founding Meeting exists
@@ -237,8 +255,7 @@ def router_page(org_slug):
         organization_id=org.id, meeting_type="FOUNDING"
     ).first() is not None
 
-    # Intent selection page; does not check roles
-    return render_template("uip/router.html", org=org, user_claims=user_claims, founding_exists=founding_exists)
+    return render_template("uip/my_access.html", org=org, user_claims=user_claims, founding_exists=founding_exists)
 
 
 @uip_bp.route("/<org_slug>/verify/ratepayer", methods=["GET", "POST"])
@@ -265,7 +282,7 @@ def verify_ratepayer(org_slug):
         db.session.add(claim)
         db.session.commit()
     
-    return redirect(url_for("uip_bp.router_page", org_slug=org_slug, claim="ratepayer"))
+    return redirect(url_for("uip_bp.my_access", org_slug=org_slug, claim="ratepayer"))
 
 
 @uip_bp.route("/<org_slug>/verify/committee", methods=["GET"])
@@ -302,7 +319,7 @@ def verify_committee(org_slug):
                 )
                 db.session.add(claim)
                 db.session.commit()
-            return redirect(url_for("uip_bp.router_page", org_slug=org_slug, claim="committee"))
+            return redirect(url_for("uip_bp.my_access", org_slug=org_slug, claim="committee"))
             
         appointment = UipCommitteeMember.query.filter(
             UipCommitteeMember.organization_id == org.id,
@@ -343,7 +360,7 @@ def verify_committee(org_slug):
             )
             db.session.add(claim)
             db.session.commit()
-        return redirect(url_for("uip_bp.router_page", org_slug=org_slug, claim="committee_nomatch"))
+        return redirect(url_for("uip_bp.my_access", org_slug=org_slug, claim="committee_nomatch"))
 
 
 @uip_bp.route("/<org_slug>/verify/mo", methods=["GET", "POST"])
@@ -370,7 +387,7 @@ def verify_mo(org_slug):
         db.session.add(claim)
         db.session.commit()
         
-    return redirect(url_for("uip_bp.router_page", org_slug=org_slug, claim="mo"))
+    return redirect(url_for("uip_bp.my_access", org_slug=org_slug, claim="mo"))
 
 
 @uip_bp.route("/<org_slug>/mo-dashboard")
@@ -403,7 +420,7 @@ def verify_subcommittee(org_slug):
         db.session.add(claim)
         db.session.commit()
         
-    return redirect(url_for("uip_bp.router_page", org_slug=org_slug, claim="subcommittee"))
+    return redirect(url_for("uip_bp.my_access", org_slug=org_slug, claim="subcommittee"))
 
 @uip_bp.route("/<org_slug>/subcommittee-dashboard")
 @login_required
@@ -454,7 +471,7 @@ def verify_staff(org_slug):
         db.session.add(claim)
         db.session.commit()
         
-    return redirect(url_for("uip_bp.router_page", org_slug=org_slug, claim="staff"))
+    return redirect(url_for("uip_bp.my_access", org_slug=org_slug, claim="staff"))
 
 
 @uip_bp.route("/<org_slug>/verify/public", methods=["GET", "POST"])

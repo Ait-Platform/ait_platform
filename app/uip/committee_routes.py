@@ -334,3 +334,14 @@ def manage_committee(org_slug):
         
     return render_template("uip/manage_committee.html", org=org)
 
+@uip_bp.route("/<org_slug>/resolution/<int:res_id>")
+@login_required
+def view_resolution(org_slug, res_id):
+    org = g.organization
+    res = UipResolution.query.filter_by(organization_id=org.id, id=res_id).first_or_404()
+    
+    return render_template(
+        "uip/dashboards/resolution_view.html",
+        org=org,
+        resolution=res
+    )

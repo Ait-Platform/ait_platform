@@ -94,7 +94,7 @@ def provisioning(org_slug):
         res = UipResolution(
             organization_id=org.id,
             meeting_id=meeting.id,
-            title="Founding Declaration",
+            title=f"Resolution {datetime.now().year}-1 - Founding Declaration",
             description=f"Inaugural setup of the {org.name} committee and official appointment of the Secretary.",
             status="APPROVED",
             recorded_by=submitter_id

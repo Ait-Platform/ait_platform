@@ -87,23 +87,116 @@ def draft_access_resolution(org_slug):
         flash("Selected claims are no longer open or valid.", "danger")
         return redirect(url_for("uip_bp.secretary_workspace", org_slug=org.slug))
         
-    # Mark as PENDING_RESOLUTION
+    from datetime import datetime
+    return render_template(
+        "uip/dashboards/process_claims.html",
+        org=org,
+        claims=claims,
+        datetime=datetime
+    )
+
+@uip_bp.route("/<org_slug>/finalize-access-resolution", methods=["POST"])
+@login_required
+def finalize_access_resolution(org_slug):
+    org = g.organization
+    _require_secretary()
+    
+    claim_ids = request.form.getlist("claim_ids[]")
+    target = request.form.get("resolution_target", "new")
+    
+    claims = CoreInteraction.query.filter(
+        CoreInteraction.organization_id == org.id,
+        CoreInteraction.id.in_(claim_ids),
+        CoreInteraction.status == "OPEN"
+    ).all()
+    
+    if not claims:
+        flash("Selected claims are no longer open or valid.", "danger")
+        return redirect(url_for("uip_bp.secretary_workspace", org_slug=org.slug))
+        
+    # Process portfolio assignments
+    portfolio_map = {}
+    for claim in claims:
+        port = request.form.get(f"portfolio_{claim.id}", "").strip()
+        if port:
+            portfolio_map[claim.id] = port
+            
+    from datetime import datetime
+    current_year = datetime.now().year
+    
+    if target == "founding":
+        # Find the founding resolution
+        founding_res = UipResolution.query.filter_by(organization_id=org.id).filter(UipResolution.title.ilike("%Founding%")).first()
+        if founding_res:
+            additions = "
+
+-- Added via Inaugural Roster --
+"
+            for claim in claims:
+                port = portfolio_map.get(claim.id, claim.interaction_type.replace('_claim', '').title())
+                additions += f"- {claim.creator.name} ({claim.creator.email}) as {port}
+"
+                claim.status = "VERIFIED"
+                
+                from app.models.core import CoreOrganizationMember, CoreRoleAssignment, CoreRole
+                
+                # Ensure they have an active organization membership
+                org_mem = CoreOrganizationMember.query.filter_by(organization_id=org.id, user_id=claim.creator.id).first()
+                if not org_mem:
+                    org_mem = CoreOrganizationMember(organization_id=org.id, user_id=claim.creator.id, is_active=True)
+                    db.session.add(org_mem)
+                else:
+                    org_mem.is_active = True
+                    
+                # Grant the appropriate role
+                role_slug = "committee_member" if "committee" in claim.interaction_type else "mo" if "mo" in claim.interaction_type else "ratepayer"
+                role_obj = CoreRole.query.filter_by(slug=role_slug).first()
+                if role_obj:
+                    # check if they have it
+                    existing_role = CoreRoleAssignment.query.filter_by(organization_id=org.id, user_id=claim.creator.id, role_id=role_obj.id).first()
+                    if not existing_role:
+                        db.session.add(CoreRoleAssignment(organization_id=org.id, user_id=claim.creator.id, role_id=role_obj.id))
+
+                if 'committee' in claim.interaction_type:
+                    from app.models.uip_governance import UipCommitteeMember
+                    mem = UipCommitteeMember(
+                        organization_id=org.id,
+                        user_id=claim.creator.id,
+                        name=claim.creator.name,
+                        email=claim.creator.email,
+                        position=port,
+                        status="CURRENT"
+                    )
+                    db.session.add(mem)
+                    
+            founding_res.description += additions
+            db.session.commit()
+            flash("Members successfully officially logged into the Founding Resolution!", "success")
+            return redirect(url_for("uip_bp.committee_dashboard", org_slug=org.slug))
+            
+    # Fallback or "new" resolution logic
     for claim in claims:
         claim.status = "PENDING_RESOLUTION"
         
-    # Create the Resolution
-    # We will use result_basis to store the interaction IDs that this resolution covers
+    res_count = UipResolution.query.filter_by(organization_id=org.id).count() + 1
+    
     res = UipResolution(
         organization_id=org.id,
-        title=f"Access Resolution ({len(claims)} Applicants)",
-        description="Resolution to grant active platform access to the bundled applicants.",
+        title=f"Resolution {current_year}-{res_count} - Access Bundle",
+        description="Resolution to grant active platform access to the bundled applicants.
+",
         status="PROPOSED",
         recorded_by=current_user.id,
-        result_basis={"type": "access_bundle", "interaction_ids": [c.id for c in claims]}
+        result_basis={"type": "access_bundle", "interaction_ids": [c.id for c in claims], "portfolios": portfolio_map}
     )
+    for claim in claims:
+        port = portfolio_map.get(claim.id, claim.interaction_type.replace('_claim', '').title())
+        res.description += f"
+- {claim.creator.name}: {port}"
+        
     db.session.add(res)
     audit.record(org.id, current_user.id, "secretary.resolution_drafted", None)
     
     db.session.commit()
-    flash(f"Successfully drafted resolution for {len(claims)} access claims.", "success")
-    return redirect(url_for("uip_bp.secretary_workspace", org_slug=org.slug))
+    flash(f"Successfully drafted Resolution {current_year}-{res_count}.", "success")
+    return redirect(url_for("uip_bp.committee_dashboard", org_slug=org.slug))

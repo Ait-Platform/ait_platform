@@ -128,14 +128,10 @@ def finalize_access_resolution(org_slug):
         # Find the founding resolution
         founding_res = UipResolution.query.filter_by(organization_id=org.id).filter(UipResolution.title.ilike("%Founding%")).first()
         if founding_res:
-            additions = "
-
--- Added via Inaugural Roster --
-"
+            additions = "\n\n-- Added via Inaugural Roster --\n"
             for claim in claims:
                 port = portfolio_map.get(claim.id, claim.interaction_type.replace('_claim', '').title())
-                additions += f"- {claim.creator.name} ({claim.creator.email}) as {port}
-"
+                additions += f"- {claim.creator.name} ({claim.creator.email}) as {port}\n"
                 claim.status = "VERIFIED"
                 
                 from app.models.core import CoreOrganizationMember, CoreRoleAssignment, CoreRole
@@ -183,16 +179,14 @@ def finalize_access_resolution(org_slug):
     res = UipResolution(
         organization_id=org.id,
         title=f"Resolution {current_year}-{res_count} - Access Bundle",
-        description="Resolution to grant active platform access to the bundled applicants.
-",
+        description="Resolution to grant active platform access to the bundled applicants.\n",
         status="PROPOSED",
         recorded_by=current_user.id,
         result_basis={"type": "access_bundle", "interaction_ids": [c.id for c in claims], "portfolios": portfolio_map}
     )
     for claim in claims:
         port = portfolio_map.get(claim.id, claim.interaction_type.replace('_claim', '').title())
-        res.description += f"
-- {claim.creator.name}: {port}"
+        res.description += f"\n- {claim.creator.name}: {port}"
         
     db.session.add(res)
     audit.record(org.id, current_user.id, "secretary.resolution_drafted", None)

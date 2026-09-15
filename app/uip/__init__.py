@@ -5,6 +5,18 @@ uip_bp = Blueprint("uip_bp", __name__, url_prefix="/uip")
 
 
 @uip_bp.before_request
+def establish_menu_context():
+    """Share the existing force-menu query switch across UIP navigation."""
+    g.force_menu = bool(request.args.get("force"))
+
+
+@uip_bp.context_processor
+def menu_context():
+    # Flask preserves explicit render_template(force_menu=True) overrides.
+    return {"force_menu": bool(getattr(g, "force_menu", False))}
+
+
+@uip_bp.before_request
 def establish_organization_context():
     """Resolve an existing organisation without provisioning or schema changes."""
     if not request.view_args or "org_slug" not in request.view_args:
@@ -35,7 +47,7 @@ def establish_organization_context():
         "uip_bp.verify_mo",
         "uip_bp.verify_staff",
         "uip_bp.verify_subcommittee",
-        "uip_bp.provisioning", "uip_bp.reset_genesis", 
+        "uip_bp.provisioning", "uip_bp.reset_genesis", "uip_bp.remove_trigger", 
         "uip_bp.waiting_lounge"
     ):
         is_exempt = True
@@ -67,7 +79,7 @@ def establish_organization_context():
         "uip_bp.waiting_lounge",
         "uip_bp.waiting_lounge_dispute",
         "uip_bp.service_status",
-        "uip_bp.provisioning", "uip_bp.reset_genesis"
+        "uip_bp.provisioning", "uip_bp.reset_genesis", "uip_bp.remove_trigger"
     }
     
     if current_user.is_authenticated:
@@ -96,4 +108,5 @@ from . import committee_routes
 
 
 from . import secretary_routes
+
 

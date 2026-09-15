@@ -340,8 +340,85 @@ def view_resolution(org_slug, res_id):
     org = g.organization
     res = UipResolution.query.filter_by(organization_id=org.id, id=res_id).first_or_404()
     
+    from app.models.uip_governance import UipCommitteeMember
+    from sqlalchemy import func
+    current_appointment = UipCommitteeMember.query.filter(
+        UipCommitteeMember.organization_id == org.id,
+        UipCommitteeMember.status == "CURRENT",
+        func.lower(UipCommitteeMember.email) == func.lower(current_user.email)
+    ).first()
+    
     return render_template(
         "uip/dashboards/resolution_view.html",
         org=org,
-        resolution=res
+        resolution=res,
+        current_appointment=current_appointment
     )
+@uip_bp.route("/<org_slug>/resolution/<int:res_id>/decide", methods=["POST"])
+@login_required
+def decide_resolution(org_slug, res_id):
+    org = g.organization
+    res = UipResolution.query.filter_by(organization_id=org.id, id=res_id).first_or_404()
+    
+    # 1. Verify Lockdown Authority (Chairman or Vice Chair)
+    from app.models.uip_governance import UipCommitteeMember
+    from sqlalchemy import func
+    current_appointment = UipCommitteeMember.query.filter(
+        UipCommitteeMember.organization_id == org.id,
+        UipCommitteeMember.status == "CURRENT",
+        func.lower(UipCommitteeMember.email) == func.lower(current_user.email)
+    ).first()
+    
+    if not current_appointment or current_appointment.position.lower() not in ["chairman", "chairperson", "chair", "vice chair", "vice chairman"]:
+        flash("Only the Chairman or Vice Chairman has the authority to lock down and finalize resolutions.", "danger")
+        return redirect(url_for("uip_bp.view_resolution", org_slug=org.slug, res_id=res.id))
+        
+    decision = request.form.get("decision")
+    if decision not in ["ADOPTED", "REJECTED"]:
+        abort(400)
+        
+    res.status = decision
+    
+    # 2. If ADOPTED and it is an Access Bundle, grant the roles
+    if decision == "ADOPTED" and res.result_basis and res.result_basis.get("type") == "access_bundle":
+        from app.models.core import CoreInteraction, CoreOrganizationMember, CoreRoleAssignment, CoreRole
+        
+        interaction_ids = res.result_basis.get("interaction_ids", [])
+        portfolio_map = res.result_basis.get("portfolios", {})
+        
+        claims = CoreInteraction.query.filter(CoreInteraction.id.in_(interaction_ids)).all()
+        for claim in claims:
+            claim.status = "VERIFIED"
+            
+            # Ensure they have an active organization membership
+            org_mem = CoreOrganizationMember.query.filter_by(organization_id=org.id, user_id=claim.creator.id).first()
+            if not org_mem:
+                org_mem = CoreOrganizationMember(organization_id=org.id, user_id=claim.creator.id, is_active=True)
+                db.session.add(org_mem)
+            else:
+                org_mem.is_active = True
+                
+            # Grant the role
+            role_slug = "committee_member" if "committee" in claim.interaction_type else "mo" if "mo" in claim.interaction_type else "ratepayer"
+            role_obj = CoreRole.query.filter_by(slug=role_slug).first()
+            if role_obj:
+                existing_role = CoreRoleAssignment.query.filter_by(organization_id=org.id, user_id=claim.creator.id, role_id=role_obj.id).first()
+                if not existing_role:
+                    db.session.add(CoreRoleAssignment(organization_id=org.id, user_id=claim.creator.id, role_id=role_obj.id))
+
+            # If committee, make them an official member
+            if 'committee' in claim.interaction_type:
+                port = portfolio_map.get(str(claim.id)) or portfolio_map.get(claim.id) or claim.interaction_type.replace('_claim', '').title()
+                mem = UipCommitteeMember(
+                    organization_id=org.id,
+                    user_id=claim.creator.id,
+                    name=claim.creator.name,
+                    email=claim.creator.email,
+                    position=port,
+                    status="CURRENT"
+                )
+                db.session.add(mem)
+                
+    db.session.commit()
+    flash(f"Resolution officially {decision.lower()} and locked down.", "success")
+    return redirect(url_for("uip_bp.view_resolution", org_slug=org.slug, res_id=res.id))

@@ -812,6 +812,17 @@ def uip_start():
             primary_org = CoreOrganization.query.get(primary_org_id)
             if primary_org and primary_org.status == 'active':
                 return redirect(url_for('uip_bp.router_page', org_slug=primary_org.slug))
+        
+        # Also check if they have any OPEN claims!
+        from app.models.core import CoreInteraction
+        claim = CoreInteraction.query.filter_by(
+            creator_id=current_user.id,
+            status='OPEN'
+        ).first()
+        if claim and claim.organization_id:
+            claim_org = CoreOrganization.query.get(claim.organization_id)
+            if claim_org and claim_org.status == 'active':
+                return redirect(url_for('uip_bp.router_page', org_slug=claim_org.slug))
 
     # Get all active organizations that might be UIPs.
     orgs = CoreOrganization.query.filter_by(status="active").order_by(CoreOrganization.name).all()

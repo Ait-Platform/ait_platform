@@ -104,11 +104,15 @@ def committee_dashboard(org_slug):
     pending_claims = CoreInteraction.query.filter(
         CoreInteraction.organization_id == org.id,
         CoreInteraction.status == 'OPEN',
-        CoreInteraction.interaction_type.in_(["ratepayer_claim", "subcommittee_claim", "mo_claim", "staff_claim", "secretary_claim"])
+        CoreInteraction.interaction_type.in_(["ratepayer_claim", "subcommittee_claim", "mo_claim", "staff_claim"])
     ).order_by(CoreInteraction.created_at.desc()).all()
 
+    # Fetch all resolutions for the dashboard
+    all_resolutions = UipResolution.query.filter_by(organization_id=org.id).order_by(UipResolution.created_at.desc()).all()
+    
     return render_template(
         "uip/dashboards/committee.html",
+        all_resolutions=all_resolutions,
         upcoming_meetings_count=upcoming_meetings_count,
         pending_resolutions_count=pending_resolutions_count,
         committee_members_count=committee_members_count,

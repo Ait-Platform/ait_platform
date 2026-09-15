@@ -293,11 +293,23 @@ def verify_ratepayer(org_slug):
 @login_required
 def verify_secretary(org_slug):
     org = g.organization
-    from flask import request, redirect, url_for
+    from flask import request, redirect, url_for, flash
     from flask_login import current_user
     from app import db
     from app.models.core import CoreInteraction
+    from app.models.uip import UipCommitteeMeeting
     
+    # Check if a Founding Meeting exists
+    founding_exists = UipCommitteeMeeting.query.filter_by(
+        organization_id=org.id, meeting_type="FOUNDING"
+    ).first() is not None
+    
+    if founding_exists:
+        # The UIP is already founded. Block new users from clicking Secretary tile.
+        flash("The Secretary position has already been officially designated. Please select a different participant role.", "warning")
+        return redirect(url_for("uip_bp.router_page", org_slug=org.slug, force=1))
+        
+    # If not founded, create the claim to allow them into provisioning
     claim = CoreInteraction.query.filter_by(
         organization_id=org.id,
         creator_id=current_user.id,
@@ -317,16 +329,7 @@ def verify_secretary(org_slug):
         db.session.add(claim)
         db.session.commit()
         
-    # Check if a Founding Meeting exists
-    from app.models.uip import UipCommitteeMeeting
-    founding_exists = UipCommitteeMeeting.query.filter_by(
-        organization_id=org.id, meeting_type="FOUNDING"
-    ).first() is not None
-    
-    if not founding_exists:
-        return redirect(url_for("uip_bp.provisioning", org_slug=org.slug))
-        
-    return redirect(url_for("uip_bp.my_access", org_slug=org_slug, claim="secretary"))
+    return redirect(url_for("uip_bp.provisioning", org_slug=org.slug))
 
 @uip_bp.route("/<org_slug>/verify/committee", methods=["GET"])
 @login_required

@@ -1,4 +1,26 @@
-<nav aria-label="UIP Command Centre" class="ui-navigation">
-{% for group, items in uip_nav_groups.items() %}<details class="ui-nav-group" {% if items|selectattr('active')|list %}open{% endif %}><summary>{{ group }}</summary>
-{% for item in items %}<a href="{{ item.href }}" {% if item.active %}aria-current="page"{% endif %}>{{ item.label }}</a>{% endfor %}</details>{% endfor %}
+﻿<nav aria-label="UIP Command Centre" class="ui-navigation">
+{% if is_secretary %}
+<details class="ui-nav-group" open>
+    <summary>Secretary Tools</summary>
+    <a href="{{ url_for('uip_bp.secretary_workspace', org_slug=org.slug) }}"><i class="fas fa-inbox w-5"></i> Intake Desk</a>
+    <a href="#"><i class="fas fa-calendar-check w-5"></i> Meetings</a>
+    <a href="#"><i class="fas fa-envelope-open-text w-5"></i> Correspondence</a>
+    <a href="#"><i class="fas fa-book w-5"></i> Governance Record</a>
+</details>
+{% endif %}
+
+<details class="ui-nav-group" open>
+    <summary>Personal</summary>
+    <a href="{{ url_for('uip_bp.verify_ratepayer', org_slug=org.slug) }}"><i class="fas fa-home w-5"></i> Ratepayer Profile</a>
+</details>
+
+{% for group, items in uip_nav_groups.items() %}
+<details class="ui-nav-group" {% if items|selectattr('active')|list %}open{% endif %}>
+    <summary>{{ group }}</summary>
+    {% for item in items %}
+    <a href="{{ item.href }}" {% if item.active %}aria-current="page"{% endif %}>{{ item.label }}</a>
+    {% endfor %}
+</details>
+{% endfor %}
 </nav>
+

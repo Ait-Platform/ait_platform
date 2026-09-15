@@ -70,6 +70,21 @@ def navigation_context():
     except Exception:
         pass
         
+    from app.models.uip_governance import UipCommitteeMember
+    from sqlalchemy import func
+    is_secretary = False
+    try:
+        sec = UipCommitteeMember.query.filter(
+            UipCommitteeMember.organization_id == g.organization.id,
+            UipCommitteeMember.status == "CURRENT",
+            func.lower(UipCommitteeMember.email) == func.lower(current_user.email),
+            UipCommitteeMember.position == "Secretary"
+        ).first()
+        is_secretary = bool(sec)
+    except Exception:
+        pass
+
+        
     if is_register_admin:
         allowed.add("register_import")
     if roles & staff:
@@ -88,7 +103,7 @@ def navigation_context():
     from app.uip.presentation import current_relationship, display_value
     return dict(uip_navigation=[item for items in groups.values() for item in items], uip_nav_groups=groups, uip_is_current=current_relationship, uip_display=display_value,
                 uip_can_capture=bool(roles & set(audit.WRITE_ROLES)), uip_roles=roles,
-                uip_can_log=bool(roles & (staff | {"committee_member"})))
+                uip_can_log=bool(roles & (staff | {"committee_member"})), is_secretary=is_secretary)
 
 
 @uip_bp.route("/<org_slug>/getting-started")

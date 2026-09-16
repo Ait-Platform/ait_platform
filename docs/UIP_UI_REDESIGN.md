@@ -26,13 +26,13 @@ Ratepayer and property registers have search/status filters and linked records. 
 
 ## Files and routes
 
-Application changes are confined to `app/uip/routes.py`, `completion_routes.py`, `operational_routes.py` and the new read-only `presentation.py`. Services, models and migrations are unchanged.
+Application changes are confined to `app/program_uip/routes.py`, `completion_routes.py`, `operational_routes.py` and the new read-only `presentation.py`. Services, models and migrations are unchanged.
 
 Existing route behaviour is presented through `/uip/<org_slug>/dashboard`, `/members`, `/properties`, `/interaction/new`, `/providers` and `/operations/reception`. Register filtering uses query parameters. The only new route is the read-only `/service-standards` navigation landing page, pointing to existing SLA, routing and performance pages. Existing form submissions and lifecycle services remain authoritative.
 
-New templates/styles: `templates/uip/base.html`, `ui.css`, `issue_table.html`, `operations/issues.html`, `service_standards.html`.
+New templates/styles: `templates/program_uip/base.html`, `ui.css`, `issue_table.html`, `operations/issues.html`, `service_standards.html`.
 
-Updated templates under `templates/uip/`:
+Updated templates under `templates/program_uip/`:
 
 - `navigation.html`, `setup.html`, `register_import.html`, `register_pagination.html`, `validation_error.html`.
 - `dashboards/manager.html`, `receptionist.html`, `committee.html`, `resident.html`, `reports.html`.

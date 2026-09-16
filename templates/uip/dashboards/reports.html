@@ -1,6 +1,0 @@
-{% extends "uip/base.html" %}
-{% block title %}Reports - {{ org.name }}{% endblock %}
-{% block content %}
-<header class="ui-page-head"><div><h1>Reports</h1><p>Recorded service delivery and operational measures.</p></div>{% if report_role == 'manager' %}<a class="ui-btn" href="{{ url_for('uip_bp.operations_export', org_slug=org.slug) }}">Download issue report (CSV)</a>{% endif %}</header>
-<section class="ui-card"><div class="ui-table-wrap"><table><thead><tr><th>Measure</th><th>Value</th></tr></thead><tbody>{% for label,value in report.items() %}<tr><td>{{ label }}</td><td>{{ value }}</td></tr>{% endfor %}</tbody></table></div></section>
-{% endblock %}

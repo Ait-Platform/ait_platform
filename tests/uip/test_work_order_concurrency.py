@@ -12,7 +12,7 @@ from werkzeug.exceptions import HTTPException
 from bootstrap import db, core, uip
 from conftest import safe_url, baseline, migrate, migrate_phase3, migrate_phase49, data as seed_data
 from phase3_helpers import provider, order, act, completed, key
-from app.uip.services import work_orders, operations
+from app.program_uip.services import work_orders, operations
 
 
 @pytest.fixture

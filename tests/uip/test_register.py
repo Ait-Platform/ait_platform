@@ -2,7 +2,7 @@ import pytest
 import sqlalchemy as sa
 from werkzeug.exceptions import Forbidden, NotFound, BadRequest
 from bootstrap import db, core, uip
-from app.uip.services import register, audit
+from app.program_uip.services import register, audit
 BASE = "/uip/manor-gardens"
 MEMBER = dict(reference="M1", name="Test Person", member_type="person", email="person@example.invalid", phone="", is_active="true", eligibility_status="unverified")
 PROPERTY = dict(reference="P1", address="Test address", classification="residential", rates_reference="", is_active="true")

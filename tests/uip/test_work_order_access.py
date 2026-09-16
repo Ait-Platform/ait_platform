@@ -1,6 +1,6 @@
 import pytest
 from bootstrap import db, core, uip
-from app.uip.services import work_orders, operations, providers
+from app.program_uip.services import work_orders, operations, providers
 from phase3_helpers import provider, order, act, key
 BASE="/uip/manor-gardens"
 
@@ -64,7 +64,7 @@ def test_manager_register_templates_and_post_forms(client,data):
 
 
 def test_staff_order_template_and_metrics(client,data):
-    from app.uip.services.dashboard import metrics
+    from app.program_uip.services.dashboard import metrics
     p=provider(data)
     assert metrics(data.org.id,data.users["manager"].id)["Unassigned open issues"]==1
     row=order(data,p);db.session.commit()

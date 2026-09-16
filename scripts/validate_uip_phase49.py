@@ -29,11 +29,11 @@ def main():
         output.append(text)
         if result.returncode:
             failures.append(label)
-    python_files = set((ROOT / "app/uip").rglob("*.py")) | set((ROOT / "app/models").glob("uip*.py")) | set((ROOT / "tests/uip").rglob("*.py"))
+    python_files = set((ROOT / "app/program_uip").rglob("*.py")) | set((ROOT / "app/models").glob("uip*.py")) | set((ROOT / "tests/uip").rglob("*.py"))
     python_files.add(ROOT / "migrations/versions/uip_p49_operations.py")
     for file in python_files:
         ast.parse(file.read_text(encoding="utf-8-sig"), filename=str(file))
-    templates = list((ROOT / "templates/uip").rglob("*.html"))
+    templates = list((ROOT / "templates/program_uip").rglob("*.html"))
     for file in templates:
         Environment().parse(file.read_text(encoding="utf-8-sig"))
     parsed = f"Python/Jinja parsing: {len(python_files)} Python files and {len(templates)} UIP templates passed."
@@ -47,9 +47,9 @@ def main():
     print("Migration ancestry:", chain)
     output.append("Migration ancestry: " + chain)
     changed = subprocess.run(["git", "diff", "--name-only", "--", "app"], capture_output=True, text=True, check=True).stdout.splitlines()
-    assert all(path.startswith("app/uip/") or path.startswith("app/models/uip") for path in changed), changed
+    assert all(path.startswith("app/program_uip/") or path.startswith("app/models/uip") for path in changed), changed
     assert not subprocess.run(["git", "diff", "--name-only", "--", "migrations"], capture_output=True, text=True, check=True).stdout.strip(), "Existing migrations changed"
-    for file in (ROOT / "app/uip").rglob("*.py"):
+    for file in (ROOT / "app/program_uip").rglob("*.py"):
         assert "CoreAuditEvent" not in file.read_text(encoding="utf-8-sig"), file
     isolation = "Product isolation: application changes confined to UIP; existing migrations and CoreAuditEvent untouched."
     print(isolation)

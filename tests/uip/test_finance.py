@@ -9,7 +9,7 @@ import sqlalchemy as sa
 from werkzeug.exceptions import HTTPException
 from werkzeug.datastructures import FileStorage
 from bootstrap import db, uip, ROOT
-from app.uip.services import finance as f, documents
+from app.program_uip.services import finance as f, documents
 from phase3_helpers import order, act, key
 from conftest import migrate_phase10
 
@@ -302,7 +302,7 @@ def test_additive_migration_preserves_existing_local_rows(concurrent_db):
 
 
 def test_foreign_provider_and_database_tenant_constraint(client,data):
-    from app.uip.services import providers
+    from app.program_uip.services import providers
     foreign=providers.save(data.other.id,data.outsider.id,dict(name='Foreign provider',availability='AVAILABLE'),['SECURITY'])
     db.session.commit()
     assert client.safe_post(BASE+'/transactions/new',values(provider_id=foreign.id)).status_code==404

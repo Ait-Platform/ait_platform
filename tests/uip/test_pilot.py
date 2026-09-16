@@ -11,7 +11,7 @@ import sqlalchemy as sa
 from werkzeug.exceptions import HTTPException
 from bootstrap import db,core,uip,User,ROOT
 from app.extensions import mail
-from app.uip.services import governance,invitations,ai
+from app.program_uip.services import governance,invitations,ai
 from app.services import ait_ai_gateway as gateway
 from test_phase49 import eligible_member
 from test_work_order_concurrency import concurrent_db,parallel
@@ -220,7 +220,7 @@ def test_concurrent_ai_no_overspend(concurrent_db,same_key):
 
 def test_templates_and_visuals(client,data,pilot,tmp_path):
     from jinja2 import Environment
-    for path in (ROOT/"templates/uip").rglob("*.html"): Environment().parse(path.read_text(encoding="utf-8"))
+    for path in (ROOT/"templates/program_uip").rglob("*.html"): Environment().parse(path.read_text(encoding="utf-8"))
     response=client.get(BASE+"/finance")
     assert b'/help#finance' in response.data
     help_page=client.get(BASE+"/help")

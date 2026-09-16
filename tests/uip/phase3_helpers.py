@@ -1,6 +1,6 @@
 import uuid
 from bootstrap import db, core, uip
-from app.uip.services import providers, work_orders
+from app.program_uip.services import providers, work_orders
 
 
 def key():

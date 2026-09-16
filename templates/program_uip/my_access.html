@@ -1,0 +1,152 @@
+﻿{% extends "program_uip/base_public.html" %}
+{% block title %}Access Dashboard{% endblock %}
+
+{% block content %}
+<header class="ui-page-head" style="margin-bottom: 2rem;">
+    <div>
+        <p class="ui-eyebrow">Access Request Status</p>
+        <h1>{{ current_user.name or "Waiting Guest" }}</h1>
+        <p class="ui-subtitle">{{ current_user.email }}</p>
+    </div>
+</header>
+
+<div class="max-w-5xl px-4 mb-16">
+    {% include "partials/flash_messages.html" %}
+
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <table class="w-full text-left border-collapse">
+            <thead>
+                <tr class="bg-slate-50 border-b border-slate-200 text-slate-500 text-sm uppercase tracking-wider">
+                    <th class="p-4 font-semibold">Role / Workspace</th>
+                    <th class="p-4 font-semibold text-center">Status</th>
+                    <th class="p-4 font-semibold text-right">Action</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 text-slate-700">
+                
+                {% if "ratepayer_claim" in user_claims %}
+                <tr class="hover:bg-slate-50 transition">
+                    <td class="p-4">
+                        <div class="flex items-center">
+                            <div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mr-4 shrink-0">
+                                <i class="fas fa-home"></i>
+                            </div>
+                            <span class="font-bold text-slate-900">Ratepayer / Property Owner</span>
+                        </div>
+                    </td>
+                    <td class="p-4 text-center">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">Waiting for Verification</span>
+                    </td>
+                    <td class="p-4 text-right">
+                        <button disabled class="bg-slate-100 text-slate-400 px-4 py-2 rounded-lg text-sm font-medium cursor-not-allowed">Pending</button>
+                    </td>
+                </tr>
+                {% endif %}
+
+                {% if "secretary_claim" in user_claims %}
+                <tr class="hover:bg-slate-50 transition">
+                    <td class="p-4">
+                        <div class="flex items-center">
+                            <div class="w-10 h-10 bg-slate-800 text-white rounded-full flex items-center justify-center mr-4 shrink-0">
+                                <i class="fas fa-clipboard-check"></i>
+                            </div>
+                            <span class="font-bold text-slate-900">Secretary / Membership Admin</span>
+                        </div>
+                    </td>
+                    <td class="p-4 text-center">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">Waiting for Verification</span>
+                    </td>
+                    <td class="p-4 text-right">
+                        <button disabled class="bg-slate-100 text-slate-400 px-4 py-2 rounded-lg text-sm font-medium cursor-not-allowed">Pending</button>
+                    </td>
+                </tr>
+                {% endif %}
+
+                {% if "committee_claim" in user_claims %}
+                <tr class="hover:bg-slate-50 transition">
+                    <td class="p-4">
+                        <div class="flex items-center">
+                            <div class="w-10 h-10 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center mr-4 shrink-0">
+                                <i class="fas fa-gavel"></i>
+                            </div>
+                            <span class="font-bold text-slate-900">Committee Member</span>
+                        </div>
+                    </td>
+                    <td class="p-4 text-center">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">Waiting for Verification</span>
+                    </td>
+                    <td class="p-4 text-right">
+                        <button disabled class="bg-slate-100 text-slate-400 px-4 py-2 rounded-lg text-sm font-medium cursor-not-allowed">Pending</button>
+                    </td>
+                </tr>
+                {% endif %}
+
+                {% if "subcommittee_claim" in user_claims %}
+                <tr class="hover:bg-slate-50 transition">
+                    <td class="p-4">
+                        <div class="flex items-center">
+                            <div class="w-10 h-10 bg-purple-50 text-purple-600 rounded-full flex items-center justify-center mr-4 shrink-0">
+                                <i class="fas fa-users"></i>
+                            </div>
+                            <span class="font-bold text-slate-900">Subcommittee Member</span>
+                        </div>
+                    </td>
+                    <td class="p-4 text-center">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">Waiting for Verification</span>
+                    </td>
+                    <td class="p-4 text-right">
+                        <button disabled class="bg-slate-100 text-slate-400 px-4 py-2 rounded-lg text-sm font-medium cursor-not-allowed">Pending</button>
+                    </td>
+                </tr>
+                {% endif %}
+
+                {% if "mo_claim" in user_claims %}
+                <tr class="hover:bg-slate-50 transition">
+                    <td class="p-4">
+                        <div class="flex items-center">
+                            <div class="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mr-4 shrink-0">
+                                <i class="fas fa-university"></i>
+                            </div>
+                            <span class="font-bold text-slate-900">Municipal Officer</span>
+                        </div>
+                    </td>
+                    <td class="p-4 text-center">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">Waiting for Verification</span>
+                    </td>
+                    <td class="p-4 text-right">
+                        <button disabled class="bg-slate-100 text-slate-400 px-4 py-2 rounded-lg text-sm font-medium cursor-not-allowed">Pending</button>
+                    </td>
+                </tr>
+                {% endif %}
+
+                {% if "staff_claim" in user_claims %}
+                <tr class="hover:bg-slate-50 transition">
+                    <td class="p-4">
+                        <div class="flex items-center">
+                            <div class="w-10 h-10 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mr-4 shrink-0">
+                                <i class="fas fa-briefcase"></i>
+                            </div>
+                            <span class="font-bold text-slate-900">Staff / Service Provider</span>
+                        </div>
+                    </td>
+                    <td class="p-4 text-center">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">Waiting for Verification</span>
+                    </td>
+                    <td class="p-4 text-right">
+                        <button disabled class="bg-slate-100 text-slate-400 px-4 py-2 rounded-lg text-sm font-medium cursor-not-allowed">Pending</button>
+                    </td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+        
+        {% if not user_claims %}
+        <div class="p-12 text-center text-slate-500">
+            <i class="fas fa-inbox text-4xl mb-4 text-slate-300"></i>
+            <p>You have no active access claims pending.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+

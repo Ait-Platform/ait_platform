@@ -1,7 +1,7 @@
 import pytest
 from werkzeug.exceptions import Conflict, Forbidden, BadRequest, NotFound
 from bootstrap import db, core, uip
-from app.uip.services import work_orders, operations, audit, providers
+from app.program_uip.services import work_orders, operations, audit, providers
 from phase3_helpers import provider, order, act, completed, key
 
 

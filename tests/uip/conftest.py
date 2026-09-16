@@ -14,7 +14,7 @@ from alembic.operations import Operations
 from flask import Flask
 from bootstrap import db, User, core, uip, ROOT, NEW_TABLES
 from app.extensions import login_manager, csrf
-from app.uip import uip_bp
+from app.program_uip import uip_bp
 
 
 def safe_url(value):

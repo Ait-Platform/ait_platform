@@ -2,7 +2,7 @@
 
 ## 1. Flask Templates (Critical)
 - The base template for this project is named layout.html. 
-- NEVER use base.html, with ONE EXCEPTION: The UIP module (pp/uip) uses its own separate layout architecture and internal UIP pages extend uip/base.html.
+- NEVER use base.html, with ONE EXCEPTION: The UIP module (app/program_uip) uses its own separate layout architecture and internal UIP pages extend program_uip/base.html.
 - For all non-UIP internal pages, ALWAYS use layout.html when creating new templates or modifying existing ones.
 
 ## 2. Databases (Postgres Strict)
@@ -39,7 +39,9 @@
 
 
 ## 6. Payment Portal
-- The official payment portal for the platform is **Paystack**, NOT Yoco.
+- Paystack is AIT's sole target payment portal.
+- Do not introduce or extend Yoco, PayFast, Stripe or any other payment provider.
+- Existing non-Paystack integrations are legacy technical debt. Remove them only through separately tested cleanup after confirming no active dependency.
 - When creating subjects or modifying payment constraints, ensure processor_default uses paystack.
 
 
@@ -72,3 +74,11 @@ When generating TTS (Text-to-Speech) audio for SACE Endorsement slides or module
 - STRICT DICTATION ONLY.
 - Do NOT add conversational narrative, filler words, or extra commentary (e.g., "Welcome to...", "As you can see...").
 - The audio must be a 1:1 reading of the slide content.
+
+
+## Permanent filesystem and template naming conventions
+- Legacy subjects use the `subject_` filesystem/template prefix.
+- Programs use the `program_` filesystem/template prefix.
+- All new standalone programs must follow `program_<slug>`.
+- Public URLs, `auth_subject` slugs, database table names and business identities do not need the filesystem prefix.
+- UIP and Retirement retain `/uip`, `/retire`, `uip_bp`, `retire_bp`, existing catalogue slugs, tables and business behavior.

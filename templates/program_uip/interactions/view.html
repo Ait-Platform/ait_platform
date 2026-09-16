@@ -1,0 +1,200 @@
+{% extends "program_uip/base.html" %}
+
+{% block title %}Interaction {{ interaction.reference }} - {{ org.name }}{% endblock %}
+
+{% block flashes %}{% endblock %}
+{% block content %}
+{% if current_role in ['manager','receptionist'] %}<p class="p-4"><a class="underline" href="{{ url_for('uip_bp.reception_issue', org_slug=org.slug, issue_id=interaction.id) }}">Follow-ups / Municipal referrals / Communications / Acknowledge issue</a></p>{% endif %}
+<div class="container mx-auto px-4 py-8 max-w-5xl bg-white rounded-xl shadow border-t-8 border-indigo-600">
+    
+    {% include "partials/flash_messages.html" %}
+    <!-- Header -->
+    <div class="flex justify-between items-start mb-6">
+        <div>
+            <div class="flex items-center space-x-3 mb-2">
+                <a href="{{ url_for('uip_bp.dashboard', org_slug=org.slug) }}" class="text-indigo-600 hover:text-indigo-800"><i class="fas fa-arrow-left"></i> Dashboard</a>
+                <span class="text-gray-400">/</span>
+                <span class="text-sm font-bold px-2 py-1 rounded bg-slate-100 text-slate-700 font-mono">{{ interaction.reference }}</span>
+                {% if interaction.status == 'NEW' %}
+                    <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide border border-blue-200"><i class="fas fa-star mr-1 text-blue-600"></i> New</span>
+                {% elif interaction.status == 'IN_PROGRESS' %}
+                    <span class="bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide border border-amber-200"><i class="fas fa-hammer mr-1 text-amber-600"></i> In Progress</span>
+                {% elif interaction.status == 'RESOLVED' %}
+                    <span class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide border border-green-200"><i class="fas fa-check-circle mr-1 text-green-600"></i> Resolved</span>
+                {% endif %}
+            </div>
+            <h1 class="text-3xl font-extrabold text-slate-900">{{ interaction.title }}</h1><div class="my-3 text-sm">{% if register_member %}<p>Ratepayer: {{ register_member.reference }} ? {{ register_member.name }}</p>{% endif %}{% if register_property %}<p>Property: {{ register_property.reference }} ? {{ register_property.address }}</p>{% endif %}{% if interaction.recorded_by %}<p>Recorded by staff user #{{ interaction.recorded_by }}</p>{% endif %}</div>
+            <p class="text-slate-500 mt-1">Logged by <span class="font-bold">{{ interaction.creator.name or 'Unavailable' }}</span> on {{ interaction.created_at.strftime('%d %b %Y, %H:%M') if interaction.created_at else 'Unavailable' }}</p>
+        </div>
+        
+
+        {% if interaction.status != 'RESOLVED' and current_role in ['manager', 'receptionist'] %}
+        <div class="flex space-x-2">
+
+            <form method="POST" action="{{ url_for('uip_bp.resolve_interaction', org_slug=org.slug, reference=interaction.reference) }}" onsubmit="return confirm('Are you sure you want to mark this interaction as resolved?');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-6 rounded-lg shadow transition flex items-center">
+                    <i class="fas fa-check-double mr-2"></i> Mark Resolved
+                </button>
+            </form>
+        </div>
+        {% endif %}
+
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- Left Column: Details & Tasks -->
+        <div class="lg:col-span-2 space-y-6">
+            
+            <!-- Description Card -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                <h3 class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2">Description</h3>
+                <div class="prose max-w-none text-slate-700 whitespace-pre-wrap">{{ interaction.description }}</div>
+            </div>
+
+            <!-- Tasks Card -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="p-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
+                    <h3 class="font-bold text-slate-800"><i class="fas fa-tasks mr-2 text-indigo-600"></i> Action Tasks</h3>
+                </div>
+                
+                <div class="divide-y divide-slate-100">
+                    {% for task in interaction.tasks %}
+                    <div class="p-4 hover:bg-slate-50 transition flex items-start justify-between group">
+                        <div>
+                            <h4 class="font-bold text-slate-800 {% if task.status == 'completed' %}line-through text-slate-400{% endif %}">{{ task.title }}</h4>
+                            <p class="text-sm text-slate-500 mt-1">{{ task.description }}</p>
+                            
+                            <div class="flex items-center space-x-3 mt-3 text-xs">
+                                {% if task.assignee_id %}
+                                    <span class="bg-indigo-100 text-indigo-800 px-2 py-1 rounded font-medium"><i class="fas fa-user mr-1"></i> {{ task.assignee.name or 'Assigned' }}</span>
+                                {% else %}
+                                    <span class="bg-slate-100 text-slate-500 px-2 py-1 rounded font-medium"><i class="fas fa-ghost mr-1"></i> Unassigned</span>
+                                {% endif %}
+                                
+                                <span class="text-slate-400"><i class="far fa-clock mr-1"></i> Added {{ task.created_at.strftime('%d %b') if task.created_at else 'Unavailable' }}</span>
+                            </div>
+                        </div>
+                        
+                        {% if task_actionable(task) and interaction.status != 'RESOLVED' and current_role in ['manager', 'receptionist'] %}
+                        <form method="POST" action="{{ url_for('uip_bp.complete_task', org_slug=org.slug, task_id=task.id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                            <input type="hidden" name="expected_version" value="{{ task.uip_version or 0 }}">
+                            <button type="submit" class="text-slate-300 hover:text-emerald-500 transition tooltip" title="Mark Complete">
+                                <i class="far fa-circle text-2xl"></i>
+                            </button>
+                        </form>
+                        <form method="post" action="{{ url_for('uip_bp.cancel_task', org_slug=org.slug, task_id=task.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="expected_version" value="{{ task.uip_version or 0 }}"><input name="reason" required maxlength="2000" aria-label="Task cancellation reason" placeholder="Cancellation reason" class="border border-slate-300 rounded p-2"><button class="border border-slate-300 rounded p-2">Cancel task</button></form>
+                        {% elif task.status == 'cancelled' %}<p>Cancelled {{ task.uip_cancelled_at or 'historical status: review required' }} by user #{{ task.uip_terminal_actor_id or 'unknown' }}: {{ task.uip_cancellation_reason or 'No reason recorded' }}</p>
+                        {% elif task.status == 'completed' %}
+                            <div class="text-emerald-500"><i class="fas fa-check-circle text-2xl"></i></div>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                    <div class="p-8 text-center text-slate-400 italic">
+                        No tasks have been created for this interaction yet.
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                {% if interaction.status != 'RESOLVED' and current_role in ['manager', 'receptionist'] %}
+                <div class="p-4 bg-slate-50 border-t border-slate-200">
+                    <form method="POST" action="{{ url_for('uip_bp.add_task', org_slug=org.slug, reference=interaction.reference) }}" class="space-y-3">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <div>
+                            <input type="text" name="title" required placeholder="New task title (e.g. Dispatch plumber)" autofocus class="w-full rounded-lg border border-slate-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                        </div>
+                        <div class="flex space-x-2">
+                            <input type="text" name="description" placeholder="Optional details..." class="flex-grow rounded-lg border-slate-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm">
+                            <select name="assignee_id" class="rounded-lg border-slate-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm">
+                                <option value="">-- Unassigned --</option>
+                                {% for member in staff %}
+                                <option value="{{ member.id }}">{{ member.name or ('User #' ~ member.id) }}</option>
+                                {% endfor %}
+                            </select>
+                            <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm transition whitespace-nowrap">
+                                Add Task
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                {% endif %}
+            </div>
+            
+        </div>
+        
+        
+            <!-- Work Orders & Municipality -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Providers -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="p-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
+                        <h3 class="font-bold text-slate-800"><i class="fas fa-truck mr-2 text-indigo-600"></i> Work Orders</h3>
+                    </div>
+                    <div class="divide-y divide-slate-100 p-4">
+                        {% for wo in interaction.work_orders %}
+                        <div class="mb-2">
+                            {% if current_role in ['manager','receptionist'] %}<a href="{{ url_for('uip_bp.work_order_view', org_slug=org.slug, order_id=wo.id) }}">{{ wo.reference }}</a>{% else %}{{ wo.reference }}{% endif %}
+                            <div class="font-bold text-sm">{{ wo.provider.name }}</div>
+                            <span class="bg-slate-100 text-slate-600 text-xs px-2 py-0.5 rounded">{{ wo.status }}</span>
+                        </div>
+                        {% else %}
+                        <p class="text-xs text-slate-400 italic">No providers assigned.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- Municipality -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="p-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
+                        <h3 class="font-bold text-slate-800"><i class="fas fa-building mr-2 text-indigo-600"></i> Municipality</h3>
+                    </div>
+                    <div class="divide-y divide-slate-100 p-4">
+                        {% for ref in interaction.municipal_referrals %}
+                        <div class="mb-2">
+                            <div class="font-bold text-sm">{% if current_role in ['manager','receptionist','committee_member'] %}<a class="underline" href="{{ url_for('uip_bp.referral_page', org_slug=org.slug, referral_id=ref.id) }}">{{ ref.department }}</a>{% else %}{{ ref.department }}{% endif %}</div>
+                            <div class="text-xs text-slate-500">Ref: {{ ref.municipality_reference }}</div>
+                            <span class="bg-amber-100 text-amber-800 text-xs px-2 py-0.5 rounded">{{ ref.status }}</span>
+                        </div>
+                        {% else %}
+                        <p class="text-xs text-slate-400 italic">Not escalated.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+{% if interaction.status != 'RESOLVED' and current_role in ['manager','receptionist'] %}<section class="p-4 bg-white rounded shadow my-4"><h2 class="font-bold">Create provider work order</h2><p>Only eligible providers appear. {% if not eligible_providers %}No eligible providers are configured for this issue category. {% if current_role == 'manager' %}<a class="underline" href="{{ url_for('uip_bp.provider_form', org_slug=org.slug) }}">Register provider</a> or <a class="underline" href="{{ url_for('uip_bp.routing_page', org_slug=org.slug) }}">configure routing and provider users</a>.{% else %}Ask a manager to configure a provider and its user association.{% endif %}{% endif %} This creates a draft; dispatch is recorded separately.</p><form method="post" class="space-y-3" action="{{ url_for('uip_bp.assign_provider', org_slug=org.slug, reference=interaction.reference) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="request_key" value="{{ request_key }}"><label class="block">Provider<select name="provider_id" required class="border border-slate-300 rounded p-2">{% for provider in eligible_providers %}<option value="{{ provider.id }}">{{ provider.name }}</option>{% endfor %}</select></label><label class="block">Approved work scope (visible to provider)<textarea name="description" required maxlength="4000" class="w-full border border-slate-300 rounded p-2"></textarea></label><label class="block">Service location (visible to provider)<input name="service_location" required maxlength="500" class="w-full border border-slate-300 rounded p-2"></label><button class="border border-slate-300 rounded p-2">Create work order</button></form></section>{% endif %}
+        <!-- Right Column: Meta & Audit -->
+        <div class="space-y-6">
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+                <h3 class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2">Properties</h3>
+                
+                <div class="space-y-4 text-sm">
+                    <div>
+                        <span class="block text-slate-500 text-xs mb-1">Category</span>
+                        <span class="font-medium text-slate-800">{{ interaction.category }}</span>
+                    </div>
+                    <div>
+                        <span class="block text-slate-500 text-xs mb-1">Channel</span>
+                        <span class="font-medium text-slate-800"><i class="fas fa-{{ 'phone' if interaction.channel == 'Phone' else 'globe' if interaction.channel == 'Web' else 'envelope' }} mr-1 text-slate-400"></i> {{ interaction.channel }}</span>
+                    </div>
+                    <div>
+                        <span class="block text-slate-500 text-xs mb-1">Priority</span>
+                        {% if interaction.priority == 'URGENT' %}
+                            <span class="font-bold text-rose-700">URGENT</span>
+                        {% elif interaction.priority == 'HIGH' %}
+                            <span class="font-bold text-rose-600"><i class="fas fa-exclamation-triangle mr-1"></i> HIGH</span>
+                        {% elif interaction.priority == 'LOW' %}
+                            <span class="font-medium text-slate-600">LOW</span>
+                        {% else %}
+                            <span class="font-medium text-amber-600">NORMAL</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+    </div>
+</div>
+{% endblock %}

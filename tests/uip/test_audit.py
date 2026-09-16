@@ -2,7 +2,7 @@ import pytest
 import sqlalchemy as sa
 from werkzeug.exceptions import NotFound, Forbidden
 from bootstrap import db, core, uip, ROOT
-from app.uip.services import audit, register
+from app.program_uip.services import audit, register
 from test_register import make_member, make_property, MEMBER
 BASE = "/uip/manor-gardens"
 
@@ -79,7 +79,7 @@ def test_shared_audit_stream_is_untouched(data, client):
 
 
 def test_no_shared_audit_import_or_use_in_uip():
-    paths=list((ROOT / "app/uip").rglob("*.py"))+[ROOT / "app/models/uip.py"]
+    paths=list((ROOT / "app/program_uip").rglob("*.py"))+[ROOT / "app/models/uip.py"]
     for path in paths:
         source=path.read_text(encoding="utf-8")
         assert "CoreAuditEvent" not in source and "core_audit_event" not in source
@@ -110,7 +110,7 @@ def test_foreign_role_definition_denies_phase1_routes(client, data):
 
 def test_phase3_metadata_rejects_free_text_and_credentials(data):
     from phase3_helpers import order
-    from app.uip.services import audit
+    from app.program_uip.services import audit
     row=order(data)
     for metadata in ({"note":"private"},{"password":"secret"},{"reason_code":"free text"},{"new_state":"private message"},{"version":"secret"}):
         with pytest.raises(ValueError):

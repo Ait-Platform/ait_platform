@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 from bootstrap import db, core, User
-from app.uip.services import governance, sla
+from app.program_uip.services import governance, sla
 from test_work_order_concurrency import concurrent_db, parallel
 from test_phase49 import eligible_member
 

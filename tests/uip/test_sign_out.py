@@ -30,9 +30,9 @@ def test_uip_sign_out_reuses_ait_logout_on_desktop_mobile_and_public_vote():
                  uip_nav_groups={"Service Providers":[dict(href="/work-orders",label="Work Orders",active=True)]},uip_help_anchor="service-providers")
     @app.route("/shell")
     @login_required
-    def shell(): return render_template("uip/base.html",**context)
+    def shell(): return render_template("program_uip/base.html",**context)
     @app.route("/vote")
-    def vote(): return render_template("uip/public_vote.html",org=context["org"],survey=None,done=False,token="")
+    def vote(): return render_template("program_uip/public_vote.html",org=context["org"],survey=None,done=False,token="")
     client=app.test_client()
     assert b"Sign out" not in client.get("/vote").data
     with client.session_transaction() as state:

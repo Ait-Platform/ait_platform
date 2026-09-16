@@ -5,8 +5,8 @@ from pathlib import Path
 import re
 
 from bootstrap import db, core, uip, ROOT
-from app.uip.services import register, governance, sla, reception, operations
-from app.uip.presentation import executive
+from app.program_uip.services import register, governance, sla, reception, operations
+from app.program_uip.presentation import executive
 from test_register import make_member, make_property
 from phase3_helpers import provider, order, act
 

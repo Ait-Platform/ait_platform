@@ -2,7 +2,7 @@
 import logging
 from types import SimpleNamespace
 from flask import Flask, g, request
-from app.uip.log_privacy import install
+from app.program_uip.log_privacy import install
 
 
 def test_uip_request_logs_omit_sensitive_contents_and_keep_metadata(caplog):

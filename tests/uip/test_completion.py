@@ -56,7 +56,7 @@ def test_intake_registration_roundtrip_and_empty_states(client, data):
 
 
 def csv_file(kind, rows):
-    from app.uip.completion_routes import CSV_COLUMNS
+    from app.program_uip.completion_routes import CSV_COLUMNS
     stream = io.StringIO(newline="")
     writer = csv.DictWriter(stream, fieldnames=CSV_COLUMNS[kind])
     writer.writeheader()
@@ -98,7 +98,7 @@ def test_csv_preview_commit_duplicate_and_atomicity(client, data):
 
 
 def test_import_scope_and_permissions(client, data):
-    from app.uip.services import register
+    from app.program_uip.services import register
     register.save_member(data.other.id, data.outsider.id, MEMBER)
     register.save_property(data.other.id, data.outsider.id, PROPERTY)
     db.session.commit()
@@ -208,8 +208,8 @@ def test_manager_full_visible_operational_journey(client, data, app, tmp_path, m
         @classmethod
         def now(cls, tz=None):
             return now + timedelta(minutes=11)
-    from app.uip.services import governance
-    from app.uip import operational_routes
+    from app.program_uip.services import governance
+    from app.program_uip import operational_routes
     monkeypatch.setattr(governance, "datetime", Later)
     monkeypatch.setattr(operational_routes, "datetime", Later)
     client.login("manager")

@@ -6,8 +6,8 @@ import pytest
 from werkzeug.datastructures import FileStorage
 from werkzeug.exceptions import BadRequest, Conflict, Forbidden, NotFound
 from bootstrap import db, core, uip
-from app.uip.services import sla, routing, reception, governance, documents
-from app.uip.services.dashboard import metrics
+from app.program_uip.services import sla, routing, reception, governance, documents
+from app.program_uip.services.dashboard import metrics
 from phase3_helpers import provider, order, act
 from test_register import make_member, make_property
 
@@ -249,7 +249,7 @@ def test_metrics_no_invented_samples_or_cross_org(data):
 
 
 def test_governance_foreign_sources_and_tasks_are_rejected(data):
-    from app.uip.services import operations
+    from app.program_uip.services import operations
     foreign = governance.meeting(data.other.id, data.outsider.id, dict(title="Other", meeting_type="AGM",
         scheduled_at=(datetime.now(timezone.utc) - timedelta(minutes=1)).isoformat(), location="Other hall", agenda="Other"))
     with pytest.raises(NotFound):

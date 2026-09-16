@@ -2,7 +2,7 @@
 from datetime import date, timedelta
 from playwright.sync_api import sync_playwright
 from bootstrap import db, core, uip
-from app.uip.services import register
+from app.program_uip.services import register
 from test_register import BASE, MEMBER, PROPERTY, make_member, make_property
 
 

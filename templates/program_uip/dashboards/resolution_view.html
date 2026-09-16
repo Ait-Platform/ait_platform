@@ -1,0 +1,69 @@
+﻿{% extends "program_uip/base.html" %}
+{% block title %}Resolution - {{ org.name }}{% endblock %}
+
+{% block content %}
+<header class="ui-page-head flex justify-between items-start mb-8 border-b border-slate-200 pb-6">
+    <div>
+        <h1 class="text-3xl font-extrabold text-slate-900 mt-1">Resolution Detail</h1>
+        <p class="text-sm text-slate-500 mt-2">View the full details and voting record for this resolution.</p>
+    </div>
+    <div class="mt-1">
+        <a href="{{ url_for('uip_bp.committee_dashboard', org_slug=org.slug) }}" class="ui-btn ui-btn-outline font-bold">
+            &larr; Back to Committee Board
+        </a>
+    </div>
+</header>
+
+<div class="ui-card bg-white border border-slate-200 shadow-sm rounded-xl p-8 max-w-4xl">
+    <div class="flex justify-between items-center mb-6">
+        <h2 class="text-2xl font-bold text-slate-900">{{ resolution.title }}</h2>
+        <div>
+            {% if resolution.status == 'ADOPTED' %}
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold bg-emerald-100 text-emerald-800">Adopted</span>
+            {% elif resolution.status == 'PROPOSED' %}
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold bg-amber-100 text-amber-800">Proposed</span>
+            {% elif resolution.status == 'REJECTED' %}
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold bg-red-100 text-red-800">Rejected</span>
+            {% else %}
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold bg-slate-100 text-slate-800">{{ resolution.status }}</span>
+            {% endif %}
+        </div>
+    </div>
+    
+    
+    {% if resolution.status == 'PROPOSED' %}
+    <div class="mb-8 p-5 bg-slate-50 border border-slate-200 rounded-xl">
+        <h3 class="font-bold text-slate-900 mb-2">Resolution Lockdown</h3>
+        <p class="text-sm text-slate-600 mb-4">This resolution has been drafted and proposed by the Secretary. It is currently awaiting formal lockdown (Adoption or Rejection).</p>
+        
+        {% set is_chair = current_appointment and current_appointment.position|lower in ['chairman', 'chairperson', 'chair', 'vice chair', 'vice chairman'] %}
+        
+        {% if is_chair %}
+        <form method="POST" action="{{ url_for('uip_bp.decide_resolution', org_slug=org.slug, res_id=resolution.id) }}" class="flex gap-3">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <button type="submit" name="decision" value="ADOPTED" class="ui-btn ui-btn-primary bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 border-transparent">
+                <i class="fas fa-check-circle mr-2"></i> Sign &amp; Adopt Resolution
+            </button>
+            <button type="submit" name="decision" value="REJECTED" class="ui-btn ui-btn-outline text-red-600 border-red-200 hover:bg-red-50 font-bold px-6">
+                <i class="fas fa-times-circle mr-2"></i> Reject
+            </button>
+        </form>
+        {% else %}
+        <div class="flex items-center gap-3 text-sm text-amber-700 bg-amber-50 p-3 rounded border border-amber-100">
+            <i class="fas fa-lock"></i>
+            <strong>Authority Required:</strong> Only the Chairman or Vice Chairman has the authority to lock down this resolution.
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <div class="prose prose-slate max-w-none">
+        <p class="text-lg text-slate-700 leading-relaxed">{{ resolution.description }}</p>
+    </div>
+    
+    <div class="mt-12 pt-6 border-t border-slate-200 flex justify-between text-sm text-slate-500">
+        <div><strong>Resolution ID:</strong> #{{ resolution.id }}</div>
+        <div><strong>Date:</strong> {{ resolution.created_at.strftime('%B %d, %Y') }}</div>
+    </div>
+</div>
+{% endblock %}

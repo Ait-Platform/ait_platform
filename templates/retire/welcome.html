@@ -1,0 +1,17 @@
+{% extends 'layout.html' %}
+{% block title %}AIT Retirement Centre Management{% endblock %}
+{% block flashes %}{% endblock %}
+{% block content %}
+<section class="overflow-hidden rounded-xl bg-white shadow">
+  <div class="h-2 bg-teal-700"></div>
+  <div class="p-6 space-y-6">
+    <div class="flex items-center justify-between gap-4">
+      <h1 class="text-2xl font-bold">AIT Retirement Centre Management</h1>
+      <a href="/" class="rounded border border-slate-300 px-4 py-2">Back</a>
+    </div>
+    <div class="flex justify-end"><a href="{{ url_for('retire_bp.entry') }}" class="rounded bg-teal-700 px-4 py-2 font-semibold text-white">Get Started</a></div>
+    {% include 'partials/flash_messages.html' %}
+<p>Manage your retirement centre organisation with AIT.</p>
+  </div>
+</section>
+{% endblock %}

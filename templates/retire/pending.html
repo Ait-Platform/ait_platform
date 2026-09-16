@@ -1,0 +1,23 @@
+{% extends 'layout.html' %}
+{% block title %}Pending Members{% endblock %}
+{% block flashes %}{% endblock %}
+{% block content %}
+<section class="overflow-hidden rounded-xl bg-white shadow">
+  <div class="h-2 bg-teal-700"></div>
+  <div class="p-6 space-y-6">
+    <div class="flex items-center justify-between gap-4">
+      <h1 class="text-2xl font-bold">Pending Members</h1>
+      <a href="{{ url_for('retire_bp.dashboard', organisation_id=organisation.id) }}" class="rounded border border-slate-300 px-4 py-2">Back</a>
+    </div>
+    <div class="flex justify-end gap-4"></div>
+    {% include 'partials/flash_messages.html' %}
+<p class="font-semibold">{{ organisation.name }}</p>
+<ul class="space-y-4">
+{% for member in members %}<li>
+Account {{ member.user_id }} ? {{ member.requested_role.name if member.requested_role else 'No requested role' }} ? {{ member.requested_at }}
+<a class="underline" href="{{ url_for('retire_bp.review_member', organisation_id=organisation.id, membership_id=member.id) }}">Review</a>
+</li>{% else %}<li>No pending members.</li>{% endfor %}
+</ul>
+  </div>
+</section>
+{% endblock %}

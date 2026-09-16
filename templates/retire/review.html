@@ -1,0 +1,30 @@
+{% extends 'layout.html' %}
+{% block title %}Review membership{% endblock %}
+{% block flashes %}{% endblock %}
+{% block content %}
+<section class="overflow-hidden rounded-xl bg-white shadow">
+  <div class="h-2 bg-teal-700"></div>
+  <div class="p-6 space-y-6">
+    <div class="flex items-center justify-between gap-4">
+      <h1 class="text-2xl font-bold">Review membership</h1>
+      <a href="{{ url_for('retire_bp.pending_members', organisation_id=organisation.id) }}" class="rounded border border-slate-300 px-4 py-2">Back</a>
+    </div>
+    <div class="flex justify-end gap-4"><button form="retirement-form" type="submit" class="rounded bg-teal-700 px-4 py-2 font-semibold text-white">{{ form.submit.label.text }}</button></div>
+    {% include 'partials/flash_messages.html' %}
+<p class="font-semibold">{{ organisation.name }}</p>
+<p>Applicant account: {{ membership.user_id }}</p>
+<p>Requested role: {{ membership.requested_role.name if membership.requested_role else 'None' }}</p>
+<form id="retirement-form" method="post" class="space-y-4">
+      {{ form.hidden_tag() }}
+      {% for field in form if field.name not in ['csrf_token', 'submit'] %}
+      <div>
+        {{ field.label(class="block font-medium") }}
+        {{ field(class="rounded border border-slate-300 px-3 py-2", autofocus=loop.first) }}
+        {% for error in field.errors %}<p class="text-red-700" role="alert">{{ error }}</p>{% endfor %}
+      </div>
+      {% endfor %}
+      {% if form.csrf_token is defined %}{% for error in form.csrf_token.errors %}<p class="text-red-700" role="alert">{{ error }}</p>{% endfor %}{% endif %}
+    </form>
+  </div>
+</section>
+{% endblock %}

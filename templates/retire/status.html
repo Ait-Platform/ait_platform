@@ -1,0 +1,24 @@
+{% extends 'layout.html' %}
+{% block title %}Retirement membership status{% endblock %}
+{% block flashes %}{% endblock %}
+{% block content %}
+<section class="overflow-hidden rounded-xl bg-white shadow">
+  <div class="h-2 bg-teal-700"></div>
+  <div class="p-6 space-y-6">
+    <div class="flex items-center justify-between gap-4">
+      <h1 class="text-2xl font-bold">Retirement membership status</h1>
+      <a href="{{ url_for('retire_bp.about') }}" class="rounded border border-slate-300 px-4 py-2">Back</a>
+    </div>
+    <div class="flex justify-end gap-4"><a class="underline" href="{{ url_for('retire_bp.join') }}">Join another organisation</a></div>
+    {% include 'partials/flash_messages.html' %}
+<h2 class="text-lg font-semibold">{{ membership.organisation.name }}</h2>
+<p>Status: <strong>{{ membership.status }}</strong></p>
+{% if membership.status == 'pending' %}<p>Your request is waiting for the organisation owner to review it.</p>
+{% elif membership.status == 'denied' %}<p>Your request was denied. Contact the organisation owner for assistance.</p>
+{% elif membership.status == 'disabled' %}<p>Your membership is disabled. Contact the organisation owner for assistance.</p>
+{% else %}<p>Your membership needs attention from the organisation owner.</p>{% endif %}
+{% if membership.review_reason %}<p>Reason: {{ membership.review_reason }}</p>{% endif %}
+<p>Operational access is unavailable for this membership.</p>
+  </div>
+</section>
+{% endblock %}

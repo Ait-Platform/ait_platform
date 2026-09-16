@@ -1,0 +1,30 @@
+{% extends 'layout.html' %}
+{% block title %}Retirement Centre Dashboard{% endblock %}
+{% block flashes %}{% endblock %}
+{% block content %}
+<section class="overflow-hidden rounded-xl bg-white shadow">
+  <div class="h-2 bg-teal-700"></div>
+  <div class="p-6 space-y-6">
+    <div class="flex items-center justify-between gap-4">
+      <h1 class="text-2xl font-bold">Retirement Centre Dashboard</h1>
+      <a href="{{ url_for('retire_bp.about') }}" class="rounded border border-slate-300 px-4 py-2">Back</a>
+    </div>
+    <div class="flex justify-end gap-4">
+      <a class="underline" href="{{ url_for('retire_bp.join') }}">Join another organisation</a>
+      {% if is_owner %}<a class="rounded bg-teal-700 px-4 py-2 text-white" href="{{ url_for('retire_bp.pending_members', organisation_id=organisation.id) }}">Pending Members</a>{% endif %}
+    </div>
+    {% include 'partials/flash_messages.html' %}
+<p class="text-lg font-semibold">{{ organisation.name }}</p>
+    {% if is_owner %}<p>Retirement organisation ID: {{ organisation.id }}. Share this ID with staff who need to join.</p>{% endif %}
+    <p>Your membership is active. Management modules are coming soon.</p>
+    <div class="grid gap-4 sm:grid-cols-2">
+      {% for module in modules %}
+      <div class="rounded-lg border border-slate-300 p-4">
+        <h2 class="font-semibold">{{ module }}</h2>
+        <p class="mt-2 text-sm text-slate-500">Coming soon</p>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endblock %}

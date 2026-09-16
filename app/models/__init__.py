@@ -52,3 +52,6 @@ __all__.extend(["UipProviderCapability", "UipProviderUser", "UipWorkOrderAction"
 
 from .uip_governance import UipSurvey, UipSurveyResponse, UipDecisionEvent, UipDelegation, UipCommitteeTerm, UipCommitteeMember
 __all__.extend(["UipSurvey", "UipSurveyResponse", "UipDecisionEvent", "UipDelegation", "UipCommitteeTerm", "UipCommitteeMember"])
+
+from .retire import RetirementOrganisation, RetirementRole, RetirementMembership
+__all__.extend(["RetirementOrganisation", "RetirementRole", "RetirementMembership"])

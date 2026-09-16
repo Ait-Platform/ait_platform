@@ -1,0 +1,25 @@
+{% extends 'layout.html' %}
+{% block title %}Register Organisation{% endblock %}
+{% block flashes %}{% endblock %}
+{% block content %}
+<section class="overflow-hidden rounded-xl bg-white shadow">
+  <div class="h-2 bg-teal-700"></div>
+  <div class="p-6 space-y-6">
+    <div class="flex items-center justify-between gap-4">
+      <h1 class="text-2xl font-bold">Register Organisation</h1>
+      <a href="{{ url_for('retire_bp.about') }}" class="rounded border border-slate-300 px-4 py-2">Back</a>
+    </div>
+    <div class="flex justify-end"><button type="submit" form="organisation-registration" class="rounded bg-teal-700 px-4 py-2 font-semibold text-white">Register Organisation</button></div>
+    {% include 'partials/flash_messages.html' %}
+<p>Register the client organisation using your signed-in AIT account.</p>
+    <form id="organisation-registration" method="post" class="space-y-4">
+      {{ form.hidden_tag() }}
+      {{ form.name.label(class="block font-medium") }}
+      {{ form.name(class="w-full rounded border border-slate-300 px-3 py-2", maxlength=200, autofocus=true, required=true, aria_describedby="name-errors") }}
+      <div id="name-errors" class="text-red-700" role="alert">
+        {% for error in form.name.errors %}<p>{{ error }}</p>{% endfor %}
+      </div>
+    </form>
+  </div>
+</section>
+{% endblock %}

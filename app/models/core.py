@@ -141,6 +141,7 @@ class CoreInteraction(db.Model):
     creator_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     assigned_to = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
     closed_by = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    parent_id = db.Column(db.Integer, db.ForeignKey("core_interaction.id"), nullable=True) # Master Ticket Link
     
     # Core Data
     channel = db.Column(db.String(50)) # e.g., Telephone, Web, Walk-in
@@ -161,6 +162,7 @@ class CoreInteraction(db.Model):
     # Relationships
     organization = db.relationship("CoreOrganization", backref="interactions")
     tasks = db.relationship("CoreTask", back_populates="interaction", cascade="all, delete-orphan")
+    children = db.relationship("CoreInteraction", backref=db.backref("parent", remote_side="CoreInteraction.id"))
     
     # Optional register links; legacy attribution remains unchanged.
     member_id = db.Column(db.Integer, nullable=True)

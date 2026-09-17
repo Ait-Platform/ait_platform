@@ -506,3 +506,69 @@ def provider_performance(org_slug):
             sum(state == "met" for c, state in measured), len(measured)))
     return page("Provider workload and history", ["Provider", "Register status", "Availability", "Active workload", "Closed orders", "Recorded SLA stages met", "Recorded SLA sample size"], rows,
         notes=["Counts reflect recorded work orders and configured SLA stages. No performance ranking or inferred statistics are shown where samples are absent."])
+
+@uip_bp.route("/<org_slug>/merge-tickets", methods=["POST"])
+@login_required
+def merge_tickets(org_slug):
+    org = g.organization
+    _require_role("receptionist", "manager", "committee_member")
+    
+    from app.models.core import CoreInteraction
+    from app import db
+    
+    ticket_ids = request.form.getlist("ticket_ids[]")
+    if not ticket_ids or len(ticket_ids) < 2:
+        flash("You must select at least two tickets to merge.", "warning")
+        return redirect(request.referrer or url_for("uip_bp.dashboard", org_slug=org.slug))
+        
+    master_title = request.form.get("master_title", "Merged Master Ticket")
+    master_desc = request.form.get("master_description", "This ticket collates multiple duplicate reports.")
+    
+    # Create the Master Ticket
+    master_ticket = CoreInteraction(
+        organization_id=org.id,
+        creator_id=current_user.id,
+        interaction_type="fault_report",
+        title="[MASTER] " + master_title,
+        description=master_desc,
+        status="OPEN"
+    )
+    db.session.add(master_ticket)
+    db.session.flush() # Get the master_ticket.id
+    
+    # Link children
+    children = CoreInteraction.query.filter(CoreInteraction.id.in_(ticket_ids), CoreInteraction.organization_id == org.id).all()
+    for child in children:
+        child.parent_id = master_ticket.id
+        child.status = "MERGED"
+        
+    db.session.commit()
+    flash(f"Successfully merged {len(children)} tickets into a Master Ticket.", "success")
+    return redirect(request.referrer or url_for("uip_bp.dashboard", org_slug=org.slug))
+
+@uip_bp.route("/<org_slug>/escalate-ticket/<int:ticket_id>", methods=["POST"])
+@login_required
+def escalate_ticket(org_slug, ticket_id):
+    org = g.organization
+    _require_role("manager", "committee_member") # Only manager or ExCo can escalate
+    
+    from app.models.core import CoreInteraction
+    from app.models.uip import UipMunicipalReferral
+    from app import db
+    
+    ticket = CoreInteraction.query.filter_by(id=ticket_id, organization_id=org.id).first_or_404()
+    
+    # Create the MO referral
+    referral = UipMunicipalReferral(
+        organization_id=org.id,
+        interaction_id=ticket.id,
+        creator_user_id=current_user.id,
+        status="ESCALATED_TO_MO",
+        public_description=f"Escalated Master Ticket: {ticket.title}"
+    )
+    db.session.add(referral)
+    
+    ticket.status = "ESCALATED"
+    db.session.commit()
+    flash("Ticket escalated to the Municipal Officer successfully.", "success")
+    return redirect(request.referrer or url_for("uip_bp.dashboard", org_slug=org.slug))

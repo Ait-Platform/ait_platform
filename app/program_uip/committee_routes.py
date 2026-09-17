@@ -422,3 +422,25 @@ def decide_resolution(org_slug, res_id):
     db.session.commit()
     flash(f"Resolution officially {decision.lower()} and locked down.", "success")
     return redirect(url_for("uip_bp.view_resolution", org_slug=org.slug, res_id=res.id))
+@uip_bp.route("/<org_slug>/resolution/<int:res_id>/edit", methods=["GET", "POST"])
+@login_required
+def edit_resolution(org_slug, res_id):
+    org = g.organization
+    _require_secretary()
+    
+    from app.models.uip import UipResolution
+    from app import db
+    
+    resolution = UipResolution.query.filter_by(id=res_id, organization_id=org.id).first_or_404()
+    if resolution.status not in ["PROPOSED", "DRAFT"]:
+        flash("You cannot edit a resolution that has already been adopted or rejected.", "warning")
+        return redirect(url_for("uip_bp.view_resolution", org_slug=org.slug, res_id=res_id))
+        
+    if request.method == "POST":
+        resolution.title = request.form.get("title", resolution.title)
+        resolution.description = request.form.get("description", resolution.description)
+        db.session.commit()
+        flash("Resolution text updated successfully.", "success")
+        return redirect(url_for("uip_bp.view_resolution", org_slug=org.slug, res_id=res_id))
+        
+    return render_template("program_uip/dashboards/resolution_edit.html", org=org, resolution=resolution)

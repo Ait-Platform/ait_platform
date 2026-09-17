@@ -341,6 +341,7 @@ def view_resolution(org_slug, res_id):
     res = UipResolution.query.filter_by(organization_id=org.id, id=res_id).first_or_404()
     
     from app.models.uip_governance import UipCommitteeMember
+    from app.models.uip import UipResolutionVote, UipResolutionComment
     from sqlalchemy import func
     current_appointment = UipCommitteeMember.query.filter(
         UipCommitteeMember.organization_id == org.id,
@@ -348,11 +349,50 @@ def view_resolution(org_slug, res_id):
         func.lower(UipCommitteeMember.email) == func.lower(current_user.email)
     ).first()
     
+    # Voting logic
+    votes = res.votes.all() if hasattr(res, 'votes') else []
+    comments = res.comments.all() if hasattr(res, 'comments') else []
+    
+    my_vote = next((v for v in votes if v.user_id == current_user.id), None)
+    
+    # Calculate Quorum
+    quorum_target = getattr(res, 'quorum_target', 50)
+    scope = getattr(res, 'voting_scope', 'EXCO')
+    
+    total_eligible = 0
+    if scope == 'EXCO':
+        total_eligible = UipCommitteeMember.query.filter_by(organization_id=org.id, status="CURRENT").count()
+    else:
+        from app.models.core import CoreOrganizationMember
+        total_eligible = CoreOrganizationMember.query.filter_by(organization_id=org.id, is_active=True).count()
+        
+    if total_eligible == 0:
+        total_eligible = 1 # Prevent division by zero
+        
+    current_quorum_pct = int((len(votes) / total_eligible) * 100)
+    quorum_met = current_quorum_pct >= quorum_target
+    
+    # Vote counts
+    yea_count = len([v for v in votes if v.vote == 'YEA'])
+    nay_count = len([v for v in votes if v.vote == 'NAY'])
+    abstain_count = len([v for v in votes if v.vote == 'ABSTAIN'])
+    
     return render_template(
         "program_uip/dashboards/resolution_view.html",
         org=org,
         resolution=res,
-        current_appointment=current_appointment
+        current_appointment=current_appointment,
+        votes=votes,
+        comments=comments,
+        my_vote=my_vote,
+        quorum_target=quorum_target,
+        current_quorum_pct=current_quorum_pct,
+        quorum_met=quorum_met,
+        total_eligible=total_eligible,
+        yea_count=yea_count,
+        nay_count=nay_count,
+        abstain_count=abstain_count,
+        scope=scope
     )
 @uip_bp.route("/<org_slug>/resolution/<int:res_id>/decide", methods=["POST"])
 @login_required
@@ -377,6 +417,28 @@ def decide_resolution(org_slug, res_id):
     if decision not in ["ADOPTED", "REJECTED"]:
         abort(400)
         
+    # Enforce Quorum for Adoption
+    if decision == "ADOPTED":
+        votes = res.votes.all() if hasattr(res, 'votes') else []
+        quorum_target = getattr(res, 'quorum_target', 50)
+        scope = getattr(res, 'voting_scope', 'EXCO')
+        
+        total_eligible = 0
+        if scope == 'EXCO':
+            total_eligible = UipCommitteeMember.query.filter_by(organization_id=org.id, status="CURRENT").count()
+        else:
+            from app.models.core import CoreOrganizationMember
+            total_eligible = CoreOrganizationMember.query.filter_by(organization_id=org.id, is_active=True).count()
+            
+        if total_eligible == 0:
+            total_eligible = 1
+            
+        current_quorum_pct = int((len(votes) / total_eligible) * 100)
+        
+        if current_quorum_pct < quorum_target:
+            flash(f"Cannot adopt: Quorum not met ({current_quorum_pct}% of {quorum_target}% required).", "danger")
+            return redirect(url_for("uip_bp.view_resolution", org_slug=org.slug, res_id=res.id))
+            
     res.status = decision
     
     # 2. If ADOPTED and it is an Access Bundle, grant the roles
@@ -444,3 +506,65 @@ def edit_resolution(org_slug, res_id):
         return redirect(url_for("uip_bp.view_resolution", org_slug=org.slug, res_id=res_id))
         
     return render_template("program_uip/dashboards/resolution_edit.html", org=org, resolution=resolution)
+
+
+@uip_bp.route("/<org_slug>/resolution/<int:res_id>/vote", methods=["POST"])
+@login_required
+def vote_resolution(org_slug, res_id):
+    org = g.organization
+    res = UipResolution.query.filter_by(organization_id=org.id, id=res_id).first_or_404()
+    
+    if res.status != "PROPOSED":
+        flash("You can only vote on PROPOSED resolutions.", "danger")
+        return redirect(url_for("uip_bp.view_resolution", org_slug=org.slug, res_id=res.id))
+        
+    from app.models.uip import UipResolutionVote
+    from app.models.uip_governance import UipCommitteeMember
+    from sqlalchemy import func
+    
+    scope = getattr(res, 'voting_scope', 'EXCO')
+    
+    # Verify Eligibility
+    if scope == 'EXCO':
+        appointment = UipCommitteeMember.query.filter(
+            UipCommitteeMember.organization_id == org.id,
+            UipCommitteeMember.status == "CURRENT",
+            func.lower(UipCommitteeMember.email) == func.lower(current_user.email)
+        ).first()
+        if not appointment:
+            abort(403)
+            
+    vote_val = request.form.get("vote")
+    if vote_val not in ["YEA", "NAY", "ABSTAIN"]:
+        abort(400)
+        
+    existing = UipResolutionVote.query.filter_by(resolution_id=res.id, user_id=current_user.id).first()
+    if existing:
+        existing.vote = vote_val
+        flash("Your vote has been updated.", "success")
+    else:
+        new_vote = UipResolutionVote(resolution_id=res.id, user_id=current_user.id, vote=vote_val)
+        db.session.add(new_vote)
+        flash("Your secure vote has been cast.", "success")
+        
+    db.session.commit()
+    return redirect(url_for("uip_bp.view_resolution", org_slug=org.slug, res_id=res.id))
+
+
+@uip_bp.route("/<org_slug>/resolution/<int:res_id>/comment", methods=["POST"])
+@login_required
+def comment_resolution(org_slug, res_id):
+    org = g.organization
+    res = UipResolution.query.filter_by(organization_id=org.id, id=res_id).first_or_404()
+    
+    message = request.form.get("message", "").strip()
+    if not message:
+        return redirect(url_for("uip_bp.view_resolution", org_slug=org.slug, res_id=res.id))
+        
+    from app.models.uip import UipResolutionComment
+    comment = UipResolutionComment(resolution_id=res.id, user_id=current_user.id, message=message)
+    db.session.add(comment)
+    db.session.commit()
+    
+    return redirect(url_for("uip_bp.view_resolution", org_slug=org.slug, res_id=res.id))
+

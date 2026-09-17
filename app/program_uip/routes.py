@@ -118,7 +118,15 @@ def dashboard(org_slug):
         interactions = CoreInteraction.query.filter_by(
             organization_id=org.id, creator_id=current_user.id
         ).all()
-        return render_template("program_uip/dashboards/resident.html", org=org, interactions=interactions)
+        
+        from app.models.uip import UipResolution
+        public_votes = UipResolution.query.filter_by(
+            organization_id=org.id,
+            status="PROPOSED",
+            voting_scope="PUBLIC"
+        ).order_by(UipResolution.created_at.desc()).all()
+        
+        return render_template("program_uip/dashboards/resident.html", org=org, interactions=interactions, public_votes=public_votes)
     if role_slug == "receptionist":
         from app.program_uip.presentation import issue_rows
         rows = [row for row in issue_rows(org.id, current_user.id) if "open" in row["filters"]]
@@ -1303,12 +1311,43 @@ def verify_unknown(org_slug):
 def dev_upgrade_db(org_slug):
     from sqlalchemy import text
     try:
-        db.session.execute(text("ALTER TABLE core_interaction ADD COLUMN parent_id INTEGER REFERENCES core_interaction(id);"))
+        # Existing master ticket upgrade
+        try:
+            db.session.execute(text("ALTER TABLE core_interaction ADD COLUMN parent_id INTEGER REFERENCES core_interaction(id);"))
+        except Exception:
+            db.session.rollback()
+            
+        # New Digital Room upgrades
+        db.session.execute(text("ALTER TABLE uip_resolution ADD COLUMN voting_scope VARCHAR(20) DEFAULT 'EXCO';"))
+        db.session.execute(text("ALTER TABLE uip_resolution ADD COLUMN quorum_target INTEGER DEFAULT 50;"))
+        db.session.execute(text("ALTER TABLE uip_resolution ADD COLUMN expires_at TIMESTAMP;"))
+        
+        db.session.execute(text("""
+            CREATE TABLE IF NOT EXISTS uip_resolution_vote (
+                id SERIAL PRIMARY KEY,
+                resolution_id INTEGER NOT NULL REFERENCES uip_resolution(id),
+                user_id INTEGER NOT NULL REFERENCES "user"(id),
+                vote VARCHAR(20) NOT NULL,
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                CONSTRAINT uq_uip_resolution_vote UNIQUE (resolution_id, user_id)
+            );
+        """))
+        
+        db.session.execute(text("""
+            CREATE TABLE IF NOT EXISTS uip_resolution_comment (
+                id SERIAL PRIMARY KEY,
+                resolution_id INTEGER NOT NULL REFERENCES uip_resolution(id),
+                user_id INTEGER NOT NULL REFERENCES "user"(id),
+                message TEXT NOT NULL,
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """))
+        
         db.session.commit()
-        return "Success"
+        return "Success: DB Upgraded for Digital Committee Room"
     except Exception as e:
         db.session.rollback()
-        return str(e)
+        return "Error: " + str(e)
 
 @uip_bp.route("/<org_slug>/about")
 def uip_about(org_slug):

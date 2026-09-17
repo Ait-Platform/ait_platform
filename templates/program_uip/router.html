@@ -24,10 +24,17 @@
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                     <input type="hidden" name="level" value="Executive Committee"/>
                     <input type="hidden" name="position" value="Chairman"/>
+                    {% if 'chairman' in occupied_seats %}
+                    <button disabled class="w-full p-4 text-left rounded-xl border border-slate-200 bg-slate-100 text-slate-400 font-bold text-lg cursor-not-allowed flex items-center justify-between opacity-75">
+                        <span class="flex items-center"><i class="fas fa-crown text-2xl w-10 text-slate-400 mr-3 text-center"></i> Chairman</span>
+                        <span class="text-xs uppercase tracking-widest font-bold">Occupied</span>
+                    </button>
+                    {% else %}
                     <button type="submit" class="w-full p-4 text-left rounded-xl shadow-sm border border-emerald-200 transition-transform hover:-translate-y-1 bg-emerald-50 text-emerald-900 font-bold text-lg cursor-pointer flex items-center justify-between">
                         <span class="flex items-center"><i class="fas fa-crown text-2xl w-10 text-emerald-600 mr-3 text-center"></i> Chairman</span>
                         <i class="fas fa-chevron-right text-emerald-300"></i>
                     </button>
+                    {% endif %}
                 </form>
 
                 <!-- Vice Chair -->
@@ -35,10 +42,17 @@
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                     <input type="hidden" name="level" value="Executive Committee"/>
                     <input type="hidden" name="position" value="Vice Chairman"/>
+                    {% if 'vice chairman' in occupied_seats or 'vice chair' in occupied_seats %}
+                    <button disabled class="w-full p-4 text-left rounded-xl border border-slate-200 bg-slate-100 text-slate-400 font-bold text-lg cursor-not-allowed flex items-center justify-between opacity-75">
+                        <span class="flex items-center"><i class="fas fa-user-tie text-2xl w-10 text-slate-400 mr-3 text-center"></i> Vice Chair</span>
+                        <span class="text-xs uppercase tracking-widest font-bold">Occupied</span>
+                    </button>
+                    {% else %}
                     <button type="submit" class="w-full p-4 text-left rounded-xl shadow-sm border border-emerald-200 transition-transform hover:-translate-y-1 bg-emerald-50 text-emerald-900 font-bold text-lg cursor-pointer flex items-center justify-between">
                         <span class="flex items-center"><i class="fas fa-user-tie text-2xl w-10 text-emerald-600 mr-3 text-center"></i> Vice Chair</span>
                         <i class="fas fa-chevron-right text-emerald-300"></i>
                     </button>
+                    {% endif %}
                 </form>
 
                 <!-- Secretary -->
@@ -46,10 +60,17 @@
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                     <input type="hidden" name="level" value="Executive Committee"/>
                     <input type="hidden" name="position" value="Secretary"/>
+                    {% if 'secretary' in occupied_seats %}
+                    <button disabled class="w-full p-4 text-left rounded-xl border border-slate-200 bg-slate-100 text-slate-400 font-bold text-lg cursor-not-allowed flex items-center justify-between opacity-75">
+                        <span class="flex items-center"><i class="fas fa-clipboard-check text-2xl w-10 text-slate-400 mr-3 text-center"></i> Secretary</span>
+                        <span class="text-xs uppercase tracking-widest font-bold">Occupied</span>
+                    </button>
+                    {% else %}
                     <button type="submit" class="w-full p-4 text-left rounded-xl shadow-sm border border-emerald-200 transition-transform hover:-translate-y-1 bg-emerald-50 text-emerald-900 font-bold text-lg cursor-pointer flex items-center justify-between">
                         <span class="flex items-center"><i class="fas fa-clipboard-check text-2xl w-10 text-emerald-600 mr-3 text-center"></i> Secretary</span>
                         <i class="fas fa-chevron-right text-emerald-300"></i>
                     </button>
+                    {% endif %}
                 </form>
 
                 <!-- Treasurer -->
@@ -57,10 +78,17 @@
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                     <input type="hidden" name="level" value="Executive Committee"/>
                     <input type="hidden" name="position" value="Treasurer"/>
+                    {% if 'treasurer' in occupied_seats %}
+                    <button disabled class="w-full p-4 text-left rounded-xl border border-slate-200 bg-slate-100 text-slate-400 font-bold text-lg cursor-not-allowed flex items-center justify-between opacity-75">
+                        <span class="flex items-center"><i class="fas fa-coins text-2xl w-10 text-slate-400 mr-3 text-center"></i> Treasurer</span>
+                        <span class="text-xs uppercase tracking-widest font-bold">Occupied</span>
+                    </button>
+                    {% else %}
                     <button type="submit" class="w-full p-4 text-left rounded-xl shadow-sm border border-emerald-200 transition-transform hover:-translate-y-1 bg-emerald-50 text-emerald-900 font-bold text-lg cursor-pointer flex items-center justify-between">
                         <span class="flex items-center"><i class="fas fa-coins text-2xl w-10 text-emerald-600 mr-3 text-center"></i> Treasurer</span>
                         <i class="fas fa-chevron-right text-emerald-300"></i>
                     </button>
+                    {% endif %}
                 </form>
             </div>
             

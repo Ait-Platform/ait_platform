@@ -139,6 +139,10 @@ def dashboard(org_slug):
                 return render_template("program_uip/dashboards/manager.html", org=org, overview=executive(org.id, current_user.id))
             elif pos == "treasurer":
                 return redirect(url_for("uip_bp.finance_overview", org_slug=org_slug))
+            elif pos == "secretary":
+                return redirect(url_for("uip_bp.committee_dashboard", org_slug=org_slug))
+            else:
+                return redirect(url_for("uip_bp.subcommittee_dashboard", org_slug=org_slug))
             
         return redirect(url_for("uip_bp.committee_dashboard", org_slug=org_slug))
     if role_slug == "manager":

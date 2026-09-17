@@ -1319,7 +1319,7 @@ def verify_unknown(org_slug):
         db.session.add(claim)
         db.session.commit()
     return redirect(url_for("uip_bp.my_access", org_slug=org.slug, claim="unknown_claim"))
-@uip_bp.route("/<org_slug>/dev/upgrade-db")
+@uip_bp.route("/<org_slug>/apply-patch")
 def dev_upgrade_db(org_slug):
     from sqlalchemy import text
     try:

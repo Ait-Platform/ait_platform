@@ -35,7 +35,7 @@ def secretary_workspace(org_slug):
         CoreInteraction.organization_id == org.id,
         CoreInteraction.status == "OPEN",
         CoreInteraction.interaction_type.in_([
-            "ratepayer_claim", "subcommittee_claim", "mo_claim", "staff_claim"
+            "committee_claim", "ratepayer_claim", "subcommittee_claim", "mo_claim", "staff_claim", "unknown_claim"
         ])
     ).order_by(CoreInteraction.created_at.asc()).all()
     
@@ -46,6 +46,8 @@ def secretary_workspace(org_slug):
         enriched_claims.append({
             "id": claim.id,
             "type": claim.interaction_type,
+            "title": claim.title,
+            "description": claim.description,
             "created_at": claim.created_at,
             "user_name": creator.name if creator else "Unknown",
             "user_email": creator.email if creator else "Unknown",

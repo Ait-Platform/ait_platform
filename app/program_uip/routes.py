@@ -337,7 +337,7 @@ def verify_secretary(org_slug):
         
     return redirect(url_for("uip_bp.provisioning", org_slug=org.slug))
 
-@uip_bp.route("/<org_slug>/verify/committee", methods=["GET"])
+@uip_bp.route("/<org_slug>/verify/committee", methods=["GET", "POST"])
 @login_required
 def verify_committee(org_slug):
     org = g.organization
@@ -360,13 +360,26 @@ def verify_committee(org_slug):
                 interaction_type="committee_claim",
                 status="OPEN"
             ).first()
+            if request.method == "GET":
+                return render_template("program_uip/claim_committee.html", org=org)
+                
             if not claim:
+                level = request.form.get("level", "Unknown Level")
+                position = request.form.get("position", "Committee Member")
+                portfolio = request.form.get("portfolio", "")
+                
+                title = f"{level} Claim - {position}"
+                desc = f"User {current_user.email} claims to be {position} on the {level}."
+                if portfolio:
+                    title += f" ({portfolio})"
+                    desc += f" Portfolio: {portfolio}."
+                    
                 claim = CoreInteraction(
                     organization_id=org.id,
                     creator_id=current_user.id,
                     interaction_type="committee_claim",
-                    title="Committee Membership Claim",
-                    description=f"User {current_user.email} claims to be a committee member.",
+                    title=title,
+                    description=desc,
                     status="OPEN"
                 )
                 db.session.add(claim)
@@ -1207,3 +1220,30 @@ def remove_trigger(org_slug):
 
 
 
+
+@uip_bp.route("/<org_slug>/verify/unknown", methods=["GET"])
+@login_required
+def verify_unknown(org_slug):
+    org = g.organization
+    from app.models.core import CoreInteraction
+    from app import db
+    from flask_login import current_user
+    
+    claim = CoreInteraction.query.filter_by(
+        organization_id=org.id,
+        creator_id=current_user.id,
+        interaction_type="unknown_claim",
+        status="OPEN"
+    ).first()
+    if not claim:
+        claim = CoreInteraction(
+            organization_id=org.id,
+            creator_id=current_user.id,
+            interaction_type="unknown_claim",
+            title="Unknown Role Claim",
+            description=f"User {current_user.email} is unsure of their role and requests manual triage.",
+            status="OPEN"
+        )
+        db.session.add(claim)
+        db.session.commit()
+    return redirect(url_for("uip_bp.my_access", org_slug=org.slug, claim="unknown_claim"))

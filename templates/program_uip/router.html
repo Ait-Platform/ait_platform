@@ -12,14 +12,23 @@
 
 {% include "partials/flash_messages.html" %}
 
-<div class="grid md:grid-cols-3 gap-6 mt-8 mb-16 px-4 max-w-6xl mx-auto">
-    <!-- Secretary Tile -->
-    <a href="{{ url_for('uip_bp.verify_secretary', org_slug=org.slug) }}" class="p-8 text-center rounded-xl shadow-sm border border-slate-200 transition-transform hover:-translate-y-1" style="background-color: #f1f5f9; display: block; text-decoration: none;">
-        <div style="width: 4rem; height: 4rem; background-color: #334155; color: white; border-radius: 9999px; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem auto;">
-            <i class="fas fa-clipboard-check text-2xl"></i>
+<div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8 mb-16 px-4 max-w-6xl mx-auto">
+    <!-- Governance & Leadership Tile -->
+    <a href="{{ url_for('uip_bp.verify_committee', org_slug=org.slug) }}" class="p-8 text-center rounded-xl shadow-sm border border-emerald-100 transition-transform hover:-translate-y-1" style="background-color: #ecfdf5; display: block; text-decoration: none;">
+        <div style="width: 4rem; height: 4rem; background-color: #059669; color: white; border-radius: 9999px; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem auto;">
+            <i class="fas fa-gavel text-2xl"></i>
         </div>
-        <h2 style="font-size: 1.25rem; font-weight: 700; color: #0f172a; margin-bottom: 0.5rem;">Secretary / Membership Admin</h2>
-        <p style="font-size: 0.875rem; color: #475569;">Access access-control verification tools, rosters, and administrative setup.</p>
+        <h2 style="font-size: 1.25rem; font-weight: 700; color: #0f172a; margin-bottom: 0.5rem;">Governance & Leadership</h2>
+        <p style="font-size: 0.875rem; color: #475569;">Executive Committee (ExCo), Subcommittee Heads, and Secretary.</p>
+    </a>
+
+    <!-- Operations & Contractors Tile -->
+    <a href="{{ url_for('uip_bp.verify_staff', org_slug=org.slug) }}" class="p-8 text-center rounded-xl shadow-sm border border-orange-100 transition-transform hover:-translate-y-1" style="background-color: #fff7ed; display: block; text-decoration: none;">
+        <div style="width: 4rem; height: 4rem; background-color: #ea580c; color: white; border-radius: 9999px; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem auto;">
+            <i class="fas fa-hard-hat text-2xl"></i>
+        </div>
+        <h2 style="font-size: 1.25rem; font-weight: 700; color: #0f172a; margin-bottom: 0.5rem;">Operations & Providers</h2>
+        <p style="font-size: 0.875rem; color: #475569;">Precinct Managers, Staff, and external service providers/contractors.</p>
     </a>
 
     <!-- Ratepayer Tile -->
@@ -27,58 +36,36 @@
         <div style="width: 4rem; height: 4rem; background-color: #4f46e5; color: white; border-radius: 9999px; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem auto;">
             <i class="fas fa-home text-2xl"></i>
         </div>
-        <h2 style="font-size: 1.25rem; font-weight: 700; color: #0f172a; margin-bottom: 0.5rem;">Ratepayer / Property Owner</h2>
-        <p style="font-size: 0.875rem; color: #475569;">Access your local property profile and log interactions.</p>
-    </a>
-
-    <!-- Committee Tile -->
-    <a href="{{ url_for('uip_bp.verify_committee', org_slug=org.slug) }}" class="p-8 text-center rounded-xl shadow-sm border border-amber-100 transition-transform hover:-translate-y-1" style="background-color: #fffbeb; display: block; text-decoration: none;">
-        <div style="width: 4rem; height: 4rem; background-color: #d97706; color: white; border-radius: 9999px; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem auto;">
-            <i class="fas fa-gavel text-2xl"></i>
-        </div>
-        <h2 style="font-size: 1.25rem; font-weight: 700; color: #0f172a; margin-bottom: 0.5rem;">Committee Member</h2>
-        <p style="font-size: 0.875rem; color: #475569;">Access governance, resolutions, and management oversight tools.</p>
-    </a>
-
-    <!-- Subcommittee Tile -->
-    <a href="{{ url_for('uip_bp.verify_subcommittee', org_slug=org.slug) }}" class="p-8 text-center rounded-xl shadow-sm border border-purple-100 transition-transform hover:-translate-y-1" style="background-color: #faf5ff; display: block; text-decoration: none;">
-        <div style="width: 4rem; height: 4rem; background-color: #9333ea; color: white; border-radius: 9999px; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem auto;">
-            <i class="fas fa-users text-2xl"></i>
-        </div>
-        <h2 style="font-size: 1.25rem; font-weight: 700; color: #0f172a; margin-bottom: 0.5rem;">Subcommittee Member</h2>
-        <p style="font-size: 0.875rem; color: #475569;">Access subcommittee management, tasks, and advisory boards.</p>
+        <h2 style="font-size: 1.25rem; font-weight: 700; color: #0f172a; margin-bottom: 0.5rem;">Property Owners</h2>
+        <p style="font-size: 0.875rem; color: #475569;">Ratepayers verified securely against the municipal property vault.</p>
     </a>
 
     <!-- MO Tile -->
-    <a href="{{ url_for('uip_bp.verify_mo', org_slug=org.slug) }}" class="p-8 text-center rounded-xl shadow-sm border border-emerald-100 transition-transform hover:-translate-y-1" style="background-color: #ecfdf5; display: block; text-decoration: none;">
-        <div style="width: 4rem; height: 4rem; background-color: #059669; color: white; border-radius: 9999px; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem auto;">
+    <a href="{{ url_for('uip_bp.verify_mo', org_slug=org.slug) }}" class="p-8 text-center rounded-xl shadow-sm border border-cyan-100 transition-transform hover:-translate-y-1" style="background-color: #ecfeff; display: block; text-decoration: none;">
+        <div style="width: 4rem; height: 4rem; background-color: #0891b2; color: white; border-radius: 9999px; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem auto;">
             <i class="fas fa-university text-2xl"></i>
         </div>
-        <h2 style="font-size: 1.25rem; font-weight: 700; color: #0f172a; margin-bottom: 0.5rem;">Municipal Officer (MO)</h2>
-        <p style="font-size: 0.875rem; color: #475569;">Access municipal escalations, SLA tracking, and ratepayer data.</p>
+        <h2 style="font-size: 1.25rem; font-weight: 700; color: #0f172a; margin-bottom: 0.5rem;">Government Partners</h2>
+        <p style="font-size: 0.875rem; color: #475569;">Municipal Officers collaborating on public infrastructure faults.</p>
     </a>
 
-    <!-- Staff / Service Provider Tile -->
-    <a href="{{ url_for('uip_bp.verify_staff', org_slug=org.slug) }}" class="p-8 text-center rounded-xl shadow-sm border border-blue-100 transition-transform hover:-translate-y-1" style="background-color: #eff6ff; display: block; text-decoration: none;">
-        <div style="width: 4rem; height: 4rem; background-color: #2563eb; color: white; border-radius: 9999px; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem auto;">
-            <i class="fas fa-briefcase text-2xl"></i>
-        </div>
-        <h2 style="font-size: 1.25rem; font-weight: 700; color: #0f172a; margin-bottom: 0.5rem;">UIP Staff / Service Provider</h2>
-        <p style="font-size: 0.875rem; color: #475569;">Access operational workspaces, reception, and management tools.</p>
-    </a>
-
-    <!-- Public Reporter Tile -->
-    <a href="{{ url_for('uip_bp.verify_public', org_slug=org.slug) }}" class="p-8 text-center rounded-xl shadow-sm border border-orange-100 transition-transform hover:-translate-y-1" style="background-color: #fff7ed; display: block; text-decoration: none;">
-        <div style="width: 4rem; height: 4rem; background-color: #ea580c; color: white; border-radius: 9999px; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem auto;">
+    <!-- Public Tile -->
+    <a href="{{ url_for('uip_bp.verify_public', org_slug=org.slug) }}" class="p-8 text-center rounded-xl shadow-sm border border-rose-100 transition-transform hover:-translate-y-1" style="background-color: #fff1f2; display: block; text-decoration: none;">
+        <div style="width: 4rem; height: 4rem; background-color: #e11d48; color: white; border-radius: 9999px; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem auto;">
             <i class="fas fa-bullhorn text-2xl"></i>
         </div>
-        <h2 style="font-size: 1.25rem; font-weight: 700; color: #0f172a; margin-bottom: 0.5rem;">Public Reporter</h2>
-        <p style="font-size: 0.875rem; color: #475569;">Report an issue in the area. No login required.</p>
+        <h2 style="font-size: 1.25rem; font-weight: 700; color: #0f172a; margin-bottom: 0.5rem;">Report an Issue</h2>
+        <p style="font-size: 0.875rem; color: #475569;">Community members reporting public faults and service delivery issues.</p>
     </a>
-</div>
 
-<div class="mt-8 text-center text-sm text-slate-500">
-    <p><i class="fas fa-shield-alt mr-1"></i> AIT Platform securely verifies all authoritative roles.</p>
+    <!-- Unknown / Unsure Tile -->
+    <a href="{{ url_for('uip_bp.verify_unknown', org_slug=org.slug) }}" class="p-8 text-center rounded-xl shadow-sm border border-slate-200 transition-transform hover:-translate-y-1" style="background-color: #f8fafc; display: block; text-decoration: none;">
+        <div style="width: 4rem; height: 4rem; background-color: #64748b; color: white; border-radius: 9999px; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem auto;">
+            <i class="fas fa-question text-2xl"></i>
+        </div>
+        <h2 style="font-size: 1.25rem; font-weight: 700; color: #0f172a; margin-bottom: 0.5rem;">Unsure / Other</h2>
+        <p style="font-size: 0.875rem; color: #475569;">Not sure where you fit? Submit a general inquiry for manual triage.</p>
+    </a>
+
 </div>
 {% endblock %}
-

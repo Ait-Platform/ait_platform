@@ -1,0 +1,68 @@
+﻿{% extends "program_uip/base_public.html" %}
+{% block title %}About {{ org.name if org else 'Our UIP' }}{% endblock %}
+
+{% block content %}
+<header class="ui-page-head text-center py-12 bg-slate-50 border-b border-slate-200">
+    <div class="max-w-3xl mx-auto px-4">
+        <p class="ui-eyebrow text-indigo-600 font-bold tracking-wider uppercase mb-2">About Us</p>
+        <h1 class="text-4xl font-extrabold text-slate-900 mb-4">{{ org.name if org else 'Our UIP' }}</h1>
+        <p class="text-lg text-slate-600">A smarter, safer, and cleaner community driven by transparent operations and digital accountability.</p>
+    </div>
+</header>
+
+<div class="max-w-6xl mx-auto px-4 py-16">
+    <div class="text-center mb-16">
+        <h2 class="text-3xl font-bold text-slate-900 mb-4">Transparent Operations</h2>
+        <p class="text-slate-600 max-w-2xl mx-auto">We believe that a community thrives when its operations are fully transparent. Every fault logged, every contractor dispatched, and every cent spent is tracked securely.</p>
+    </div>
+
+    <!-- Pricing Block (Advert) -->
+    <div class="grid md:grid-cols-3 gap-8 items-stretch">
+        
+        <!-- Column 1: Core Value -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 flex flex-col h-full">
+            <div class="w-12 h-12 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center mb-6">
+                <i class="fas fa-shield-alt text-2xl"></i>
+            </div>
+            <h3 class="text-xl font-bold text-slate-900 mb-3">Security & Tracking</h3>
+            <p class="text-slate-600 flex-grow">Our platform tracks every single municipal escalation, ensuring nothing falls through the cracks and your property values remain protected.</p>
+        </div>
+
+        <!-- Column 2: Zero-Trust Verification -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 flex flex-col h-full">
+            <div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-lg flex items-center justify-center mb-6">
+                <i class="fas fa-check-double text-2xl"></i>
+            </div>
+            <h3 class="text-xl font-bold text-slate-900 mb-3">Zero-Trust Verification</h3>
+            <p class="text-slate-600 flex-grow">Every committee member and ratepayer is securely verified against the municipal property vault or an official resolution. No imposters.</p>
+        </div>
+
+        <!-- Column 3: The Pricing Wallet -->
+        <div class="bg-gradient-to-b from-slate-900 to-indigo-900 rounded-2xl shadow-lg border border-indigo-900 p-8 flex flex-col h-full transform transition hover:-translate-y-1 relative overflow-hidden">
+            <div class="absolute top-0 right-0 bg-amber-500 text-amber-950 text-xs font-bold px-3 py-1 rounded-bl-lg uppercase tracking-wide">
+                Platform Costs
+            </div>
+            <div class="w-12 h-12 bg-indigo-500/30 text-indigo-300 rounded-lg flex items-center justify-center mb-6">
+                <i class="fas fa-wallet text-2xl"></i>
+            </div>
+            <h3 class="text-xl font-bold text-white mb-3">Token-Based Pricing Wallet</h3>
+            <p class="text-indigo-200 mb-6 flex-grow">We believe in absolute financial transparency. The administrative software running our UIP operates on a simple, predictable token system.</p>
+            
+            <div class="bg-white/10 rounded-xl p-5 border border-white/20">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-white font-bold text-lg">100 Free Tokens</span>
+                    <i class="fas fa-gift text-amber-400"></i>
+                </div>
+                <div class="text-indigo-200 text-sm mb-4 pb-4 border-b border-white/10">Included instantly upon genesis.</div>
+                
+                <div class="flex items-center justify-between">
+                    <span class="text-white font-bold text-lg">R50 / month</span>
+                    <span class="text-xs text-indigo-200 uppercase tracking-wide">Thereafter</span>
+                </div>
+                <div class="text-indigo-200 text-xs mt-1 italic">* Starting special until further notice.</div>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

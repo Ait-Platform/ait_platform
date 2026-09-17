@@ -6,66 +6,104 @@
     <div>
         <p class="ui-eyebrow">Access Request</p>
         <h1>Welcome to {{ org.name }}</h1>
-        <p class="ui-subtitle">Please select your requested participant role. Your selection will route you to the correct verification process and waiting lounge.</p>
+        <p class="ui-subtitle">Please select your requested participant role below.</p>
     </div>
 </header>
 
 {% include "partials/flash_messages.html" %}
 
-<div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8 mb-16 px-4 max-w-6xl mx-auto">
-    <!-- Governance & Leadership Tile -->
-    <a href="{{ url_for('uip_bp.verify_committee', org_slug=org.slug) }}" class="p-8 text-center rounded-xl shadow-sm border border-emerald-100 transition-transform hover:-translate-y-1" style="background-color: #ecfdf5; display: block; text-decoration: none;">
-        <div style="width: 4rem; height: 4rem; background-color: #059669; color: white; border-radius: 9999px; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem auto;">
-            <i class="fas fa-gavel text-2xl"></i>
-        </div>
-        <h2 style="font-size: 1.25rem; font-weight: 700; color: #0f172a; margin-bottom: 0.5rem;">Governance & Leadership</h2>
-        <p style="font-size: 0.875rem; color: #475569;">Executive Committee (ExCo), Subcommittee Heads, and Secretary.</p>
-    </a>
+<div class="mt-8 mb-16 px-4 max-w-6xl mx-auto">
+    <h2 class="text-xl font-extrabold text-slate-800 mb-6 border-b border-slate-200 pb-2">Elected Members (ExCo)</h2>
+    <div class="grid md:grid-cols-4 gap-4 mb-10">
+        <!-- Chairman -->
+        <form method="POST" action="{{ url_for('uip_bp.verify_committee', org_slug=org.slug) }}" class="block">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <input type="hidden" name="level" value="Executive Committee"/>
+            <input type="hidden" name="position" value="Chairman"/>
+            <button type="submit" class="w-full h-full p-6 text-center rounded-xl shadow-sm border border-emerald-200 transition-transform hover:-translate-y-1 bg-emerald-50 text-emerald-900 font-bold text-lg cursor-pointer">
+                <i class="fas fa-crown text-3xl mb-3 block text-emerald-600"></i> Chairman
+            </button>
+        </form>
 
-    <!-- Operations & Contractors Tile -->
-    <a href="{{ url_for('uip_bp.verify_staff', org_slug=org.slug) }}" class="p-8 text-center rounded-xl shadow-sm border border-orange-100 transition-transform hover:-translate-y-1" style="background-color: #fff7ed; display: block; text-decoration: none;">
-        <div style="width: 4rem; height: 4rem; background-color: #ea580c; color: white; border-radius: 9999px; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem auto;">
-            <i class="fas fa-hard-hat text-2xl"></i>
-        </div>
-        <h2 style="font-size: 1.25rem; font-weight: 700; color: #0f172a; margin-bottom: 0.5rem;">Operations & Providers</h2>
-        <p style="font-size: 0.875rem; color: #475569;">Precinct Managers, Staff, and external service providers/contractors.</p>
-    </a>
+        <!-- Vice Chair -->
+        <form method="POST" action="{{ url_for('uip_bp.verify_committee', org_slug=org.slug) }}" class="block">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <input type="hidden" name="level" value="Executive Committee"/>
+            <input type="hidden" name="position" value="Vice Chairman"/>
+            <button type="submit" class="w-full h-full p-6 text-center rounded-xl shadow-sm border border-emerald-200 transition-transform hover:-translate-y-1 bg-emerald-50 text-emerald-900 font-bold text-lg cursor-pointer">
+                <i class="fas fa-user-tie text-3xl mb-3 block text-emerald-600"></i> Vice Chair
+            </button>
+        </form>
 
-    <!-- Ratepayer Tile -->
-    <a href="{{ url_for('uip_bp.verify_ratepayer', org_slug=org.slug) }}" class="p-8 text-center rounded-xl shadow-sm border border-indigo-100 transition-transform hover:-translate-y-1" style="background-color: #eef2ff; display: block; text-decoration: none;">
-        <div style="width: 4rem; height: 4rem; background-color: #4f46e5; color: white; border-radius: 9999px; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem auto;">
-            <i class="fas fa-home text-2xl"></i>
-        </div>
-        <h2 style="font-size: 1.25rem; font-weight: 700; color: #0f172a; margin-bottom: 0.5rem;">Property Owners</h2>
-        <p style="font-size: 0.875rem; color: #475569;">Ratepayers verified securely against the municipal property vault.</p>
-    </a>
+        <!-- Secretary -->
+        <form method="POST" action="{{ url_for('uip_bp.verify_committee', org_slug=org.slug) }}" class="block">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <input type="hidden" name="level" value="Executive Committee"/>
+            <input type="hidden" name="position" value="Secretary"/>
+            <button type="submit" class="w-full h-full p-6 text-center rounded-xl shadow-sm border border-emerald-200 transition-transform hover:-translate-y-1 bg-emerald-50 text-emerald-900 font-bold text-lg cursor-pointer">
+                <i class="fas fa-clipboard-check text-3xl mb-3 block text-emerald-600"></i> Secretary
+            </button>
+        </form>
 
-    <!-- MO Tile -->
-    <a href="{{ url_for('uip_bp.verify_mo', org_slug=org.slug) }}" class="p-8 text-center rounded-xl shadow-sm border border-cyan-100 transition-transform hover:-translate-y-1" style="background-color: #ecfeff; display: block; text-decoration: none;">
-        <div style="width: 4rem; height: 4rem; background-color: #0891b2; color: white; border-radius: 9999px; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem auto;">
-            <i class="fas fa-university text-2xl"></i>
-        </div>
-        <h2 style="font-size: 1.25rem; font-weight: 700; color: #0f172a; margin-bottom: 0.5rem;">Government Partners</h2>
-        <p style="font-size: 0.875rem; color: #475569;">Municipal Officers collaborating on public infrastructure faults.</p>
-    </a>
+        <!-- Treasurer -->
+        <form method="POST" action="{{ url_for('uip_bp.verify_committee', org_slug=org.slug) }}" class="block">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <input type="hidden" name="level" value="Executive Committee"/>
+            <input type="hidden" name="position" value="Treasurer"/>
+            <button type="submit" class="w-full h-full p-6 text-center rounded-xl shadow-sm border border-emerald-200 transition-transform hover:-translate-y-1 bg-emerald-50 text-emerald-900 font-bold text-lg cursor-pointer">
+                <i class="fas fa-coins text-3xl mb-3 block text-emerald-600"></i> Treasurer
+            </button>
+        </form>
+    </div>
+    
+    <h2 class="text-xl font-extrabold text-slate-800 mb-6 border-b border-slate-200 pb-2">Subcommittees</h2>
+    <div class="grid md:grid-cols-1 gap-4 mb-10">
+        <!-- Subcommittee Member -->
+        <a href="{{ url_for('uip_bp.verify_committee', org_slug=org.slug) }}" class="p-6 text-left rounded-xl shadow-sm border border-purple-200 transition-transform hover:-translate-y-1 bg-purple-50 flex items-center justify-between" style="text-decoration: none;">
+            <div>
+                <h3 class="text-xl font-bold text-purple-900 mb-1"><i class="fas fa-users-cog text-purple-600 mr-2"></i> Subcommittee Member / Portfolio Head</h3>
+                <p class="text-sm text-purple-700">Click here to specify which committee (e.g. Security, Greening) and what your role is.</p>
+            </div>
+            <i class="fas fa-chevron-right text-purple-400 text-2xl"></i>
+        </a>
+    </div>
 
-    <!-- Public Tile -->
-    <a href="{{ url_for('uip_bp.verify_public', org_slug=org.slug) }}" class="p-8 text-center rounded-xl shadow-sm border border-rose-100 transition-transform hover:-translate-y-1" style="background-color: #fff1f2; display: block; text-decoration: none;">
-        <div style="width: 4rem; height: 4rem; background-color: #e11d48; color: white; border-radius: 9999px; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem auto;">
-            <i class="fas fa-bullhorn text-2xl"></i>
-        </div>
-        <h2 style="font-size: 1.25rem; font-weight: 700; color: #0f172a; margin-bottom: 0.5rem;">Report an Issue</h2>
-        <p style="font-size: 0.875rem; color: #475569;">Community members reporting public faults and service delivery issues.</p>
-    </a>
+    <h2 class="text-xl font-extrabold text-slate-800 mb-6 border-b border-slate-200 pb-2">Community & Operations</h2>
+    <div class="grid md:grid-cols-3 gap-6 mb-10">
+        <!-- Ratepayer Tile -->
+        <a href="{{ url_for('uip_bp.verify_ratepayer', org_slug=org.slug) }}" class="p-8 text-center rounded-xl shadow-sm border border-indigo-100 transition-transform hover:-translate-y-1" style="background-color: #eef2ff; display: block; text-decoration: none;">
+            <i class="fas fa-home text-4xl mb-4 block text-indigo-600"></i>
+            <h2 class="text-lg font-bold text-slate-900 mb-1">Property Owner</h2>
+            <p class="text-xs text-slate-500">Ratepayers verified securely against the municipal property vault.</p>
+        </a>
 
-    <!-- Unknown / Unsure Tile -->
-    <a href="{{ url_for('uip_bp.verify_unknown', org_slug=org.slug) }}" class="p-8 text-center rounded-xl shadow-sm border border-slate-200 transition-transform hover:-translate-y-1" style="background-color: #f8fafc; display: block; text-decoration: none;">
-        <div style="width: 4rem; height: 4rem; background-color: #64748b; color: white; border-radius: 9999px; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem auto;">
-            <i class="fas fa-question text-2xl"></i>
-        </div>
-        <h2 style="font-size: 1.25rem; font-weight: 700; color: #0f172a; margin-bottom: 0.5rem;">Unsure / Other</h2>
-        <p style="font-size: 0.875rem; color: #475569;">Not sure where you fit? Submit a general inquiry for manual triage.</p>
-    </a>
+        <!-- Public Tile -->
+        <a href="{{ url_for('uip_bp.verify_public', org_slug=org.slug) }}" class="p-8 text-center rounded-xl shadow-sm border border-rose-100 transition-transform hover:-translate-y-1" style="background-color: #fff1f2; display: block; text-decoration: none;">
+            <i class="fas fa-bullhorn text-4xl mb-4 block text-rose-600"></i>
+            <h2 class="text-lg font-bold text-slate-900 mb-1">Report an Issue</h2>
+            <p class="text-xs text-slate-500">Community members reporting public faults and service delivery issues.</p>
+        </a>
 
+        <!-- Operations & Contractors Tile -->
+        <a href="{{ url_for('uip_bp.verify_staff', org_slug=org.slug) }}" class="p-8 text-center rounded-xl shadow-sm border border-orange-100 transition-transform hover:-translate-y-1" style="background-color: #fff7ed; display: block; text-decoration: none;">
+            <i class="fas fa-hard-hat text-4xl mb-4 block text-orange-600"></i>
+            <h2 class="text-lg font-bold text-slate-900 mb-1">Operations & Providers</h2>
+            <p class="text-xs text-slate-500">Precinct Managers, Staff, and external contractors.</p>
+        </a>
+        
+        <!-- MO Tile -->
+        <a href="{{ url_for('uip_bp.verify_mo', org_slug=org.slug) }}" class="p-8 text-center rounded-xl shadow-sm border border-cyan-100 transition-transform hover:-translate-y-1" style="background-color: #ecfeff; display: block; text-decoration: none;">
+            <i class="fas fa-university text-4xl mb-4 block text-cyan-600"></i>
+            <h2 class="text-lg font-bold text-slate-900 mb-1">Government Partners</h2>
+            <p class="text-xs text-slate-500">Municipal Officers collaborating on public faults.</p>
+        </a>
+        
+        <!-- Unknown / Unsure Tile -->
+        <a href="{{ url_for('uip_bp.verify_unknown', org_slug=org.slug) }}" class="p-8 text-center rounded-xl shadow-sm border border-slate-200 transition-transform hover:-translate-y-1" style="background-color: #f8fafc; display: block; text-decoration: none;">
+            <i class="fas fa-question text-4xl mb-4 block text-slate-500"></i>
+            <h2 class="text-lg font-bold text-slate-900 mb-1">Unsure / Other</h2>
+            <p class="text-xs text-slate-500">Not sure where you fit? Submit a general inquiry.</p>
+        </a>
+    </div>
 </div>
 {% endblock %}

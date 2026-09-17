@@ -1298,3 +1298,8 @@ def dev_upgrade_db(org_slug):
     except Exception as e:
         db.session.rollback()
         return str(e)
+
+@uip_bp.route("/<org_slug>/about")
+def uip_about(org_slug):
+    org = g.organization if hasattr(g, 'organization') else None
+    return render_template("program_uip/about.html", org=org)

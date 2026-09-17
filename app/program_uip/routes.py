@@ -124,6 +124,18 @@ def dashboard(org_slug):
         rows = [row for row in issue_rows(org.id, current_user.id) if "open" in row["filters"]]
         return render_template("program_uip/dashboards/receptionist.html", org=org, issue_rows=rows)
     if role_slug == "committee_member":
+        from app.models.uip_governance import UipCommitteeMember
+        from sqlalchemy import func
+        current_appointment = UipCommitteeMember.query.filter(
+            UipCommitteeMember.organization_id == org.id,
+            UipCommitteeMember.status == "CURRENT",
+            func.lower(UipCommitteeMember.email) == func.lower(current_user.email)
+        ).first()
+        
+        if current_appointment and current_appointment.position.lower() in ["chairman", "vice chairman", "chair", "chairperson", "vice chair"]:
+            from app.program_uip.presentation import executive
+            return render_template("program_uip/dashboards/manager.html", org=org, overview=executive(org.id, current_user.id))
+            
         return redirect(url_for("uip_bp.committee_dashboard", org_slug=org_slug))
     if role_slug == "manager":
         from app.program_uip.presentation import executive

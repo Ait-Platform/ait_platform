@@ -1,19 +1,21 @@
 {% extends 'layout.html' %}
-{% block title %}Register Organisation{% endblock %}
+{% block title %}Create new retirement home{% endblock %}
 {% block flashes %}{% endblock %}
 {% block content %}
 <section class="overflow-hidden rounded-xl bg-white shadow">
   <div class="h-2 bg-teal-700"></div>
   <div class="p-6 space-y-6">
     <div class="flex items-center justify-between gap-4">
-      <h1 class="text-2xl font-bold">Register Organisation</h1>
+      <h1 class="text-2xl font-bold">Create new retirement home</h1>
       <a href="{{ url_for('retire_bp.about') }}" class="rounded border border-slate-300 px-4 py-2">Back</a>
     </div>
-    <div class="flex justify-end"><button type="submit" form="organisation-registration" class="rounded bg-teal-700 px-4 py-2 font-semibold text-white">Register Organisation</button></div>
+    <div class="flex justify-end"><button type="submit" form="organisation-registration" class="rounded bg-teal-700 px-4 py-2 font-semibold text-white">Create new retirement home</button></div>
     {% include 'partials/flash_messages.html' %}
-<p>Register the client organisation using your signed-in AIT account.</p>
+<p>Owner / Organisation Administrator: create a NEW home. This declaration does not certify legal ownership or claim an existing home.</p>
     <form id="organisation-registration" method="post" class="space-y-4">
       {{ form.hidden_tag() }}
+      <label class="flex items-start gap-3">{{ form.authority(class="mt-1 rounded border border-slate-300") }}<span>{{ form.authority.label.text }}</span></label>
+      {% for error in form.authority.errors %}<p class="text-red-700" role="alert">{{ error }}</p>{% endfor %}
       {{ form.name.label(class="block font-medium") }}
       {{ form.name(class="w-full rounded border border-slate-300 px-3 py-2", maxlength=200, autofocus=true, required=true, aria_describedby="name-errors") }}
       <div id="name-errors" class="text-red-700" role="alert">

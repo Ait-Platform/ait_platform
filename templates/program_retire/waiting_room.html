@@ -1,0 +1,32 @@
+{% extends 'layout.html' %}
+{% block title %}RCM Waiting Room{% endblock %}
+{% block flashes %}{% endblock %}
+{% block content %}
+<section class="overflow-hidden rounded-xl bg-white shadow">
+  <div class="h-2 bg-teal-700"></div>
+  <div class="p-6 space-y-6">
+    <div class="flex items-center justify-between gap-4">
+      <h1 class="text-2xl font-bold">RCM Waiting Room</h1>
+      <a class="rounded border border-slate-300 px-4 py-2" href="{{ url_for('retire_bp.about') }}">Back</a>
+    </div>
+    <div class="flex justify-end gap-4"></div>
+    {% include 'partials/flash_messages.html' %}
+<p>You may wait here before any home exists. Your optional home name is a clue only; it does not establish an association.</p>
+<form method="post" class="space-y-4">
+{{ form.hidden_tag() }}
+{{ form.preferred_name.label(class="block font-medium") }}
+{{ form.preferred_name(class="w-full rounded border border-slate-300 px-3 py-2", autofocus=true, maxlength=200) }}
+{{ form.home_name_clue.label(class="block font-medium") }}
+{{ form.home_name_clue(class="w-full rounded border border-slate-300 px-3 py-2", maxlength=200) }}
+<label class="block">{{ form.discovery_consent() }} {{ form.discovery_consent.label.text }}</label>
+<p>Only your recognisable name and optional home-name clue are shown. To withdraw consent, untick this box and save. Existing home associations and authority are preserved.</p>
+{% for field in form %}{% for error in field.errors %}<p class="text-red-700" role="alert">{{ error }}</p>{% endfor %}{% endfor %}
+{{ form.submit(class="rounded bg-teal-700 px-4 py-2 text-white") }}
+</form>
+{% if person %}<p>Discovery: {{ 'enabled' if person.discovery_consent else 'withdrawn' }}.</p>{% endif %}
+<h2 class="font-semibold">Your approved home associations</h2>
+<ul>{% for membership in associations %}<li><a class="underline" href="{{ url_for('retire_bp.status', organisation_id=membership.organisation_id) }}">{{ membership.organisation.name }}</a></li>{% else %}<li>No home associations approved through this process yet.</li>{% endfor %}</ul>
+<p>Association approval does not grant a relationship, role or operational access.</p>
+  </div>
+</section>
+{% endblock %}

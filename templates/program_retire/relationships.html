@@ -1,0 +1,50 @@
+{% extends 'layout.html' %}
+{% block title %}Home relationship authority{% endblock %}
+{% block flashes %}{% endblock %}
+{% block content %}
+<section class="overflow-hidden rounded-xl bg-white shadow">
+ <div class="h-2 bg-teal-700"></div><div class="p-6 space-y-6">
+ <div class="flex justify-between gap-4"><h1 class="text-2xl font-bold">{{ organisation.name }}: relationship authority</h1><a class="rounded border border-slate-300 px-4 py-2" href="{{ url_for('retire_bp.dashboard', organisation_id=organisation.id) }}">Back</a></div>
+ <div class="flex justify-end gap-4">{% if member and member.association_approved_at %}<button form="authority" class="rounded bg-teal-700 px-4 py-2 text-white">Save authority change</button>{% endif %}</div>
+ {% include 'partials/flash_messages.html' %}
+ {% if not member %}
+ <ul>{% for item in members %}<li><a class="underline" href="{{ url_for('retire_bp.manage_relationships', organisation_id=organisation.id, membership_id=item.id) }}">{{ names.get(item.user_id, 'Organisation Owner/Admin' if item.user_id == organisation.owner_user_id else 'Home member') }} (membership {{ item.id }})</a> - {{ 'Association approved' if item.association_approved_at else 'Association approval required' }}</li>{% endfor %}</ul>
+ {% else %}
+ <p>{{ person.preferred_name if person else 'Home member' }} (membership {{ member.id }}). Each relationship is independent. Ownership alone does not grant Staff authority.</p>
+ {% if member.association_approved_at %}
+ <form id="authority" method="post" class="space-y-4">{{ form.hidden_tag() }}{{ form.version(type="hidden") }}
+ <input type="hidden" name="action" value="grant_relationship"><input type="hidden" name="role_id" value="0">
+ <label class="block">Grant relationship {{ form.kind(class="rounded border border-slate-300 px-3 py-2") }}</label>
+ <label class="block">Reason {{ form.reason(class="rounded border border-slate-300 px-3 py-2", autofocus=true) }}</label>
+ {% if member.status in ['pending','denied','disabled'] %}<label class="block">{{ form.acknowledge() }} {{ form.acknowledge.label.text }}</label>{% endif %}
+ {% for field in form %}{% for error in field.errors %}<p role="alert" class="text-red-700">{{ error }}</p>{% endfor %}{% endfor %}
+ </form>
+ {% else %}<p>Approve this person's home association through the Waiting Room first. Legacy records without evidence need explicit reconciliation.</p>{% endif %}
+ <p>Withdrawing Staff closes all its active roles. A later Staff grant starts without roles. Family / Representative alone grants no resident-data access.</p>
+ <h2 class="font-semibold">Relationships and grant history</h2>
+ <ul class="space-y-6">{% for rel in relationships %}<li class="rounded border border-slate-300 p-4 space-y-3">
+ <p class="font-semibold">{{ rel.kind.replace('_',' ').title() }} - {{ 'withdrawn' if rel.withdrawn_at else 'current' }}</p>
+ {% if not rel.withdrawn_at %}
+ <form method="post" class="space-y-3">{{ form.csrf_token }}{{ form.version(type="hidden") }}
+ <input type="hidden" name="action" value="withdraw_relationship"><input type="hidden" name="target" value="{{ rel.id }}"><input type="hidden" name="kind" value="{{ rel.kind }}"><input type="hidden" name="role_id" value="0">
+ <label>Withdrawal reason <input name="reason" required maxlength="1000" class="rounded border border-slate-300 px-3 py-2"></label>
+ <button class="rounded border border-red-700 px-3 py-2">Withdraw {{ rel.kind.replace('_',' ').title() }}</button></form>
+ {% if rel.kind == 'staff' %}
+ <form method="post" class="space-y-3">{{ form.csrf_token }}{{ form.version(type="hidden") }}
+ <input type="hidden" name="action" value="grant_role"><input type="hidden" name="target" value="{{ rel.id }}"><input type="hidden" name="kind" value="staff">
+ <label>Grant Staff role {{ form.role_id(class="rounded border border-slate-300 px-3 py-2") }}</label>
+ {% if member.status in ['pending','denied','disabled'] %}<label class="block">{{ form.acknowledge() }} {{ form.acknowledge.label.text }}</label>{% endif %}
+ <button class="rounded border border-slate-300 px-3 py-2">Grant role</button></form>
+ {% endif %}{% endif %}
+ <ul>{% for item in assignments if item.relationship_id == rel.id %}<li>
+ {{ roles[item.role_id] }} - {{ 'withdrawn' if item.withdrawn_at else 'current' }}
+ {% if not item.withdrawn_at and not rel.withdrawn_at %}<form method="post" class="space-y-3">{{ form.csrf_token }}{{ form.version(type="hidden") }}
+ <input type="hidden" name="action" value="withdraw_role"><input type="hidden" name="target" value="{{ item.id }}"><input type="hidden" name="kind" value="staff"><input type="hidden" name="role_id" value="0">
+ <label>Withdrawal reason <input name="reason" required maxlength="1000" class="rounded border border-slate-300 px-3 py-2"></label><button class="rounded border border-red-700 px-3 py-2">Withdraw this role</button></form>{% endif %}
+ </li>{% endfor %}</ul></li>{% endfor %}</ul>
+ <h2 class="font-semibold">Authority history</h2>
+ <ul>{% for event in events %}<li>{{ event.recorded_at }}: {{ event.action.replace('_',' ') }}; {{ event.reason }}</li>{% endfor %}</ul>
+ {% endif %}
+ </div>
+</section>
+{% endblock %}

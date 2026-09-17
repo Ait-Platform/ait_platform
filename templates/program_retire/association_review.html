@@ -1,0 +1,25 @@
+{% extends 'layout.html' %}
+{% block title %}Review home association{% endblock %}
+{% block flashes %}{% endblock %}
+{% block content %}
+<section class="overflow-hidden rounded-xl bg-white shadow">
+  <div class="h-2 bg-teal-700"></div>
+  <div class="p-6 space-y-6">
+    <div class="flex items-center justify-between gap-4">
+      <h1 class="text-2xl font-bold">Review home association</h1>
+      <a class="rounded border border-slate-300 px-4 py-2" href="{{ url_for('retire_bp.about') }}">Back</a>
+    </div>
+    <div class="flex justify-end gap-4"></div>
+    {% include 'partials/flash_messages.html' %}
+<p>{{ organisation.name }}</p><p>{{ person.preferred_name }}</p>{% if person.home_name_clue %}<p>{{ person.home_name_clue }}</p>{% endif %}
+<p>Approve only if you recognise this person. Approval establishes a home association only, not a role or operational access.</p>
+<form method="post" class="space-y-4">{{ form.hidden_tag() }}{{ form.version(type="hidden") }}
+{{ form.decision.label }} {{ form.decision(class="rounded border border-slate-300 px-3 py-2") }}
+<label class="block">{{ form.recognise() }} {{ form.recognise.label.text }}</label>
+{% if history and history[0].decision == 'not_ours' %}<label class="block">{{ form.reconsider() }} {{ form.reconsider.label.text }}</label>{% endif %}
+{% for field in form %}{% for error in field.errors %}<p class="text-red-700" role="alert">{{ error }}</p>{% endfor %}{% endfor %}
+{{ form.submit(class="rounded bg-teal-700 px-4 py-2 text-white") }}</form>
+<h2 class="font-semibold">This home's decision history</h2><ul>{% for event in history %}<li>{{ event.reviewed_at }}: {{ 'Association approved' if event.decision == 'approve' else 'Not ours' }} (revision {{ event.version }})</li>{% else %}<li>No decision yet.</li>{% endfor %}</ul>
+  </div>
+</section>
+{% endblock %}

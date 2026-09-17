@@ -1,0 +1,17 @@
+{% extends 'layout.html' %}
+{% block title %}How will you use Retirement Centre Management?{% endblock %}
+{% block flashes %}{% endblock %}
+{% block content %}
+<section class="overflow-hidden rounded-xl bg-white shadow">
+  <div class="h-2 bg-teal-700"></div>
+  <div class="p-6 space-y-6">
+    <div class="flex items-center justify-between gap-4">
+      <h1 class="text-2xl font-bold">How will you use Retirement Centre Management?</h1>
+      <a href="{{ url_for('retire_bp.about') }}" class="rounded border border-slate-300 px-4 py-2">Back</a>
+    </div>
+    <div class="flex justify-end gap-4"><a class="rounded border border-slate-300 px-4 py-2" href="{{ url_for('retire_bp.register') }}">Owner / Organisation Administrator</a><a class="rounded border border-slate-300 px-4 py-2" href="{{ url_for('retire_bp.other') }}">Other</a></div>
+    {% include 'partials/flash_messages.html' %}
+    <p>Owner: I want to create and manage a new retirement home.</p><p>Other: I belong to, work with, live in, or represent someone in a retirement home.</p>
+  </div>
+</section>
+{% endblock %}

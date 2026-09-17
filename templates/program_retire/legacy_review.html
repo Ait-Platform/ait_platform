@@ -1,0 +1,12 @@
+{% extends 'layout.html' %}
+{% block title %}Legacy membership history{% endblock %}
+{% block flashes %}{% endblock %}
+{% block content %}
+<section class="overflow-hidden rounded-xl bg-white shadow"><div class="h-2 bg-teal-700"></div><div class="p-6 space-y-6">
+<div class="flex justify-between"><h1 class="text-2xl font-bold">Legacy membership history</h1><a class="rounded border border-slate-300 px-4 py-2" href="{{ url_for('retire_bp.pending_members',organisation_id=organisation.id) }}">Back</a></div>
+<div class="flex justify-end"><a class="underline" href="{{ url_for('retire_bp.manage_relationships',organisation_id=organisation.id,membership_id=membership.id) }}">Relationship management</a></div>
+{% include 'partials/flash_messages.html' %}
+<p>{{ organisation.name }} - membership {{ membership.id }}</p><p>Recorded legacy decision: {{ membership.status }}</p>
+<p>{{ membership.review_reason or '' }}</p><p>Legacy role decisions are closed. New Staff authority requires an approved home association, a Staff relationship and explicit Staff roles.</p>
+</div></section>
+{% endblock %}

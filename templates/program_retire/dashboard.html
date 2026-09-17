@@ -10,13 +10,17 @@
       <a href="{{ url_for('retire_bp.about') }}" class="rounded border border-slate-300 px-4 py-2">Back</a>
     </div>
     <div class="flex justify-end gap-4">
+      <a class="underline" href="{{ url_for('retire_bp.waiting_room') }}">RCM Waiting Room</a>
+      {% if is_owner %}<a class="underline" href="{{ url_for('retire_bp.relationships', organisation_id=organisation.id) }}">Relationship management</a>{% endif %}
       <a class="underline" href="{{ url_for('retire_bp.join') }}">Join another organisation</a>
-      {% if is_owner %}<a class="rounded bg-teal-700 px-4 py-2 text-white" href="{{ url_for('retire_bp.pending_members', organisation_id=organisation.id) }}">Pending Members</a>{% endif %}
+      {% if is_owner %}<a class="underline" href="{{ url_for('retire_bp.discovery', organisation_id=organisation.id) }}">Waiting Room discovery</a><a class="rounded bg-teal-700 px-4 py-2 text-white" href="{{ url_for('retire_bp.pending_members', organisation_id=organisation.id) }}">Pending Members</a>{% endif %}
     </div>
     {% include 'partials/flash_messages.html' %}
 <p class="text-lg font-semibold">{{ organisation.name }}</p>
     {% if is_owner %}<p>Retirement organisation ID: {{ organisation.id }}. Share this ID with staff who need to join.</p>{% endif %}
-    <p>Your membership is active. Management modules are coming soon.</p>
+    {% if is_owner %}<p>You have Organisation Owner/Admin authority. Ownership alone does not grant Staff authority.</p>{% endif %}
+    {% if has_staff_authority %}<p>You have a current Staff relationship and explicitly assigned Staff role authority.</p>{% endif %}
+    <p>Management modules are coming soon.</p>
     <div class="grid gap-4 sm:grid-cols-2">
       {% for module in modules %}
       <div class="rounded-lg border border-slate-300 p-4">

@@ -53,5 +53,7 @@ __all__.extend(["UipProviderCapability", "UipProviderUser", "UipWorkOrderAction"
 from .uip_governance import UipSurvey, UipSurveyResponse, UipDecisionEvent, UipDelegation, UipCommitteeTerm, UipCommitteeMember
 __all__.extend(["UipSurvey", "UipSurveyResponse", "UipDecisionEvent", "UipDelegation", "UipCommitteeTerm", "UipCommitteeMember"])
 
-from .retire import RetirementOrganisation, RetirementRole, RetirementMembership
+from .retire import (RetirementOrganisation, RetirementRole, RetirementMembership,
+                     RetirementWaitingUser, RetirementAssociationReview,
+                     RetirementRelationship, RetirementStaffRoleAssignment, RetirementAuthorityEvent)
 __all__.extend(["RetirementOrganisation", "RetirementRole", "RetirementMembership"])

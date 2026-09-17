@@ -1,0 +1,21 @@
+{% extends 'layout.html' %}
+{% block title %}Waiting Room discovery{% endblock %}
+{% block flashes %}{% endblock %}
+{% block content %}
+<section class="overflow-hidden rounded-xl bg-white shadow">
+  <div class="h-2 bg-teal-700"></div>
+  <div class="p-6 space-y-6">
+    <div class="flex items-center justify-between gap-4">
+      <h1 class="text-2xl font-bold">Waiting Room discovery</h1>
+      <a class="rounded border border-slate-300 px-4 py-2" href="{{ url_for('retire_bp.about') }}">Back</a>
+    </div>
+    <div class="flex justify-end gap-4"><a class="underline" href="{{ url_for('retire_bp.discovery', organisation_id=organisation.id) }}">Unresolved</a><a class="underline" href="{{ url_for('retire_bp.discovery', organisation_id=organisation.id, dismissed=1) }}">Our Not ours decisions</a></div>
+    {% include 'partials/flash_messages.html' %}
+<p>{{ organisation.name }}</p>
+<p>Names are discovery aids, not proof. Approve only someone you recognise. No other home's decisions are shown.</p>
+<form method="get" class="flex gap-3"><input type="hidden" name="dismissed" value="{{ 1 if dismissed else 0 }}"><label>Name or home-name clue <input name="q" value="{{ phrase }}" maxlength="200" autofocus class="rounded border border-slate-300 px-3 py-2"></label><button class="rounded border border-slate-300 px-4 py-2">Search</button></form>
+<ul class="space-y-3">{% for person in people %}<li><span>{{ person.preferred_name }}</span>{% if person.home_name_clue %} - <span>{{ person.home_name_clue }}</span>{% endif %} <a class="underline" href="{{ url_for('retire_bp.association_review', organisation_id=organisation.id, waiting_id=person.id) }}">{{ 'Reconsider Not ours' if dismissed else 'Review association' }}</a></li>{% else %}<li>No eligible waiting users found.</li>{% endfor %}</ul>
+{% if more %}<a class="underline" href="{{ url_for('retire_bp.discovery', organisation_id=organisation.id, q=phrase, dismissed=1 if dismissed else 0, page=page+1) }}">Next page</a>{% endif %}
+  </div>
+</section>
+{% endblock %}

@@ -86,10 +86,14 @@ try:
     for client,user in zip((owner,staff,other),users):signin(client,user)
     owner_id,staff_id,other_id=users
     check(owner.get('/retire/entry').status_code==200,'Owner without membership sees entry options')
-    response=post(owner,'/retire/register',{'name':names[0]})
-    check(response.status_code==302,'Owner registration redirects successfully')
+    response=post(owner,'/retire/register',{'name':names[0], 'authority':'y'})
+    check(response.status_code==302 and response.location.endswith('/setup'),'New owner reaches setup')
+    setup_url=response.location
+    check(owner.get(setup_url).status_code==200,'Owner setup accessible')
+    check(staff.get(setup_url).status_code==403,'Non-owner setup denied')
+    check(b'Pending Members' not in owner.get(setup_url).data,'Setup offers no pending administration')
     with engine.connect() as conn:
-        organisation=conn.execute(sa.text('SELECT id FROM public.retirement_organisation WHERE name=:name'),{'name':names[0]}).scalar_one()
+        organisation=conn.execute(sa.text('SELECT id FROM public.retirement_organisation WHERE name=:name'),{'name':names[0], 'authority':'y'}).scalar_one()
         check(conn.execute(sa.text('SELECT count(*) FROM public.retirement_membership WHERE organisation_id=:id'),{'id':organisation}).scalar_one()==1,'Registration creates exactly one owner membership')
     member=snapshot(organisation,owner_id)
     check(member['status']=='active' and member['approved_role_id']==roles['organisation_owner'] and member['requested_role_id'] is None and member['reviewed_at'] is None and member['reviewed_by_user_id'] is None,'Owner establishment state is correct')
@@ -98,7 +102,12 @@ try:
     response=owner.get(dash);body=response.get_data(as_text=True)
     check(response.status_code==200 and body.count('Coming soon')==10,'Owner dashboard renders all ten placeholder tiles')
     check(owner.get(pending).status_code==200,'Owner pending-member queue accessible')
-    check(post(owner,'/retire/register',{'name':names[0]},page=dash).status_code==302,'Repeated registration resolves existing owner')
+    second_creation=post(owner,'/retire/register',{'name':names[0], 'authority':'y'},page=dash)
+    check(second_creation.status_code==302 and second_creation.location.endswith('/setup') and second_creation.location!=setup_url,'Same founder and same name create distinct NEW home, not takeover')
+    with engine.connect() as conn:
+        homes=conn.execute(sa.text('SELECT id FROM public.retirement_organisation WHERE owner_user_id=:u'),{'u':owner_id}).scalars().all()
+        check(len(homes)==2 and organisation in homes,'One user founds two separate homes')
+        check(conn.execute(sa.text('SELECT count(*) FROM public.retirement_membership WHERE organisation_id=ANY(:ids) AND user_id=:u AND status=:state'),{'ids':homes,'u':owner_id,'state':'active'}).scalar_one()==2,'Each home has its own founding membership')
     join=f'/retire/organisations/{organisation}/join'
     check(staff.get('/retire/entry').status_code==200,'New staff sees entry options')
     check(post(staff,'/retire/join',{'organisation_id':organisation}).location.endswith(join),'Organisation lookup reaches confirmation')
@@ -125,9 +134,9 @@ try:
     check(staff.get(review).status_code==403 and staff.get(pending).status_code==403,'Active non-owner cannot review or manage members')
     check(owner.get(f'/retire/organisations/{organisation}/members/{snapshot(organisation,owner_id)["id"]}/review').status_code==403,'Self-approval blocked')
     # Second organisation supplies cross-organisation and denial cases.
-    check(post(other,'/retire/register',{'name':names[1]}).status_code==302,'Second test organisation registered')
+    check(post(other,'/retire/register',{'name':names[1], 'authority':'y'}).status_code==302,'Second test organisation registered')
     with engine.connect() as conn:
-        second=conn.execute(sa.text('SELECT id FROM public.retirement_organisation WHERE name=:name'),{'name':names[1]}).scalar_one()
+        second=conn.execute(sa.text('SELECT id FROM public.retirement_organisation WHERE name=:name'),{'name':names[1], 'authority':'y'}).scalar_one()
     second_join=f'/retire/organisations/{second}/join'
     check(post(staff,second_join,{'role_id':roles['finance'],'confirm':'y'}).status_code==302,'Staff can request membership in a separate Retirement organisation')
     second_member=snapshot(second,staff_id)
@@ -175,5 +184,7 @@ finally:
     module,metadata=local.definitions()
     with engine.connect() as conn:
         conn.exec_driver_sql('SET TRANSACTION READ ONLY')
-        print('Final verified counts:',local.verify(conn,metadata,module))
+        sys.path.insert(0, str(ROOT / 'scripts'))
+        from retirement_waiting_room_transition import verify as verify_current
+        print('Final verified counts:',verify_current(conn))
     engine.dispose()

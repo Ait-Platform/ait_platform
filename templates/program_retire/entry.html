@@ -9,13 +9,13 @@
       <h1 class="text-2xl font-bold">Retirement organisations</h1>
       <a href="{{ url_for('retire_bp.about') }}" class="rounded border border-slate-300 px-4 py-2">Back</a>
     </div>
-    <div class="flex justify-end gap-4"><a href="{{ url_for('retire_bp.join') }}" class="rounded bg-teal-700 px-4 py-2 text-white">Join existing organisation</a>
-<a href="{{ url_for('retire_bp.register') }}" class="rounded border border-slate-300 px-4 py-2">Register organisation</a></div>
+    <div class="flex justify-end gap-4"><a class="underline" href="{{ url_for('retire_bp.waiting_room') }}">RCM Waiting Room</a><a href="{{ url_for('retire_bp.join') }}" class="rounded bg-teal-700 px-4 py-2 text-white">Join existing organisation</a>
+<a href="{{ url_for('retire_bp.onboarding') }}" class="rounded border border-slate-300 px-4 py-2">Create a new home / Other</a></div>
     {% include 'partials/flash_messages.html' %}
 <p>Select your Retirement organisation or join using the ID provided by its owner.</p>
 <ul class="space-y-3">
 {% for membership in memberships %}
-<li><a class="underline" href="{{ url_for('retire_bp.dashboard' if membership.status == 'active' else 'retire_bp.status', organisation_id=membership.organisation_id) }}">{{ membership.organisation.name }}</a> ? {{ membership.status }}</li>
+<li><a class="underline" href="{{ url_for('retire_bp.dashboard' if membership.status == 'active' else 'retire_bp.status', organisation_id=membership.organisation_id) }}">{{ membership.organisation.name }}</a> ? {{ membership.status if membership.status else 'Home association approved; operational access is not established' }}</li>
 {% else %}<li>You have no Retirement memberships yet.</li>{% endfor %}
 </ul>
   </div>

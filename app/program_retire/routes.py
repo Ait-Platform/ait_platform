@@ -1,6 +1,6 @@
 from functools import wraps
 
-from flask import abort, flash, g, redirect, render_template, url_for
+from flask import abort, flash, g, redirect, render_template, url_for, request
 from flask_login import current_user, login_required
 from flask_wtf import FlaskForm
 from sqlalchemy.exc import IntegrityError
@@ -23,7 +23,8 @@ MODULES = (
 class OrganisationRegistrationForm(FlaskForm):
     name = StringField("Organisation name", filters=[lambda value: value.strip() if value else value],
                        validators=[DataRequired(), Length(max=200)])
-    submit = SubmitField("Register Organisation")
+    authority = BooleanField("I am authorised to establish and administer this new retirement home on RCM", validators=[DataRequired()])
+    submit = SubmitField("Create new retirement home")
 
 
 class OrganisationLookupForm(FlaskForm):
@@ -53,7 +54,8 @@ def _membership(organisation_id):
 
 
 def _destination(membership):
-    endpoint = "dashboard" if membership.status == "active" and membership.approved_role_id else "status"
+    from .authority import is_owner, staff_eligible
+    endpoint = "dashboard" if is_owner(membership) or staff_eligible(membership) else "status"
     return redirect(url_for("retire_bp." + endpoint, organisation_id=membership.organisation_id))
 
 
@@ -65,7 +67,8 @@ def active_membership_required(view):
         membership = _membership(organisation_id)
         if membership is None:
             abort(403)
-        if membership.status != "active" or membership.approved_role_id is None:
+        from .authority import is_owner, staff_eligible
+        if not (is_owner(membership) or staff_eligible(membership)):
             return redirect(url_for("retire_bp.status", organisation_id=organisation_id))
         g.retirement_membership = membership
         g.retirement_organisation = membership.organisation
@@ -75,7 +78,8 @@ def active_membership_required(view):
 
 def _require_owner():
     # A role label alone never grants owner authority.
-    if g.retirement_organisation.owner_user_id != current_user.id:
+    from .authority import is_owner
+    if g.retirement_organisation.owner_user_id != current_user.id or not is_owner(g.retirement_membership):
         abort(403)
 
 
@@ -103,13 +107,6 @@ def entry():
 @retire_bp.route("/register", methods=["GET", "POST"])
 @login_required
 def register():
-    organisation = RetirementOrganisation.query.filter_by(owner_user_id=current_user.id).first()
-    if organisation:
-        membership = _membership(organisation.id)
-        if membership:
-            return _destination(membership)
-        # Stage 1 owners are backfilled by the proposed Stage 2 migration, never on GET.
-        abort(503, description="Retirement owner membership setup is required.")
     form = OrganisationRegistrationForm()
     if form.validate_on_submit():
         owner_role = RetirementRole.query.filter_by(code="organisation_owner").first()
@@ -123,63 +120,33 @@ def register():
                 organisation_id=organisation.id, user_id=current_user.id, status="active",
                 requested_role_id=None, approved_role_id=owner_role.id,
                 reviewed_at=None, reviewed_by_user_id=None,
+                association_approved_at=utcnow(), association_approved_by_user_id=current_user.id,
             ))
             db.session.commit()
-        except IntegrityError:
-            db.session.rollback()
-            organisation = RetirementOrganisation.query.filter_by(owner_user_id=current_user.id).first()
-            if organisation and _membership(organisation.id):
-                return _destination(_membership(organisation.id))
-            raise
         except Exception:
             # A flush is not a commit: discard all registration work on failure.
             db.session.rollback()
             raise
         flash("Organisation registered successfully.", "success")
-        return redirect(url_for("retire_bp.dashboard", organisation_id=organisation.id))
+        return redirect(url_for("retire_bp.owner_setup", organisation_id=organisation.id))
     return render_template("program_retire/register.html", form=form)
 
 
 @retire_bp.route("/join", methods=["GET", "POST"])
 @login_required
 def join():
-    form = OrganisationLookupForm()
-    if form.validate_on_submit():
-        organisation = db.session.get(RetirementOrganisation, form.organisation_id.data)
-        if organisation is None:
-            form.organisation_id.errors.append("No Retirement organisation has this ID.")
-        else:
-            return redirect(url_for("retire_bp.request_membership", organisation_id=organisation.id))
-    return render_template("program_retire/join.html", form=form, organisation=None)
+    if request.method == 'POST':
+        abort(409, description="Legacy join requests are closed. Use the RCM Waiting Room.")
+    return redirect(url_for('retire_bp.waiting_room'))
 
 
 @retire_bp.route("/organisations/<int:organisation_id>/join", methods=["GET", "POST"])
 @login_required
 def request_membership(organisation_id):
-    organisation = db.get_or_404(RetirementOrganisation, organisation_id)
+    if request.method == 'POST':
+        abort(409, description="Legacy role requests are closed. Use the RCM Waiting Room.")
     existing = _membership(organisation_id)
-    if existing:
-        return _destination(existing)
-    if organisation.owner_user_id == current_user.id:
-        abort(409, description="Owner membership must be established during organisation setup.")
-    form = JoinForm()
-    form.role_id.choices = [(role.id, role.name) for role in _staff_roles()]
-    if form.validate_on_submit():
-        role = db.session.get(RetirementRole, form.role_id.data)
-        if role is None or role.code not in STAFF_ROLE_CODES:
-            abort(400)
-        try:
-            db.session.add(RetirementMembership(
-                organisation_id=organisation_id, user_id=current_user.id,
-                requested_role_id=role.id, approved_role_id=None, status="pending",
-            ))
-            db.session.commit()
-        except IntegrityError:
-            db.session.rollback()
-            if not _membership(organisation_id):
-                raise
-        return _destination(_membership(organisation_id))
-    return render_template("program_retire/join.html", form=form, organisation=organisation)
+    return _destination(existing) if existing else redirect(url_for('retire_bp.waiting_room'))
 
 
 @retire_bp.route("/organisations/<int:organisation_id>/status")
@@ -188,7 +155,8 @@ def status(organisation_id):
     membership = _membership(organisation_id)
     if membership is None:
         abort(404)
-    if membership.status == "active" and membership.approved_role_id:
+    from .authority import is_owner, staff_eligible
+    if is_owner(membership) or staff_eligible(membership):
         return _destination(membership)
     return render_template("program_retire/status.html", membership=membership)
 
@@ -202,8 +170,10 @@ def dashboard_entry():
 @retire_bp.route("/organisations/<int:organisation_id>/dashboard")
 @active_membership_required
 def dashboard(organisation_id):
+    from .authority import staff_eligible, is_owner
     return render_template("program_retire/dashboard.html", organisation=g.retirement_organisation,
-                           modules=MODULES, is_owner=g.retirement_organisation.owner_user_id == current_user.id)
+                           modules=MODULES, is_owner=is_owner(g.retirement_membership),
+                           has_staff_authority=staff_eligible(g.retirement_membership))
 
 
 @retire_bp.route("/organisations/<int:organisation_id>/members/pending")
@@ -218,25 +188,29 @@ def pending_members(organisation_id):
 @active_membership_required
 def review_member(organisation_id, membership_id):
     _require_owner()
-    # Lock and scope the target so concurrent/repeated reviews cannot overwrite a decision.
-    membership = RetirementMembership.query.filter_by(id=membership_id, organisation_id=organisation_id).with_for_update().first_or_404()
-    if membership.user_id == current_user.id:
-        abort(403)
-    if membership.status != "pending":
-        abort(409, description="This application has already been reviewed.")
-    form = ReviewForm()
-    form.role_id.choices = [(0, "Select a staff role")] + [(role.id, role.name) for role in _staff_roles()]
-    if form.validate_on_submit():
-        role = db.session.get(RetirementRole, form.role_id.data) if form.role_id.data else None
-        if form.decision.data == "approve" and (role is None or role.code not in STAFF_ROLE_CODES):
-            form.role_id.errors.append("Choose a permitted staff role.")
-        else:
-            membership.status = "active" if form.decision.data == "approve" else "denied"
-            membership.approved_role_id = role.id if membership.status == "active" else None
-            membership.reviewed_by_user_id = current_user.id
-            membership.reviewed_at = utcnow()
-            membership.review_reason = form.reason.data.strip()
-            db.session.commit()
-            flash("Membership decision recorded.", "success")
-            return redirect(url_for("retire_bp.pending_members", organisation_id=organisation_id))
-    return render_template("program_retire/review.html", organisation=g.retirement_organisation, membership=membership, form=form)
+    membership = RetirementMembership.query.filter_by(id=membership_id, organisation_id=organisation_id).first_or_404()
+    if request.method == 'POST':
+        abort(409, description="Legacy role decisions are closed. Use relationship management after association approval.")
+    return render_template('program_retire/legacy_review.html', organisation=g.retirement_organisation, membership=membership)
+
+
+
+@retire_bp.route("/onboarding")
+def onboarding():
+    return render_template("program_retire/onboarding.html")
+
+
+@retire_bp.route("/other")
+@login_required
+def other():
+    return redirect(url_for("retire_bp.waiting_room"))
+
+
+@retire_bp.route("/organisations/<int:organisation_id>/setup")
+@active_membership_required
+def owner_setup(organisation_id):
+    _require_owner()
+    return render_template("program_retire/setup.html", organisation=g.retirement_organisation)
+
+
+from . import waiting, authority  # noqa: E402, F401

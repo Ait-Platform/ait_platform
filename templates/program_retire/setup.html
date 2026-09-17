@@ -1,0 +1,17 @@
+{% extends 'layout.html' %}
+{% block title %}Retirement home setup{% endblock %}
+{% block flashes %}{% endblock %}
+{% block content %}
+<section class="overflow-hidden rounded-xl bg-white shadow">
+  <div class="h-2 bg-teal-700"></div>
+  <div class="p-6 space-y-6">
+    <div class="flex items-center justify-between gap-4">
+      <h1 class="text-2xl font-bold">Retirement home setup</h1>
+      <a href="{{ url_for('retire_bp.about') }}" class="rounded border border-slate-300 px-4 py-2">Back</a>
+    </div>
+    <div class="flex justify-end gap-4"><a class="rounded border border-slate-300 px-4 py-2" href="{{ url_for('retire_bp.relationships', organisation_id=organisation.id) }}">Relationship management</a></div>
+    {% include 'partials/flash_messages.html' %}
+    <p class="text-lg font-semibold">{{ organisation.name }}</p><p>You are this home's founding Organisation Owner/Admin.</p><p>RCM service activation will be completed in the next setup stage.</p>
+  </div>
+</section>
+{% endblock %}

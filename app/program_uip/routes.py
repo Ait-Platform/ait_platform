@@ -162,6 +162,9 @@ def waiting_lounge(org_slug):
             membership.is_active = True
         db.session.commit()
         flash("Your committee membership has been verified!", "success")
+        pos = appointment.position.lower()
+        if pos in ['chairman', 'chairperson', 'chair', 'vice chair', 'vice chairman']:
+            return redirect(url_for('uip_bp.dashboard', org_slug=org.slug))
         return redirect(url_for("uip_bp.committee_dashboard", org_slug=org.slug))
         
     claim = request.args.get("claim", "unknown")
@@ -220,6 +223,9 @@ def router_page(org_slug):
         elif not membership.is_active:
             membership.is_active = True
         db.session.commit()
+        pos = appointment.position.lower()
+        if pos in ['chairman', 'chairperson', 'chair', 'vice chair', 'vice chairman']:
+            return redirect(url_for('uip_bp.dashboard', org_slug=org.slug))
         return redirect(url_for("uip_bp.committee_dashboard", org_slug=org.slug))
         
     # 1b. Auto-route if active Ratepayer

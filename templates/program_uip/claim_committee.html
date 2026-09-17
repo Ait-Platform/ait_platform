@@ -1,52 +1,44 @@
 ﻿{% extends "program_uip/base_public.html" %}
-{% block title %}{{ org.name }} - Claim Governance Role{% endblock %}
+{% block title %}{{ org.name }} - Subcommittee Access{% endblock %}
 
 {% block content %}
 <header class="ui-page-head">
     <div>
-        <p class="ui-eyebrow">Governance Profile Setup</p>
-        <h1>Claim Your Role</h1>
-        <p class="ui-subtitle">To ensure secure access, please specify your exact position so the Secretary can verify you against the official Resolutions Register.</p>
+        <p class="ui-eyebrow">Access Request</p>
+        <h1>Subcommittee Registration</h1>
+        <p class="ui-subtitle">Please specify your committee and your exact role.</p>
     </div>
+    <a class="ui-btn ui-btn-outline" href="{{ url_for('uip_bp.router_page', org_slug=org.slug) }}">&larr; Back to Role Selection</a>
 </header>
 
-<div class="max-w-2xl mx-auto mt-8 mb-16 bg-white p-8 rounded-xl border border-slate-200 shadow-sm">
-    <form method="POST" action="{{ url_for('uip_bp.verify_committee', org_slug=org.slug) }}" class="space-y-6">
+<div class="ui-card max-w-xl mx-auto mt-8 mb-16 p-8 shadow-sm border border-slate-200">
+    <form method="POST" action="{{ url_for('uip_bp.verify_committee', org_slug=org.slug) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        <input type="hidden" name="level" value="Subcommittee"/>
         
-        <div>
-            <label class="block text-sm font-semibold text-slate-700 mb-2">Governance Level</label>
-            <select name="level" class="w-full border-slate-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required>
-                <option value="" disabled selected>Select Level...</option>
-                <option value="Executive Committee">Executive Committee (ExCo)</option>
-                <option value="Subcommittee">Subcommittee / Portfolio</option>
+        <div class="mb-6">
+            <label class="block text-sm font-bold text-slate-700 mb-2">Which Committee?</label>
+            <select name="portfolio" required class="w-full border-slate-300 rounded-lg px-4 py-2 focus:ring-indigo-500">
+                <option value="">-- Select Committee --</option>
+                <option value="Security">Security</option>
+                <option value="Greening & Environment">Greening & Environment</option>
+                <option value="Infrastructure & Maintenance">Infrastructure & Maintenance</option>
+                <option value="Social & Community">Social & Community</option>
+                <option value="Finance & Audit">Finance & Audit</option>
+                <option value="Other">Other</option>
             </select>
         </div>
-
-        <div>
-            <label class="block text-sm font-semibold text-slate-700 mb-2">Official Position / Title</label>
-            <select name="position" class="w-full border-slate-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required>
-                <option value="" disabled selected>Select Position...</option>
-                <option value="Chairman">Chairman</option>
-                <option value="Vice Chairman">Vice Chairman</option>
-                <option value="Treasurer">Treasurer</option>
-                <option value="Secretary">Secretary</option>
-                <option value="Portfolio Head">Portfolio Head / Director</option>
-                <option value="Ordinary Member">Ordinary Member</option>
-            </select>
+        
+        <div class="mb-6">
+            <label class="block text-sm font-bold text-slate-700 mb-2">What is your role?</label>
+            <input type="text" name="position" required placeholder="e.g. Head, Member, Advisor" class="w-full border-slate-300 rounded-lg px-4 py-2 focus:ring-indigo-500">
         </div>
-
-        <div>
-            <label class="block text-sm font-semibold text-slate-700 mb-2">Portfolio / Subcommittee Name (Optional)</label>
-            <p class="text-xs text-slate-500 mb-2">If you selected a Subcommittee role, please specify which one (e.g. Security, Greening & Cleansing, Finance).</p>
-            <input type="text" name="portfolio" placeholder="Enter portfolio name..." class="w-full border-slate-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-        </div>
-
-        <div class="pt-4 border-t border-slate-100 flex justify-between items-center">
-            <a href="{{ url_for('uip_bp.router_page', org_slug=org.slug) }}" class="text-sm font-medium text-slate-500 hover:text-slate-700">Cancel</a>
-            <button type="submit" class="ui-btn ui-btn-primary bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded">
-                Submit Claim for Verification
+        
+        <div class="pt-4 border-t border-slate-100">
+            <button type="submit" class="w-full ui-btn ui-btn-primary bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 text-lg rounded-xl shadow-sm">
+                Submit Request
             </button>
+            <p class="text-xs text-center text-slate-500 mt-4">Your request will be sent to the Secretary for verification.</p>
         </div>
     </form>
 </div>

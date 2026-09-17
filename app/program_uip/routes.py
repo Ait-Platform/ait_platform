@@ -409,7 +409,7 @@ def verify_committee(org_slug):
                 occupied = UipCommitteeMember.query.filter(
                     UipCommitteeMember.organization_id == org.id,
                     func.lower(UipCommitteeMember.position) == position.lower(),
-                    UipCommitteeMember.is_active == True
+                    UipCommitteeMember.status == "CURRENT"
                 ).first()
                 if occupied:
                     flash(f"The position of {position} is currently occupied. Please click the 'Unsure / Other' tile and the Secretary will sort it out.", "warning")

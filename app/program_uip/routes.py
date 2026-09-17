@@ -132,9 +132,13 @@ def dashboard(org_slug):
             func.lower(UipCommitteeMember.email) == func.lower(current_user.email)
         ).first()
         
-        if current_appointment and current_appointment.position.lower() in ["chairman", "vice chairman", "chair", "chairperson", "vice chair"]:
-            from app.program_uip.presentation import executive
-            return render_template("program_uip/dashboards/manager.html", org=org, overview=executive(org.id, current_user.id))
+        if current_appointment:
+            pos = current_appointment.position.lower()
+            if pos in ["chairman", "vice chairman", "chair", "chairperson", "vice chair"]:
+                from app.program_uip.presentation import executive
+                return render_template("program_uip/dashboards/manager.html", org=org, overview=executive(org.id, current_user.id))
+            elif pos == "treasurer":
+                return redirect(url_for("uip_bp.finance_overview", org_slug=org_slug))
             
         return redirect(url_for("uip_bp.committee_dashboard", org_slug=org_slug))
     if role_slug == "manager":
@@ -175,7 +179,7 @@ def waiting_lounge(org_slug):
         db.session.commit()
         flash("Your committee membership has been verified!", "success")
         pos = appointment.position.lower()
-        if pos in ['chairman', 'chairperson', 'chair', 'vice chair', 'vice chairman']:
+        if pos in ['chairman', 'chairperson', 'chair', 'vice chair', 'vice chairman', 'treasurer']:
             return redirect(url_for('uip_bp.dashboard', org_slug=org.slug))
         return redirect(url_for("uip_bp.committee_dashboard", org_slug=org.slug))
         
@@ -236,7 +240,7 @@ def router_page(org_slug):
             membership.is_active = True
         db.session.commit()
         pos = appointment.position.lower()
-        if pos in ['chairman', 'chairperson', 'chair', 'vice chair', 'vice chairman']:
+        if pos in ['chairman', 'chairperson', 'chair', 'vice chair', 'vice chairman', 'treasurer']:
             return redirect(url_for('uip_bp.dashboard', org_slug=org.slug))
         return redirect(url_for("uip_bp.committee_dashboard", org_slug=org.slug))
         

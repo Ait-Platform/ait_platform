@@ -18,7 +18,7 @@
             </h1>
         </div>
         <div class="text-right">
-            <span class="inline-block px-3 py-1 rounded font-bold text-xs uppercase tracking-widest {% if resolution.status == 'PROPOSED' %}bg-indigo-100 text-indigo-800{% elif resolution.status == 'ADOPTED' %}bg-emerald-100 text-emerald-800{% elif resolution.status == 'ESCALATED' %}bg-red-100 text-red-800{% else %}bg-slate-100 text-slate-800{% endif %}">
+            <span class="inline-block px-3 py-1 rounded font-bold text-xs uppercase tracking-widest {% if resolution.status == 'PROPOSED' %}bg-indigo-100 text-indigo-800{% elif resolution.status == 'ADOPTED' %}bg-emerald-100 text-emerald-800{% elif resolution.status == 'TABLED' %}bg-red-100 text-red-800{% else %}bg-slate-100 text-slate-800{% endif %}">
                 {{ resolution.status }}
             </span>
             <div class="text-xs font-bold text-slate-500 mt-1 uppercase tracking-wide">
@@ -33,10 +33,10 @@
         
         <!-- Left Column: Legal Text -->
         
-        {% if resolution.status == 'ESCALATED' %}
-        <div class="mb-6 bg-red-50 border border-red-200 rounded-xl p-6 shadow-sm">
-            <h3 class="font-bold text-red-900 mb-2 text-lg"><i class="fas fa-exclamation-triangle mr-2"></i> Digital Voting Suspended</h3>
-            <p class="text-sm text-red-700">A dissenting view (NAY) was logged. In accordance with round-robin governance rules, this resolution has been escalated and must be tabled at a formal live meeting.</p>
+        {% if resolution.status == 'TABLED' %}
+        <div class="mb-6 bg-amber-50 border border-amber-200 rounded-xl p-6 shadow-sm">
+            <h3 class="font-bold text-amber-900 mb-2 text-lg"><i class="fas fa-users mr-2"></i> Tabled for Live Meeting</h3>
+            <p class="text-sm text-amber-700">Digital voting has concluded. This resolution is now waiting to be formally debated and ratified at a live committee meeting.</p>
         </div>
         
         {% if current_appointment and current_appointment.position.lower() in ["secretary", "chairman", "vice chairman", "chair", "chairperson", "vice chair"] %}
@@ -72,27 +72,7 @@
                 </div>
             </div>
             
-            <!-- Chairman's Gavel (Only visible to Chair if PROPOSED) -->
-            {% if resolution.status == 'PROPOSED' and current_appointment and current_appointment.position.lower() in ["chairman", "vice chairman", "chair", "chairperson", "vice chair"] %}
-            <div class="bg-slate-900 rounded-xl p-6 shadow-lg border border-slate-800 text-white flex items-center justify-between">
-                <div>
-                    <h3 class="font-bold text-lg mb-1"><i class="fas fa-legal text-amber-500 mr-2"></i> Chairman's Gavel</h3>
-                    <p class="text-slate-400 text-sm">Legally bind the community to this resolution.</p>
-                </div>
-                <div class="flex gap-3">
-                    <form method="POST" action="{{ url_for('uip_bp.decide_resolution', org_slug=org.slug, res_id=resolution.id) }}">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                        <button type="submit" name="decision" value="REJECTED" class="px-4 py-2 bg-red-900 hover:bg-red-800 text-red-100 rounded-lg font-bold transition">
-                            Reject
-                        </button>
-                        
-                        <button type="submit" name="decision" value="ADOPTED" class="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold shadow transition disabled:opacity-50 disabled:cursor-not-allowed" {% if not quorum_met %}disabled title="Quorum not met"{% endif %}>
-                            <i class="fas fa-check-double mr-1"></i> Adopt
-                        </button>
-                    </form>
-                </div>
-            </div>
-            {% endif %}
+
             
 <!-- Debate Thread -->
             <div class="bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col h-96">
@@ -166,7 +146,7 @@
                     </button>
                 </form>
             </div>
-            {% elif resolution.status == 'ESCALATED' %}
+            {% elif resolution.status == 'TABLED' %}
             <div class="bg-red-50 border border-red-200 rounded-xl shadow-sm p-6 text-center">
                 <i class="fas fa-users text-4xl text-red-300 mb-4 block"></i>
                 <h3 class="font-bold text-red-900 mb-1">Live Meeting Required</h3>

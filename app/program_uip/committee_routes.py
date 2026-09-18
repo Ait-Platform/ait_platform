@@ -406,7 +406,7 @@ def decide_resolution(org_slug, res_id):
     org = g.organization
     res = UipResolution.query.filter_by(organization_id=org.id, id=res_id).first_or_404()
     
-    # 1. Verify Lockdown Authority (Chairman or Vice Chair)
+    # 1. Verify Lockdown Authority (Chairman or Vice Chair or Secretary)
     from app.models.uip_governance import UipCommitteeMember
     from sqlalchemy import func
     current_appointment = UipCommitteeMember.query.filter(
@@ -416,12 +416,18 @@ def decide_resolution(org_slug, res_id):
     ).first()
     
     if not current_appointment or current_appointment.position.lower() not in ["chairman", "chairperson", "chair", "vice chair", "vice chairman", "secretary"]:
-        flash("Only the Chairman, Vice Chairman, or Secretary has the authority to lock down and finalize resolutions.", "danger")
+        flash("Only the Chairman, Vice Chairman, or Secretary has the authority to manage resolution stages.", "danger")
         return redirect(url_for("uip_bp.view_resolution", org_slug=org.slug, res_id=res.id))
         
     decision = request.form.get("decision")
-    if decision not in ["ADOPTED", "REJECTED"]:
+    if decision not in ["ADOPTED", "REJECTED", "TABLED"]:
         abort(400)
+        
+    if decision == "TABLED":
+        res.status = "TABLED"
+        db.session.commit()
+        flash("Voting closed. Resolution has been tabled for a live meeting.", "success")
+        return redirect(url_for("uip_bp.view_resolution", org_slug=org.slug, res_id=res.id))
         
     # Enforce Quorum for Adoption
     if decision == "ADOPTED":

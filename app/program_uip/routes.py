@@ -148,7 +148,7 @@ def dashboard(org_slug):
             elif pos == "treasurer":
                 return redirect(url_for("uip_bp.finance_overview", org_slug=org_slug))
             elif pos == "secretary":
-            return redirect(url_for("uip_bp.secretary_workspace", org_slug=org_slug))
+                return redirect(url_for("uip_bp.secretary_workspace", org_slug=org_slug))
             else:
                 return redirect(url_for("uip_bp.subcommittee_dashboard", org_slug=org_slug))
             

@@ -263,8 +263,8 @@ def onboarding_campaign(org_slug):
         if not profile.campaign_status:
             c = UipMemberCampaign(member_profile_id=profile.id, invite_wave=0)
             db.session.add(c)
-            # flush so we can use it
             db.session.flush()
+            return c
         return profile.campaign_status
 
     if request.method == "POST":

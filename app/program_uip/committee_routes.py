@@ -108,14 +108,7 @@ def committee_dashboard(org_slug):
     ).order_by(CoreInteraction.created_at.desc()).all()
 
     # Fetch all resolutions for the dashboard
-    is_secretary = current_appointment and current_appointment.position == 'Secretary'
-    if is_secretary:
-        all_resolutions = UipResolution.query.filter_by(organization_id=org.id).order_by(UipResolution.created_at.desc()).all()
-    else:
-        all_resolutions = UipResolution.query.filter(
-            UipResolution.organization_id == org.id,
-            UipResolution.status != 'DRAFT'
-        ).order_by(UipResolution.created_at.desc()).all()
+    all_resolutions = UipResolution.query.filter_by(organization_id=org.id).order_by(UipResolution.created_at.desc()).all()
     
     return render_template(
         "program_uip/dashboards/committee.html",
@@ -582,15 +575,14 @@ def draft_resolution(org_slug):
     org = g.organization
     
     # Check if Secretary
-    sec_check = UipCommitteeMember.query.filter(
+    exco_check = UipCommitteeMember.query.filter(
         UipCommitteeMember.organization_id == org.id,
         UipCommitteeMember.status == "CURRENT",
-        UipCommitteeMember.position == "Secretary",
         func.lower(UipCommitteeMember.email) == func.lower(current_user.email)
     ).first()
     
-    if not sec_check:
-        flash("Only the Secretary can draft resolutions.", "error")
+    if not exco_check:
+        flash("Only active Committee Members can draft resolutions.", "error")
         return redirect(url_for("uip_bp.committee_dashboard", org_slug=org.slug))
 
     if request.method == "POST":
@@ -628,15 +620,14 @@ def draft_resolution(org_slug):
 def publish_resolution(org_slug, res_id):
     org = g.organization
     
-    sec_check = UipCommitteeMember.query.filter(
+    exco_check = UipCommitteeMember.query.filter(
         UipCommitteeMember.organization_id == org.id,
         UipCommitteeMember.status == "CURRENT",
-        UipCommitteeMember.position == "Secretary",
         func.lower(UipCommitteeMember.email) == func.lower(current_user.email)
     ).first()
     
-    if not sec_check:
-        flash("Only the Secretary can publish resolutions.", "error")
+    if not exco_check:
+        flash("Only active Committee Members can publish resolutions.", "error")
         return redirect(url_for("uip_bp.committee_dashboard", org_slug=org.slug))
         
     resolution = UipResolution.query.filter_by(id=res_id, organization_id=org.id).first_or_404()

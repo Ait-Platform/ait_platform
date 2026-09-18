@@ -2,7 +2,6 @@
 {% if is_secretary %}
 <details class="ui-nav-group" open>
     <summary>Secretary Tools</summary>
-    <a href="{{ url_for('uip_bp.draft_resolution', org_slug=org.slug) }}" class="font-bold text-indigo-700 bg-indigo-50"><i class="fas fa-pen-nib w-5 text-indigo-600"></i> Draft Resolution</a>
     <a href="{{ url_for('uip_bp.secretary_workspace', org_slug=org.slug) }}"><i class="fas fa-inbox w-5"></i> Intake Desk</a>
     <a href="{{ url_for('uip_bp.committee_dashboard', org_slug=org.slug) }}"><i class="fas fa-file-signature w-5"></i> Resolution Register</a>
     <a href="#"><i class="fas fa-users w-5"></i> Members Register</a>

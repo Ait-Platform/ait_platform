@@ -73,14 +73,17 @@ def navigation_context():
     from app.models.uip_governance import UipCommitteeMember
     from sqlalchemy import func
     is_secretary = False
+    is_exco = False
     try:
-        sec = UipCommitteeMember.query.filter(
+        mem = UipCommitteeMember.query.filter(
             UipCommitteeMember.organization_id == g.organization.id,
             UipCommitteeMember.status == "CURRENT",
-            func.lower(UipCommitteeMember.email) == func.lower(current_user.email),
-            UipCommitteeMember.position == "Secretary"
+            func.lower(UipCommitteeMember.email) == func.lower(current_user.email)
         ).first()
-        is_secretary = bool(sec)
+        if mem:
+            is_exco = True
+            if mem.position == "Secretary":
+                is_secretary = True
     except Exception:
         pass
 
@@ -103,7 +106,7 @@ def navigation_context():
     from app.program_uip.presentation import current_relationship, display_value
     return dict(uip_navigation=[item for items in groups.values() for item in items], uip_nav_groups=groups, uip_is_current=current_relationship, uip_display=display_value,
                 uip_can_capture=bool(roles & set(audit.WRITE_ROLES)), uip_roles=roles,
-                uip_can_log=bool(roles & (staff | {"committee_member"})), is_secretary=is_secretary)
+                uip_can_log=bool(roles & (staff | {"committee_member"})), is_secretary=is_secretary, is_exco=is_exco)
 
 
 @uip_bp.route("/<org_slug>/getting-started")

@@ -455,7 +455,20 @@ def verify_committee(org_slug):
                     db.session.add(new_sec)
                     
                     # AUTO-GENERATE THE 4 FOUNDATIONAL RESOLUTIONS
-                    from app.models.uip import UipResolution
+                    from app.models.uip import UipResolution, UipCommitteeMeeting
+                    from datetime import datetime
+                    meeting = UipCommitteeMeeting.query.filter_by(organization_id=org.id, meeting_type="FOUNDING").first()
+                    if not meeting:
+                        meeting = UipCommitteeMeeting(
+                            organization_id=org.id,
+                            title="Precinct Founding Meeting",
+                            meeting_type="FOUNDING",
+                            scheduled_at=datetime.utcnow(),
+                            status="CONCLUDED"
+                        )
+                        db.session.add(meeting)
+                        db.session.flush()
+
                     foundational_resolutions = [
                         {"title": "Founding Declaration", "desc": "Formal establishment of the Precinct and adoption of the constitution."},
                         {"title": "Access Bundle", "desc": "Batched approval of initial verified members and ratepayers."},
@@ -465,6 +478,7 @@ def verify_committee(org_slug):
                     for res_data in foundational_resolutions:
                         new_res = UipResolution(
                             organization_id=org.id,
+                            meeting_id=meeting.id,
                             title=res_data["title"],
                             description=res_data["desc"],
                             status="PROPOSED",
@@ -1438,6 +1452,20 @@ def dev_upgrade_db(org_slug):
         org = CoreOrganization.query.filter_by(slug=org_slug).first()
         if org:
             if UipResolution.query.filter_by(organization_id=org.id).count() == 0:
+                from datetime import datetime
+                from app.models.uip import UipCommitteeMeeting
+                meeting = UipCommitteeMeeting.query.filter_by(organization_id=org.id, meeting_type="FOUNDING").first()
+                if not meeting:
+                    meeting = UipCommitteeMeeting(
+                        organization_id=org.id,
+                        title="Precinct Founding Meeting",
+                        meeting_type="FOUNDING",
+                        scheduled_at=datetime.utcnow(),
+                        status="CONCLUDED"
+                    )
+                    db.session.add(meeting)
+                    db.session.flush()
+
                 foundational_resolutions = [
                     {"title": "Founding Declaration", "desc": "Formal establishment of the Precinct and adoption of the constitution."},
                     {"title": "Access Bundle", "desc": "Batched approval of initial verified members and ratepayers."},
@@ -1447,6 +1475,7 @@ def dev_upgrade_db(org_slug):
                 for res_data in foundational_resolutions:
                     new_res = UipResolution(
                         organization_id=org.id,
+                        meeting_id=meeting.id,
                         title=res_data["title"],
                         description=res_data["desc"],
                         status="PROPOSED",

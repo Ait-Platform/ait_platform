@@ -1,4 +1,4 @@
-{% extends "program_uip/base.html" %}
+html = """{% extends "program_uip/base.html" %}
 {% block title %}{{ org.name }} - Committee Dashboard{% endblock %}
 
 {% block content %}
@@ -166,4 +166,8 @@
     </div>
 
 </div>
-{% endblock %}
+{% endblock %}"""
+
+with open("templates/program_uip/dashboards/committee.html", "w", encoding="utf-8") as f:
+    f.write(html)
+print("Updated committee.html with activation health widget")

@@ -1,12 +1,11 @@
-﻿import re
+with open("app/program_uip/secretary_routes.py", "r", encoding="utf-8") as f:
+    text = f.read()
 
-with open('app/program_mechanic/routes.py', 'r', encoding='utf-8') as f:
-    content = f.read()
+# Fix the founding additions
+text = text.replace("                additions += f\"- {claim.creator.name} ({claim.creator.email}) as {role_name}\n\"", "                additions += f\"- {claim.creator.name} ({claim.creator.email}) as {role_name}\\n\"")
 
-# Fix the body syntax error
-content = content.replace(
-    'body = f"Hello,\\n\\nYour {doc_type} #{job_card.job_number} is ready. We have attached a PDF copy for your records.\\n\\nThank you for choosing us!"',
-    'body = f"""Hello,\\n\\nYour {doc_type} #{job_card.job_number} is ready. We have attached a PDF copy for your records.\\n\\nThank you for choosing us!"""'
-)
+# Fix the new res description
+text = text.replace("        res.description += f\"\n- {claim.creator.name}: {role_name}\"", "        res.description += f\"\\n- {claim.creator.name}: {role_name}\"")
 
-# Wait, if it already broke into multiple lines, replacing the original string won't work!
+with open("app/program_uip/secretary_routes.py", "w", encoding="utf-8") as f:
+    f.write(text)

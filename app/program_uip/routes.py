@@ -402,14 +402,20 @@ def verify_committee(org_slug):
         ).first()
         
         if existing_claim and request.method == "POST":
-            flash("You already have a pending request. If you made a mistake, please click the 'Unsure / Other' tile.", "warning")
-            return redirect(url_for("uip_bp.router_page", org_slug=org.slug))
+            # EXCEPT FOR GENESIS SECRETARY
+            position = request.form.get("position", "").strip().lower()
+            if position == "secretary":
+                # Let it proceed below to the Genesis logic. We will let the Genesis flow handle it.
+                pass
+            else:
+                flash("You already have a pending request. If you made a mistake, please click the 'Unsure / Other' tile.", "warning")
+                return redirect(url_for("uip_bp.router_page", org_slug=org.slug))
 
         if request.method == "GET":
             # For Subcommittees (or general GETs)
             return render_template("program_uip/claim_committee.html", org=org)
             
-        if request.method == "POST" and not existing_claim:
+        if request.method == "POST":
             level = request.form.get("level", "Unknown Level")
             position = request.form.get("position", "Committee Member").strip()
             portfolio = request.form.get("portfolio", "").strip()
@@ -426,10 +432,22 @@ def verify_committee(org_slug):
                 
                 # GENESIS SECRETARY LOGIC
                 if position.lower() == "secretary" and not occupied:
+                    # Auto-create a Genesis term if none exists to prevent IntegrityError
+                    if not term:
+                        from datetime import datetime
+                        term = UipCommitteeTerm(
+                            organization_id=org.id,
+                            name="Genesis Term",
+                            start_date=datetime.utcnow().date(),
+                            status="ACTIVE"
+                        )
+                        db.session.add(term)
+                        db.session.flush()
+
                     new_sec = UipCommitteeMember(
                         organization_id=org.id,
                         user_id=current_user.id,
-                        term_id=term.id if term else None,
+                        term_id=term.id,
                         name=current_user.name,
                         email=current_user.email,
                         level=level,

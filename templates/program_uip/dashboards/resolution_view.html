@@ -7,6 +7,7 @@
     <div class="mb-6 flex justify-between items-center">
         <div>
             <a href="{{ url_for('uip_bp.dashboard', org_slug=org.slug) }}" class="text-indigo-600 font-bold text-sm mb-2 inline-block">&larr; Back to Dashboard</a>
+            <div class="text-xs font-black text-indigo-600 mb-1 tracking-widest uppercase">{{ resolution.reference }}</div>
             <h1 class="text-3xl font-extrabold text-slate-900 flex items-center">
                 <i class="fas fa-file-signature text-indigo-700 mr-3"></i> {{ resolution.title }}
             </h1>

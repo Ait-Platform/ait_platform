@@ -87,9 +87,6 @@
                         {% elif res.status == 'REJECTED' %}
                             <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-red-100 text-red-800">Rejected</span>
                         {% else %}
-                          {% elif res.status == 'DRAFT' %}
-                              <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-amber-100 text-amber-800">Draft</span>
-                          {% else %}
                               <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-slate-100 text-slate-800">{{ res.status }}</span>
                         {% endif %}
                     </td>

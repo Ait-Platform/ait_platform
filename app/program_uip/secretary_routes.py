@@ -105,6 +105,8 @@ def finalize_access_resolution(org_slug):
     
     claim_ids = request.form.getlist("claim_ids[]")
     target = request.form.get("resolution_target", "new")
+    term_start = request.form.get("term_start_date", "")
+    term_duration = request.form.get("term_duration_months", "12")
     
     claims = CoreInteraction.query.filter(
         CoreInteraction.organization_id == org.id,
@@ -123,7 +125,7 @@ def finalize_access_resolution(org_slug):
         # Find the founding resolution
         founding_res = UipResolution.query.filter_by(organization_id=org.id).filter(UipResolution.title.ilike("%Founding%")).first()
         if founding_res:
-            additions = "\n\n-- Added via Inaugural Roster --\n"
+            additions = f"\n\n-- Added via Inaugural Roster (Term: {term_start} for {term_duration} months) --\n"
             for claim in claims:
                 role_name = claim.interaction_type.replace('_claim', '').title()
                 additions += f"- {claim.creator.name} ({claim.creator.email}) as {role_name}\n"
@@ -181,7 +183,7 @@ def finalize_access_resolution(org_slug):
     )
     for claim in claims:
         role_name = claim.interaction_type.replace('_claim', '').title()
-        res.description += f"\n- {claim.creator.name}: {role_name}"
+        res.description += f"\n- {claim.creator.name}: {role_name} (Term: {term_start} for {term_duration} months)"
         
     db.session.add(res)
     audit.record(org.id, current_user.id, "secretary.resolution_drafted", None)

@@ -1,39 +1,28 @@
 import re
-with open("app/program_uip/routes.py", "r", encoding="utf-8") as f:
+with open("templates/program_uip/dashboards/process_claims.html", "r", encoding="utf-8") as f:
     text = f.read()
 
-old_logic = """                # GENESIS SECRETARY LOGIC
-                if position.lower() == "secretary" and not occupied:
-                    new_sec = UipCommitteeMember(
-                        organization_id=org.id,
-                        user_id=current_user.id,
-                        term_id=term.id if term else None,
-                        name=current_user.name,
-                        email=current_user.email,"""
+# I will add the term fields into the form, right after the "Resolution Target" block.
+term_fields = """
+    <!-- Term of Office -->
+    <div class="ui-form-section mb-8 mt-6">
+        <h2 class="text-lg font-bold text-slate-900 mb-4"><i class="fas fa-calendar-alt text-indigo-500 mr-2"></i> Term of Office</h2>
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-bold text-slate-700 mb-1">Commencement Date</label>
+                <input type="date" name="term_start_date" class="ui-input w-full" value="{{ datetime.now().strftime('%Y-%m-%d') }}" required>
+            </div>
+            <div>
+                <label class="block text-sm font-bold text-slate-700 mb-1">Duration (Months)</label>
+                <input type="number" name="term_duration_months" class="ui-input w-full" value="12" min="1" max="60" required>
+            </div>
+        </div>
+        <p class="text-xs text-slate-500 mt-2">This sets the official term limit for the members included in this resolution.</p>
+    </div>
+"""
 
-new_logic = """                # GENESIS SECRETARY LOGIC
-                if position.lower() == "secretary" and not occupied:
-                    # Auto-create a Genesis term if none exists to prevent IntegrityError
-                    if not term:
-                        from datetime import datetime
-                        term = UipCommitteeTerm(
-                            organization_id=org.id,
-                            name="Genesis Term",
-                            start_date=datetime.utcnow().date(),
-                            status="ACTIVE"
-                        )
-                        db.session.add(term)
-                        db.session.flush()
+# Insert it before <!-- 2. Role Assignments Included -->
+text = text.replace("    <!-- 2. Role Assignments Included -->", term_fields + "\n    <!-- 2. Role Assignments Included -->")
 
-                    new_sec = UipCommitteeMember(
-                        organization_id=org.id,
-                        user_id=current_user.id,
-                        term_id=term.id,
-                        name=current_user.name,
-                        email=current_user.email,"""
-
-text = text.replace(old_logic, new_logic)
-
-with open("app/program_uip/routes.py", "w", encoding="utf-8") as f:
+with open("templates/program_uip/dashboards/process_claims.html", "w", encoding="utf-8") as f:
     f.write(text)
-print("Updated Genesis Term logic")

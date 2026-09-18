@@ -36,6 +36,9 @@ def committee_dashboard(org_slug):
     if not current_appointment and not is_manager:
         abort(403)
         
+    if current_appointment and current_appointment.position.lower() == "secretary":
+        return redirect(url_for("uip_bp.secretary_workspace", org_slug=org.slug))
+        
     current_term = None
     try:
         current_term = UipCommitteeTerm.query.filter_by(organization_id=org.id).order_by(UipCommitteeTerm.created_at.desc()).first()

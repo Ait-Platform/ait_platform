@@ -20,7 +20,7 @@ def _require_secretary():
         func.lower(UipCommitteeMember.email) == func.lower(current_user.email)
     ).first()
     
-    if not current_appointment or current_appointment.position != "Secretary":
+    if not current_appointment or not current_appointment.position or current_appointment.position.strip().lower() != "secretary":
         abort(403, description="Access restricted to the active Secretary.")
     return current_appointment
 

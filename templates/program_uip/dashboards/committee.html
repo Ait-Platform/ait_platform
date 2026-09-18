@@ -20,35 +20,8 @@
     </div>
 </header>
 
-<div class="flex flex-col md:flex-row gap-8 mb-16">
-    <!-- SECRETARY SIDEBAR -->
-    <div class="w-full md:w-1/4">
-        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 px-2">Administration</h3>
-        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden mb-6">
-            <a href="#" class="block p-4 border-b border-slate-100 hover:bg-slate-50 transition text-sm font-bold text-slate-700 flex items-center">
-                <i class="fas fa-file-signature w-6 text-indigo-500"></i> Resolution Register
-            </a>
-            <a href="{{ url_for('uip_bp.secretary_workspace', org_slug=org.slug) }}" class="block p-4 border-b border-slate-100 hover:bg-slate-50 transition text-sm font-bold text-slate-700 flex items-center">
-                <i class="fas fa-inbox w-6 text-amber-500"></i> Intake Desk
-            </a>
-            <a href="#" class="block p-4 border-b border-slate-100 hover:bg-slate-50 transition text-sm font-bold text-slate-700 flex items-center">
-                <i class="fas fa-users w-6 text-emerald-500"></i> Members Register
-            </a>
-            <a href="#" class="block p-4 border-b border-slate-100 hover:bg-slate-50 transition text-sm font-bold text-slate-700 flex items-center">
-                <i class="fas fa-user-tag w-6 text-rose-500"></i> Role Assignment
-            </a>
-        </div>
-        
-        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 px-2">Personal</h3>
-        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-            <a href="{{ url_for('uip_bp.dashboard', org_slug=org.slug, as_ratepayer=1) }}" class="block p-4 hover:bg-slate-50 transition text-sm font-bold text-slate-700 flex items-center">
-                <i class="fas fa-home w-6 text-slate-500"></i> My Ratepayer Portal
-            </a>
-        </div>
-    </div>
-
-    <!-- MAIN DASHBOARD -->
-    <div class="w-full md:w-3/4">
+<!-- MAIN DASHBOARD -->
+    <div class="w-full mb-16">
         
         <!-- ACTION REQUIRED: PENDING RESOLUTIONS -->
         <div class="mb-10">
@@ -152,6 +125,5 @@
         </div>
 
     </div>
-</div>
 
 {% endblock %}

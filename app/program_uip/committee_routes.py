@@ -580,7 +580,6 @@ def comment_resolution(org_slug, res_id):
 @login_required
 def draft_resolution(org_slug):
     org = g.organization
-    _require_role("secretary") # Assuming secretary is required, but let's use the DB check
     
     # Check if Secretary
     sec_check = UipCommitteeMember.query.filter(

@@ -40,3 +40,28 @@
 .ui-topbar .ui-btn{display:inline-flex;padding:6px 9px;border:1px solid var(--control-border);border-radius:7px;background:#e8edf6;color:#293b58;font-size:13px;line-height:1.4}.ui-topbar .ui-btn:hover{background:#dce4f0}.ui-topbar{gap:10px;min-height:67px;height:auto;padding-top:12px;padding-bottom:12px}.ui-topbar>span{min-width:0;overflow-wrap:anywhere}.ui-topbar .ui-actions{flex-shrink:0}@media(max-width:540px){.ui-topbar{align-items:flex-start;flex-wrap:wrap}}
 
 .ui-sidebar-account{margin-top:auto;padding-top:16px}.ui-sidebar-account .ui-btn{display:flex;justify-content:center;padding:8px 12px;border:1px solid var(--control-border);border-radius:7px;background:#e8edf6;color:#293b58;font-size:13px;font-weight:650}.ui-sidebar-account .ui-btn:hover{background:#dce4f0;border-color:#617598}.ui-sidebar-account+.ui-platform{margin-top:0}
+
+/* Distinct Navigation Header Colors */
+details.ui-nav-purple>summary { color: #5b21b6; }
+details.ui-nav-purple>summary:hover, details.ui-nav-purple[open]>summary { background: #ede9fe; }
+
+details.ui-nav-emerald>summary { color: #065f46; }
+details.ui-nav-emerald>summary:hover, details.ui-nav-emerald[open]>summary { background: #d1fae5; }
+
+details.ui-nav-amber>summary { color: #92400e; }
+details.ui-nav-amber>summary:hover, details.ui-nav-amber[open]>summary { background: #fef3c7; }
+
+details.ui-nav-rose>summary { color: #9f1239; }
+details.ui-nav-rose>summary:hover, details.ui-nav-rose[open]>summary { background: #ffe4e6; }
+
+details.ui-nav-blue>summary { color: #1e40af; }
+details.ui-nav-blue>summary:hover, details.ui-nav-blue[open]>summary { background: #dbeafe; }
+
+details.ui-nav-teal>summary { color: #115e59; }
+details.ui-nav-teal>summary:hover, details.ui-nav-teal[open]>summary { background: #ccfbf1; }
+
+details.ui-nav-fuchsia>summary { color: #86198f; }
+details.ui-nav-fuchsia>summary:hover, details.ui-nav-fuchsia[open]>summary { background: #fae8ff; }
+
+details.ui-nav-slate>summary { color: #334155; }
+details.ui-nav-slate>summary:hover, details.ui-nav-slate[open]>summary { background: #f1f5f9; }

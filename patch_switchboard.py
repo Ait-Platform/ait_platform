@@ -1,4 +1,4 @@
-{% extends "program_uip/base.html" %}
+html = """{% extends "program_uip/base.html" %}
 {% block title %}Command Switchboard - {{ org.name }}{% endblock %}
 
 {% block content %}
@@ -51,7 +51,7 @@
         </a>
 
         <!-- Tile 2: Resolutions -->
-        <a href="{{ url_for('uip_bp.committee_dashboard', org_slug=org.slug, view='register') }}" class="group block relative overflow-hidden rounded-2xl border transition-all duration-300 {% if switch_res == 'red' %}bg-red-50 border-red-200 shadow-[0_0_15px_rgba(239,68,68,0.2)]{% elif switch_res == 'amber' %}bg-amber-50 border-amber-200 shadow-[0_0_15px_rgba(245,158,11,0.2)]{% else %}bg-indigo-50 border-indigo-100 hover:border-indigo-300 hover:shadow-md{% endif %}">
+        <a href="{{ url_for('uip_bp.committee_dashboard', org_slug=org.slug) }}" class="group block relative overflow-hidden rounded-2xl border transition-all duration-300 {% if switch_res == 'red' %}bg-red-50 border-red-200 shadow-[0_0_15px_rgba(239,68,68,0.2)]{% elif switch_res == 'amber' %}bg-amber-50 border-amber-200 shadow-[0_0_15px_rgba(245,158,11,0.2)]{% else %}bg-indigo-50 border-indigo-100 hover:border-indigo-300 hover:shadow-md{% endif %}">
             <div class="p-6">
                 <div class="flex justify-between items-start mb-6">
                     <div class="w-12 h-12 rounded-full flex items-center justify-center text-xl {% if switch_res == 'red' %}bg-red-100 text-red-600{% elif switch_res == 'amber' %}bg-amber-100 text-amber-600{% else %}bg-indigo-100 text-indigo-500{% endif %}">
@@ -210,4 +210,8 @@
 
     </div>
 </div>
-{% endblock %}
+{% endblock %}"""
+
+with open("templates/program_uip/dashboards/secretary_workspace.html", "w", encoding="utf-8") as f:
+    f.write(html)
+print("Updated switchboard HTML")

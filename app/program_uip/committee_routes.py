@@ -37,7 +37,9 @@ def committee_dashboard(org_slug):
         abort(403)
         
     if current_appointment and current_appointment.position.lower() == "secretary":
-        return redirect(url_for("uip_bp.secretary_workspace", org_slug=org.slug))
+        # Allow them to view the register if they explicitly clicked the tile
+        if request.args.get("view") != "register":
+            return redirect(url_for("uip_bp.secretary_workspace", org_slug=org.slug))
         
     current_term = None
     try:

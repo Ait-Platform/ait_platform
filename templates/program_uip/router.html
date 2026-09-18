@@ -23,8 +23,8 @@
                 <form method="POST" action="{{ url_for('uip_bp.verify_committee', org_slug=org.slug) }}" class="block">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                     <input type="hidden" name="level" value="Executive Committee"/>
-                    <input type="hidden" name="position" value="Chairman"/>
-                    {% if 'chairman' in occupied_seats %}
+                    <input type="hidden" name="position" value="Chairperson"/>
+                    {% if 'chairperson' in occupied_seats %}
                     <button disabled class="w-full p-4 text-left rounded-xl border border-slate-200 bg-slate-100 text-slate-400 font-bold text-lg cursor-not-allowed flex items-center justify-between opacity-75">
                         <span class="flex items-center"><i class="fas fa-crown text-2xl w-10 text-slate-400 mr-3 text-center"></i> Chairman</span>
                         <span class="text-xs uppercase tracking-widest font-bold">Occupied</span>
@@ -41,8 +41,8 @@
                 <form method="POST" action="{{ url_for('uip_bp.verify_committee', org_slug=org.slug) }}" class="block">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                     <input type="hidden" name="level" value="Executive Committee"/>
-                    <input type="hidden" name="position" value="Vice Chairman"/>
-                    {% if 'vice chairman' in occupied_seats or 'vice chair' in occupied_seats %}
+                    <input type="hidden" name="position" value="Vice-Chairperson"/>
+                    {% if 'vice-chairperson' in occupied_seats %}
                     <button disabled class="w-full p-4 text-left rounded-xl border border-slate-200 bg-slate-100 text-slate-400 font-bold text-lg cursor-not-allowed flex items-center justify-between opacity-75">
                         <span class="flex items-center"><i class="fas fa-user-tie text-2xl w-10 text-slate-400 mr-3 text-center"></i> Vice Chair</span>
                         <span class="text-xs uppercase tracking-widest font-bold">Occupied</span>

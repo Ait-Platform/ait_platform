@@ -276,7 +276,7 @@ def router_page(org_slug):
     occupied = UipCommitteeMember.query.filter(
         UipCommitteeMember.organization_id == org.id,
         UipCommitteeMember.status == "CURRENT",
-        func.lower(UipCommitteeMember.position).in_(["chairman", "vice chairman", "secretary", "treasurer"])
+        func.lower(UipCommitteeMember.position).in_(["chairperson", "vice-chairperson", "secretary", "treasurer"])
     ).all()
     
     occupied_seats = [m.position.lower() for m in occupied]
@@ -422,7 +422,7 @@ def verify_committee(org_slug):
             
             # Rule 2: Seat Occupied Fallback
             # Only check for specific singular roles
-            singular_roles = ["chairman", "vice chairman", "secretary", "treasurer"]
+            singular_roles = ["chairperson", "vice-chairperson", "secretary", "treasurer"]
             if position.lower() in singular_roles:
                 occupied = UipCommitteeMember.query.filter(
                     UipCommitteeMember.organization_id == org.id,
@@ -445,13 +445,12 @@ def verify_committee(org_slug):
 
                     new_sec = UipCommitteeMember(
                         organization_id=org.id,
-                        user_id=current_user.id,
                         term_id=term.id,
                         name=current_user.name,
                         email=current_user.email,
-                        level=level,
-                        position=position,
-                        status="CURRENT"
+                        position="Secretary",  # Hardcode to match DB constraint exactly
+                        status="CURRENT",
+                        created_by=current_user.id
                     )
                     db.session.add(new_sec)
                     

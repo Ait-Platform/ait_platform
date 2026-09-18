@@ -360,7 +360,13 @@ def view_resolution(org_slug, res_id):
     scope = getattr(res, 'voting_scope', 'EXCO')
     
     total_eligible = 0
-    if scope == 'EXCO':
+    if scope == 'EXCO_CORE':
+        total_eligible = UipCommitteeMember.query.filter(
+            UipCommitteeMember.organization_id == org.id, 
+            UipCommitteeMember.status == "CURRENT",
+            UipCommitteeMember.position.in_(["Chairperson", "Vice-Chairperson", "Secretary", "Treasurer"])
+        ).count()
+    elif scope in ['EXCO', 'COMMITTEE_ALL']:
         total_eligible = UipCommitteeMember.query.filter_by(organization_id=org.id, status="CURRENT").count()
     else:
         from app.models.core import CoreOrganizationMember
@@ -409,8 +415,8 @@ def decide_resolution(org_slug, res_id):
         func.lower(UipCommitteeMember.email) == func.lower(current_user.email)
     ).first()
     
-    if not current_appointment or current_appointment.position.lower() not in ["chairman", "chairperson", "chair", "vice chair", "vice chairman"]:
-        flash("Only the Chairman or Vice Chairman has the authority to lock down and finalize resolutions.", "danger")
+    if not current_appointment or current_appointment.position.lower() not in ["chairman", "chairperson", "chair", "vice chair", "vice chairman", "secretary"]:
+        flash("Only the Chairman, Vice Chairman, or Secretary has the authority to lock down and finalize resolutions.", "danger")
         return redirect(url_for("uip_bp.view_resolution", org_slug=org.slug, res_id=res.id))
         
     decision = request.form.get("decision")
@@ -533,12 +539,16 @@ def vote_resolution(org_slug, res_id):
     scope = getattr(res, 'voting_scope', 'EXCO')
     
     # Verify Eligibility
-    if scope == 'EXCO':
-        appointment = UipCommitteeMember.query.filter(
-            UipCommitteeMember.organization_id == org.id,
-            UipCommitteeMember.status == "CURRENT",
-            func.lower(UipCommitteeMember.email) == func.lower(current_user.email)
-        ).first()
+    appointment = UipCommitteeMember.query.filter(
+        UipCommitteeMember.organization_id == org.id,
+        UipCommitteeMember.status == "CURRENT",
+        func.lower(UipCommitteeMember.email) == func.lower(current_user.email)
+    ).first()
+    
+    if scope == 'EXCO_CORE':
+        if not appointment or appointment.position not in ["Chairperson", "Vice-Chairperson", "Secretary", "Treasurer"]:
+            abort(403)
+    elif scope in ['EXCO', 'COMMITTEE_ALL']:
         if not appointment:
             abort(403)
             

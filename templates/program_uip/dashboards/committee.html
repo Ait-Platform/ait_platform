@@ -80,7 +80,9 @@
                         {% if res.status == 'ADOPTED' %}
                             <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-800">Adopted</span>
                         {% elif res.status == 'PROPOSED' %}
-                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-amber-100 text-amber-800">Proposed</span>
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-indigo-100 text-indigo-800">Proposed</span>
+                        {% elif res.status == 'DRAFT' %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-amber-100 text-amber-800">Draft</span>
                         {% elif res.status == 'REJECTED' %}
                             <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-red-100 text-red-800">Rejected</span>
                         {% else %}

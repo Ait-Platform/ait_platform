@@ -142,7 +142,7 @@ def finalize_access_resolution(org_slug):
                     org_mem.is_active = True
                     
                 # Grant the appropriate role
-                role_slug = "committee_member" if "committee" in claim.interaction_type else "mo" if "mo" in claim.interaction_type else "ratepayer"
+                role_slug = "committee_member" if claim.interaction_type in ["committee_claim", "secretary_claim", "chairman_claim", "treasurer_claim"] else "mo" if "mo" in claim.interaction_type else "ratepayer"
                 role_obj = CoreRole.query.filter_by(slug=role_slug).first()
                 if role_obj:
                     # check if they have it
@@ -150,14 +150,15 @@ def finalize_access_resolution(org_slug):
                     if not existing_role:
                         db.session.add(CoreRoleAssignment(organization_id=org.id, user_id=claim.creator.id, role_id=role_obj.id))
 
-                if 'committee' in claim.interaction_type:
+                if claim.interaction_type in ['committee_claim', 'secretary_claim']:
                     from app.models.uip_governance import UipCommitteeMember
+                    pos = "Secretary" if claim.interaction_type == "secretary_claim" else "Unassigned"
                     mem = UipCommitteeMember(
                         organization_id=org.id,
                         user_id=claim.creator.id,
                         name=claim.creator.name,
                         email=claim.creator.email,
-                        position="Unassigned",
+                        position=pos,
                         status="CURRENT"
                     )
                     db.session.add(mem)

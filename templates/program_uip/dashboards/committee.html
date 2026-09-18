@@ -1,10 +1,10 @@
 ﻿{% extends "program_uip/base.html" %}
-{% block title %}Committee Dashboard - {{ org.name }}{% endblock %}
+{% block title %}Secretary Dashboard - {{ org.name }}{% endblock %}
 
 {% block content %}
 <header class="ui-page-head flex justify-between items-start mb-8 border-b border-slate-200 pb-6">
     <div>
-        <h1 class="text-3xl font-extrabold text-slate-900 mt-1">Committee Dashboard</h1>
+        <h1 class="text-3xl font-extrabold text-slate-900 mt-1">Secretary Dashboard</h1>
         
         <div class="mt-4">
             <h2 class="text-lg text-slate-800">Welcome, <strong>{{ current_user.name }}</strong></h2>
@@ -13,155 +13,144 @@
                 {% if current_appointment %}
                     Elected Committee Member &middot; {{ current_appointment.position }}
                 {% else %}
-                    Committee / Manager Access
+                    Secretary Access
                 {% endif %}
             </p>
         </div>
     </div>
 </header>
 
-{% include 'partials/flash_messages.html' %}
-
-<!-- GOVERNANCE OVERVIEW: 4 SEPARATE COLORED TILES -->
-<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
-    
-    <!-- Meetings -->
-    <a href="#" class="ui-card p-5 text-center rounded-xl shadow-sm border border-indigo-100 transition-transform hover:-translate-y-1 block" style="background-color: #eef2ff; text-decoration: none;">
-        <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center mx-auto mb-3 shadow-sm">
-            <i class="fas fa-calendar-alt text-lg"></i>
+<div class="flex flex-col md:flex-row gap-8 mb-16">
+    <!-- SECRETARY SIDEBAR -->
+    <div class="w-full md:w-1/4">
+        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 px-2">Administration</h3>
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden mb-6">
+            <a href="#" class="block p-4 border-b border-slate-100 hover:bg-slate-50 transition text-sm font-bold text-slate-700 flex items-center">
+                <i class="fas fa-file-signature w-6 text-indigo-500"></i> Resolution Register
+            </a>
+            <a href="{{ url_for('uip_bp.secretary_workspace', org_slug=org.slug) }}" class="block p-4 border-b border-slate-100 hover:bg-slate-50 transition text-sm font-bold text-slate-700 flex items-center">
+                <i class="fas fa-inbox w-6 text-amber-500"></i> Intake Desk
+            </a>
+            <a href="#" class="block p-4 border-b border-slate-100 hover:bg-slate-50 transition text-sm font-bold text-slate-700 flex items-center">
+                <i class="fas fa-users w-6 text-emerald-500"></i> Members Register
+            </a>
+            <a href="#" class="block p-4 border-b border-slate-100 hover:bg-slate-50 transition text-sm font-bold text-slate-700 flex items-center">
+                <i class="fas fa-user-tag w-6 text-rose-500"></i> Role Assignment
+            </a>
         </div>
-        <h3 class="font-bold text-slate-900 mb-1">Meetings</h3>
-        <p class="text-sm text-slate-600">Upcoming: <strong class="text-indigo-700">{{ upcoming_meetings_count }}</strong></p>
-    </a>
-    
-    <!-- Resolutions -->
-    <a href="#" class="ui-card p-5 text-center rounded-xl shadow-sm border border-amber-100 transition-transform hover:-translate-y-1 block" style="background-color: #fffbeb; text-decoration: none;">
-        <div class="w-10 h-10 bg-amber-500 text-white rounded-full flex items-center justify-center mx-auto mb-3 shadow-sm">
-            <i class="fas fa-file-signature text-lg"></i>
+        
+        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 px-2">Personal</h3>
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <a href="{{ url_for('uip_bp.dashboard', org_slug=org.slug, as_ratepayer=1) }}" class="block p-4 hover:bg-slate-50 transition text-sm font-bold text-slate-700 flex items-center">
+                <i class="fas fa-home w-6 text-slate-500"></i> My Ratepayer Portal
+            </a>
         </div>
-        <h3 class="font-bold text-slate-900 mb-1">Resolutions</h3>
-        <p class="text-sm text-slate-600">Pending: <strong class="text-amber-700">{{ pending_resolutions_count }}</strong></p>
-    </a>
-    
-    <!-- Committee -->
-    <a href="#" class="ui-card p-5 text-center rounded-xl shadow-sm border border-emerald-100 transition-transform hover:-translate-y-1 block" style="background-color: #ecfdf5; text-decoration: none;">
-        <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center mx-auto mb-3 shadow-sm">
-            <i class="fas fa-users text-lg"></i>
-        </div>
-        <h3 class="font-bold text-slate-900 mb-1">Committee</h3>
-        <p class="text-sm text-slate-600">Members: <strong class="text-emerald-700">{{ committee_members_count }}</strong></p>
-    </a>
-    
-    <!-- Documents -->
-    <a href="{{ url_for('uip_bp.documents_page', org_slug=org.slug) }}" class="ui-card p-5 text-center rounded-xl shadow-sm border border-slate-200 transition-transform hover:-translate-y-1 block" style="background-color: #f8fafc; text-decoration: none;">
-        <div class="w-10 h-10 bg-slate-600 text-white rounded-full flex items-center justify-center mx-auto mb-3 shadow-sm">
-            <i class="fas fa-folder-open text-lg"></i>
-        </div>
-        <h3 class="font-bold text-slate-900 mb-1">Documents</h3>
-        <p class="text-sm text-slate-600 font-medium">View files &rarr;</p>
-    </a>
-    
-</div>
-
-<!-- RESOLUTIONS REGISTER -->
-<div class="mb-10">
-    <div class="mb-4 flex justify-between items-end border-b border-slate-200 pb-2">
-        <h2 class="text-sm font-bold text-slate-500 uppercase tracking-widest"><i class="fas fa-file-signature mr-2 text-indigo-500"></i> Resolutions Register</h2>
     </div>
-    <div class="ui-card bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden">
-        <table class="w-full text-left border-collapse text-sm">
-            <thead class="bg-slate-50 text-slate-500 border-b border-slate-200 uppercase tracking-wider text-xs">
-                <tr>
-                    <th class="py-3 px-6 font-semibold">Resolution</th>
-                    <th class="py-3 px-6 font-semibold">Status</th>
-                    <th class="py-3 px-6 font-semibold text-right">Action</th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-100 text-slate-700">
-                {% for res in all_resolutions %}
-                <tr class="hover:bg-slate-50 transition">
-                    <td class="py-3 px-6">
-                        <div class="font-medium text-slate-900">{{ res.title }}</div>
-                        <div class="text-xs text-slate-500 mt-1">{{ res.description }}</div>
-                    </td>
-                    <td class="py-3 px-6">
-                        {% if res.status == 'ADOPTED' %}
-                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-800">Adopted</span>
-                        {% elif res.status == 'PROPOSED' %}
-                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-amber-100 text-amber-800">Proposed</span>
-                        {% elif res.status == 'REJECTED' %}
-                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-red-100 text-red-800">Rejected</span>
-                        {% else %}
-                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-slate-100 text-slate-800">{{ res.status }}</span>
+
+    <!-- MAIN DASHBOARD -->
+    <div class="w-full md:w-3/4">
+        
+        <!-- ACTION REQUIRED: PENDING RESOLUTIONS -->
+        <div class="mb-10">
+            <div class="mb-4 flex justify-between items-end border-b border-slate-200 pb-2">
+                <h2 class="text-sm font-bold text-slate-500 uppercase tracking-widest flex items-center">
+                    <i class="fas fa-exclamation-circle mr-2 text-rose-500"></i> Pending Resolutions
+                </h2>
+            </div>
+            
+            <div class="ui-card bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden">
+                <table class="w-full text-left border-collapse text-sm">
+                    <thead class="bg-slate-50 text-slate-500 border-b border-slate-200 uppercase tracking-wider text-xs">
+                        <tr>
+                            <th class="py-3 px-6 font-semibold">Resolution</th>
+                            <th class="py-3 px-6 font-semibold">Status</th>
+                            <th class="py-3 px-6 font-semibold text-right">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 text-slate-700">
+                        {% set pending_list = all_resolutions | selectattr('status', 'equalto', 'PROPOSED') | list %}
+                        {% for res in pending_list %}
+                                <tr class="hover:bg-slate-50 transition">
+                                    <td class="py-3 px-6">
+                                        <div class="font-bold text-slate-900">{{ res.title }}</div>
+                                        <div class="text-xs text-slate-500 mt-1">{{ res.description }}</div>
+                                    </td>
+                                    <td class="py-3 px-6">
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-amber-100 text-amber-800">Pending</span>
+                                    </td>
+                                    <td class="py-3 px-6 text-right">
+                                        <a href="{{ url_for('uip_bp.view_resolution', org_slug=org.slug, res_id=res.id) }}" class="text-indigo-600 hover:text-indigo-800 font-bold uppercase tracking-wider text-xs">Review &rarr;</a>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        
+                        {% if not pending_list %}
+                        <tr>
+                            <td colspan="3" class="py-10 text-center text-slate-500">
+                                <i class="fas fa-check-circle text-4xl text-emerald-400 mb-3 opacity-50 block"></i>
+                                No pending resolutions. Everything is up to date!
+                            </td>
+                        </tr>
                         {% endif %}
-                    </td>
-                    <td class="py-3 px-6 text-right">
-                        <a href="{{ url_for('uip_bp.view_resolution', org_slug=org.slug, res_id=res.id) }}" class="text-indigo-600 hover:text-indigo-800 font-bold uppercase tracking-wider text-xs">View &rarr;</a>
-                    </td>
-                </tr>
-                {% else %}
-                <tr>
-                    <td colspan="3" class="py-10 text-center text-slate-500">
-                        No resolutions recorded yet.
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
+                    </tbody>
+                </table>
+            </div>
+        </div>
 
-<!-- WAITING TO BE VERIFIED -->
-<div class="mb-16">
-    <div class="mb-4 flex justify-between items-end border-b border-slate-200 pb-2">
-        <h2 class="text-sm font-bold text-slate-500 uppercase tracking-widest"><i class="fas fa-clock mr-2 text-amber-500"></i> Waiting to be Verified</h2>
-        <a href="{{ url_for('uip_bp.secretary_workspace', org_slug=org.slug) }}" class="text-sm text-indigo-600 font-bold hover:underline">Verification Desk &rarr;</a>
-    </div>
-    <div class="ui-card bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden">
-        <table class="w-full text-left border-collapse text-sm">
-            <thead class="bg-slate-50 text-slate-500 border-b border-slate-200 uppercase tracking-wider text-xs">
-                <tr>
-                    <th class="py-3 px-6 font-semibold">Date</th>
-                    <th class="py-3 px-6 font-semibold">User / Email</th>
-                    <th class="py-3 px-6 font-semibold">Requested Role</th>
-                    <th class="py-3 px-6 font-semibold text-right">Action</th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-100 text-slate-700">
-                {% for claim in pending_claims %}
-                <tr class="hover:bg-slate-50 transition">
-                    <td class="py-3 px-6 whitespace-nowrap text-slate-500">{{ claim.created_at.strftime('%d %b') }}</td>
-                    <td class="py-3 px-6">
-                        <div class="font-medium text-slate-900">{{ claim.creator.name or "User" }}</div>
-                        <div class="text-xs text-slate-500">{{ claim.creator.email }}</div>
-                    </td>
-                    <td class="py-3 px-6">
-                        {% if claim.interaction_type == 'secretary_claim' %}
-                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-800 text-white">Secretary</span>
-                        {% elif claim.interaction_type == 'committee_claim' %}
-                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800">Committee</span>
-                        {% elif claim.interaction_type == 'ratepayer_claim' %}
-                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 text-indigo-800">Ratepayer</span>
-                        {% elif claim.interaction_type == 'mo_claim' %}
-                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800">MO</span>
+        <!-- WAITING TO BE VERIFIED -->
+        <div>
+            <div class="mb-4 flex justify-between items-end border-b border-slate-200 pb-2">
+                <h2 class="text-sm font-bold text-slate-500 uppercase tracking-widest"><i class="fas fa-clock mr-2 text-amber-500"></i> Intake Desk / Pending Claims</h2>
+                <a href="{{ url_for('uip_bp.secretary_workspace', org_slug=org.slug) }}" class="text-xs text-indigo-600 font-bold hover:underline">View All &rarr;</a>
+            </div>
+            <div class="ui-card bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden">
+                <table class="w-full text-left border-collapse text-sm">
+                    <thead class="bg-slate-50 text-slate-500 border-b border-slate-200 uppercase tracking-wider text-xs">
+                        <tr>
+                            <th class="py-3 px-6 font-semibold">Date</th>
+                            <th class="py-3 px-6 font-semibold">User</th>
+                            <th class="py-3 px-6 font-semibold">Role Claimed</th>
+                            <th class="py-3 px-6 font-semibold text-right">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 text-slate-700">
+                        {% for claim in pending_claims %}
+                        <tr class="hover:bg-slate-50 transition">
+                            <td class="py-3 px-6 whitespace-nowrap text-slate-500">{{ claim.created_at.strftime('%d %b') }}</td>
+                            <td class="py-3 px-6">
+                                <div class="font-bold text-slate-900">{{ claim.creator.name or "User" }}</div>
+                                <div class="text-xs text-slate-500">{{ claim.creator.email }}</div>
+                            </td>
+                            <td class="py-3 px-6">
+                                {% if claim.interaction_type == 'secretary_claim' %}
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-slate-800 text-white">Secretary</span>
+                                {% elif claim.interaction_type == 'committee_claim' %}
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-amber-100 text-amber-800">Committee</span>
+                                {% elif claim.interaction_type == 'ratepayer_claim' %}
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-indigo-100 text-indigo-800">Ratepayer</span>
+                                {% elif claim.interaction_type == 'mo_claim' %}
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-800">MO</span>
+                                {% else %}
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-slate-100 text-slate-800">{{ claim.interaction_type.replace('_claim', '').title() }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="py-3 px-6 text-right">
+                                <a href="{{ url_for('uip_bp.secretary_workspace', org_slug=org.slug) }}" class="text-indigo-600 hover:text-indigo-800 font-bold uppercase tracking-wider text-xs">Review &rarr;</a>
+                            </td>
+                        </tr>
                         {% else %}
-                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-800">{{ claim.interaction_type.replace('_claim', '').title() }}</span>
-                        {% endif %}
-                    </td>
-                    <td class="py-3 px-6 text-right">
-                        <a href="{{ url_for('uip_bp.secretary_workspace', org_slug=org.slug) }}" class="text-indigo-600 hover:text-indigo-800 font-medium">Review &rarr;</a>
-                    </td>
-                </tr>
-                {% else %}
-                <tr>
-                    <td colspan="4" class="py-12 text-center text-slate-500">
-                        <i class="fas fa-check-circle text-4xl text-emerald-400 mb-3 opacity-50 block"></i>
-                        No pending verifications.
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+                        <tr>
+                            <td colspan="4" class="py-10 text-center text-slate-500">
+                                <i class="fas fa-check-circle text-4xl text-emerald-400 mb-3 opacity-50 block"></i>
+                                Intake desk is clear.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
     </div>
 </div>
 

@@ -423,6 +423,39 @@ def verify_committee(org_slug):
                     func.lower(UipCommitteeMember.position) == position.lower(),
                     UipCommitteeMember.status == "CURRENT"
                 ).first()
+                
+                # GENESIS SECRETARY LOGIC
+                if position.lower() == "secretary" and not occupied:
+                    new_sec = UipCommitteeMember(
+                        organization_id=org.id,
+                        user_id=current_user.id,
+                        term_id=term.id if term else None,
+                        name=current_user.name,
+                        email=current_user.email,
+                        level=level,
+                        position=position,
+                        status="CURRENT"
+                    )
+                    db.session.add(new_sec)
+                    
+                    # Ensure membership and role assignment
+                    from app.models.core import CoreOrganizationMember, CoreRoleAssignment, CoreRole
+                    membership = CoreOrganizationMember.query.filter_by(organization_id=org.id, user_id=current_user.id).first()
+                    if not membership:
+                        membership = CoreOrganizationMember(organization_id=org.id, user_id=current_user.id, is_active=True)
+                        db.session.add(membership)
+                        db.session.flush()
+                    
+                    role = CoreRole.query.filter_by(organization_id=org.id, slug="committee_member").first()
+                    if role:
+                        if not CoreRoleAssignment.query.filter_by(member_id=membership.id, role_id=role.id).first():
+                            assign = CoreRoleAssignment(member_id=membership.id, role_id=role.id)
+                            db.session.add(assign)
+                    
+                    db.session.commit()
+                    flash("Genesis Admin initialized. Welcome to your Secretary dashboard.", "success")
+                    return redirect(url_for("uip_bp.committee_dashboard", org_slug=org.slug))
+
                 if occupied:
                     flash(f"The position of {position} is currently occupied. Please click the 'Unsure / Other' tile and the Secretary will sort it out.", "warning")
                     return redirect(url_for("uip_bp.router_page", org_slug=org.slug))

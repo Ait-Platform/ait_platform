@@ -4,8 +4,8 @@
 {% block content %}
 <header class="ui-page-head">
     <div>
-        <p class="ui-eyebrow">Access Request</p>
-        <h1>Welcome to {{ org.name }}</h1>
+        <p class="ui-eyebrow">Official Registration</p>
+        <h1>{{ org.name }} Member Registration</h1>
         <p class="ui-subtitle">Please select your requested participant role below.</p>
     </div>
 </header>
@@ -32,7 +32,7 @@
                     {% else %}
                     <button type="submit" class="w-full p-4 text-left rounded-xl shadow-sm border border-emerald-200 transition-transform hover:-translate-y-1 bg-emerald-50 text-emerald-900 font-bold text-lg cursor-pointer flex items-center justify-between">
                         <span class="flex items-center"><i class="fas fa-crown text-2xl w-10 text-emerald-600 mr-3 text-center"></i> Chairman</span>
-                        <i class="fas fa-chevron-right text-emerald-300"></i>
+                        <span class="text-xs uppercase tracking-widest font-bold text-emerald-600 border border-emerald-300 rounded px-2 py-1 bg-white">Vacant</span>
                     </button>
                     {% endif %}
                 </form>
@@ -50,7 +50,7 @@
                     {% else %}
                     <button type="submit" class="w-full p-4 text-left rounded-xl shadow-sm border border-emerald-200 transition-transform hover:-translate-y-1 bg-emerald-50 text-emerald-900 font-bold text-lg cursor-pointer flex items-center justify-between">
                         <span class="flex items-center"><i class="fas fa-user-tie text-2xl w-10 text-emerald-600 mr-3 text-center"></i> Vice Chair</span>
-                        <i class="fas fa-chevron-right text-emerald-300"></i>
+                        <span class="text-xs uppercase tracking-widest font-bold text-emerald-600 border border-emerald-300 rounded px-2 py-1 bg-white">Vacant</span>
                     </button>
                     {% endif %}
                 </form>
@@ -68,7 +68,7 @@
                     {% else %}
                     <button type="submit" class="w-full p-4 text-left rounded-xl shadow-sm border border-emerald-200 transition-transform hover:-translate-y-1 bg-emerald-50 text-emerald-900 font-bold text-lg cursor-pointer flex items-center justify-between">
                         <span class="flex items-center"><i class="fas fa-clipboard-check text-2xl w-10 text-emerald-600 mr-3 text-center"></i> Secretary</span>
-                        <i class="fas fa-chevron-right text-emerald-300"></i>
+                        <span class="text-xs uppercase tracking-widest font-bold text-emerald-600 border border-emerald-300 rounded px-2 py-1 bg-white">Vacant</span>
                     </button>
                     {% endif %}
                 </form>
@@ -86,7 +86,7 @@
                     {% else %}
                     <button type="submit" class="w-full p-4 text-left rounded-xl shadow-sm border border-emerald-200 transition-transform hover:-translate-y-1 bg-emerald-50 text-emerald-900 font-bold text-lg cursor-pointer flex items-center justify-between">
                         <span class="flex items-center"><i class="fas fa-coins text-2xl w-10 text-emerald-600 mr-3 text-center"></i> Treasurer</span>
-                        <i class="fas fa-chevron-right text-emerald-300"></i>
+                        <span class="text-xs uppercase tracking-widest font-bold text-emerald-600 border border-emerald-300 rounded px-2 py-1 bg-white">Vacant</span>
                     </button>
                     {% endif %}
                 </form>

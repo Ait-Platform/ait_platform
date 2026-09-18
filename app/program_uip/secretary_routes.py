@@ -126,8 +126,7 @@ def finalize_access_resolution(org_slug):
             additions = "\n\n-- Added via Inaugural Roster --\n"
             for claim in claims:
                 role_name = claim.interaction_type.replace('_claim', '').title()
-                additions += f"- {claim.creator.name} ({claim.creator.email}) as {role_name}
-"
+                additions += f"- {claim.creator.name} ({claim.creator.email}) as {role_name}\n"
                 claim.status = "VERIFIED"
                 
                 from app.models.core import CoreOrganizationMember, CoreRoleAssignment, CoreRole
@@ -182,8 +181,7 @@ def finalize_access_resolution(org_slug):
     )
     for claim in claims:
         role_name = claim.interaction_type.replace('_claim', '').title()
-        res.description += f"
-- {claim.creator.name}: {role_name}"
+        res.description += f"\n- {claim.creator.name}: {role_name}"
         
     db.session.add(res)
     audit.record(org.id, current_user.id, "secretary.resolution_drafted", None)

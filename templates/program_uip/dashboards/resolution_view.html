@@ -71,6 +71,9 @@
                     <div><strong>Date:</strong> {% if resolution.created_at %}{{ resolution.created_at.strftime('%Y-%m-%d') }}{% else %}Pending Date{% endif %}</div>
                 </div>
             </div>
+            
+
+            
             </div>
         </div>
         
@@ -134,19 +137,31 @@
                 </div>
                 {% endif %}
                 
-                <form method="POST" action="{{ url_for('uip_bp.vote_resolution', org_slug=org.slug, res_id=resolution.id) }}" class="space-y-2">
+                <form method="POST" action="{{ url_for('uip_bp.vote_resolution', org_slug=org.slug, res_id=resolution.id) }}" class="flex flex-row gap-3 w-full">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                    <button type="submit" name="vote" value="YEA" class="w-full py-3 rounded-lg font-black text-white bg-emerald-600 hover:bg-emerald-700 transition shadow-sm">
+                    <button type="submit" name="vote" value="YEA" class="flex-1 py-3 rounded-lg font-black text-white bg-emerald-600 hover:bg-emerald-700 transition shadow-sm text-center">
                         YEA
                     </button>
-                    <button type="submit" name="vote" value="NAY" class="w-full py-3 rounded-lg font-black text-white bg-red-600 hover:bg-red-700 transition shadow-sm">
+                    <button type="submit" name="vote" value="NAY" class="flex-1 py-3 rounded-lg font-black text-white bg-red-600 hover:bg-red-700 transition shadow-sm text-center">
                         NAY
                     </button>
-                    <button type="submit" name="vote" value="ABSTAIN" class="w-full py-2 rounded-lg font-bold text-slate-600 bg-white border border-slate-300 hover:bg-slate-50 transition">
+                    <button type="submit" name="vote" value="ABSTAIN" class="flex-1 py-3 rounded-lg font-black text-slate-600 bg-white border border-slate-300 hover:bg-slate-50 transition shadow-sm text-center">
                         ABSTAIN
                     </button>
                 </form>
             </div>
+            
+            {% if current_appointment and current_appointment.position.lower() in ["secretary", "chairman", "vice chairman", "chair", "chairperson", "vice chair"] %}
+            <div class="bg-slate-900 rounded-xl shadow-sm p-6 text-white">
+                <h3 class="font-bold text-lg mb-2"><i class="fas fa-forward text-amber-400 mr-2"></i> Close Voting</h3>
+                <p class="text-sm text-slate-400 mb-4">Once all votes are in, move this to the live meeting for final ratification.</p>
+                <form method="POST" action="{{ url_for('uip_bp.decide_resolution', org_slug=org.slug, res_id=resolution.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <button type="submit" name="decision" value="TABLED" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-lg transition shadow">Move to Live Meeting</button>
+                </form>
+            </div>
+            {% endif %}
+            
             {% endif %}
 </div>
 {% endblock %}

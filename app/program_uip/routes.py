@@ -1379,9 +1379,15 @@ def dev_upgrade_db(org_slug):
             db.session.rollback()
             
         # New Digital Room upgrades
-        db.session.execute(text("ALTER TABLE uip_resolution ADD COLUMN voting_scope VARCHAR(20) DEFAULT 'EXCO';"))
-        db.session.execute(text("ALTER TABLE uip_resolution ADD COLUMN quorum_target INTEGER DEFAULT 50;"))
-        db.session.execute(text("ALTER TABLE uip_resolution ADD COLUMN expires_at TIMESTAMP;"))
+        for col_sql in [
+            "ALTER TABLE uip_resolution ADD COLUMN voting_scope VARCHAR(20) DEFAULT 'EXCO';",
+            "ALTER TABLE uip_resolution ADD COLUMN quorum_target INTEGER DEFAULT 50;",
+            "ALTER TABLE uip_resolution ADD COLUMN expires_at TIMESTAMP;"
+        ]:
+            try:
+                db.session.execute(text(col_sql))
+            except Exception:
+                db.session.rollback()
         
         db.session.execute(text("""
             CREATE TABLE IF NOT EXISTS uip_resolution_vote (

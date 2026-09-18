@@ -437,9 +437,8 @@ def verify_committee(org_slug):
                         from datetime import datetime
                         term = UipCommitteeTerm(
                             organization_id=org.id,
-                            name="Genesis Term",
-                            start_date=datetime.utcnow().date(),
-                            status="ACTIVE"
+                            term_name="Genesis Term",
+                            created_by=current_user.id
                         )
                         db.session.add(term)
                         db.session.flush()

@@ -65,7 +65,10 @@
     </div>
 
     <!-- 2. ESCALATION HIT LIST -->
-    {% set escalation_list = org.member_profiles|selectattr("eligibility_status", "equalto", "unverified")|selectattr("invite_wave", "equalto", 3)|list %}
+    {% set escalation_list = [] %}
+    {% for rp in org.member_profiles if rp.eligibility_status == 'unverified' and rp.campaign_status and rp.campaign_status.invite_wave == 3 %}
+        {% set _ = escalation_list.append(rp) %}
+    {% endfor %}
     {% if escalation_list %}
     <div class="mb-10 bg-amber-50 border border-amber-200 rounded-xl shadow-sm overflow-hidden">
         <div class="p-4 border-b border-amber-200 bg-amber-100/50 flex justify-between items-center">

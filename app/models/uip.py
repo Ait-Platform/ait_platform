@@ -283,9 +283,7 @@ class UipMemberProfile(db.Model):
     phone = db.Column(db.String(50))
     is_active = db.Column(db.Boolean, nullable=False, default=True)
     
-    # Onboarding Campaign Tracking
-    invite_wave = db.Column(db.Integer, nullable=False, default=0)
-    last_invite_at = db.Column(db.DateTime, nullable=True)
+
     eligibility_status = db.Column(db.String(20), nullable=False, default="unverified")
     record_source = db.Column(db.String(50), nullable=False, server_default="MANUAL")
     last_import_id = db.Column(db.Integer, db.ForeignKey("uip_register_import.id"))
@@ -487,3 +485,13 @@ class UipResolutionComment(db.Model):
     author = db.relationship("User", backref="resolution_comments")
     resolution = db.relationship("UipResolution", backref=db.backref("comments", lazy="dynamic", order_by="UipResolutionComment.timestamp.asc()"))
 
+
+class UipMemberCampaign(db.Model):
+    __tablename__ = "uip_member_campaign"
+    id = db.Column(db.Integer, primary_key=True)
+    member_profile_id = db.Column(db.Integer, db.ForeignKey("uip_member_profile.id"), nullable=False, unique=True)
+    invite_wave = db.Column(db.Integer, nullable=False, default=0)
+    last_invite_at = db.Column(db.DateTime, nullable=True)
+    
+    # Relationship
+    member_profile = db.relationship("UipMemberProfile", backref=db.backref("campaign_status", uselist=False))

@@ -8,7 +8,7 @@
         <div>
             <a href="{{ url_for('uip_bp.committee_dashboard', org_slug=org.slug) }}" class="text-indigo-600 font-bold text-sm mb-2 inline-block">&larr; Back to Dashboard</a>
             <h1 class="text-3xl font-extrabold text-slate-900 flex items-center">
-                <i class="fas fa-pen-nib text-indigo-700 mr-3"></i> Draft New Resolution
+                <i class="fas fa-pen-nib text-indigo-700 mr-3"></i> {% if resolution %}Edit Draft{% else %}Draft New Resolution{% endif %}
             </h1>
             <p class="text-slate-500 mt-2">Write the formal text of the resolution. It will be saved as a Draft and won't be visible to the committee until you publish it.</p>
         </div>
@@ -21,7 +21,7 @@
         
         <div>
             <label class="block text-sm font-bold text-slate-700 mb-2">Resolution Category / Title</label>
-            <input type="text" name="title" list="title-suggestions" required class="w-full p-4 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-lg font-bold" placeholder="Select a category or type a custom title...">
+            <input type="text" name="title" list="title-suggestions" required value="{{ resolution.title if resolution else '' }}" class="w-full p-4 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-lg font-bold" placeholder="Select a category or type a custom title...">
             <datalist id="title-suggestions">
                 <option value="General Resolution">
                 <option value="Financial Authorization">
@@ -34,7 +34,7 @@
         
         <div>
             <label class="block text-sm font-bold text-slate-700 mb-2">Legal Text / Description</label>
-            <textarea name="description" required rows="8" class="w-full p-4 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 font-serif leading-relaxed" placeholder="Write the formal proposal here..."></textarea>
+            <textarea name="description" required rows="8" class="w-full p-4 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 font-serif leading-relaxed" placeholder="Write the formal proposal here...">{{ resolution.description if resolution else '' }}</textarea>
             <p class="text-xs text-slate-400 mt-2">This is the exact text the committee will vote on.</p>
         </div>
         
@@ -42,24 +42,38 @@
             <div>
                 <label class="block text-sm font-bold text-slate-700 mb-2">Voting Scope</label>
                 <select name="voting_scope" class="w-full p-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500">
-                    <option value="EXCO">Executive Committee Only (EXCO)</option>
-                    <option value="PUBLIC">Public / Ratepayers</option>
+                    <option value="EXCO" {% if resolution and resolution.voting_scope == 'EXCO' %}selected{% endif %}>Executive Committee Only (EXCO)</option>
+                    <option value="PUBLIC" {% if resolution and resolution.voting_scope == 'PUBLIC' %}selected{% endif %}>Public / Ratepayers</option>
                 </select>
             </div>
             <div>
                 <label class="block text-sm font-bold text-slate-700 mb-2">Quorum Target (%)</label>
-                <input type="number" name="quorum_target" min="1" max="100" value="50" class="w-full p-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                <input type="number" name="quorum_target" min="1" max="100" value="{{ resolution.quorum_target if resolution else 50 }}" class="w-full p-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500">
                 <p class="text-[10px] text-amber-700 mt-2 font-bold leading-tight bg-amber-50 p-2 rounded border border-amber-100">
                     <i class="fas fa-info-circle mr-1"></i> Ensure this complies with the Companies Act and Precinct Constitution (Standard ExCo decisions typically require a minimum 50% quorum).
                 </p>
             </div>
         </div>
         
-        <div class="pt-6 border-t border-slate-100 flex justify-end">
+        <div class="pt-6 border-t border-slate-100 flex justify-between items-center">
+            {% if resolution %}
+            <a href="{{ url_for('uip_bp.publish_resolution', org_slug=org.slug, res_id=resolution.id) }}" onclick="event.preventDefault(); document.getElementById('publish-form-{{ resolution.id }}').submit();" class="text-emerald-700 font-bold hover:text-emerald-900 bg-emerald-50 px-6 py-3 rounded-lg border border-emerald-200 transition shadow-sm">
+                <i class="fas fa-paper-plane mr-2"></i> Publish to Voting Room
+            </a>
+            {% else %}
+            <div></div>
+            {% endif %}
+            
             <button type="submit" class="ui-btn ui-btn-primary font-bold px-8 py-3 rounded-lg shadow-sm">
-                <i class="fas fa-save mr-2"></i> Save to Drafts
+                <i class="fas fa-save mr-2"></i> Save Draft
             </button>
         </div>
     </form>
+
+{% if resolution %}
+<form id="publish-form-{{ resolution.id }}" method="POST" action="{{ url_for('uip_bp.publish_resolution', org_slug=org.slug, res_id=resolution.id) }}" class="hidden">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+</form>
+{% endif %}
 </div>
 {% endblock %}

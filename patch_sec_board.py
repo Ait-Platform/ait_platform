@@ -1,4 +1,4 @@
-{% extends "program_uip/base_public.html" %}
+html = """{% extends "program_uip/base_public.html" %}
 {% block title %}Command Switchboard - {{ org.name }}{% endblock %}
 
 {% block content %}
@@ -132,4 +132,7 @@
 
     </div>
 </div>
-{% endblock %}
+{% endblock %}"""
+with open("templates/program_uip/dashboards/secretary_workspace.html", "w", encoding="utf-8") as f:
+    f.write(html)
+print("Built switchboard")

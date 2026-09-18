@@ -116,13 +116,6 @@ def finalize_access_resolution(org_slug):
         flash("Selected claims are no longer open or valid.", "danger")
         return redirect(url_for("uip_bp.secretary_workspace", org_slug=org.slug))
         
-    # Process portfolio assignments
-    portfolio_map = {}
-    for claim in claims:
-        port = request.form.get(f"portfolio_{claim.id}", "").strip()
-        if port:
-            portfolio_map[claim.id] = port
-            
     from datetime import datetime
     current_year = datetime.now().year
     
@@ -132,8 +125,9 @@ def finalize_access_resolution(org_slug):
         if founding_res:
             additions = "\n\n-- Added via Inaugural Roster --\n"
             for claim in claims:
-                port = portfolio_map.get(claim.id, claim.interaction_type.replace('_claim', '').title())
-                additions += f"- {claim.creator.name} ({claim.creator.email}) as {port}\n"
+                role_name = claim.interaction_type.replace('_claim', '').title()
+                additions += f"- {claim.creator.name} ({claim.creator.email}) as {role_name}
+"
                 claim.status = "VERIFIED"
                 
                 from app.models.core import CoreOrganizationMember, CoreRoleAssignment, CoreRole
@@ -162,7 +156,7 @@ def finalize_access_resolution(org_slug):
                         user_id=claim.creator.id,
                         name=claim.creator.name,
                         email=claim.creator.email,
-                        position=port,
+                        position="Unassigned",
                         status="CURRENT"
                     )
                     db.session.add(mem)
@@ -184,11 +178,12 @@ def finalize_access_resolution(org_slug):
         description="Resolution to grant active platform access to the bundled applicants.\n",
         status="PROPOSED",
         recorded_by=current_user.id,
-        result_basis={"type": "access_bundle", "interaction_ids": [c.id for c in claims], "portfolios": portfolio_map}
+        result_basis={"type": "access_bundle", "interaction_ids": [c.id for c in claims]}
     )
     for claim in claims:
-        port = portfolio_map.get(claim.id, claim.interaction_type.replace('_claim', '').title())
-        res.description += f"\n- {claim.creator.name}: {port}"
+        role_name = claim.interaction_type.replace('_claim', '').title()
+        res.description += f"
+- {claim.creator.name}: {role_name}"
         
     db.session.add(res)
     audit.record(org.id, current_user.id, "secretary.resolution_drafted", None)

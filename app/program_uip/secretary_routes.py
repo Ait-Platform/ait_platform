@@ -185,7 +185,8 @@ def finalize_access_resolution(org_slug):
                     db.session.add(mem)
                     
             founding_res.description += additions
-            db.session.commit()            flash("Members successfully officially logged into the Founding Resolution!", "success")
+            db.session.commit()
+            flash("Members successfully officially logged into the Founding Resolution!", "success")
             return redirect(url_for("uip_bp.committee_dashboard", org_slug=org.slug))
             
     # Fallback or "new" resolution logic

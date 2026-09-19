@@ -1,11 +1,13 @@
 with open("app/program_uip/secretary_routes.py", "r", encoding="utf-8") as f:
     text = f.read()
 
-# Fix the founding additions
-text = text.replace("                additions += f\"- {claim.creator.name} ({claim.creator.email}) as {role_name}\n\"", "                additions += f\"- {claim.creator.name} ({claim.creator.email}) as {role_name}\\n\"")
+bad_line = 'db.session.commit()            flash("Members successfully officially logged into the Founding Resolution!", "success")'
+good_line = 'db.session.commit()\n            flash("Members successfully officially logged into the Founding Resolution!", "success")'
 
-# Fix the new res description
-text = text.replace("        res.description += f\"\n- {claim.creator.name}: {role_name}\"", "        res.description += f\"\\n- {claim.creator.name}: {role_name}\"")
-
-with open("app/program_uip/secretary_routes.py", "w", encoding="utf-8") as f:
-    f.write(text)
+if bad_line in text:
+    text = text.replace(bad_line, good_line)
+    with open("app/program_uip/secretary_routes.py", "w", encoding="utf-8") as f:
+        f.write(text)
+    print("Fixed smushed line syntax error")
+else:
+    print("Could not find the smushed line")

@@ -406,6 +406,16 @@ def secretary_organogram(org_slug):
             db.session.add(seat)
             db.session.commit()
             flash(f"Blueprint seat '{seat.title}' added.", "success")
+        elif action == "assign_member":
+            seat_title = request.form.get("seat_title")
+            member_id = request.form.get("member_id", type=int)
+            if seat_title and member_id:
+                from app.models.uip_governance import UipCommitteeMember
+                member = UipCommitteeMember.query.filter_by(id=member_id, organization_id=org.id).first()
+                if member:
+                    member.position = seat_title
+                    db.session.commit()
+                    flash(f"{member.name} assigned to {seat_title}.", "success")
         elif action == "upload_photo":
             member_id = request.form.get("member_id")
             photo_url = request.form.get("photo_url")
@@ -432,4 +442,4 @@ def secretary_organogram(org_slug):
                 seat.member = m
                 break
                 
-    return render_template("program_uip/dashboards/secretary_organogram.html", org=org, core_seats=core_seats, second_seats=second_seats, operations_seats=operations_seats)
+    return render_template("program_uip/dashboards/secretary_organogram.html", org=org, core_seats=core_seats, second_seats=second_seats, operations_seats=operations_seats, active_members=active_members)

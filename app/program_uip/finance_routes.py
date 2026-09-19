@@ -76,9 +76,22 @@ def finance_overview(org_slug):
     # --------------------------------------
     
     overview = f.overview(org, actor, request.args.get("year"))
+    from app.models.uip_governance import UipCommitteeMember
+    from sqlalchemy import func
+    mem = UipCommitteeMember.query.filter(
+        UipCommitteeMember.organization_id == org,
+        UipCommitteeMember.status == "CURRENT",
+        func.lower(UipCommitteeMember.email) == func.lower(current_user.email)
+    ).first()
+    
+    pos = mem.position.strip().lower() if mem else ""
+    recent_tx = [f.detail(org, actor, r) for r in overview["transactions"][:10]]
+    if pos == "treasurer":
+        return render_template("program_uip/dashboards/treasurer.html", org=g.organization, overview=overview, recent=recent_tx)
+        
     return render("overview", overview=overview,
         major_categories=sorted(overview["budget"], key=lambda b: b["actual"], reverse=True)[:6],
-        recent=[f.detail(org, actor, r) for r in overview["transactions"][:10]],
+        recent=recent_tx,
         commitments=[{**f.detail(org, actor, c["row"]), "outstanding": c["outstanding"]} for c in overview["commitments"] if c["outstanding"]])
 
 

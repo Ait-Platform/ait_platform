@@ -1,0 +1,167 @@
+import os
+html = """{% extends 'program_uip/base.html' %}
+{% block title %}Treasurer Control Centre - {{ org.name }}{% endblock %}
+
+{% block head %}
+<style>
+    /* Hide the default generic sidebar since we have our custom Control Centre sidebar */
+    .ui-sidebar { display: none !important; }
+    .ui-shell { grid-template-columns: 1fr !important; display: block !important; }
+    .ui-workspace { padding-left: 0 !important; margin-left: 0 !important; max-width: 1300px; margin: 0 auto !important; width: 100%; }
+    .ui-topbar { border-radius: 0 0 12px 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+    
+    /* Active sidebar link styling */
+    .nav-active {
+        background-color: #eef2ff !important;
+        color: #4338ca !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="flex flex-col md:flex-row gap-8 mt-6 mb-16 max-w-7xl mx-auto px-4">
+    
+    <!-- SIDEBAR -->
+    <aside class="w-full md:w-64 flex-shrink-0">
+        <div class="mb-6">
+            <span class="bg-indigo-100 text-indigo-800 text-xs px-2 py-1 rounded font-bold uppercase tracking-wide mb-2 inline-block">{{ org.name }}</span>
+            <h1 class="text-2xl font-extrabold text-slate-900">Finance</h1>
+            <p class="text-xs text-slate-500 mt-1">Treasurer Dashboard</p>
+        </div>
+        
+        <nav class="space-y-1">
+            <a href="{{ url_for('uip_bp.dashboard', org_slug=org.slug) }}" class="flex items-center px-3 py-2 text-sm font-bold rounded-lg nav-active">
+                <i class="fas fa-chart-pie w-6"></i> Financial Dashboard
+            </a>
+            
+            <div class="pt-4 pb-1">
+                <h3 class="px-3 text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Budget</h3>
+                <a href="{{ url_for('uip_bp.finance_budget', org_slug=org.slug) }}" class="flex items-center px-3 py-1.5 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-lg"><i class="fas fa-minus w-5 text-slate-300"></i> Budget Overview</a>
+            </div>
+            
+            <div class="pt-4 pb-1">
+                <h3 class="px-3 text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Transactions</h3>
+                <a href="{{ url_for('uip_bp.finance_transactions', org_slug=org.slug) }}" class="flex items-center px-3 py-1.5 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-lg"><i class="fas fa-minus w-5 text-slate-300"></i> Transaction Register</a>
+                <a href="{{ url_for('uip_bp.finance_commitments', org_slug=org.slug) }}" class="flex items-center px-3 py-1.5 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-lg"><i class="fas fa-minus w-5 text-slate-300"></i> Outstanding Commitments</a>
+            </div>
+            
+            <div class="pt-4 pb-1">
+                <h3 class="px-3 text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Financial Reports</h3>
+                <a href="{{ url_for('uip_bp.finance_report', org_slug=org.slug, report='income-expenditure') }}" class="flex items-center px-3 py-1.5 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-lg"><i class="fas fa-minus w-5 text-slate-300"></i> Income & Expenditure</a>
+                <a href="{{ url_for('uip_bp.finance_report', org_slug=org.slug, report='budget') }}" class="flex items-center px-3 py-1.5 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-lg"><i class="fas fa-minus w-5 text-slate-300"></i> Budget vs Actual</a>
+            </div>
+            
+            <div class="pt-6 mt-6 border-t border-slate-200">
+                <a href="{{ url_for('uip_bp.router_page', org_slug=org.slug) }}" class="flex items-center px-3 py-2 text-sm font-bold text-slate-500 hover:text-slate-700">
+                    <i class="fas fa-arrow-left w-6"></i> Switch Role
+                </a>
+            </div>
+        </nav>
+    </aside>
+    
+    <!-- MAIN CONTENT -->
+    <main class="flex-1 min-w-0 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="p-8 border-b border-slate-100 flex justify-between items-start bg-slate-50">
+            <div>
+                <h2 class="text-2xl font-black text-slate-900 mb-1">Financial Dashboard</h2>
+                <p class="text-slate-500 text-sm">Position through {{ overview.as_of }}</p>
+            </div>
+            <div class="flex gap-2">
+                <a href="{{ url_for('uip_bp.finance_transaction_new', org_slug=org.slug) }}" class="px-4 py-2 bg-indigo-600 rounded-lg text-sm font-bold text-white shadow-sm hover:bg-indigo-700"><i class="fas fa-plus mr-2"></i> Log Transaction</a>
+            </div>
+        </div>
+        
+        <div class="p-8">
+            {% include 'partials/flash_messages.html' %}
+            
+            <!-- Key Metrics -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+                <div class="bg-white border border-slate-200 p-5 rounded-xl shadow-sm">
+                    <p class="text-sm font-bold text-slate-500 uppercase tracking-wider mb-1">Available Funds</p>
+                    <p class="text-3xl font-black text-slate-900">R{{ "{:,.2f}".format(overview.available) }}</p>
+                    <p class="text-xs font-bold text-slate-400 mt-2">Cash held: R{{ "{:,.2f}".format(overview.cash) }}</p>
+                </div>
+                <div class="bg-white border border-slate-200 p-5 rounded-xl shadow-sm">
+                    <p class="text-sm font-bold text-slate-500 uppercase tracking-wider mb-1">YTD Income</p>
+                    <p class="text-3xl font-black text-emerald-600">R{{ "{:,.2f}".format(overview.income) }}</p>
+                </div>
+                <div class="bg-white border border-slate-200 p-5 rounded-xl shadow-sm">
+                    <p class="text-sm font-bold text-slate-500 uppercase tracking-wider mb-1">YTD Expenses</p>
+                    <p class="text-3xl font-black text-rose-600">R{{ "{:,.2f}".format(overview.expenditure) }}</p>
+                    <p class="text-xs font-bold text-slate-400 mt-2">Outstanding: R{{ "{:,.2f}".format(overview.outstanding) }}</p>
+                </div>
+            </div>
+            
+            <!-- Recent Transactions -->
+            <div>
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-bold text-slate-900">Recent Transactions</h3>
+                    <a href="{{ url_for('uip_bp.finance_transactions', org_slug=org.slug) }}" class="text-sm font-bold text-indigo-600 hover:text-indigo-800">View All Ledger</a>
+                </div>
+                
+                {% if recent %}
+                <div class="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-slate-50 border-b border-slate-200 text-slate-500">
+                            <tr>
+                                <th class="p-4 font-bold">Date</th>
+                                <th class="p-4 font-bold">Reference</th>
+                                <th class="p-4 font-bold">Category</th>
+                                <th class="p-4 font-bold text-right">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            {% for tx in recent %}
+                            <tr class="hover:bg-slate-50">
+                                <td class="p-4 text-slate-600">{{ tx.transaction_date }}</td>
+                                <td class="p-4 font-bold text-indigo-600"><a href="{{ url_for('uip_bp.finance_transaction', org_slug=org.slug, transaction_id=tx.id) }}">{{ tx.reference }}</a></td>
+                                <td class="p-4 text-slate-600">{{ tx.category }}</td>
+                                <td class="p-4 font-bold text-right {% if tx.kind == 'INCOME' %}text-emerald-600{% else %}text-rose-600{% endif %}">
+                                    {% if tx.kind == 'INCOME' %}+{% else %}-{% endif %} R{{ "{:,.2f}".format(tx.amount) }}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="bg-slate-50 rounded-xl border border-slate-200 text-center py-12">
+                    <div class="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 text-slate-300 text-2xl shadow-sm">
+                        <i class="fas fa-receipt"></i>
+                    </div>
+                    <h4 class="font-bold text-slate-700 mb-1">No transactions yet</h4>
+                    <p class="text-sm text-slate-500 mb-4 max-w-sm mx-auto">Once income or expenses are recorded, they will appear here in the ledger.</p>
+                    <a href="{{ url_for('uip_bp.finance_transaction_new', org_slug=org.slug) }}" class="px-4 py-2 bg-white border border-slate-300 rounded-lg text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50 inline-block"><i class="fas fa-plus mr-2"></i> Log First Transaction</a>
+                </div>
+                {% endif %}
+            </div>
+            
+            <div class="mt-8 border-t border-slate-200 pt-8">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-bold text-slate-900">Budget vs Actual</h3>
+                    <a href="{{ url_for('uip_bp.finance_budget', org_slug=org.slug) }}" class="text-sm font-bold text-indigo-600 hover:text-indigo-800">View Full Budget</a>
+                </div>
+                
+                <div class="space-y-4">
+                    {% for b in overview.budget[:3] %}
+                    <div>
+                        <div class="flex justify-between text-sm font-bold mb-1">
+                            <span class="text-slate-700">{{ b.category }}</span>
+                            <span class="text-slate-900">R{{ "{:,.2f}".format(b.actual) }} <span class="text-slate-400 font-normal">/ R{{ "{:,.2f}".format(b.approved) }}</span></span>
+                        </div>
+                        <div class="w-full bg-slate-100 rounded-full h-2">
+                            {% set pct = (b.actual / b.approved * 100) if b.approved > 0 else 0 %}
+                            <div class="bg-indigo-500 h-2 rounded-full" style="width: {{ [pct, 100]|min }}%"></div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+{% endblock %}
+"""
+with open("templates/program_uip/dashboards/treasurer.html", "w", encoding="utf-8") as f:
+    f.write(html)
+print("Wrote treasurer.html using Python")

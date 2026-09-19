@@ -174,9 +174,16 @@ def finalize_access_resolution(org_slug):
                 if claim.interaction_type in ['committee_claim', 'secretary_claim']:
                     from app.models.uip_governance import UipCommitteeMember
                     pos = "Secretary" if claim.interaction_type == "secretary_claim" else "Unassigned"
+                    from app.models.uip_governance import UipCommitteeTerm
+                    term = UipCommitteeTerm.query.filter_by(organization_id=org.id).first()
+                    if not term:
+                        term = UipCommitteeTerm(organization_id=org.id, term_name="Genesis Term")
+                        db.session.add(term)
+                        db.session.flush()
+                        
                     mem = UipCommitteeMember(
                         organization_id=org.id,
-                        user_id=claim.creator.id,
+                        term_id=term.id,
                         name=claim.creator.name,
                         email=claim.creator.email,
                         position=pos,

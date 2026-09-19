@@ -1,63 +1,45 @@
-import re
-with open("app/program_uip/routes.py", "r", encoding="utf-8") as f:
+with open("app/program_uip/secretary_routes.py", "r", encoding="utf-8") as f:
     text = f.read()
 
-old_block = """            singular_roles = ["chairman", "vice chairman", "secretary", "treasurer"]
-            if position.lower() in singular_roles:
-                occupied = UipCommitteeMember.query.filter(
-                    UipCommitteeMember.organization_id == org.id,
-                    func.lower(UipCommitteeMember.position) == position.lower(),
-                    UipCommitteeMember.status == "CURRENT"
-                ).first()
-                if occupied:
-                    flash(f"The position of {position} is currently occupied. Please click the 'Unsure / Other' tile and the Secretary will sort it out.", "warning")
-                    return redirect(url_for("uip_bp.router_page", org_slug=org.slug))"""
+old_render = """    # Calculate pending resolutions (PROPOSED) for the alert badge
+    pending_resolutions = UipResolution.query.filter_by(organization_id=org.id, status="PROPOSED").count()
+    
+    return render_template(
+        "program_uip/dashboards/secretary_workspace.html",
+        org=org,
+        open_claims=enriched_claims,
+        proposed_resolutions=proposed_resolutions,
+        pending_resolutions=pending_resolutions
+    )"""
 
-new_block = """            singular_roles = ["chairman", "vice chairman", "secretary", "treasurer"]
-            if position.lower() in singular_roles:
-                occupied = UipCommitteeMember.query.filter(
-                    UipCommitteeMember.organization_id == org.id,
-                    func.lower(UipCommitteeMember.position) == position.lower(),
-                    UipCommitteeMember.status == "CURRENT"
-                ).first()
-                
-                # GENESIS SECRETARY LOGIC
-                if position.lower() == "secretary" and not occupied:
-                    new_sec = UipCommitteeMember(
-                        organization_id=org.id,
-                        user_id=current_user.id,
-                        term_id=term.id if term else None,
-                        name=current_user.name,
-                        email=current_user.email,
-                        level=level,
-                        position=position,
-                        status="CURRENT"
-                    )
-                    db.session.add(new_sec)
-                    
-                    # Ensure membership and role assignment
-                    from app.models.core import CoreOrganizationMember, CoreRoleAssignment, CoreRole
-                    membership = CoreOrganizationMember.query.filter_by(organization_id=org.id, user_id=current_user.id).first()
-                    if not membership:
-                        membership = CoreOrganizationMember(organization_id=org.id, user_id=current_user.id, is_active=True)
-                        db.session.add(membership)
-                        db.session.flush()
-                    
-                    role = CoreRole.query.filter_by(organization_id=org.id, slug="committee_member").first()
-                    if role:
-                        if not CoreRoleAssignment.query.filter_by(member_id=membership.id, role_id=role.id).first():
-                            assign = CoreRoleAssignment(member_id=membership.id, role_id=role.id)
-                            db.session.add(assign)
-                    
-                    db.session.commit()
-                    flash("Genesis Admin initialized. Welcome to your Secretary dashboard.", "success")
-                    return redirect(url_for("uip_bp.committee_dashboard", org_slug=org.slug))
+new_render = """    # Calculate pending resolutions (PROPOSED) for the alert badge
+    pending_resolutions = UipResolution.query.filter_by(organization_id=org.id, status="PROPOSED").count()
+    tabled_res = UipResolution.query.filter_by(organization_id=org.id, status="TABLED").count()
+    
+    switch_gate = 'red' if len(enriched_claims) > 0 else 'clear'
+    if tabled_res > 0:
+        switch_res = 'red'
+    elif pending_resolutions > 0:
+        switch_res = 'amber'
+    else:
+        switch_res = 'clear'
+    
+    return render_template(
+        "program_uip/dashboards/secretary_workspace.html",
+        org=org,
+        open_claims=enriched_claims,
+        proposed_resolutions=proposed_resolutions,
+        pending_resolutions=pending_resolutions,
+        switch_gate=switch_gate,
+        switch_res=switch_res,
+        tabled_res=tabled_res,
+        proposed_res=pending_resolutions
+    )"""
 
-                if occupied:
-                    flash(f"The position of {position} is currently occupied. Please click the 'Unsure / Other' tile and the Secretary will sort it out.", "warning")
-                    return redirect(url_for("uip_bp.router_page", org_slug=org.slug))"""
-
-text = text.replace(old_block, new_block)
-with open("app/program_uip/routes.py", "w", encoding="utf-8") as f:
-    f.write(text)
-print("Updated Genesis Secretary logic")
+if old_render in text:
+    text = text.replace(old_render, new_render)
+    with open("app/program_uip/secretary_routes.py", "w", encoding="utf-8") as f:
+        f.write(text)
+    print("Patched secretary_routes.py")
+else:
+    print("Could not find old render in secretary_routes.py")

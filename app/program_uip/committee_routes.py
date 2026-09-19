@@ -57,7 +57,7 @@ def execute_resolution_adoption(org, res, db):
                     status="CURRENT"
                 )
                 db.session.add(mem)
-﻿from flask import render_template, g, abort, redirect, url_for, request, flash, current_app
+from flask import render_template, g, abort, redirect, url_for, request, flash, current_app
 from flask_login import login_required, current_user
 from itsdangerous import URLSafeTimedSerializer, BadSignature
 

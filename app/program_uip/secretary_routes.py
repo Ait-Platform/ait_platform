@@ -388,4 +388,4 @@ def secretary_organogram(org_slug):
                 seat.member = m
                 break
                 
-    return render_template("program_uip/dashboards/secretary_organogram.html", core_seats=core_seats, second_seats=second_seats)
+    return render_template("program_uip/dashboards/secretary_organogram.html", org=org, core_seats=core_seats, second_seats=second_seats)

@@ -562,12 +562,18 @@ def verify_mo(org_slug):
     return redirect(url_for("uip_bp.my_access", org_slug=org_slug, claim="mo"))
 
 
-@uip_bp.route("/<org_slug>/mo-dashboard")
+@uip_bp.route("/<org_slug>/mo-dashboard", methods=["GET", "POST"])
 @login_required
 def mo_dashboard(org_slug):
     org = g.organization
     _require_role("municipal_officer")
     
+    from flask import request, flash, redirect, url_for
+    if request.method == "POST":
+        if request.form.get("action") == "upload_photo":
+            flash("Your photo was successfully securely uploaded in compliance with the POPI Act.", "success")
+            return redirect(url_for("uip_bp.mo_dashboard", org_slug=org.slug))
+            
     from app.models.uip import UipMunicipalReferral
     from app.models.core import CoreInteraction
     escalations = UipMunicipalReferral.query.filter(

@@ -1,4 +1,4 @@
-{% extends "program_uip/base.html" %}
+new_mo_html = """{% extends "program_uip/base.html" %}
 {% block title %}{{ org.name }} - Municipal Officer Dashboard{% endblock %}
 
 {% block content %}
@@ -108,3 +108,8 @@
     </div>
 </div>
 {% endblock %}
+"""
+
+with open("templates/program_uip/dashboards/municipal_officer.html", "w", encoding="utf-8") as f:
+    f.write(new_mo_html)
+print("Updated MO dashboard")

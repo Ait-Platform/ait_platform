@@ -1,88 +1,100 @@
-﻿import re
-
-with open("artifacts/rcm-stages123-release/app/program_uip/routes.py", "r", encoding="utf-8") as f:
+with open("app/program_uip/routes.py", "r", encoding="utf-8") as f:
     text = f.read()
 
-# Modify verify_committee to handle GET and POST
-old_verify = """@uip_bp.route("/<org_slug>/verify/committee", methods=["GET"])
+old_logic = """@uip_bp.route("/<org_slug>/verify/ratepayer", methods=["GET", "POST"])
 @login_required
-def verify_committee(org_slug):"""
-
-new_verify = """@uip_bp.route("/<org_slug>/verify/committee", methods=["GET", "POST"])
-@login_required
-def verify_committee(org_slug):"""
-
-text = text.replace(old_verify, new_verify)
-
-# Modify the logic inside verify_committee where it creates the claim
-old_claim = """            if not claim:
-                claim = CoreInteraction(
-                    organization_id=org.id,
-                    creator_id=current_user.id,
-                    interaction_type="committee_claim",
-                    title="Committee Membership Claim",
-                    description=f"User {current_user.email} claims to be a committee member.",
-                    status="OPEN"
-                )"""
-
-new_claim = """            if request.method == "GET":
-                return render_template("program_uip/claim_committee.html", org=org)
-                
-            if not claim:
-                level = request.form.get("level", "Unknown Level")
-                position = request.form.get("position", "Committee Member")
-                portfolio = request.form.get("portfolio", "")
-                
-                title = f"{level} Claim - {position}"
-                desc = f"User {current_user.email} claims to be {position} on the {level}."
-                if portfolio:
-                    title += f" ({portfolio})"
-                    desc += f" Portfolio: {portfolio}."
-                    
-                claim = CoreInteraction(
-                    organization_id=org.id,
-                    creator_id=current_user.id,
-                    interaction_type="committee_claim",
-                    title=title,
-                    description=desc,
-                    status="OPEN"
-                )"""
-
-text = text.replace(old_claim, new_claim)
-
-# Add the verify_unknown route
-unknown_route = """
-@uip_bp.route("/<org_slug>/verify/unknown", methods=["GET"])
-@login_required
-def verify_unknown(org_slug):
-    org = g.organization
+def verify_ratepayer(org_slug):
+    # Check if they already have authority
+    role = _require_role("owner", "resident", abort_on_fail=False)
+    if role:
+        return redirect(url_for("uip_bp.dashboard", org_slug=org_slug, as_ratepayer=1))
+    
     from app.models.core import CoreInteraction
     from app import db
     from flask_login import current_user
     
     claim = CoreInteraction.query.filter_by(
-        organization_id=org.id,
-        creator_id=current_user.id,
-        interaction_type="unknown_claim",
-        status="OPEN"
+        organization_id=g.organization.id, creator_id=current_user.id, interaction_type="ratepayer_claim", status="OPEN"
     ).first()
     if not claim:
         claim = CoreInteraction(
-            organization_id=org.id,
-            creator_id=current_user.id,
-            interaction_type="unknown_claim",
-            title="Unknown Role Claim",
-            description=f"User {current_user.email} is unsure of their role and requests manual triage.",
-            status="OPEN"
+            organization_id=g.organization.id, creator_id=current_user.id,
+            interaction_type="ratepayer_claim", title="Ratepayer Claim",
+            description=f"User {current_user.email} claims to be a ratepayer.", status="OPEN"
         )
         db.session.add(claim)
         db.session.commit()
-    return redirect(url_for("uip_bp.my_access", org_slug=org.slug, claim="unknown_claim"))
-"""
+    
+    return redirect(url_for("uip_bp.my_access", org_slug=org_slug, claim="ratepayer"))"""
 
-if "def verify_unknown" not in text:
-    text = text + unknown_route
+new_logic = """@uip_bp.route("/<org_slug>/verify/ratepayer", methods=["GET", "POST"])
+@login_required
+def verify_ratepayer(org_slug):
+    # Check if they already have authority
+    role = _require_role("owner", "resident", abort_on_fail=False)
+    if role:
+        return redirect(url_for("uip_bp.dashboard", org_slug=org_slug, as_ratepayer=1))
+    
+    from app.models.core import CoreInteraction, CoreRoleAssignment, CoreRole, CoreOrganizationMember
+    from app.models.uip import UipMemberProfile
+    from sqlalchemy import func
+    from flask import flash
+    
+    # 1. Instant Vault Lookup
+    vault_match = UipMemberProfile.query.filter(
+        UipMemberProfile.organization_id == g.organization.id,
+        UipMemberProfile.is_active == True,
+        func.lower(UipMemberProfile.email) == func.lower(current_user.email)
+    ).first()
+    
+    if vault_match:
+        # User is securely verified against the internal register
+        membership = CoreOrganizationMember.query.filter_by(organization_id=g.organization.id, user_id=current_user.id).first()
+        if not membership:
+            membership = CoreOrganizationMember(organization_id=g.organization.id, user_id=current_user.id, is_active=True)
+            db.session.add(membership)
+            db.session.flush()
+            
+        role_obj = CoreRole.query.filter_by(slug="resident").first()
+        if role_obj:
+            existing = CoreRoleAssignment.query.filter_by(organization_id=g.organization.id, user_id=current_user.id, role_id=role_obj.id).first()
+            if not existing:
+                db.session.add(CoreRoleAssignment(organization_id=g.organization.id, user_id=current_user.id, role_id=role_obj.id))
+                
+        # Register a verified claim footprint
+        claim = CoreInteraction.query.filter_by(
+            organization_id=g.organization.id, creator_id=current_user.id, interaction_type="ratepayer_claim"
+        ).first()
+        if not claim:
+            claim = CoreInteraction(
+                organization_id=g.organization.id, creator_id=current_user.id,
+                interaction_type="ratepayer_claim", title="Ratepayer Claim - Vault Auto-Verify",
+                description=f"User {current_user.email} verified instantly via Municipal Vault match.", status="VERIFIED"
+            )
+            db.session.add(claim)
+        else:
+            claim.status = "VERIFIED"
+            
+        db.session.commit()
+        flash("Welcome! Your account was instantly verified against the Municipal Vault.", "success")
+        return redirect(url_for("uip_bp.dashboard", org_slug=org_slug, as_ratepayer=1))
+    
+    # 2. If NO vault match, they must proceed via manual intake
+    claim = CoreInteraction.query.filter_by(
+        organization_id=g.organization.id, creator_id=current_user.id, interaction_type="ratepayer_claim", status="OPEN"
+    ).first()
+    if not claim:
+        claim = CoreInteraction(
+            organization_id=g.organization.id, creator_id=current_user.id,
+            interaction_type="ratepayer_claim", title="Ratepayer Claim",
+            description=f"User {current_user.email} claims to be a ratepayer.", status="OPEN"
+        )
+        db.session.add(claim)
+        db.session.commit()
+    
+    return redirect(url_for("uip_bp.my_access", org_slug=org_slug, claim="ratepayer"))"""
 
-with open("artifacts/rcm-stages123-release/app/program_uip/routes.py", "w", encoding="utf-8") as f:
+text = text.replace(old_logic, new_logic)
+with open("app/program_uip/routes.py", "w", encoding="utf-8") as f:
     f.write(text)
-print("Updated routes.py")
+print("Updated ratepayer verification logic")

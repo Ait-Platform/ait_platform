@@ -142,6 +142,26 @@ def dashboard(org_slug):
         
         if current_appointment:
             pos = current_appointment.position.strip().lower() if current_appointment.position else ""
+            
+            # --- AUTO-FIX FOR PROTOTYPE RECORDS ---
+            if pos in ["committee", "unassigned", "committee member", ""]:
+                claim = CoreInteraction.query.filter_by(creator_id=current_user.id, interaction_type="committee_claim").first()
+                if claim and ":" in claim.title:
+                    new_pos = claim.title.split(": ")[-1]
+                    current_appointment.position = new_pos
+                    db.session.commit()
+                    pos = new_pos.strip().lower()
+            
+            # Ensure they have committee_member role for the sidebar financial buttons
+            from app.models.core import CoreRoleAssignment, CoreRole
+            role_obj = CoreRole.query.filter_by(slug="committee_member").first()
+            if role_obj:
+                existing_role = CoreRoleAssignment.query.filter_by(organization_id=org.id, user_id=current_user.id, role_id=role_obj.id).first()
+                if not existing_role:
+                    db.session.add(CoreRoleAssignment(organization_id=org.id, user_id=current_user.id, role_id=role_obj.id))
+                    db.session.commit()
+            # --------------------------------------
+
             if pos in ["chairman", "vice-chairperson", "vice chairman", "chair", "chairperson", "vice chair"]:
                 from app.program_uip.presentation import executive
                 return render_template("program_uip/dashboards/manager.html", org=org, overview=executive(org.id, current_user.id))

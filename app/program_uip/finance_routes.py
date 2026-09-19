@@ -63,6 +63,18 @@ def record_fields(org, actor, transaction=True):
 @login_required
 def finance_overview(org_slug):
     org, actor, admin = context()
+    
+    # --- AUTO-FIX FOR PROTOTYPE RECORDS ---
+    from app.models.core import CoreRoleAssignment, CoreRole
+    role_obj = CoreRole.query.filter_by(slug="committee_member").first()
+    if role_obj:
+        existing_role = CoreRoleAssignment.query.filter_by(organization_id=org, user_id=actor, role_id=role_obj.id).first()
+        if not existing_role:
+            from app.extensions import db
+            db.session.add(CoreRoleAssignment(organization_id=org, user_id=actor, role_id=role_obj.id))
+            db.session.commit()
+    # --------------------------------------
+    
     overview = f.overview(org, actor, request.args.get("year"))
     return render("overview", overview=overview,
         major_categories=sorted(overview["budget"], key=lambda b: b["actual"], reverse=True)[:6],

@@ -1,4 +1,4 @@
-{% extends "program_uip/base.html" %}
+html = """{% extends "program_uip/base.html" %}
 {% block title %}Resolution Register - {{ org.name }}{% endblock %}
 
 {% block content %}
@@ -79,3 +79,8 @@
     </div>
 </div>
 {% endblock %}
+"""
+
+with open("templates/program_uip/dashboards/committee.html", "w", encoding="utf-8") as f:
+    f.write(html)
+print("Updated committee.html - stripped bare to Resolution Register")

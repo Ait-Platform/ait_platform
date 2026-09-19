@@ -139,10 +139,15 @@ def finalize_access_resolution(org_slug):
     from datetime import datetime
     current_year = datetime.now().year
     
-    if target == "founding":
-        # Find the founding resolution
-        founding_res = UipResolution.query.filter_by(organization_id=org.id).filter(UipResolution.title.ilike("%Founding%")).first()
-        if founding_res:
+    if target == "new" and all(c.interaction_type == "ratepayer_claim" for c in claims):
+        target = "instant"
+
+    if target in ["founding", "instant"]:
+        founding_res = None
+        if target == "founding":
+            founding_res = UipResolution.query.filter_by(organization_id=org.id).filter(UipResolution.title.ilike("%Founding%")).first()
+            
+        if founding_res or target == "instant":
             additions = f"\n\n-- Added via Inaugural Roster (Term: {term_start} for {term_duration} months) --\n"
             for claim in claims:
                 role_name = claim.interaction_type.replace('_claim', '').title()
@@ -209,10 +214,15 @@ def finalize_access_resolution(org_slug):
                     )
                     db.session.add(mem)
                     
-            founding_res.description += additions
+            if founding_res:
+                founding_res.description += additions
             db.session.commit()
-            flash("Members successfully officially logged into the Founding Resolution!", "success")
-            return redirect(url_for("uip_bp.committee_dashboard", org_slug=org.slug))
+            if target == "instant":
+                flash("Ratepayers successfully verified and granted access (no resolution required)!", "success")
+                return redirect(url_for("uip_bp.secretary_workspace", org_slug=org.slug))
+            else:
+                flash("Members successfully officially logged into the Founding Resolution!", "success")
+                return redirect(url_for("uip_bp.committee_dashboard", org_slug=org.slug))
             
     # Fallback or "new" resolution logic
     for claim in claims:
@@ -233,7 +243,7 @@ def finalize_access_resolution(org_slug):
         res.description += f"\n- {claim.creator.name}: {role_name} (Term: {term_start} for {term_duration} months)"
         
     db.session.add(res)
-    audit.record(org.id, current_user.id, "secretary.resolution_drafted", None)
+    audit.record(org.id, current_user.id, "decision.recorded", None)
     
     db.session.commit()
     flash(f"Successfully drafted Resolution {current_year}-{res_count}.", "success")

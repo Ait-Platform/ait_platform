@@ -371,7 +371,7 @@ def view_resolution(org_slug, res_id):
             UipCommitteeMember.status == "CURRENT",
             UipCommitteeMember.position.in_(["Chairperson", "Vice-Chairperson", "Secretary", "Treasurer"])
         ).count()
-    elif scope in ['EXCO', 'COMMITTEE_ALL']:
+    elif scope in ['EXCO', 'COMMITTEE_ALL', 'SUB_COMMITTEE']:
         total_eligible = UipCommitteeMember.query.filter_by(organization_id=org.id, status="CURRENT").count()
     else:
         from app.models.core import CoreOrganizationMember
@@ -441,7 +441,7 @@ def decide_resolution(org_slug, res_id):
         scope = getattr(res, 'voting_scope', 'EXCO')
         
         total_eligible = 0
-        if scope == 'EXCO':
+        if scope in ['EXCO', 'EXCO_CORE', 'COMMITTEE_ALL', 'SUB_COMMITTEE']:
             total_eligible = UipCommitteeMember.query.filter_by(organization_id=org.id, status="CURRENT").count()
         else:
             from app.models.core import CoreOrganizationMember
@@ -559,7 +559,7 @@ def vote_resolution(org_slug, res_id):
     if scope == 'EXCO_CORE':
         if not appointment or appointment.position not in ["Chairperson", "Vice-Chairperson", "Secretary", "Treasurer"]:
             abort(403)
-    elif scope in ['EXCO', 'COMMITTEE_ALL']:
+    elif scope in ['EXCO', 'COMMITTEE_ALL', 'SUB_COMMITTEE']:
         if not appointment:
             abort(403)
             

@@ -65,3 +65,38 @@ details.ui-nav-fuchsia>summary:hover, details.ui-nav-fuchsia[open]>summary { bac
 
 details.ui-nav-slate>summary { color: #334155; }
 details.ui-nav-slate>summary:hover, details.ui-nav-slate[open]>summary { background: #f1f5f9; }
+
+/* Standard 2-Row Dashboard Header */
+.ui-header-2row {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 2rem;
+    border-bottom: 1px solid var(--surface-border); /* Matches the slate-200 border */
+    padding-bottom: 1.5rem;
+}
+.ui-header-2row-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+}
+.ui-header-2row-bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    width: 100%;
+}
+.ui-header-2row-title {
+    margin: 0 !important;
+}
+.ui-header-2row-subtitle {
+    margin: 0 !important;
+    max-width: 42rem; /* max-w-2xl */
+}
+.ui-header-actions {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: flex-end;
+}

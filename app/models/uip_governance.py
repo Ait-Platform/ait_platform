@@ -1,3 +1,5 @@
+"""UIP governance snapshots; account roles are not participation eligibility."""
+from app.extensions import db
 
 class UipOrganogramSeat(db.Model):
     __tablename__ = "uip_organogram_seat"
@@ -8,8 +10,6 @@ class UipOrganogramSeat(db.Model):
     qualifier = db.Column(db.String(50), nullable=False, default="Voluntary")
     display_order = db.Column(db.Integer, default=0)
 
-"""UIP governance snapshots; account roles are not participation eligibility."""
-from app.extensions import db
 
 
 class UipQuorumRule(db.Model):

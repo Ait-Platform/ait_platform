@@ -1,4 +1,4 @@
-﻿from datetime import datetime
+from datetime import datetime
 import random
 import uuid
 
@@ -161,7 +161,6 @@ def dashboard(org_slug):
                 if claim:
                     new_pos = claim.title.split(": ")[-1] if ":" in claim.title else (claim.title.split(" - ")[-1] if " - " in claim.title else claim.title)
                     current_appointment.position = new_pos.strip()
-                    from app.extensions import db
                     db.session.commit()
                     pos = new_pos.strip().lower()
             
@@ -214,7 +213,6 @@ def waiting_lounge(org_slug):
     
     if appointment and not force_menu:
         from app.models.core import CoreOrganizationMember
-        from app import db
         membership = CoreOrganizationMember.query.filter_by(organization_id=org.id, user_id=current_user.id).first()
         if not membership:
             membership = CoreOrganizationMember(organization_id=org.id, user_id=current_user.id, is_active=True)
@@ -261,6 +259,7 @@ def waiting_lounge_dispute(org_slug):
 @uip_bp.route("/<org_slug>/router")
 @login_required
 def router_page(org_slug):
+    from app.extensions import db
     org = g.organization
     from flask import request, redirect, url_for
     from flask_login import current_user
@@ -276,7 +275,6 @@ def router_page(org_slug):
     ).first()
     if appointment and not force_menu:
         from app.models.core import CoreOrganizationMember
-        from app import db
         membership = CoreOrganizationMember.query.filter_by(organization_id=org.id, user_id=current_user.id).first()
         if not membership:
             membership = CoreOrganizationMember(organization_id=org.id, user_id=current_user.id, is_active=True)

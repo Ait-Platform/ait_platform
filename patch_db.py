@@ -1,10 +1,10 @@
-import sqlite3
-try:
-    conn = sqlite3.connect("your_database.db")
-    c = conn.cursor()
-    c.execute("ALTER TABLE core_interaction ADD COLUMN parent_id INTEGER REFERENCES core_interaction(id);")
-    conn.commit()
-    conn.close()
-    print("Added column")
-except Exception as e:
-    print(e)
+with open("app/program_uip/routes.py", "r", encoding="utf-8") as f:
+    lines = f.readlines()
+
+# Add import before the commit
+lines[162] = "                    current_appointment.position = new_pos.strip()\n"
+lines[163] = "                    from app.extensions import db\n                    db.session.commit()\n"
+
+with open("app/program_uip/routes.py", "w", encoding="utf-8") as f:
+    f.writelines(lines)
+print("Patched db import for local auto-fix")

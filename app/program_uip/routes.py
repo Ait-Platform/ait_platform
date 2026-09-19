@@ -161,6 +161,7 @@ def dashboard(org_slug):
                 if claim:
                     new_pos = claim.title.split(": ")[-1] if ":" in claim.title else (claim.title.split(" - ")[-1] if " - " in claim.title else claim.title)
                     current_appointment.position = new_pos.strip()
+                    from app.extensions import db
                     db.session.commit()
                     pos = new_pos.strip().lower()
             

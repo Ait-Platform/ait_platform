@@ -276,10 +276,16 @@ def router_page(org_slug):
     occupied = UipCommitteeMember.query.filter(
         UipCommitteeMember.organization_id == org.id,
         UipCommitteeMember.status == "CURRENT",
-        func.lower(UipCommitteeMember.position).in_(["chairperson", "vice-chairperson", "secretary", "treasurer"])
+        func.lower(UipCommitteeMember.position).in_(["chairperson", "chairman", "chair", "vice-chairperson", "vice chairman", "vice chair", "secretary", "treasurer"])
     ).all()
     
-    occupied_seats = [m.position.lower() for m in occupied]
+    # Normalize the output for the template
+    occupied_seats = []
+    for m in occupied:
+        pos = m.position.lower()
+        if pos in ["chairman", "chair"]: pos = "chairperson"
+        if pos in ["vice chairman", "vice chair"]: pos = "vice-chairperson"
+        occupied_seats.append(pos)
     
     return render_template("program_uip/router.html", org=org, occupied_seats=occupied_seats)
 
@@ -422,11 +428,20 @@ def verify_committee(org_slug):
             
             # Rule 2: Seat Occupied Fallback
             # Only check for specific singular roles
+            norm_pos = position.lower()
+            if norm_pos in ["chairman", "chair"]: norm_pos = "chairperson"
+            if norm_pos in ["vice chairman", "vice chair"]: norm_pos = "vice-chairperson"
+            
             singular_roles = ["chairperson", "vice-chairperson", "secretary", "treasurer"]
-            if position.lower() in singular_roles:
+            if norm_pos in singular_roles:
+                # Check for any variation of the role
+                variations = [norm_pos]
+                if norm_pos == "chairperson": variations = ["chairperson", "chairman", "chair"]
+                if norm_pos == "vice-chairperson": variations = ["vice-chairperson", "vice chairman", "vice chair"]
+                
                 occupied = UipCommitteeMember.query.filter(
                     UipCommitteeMember.organization_id == org.id,
-                    func.lower(UipCommitteeMember.position) == position.lower(),
+                    func.lower(UipCommitteeMember.position).in_(variations),
                     UipCommitteeMember.status == "CURRENT"
                 ).first()
                 

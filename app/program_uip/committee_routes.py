@@ -558,7 +558,7 @@ def decide_resolution(org_slug, res_id):
 
             # If committee, make them an official member
             if 'committee' in claim.interaction_type:
-                requested_pos = claim.title.split(": ")[-1] if ":" in claim.title else claim.interaction_type.replace('_claim', '').title()
+                requested_pos = claim.title.split(": ")[-1] if ":" in claim.title else (claim.title.split(" - ")[-1] if " - " in claim.title else claim.interaction_type.replace('_claim', '').title())
                 port = portfolio_map.get(str(claim.id)) or portfolio_map.get(claim.id) or requested_pos
                 mem = UipCommitteeMember(
                     organization_id=org.id,

@@ -196,7 +196,7 @@ def finalize_access_resolution(org_slug):
 
                 if claim.interaction_type in ['committee_claim', 'secretary_claim']:
                     from app.models.uip_governance import UipCommitteeMember
-                    pos = "Secretary" if claim.interaction_type == "secretary_claim" else (claim.title.split(": ")[-1] if ":" in claim.title else "Unassigned")
+                    pos = "Secretary" if claim.interaction_type == "secretary_claim" else (claim.title.split(": ")[-1] if ":" in claim.title else (claim.title.split(" - ")[-1] if " - " in claim.title else "Unassigned"))
                     from app.models.uip_governance import UipCommitteeTerm
                     term = UipCommitteeTerm.query.filter_by(organization_id=org.id).first()
                     if not term:

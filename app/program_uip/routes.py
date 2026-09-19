@@ -338,22 +338,43 @@ def router_page(org_slug):
         db.session.commit()
     # -----------------------------------------------
 
-    # Calculate occupied singular seats so the UI can grey them out
+    # --- DYNAMIC ORGANOGRAM SEATS SEEDING ---
+    from app.models.uip_governance import UipOrganogramSeat
+    if UipOrganogramSeat.query.filter_by(organization_id=org.id).count() == 0:
+        default_seats = [
+            ("Chairperson", "EXECUTIVE", "Mandatory", 1),
+            ("Vice-Chairperson", "EXECUTIVE", "Voluntary", 2),
+            ("Treasurer", "EXECUTIVE", "Mandatory", 3),
+            ("Secretary", "EXECUTIVE", "Mandatory", 4),
+            ("Security Sub-Committee Lead", "SECOND_GROUP", "Voluntary", 5),
+            ("Greening & Environment Lead", "SECOND_GROUP", "Voluntary", 6),
+            ("Infrastructure & Maintenance Lead", "SECOND_GROUP", "Voluntary", 7),
+            ("Social & Community Lead", "SECOND_GROUP", "Voluntary", 8),
+            ("Finance & Audit Lead", "SECOND_GROUP", "Voluntary", 9)
+        ]
+        for title, grp, qual, order in default_seats:
+            db.session.add(UipOrganogramSeat(organization_id=org.id, title=title, group_level=grp, qualifier=qual, display_order=order))
+        db.session.commit()
+        
+    exco_seats = UipOrganogramSeat.query.filter_by(organization_id=org.id, group_level="EXECUTIVE").order_by(UipOrganogramSeat.display_order).all()
+    sub_seats = UipOrganogramSeat.query.filter_by(organization_id=org.id, group_level="SECOND_GROUP").order_by(UipOrganogramSeat.display_order).all()
+    # ----------------------------------------
+
+    # Calculate ALL occupied seats so the UI can grey them out
     occupied = UipCommitteeMember.query.filter(
         UipCommitteeMember.organization_id == org.id,
-        UipCommitteeMember.status == "CURRENT",
-        func.lower(UipCommitteeMember.position).in_(["chairperson", "chairman", "chair", "vice-chairperson", "vice chairman", "vice chair", "secretary", "treasurer"])
+        UipCommitteeMember.status == "CURRENT"
     ).all()
     
     # Normalize the output for the template
     occupied_seats = []
     for m in occupied:
-        pos = m.position.lower()
+        pos = m.position.lower().strip()
         if pos in ["chairman", "chair"]: pos = "chairperson"
         if pos in ["vice chairman", "vice chair"]: pos = "vice-chairperson"
         occupied_seats.append(pos)
     
-    return render_template("program_uip/router.html", org=org, occupied_seats=occupied_seats)
+    return render_template("program_uip/router.html", org=org, occupied_seats=occupied_seats, exco_seats=exco_seats, sub_seats=sub_seats)
 
 @uip_bp.route("/<org_slug>/my-access")
 @login_required
@@ -493,23 +514,23 @@ def verify_committee(org_slug):
             portfolio = request.form.get("portfolio", "").strip()
             
             # Rule 2: Seat Occupied Fallback
-            # Only check for specific singular roles
+            # Dynamically block if seat is already occupied by someone
             norm_pos = position.lower()
             if norm_pos in ["chairman", "chair"]: norm_pos = "chairperson"
             if norm_pos in ["vice chairman", "vice chair"]: norm_pos = "vice-chairperson"
             
-            singular_roles = ["chairperson", "vice-chairperson", "secretary", "treasurer"]
-            if norm_pos in singular_roles:
-                # Check for any variation of the role
-                variations = [norm_pos]
-                if norm_pos == "chairperson": variations = ["chairperson", "chairman", "chair"]
-                if norm_pos == "vice-chairperson": variations = ["vice-chairperson", "vice chairman", "vice chair"]
-                
-                occupied = UipCommitteeMember.query.filter(
-                    UipCommitteeMember.organization_id == org.id,
-                    func.lower(UipCommitteeMember.position).in_(variations),
-                    UipCommitteeMember.status == "CURRENT"
-                ).first()
+            variations = [norm_pos, position.lower()]
+            if norm_pos == "chairperson": variations.extend(["chairperson", "chairman", "chair"])
+            if norm_pos == "vice-chairperson": variations.extend(["vice-chairperson", "vice chairman", "vice chair"])
+            
+            occupied = UipCommitteeMember.query.filter(
+                UipCommitteeMember.organization_id == org.id,
+                func.lower(UipCommitteeMember.position).in_(variations),
+                UipCommitteeMember.status == "CURRENT"
+            ).first()
+            
+            if True:  # Changed structure slightly to keep indent matching
+                pass
                 
                 # GENESIS SECRETARY LOGIC
                 if position.lower() == "secretary" and not occupied:

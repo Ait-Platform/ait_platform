@@ -1,3 +1,13 @@
+
+class UipOrganogramSeat(db.Model):
+    __tablename__ = "uip_organogram_seat"
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey("core_organization.id"), nullable=False)
+    title = db.Column(db.String(100), nullable=False)
+    group_level = db.Column(db.String(50), nullable=False) # CORE_EXCO, SECOND_GROUP
+    qualifier = db.Column(db.String(50), nullable=False, default="Voluntary")
+    display_order = db.Column(db.Integer, default=0)
+
 """UIP governance snapshots; account roles are not participation eligibility."""
 from app.extensions import db
 
@@ -130,6 +140,8 @@ class UipCommitteeMember(db.Model):
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, server_default=db.func.now())
     updated_by = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
     updated_at = db.Column(db.DateTime(timezone=True), onupdate=db.func.now())
+    seat_id = db.Column(db.Integer, db.ForeignKey("uip_organogram_seat.id"), nullable=True)
+    photo_url = db.Column(db.String(500), nullable=True)
     __table_args__ = (
         db.CheckConstraint("status IN ('CURRENT','FORMER','VACANT')", name="ck_uip_committee_member_status"),
         db.CheckConstraint("position IN ('Chairperson','Vice-Chairperson','Treasurer','Secretary','Committee Member','Advisory Committee Member')", name="ck_uip_committee_member_position"),

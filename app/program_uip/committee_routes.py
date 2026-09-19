@@ -768,3 +768,10 @@ def publish_resolution(org_slug, res_id):
         flash("Resolution published to the Digital Committee Room! ExCo members can now vote.", "success")
         
     return redirect(url_for("uip_bp.view_resolution", org_slug=org.slug, res_id=resolution.id))
+
+
+@uip_bp.route("/<org_slug>/executive-workspace")
+@login_required
+def exco_workspace(org_slug):
+    org = g.organization
+    return render_template("program_uip/dashboards/exco_workspace.html", org=org)

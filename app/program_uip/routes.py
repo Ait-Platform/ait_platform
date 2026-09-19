@@ -142,9 +142,8 @@ def dashboard(org_slug):
         
         if current_appointment:
             pos = current_appointment.position.strip().lower() if current_appointment.position else ""
-            if pos in ["chairman", "vice chairman", "chair", "chairperson", "vice chair"]:
-                from app.program_uip.presentation import executive
-                return render_template("program_uip/dashboards/manager.html", org=org, overview=executive(org.id, current_user.id))
+            if pos in ["chairman", "vice-chairperson", "vice chairman", "chair", "chairperson", "vice chair"]:
+                return redirect(url_for("uip_bp.exco_workspace", org_slug=org_slug))
             elif pos == "treasurer":
                 return redirect(url_for("uip_bp.finance_overview", org_slug=org_slug))
             elif pos == "secretary":

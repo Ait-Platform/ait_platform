@@ -158,10 +158,10 @@ def dashboard(org_slug):
             # --- AUTO-FIX FOR PROTOTYPE RECORDS ---
             if pos in ["committee", "unassigned", "committee member", ""]:
                 claim = CoreInteraction.query.filter_by(creator_id=current_user.id, interaction_type="committee_claim").first()
-                if claim and ":" in claim.title:
-                    new_pos = claim.title.split(": ")[-1]
-                    current_appointment.position = new_pos
-                    db.session.commit()
+                if claim:
+                new_pos = claim.title.split(": ")[-1] if ":" in claim.title else (claim.title.split(" - ")[-1] if " - " in claim.title else claim.title)
+                current_appointment.position = new_pos.strip()
+                db.session.commit()
                     pos = new_pos.strip().lower()
             
             # Ensure they have committee_member role for the sidebar financial buttons
@@ -289,9 +289,9 @@ def router_page(org_slug):
         if pos_raw in ["committee", "unassigned", "committee member", ""]:
             from app.models.core import CoreInteraction
             claim = CoreInteraction.query.filter_by(creator_id=current_user.id, interaction_type="committee_claim").first()
-            if claim and ":" in claim.title:
-                new_pos = claim.title.split(": ")[-1]
-                appointment.position = new_pos
+            if claim:
+                new_pos = claim.title.split(": ")[-1] if ":" in claim.title else (claim.title.split(" - ")[-1] if " - " in claim.title else claim.title)
+                appointment.position = new_pos.strip()
                 db.session.commit()
                 
         # Ensure committee_member role is set
@@ -331,10 +331,17 @@ def router_page(org_slug):
     ).all()
     if corrupted:
         from app.models.core import CoreInteraction
+        from app.models.auth import User
+        from sqlalchemy import func
         for c in corrupted:
-            claim = CoreInteraction.query.filter_by(creator_id=c.user_id, interaction_type="committee_claim").first()
-            if claim and ":" in claim.title:
-                c.position = claim.title.split(": ")[-1].strip()
+            user = User.query.filter(func.lower(User.email) == func.lower(c.email)).first()
+            if user:
+                claim = CoreInteraction.query.filter_by(creator_id=user.id, interaction_type="committee_claim").first()
+                if claim:
+                    if ":" in claim.title:
+                        c.position = claim.title.split(": ")[-1].strip()
+                    elif " - " in claim.title:
+                        c.position = claim.title.split(" - ")[-1].strip()
         db.session.commit()
     # -----------------------------------------------
 

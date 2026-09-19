@@ -39,7 +39,7 @@ def execute_resolution_adoption(org, res, db):
 
             # If committee, make them an official member
             if 'committee' in claim.interaction_type or 'secretary' in claim.interaction_type:
-                requested_pos = claim.title.split(": ")[-1] if ":" in claim.title else claim.interaction_type.replace('_claim', '').title()
+                requested_pos = claim.title.split(": ")[-1] if ":" in claim.title else (claim.title.split(" - ")[-1] if " - " in claim.title else claim.interaction_type.replace('_claim', '').title())
                 port = portfolio_map.get(str(claim.id)) or portfolio_map.get(claim.id) or ("Secretary" if "secretary" in claim.interaction_type else requested_pos)
                 # Get or create a term
                 from app.models.uip_governance import UipCommitteeTerm

@@ -159,9 +159,9 @@ def dashboard(org_slug):
             if pos in ["committee", "unassigned", "committee member", ""]:
                 claim = CoreInteraction.query.filter_by(creator_id=current_user.id, interaction_type="committee_claim").first()
                 if claim:
-                new_pos = claim.title.split(": ")[-1] if ":" in claim.title else (claim.title.split(" - ")[-1] if " - " in claim.title else claim.title)
-                current_appointment.position = new_pos.strip()
-                db.session.commit()
+                    new_pos = claim.title.split(": ")[-1] if ":" in claim.title else (claim.title.split(" - ")[-1] if " - " in claim.title else claim.title)
+                    current_appointment.position = new_pos.strip()
+                    db.session.commit()
                     pos = new_pos.strip().lower()
             
             # Ensure they have committee_member role for the sidebar financial buttons

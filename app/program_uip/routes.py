@@ -322,9 +322,23 @@ def router_page(org_slug):
     # 2. Strangers / Unverified Users
     # We now always show the 7 tiles. The verify routes will handle routing to provisioning vs waiting lounge based on founding_exists.
     
-    # Calculate occupied singular seats so the UI can grey them out
+    # --- GLOBAL AUTO-FIX FOR ALL CORRUPTED SEATS ---
     from app.models.uip_governance import UipCommitteeMember
     from sqlalchemy import func
+    corrupted = UipCommitteeMember.query.filter(
+        UipCommitteeMember.organization_id == org.id,
+        func.lower(UipCommitteeMember.position).in_(["committee", "unassigned", "committee member", ""])
+    ).all()
+    if corrupted:
+        from app.models.core import CoreInteraction
+        for c in corrupted:
+            claim = CoreInteraction.query.filter_by(creator_id=c.user_id, interaction_type="committee_claim").first()
+            if claim and ":" in claim.title:
+                c.position = claim.title.split(": ")[-1].strip()
+        db.session.commit()
+    # -----------------------------------------------
+
+    # Calculate occupied singular seats so the UI can grey them out
     occupied = UipCommitteeMember.query.filter(
         UipCommitteeMember.organization_id == org.id,
         UipCommitteeMember.status == "CURRENT",

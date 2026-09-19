@@ -453,8 +453,7 @@ def decide_resolution(org_slug, res_id):
         current_quorum_pct = int((len(votes) / total_eligible) * 100)
         
         if current_quorum_pct < quorum_target:
-            flash(f"Cannot adopt: Quorum not met ({current_quorum_pct}% of {quorum_target}% required).", "danger")
-            return redirect(url_for("uip_bp.view_resolution", org_slug=org.slug, res_id=res.id))
+            flash(f"Digital quorum was not met ({current_quorum_pct}% of {quorum_target}%). Proceeding anyway, as final ratification occurs at the live meeting.", "warning")
             
     res.status = decision
     

@@ -348,10 +348,10 @@ def router_page(org_slug):
     from app.models.uip_governance import UipOrganogramSeat
     if UipOrganogramSeat.query.filter_by(organization_id=org.id).count() == 0:
         default_seats = [
-            ("Chairperson", "EXECUTIVE", "Mandatory", 1),
-            ("Vice-Chairperson", "EXECUTIVE", "Voluntary", 2),
-            ("Treasurer", "EXECUTIVE", "Mandatory", 3),
-            ("Secretary", "EXECUTIVE", "Mandatory", 4),
+            ("Chairperson", "CORE_EXCO", "Mandatory", 1),
+            ("Vice-Chairperson", "CORE_EXCO", "Voluntary", 2),
+            ("Treasurer", "CORE_EXCO", "Mandatory", 3),
+            ("Secretary", "CORE_EXCO", "Mandatory", 4),
             ("Security Sub-Committee Lead", "SECOND_GROUP", "Voluntary", 5),
             ("Greening & Environment Lead", "SECOND_GROUP", "Voluntary", 6),
             ("Infrastructure & Maintenance Lead", "SECOND_GROUP", "Voluntary", 7),
@@ -362,7 +362,7 @@ def router_page(org_slug):
             db.session.add(UipOrganogramSeat(organization_id=org.id, title=title, group_level=grp, qualifier=qual, display_order=order))
         db.session.commit()
         
-    exco_seats = UipOrganogramSeat.query.filter_by(organization_id=org.id, group_level="EXECUTIVE").order_by(UipOrganogramSeat.display_order).all()
+    exco_seats = UipOrganogramSeat.query.filter_by(organization_id=org.id, group_level="CORE_EXCO").order_by(UipOrganogramSeat.display_order).all()
     sub_seats = UipOrganogramSeat.query.filter_by(organization_id=org.id, group_level="SECOND_GROUP").order_by(UipOrganogramSeat.display_order).all()
     # ----------------------------------------
 

@@ -1,6 +1,15 @@
-from app import create_app, db
-from sqlalchemy import text
-app=create_app()
-with app.app_context():
-    r=db.session.execute(text("SELECT slug, program_type, commercial_mode, start_endpoint FROM auth_subject WHERE slug='loss'")).mappings().first()
-    print(dict(r))
+try:
+    from app import create_app
+    from app.extensions import db
+    from app.models.uip_governance import UipOrganogramSeat
+    
+    app = create_app()
+    with app.app_context():
+        groups = db.session.query(UipOrganogramSeat.group_level).distinct().all()
+        print('Groups:', groups)
+        seats = UipOrganogramSeat.query.all()
+        print('Total seats:', len(seats))
+        for s in seats:
+            print(s.title, s.group_level)
+except Exception as e:
+    print("ERROR:", e)

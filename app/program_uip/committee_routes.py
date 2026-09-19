@@ -774,4 +774,6 @@ def publish_resolution(org_slug, res_id):
 @login_required
 def exco_workspace(org_slug):
     org = g.organization
-    return render_template("program_uip/dashboards/exco_workspace.html", org=org)
+    from app.models.uip import UipResolution
+    pending_resolutions = UipResolution.query.filter_by(organization_id=org.id, status="PROPOSED").count()
+    return render_template("program_uip/dashboards/exco_workspace.html", org=org, pending_resolutions=pending_resolutions)

@@ -61,11 +61,16 @@ def secretary_workspace(org_slug):
         UipResolution.title.like("%Access Resolution%")
     ).order_by(UipResolution.created_at.desc()).all()
     
+    
+    # Calculate pending resolutions (PROPOSED) for the alert badge
+    pending_resolutions = UipResolution.query.filter_by(organization_id=org.id, status="PROPOSED").count()
+    
     return render_template(
         "program_uip/dashboards/secretary_workspace.html",
         org=org,
         open_claims=enriched_claims,
-        proposed_resolutions=proposed_resolutions
+        proposed_resolutions=proposed_resolutions,
+        pending_resolutions=pending_resolutions
     )
 
 @uip_bp.route("/<org_slug>/draft-access-resolution", methods=["POST"])

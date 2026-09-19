@@ -186,7 +186,7 @@ def finalize_access_resolution(org_slug):
                     org_mem.is_active = True
                     
                 # Grant the appropriate role
-                role_slug = "committee_member" if claim.interaction_type in ["committee_claim", "secretary_claim", "chairman_claim", "treasurer_claim"] else "mo" if "mo" in claim.interaction_type else "ratepayer"
+                role_slug = "committee_member" if claim.interaction_type in ["committee_claim", "secretary_claim", "chairman_claim", "treasurer_claim"] else "mo" if "mo" in claim.interaction_type else "resident"
                 role_obj = CoreRole.query.filter_by(slug=role_slug).first()
                 if role_obj:
                     # check if they have it

@@ -186,6 +186,20 @@ def finalize_access_resolution(org_slug):
                     
             founding_res.description += additions
             db.session.commit()
+
+    if UipOrganogramSeat.query.filter_by(organization_id=org.id).count() == 4:
+        # Hotfix: Add missing 5 subcommittees if they only have the first 4
+        new_seats = [
+            ("Security Sub-Committee Lead", "SECOND_GROUP", "Voluntary", 5),
+            ("Greening & Environment Lead", "SECOND_GROUP", "Voluntary", 6),
+            ("Infrastructure & Maintenance Lead", "SECOND_GROUP", "Voluntary", 7),
+            ("Social & Community Lead", "SECOND_GROUP", "Voluntary", 8),
+            ("Finance & Audit Lead", "SECOND_GROUP", "Voluntary", 9)
+        ]
+        for title, grp, qual, order in new_seats:
+            seat = UipOrganogramSeat(organization_id=org.id, title=title, group_level=grp, qualifier=qual, display_order=order)
+            db.session.add(seat)
+        db.session.commit()
             flash("Members successfully officially logged into the Founding Resolution!", "success")
             return redirect(url_for("uip_bp.committee_dashboard", org_slug=org.slug))
             
@@ -343,7 +357,12 @@ def secretary_organogram(org_slug):
             ("Chairperson", "CORE_EXCO", "Voluntary", 1),
             ("Vice-Chairperson", "CORE_EXCO", "Voluntary", 2),
             ("Treasurer", "CORE_EXCO", "Voluntary", 3),
-            ("Secretary", "CORE_EXCO", "Voluntary", 4)
+            ("Secretary", "CORE_EXCO", "Voluntary", 4),
+            ("Security Sub-Committee Lead", "SECOND_GROUP", "Voluntary", 5),
+            ("Greening & Environment Lead", "SECOND_GROUP", "Voluntary", 6),
+            ("Infrastructure & Maintenance Lead", "SECOND_GROUP", "Voluntary", 7),
+            ("Social & Community Lead", "SECOND_GROUP", "Voluntary", 8),
+            ("Finance & Audit Lead", "SECOND_GROUP", "Voluntary", 9)
         ]
         for title, grp, qual, order in default_seats:
             seat = UipOrganogramSeat(organization_id=org.id, title=title, group_level=grp, qualifier=qual, display_order=order)

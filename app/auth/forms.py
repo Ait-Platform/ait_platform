@@ -32,7 +32,7 @@ class TenancyForm(FlaskForm):
     submit = SubmitField('Create Tenancy')
 
 class LoginForm(FlaskForm):
-    email = StringField("Email", validators=[DataRequired(), Email(), Length(max=255)])
+    email = StringField("Email", validators=[DataRequired(), Length(max=255)])
     password = PasswordField("Password", validators=[DataRequired(), Length(min=8)])
     remember = BooleanField("Remember me")  # <-- add this
     submit = SubmitField("Sign in")

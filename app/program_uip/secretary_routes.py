@@ -376,16 +376,17 @@ def secretary_organogram(org_slug):
     # 1. Fetch Blueprint Seats
     core_seats = UipOrganogramSeat.query.filter_by(organization_id=org.id, group_level="CORE_EXCO").order_by(UipOrganogramSeat.display_order).all()
     second_seats = UipOrganogramSeat.query.filter_by(organization_id=org.id, group_level="SECOND_GROUP").order_by(UipOrganogramSeat.id).all()
+    operations_seats = UipOrganogramSeat.query.filter_by(organization_id=org.id, group_level="OPERATIONS").order_by(UipOrganogramSeat.id).all()
     
     # 2. Map active members to seats (For MVP: Map them by matching exact title since they don't have seat_ids properly linked in the DB from the genesis flow yet)
     active_members = UipCommitteeMember.query.filter_by(organization_id=org.id, status="CURRENT").all()
     
     # Attach members to seats temporarily for the view
-    for seat in core_seats + second_seats:
+    for seat in core_seats + second_seats + operations_seats:
         seat.member = None
         for m in active_members:
             if m.position.lower() == seat.title.lower():
                 seat.member = m
                 break
                 
-    return render_template("program_uip/dashboards/secretary_organogram.html", org=org, core_seats=core_seats, second_seats=second_seats)
+    return render_template("program_uip/dashboards/secretary_organogram.html", org=org, core_seats=core_seats, second_seats=second_seats, operations_seats=operations_seats)

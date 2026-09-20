@@ -426,6 +426,16 @@ def secretary_organogram(org_slug):
             db.session.add(seat)
             db.session.commit()
             flash(f"Blueprint seat '{seat.title}' added.", "success")
+                elif action == "edit_seat":
+            seat_id = request.form.get("seat_id", type=int)
+            seat = UipOrganogramSeat.query.get(seat_id)
+            if seat and seat.organization_id == org.id:
+                seat.title = request.form.get("title", seat.title)
+                seat.group_level = request.form.get("group_level", seat.group_level)
+                seat.qualifier = request.form.get("qualifier", seat.qualifier)
+                seat.duty = request.form.get("duty", seat.duty)
+                db.session.commit()
+                flash(f"Blueprint seat '{seat.title}' updated.", "success")
         elif action == "assign_member":
             seat_title = request.form.get("seat_title")
             member_id = request.form.get("member_id", type=int)

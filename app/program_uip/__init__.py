@@ -83,21 +83,7 @@ def establish_organization_context():
         "uip_bp.provisioning", "uip_bp.reset_genesis", "uip_bp.remove_trigger"
     }
     
-    if current_user.is_authenticated:
-        membership = CoreOrganizationMember.query.filter_by(
-            organization_id=org.id, user_id=current_user.id, is_active=True
-        ).first()
-        
-        if not membership and request.endpoint not in public_endpoints:
-            # Check if they have ANY explicit role assignment for this org (like owner, manager, etc)
-            from app.models.core import CoreRoleAssignment
-            has_role = CoreRoleAssignment.query.filter_by(
-                organization_id=org.id, user_id=current_user.id
-            ).first()
-            
-            if not has_role:
-                abort(403, description="Access restricted. Active membership required.")
-
+    
 
 from . import routes
 from . import operational_routes

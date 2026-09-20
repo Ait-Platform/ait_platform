@@ -445,19 +445,6 @@ def secretary_organogram(org_slug):
                 seat.duty = request.form.get("duty", seat.duty)
                 db.session.commit()
                 flash(f"Blueprint seat '{seat.title}' updated.", "success")
-        elif action == "assign_member":
-            seat_title = request.form.get("seat_title")
-            member_id = request.form.get("member_id", type=int)
-            if seat_title and member_id:
-                if seat_title in ['Chairperson', 'Vice-Chairperson', 'Treasurer', 'Secretary']:
-                    flash(f"Genesis role '{seat_title}' is strictly tied to onboarding mandates and cannot be manually assigned here.", "danger")
-                else:
-                    from app.models.uip_governance import UipCommitteeMember
-                    member = UipCommitteeMember.query.filter_by(id=member_id, organization_id=org.id).first()
-                    if member:
-                        member.position = seat_title
-                        db.session.commit()
-                        flash(f"{member.name} assigned to {seat_title}.", "success")
         elif action == "upload_photo":
             member_id = request.form.get("member_id")
             photo_file = request.files.get("photo_file")

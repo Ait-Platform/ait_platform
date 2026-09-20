@@ -1,0 +1,11 @@
+with open("C:/Users/Sanjith/.gemini/antigravity/brain/62204572-bbdc-4628-9905-cc45ecf51188/agent.md", "a", encoding="utf-8") as f:
+    f.write("\n\n## Governance: Lifecycle of a New Role/Task\n")
+    f.write("According to the core governance doctrine, a new role or task assignment MUST follow this strict democratic pipeline:\n")
+    f.write("1. **Identification**: The community identifies a need for a specific task or role.\n")
+    f.write("2. **Drafting**: A resolution is drafted to mandate this new task/role.\n")
+    f.write("3. **Ratification**: The resolution is taken to a public meeting where it is voted on and ratified.\n")
+    f.write("4. **Registration**: The designated individual registers on the AIT platform.\n")
+    f.write("5. **Selection**: During onboarding/genesis, the individual selects that specific ratified task title/role.\n")
+    f.write("6. **Verification**: The individual lands in the 'Waiting Room' pending verification against the public meeting records.\n")
+    f.write("7. **Provisioning**: Once verified, the system automatically routes them to their designated dashboard based on their assigned system Duty.\n")
+print("Updated agent.md with Governance Lifecycle")

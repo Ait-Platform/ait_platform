@@ -1,11 +1,16 @@
-with open("app/program_uip/secretary_routes.py", "r", encoding="utf-8") as f:
+with open("templates/program_uip/dashboards/secretary_organogram.html", "r", encoding="utf-8") as f:
     text = f.read()
 
-text = text.replace(
-    'return render_template("program_uip/dashboards/secretary_organogram.html", core_seats=core_seats, second_seats=second_seats)',
-    'return render_template("program_uip/dashboards/secretary_organogram.html", org=org, core_seats=core_seats, second_seats=second_seats)'
-)
+import re
+old_div = r'<div class="text-\[10px\] font-bold text-indigo-400 uppercase tracking-widest mb-2">\{\{ seat.qualifier \}\}</div>'
+new_div = r'''<div class="flex justify-between items-center mb-2">
+                        <div class="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">{{ seat.qualifier }}</div>
+                        <div class="text-[9px] font-bold text-white bg-slate-800 px-1.5 py-0.5 rounded-full" title="Platform Permission">
+                            <i class="fas fa-key mr-1"></i>{{ seat.duty|default('committee_member')|replace('_', ' ')|title }}
+                        </div>
+                    </div>'''
 
-with open("app/program_uip/secretary_routes.py", "w", encoding="utf-8") as f:
+text = re.sub(old_div, new_div, text)
+with open("templates/program_uip/dashboards/secretary_organogram.html", "w", encoding="utf-8") as f:
     f.write(text)
-print("Added org to organogram template render")
+print("Updated seat qualifier with duty tag")

@@ -82,7 +82,7 @@ def navigation_context():
         ).first()
         if mem:
             is_exco = True
-            if mem.position == "Secretary":
+            if mem.position and mem.position.lower() in ["secretary", "chairperson", "chairman", "vice-chairperson", "vice chairman"]:
                 is_secretary = True
     except Exception:
         pass

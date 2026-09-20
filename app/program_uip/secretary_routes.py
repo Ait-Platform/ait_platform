@@ -14,6 +14,19 @@ from .services import audit
 
 def _require_secretary():
     org = g.organization
+    
+    # 1. Allow supreme system owner
+    from app.models.core import CoreRoleAssignment, CoreRole
+    owner_assignment = CoreRoleAssignment.query.filter(
+        CoreRoleAssignment.organization_id == org.id,
+        CoreRoleAssignment.user_id == current_user.id,
+        CoreRoleAssignment.role.has(CoreRole.slug == 'owner')
+    ).first()
+    
+    if owner_assignment:
+        return None
+        
+    # 2. Check committee position
     current_appointment = UipCommitteeMember.query.filter(
         UipCommitteeMember.organization_id == org.id,
         UipCommitteeMember.status == "CURRENT",
@@ -28,6 +41,7 @@ def _require_secretary():
     
     if pos not in allowed:
         abort(403, description="Access restricted to the active Secretary and Chairperson.")
+        
     return current_appointment
 
 @uip_bp.route("/<org_slug>/secretary-workspace")

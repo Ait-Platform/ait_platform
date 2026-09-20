@@ -1,4 +1,4 @@
-{% extends "program_uip/layout.html" %}
+html = """{% extends "program_uip/layout.html" %}
 
 {% block content %}
 <div class="row mb-4 align-items-center">
@@ -27,4 +27,9 @@
         </div>
     </div>
 </div>
-{% endblock %}
+{% endblock %}"""
+
+with open("templates/program_uip/dashboards/placeholder_workspace.html", "w", encoding="utf-8") as f:
+    f.write(html)
+
+print("Wrote placeholder template")

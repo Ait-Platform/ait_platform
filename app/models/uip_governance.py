@@ -9,6 +9,7 @@ class UipOrganogramSeat(db.Model):
     group_level = db.Column(db.String(50), nullable=False) # CORE_EXCO, SECOND_GROUP
     qualifier = db.Column(db.String(50), nullable=False, default="Voluntary")
     display_order = db.Column(db.Integer, default=0)
+    duty = db.Column(db.String(50), nullable=False, default="committee_member")
 
 
 

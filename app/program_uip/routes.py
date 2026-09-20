@@ -348,18 +348,18 @@ def router_page(org_slug):
     from app.models.uip_governance import UipOrganogramSeat
     if UipOrganogramSeat.query.filter_by(organization_id=org.id).count() == 0:
         default_seats = [
-            ("Chairperson", "CORE_EXCO", "Mandatory", 1),
-            ("Vice-Chairperson", "CORE_EXCO", "Voluntary", 2),
-            ("Treasurer", "CORE_EXCO", "Mandatory", 3),
-            ("Secretary", "CORE_EXCO", "Mandatory", 4),
-            ("Security Sub-Committee Lead", "SECOND_GROUP", "Voluntary", 5),
-            ("Greening & Environment Lead", "SECOND_GROUP", "Voluntary", 6),
-            ("Infrastructure & Maintenance Lead", "SECOND_GROUP", "Voluntary", 7),
-            ("Social & Community Lead", "SECOND_GROUP", "Voluntary", 8),
-            ("Finance & Audit Lead", "SECOND_GROUP", "Voluntary", 9)
+            ("Chairperson", "CORE_EXCO", "Mandatory", 1, "manager"),
+            ("Vice-Chairperson", "CORE_EXCO", "Voluntary", 2, "manager"),
+            ("Treasurer", "CORE_EXCO", "Mandatory", 3, "manager"),
+            ("Secretary", "CORE_EXCO", "Mandatory", 4, "manager"),
+            ("Security Sub-Committee Lead", "SECOND_GROUP", "Voluntary", 5, "committee_member"),
+            ("Greening & Environment Lead", "SECOND_GROUP", "Voluntary", 6, "committee_member"),
+            ("Infrastructure & Maintenance Lead", "SECOND_GROUP", "Voluntary", 7, "committee_member"),
+            ("Social & Community Lead", "SECOND_GROUP", "Voluntary", 8, "committee_member"),
+            ("Finance & Audit Lead", "SECOND_GROUP", "Voluntary", 9, "committee_member")
         ]
-        for title, grp, qual, order in default_seats:
-            db.session.add(UipOrganogramSeat(organization_id=org.id, title=title, group_level=grp, qualifier=qual, display_order=order))
+        for title, grp, qual, order, duty in default_seats:
+            db.session.add(UipOrganogramSeat(organization_id=org.id, title=title, group_level=grp, qualifier=qual, display_order=order, duty=duty))
         db.session.commit()
         
     exco_seats = UipOrganogramSeat.query.filter_by(organization_id=org.id, group_level="CORE_EXCO").order_by(UipOrganogramSeat.display_order).all()
@@ -1567,7 +1567,8 @@ def dev_upgrade_db(org_slug):
         for col_sql in [
             "ALTER TABLE uip_resolution ADD COLUMN voting_scope VARCHAR(20) DEFAULT 'EXCO';",
             "ALTER TABLE uip_resolution ADD COLUMN quorum_target INTEGER DEFAULT 50;",
-            "ALTER TABLE uip_resolution ADD COLUMN expires_at TIMESTAMP;"
+            "ALTER TABLE uip_resolution ADD COLUMN expires_at TIMESTAMP;",
+            "ALTER TABLE uip_organogram_seat ADD COLUMN duty VARCHAR(50) DEFAULT 'committee_member';"
         ]:
             try:
                 db.session.execute(text(col_sql))

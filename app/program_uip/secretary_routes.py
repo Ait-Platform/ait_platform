@@ -186,7 +186,16 @@ def finalize_access_resolution(org_slug):
                     org_mem.is_active = True
                     
                 # Grant the appropriate role
-                role_slug = "committee_member" if claim.interaction_type in ["committee_claim", "secretary_claim", "chairman_claim", "treasurer_claim"] else "mo" if "mo" in claim.interaction_type else "resident"
+                role_slug = "committee_member" if claim.interaction_type in ["committee_claim", "secretary_claim", "chairman_claim", "treasurer_claim"] else "mo" if "mo" in claim.interaction_type else "owner"
+                
+                # Check for custom Duty from Organogram Seat
+                if claim.interaction_type in ["committee_claim", "secretary_claim", "chairman_claim", "treasurer_claim"]:
+                    pos = "Secretary" if claim.interaction_type == "secretary_claim" else (claim.title.split(": ")[-1] if ":" in claim.title else (claim.title.split(" - ")[-1] if " - " in claim.title else claim.title))
+                    from app.models.uip_governance import UipOrganogramSeat
+                    seat_record = UipOrganogramSeat.query.filter(UipOrganogramSeat.organization_id == org.id, func.lower(UipOrganogramSeat.title) == func.lower(pos.strip())).first()
+                    if seat_record and seat_record.duty:
+                        role_slug = seat_record.duty
+                
                 role_obj = CoreRole.query.filter_by(slug=role_slug).first()
                 if role_obj:
                     # check if they have it
@@ -375,31 +384,31 @@ def secretary_organogram(org_slug):
     # Pre-populate basic 4 Core ExCo seats if Blueprint is totally empty
     if UipOrganogramSeat.query.filter_by(organization_id=org.id).count() == 0:
         default_seats = [
-            ("Chairperson", "CORE_EXCO", "Voluntary", 1),
-            ("Vice-Chairperson", "CORE_EXCO", "Voluntary", 2),
-            ("Treasurer", "CORE_EXCO", "Voluntary", 3),
-            ("Secretary", "CORE_EXCO", "Voluntary", 4),
-            ("Security Sub-Committee Lead", "SECOND_GROUP", "Voluntary", 5),
-            ("Greening & Environment Lead", "SECOND_GROUP", "Voluntary", 6),
-            ("Infrastructure & Maintenance Lead", "SECOND_GROUP", "Voluntary", 7),
-            ("Social & Community Lead", "SECOND_GROUP", "Voluntary", 8),
-            ("Finance & Audit Lead", "SECOND_GROUP", "Voluntary", 9)
+            ("Chairperson", "CORE_EXCO", "Voluntary", 1, "manager"),
+            ("Vice-Chairperson", "CORE_EXCO", "Voluntary", 2, "manager"),
+            ("Treasurer", "CORE_EXCO", "Voluntary", 3, "manager"),
+            ("Secretary", "CORE_EXCO", "Voluntary", 4, "manager"),
+            ("Security Sub-Committee Lead", "SECOND_GROUP", "Voluntary", 5, "committee_member"),
+            ("Greening & Environment Lead", "SECOND_GROUP", "Voluntary", 6, "committee_member"),
+            ("Infrastructure & Maintenance Lead", "SECOND_GROUP", "Voluntary", 7, "committee_member"),
+            ("Social & Community Lead", "SECOND_GROUP", "Voluntary", 8, "committee_member"),
+            ("Finance & Audit Lead", "SECOND_GROUP", "Voluntary", 9, "committee_member")
         ]
-        for title, grp, qual, order in default_seats:
-            seat = UipOrganogramSeat(organization_id=org.id, title=title, group_level=grp, qualifier=qual, display_order=order)
+        for title, grp, qual, order, duty in default_seats:
+            seat = UipOrganogramSeat(organization_id=org.id, title=title, group_level=grp, qualifier=qual, display_order=order, duty=duty)
             db.session.add(seat)
         db.session.commit()
         
     if UipOrganogramSeat.query.filter_by(organization_id=org.id).count() == 4:
         new_seats = [
-            ("Security Sub-Committee Lead", "SECOND_GROUP", "Voluntary", 5),
-            ("Greening & Environment Lead", "SECOND_GROUP", "Voluntary", 6),
-            ("Infrastructure & Maintenance Lead", "SECOND_GROUP", "Voluntary", 7),
-            ("Social & Community Lead", "SECOND_GROUP", "Voluntary", 8),
-            ("Finance & Audit Lead", "SECOND_GROUP", "Voluntary", 9)
+            ("Security Sub-Committee Lead", "SECOND_GROUP", "Voluntary", 5, "committee_member"),
+            ("Greening & Environment Lead", "SECOND_GROUP", "Voluntary", 6, "committee_member"),
+            ("Infrastructure & Maintenance Lead", "SECOND_GROUP", "Voluntary", 7, "committee_member"),
+            ("Social & Community Lead", "SECOND_GROUP", "Voluntary", 8, "committee_member"),
+            ("Finance & Audit Lead", "SECOND_GROUP", "Voluntary", 9, "committee_member")
         ]
-        for title, grp, qual, order in new_seats:
-            seat = UipOrganogramSeat(organization_id=org.id, title=title, group_level=grp, qualifier=qual, display_order=order)
+        for title, grp, qual, order, duty in new_seats:
+            seat = UipOrganogramSeat(organization_id=org.id, title=title, group_level=grp, qualifier=qual, display_order=order, duty=duty)
             db.session.add(seat)
         db.session.commit()
     

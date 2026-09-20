@@ -105,3 +105,13 @@ from . import committee_routes
 from . import secretary_routes
 
 
+
+import traceback
+@uip_bp.errorhandler(403)
+def handle_403(e):
+    with open("403_trace.log", "a") as log:
+        log.write("\n--- 403 FORBIDDEN ---\n")
+        log.write("Endpoint: " + str(request.endpoint) + "\n")
+        traceback.print_stack(file=log)
+        log.write("Description: " + str(e.description) + "\n")
+    return "Forbidden. Stack logged.", 403

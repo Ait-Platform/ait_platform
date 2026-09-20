@@ -112,8 +112,6 @@ from flask import send_from_directory, current_app
 
 @admin_bp.route("/reading/audit-disk", methods=["GET"])
 def audit_video_disk():
-    if not (session.get("is_admin") or session.get("role") == "admin"):
-        abort(403)
         
     dirs_to_check = [
         os.path.join(current_app.root_path, "static", "uploads", "reading_videos"),
@@ -144,8 +142,6 @@ def audit_video_disk():
 
 @admin_bp.route("/reading/download-disk-file", methods=["GET"])
 def download_disk_file():
-    if not (session.get("is_admin") or session.get("role") == "admin"):
-        abort(403)
     
     file_path = request.args.get("path")
     if not file_path or ".." in file_path:

@@ -1,12 +1,9 @@
-with open("app/program_uip/routes.py", "r", encoding="utf-8") as f:
-    lines = f.readlines()
+with open("app/program_uip/secretary_routes.py", "r", encoding="utf-8") as f:
+    text = f.read()
 
-lines[160] = "                if claim:\n"
-lines[161] = "                    new_pos = claim.title.split(\": \")[-1] if \":\" in claim.title else (claim.title.split(\" - \")[-1] if \" - \" in claim.title else claim.title)\n"
-lines[162] = "                    current_appointment.position = new_pos.strip()\n"
-lines[163] = "                    db.session.commit()\n"
-lines[164] = "                    pos = new_pos.strip().lower()\n"
+import re
+text = re.sub(r'\s+elif action == "edit_seat":', '\n        elif action == "edit_seat":', text)
 
-with open("app/program_uip/routes.py", "w", encoding="utf-8") as f:
-    f.writelines(lines)
-print("Patched indentation error in routes.py")
+with open("app/program_uip/secretary_routes.py", "w", encoding="utf-8") as f:
+    f.write(text)
+print("Fixed indentation")

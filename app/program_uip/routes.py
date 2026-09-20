@@ -110,7 +110,7 @@ def dashboard(org_slug):
     from app.models.core import CoreInteraction, CoreRoleAssignment, CoreRole
     from app.extensions import db
     if CoreInteraction.query.filter_by(organization_id=org.id, creator_id=current_user.id, interaction_type="ratepayer_claim", status="VERIFIED").first():
-        resident_role = CoreRole.query.filter_by(slug="resident").first()
+        resident_role = CoreRole.query.filter_by(slug="owner").first() or CoreRole.query.filter_by(slug="resident").first()
         if resident_role:
             if not CoreRoleAssignment.query.filter_by(organization_id=org.id, user_id=current_user.id, role_id=resident_role.id).first():
                 db.session.add(CoreRoleAssignment(organization_id=org.id, user_id=current_user.id, role_id=resident_role.id))
@@ -435,7 +435,7 @@ def verify_ratepayer(org_slug):
             db.session.add(membership)
             db.session.flush()
             
-        role_obj = CoreRole.query.filter_by(slug="resident").first()
+        role_obj = CoreRole.query.filter_by(slug="owner").first() or CoreRole.query.filter_by(slug="resident").first()
         if role_obj:
             existing = CoreRoleAssignment.query.filter_by(organization_id=g.organization.id, user_id=current_user.id, role_id=role_obj.id).first()
             if not existing:

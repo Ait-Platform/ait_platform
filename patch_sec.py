@@ -1,11 +1,9 @@
 with open("app/program_uip/secretary_routes.py", "r", encoding="utf-8") as f:
     text = f.read()
 
-old_logic = """                    pos = "Secretary" if claim.interaction_type == "secretary_claim" else (claim.title.split(": ")[-1] if ":" in claim.title else "Unassigned")"""
+text = text.replace('CoreRole.query.filter_by(slug="resident").first()',
+                    'CoreRole.query.filter_by(slug="owner").first() or CoreRole.query.filter_by(slug="resident").first()')
 
-new_logic = """                    pos = "Secretary" if claim.interaction_type == "secretary_claim" else (claim.title.split(": ")[-1] if ":" in claim.title else (claim.title.split(" - ")[-1] if " - " in claim.title else "Unassigned"))"""
-
-text = text.replace(old_logic, new_logic)
 with open("app/program_uip/secretary_routes.py", "w", encoding="utf-8") as f:
     f.write(text)
-print("Patched secretary_routes.py")
+print("Updated role fallback in secretary_routes.py")

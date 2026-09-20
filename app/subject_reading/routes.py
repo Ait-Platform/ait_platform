@@ -389,7 +389,11 @@ def view_lesson(lesson_id: int):
     #video_src = url_for("static", filename=f"reading_videos/{lesson['video_filename']}")
 
 
-    video_src = url_for("static", filename=f"uploads/reading_videos/{lesson['video_filename']}")
+    domain = os.getenv("R2_PUBLIC_DOMAIN", "").rstrip("/")
+    if domain:
+        video_src = f"{domain}/reading_videos/{lesson['video_filename']}"
+    else:
+        video_src = url_for("static", filename=f"uploads/reading_videos/{lesson['video_filename']}")
     ui_lang = session.get("ui_lang", "en")
 
     print("Video filename:", lesson["video_filename"])

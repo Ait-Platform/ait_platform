@@ -415,17 +415,26 @@ def secretary_organogram(org_slug):
     if request.method == "POST":
         action = request.form.get("action")
         if action == "add_seat":
-            seat = UipOrganogramSeat(
-                organization_id=org.id,
-                title=request.form.get("title"),
-                group_level=request.form.get("group_level"),
-                qualifier=request.form.get("qualifier"),
-                duty=request.form.get("duty", "committee_member"),
-                display_order=99
-            )
-            db.session.add(seat)
-            db.session.commit()
-            flash(f"Blueprint seat '{seat.title}' added.", "success")
+            title = request.form.get("title")
+            # Check for duplicate
+            existing = UipOrganogramSeat.query.filter(
+                UipOrganogramSeat.organization_id == org.id,
+                db.func.lower(UipOrganogramSeat.title) == db.func.lower(title)
+            ).first()
+            if existing:
+                flash(f"Warning: A seat with the title '{title}' already exists.", "danger")
+            else:
+                seat = UipOrganogramSeat(
+                    organization_id=org.id,
+                    title=title,
+                    group_level=request.form.get("group_level"),
+                    qualifier=request.form.get("qualifier"),
+                    duty=request.form.get("duty", "committee_member"),
+                    display_order=99
+                )
+                db.session.add(seat)
+                db.session.commit()
+                flash(f"Blueprint seat '{seat.title}' added.", "success")
         elif action == "edit_seat":
             seat_id = request.form.get("seat_id", type=int)
             seat = UipOrganogramSeat.query.get(seat_id)

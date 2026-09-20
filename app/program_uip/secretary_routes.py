@@ -37,7 +37,7 @@ def _require_secretary():
         abort(403, description="Access restricted.")
         
     pos = current_appointment.position.strip().lower()
-    allowed = ["secretary", "chairperson", "chairman", "vice-chairperson", "vice chairman", "manager"]
+    allowed = ["secretary", "chairperson", "chairman", "vice-chairperson", "vice chairman", "treasurer", "manager"]
     
     if pos not in allowed:
         abort(403, description="Access restricted to the active Secretary and Chairperson.")

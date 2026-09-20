@@ -3,7 +3,7 @@
 <div class="container mx-auto py-10 max-w-3xl">
   <div class="flex items-center justify-between mb-6">
     <h1 class="text-xl font-semibold">Preview — {{ lesson.title }}</h1>
-    <a href="{{ url_for('admin_bp.reading_lessons') }}" class="btn btn-light">Back</a>
+    <a href="{{ url_for('admin_bp.lessons', subject=subject) }}" class="btn btn-light">Back</a>
   </div>
 
   {% if media_relpath %}
@@ -41,7 +41,7 @@
   {% endif %}
 
   <!--div class="mt-6">
-    <a href="{{ url_for('admin_bp.reading_lessons') }}" class="btn btn-primary">Back to Manage Lessons</a>
+    <a href="{{ url_for('admin_bp.lessons', subject=subject) }}" class="btn btn-primary">Back to Manage Lessons</a>
   </div-->
 </div>
 {% endblock %}

@@ -1670,10 +1670,10 @@ def auto_patch_db():
 @uip_bp.route("/<org_slug>/organogram")
 def public_organogram(org_slug):
     """Public-facing visual organogram for membership drives"""
-    from app.models.uip import UipOrganization
+    from app.models.core import CoreOrganization
     from app.models.uip_governance import UipOrganogramSeat, UipCommitteeMember
     
-    org = UipOrganization.query.filter_by(slug=org_slug).first_or_404()
+    org = CoreOrganization.query.filter_by(slug=org_slug).first_or_404()
     
     core_seats = UipOrganogramSeat.query.filter_by(organization_id=org.id, group_level='CORE_EXCO').order_by(UipOrganogramSeat.id).all()
     second_seats = UipOrganogramSeat.query.filter_by(organization_id=org.id, group_level='SECOND_GROUP').order_by(UipOrganogramSeat.id).all()

@@ -1,112 +1,49 @@
+with open("app/program_uip/routes.py", "r", encoding="utf-8") as f:
+    text = f.read()
+
 import re
 
-with open('app/program_culturalfire/routes.py', 'r') as f:
-    content = f.read()
+# We need to replace the imports in public_organogram
+old_imports = 'from app.models.uip_organogram import UipOrganization, UipBlueprintSeat'
+new_imports = 'from app.models.uip import UipOrganization\n    from app.models.uip_governance import UipOrganogramSeat as UipBlueprintSeat\n    from app.models.uip_governance import UipCommitteeMember'
+text = text.replace(old_imports, new_imports)
 
-# 1. private_show_dashboard
-content = content.replace(
-    '''groups_led = CfiGroup.query.filter(CfiGroup.leader_id == enrollment.id, CfiGroup.show_id != None).all()''',
-    '''from app.models.culturalfire import CfiPrivateShowGroup
-    private_show_groups = CfiPrivateShowGroup.query.all()
-    group_ids = [psg.group_id for psg in private_show_groups]
-    groups_led = CfiGroup.query.filter(CfiGroup.leader_id == enrollment.id, CfiGroup.id.in_(group_ids)).all() if group_ids else []
+# Also need to make sure we map members to seats exactly like we do in secretary_routes
+# Let's completely replace the public_organogram function body
+pattern = r'@uip_bp\.route\("/<org_slug>/organogram"\)\ndef public_organogram\(org_slug\):.*?return render_template\(\s*"program_uip/dashboards/public_organogram\.html".*?\)'
+
+new_function = """@uip_bp.route("/<org_slug>/organogram")
+def public_organogram(org_slug):
+    \"\"\"Public-facing visual organogram for membership drives\"\"\"
+    from app.models.uip import UipOrganization
+    from app.models.uip_governance import UipOrganogramSeat, UipCommitteeMember
     
-    # Inject show_id to group object for the template
-    for group in groups_led:
-        psg = CfiPrivateShowGroup.query.filter_by(group_id=group.id).first()
-        if psg:
-            group.show_id = psg.show_id'''
-)
-
-# 2. create_private_show
-content = content.replace(
-    '''    group = CfiGroup(
-        name=f"{title} Group",
-        leader_id=enrollment.id,
-        show_id=new_show.id
-    )
-    db.session.add(group)
-    db.session.flush()''',
-    '''    group = CfiGroup(
-        name=f"{title} Group",
-        leader_id=enrollment.id
-    )
-    db.session.add(group)
-    db.session.flush()
+    org = UipOrganization.query.filter_by(slug=org_slug).first_or_404()
     
-    from app.models.culturalfire import CfiPrivateShowGroup
-    psg = CfiPrivateShowGroup(
-        show_id=new_show.id,
-        group_id=group.id
-    )
-    db.session.add(psg)'''
-)
+    core_seats = UipOrganogramSeat.query.filter_by(organization_id=org.id, group_level='CORE_EXCO').order_by(UipOrganogramSeat.id).all()
+    second_seats = UipOrganogramSeat.query.filter_by(organization_id=org.id, group_level='SECOND_GROUP').order_by(UipOrganogramSeat.id).all()
+    operations_seats = UipOrganogramSeat.query.filter_by(organization_id=org.id, group_level='OPERATIONS').order_by(UipOrganogramSeat.id).all()
 
-# 3. showcase_dashboard
-content = content.replace(
-    '''    # Get private show IDs
-    private_show_ids = [group.show_id for group in CfiGroup.query.filter(CfiGroup.show_id != None).all()]''',
-    '''    # Get private show IDs
-    from app.models.culturalfire import CfiPrivateShowGroup
-    private_show_ids = [psg.show_id for psg in CfiPrivateShowGroup.query.all()]'''
-)
-content = content.replace(
-    '''        for member in memberships:
-            if member.group.show_id:
-                pshow = CfiShow.query.get(member.group.show_id)
-                if pshow:
-                    private_shows.append(pshow)''',
-    '''        from app.models.culturalfire import CfiPrivateShowGroup
-        for member in memberships:
-            psg = CfiPrivateShowGroup.query.filter_by(group_id=member.group_id).first()
-            if psg:
-                pshow = CfiShow.query.get(psg.show_id)
-                if pshow:
-                    private_shows.append(pshow)'''
-)
+    # Map members to seats for display
+    active_members = UipCommitteeMember.query.filter_by(organization_id=org.id, status="CURRENT").all()
+    for seat in core_seats + second_seats + operations_seats:
+        seat.member = None
+        for m in active_members:
+            if m.position and m.position.lower() == seat.title.lower():
+                seat.member = m
+                break
 
-# 4. judge_dashboard
-content = content.replace(
-    '''    # Active shows that have slots available (exclude private shows)
-    private_show_ids = [group.show_id for group in CfiGroup.query.filter(CfiGroup.show_id != None).all()]''',
-    '''    # Active shows that have slots available (exclude private shows)
-    from app.models.culturalfire import CfiPrivateShowGroup
-    private_show_ids = [psg.show_id for psg in CfiPrivateShowGroup.query.all()]'''
-)
+    return render_template(
+        "program_uip/dashboards/public_organogram.html",
+        org=org,
+        core_seats=core_seats,
+        second_seats=second_seats,
+        operations_seats=operations_seats
+    )"""
 
-# 5. mc_dashboard
-content = content.replace(
-    '''    # Active shows that have slots available (exclude private shows)
-    private_show_ids = [group.show_id for group in CfiGroup.query.filter(CfiGroup.show_id != None).all()]''',
-    '''    # Active shows that have slots available (exclude private shows)
-    from app.models.culturalfire import CfiPrivateShowGroup
-    private_show_ids = [psg.show_id for psg in CfiPrivateShowGroup.query.all()]'''
-)
+text = re.sub(pattern, new_function, text, flags=re.DOTALL)
 
-# 6. show_program
-content = content.replace(
-    '''    is_private_show = CfiGroup.query.filter_by(show_id=show.id).first() is not None''',
-    '''    from app.models.culturalfire import CfiPrivateShowGroup
-    is_private_show = CfiPrivateShowGroup.query.filter_by(show_id=show.id).first() is not None'''
-)
+with open("app/program_uip/routes.py", "w", encoding="utf-8") as f:
+    f.write(text)
 
-# 7. unlock_private_show
-content = content.replace(
-    '''    is_private = CfiGroup.query.filter_by(show_id=show.id).first() is not None
-    if not is_private:''',
-    '''    from app.models.culturalfire import CfiPrivateShowGroup
-    psg = CfiPrivateShowGroup.query.filter_by(show_id=show.id).first()
-    is_private = psg is not None
-    if not is_private:'''
-)
-content = content.replace(
-    '''    group = CfiGroup.query.filter_by(show_id=show.id).first()
-    if not group:''',
-    '''    group = CfiGroup.query.get(psg.group_id)
-    if not group:'''
-)
-
-
-with open('app/program_culturalfire/routes.py', 'w') as f:
-    f.write(content)
-print("Done")
+print("Fixed imports and member mapping in public_organogram")

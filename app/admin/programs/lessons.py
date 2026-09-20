@@ -106,3 +106,53 @@ def api_reorder_lessons(subject: str):
         db.session.query(RdpLesson).filter_by(id=lid).update({"order": idx})
     db.session.commit()
     return jsonify(ok=True)
+
+import os
+from flask import send_from_directory, current_app
+
+@admin_bp.route("/reading/audit-disk", methods=["GET"])
+def audit_video_disk():
+    if not (session.get("is_admin") or session.get("role") == "admin"):
+        abort(403)
+        
+    dirs_to_check = [
+        os.path.join(current_app.root_path, "static", "uploads", "reading_videos"),
+        os.path.join(current_app.root_path, "static", "videos")
+    ]
+    
+    found_files = []
+    for d in dirs_to_check:
+        if os.path.exists(d):
+            for f in os.listdir(d):
+                filepath = os.path.join(d, f)
+                if os.path.isfile(filepath):
+                    size_mb = round(os.path.getsize(filepath) / (1024 * 1024), 2)
+                    # Create a safe relative path for downloading
+                    rel_path = os.path.relpath(filepath, current_app.root_path)
+                    found_files.append({"name": f, "size": size_mb, "path": rel_path, "dir": d})
+                    
+    # Generate a simple HTML response so we don't need a template file
+    html = "<html><head><title>Disk Audit</title><style>body{font-family:sans-serif; padding:2rem;} table{border-collapse:collapse; width:100%;} th,td{border:1px solid #ccc; padding:0.5rem; text-align:left;} th{background:#eee;}</style></head><body>"
+    html += "<h1>Render Server Disk Audit</h1>"
+    html += "<p>These are the physical video files currently sitting on the live Render server.</p>"
+    html += "<table><tr><th>Filename</th><th>Size (MB)</th><th>Location on Server</th><th>Action</th></tr>"
+    for file in found_files:
+        html += f"<tr><td>{file['name']}</td><td>{file['size']} MB</td><td>{file['dir']}</td>"
+        html += f"<td><a href='/admin/reading/download-disk-file?path={file['path']}' style='background:#4f46e5;color:white;padding:5px 10px;text-decoration:none;border-radius:4px;'>Download</a></td></tr>"
+    html += "</table><br><a href='/admin/reading/lessons'>&larr; Back to Admin</a></body></html>"
+    return html
+
+@admin_bp.route("/reading/download-disk-file", methods=["GET"])
+def download_disk_file():
+    if not (session.get("is_admin") or session.get("role") == "admin"):
+        abort(403)
+    
+    file_path = request.args.get("path")
+    if not file_path or ".." in file_path:
+        abort(400)
+        
+    full_path = os.path.join(current_app.root_path, file_path)
+    directory = os.path.dirname(full_path)
+    filename = os.path.basename(full_path)
+    
+    return send_from_directory(directory, filename, as_attachment=True)

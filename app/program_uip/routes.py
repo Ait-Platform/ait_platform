@@ -106,17 +106,29 @@ def _positive_id(value):
 def dashboard(org_slug):
     org = g.organization
     
-    # 1. Quick bypass for owners!
+    # 1. Check if they are a Committee Member FIRST (so Chair/Treasurer go to their custom dashboards)
+    from app.models.uip_governance import UipCommitteeMember
+    from sqlalchemy import func
+    
+    current_appointment = UipCommitteeMember.query.filter(
+        UipCommitteeMember.organization_id == org.id,
+        UipCommitteeMember.status == "CURRENT",
+        func.lower(UipCommitteeMember.email) == func.lower(current_user.email)
+    ).first()
+    
+    if current_appointment:
+        # Route them to the committee router, which handles Chair/Vice/Treasurer logic
+        return redirect(url_for("uip_bp.committee_dashboard", org_slug=org_slug))
+
+    # 2. Quick bypass for owners!
     from app.models.core import CoreRoleAssignment, CoreRole
     owner_assignment = CoreRoleAssignment.query.filter_by(
         organization_id=org.id, user_id=current_user.id
     ).join(CoreRole).filter(CoreRole.slug == 'owner').first()
     
     if owner_assignment:
-        # If they are an owner, just give them the manager dashboard!
+        # If they are an owner (but not in committee), just give them the manager dashboard
         from app.program_uip.presentation import executive
-        # We must bypass audit.authorize since they might not have 'manager' explicitly
-        # We will just render the template directly without the strict executive() function
         rows = []
         try:
             from app.program_uip.presentation import issue_rows

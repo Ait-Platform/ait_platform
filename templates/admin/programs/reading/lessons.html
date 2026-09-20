@@ -36,7 +36,7 @@
                     <td class="px-4 py-3">{{ l.video_filename or '-' }}</td>
                     <td class="px-4 py-3 text-right whitespace-nowrap">
                         <a href="{{ url_for('admin_bp.edit_lesson', subject=subject, lesson_id=l.id) }}" class="text-blue-600 hover:underline mr-3">Edit</a>
-                        <a href="{{ url_for('admin_bp.preview_lesson', lesson_id=l.id) }}" class="text-slate-600 hover:underline">Preview</a>
+                        <a href="{{ url_for('reading_bp.view_lesson', lesson_id=l.id) }}" class="text-slate-600 hover:underline">Preview</a>
                     </td>
                 </tr>
                 {% else %}

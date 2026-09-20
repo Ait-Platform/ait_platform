@@ -139,13 +139,13 @@
                 
                 <form method="POST" action="{{ url_for('uip_bp.vote_resolution', org_slug=org.slug, res_id=resolution.id) }}" class="flex flex-row gap-3 w-full">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                    <button type="submit" name="vote" value="YEA" class="flex-1 py-3 rounded-lg font-black text-white bg-emerald-600 hover:bg-emerald-700 transition shadow-sm text-center">
+                    <button type="submit" name="vote" value="YEA" class="flex-1 py-3 rounded-lg font-black text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 hover:border-emerald-300 transition shadow-sm text-center">
                         YEA
                     </button>
-                    <button type="submit" name="vote" value="NAY" class="flex-1 py-3 rounded-lg font-black text-white bg-red-600 hover:bg-red-700 transition shadow-sm text-center">
+                    <button type="submit" name="vote" value="NAY" class="flex-1 py-3 rounded-lg font-black text-rose-700 bg-rose-50 border border-rose-200 hover:bg-rose-100 hover:border-rose-300 transition shadow-sm text-center">
                         NAY
                     </button>
-                    <button type="submit" name="vote" value="ABSTAIN" class="flex-1 py-3 rounded-lg font-black text-slate-600 bg-white border border-slate-300 hover:bg-slate-50 transition shadow-sm text-center">
+                    <button type="submit" name="vote" value="ABSTAIN" class="flex-1 py-3 rounded-lg font-black text-amber-700 bg-amber-50 border border-amber-200 hover:bg-amber-100 hover:border-amber-300 transition shadow-sm text-center">
                         ABSTAIN
                     </button>
                 </form>

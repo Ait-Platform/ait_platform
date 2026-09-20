@@ -142,3 +142,5 @@ WTForms==3.2.1
 xhtml2pdf==0.2.17
 yarl==1.22.0
 zopfli==0.2.3.post1
+
+boto3==1.34.0

@@ -439,22 +439,28 @@ def secretary_organogram(org_slug):
             seat_id = request.form.get("seat_id", type=int)
             seat = UipOrganogramSeat.query.get(seat_id)
             if seat and seat.organization_id == org.id:
-                seat.title = request.form.get("title", seat.title)
-                seat.group_level = request.form.get("group_level", seat.group_level)
-                seat.qualifier = request.form.get("qualifier", seat.qualifier)
-                seat.duty = request.form.get("duty", seat.duty)
-                db.session.commit()
-                flash(f"Blueprint seat '{seat.title}' updated.", "success")
+                if seat.group_level == 'CORE_EXCO' or seat.title in ['Chairperson', 'Vice-Chairperson', 'Treasurer', 'Secretary']:
+                    flash(f"Genesis seat '{seat.title}' cannot be manually edited.", "danger")
+                else:
+                    seat.title = request.form.get("title", seat.title)
+                    seat.group_level = request.form.get("group_level", seat.group_level)
+                    seat.qualifier = request.form.get("qualifier", seat.qualifier)
+                    seat.duty = request.form.get("duty", seat.duty)
+                    db.session.commit()
+                    flash(f"Blueprint seat '{seat.title}' updated.", "success")
         elif action == "assign_member":
             seat_title = request.form.get("seat_title")
             member_id = request.form.get("member_id", type=int)
             if seat_title and member_id:
-                from app.models.uip_governance import UipCommitteeMember
-                member = UipCommitteeMember.query.filter_by(id=member_id, organization_id=org.id).first()
-                if member:
-                    member.position = seat_title
-                    db.session.commit()
-                    flash(f"{member.name} assigned to {seat_title}.", "success")
+                if seat_title in ['Chairperson', 'Vice-Chairperson', 'Treasurer', 'Secretary']:
+                    flash(f"Genesis role '{seat_title}' is strictly tied to onboarding mandates and cannot be manually assigned here.", "danger")
+                else:
+                    from app.models.uip_governance import UipCommitteeMember
+                    member = UipCommitteeMember.query.filter_by(id=member_id, organization_id=org.id).first()
+                    if member:
+                        member.position = seat_title
+                        db.session.commit()
+                        flash(f"{member.name} assigned to {seat_title}.", "success")
         elif action == "upload_photo":
             member_id = request.form.get("member_id")
             photo_file = request.files.get("photo_file")

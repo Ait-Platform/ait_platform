@@ -1,0 +1,164 @@
+import os
+
+# 1. Add route to app/program_uip/routes.py
+with open("app/program_uip/routes.py", "r", encoding="utf-8") as f:
+    text = f.read()
+
+route_code = """
+@uip_bp.route("/<org_slug>/organogram")
+def public_organogram(org_slug):
+    \"\"\"Public-facing visual organogram for membership drives\"\"\"
+    from app.models.uip_organogram import UipOrganization, UipBlueprintSeat
+    org = UipOrganization.query.filter_by(slug=org_slug).first_or_404()
+    
+    core_seats = UipBlueprintSeat.query.filter_by(org_id=org.id, group_level='CORE_EXCO').order_by(UipBlueprintSeat.id).all()
+    second_seats = UipBlueprintSeat.query.filter_by(org_id=org.id, group_level='SECOND_GROUP').order_by(UipBlueprintSeat.id).all()
+    operations_seats = UipBlueprintSeat.query.filter_by(org_id=org.id, group_level='OPERATIONS').order_by(UipBlueprintSeat.id).all()
+
+    return render_template(
+        "program_uip/dashboards/public_organogram.html",
+        org=org,
+        core_seats=core_seats,
+        second_seats=second_seats,
+        operations_seats=operations_seats
+    )
+"""
+if "def public_organogram" not in text:
+    text += "\n" + route_code + "\n"
+    with open("app/program_uip/routes.py", "w", encoding="utf-8") as f:
+        f.write(text)
+
+# 2. Create the public_organogram.html template
+template_code = """{% extends 'program_uip/base.html' %}
+{% block title %}Organogram - {{ org.name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <div class="text-center mb-16">
+        <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-indigo-100 text-indigo-600 mb-4 shadow-inner">
+            <i class="fas fa-sitemap text-3xl"></i>
+        </div>
+        <h1 class="text-4xl font-black text-slate-900 tracking-tight">{{ org.name }}</h1>
+        <p class="text-xl text-slate-500 mt-2 max-w-2xl mx-auto">Official Community Organogram & Operations Blueprint</p>
+    </div>
+
+    <!-- Tier 1: Core ExCo -->
+    <div class="mb-16">
+        <h3 class="text-center text-sm font-bold uppercase tracking-widest text-indigo-500 mb-8 border-b border-indigo-100 pb-4">Core Executive Leadership</h3>
+        <div class="flex flex-wrap justify-center gap-6">
+            {% for seat in core_seats %}
+            <div class="w-64 bg-indigo-50 border border-indigo-100 rounded-xl p-6 text-center shadow-sm relative overflow-hidden transition hover:shadow-md">
+                <div class="absolute top-0 inset-x-0 h-1 bg-indigo-500"></div>
+                <div class="flex justify-between items-center mb-4">
+                    <div class="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">{{ seat.qualifier }}</div>
+                </div>
+                <div class="font-bold text-slate-900 mb-4 h-10 flex items-center justify-center">{{ seat.title }}</div>
+                
+                <div class="w-20 h-20 mx-auto rounded-full bg-white border-2 border-indigo-100 shadow-sm overflow-hidden mb-3 flex items-center justify-center">
+                    {% if seat.member and seat.member.photo_url %}
+                    <img src="{{ seat.member.photo_url }}" class="w-full h-full object-cover">
+                    {% else %}
+                    <i class="fas fa-user text-3xl text-indigo-200"></i>
+                    {% endif %}
+                </div>
+                
+                {% if seat.member %}
+                <div class="text-sm font-black text-indigo-700">{{ seat.member.name }}</div>
+                {% else %}
+                <div class="text-sm font-bold text-rose-500 bg-rose-100 px-2 py-1 rounded inline-block animate-pulse">VACANT SEAT</div>
+                {% endif %}
+            </div>
+            {% endfor %}
+            {% if not core_seats %}
+            <div class="text-slate-400 italic text-sm">No executive seats defined.</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Tier 2: Sub-Committees -->
+    <div class="mb-16">
+        <h2 class="text-2xl font-black text-slate-800 mb-8 flex items-center justify-center border-b border-slate-200 pb-4"><i class="fas fa-users text-emerald-500 mr-3"></i> Sub-Committees & Specialized Portfolios</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {% for seat in second_seats %}
+            <div class="bg-white border {% if not seat.member %}border-rose-200 shadow-[0_0_15px_rgba(225,29,72,0.15)]{% else %}border-slate-200 shadow-sm{% endif %} rounded-2xl p-6 relative overflow-hidden transition-all hover:shadow-md">
+                {% if not seat.member %}
+                <div class="absolute top-0 right-0 bg-rose-500 text-white text-[9px] font-black tracking-widest px-3 py-1 rounded-bl-lg uppercase">Vacant</div>
+                {% else %}
+                <div class="absolute top-0 right-0 bg-emerald-500 text-white text-[9px] font-black tracking-widest px-3 py-1 rounded-bl-lg uppercase"><i class="fas fa-check mr-1"></i> Active</div>
+                {% endif %}
+                
+                <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{{ seat.qualifier }}</div>
+                <h3 class="font-bold text-slate-900 text-lg leading-tight mb-4">{{ seat.title }}</h3>
+                
+                <div class="flex items-center space-x-4">
+                    <div class="w-16 h-16 rounded-full bg-slate-50 border-2 border-emerald-100 overflow-hidden flex items-center justify-center shrink-0">
+                        {% if seat.member and seat.member.photo_url %}
+                        <img src="{{ seat.member.photo_url }}" class="w-full h-full object-cover">
+                        {% else %}
+                        <i class="fas fa-user{% if not seat.member %}-slash{% endif %} text-2xl text-slate-300"></i>
+                        {% endif %}
+                    </div>
+                    <div>
+                        {% if seat.member %}
+                        <div class="font-bold text-slate-800 text-sm">{{ seat.member.name }}</div>
+                        <div class="text-[10px] text-emerald-600 font-bold uppercase tracking-wide mt-0.5">Assigned</div>
+                        {% else %}
+                        <div class="font-bold text-slate-400 text-sm">Unassigned</div>
+                        <div class="text-[10px] text-rose-500 font-bold uppercase tracking-wide mt-0.5 animate-pulse">Needs Volunteer</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+            {% if not second_seats %}
+            <div class="col-span-full py-8 text-center text-slate-500 text-sm italic">No sub-committee seats defined.</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Tier 3: Operations -->
+    <div class="mb-12">
+        <h2 class="text-2xl font-black text-slate-800 mb-8 flex items-center justify-center border-b border-slate-200 pb-4"><i class="fas fa-hard-hat text-amber-500 mr-3"></i> Operations & Providers</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {% for seat in operations_seats %}
+            <div class="bg-white border {% if not seat.member %}border-rose-200 shadow-[0_0_15px_rgba(225,29,72,0.15)]{% else %}border-slate-200 shadow-sm{% endif %} rounded-2xl p-6 relative overflow-hidden transition-all hover:shadow-md">
+                {% if not seat.member %}
+                <div class="absolute top-0 right-0 bg-rose-500 text-white text-[9px] font-black tracking-widest px-3 py-1 rounded-bl-lg uppercase">Vacant</div>
+                {% else %}
+                <div class="absolute top-0 right-0 bg-amber-500 text-white text-[9px] font-black tracking-widest px-3 py-1 rounded-bl-lg uppercase"><i class="fas fa-check mr-1"></i> Active</div>
+                {% endif %}
+                
+                <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{{ seat.qualifier }}</div>
+                <h3 class="font-bold text-slate-900 text-lg leading-tight mb-4">{{ seat.title }}</h3>
+                
+                <div class="flex items-center space-x-4">
+                    <div class="w-16 h-16 rounded-full bg-slate-50 border-2 border-amber-100 overflow-hidden flex items-center justify-center shrink-0">
+                        {% if seat.member and seat.member.photo_url %}
+                        <img src="{{ seat.member.photo_url }}" class="w-full h-full object-cover">
+                        {% else %}
+                        <i class="fas fa-user{% if not seat.member %}-slash{% endif %} text-2xl text-slate-300"></i>
+                        {% endif %}
+                    </div>
+                    <div>
+                        {% if seat.member %}
+                        <div class="font-bold text-slate-800 text-sm">{{ seat.member.name }}</div>
+                        <div class="text-[10px] text-amber-600 font-bold uppercase tracking-wide mt-0.5">Appointed</div>
+                        {% else %}
+                        <div class="font-bold text-slate-400 text-sm">Unassigned</div>
+                        <div class="text-[10px] text-rose-500 font-bold uppercase tracking-wide mt-0.5 animate-pulse">Needs Provider</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+            {% if not operations_seats %}
+            <div class="col-span-full py-8 text-center text-slate-500 text-sm italic">No operations seats defined.</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+"""
+with open("templates/program_uip/dashboards/public_organogram.html", "w", encoding="utf-8") as f:
+    f.write(template_code)
+print("Created public organogram route and template")

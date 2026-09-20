@@ -1652,3 +1652,16 @@ def dev_upgrade_db(org_slug):
 def uip_about(org_slug):
     org = g.organization if hasattr(g, 'organization') else None
     return render_template("program_uip/about.html", org=org)
+
+
+@uip_bp.before_app_request
+def auto_patch_db():
+    from flask import request
+    if request.endpoint and 'static' not in request.endpoint:
+        from sqlalchemy import text
+        from app.extensions import db
+        try:
+            db.session.execute(text("ALTER TABLE uip_organogram_seat ADD COLUMN IF NOT EXISTS duty VARCHAR(50) DEFAULT 'committee_member';"))
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()

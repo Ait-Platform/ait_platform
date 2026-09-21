@@ -964,7 +964,6 @@ def treasurer_view_resolution(org_slug, res_id):
         abstain_count=abstain_count,
         back_url=url_for('uip_bp.treasurer_voting_room', org_slug=org.slug),
         back_text='Back to Voting & Mandates',
-        vote_url=url_for('uip_bp.treasurer_vote_resolution', org_slug=org.slug, res_id=res.id),
         vote_url=url_for('uip_bp.treasurer_vote_resolution', org_slug=org.slug, res_id=res.id)
     )
 
@@ -1042,7 +1041,6 @@ def chairman_view_resolution(org_slug, res_id):
         abstain_count=abstain_count,
         back_url=url_for('uip_bp.chairman_voting_room', org_slug=org.slug),
         back_text='Back to Voting & Mandates',
-        vote_url=url_for('uip_bp.chairman_vote_resolution', org_slug=org.slug, res_id=res.id),
         vote_url=url_for('uip_bp.chairman_vote_resolution', org_slug=org.slug, res_id=res.id)
     )
 

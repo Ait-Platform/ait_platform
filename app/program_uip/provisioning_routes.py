@@ -46,7 +46,7 @@ def provisioning(org_slug):
             meeting_type="FOUNDING",
             scheduled_at=scheduled_at,
             location=venue,
-            status="CONCLUDED"
+            status="SCHEDULED"
         )
         db.session.add(meeting)
         db.session.flush()

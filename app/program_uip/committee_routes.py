@@ -23,13 +23,12 @@ def _check_auto_close(org, res, db):
         yea_count = len([v for v in votes if v.vote == 'YEA'])
         nay_count = len([v for v in votes if v.vote == 'NAY'])
         
-        if yea_count > nay_count:
-            execute_resolution_adoption(org, res, db)
-            return f"Voting concluded automatically! 100% participation reached. Resolution ADOPTED."
-        else:
-            res.status = "REJECTED"
-            db.session.commit()
-            return f"Voting concluded automatically! 100% participation reached. Resolution REJECTED."
+        # Digital voting is purely a temperature check.
+        # Regardless of the outcome, the resolution MUST transition to a live meeting (TABLED)
+        # for formal political debate and ratification.
+        res.status = "TABLED"
+        db.session.commit()
+        return f"100% participation reached! Digital voting concluded. Resolution is now TABLED for the live meeting."
     return None
 
 def execute_resolution_adoption(org, res, db):

@@ -1119,3 +1119,29 @@ def chairman_vote_resolution(org_slug, res_id):
         flash(close_msg, "success")
         
     return redirect(url_for("uip_bp.chairman_view_resolution", org_slug=org.slug, res_id=res_id))
+
+
+@uip_bp.route("/<org_slug>/meetings")
+@login_required
+def meeting_list(org_slug):
+    org = g.organization
+    
+    # Require EXCO or Committee member access
+    from app.models.uip_governance import UipCommitteeMember
+    from sqlalchemy import func
+    
+    exco_check = UipCommitteeMember.query.filter(
+        UipCommitteeMember.organization_id == org.id,
+        UipCommitteeMember.status == "CURRENT",
+        func.lower(UipCommitteeMember.email) == func.lower(current_user.email)
+    ).first()
+    
+    if not exco_check:
+        from flask import flash
+        flash("Only active Committee Members can access the Meetings Hub.", "error")
+        return redirect(url_for("uip_bp.dashboard", org_slug=org.slug))
+        
+    from app.models.uip import UipCommitteeMeeting
+    meetings = UipCommitteeMeeting.query.filter_by(organization_id=org.id).order_by(UipCommitteeMeeting.scheduled_at.desc()).all()
+    
+    return render_template("program_uip/dashboards/meeting_list.html", org=org, meetings=meetings)

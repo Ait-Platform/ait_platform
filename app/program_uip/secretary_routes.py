@@ -85,6 +85,7 @@ def secretary_workspace(org_slug):
     # Calculate pending resolutions (PROPOSED) for the alert badge
     pending_resolutions = UipResolution.query.filter_by(organization_id=org.id, status="PROPOSED").count()
     tabled_res = UipResolution.query.filter_by(organization_id=org.id, status="TABLED").count()
+    first_tabled_res = UipResolution.query.filter_by(organization_id=org.id, status="TABLED").first()
     
     switch_gate = 'red' if len(enriched_claims) > 0 else 'clear'
     if tabled_res > 0:
@@ -103,7 +104,8 @@ def secretary_workspace(org_slug):
         switch_gate=switch_gate,
         switch_res=switch_res,
         tabled_res=tabled_res,
-        proposed_res=pending_resolutions
+        proposed_res=pending_resolutions,
+        first_tabled_res=first_tabled_res
     )
 
 @uip_bp.route("/<org_slug>/draft-access-resolution", methods=["POST"])

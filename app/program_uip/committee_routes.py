@@ -1058,8 +1058,9 @@ def chairman_workspace(org_slug):
     switch_gate = 'red' if enriched_claims else 'clear'
     
     # 3. Resolutions logic
-    tabled_res = UipResolution.query.filter_by(organization_id=org.id, status="PROPOSED").count()
-    proposed_res = UipResolution.query.filter_by(organization_id=org.id, status="DRAFT").count()
+    first_tabled_res = UipResolution.query.filter_by(organization_id=org.id, status="TABLED").first()
+    tabled_res = UipResolution.query.filter_by(organization_id=org.id, status="TABLED").count()
+    proposed_res = UipResolution.query.filter_by(organization_id=org.id, status="PROPOSED").count()
     
     if tabled_res > 0:
         switch_res = 'red'
@@ -1075,7 +1076,8 @@ def chairman_workspace(org_slug):
         switch_gate=switch_gate,
         switch_res=switch_res,
         tabled_res=tabled_res,
-        proposed_res=proposed_res
+        proposed_res=proposed_res,
+        first_tabled_res=first_tabled_res
     )
 
 @uip_bp.route("/<org_slug>/vice-chair-workspace")
@@ -1116,8 +1118,9 @@ def treasurer_workspace(org_slug):
         
     switch_gate = 'red' if enriched_claims else 'clear'
     
-    tabled_res = UipResolution.query.filter_by(organization_id=org.id, status="PROPOSED").count()
-    proposed_res = UipResolution.query.filter_by(organization_id=org.id, status="DRAFT").count()
+    first_tabled_res = UipResolution.query.filter_by(organization_id=org.id, status="TABLED").first()
+    tabled_res = UipResolution.query.filter_by(organization_id=org.id, status="TABLED").count()
+    proposed_res = UipResolution.query.filter_by(organization_id=org.id, status="PROPOSED").count()
     
     if tabled_res > 0:
         switch_res = 'red'
@@ -1133,7 +1136,8 @@ def treasurer_workspace(org_slug):
         switch_gate=switch_gate,
         switch_res=switch_res,
         tabled_res=tabled_res,
-        proposed_res=proposed_res
+        proposed_res=proposed_res,
+        first_tabled_res=first_tabled_res
     )
 
 @uip_bp.route("/<org_slug>/treasurer-voting-room")

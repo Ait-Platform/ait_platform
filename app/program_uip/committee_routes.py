@@ -954,14 +954,18 @@ def treasurer_view_resolution(org_slug, res_id):
     abstain_count = len([v for v in votes if v.vote == 'ABSTAIN'])
     
     return render_template(
-        "program_uip/dashboards/treasurer_resolution_view.html",
+        "program_uip/dashboards/resolution_view.html",
         org=org,
         resolution=res,
         votes=votes,
         has_voted=has_voted,
         yea_count=yea_count,
         nay_count=nay_count,
-        abstain_count=abstain_count
+        abstain_count=abstain_count,
+        back_url=url_for('uip_bp.treasurer_voting_room', org_slug=org.slug),
+        back_text='Back to Voting & Mandates',
+        vote_url=url_for('uip_bp.treasurer_vote_resolution', org_slug=org.slug, res_id=res.id),
+        vote_url=url_for('uip_bp.treasurer_vote_resolution', org_slug=org.slug, res_id=res.id)
     )
 
 @uip_bp.route("/<org_slug>/treasurer-resolution/<int:res_id>/vote", methods=["POST"])
@@ -1028,14 +1032,18 @@ def chairman_view_resolution(org_slug, res_id):
     abstain_count = len([v for v in votes if v.vote == 'ABSTAIN'])
     
     return render_template(
-        "program_uip/dashboards/chairman_resolution_view.html",
+        "program_uip/dashboards/resolution_view.html",
         org=org,
         resolution=res,
         votes=votes,
         has_voted=has_voted,
         yea_count=yea_count,
         nay_count=nay_count,
-        abstain_count=abstain_count
+        abstain_count=abstain_count,
+        back_url=url_for('uip_bp.chairman_voting_room', org_slug=org.slug),
+        back_text='Back to Voting & Mandates',
+        vote_url=url_for('uip_bp.chairman_vote_resolution', org_slug=org.slug, res_id=res.id),
+        vote_url=url_for('uip_bp.chairman_vote_resolution', org_slug=org.slug, res_id=res.id)
     )
 
 @uip_bp.route("/<org_slug>/chairman-resolution/<int:res_id>/vote", methods=["POST"])

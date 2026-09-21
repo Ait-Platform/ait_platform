@@ -74,6 +74,7 @@ def navigation_context():
     from sqlalchemy import func
     is_secretary = False
     is_chairman = False
+    is_treasurer = False
     is_exco = False
     try:
         mem = UipCommitteeMember.query.filter(
@@ -84,8 +85,10 @@ def navigation_context():
         if mem:
             is_exco = True
             pos = mem.position.lower() if mem.position else ""
-            if pos in ["secretary", "treasurer"]:  # We will keep treasurer on secretary tools for now unless specified
+            if pos == "secretary":
                 is_secretary = True
+            elif pos == "treasurer":
+                is_treasurer = True
             elif pos in ["chairperson", "chairman", "vice-chairperson", "vice chairman"]:
                 is_chairman = True
     except Exception:
@@ -110,7 +113,7 @@ def navigation_context():
     from app.program_uip.presentation import current_relationship, display_value
     return dict(uip_navigation=[item for items in groups.values() for item in items], uip_nav_groups=groups, uip_is_current=current_relationship, uip_display=display_value,
                 uip_can_capture=bool(roles & set(audit.WRITE_ROLES)), uip_roles=roles,
-                uip_can_log=bool(roles & (staff | {"committee_member"})), is_secretary=is_secretary, is_chairman=is_chairman, is_exco=is_exco)
+                uip_can_log=bool(roles & (staff | {"committee_member"})), is_secretary=is_secretary, is_chairman=is_chairman, is_treasurer=is_treasurer, is_exco=is_exco)
 
 
 @uip_bp.route("/<org_slug>/getting-started")

@@ -714,10 +714,10 @@ def vote_resolution(org_slug, res_id):
         
     next_res = _get_next_unvoted_resolution(org.id, current_user.id)
     if next_res:
-        flash("Auto-advancing to the next unvoted mandate.", "info")
+        flash("Auto-advancing to the next unvoted resolution.", "info")
         return redirect(url_for("uip_bp.view_resolution", org_slug=org.slug, res_id=next_res.id))
     else:
-        flash("Inbox Zero! You have successfully cast your vote on all active mandates.", "success")
+        flash("Inbox Zero! You have successfully cast your vote on all active resolutions.", "success")
         return redirect(url_for("uip_bp.committee_dashboard", org_slug=org.slug))
 
 
@@ -1038,10 +1038,10 @@ def treasurer_vote_resolution(org_slug, res_id):
         
     next_res = _get_next_unvoted_resolution(org.id, current_user.id)
     if next_res:
-        flash("Auto-advancing to the next unvoted mandate.", "info")
+        flash("Auto-advancing to the next unvoted resolution.", "info")
         return redirect(url_for("uip_bp.treasurer_view_resolution", org_slug=org.slug, res_id=next_res.id))
     else:
-        flash("Inbox Zero! You have successfully cast your vote on all active mandates.", "success")
+        flash("Inbox Zero! You have successfully cast your vote on all active resolutions.", "success")
         return redirect(url_for("uip_bp.treasurer_workspace", org_slug=org.slug))
 
 
@@ -1130,10 +1130,10 @@ def chairman_vote_resolution(org_slug, res_id):
         
     next_res = _get_next_unvoted_resolution(org.id, current_user.id)
     if next_res:
-        flash("Auto-advancing to the next unvoted mandate.", "info")
+        flash("Auto-advancing to the next unvoted resolution.", "info")
         return redirect(url_for("uip_bp.chairman_view_resolution", org_slug=org.slug, res_id=next_res.id))
     else:
-        flash("Inbox Zero! You have successfully cast your vote on all active mandates.", "success")
+        flash("Inbox Zero! You have successfully cast your vote on all active resolutions.", "success")
         return redirect(url_for("uip_bp.chairman_workspace", org_slug=org.slug))
 
 

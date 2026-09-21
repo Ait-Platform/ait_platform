@@ -686,33 +686,9 @@ def vote_resolution(org_slug, res_id):
     db.session.commit()
     
     # --- AUTO-CLOSE LOGIC ---
-    votes = res.votes.all() if hasattr(res, 'votes') else []
-    total_eligible = 0
-    if scope in ['EXCO', 'EXCO_CORE', 'COMMITTEE_ALL', 'SUB_COMMITTEE']:
-        if scope == 'EXCO_CORE':
-            total_eligible = UipCommitteeMember.query.filter(
-                UipCommitteeMember.organization_id == org.id, 
-                UipCommitteeMember.status == "CURRENT",
-                UipCommitteeMember.position.in_(["Chairperson", "Vice-Chairperson", "Secretary", "Treasurer"])
-            ).count()
-        else:
-            total_eligible = UipCommitteeMember.query.filter_by(organization_id=org.id, status="CURRENT").count()
-    else:
-        from app.models.core import CoreOrganizationMember
-        total_eligible = CoreOrganizationMember.query.filter_by(organization_id=org.id, is_active=True).count()
-        
-    if total_eligible > 0 and len(votes) >= total_eligible:
-        yea_count = len([v for v in votes if v.vote == 'YEA'])
-        nay_count = len([v for v in votes if v.vote == 'NAY'])
-        
-        if yea_count > nay_count:
-            execute_resolution_adoption(org, res, db)
-            db.session.commit()
-            flash(f"Voting concluded automatically! 100% participation reached. Resolution ADOPTED.", "success")
-        else:
-            res.status = "REJECTED"
-            db.session.commit()
-            flash(f"Voting concluded automatically! 100% participation reached. Resolution REJECTED.", "warning")
+    close_msg = _check_auto_close(org, res, db)
+    if close_msg:
+        flash(close_msg, "success")
             
     return redirect(url_for("uip_bp.view_resolution", org_slug=org.slug, res_id=res.id))
 

@@ -1,24 +1,15 @@
-from sqlalchemy import create_engine, text
+from app import create_app
+from app.extensions import db
+from app.models.uip import UipResolution, UipResolutionVote
+from app.models.uip_governance import UipCommitteeMember
 
-PG_URL = (
-    "postgresql+psycopg2://"
-    "ait_platform_db_user:"
-    "b5LcEVWQeG0JyI6Vklo7zaQBZ1zsAfqj"
-    "@dpg-d4bkqsf5r7bs73989ia0-a.oregon-postgres.render.com:5432"
-    "/ait_platform_db"
-)
-pg_engine = create_engine(PG_URL)
-
-try:
-    with pg_engine.begin() as p_conn:
-        print("\nRecent Mech Communications:")
-        res4 = p_conn.execute(text("SELECT * FROM mech_communications ORDER BY id DESC LIMIT 5"))
-        for r in res4.fetchall():
-            print(dict(r._mapping))
-            
-        print("\nRecent Invite Logs for Mechanic:")
-        res2 = p_conn.execute(text("SELECT * FROM invite_log WHERE program_slug='mechanic' ORDER BY id DESC LIMIT 5"))
-        for r in res2.fetchall():
-            print(dict(r._mapping))
-except Exception as e:
-    print("Error:", e)
+app = create_app()
+with app.app_context():
+    org_id = 1
+    resolutions = UipResolution.query.filter_by(organization_id=org_id).all()
+    for res in resolutions:
+        votes = UipResolutionVote.query.filter_by(resolution_id=res.id).count()
+        print(f"Res {res.id} - Ref: {res.reference} - Status: {res.status} - Votes: {votes}")
+        
+    members = UipCommitteeMember.query.filter_by(organization_id=org_id, status="CURRENT").count()
+    print(f"Total CURRENT EXCO members: {members}")

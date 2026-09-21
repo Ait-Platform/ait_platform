@@ -1772,8 +1772,15 @@ def nuke_test_votes(org_slug):
     
     try:
         num_deleted = db.session.query(UipResolutionVote).delete()
+        
+        # Reset all resolutions to PROPOSED so they can be voted on again
+        from app.models.uip import UipResolution
+        resolutions = UipResolution.query.all()
+        for r in resolutions:
+            r.status = "PROPOSED"
+            
         db.session.commit()
-        flash(f"Successfully wiped {num_deleted} test votes from the database! All tallies are now 0.", "success")
+        flash(f"Successfully wiped {num_deleted} test votes and reset all resolutions to PROPOSED! All tallies are now 0.", "success")
     except Exception as e:
         db.session.rollback()
         flash(f"Error wiping votes: {str(e)}", "error")

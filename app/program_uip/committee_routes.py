@@ -1,4 +1,37 @@
 
+def _check_auto_close(org, res, db):
+    from app.models.uip_governance import UipCommitteeMember
+    from app.program_uip.secretary_routes import execute_resolution_adoption
+    
+    scope = getattr(res, 'voting_scope', 'EXCO')
+    votes = res.votes.all() if hasattr(res, 'votes') else []
+    total_eligible = 0
+    if scope in ['EXCO', 'EXCO_CORE', 'COMMITTEE_ALL', 'SUB_COMMITTEE']:
+        if scope == 'EXCO_CORE':
+            total_eligible = UipCommitteeMember.query.filter(
+                UipCommitteeMember.organization_id == org.id, 
+                UipCommitteeMember.status == "CURRENT",
+                UipCommitteeMember.position.in_(["Chairperson", "Vice-Chairperson", "Secretary", "Treasurer"])
+            ).count()
+        else:
+            total_eligible = UipCommitteeMember.query.filter_by(organization_id=org.id, status="CURRENT").count()
+    else:
+        from app.models.core import CoreOrganizationMember
+        total_eligible = CoreOrganizationMember.query.filter_by(organization_id=org.id, is_active=True).count()
+        
+    if total_eligible > 0 and len(votes) >= total_eligible:
+        yea_count = len([v for v in votes if v.vote == 'YEA'])
+        nay_count = len([v for v in votes if v.vote == 'NAY'])
+        
+        if yea_count > nay_count:
+            execute_resolution_adoption(org, res, db)
+            return f"Voting concluded automatically! 100% participation reached. Resolution ADOPTED."
+        else:
+            res.status = "REJECTED"
+            db.session.commit()
+            return f"Voting concluded automatically! 100% participation reached. Resolution REJECTED."
+    return None
+
 def execute_resolution_adoption(org, res, db):
     res.status = "ADOPTED"
     if res.result_basis and res.result_basis.get("type") == "access_bundle":
@@ -658,6 +691,179 @@ def vote_resolution(org_slug, res_id):
     db.session.commit()
     
     # --- AUTO-CLOSE LOGIC ---
+    close_msg = _check_auto_close(org, res, db)
+    if close_msg:
+        flash(close_msg, "success")
+        
+    return redirect(url_for("uip_bp.view_resolution", org_slug=org.slug, res_id=res.id))
+        
+    decision = request.form.get("decision")
+    if decision not in ["ADOPTED", "REJECTED", "TABLED"]:
+        abort(400)
+        
+    if decision == "TABLED":
+        res.status = "TABLED"
+        db.session.commit()
+        flash("Voting closed. Resolution has been tabled for a live meeting.", "success")
+        return redirect(url_for("uip_bp.view_resolution", org_slug=org.slug, res_id=res.id))
+        
+    # Enforce Quorum for Adoption
+    if decision == "ADOPTED":
+        votes = res.votes.all() if hasattr(res, 'votes') else []
+        scope = getattr(res, 'voting_scope', 'EXCO')
+        
+        if scope in ['EXCO', 'EXCO_CORE', 'COMMITTEE_ALL', 'SUB_COMMITTEE']:
+            # Get all eligible committee members
+            if scope == 'EXCO_CORE':
+                eligible_members = UipCommitteeMember.query.filter(
+                    UipCommitteeMember.organization_id == org.id, 
+                    UipCommitteeMember.status == "CURRENT",
+                    UipCommitteeMember.position.in_(["Chairperson", "Vice-Chairperson", "Secretary", "Treasurer"])
+                ).all()
+            else:
+                eligible_members = UipCommitteeMember.query.filter_by(organization_id=org.id, status="CURRENT").all()
+            
+            voted_user_ids = [v.user_id for v in votes]
+            missing_members = [m.name for m in eligible_members if m.user_id not in voted_user_ids]
+            
+            if missing_members:
+                missing_names = ", ".join(missing_members)
+                flash(f"Resolution proceeded. WARNING: The following elected members violated the mandatory voting rule by failing to cast a digital vote: {missing_names}", "warning")
+            else:
+                flash("Resolution proceeded. All elected members successfully cast their mandatory digital votes.", "success")
+                
+        else:
+            # For PUBLIC/Ratepayer scopes, we don't name-shame 400 people
+            from app.models.core import CoreOrganizationMember
+            total_eligible = CoreOrganizationMember.query.filter_by(organization_id=org.id, is_active=True).count()
+            if total_eligible == 0: total_eligible = 1
+            current_quorum_pct = int((len(votes) / total_eligible) * 100)
+            flash(f"Public vote reached {current_quorum_pct}% participation. Proceeding to live ratification.", "info")
+            
+    res.status = decision
+    
+    # 2. If ADOPTED and it is an Access Bundle, grant the roles
+    if decision == "ADOPTED" and res.result_basis and res.result_basis.get("type") == "access_bundle":
+        from app.models.core import CoreInteraction, CoreOrganizationMember, CoreRoleAssignment, CoreRole
+        
+        interaction_ids = res.result_basis.get("interaction_ids", [])
+        portfolio_map = res.result_basis.get("portfolios", {})
+        
+        claims = CoreInteraction.query.filter(CoreInteraction.id.in_(interaction_ids)).all()
+        for claim in claims:
+            claim.status = "VERIFIED"
+            
+            # Ensure they have an active organization membership
+            org_mem = CoreOrganizationMember.query.filter_by(organization_id=org.id, user_id=claim.creator.id).first()
+            if not org_mem:
+                org_mem = CoreOrganizationMember(organization_id=org.id, user_id=claim.creator.id, is_active=True)
+                db.session.add(org_mem)
+            else:
+                org_mem.is_active = True
+                
+            # Grant the role
+            role_slug = "committee_member" if "committee" in claim.interaction_type else "mo" if "mo" in claim.interaction_type else "ratepayer"
+            role_obj = CoreRole.query.filter_by(slug=role_slug).first()
+            if role_obj:
+                existing_role = CoreRoleAssignment.query.filter_by(organization_id=org.id, user_id=claim.creator.id, role_id=role_obj.id).first()
+                if not existing_role:
+                    db.session.add(CoreRoleAssignment(organization_id=org.id, user_id=claim.creator.id, role_id=role_obj.id))
+
+            # If committee, make them an official member
+            if 'committee' in claim.interaction_type:
+                requested_pos = claim.title.split(": ")[-1] if ":" in claim.title else (claim.title.split(" - ")[-1] if " - " in claim.title else claim.interaction_type.replace('_claim', '').title())
+                port = portfolio_map.get(str(claim.id)) or portfolio_map.get(claim.id) or requested_pos
+                mem = UipCommitteeMember(
+                    organization_id=org.id,
+                    user_id=claim.creator.id,
+                    name=claim.creator.name,
+                    email=claim.creator.email,
+                    position=port,
+                    status="CURRENT"
+                )
+                db.session.add(mem)
+                
+    db.session.commit()
+    flash(f"Resolution officially {decision.lower()} and locked down.", "success")
+    return redirect(url_for("uip_bp.view_resolution", org_slug=org.slug, res_id=res.id))
+@uip_bp.route("/<org_slug>/resolution/<int:res_id>/edit", methods=["GET", "POST"])
+@login_required
+def edit_resolution(org_slug, res_id):
+    org = g.organization
+    
+    exco_check = UipCommitteeMember.query.filter(
+        UipCommitteeMember.organization_id == org.id,
+        UipCommitteeMember.status == "CURRENT",
+        func.lower(UipCommitteeMember.email) == func.lower(current_user.email)
+    ).first()
+    
+    if not exco_check:
+        flash("Only active Committee Members can edit drafts.", "error")
+        return redirect(url_for("uip_bp.committee_dashboard", org_slug=org.slug))
+    
+    resolution = UipResolution.query.filter_by(id=res_id, organization_id=org.id).first_or_404()
+    if resolution.status != "DRAFT":
+        flash("You can only edit resolutions while they are in DRAFT status.", "warning")
+        return redirect(url_for("uip_bp.view_resolution", org_slug=org.slug, res_id=res_id))
+        
+    if request.method == "POST":
+        resolution.title = request.form.get("title", resolution.title)
+        resolution.description = request.form.get("description", resolution.description)
+        resolution.voting_scope = request.form.get("voting_scope", resolution.voting_scope)
+        resolution.quorum_target = request.form.get("quorum_target", type=int, default=resolution.quorum_target)
+        db.session.commit()
+        flash("Draft saved successfully.", "success")
+        return redirect(url_for("uip_bp.edit_resolution", org_slug=org.slug, res_id=res_id))
+        
+    return render_template("program_uip/dashboards/resolution_draft.html", org=org, resolution=resolution)
+
+
+@uip_bp.route("/<org_slug>/resolution/<int:res_id>/vote", methods=["POST"])
+@login_required
+def vote_resolution(org_slug, res_id):
+    org = g.organization
+    res = UipResolution.query.filter_by(organization_id=org.id, id=res_id).first_or_404()
+    
+    if res.status != "PROPOSED":
+        flash("You can only vote on PROPOSED resolutions.", "danger")
+        return redirect(url_for("uip_bp.view_resolution", org_slug=org.slug, res_id=res.id))
+        
+    from app.models.uip import UipResolutionVote
+    from app.models.uip_governance import UipCommitteeMember
+    from sqlalchemy import func
+    
+    scope = getattr(res, 'voting_scope', 'EXCO')
+    
+    # Verify Eligibility
+    appointment = UipCommitteeMember.query.filter(
+        UipCommitteeMember.organization_id == org.id,
+        UipCommitteeMember.status == "CURRENT",
+        func.lower(UipCommitteeMember.email) == func.lower(current_user.email)
+    ).first()
+    
+    if scope == 'EXCO_CORE':
+        if not appointment or appointment.position not in ["Chairperson", "Vice-Chairperson", "Secretary", "Treasurer"]:
+            abort(403)
+    elif scope in ['EXCO', 'COMMITTEE_ALL', 'SUB_COMMITTEE']:
+        if not appointment:
+            abort(403)
+            
+    vote_val = request.form.get("vote")
+    if vote_val not in ["YEA", "NAY", "ABSTAIN"]:
+        abort(400)
+        
+    existing = UipResolutionVote.query.filter_by(resolution_id=res.id, user_id=current_user.id).first()
+    if existing:
+        existing.vote = vote_val
+        flash("Your vote has been updated.", "success")
+    else:
+        new_vote = UipResolutionVote(resolution_id=res.id, user_id=current_user.id, vote=vote_val)
+        db.session.add(new_vote)
+        flash("Your secure vote has been cast.", "success")
+        
+    db.session.commit()
+    
+    # --- AUTO-CLOSE LOGIC ---
     votes = res.votes.all() if hasattr(res, 'votes') else []
     total_eligible = 0
     if scope in ['EXCO', 'EXCO_CORE', 'COMMITTEE_ALL', 'SUB_COMMITTEE']:
@@ -995,6 +1201,11 @@ def treasurer_vote_resolution(org_slug, res_id):
         flash("Your vote has been recorded successfully.", "success")
         
     db.session.commit()
+    
+    close_msg = _check_auto_close(org, res, db)
+    if close_msg:
+        flash(close_msg, "success")
+        
     return redirect(url_for("uip_bp.treasurer_view_resolution", org_slug=org.slug, res_id=res_id))
 
 
@@ -1076,5 +1287,9 @@ def chairman_vote_resolution(org_slug, res_id):
         flash("Your vote has been recorded successfully.", "success")
         
     db.session.commit()
+    
+    close_msg = _check_auto_close(org, res, db)
+    if close_msg:
+        flash(close_msg, "success")
     
     return redirect(url_for("uip_bp.chairman_view_resolution", org_slug=org.slug, res_id=res_id))

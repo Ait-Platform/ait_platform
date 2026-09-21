@@ -1,30 +1,13 @@
 ﻿<nav aria-label="UIP Command Centre" class="ui-navigation">
 {% if is_exco %}
 <details class="ui-nav-group ui-nav-purple" open>
-    <summary>Resolutions</summary>
+    <summary>Secretary Control</summary>
     <a href="{{ url_for('uip_bp.committee_dashboard', org_slug=org.slug) }}"><i class="fas fa-file-signature w-5 text-indigo-600"></i> Resolution Register</a>
     <a href="{{ url_for('uip_bp.draft_resolution', org_slug=org.slug) }}"><i class="fas fa-pen-nib w-5 text-indigo-600"></i> Draft Resolution</a>
 </details>
 {% endif %}
 
-{% if is_chairman %}
-<details class="ui-nav-group ui-nav-rose" open>
-    <summary>Chairman Tools</summary>
-    <a href="{{ url_for('uip_bp.chairman_voting_room', org_slug=org.slug) }}"><i class="fas fa-gavel w-5"></i> Voting & Mandates</a>
-    <!-- Cloned modules to be built later -->
-    <a href="#"><i class="fas fa-sitemap w-5"></i> Organogram (Coming Soon)</a>
-    <a href="#"><i class="fas fa-coins w-5"></i> Financial Health (Coming Soon)</a>
-    <a href="#"><i class="fas fa-hard-hat w-5"></i> Ground Ops (Coming Soon)</a>
-</details>
-{% elif is_treasurer %}
-<details class="ui-nav-group ui-nav-rose" open>
-    <summary>Treasurer Tools</summary>
-    <a href="{{ url_for('uip_bp.treasurer_voting_room', org_slug=org.slug) }}"><i class="fas fa-gavel w-5"></i> Voting & Mandates</a>
-    <!-- Cloned modules to be built later -->
-    <a href="#"><i class="fas fa-file-invoice-dollar w-5"></i> Financial Switchboard (Coming Soon)</a>
-    <a href="{{ url_for('uip_bp.member_list', org_slug=org.slug) }}"><i class="fas fa-users w-5"></i> Ratepayer Registry</a>
-</details>
-{% elif is_secretary %}
+{% if is_secretary %}
 <details class="ui-nav-group ui-nav-rose" open>
     <summary>Secretary Tools</summary>
     <a href="{{ url_for('uip_bp.secretary_workspace', org_slug=org.slug) }}"><i class="fas fa-toggle-on w-5"></i> Switchboard</a>

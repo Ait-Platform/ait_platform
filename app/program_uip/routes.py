@@ -148,7 +148,7 @@ def dashboard(org_slug):
     if role_slug == "provider":
         return redirect(url_for("uip_bp.work_order_list", org_slug=org_slug))
     if role_slug in {"resident", "owner"}:
-        return redirect(url_for("uip_bp.my_access", org_slug=org_slug))
+        return redirect(url_for("uip_bp.ratepayer_workspace", org_slug=org_slug))
     if role_slug == "receptionist":
         return redirect(url_for("uip_bp.my_access", org_slug=org_slug))
     if role_slug == "committee_member":
@@ -1726,5 +1726,38 @@ def public_organogram(org_slug):
         core_seats=core_seats,
         second_seats=second_seats,
         operations_seats=operations_seats
+    )
+
+
+@uip_bp.route("/<org_slug>/ratepayer-workspace")
+@login_required
+def ratepayer_workspace(org_slug):
+    org = g.organization
+    
+    # 1. Fetch public resolutions
+    from app.models.uip import UipResolution
+    public_resolutions = UipResolution.query.filter_by(
+        organization_id=org.id, voting_scope='PUBLIC'
+    ).order_by(UipResolution.created_at.desc()).all()
+    
+    # 2. Fetch user's interactions (faults/service requests)
+    from app.models.core import CoreInteraction
+    my_requests = CoreInteraction.query.filter_by(
+        organization_id=org.id, creator_id=current_user.id
+    ).filter(CoreInteraction.interaction_type == 'municipal_fault').order_by(CoreInteraction.created_at.desc()).all()
+    
+    # 3. Fetch user's verified properties
+    from app.models.uip_governance import UipPropertyMember, UipProperty
+    my_properties = db.session.query(UipProperty).join(UipPropertyMember).filter(
+        UipPropertyMember.organization_id == org.id,
+        UipPropertyMember.user_id == current_user.id
+    ).all()
+    
+    return render_template(
+        "program_uip/dashboards/ratepayer_workspace.html",
+        org=org,
+        public_resolutions=public_resolutions,
+        my_requests=my_requests,
+        my_properties=my_properties
     )
 

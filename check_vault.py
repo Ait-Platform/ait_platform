@@ -1,11 +1,13 @@
-from app import create_app
-from app.extensions import db
-from app.models.uip import UipMemberProfile
+with open("app/program_uip/routes.py", "r", encoding="utf-8") as f:
+    text = f.read()
 
-app = create_app()
-with app.app_context():
-    rp = UipMemberProfile.query.filter_by(email="ayesha.khan@example.invalid").first()
-    if rp:
-        print("Found:", rp.name, rp.email, rp.is_active)
-    else:
-        print("Not found")
+import re
+matches = re.search(r'def .*?claim.*?:.*', text, re.IGNORECASE)
+if matches:
+    print("Found claim route")
+    
+# Let's just grep for "vault"
+if "vault" in text.lower():
+    print("Vault logic found in routes.py")
+else:
+    print("NO vault logic found in routes.py!")

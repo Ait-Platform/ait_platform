@@ -820,7 +820,58 @@ def exco_workspace(org_slug):
 @login_required
 def chairman_workspace(org_slug):
     org = g.organization
-    return render_template("program_uip/dashboards/placeholder_workspace.html", org=org, role_title="Chairman", role_desc="Oversee the entire precinct.")
+    
+    from app.models.core import CoreInteraction
+    from app.models.auth import User
+    from app.models.uip import UipResolution
+    from app.models.uip_governance import UipCommitteeTerm, UipCommitteeMember
+    
+    # 1. Fetch pending claims from strangers/users
+    open_claims = CoreInteraction.query.filter(
+        CoreInteraction.organization_id == org.id,
+        CoreInteraction.status == "OPEN",
+        CoreInteraction.interaction_type.in_([
+            "committee_claim", "ratepayer_claim", "subcommittee_claim", "mo_claim", "staff_claim", "unknown_claim"
+        ])
+    ).order_by(CoreInteraction.created_at.asc()).all()
+    
+    # Enrich claims with user info
+    enriched_claims = []
+    for claim in open_claims:
+        creator = User.query.get(claim.creator_id)
+        enriched_claims.append({
+            "id": claim.id,
+            "type": claim.interaction_type,
+            "title": claim.title,
+            "description": claim.description,
+            "created_at": claim.created_at,
+            "user_name": creator.name if creator else "Unknown",
+            "user_email": creator.email if creator else "Unknown",
+        })
+        
+    # 2. Gate Status Flags
+    switch_gate = 'red' if enriched_claims else 'clear'
+    
+    # 3. Resolutions logic
+    tabled_res = UipResolution.query.filter_by(organization_id=org.id, status="PROPOSED").count()
+    proposed_res = UipResolution.query.filter_by(organization_id=org.id, status="DRAFT").count()
+    
+    if tabled_res > 0:
+        switch_res = 'red'
+    elif proposed_res > 0:
+        switch_res = 'amber'
+    else:
+        switch_res = 'clear'
+        
+    return render_template(
+        "program_uip/dashboards/chairman_workspace.html",
+        org=org,
+        open_claims=enriched_claims,
+        switch_gate=switch_gate,
+        switch_res=switch_res,
+        tabled_res=tabled_res,
+        proposed_res=proposed_res
+    )
 
 @uip_bp.route("/<org_slug>/vice-chair-workspace")
 @login_required

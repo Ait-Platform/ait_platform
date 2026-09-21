@@ -1,0 +1,213 @@
+{% extends "program_uip/base.html" %}
+{% block title %}Chairman Dashboard - {{ org.name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 py-8">
+    <div class="mb-12 border-b border-slate-200 pb-6 flex justify-between items-end">
+        <div>
+            <h1 class="text-4xl font-extrabold text-slate-900 tracking-tight">Chairman Dashboard</h1>
+            <p class="text-slate-500 mt-2 font-medium">Alert-Driven Operations Dashboard</p>
+        </div>
+        <div class="text-right">
+            <div class="inline-flex items-center px-3 py-1 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200 text-xs font-bold uppercase tracking-wider mb-2">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 mr-2 animate-pulse"></span> System Online
+            </div>
+            <div class="text-sm font-bold text-slate-700">{{ current_user.name }}</div>
+        </div>
+    </div>
+
+    <!-- The 3x3 Switchboard Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        
+        <!-- Tile 1: User Verification -->
+        <a href="{{ url_for('uip_bp.secretary_intake', org_slug=org.slug) }}" class="group block relative overflow-hidden rounded-2xl border transition-all duration-300 {% if switch_gate == 'red' %}bg-red-50 border-red-200 shadow-[0_0_15px_rgba(239,68,68,0.2)]{% else %}bg-blue-50 border-blue-100 hover:border-blue-300 hover:shadow-md{% endif %}">
+            <div class="p-6">
+                <div class="flex justify-between items-start mb-6">
+                    <div class="w-12 h-12 rounded-full flex items-center justify-center text-xl {% if switch_gate == 'red' %}bg-red-100 text-red-600{% else %}bg-blue-100 text-blue-500{% endif %}">
+                        <i class="fas fa-users-cog"></i>
+                    </div>
+                    {% if switch_gate == 'red' %}
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-bold bg-red-600 text-white uppercase tracking-widest animate-pulse shadow-sm">
+                        Urgent Action
+                    </span>
+                    {% else %}
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-bold bg-white text-blue-400 border border-blue-100 uppercase tracking-widest">
+                        Clear
+                    </span>
+                    {% endif %}
+                </div>
+                <h2 class="text-xl font-black {% if switch_gate == 'red' %}text-red-900{% else %}text-blue-900{% endif %} mb-1">User Verification</h2>
+                <p class="text-sm {% if switch_gate == 'red' %}text-red-700 font-bold{% else %}text-blue-600/70 font-medium{% endif %}">
+                    {% if switch_gate == 'red' %}
+                    {{ open_claims|length }} claims pending verification.
+                    {% else %}
+                    No pending access claims.
+                    {% endif %}
+                </p>
+            </div>
+            {% if switch_gate == 'red' %}
+            <div class="h-1.5 w-full bg-red-600 absolute bottom-0 left-0"></div>
+            {% endif %}
+        </a>
+
+        <!-- Tile 2: Resolutions -->
+        <a href="{{ url_for('uip_bp.chairman_voting_room', org_slug=org.slug) }}" class="group block relative overflow-hidden rounded-2xl border transition-all duration-300 {% if switch_res == 'red' %}bg-red-50 border-red-200 shadow-[0_0_15px_rgba(239,68,68,0.2)]{% elif switch_res == 'amber' %}bg-amber-50 border-amber-200 shadow-[0_0_15px_rgba(245,158,11,0.2)]{% else %}bg-indigo-50 border-indigo-100 hover:border-indigo-300 hover:shadow-md{% endif %}">
+            <div class="p-6">
+                <div class="flex justify-between items-start mb-6">
+                    <div class="w-12 h-12 rounded-full flex items-center justify-center text-xl {% if switch_res == 'red' %}bg-red-100 text-red-600{% elif switch_res == 'amber' %}bg-amber-100 text-amber-600{% else %}bg-indigo-100 text-indigo-500{% endif %}">
+                        <i class="fas fa-file-signature"></i>
+                    </div>
+                    {% if switch_res == 'red' %}
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-bold bg-red-600 text-white uppercase tracking-widest animate-pulse shadow-sm">
+                        Ratification Req
+                    </span>
+                    {% elif switch_res == 'amber' %}
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-bold bg-amber-500 text-white uppercase tracking-widest shadow-sm">
+                        Voting Active
+                    </span>
+                    {% else %}
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-bold bg-white text-indigo-400 border border-indigo-100 uppercase tracking-widest">
+                        Clear
+                    </span>
+                    {% endif %}
+                </div>
+                <h2 class="text-xl font-black {% if switch_res == 'red' %}text-red-900{% elif switch_res == 'amber' %}text-amber-900{% else %}text-indigo-900{% endif %} mb-1">Resolutions</h2>
+                <p class="text-sm {% if switch_res == 'red' %}text-red-700 font-bold{% elif switch_res == 'amber' %}text-amber-700 font-bold{% else %}text-indigo-600/70 font-medium{% endif %}">
+                    {% if switch_res == 'red' %}
+                    {{ tabled_res }} TABLED - Needs Ratification.
+                    {% elif switch_res == 'amber' %}
+                    {{ proposed_res }} waiting for committee votes.
+                    {% else %}
+                    All resolutions up to date.
+                    {% endif %}
+                </p>
+            </div>
+            {% if switch_res == 'red' %}
+            <div class="h-1.5 w-full bg-red-600 absolute bottom-0 left-0"></div>
+            {% elif switch_res == 'amber' %}
+            <div class="h-1.5 w-full bg-amber-500 absolute bottom-0 left-0"></div>
+            {% endif %}
+        </a>
+
+        <!-- Tile 3: Draft Resolution -->
+        <a href="{{ url_for('uip_bp.draft_resolution', org_slug=org.slug) }}" class="group block relative overflow-hidden rounded-2xl border bg-emerald-50 border-emerald-100 hover:border-emerald-300 hover:shadow-md transition-all duration-300">
+            <div class="p-6">
+                <div class="flex justify-between items-start mb-6">
+                    <div class="w-12 h-12 rounded-full flex items-center justify-center text-xl bg-emerald-100 text-emerald-500">
+                        <i class="fas fa-plus"></i>
+                    </div>
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-bold bg-white text-emerald-400 border border-emerald-100 uppercase tracking-widest">
+                        Tool
+                    </span>
+                </div>
+                <h2 class="text-xl font-black text-emerald-900 mb-1">Draft Resolution</h2>
+                <p class="text-sm text-emerald-600/70 font-medium">Initialize a new document on the drafting desk.</p>
+            </div>
+            <div class="h-1.5 w-full bg-emerald-400 absolute bottom-0 left-0 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+        </a>
+
+        <!-- Tile 4: Organogram Builder -->
+        <a href="{{ url_for('uip_bp.secretary_organogram', org_slug=org.slug) }}" class="group block relative overflow-hidden rounded-2xl border bg-purple-50 border-purple-100 hover:border-purple-300 hover:shadow-md transition-all duration-300">
+            <div class="p-6">
+                <div class="flex justify-between items-start mb-6">
+                    <div class="w-12 h-12 rounded-full flex items-center justify-center text-xl bg-purple-100 text-purple-500">
+                        <i class="fas fa-sitemap"></i>
+                    </div>
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-bold bg-white text-purple-400 border border-purple-100 uppercase tracking-widest">
+                        Structure
+                    </span>
+                </div>
+                <h2 class="text-xl font-black text-purple-900 mb-1">Organogram & Member Assignment Builder</h2>
+                <p class="text-sm text-purple-600/70 font-medium">Define roles, portfolios, and terms of office.</p>
+            </div>
+            <div class="h-1.5 w-full bg-purple-400 absolute bottom-0 left-0 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+        </a>
+
+        <!-- Tile 5: Meetings & Agendas -->
+        <a href="#" class="group block relative overflow-hidden rounded-2xl border bg-orange-50 border-orange-100 hover:border-orange-300 hover:shadow-md transition-all duration-300">
+            <div class="p-6">
+                <div class="flex justify-between items-start mb-6">
+                    <div class="w-12 h-12 rounded-full flex items-center justify-center text-xl bg-orange-100 text-orange-500">
+                        <i class="fas fa-calendar-check"></i>
+                    </div>
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-bold bg-white text-orange-400 border border-orange-100 uppercase tracking-widest">
+                        Schedule
+                    </span>
+                </div>
+                <h2 class="text-xl font-black text-orange-900 mb-1">Meetings &amp; Agendas</h2>
+                <p class="text-sm text-orange-600/70 font-medium">Schedule live meetings and capture minutes.</p>
+            </div>
+            <div class="h-1.5 w-full bg-orange-400 absolute bottom-0 left-0 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+        </a>
+
+        <!-- Tile 6: Ratepayer Queries -->
+        <a href="#" class="group block relative overflow-hidden rounded-2xl border bg-rose-50 border-rose-100 hover:border-rose-300 hover:shadow-md transition-all duration-300">
+            <div class="p-6">
+                <div class="flex justify-between items-start mb-6">
+                    <div class="w-12 h-12 rounded-full flex items-center justify-center text-xl bg-rose-100 text-rose-500">
+                        <i class="fas fa-question-circle"></i>
+                    </div>
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-bold bg-white text-rose-400 border border-rose-100 uppercase tracking-widest">
+                        Inbox
+                    </span>
+                </div>
+                <h2 class="text-xl font-black text-rose-900 mb-1">Ratepayer Queries</h2>
+                <p class="text-sm text-rose-600/70 font-medium">Review and respond to questions from property owners.</p>
+            </div>
+            <div class="h-1.5 w-full bg-rose-400 absolute bottom-0 left-0 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+        </a>
+
+        <!-- Tile 7: Onboarding Campaign -->
+        <a href="{{ url_for('uip_bp.onboarding_campaign', org_slug=org.slug) }}" class="group block relative overflow-hidden rounded-2xl border bg-amber-50 border-amber-100 hover:border-amber-300 hover:shadow-md transition-all duration-300">
+            <div class="p-6">
+                <div class="flex justify-between items-start mb-6">
+                    <div class="w-12 h-12 rounded-full flex items-center justify-center text-xl bg-amber-100 text-amber-500">
+                        <i class="fas fa-bullhorn"></i>
+                    </div>
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-bold bg-white text-amber-400 border border-amber-100 uppercase tracking-widest animate-pulse">
+                        Campaign
+                    </span>
+                </div>
+                <h2 class="text-xl font-black text-amber-900 mb-1">Onboarding Campaign</h2>
+                <p class="text-sm text-amber-600/70 font-medium">Manage the 3-Wave Drip emails to activate the precinct.</p>
+            </div>
+            <div class="h-1.5 w-full bg-amber-400 absolute bottom-0 left-0 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+        </a>
+
+        <!-- Tile 8: Members Directory -->
+        <a href="#" class="group block relative overflow-hidden rounded-2xl border bg-cyan-50 border-cyan-100 hover:border-cyan-300 hover:shadow-md transition-all duration-300">
+            <div class="p-6">
+                <div class="flex justify-between items-start mb-6">
+                    <div class="w-12 h-12 rounded-full flex items-center justify-center text-xl bg-cyan-100 text-cyan-500">
+                        <i class="fas fa-id-badge"></i>
+                    </div>
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-bold bg-white text-cyan-400 border border-cyan-100 uppercase tracking-widest">
+                        Roster
+                    </span>
+                </div>
+                <h2 class="text-xl font-black text-cyan-900 mb-1">Committee Roster</h2>
+                <p class="text-sm text-cyan-600/70 font-medium">View the active committee health and ExCo members.</p>
+            </div>
+            <div class="h-1.5 w-full bg-cyan-400 absolute bottom-0 left-0 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+        </a>
+
+        <!-- Tile 9: Personal Profile -->
+        <a href="{{ url_for('uip_bp.my_access', org_slug=org.slug) }}" class="group block relative overflow-hidden rounded-2xl border bg-slate-50 border-slate-200 hover:border-slate-300 hover:shadow-md transition-all duration-300">
+            <div class="p-6">
+                <div class="flex justify-between items-start mb-6">
+                    <div class="w-12 h-12 rounded-full flex items-center justify-center text-xl bg-slate-200 text-slate-500">
+                        <i class="fas fa-user-circle"></i>
+                    </div>
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-bold bg-white text-slate-400 border border-slate-200 uppercase tracking-widest">
+                        Account
+                    </span>
+                </div>
+                <h2 class="text-xl font-black text-slate-700 mb-1">Personal Profile</h2>
+                <p class="text-sm text-slate-500 font-medium">Manage your personal account and access claims.</p>
+            </div>
+            <div class="h-1.5 w-full bg-slate-400 absolute bottom-0 left-0 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+        </a>
+
+    </div>
+</div>
+{% endblock %}

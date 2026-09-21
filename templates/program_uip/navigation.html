@@ -22,14 +22,14 @@
     <a href="{{ url_for('uip_bp.treasurer_voting_room', org_slug=org.slug) }}"><i class="fas fa-gavel w-5"></i> Voting & Mandates</a>
     <!-- Cloned modules to be built later -->
     <a href="#"><i class="fas fa-file-invoice-dollar w-5"></i> Financial Switchboard (Coming Soon)</a>
-    <a href="#"><i class="fas fa-users w-5"></i> Ratepayer Registry (Coming Soon)</a>
+    <a href="{{ url_for('uip_bp.member_list', org_slug=org.slug) }}"><i class="fas fa-users w-5"></i> Ratepayer Registry</a>
 </details>
 {% elif is_secretary %}
 <details class="ui-nav-group ui-nav-rose" open>
     <summary>Secretary Tools</summary>
     <a href="{{ url_for('uip_bp.secretary_workspace', org_slug=org.slug) }}"><i class="fas fa-toggle-on w-5"></i> Switchboard</a>
     <a href="{{ url_for('uip_bp.secretary_intake', org_slug=org.slug) }}"><i class="fas fa-inbox w-5"></i> Intake Desk</a>
-    <a href="#"><i class="fas fa-users w-5"></i> Members Register</a>
+    <a href="{{ url_for('uip_bp.member_list', org_slug=org.slug) }}"><i class="fas fa-users w-5"></i> Members Register</a>
     <a href="#"><i class="fas fa-user-tag w-5"></i> Role Assignment</a>
 </details>
 {% endif %}

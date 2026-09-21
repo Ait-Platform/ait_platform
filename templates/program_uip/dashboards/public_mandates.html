@@ -1,0 +1,71 @@
+{% extends "program_uip/base.html" %}
+{% block title %}{{ org.name }} - Public Mandates Register{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto px-4 py-8">
+    <div class="mb-8 border-b border-slate-200 pb-6">
+        <a href="{{ url_for('uip_bp.dashboard', org_slug=org.slug) }}" class="text-slate-500 hover:text-indigo-600 font-bold text-sm inline-flex items-center mb-4 transition"><i class="fas fa-arrow-left mr-2"></i> Back to Hub</a>
+        <h1 class="text-3xl font-extrabold text-slate-900 flex items-center">
+            <i class="fas fa-landmark text-emerald-600 mr-3"></i> Public Mandates Register
+        </h1>
+        <p class="text-slate-500 mt-2 font-medium">This is the official, read-only public ledger of all legally adopted resolutions and mandates for {{ org.name }}.</p>
+    </div>
+
+    <div class="space-y-6">
+        {% if resolutions|length > 0 %}
+            {% for res in resolutions %}
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="bg-slate-50 px-6 py-4 border-b border-slate-200 flex justify-between items-center">
+                    <div class="font-black text-indigo-700 tracking-widest text-sm uppercase">{{ res.reference }}</div>
+                    <span class="inline-flex px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold uppercase tracking-widest">
+                        <i class="fas fa-check-double mr-1"></i> Adopted
+                    </span>
+                </div>
+                
+                <div class="p-6">
+                    <h2 class="text-xl font-bold text-slate-900 mb-2">{{ res.title }}</h2>
+                    <div class="text-slate-600 text-sm mb-6 whitespace-pre-wrap">{{ res.description }}</div>
+                    
+                    {% if res.result_basis and res.result_basis.get('ratification') %}
+                    {% set rat = res.result_basis.ratification %}
+                    <div class="bg-slate-50 border border-slate-200 rounded-xl p-5">
+                        <h3 class="font-bold text-slate-800 mb-3 text-sm uppercase tracking-widest"><i class="fas fa-file-contract text-slate-500 mr-2"></i> Official Ratification Record</h3>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div>
+                                <div class="text-[10px] uppercase tracking-widest font-bold text-slate-400 mb-1">Live Meeting Date</div>
+                                <div class="font-black text-slate-800">{{ rat.date }}</div>
+                            </div>
+                            <div>
+                                <div class="text-[10px] uppercase tracking-widest font-bold text-slate-400 mb-1">Location</div>
+                                <div class="font-bold text-slate-700">{{ rat.location }}</div>
+                            </div>
+                            <div>
+                                <div class="text-[10px] uppercase tracking-widest font-bold text-slate-400 mb-1">Live Vote Tally</div>
+                                <div class="font-bold text-slate-700 text-sm">
+                                    <span class="text-emerald-600">Y: {{ rat.votes_yea }}</span> &middot; 
+                                    <span class="text-rose-600">N: {{ rat.votes_nay }}</span> &middot; 
+                                    <span class="text-amber-600">A: {{ rat.votes_abstain }}</span>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="text-[10px] uppercase tracking-widest font-bold text-slate-400 mb-1">Recorded By</div>
+                                <div class="font-bold text-slate-700">{{ rat.recorded_by_name }}</div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-12 text-center">
+                <div class="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl text-slate-300">
+                    <i class="fas fa-file-signature"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-2">No Mandates Found</h3>
+                <p class="text-slate-500 mb-0 max-w-md mx-auto">There are currently no officially adopted resolutions on the public record.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

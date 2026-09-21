@@ -1786,3 +1786,22 @@ def nuke_test_votes(org_slug):
         flash(f"Error wiping votes: {str(e)}", "error")
         
     return redirect(url_for('uip_bp.dashboard', org_slug=org_slug))
+
+
+@uip_bp.route("/<org_slug>/public-mandates")
+def public_mandates(org_slug):
+    """Public-facing read-only register of all officially adopted resolutions."""
+    from app.models.core import CoreOrganization
+    from app.models.uip import UipResolution
+    
+    org = CoreOrganization.query.filter_by(slug=org_slug).first_or_404()
+    
+    adopted_resolutions = UipResolution.query.filter_by(
+        organization_id=org.id, 
+        status='ADOPTED'
+    ).order_by(
+        UipResolution.decision_date.desc().nullslast(), 
+        UipResolution.updated_at.desc()
+    ).all()
+    
+    return render_template("program_uip/dashboards/public_mandates.html", org=org, resolutions=adopted_resolutions)

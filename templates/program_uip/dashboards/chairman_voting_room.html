@@ -1,0 +1,82 @@
+{% extends "program_uip/base.html" %}
+{% block title %}Resolution Register - {{ org.name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto px-4 mt-8 mb-16">
+    <header class="ui-header-2row">
+    <!-- Row 1: Title & Back Button -->
+    <div class="ui-header-2row-top" style="display: flex; justify-content: space-between; align-items: center;">
+        <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight ui-header-2row-title">Voting & Mandates</h1>
+        <a href="{{ url_for('uip_bp.chairman_workspace', org_slug=org.slug) }}" class="inline-flex items-center px-4 py-2 bg-white border border-slate-300 text-sm font-bold text-slate-600 hover:text-indigo-600 hover:border-indigo-300 rounded-lg shadow-sm transition" style="white-space: nowrap;">
+            Back to Chairman Dashboard <i class="fas fa-arrow-right ml-2"></i>
+        </a>
+    </div>
+    <!-- Row 2: Subtitle & Action Buttons -->
+    <div class="ui-header-2row-bottom mt-4">
+        <p class="text-slate-500 font-medium ui-header-2row-subtitle">Official ledger of all drafted, proposed, and adopted resolutions.</p>
+        <div class="ui-header-actions">
+            <!-- No create resolution button for Chairman by default, but let's leave viewing tools -->
+            <button class="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-300 text-slate-700 text-sm font-bold rounded-lg shadow-sm transition"><i class="fas fa-eye mr-2"></i> View Log</button>
+        </div>
+    </div>
+</header>
+
+    {% include 'partials/flash_messages.html' %}
+
+    <!-- RESOLUTIONS REGISTER -->
+    <div class="mb-10">
+        <div class="ui-card bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden">
+            <table class="w-full text-left border-collapse text-sm">
+                <thead class="bg-slate-50 text-slate-500 border-b border-slate-200 uppercase tracking-wider text-xs">
+                    <tr>
+                        <th class="py-3 px-6 font-semibold">Resolution</th>
+                        <th class="py-3 px-6 font-semibold">Status</th>
+                        <th class="py-3 px-6 font-semibold text-right">Action</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 text-slate-700">
+                    {% for res in all_resolutions %}
+                    <tr class="hover:bg-slate-50 transition">
+                        <td class="py-3 px-6">
+                            <div class="text-[10px] font-black text-indigo-600 mb-1 tracking-widest uppercase">{{ res.reference }}</div>
+                            <div class="font-medium text-slate-900">{{ res.title }}</div>
+                            <div class="text-xs text-slate-500 mt-1 line-clamp-1">{{ res.description }}</div>
+                        </td>
+                        <td class="py-3 px-6">
+                            {% if res.status == 'ADOPTED' %}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-800">Adopted</span>
+                            {% elif res.status == 'PROPOSED' %}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-indigo-100 text-indigo-800">Proposed</span>
+                            {% elif res.status == 'DRAFT' %}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-amber-100 text-amber-800">Draft</span>
+                            {% elif res.status == 'REJECTED' %}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-red-100 text-red-800">Rejected</span>
+                            {% else %}
+                                  <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-slate-100 text-slate-800">{{ res.status }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-3 px-6 text-right">
+                              {% if res.status == 'DRAFT' %}
+                              <a href="{{ url_for('uip_bp.edit_resolution', org_slug=org.slug, res_id=res.id) }}" class="text-amber-700 hover:text-amber-900 font-bold bg-amber-50 px-3 py-1 rounded inline-block transition shadow-sm text-[11px] uppercase tracking-wider border border-amber-200"><i class="fas fa-pen-nib mr-1"></i> Edit Draft</a>
+                              {% elif res.status == 'PROPOSED' %}
+                              <a href="{{ url_for('uip_bp.chairman_view_resolution', org_slug=org.slug, res_id=res.id) }}" class="text-indigo-700 hover:text-indigo-900 font-bold bg-indigo-50 px-3 py-1 rounded inline-block transition shadow-sm text-[11px] uppercase tracking-wider border border-indigo-200">Vote &rarr;</a>
+                              {% elif res.status == 'TABLED' %}
+                              <a href="{{ url_for('uip_bp.chairman_view_resolution', org_slug=org.slug, res_id=res.id) }}" class="text-red-700 hover:text-red-900 font-bold bg-red-50 px-3 py-1 rounded inline-block transition shadow-sm text-[11px] uppercase tracking-wider border border-red-200">Ratify &rarr;</a>
+                              {% else %}
+                              <a href="{{ url_for('uip_bp.chairman_view_resolution', org_slug=org.slug, res_id=res.id) }}" class="text-slate-600 hover:text-slate-900 font-bold bg-slate-100 px-3 py-1 rounded inline-block transition shadow-sm text-[11px] uppercase tracking-wider border border-slate-200">View &rarr;</a>
+                              {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="3" class="py-10 text-center text-slate-500">
+                            No resolutions recorded yet.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

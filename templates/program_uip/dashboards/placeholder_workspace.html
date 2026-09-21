@@ -18,11 +18,15 @@
                         <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
                             Governance</div>
                         <div class="h5 mb-0 font-weight-bold text-gray-800">Voting & Mandates</div>
-                        <p class="mt-2 text-sm text-muted">Use the <b>Secretary Tools</b> in your sidebar to cast your vote on active resolutions.</p>
+                        <p class="mt-2 text-sm text-muted">Click here to enter the dedicated Chairman Voting Room and cast your votes.</p>
                     </div>
                     <div class="col-auto">
                         <i class="fas fa-gavel fa-2x text-gray-300"></i>
                     </div>
+                </div>
+                <div class="mt-3">
+                    <a href="{{ url_for('uip_bp.chairman_voting_room', org_slug=org.slug) }}" class="btn btn-primary btn-sm btn-block">Enter Voting Room</a>
+                </div>
                 </div>
             </div>
         </div>

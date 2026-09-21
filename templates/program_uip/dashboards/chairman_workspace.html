@@ -52,32 +52,10 @@
         </a>
 
         <!-- Tile 2: Resolutions -->
-        <a href="{{ url_for('uip_bp.chairman_voting_room', org_slug=org.slug) }}" class="group block relative overflow-hidden rounded-2xl border transition-all duration-300 {% if switch_res == 'red' %}bg-red-50 border-red-200 shadow-[0_0_15px_rgba(239,68,68,0.2)]{% elif switch_res == 'amber' %}bg-amber-50 border-amber-200 shadow-[0_0_15px_rgba(245,158,11,0.2)]{% else %}bg-indigo-50 border-indigo-100 hover:border-indigo-300 hover:shadow-md{% endif %}">
-            <div class="p-6">
-                <div class="flex justify-between items-start mb-6">
-                    <div class="w-12 h-12 rounded-full flex items-center justify-center text-xl {% if switch_res == 'red' %}bg-red-100 text-red-600{% elif switch_res == 'amber' %}bg-amber-100 text-amber-600{% else %}bg-indigo-100 text-indigo-500{% endif %}">
-                        <i class="fas fa-file-signature"></i>
-                    </div>
-                    {% if switch_res == 'red' %}
-                    <span class="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-bold bg-red-600 text-white uppercase tracking-widest animate-pulse shadow-sm">
-                        Ratification Req
-                    </span>
+        <a href="{{ url_for('uip_bp.chairman_voting_room', org_slug=org.slug) }}" class="group block relative overflow-hidden rounded-2xl border transition-all duration-300 {% if switch_res == 'red' %}
+                    {{ proposed_res }} Active | {{ tabled_res }} Tabled
                     {% elif switch_res == 'amber' %}
-                    <span class="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-bold bg-amber-500 text-white uppercase tracking-widest shadow-sm">
-                        Voting Active
-                    </span>
-                    {% else %}
-                    <span class="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-bold bg-white text-indigo-400 border border-indigo-100 uppercase tracking-widest">
-                        Clear
-                    </span>
-                    {% endif %}
-                </div>
-                <h2 class="text-xl font-black {% if switch_res == 'red' %}text-red-900{% elif switch_res == 'amber' %}text-amber-900{% else %}text-indigo-900{% endif %} mb-1">Resolutions</h2>
-                <p class="text-sm {% if switch_res == 'red' %}text-red-700 font-bold{% elif switch_res == 'amber' %}text-amber-700 font-bold{% else %}text-indigo-600/70 font-medium{% endif %}">
-                    {% if switch_res == 'red' %}
-                    {{ tabled_res }} TABLED - Needs Ratification.
-                    {% elif switch_res == 'amber' %}
-                    {{ proposed_res }} waiting for committee votes.
+                    {{ proposed_res }} Active | 0 Tabled
                     {% else %}
                     All resolutions up to date.
                     {% endif %}

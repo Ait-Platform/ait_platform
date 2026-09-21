@@ -7,7 +7,16 @@
 </details>
 {% endif %}
 
-{% if is_secretary %}
+{% if is_chairman %}
+<details class="ui-nav-group ui-nav-rose" open>
+    <summary>Chairman Tools</summary>
+    <a href="{{ url_for('uip_bp.chairman_voting_room', org_slug=org.slug) }}"><i class="fas fa-gavel w-5"></i> Voting & Mandates</a>
+    <!-- Cloned modules to be built later -->
+    <a href="#"><i class="fas fa-sitemap w-5"></i> Organogram (Coming Soon)</a>
+    <a href="#"><i class="fas fa-coins w-5"></i> Financial Health (Coming Soon)</a>
+    <a href="#"><i class="fas fa-hard-hat w-5"></i> Ground Ops (Coming Soon)</a>
+</details>
+{% elif is_secretary %}
 <details class="ui-nav-group ui-nav-rose" open>
     <summary>Secretary Tools</summary>
     <a href="{{ url_for('uip_bp.secretary_workspace', org_slug=org.slug) }}"><i class="fas fa-toggle-on w-5"></i> Switchboard</a>

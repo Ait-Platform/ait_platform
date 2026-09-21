@@ -52,7 +52,7 @@ def navigation_context():
         ("AI & Wallet", "ai_wallet", {"manager"}),
     )
     sections = (
-        ("Command Centre", [("Overview", "dashboard")]),
+        
         ("Residents & Properties", [("Ratepayers", "member_list"), ("Properties", "property_list"), ("Import Register", "register_import")]),
         ("Operations", [("Interactions & Issues", "reception_page"), ("Tasks / Follow-ups", "tasks_page"), ("Municipal Matters", "municipal_list"), ("Communications", "communications_list")]),
         ("Service Providers", [("Providers", "provider_list"), ("Work Orders", "work_order_list"), ("Routing & SLA", "service_standards")]),
@@ -73,6 +73,7 @@ def navigation_context():
     from app.models.uip_governance import UipCommitteeMember
     from sqlalchemy import func
     is_secretary = False
+    is_chairman = False
     is_exco = False
     try:
         mem = UipCommitteeMember.query.filter(
@@ -82,8 +83,11 @@ def navigation_context():
         ).first()
         if mem:
             is_exco = True
-            if mem.position and mem.position.lower() in ["secretary", "chairperson", "chairman", "vice-chairperson", "vice chairman", "treasurer"]:
+            pos = mem.position.lower() if mem.position else ""
+            if pos in ["secretary", "treasurer"]:  # We will keep treasurer on secretary tools for now unless specified
                 is_secretary = True
+            elif pos in ["chairperson", "chairman", "vice-chairperson", "vice chairman"]:
+                is_chairman = True
     except Exception:
         pass
 
@@ -106,7 +110,7 @@ def navigation_context():
     from app.program_uip.presentation import current_relationship, display_value
     return dict(uip_navigation=[item for items in groups.values() for item in items], uip_nav_groups=groups, uip_is_current=current_relationship, uip_display=display_value,
                 uip_can_capture=bool(roles & set(audit.WRITE_ROLES)), uip_roles=roles,
-                uip_can_log=bool(roles & (staff | {"committee_member"})), is_secretary=is_secretary, is_exco=is_exco)
+                uip_can_log=bool(roles & (staff | {"committee_member"})), is_secretary=is_secretary, is_chairman=is_chairman, is_exco=is_exco)
 
 
 @uip_bp.route("/<org_slug>/getting-started")

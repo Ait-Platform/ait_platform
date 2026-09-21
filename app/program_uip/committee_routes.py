@@ -908,7 +908,7 @@ def chairman_view_resolution(org_slug, res_id):
     res = UipResolution.query.filter_by(organization_id=org.id, id=res_id).first_or_404()
     
     # Fetch votes
-    from app.models.uip_governance import UipResolutionVote
+    from app.models.uip import UipResolutionVote
     votes = UipResolutionVote.query.filter_by(resolution_id=res.id).all()
     
     has_voted = any(v.user_id == current_user.id for v in votes)
@@ -944,7 +944,7 @@ def chairman_vote_resolution(org_slug, res_id):
         flash("Invalid vote selection.", "error")
         return redirect(url_for("uip_bp.chairman_view_resolution", org_slug=org.slug, res_id=res_id))
         
-    from app.models.uip_governance import UipResolutionVote
+    from app.models.uip import UipResolutionVote
     existing_vote = UipResolutionVote.query.filter_by(resolution_id=res.id, user_id=current_user.id).first()
     
     if existing_vote:

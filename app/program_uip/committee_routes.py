@@ -1,4 +1,23 @@
 
+def _get_next_unvoted_resolution(org_id, user_id):
+    from app.models.uip import UipResolution, UipResolutionVote
+    from app.extensions import db
+    
+    # Subquery: get IDs of all resolutions this user has voted on
+    voted_subquery = db.session.query(UipResolutionVote.resolution_id).filter(
+        UipResolutionVote.user_id == user_id
+    ).subquery()
+    
+    # Query: find first PROPOSED resolution NOT in the subquery
+    next_res = UipResolution.query.filter(
+        UipResolution.organization_id == org_id,
+        UipResolution.status == "PROPOSED",
+        ~UipResolution.id.in_(voted_subquery)
+    ).order_by(UipResolution.id.asc()).first()
+    
+    return next_res
+
+
 def _check_auto_close(org, res, db):
     from app.models.uip_governance import UipCommitteeMember
     
@@ -692,8 +711,14 @@ def vote_resolution(org_slug, res_id):
     close_msg = _check_auto_close(org, res, db)
     if close_msg:
         flash(close_msg, "success")
-            
-    return redirect(url_for("uip_bp.view_resolution", org_slug=org.slug, res_id=res.id))
+        
+    next_res = _get_next_unvoted_resolution(org.id, current_user.id)
+    if next_res:
+        flash("Auto-advancing to the next unvoted mandate.", "info")
+        return redirect(url_for("uip_bp.view_resolution", org_slug=org.slug, res_id=next_res.id))
+    else:
+        flash("Inbox Zero! You have successfully cast your vote on all active mandates.", "success")
+        return redirect(url_for("uip_bp.committee_dashboard", org_slug=org.slug))
 
 
 @uip_bp.route("/<org_slug>/resolution/<int:res_id>/comment", methods=["POST"])
@@ -1011,7 +1036,13 @@ def treasurer_vote_resolution(org_slug, res_id):
     if close_msg:
         flash(close_msg, "success")
         
-    return redirect(url_for("uip_bp.treasurer_view_resolution", org_slug=org.slug, res_id=res_id))
+    next_res = _get_next_unvoted_resolution(org.id, current_user.id)
+    if next_res:
+        flash("Auto-advancing to the next unvoted mandate.", "info")
+        return redirect(url_for("uip_bp.treasurer_view_resolution", org_slug=org.slug, res_id=next_res.id))
+    else:
+        flash("Inbox Zero! You have successfully cast your vote on all active mandates.", "success")
+        return redirect(url_for("uip_bp.treasurer_workspace", org_slug=org.slug))
 
 
 @uip_bp.route("/<org_slug>/chairman-voting-room")
@@ -1097,7 +1128,13 @@ def chairman_vote_resolution(org_slug, res_id):
     if close_msg:
         flash(close_msg, "success")
         
-    return redirect(url_for("uip_bp.chairman_view_resolution", org_slug=org.slug, res_id=res_id))
+    next_res = _get_next_unvoted_resolution(org.id, current_user.id)
+    if next_res:
+        flash("Auto-advancing to the next unvoted mandate.", "info")
+        return redirect(url_for("uip_bp.chairman_view_resolution", org_slug=org.slug, res_id=next_res.id))
+    else:
+        flash("Inbox Zero! You have successfully cast your vote on all active mandates.", "success")
+        return redirect(url_for("uip_bp.chairman_workspace", org_slug=org.slug))
 
 
 @uip_bp.route("/<org_slug>/meetings")

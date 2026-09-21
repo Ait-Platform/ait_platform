@@ -145,13 +145,13 @@
                 {% if not has_voted %}
                 <form method="POST" action="{{ vote_url|default(url_for('uip_bp.vote_resolution', org_slug=org.slug, res_id=resolution.id)) }}" class="flex flex-row gap-3 w-full">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                    <button type="submit" name="vote" value="YEA" class="flex-1 py-3 rounded-lg font-black text-green-800 bg-green-100 border border-green-300 hover:bg-green-200 transition shadow-sm text-center">
+                    <button type="submit" name="vote" value="YEA" style="background-color: #d1fae5; color: #065f46; border: 2px solid #34d399;" class="flex-1 py-3 rounded-lg font-black transition shadow-sm text-center hover:opacity-80">
                         YEA
                     </button>
-                    <button type="submit" name="vote" value="NAY" class="flex-1 py-3 rounded-lg font-black text-red-800 bg-red-100 border border-red-300 hover:bg-red-200 transition shadow-sm text-center">
+                    <button type="submit" name="vote" value="NAY" style="background-color: #ffe4e6; color: #9f1239; border: 2px solid #fb7185;" class="flex-1 py-3 rounded-lg font-black transition shadow-sm text-center hover:opacity-80">
                         NAY
                     </button>
-                    <button type="submit" name="vote" value="ABSTAIN" class="flex-1 py-3 rounded-lg font-black text-amber-800 bg-amber-100 border border-amber-300 hover:bg-amber-200 transition shadow-sm text-center">
+                    <button type="submit" name="vote" value="ABSTAIN" style="background-color: #fef3c7; color: #92400e; border: 2px solid #fbbf24;" class="flex-1 py-3 rounded-lg font-black transition shadow-sm text-center hover:opacity-80">
                         ABSTAIN
                     </button>
                 </form>

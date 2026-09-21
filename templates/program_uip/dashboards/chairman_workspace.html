@@ -125,7 +125,7 @@
         </a>
 
                 <!-- Tile 5: Meetings & Agendas -->
-        <a href="#" class="group block relative overflow-hidden rounded-2xl border {% if first_tabled_res %}bg-red-50 border-red-200 hover:border-red-300{% else %}bg-orange-50 border-orange-100 hover:border-orange-300{% endif %} hover:shadow-md transition-all duration-300">
+        <a href="{% if first_tabled_res %}{{ url_for('uip_bp.view_resolution', org_slug=org.slug, res_id=first_tabled_res.id) }}{% else %}#{% endif %}" class="group block relative overflow-hidden rounded-2xl border {% if first_tabled_res %}bg-red-50 border-red-200 hover:border-red-300{% else %}bg-orange-50 border-orange-100 hover:border-orange-300{% endif %} hover:shadow-md transition-all duration-300">
             <div class="p-6">
                 <div class="flex justify-between items-start mb-4">
                     <div class="w-12 h-12 rounded-full flex items-center justify-center text-xl {% if first_tabled_res %}bg-red-100 text-red-600{% else %}bg-orange-100 text-orange-500{% endif %}">

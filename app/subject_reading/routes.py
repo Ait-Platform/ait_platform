@@ -389,10 +389,17 @@ def view_lesson(lesson_id: int):
     #video_src = url_for("static", filename=f"reading_videos/{lesson['video_filename']}")
 
 
-    domain = os.getenv("R2_PUBLIC_DOMAIN", "").rstrip("/")
-    if domain:
-        video_src = f"{domain}/reading_videos/{lesson['video_filename']}"
-    else:
+    from app.utils.reading_media import (
+        ReadingMediaUnavailable, reading_video_url, verify_reading_video, reading_video_disk_path,
+    )
+    try:
+        video_src = reading_video_url(lesson['video_filename'])
+        verify_reading_video(video_src)
+    except ReadingMediaUnavailable:
+        try:
+            reading_video_disk_path(current_app.static_folder, lesson['video_filename'])
+        except ReadingMediaUnavailable:
+            abort(503, description="This Reading video is unavailable. Please contact AIT.")
         video_src = url_for("static", filename=f"uploads/reading_videos/{lesson['video_filename']}")
     ui_lang = session.get("ui_lang", "en")
 

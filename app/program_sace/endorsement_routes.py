@@ -368,19 +368,31 @@ def reading_lesson(lesson_id):
 
 @sace_bp.get('/sace/reading/course/<int:lesson_id>/video')
 def reading_video(lesson_id):
-    from flask import send_file
+    from app.utils.reading_media import (
+        ReadingMediaUnavailable, reading_video_url, verify_reading_video, reading_video_disk_path,
+    )
     row = flow.assignment()
     lesson = course_lesson(row, lesson_id)
-    root = (Path(current_app.static_folder) / 'uploads/reading_videos').resolve()
-    path = (root / (lesson['video_filename'] or '')).resolve()
-    if not path.is_relative_to(root) or not path.is_file():
-        abort(404, description="This Reading video is unavailable.")
+    try:
+        video_url = reading_video_url(lesson['video_filename'])
+        verify_reading_video(video_url)
+    except ReadingMediaUnavailable:
+        try:
+            disk_path = reading_video_disk_path(current_app.static_folder, lesson['video_filename'])
+        except ReadingMediaUnavailable:
+            abort(503, description="This Reading video is unavailable. Please contact AIT.")
+        video_url = None
     row = flow.assignment(lock=True)
     flow.record(row, f'reading_lesson_{lesson_id}_served', once=True)
     db.session.commit()
-    response = send_file(path, conditional=True)
+    if video_url:
+        response = redirect(video_url, code=302)
+    else:
+        from flask import send_file
+        response = send_file(disk_path, conditional=True)
     response.headers['Cache-Control'] = 'private, no-store'
     return response
+
 
 
 def reading_mcq():

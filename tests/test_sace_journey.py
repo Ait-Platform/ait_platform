@@ -163,6 +163,49 @@ class JourneyTests(unittest.TestCase):
         self.fails(409,'reading_lesson',lesson_id=2)
         self.assertIsNone(self.latest(self.row,'reading_lesson_1_complete'))
 
+
+    def test_video_redirects_to_r2_only_after_authorization_and_head_check(self):
+        import sys
+        from unittest.mock import patch
+        class Unavailable(RuntimeError):
+            pass
+        remote = SimpleNamespace(
+            ReadingMediaUnavailable=Unavailable,
+            reading_video_url=Mock(return_value="https://assets.example.test/reading_videos/lesson1.mp4"),
+            verify_reading_video=Mock(),
+            reading_video_disk_path=Mock(side_effect=Unavailable()),
+        )
+        self.flow.course_lessons = lambda: [{"id": 1, "order": 1, "video_filename": "lesson1.mp4"}]
+        with patch.dict(sys.modules, {"app.utils.reading_media": remote}):
+            self.fails(409, "reading_video", lesson_id=1)
+            remote.verify_reading_video.assert_not_called()
+            self.workshop()
+            remote.verify_reading_video.side_effect = Unavailable()
+            self.fails(503, "reading_video", lesson_id=1)
+            self.assertIsNone(self.latest(self.row, "reading_lesson_1_served"))
+            from tempfile import TemporaryDirectory
+            with TemporaryDirectory() as temp:
+                master = Path(temp) / "lesson1.mp4"
+                master.write_bytes(b"original-disk-master")
+                remote.reading_video_disk_path.side_effect = None
+                remote.reading_video_disk_path.return_value = master
+                response = self.call("reading_video", lesson_id=1)
+                self.assertEqual(response.status_code, 200)
+                response.direct_passthrough = False
+                self.assertEqual(response.get_data(), b"original-disk-master")
+                response.close()
+                self.assertEqual(master.read_bytes(), b"original-disk-master")
+            remote.verify_reading_video.side_effect = None
+            response = self.call("reading_video", lesson_id=1)
+            self.assertEqual(response.status_code, 302)
+            self.assertEqual(response.location, remote.reading_video_url.return_value)
+            self.assertEqual(response.headers["Cache-Control"], "private, no-store")
+            self.assertIsNotNone(self.latest(self.row, "reading_lesson_1_served"))
+            self.row.response_data = json.dumps({"status": "Completed"})
+            remote.verify_reading_video.reset_mock()
+            self.fails(403, "reading_video", lesson_id=1)
+            remote.verify_reading_video.assert_not_called()
+
     def test_ppp_requires_all_slides(self):
         for i in range(1,30):self.add(f'ppp_slide_{i}')
         self.fails(409,'ppp_complete')

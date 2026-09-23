@@ -16,7 +16,11 @@
 
 ## 3. Persistent Disk vs Static Assets
 - Static Assets: Any files required for the app to run (like SACE workshop slides, logos, CSS, JavaScript) must be placed in app/static/ and pushed via Git.
-- Dynamic Uploads: Files uploaded by users (e.g., SPV files, CSVs, profile pictures) are saved to Render's Persistent Disk. These are completely separate from the codebase and should never be checked into version control.
+- Dynamic Uploads: User uploads must never be checked into version control.
+- Current R2 rollout instruction (2026-09-23): deploy R2-first video delivery while preserving Render Persistent Disk as the fallback/master. Do not delete, modify or replace disk videos. Defer individual playback repairs until they are identified in the live application.
+- Reading videos: destination bucket is `ait-platform-assets`, prefix `reading_videos/`, public domain https://pub-d9878fa5cbe44074bd45bb83a4376153.r2.dev. Both ordinary Reading and SACE Auditor delivery use R2 first, with read-only fallback to `static/uploads/reading_videos` on remote availability failure. Environment variables `R2_PUBLIC_DOMAIN` and `R2_READING_PREFIX` can override the defaults.
+- Prepared local video repairs are not approved for upload as part of this initial deployment. The persistent disk must remain attached. See `docs/r2_disk_migration.md` for findings and outstanding verification.
+
 
 ## 4. Local Project Path
 - The canonical local development directory for this project on the primary Windows machine is: D:\Users\yeshk\Documents\ait_platform

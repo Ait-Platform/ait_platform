@@ -205,6 +205,9 @@ def register():
 
         # If already logged in, skip the form!
         if getattr(current_user, "is_authenticated", False):
+            if subject == "sace_endorsement":
+                from app.program_sace.access import authentication_destination
+                return redirect(url_for(authentication_destination(subject)))
             return redirect(url_for("auth_bp.dashboard_info", subject=subject))
 
         return render_template(
@@ -235,6 +238,10 @@ def register():
     values = {"email": email_in, "full_name": full_name}
 
     # basic validation
+    if subject == "sace_endorsement" and not full_name:
+        flash("Please provide your full name.", "danger")
+        return render_template("auth/register.html", role=role, subject=subject,
+                               next_url=next_url, values=values), 400
     if not email_in or not password:
         flash("Please provide an email and password.", "danger")
         return render_template(
@@ -276,29 +283,35 @@ def register():
     
     # ---------- resolve quote before existing user check ----------
     reg_ctx = session.get("reg_ctx", {})
-    cc = (request.form.get("country") or reg_ctx.get("country_code") or session.get("country_code") or request.args.get("country_code") or "ZA").strip().upper()
-    subj_id = subject_id_for(subject)
+    if subject in {"sace", "sace_hub", "sace_endorsement"}:
+        # South African endorsement access has no commercial quote.
+        cc, cur = "ZA", "ZAR"
+        local_cents = est_zar_cents = 0
+        price_id = None
+    else:
+        cc = (request.form.get("country") or reg_ctx.get("country_code") or session.get("country_code") or request.args.get("country_code") or "ZA").strip().upper()
+        subj_id = subject_id_for(subject)
     
-    local_cents    = session.get("local_amount_cents") or 0
-    est_zar_cents  = session.get("zar_amount_cents") or 0
-    cur            = session.get("local_currency") or "ZAR"
+        local_cents    = session.get("local_amount_cents") or 0
+        est_zar_cents  = session.get("zar_amount_cents") or 0
+        cur            = session.get("local_currency") or "ZAR"
     
-    price_id = request.form.get("price_id") or session.get("price_id")
-    if price_id:
-        from app.models.payment import SubjectCountryPrice
-        new_quote_row = SubjectCountryPrice.query.get(price_id)
-        if new_quote_row:
-            cc = new_quote_row.country_code
-            cur = new_quote_row.local_currency
-            local_cents = new_quote_row.local_amount_cents
-            est_zar_cents = new_quote_row.zar_amount_cents
+        price_id = request.form.get("price_id") or session.get("price_id")
+        if price_id:
+            from app.models.payment import SubjectCountryPrice
+            new_quote_row = SubjectCountryPrice.query.get(price_id)
+            if new_quote_row:
+                cc = new_quote_row.country_code
+                cur = new_quote_row.local_currency
+                local_cents = new_quote_row.local_amount_cents
+                est_zar_cents = new_quote_row.zar_amount_cents
 
-    if not est_zar_cents or est_zar_cents <= 0:
-        if subj_id:
-            local_cents, est_zar_cents, cur = price_for_country(subj_id, cc)
+        if not est_zar_cents or est_zar_cents <= 0:
+            if subj_id:
+                local_cents, est_zar_cents, cur = price_for_country(subj_id, cc)
 
-    if not est_zar_cents or est_zar_cents <= 0:
-        est_zar_cents = 5000  # 50.00 ZAR safety net
+        if not est_zar_cents or est_zar_cents <= 0:
+            est_zar_cents = 5000  # 50.00 ZAR safety net
 
     _save_reg_ctx(
         role=role,
@@ -352,14 +365,10 @@ def register():
             session["user_name"] = existing_user.name or email_norm.split("@")[0]
             session.pop("just_paid_subject_id", None)
 
-            # SACE Pre-Registered Personnel Override
-            from app.models.auth import AuthSubjectAdmin, AuthSubject
-            is_sace_admin = AuthSubjectAdmin.query.join(AuthSubject).filter(
-                AuthSubjectAdmin.email == email_norm,
-                AuthSubject.slug.like('sace_%')
-            ).first()
-            if is_sace_admin:
-                return redirect(url_for("sace_bp.dashboard"))
+            if subject == "sace_endorsement":
+                from app.program_sace.access import authentication_destination, ensure_endorsement_enrollment
+                ensure_endorsement_enrollment(existing_user.id)
+                return redirect(url_for(authentication_destination(subject)))
 
             # Respect next_url if it exists, otherwise fallback to dashboard_info
             if next_url and next_url != "/" and next_url.startswith("/") and not next_url.startswith("//"):
@@ -427,6 +436,14 @@ def register_decision():
 
     next_url = ctx.get("next_url")
     user_email = ctx.get("email") or getattr(current_user, "email", "")
+
+    if subject == "sace_endorsement":
+        from app.program_sace.access import authentication_destination, ensure_endorsement_enrollment
+        ensure_endorsement_enrollment(user_id)
+        session.pop("reg_ctx", None)
+        session.pop("just_paid_subject_id", None)
+        return redirect(url_for(authentication_destination(subject)))
+
 
     # ---------- SPECIAL CASE: SPV PORTFOLIO REGISTRATION FEE ----------
     if next_url and ("/portfolio/" in next_url or "/program/spv/" in next_url):
@@ -541,7 +558,7 @@ def register_decision():
     # ---------- END FREE SPECIAL CASE ----------
 
     # ---------- WALLET TOKEN SUBJECTS (NO REGISTRATION FEE, USES WALLET BALANCE) ----------
-    if subject in ("cultural_fire", "culturalfire", "debtors", "mechanic", "cptd", "sace_endorsement", "sace"):
+    if subject in ("cultural_fire", "culturalfire", "debtors", "mechanic", "cptd", "sace_endorsement", "sace_hub", "sace"):
         mark_loss_enrollment_free(enrollment_id)
         session.pop("reg_ctx", None)
         session.pop("just_paid_subject_id", None)
@@ -556,7 +573,7 @@ def register_decision():
             return redirect(url_for("mechanic_bp.mechanic_dashboard"))
         elif subject == "cptd":
             return redirect(url_for("sace_bp.catalog"))
-        elif subject in ("sace", "sace_endorsement"):
+        elif subject in ("sace", "sace_hub", "sace_endorsement"):
             if next_url and ("/sace/provisioning" in next_url or "/sace/claim_code" in next_url):
                 return redirect(next_url)
             return redirect(url_for("sace_bp.dashboard"))
@@ -1158,18 +1175,17 @@ def login():
         subj = m.group(1) if m else "cultural_fire"
         next_url = url_for("auth_bp.register_decision", subject=subj)
 
+    # SACE authority and pending journeys are independent of platform roles.
+    from app.program_sace.access import authentication_destination
+    destination = authentication_destination()
+    if destination and (not next_url or session.get("sace_provisioning_token")
+                        or session.get("pending_sace_code")
+                        or (_is_safe_url(next_url) and urlparse(next_url).path.startswith("/sace"))):
+        return redirect(url_for(destination))
     if next_url and _is_safe_url(next_url):
         return redirect(next_url)
+    return redirect(url_for("auth_bp.bridge_dashboard"))
 
-    # Dynamically check if the user is an admin for any SACE subject
-    is_sace_admin = any(s.startswith('sace') for s in session.get("admin_subjects", []))
-    if is_sace_admin:
-        return redirect(url_for("sace_bp.dashboard"))
-
-    if not next_url:
-        return redirect(url_for("auth_bp.bridge_dashboard"))
-    
-    return redirect(next_url)
 
 @auth_bp.route("/logout", methods=["GET", "POST"])
 def logout():
@@ -1367,6 +1383,8 @@ def bridge_dashboard():
             return redirect(url_for('billing_bp.learner_dashboard'))
         elif slug == 'cptd':
             return redirect(url_for('sace_bp.catalog'))
+        elif slug == 'sace_endorsement':
+            return redirect(url_for('sace_bp.dashboard'))
         elif slug.startswith('sace_'):
             activity = slug.replace('sace_', '')
             return redirect(url_for('sace_bp.selection_hub', activity_slug=activity))
@@ -1418,6 +1436,8 @@ def bridge_dashboard():
 @auth_bp.route("/dashboard/learn/<subject>", methods=["GET"])
 def learner_subject_dashboard(subject):
     subj_key = (subject or "").strip().lower()
+    if subj_key in {"sace", "sace_hub", "sace_endorsement"}:
+        return redirect(url_for("auth_bp.dashboard_info", subject=subj_key))
 
     row = db.session.execute(
         text("""
@@ -1481,6 +1501,17 @@ def learner_subject_dashboard(subject):
 
 @auth_bp.route("/dashboard/info/<subject>", methods=["GET"])
 def dashboard_info(subject: str):
+    if subject.strip().lower() == "sace_endorsement":
+        if not current_user.is_authenticated:
+            return redirect(url_for("auth_bp.login", next=url_for("sace_bp.dashboard")))
+        from app.program_sace.access import authentication_destination
+        return redirect(url_for(authentication_destination("sace_endorsement")))
+    # Endorsement authority is checked by SACE, independently of commerce.
+    if subject.strip().lower() in {"sace", "sace_hub", "sace_endorsement"}:
+        endpoint = ("sace_bp.claim_code" if session.get("pending_sace_code")
+                    and session.get("sace_evaluator_pledged") else "sace_bp.dashboard")
+        return redirect(url_for(endpoint))
+
     email = session.get("email")
     if not email:
         return redirect(url_for("auth_bp.login"))

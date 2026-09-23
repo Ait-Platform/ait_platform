@@ -235,53 +235,25 @@ def sace_management():
     from werkzeug.utils import secure_filename
     import os
     
-    sace_subject = AuthSubject.query.filter_by(slug='sace_hub').first()
+    sace_subject = AuthSubject.query.filter_by(slug='sace_endorsement').first()
+    provisioning_url = None
     upload_folder = os.path.join(current_app.static_folder, 'uploads', 'sace')
     os.makedirs(upload_folder, exist_ok=True)
     
     if request.method == 'POST':
         action = request.form.get('action')
         
-        if action == 'create_evaluator':
-            name = request.form.get('name')
-            email = request.form.get('email')
-            password = request.form.get('password')
-            
-            if User.query.filter_by(email=email).first():
-                flash('Email already exists.', 'error')
+        if action in ('provision_controller', 'create_evaluator'):
+            from app.program_sace.access import make_provisioning_token
+            try:
+                token = make_provisioning_token(request.form.get('email'))
+            except ValueError as exc:
+                flash(str(exc), 'error')
             else:
-                user = User(
-                    name=name,
-                    email=email,
-                    password_hash=generate_password_hash(password),
-                    is_active=1
-                )
-                db.session.add(user)
-                db.session.commit()
-                
-                # Grant robust AuthSubjectAdmin rights to ONLY the selected SACE subject
-                from app.models.auth import AuthSubjectAdmin
-                assigned_slug = request.form.get('assigned_subject_slug')
-                
-                target_subject = AuthSubject.query.filter_by(slug=assigned_slug).first()
-                if not target_subject:
-                    flash(f'The selected SACE activity ({assigned_slug}) was not found in the database.', 'error')
-                else:
-                    # Optional: still enroll them in sace_hub for legacy dashboard access if needed
-                    if sace_subject:
-                        enrollment = UserEnrollment(
-                            user_id=user.id,
-                            subject_id=sace_subject.id,
-                            status='active'
-                        )
-                        db.session.add(enrollment)
-                        
-                    admin_grant = AuthSubjectAdmin(email=email, subject_id=target_subject.id)
-                    db.session.add(admin_grant)
-                        
-                    db.session.commit()
-                    flash(f'Created SACE personnel account for {email} and granted access strictly to {target_subject.name}.', 'success')
-                    
+                # The recipient signs in/registers themselves; no passwords or
+                # global roles are created by issuing a named provisioning URL.
+                provisioning_url = url_for('sace_bp.provisioning_map', token=token, _external=True)
+
         elif action == 'upload_document':
             slug = request.form.get('slug')
             doc_type = request.form.get('document_type')
@@ -312,14 +284,15 @@ def sace_management():
                 db.session.commit()
                 flash(f'Successfully uploaded {doc_type} for {slug}.', 'success')
                     
-    # Get list of evaluators
+    from app.models.auth import AuthSubjectAdmin
     evaluators = []
     if sace_subject:
-        enrollments = UserEnrollment.query.filter_by(subject_id=sace_subject.id, status='active').all()
-        evaluators = [e.user for e in enrollments]
-        
+        emails = [r.email.lower() for r in AuthSubjectAdmin.query.filter_by(subject_id=sace_subject.id).all()]
+        if emails:
+            evaluators = User.query.filter(db.func.lower(User.email).in_(emails)).all()
+
     documents = SaceDocument.query.all()
     
-    return render_template('admin/security/sace_management.html', evaluators=evaluators, documents=documents)
+    return render_template('admin/security/sace_management.html', evaluators=evaluators, documents=documents, provisioning_url=provisioning_url)
 
 

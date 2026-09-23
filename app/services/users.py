@@ -14,7 +14,7 @@ def _ensure_or_create_user_from_session(ctx: dict) -> int:
         raise ValueError("Missing email in registration context")
 
     # derive a simple display name if not provided
-    name = (ctx.get("name") or
+    name = (ctx.get("full_name") or ctx.get("name") or
             email.split("@", 1)[0].replace(".", " ").replace("_", " ").title()).strip()
 
     pw_hash = ctx.get("password_hash") or ctx.get("pw_hash") or ""

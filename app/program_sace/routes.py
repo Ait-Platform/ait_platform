@@ -419,6 +419,28 @@ def log_event():
 
 @sace_bp.route("/sace/provisioning")
 def provisioning_map():
+    from . import access
+    if request.args.get('token'):
+        token = request.args['token']
+        if not access.provisioning_invitation(token):
+            return render_template("program_sace/provisioning_access.html", message="This provisioning link is invalid or expired. Please request a new named link from AIT."), 400
+        session['sace_provisioning_token'] = token
+        return redirect(url_for('sace_bp.provisioning_map'))
+    if not access.is_controller():
+        invite = access.provisioning_invitation()
+        if not invite:
+            return render_template("program_sace/provisioning_access.html", message="Use the provisioning link issued to you by AIT, or sign in with your existing SACE administrator account.")
+        if current_user.is_authenticated:
+            if current_user.email.strip().lower() != invite['email']:
+                return render_template("program_sace/provisioning_access.html", message="This provisioning link belongs to a different account. Sign out and sign in with the email to which it was issued."), 409
+            # Recover an earlier legitimate registration without asking for
+            # the same pledge again. The named link still authorizes appointment.
+            from app.models.sace import SaceWorkshopInteraction
+            if SaceWorkshopInteraction.query.filter_by(
+                    user_id=current_user.id, activity_slug='admin_patent_pledge').first():
+                session['sace_admin_pledged'] = True
+            if session.get('sace_admin_pledged'):
+                access.complete_provisioning()
     from app.models.sace import SaceWorkshopInteraction
     import json
     
@@ -473,6 +495,15 @@ def provisioning_map():
 
 @sace_bp.route("/sace/provisioning/pledge", methods=["POST"])
 def provisioning_pledge():
+    from . import access
+    if not access.is_controller():
+        invite = access.provisioning_invitation()
+        if not invite or (current_user.is_authenticated and current_user.email.strip().lower() != invite['email']):
+            abort(400, description="Use the provisioning link issued for your account.")
+        session['sace_admin_pledged'] = True
+        if current_user.is_authenticated:
+            access.complete_provisioning()
+        return redirect(url_for('sace_bp.provisioning_map'))
     from app.models.sace import SaceWorkshopInteraction
     
     # Save to session so it survives registration
@@ -808,15 +839,16 @@ def auditor_join():
             except:
                 pass
                 
-        if not found_inv:
-            flash("Invalid or unrecognized Access Code.", "error")
+        from app.program_sace import endorsement as flow
+        error = flow.invitation_error(found_inv)
+        if error:
+            session.pop('pending_sace_code', None)
+            session.pop('sace_evaluator_pledged', None)
+            flash(error, "error")
             return redirect(url_for('sace_bp.auditor_join'))
-            
-        data = json.loads(found_inv.response_data)
-        if data.get('status') != "Unclaimed":
-            flash("This Access Code has already been claimed.", "error")
-            return redirect(url_for('sace_bp.auditor_join'))
-            
+
+        # A newly validated code needs its own pledge acceptance.
+        session.pop('sace_evaluator_pledged', None)
         # If valid, put it in session and redirect to pledge
         session['pending_sace_code'] = code
         return redirect(url_for('sace_bp.auditor_pledge'))
@@ -831,6 +863,13 @@ def auditor_pledge():
         return redirect(url_for('sace_bp.auditor_join'))
         
     if request.method == "POST":
+        if current_user.is_authenticated:
+            name = (request.form.get('full_name') or current_user.name or '').strip()
+            if not name:
+                flash("Please provide your full name.", "error")
+                return render_template("program_sace/auditor_pledge.html"), 400
+            current_user.name = name
+            db.session.commit()
         session['sace_evaluator_pledged'] = True
         
         if getattr(current_user, 'is_authenticated', False):

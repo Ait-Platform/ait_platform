@@ -69,6 +69,11 @@
         </div>
         
         <form action="{{ url_for('sace_bp.auditor_pledge') }}" method="POST" class="flex justify-end gap-4">
+            {% if current_user.is_authenticated %}
+            <label class="block text-slate-700">Full name
+                <input name="full_name" required autofocus value="{{ current_user.name or '' }}" class="block border border-slate-300 rounded-lg p-2">
+            </label>
+            {% endif %}
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <a href="{{ url_for('sace_bp.auditor_join') }}" class="px-6 py-3 bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 font-bold rounded-lg transition shadow-sm">
                 Decline

@@ -23,6 +23,9 @@ def get_active_countries():
 @quote_bp.get("/quote")
 def quote():
     subject_slug = (request.args.get("subject") or "").strip().lower()
+    # Endorsement is an access-code review workflow, not a purchase.
+    if subject_slug in {"sace", "sace_hub", "sace_endorsement"}:
+        return redirect(url_for("sace_bp.sace_about"))
     next_url = safe_next(request.args.get("next"), default="/")
     country_code = (request.args.get("country") or "").strip().upper()
     if not country_code and current_user.is_authenticated and hasattr(current_user, 'country_code'):

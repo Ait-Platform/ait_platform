@@ -24,12 +24,14 @@ DISABLED = {"reset_evaluator_progress", "reset_workshop", "start_workshop", "set
 @sace_bp.before_request
 def protect_endorsement():
     endpoint = (request.endpoint or '').split('.')[-1]
-    if endpoint in PUBLIC or (endpoint == 'provisioning_map' and not current_user.is_authenticated):
+    if current_user.is_authenticated and flow.is_controller() and endpoint not in R_ENDPOINTS | {'provisioning_pledge', 'sace_about'}:
+        return redirect(url_for('sace_bp.provisioning_map'))
+    if endpoint in PUBLIC or endpoint == 'provisioning_map':
         return None
     if not current_user.is_authenticated:
         return redirect(url_for('auth_bp.login', next=request.path))
     if endpoint == 'dashboard':
-        return redirect(url_for('sace_bp.provisioning_map' if flow.is_controller() else 'sace_bp.reading_hub'))
+        return redirect(url_for('sace_bp.reading_hub' if flow.assignments() else 'sace_bp.provisioning_map'))
     if endpoint in R_ENDPOINTS:
         if not flow.is_controller():
             abort(403)
@@ -72,13 +74,20 @@ def generate_code():
 
 
 def claim():
+    if flow.is_controller():
+        return redirect(url_for('sace_bp.provisioning_map'))
     code = session.get('pending_sace_code')
     if not code or not session.get('sace_evaluator_pledged'):
         return redirect(url_for('sace_bp.auditor_join'))
+    if not (current_user.name or '').strip():
+        return redirect(url_for('sace_bp.auditor_pledge'))
     # Lock before checking status so a code cannot be claimed concurrently.
     rows = Interaction.query.filter_by(activity_slug='auditor_provisioned').order_by(Interaction.id).with_for_update().all()
     row = next((r for r in rows if secrets.compare_digest(str(flow.payload(r).get('code', '')), str(code))), None)
-    if not row or row.user_id == current_user.id or flow.payload(row).get('status') != 'Unclaimed':
+    error = flow.invitation_error(row)
+    if error:
+        abort(409, description=error)
+    if row.user_id == current_user.id:
         abort(409, description="The access code cannot be claimed.")
     if any(flow.payload(r).get('status') == 'Claimed' for r in flow.assignments()):
         abort(409, description="Complete your existing Auditor assignment first.")

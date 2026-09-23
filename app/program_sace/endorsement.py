@@ -23,13 +23,35 @@ def payload(row):
         return {}
 
 
-def is_controller():
-    if not current_user.is_authenticated:
+
+def assignment_expired(state):
+    value = state.get("expires_at")
+    if value is None or value == "":
         return False
-    from app.models.auth import AuthSubject, AuthSubjectAdmin
-    return AuthSubjectAdmin.query.join(AuthSubject).filter(
-        db.func.lower(AuthSubjectAdmin.email) == current_user.email.lower(),
-        AuthSubject.slug.in_(("sace", "sace_endorsement", "sace_reading"))).first() is not None
+    try:
+        expiry = datetime.fromisoformat(value)
+        # Legacy timestamps without an offset are interpreted consistently as UTC.
+        if expiry.tzinfo is None:
+            expiry = expiry.replace(tzinfo=timezone.utc)
+        return expiry.astimezone(timezone.utc) <= datetime.now(timezone.utc)
+    except (TypeError, ValueError, OverflowError):
+        return True
+
+
+def invitation_error(row):
+    if row is None:
+        return "Invalid or unrecognized Access Code."
+    state = payload(row)
+    if state.get("status") != "Unclaimed":
+        return "This Access Code is no longer available."
+    if assignment_expired(state):
+        return "This Access Code has expired. Please ask the SACE administrator for a new code."
+    return None
+
+
+def is_controller():
+    from .access import is_controller as controller_access
+    return controller_access()
 
 
 def assignments(user_id=None):
@@ -48,13 +70,8 @@ def assignment(lock=False, active=True):
     state = payload(row)
     if active and state.get("status") != "Claimed":
         abort(403, description="This endorsement assignment has ended. Its evidence remains available to R.")
-    if state.get("expires_at"):
-        try:
-            expired = datetime.fromisoformat(state["expires_at"]).astimezone(timezone.utc) <= datetime.now(timezone.utc)
-        except (ValueError, TypeError):
-            expired = True
-        if expired and active:
-            abort(403, description="This endorsement assignment has expired.")
+    if active and assignment_expired(state):
+        abort(403, description="This endorsement assignment has expired.")
     return row
 
 

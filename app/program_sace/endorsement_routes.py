@@ -335,8 +335,6 @@ def auditor_map():
 @sace_bp.get('/sace/reading/course')
 def reading_course():
     row = flow.assignment(lock=True)
-    if not flow.workshop_passed(row):
-        abort(409, description="Complete the Demo and pass Step 34 first.")
     flow.record(row, 'reading_entered', once=True)
     lessons = flow.course_lessons()
     completed = {x['id'] for x in lessons if flow.latest(row, f"reading_lesson_{x['id']}_complete")}
@@ -347,13 +345,11 @@ def reading_course():
 
 
 def course_lesson(row, lesson_id):
-    if not flow.workshop_passed(row):
-        abort(409, description="Complete the workshop first.")
     lessons = flow.course_lessons()
     lesson = next((x for x in lessons if x['id'] == lesson_id), None)
     if not lesson:
         abort(404)
-    if any(not flow.latest(row, f"reading_lesson_{x['id']}_complete") for x in lessons if x['order'] < lesson['order']):
+    if request.method == 'POST' and any(not flow.latest(row, f"reading_lesson_{x['id']}_complete") for x in lessons if x['order'] < lesson['order']):
         abort(409, description="Complete the preceding Reading videos first.")
     return lesson
 

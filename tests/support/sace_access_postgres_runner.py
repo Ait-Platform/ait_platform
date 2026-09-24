@@ -449,6 +449,36 @@ class AccessJourneys(unittest.TestCase):
         with self.app.app_context():
             self.assertEqual(auth_models.AuthSubjectAdmin.query.count(), 0)
 
+    def test_board_opens_reading_and_last_video_without_prior_reviews(self):
+        from unittest.mock import patch
+        self.provision(self.client, "r@example.test")
+        code, row_id = self.code(self.client)
+        auditor = self.app.test_client()
+        self.user("a@example.test")
+        auditor.post("/sace/join", data={"code": code})
+        auditor.post("/sace/auditor_pledge")
+        response = self.login(auditor, "a@example.test")
+        board = auditor.get(response.location, follow_redirects=True)
+        self.assertIn(b'href="/sace/reading/course"', board.data)
+        lessons = [dict(id=i, order=i, title=f"Lesson {i}", caption="", video_filename=f"{i}.mp4") for i in range(1,19)]
+        with patch.object(endorsement, "course_lessons", return_value=lessons):
+            course = auditor.get("/sace/reading/course")
+            self.assertEqual(course.status_code, 200)
+            for i in range(1,19):
+                self.assertIn(f'href="/sace/reading/course/{i}"'.encode(), course.data)
+            lesson = auditor.get("/sace/reading/course/18")
+            self.assertEqual(lesson.status_code, 200)
+            self.assertIn(b'/sace/reading/course/18/video', lesson.data)
+            with patch("app.utils.reading_media.verify_reading_video"):
+                video = auditor.get("/sace/reading/course/18/video")
+            self.assertEqual(video.status_code, 302)
+            with self.app.app_context():
+                row = db.session.get(Interaction, row_id)
+                slugs = {e.activity_slug for e in endorsement.events(row)}
+                self.assertFalse(any(slug.endswith("_complete") for slug in slugs))
+                self.assertTrue(endorsement.completion_requirements(row))
+        self.assertEqual(self.app.test_client().get("/sace/reading/course").status_code, 302)
+
     def test_used_and_malformed_expiry_codes_cannot_join(self):
         self.user("r@example.test")
         self.provision(self.client, "r@example.test", existing=True)

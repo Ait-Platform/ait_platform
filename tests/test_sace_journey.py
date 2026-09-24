@@ -160,9 +160,18 @@ class JourneyTests(unittest.TestCase):
     def test_reading_cannot_complete_unserved_or_later_video(self):
         self.workshop()
         self.fails(409,'reading_lesson',method='POST',data={'completed':'yes'},lesson_id=1)
-        self.fails(409,'reading_lesson',lesson_id=2)
+        self.fails(409,'reading_lesson',method='POST',data={'completed':'yes'},lesson_id=2)
         self.assertIsNone(self.latest(self.row,'reading_lesson_1_complete'))
 
+
+    def test_reading_examination_needs_no_prior_material_completion(self):
+        self.call('reading_course')
+        self.call('reading_lesson', lesson_id=18)
+        self.assertIsNotNone(self.latest(self.row, 'reading_lesson_18_opened'))
+        self.assertIsNone(self.latest(self.row, 'reading_lesson_18_complete'))
+        self.assertIsNone(self.latest(self.row, 'reading_complete'))
+        self.assertIsNone(self.latest(self.row, 'map_complete'))
+        self.fails(409, 'finish_evaluation', method='POST')
 
     def test_video_redirects_to_r2_only_after_authorization_and_head_check(self):
         import sys
@@ -177,9 +186,6 @@ class JourneyTests(unittest.TestCase):
         )
         self.flow.course_lessons = lambda: [{"id": 1, "order": 1, "video_filename": "lesson1.mp4"}]
         with patch.dict(sys.modules, {"app.utils.reading_media": remote}):
-            self.fails(409, "reading_video", lesson_id=1)
-            remote.verify_reading_video.assert_not_called()
-            self.workshop()
             remote.verify_reading_video.side_effect = Unavailable()
             self.fails(503, "reading_video", lesson_id=1)
             self.assertIsNone(self.latest(self.row, "reading_lesson_1_served"))

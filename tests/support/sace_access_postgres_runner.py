@@ -106,7 +106,11 @@ auth_views = view_module("app.auth.routes", "app/auth/routes.py",
          LoginForm=LoginForm, generate_password_hash=generate_password_hash,
          check_password_hash=check_password_hash,
          _ensure_or_create_user_from_session=_ensure_or_create_user_from_session),
-    {"register", "register_decision", "login", "logout", "_save_reg_ctx", "dashboard_info"})
+    {"register", "register_decision", "login", "logout", "_save_reg_ctx", "dashboard_info", "bridge_dashboard"})
+bridge_bp = Blueprint("bridge_bp", __name__)
+view_module("isolated_bridge_routes", "app/bridge/routes.py", dict(env, bridge_bp=bridge_bp), {"bridge_dashboard"})
+program_bp = Blueprint("program_bp", __name__)
+view_module("isolated_program_routes", "app/program.py", dict(env, program_bp=program_bp), {"program_entry"})
 from app.utils.roles import is_admin
 view_module("isolated_admin_guard", "app/admin/__init__.py",
             dict(env, admin_bp=admin_bp, is_admin=is_admin), {"_guard"})
@@ -155,9 +159,10 @@ class AccessJourneys(unittest.TestCase):
         cls.app.register_blueprint(sace_bp)
         cls.app.register_blueprint(auth_bp)
         cls.app.register_blueprint(admin_bp)
+        cls.app.register_blueprint(bridge_bp)
+        cls.app.register_blueprint(program_bp)
         cls.app.add_url_rule("/", endpoint="public_bp.welcome", view_func=lambda: "Welcome")
         cls.app.add_url_rule("/admin/security", endpoint="admin_bp.security_dashboard", view_func=lambda: "Security")
-        cls.app.add_url_rule("/bridge", endpoint="auth_bp.bridge_dashboard", view_func=lambda: "Bridge")
         cls.app.jinja_env.globals["csrf_token"] = lambda: "test-csrf"
         cls.app.jinja_loader = ChoiceLoader([DictLoader({
             "layout.html": "{% block content %}{% endblock %}",
@@ -240,6 +245,44 @@ class AccessJourneys(unittest.TestCase):
         self.assertEqual(self.client.get("/sace/join").location, "/sace/provisioning")
         self.assertEqual(self.client.get("/sace/reading").location, "/sace/provisioning")
 
+    def test_returning_controller_bridge_and_dispatch_ignore_blank_endpoints(self):
+        self.provision(self.client, "r@example.test")
+        with self.app.app_context():
+            subject = auth_models.AuthSubject.query.filter_by(slug="sace_endorsement").one()
+            subject.start_endpoint = None
+            subject.admin_start_endpoint = None
+            subject.bypass_dashboard_endpoint = None
+            subject.is_hidden_on_bridge = True
+            subject.program_type = "admin"
+            db.session.commit()
+        for target in ("/dashboard", "/bridge"):
+            self.client.get("/logout")
+            response = self.login(self.client, "r@example.test", target)
+            self.assertEqual(response.location, target)
+            response = self.client.get(target)
+            self.assertEqual(response.location, "/sace/provisioning")
+            self.assertEqual(self.client.get(response.location).status_code, 200)
+            with self.client.session_transaction() as state:
+                self.assertFalse(state.get("is_admin"))
+                self.assertEqual(state.get("role"), "user")
+        response = self.client.get("/program/sace_endorsement/start", follow_redirects=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"Provisioned Auditors", response.data)
+        self.assertEqual(self.client.get("/dashboard?force=1").location, "/sace/provisioning")
+
+    def test_central_sace_dispatch_preserves_assignment_boundary(self):
+        # Anonymous visitors must authenticate; mere enrollment is not a grant.
+        response = self.client.get("/program/sace_endorsement/start", follow_redirects=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn(b"Provisioned Auditors", response.data)
+        self.user("ordinary@example.test")
+        self.login(self.client, "ordinary@example.test", "/program/sace_endorsement/start")
+        response = self.client.get("/program/sace_endorsement/start", follow_redirects=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn(b"Provisioned Auditors", response.data)
+        with self.app.app_context():
+            self.assertEqual(auth_models.AuthSubjectAdmin.query.count(), 0)
+
     def test_existing_controller_account_and_enrollment_reused(self):
         uid = self.user("existing@example.test")
         with self.app.app_context():
@@ -290,6 +333,9 @@ class AccessJourneys(unittest.TestCase):
             self.assertEqual(state["first_name"], "Auditor Full Name")
             self.assertEqual(auth_models.AuthSubjectAdmin.query.count(), 1)
         self.assertEqual(auditor.post("/sace/provisioning/generate_code").status_code, 403)
+        response = auditor.get("/program/sace_endorsement/start", follow_redirects=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"Auditor Board", response.data)
 
     def test_auditor_existing_login_preserves_pending_join(self):
         self.user("r@example.test")

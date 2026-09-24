@@ -7,6 +7,10 @@ program_bp = Blueprint("program_bp", __name__)
 
 @program_bp.route("/program/<subject_slug>/start")
 def program_entry(subject_slug):
+    # SACE owns its controller/assignment checks; nullable generic endpoints
+    # must not send endorsement administrators back to public registration.
+    if subject_slug == "sace_endorsement":
+        return redirect(url_for("sace_bp.dashboard"))
     subj = AuthSubject.query.filter_by(slug=subject_slug).first()
     if not subj:
         return redirect(url_for("public_bp.welcome"))

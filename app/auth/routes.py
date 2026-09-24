@@ -1251,6 +1251,10 @@ def admin_login_shortcut():
 
 @auth_bp.route("/dashboard")
 def bridge_dashboard():
+    # Subject-scoped SACE authority is independent of Bridge commerce metadata.
+    from app.program_sace.access import is_controller
+    if is_controller():
+        return redirect(url_for("sace_bp.provisioning_map"))
     current_app.logger.info(
         "BRIDGE entry: host=%s auth=%s uid=%s",
         request.host,

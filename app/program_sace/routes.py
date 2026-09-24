@@ -420,63 +420,33 @@ def log_event():
 @sace_bp.route("/sace/provisioning")
 def provisioning_map():
     from . import access
-    if request.args.get('token'):
-        token = request.args['token']
-        if not access.provisioning_invitation(token):
-            return render_template("program_sace/provisioning_access.html", message="This provisioning link is invalid or expired. Please request a new named link from AIT."), 400
-        session['sace_provisioning_token'] = token
-        return redirect(url_for('sace_bp.provisioning_map'))
-    if not access.is_controller():
-        invite = access.provisioning_invitation()
-        if not invite:
-            return render_template("program_sace/provisioning_access.html", message="Use the provisioning link issued to you by AIT, or sign in with your existing SACE administrator account.")
-        if current_user.is_authenticated:
-            if current_user.email.strip().lower() != invite['email']:
-                return render_template("program_sace/provisioning_access.html", message="This provisioning link belongs to a different account. Sign out and sign in with the email to which it was issued."), 409
-            # Recover an earlier legitimate registration without asking for
-            # the same pledge again. The named link still authorizes appointment.
-            from app.models.sace import SaceWorkshopInteraction
-            if SaceWorkshopInteraction.query.filter_by(
-                    user_id=current_user.id, activity_slug='admin_patent_pledge').first():
-                session['sace_admin_pledged'] = True
-            if session.get('sace_admin_pledged'):
-                access.complete_provisioning()
     from app.models.sace import SaceWorkshopInteraction
     import json
-    
-    # If they are logged in and have a session pledge, save it to DB now
-    if current_user.is_authenticated and session.get('sace_admin_pledged'):
-        existing = SaceWorkshopInteraction.query.filter_by(user_id=current_user.id, activity_slug="admin_patent_pledge").first()
-        if not existing:
-            interaction = SaceWorkshopInteraction(
-                user_id=current_user.id,
-                activity_slug="admin_patent_pledge",
-                response_data="Admin accepted IP pledge"
-            )
-            db.session.add(interaction)
-            
-            from app.models.core import CoreAuditEvent
-            ip_addr = request.headers.get('X-Forwarded-For', request.remote_addr)
-            audit = CoreAuditEvent(
-                user_id=current_user.id,
-                action="PLEDGE_ACCEPTED",
-                entity_type="SACE_PLEDGE",
-                details="Admin accepted IP pledge",
-                ip_address=ip_addr
-            )
-            db.session.add(audit)
-            db.session.commit()
-        session.pop('sace_admin_pledged', None)
 
+    pledge = None
     if current_user.is_authenticated:
-        pledge = SaceWorkshopInteraction.query.filter_by(user_id=current_user.id, activity_slug="admin_patent_pledge").first()
-        has_pledged = pledge is not None or session.get('sace_admin_pledged', False)
-        # Load provisioned auditors
-        invites = SaceWorkshopInteraction.query.filter_by(user_id=current_user.id, activity_slug="auditor_provisioned").order_by(SaceWorkshopInteraction.timestamp.desc()).all()
+        pledge = SaceWorkshopInteraction.query.filter_by(
+            user_id=current_user.id, activity_slug="admin_patent_pledge").first()
+    controller = access.is_controller()
+    if not controller or pledge is None:
+        session['sace_admin_provisioning'] = True
+        if pledge is not None:
+            session['sace_admin_pledged'] = True
+        if current_user.is_authenticated and session.get('sace_admin_pledged'):
+            access.complete_provisioning()
+            controller = access.is_controller()
+            pledge = SaceWorkshopInteraction.query.filter_by(
+                user_id=current_user.id, activity_slug="admin_patent_pledge").first()
     else:
-        has_pledged = session.get('sace_admin_pledged', False)
-        invites = []
-    
+        session.pop('sace_admin_provisioning', None)
+        session.pop('sace_admin_pledged', None)
+    has_pledged = pledge is not None or session.get('sace_admin_pledged', False)
+    provisioning_complete = controller and pledge is not None
+    invites = (SaceWorkshopInteraction.query.filter_by(
+        user_id=current_user.id, activity_slug="auditor_provisioned"
+    ).order_by(SaceWorkshopInteraction.timestamp.desc()).all()
+        if provisioning_complete else [])
+
     auditors = []
     for inv in invites:
         try:
@@ -491,49 +461,21 @@ def provisioning_map():
         except Exception:
             pass
             
-    return render_template("program_sace/provisioning_map.html", has_pledged=has_pledged, auditors=auditors)
+    return render_template("program_sace/provisioning_map.html", has_pledged=has_pledged, provisioning_complete=provisioning_complete, auditors=auditors)
 
 @sace_bp.route("/sace/provisioning/pledge", methods=["POST"])
 def provisioning_pledge():
     from . import access
-    if not access.is_controller():
-        invite = access.provisioning_invitation()
-        if not invite or (current_user.is_authenticated and current_user.email.strip().lower() != invite['email']):
-            abort(400, description="Use the provisioning link issued for your account.")
-        session['sace_admin_pledged'] = True
-        if current_user.is_authenticated:
-            access.complete_provisioning()
-        return redirect(url_for('sace_bp.provisioning_map'))
-    from app.models.sace import SaceWorkshopInteraction
-    
-    # Save to session so it survives registration
+    if not session.get('sace_admin_provisioning'):
+        if access.is_controller():
+            return redirect(url_for('sace_bp.provisioning_map'))
+        abort(400, description="Start at SACE Administrator provisioning first.")
+    # Flask's signed session carries this server-set pledge through authentication.
     session['sace_admin_pledged'] = True
-    
+    session.pop('pending_sace_code', None)
+    session.pop('sace_evaluator_pledged', None)
     if current_user.is_authenticated:
-        pledge = SaceWorkshopInteraction.query.filter_by(user_id=current_user.id, activity_slug="admin_patent_pledge").first()
-        if not pledge:
-            interaction = SaceWorkshopInteraction(
-                user_id=current_user.id,
-                activity_slug="admin_patent_pledge",
-                response_data="Admin accepted IP pledge"
-            )
-            db.session.add(interaction)
-            from app.models.core import CoreAuditEvent
-            ip_addr = request.headers.get('X-Forwarded-For', request.remote_addr)
-            audit = CoreAuditEvent(
-                user_id=current_user.id,
-                action="PLEDGE_ACCEPTED",
-                entity_type="SACE_PLEDGE",
-                details="Admin accepted IP pledge",
-                ip_address=ip_addr
-            )
-            db.session.add(audit)
-            db.session.commit()
-            flash("Intellectual Property pledge accepted. Provisioning unlocked.", "success")
-    else:
-        # Just use the session, don't pollute the DB with user_id=1
-        flash("Intellectual Property pledge accepted. Provisioning unlocked.", "success")
-        
+        access.complete_provisioning()
     return redirect(url_for('sace_bp.provisioning_map'))
 
 @sace_bp.route("/sace/provisioning/generate_code", methods=["POST"])
@@ -850,6 +792,8 @@ def auditor_join():
         # A newly validated code needs its own pledge acceptance.
         session.pop('sace_evaluator_pledged', None)
         # If valid, put it in session and redirect to pledge
+        session.pop('sace_admin_provisioning', None)
+        session.pop('sace_admin_pledged', None)
         session['pending_sace_code'] = code
         return redirect(url_for('sace_bp.auditor_pledge'))
         

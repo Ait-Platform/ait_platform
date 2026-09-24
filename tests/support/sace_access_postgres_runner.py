@@ -193,16 +193,13 @@ class AccessJourneys(unittest.TestCase):
             db.session.commit()
             return row.id
 
-    def token(self, email):
-        with self.app.app_context():
-            return access.make_provisioning_token(email)
 
     def login(self, client, email, next_url=None):
         return client.post("/login", query_string={"next": next_url} if next_url else {},
                            data={"email": email, "password": "test-password"})
 
     def provision(self, client, email, existing=False):
-        response = client.get("/sace/provisioning", query_string={"token": self.token(email)}, follow_redirects=True)
+        response = client.get("/sace/provisioning", follow_redirects=True)
         self.assertEqual(response.status_code, 200)
         response = client.post("/sace/provisioning/pledge", follow_redirects=True)
         self.assertEqual(response.status_code, 200)
@@ -297,7 +294,7 @@ class AccessJourneys(unittest.TestCase):
             self.assertEqual(auth_models.AuthSubjectAdmin.query.count(), 1)
         self.code(self.client)
 
-    def test_existing_registration_and_pledge_complete_from_named_link(self):
+    def test_existing_registration_and_pledge_complete_from_provisioning(self):
         uid = self.user("r@example.test")
         with self.app.app_context():
             db.session.add(auth_models.UserEnrollment(user_id=uid, subject_id=900, status="active",
@@ -306,7 +303,7 @@ class AccessJourneys(unittest.TestCase):
                                        response_data="Admin accepted IP pledge"))
             db.session.commit()
         self.login(self.client, "r@example.test")
-        response = self.client.get("/sace/provisioning", query_string={"token": self.token("r@example.test")}, follow_redirects=True)
+        response = self.client.get("/sace/provisioning", follow_redirects=True)
         self.assertEqual(response.status_code, 200)
         self.code(self.client)
         with self.app.app_context():
@@ -353,20 +350,6 @@ class AccessJourneys(unittest.TestCase):
         auditor.get("/logout")
         self.assertEqual(self.login(auditor, "a@example.test").location, "/sace/reading")
 
-    def test_no_appointment_from_enrollment_or_bare_url(self):
-        uid = self.user("a@example.test")
-        with self.app.app_context():
-            db.session.add(auth_models.AuthSubjectAdmin(email="a@example.test", subject_id=44))
-            db.session.commit()
-        self.login(self.client, "a@example.test")
-        response = self.client.get("/sace/dashboard", follow_redirects=True)
-        self.assertEqual(response.status_code, 200)
-        self.assertIn(b"provisioning link", response.data)
-        self.assertNotIn(b"Auditor Board", response.data)
-        self.assertEqual(self.client.post("/sace/provisioning/pledge").status_code, 400)
-        self.assertEqual(self.client.post("/sace/provisioning/generate_code").status_code, 403)
-        with self.app.app_context():
-            self.assertEqual(auth_models.AuthSubjectAdmin.query.one().subject_id, 44)
 
     def test_expiry_checked_on_join_and_again_at_claim(self):
         self.user("r@example.test")
@@ -390,45 +373,79 @@ class AccessJourneys(unittest.TestCase):
         with self.app.app_context():
             self.assertEqual(endorsement.payload(db.session.get(Interaction, row_id))["status"], "Unclaimed")
 
-    def test_named_link_cannot_appoint_different_account(self):
-        self.user("wrong@example.test")
-        self.login(self.client, "wrong@example.test")
-        response = self.client.get("/sace/provisioning", query_string={"token": self.token("r@example.test")}, follow_redirects=True)
-        self.assertEqual(response.status_code, 409)
+
+
+
+
+
+    def test_bare_entry_requires_pledge_before_grant_and_controls(self):
+        self.user("ordinary@example.test")
+        self.login(self.client, "ordinary@example.test")
         self.assertEqual(self.client.post("/sace/provisioning/pledge").status_code, 400)
+        response = self.client.get("/sace/provisioning")
+        self.assertIn(b"I Agree & Unlock", response.data)
+        self.assertNotIn(b"Generate Access Code", response.data)
+        with self.app.app_context():
+            self.assertEqual(auth_models.AuthSubjectAdmin.query.count(), 0)
+        response = self.client.post("/sace/provisioning/pledge", follow_redirects=True)
+        self.assertIn(b"Generate Access Code", response.data)
+        self.assertNotIn(b"I Agree & Unlock", response.data)
+
+    def test_anonymous_pledge_has_no_operational_controls(self):
+        self.client.get("/sace/provisioning")
+        response = self.client.post("/sace/provisioning/pledge", follow_redirects=True)
+        self.assertIn(b"Register My Account", response.data)
+        self.assertNotIn(b"Generate Access Code", response.data)
+        self.assertNotIn(b"View Audit Logs", response.data)
         with self.app.app_context():
             self.assertEqual(auth_models.AuthSubjectAdmin.query.count(), 0)
 
+    def test_multiple_administrators_keep_separate_history(self):
+        other = self.app.test_client()
+        self.provision(self.client, "r@example.test")
+        self.provision(other, "successor@example.test")
+        self.code(self.client)
+        self.code(other)
+        with self.app.app_context():
+            self.assertEqual(auth_models.AuthSubjectAdmin.query.count(), 2)
+            self.assertEqual(auth_models.ApprovedAdmin.query.count(), 0)
+            from app.models.core import CoreAuditEvent
+            audits = CoreAuditEvent.query.filter_by(action="PLEDGE_ACCEPTED").all()
+            self.assertEqual(len(audits), 2)
+            self.assertEqual(len({row.user_id for row in audits}), 2)
+            for slug in ("admin_patent_pledge", "controller_provisioned", "auditor_provisioned"):
+                rows = Interaction.query.filter_by(activity_slug=slug).all()
+                self.assertEqual(len(rows), 2)
+                self.assertEqual(len({r.user_id for r in rows}), 2)
+        self.client.get("/logout")
+        self.login(self.client, "r@example.test")
+        response = self.client.get("/sace/provisioning")
+        self.assertIn(b"Generate Access Code", response.data)
+        self.assertNotIn(b"I Agree & Unlock", response.data)
 
+    def test_valid_auditor_join_replaces_unfinished_admin_continuation(self):
+        self.provision(self.client, "r@example.test")
+        code, _ = self.code(self.client)
+        auditor = self.app.test_client()
+        auditor.get("/sace/provisioning")
+        auditor.post("/sace/provisioning/pledge")
+        auditor.post("/sace/join", data={"code": code})
+        with auditor.session_transaction() as state:
+            self.assertNotIn("sace_admin_provisioning", state)
+            self.assertNotIn("sace_admin_pledged", state)
+            self.assertEqual(state["pending_sace_code"], code)
 
-    def test_platform_admin_issues_named_link_without_granting_account(self):
-        import re
-        import html
-        uid = self.user("platform@example.test")
+    def test_management_no_longer_issues_named_links(self):
+        self.user("platform@example.test")
         with self.app.app_context():
             db.session.execute(text("INSERT INTO auth_approved_admin (email, active) VALUES (:email, 1)"), {"email": "platform@example.test"})
             db.session.commit()
         self.login(self.client, "platform@example.test")
-        response = self.client.post("/admin/security/sace-management",
-                                    data={"action": "provision_controller", "email": "r@example.test"})
+        response = self.client.post("/admin/security/sace-management", data={"action": "provision_controller", "email": "r@example.test"})
         self.assertEqual(response.status_code, 200)
-        match = re.search(rb'value="(http[^"]+/sace/provisioning[^"]+)"', response.data)
-        self.assertIsNotNone(match)
-        link = html.unescape(match.group(1).decode())
-        from urllib.parse import parse_qs
-        token = parse_qs(urlparse(link).query)["token"][0]
-        with self.app.app_context():
-            self.assertEqual(access.provisioning_invitation(token)["email"], "r@example.test")
-            self.assertEqual(auth_models.AuthSubjectAdmin.query.count(), 0)
-            self.assertEqual(auth_models.User.query.count(), 1)
-
-    def test_tampered_and_expired_provisioning_links_do_not_appoint(self):
-        from unittest.mock import patch
-        self.assertEqual(self.client.get("/sace/provisioning?token=invalid").status_code, 400)
-        with patch("time.time", return_value=1000):
-            token = self.token("r@example.test")
-        response = self.client.get("/sace/provisioning", query_string={"token": token})
-        self.assertEqual(response.status_code, 400)
+        self.assertNotIn(b"Create Provisioning Link", response.data)
+        self.assertNotIn(b"?token=", response.data)
+        self.assertIn(b"Document Management", response.data)
         with self.app.app_context():
             self.assertEqual(auth_models.AuthSubjectAdmin.query.count(), 0)
 

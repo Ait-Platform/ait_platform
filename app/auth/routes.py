@@ -1178,7 +1178,7 @@ def login():
     # SACE authority and pending journeys are independent of platform roles.
     from app.program_sace.access import authentication_destination
     destination = authentication_destination()
-    if destination and (not next_url or session.get("sace_provisioning_token")
+    if destination and (not next_url or session.get("sace_admin_provisioning")
                         or session.get("pending_sace_code")
                         or (_is_safe_url(next_url) and urlparse(next_url).path.startswith("/sace"))):
         return redirect(url_for(destination))

@@ -236,25 +236,13 @@ def sace_management():
     import os
     
     sace_subject = AuthSubject.query.filter_by(slug='sace_endorsement').first()
-    provisioning_url = None
     upload_folder = os.path.join(current_app.static_folder, 'uploads', 'sace')
     os.makedirs(upload_folder, exist_ok=True)
     
     if request.method == 'POST':
         action = request.form.get('action')
         
-        if action in ('provision_controller', 'create_evaluator'):
-            from app.program_sace.access import make_provisioning_token
-            try:
-                token = make_provisioning_token(request.form.get('email'))
-            except ValueError as exc:
-                flash(str(exc), 'error')
-            else:
-                # The recipient signs in/registers themselves; no passwords or
-                # global roles are created by issuing a named provisioning URL.
-                provisioning_url = url_for('sace_bp.provisioning_map', token=token, _external=True)
-
-        elif action == 'upload_document':
+        if action == 'upload_document':
             slug = request.form.get('slug')
             doc_type = request.form.get('document_type')
             file = request.files.get('file')
@@ -293,6 +281,6 @@ def sace_management():
 
     documents = SaceDocument.query.all()
     
-    return render_template('admin/security/sace_management.html', evaluators=evaluators, documents=documents, provisioning_url=provisioning_url)
+    return render_template('admin/security/sace_management.html', evaluators=evaluators, documents=documents)
 
 

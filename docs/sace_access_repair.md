@@ -1,3 +1,5 @@
+> Historical report: the named-invitation requirement below is superseded by the user-approved self-provisioning architecture (2026-09-24). Current entry is `/sace/provisioning` -> IP pledge -> register/sign in -> persistent SACE-only grant -> Control Centre. No AIT appointment or invitation is required. Existing historical audit records are preserved.
+
 # SACE access repair ? local verification, 2026-09-23
 
 ## Identity and cause

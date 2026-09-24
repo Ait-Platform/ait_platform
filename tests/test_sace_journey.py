@@ -133,7 +133,7 @@ class JourneyTests(unittest.TestCase):
         with self.app.app_context():self.assertFalse(self.flow.step35_passed(self.row))
 
     def test_demo_blocks_skip_replay_and_invalid_payload(self):
-        self.add('map_complete');self.add('ppp_complete')
+        self.call('demo')
         self.fails(409,'demo_advance',method='POST',json_data={'step':4})
         self.call('demo_advance',method='POST',json_data={'step':0})
         self.fails(409,'demo_advance',method='POST',json_data={'step':0})

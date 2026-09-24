@@ -185,7 +185,6 @@ def ppp_complete():
 
 def demo():
     row = flow.assignment()
-    require_map(row)
     return render_template('program_sace/endorsement_demo.html', step=flow.payload(row).get('demo_step',0),
                            result=flow.payload(flow.latest(row,'step34')) if flow.latest(row,'step34') else {})
 
@@ -193,7 +192,6 @@ def demo():
 @sace_bp.post('/sace/reading/demo/advance')
 def demo_advance():
     row = flow.assignment(lock=True)
-    require_map(row)
     state = flow.payload(row)
     data = request.get_json(silent=True) or {}
     step = state.get('demo_step', 0)
@@ -543,7 +541,7 @@ def private_journey_response(response):
 @sace_bp.get('/sace/reading/slide/<int:slide>')
 def journey_slide(slide):
     from flask import send_file
-    if not 1 <= slide <= 30:
+    if not 1 <= slide <= 31:
         abort(404)
     path = Path(current_app.static_folder) / 'sace_slides' / f'{slide}.png'
     if not path.is_file():

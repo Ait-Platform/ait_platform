@@ -29,6 +29,12 @@ def establish_organization_context():
     g.organization = org
     g.org_id = org.id
 
+    # Vault maintenance is not a UIP browser workflow. MO ingestion is separate.
+    if request.endpoint in {"uip_bp.member_form", "uip_bp.property_form",
+            "uip_bp.member_representative", "uip_bp.property_member",
+            "uip_bp.register_import", "uip_bp.vault_check"}:
+        abort(403)
+
     # Check whether the UIP founding record exists
     from app.models.uip import UipCommitteeMeeting
     founding_exists = UipCommitteeMeeting.query.filter_by(
@@ -43,7 +49,7 @@ def establish_organization_context():
     if request.endpoint in (
         "uip_bp.router_page", "uip_bp.my_access", 
         "uip_bp.verify_committee", "uip_bp.verify_secretary", 
-        "uip_bp.verify_ratepayer",
+        "uip_bp.verify_ratepayer", "uip_bp.uip_about",
         "uip_bp.verify_mo",
         "uip_bp.verify_staff",
         "uip_bp.verify_subcommittee",
@@ -106,12 +112,6 @@ from . import secretary_routes
 
 
 
-import traceback
 @uip_bp.errorhandler(403)
-def handle_403(e):
-    with open("403_trace.log", "a") as log:
-        log.write("\n--- 403 FORBIDDEN ---\n")
-        log.write("Endpoint: " + str(request.endpoint) + "\n")
-        traceback.print_stack(file=log)
-        log.write("Description: " + str(e.description) + "\n")
-    return "Forbidden. Stack logged.", 403
+def handle_403(error):
+    return "Forbidden.", 403

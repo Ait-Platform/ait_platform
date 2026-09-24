@@ -917,6 +917,8 @@ def vice_chair_workspace(org_slug):
 @login_required
 def treasurer_workspace(org_slug):
     org = g.organization
+    from .services.finance import require_treasurer
+    require_treasurer(org.id, current_user.id)
     from app.models.core import CoreInteraction
     from app.models.auth import User
     from app.models.uip import UipResolution
@@ -971,6 +973,8 @@ def treasurer_workspace(org_slug):
 @login_required
 def treasurer_voting_room(org_slug):
     org = g.organization
+    from .services.finance import require_treasurer
+    require_treasurer(org.id, current_user.id)
     from app.models.uip import UipResolution
     all_resolutions = UipResolution.query.filter_by(organization_id=org.id).order_by(UipResolution.created_at.desc()).all()
     return render_template("program_uip/dashboards/treasurer_voting_room.html", org=org, all_resolutions=all_resolutions)
@@ -979,6 +983,8 @@ def treasurer_voting_room(org_slug):
 @login_required
 def treasurer_view_resolution(org_slug, res_id):
     org = g.organization
+    from .services.finance import require_treasurer
+    require_treasurer(org.id, current_user.id)
     from app.models.uip import UipResolution
     res = UipResolution.query.filter_by(organization_id=org.id, id=res_id).first_or_404()
     from app.models.uip import UipResolutionVote
@@ -1007,6 +1013,8 @@ def treasurer_view_resolution(org_slug, res_id):
 @login_required
 def treasurer_vote_resolution(org_slug, res_id):
     org = g.organization
+    from .services.finance import require_treasurer
+    require_treasurer(org.id, current_user.id)
     from app.models.uip import UipResolution
     res = UipResolution.query.filter_by(organization_id=org.id, id=res_id).first_or_404()
     

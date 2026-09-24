@@ -9,7 +9,7 @@ from bootstrap import db, core, uip
 from app.program_uip.services import sla, routing, reception, governance, documents
 from app.program_uip.services.dashboard import metrics
 from phase3_helpers import provider, order, act
-from test_register import make_member, make_property
+from test_register import make_member, make_property, import_records
 
 BASE = "/uip/manor-gardens/operations"
 
@@ -152,8 +152,9 @@ def eligible_member(data):
     member = make_member(data, eligibility_status="eligible", membership_id=str(membership.id))
     property_row = make_property(data)
     db.session.flush()
-    db.session.add(uip.UipPropertyMember(organization_id=data.org.id, property_id=property_row.id, member_id=member.id,
-        relationship="owner", valid_from=datetime.now(timezone.utc).date() - timedelta(days=2), is_verified=True))
+    import_records(data.org.id, manager(data), "relationships", [dict(
+        member_reference=member.reference, property_reference=property_row.reference,
+        relationship="owner", is_verified="true")])
     db.session.flush()
     return member
 

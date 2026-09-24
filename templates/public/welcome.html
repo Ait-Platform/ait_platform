@@ -93,8 +93,8 @@ mx-auto max-w-7xl px-6 py-10
             badge=subj.program_type,
             description=info.desc,
             color=info.color,
-            href=subj.about_url,
-            available=subj.about_url is not none
+            href=url_for('sace_bp.sace_about') if slug in ['sace', 'sace_hub', 'sace_endorsement'] else subj.about_url,
+            available=slug in ['sace', 'sace_hub', 'sace_endorsement'] or subj.about_url is not none
         ) }}
 
         

@@ -1,3 +1,4 @@
+from test_register import import_member, import_property, import_records, make_member, make_property
 """Visible UIP journeys using real routes, CSRF, services and disposable schemas."""
 import csv
 import io
@@ -65,7 +66,7 @@ def csv_file(kind, rows):
 
 
 def csv_post(client, kind, content, **values):
-    return client.safe_post(BASE + "/register/import", dict(kind=kind,
+    return client.safe_post(BASE + "/register/import", dict(kind=kind, source_identifier="Synthetic municipality", effective_date="2026-01-01",
         file=(io.BytesIO(content), "register.csv"), **values))
 
 
@@ -99,8 +100,8 @@ def test_csv_preview_commit_duplicate_and_atomicity(client, data):
 
 def test_import_scope_and_permissions(client, data):
     from app.program_uip.services import register
-    register.save_member(data.other.id, data.outsider.id, MEMBER)
-    register.save_property(data.other.id, data.outsider.id, PROPERTY)
+    import_member(data.other.id, data.outsider.id, MEMBER)
+    import_property(data.other.id, data.outsider.id, PROPERTY)
     db.session.commit()
     content = csv_file("relationships", [dict(member_reference="M1", property_reference="P1",
         relationship="owner", valid_from="2026-01-01", valid_to="", is_verified="true")])
@@ -255,16 +256,20 @@ def test_meeting_edit_cancel_and_sla_disable(client, data):
 
 
 def test_relationship_history_and_overlap(client, data):
-    assert client.safe_post(BASE + "/members/new", MEMBER).status_code == 302
-    assert client.safe_post(BASE + "/properties/new", PROPERTY).status_code == 302
-    member, prop = uip.UipMemberProfile.query.one(), uip.UipProperty.query.one()
-    values = dict(member_id=member.id, relationship="owner", valid_from="2026-01-01", valid_to="", is_verified="true")
-    url = BASE + f"/properties/{prop.id}/members"
-    assert client.safe_post(url, values).status_code == 302
-    row = uip.UipPropertyMember.query.one()
-    assert client.safe_post(url, dict(values, valid_from="2026-02-01")).status_code == 409
-    assert client.safe_post(url + f"/{row.id}", dict(values, valid_from="2025-01-01")).status_code == 400
-    assert client.safe_post(url + f"/{row.id}", dict(values, valid_to="2026-02-01")).status_code == 302
-    assert client.safe_post(url + f"/{row.id}", values).status_code == 400
-    assert client.safe_post(url, dict(values, valid_from="2026-02-02")).status_code == 302
-    assert uip.UipPropertyMember.query.count() == 2
+    from datetime import date
+    member=make_member(data);replacement=make_member(data,reference="M2");prop=make_property(data)
+    def municipal_owner(person,effective):
+        import_records(data.org.id,data.users["manager"].id,"relationships",[dict(
+            member_reference=person.reference,property_reference=prop.reference,
+            relationship="owner",is_verified="true")],effective_date=effective)
+    municipal_owner(member,date(2026,1,1))
+    row=uip.UipPropertyMember.query.one()
+    values=dict(member_id=member.id,relationship="owner",valid_from="2026-01-01",valid_to="",is_verified="true")
+    url=BASE+f"/properties/{prop.id}/members"
+    assert client.safe_post(url,values).status_code==403
+    assert client.safe_post(url+f"/{row.id}",dict(values,valid_to="2026-02-01")).status_code==403
+    municipal_owner(replacement,date(2026,2,2))
+    assert row.valid_from==date(2026,1,1) and row.valid_to==date(2026,2,2)
+    assert uip.UipPropertyMember.query.count()==2
+    municipal_owner(replacement,date(2026,2,2))
+    assert uip.UipPropertyMember.query.count()==2

@@ -1,6 +1,6 @@
 ﻿import os
-from flask import render_template, request, g, redirect, url_for, flash
-from flask_login import current_user
+from flask import abort, current_app, render_template, request, g, redirect, url_for, flash
+from flask_login import current_user, login_required
 from datetime import datetime, timezone
 
 from app.extensions import db
@@ -12,9 +12,28 @@ from app.models.uip_governance import UipCommitteeTerm, UipCommitteeMember
 from . import uip_bp
 from .services import audit
 
+def require_provisioning_invitation(org):
+    """Validate the existing signed organisation/recipient invitation before authority writes."""
+    from itsdangerous import URLSafeTimedSerializer, BadData
+    if not current_user.is_authenticated:
+        abort(403)
+    token = request.args.get("token") or request.form.get("token", "")
+    try:
+        invitation = URLSafeTimedSerializer(current_app.secret_key, salt="uip-provisioning").loads(
+            token, max_age=7 * 24 * 60 * 60)
+    except BadData:
+        abort(403, description="Invalid or expired provisioning invitation.")
+    if (not isinstance(invitation, dict) or invitation.get("org_slug") != org.slug
+            or not isinstance(invitation.get("email"), str)
+            or invitation["email"].strip().casefold() != (current_user.email or "").strip().casefold()):
+        abort(403, description="Invalid provisioning invitation.")
+
+
 @uip_bp.route("/<org_slug>/provisioning", methods=["GET", "POST"])
+@login_required
 def provisioning(org_slug):
     org = g.organization
+    require_provisioning_invitation(org)
     
     # Restrict if a founding meeting already exists
     if UipCommitteeMeeting.query.filter_by(organization_id=org.id, meeting_type="FOUNDING").first():
@@ -46,7 +65,7 @@ def provisioning(org_slug):
             meeting_type="FOUNDING",
             scheduled_at=scheduled_at,
             location=venue,
-            status="SCHEDULED"
+            status="CONCLUDED"
         )
         db.session.add(meeting)
         db.session.flush()

@@ -7,10 +7,9 @@ PAYLOAD = dict(title="Safety", description="Test issue", category="SECURITY", ch
 
 def test_01_manager_dashboard(client):
     response = client.get(BASE + "/dashboard")
-    assert response.status_code == 200
-    assert b"Test issue" in response.data
-    assert b"Attention Required" in response.data
-    assert b"unavailable" not in response.data.lower()
+    assert response.status_code == 302
+    assert response.location.endswith("/my-access")
+    assert client.get(response.location).status_code == 200
 
 
 def test_02_intake_and_settings_templates(client):
@@ -41,13 +40,15 @@ def test_06_unknown_org_no_provision(client):
 
 def test_07_outsider_denied(client):
     client.login("outsider")
-    assert client.get(BASE + "/dashboard").status_code == 403
+    response = client.get(BASE + "/dashboard")
+    assert response.status_code == 302 and response.location.endswith("/my-access")
 
 
 def test_08_inactive_membership_denied(client, data):
     core.CoreOrganizationMember.query.filter_by(user_id=data.users["manager"].id).one().is_active = False
     db.session.commit()
-    assert client.get(BASE + "/dashboard").status_code == 403
+    response = client.get(BASE + "/dashboard")
+    assert response.status_code == 302 and response.location.endswith("/my-access")
 
 
 def test_09_cross_org_issue_hidden(client):

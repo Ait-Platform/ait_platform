@@ -27,12 +27,16 @@ PRIORITIES = {"LOW", "NORMAL", "HIGH", "URGENT"}
 
 def _require_role(*allowed, abort_on_fail=True):
     """Require active membership and an eligible role within this organisation."""
+    if not current_user.is_authenticated:
+        if abort_on_fail:
+            abort(403)
+        return None
     membership = CoreOrganizationMember.query.filter_by(
         organization_id=g.organization.id, user_id=current_user.id, is_active=True
     ).first()
     if not membership:
         if abort_on_fail:
-            return None
+            abort(403)
         return None
     query = CoreRoleAssignment.query.filter_by(
         organization_id=g.organization.id, user_id=current_user.id
@@ -66,7 +70,7 @@ def _require_role(*allowed, abort_on_fail=True):
         roles = [role for role in allowed if role in roles]
     if not roles:
         if abort_on_fail:
-            return None
+            abort(403)
         return None
     return roles[0]
 
@@ -191,24 +195,7 @@ def dashboard(org_slug):
         if current_appointment:
             pos = current_appointment.position.strip().lower() if current_appointment.position else ""
             
-            # --- AUTO-FIX FOR PROTOTYPE RECORDS ---
-            if pos in ["committee", "unassigned", "committee member", ""]:
-                claim = CoreInteraction.query.filter_by(creator_id=current_user.id, interaction_type="committee_claim").first()
-                if claim:
-                    new_pos = claim.title.split(": ")[-1] if ":" in claim.title else (claim.title.split(" - ")[-1] if " - " in claim.title else claim.title)
-                    current_appointment.position = new_pos.strip()
-                    db.session.commit()
-                    pos = new_pos.strip().lower()
-            
-            # Ensure they have committee_member role for the sidebar financial buttons
-            from app.models.core import CoreRoleAssignment, CoreRole
-            role_obj = CoreRole.query.filter_by(slug="committee_member").first()
-            if role_obj:
-                existing_role = CoreRoleAssignment.query.filter_by(organization_id=org.id, user_id=current_user.id, role_id=role_obj.id).first()
-                if not existing_role:
-                    db.session.add(CoreRoleAssignment(organization_id=org.id, user_id=current_user.id, role_id=role_obj.id))
-                    db.session.commit()
-            # --------------------------------------
+
 
             if pos in ["chairman", "vice-chairperson", "vice chairman", "chair", "chairperson", "vice chair"]:
                 from app.program_uip.presentation import executive
@@ -248,15 +235,6 @@ def waiting_lounge(org_slug):
     ).first()
     
     if appointment and not force_menu:
-        from app.models.core import CoreOrganizationMember
-        membership = CoreOrganizationMember.query.filter_by(organization_id=org.id, user_id=current_user.id).first()
-        if not membership:
-            membership = CoreOrganizationMember(organization_id=org.id, user_id=current_user.id, is_active=True)
-            db.session.add(membership)
-        elif not membership.is_active:
-            membership.is_active = True
-        db.session.commit()
-        flash("Your committee membership has been verified!", "success")
         pos = appointment.position.lower()
         if pos in ['chairman', 'chairperson', 'chair', 'vice chair', 'vice chairman', 'treasurer']:
             return redirect(url_for('uip_bp.dashboard', org_slug=org.slug))
@@ -310,34 +288,6 @@ def router_page(org_slug):
         func.lower(UipCommitteeMember.email) == func.lower(current_user.email)
     ).first()
     if appointment and not force_menu:
-        from app.models.core import CoreOrganizationMember
-        membership = CoreOrganizationMember.query.filter_by(organization_id=org.id, user_id=current_user.id).first()
-        if not membership:
-            membership = CoreOrganizationMember(organization_id=org.id, user_id=current_user.id, is_active=True)
-            db.session.add(membership)
-        elif not membership.is_active:
-            membership.is_active = True
-        db.session.commit()
-        
-        # --- AUTO-FIX FOR PROTOTYPE RECORDS ---
-        pos_raw = appointment.position.strip().lower() if appointment.position else ""
-        if pos_raw in ["committee", "unassigned", "committee member", ""]:
-            from app.models.core import CoreInteraction
-            claim = CoreInteraction.query.filter_by(creator_id=current_user.id, interaction_type="committee_claim").first()
-            if claim:
-                new_pos = claim.title.split(": ")[-1] if ":" in claim.title else (claim.title.split(" - ")[-1] if " - " in claim.title else claim.title)
-                appointment.position = new_pos.strip()
-                db.session.commit()
-                
-        # Ensure committee_member role is set
-        from app.models.core import CoreRoleAssignment, CoreRole
-        role_obj = CoreRole.query.filter_by(slug="committee_member").first()
-        if role_obj:
-            if not CoreRoleAssignment.query.filter_by(organization_id=org.id, user_id=current_user.id, role_id=role_obj.id).first():
-                db.session.add(CoreRoleAssignment(organization_id=org.id, user_id=current_user.id, role_id=role_obj.id))
-                db.session.commit()
-        # --------------------------------------
-
         pos = appointment.position.lower()
         if pos in ['chairman', 'chairperson', 'chair', 'vice chair', 'vice chairman', 'treasurer']:
             return redirect(url_for('uip_bp.dashboard', org_slug=org.slug))
@@ -357,47 +307,7 @@ def router_page(org_slug):
     # 2. Strangers / Unverified Users
     # We now always show the 7 tiles. The verify routes will handle routing to provisioning vs waiting lounge based on founding_exists.
     
-    # --- GLOBAL AUTO-FIX FOR ALL CORRUPTED SEATS ---
-    from app.models.uip_governance import UipCommitteeMember
-    from sqlalchemy import func
-    corrupted = UipCommitteeMember.query.filter(
-        UipCommitteeMember.organization_id == org.id,
-        func.lower(UipCommitteeMember.position).in_(["committee", "unassigned", "committee member", ""])
-    ).all()
-    if corrupted:
-        from app.models.core import CoreInteraction
-        from app.models.auth import User
-        from sqlalchemy import func
-        for c in corrupted:
-            user = User.query.filter(func.lower(User.email) == func.lower(c.email)).first()
-            if user:
-                claim = CoreInteraction.query.filter_by(creator_id=user.id, interaction_type="committee_claim").first()
-                if claim:
-                    if ":" in claim.title:
-                        c.position = claim.title.split(": ")[-1].strip()
-                    elif " - " in claim.title:
-                        c.position = claim.title.split(" - ")[-1].strip()
-        db.session.commit()
-    # -----------------------------------------------
-
-    # --- DYNAMIC ORGANOGRAM SEATS SEEDING ---
     from app.models.uip_governance import UipOrganogramSeat
-    if UipOrganogramSeat.query.filter_by(organization_id=org.id).count() == 0:
-        default_seats = [
-            ("Chairperson", "CORE_EXCO", "Mandatory", 1, "manager"),
-            ("Vice-Chairperson", "CORE_EXCO", "Voluntary", 2, "manager"),
-            ("Treasurer", "CORE_EXCO", "Mandatory", 3, "manager"),
-            ("Secretary", "CORE_EXCO", "Mandatory", 4, "manager"),
-            ("Security Sub-Committee Lead", "SECOND_GROUP", "Voluntary", 5, "committee_member"),
-            ("Greening & Environment Lead", "SECOND_GROUP", "Voluntary", 6, "committee_member"),
-            ("Infrastructure & Maintenance Lead", "SECOND_GROUP", "Voluntary", 7, "committee_member"),
-            ("Social & Community Lead", "SECOND_GROUP", "Voluntary", 8, "committee_member"),
-            ("Finance & Audit Lead", "SECOND_GROUP", "Voluntary", 9, "committee_member")
-        ]
-        for title, grp, qual, order, duty in default_seats:
-            db.session.add(UipOrganogramSeat(organization_id=org.id, title=title, group_level=grp, qualifier=qual, display_order=order, duty=duty))
-        db.session.commit()
-        
     exco_seats = UipOrganogramSeat.query.filter_by(organization_id=org.id, group_level="CORE_EXCO").order_by(UipOrganogramSeat.display_order).all()
     sub_seats = UipOrganogramSeat.query.filter_by(organization_id=org.id, group_level="SECOND_GROUP").order_by(UipOrganogramSeat.display_order).all()
     # ----------------------------------------
@@ -446,71 +356,13 @@ def my_access(org_slug):
 @uip_bp.route("/<org_slug>/verify/ratepayer", methods=["GET", "POST"])
 @login_required
 def verify_ratepayer(org_slug):
-    # Check if they already have authority
-    role = _require_role("owner", "resident", abort_on_fail=False)
-    if role:
-        return redirect(url_for("uip_bp.dashboard", org_slug=org_slug, as_ratepayer=1))
-    
-    from app.models.core import CoreInteraction, CoreRoleAssignment, CoreRole, CoreOrganizationMember
-    from app.models.uip import UipMemberProfile
-    from sqlalchemy import func
-    from flask import flash
-    
-    # 1. Instant Vault Lookup
-    vault_match = UipMemberProfile.query.filter(
-        UipMemberProfile.organization_id == g.organization.id,
-        UipMemberProfile.is_active == True,
-        func.lower(UipMemberProfile.email) == func.lower(current_user.email)
-    ).first()
-    
-    if vault_match:
-        # User is securely verified against the internal register
-        membership = CoreOrganizationMember.query.filter_by(organization_id=g.organization.id, user_id=current_user.id).first()
-        if not membership:
-            membership = CoreOrganizationMember(organization_id=g.organization.id, user_id=current_user.id, is_active=True)
-            db.session.add(membership)
-            db.session.flush()
-        else:
-            membership.is_active = True
-            
-        role_obj = CoreRole.query.filter_by(slug="owner").first() or CoreRole.query.filter_by(slug="resident").first()
-        if role_obj:
-            existing = CoreRoleAssignment.query.filter_by(organization_id=g.organization.id, user_id=current_user.id, role_id=role_obj.id).first()
-            if not existing:
-                db.session.add(CoreRoleAssignment(organization_id=g.organization.id, user_id=current_user.id, role_id=role_obj.id))
-                
-        # Register a verified claim footprint
-        claim = CoreInteraction.query.filter_by(
-            organization_id=g.organization.id, creator_id=current_user.id, interaction_type="ratepayer_claim"
-        ).first()
-        if not claim:
-            claim = CoreInteraction(
-                organization_id=g.organization.id, creator_id=current_user.id,
-                interaction_type="ratepayer_claim", title="Ratepayer Claim - Vault Auto-Verify",
-                description=f"User {current_user.email} verified instantly via Municipal Vault match.", status="VERIFIED"
-            )
-            db.session.add(claim)
-        else:
-            claim.status = "VERIFIED"
-            
-        db.session.commit()
-        flash("Welcome! Your account was instantly verified against the Municipal Vault.", "success")
-        return redirect(url_for("uip_bp.dashboard", org_slug=org_slug, as_ratepayer=1))
-    
-    # 2. If NO vault match, they must proceed via manual intake
-    claim = CoreInteraction.query.filter_by(
-        organization_id=g.organization.id, creator_id=current_user.id, interaction_type="ratepayer_claim", status="OPEN"
-    ).first()
-    if not claim:
-        claim = CoreInteraction(
-            organization_id=g.organization.id, creator_id=current_user.id,
-            interaction_type="ratepayer_claim", title="Ratepayer Claim",
-            description=f"User {current_user.email} claims to be a ratepayer.", status="OPEN"
-        )
-        db.session.add(claim)
-        db.session.commit()
-    
-    return redirect(url_for("uip_bp.my_access", org_slug=org_slug, claim="ratepayer"))
+    from .services.ratepayer import vault_identity
+    member, properties, available = vault_identity(g.organization.id, current_user)
+    if member and properties:
+        return redirect(url_for("uip_bp.ratepayer_workspace", org_slug=org_slug))
+    if available:
+        abort(403, description="No current authoritative Vault match. The business rule for this case is not yet defined.")
+    return render_template("program_uip/ratepayer_waiting.html", org=g.organization)
 
 
 @uip_bp.route("/<org_slug>/verify/secretary", methods=["GET"])
@@ -619,6 +471,8 @@ def verify_committee(org_slug):
                 
                 # GENESIS SECRETARY LOGIC
                 if position.lower() == "secretary" and not occupied:
+                    from .provisioning_routes import require_provisioning_invitation
+                    require_provisioning_invitation(org)
                     # Auto-create a Genesis term if none exists to prevent IntegrityError
                     if not term:
                         from datetime import datetime
@@ -1132,37 +986,6 @@ def uip_start():
     
     uip_subj = AuthSubject.query.filter_by(slug='uip').first()
     
-    # Self-heal missing entitlements for ALL orgs
-    all_orgs = CoreOrganization.query.all()
-    for org in all_orgs:
-        if uip_subj:
-            ent = CoreOrganizationEntitlement.query.filter_by(organization_id=org.id, subject_id=uip_subj.id).first()
-            if not ent:
-                ent = CoreOrganizationEntitlement(organization_id=org.id, subject_id=uip_subj.id, status="active", is_trial=True)
-                db.session.add(ent)
-                
-    # Clean up duplicate Manor Gardens
-    manor_orgs = CoreOrganization.query.filter(
-        CoreOrganization.name.ilike('%Manor Gardens%'),
-        CoreOrganization.status == "active"
-    ).all()
-    
-    if len(manor_orgs) > 1:
-        # Find the one that actually has a founding meeting (the real one)
-        real_org = None
-        for org in manor_orgs:
-            if UipCommitteeMeeting.query.filter_by(organization_id=org.id).first():
-                real_org = org
-                break
-        
-        # If we found the real one, mark the others as deleted
-        if real_org:
-            for org in manor_orgs:
-                if org.id != real_org.id:
-                    org.status = "deleted"
-                    
-    db.session.commit()
-    
     # Fast-path: If the user is already a member of exactly one active UIP, jump straight to it!
     from flask_login import current_user
     from flask import redirect, url_for
@@ -1197,7 +1020,7 @@ def select_org():
     from flask_login import current_user
     org_slug = request.form.get("org_slug")
     if org_slug:
-        next_url = url_for("uip_bp.router_page", org_slug=org_slug)
+        next_url = url_for("uip_bp.router_page", org_slug=org_slug, force=1)
         if not current_user.is_authenticated:
             return redirect(url_for("auth_bp.register", next=next_url))
         return redirect(next_url)
@@ -1217,14 +1040,8 @@ def register_conflict(error):
 
 
 def _register_context():
-    from app.program_uip.services.register import require_register_admin
-    can_manage = False
-    try:
-        require_register_admin(g.organization.id, current_user.id)
-        can_manage = True
-    except Exception:
-        pass
-    return dict(org=g.organization, can_manage=can_manage)
+    # The authoritative Vault is read-only in all current UIP browser views.
+    return dict(org=g.organization, can_manage=False)
 
 
 @uip_bp.route("/<org_slug>/members")
@@ -1511,52 +1328,15 @@ def service_status(org_slug):
 
 @uip_bp.route("/<org_slug>/reset-genesis")
 def reset_genesis(org_slug):
-    """Temporary route to reset the UIP for Genesis testing."""
-    from app.extensions import db
-    from app.models.auth import User
-    from app.models.uip import UipCommitteeMeeting, UipResolution
-    from app.models.uip_governance import UipCommitteeTerm, UipCommitteeMember
-    from app.models.core import CoreOrganizationMember, CoreInteraction
-    from flask import flash, redirect, url_for, g
-
-    org = g.organization
-
-    try:
-        # Wipe the governance records
-        UipCommitteeMember.query.filter_by(organization_id=org.id).delete()
-        UipResolution.query.filter_by(organization_id=org.id).delete()
-        UipCommitteeTerm.query.filter_by(organization_id=org.id).delete()
-        UipCommitteeMeeting.query.filter_by(organization_id=org.id).delete()
-        
-        # Wipe the test users
-        users = User.query.filter(User.email.like('uip%')).all()
-        if users:
-            user_ids = [u.id for u in users]
-            CoreOrganizationMember.query.filter(CoreOrganizationMember.user_id.in_(user_ids)).delete(synchronize_session=False)
-            CoreInteraction.query.filter(CoreInteraction.creator_id.in_(user_ids)).delete(synchronize_session=False)
-            User.query.filter(User.id.in_(user_ids)).delete(synchronize_session=False)
-            
-        db.session.commit()
-        flash("Genesis Reset Complete! The UIP is now empty and test users have been purged.", "success")
-        return redirect(url_for('auth_bp.logout'))
-    except Exception as e:
-        db.session.rollback()
-        return f"Database Error during reset: {str(e)}"
+    """Retired HTTP maintenance entry; use separately reviewed offline maintenance."""
+    abort(410, description="This maintenance endpoint is disabled.")
 
 
 
 @uip_bp.route("/<org_slug>/remove-trigger")
 def remove_trigger(org_slug):
-    """Temporary route to drop the immutable trigger."""
-    from app.extensions import db
-    from sqlalchemy import text
-    try:
-        db.session.execute(text("DROP FUNCTION IF EXISTS uip_p49_immutable CASCADE;"))
-        db.session.commit()
-        return "Successfully dropped uip_p49_immutable trigger function. You can now use /reset-genesis"
-    except Exception as e:
-        db.session.rollback()
-        return f"Error: {e}"
+    """Retired HTTP maintenance entry; use separately reviewed offline maintenance."""
+    abort(410, description="This maintenance endpoint is disabled.")
 
 
 
@@ -1593,92 +1373,8 @@ def verify_unknown(org_slug):
     return redirect(url_for("uip_bp.my_access", org_slug=org.slug, claim="unknown_claim"))
 @uip_bp.route("/<org_slug>/apply-patch")
 def dev_upgrade_db(org_slug):
-    from sqlalchemy import text
-    try:
-        # Existing master ticket upgrade
-        try:
-            db.session.execute(text("ALTER TABLE core_interaction ADD COLUMN parent_id INTEGER REFERENCES core_interaction(id);"))
-        except Exception:
-            db.session.rollback()
-            
-        # New Digital Room upgrades
-        for col_sql in [
-            "ALTER TABLE uip_resolution ADD COLUMN voting_scope VARCHAR(20) DEFAULT 'EXCO';",
-            "ALTER TABLE uip_resolution ADD COLUMN quorum_target INTEGER DEFAULT 50;",
-            "ALTER TABLE uip_resolution ADD COLUMN expires_at TIMESTAMP;",
-            "ALTER TABLE uip_organogram_seat ADD COLUMN duty VARCHAR(50) DEFAULT 'committee_member';"
-        ]:
-            try:
-                db.session.execute(text(col_sql))
-            except Exception:
-                db.session.rollback()
-        
-        db.session.execute(text("""
-            CREATE TABLE IF NOT EXISTS uip_resolution_vote (
-                id SERIAL PRIMARY KEY,
-                resolution_id INTEGER NOT NULL REFERENCES uip_resolution(id),
-                user_id INTEGER NOT NULL REFERENCES "user"(id),
-                vote VARCHAR(20) NOT NULL,
-                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                CONSTRAINT uq_uip_resolution_vote UNIQUE (resolution_id, user_id)
-            );
-        """))
-        
-        db.session.execute(text("""
-            CREATE TABLE IF NOT EXISTS uip_resolution_comment (
-                id SERIAL PRIMARY KEY,
-                resolution_id INTEGER NOT NULL REFERENCES uip_resolution(id),
-                user_id INTEGER NOT NULL REFERENCES "user"(id),
-                message TEXT NOT NULL,
-                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
-        """))
-        
-        db.session.commit()
-        
-        # ALSO INJECT THE 4 RESOLUTIONS FOR THIS ORG
-        from app.models.uip import UipResolution
-        from app.models.core import CoreOrganization
-        org = CoreOrganization.query.filter_by(slug=org_slug).first()
-        if org:
-            if UipResolution.query.filter_by(organization_id=org.id).count() == 0:
-                from datetime import datetime
-                from app.models.uip import UipCommitteeMeeting
-                meeting = UipCommitteeMeeting.query.filter_by(organization_id=org.id, meeting_type="FOUNDING").first()
-                if not meeting:
-                    meeting = UipCommitteeMeeting(
-                        organization_id=org.id,
-                        title="Precinct Founding Meeting",
-                        meeting_type="FOUNDING",
-                        scheduled_at=datetime.utcnow(),
-                        status="CONCLUDED"
-                    )
-                    db.session.add(meeting)
-                    db.session.flush()
-
-                foundational_resolutions = [
-                    {"title": "Founding Declaration", "desc": "Formal establishment of the Precinct and adoption of the constitution."},
-                    {"title": "Access Bundle", "desc": "Batched approval of initial verified members and ratepayers."},
-                    {"title": "Manager Designation", "desc": "Delegation of operational authority to precinct staff and supervisors."},
-                    {"title": "Token Wallet Authorization", "desc": "Adoption of the AIT platform and authorization of token expenditure."}
-                ]
-                for res_data in foundational_resolutions:
-                    new_res = UipResolution(
-                        organization_id=org.id,
-                        meeting_id=meeting.id,
-                        title=res_data["title"],
-                        description=res_data["desc"],
-                        status="PROPOSED",
-                        voting_scope="EXCO",
-                        quorum_target=50
-                    )
-                    db.session.add(new_res)
-                db.session.commit()
-
-        return "Success: DB Upgraded for Digital Committee Room and 4 Genesis Resolutions Injected"
-    except Exception as e:
-        db.session.rollback()
-        return "Error: " + str(e)
+    """Retired HTTP maintenance entry; use separately reviewed offline maintenance."""
+    abort(410, description="This maintenance endpoint is disabled.")
 
 @uip_bp.route("/<org_slug>/about")
 def uip_about(org_slug):
@@ -1686,17 +1382,6 @@ def uip_about(org_slug):
     return render_template("program_uip/about.html", org=org)
 
 
-@uip_bp.before_app_request
-def auto_patch_db():
-    from flask import request
-    if request.endpoint and 'static' not in request.endpoint:
-        from sqlalchemy import text
-        from app.extensions import db
-        try:
-            db.session.execute(text("ALTER TABLE uip_organogram_seat ADD COLUMN IF NOT EXISTS duty VARCHAR(50) DEFAULT 'committee_member';"))
-            db.session.commit()
-        except Exception as e:
-            db.session.rollback()
 
 
 @uip_bp.route("/<org_slug>/organogram")
@@ -1729,63 +1414,41 @@ def public_organogram(org_slug):
     )
 
 
-@uip_bp.route("/<org_slug>/ratepayer-workspace")
+@uip_bp.route("/<org_slug>/ratepayer-workspace", methods=["GET", "POST"])
 @login_required
 def ratepayer_workspace(org_slug):
-    org = g.organization
-    
-    # 1. Fetch public resolutions
-    from app.models.uip import UipResolution
-    public_resolutions = UipResolution.query.filter_by(
-        organization_id=org.id, voting_scope='PUBLIC'
-    ).order_by(UipResolution.created_at.desc()).all()
-    
-    # 2. Fetch user's interactions (faults/service requests)
-    from app.models.core import CoreInteraction
-    my_requests = CoreInteraction.query.filter_by(
-        organization_id=org.id, creator_id=current_user.id
-    ).filter(CoreInteraction.interaction_type == 'municipal_fault').order_by(CoreInteraction.created_at.desc()).all()
-    
-    # 3. Fetch user's verified properties
-    from app.models.uip_governance import UipPropertyMember, UipProperty
-    my_properties = db.session.query(UipProperty).join(UipPropertyMember).filter(
-        UipPropertyMember.organization_id == org.id,
-        UipPropertyMember.user_id == current_user.id
-    ).all()
-    
-    return render_template(
-        "program_uip/dashboards/ratepayer_workspace.html",
-        org=org,
-        public_resolutions=public_resolutions,
-        my_requests=my_requests,
-        my_properties=my_properties
-    )
+    from .services import ratepayer
+    from app.models.uip import UipDocument
+    member, properties, available = ratepayer.vault_identity(g.organization.id, current_user)
+    if not member or not properties:
+        return redirect(url_for("uip_bp.verify_ratepayer", org_slug=org_slug))
+    if request.method == "POST":
+        ratepayer.lodge_query(g.organization.id, current_user, member, request.form,
+                             request.files.get("photo"))
+        db.session.commit()
+        flash("Your query has been lodged.", "success")
+        return redirect(url_for("uip_bp.ratepayer_workspace", org_slug=org_slug, _anchor="my-queries"))
+    queries = CoreInteraction.query.filter_by(organization_id=g.organization.id,
+        creator_id=current_user.id, interaction_type="municipal_fault").order_by(CoreInteraction.created_at.desc()).all()
+    documents = UipDocument.query.filter(UipDocument.organization_id == g.organization.id,
+        UipDocument.uploader_id == current_user.id,
+        UipDocument.interaction_id.in_([q.id for q in queries])).all() if queries else []
+    return render_template("program_uip/dashboards/ratepayer_workspace.html", org=g.organization,
+        member=member, my_properties=properties, my_requests=queries, documents=documents)
+
+
+@uip_bp.route("/<org_slug>/ratepayer-workspace/photos/<int:document_id>")
+@login_required
+def ratepayer_photo(org_slug, document_id):
+    from .services.ratepayer import photo_response
+    return photo_response(g.organization.id, current_user, document_id)
 
 
 @uip_bp.route("/<org_slug>/nuke-test-votes")
 @login_required
 def nuke_test_votes(org_slug):
-    # TEMPORARY ROUTE FOR TESTING - WIPES ALL VOTES
-    from app.models.uip import UipResolutionVote
-    from app.extensions import db
-    from flask import flash, redirect, url_for
-    
-    try:
-        num_deleted = db.session.query(UipResolutionVote).delete()
-        
-        # Reset all resolutions to PROPOSED so they can be voted on again
-        from app.models.uip import UipResolution
-        resolutions = UipResolution.query.all()
-        for r in resolutions:
-            r.status = "PROPOSED"
-            
-        db.session.commit()
-        flash(f"Successfully wiped {num_deleted} test votes and reset all resolutions to PROPOSED! All tallies are now 0.", "success")
-    except Exception as e:
-        db.session.rollback()
-        flash(f"Error wiping votes: {str(e)}", "error")
-        
-    return redirect(url_for('uip_bp.dashboard', org_slug=org_slug))
+    """Retired destructive test maintenance endpoint."""
+    abort(410, description="This maintenance endpoint is disabled.")
 
 
 @uip_bp.route("/<org_slug>/public-mandates")
@@ -1801,7 +1464,7 @@ def public_mandates(org_slug):
         status='ADOPTED'
     ).order_by(
         UipResolution.decision_date.desc().nullslast(), 
-        UipResolution.updated_at.desc()
+        UipResolution.created_at.desc(), UipResolution.id.desc()
     ).all()
     
     return render_template("program_uip/dashboards/public_mandates.html", org=org, resolutions=adopted_resolutions)
@@ -1832,16 +1495,12 @@ def vault_check(org_slug):
 @uip_bp.route("/<org_slug>/fix-meeting")
 @login_required
 def fix_meeting(org_slug):
-    from app.models.uip import UipCommitteeMeeting
-    import datetime
-    org = g.organization
-    meetings = UipCommitteeMeeting.query.filter_by(organization_id=org.id).all()
-    count = 0
-    for m in meetings:
-        if m.status == "CONCLUDED" and "AGM" in m.title:
-            m.status = "SCHEDULED"
-            m.scheduled_at = datetime.datetime(2026, 10, 1, 18, 0)
-            count += 1
-    db.session.commit()
-    flash(f"Fixed {count} meetings. They are now SCHEDULED for the future.", "success")
-    return redirect(url_for('uip_bp.meeting_list', org_slug=org.slug))
+    """Retired HTTP maintenance entry; use separately reviewed offline maintenance."""
+    abort(410, description="This maintenance endpoint is disabled.")
+
+
+@uip_bp.route("/<org_slug>/revert-meeting")
+@login_required
+def revert_meeting(org_slug):
+    """Retired HTTP maintenance entry; use separately reviewed offline maintenance."""
+    abort(410, description="This maintenance endpoint is disabled.")

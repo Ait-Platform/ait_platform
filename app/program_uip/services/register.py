@@ -410,7 +410,7 @@ def process_import_batch(organization_id, actor_user_id, kind, rows, metadata):
                 import_id=batch.id,
                 row_number=idx,
                 source_reference=row.get("reference") or row.get("member_reference"),
-                reason=str(e),
+                reason="Import row could not be processed; review the supplied fields.",
                 incoming_data=row
             ))
             summary["exceptions"] += 1

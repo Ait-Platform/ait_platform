@@ -23,7 +23,7 @@ def safe_url(value):
     url = sa.engine.make_url(value)
     if url.get_backend_name() != "postgresql" or url.host not in ("localhost", "127.0.0.1", "::1"):
         raise RuntimeError("UIP tests refuse non-local or non-PostgreSQL databases")
-    if url.database != "ait_local_db" and not (url.database or "").startswith("uip_test_"):
+    if not (url.database or "").startswith("uip_test_"):
         raise RuntimeError("UIP tests refuse this database name")
     if url.query:
         raise RuntimeError("URL query overrides are forbidden in UIP tests")
@@ -80,6 +80,11 @@ def migrate_phase11(connection):
         module.upgrade()
 
 
+def current_request_schema(connection):
+    """Explicit synthetic request dependencies; not proof of a production migration path."""
+    connection.exec_driver_sql((ROOT / "tests/uip/fixtures/current_request_schema.sql").read_text(encoding="utf-8"))
+
+
 @pytest.fixture(scope="session")
 def phase2_engine():
     url = safe_url(os.environ.get("UIP_TEST_DATABASE_URL"))
@@ -118,6 +123,7 @@ def engine():
             migrate_phase49(connection)
             migrate_phase10(connection)
             migrate_phase11(connection)
+            current_request_schema(connection)
         yield engine
     finally:
         engine.dispose()

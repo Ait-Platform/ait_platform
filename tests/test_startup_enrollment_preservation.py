@@ -58,7 +58,8 @@ def execute_startup(session):
     code = compile(ast.fix_missing_locations(ast.Module(body=[block], type_ignores=[])),
                    "isolated-startup-context", "exec")
     exec(code, {"app": SimpleNamespace(app_context=nullcontext),
-                "db": SimpleNamespace(session=session), "text": lambda value: value})
+                "db": SimpleNamespace(session=session), "text": lambda value: value,
+                "os": SimpleNamespace(getenv=lambda key, default=None: "1" if key == "SKIP_AUTO_MIGRATE" else default)})
 
 
 class StartupEnrollmentPreservationTests(unittest.TestCase):

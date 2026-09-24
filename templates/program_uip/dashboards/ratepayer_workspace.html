@@ -1,106 +1,21 @@
-{% extends "program_uip/base.html" %}
-{% block title %}Ratepayer Dashboard - {{ org.name }}{% endblock %}
-
+{% extends "program_uip/base_public.html" %}
+{% block title %}RP Board - {{ org.name }}{% endblock %}
 {% block content %}
-<div class="max-w-7xl mx-auto px-4 py-8">
-    
-    <div class="mb-12 border-b border-slate-200 pb-6">
-        <h1 class="text-4xl font-extrabold text-slate-900 tracking-tight">Ratepayer Dashboard</h1>
-        <p class="text-slate-500 mt-2 font-medium">Community Member Portal</p>
-        <p class="text-indigo-600 mt-1 font-bold text-sm">{{ current_user.name }}</p>
-    </div>
-
-    <!-- The 4-Pillar Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-        
-        <!-- Pillar 1: Public Voting Room -->
-        <a href="#" class="group block relative overflow-hidden rounded-2xl border bg-white border-slate-200 hover:border-indigo-300 hover:shadow-md transition-all duration-300">
-            <div class="p-8">
-                <div class="flex justify-between items-start mb-6">
-                    <div class="w-14 h-14 rounded-xl flex items-center justify-center text-2xl bg-indigo-50 text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
-                        <i class="fas fa-vote-yea"></i>
-                    </div>
-                    {% if public_resolutions|length > 0 %}
-                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-indigo-100 text-indigo-700">
-                        {{ public_resolutions|length }} Active
-                    </span>
-                    {% endif %}
-                </div>
-                <h3 class="text-xl font-bold text-slate-900 mb-2 group-hover:text-indigo-700 transition-colors">Public Voting Room</h3>
-                <p class="text-sm text-slate-500 leading-relaxed">Participate in community-wide mandates, budget approvals, and general meetings.</p>
-            </div>
-            <div class="bg-slate-50 px-8 py-3 text-xs font-bold text-slate-500 uppercase tracking-widest border-t border-slate-100 group-hover:bg-indigo-50 group-hover:text-indigo-700 transition-colors flex justify-between items-center">
-                <span>Enter Room</span>
-                <i class="fas fa-arrow-right"></i>
-            </div>
-        </a>
-
-        <!-- Pillar 2: Service Requests -->
-        <a href="#" class="group block relative overflow-hidden rounded-2xl border bg-white border-slate-200 hover:border-amber-300 hover:shadow-md transition-all duration-300">
-            <div class="p-8">
-                <div class="flex justify-between items-start mb-6">
-                    <div class="w-14 h-14 rounded-xl flex items-center justify-center text-2xl bg-amber-50 text-amber-600 group-hover:bg-amber-500 group-hover:text-white transition-colors">
-                        <i class="fas fa-hard-hat"></i>
-                    </div>
-                    {% if my_requests|length > 0 %}
-                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700">
-                        {{ my_requests|length }} Logged
-                    </span>
-                    {% endif %}
-                </div>
-                <h3 class="text-xl font-bold text-slate-900 mb-2 group-hover:text-amber-700 transition-colors">My Service Requests</h3>
-                <p class="text-sm text-slate-500 leading-relaxed">Log municipal faults, track progress, and view automated updates from the precinct manager.</p>
-            </div>
-            <div class="bg-slate-50 px-8 py-3 text-xs font-bold text-slate-500 uppercase tracking-widest border-t border-slate-100 group-hover:bg-amber-50 group-hover:text-amber-700 transition-colors flex justify-between items-center">
-                <span>View Tracker</span>
-                <i class="fas fa-arrow-right"></i>
-            </div>
-        </a>
-
-        <!-- Pillar 3: Step Up & Volunteer -->
-        <a href="{{ url_for('uip_bp.public_organogram', org_slug=org.slug) }}" class="group block relative overflow-hidden rounded-2xl border bg-white border-slate-200 hover:border-emerald-300 hover:shadow-md transition-all duration-300">
-            <div class="p-8">
-                <div class="flex justify-between items-start mb-6">
-                    <div class="w-14 h-14 rounded-xl flex items-center justify-center text-2xl bg-emerald-50 text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
-                        <i class="fas fa-users"></i>
-                    </div>
-                </div>
-                <h3 class="text-xl font-bold text-slate-900 mb-2 group-hover:text-emerald-700 transition-colors">Step Up & Volunteer</h3>
-                <p class="text-sm text-slate-500 leading-relaxed">View the live community organogram. Spot an empty seat like 'Block Captain' and claim it.</p>
-            </div>
-            <div class="bg-slate-50 px-8 py-3 text-xs font-bold text-slate-500 uppercase tracking-widest border-t border-slate-100 group-hover:bg-emerald-50 group-hover:text-emerald-700 transition-colors flex justify-between items-center">
-                <span>View Organogram</span>
-                <i class="fas fa-arrow-right"></i>
-            </div>
-        </a>
-
-        <!-- Pillar 4: Property Profile -->
-        <a href="{{ url_for('uip_bp.verify_ratepayer', org_slug=org.slug) }}" class="group block relative overflow-hidden rounded-2xl border bg-white border-slate-200 hover:border-slate-400 hover:shadow-md transition-all duration-300">
-            <div class="p-8">
-                <div class="flex justify-between items-start mb-6">
-                    <div class="w-14 h-14 rounded-xl flex items-center justify-center text-2xl bg-slate-100 text-slate-600 group-hover:bg-slate-800 group-hover:text-white transition-colors">
-                        <i class="fas fa-home"></i>
-                    </div>
-                    {% if my_properties|length > 0 %}
-                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700">
-                        <i class="fas fa-check-circle mr-1"></i> Verified
-                    </span>
-                    {% else %}
-                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700">
-                        Pending
-                    </span>
-                    {% endif %}
-                </div>
-                <h3 class="text-xl font-bold text-slate-900 mb-2 group-hover:text-slate-800 transition-colors">My Property Profile</h3>
-                <p class="text-sm text-slate-500 leading-relaxed">Manage your registered properties, update contact details, and view your verification status.</p>
-            </div>
-            <div class="bg-slate-50 px-8 py-3 text-xs font-bold text-slate-500 uppercase tracking-widest border-t border-slate-100 group-hover:bg-slate-200 group-hover:text-slate-800 transition-colors flex justify-between items-center">
-                <span>Manage Profile</span>
-                <i class="fas fa-arrow-right"></i>
-            </div>
-        </a>
-
-    </div>
-
-</div>
+<header class="ui-page-head"><h1>RP Board</h1><a class="ui-btn" href="{{ url_for('uip_bp.router_page', org_slug=org.slug, force=1) }}">Role Selection</a></header>
+{% include "partials/flash_messages.html" %}
+<nav class="ui-actions"><a href="#my-property">My Property</a><a href="{{ url_for('uip_bp.public_mandates', org_slug=org.slug) }}">Mandates</a><a href="#lodge-query">Lodge a Query</a><a href="#my-queries">My Queries</a></nav>
+<section id="my-property" class="ui-card"><h2>My Property</h2><p>Read-only information from the Municipal Oversight Vault.</p>
+<p>{{ member.name }} ? {{ member.reference }}</p>
+{% for property in my_properties %}<article><h3>{{ property.address }}</h3><p>Property reference: {{ property.reference }}</p><p>Rates reference: {{ property.rates_reference or 'Not supplied' }}</p><p>{{ property.classification }}</p></article>{% endfor %}</section>
+<section id="lodge-query" class="ui-card"><h2>Lodge a Query</h2>
+<form method="post" enctype="multipart/form-data">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<label for="title">Title</label><input id="title" name="title" required maxlength="255" class="border border-slate-300 rounded p-2 w-full">
+<label for="description">Service-delivery issue and location</label><textarea id="description" name="description" required maxlength="10000" class="border border-slate-300 rounded p-2 w-full"></textarea>
+<label for="photo">Photograph (optional, JPEG or PNG, up to 5 MB)</label><input type="file" id="photo" name="photo" accept="image/jpeg,image/png">
+<button type="submit" class="ui-btn ui-btn-primary">Lodge Query</button></form></section>
+<section id="my-queries" class="ui-card"><h2>My Queries</h2>
+{% for query in my_requests %}<article><h3>{{ query.title }}</h3><p>{{ query.reference }} ? {{ query.status }}</p><p>{{ query.description }}</p>
+{% for document in documents if document.interaction_id == query.id %}<a href="{{ url_for('uip_bp.ratepayer_photo', org_slug=org.slug, document_id=document.id) }}">View photograph</a>{% endfor %}</article>
+{% else %}<p>You have not lodged any queries yet.</p>{% endfor %}</section>
 {% endblock %}

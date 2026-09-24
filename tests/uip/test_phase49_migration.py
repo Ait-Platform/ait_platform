@@ -12,7 +12,7 @@ def test_phase49_ancestry_and_legacy_head_preserved():
     graph = ScriptDirectory.from_config(Config(str(ROOT / "alembic.ini")))
     assert [r.revision for r in graph.iterate_revisions("uip_p49_operations", "base")] == [
         "uip_p49_operations", "uip_p3_work_orders", "a27c9e4b6102", "uip_p2_prod_base"]
-    assert set(graph.get_heads()) == {"uip_p49_operations", "7da57fffdba9"}
+    assert set(graph.get_heads()) == {"uip_p52_billing_data"}
 
 
 def test_phase49_preserves_existing_data_and_protected_schema(phase2_engine):

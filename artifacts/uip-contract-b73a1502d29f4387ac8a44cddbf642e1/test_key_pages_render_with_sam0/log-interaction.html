@@ -1,0 +1,421 @@
+﻿<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="csrf-token" content="IjVlMTI5ODNjYTEzZTYxMDkzYjEwNWMyYTIyNDU4MDJjMmM3NDJkODgi.arUPpA.U7Mf-kARpLrehcWvOZ8_66AmaGc"><meta name="color-scheme" content="light">
+<title>Log interaction — Manor Gardens UIP</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>:root{--ink:#17243a;--muted:#64748b;--line:#e3e8ef;--indigo:#4338ca;--surface:#f7f9fc;--surface-inset:#e9eef6;--surface-border:#b7c4d6;--surface-shadow:0 2px 4px #17243a0b,0 5px 14px #17243a08;--control-border:#8795ad}*{box-sizing:border-box}body{margin:0;background:#eef2f7;color:var(--ink);font:15px/1.55 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}a{color:var(--indigo);text-decoration:none}a:focus-visible,.ui-main button:focus-visible,summary:focus-visible{outline:3px solid #4338ca;outline-offset:3px}h1,h2,h3,p{margin-top:0}h1{font-size:30px;letter-spacing:-.035em;line-height:1.2;font-weight:700}h2{font-size:17px;line-height:1.4;font-weight:650}h3{font-size:15px;font-weight:650}.ui-shell{display:grid;grid-template-columns:238px minmax(0,1fr);min-height:100vh}.ui-sidebar{position:sticky;top:0;height:100vh;overflow-y:auto;background:#fff;border-right:1px solid var(--line);padding:26px 18px 18px;display:flex;flex-direction:column}.ui-brand{display:flex;align-items:center;gap:12px;color:#1e293b;font-size:22px;font-weight:750;margin:0 8px 24px}.ui-brand-mark{background:var(--indigo);color:#fff;border-radius:12px;font-size:21px;width:42px;height:42px;display:grid;place-items:center}.ui-brand-sub{display:block;font-size:10px;font-weight:500;color:var(--muted);letter-spacing:.03em}.ui-mobile-menu>summary{display:none}.ui-nav-group{margin-bottom:15px}.ui-nav-group>summary{display:list-item;cursor:pointer;font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:#0f766e;font-weight:700;padding:9px 6px;margin:0 0 5px;border-radius:6px}.ui-nav-group>summary:hover{background:#f0f4f8}.ui-nav-group[open]>summary{background:#f0f4f8}.ui-nav-group>summary::marker{font-size:10px}.ui-navigation a{display:block;border-radius:7px;padding:7px 12px;font-size:12px;font-weight:550;color:#536079;margin:1px 0}.ui-navigation a:hover{background:#f3f5fa}.ui-navigation a[aria-current=page]{background:#eef0ff;color:#4338ca;box-shadow:inset 3px 0 #6366f1}.ui-platform{margin-top:auto;padding:16px 12px 0;font-size:12px;color:var(--muted)}.ui-workspace{min-width:0}.ui-topbar{height:67px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 36px;font-weight:650;font-size:13px}.ui-topbar-right{font-size:11px;color:#94a3b8;font-weight:500}.ui-main{font-size:15px;padding:30px 36px 48px;max-width:1640px;margin:auto;min-width:0}.ui-page-head{display:flex;align-items:center;justify-content:space-between;gap:24px;margin-bottom:24px}.ui-eyebrow{font-size:16px;font-weight:650;line-height:1.4;text-transform:uppercase;letter-spacing:.06em;color:#334155;margin-bottom:6px}.ui-subtitle{color:#526077;font-size:15px;line-height:1.55;margin:8px 0 0}.ui-actions{display:flex;max-width:100%;gap:8px;align-items:center;flex-wrap:wrap}/* Specificity keeps controls visible after Tailwind preflight and utilities. */
+.ui-main .ui-btn,.ui-main button[type=submit],.ui-main form button:not([type]){display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--control-border);background:#e8edf6;border-radius:8px;padding:9px 13px;font-family:inherit;font-size:12px;font-weight:600;line-height:1.4;color:#293b58;cursor:pointer;white-space:normal;max-width:100%;text-align:center;overflow-wrap:anywhere;box-shadow:0 1px 2px #17243a12;transition:background-color .15s,border-color .15s,box-shadow .15s}
+.ui-main .ui-btn-primary,.ui-main button[type=submit]:not(.ui-btn),.ui-main form button:not([type]):not(.ui-btn){color:#fff;background:var(--indigo);border-color:#3730a3;box-shadow:0 2px 3px #312e8126}
+.ui-main .ui-btn:hover,.ui-main button[type=submit]:hover,.ui-main form button:not([type]):hover{background:#dce4f0;border-color:#64748b}
+.ui-main .ui-btn-primary:hover,.ui-main button[type=submit]:not(.ui-btn):hover,.ui-main form button:not([type]):not(.ui-btn):hover{background:#3730a3;border-color:#312e81}
+.ui-main .ui-btn:active,.ui-main button:active{box-shadow:inset 0 1px 2px #17243a26}
+.ui-main button:disabled{opacity:.55;cursor:not-allowed;box-shadow:none}
+.ui-card{background:var(--surface);min-width:0;border:1px solid var(--surface-border);border-radius:12px;padding:24px;margin-bottom:20px;box-shadow:var(--surface-shadow)}.ui-card-head{display:flex;flex-wrap:wrap;justify-content:space-between;gap:16px;align-items:center;margin-bottom:15px}.ui-card-head h2{margin:0}.ui-card-head a{font-size:12px}.ui-summary{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:14px;margin-bottom:22px}.ui-stat{padding:18px 17px;background:var(--tile-bg,#e3eaf5);border:1px solid var(--tile-border,#9cacc5);border-top:3px solid var(--tile-border,#7788aa);border-radius:11px;color:inherit;min-width:0;overflow-wrap:anywhere;box-shadow:var(--surface-shadow)}a.ui-stat,a.ui-card{cursor:pointer;transition:background-color .15s,border-color .15s,box-shadow .15s,transform .15s}a.ui-stat .ui-stat-label,a.ui-stat>span,a.ui-card h3{text-decoration:underline;text-decoration-color:#8998b5;text-underline-offset:3px}a.ui-stat:hover,a.ui-card:hover{background:var(--tile-hover,#d7e1f0);border-color:#617598;box-shadow:0 4px 12px #17243a24;transform:translateY(-2px)}.ui-stat-label,.ui-stat>span{display:block;color:#3e506b;font-size:14px;font-weight:650;line-height:1.45;min-height:42px;margin-bottom:12px}.ui-stat strong{display:block;color:#202f4a;font-size:32px;line-height:1.2;font-weight:750;letter-spacing:-.04em}.ui-split{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(0,1fr);gap:20px}.ui-two{align-items:start;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}.ui-attention-row,.ui-activity-row{padding:11px 0;border-top:1px solid #dbe2ec;display:flex;align-items:center;gap:12px}.ui-dot{height:7px;width:7px;border-radius:50%;background:#e4aa42;flex-shrink:0}.ui-activity-row .ui-dot{background:#a5b4fc}.ui-attention-row strong{display:block;font-size:12px;font-weight:600}.ui-attention-row small,.ui-activity-row small{display:block;font-size:11px;color:var(--muted)}.ui-attention-row>a{font-size:12px;margin-left:auto}.ui-activity-row{align-items:flex-start;font-size:12px}.ui-empty{padding:28px 16px;color:#526077;text-align:center;font-size:14px}.ui-table-wrap{overflow:auto;max-width:100%;background:#fff;border:1px solid #d1dae7;border-radius:8px}table{border-collapse:collapse;width:100%;text-align:left;font-size:12px}th{background:#edf1f7;font-size:11px;text-transform:uppercase;letter-spacing:.065em;color:#52627a;font-weight:650;white-space:nowrap;padding:12px 14px;border-bottom:1px solid var(--line)}td{padding:14px;border-bottom:1px solid #edf0f5;vertical-align:middle}tr:last-child td{border-bottom:0}td small{display:block;color:var(--muted);font-size:11px}td strong{font-weight:600}.ui-badge{display:inline-block;padding:3px 8px;border-radius:5px;background:#f1f4f8;color:#59677d;font-size:10px;white-space:nowrap}.ui-badge-high{background:#fff3df;color:#a46b13}.ui-badge-urgent{background:#fff0ef;color:#b24841}.ui-badge-good{background:#edf7f1;color:#32735b}.ui-toolbar{display:flex;gap:12px;align-items:end;flex-wrap:wrap;margin-bottom:20px}.ui-toolbar label{margin:0;flex:1;min-width:140px}.ui-tabs{display:flex;gap:5px;border-bottom:1px solid var(--line);padding-bottom:10px;margin-bottom:20px;overflow:auto}.ui-tabs a{padding:7px 12px;font-size:12px;color:#69768b;white-space:nowrap;border-radius:6px}.ui-tabs a[aria-current=page]{background:#eef0ff;color:#4338ca;font-weight:650}label{display:block;font-size:12px;font-weight:600;color:#526077;margin:12px 0}input:not([type=hidden]):not([type=checkbox]),select,textarea{display:block;width:100%;border:1px solid #8795ad;border-radius:7px;padding:10px 12px;color:#26334a;background:#fff;font:inherit;margin-top:5px;min-width:0}input:focus,select:focus,textarea:focus{outline:2px solid #4338ca;outline-offset:2px;border-color:#4338ca}textarea{resize:vertical}fieldset{border:0;padding:0;margin:0}legend{font-size:17px;font-weight:650;margin-bottom:8px}.ui-form-section{min-width:0;box-shadow:var(--surface-shadow);padding:24px;border:1px solid var(--surface-border);background:var(--surface-inset);border-radius:12px;margin-bottom:18px}.ui-form-section .ui-subtitle{margin-bottom:16px}.ui-profile-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.65fr);gap:20px}details.ui-disclosure{box-shadow:var(--surface-shadow);border:1px solid var(--surface-border);border-radius:10px;background:var(--surface-inset);margin:12px 0}details.ui-disclosure>summary{cursor:pointer;padding:17px 20px;font-size:15px;font-weight:650}details.ui-disclosure[open]>summary{background:#dfe7f2;border-bottom:1px solid var(--surface-border);border-radius:9px 9px 0 0}details.ui-disclosure>summary:hover{background:#e4eaf3}.ui-disclosure-body{padding:22px;background:var(--surface);border-radius:0 0 9px 9px}.ui-help{font-size:14px;color:#526077;margin:8px 0}.ui-welcome{display:flex;justify-content:space-between;gap:20px;align-items:center;background:#e3e9f7;border:1px solid #aab9d2;box-shadow:var(--surface-shadow);padding:22px 24px;border-radius:11px;margin-bottom:22px}.ui-welcome h2{font-size:18px;margin-bottom:4px}.ui-welcome p{font-size:14px;margin-bottom:0;color:#526079}.ui-step{display:flex;gap:16px;padding:20px 0;border-bottom:1px solid var(--line)}.ui-step-number{border-radius:50%;background:#eef0ff;color:#4338ca;font-size:13px;width:32px;height:32px;display:grid;place-items:center;flex-shrink:0}.ui-step h2{font-size:15px;margin:0 0 5px}.ui-step p{font-size:14px;color:#526077}.ui-skip{position:absolute;top:-60px;left:250px;z-index:99;background:white;padding:12px}.ui-skip:focus{top:10px}.ui-main>.max-w-6xl,.ui-main>.max-w-5xl,.ui-main>.max-w-7xl{max-width:none}.ui-main .shadow,.ui-main .shadow-lg,.ui-main .shadow-xl{box-shadow:none}.ui-main .h-2.bg-indigo-600{display:none}.ui-main .animate-pulse{animation:none}.ui-form-column{max-width:850px}.ui-inline-stats{display:flex;gap:14px;flex-wrap:wrap}.ui-inline-stats>div{flex:1 1 150px;min-width:0;background:var(--surface-inset);border:1px solid var(--surface-border);border-radius:9px;padding:16px 18px;box-shadow:var(--surface-shadow)}.ui-inline-stats strong{font-size:28px;font-weight:750;line-height:1.25;display:block;margin-bottom:6px}.ui-inline-stats span{font-size:13px;font-weight:600;color:#3e506b}@media(min-width:1024px){.ui-mobile-menu>nav{display:block!important}}@media(max-width:1200px) and (min-width:1024px){.ui-main{padding:26px 22px}.ui-page-head{align-items:flex-start;flex-direction:column}.ui-summary{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(max-width:1023px){.ui-shell{display:block}.ui-sidebar{position:relative;height:auto;padding:15px 20px}.ui-brand{margin:0;font-size:20px}.ui-brand-mark{width:35px;height:35px}.ui-mobile-menu{margin-top:12px}.ui-mobile-menu>summary{display:flex;justify-content:space-between;cursor:pointer;font-size:13px;padding:9px 0}.ui-navigation{padding-top:15px}.ui-platform{display:none}.ui-topbar{height:50px;padding:0 20px}.ui-main{padding:24px 20px}.ui-summary{grid-template-columns:repeat(3,minmax(0,1fr))}.ui-page-head{align-items:flex-start;flex-direction:column;gap:15px}.ui-split,.ui-profile-grid,.ui-two{grid-template-columns:1fr}.ui-welcome{align-items:flex-start}.ui-topbar-right{display:none}}@media(max-width:540px){h1{font-size:26px}.ui-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.ui-main{padding:20px 14px}.ui-card{padding:17px}.ui-welcome{flex-direction:column}.ui-actions{gap:7px}.ui-main .ui-btn,.ui-main button[type=submit],.ui-main form button:not([type]){padding:8px 10px}.ui-stat{padding:15px}.ui-card-head{align-items:flex-start}}@media print{.ui-sidebar,.ui-topbar,.ui-actions{display:none}.ui-shell{display:block}.ui-main{padding:0}.ui-card{break-inside:avoid}}
+
+/* Distinct section labels and stronger link contrast on the white sidebar. */
+
+.ui-navigation a{color:#334155}
+.ui-navigation a[aria-current=page]{color:#4338ca}
+
+/* Keep UIP hierarchy above Tailwind's late-loaded preflight. */
+.ui-main h1{font-size:30px;font-weight:700;line-height:1.2;letter-spacing:-.035em}.ui-main h2{font-size:19px;font-weight:700;line-height:1.4}.ui-main h3{font-size:16px;font-weight:650}.ui-split{align-items:start}.ui-activity-row>div{display:flex;justify-content:space-between;gap:12px;width:100%;flex-wrap:wrap}.ui-activity-row small{white-space:nowrap}.ui-main .ui-welcome h2{font-size:18px}@media(max-width:540px){.ui-main h1{font-size:26px}}
+
+.ui-main select,.ui-main textarea{padding:10px 12px;font:inherit;line-height:1.5}.ui-main select{min-height:40px}.ui-main fieldset.ui-form-section{padding-top:16px}.ui-main .ui-toolbar label:last-of-type:not(:first-of-type){flex:0 1 210px}.ui-main .ui-form-section legend{padding:0 5px;font-size:18px;font-weight:700;color:var(--ink)}.ui-navigation a{font-size:13px}
+
+/* Legacy UIP content surfaces share the same separation without changing layout. */
+.ui-main .bg-white:where(.rounded,.rounded-lg,.rounded-xl,.rounded-2xl){background:var(--surface);border:1px solid var(--surface-border);box-shadow:var(--surface-shadow)}
+.ui-main :where(.bg-white):has(>form){background:var(--surface-inset)}
+@media(prefers-reduced-motion:reduce){.ui-main .ui-btn,.ui-main button,a.ui-stat,a.ui-card{transition:none}}
+
+/* Semantic summary palette; ordinary cards/forms remain neutral. */
+.ui-stat-blue{--tile-bg:#e5effc;--tile-border:#9db8d9;--tile-hover:#d7e7fa}
+.ui-stat-green{--tile-bg:#e6f2e6;--tile-border:#a0bfa0;--tile-hover:#d8ead8}
+.ui-stat-amber{--tile-bg:#fcf0d9;--tile-border:#cbb483;--tile-hover:#f6e6c4}
+.ui-stat-rose{--tile-bg:#f9e5e9;--tile-border:#caa0ac;--tile-hover:#f2d7de}
+.ui-stat-teal{--tile-bg:#def2f0;--tile-border:#93bbb6;--tile-hover:#cde9e6}
+.ui-stat-violet{--tile-bg:#eee6fa;--tile-border:#b4a2cd;--tile-hover:#e3d8f4}
+.ui-stat-money strong{font-size:clamp(19px,1.55vw,27px);overflow-wrap:anywhere}
+.ui-main .ui-inline-stats>div:nth-child(3n+1){background:#e6f2e6}.ui-main .ui-inline-stats>div:nth-child(3n+2){background:#e5effc}.ui-main .ui-inline-stats>div:nth-child(3n){background:#eee6fa}
+@media(prefers-reduced-motion:reduce){a.ui-stat:hover,a.ui-card:hover{transform:none}}
+
+.ui-finance-totals>div{flex-basis:210px}.ui-finance-totals strong{font-size:24px;overflow-wrap:anywhere}
+
+.ui-finance-detail{overflow-wrap:anywhere}
+
+.ui-topbar .ui-btn{display:inline-flex;padding:6px 9px;border:1px solid var(--control-border);border-radius:7px;background:#e8edf6;color:#293b58;font-size:13px;line-height:1.4}.ui-topbar .ui-btn:hover{background:#dce4f0}.ui-topbar{gap:10px;min-height:67px;height:auto;padding-top:12px;padding-bottom:12px}.ui-topbar>span{min-width:0;overflow-wrap:anywhere}.ui-topbar .ui-actions{flex-shrink:0}@media(max-width:540px){.ui-topbar{align-items:flex-start;flex-wrap:wrap}}
+
+.ui-sidebar-account{margin-top:auto;padding-top:16px}.ui-sidebar-account .ui-btn{display:flex;justify-content:center;padding:8px 12px;border:1px solid var(--control-border);border-radius:7px;background:#e8edf6;color:#293b58;font-size:13px;font-weight:650}.ui-sidebar-account .ui-btn:hover{background:#dce4f0;border-color:#617598}.ui-sidebar-account+.ui-platform{margin-top:0}
+
+/* Distinct Navigation Header Colors */
+details.ui-nav-purple>summary { color: #5b21b6; }
+details.ui-nav-purple>summary:hover, details.ui-nav-purple[open]>summary { background: #ede9fe; }
+
+details.ui-nav-emerald>summary { color: #065f46; }
+details.ui-nav-emerald>summary:hover, details.ui-nav-emerald[open]>summary { background: #d1fae5; }
+
+details.ui-nav-amber>summary { color: #92400e; }
+details.ui-nav-amber>summary:hover, details.ui-nav-amber[open]>summary { background: #fef3c7; }
+
+details.ui-nav-rose>summary { color: #9f1239; }
+details.ui-nav-rose>summary:hover, details.ui-nav-rose[open]>summary { background: #ffe4e6; }
+
+details.ui-nav-blue>summary { color: #1e40af; }
+details.ui-nav-blue>summary:hover, details.ui-nav-blue[open]>summary { background: #dbeafe; }
+
+details.ui-nav-teal>summary { color: #115e59; }
+details.ui-nav-teal>summary:hover, details.ui-nav-teal[open]>summary { background: #ccfbf1; }
+
+details.ui-nav-fuchsia>summary { color: #86198f; }
+details.ui-nav-fuchsia>summary:hover, details.ui-nav-fuchsia[open]>summary { background: #fae8ff; }
+
+details.ui-nav-slate>summary { color: #334155; }
+details.ui-nav-slate>summary:hover, details.ui-nav-slate[open]>summary { background: #f1f5f9; }
+
+/* Standard 2-Row Dashboard Header */
+.ui-header-2row {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 2rem;
+    border-bottom: 1px solid var(--surface-border); /* Matches the slate-200 border */
+    padding-bottom: 1.5rem;
+}
+.ui-header-2row-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+}
+.ui-header-2row-bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    width: 100%;
+}
+.ui-header-2row-title {
+    margin: 0 !important;
+}
+.ui-header-2row-subtitle {
+    margin: 0 !important;
+    max-width: 42rem; /* max-w-2xl */
+}
+.ui-header-actions {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: flex-end;
+}</style>
+﻿<style>
+/* UIP Custom Theme Shades */
+:root {
+  --uip-primary-bg: #4f46e5;
+  --uip-primary-hover: #4338ca;
+  --uip-card-bg: #ffffff;
+  --uip-card-border: #e2e8f0;
+  --uip-btn-bg: #f8fafc;
+  --uip-btn-hover: #f1f5f9;
+  --uip-btn-border: #cbd5e1;
+}
+
+/* Base button shading */
+.ui-btn {
+    background-color: var(--uip-btn-bg);
+    border-color: var(--uip-btn-border);
+    transition: all 0.2s ease-in-out;
+}
+.ui-btn:hover {
+    background-color: var(--uip-btn-hover);
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+/* Primary button shading */
+.ui-btn.ui-btn-primary {
+    background-color: var(--uip-primary-bg);
+    border-color: var(--uip-primary-bg);
+    color: white;
+}
+.ui-btn.ui-btn-primary:hover {
+    background-color: var(--uip-primary-hover);
+    border-color: var(--uip-primary-hover);
+}
+
+/* Form cards and tiles shading */
+.ui-card, .ui-form-section, fieldset {
+    background-color: var(--uip-card-bg);
+    border-color: var(--uip-card-border);
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+    border-radius: 0.5rem;
+}
+
+/* Optional: Subtle background tint for form inputs */
+input[type="text"], input[type="date"], input[type="time"], select {
+    background-color: #fcfcfd;
+}
+input:focus, select:focus {
+    background-color: #ffffff;
+}
+</style>
+  </head>
+<body><a class="ui-skip" href="#main">Skip to content</a>
+<div class="ui-shell">
+<aside class="ui-sidebar" aria-label="UIP application"><a class="ui-brand" href="/uip/manor-gardens/dashboard"><span class="ui-brand-mark">U</span><span>UIP<span class="ui-brand-sub">Precinct management</span></span></a>
+<details class="ui-mobile-menu" open><summary>Navigation <span aria-hidden="true">â˜°</span></summary>﻿<nav aria-label="UIP Command Centre" class="ui-navigation">
+
+
+
+
+<details class="ui-nav-group ui-nav-teal" open>
+    <summary>Personal</summary>
+    <a href="/uip/manor-gardens/verify/ratepayer"><i class="fas fa-home w-5"></i> Ratepayer Profile</a>
+</details>
+
+
+<details class="ui-nav-group ui-nav-blue" >
+    <summary>Residents &amp; Properties</summary>
+    
+    <a href="/uip/manor-gardens/members" >Ratepayers</a>
+    
+    <a href="/uip/manor-gardens/properties" >Properties</a>
+    
+    <a href="/uip/manor-gardens/register/import" >Import Register</a>
+    
+</details>
+
+<details class="ui-nav-group ui-nav-amber" open>
+    <summary>Operations</summary>
+    
+    <a href="/uip/manor-gardens/operations/reception" aria-current="page">Interactions &amp; Issues</a>
+    
+    <a href="/uip/manor-gardens/operations/tasks" >Tasks / Follow-ups</a>
+    
+    <a href="/uip/manor-gardens/operations/municipal" >Municipal Matters</a>
+    
+    <a href="/uip/manor-gardens/operations/communications" >Communications</a>
+    
+</details>
+
+<details class="ui-nav-group ui-nav-emerald" >
+    <summary>Service Providers</summary>
+    
+    <a href="/uip/manor-gardens/providers" >Providers</a>
+    
+    <a href="/uip/manor-gardens/work-orders" >Work Orders</a>
+    
+    <a href="/uip/manor-gardens/service-standards" >Routing &amp; SLA</a>
+    
+</details>
+
+<details class="ui-nav-group ui-nav-fuchsia" >
+    <summary>Governance</summary>
+    
+    <a href="/uip/manor-gardens/committee-dashboard" >Committee Dashboard</a>
+    
+    <a href="/uip/manor-gardens/operations/meetings" >Meetings</a>
+    
+    <a href="/uip/manor-gardens/operations/surveys" >Surveys</a>
+    
+    <a href="/uip/manor-gardens/operations/decisions" >Decisions</a>
+    
+    <a href="/uip/manor-gardens/operations/documents" >Documents</a>
+    
+</details>
+
+<details class="ui-nav-group ui-nav-slate" >
+    <summary>Finance</summary>
+    
+    <a href="/uip/manor-gardens/finance" >Overview</a>
+    
+    <a href="/uip/manor-gardens/finance/transactions" >Transactions</a>
+    
+    <a href="/uip/manor-gardens/finance/budget" >Budget</a>
+    
+    <a href="/uip/manor-gardens/finance/commitments" >Commitments</a>
+    
+</details>
+
+<details class="ui-nav-group ui-nav-blue" >
+    <summary>Reports</summary>
+    
+    <a href="/uip/manor-gardens/reports" >Reports / Exports</a>
+    
+</details>
+
+<details class="ui-nav-group ui-nav-amber" >
+    <summary>Administration</summary>
+    
+    <a href="/uip/manor-gardens/settings" >Organisation Settings</a>
+    
+    <a href="/uip/manor-gardens/administration/ai-wallet" >AI &amp; Wallet</a>
+    
+    <a href="/uip/manor-gardens/audit" >UIP Audit</a>
+    
+</details>
+
+</nav>
+</details>
+<div class="ui-sidebar-account"></div>
+<a class="ui-platform" href="/">â† AIT Platform</a></aside>
+<div class="ui-workspace"><header class="ui-topbar"><span>Manor Gardens UIP</span><div class="ui-actions"><a class="ui-btn" href="/uip/manor-gardens/help#operations">Help</a><a class="ui-btn" href="/uip/manor-gardens/assistant">AI assistant</a><a class="ui-btn" href="/logout" style="background-color: #fef2f2; color: #991b1b; border-color: #fecaca;">Sign out</a></div></header>
+<main id="main" class="ui-main"><header class="ui-page-head"><div><p class="ui-eyebrow">Operations</p><h1>Log interaction</h1><p class="ui-subtitle">Who contacted the UIP, where, and what needs to happen?</p></div></header>
+  
+
+<form method="post" class="ui-form-column"><input type="hidden" name="csrf_token" value="IjVlMTI5ODNjYTEzZTYxMDkzYjEwNWMyYTIyNDU4MDJjMmM3NDJkODgi.arUPpA.U7Mf-kARpLrehcWvOZ8_66AmaGc">
+<fieldset class="ui-form-section"><legend>1 · Reporter</legend><p class="ui-help">Choose a ratepayer, or record a general enquiry without one.</p>
+
+<label>Find ratepayer<input type="search" id="member-search" aria-controls="member_id" placeholder="Name, reference, email, phone, address or rates reference"></label><label>Ratepayer<select id="member_id" name="member_id"><option value="">No registered ratepayer / general enquiry</option><option value="1" selected>Asha Naidoo (sample) · M1</option><option value="2" >Garden Court Body Corporate (sample) · M2</option></select></label>
+<p id="member-selection" class="ui-help" role="status" aria-live="polite"></p><p id="member-results" class="ui-help" role="status"></p>
+<div class="ui-actions"><button type="button" class="ui-btn" id="general-enquiry">No registered ratepayer</button></div></fieldset>
+<fieldset class="ui-form-section"><legend>2 — Property</legend><p class="ui-help">A sole current linked property is selected automatically. Choose explicitly when several exist; other properties remain available for reporting an issue.</p>
+<label>Find property<input type="search" id="property-search" aria-controls="property_id" placeholder="Address, property reference or rates reference"></label><label>Property<select id="property_id" name="property_id"><option value="">No property linked</option><option value="1" data-members='[1]' >22 Sample Lane — P1 — MG-SAMPLE-22</option></select></label>
+</fieldset>
+<fieldset class="ui-form-section"><legend>3 · Interaction</legend>
+<section aria-label="Selected register information"><h2>Register information</h2><dl id="intake-register-summary" class="ui-two" aria-live="polite"></dl><p class="ui-help">These details come from the UIP register. Missing contact details must be updated through the authorised register-edit workflow.</p></section><div class="ui-two"><label>Method / channel<select name="channel" required><option value="Telephone">Telephone</option><option value="Reception">In person</option><option value="Email">Email</option><option value="Web">Web</option><option value="WhatsApp">WhatsApp</option></select></label><label>Category<select id="interaction-category" name="category" required><option value="">Choose a category</option><option value="GENERAL ENQUIRY">General Enquiry</option><option value="SERVICE ISSUE">Service Issue</option><option value="SECURITY">Security</option><option value="CLEANING">Cleaning</option><option value="MAINTENANCE">Maintenance</option><option value="MUNICIPAL SERVICE">Municipal Service</option><option value="COMMUNITY MATTER">Community Matter</option><option value="FINANCIAL">Financial</option></select></label></div>
+<label id="title-preset-label" style="display:none">Short title<select id="title-preset" disabled></select></label>
+<label id="custom-title-label"><span id="custom-title-caption">Short title</span><input id="interaction-title" name="title" maxlength="255" required placeholder="For example: streetlight not working"></label><label>What happened?<textarea name="description" rows="4" required placeholder="Record the details needed to follow up."></textarea></label><label>Priority<select name="priority" required><option >LOW</option><option selected>NORMAL</option><option >HIGH</option><option >URGENT</option></select></label><p class="ui-help">After saving, add tasks, follow-up dates or service work from the interaction.</p></fieldset><div class="ui-actions"><button type="submit">Save interaction</button><a class="ui-btn" href="/uip/manor-gardens/dashboard">Cancel</a></div></form>
+</main></div></div>
+<script>const menu=document.querySelector('.ui-mobile-menu');const screenSize=window.matchMedia('(min-width: 1024px)');function syncMenu(){menu.open=screenSize.matches;}syncMenu();screenSize.addEventListener('change',syncMenu);document.querySelectorAll('a[href^="#"]').forEach(a=>a.addEventListener('click',()=>{const target=document.getElementById(a.hash.slice(1));if(target&&target.matches('details.ui-disclosure'))target.open=true;}));</script>
+
+<script id="intake-register-data" type="application/json">{"members": [{"email": "person@example.invalid", "id": 1, "name": "Asha Naidoo (sample)", "phone": "031 000 0000", "reference": "M1"}, {"email": "court@example.invalid", "id": 2, "name": "Garden Court Body Corporate (sample)", "phone": null, "reference": "M2"}], "properties": [{"address": "22 Sample Lane", "id": 1, "rates_reference": "MG-SAMPLE-22", "reference": "P1"}], "relationships": [{"member_id": 1, "property_id": 1, "relationship": "owner", "verified": true}]}</script>
+<script>(() => {
+    const data = JSON.parse(document.getElementById('intake-register-data').textContent);
+    const memberSelect = document.getElementById('member_id');
+    const propertySelect = document.getElementById('property_id');
+    const memberSearch = document.getElementById('member-search');
+    const propertySearch = document.getElementById('property-search');
+    const normal = value => (value || '').normalize('NFKC').toLocaleLowerCase().trim();
+    const memberLabel = m => `${m.name} / ${m.reference}`;
+    const propertyLabel = p => `${p.address} / ${p.reference} / Rates: ${p.rates_reference || 'Missing'}`;
+    const currentProperties = memberId => data.properties.filter(p => data.relationships.some(
+        r => String(r.member_id) === memberId && r.property_id === p.id));
+    const option = (label, value) => new Option(label, String(value));
+
+    function filterMembers() {
+        const selected = memberSelect.value;
+        const query = normal(memberSearch.value);
+        const matches = data.members.filter(m => {
+            const properties = currentProperties(String(m.id));
+            const fields = [m.name, m.reference, m.email, m.phone,
+                ...properties.flatMap(p => [p.address, p.reference, p.rates_reference])];
+            return fields.some(value => normal(value).includes(query)) ||
+                (/^[+\d\s().-]+$/.test(query) && query.replace(/\D/g, '').length > 0 &&
+                 (m.phone || '').replace(/\D/g, '').includes(query.replace(/\D/g, '')));
+        });
+        memberSelect.replaceChildren(option('No registered ratepayer / general enquiry', ''));
+        // Keep the committed selection visible even while searching for a replacement.
+        data.members.filter(m => matches.includes(m) || String(m.id) === selected)
+            .forEach(m => memberSelect.add(option(memberLabel(m), m.id)));
+        memberSelect.value = selected;
+        document.getElementById('member-results').textContent = `${matches.length} matching ratepayer(s). Choose a result below.`;
+    }
+
+    function renderProperties(selected) {
+        const linked = currentProperties(memberSelect.value);
+        const query = normal(propertySearch.value);
+        propertySelect.replaceChildren(option(linked.length > 1 ? 'Choose a current linked property' : 'No property linked', ''));
+        const groups = [['Current linked properties', linked],
+            ['Other properties (no current relationship to selected ratepayer)', data.properties.filter(p => !linked.includes(p))]];
+        groups.forEach(([label, properties]) => {
+            const group = document.createElement('optgroup');
+            group.label = label;
+            properties.filter(p => String(p.id) === selected || normal(propertyLabel(p)).includes(query))
+                .forEach(p => group.append(option(propertyLabel(p), p.id)));
+            if (group.children.length) propertySelect.append(group);
+        });
+        propertySelect.value = selected;
+    }
+
+    function summary() {
+        const member = data.members.find(m => String(m.id) === memberSelect.value);
+        const property = data.properties.find(p => String(p.id) === propertySelect.value);
+        const relationships = data.relationships.filter(r => String(r.member_id) === memberSelect.value && String(r.property_id) === propertySelect.value);
+        document.getElementById('member-selection').textContent = member ? `Selected ratepayer: ${memberLabel(member)}` : 'No registered ratepayer selected.';
+        const fields = [['Ratepayer', member?.name], ['Member reference', member?.reference],
+            ['Phone', member ? member.phone || 'Missing from register' : null],
+            ['Email', member ? member.email || 'Missing from register' : null],
+            ['Property reference', property?.reference], ['Address', property?.address],
+            ['Rates reference', property ? property.rates_reference || 'Missing from register' : null],
+            ['Current relationship', relationships.length ? relationships.map(r => `${r.relationship} (${r.verified ? 'verified' : 'unverified'})`).join(', ') : 'No current relationship recorded']];
+        const container = document.getElementById('intake-register-summary');
+        container.replaceChildren();
+        fields.forEach(([label, value]) => {
+            const group = document.createElement('div');
+            const term = document.createElement('dt');
+            const detail = document.createElement('dd');
+            term.textContent = label;
+            detail.textContent = value || 'Not selected';
+            group.append(term, detail);
+            container.append(group);
+        });
+        [['add-ratepayer', 'property_id', propertySelect.value], ['add-property', 'member_id', memberSelect.value]].forEach(([id, key, value]) => {
+            const a = document.getElementById(id);
+            if (a) {
+                const url = new URL(a.getAttribute('href'), location.origin === 'null' ? 'http://localhost' : location.origin);
+                if (value) url.searchParams.set(key, value); else url.searchParams.delete(key);
+                a.setAttribute('href', url.pathname + url.search);
+            }
+        });
+    }
+
+    function selectMember(preserveProperty = false) {
+        const member = data.members.find(m => String(m.id) === memberSelect.value);
+        memberSearch.value = member ? memberLabel(member) : '';
+        propertySearch.value = '';
+        const linked = currentProperties(memberSelect.value);
+        const selected = preserveProperty && propertySelect.value ? propertySelect.value : linked.length === 1 ? String(linked[0].id) : '';
+        renderProperties(selected);
+        summary();
+    }
+    memberSearch.addEventListener('input', filterMembers);
+    memberSelect.addEventListener('change', () => selectMember());
+    propertySearch.addEventListener('input', () => renderProperties(propertySelect.value));
+    propertySelect.addEventListener('change', summary);
+    document.getElementById('general-enquiry').addEventListener('click', () => {
+        memberSelect.value = '';
+        selectMember();
+        filterMembers();
+    });
+    selectMember(true);
+})();</script>
+<script id="intake-title-presets" type="application/json">{"CLEANING": {"other_label": "Other cleaning issue", "presets": ["Illegal dumping / rubble", "Littering", "Street sweeping required", "Overflowing bin", "Bin not collected", "Public area needs cleaning", "Overgrown verge", "Blocked drain / debris", "Dumping on vacant property", "Dead animal removal", "Graffiti removal"]}, "COMMUNITY MATTER": {"other_label": "Other community matter", "presets": ["Community complaint", "Neighbourhood concern", "Public meeting enquiry", "Community event enquiry", "Noise complaint", "Informal settlement concern", "Public space concern", "Community facility issue", "Request for community assistance", "Ward matter / referral"]}, "FINANCIAL": {"other_label": "Other financial issue", "presets": ["Municipal account enquiry", "Incorrect charge", "Payment not reflected", "Outstanding balance enquiry", "Rates enquiry", "Utility billing enquiry", "Meter reading / billing query", "Refund enquiry", "Payment arrangement enquiry", "Statement request"]}, "GENERAL ENQUIRY": {"other_label": "Other general enquiry", "presets": ["General information request", "Contact details request", "Office hours enquiry", "Service information request", "Application / process enquiry", "Status follow-up", "Referral to correct department", "Request for assistance"]}, "MAINTENANCE": {"other_label": "Other maintenance issue", "presets": ["Pothole", "Road surface damaged", "Pavement damaged", "Kerb damaged", "Public building repair", "Fence / barrier damaged", "Signage damaged", "Stormwater infrastructure damaged", "Public facility maintenance", "Tree maintenance required"]}, "MUNICIPAL SERVICE": {"other_label": "Other municipal service issue", "presets": ["Water outage", "Water leak", "Low water pressure", "Electricity outage", "Streetlight not working", "Sewer blockage / overflow", "Stormwater drain blocked", "Refuse collection issue", "Municipal meter issue", "Road / traffic signal issue"]}, "SECURITY": {"other_label": "Other security issue", "presets": ["Suspicious activity", "Vandalism", "Theft reported", "Break-in reported", "Trespassing", "Illegal occupation", "Public safety concern", "Damaged security infrastructure", "Streetlight safety concern"]}, "SERVICE ISSUE": {"other_label": "Other service issue", "presets": ["Service not provided", "Service delayed", "Poor service", "Repeated service failure", "Missed service request", "Incorrect service provided", "Service interruption", "Previous complaint unresolved"]}}</script>
+<script>
+(() => {
+    const mapping = JSON.parse(document.getElementById('intake-title-presets').textContent);
+    const category = document.getElementById('interaction-category');
+    const preset = document.getElementById('title-preset');
+    const title = document.getElementById('interaction-title');
+    const presetLabel = document.getElementById('title-preset-label');
+    const customLabel = document.getElementById('custom-title-label');
+    const caption = document.getElementById('custom-title-caption');
+    function applyChoice() {
+        const custom = preset.disabled || preset.value === '__other__';
+        customLabel.style.display = custom ? '' : 'none';
+        caption.textContent = preset.disabled ? 'Short title' : 'Custom short title';
+        title.required = custom;
+        title.readOnly = !custom;
+        if (!custom) title.value = preset.value;
+    }
+    function updateCategory(restore = false) {
+        const previous = restore ? title.value : '';
+        const config = mapping[category.value];
+        preset.disabled = !config;
+        preset.required = !!config;
+        presetLabel.style.display = config ? '' : 'none';
+        preset.replaceChildren();
+        title.value = previous;
+        if (config) {
+            preset.add(new Option('Choose a short title', ''));
+            config.presets.forEach(value => preset.add(new Option(value, value)));
+            preset.add(new Option(config.other_label, '__other__'));
+            preset.value = previous ? (config.presets.includes(previous) ? previous : '__other__') : '';
+        }
+        applyChoice();
+    }
+    category.addEventListener('change', () => updateCategory());
+    preset.addEventListener('change', () => {
+        title.value = '';
+        applyChoice();
+        if (preset.value === '__other__') title.focus();
+    });
+    updateCategory(true);
+})();
+</script></body></html>

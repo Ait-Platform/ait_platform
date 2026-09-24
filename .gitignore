@@ -32,3 +32,6 @@ app/static/**/*.wav
 *.pdf
 
 render_backup.sql
+
+# Local R2 repair downloads and generated media
+/artifacts/r2-video-repairs/

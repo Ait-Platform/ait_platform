@@ -7,7 +7,7 @@ import re
 from bootstrap import db, core, uip, ROOT
 from app.program_uip.services import register, governance, sla, reception, operations
 from app.program_uip.presentation import executive
-from test_register import make_member, make_property
+from test_register import make_member, make_property, import_records
 from phase3_helpers import provider, order, act
 
 BASE = "/uip/manor-gardens"
@@ -17,8 +17,9 @@ def test_executive_scoped_real_data_and_no_read_mutation(client, data):
     actor = data.users["manager"].id
     before = uip.UipAuditEvent.query.count()
     result = client.get(BASE + "/dashboard")
+    assert result.status_code == 302 and result.location.endswith("/my-access")
+    result = client.get(result.location)
     assert result.status_code == 200
-    assert len(re.findall(rb'class="ui-stat(?: |")', result.data)) == 6
     assert b"AI Auto-Triage" not in result.data and b"No recorded sample" not in result.data
     assert b"Other issue" not in result.data and b"OTHER-TEST" not in result.data
     assert b"Set up Manor Gardens" not in result.data  # Existing operational issue.
@@ -33,16 +34,14 @@ def test_empty_dashboard_compact_welcome(client, data):
     db.session.delete(data.issue)
     db.session.flush()
     result = client.get(BASE + "/dashboard")
-    assert b"Continue setup" in result.data
-    assert b"Nothing currently requires urgent attention." in result.data
-    assert len(re.findall(rb'class="ui-stat(?: |")', result.data)) == 6
+    assert result.status_code==302 and result.location.endswith("/my-access")
+    assert client.get(result.location).status_code==200
 
 
 def test_register_search_filter_and_links(client, data):
     member = make_member(data, name="Sample Ratepayer")
     prop = make_property(data, address="22 Sample Lane")
-    register.save_relationship(data.org.id, data.users["manager"].id,
-        dict(member_id=member.id, relationship="owner", valid_from="2026-01-01", is_verified="true"), property_id=prop.id)
+    import_records(data.org.id,data.users["manager"].id,"relationships",[dict(member_reference=member.reference,property_reference=prop.reference,relationship="owner",is_verified="true")])
     db.session.commit()
     assert b"22 Sample Lane" in client.get(BASE + "/members?q=Sample").data
     assert b"Sample Ratepayer" not in client.get(BASE + "/members?q=unknown").data
@@ -82,7 +81,7 @@ def test_key_pages_render_with_sample_data(client, data, tmp_path):
     actor = data.users["manager"].id
     member = make_member(data, name="Asha Naidoo (sample)", phone="031 000 0000", eligibility_status="eligible")
     prop = make_property(data, address="22 Sample Lane", rates_reference="MG-SAMPLE-22")
-    register.save_relationship(data.org.id, actor, dict(member_id=member.id, relationship="owner", valid_from="2026-01-01", is_verified="true"), property_id=prop.id)
+    import_records(data.org.id,actor,"relationships",[dict(member_reference=member.reference,property_reference=prop.reference,relationship="owner",is_verified="true")])
     register.set_preference(data.org.id, actor, member.id, dict(channel="Email", preference="allowed"))
     make_member(data, reference="M2", name="Garden Court Body Corporate (sample)", member_type="business", email="court@example.invalid")
     data.issue.title = "Streetlight not working"
@@ -102,7 +101,7 @@ def test_key_pages_render_with_sample_data(client, data, tmp_path):
         relationship="owner", opens_at=(now - timedelta(hours=1)).isoformat(), closes_at=(now + timedelta(days=7)).isoformat(), identifiable="no"),
         [dict(title="Should lighting be prioritised?", type="YES_NO")])
     db.session.commit()
-    paths = {"command-centre": "/dashboard", "ratepayers": "/members", "ratepayer-detail": f"/members/{member.id}",
+    paths = {"access-status": "/my-access", "ratepayers": "/members", "ratepayer-detail": f"/members/{member.id}",
         "properties": "/properties", "property-detail": f"/properties/{prop.id}", "log-interaction": f"/interaction/new?member_id={member.id}",
         "issues": "/operations/reception", "providers": "/providers", "work-orders": "/work-orders", "meetings": "/operations/meetings", "surveys": "/operations/surveys"}
     destination = Path(os.environ.get("UIP_UI_RENDER_DIR", str(tmp_path)))
@@ -113,7 +112,8 @@ def test_key_pages_render_with_sample_data(client, data, tmp_path):
         response = client.get(BASE + path)
         assert response.status_code == 200, (path, response.status_code)
         html = response.get_data(as_text=True)
-        assert html.count('aria-label="UIP Command Centre"') == 1, name
+        if name != "access-status":
+            assert html.count('aria-label="UIP Command Centre"') == 1, name
         assert len(re.findall(r"<h1(?:\s|>)", html)) == 1, name
         (destination / (name + ".html")).write_text(html, encoding="utf-8")
     assert b"AI Assist" not in client.get(BASE + "/interaction/new").data

@@ -16,6 +16,11 @@
         <p class="text-slate-600 max-w-2xl mx-auto">We believe that a community thrives when its operations are fully transparent. Every fault logged, every contractor dispatched, and every cent spent is tracked securely.</p>
     </div>
 
+    <form method="post" action="{{ url_for('uip_bp.select_org') }}" class="ui-actions mb-8">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="org_slug" value="{{ org.slug }}">
+        <button class="ui-btn ui-btn-primary" type="submit">{{ 'Select my role' if current_user.is_authenticated else 'Register' }}</button>
+    </form>
     <!-- Pricing Block (Advert) -->
     <div class="grid md:grid-cols-3 gap-8 items-stretch">
         

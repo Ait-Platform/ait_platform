@@ -24,7 +24,7 @@ def test_uip_sign_out_reuses_ait_logout_on_desktop_mobile_and_public_vote():
     exec(compile(ast.Module(body=[logout],type_ignores=[]),"existing_ait_logout","exec"),scope)
     app.add_url_rule("/logout",endpoint="auth_bp.logout",view_func=scope["logout"],methods=["GET","POST"])
     app.add_url_rule("/",endpoint="public_bp.welcome",view_func=lambda:"Home")
-    for endpoint in ("dashboard","help_page","ai_assistant"):
+    for endpoint in ("dashboard","help_page","ai_assistant","verify_ratepayer"):
         app.add_url_rule("/uip/<org_slug>/"+endpoint,endpoint="uip_bp."+endpoint,view_func=lambda org_slug:"UIP")
     context=dict(org=SimpleNamespace(name="Manor Gardens UIP",slug="manor-gardens"),uip_roles={"provider"},
                  uip_nav_groups={"Service Providers":[dict(href="/work-orders",label="Work Orders",active=True)]},uip_help_anchor="service-providers")
@@ -41,10 +41,10 @@ def test_uip_sign_out_reuses_ait_logout_on_desktop_mobile_and_public_vote():
     response=client.get("/shell")
     assert response.status_code==200
     html=response.get_data(as_text=True)
-    assert 'href="/logout">Sign out</a>' in html
+    assert 'href="/logout"' in html and ">Sign out</a>" in html
     assert 'href="/logout">Sign out</a>' in client.get("/vote").get_data(as_text=True)
     assert "AI assistant</a>" not in html and "AI &amp; Wallet" not in html
-    assert html.count('class="ui-nav-group"')==1 and "Work Orders" in html
+    assert html.count('class="ui-nav-group ')==2 and "Work Orders" in html and "Ratepayer Profile" in html
     with sync_playwright() as p:
         browser=p.chromium.launch()
         for width in (1440,390):
@@ -53,8 +53,8 @@ def test_uip_sign_out_reuses_ait_logout_on_desktop_mobile_and_public_vote():
             page.set_content(html)
             link=page.get_by_role("link",name="Sign out",exact=True)
             assert link.is_visible()
-            assert page.locator(".ui-sidebar-account a").count()==1
-            assert page.locator(".ui-topbar").get_by_role("link",name="Sign out",exact=True).count()==0
+            assert page.locator(".ui-sidebar-account a").count()==0
+            assert page.locator(".ui-topbar").get_by_role("link",name="Sign out",exact=True).count()==1
             if width==390:
                 assert not page.locator(".ui-mobile-menu").evaluate("element => element.open")
             box=link.bounding_box()

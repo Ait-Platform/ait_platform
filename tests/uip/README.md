@@ -1,3 +1,25 @@
+# Current safety-stage execution (2026-09-24)
+
+Run UIP separately with `python -B -m pytest --confcutdir=tests/uip tests/uip -q -p no:cacheprovider`.
+Root test collection excludes this directory because its minimal User bootstrap must
+never share metadata with the production User bootstrap. Do not use extend_existing.
+Set UIP_TEST_DATABASE_URL explicitly to a disposable localhost PostgreSQL database
+named uip_test_*. The normal ait_local_db and all remote databases are refused.
+Use a unique writable --basetemp directory if the OS default pytest temp root is inaccessible.
+
+The request fixture adds fixtures/current_request_schema.sql after the historical
+UIP migrations. This frozen synthetic snapshot supplies newer governance/import/
+entitlement dependencies; it is NOT a deployment migration or evidence that the
+production migration graph can safely be replayed. Concurrent tests use the same
+snapshot. No create_all is used.
+
+The current graph has one head, uip_p52_billing_data, after merge d3f70f6a0794.
+Older two-head statements below are historical. Do NOT run upgrade head or replay
+sync migrations on a real database based on these tests. Consult the safety report
+in docs/uip_safety_review.md for current results and unresolved rollout blockers.
+
+---
+
 # Isolated UIP PostgreSQL regression suite
 
 The current local development target is `uip_p49_operations`, descending from

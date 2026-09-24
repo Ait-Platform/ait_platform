@@ -17,6 +17,7 @@
 </header>
 <section class="ui-card">
     <form method="post" action="{{ url_for('uip_bp.provisioning', org_slug=org.slug) }}">
+        <input type="hidden" name="token" value="{{ request.args.get('token') or request.form.get('token', '') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
         <fieldset class="ui-form-section">

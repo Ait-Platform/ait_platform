@@ -1,0 +1,147 @@
+{
+  "database": "ait_local_db",
+  "expected_lessons": 18,
+  "actual_lessons": 18,
+  "passed": false,
+  "results": [
+    {
+      "lesson_id": 1,
+      "filename": "2IntroLitre.mp4",
+      "start_range": "passed",
+      "bytes": 2737112,
+      "end_range": "passed",
+      "status": "passed"
+    },
+    {
+      "lesson_id": 2,
+      "filename": "lesson1.mp4",
+      "start_range": "passed",
+      "bytes": 38383098,
+      "end_range": "passed",
+      "status": "passed"
+    },
+    {
+      "lesson_id": 3,
+      "filename": "lesson3.mp4",
+      "start_range": "passed",
+      "bytes": 23526788,
+      "end_range": "passed",
+      "status": "passed"
+    },
+    {
+      "lesson_id": 4,
+      "filename": "lesson2.mp4",
+      "start_range": "passed",
+      "bytes": 14129526,
+      "end_range": "passed",
+      "status": "passed"
+    },
+    {
+      "lesson_id": 5,
+      "filename": "1Exercise.mp4",
+      "start_range": "passed",
+      "bytes": 651433,
+      "end_range": "passed",
+      "status": "passed"
+    },
+    {
+      "lesson_id": 6,
+      "filename": "Vowels.mp4",
+      "start_range": "passed",
+      "bytes": 2432528,
+      "end_range": "passed",
+      "status": "passed"
+    },
+    {
+      "lesson_id": 7,
+      "filename": "ta.mp4",
+      "start_range": "passed",
+      "bytes": 7226104,
+      "end_range": "passed",
+      "status": "passed"
+    },
+    {
+      "lesson_id": 8,
+      "filename": "te.mp4",
+      "status": "failed",
+      "error_type": "ReadingMediaUnavailable",
+      "diagnosis": "HTTP 404 at the filename referenced by the local lesson table"
+    },
+    {
+      "lesson_id": 9,
+      "filename": "ti.mp4",
+      "status": "failed",
+      "error_type": "ReadingMediaUnavailable",
+      "diagnosis": "HTTP 404 at the filename referenced by the local lesson table"
+    },
+    {
+      "lesson_id": 10,
+      "filename": "to.mp4",
+      "status": "failed",
+      "error_type": "ReadingMediaUnavailable",
+      "diagnosis": "HTTP 404 at the filename referenced by the local lesson table"
+    },
+    {
+      "lesson_id": 11,
+      "filename": "tu.mp4",
+      "start_range": "passed",
+      "bytes": 7490143,
+      "end_range": "passed",
+      "status": "passed"
+    },
+    {
+      "lesson_id": 12,
+      "filename": "Ma2u.mp4",
+      "start_range": "passed",
+      "bytes": 1286900,
+      "end_range": "passed",
+      "status": "passed"
+    },
+    {
+      "lesson_id": 13,
+      "filename": "Ta2Mu.mp4",
+      "start_range": "passed",
+      "bytes": 1648984,
+      "end_range": "passed",
+      "status": "passed"
+    },
+    {
+      "lesson_id": 14,
+      "filename": "12Tomato.mp4",
+      "start_range": "passed",
+      "bytes": 2369876,
+      "end_range": "passed",
+      "status": "passed"
+    },
+    {
+      "lesson_id": 15,
+      "filename": "13potato.mp4",
+      "status": "failed",
+      "error_type": "RuntimeError",
+      "diagnosis": "Matroska container mislabeled as MP4; HEAD 200 and both byte ranges 206"
+    },
+    {
+      "lesson_id": 16,
+      "filename": "14SongLines6.mp4",
+      "start_range": "passed",
+      "bytes": 5541976,
+      "end_range": "passed",
+      "status": "passed"
+    },
+    {
+      "lesson_id": 17,
+      "filename": "15CVStems.mp4",
+      "status": "failed",
+      "error_type": "RuntimeError",
+      "diagnosis": "Matroska container mislabeled as MP4; HEAD 200 and both byte ranges 206"
+    },
+    {
+      "lesson_id": 18,
+      "filename": "16CvstemsPronun.mp4",
+      "status": "failed",
+      "error_type": "RuntimeError",
+      "diagnosis": "Matroska container mislabeled as MP4; HEAD 200 and both byte ranges 206"
+    }
+  ],
+  "scope": "Local ait_local_db lesson filenames; production lesson mapping not verified"
+}

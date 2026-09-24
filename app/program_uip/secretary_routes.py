@@ -371,15 +371,14 @@ def onboarding_campaign(org_slug):
     wave_3_count = 0
     
     for profile in unverified:
-        camp = get_campaign(profile)
-        if camp.invite_wave == 0:
+        camp = profile.campaign_status
+        if camp is None or camp.invite_wave == 0:
             wave_1_count += 1
         elif camp.invite_wave == 1 and camp.last_invite_at and camp.last_invite_at < (now - timedelta(days=3)):
             wave_2_count += 1
         elif camp.invite_wave == 2 and camp.last_invite_at and camp.last_invite_at < (now - timedelta(days=7)):
             wave_3_count += 1
             
-    db.session.commit() # save any newly created campaign rows
     
     recent_resolutions = UipResolution.query.filter_by(organization_id=org.id, status="ADOPTED").order_by(UipResolution.created_at.desc()).limit(3).all()
     
@@ -402,37 +401,6 @@ def secretary_organogram(org_slug):
     _require_secretary()
     
     from app.models.uip_governance import UipOrganogramSeat, UipCommitteeMember
-    
-    # Pre-populate basic 4 Core ExCo seats if Blueprint is totally empty
-    if UipOrganogramSeat.query.filter_by(organization_id=org.id).count() == 0:
-        default_seats = [
-            ("Chairperson", "CORE_EXCO", "Voluntary", 1, "manager"),
-            ("Vice-Chairperson", "CORE_EXCO", "Voluntary", 2, "manager"),
-            ("Treasurer", "CORE_EXCO", "Voluntary", 3, "manager"),
-            ("Secretary", "CORE_EXCO", "Voluntary", 4, "manager"),
-            ("Security Sub-Committee Lead", "SECOND_GROUP", "Voluntary", 5, "committee_member"),
-            ("Greening & Environment Lead", "SECOND_GROUP", "Voluntary", 6, "committee_member"),
-            ("Infrastructure & Maintenance Lead", "SECOND_GROUP", "Voluntary", 7, "committee_member"),
-            ("Social & Community Lead", "SECOND_GROUP", "Voluntary", 8, "committee_member"),
-            ("Finance & Audit Lead", "SECOND_GROUP", "Voluntary", 9, "committee_member")
-        ]
-        for title, grp, qual, order, duty in default_seats:
-            seat = UipOrganogramSeat(organization_id=org.id, title=title, group_level=grp, qualifier=qual, display_order=order, duty=duty)
-            db.session.add(seat)
-        db.session.commit()
-        
-    if UipOrganogramSeat.query.filter_by(organization_id=org.id).count() == 4:
-        new_seats = [
-            ("Security Sub-Committee Lead", "SECOND_GROUP", "Voluntary", 5, "committee_member"),
-            ("Greening & Environment Lead", "SECOND_GROUP", "Voluntary", 6, "committee_member"),
-            ("Infrastructure & Maintenance Lead", "SECOND_GROUP", "Voluntary", 7, "committee_member"),
-            ("Social & Community Lead", "SECOND_GROUP", "Voluntary", 8, "committee_member"),
-            ("Finance & Audit Lead", "SECOND_GROUP", "Voluntary", 9, "committee_member")
-        ]
-        for title, grp, qual, order, duty in new_seats:
-            seat = UipOrganogramSeat(organization_id=org.id, title=title, group_level=grp, qualifier=qual, display_order=order, duty=duty)
-            db.session.add(seat)
-        db.session.commit()
     
     if request.method == "POST":
         action = request.form.get("action")
@@ -479,7 +447,7 @@ def secretary_organogram(org_slug):
                     db.session.commit()
                     flash(f"Photo uploaded for {member.name} to Cloudflare R2.", "success")
                 except Exception as e:
-                    flash(f"Failed to upload photo: {str(e)}", "danger")
+                    flash("Failed to upload photo. Please retry.", "danger")
         return redirect(url_for("uip_bp.secretary_organogram", org_slug=org.slug))
     
     # 1. Fetch Blueprint Seats

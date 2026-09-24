@@ -1,3 +1,4 @@
+from test_register import import_member, import_property
 import pytest
 import sqlalchemy as sa
 from werkzeug.exceptions import NotFound, Forbidden
@@ -25,6 +26,8 @@ def test_audit_service_never_commits(data, monkeypatch):
 
 
 def test_failed_audit_flush_rolls_back_operational_write(client, data, monkeypatch):
+    member=make_member(data);db.session.commit()
+    before_events=uip.UipAuditEvent.query.count()
     original = audit.record
     def fail(*args, **kwargs):
         event = original(*args, **kwargs)
@@ -32,9 +35,9 @@ def test_failed_audit_flush_rolls_back_operational_write(client, data, monkeypat
         return event
     monkeypatch.setattr(audit, "record", fail)
     count = core.CoreOrganizationMember.query.count()
-    assert client.safe_post(BASE + "/members/new", MEMBER).status_code == 409
-    assert uip.UipMemberProfile.query.count() == 0
-    assert uip.UipAuditEvent.query.count() == 0
+    assert client.safe_post(BASE + f"/members/{member.id}/edit", {**MEMBER,"email":"changed@example.invalid"}).status_code == 409
+    assert uip.UipMemberProfile.query.count() == 1
+    assert uip.UipAuditEvent.query.count() == before_events
     assert core.CoreOrganizationMember.query.count() == count
 
 
@@ -48,7 +51,8 @@ def test_metadata_allowlist(data, metadata):
 def test_safe_metadata_only_field_names(data):
     make_member(data)
     event=uip.UipAuditEvent.query.one()
-    assert set(event.metadata_json) == {"changed_fields"}
+    assert set(event.metadata_json) == {"changed_fields", "import_id"}
+    assert event.metadata_json["import_id"] == uip.UipRegisterImport.query.one().id
     assert set(event.metadata_json["changed_fields"]) <= audit.SAFE_FIELDS
     assert "Test Person" not in str(event.metadata_json)
     assert "person@example.invalid" not in str(event.metadata_json)
@@ -56,7 +60,7 @@ def test_safe_metadata_only_field_names(data):
 
 def test_org_scoped_history_and_single_event(client, data):
     local=make_member(data)
-    register.save_member(data.other.id, data.outsider.id, {**MEMBER,"name":"Foreign secret"})
+    import_member(data.other.id, data.outsider.id, {**MEMBER,"name":"Foreign secret"})
     db.session.commit()
     foreign=uip.UipAuditEvent.query.filter_by(organization_id=data.other.id).one()
     events=audit.events(data.org.id, data.users["manager"].id).all()
@@ -104,7 +108,8 @@ def test_foreign_role_definition_does_not_authorize(data):
 def test_foreign_role_definition_denies_phase1_routes(client, data):
     assignment=core.CoreRoleAssignment.query.filter_by(user_id=data.users["manager"].id).one()
     assignment.role.organization_id=data.other.id;db.session.commit()
-    assert client.get(BASE + "/dashboard").status_code == 403
+    response = client.get(BASE + "/dashboard")
+    assert response.status_code == 302 and response.location.endswith("/my-access")
     assert client.get(BASE + "/interaction/new").status_code == 403
 
 

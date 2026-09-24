@@ -269,7 +269,7 @@ def test_finance_representative_pages(client,data,tmp_path):
     destination=Path(os.environ.get("UIP_FINANCE_RENDER_DIR",str(tmp_path)))
     assert not (ROOT/'scratch') in destination.resolve().parents
     destination.mkdir(parents=True,exist_ok=True)
-    pages={"command-centre":"/dashboard","ratepayers":"/members","properties":"/properties","issues":"/operations/reception","work-orders":"/work-orders","providers":"/providers","meetings":"/operations/meetings","documents":"/operations/documents","settings":"/settings","finance":"/finance","finance-transactions":"/finance/transactions","finance-budget":"/finance/budget","finance-commitments":"/finance/commitments","finance-new":"/finance/transactions/new"}
+    pages={"access-status":"/my-access","ratepayers":"/members","properties":"/properties","issues":"/operations/reception","work-orders":"/work-orders","providers":"/providers","meetings":"/operations/meetings","documents":"/operations/documents","settings":"/settings","finance":"/finance","finance-transactions":"/finance/transactions","finance-budget":"/finance/budget","finance-commitments":"/finance/commitments","finance-new":"/finance/transactions/new"}
     for name,path in pages.items():
         result=client.get('/uip/manor-gardens'+path)
         assert result.status_code==200,(name,result.status_code)
@@ -298,7 +298,7 @@ def test_additive_migration_preserves_existing_local_rows(concurrent_db):
         assert set(sa.inspect(conn).get_table_names())-set(names)=={'uip_finance_transaction','uip_finance_commitment','uip_finance_budget_line','uip_finance_budget_revision','uip_finance_commitment_revision'}
     graph=ScriptDirectory.from_config(Config(str(ROOT/'alembic.ini')))
     assert graph.get_revision('uip_p10_finance').down_revision=='uip_p49_operations'
-    assert set(graph.get_heads())=={'uip_p10_finance','7da57fffdba9'}
+    assert set(graph.get_heads())=={'uip_p52_billing_data'}
 
 
 def test_foreign_provider_and_database_tenant_constraint(client,data):

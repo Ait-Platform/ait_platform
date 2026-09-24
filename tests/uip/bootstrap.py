@@ -16,7 +16,14 @@ class User(UserMixin, db.Model):
     name = db.Column(db.String(255))
     email = db.Column(db.String(255), unique=True)
 auth = types.ModuleType("app.models.auth")
+class AuthSubject(db.Model):
+    __tablename__ = "auth_subject"
+    id = db.Column(db.Integer, primary_key=True)
+    slug = db.Column(db.String(100), unique=True)
+
 auth.User = User
+auth.AuthSubject = AuthSubject
+sys.modules["app"].db = db
 sys.modules["app.models.auth"] = auth
 db.Table("ait_token_transaction", db.metadata, db.Column("id", db.Integer, primary_key=True))
 from app.models import core, uip

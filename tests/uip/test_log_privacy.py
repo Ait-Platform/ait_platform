@@ -15,6 +15,7 @@ def test_uip_request_logs_omit_sensitive_contents_and_keep_metadata(caplog):
                                       data={"token": secrets[0], "context": secrets[2], "api_key": secrets[3], "model_secret": secrets[4]}):
             g.reqid = "a123b456"
             g.organization = SimpleNamespace(id=42)
+            g.org_id = 42
             request.user_id = 7
             app.logger.info("[%s] %s %s ep=%s args=%s form=%s user_id=%s",g.reqid,request.method,request.path,request.endpoint,dict(request.args),dict(request.form),7)
             app.logger.info("AI source and credentials: %s",secrets)

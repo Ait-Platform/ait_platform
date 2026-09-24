@@ -1,3 +1,4 @@
+from test_register import import_member, import_property, import_records
 """Focused real-rendered intake search, selection and register authority checks."""
 from datetime import date, timedelta
 from playwright.sync_api import sync_playwright
@@ -14,8 +15,9 @@ def test_register_intake_search_selection_and_autofill(client, data):
     properties = [make_property(data, reference=f"P{i}", address=f"{i} Mock Garden Lane", rates_reference=f"RATES{i}") for i in range(1, 5)]
     db.session.flush()
     def link(m, p, start, end=None, kind="owner"):
-        db.session.add(uip.UipPropertyMember(organization_id=data.org.id, member_id=m.id,
-            property_id=p.id, relationship=kind, valid_from=start, valid_to=end, is_verified=True))
+        import_records(data.org.id,data.users["manager"].id,"relationships",[dict(
+            member_reference=m.reference,property_reference=p.reference,relationship=kind,
+            valid_to=end.isoformat() if end else "",is_verified="true")],effective_date=start)
     link(member, properties[0], today)
     link(member, properties[0], today, kind="occupier")  # One property, two current roles.
     link(member, properties[1], today-timedelta(days=10), today-timedelta(days=1))
@@ -23,8 +25,8 @@ def test_register_intake_search_selection_and_autofill(client, data):
     link(multiple, properties[1], today)
     link(multiple, properties[2], today, today)  # End date remains inclusive.
     link(historical, properties[3], today-timedelta(days=10), today-timedelta(days=1))
-    outsider = register.save_member(data.other.id, data.outsider.id, {**MEMBER, "reference":"SECRET-OTHER", "name":"Other org secret"})
-    register.save_property(data.other.id, data.outsider.id, {**PROPERTY, "address":"Other org private address"})
+    outsider = import_member(data.other.id, data.outsider.id, {**MEMBER, "reference":"SECRET-OTHER", "name":"Other org secret"})
+    import_property(data.other.id, data.outsider.id, {**PROPERTY, "address":"Other org private address"})
     db.session.commit()
     counts = (uip.UipMemberProfile.query.count(), uip.UipProperty.query.count(), core.CoreOrganizationMember.query.count(), uip.UipPropertyMember.query.count())
     response = client.get(BASE + "/interaction/new")

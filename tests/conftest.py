@@ -1,3 +1,7 @@
+# UIP owns an incompatible, isolated model bootstrap. Run it in a separate process
+# with: python -B -m pytest --confcutdir=tests/uip tests/uip
+collect_ignore = ["uip"]
+
 import pytest
 from app import create_app
 from app.extensions import db

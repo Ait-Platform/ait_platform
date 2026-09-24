@@ -62,14 +62,9 @@ def navigation_context():
         ("Administration", [("Organisation Settings", "org_settings"), ("AI & Wallet", "ai_wallet"), ("UIP Audit", "audit_history")]),
     )
     allowed = {target for label, target, permitted in entries if roles & permitted}
-    from app.program_uip.services.register import require_register_admin
+    # MO-controlled Vault imports are not a UIP browser action.
     is_register_admin = False
-    try:
-        require_register_admin(g.organization.id, current_user.id)
-        is_register_admin = True
-    except Exception:
-        pass
-        
+
     from app.models.uip_governance import UipCommitteeMember
     from sqlalchemy import func
     is_secretary = False
@@ -101,6 +96,10 @@ def navigation_context():
         allowed.add("service_standards")
     if roles == {"provider"}:
         allowed.discard("dashboard")
+    from .services.finance import treasurer
+    is_treasurer = bool(treasurer(g.organization.id, current_user.id))
+    if is_treasurer:
+        allowed.update({"finance_overview", "finance_transactions", "finance_budget", "finance_commitments"})
     aliases = {"voting_invitations": "surveys_page", "ai_assistant": "ai_wallet", "finance_transaction_new": "finance_transactions", "finance_transaction": "finance_transactions", "finance_commitment": "finance_commitments", "finance_report": "finance_overview", "setup_page": "org_settings","member_form": "member_list", "member_view": "member_list", "property_form": "property_list", "property_view": "property_list",
         "new_interaction": "reception_page", "view_interaction": "reception_page", "reception_issue": "reception_page",
         "provider_form": "provider_list", "provider_view": "provider_list", "work_order_view": "work_order_list",

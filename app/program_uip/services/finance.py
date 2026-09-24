@@ -25,9 +25,37 @@ LINKS = {"provider_id": UipProvider, "work_order_id": UipWorkOrder,
 PUBLIC_NOTICE = "Member figures include approved transparency records only; unpublished records are excluded. They may not represent the complete financial position."
 
 
+def treasurer(org, actor):
+    """Existing current elected appointment; no core role or membership mutation."""
+    from app.models.auth import User
+    from app.models.uip_governance import UipCommitteeMember
+    from sqlalchemy import func
+    user = db.session.get(User, actor)
+    if not user or not user.is_active or not (user.email or "").strip():
+        return None
+    return UipCommitteeMember.query.filter(
+        UipCommitteeMember.organization_id == org,
+        UipCommitteeMember.status == "CURRENT",
+        func.lower(func.trim(UipCommitteeMember.email)) == user.email.strip().lower(),
+        func.lower(func.trim(UipCommitteeMember.position)) == "treasurer").first()
+
+
+def require_treasurer(org, actor):
+    appointment = treasurer(org, actor)
+    if not appointment:
+        abort(403)
+    return appointment
+
+
+def authorize(org, actor, write=False):
+    if treasurer(org, actor):
+        return
+    audit.authorize(org, actor, WRITE if write else READ)
+
+
 def manager(org, actor):
     try:
-        audit.authorize(org, actor, WRITE)
+        authorize(org, actor, write=True)
         return True
     except Forbidden:
         return False
@@ -70,7 +98,7 @@ def financial_year(value=None):
 
 
 def lock(org, actor):
-    audit.authorize(org, actor, WRITE)
+    authorize(org, actor, write=True)
     CoreOrganization.query.filter_by(id=org).with_for_update().one()
 
 
@@ -85,7 +113,7 @@ def expected(row, value):
 
 def event(org, actor, action, row, **changes):
     # Finance has its own explicit metadata contract; never weakens legacy audit validation.
-    audit.authorize(org, actor, WRITE)
+    authorize(org, actor, write=True)
     if action not in {"transaction.created", "transaction.reversed", "transaction.corrected",
         "commitment.created", "commitment.changed", "commitment.cancelled", "budget.created",
         "budget.revised", "visibility.changed"} or row.organization_id != org:
@@ -330,7 +358,7 @@ def revise_budget(org, actor, values):
 
 
 def transactions(org, actor, filters=None):
-    audit.authorize(org, actor, READ)
+    authorize(org, actor)
     q = Transaction.query.filter_by(organization_id=org)
     if not manager(org, actor):
         q = q.filter_by(member_visible=True)
@@ -366,7 +394,7 @@ def totals(rows):
 
 
 def overview(org, actor, year=None):
-    audit.authorize(org, actor, READ)
+    authorize(org, actor)
     start, end, label = financial_year(year)
     as_of = min(end, date.today())
     rows = transactions(org, actor)
@@ -402,7 +430,7 @@ def overview(org, actor, year=None):
 
 
 def detail(org, actor, row):
-    audit.authorize(org, actor, READ)
+    authorize(org, actor)
     admin = manager(org, actor)
     if row.organization_id != org or (not admin and not row.member_visible):
         abort(404)

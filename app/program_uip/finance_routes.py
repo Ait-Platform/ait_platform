@@ -16,7 +16,7 @@ from app.models.uip import UipProvider, UipWorkOrder, UipResolution
 
 def context():
     org, actor = g.organization.id, current_user.id
-    audit.authorize(org, actor, f.READ)
+    f.authorize(org, actor)
     return org, actor, f.manager(org, actor)
 
 
@@ -41,7 +41,7 @@ def links_fields(org, actor):
     return [field("provider_id", "Provider (optional)", [("", "No provider")] + [(r.id, r.name) for r in UipProvider.query.filter_by(organization_id=org).all()], required=False),
         field("work_order_id", "Work order (optional)", [("", "No work order")] + [(r.id, r.reference) for r in UipWorkOrder.query.filter_by(organization_id=org).all()], required=False),
         field("governance_decision_id", "Authorising decision (optional)", [("", "No decision")] + [(r.id, r.title) for r in UipResolution.query.filter_by(organization_id=org).all()], required=False),
-        field("document_id", "Controlled supporting document (optional)", [("", "No document")] + [(r.id, r.title or "Document #" + str(r.id)) for r in documents.listing(org, actor)], required=False)]
+        field("document_id", "Controlled supporting document (optional)", [("", "No document")] + [(r.id, r.title or "Document #" + str(r.id)) for r in f.UipDocument.query.filter_by(organization_id=org).all() if documents.accessible(org, actor, r)], required=False)]
 
 
 def record_fields(org, actor, transaction=True):
@@ -64,31 +64,10 @@ def record_fields(org, actor, transaction=True):
 def finance_overview(org_slug):
     org, actor, admin = context()
     
-    # --- AUTO-FIX FOR PROTOTYPE RECORDS ---
-    from app.models.core import CoreRoleAssignment, CoreRole
-    role_obj = CoreRole.query.filter_by(slug="committee_member").first()
-    if role_obj:
-        existing_role = CoreRoleAssignment.query.filter_by(organization_id=org, user_id=actor, role_id=role_obj.id).first()
-        if not existing_role:
-            from app.extensions import db
-            db.session.add(CoreRoleAssignment(organization_id=org, user_id=actor, role_id=role_obj.id))
-            db.session.commit()
-    # --------------------------------------
+
     
     overview = f.overview(org, actor, request.args.get("year"))
-    from app.models.uip_governance import UipCommitteeMember
-    from sqlalchemy import func
-    mem = UipCommitteeMember.query.filter(
-        UipCommitteeMember.organization_id == org,
-        UipCommitteeMember.status == "CURRENT",
-        func.lower(UipCommitteeMember.email) == func.lower(current_user.email)
-    ).first()
-    
-    pos = mem.position.strip().lower() if mem else ""
     recent_tx = [f.detail(org, actor, r) for r in overview["transactions"][:10]]
-    if pos == "treasurer":
-        return render_template("program_uip/dashboards/treasurer.html", org=g.organization, overview=overview, recent=recent_tx)
-        
     return render("overview", overview=overview,
         major_categories=sorted(overview["budget"], key=lambda b: b["actual"], reverse=True)[:6],
         recent=recent_tx,
@@ -112,7 +91,7 @@ def finance_transactions(org_slug):
 @login_required
 def finance_transaction_new(org_slug):
     org, actor, admin = context()
-    audit.authorize(org, actor, f.WRITE)
+    f.authorize(org, actor, write=True)
     if request.method == "POST":
         row = f.create_transaction(org, actor, request.form)
         return commit("finance_transaction", transaction_id=row.id)

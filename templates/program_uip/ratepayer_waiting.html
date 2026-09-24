@@ -1,0 +1,11 @@
+{% extends "program_uip/base_public.html" %}
+{% block title %}Ratepayer Waiting Room{% endblock %}
+{% block content %}
+<section class="ui-card">
+<h1>Ratepayer Waiting Room</h1>
+<p>The authoritative Municipal Oversight Vault has not yet been supplied or loaded. We cannot complete verification yet. This does not mean you are not a Ratepayer.</p>
+<p>UIP users cannot add or change Vault records to complete verification.</p>
+<a class="ui-btn" href="{{ url_for('uip_bp.verify_ratepayer', org_slug=org.slug) }}">Check again</a>
+<a class="ui-btn" href="{{ url_for('uip_bp.router_page', org_slug=org.slug, force=1) }}">Role Selection</a>
+</section>
+{% endblock %}

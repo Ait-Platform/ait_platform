@@ -622,12 +622,6 @@ def provider_documents():
             "is_tracked": "f_cv" in tracked_ids
         },
         {
-            "id": "f_guide",
-            "title": "Facilitator Manual",
-            "description": "Educator slide notes and methodology guide.",
-            "is_tracked": "f_guide" in tracked_ids
-        },
-        {
             "id": "ip_pledge",
             "title": "AIT IP Pledge",
             "description": "Blank Intellectual Property Pledge for manual signing.",

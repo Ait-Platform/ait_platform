@@ -57,7 +57,11 @@ def board():
     if flow.latest(row, 'reading_certificate'):
         flow.record(row, 'board_returned', once=True)
     db.session.commit()
+    flow.refresh_progress(row)
+    db.session.commit()
     ticks = {e.activity_slug for e in flow.events(row)}
+    if not all(flow.latest(row, f'ppp_slide_{i}') for i in range(1,32)):
+        ticks.discard('ppp_complete')
     return render_template('program_sace/endorsement_board.html', ticks=ticks,
                            workshop_passed=flow.workshop_passed(row), state=flow.payload(row), materials=MATERIALS, missing=flow.completion_requirements(row))
 
@@ -103,12 +107,15 @@ def claim():
     return redirect(url_for('sace_bp.reading_hub'))
 
 
-MATERIALS = {'app_form': ('Activity application form', 'pdf/App_Form_1.pdf'), 'f_guide': ('Facilitator Manual', 'pdf/F_Guide.pdf'),
+MATERIALS = {'app_form': ('Application Form 1', 'pdf/App_Form_1.pdf'),
+             'app_form_2': ('Application Form 2', 'pdf/App_Form_2.pdf'),
+             'timetable': ('Reading Timetable (T/T)', 'pdf/Reading Timetable.pdf'),
+             'ip_pledge': ('AIT IP Pledge (reference)', None), 'f_guide': ('Facilitator Manual', 'pdf/F_Guide.pdf'),
              'p_guide': ('Participant / Workshop Manual', 'pdf/P_Guide.pdf')}
 
 
 def material_path(kind):
-    if kind not in MATERIALS:
+    if kind not in MATERIALS or kind == 'ip_pledge':
         abort(404)
     title, fallback = MATERIALS[kind]
     doc = SaceDocument.query.filter_by(slug='reading', document_type=kind).first()
@@ -125,8 +132,12 @@ def material_path(kind):
 
 
 def material(kind):
-    if kind == 'patent':
-        return render_template('program_sace/endorsement_map.html')
+    if kind in ('patent', 'ip_pledge'):
+        row = flow.assignment(lock=True)
+        response = render_template('program_sace/endorsement_pledge_reference.html')
+        flow.record(row, 'ip_pledge', {'evidence': 'existing pledge displayed for reference'}, once=True)
+        db.session.commit()
+        return response
     title, path = material_path(kind)
     return render_template('program_sace/endorsement_material.html', doc_title=title,
         doc_url=url_for('sace_bp.material_content', kind=kind),
@@ -151,7 +162,7 @@ def material_viewed(kind):
     row = flow.assignment(lock=True)
     if not flow.latest(row, kind + '_opened'):
         abort(409, description='Open and examine this material before confirming.')
-    flow.record(row, kind, {'evidence': 'Auditor confirmation after page review'}, once=True)
+    flow.record(row, kind, {'evidence': 'all PDF pages displayed by controlled viewer'}, once=True)
     db.session.commit()
     return jsonify(success=True)
 
@@ -165,19 +176,20 @@ def ppp():
 
 @sace_bp.post('/sace/reading/presentation/viewed/<int:slide>')
 def ppp_viewed(slide):
-    if not 1 <= slide <= 30 or not (Path(current_app.static_folder)/'sace_slides'/f'{slide}.png').is_file():
+    if not 1 <= slide <= 31 or not (Path(current_app.static_folder)/'sace_slides'/f'{slide}.png').is_file():
         abort(404)
     row = flow.assignment(lock=True)
     flow.record(row, f'ppp_slide_{slide}', once=True)
     flow.record(row, 'ppp', once=True)
+    flow.refresh_progress(row)
     db.session.commit()
-    return jsonify(success=True)
+    return jsonify(success=True, complete=all(flow.latest(row, f'ppp_slide_{i}') for i in range(1,32)))
 
 
 def ppp_complete():
     row = flow.assignment(lock=True)
-    if not all(flow.latest(row, f'ppp_slide_{i}') for i in range(1,31)):
-        abort(409, description="Review all 30 PPP slides first. Previous and Next remain available.")
+    if not all(flow.latest(row, f'ppp_slide_{i}') for i in range(1,32)):
+        abort(409, description="Review all 31 PPP slides first. Previous and Next remain available.")
     flow.record(row, 'ppp_complete', once=True)
     db.session.commit()
     return redirect(url_for('sace_bp.reading_hub'))
@@ -204,18 +216,18 @@ def demo_advance():
             abort(409, description="Slide unavailable; progress was not saved.")
         flow.record(row, f'demo_slide_{step}', once=True)
     elif step == 31:
+        if not (Path(current_app.static_folder)/'sace_slides'/'31.png').is_file():
+            abort(409, description='Slide 31 unavailable; progress was not saved.')
         ratings = data.get('ratings', {})
         if not isinstance(ratings, dict) or set(ratings) != {'vocalization','positioning','pacing'} or any(type(v) is not int or v not in range(4) for v in ratings.values()):
             abort(400, description="Complete all three critique ratings (0-3).")
+        flow.record(row,'demo_slide_31',once=True)
         flow.record(row,'step31',ratings,once=True)
     elif step == 32:
         engagement = data.get('engagement', [])
         if not isinstance(engagement,list) or sorted(engagement) != sorted(flow.ENGAGEMENT):
             abort(400, description="Complete the four required engagement activities before confirming them.")
-        responses = data.get('responses', {})
-        if not isinstance(responses, dict) or set(responses) != set(flow.ENGAGEMENT) or any(not isinstance(v, str) or not v.strip() or len(v) > 4000 for v in responses.values()):
-            abort(400, description='Record a response for each engagement activity.')
-        flow.record(row,'step32',{'engagement':engagement, 'responses':responses},once=True)
+        flow.record(row,'step32',{'engagement':engagement, 'evidence':'required checkbox choices'},once=True)
     elif step == 33:
         answers = data.get('answers', {})
         if (not isinstance(answers, dict) or set(answers) != {'efficacy','utility','fidelity'} or answers.get('efficacy') not in ['1','2','3','4','5']
@@ -224,6 +236,7 @@ def demo_advance():
         flow.record(row,'step33',{'instrument':'existing-baseline-v1','purpose':'Auditor test of longitudinal study baseline; not longitudinal outcomes','answers':answers},once=True)
     state['demo_step'] = step + 1
     flow.save(row,state)
+    flow.refresh_progress(row)
     db.session.commit()
     return jsonify(success=True, next=url_for('sace_bp.simulator'))
 
@@ -317,17 +330,10 @@ def require_map(row):
 @sace_bp.route('/sace/reading/auditor-map', methods=['GET', 'POST'])
 def auditor_map():
     row = flow.assignment(lock=True)
-    if request.method == 'POST':
-        if request.form.get('reviewed') != 'yes':
-            abort(400, description="Confirm that you have reviewed the Auditor Map.")
-        flow.record(row, 'map_reviewed', once=True)
-        if not all(flow.latest(row, slug) for slug in flow.MAP_REQUIRED):
-            db.session.commit()
-            abort(409, description="Examine all controlled materials listed on the Auditor Board first.")
-        flow.record(row, 'map_complete', once=True)
-        db.session.commit()
-        return redirect(url_for('sace_bp.reading_hub'))
-    return render_template('program_sace/endorsement_map.html')
+    response = render_template('program_sace/endorsement_map.html')
+    flow.record(row, 'map_reviewed', {'evidence': 'Auditor Map displayed'}, once=True)
+    db.session.commit()
+    return response
 
 
 @sace_bp.get('/sace/reading/course')
@@ -357,13 +363,13 @@ def reading_lesson(lesson_id):
     row = flow.assignment(lock=True)
     lesson = course_lesson(row, lesson_id)
     if request.method == 'POST':
-        if not flow.latest(row, f'reading_lesson_{lesson_id}_served') or request.form.get('completed') != 'yes':
+        if not flow.latest(row, f'reading_lesson_{lesson_id}_served') or (request.get_json(silent=True) or {}).get('ended') is not True:
             abort(409, description="Play and complete the video first.")
-        flow.record(row, f'reading_lesson_{lesson_id}_complete', {'lesson_order': lesson['order'], 'evidence': 'video-ended confirmation'}, once=True)
+        flow.record(row, f'reading_lesson_{lesson_id}_complete', {'lesson_order': lesson['order'], 'evidence': 'browser video-ended event'}, once=True)
         if flow.course_complete(row):
             flow.record(row, 'reading_complete', once=True)
         db.session.commit()
-        return redirect(url_for('sace_bp.reading_course'))
+        return jsonify(success=True, next=url_for('sace_bp.reading_course'))
     flow.record(row, f'reading_lesson_{lesson_id}_opened', {'lesson_order': lesson['order']}, once=True)
     db.session.commit()
     return render_template('program_sace/endorsement_lesson.html', lesson=lesson)

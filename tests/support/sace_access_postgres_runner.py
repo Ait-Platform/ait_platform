@@ -519,6 +519,131 @@ class AccessJourneys(unittest.TestCase):
         self.login(anonymous, "outsider@example.test")
         self.assertEqual(anonymous.get("/sace/reading/simulator").status_code, 403)
 
+    def refinement_auditor(self):
+        self.provision(self.client, "r@example.test")
+        code, row_id = self.code(self.client)
+        self.user("a@example.test")
+        auditor = self.app.test_client()
+        auditor.post("/sace/join", data={"code": code})
+        auditor.post("/sace/auditor_pledge")
+        response = self.login(auditor, "a@example.test")
+        auditor.get(response.location, follow_redirects=True)
+        self.app.static_folder = str(ROOT / "app/static")
+        return auditor, row_id
+
+    def test_ppp_31_slides_auto_progress_and_silent_pages(self):
+        auditor, row_id = self.refinement_auditor()
+        response = auditor.get("/sace/reading/presentation")
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn(b"<audio", response.data)
+        self.assertNotIn(b".mp3", response.data)
+        for slide in range(1,31):
+            response = auditor.post(f"/sace/reading/presentation/viewed/{slide}")
+            self.assertEqual(response.status_code, 200)
+        with self.app.app_context():
+            row = db.session.get(Interaction, row_id)
+            self.assertIsNone(endorsement.latest(row, "ppp_complete"))
+        response = auditor.post("/sace/reading/presentation/viewed/31")
+        self.assertTrue(response.json["complete"])
+        with self.app.app_context():
+            row = db.session.get(Interaction, row_id)
+            self.assertEqual(endorsement.payload(endorsement.latest(row, "ppp_complete"))["slides"],31)
+            self.assertFalse(endorsement.payload(row)["journey_ready"])
+        demo = auditor.get("/sace/reading/simulator")
+        self.assertNotIn(b"<audio", demo.data)
+        self.assertNotIn(b".mp3", demo.data)
+        self.assertLess(demo.data.index(b'id="advance"'), demo.data.index(b"Your position"))
+        self.assertEqual(auditor.post("/sace/reading/presentation/viewed/32").status_code,404)
+
+    def test_existing_documents_and_pledge_reference_are_attributed(self):
+        auditor, row_id = self.refinement_auditor()
+        board = auditor.get("/sace/reading")
+        self.assertIn(b"Application Form 1",board.data)
+        self.assertIn(b"Application Form 2",board.data)
+        self.assertIn(b"Reading Timetable",board.data)
+        self.assertIn(b"AIT IP Pledge",board.data)
+        self.assertNotIn(b"Reading video-course MCQ",board.data)
+        for kind in ("app_form", "app_form_2", "timetable", "p_guide"):
+            self.assertEqual(auditor.post(f"/sace/material/{kind}/viewed").status_code,409)
+            response=auditor.get(f"/sace/material/{kind}/content")
+            self.assertEqual(response.status_code,200)
+            response.close()
+            self.assertEqual(auditor.post(f"/sace/material/{kind}/viewed").status_code,200)
+        response=auditor.get("/sace/secure_view/ip_pledge")
+        self.assertEqual(response.status_code,200)
+        self.assertNotIn(b"I Agree",response.data)
+        self.assertIn(b"protected Intellectual Property",response.data)
+        with self.app.app_context():
+            row=db.session.get(Interaction,row_id)
+            self.assertEqual(len([e for e in endorsement.events(row) if e.activity_slug=="pledge"]),1)
+            for slug in ("app_form","app_form_2","timetable","p_guide","ip_pledge"):
+                self.assertEqual(endorsement.latest(row,slug).user_id,endorsement.payload(row)["claimed_by_user_id"])
+        response=self.client.get("/sace/provisioning/documents")
+        self.assertEqual(response.status_code,200)
+        self.assertNotIn(b"Facilitator Manual",response.data)
+
+    def test_full_objective_journey_and_certificate_release(self):
+        from unittest.mock import patch, Mock
+        auditor,row_id=self.refinement_auditor()
+        import app.program_sace.routes as sace_routes
+        lessons=[dict(id=i,order=i,title=f"Lesson {i}",caption="",video_filename=f"{i}.mp4") for i in range(1,19)]
+        mail=types.ModuleType("app.subject_reading.routes")
+        mail._email_certificate_pdf=Mock(return_value=True)
+        mail._generate_certificate_pdf=Mock(return_value=b"synthetic-reading-pdf")
+        self.app.config['AIT_READING_STEP35']={'version':'test-only','pass_percent':100,'questions':[{'id':'q1','prompt':'Fixture question','options':{'A':'one','B':'two'},'answer':'B'}]}
+        try:
+            with patch.object(endorsement,'course_lessons',return_value=lessons), patch.dict(sys.modules,{'app.subject_reading.routes':mail}), patch.object(sace_routes,'_generate_sace_certificate_pdf',return_value=b"synthetic-workshop-pdf"):
+                for step in range(31):
+                    self.assertEqual(auditor.post('/sace/reading/demo/advance',json={'step':step}).status_code,200)
+                page=auditor.get('/sace/reading/simulator')
+                self.assertNotIn(b'name="engagement"',page.data)
+                self.assertEqual(auditor.post('/sace/reading/demo/advance',json={'step':31,'ratings':dict(vocalization=3,positioning=3,pacing=3)}).status_code,200)
+                page=auditor.get('/sace/reading/simulator')
+                self.assertIn(b'type="checkbox"',page.data)
+                self.assertNotIn(b'<textarea',page.data)
+                self.assertNotIn(b'Workshop slide 31',page.data)
+                self.assertEqual(auditor.post('/sace/reading/demo/advance',json={'step':32,'engagement':['objective']}).status_code,400)
+                self.assertEqual(auditor.post('/sace/reading/demo/advance',json={'step':32,'engagement':list(endorsement.ENGAGEMENT)}).status_code,200)
+                self.assertEqual(auditor.post('/sace/reading/demo/advance',json={'step':33,'answers':dict(efficacy='5',utility='yes',fidelity='strict')}).status_code,200)
+                result=auditor.post('/sace/reading/post_test',data=dict(q1='B',q2='B',q3='C',q4='A'))
+                self.assertEqual(result.status_code,302)
+                self.assertEqual(auditor.post('/sace/reading/certificate/email',data={'email':'a@example.test'}).status_code,302)
+                self.assertEqual(auditor.get('/sace/reading/step35').status_code,409)
+                for i in range(1,19):
+                    self.assertEqual(auditor.post(f'/sace/reading/course/{i}',json={'ended':True}).status_code,409)
+                    with patch('app.utils.reading_media.verify_reading_video'):
+                        self.assertEqual(auditor.get(f'/sace/reading/course/{i}/video').status_code,302)
+                    self.assertEqual(auditor.post(f'/sace/reading/course/{i}',json={'ended':True}).status_code,200)
+                self.assertEqual(auditor.post('/sace/reading/step35',data={'version':'test-only','q1':'B'}).status_code,200)
+                self.assertEqual(auditor.post('/sace/reading/course/certificate',data={'email':'a@example.test'}).status_code,302)
+                self.assertEqual(mail._email_certificate_pdf.call_count,2)
+                self.assertEqual(auditor.post('/sace/reading/finish-evaluation').status_code,409)
+                auditor.get('/sace/reading/auditor-map')
+                for kind in endorsement.MAP_MATERIALS:
+                    if kind=='ip_pledge':
+                        auditor.get('/sace/secure_view/ip_pledge')
+                    else:
+                        # The unfinished Facilitator Manual uses a test-only PDF fixture.
+                        original=endorsement_routes.material_path
+                        with patch.object(endorsement_routes,'material_path',side_effect=lambda k: ('Fixture manual',ROOT/'app/static/pdf/App_Form_1.pdf') if k=='f_guide' else original(k)):
+                            response=auditor.get(f'/sace/material/{kind}/content');self.assertEqual(response.status_code,200);response.close()
+                            self.assertEqual(auditor.post(f'/sace/material/{kind}/viewed').status_code,200)
+                for i in range(1,32):auditor.post(f'/sace/reading/presentation/viewed/{i}')
+                auditor.get('/sace/reading')
+                with self.app.app_context():
+                    row=db.session.get(Interaction,row_id)
+                    self.assertTrue(endorsement.payload(row)['journey_ready'])
+                    self.assertIsNotNone(endorsement.latest(row,'evaluation_ready'))
+                    self.assertEqual(endorsement.payload(row)['status'],'Claimed')
+                response=auditor.post('/sace/reading/finish-evaluation')
+                self.assertEqual(response.status_code,200)
+                with self.app.app_context():
+                    row=db.session.get(Interaction,row_id)
+                    self.assertEqual(endorsement.payload(row)['status'],'Completed')
+                    self.assertIsNotNone(endorsement.latest(row,'controller_notification'))
+        finally:
+            self.app.config.pop('AIT_READING_STEP35',None)
+
     def test_used_and_malformed_expiry_codes_cannot_join(self):
         self.user("r@example.test")
         self.provision(self.client, "r@example.test", existing=True)

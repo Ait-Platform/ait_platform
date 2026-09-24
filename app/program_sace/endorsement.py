@@ -96,6 +96,8 @@ def record(row, slug, values=None, once=False):
                         activity_slug=slug, response_data=json.dumps(values or {}))
     db.session.add(event)
     db.session.flush()
+    if slug not in {'map_complete', 'ppp_complete', 'reading_complete', 'evaluation_ready'}:
+        refresh_progress(row)
     # The controller reads this same durable event as a ping; no duplicate notification table.
     return event
 
@@ -114,7 +116,7 @@ def workshop_passed(row):
             and result is not None and payload(result).get("passed") is True) if latest(row, "step32") else False
 
 
-MAP_MATERIALS = ('app_form', 'f_guide', 'p_guide')
+MAP_MATERIALS = ('app_form', 'app_form_2', 'f_guide', 'p_guide', 'timetable', 'ip_pledge')
 MAP_REQUIRED = ('pledge', 'map_reviewed') + MAP_MATERIALS
 FINAL_MESSAGE = 'A has completed the AIT activity evaluation journey.'
 
@@ -133,6 +135,8 @@ def completion_requirements(row):
     required = MAP_REQUIRED + ('map_complete', 'ppp_complete', 'demo_complete', 'step31', 'step32', 'step33',
         'workshop_certificate', 'reading_complete', 'reading_certificate', 'board_returned')
     missing = [slug for slug in required if not latest(row, slug)]
+    if not all(latest(row, f'ppp_slide_{i}') for i in range(1, 32)):
+        missing.append('31_ppp_slides')
     if not workshop_passed(row):
         missing.append('step34_pass')
     if not course_complete(row):
@@ -147,3 +151,21 @@ def step35_passed(row):
     content = current_app.config.get('AIT_READING_STEP35')
     return (isinstance(content, dict) and bool(content.get('version'))
             and result.get('version') == content['version'] and result.get('passed') is True)
+
+
+def refresh_progress(row):
+    """Derive milestones from recorded evidence; final closure stays explicit."""
+    if all(latest(row, slug) for slug in MAP_REQUIRED):
+        record(row, 'map_complete', {'evidence': 'map and controlled materials examined'}, once=True)
+    if all(latest(row, f'ppp_slide_{i}') for i in range(1, 32)):
+        record(row, 'ppp_complete', {'slides': 31}, once=True)
+    if course_complete(row):
+        record(row, 'reading_complete', {'videos': 18}, once=True)
+    missing = completion_requirements(row)
+    state = payload(row)
+    state['journey_missing'] = missing
+    state['journey_ready'] = not missing
+    save(row, state)
+    if not missing:
+        record(row, 'evaluation_ready', {'evidence': 'all required activity evidence recorded'}, once=True)
+    return missing

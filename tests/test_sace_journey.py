@@ -44,6 +44,7 @@ class JourneyTests(unittest.TestCase):
         self.flow.assignments = lambda: [self.row]
         self.flow.record = self.record
         self.flow.save = lambda row,state:setattr(row,'response_data',json.dumps(state))
+        self.f.update(record=self.record, save=self.flow.save)
         self.flow.events = lambda row:self.evidence
         self.flow.is_controller = lambda:False
         env = dict(flow=self.flow, db=self.db, Path=Path, json=json, current_user=SimpleNamespace(id=9,name='Auditor',email='auditor@example.test',is_authenticated=True))
@@ -85,6 +86,7 @@ class JourneyTests(unittest.TestCase):
         for i in range(1,19):self.add(f'reading_lesson_{i}_complete')
     def ready(self):
         self.workshop();self.course()
+        for i in range(1,32):self.add(f'ppp_slide_{i}')
         for slug in self.flow.MAP_REQUIRED+('workshop_certificate','reading_complete','reading_certificate','board_returned'):self.add(slug)
         self.app.config['AIT_READING_STEP35']={'version':'supplied-v1'}
         self.add('step35',passed=True,version='supplied-v1')
@@ -142,7 +144,7 @@ class JourneyTests(unittest.TestCase):
 
     def test_engagement_requires_actual_responses(self):
         self.add('map_complete');self.add('ppp_complete');self.state(32)
-        self.fails(400,'demo_advance',method='POST',json_data={'step':32,'engagement':list(self.flow.ENGAGEMENT)})
+        self.fails(400,'demo_advance',method='POST',json_data={'step':32,'engagement':['objective']})
         self.assertIsNone(self.latest(self.row,'step32'))
 
     def test_failed_workshop_mcq_cannot_unlock_certificate(self):
@@ -159,8 +161,8 @@ class JourneyTests(unittest.TestCase):
 
     def test_reading_cannot_complete_unserved_or_later_video(self):
         self.workshop()
-        self.fails(409,'reading_lesson',method='POST',data={'completed':'yes'},lesson_id=1)
-        self.fails(409,'reading_lesson',method='POST',data={'completed':'yes'},lesson_id=2)
+        self.fails(409,'reading_lesson',method='POST',json_data={'ended':True},lesson_id=1)
+        self.fails(409,'reading_lesson',method='POST',json_data={'ended':True},lesson_id=2)
         self.assertIsNone(self.latest(self.row,'reading_lesson_1_complete'))
 
 
@@ -215,7 +217,8 @@ class JourneyTests(unittest.TestCase):
     def test_ppp_requires_all_slides(self):
         for i in range(1,30):self.add(f'ppp_slide_{i}')
         self.fails(409,'ppp_complete')
-        self.add('ppp_slide_30');self.call('ppp_complete')
+        self.add('ppp_slide_30');self.fails(409,'ppp_complete')
+        self.add('ppp_slide_31');self.call('ppp_complete')
         self.assertIsNotNone(self.latest(self.row,'ppp_complete'))
 
     def test_csv_formula_cells_escaped(self):

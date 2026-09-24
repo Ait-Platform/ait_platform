@@ -8,7 +8,15 @@
 
 <div class="flex justify-end"><a class="underline" href="{{ url_for('sace_bp.reading_course') }}">Return to course</a></div><p>{{ lesson.caption or '' }}</p>
 <video id="video" class="w-full" controls preload="metadata" src="{{ url_for('sace_bp.reading_video',lesson_id=lesson.id) }}"></video>
-<form method="post" id="complete"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="completed" value="yes"><button id="confirm" disabled class="bg-indigo-700 text-white rounded px-4 py-2 disabled:opacity-40">Save video completion</button></form><p id="status" role="status">Play the video to completion.</p>
-<script>const v=document.getElementById('video');v.onended=()=>{document.getElementById('confirm').disabled=false;document.getElementById('status').textContent='Video ended. Save your completion to continue.';};v.onerror=()=>{document.getElementById('status').textContent='Video unavailable. Completion has not been recorded.';document.getElementById('confirm').disabled=true;};</script>
+<p id="status" role="status">Play the video to completion. Progress saves automatically.</p>
+<button id="retry" class="hidden border border-slate-300 rounded p-2">Retry saving playback</button>
+<script>
+const v=document.getElementById('video'),status=document.getElementById('status'),retry=document.getElementById('retry');let watched=0,saving=false,finished=false;
+v.ontimeupdate=()=>{if(!v.seeking&&v.currentTime<=watched+2)watched=Math.max(watched,v.currentTime);};
+v.onseeking=()=>{if(v.currentTime>watched+1)v.currentTime=watched;};
+async function save(){if(saving||!finished)return;saving=true;try{const r=await fetch(location.pathname,{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':{{ csrf_token()|tojson }}},body:JSON.stringify({ended:true})});if(!r.ok)throw Error();const data=await r.json();status.textContent='Video completion recorded.';location.href=data.next;}catch(e){status.textContent='Playback finished but progress could not be saved. Retry saving.';retry.classList.remove('hidden');}finally{saving=false;}}
+v.onended=()=>{if(Number.isFinite(v.duration)&&watched>=v.duration-2){finished=true;save();}};retry.onclick=save;
+v.onerror=()=>{status.textContent='Video unavailable. Completion has not been recorded.';};
+</script>
 </div></div></div>
 {% endblock %}

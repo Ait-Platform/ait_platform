@@ -61,11 +61,7 @@
         
 <div class="bg-slate-50 border border-slate-200 p-6 rounded-lg text-slate-900 font-bold text-base leading-relaxed space-y-4 mb-8">
             <p>Before proceeding to registration and evaluation, SACE Evaluators must acknowledge the following Intellectual Property agreement.</p>
-            <p>By accessing the evaluation hub, you acknowledge that the digital framework, visual mapping, and associated teaching methodologies are the protected Intellectual Property of the Archoney Institute of Technology (AIT).</p>
-            <ul class="list-disc list-inside ml-2 space-y-2 font-semibold">
-                <li>Access is provided solely for the purpose of SACE endorsement evaluation.</li>
-                <li>No part of the interactive platform or its proprietary methods may be copied, reproduced, or distributed.</li>
-            </ul>
+            {% include 'program_sace/_auditor_ip_terms.html' %}
         </div>
         
         <form action="{{ url_for('sace_bp.auditor_pledge') }}" method="POST" class="flex justify-end gap-4">

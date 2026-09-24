@@ -1,0 +1,10 @@
+{% extends 'layout.html' %}
+{% block flashes %}{% endblock %}
+{% block content %}
+<div class="max-w-5xl mx-auto px-4 py-8"><div class="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden"><div class="h-2 bg-indigo-700"></div><div class="p-6 space-y-6">
+<div class="flex items-center justify-between gap-4"><h1 class="text-2xl font-bold">AIT IP Pledge</h1><a class="border border-slate-300 rounded px-4 py-2" href="{{ url_for('sace_bp.reading_hub') }}">Back to Auditor Board</a></div>
+{% include 'partials/flash_messages.html' %}
+<p>The pledge accepted during Join is shown here for examination/reference. You do not need to accept it again.</p>
+{% include 'program_sace/_auditor_ip_terms.html' %}
+</div></div></div>
+{% endblock %}

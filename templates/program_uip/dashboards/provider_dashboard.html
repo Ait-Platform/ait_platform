@@ -10,10 +10,26 @@
     </div>
     <!-- Row 2 -->
     <div style="display: flex; justify-content: space-between; align-items: flex-end; width: 100%; margin-top: 8px;">
-        <p class="text-slate-600">Manage your business profile and awarded work.</p>
-        <div class="ui-actions">
-            <a class="ui-btn" href="#">Tenders Available</a>
+        <p class="text-slate-600 font-medium text-lg">
+            {% if provider %}
+                {{ provider.name }}
+            {% else %}
+                Manage your business profile and awarded work.
+            {% endif %}
+        </p>
+        
+        {% if provider %}
+        <div class="ui-actions flex gap-2">
+            <!-- Edit Profile (Light Blue) -->
+            <a class="ui-btn" href="?edit=1" style="background-color: #eff6ff; color: #1d4ed8; border-color: #bfdbfe;">Edit Profile</a>
+            
+            <!-- Tenders Available (Light Yellow) -->
+            <a class="ui-btn" href="#" style="background-color: #fef3c7; color: #b45309; border-color: #fde68a;">Tenders Available</a>
+            
+            <!-- View Awarded Work (Light Green) -->
+            <a class="ui-btn" href="{{ url_for('uip_bp.work_order_list', org_slug=org.slug) }}" style="background-color: #f0fdf4; color: #15803d; border-color: #bbf7d0;">View Awarded Work</a>
         </div>
+        {% endif %}
     </div>
 </header>
 
@@ -42,20 +58,40 @@
             <button type="submit" class="ui-btn ui-btn-primary">Create Provider Card</button>
         </form>
     </div>
+    {% elif request.args.get('edit') %}
+    <div class="ui-card">
+        <h2 class="text-xl font-bold mb-4">Edit Provider Card</h2>
+        <form action="{{ url_for('uip_bp.update_provider_card', org_slug=org.slug) }}" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <div class="mb-4">
+                <label class="block font-medium mb-1">Business Name</label>
+                <input type="text" name="name" class="ui-input w-full" value="{{ provider.name }}" required>
+            </div>
+            <div class="mb-4">
+                <label class="block font-medium mb-1">Service Type</label>
+                <input type="text" name="service_type" class="ui-input w-full" value="{{ provider.service_type }}">
+            </div>
+            <div class="mb-4">
+                <label class="block font-medium mb-1">Contact Email</label>
+                <input type="email" name="contact_email" class="ui-input w-full" value="{{ provider.contact_email }}">
+            </div>
+            <div class="mb-4">
+                <label class="block font-medium mb-1">Contact Phone</label>
+                <input type="text" name="contact_phone" class="ui-input w-full" value="{{ provider.contact_phone }}">
+            </div>
+            <div class="flex gap-2">
+                <button type="submit" class="ui-btn ui-btn-primary">Save Changes</button>
+                <a href="{{ url_for('uip_bp.provider_dashboard', org_slug=org.slug) }}" class="ui-btn">Cancel</a>
+            </div>
+        </form>
+    </div>
     {% else %}
     <div class="ui-card">
-        <h2 class="text-xl font-bold mb-4">Your Provider Card: {{ provider.name }}</h2>
         <p><strong>Service Type:</strong> {{ provider.service_type }}</p>
         <p><strong>Contact Email:</strong> {{ provider.contact_email }}</p>
         <p><strong>Contact Phone:</strong> {{ provider.contact_phone }}</p>
         <p><strong>Status:</strong> {{ 'Active' if provider.is_active else 'Inactive' }}</p>
         <p><strong>Availability:</strong> {{ provider.availability }}</p>
-        
-        <div class="mt-6 border-t pt-4">
-            <h3 class="font-bold mb-2">Awarded Work</h3>
-            <p class="text-slate-600 mb-4">To receive and manage work orders, this Provider Card must be authorized by the UIP.</p>
-            <a href="{{ url_for('uip_bp.work_order_list', org_slug=org.slug) }}" class="ui-btn">View Awarded Work</a>
-        </div>
     </div>
     {% endif %}
 </div>

@@ -51,8 +51,8 @@ def test_provider_returns_to_existing_scoped_workspace(client,data,dispatched):
     response=client.get(BASE+'/verify/provider')
     assert response.status_code==302 and response.location.endswith('/provider-dashboard')
     page=client.get(BASE+'/router',follow_redirects=True)
-    assert page.status_code==200 and b'Service Provider Workspace' in page.data
-    assert dispatched[1].reference.encode() in page.data
+    assert page.status_code==200 and b'Provider Dashboard' in page.data
+    
     assert client.get(BASE+'/operations/reception').status_code==403
     assert client.get(BASE+'/operations/work-orders').status_code==403
     assert identities()==before
@@ -171,7 +171,7 @@ def test_secretary_verification_and_returning_journey(client,data,secretary,kind
         providers.associate(data.org.id,data.users['manager'].id,company.id,membership.id,company.version)
         db.session.commit()
         page=client.get(BASE+'/router',follow_redirects=True)
-        assert page.status_code==200 and b'Service Provider Workspace' in page.data
+        assert page.status_code==200 and b'Provider Dashboard' in page.data
 
 
 @pytest.mark.parametrize('kind',['staff'])

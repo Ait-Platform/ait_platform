@@ -80,6 +80,15 @@ def migrate_phase11(connection):
         module.upgrade()
 
 
+def migrate_phase57(connection):
+    spec = importlib.util.spec_from_file_location("uip_phase57_revision", ROOT / "migrations/versions/uip_p57_provider_registration.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    from alembic.operations import Operations
+    from alembic.migration import MigrationContext
+    with Operations.context(MigrationContext.configure(connection)):
+        module.upgrade()
+
 def migrate_phase55(connection):
     spec = importlib.util.spec_from_file_location("uip_phase55_revision", ROOT / "migrations/versions/uip_p55_sub_tools.py")
     module = importlib.util.module_from_spec(spec)
@@ -148,6 +157,7 @@ def engine():
             migrate_phase53(connection)
             migrate_phase54(connection)
             migrate_phase55(connection)
+            migrate_phase57(connection)
         yield engine
     finally:
         engine.dispose()

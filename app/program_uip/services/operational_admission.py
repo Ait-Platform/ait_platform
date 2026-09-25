@@ -24,12 +24,10 @@ def require_secretary(org, actor):
 def permitted_roles(claim):
     if claim.interaction_type != "staff_claim":
         return ()
-    if claim.category == "UIP_PROVIDER_ACCESS" or claim.description == "Requested operational journey: provider":
-        return ("provider",)
     if claim.category == "UIP_STAFF_ACCESS" or claim.description == "Requested operational journey: staff":
         return ("receptionist",)
     # Older combined requests require an explicit Secretary choice; never default to owner.
-    return ("receptionist", "provider")
+    return ("receptionist",)
 
 
 def admit(org, actor, claim_ids, values):

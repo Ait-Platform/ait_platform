@@ -1,0 +1,54 @@
+{% extends "program_uip/base.html" %}
+{% block title %}Provider Dashboard - {{ org.name }}{% endblock %}
+
+{% block content %}
+<header class="ui-page-head">
+    <h1>Provider Dashboard</h1>
+    <a class="ui-btn" href="{{ url_for('uip_bp.router_page', org_slug=org.slug, force=1) }}">Role Selection</a>
+</header>
+
+<div class="ui-layout">
+    <div class="ui-main-column">
+        {% if not provider %}
+        <div class="ui-card">
+            <h2 class="text-xl font-bold mb-4">Create Provider Card</h2>
+            <form action="{{ url_for('uip_bp.create_provider_card', org_slug=org.slug) }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <div class="mb-4">
+                    <label class="block font-medium mb-1">Business Name</label>
+                    <input type="text" name="name" class="ui-input w-full" required>
+                </div>
+                <div class="mb-4">
+                    <label class="block font-medium mb-1">Service Type</label>
+                    <input type="text" name="service_type" class="ui-input w-full">
+                </div>
+                <div class="mb-4">
+                    <label class="block font-medium mb-1">Contact Email</label>
+                    <input type="email" name="contact_email" class="ui-input w-full">
+                </div>
+                <div class="mb-4">
+                    <label class="block font-medium mb-1">Contact Phone</label>
+                    <input type="text" name="contact_phone" class="ui-input w-full">
+                </div>
+                <button type="submit" class="ui-btn ui-btn-primary">Create Provider Card</button>
+            </form>
+        </div>
+        {% else %}
+        <div class="ui-card">
+            <h2 class="text-xl font-bold mb-4">Your Provider Card: {{ provider.name }}</h2>
+            <p><strong>Service Type:</strong> {{ provider.service_type }}</p>
+            <p><strong>Contact Email:</strong> {{ provider.contact_email }}</p>
+            <p><strong>Contact Phone:</strong> {{ provider.contact_phone }}</p>
+            <p><strong>Status:</strong> {{ 'Active' if provider.is_active else 'Inactive' }}</p>
+            <p><strong>Availability:</strong> {{ provider.availability }}</p>
+            
+            <div class="mt-6 border-t pt-4">
+                <h3 class="font-bold mb-2">Awarded Work</h3>
+                <p class="text-slate-600 mb-4">To receive and manage work orders, this Provider Card must be authorized by the UIP.</p>
+                <a href="{{ url_for('uip_bp.work_order_list', org_slug=org.slug) }}" class="ui-btn">View Awarded Work</a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

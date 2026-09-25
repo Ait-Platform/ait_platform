@@ -36,7 +36,7 @@ def navigation_context():
         ("Log interaction", "new_interaction", staff | {"committee_member"}),
         ("Interactions / Issues", "reception_page", staff),
         ("Internal tasks / Follow-ups", "tasks_page", staff),
-        ("Providers", "provider_list", {"manager"}), ("Work orders", "work_order_list", staff | {"provider"}),
+        ("Providers", "provider_list", {"manager"}), ("Work orders", "work_order_list", {"provider"}), ("Staff work orders", "staff_work_order_list", staff),
         ("Routing", "routing_page", {"manager"}), ("SLA policies / Monitoring", "sla_page", staff),
         ("Municipal referrals", "municipal_list", staff | {"committee_member"}),
         ("Communications", "communications_list", staff),
@@ -55,7 +55,7 @@ def navigation_context():
         
         ("Residents & Properties", [("Ratepayers", "member_list"), ("Properties", "property_list"), ("Import Register", "register_import")]),
         ("Operations", [("Interactions & Issues", "reception_page"), ("Tasks / Follow-ups", "tasks_page"), ("Municipal Matters", "municipal_list"), ("Communications", "communications_list")]),
-        ("Service Providers", [("Providers", "provider_list"), ("Work Orders", "work_order_list"), ("Routing & SLA", "service_standards")]),
+        ("Service Providers", [("Providers", "provider_list"), ("Work Orders", "work_order_list"), ("Staff Work Orders", "staff_work_order_list"), ("Routing & SLA", "service_standards")]),
         ("Governance", [("Committee Dashboard", "committee_dashboard"), ("Meetings", "meetings_page"), ("Surveys", "surveys_page"), ("Decisions", "decisions_page"), ("Documents", "documents_page")]),
         ("Finance", [("Overview", "finance_overview"), ("Transactions", "finance_transactions"), ("Budget", "finance_budget"), ("Commitments", "finance_commitments")]),
         ("Reports", [("Reports / Exports", "org_reports")]),

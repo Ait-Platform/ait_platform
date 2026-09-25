@@ -153,7 +153,7 @@ def dashboard(org_slug):
         return render_template("program_uip/dashboards/manager.html", org=org, overview={"cards": [], "issues": rows, "upcoming": 0, "clocks": []})
 
     # Normal routing
-    role_slug = _require_role("manager", "receptionist", "committee_member", "owner", "resident", "provider", "municipal_officer", abort_on_fail=False)
+    role_slug = _require_role("manager", "receptionist", "committee_member", "owner", "provider", "resident", "municipal_officer", abort_on_fail=False)
     
     if not role_slug:
         return redirect(url_for("uip_bp.my_access", org_slug=org_slug))
@@ -161,15 +161,15 @@ def dashboard(org_slug):
     if role_slug == "municipal_officer":
         return redirect(url_for("uip_bp.mo_dashboard", org_slug=org_slug))
     if role_slug == "provider":
-        return redirect(url_for("uip_bp.work_order_list", org_slug=org_slug))
+        return redirect(url_for("uip_bp.work_order_list" if providers.has_workspace(org.id, current_user.id) else "uip_bp.my_access", org_slug=org_slug))
     if role_slug in {"resident", "owner"}:
         return redirect(url_for("uip_bp.ratepayer_workspace", org_slug=org_slug))
     if role_slug == "receptionist":
-        return redirect(url_for("uip_bp.my_access", org_slug=org_slug))
+        return redirect(url_for("uip_bp.reception_page", org_slug=org_slug))
     if role_slug == "committee_member":
         return redirect(url_for("uip_bp.committee_dashboard", org_slug=org_slug))
     if role_slug == "manager":
-        return redirect(url_for("uip_bp.my_access", org_slug=org_slug))
+        return redirect(url_for("uip_bp.reception_page", org_slug=org_slug))
         
     return redirect(url_for("uip_bp.my_access", org_slug=org_slug))
         
@@ -729,45 +729,38 @@ def subcommittee_dashboard(org_slug):
 @uip_bp.route("/<org_slug>/verify/staff", methods=["GET", "POST"])
 @login_required
 def verify_staff(org_slug):
-    # Check if they have an operational role
-    role = _require_role("manager", "receptionist", "provider", abort_on_fail=False)
-    
-    from sqlalchemy.exc import ProgrammingError
-    from app.models.uip_governance import UipDelegation
-    try:
-        ratepayer_admin = UipDelegation.query.filter_by(
-            organization_id=g.organization.id,
-            delegation_type="RATEPAYER_ADMIN",
-            status="ACTIVE",
-            delegated_user_id=current_user.id
-        ).first()
-    except ProgrammingError:
-        db.session.rollback()
-        ratepayer_admin = None
-    
-    if role == "manager":
-        return redirect(url_for("uip_bp.dashboard", org_slug=org_slug)) # Dashboard handles manager route
-    if role == "receptionist":
-        return redirect(url_for("uip_bp.dashboard", org_slug=org_slug))
-    if role == "provider":
-        return redirect(url_for("uip_bp.work_order_list", org_slug=org_slug))
-    if ratepayer_admin:
-        return redirect(url_for("uip_bp.member_list", org_slug=org_slug))
-        
-    from app.models.core import CoreInteraction
-    
-    claim = CoreInteraction.query.filter_by(
-        organization_id=g.organization.id, creator_id=current_user.id, interaction_type="staff_claim", status="OPEN"
-    ).first()
+    if work_orders.is_staff(g.organization.id, current_user.id):
+        return redirect(url_for("uip_bp.reception_page", org_slug=org_slug))
+    return _operational_claim(org_slug, "staff", "Staff")
+
+
+def _operational_claim(org_slug, kind, label):
+    from uuid import uuid4
+    # A pending claim is an expression of intent, never a role/association grant.
+    claim = CoreInteraction.query.filter_by(organization_id=g.organization.id,
+        creator_id=current_user.id, interaction_type="staff_claim", status="OPEN",
+        title=label + " Access Request").first()
     if not claim:
-        claim = CoreInteraction(
-            organization_id=g.organization.id, creator_id=current_user.id,
-            interaction_type="staff_claim", title="Staff / Provider Claim",
-            description=f"User {current_user.email} claims to be staff or service provider.", status="OPEN"
-        )
+        claim = CoreInteraction(organization_id=g.organization.id, creator_id=current_user.id,
+            interaction_type="staff_claim", reference="ACCESS-" + uuid4().hex, title=label + " Access Request",
+            description="Requested operational journey: " + kind,
+            category="UIP_PROVIDER_ACCESS" if kind == "provider" else "UIP_STAFF_ACCESS", status="OPEN")
         db.session.add(claim)
         db.session.commit()
-        
+    return redirect(url_for("uip_bp.my_access", org_slug=org_slug, claim="staff"))
+
+
+@uip_bp.route("/<org_slug>/verify/provider", methods=["GET", "POST"])
+@login_required
+def verify_provider(org_slug):
+    if providers.has_workspace(g.organization.id, current_user.id):
+        return redirect(url_for("uip_bp.work_order_list", org_slug=org_slug))
+    from werkzeug.exceptions import Forbidden
+    try:
+        audit.authorize(g.organization.id, current_user.id, ("provider",))
+    except Forbidden:
+        return _operational_claim(org_slug, "provider", "Service Provider")
+    flash("Provider authority is verified. An active provider association is still required before work-order access.", "info")
     return redirect(url_for("uip_bp.my_access", org_slug=org_slug, claim="staff"))
 
 
@@ -1310,10 +1303,17 @@ def provider_revoke(org_slug, provider_id, link_id):
 
 
 @uip_bp.route("/<org_slug>/work-orders")
+@uip_bp.route("/<org_slug>/operations/work-orders", endpoint="staff_work_order_list")
 @login_required
 def work_order_list(org_slug):
-    rows = work_orders.orders(g.organization.id, current_user.id).limit(200).all()
+    provider_workspace = request.endpoint == "uip_bp.work_order_list"
+    if provider_workspace:
+        providers.require_workspace(g.organization.id, current_user.id)
+    else:
+        audit.authorize(g.organization.id, current_user.id, providers.STAFF)
+    rows = work_orders.orders(g.organization.id, current_user.id, provider_only=provider_workspace).limit(200).all()
     return render_template("program_uip/work_orders/list.html", org=g.organization,
+        provider_workspace=provider_workspace,
         orders=[work_orders.projection(g.organization.id, current_user.id, row.id) for row in rows])
 
 

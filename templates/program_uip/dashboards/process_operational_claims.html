@@ -1,0 +1,15 @@
+{% extends "program_uip/base.html" %}
+{% block title %}Verify Staff and Providers ? {{ org.name }}{% endblock %}
+{% block content %}<section class="bg-white rounded-xl shadow border-t-4 border-blue-600 p-6">
+<div class="flex justify-between"><h1 class="text-2xl font-bold">Verify Staff and Providers</h1><a href="{{ url_for('uip_bp.secretary_intake', org_slug=org.slug) }}">Back to User Verification</a></div>
+<p class="my-4">Verify each person's requested journey before admitting them. Provider admission does not assign a provider entity or any work orders.</p>
+{% for category,message in get_flashed_messages(with_categories=true) %}<p>{{ message }}</p>{% endfor %}
+<form method="post" action="{{ url_for('uip_bp.finalize_access_resolution', org_slug=org.slug) }}" class="space-y-4">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="resolution_target" value="operational">
+{% for claim in claims %}<div class="border border-slate-300 rounded p-4">
+<input type="hidden" name="claim_ids[]" value="{{ claim.id }}">
+<p>{{ claim.creator.name }} ? {{ claim.creator.email }}</p><p>{{ claim.title }}</p><p>{{ claim.description }}</p>
+{% set roles = permitted_roles(claim) %}
+{% if roles|length == 1 %}<p>Admit as: {{ 'Reception Staff' if roles[0] == 'receptionist' else 'Service Provider' }}</p><input type="hidden" name="operational_role_{{ claim.id }}" value="{{ roles[0] }}">
+{% else %}<label>Verify the requested journey<select autofocus required name="operational_role_{{ claim.id }}" class="border border-slate-300 rounded p-2"><option value="">Select verified journey</option>{% for role in roles %}<option value="{{ role }}">{{ {'receptionist':'Reception Staff','provider':'Service Provider'}[role] }}</option>{% endfor %}</select></label>{% endif %}</div>{% endfor %}
+<div class="flex justify-end"><button class="ui-btn ui-btn-primary">Verify and admit</button></div></form></section>{% endblock %}

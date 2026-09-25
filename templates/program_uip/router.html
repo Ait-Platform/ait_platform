@@ -88,13 +88,14 @@
                     <div class="flex items-center">
                         <i class="fas fa-hard-hat text-2xl w-10 text-orange-600 mr-4 text-center"></i>
                         <div>
-                            <h2 class="text-lg font-bold text-slate-900 mb-0">Operations & Providers</h2>
-                            <p class="text-xs text-slate-500">Precinct Managers, Staff, and contractors.</p>
+                            <h2 class="text-lg font-bold text-slate-900 mb-0">Staff</h2>
+                            <p class="text-xs text-slate-500">Assigned precinct managers and reception staff.</p>
                         </div>
                     </div>
                     <i class="fas fa-chevron-right text-orange-200 ml-2"></i>
                 </a>
                 
+                <a href="{{ url_for('uip_bp.verify_provider', org_slug=org.slug) }}" class="p-4 block rounded-xl border border-orange-100" style="background-color:#fff7ed;text-decoration:none"><h2 class="text-lg font-bold">Service Provider</h2><p class="text-xs">Your assigned and dispatched work orders.</p></a>
                 <!-- MO Tile -->
                 <a href="{{ url_for('uip_bp.verify_mo', org_slug=org.slug) }}" class="p-4 block rounded-xl shadow-sm border border-cyan-100 transition-transform hover:-translate-y-1 flex items-center justify-between" style="background-color: #ecfeff; text-decoration: none;">
                     <div class="flex items-center">

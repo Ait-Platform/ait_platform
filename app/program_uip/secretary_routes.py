@@ -129,6 +129,14 @@ def draft_access_resolution(org_slug):
         flash("Selected claims are no longer open or valid.", "danger")
         return redirect(url_for("uip_bp.secretary_workspace", org_slug=org.slug))
         
+    if any(c.interaction_type == "staff_claim" for c in claims):
+        from .services.operational_admission import require_secretary, permitted_roles
+        require_secretary(org.id, current_user.id)
+        if not all(c.interaction_type == "staff_claim" for c in claims):
+            abort(400, description="Select Staff/Provider requests separately from governance claims.")
+        return render_template("program_uip/dashboards/process_operational_claims.html", org=org,
+            claims=claims, permitted_roles=permitted_roles)
+
     from datetime import datetime
     return render_template(
         "program_uip/dashboards/process_claims.html",
@@ -145,6 +153,12 @@ def finalize_access_resolution(org_slug):
     
     claim_ids = request.form.getlist("claim_ids[]")
     target = request.form.get("resolution_target", "new")
+    if target == "operational":
+        from .services.operational_admission import admit
+        admit(org.id, current_user.id, claim_ids, request.form)
+        db.session.commit()
+        flash("Staff/Provider access verified. Provider associations remain separate.", "success")
+        return redirect(url_for("uip_bp.secretary_intake", org_slug=org.slug))
     term_start = request.form.get("term_start_date", "")
     term_duration = request.form.get("term_duration_months", "12")
     
@@ -158,6 +172,9 @@ def finalize_access_resolution(org_slug):
         flash("Selected claims are no longer open or valid.", "danger")
         return redirect(url_for("uip_bp.secretary_workspace", org_slug=org.slug))
         
+    if any(c.interaction_type == "staff_claim" for c in claims):
+        abort(400, description="Use Secretary Staff/Provider verification for these requests.")
+
     from datetime import datetime
     current_year = datetime.now().year
     

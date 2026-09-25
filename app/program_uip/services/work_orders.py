@@ -42,17 +42,13 @@ def get(org, actor, order_id):
     return order
 
 
-def orders(org, actor):
+def orders(org, actor, provider_only=False):
     query = UipWorkOrder.query.filter_by(organization_id=org)
-    if not is_staff(org, actor):
+    if provider_only or not is_staff(org, actor):
         from app.models.core import CoreOrganizationMember
         from app.models.uip import UipProviderUser
         audit.authorize(org, actor, ("provider",))
-        linked_ids = db.session.query(UipProviderUser.provider_id).join(CoreOrganizationMember,
-            CoreOrganizationMember.id == UipProviderUser.membership_id).filter(
-            UipProviderUser.organization_id == org, UipProviderUser.is_active.is_(True),
-            CoreOrganizationMember.organization_id == org, CoreOrganizationMember.user_id == actor,
-            CoreOrganizationMember.is_active.is_(True))
+        linked_ids = providers.active_associations(org, actor).with_entities(UipProviderUser.provider_id)
         dispatched = db.session.query(UipWorkOrderAction.work_order_id).filter_by(organization_id=org, action="dispatched")
         query = query.filter(UipWorkOrder.provider_id.in_(linked_ids), UipWorkOrder.id.in_(dispatched))
     return query.order_by(UipWorkOrder.id.desc())

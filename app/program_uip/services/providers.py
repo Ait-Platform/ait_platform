@@ -34,11 +34,31 @@ def linked(org, provider_id, user_id):
         audit.authorize(org, user_id, ("provider",))
     except Forbidden:
         return False
+    return active_associations(org, user_id).filter(UipProviderUser.provider_id == provider_id).first() is not None
+
+
+
+def active_associations(org, user_id):
+    audit.authorize(org, user_id, ("provider",))
     return UipProviderUser.query.join(CoreOrganizationMember,
-        CoreOrganizationMember.id == UipProviderUser.membership_id).filter(
-        UipProviderUser.organization_id == org, UipProviderUser.provider_id == provider_id,
-        UipProviderUser.is_active.is_(True), CoreOrganizationMember.organization_id == org,
-        CoreOrganizationMember.user_id == user_id, CoreOrganizationMember.is_active.is_(True)).first() is not None
+        CoreOrganizationMember.id == UipProviderUser.membership_id).join(UipProvider,
+        (UipProvider.id == UipProviderUser.provider_id) & (UipProvider.organization_id == UipProviderUser.organization_id)).filter(
+        UipProviderUser.organization_id == org, UipProviderUser.is_active.is_(True),
+        UipProvider.is_active.is_(True), CoreOrganizationMember.organization_id == org,
+        CoreOrganizationMember.user_id == user_id, CoreOrganizationMember.is_active.is_(True))
+
+
+def require_workspace(org, user_id):
+    if not active_associations(org, user_id).first():
+        abort(403, description="An active provider association is required.")
+
+
+def has_workspace(org, user_id):
+    try:
+        require_workspace(org, user_id)
+        return True
+    except Forbidden:
+        return False
 
 
 def associated(org, provider_id, user_id):

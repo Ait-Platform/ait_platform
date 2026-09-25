@@ -9,7 +9,7 @@ from alembic import op
 import sqlalchemy as sa
 
 revision = 'uip_p54'
-down_revision = 'uip_p53'
+down_revision = 'uip_p53_proposals'
 branch_labels = None
 depends_on = None
 

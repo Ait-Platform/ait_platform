@@ -1,4 +1,4 @@
-﻿{% extends "program_uip/base_public.html" %}
+{% extends "program_uip/base_public.html" %}
 {% block title %}{{ org.name }} - Request Access{% endblock %}
 
 {% block content %}
@@ -13,6 +13,24 @@
 {% include "partials/flash_messages.html" %}
 
 <div class="mt-8 mb-16 px-4 max-w-6xl mx-auto">
+    {% if is_vault_ratepayer %}
+    <div class="max-w-xl mx-auto">
+        <h2 class="text-xl font-extrabold text-slate-800 mb-6 border-b border-slate-200 pb-2 text-center">Your Authorized Access</h2>
+        <div class="space-y-4 mb-10">
+            <!-- Ratepayer Tile -->
+            <a href="{{ url_for('uip_bp.verify_ratepayer', org_slug=org.slug) }}" class="p-4 block rounded-xl shadow-sm border border-indigo-100 transition-transform hover:-translate-y-1 flex items-center justify-between" style="background-color: #eef2ff; text-decoration: none;">
+                <div class="flex items-center">
+                    <i class="fas fa-home text-2xl w-10 text-indigo-600 mr-4 text-center"></i>
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-900 mb-0">Property Owner</h2>
+                        <p class="text-xs text-slate-500">Verified securely against the municipal property vault.</p>
+                    </div>
+                </div>
+                <i class="fas fa-chevron-right text-indigo-200 ml-2"></i>
+            </a>
+        </div>
+    </div>
+    {% else %}
     <div class="grid md:grid-cols-2 gap-10">
         
         <!-- Left Column: ExCo & Subcommittees -->
@@ -125,5 +143,6 @@
         </div>
         
     </div>
+    {% endif %}
 </div>
 {% endblock %}

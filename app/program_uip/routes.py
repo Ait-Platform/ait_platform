@@ -129,7 +129,7 @@ def dashboard(org_slug):
 
     from .services.ratepayer import vault_identity
     member, properties, _ = vault_identity(org.id, current_user)
-    if member and properties:
+    if member:
         return redirect(url_for("uip_bp.ratepayer_workspace", org_slug=org.slug))
     from .services.subcommittees import member_subcommittees
     if member_subcommittees(org.id, current_user):
@@ -310,7 +310,7 @@ def router_page(org_slug):
     if not force_menu:
         from .services.ratepayer import vault_identity
         member, properties, _ = vault_identity(org.id, current_user)
-        if member and properties:
+        if member:
             return redirect(url_for("uip_bp.ratepayer_workspace", org_slug=org.slug))
         from .services.subcommittees import member_subcommittees
         if member_subcommittees(org.id, current_user):
@@ -348,8 +348,11 @@ def router_page(org_slug):
         if pos in ["chairman", "chair"]: pos = "chairperson"
         if pos in ["vice chairman", "vice chair"]: pos = "vice-chairperson"
         occupied_seats.append(pos)
+        
+    from .services.ratepayer import vault_identity
+    rp_member, rp_properties, vault_available = vault_identity(org.id, current_user)
     
-    return render_template("program_uip/router.html", org=org, occupied_seats=occupied_seats, exco_seats=exco_seats, sub_seats=sub_seats)
+    return render_template("program_uip/router.html", org=org, occupied_seats=occupied_seats, exco_seats=exco_seats, sub_seats=sub_seats, is_vault_ratepayer=bool(rp_member))
 
 @uip_bp.route("/<org_slug>/my-access")
 @login_required
@@ -381,11 +384,14 @@ def my_access(org_slug):
 def verify_ratepayer(org_slug):
     from .services.ratepayer import vault_identity
     member, properties, available = vault_identity(g.organization.id, current_user)
-    if member and properties:
+    if member:
         return redirect(url_for("uip_bp.ratepayer_workspace", org_slug=org_slug))
-    if available:
-        abort(403, description="No current authoritative Vault match. The business rule for this case is not yet defined.")
-    return render_template("program_uip/ratepayer_waiting.html", org=g.organization)
+    if not available:
+        return render_template("program_uip/ratepayer_waiting.html", org=g.organization)
+        
+    from flask import flash
+    flash("Your registered email does not match any property owners in the municipal register.", "warning")
+    return redirect(url_for("uip_bp.router_page", org_slug=org_slug, force=1))
 
 
 @uip_bp.route("/<org_slug>/verify/secretary", methods=["GET"])
@@ -1518,7 +1524,7 @@ def ratepayer_workspace(org_slug):
     from .services import ratepayer
     from app.models.uip import UipDocument
     member, properties, available = ratepayer.vault_identity(g.organization.id, current_user)
-    if not member or not properties:
+    if not member:
         return redirect(url_for("uip_bp.verify_ratepayer", org_slug=org_slug))
     if request.method == "POST":
         ratepayer.lodge_query(g.organization.id, current_user, member, request.form,

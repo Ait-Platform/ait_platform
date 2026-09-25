@@ -33,8 +33,32 @@ def test_uip_request_logs_omit_sensitive_contents_and_keep_metadata(caplog):
     for safe in ("method=POST", "route=/uip/vote/<org_slug>/<token>", "endpoint=uip_bp.public_vote", "status=302", "organization_id=42", "user_id=7", "request_id=a123b456"):
         assert safe in caplog.text
     assert any(r.levelno==logging.ERROR for r in caplog.records)
+    assert "exception_type=ValueError" in caplog.text
+    assert all(r.exc_info is None and r.exc_text is None and r.stack_info is None for r in caplog.records)
     caplog.clear()
     with caplog.at_level(logging.INFO, logger=app.logger.name):
         with app.test_request_context("/other-product"):
             app.logger.info("form=%s",{"test":"other-product-marker"})
     assert "other-product-marker" in caplog.text
+
+
+def test_uip_error_logs_safe_application_location_without_exception_values(caplog):
+    from pathlib import Path
+    app = Flask("uip_error_location_test")
+    app.config.update(TESTING=False, PROPAGATE_EXCEPTIONS=False)
+    secret = "PRIVATE_DATABASE_VALUE"
+    source_path = Path(__file__).resolve().parents[2] / "app/program_uip/diagnostic_fixture.py"
+    namespace = {"secret": secret}
+    # A synthetic application frame, without creating or importing a source file.
+    exec(compile("def fail():\n    raise RuntimeError(secret)\n", str(source_path), "exec"), namespace)
+    app.add_url_rule("/uip/example/router", endpoint="uip_bp.router_page", view_func=namespace["fail"])
+    install(app)
+    with caplog.at_level(logging.ERROR, logger=app.logger.name):
+        response = app.test_client().get("/uip/example/router")
+    assert response.status_code == 500
+    assert "exception_type=RuntimeError" in caplog.text
+    assert "app/program_uip/diagnostic_fixture.py:2" in caplog.text
+    assert secret not in caplog.text
+    assert str(source_path.parent.parent.parent) not in caplog.text
+    assert "raise RuntimeError" not in caplog.text
+    assert all(r.exc_info is None and r.exc_text is None and r.stack_info is None for r in caplog.records)

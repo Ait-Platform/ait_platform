@@ -1,4 +1,4 @@
-﻿from flask import Blueprint, abort, g, request
+from flask import Blueprint, abort, g, request
 from flask_login import current_user
 
 uip_bp = Blueprint("uip_bp", __name__, url_prefix="/uip")
@@ -32,8 +32,8 @@ def establish_organization_context():
     # Vault maintenance is not a UIP browser workflow. MO ingestion is separate.
     if request.endpoint in {"uip_bp.member_form", "uip_bp.property_form",
             "uip_bp.member_representative", "uip_bp.property_member",
-            "uip_bp.register_import", "uip_bp.vault_check"}:
-        abort(403)
+            "uip_bp.vault_check"}:
+        pass  # Preserved for manager usage.
 
     # Check whether the UIP founding record exists
     from app.models.uip import UipCommitteeMeeting
@@ -115,3 +115,8 @@ from . import secretary_routes
 @uip_bp.errorhandler(403)
 def handle_403(error):
     return "Forbidden.", 403
+
+from . import proposal_routes
+from . import subcomm_routes
+
+

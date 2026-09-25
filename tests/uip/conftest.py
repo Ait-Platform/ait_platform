@@ -80,6 +80,27 @@ def migrate_phase11(connection):
         module.upgrade()
 
 
+def migrate_phase55(connection):
+    spec = importlib.util.spec_from_file_location("uip_phase55_revision", ROOT / "migrations/versions/uip_p55_sub_tools.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    with Operations.context(MigrationContext.configure(connection)):
+        module.upgrade()
+
+def migrate_phase53(connection):
+    spec = importlib.util.spec_from_file_location("uip_phase53_revision", ROOT / "migrations/versions/uip_p53_proposals.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    with Operations.context(MigrationContext.configure(connection)):
+        module.upgrade()
+
+def migrate_phase54(connection):
+    spec = importlib.util.spec_from_file_location("uip_phase54_revision", ROOT / "migrations/versions/uip_p54_subcommittee.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    with Operations.context(MigrationContext.configure(connection)):
+        module.upgrade()
+
 def current_request_schema(connection):
     """Explicit synthetic request dependencies; not proof of a production migration path."""
     connection.exec_driver_sql((ROOT / "tests/uip/fixtures/current_request_schema.sql").read_text(encoding="utf-8"))
@@ -124,6 +145,9 @@ def engine():
             migrate_phase10(connection)
             migrate_phase11(connection)
             current_request_schema(connection)
+            migrate_phase53(connection)
+            migrate_phase54(connection)
+            migrate_phase55(connection)
         yield engine
     finally:
         engine.dispose()
@@ -222,3 +246,7 @@ def client(app, data):
         return client.post(path, data={**(data or {}), "csrf_token": token_value})
     client.safe_post = post
     return login()
+
+
+
+

@@ -1,0 +1,12 @@
+{% extends "program_uip/base.html" %}
+{% block title %}{{ title }} - {{ subcommittee.name }}{% endblock %}
+
+{% block content %}
+<h2>{{ title }}</h2>
+<div class="alert alert-info">
+    {{ message }}
+</div>
+<a href="{{ url_for('uip_bp.sub_comm_board', org_slug=org.slug, sub_id=subcommittee.id) }}">Back to Tools</a>
+{% endblock %}
+
+

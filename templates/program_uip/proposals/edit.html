@@ -1,0 +1,15 @@
+{% extends "program_uip/proposals/base.html" %}
+{% block heading %}{{ 'Edit' if proposal else 'New' }} Proposal{% endblock %}
+{% block proposal_content %}
+<form method="post" class="space-y-4">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<label class="block">Title<input autofocus required maxlength="255" name="title" value="{{ proposal.title if proposal else '' }}" class="block w-full border border-slate-300 rounded p-2"></label>
+<label class="block">Proposed activity<textarea required maxlength="20000" name="description" rows="5" class="block w-full border border-slate-300 rounded p-2">{{ proposal.description if proposal else '' }}</textarea></label>
+<label class="block">Motivation<textarea required maxlength="20000" name="motivation" rows="4" class="block w-full border border-slate-300 rounded p-2">{{ proposal.motivation if proposal else '' }}</textarea></label>
+<label class="block">Proposed budget (rand, optional)<input name="proposed_budget" type="number" min="0" max="99999999999999.99" step="0.01" value="{{ proposal.proposed_budget if proposal and proposal.proposed_budget is not none else '' }}" class="block border border-slate-300 rounded p-2"></label>
+<fieldset><legend>Supporting documents already in the UIP document register</legend>
+{% for doc in documents %}<label class="block"><input type="checkbox" name="document_id" value="{{ doc.id }}" {% if doc.id in selected %}checked{% endif %}> {{ doc.title or doc.filename }}</label>{% else %}<p>No existing documents are available under your document permissions.</p>{% endfor %}
+<p>Document access remains governed by its existing permissions.</p></fieldset>
+<button class="ui-btn" type="submit">Save draft</button>
+</form>
+{% endblock %}

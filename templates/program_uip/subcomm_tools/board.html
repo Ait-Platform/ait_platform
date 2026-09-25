@@ -1,0 +1,41 @@
+{% extends "program_uip/base.html" %}
+{% block title %}{{ subcommittee.name }} - Tools{% endblock %}
+
+{% block content %}
+<h2>{{ subcommittee.name }} Tools</h2>
+<p>Responsible Member: {{ resp_mem.name }} ({{ resp_seat.title }})</p>
+<div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;">
+    <div style="border: 1px solid #ccc; padding: 1rem;">
+        <h3>My Subcommittee</h3>
+        <p>Resolution: {{ resolution.description[:20] }}...</p>
+        <p>Reports To: {{ report_seat.title }}</p>
+        <p>Status: {{ subcommittee.status }}</p>
+    </div>
+    <div style="border: 1px solid #ccc; padding: 1rem;">
+        <a href="{{ url_for('uip_bp.sub_comm_members', org_slug=org.slug, sub_id=subcommittee.id) }}">Members</a>
+    </div>
+    <div style="border: 1px solid #ccc; padding: 1rem;">
+        <a href="{{ url_for('uip_bp.sub_comm_meetings', org_slug=org.slug, sub_id=subcommittee.id) }}">Meetings & Agendas</a>
+    </div>
+    <div style="border: 1px solid #ccc; padding: 1rem;">
+        <a href="{{ url_for('uip_bp.sub_comm_proposals', org_slug=org.slug, sub_id=subcommittee.id) }}">Proposals</a>
+    </div>
+    <div style="border: 1px solid #ccc; padding: 1rem;">
+        <a href="{{ url_for('uip_bp.sub_comm_mandates', org_slug=org.slug, sub_id=subcommittee.id) }}">Mandates</a>
+    </div>
+    <div style="border: 1px solid #ccc; padding: 1rem;">
+        <a href="{{ url_for('uip_bp.sub_comm_tasks', org_slug=org.slug, sub_id=subcommittee.id) }}">Tasks & Actions</a>
+    </div>
+    <div style="border: 1px solid #ccc; padding: 1rem;">
+        <a href="{{ url_for('uip_bp.sub_comm_documents', org_slug=org.slug, sub_id=subcommittee.id) }}">Documents</a>
+    </div>
+    <div style="border: 1px solid #ccc; padding: 1rem;">
+        <a href="{{ url_for('uip_bp.sub_comm_reports', org_slug=org.slug, sub_id=subcommittee.id) }}">Reports</a>
+    </div>
+    <div style="border: 1px solid #ccc; padding: 1rem;">
+        <a href="{{ url_for('uip_bp.my_access', org_slug=org.slug) }}">Personal Profile</a>
+    </div>
+</div>
+{% endblock %}
+
+

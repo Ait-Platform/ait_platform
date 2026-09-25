@@ -495,3 +495,5 @@ class UipMemberCampaign(db.Model):
     
     # Relationship
     member_profile = db.relationship("UipMemberProfile", backref=db.backref("campaign_status", uselist=False))
+
+from .uip_proposal import UipProposal, UipProposalDocument

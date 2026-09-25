@@ -1,4 +1,5 @@
 ﻿<nav aria-label="UIP Command Centre" class="ui-navigation">
+{% if can_use_proposals %}<a class="ui-btn" href="{{ url_for('uip_bp.proposal_list', org_slug=org.slug) }}">Proposals</a>{% endif %}
 {% if is_treasurer %}
 <a class="ui-btn" href="{{ url_for('uip_bp.treasurer_workspace', org_slug=org.slug) }}">Treasurer Board</a>
 <a class="ui-btn" href="{{ url_for('uip_bp.secretary_workspace', org_slug=org.slug) }}">Sec Control</a>

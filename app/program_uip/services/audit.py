@@ -74,8 +74,25 @@ ACTIONS.update(OPERATIONAL_ACTIONS)
 
 def authorize(organization_id, actor_user_id, roles):
     from app.models.auth import User
+    from app.models.core import CoreOrganizationMember, CoreRoleAssignment, CoreRole
+    from flask import abort, g
     account = db.session.get(User, actor_user_id)
     if not account or not account.is_active:
+        print("ABORT 403: No account or inactive")
+        abort(403)
+    if not CoreOrganizationMember.query.filter_by(
+        organization_id=organization_id, user_id=actor_user_id, is_active=True
+    ).first():
+        print("ABORT 403: Not active org member")
+        abort(403)
+    assignment = CoreRoleAssignment.query.join(CoreRole, CoreRole.id == CoreRoleAssignment.role_id).filter(
+        CoreRoleAssignment.organization_id == organization_id,
+        CoreRoleAssignment.user_id == actor_user_id,
+        CoreRole.slug.in_(roles),
+        db.or_(CoreRole.organization_id.is_(None), CoreRole.organization_id == organization_id),
+    ).first()
+    if not assignment:
+        print(f"ABORT 403: No role assignment for {actor_user_id} in {roles}")
         abort(403)
     if not CoreOrganizationMember.query.filter_by(
         organization_id=organization_id, user_id=actor_user_id, is_active=True
@@ -104,7 +121,19 @@ def record(organization_id, actor_user_id, action, entity, metadata=None):
     if action not in ACTIONS:
         raise ValueError("Unsupported UIP audit action")
     expected, roles = ACTIONS[action]
-    authorize(organization_id, actor_user_id, roles)
+    if isinstance(metadata, dict):
+        import_id = metadata.get("import_id")
+    else:
+        import_id = None
+    if import_id and action in {"member.created", "member.updated", "property.created", "property.updated", "ownership.created", "ownership.updated"}:
+        from app.models.uip import UipRegisterImport
+        batch = UipRegisterImport.query.filter_by(id=import_id, organization_id=organization_id,
+            imported_by_user_id=actor_user_id, status="PROCESSING").first()
+        if not batch:
+            abort(403)
+        authorize(organization_id, actor_user_id, ("manager", "RATEPAYER_ADMIN", "municipal_officer"))
+    else:
+        authorize(organization_id, actor_user_id, roles)
     if type(entity) is not models[expected]:
         raise ValueError("Audit entity does not match action")
     entity_org = entity.id if expected == "CoreOrganization" else getattr(entity, "organization_id", None)
@@ -151,3 +180,6 @@ def events(organization_id, actor_user_id, event_id=None):
     if event_id is not None:
         return query.filter_by(id=event_id).first_or_404()
     return query.order_by(UipAuditEvent.created_at.desc(), UipAuditEvent.id.desc())
+
+
+

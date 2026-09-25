@@ -194,13 +194,19 @@ def operational_validation(error):
 
 
 @uip_bp.route("/<org_slug>/register/import", methods=["GET", "POST"])
+@uip_bp.route("/<org_slug>/mo-vault/import", methods=["GET", "POST"], endpoint="mo_vault_import")
 @login_required
 def register_import(org_slug):
-    from app.program_uip.services.register import require_register_admin, process_import_batch
+    from app.program_uip.services.register import require_register_admin, require_mo_vault_import, process_import_batch
     from app.models.uip import UipDocument
     from datetime import datetime
     import csv, io
-    require_register_admin(g.organization.id, current_user.id)
+    is_mo_vault = request.path.endswith("/mo-vault/import")
+    if is_mo_vault:
+        require_mo_vault_import(g.organization.id, current_user.id)
+    else:
+        require_register_admin(g.organization.id, current_user.id)
+        
     kind = request.form.get("kind", "members")
     rows, token, error, summary = [], None, None, None
     if request.method == "POST":
@@ -235,7 +241,7 @@ def register_import(org_slug):
             transaction = db.session.begin_nested()
             
             # Save Document
-            doc = UipDocument(organization_id=g.organization.id, uploader_id=current_user.id, title=f"Import {kind} {datetime.now().strftime('%Y-%m-%d')}", category="MUNICIPAL_REGISTER")
+            doc = UipDocument(organization_id=g.organization.id, uploader_id=current_user.id, title=f"Import {kind} {datetime.now().strftime('%Y-%m-%d')}", category="MUNICIPAL_REGISTER", filename=upload.filename)
             db.session.add(doc)
             db.session.flush()
             
@@ -247,7 +253,7 @@ def register_import(org_slug):
                 "document_id": doc.id
             }
             
-            batch, summary = process_import_batch(g.organization.id, current_user.id, kind, rows, metadata)
+            batch, summary = process_import_batch(g.organization.id, current_user.id, kind, rows, metadata, is_authoritative=is_mo_vault)
             
             if commit:
                 transaction.commit()
@@ -265,3 +271,6 @@ def register_import(org_slug):
             
     return render_template("program_uip/register_import.html", org=g.organization, columns=CSV_COLUMNS,
                            kind=kind, rows=rows, preview_token=token, summary=summary, error=error), (400 if error else 200)
+
+
+

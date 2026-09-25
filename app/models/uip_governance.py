@@ -4,6 +4,9 @@ from app.extensions import db
 class UipOrganogramSeat(db.Model):
     __tablename__ = "uip_organogram_seat"
     id = db.Column(db.Integer, primary_key=True)
+    __table_args__ = (
+        db.UniqueConstraint("id", "organization_id", name="uq_uip_organogram_seat_org"),
+    )
     organization_id = db.Column(db.Integer, db.ForeignKey("core_organization.id"), nullable=False)
     title = db.Column(db.String(100), nullable=False)
     group_level = db.Column(db.String(50), nullable=False) # CORE_EXCO, SECOND_GROUP
@@ -135,6 +138,7 @@ class UipCommitteeMember(db.Model):
     organization_id = db.Column(db.Integer, db.ForeignKey("core_organization.id"), nullable=False)
     name = db.Column(db.String(255), nullable=False)
     email = db.Column(db.String(255), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
     position = db.Column(db.String(50), nullable=False)
     status = db.Column(db.String(20), nullable=False, default="CURRENT")
     created_by = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
@@ -147,3 +151,24 @@ class UipCommitteeMember(db.Model):
         db.CheckConstraint("status IN ('CURRENT','FORMER','VACANT')", name="ck_uip_committee_member_status"),
         db.CheckConstraint("position IN ('Chairperson','Vice-Chairperson','Treasurer','Secretary','Committee Member','Advisory Committee Member')", name="ck_uip_committee_member_position"),
     )
+
+class UipSubcommittee(db.Model):
+    __tablename__ = "uip_subcommittee"
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey("core_organization.id"), nullable=False)
+    name = db.Column(db.String(255), nullable=False)
+    establishing_resolution_id = db.Column(db.Integer, nullable=False)
+    responsible_seat_id = db.Column(db.Integer, nullable=False)
+    reports_to_seat_id = db.Column(db.Integer, nullable=False)
+    status = db.Column(db.String(20), nullable=False, default="ACTIVE")
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, server_default=db.func.now())
+    updated_at = db.Column(db.DateTime(timezone=True), onupdate=db.func.now())
+    __table_args__ = (
+        db.UniqueConstraint("id", "organization_id", name="uq_uip_subcommittee_org"),
+        db.ForeignKeyConstraint(["establishing_resolution_id", "organization_id"], ["uip_resolution.id", "uip_resolution.organization_id"], name="fk_uip_subcommittee_resolution_org"),
+        db.ForeignKeyConstraint(["responsible_seat_id", "organization_id"], ["uip_organogram_seat.id", "uip_organogram_seat.organization_id"], name="fk_uip_subcommittee_responsible_org"),
+        db.ForeignKeyConstraint(["reports_to_seat_id", "organization_id"], ["uip_organogram_seat.id", "uip_organogram_seat.organization_id"], name="fk_uip_subcommittee_reports_org"),
+        db.UniqueConstraint("organization_id", "name", "status", name="uq_uip_subcommittee_active_name"),
+        db.CheckConstraint("status IN ('ACTIVE','INACTIVE')", name="ck_uip_subcommittee_status"),
+    )
+

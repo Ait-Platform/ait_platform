@@ -12,7 +12,11 @@ def import_records(organization_id, actor_user_id, kind, rows, effective_date=No
     from datetime import date
     batch, summary = register.process_import_batch(organization_id, actor_user_id, kind, rows,
         dict(source_identifier="Synthetic municipal register", batch_reference="test-fixture",
-             date_received=date(2026,1,1), effective_date=effective_date or date(2026,1,1)))
+             date_received=date(2026,1,1), effective_date=effective_date or date(2026,1,1)), is_authoritative=True)
+    if summary["exceptions"] > 0:
+        from app.models.uip import UipRegisterImportException
+        exs = UipRegisterImportException.query.filter_by(import_id=batch.id).all()
+        for e in exs: print("EXCEPTION:", e.__dict__)
     assert summary["exceptions"] == 0, (batch.status, summary)
     return batch
 
@@ -70,7 +74,8 @@ def test_cross_org_account_rejected(data):
 def test_member_property_pages_and_edit(client, data):
     member=make_member(data);item=make_property(data);db.session.commit()
     for path in ("/members", f"/members/{member.id}", f"/members/{member.id}/edit", "/properties", f"/properties/{item.id}", f"/properties/{item.id}/edit", "/audit"):
-        assert client.get(BASE+path).status_code==200,path
+        resp = client.get(BASE+path)
+        assert resp.status_code==200, f"{path}: {resp.get_data(as_text=True)}"
     # Authoritative names/addresses remain sealed; contact edits remain allowed.
     assert client.safe_post(BASE+f"/members/{member.id}/edit",{**MEMBER,"name":"Tampered"}).status_code==403
     assert client.safe_post(BASE+f"/properties/{item.id}/edit",{**PROPERTY,"address":"Tampered"}).status_code==403
@@ -195,3 +200,10 @@ def test_removed_creation_routes_and_current_import_link(client):
         response=client.get(BASE+"/"+path)
         assert response.status_code==200
         assert (BASE+"/register/import").encode() in response.data
+
+
+
+
+
+
+

@@ -1,0 +1,25 @@
+{% extends "program_uip/base.html" %}
+{% block title %}Proposals - {{ subcommittee.name }}{% endblock %}
+
+{% block content %}
+<h2>Proposals for {{ subcommittee.name }}</h2>
+
+<form method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+    <label>Title <input type="text" name="title" required/></label><br/>
+    <label>Description <textarea name="description" required></textarea></label><br/>
+    <label>Motivation <textarea name="motivation" required></textarea></label><br/>
+    <button type="submit">Create Proposal</button>
+</form>
+
+<hr/>
+<h3>Existing Proposals</h3>
+<ul>
+{% for p in proposals %}
+    <li><a href="{{ url_for('uip_bp.proposal_detail', org_slug=org.slug, proposal_id=p.id) }}">{{ p.title }}</a></li>
+{% endfor %}
+</ul>
+<a href="{{ url_for('uip_bp.sub_comm_board', org_slug=org.slug, sub_id=subcommittee.id) }}">Back to Tools</a>
+{% endblock %}
+
+

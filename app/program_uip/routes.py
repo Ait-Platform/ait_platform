@@ -487,6 +487,7 @@ def verify_committee(org_slug):
                     new_sec = UipCommitteeMember(
                         organization_id=org.id,
                         term_id=term.id,
+                        user_id=current_user.id,
                         name=current_user.name,
                         email=current_user.email,
                         position="Secretary",
@@ -610,18 +611,20 @@ def mo_dashboard(org_slug):
     org = g.organization
     _require_role("municipal_officer")
     
-    from flask import request, flash, redirect, url_for
-    if request.method == "POST":
-        if request.form.get("action") == "upload_photo":
-            flash("Your photo was successfully securely uploaded in compliance with the POPI Act.", "success")
-            return redirect(url_for("uip_bp.mo_dashboard", org_slug=org.slug))
-            
-    from app.models.uip import UipMunicipalReferral
+    from app.models.uip import UipMunicipalReferral, UipDocument
     from app.models.core import CoreInteraction
     escalations = UipMunicipalReferral.query.filter(
         UipMunicipalReferral.organization_id == org.id,
         UipMunicipalReferral.status.in_(["ESCALATED_TO_MO", "ACKNOWLEDGED", "DISPATCHED"])
     ).all()
+    
+    # Attach photos manually
+    for ref in escalations:
+        ref.photos = UipDocument.query.filter_by(
+            organization_id=org.id,
+            interaction_id=ref.interaction_id,
+            category="RP_QUERY_PHOTO"
+        ).all()
     
     return render_template("program_uip/dashboards/municipal_officer.html", org=org, escalations=escalations)
 
@@ -1040,8 +1043,17 @@ def register_conflict(error):
 
 
 def _register_context():
-    # The authoritative Vault is read-only in all current UIP browser views.
-    return dict(org=g.organization, can_manage=False)
+    from app.program_uip.services.register import require_register_admin, require_mo_vault_import
+    can_manage = False
+    can_import = False
+    try:
+        require_register_admin(g.organization.id, current_user.id)
+        can_manage = True
+        can_import = True
+    except Exception:
+        pass
+    
+    return dict(org=g.organization, can_manage=can_manage, can_import=can_import)
 
 
 @uip_bp.route("/<org_slug>/members")
@@ -1102,6 +1114,8 @@ def member_view(org_slug, member_id):
 @uip_bp.route("/<org_slug>/members/<int:member_id>/representatives/<int:link_id>", methods=["POST"])
 @login_required
 def member_representative(org_slug, member_id, link_id=None):
+    from app.program_uip.services.register import require_register_admin
+    require_register_admin(g.organization.id, current_user.id)
     register.save_relationship(g.organization.id, current_user.id, request.form, member_id=member_id, link_id=link_id)
     db.session.commit()
     flash("Representation recorded; no voting or governance rights were granted.", "success")
@@ -1164,7 +1178,9 @@ def property_view(org_slug, property_id):
 @uip_bp.route("/<org_slug>/properties/<int:property_id>/members/<int:link_id>", methods=["POST"])
 @login_required
 def property_member(org_slug, property_id, link_id=None):
-    register.save_relationship(g.organization.id, current_user.id, request.form, property_id=property_id, link_id=link_id)
+    from app.program_uip.services.register import require_register_admin
+    require_register_admin(g.organization.id, current_user.id)
+    register.save_relationship(g.organization.id, current_user.id, request.form, property_id=property_id, link_id=link_id)(g.organization.id, current_user.id, request.form, property_id=property_id, link_id=link_id)
     db.session.commit()
     flash("Property relationship recorded; eligibility is maintained separately.", "success")
     return redirect(url_for("uip_bp.property_view", org_slug=org_slug, property_id=property_id))
@@ -1504,3 +1520,7 @@ def fix_meeting(org_slug):
 def revert_meeting(org_slug):
     """Retired HTTP maintenance entry; use separately reviewed offline maintenance."""
     abort(410, description="This maintenance endpoint is disabled.")
+
+
+
+

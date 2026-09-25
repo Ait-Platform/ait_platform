@@ -24,6 +24,24 @@ def accessible(org, actor, document):
         audit.authorize(org, actor, VISIBILITY.get(document.access_classification, ("manager",)))
         return True
     except Forbidden:
+        # Narrow exception for Municipal Officer to view RP_QUERY_PHOTO on referred tickets
+        if document.category == "RP_QUERY_PHOTO" and document.interaction_id:
+            try:
+                audit.authorize(org, actor, ("municipal_officer",))
+            except Forbidden:
+                return False
+            if document.organization_id != org:
+                return False
+            from app.models.uip import UipMunicipalReferral
+            from app.models.core import CoreInteraction
+            referral = UipMunicipalReferral.query.join(CoreInteraction,
+                CoreInteraction.id == UipMunicipalReferral.interaction_id).filter(
+                UipMunicipalReferral.organization_id == org,
+                CoreInteraction.organization_id == org,
+                CoreInteraction.interaction_type == "municipal_fault",
+                CoreInteraction.id == document.interaction_id).first()
+            if referral:
+                return True
         return False
 
 
@@ -142,12 +160,24 @@ def upload(org, actor, file, values, document_id=None):
 
 
 def download(org, actor, document_id, version_number):
-    audit.authorize(org, actor, READERS)
+    try:
+        audit.authorize(org, actor, READERS)
+    except Forbidden:
+        # Allow MO to proceed to accessible() check for their narrow permissions
+        pass
+        
     row = UipDocument.query.filter_by(organization_id=org, id=document_id).first_or_404()
     if not accessible(org, actor, row):
         abort(404)
     version = UipDocumentVersion.query.filter_by(organization_id=org, document_id=row.id,
                                                 version=version_number).first_or_404()
+    if row.category == "RP_QUERY_PHOTO" and version.storage_key.startswith("uip/rp_queries/"):
+        from io import BytesIO
+        from app.utils.cloudflare_r2 import read_file_from_r2
+        try:
+            return BytesIO(read_file_from_r2(version.storage_key)), version
+        except Exception:
+            abort(503, description="The photograph is temporarily unavailable.")
     if len(version.storage_key) != 32 or any(c not in "0123456789abcdef" for c in version.storage_key):
         abort(404)
     path = root(org) / version.storage_key

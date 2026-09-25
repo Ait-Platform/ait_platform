@@ -7,7 +7,8 @@ from flask import abort, current_app, send_file
 from sqlalchemy import func, or_
 from werkzeug.utils import secure_filename
 from app.extensions import db
-from app.models.core import CoreInteraction, CoreAuditEvent
+from app.models.core import CoreInteraction
+from app.models.uip import UipAuditEvent
 from app.models.uip import UipMemberProfile, UipProperty, UipPropertyMember, UipRegisterImport, UipDocument
 from app.models.uip_operations import UipDocumentVersion
 
@@ -91,7 +92,7 @@ def lodge_query(org, user, member, values, photo):
             effective_date=date.today(), actor_user_id=user.id, filename=filename, storage_key=key,
             content_type=types[extension], size_bytes=len(content), sha256=sha256(content).hexdigest(),
             replacement_reason="Initial RP query photograph"))
-    db.session.add(CoreAuditEvent(organization_id=org, user_id=user.id, action="RP_QUERY_CREATED",
+    db.session.add(UipAuditEvent(organization_id=org, user_id=user.id, action="RP_QUERY_CREATED",
         entity_type="CoreInteraction", entity_id=query.id))
     return query
 
@@ -118,3 +119,5 @@ def photo_response(org, user, document_id):
     response.headers["Cache-Control"] = "private, no-store"
     response.headers["X-Content-Type-Options"] = "nosniff"
     return response
+
+

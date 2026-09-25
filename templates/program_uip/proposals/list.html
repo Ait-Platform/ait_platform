@@ -1,0 +1,8 @@
+{% extends "program_uip/proposals/base.html" %}
+{% block actions %}<a class="ui-btn" href="{{ url_for('uip_bp.proposal_edit', org_slug=org.slug) }}">New Proposal</a><a class="ui-btn" href="{{ url_for('uip_bp.committee_dashboard', org_slug=org.slug, view='register') }}">Resolution Register</a><a class="ui-btn" href="{{ url_for('uip_bp.draft_resolution', org_slug=org.slug) }}">Formal Resolution drafting</a>{% endblock %}
+{% block proposal_content %}
+<p>Your working drafts are private. Submitted Proposals are shared with Secretary, Chair, Vice Chair and Treasurer.</p>
+<table class="w-full text-left"><thead><tr><th>Reference / title</th><th>Originating capacity</th><th>Status</th></tr></thead><tbody>
+{% for proposal in proposals %}<tr><td class="py-3"><a class="underline" href="{{ url_for('uip_bp.proposal_detail', org_slug=org.slug, proposal_id=proposal.id) }}">{{ proposal.reference }} ? {{ proposal.title }}</a></td><td>{{ proposal.originating_capacity }}</td><td>{{ proposal.status }}</td></tr>{% else %}<tr><td colspan="3">No Proposals available.</td></tr>{% endfor %}
+</tbody></table>
+{% endblock %}

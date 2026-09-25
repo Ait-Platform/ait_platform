@@ -1,4 +1,4 @@
-﻿"""Register operations. No commits: routes own the complete transaction."""
+"""Register operations. No commits: routes own the complete transaction."""
 from datetime import date
 from flask import abort
 from werkzeug.exceptions import BadRequest
@@ -43,30 +43,22 @@ def properties(organization_id, actor_user_id, active_only=False):
 
 
 def require_register_admin(organization_id, actor_user_id):
-    from app.models.core import CoreRoleAssignment, CoreRole
-    from app.models.uip_governance import UipDelegation
-    
-    is_manager = CoreRoleAssignment.query.join(CoreRole).filter(
-        CoreRoleAssignment.organization_id == organization_id,
-        CoreRoleAssignment.user_id == actor_user_id,
-        CoreRole.slug == "manager"
-    ).first()
-    if is_manager:
-        return True
-        
-    delegation = UipDelegation.query.filter_by(
-        organization_id=organization_id,
-        delegated_user_id=actor_user_id,
-        delegation_type="RATEPAYER_ADMIN",
-        status="ACTIVE"
-    ).first()
-    if delegation:
-        return True
-        
-    abort(403, description="Register administration authority required.")
+    from . import audit
+    audit.authorize(organization_id, actor_user_id, ("manager", "RATEPAYER_ADMIN"))
+    return True
+
+def require_mo_vault_import(organization_id, actor_user_id):
+    from . import audit
+    audit.authorize(organization_id, actor_user_id, ("municipal_officer",))
+    return True
+
+def require_register_write(organization_id, actor_user_id):
+    from . import audit
+    audit.authorize(organization_id, actor_user_id, ("manager", "RATEPAYER_ADMIN", "municipal_officer"))
+    return True
 
 def available_memberships(organization_id, actor_user_id):
-    require_register_admin(organization_id, actor_user_id)
+    require_register_write(organization_id, actor_user_id)
     return CoreOrganizationMember.query.filter(
         CoreOrganizationMember.organization_id == organization_id,
         CoreOrganizationMember.user_id.isnot(None),
@@ -101,8 +93,8 @@ def boolean(data, key):
     return choice(data, key, ("true", "false")) == "true"
 
 
-def save_member(organization_id, actor_user_id, data, member_id=None, is_import=False, import_id=None):
-    require_register_admin(organization_id, actor_user_id)
+def save_member(organization_id, actor_user_id, data, member_id=None, is_import=False, import_id=None, is_authoritative=False):
+    require_register_write(organization_id, actor_user_id)
     if not is_import and member_id is None:
         abort(403, description="Manual creation of authoritative ratepayers is prohibited.")
         
@@ -135,7 +127,7 @@ def save_member(organization_id, actor_user_id, data, member_id=None, is_import=
             membership = CoreOrganizationMember(organization_id=organization_id, user_id=None, is_active=True)
             db.session.add(membership)
             db.session.flush()
-        member = UipMemberProfile(organization_id=organization_id, membership_id=membership.id, record_source="MUNICIPAL" if is_import else "MANUAL")
+        member = UipMemberProfile(organization_id=organization_id, membership_id=membership.id, record_source="MUNICIPAL" if is_authoritative else "MANUAL")
         if import_id:
             member.last_import_id = import_id
         db.session.add(member)
@@ -150,7 +142,7 @@ def save_member(organization_id, actor_user_id, data, member_id=None, is_import=
                 if sealed in values and getattr(member, sealed) != values[sealed]:
                     abort(403, description=f"Cannot manually modify sealed municipal field '{sealed}'.")
                     
-        if is_import:
+        if is_authoritative:
             member.record_source = "MUNICIPAL"
             if import_id:
                 member.last_import_id = import_id
@@ -166,8 +158,8 @@ def save_member(organization_id, actor_user_id, data, member_id=None, is_import=
     return member
 
 
-def save_property(organization_id, actor_user_id, data, property_id=None, is_import=False, import_id=None):
-    require_register_admin(organization_id, actor_user_id)
+def save_property(organization_id, actor_user_id, data, property_id=None, is_import=False, import_id=None, is_authoritative=False):
+    require_register_write(organization_id, actor_user_id)
     if not is_import and property_id is None:
         abort(403, description="Manual creation of authoritative properties is prohibited.")
         
@@ -185,11 +177,12 @@ def save_property(organization_id, actor_user_id, data, property_id=None, is_imp
                 if sealed in values and getattr(item, sealed) != values[sealed]:
                     abort(403, description=f"Cannot manually modify sealed municipal field '{sealed}'.")
     else:
-        item = UipProperty(organization_id=organization_id, record_source="MUNICIPAL" if is_import else "MANUAL")
+        item = UipProperty(organization_id=organization_id, record_source="MUNICIPAL" if is_authoritative else "MANUAL")
         db.session.add(item)
         
-    if is_import:
-        item.record_source = "MUNICIPAL"
+    if is_authoritative:
+        if hasattr(item, "record_source"):
+            item.record_source = "MUNICIPAL"
         if import_id:
             item.last_import_id = import_id
             
@@ -215,8 +208,8 @@ def dates(data):
     return start, end
 
 
-def save_relationship(organization_id, actor_user_id, data, property_id=None, member_id=None, link_id=None, is_import=False, import_id=None):
-    require_register_admin(organization_id, actor_user_id)
+def save_relationship(organization_id, actor_user_id, data, property_id=None, member_id=None, link_id=None, is_import=False, import_id=None, is_authoritative=False):
+    require_register_write(organization_id, actor_user_id)
     start, end = dates(data)
     verified = boolean(data, "is_verified")
     
@@ -253,11 +246,15 @@ def save_relationship(organization_id, actor_user_id, data, property_id=None, me
         for existing_item in existing:
             if existing_item.is_verified == verified:
                 abort(400, description="This relationship is already recorded for that time period.")
-        item = model(organization_id=organization_id, record_source="MUNICIPAL" if is_import else "MANUAL", **values)
+        item_kwargs = dict(organization_id=organization_id, **values)
+        if model is UipPropertyMember:
+            item_kwargs["record_source"] = "MUNICIPAL" if is_authoritative else "MANUAL"
+        item = model(**item_kwargs)
         db.session.add(item)
         
-    if is_import:
-        item.record_source = "MUNICIPAL"
+    if is_authoritative:
+        if hasattr(item, "record_source"):
+            item.record_source = "MUNICIPAL"
         if import_id:
             item.last_import_id = import_id
             
@@ -298,7 +295,7 @@ def intake_links(organization_id, actor_user_id, member_id=None, property_id=Non
         abort(400, description="Choose active register records.")
     # Reporting an issue at a property does not assert ownership or voting rights.
     return member, item
-def process_import_batch(organization_id, actor_user_id, kind, rows, metadata):
+def process_import_batch(organization_id, actor_user_id, kind, rows, metadata, is_authoritative=False):
     from app.models.uip import UipRegisterImport, UipRegisterImportException, UipPropertyMember, UipProperty, UipMemberProfile
     
     # 1. Create the Import record
@@ -327,9 +324,11 @@ def process_import_batch(organization_id, actor_user_id, kind, rows, metadata):
                     
                 existing = UipMemberProfile.query.filter_by(organization_id=organization_id, reference=reference).first()
                 if existing:
+                    if existing.record_source == "MUNICIPAL" and not is_authoritative:
+                        raise Exception("Cannot overwrite authoritative municipal records.")
                     if existing.record_source == "MANUAL":
                         # Upgrade
-                        save_member(organization_id, actor_user_id, row, existing.id, is_import=True, import_id=batch.id)
+                        save_member(organization_id, actor_user_id, row, existing.id, is_import=True, is_authoritative=is_authoritative, import_id=batch.id)
                         summary["updated"] += 1
                     else:
                         # Update
@@ -338,12 +337,12 @@ def process_import_batch(organization_id, actor_user_id, kind, rows, metadata):
                             if getattr(existing, f) != row.get(f):
                                 changed = True
                         if changed or existing.is_active != (row.get("is_active") == "true"):
-                            save_member(organization_id, actor_user_id, row, existing.id, is_import=True, import_id=batch.id)
+                            save_member(organization_id, actor_user_id, row, existing.id, is_import=True, is_authoritative=is_authoritative, import_id=batch.id)
                             summary["updated"] += 1
                         else:
                             summary["unchanged"] += 1
                 else:
-                    save_member(organization_id, actor_user_id, row, None, is_import=True, import_id=batch.id)
+                    save_member(organization_id, actor_user_id, row, None, is_import=True, is_authoritative=is_authoritative, import_id=batch.id)
                     summary["created"] += 1
                     
             elif kind == "properties":
@@ -353,8 +352,10 @@ def process_import_batch(organization_id, actor_user_id, kind, rows, metadata):
                     
                 existing = UipProperty.query.filter_by(organization_id=organization_id, reference=reference).first()
                 if existing:
+                    if existing.record_source == "MUNICIPAL" and not is_authoritative:
+                        raise Exception("Cannot overwrite authoritative municipal records.")
                     if existing.record_source == "MANUAL":
-                        save_property(organization_id, actor_user_id, row, existing.id, is_import=True, import_id=batch.id)
+                        save_property(organization_id, actor_user_id, row, existing.id, is_import=True, is_authoritative=is_authoritative, import_id=batch.id)
                         summary["updated"] += 1
                     else:
                         changed = False
@@ -362,12 +363,12 @@ def process_import_batch(organization_id, actor_user_id, kind, rows, metadata):
                             if getattr(existing, f) != row.get(f):
                                 changed = True
                         if changed or existing.is_active != (row.get("is_active") == "true"):
-                            save_property(organization_id, actor_user_id, row, existing.id, is_import=True, import_id=batch.id)
+                            save_property(organization_id, actor_user_id, row, existing.id, is_import=True, is_authoritative=is_authoritative, import_id=batch.id)
                             summary["updated"] += 1
                         else:
                             summary["unchanged"] += 1
                 else:
-                    save_property(organization_id, actor_user_id, row, None, is_import=True, import_id=batch.id)
+                    save_property(organization_id, actor_user_id, row, None, is_import=True, is_authoritative=is_authoritative, import_id=batch.id)
                     summary["created"] += 1
                     
             elif kind == "relationships":
@@ -391,6 +392,8 @@ def process_import_batch(organization_id, actor_user_id, kind, rows, metadata):
                     if active_rel.member_id == member.id and active_rel.relationship == rel_type:
                         already_active = True
                         continue
+                    if active_rel.record_source == "MUNICIPAL" and not is_authoritative:
+                        raise Exception("Cannot overwrite authoritative municipal relationships.")
                     # Close the previous relationship as at the effective_date
                     active_rel.valid_to = batch.effective_date
                     audit.record(organization_id, actor_user_id, "ownership.updated", active_rel, {"changed_fields": ["valid_to"], "import_id": batch.id})
@@ -400,12 +403,21 @@ def process_import_batch(organization_id, actor_user_id, kind, rows, metadata):
                     row["valid_from"] = batch.effective_date.strftime("%Y-%m-%d")
                     row["valid_to"] = ""
                     row["member_id"] = member.id
-                    save_relationship(organization_id, actor_user_id, row, property_id=prop.id, member_id=member.id, is_import=True, import_id=batch.id)
+                    save_relationship(organization_id, actor_user_id, row, property_id=prop.id, member_id=member.id, is_import=True, is_authoritative=is_authoritative, import_id=batch.id)
                     summary["created"] += 1
                 else:
                     summary["unchanged"] += 1
 
+        except InvalidRegisterOption as error:
+            value = error.value
+            shown = ascii(value[:80]) + ("... (truncated)" if len(value) > 80 else "") if isinstance(value, str) else ascii(value)
+            allowed = ", ".join(ascii(option) for option in error.allowed)
+            from flask import abort
+            abort(400, description=f"CSV row {idx}: column '{error.column}' has invalid value {shown}. Accepted values: {allowed} (case-sensitive).")
         except Exception as e:
+            import traceback
+            with open("error.log", "a") as errf:
+                errf.write(traceback.format_exc() + "\n")
             db.session.add(UipRegisterImportException(
                 import_id=batch.id,
                 row_number=idx,
@@ -418,4 +430,25 @@ def process_import_batch(organization_id, actor_user_id, kind, rows, metadata):
     batch.status = "COMPLETED" if summary["exceptions"] == 0 else "WITH_EXCEPTIONS"
     db.session.flush()
     return batch, summary
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

@@ -1,0 +1,13 @@
+{% extends "program_uip/base.html" %}
+{% block title %}Select Subcommittee - {{ org.name }}{% endblock %}
+
+{% block content %}
+<h2>Select Subcommittee</h2>
+<ul>
+{% for sub in subcommittees %}
+    <li><a href="{{ url_for('uip_bp.sub_comm_board', org_slug=org.slug, sub_id=sub.id) }}">{{ sub.name }}</a></li>
+{% endfor %}
+</ul>
+{% endblock %}
+
+

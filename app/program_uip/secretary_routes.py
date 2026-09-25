@@ -164,11 +164,15 @@ def finalize_access_resolution(org_slug):
     if target == "new" and all(c.interaction_type == "ratepayer_claim" for c in claims):
         target = "instant"
 
+    if any(c.interaction_type == "mo_claim" for c in claims) and target == "instant":
+        abort(403, description="MO authority requires the applicable Resolution.")
     if target in ["founding", "instant"]:
         founding_res = None
         if target == "founding":
             founding_res = UipResolution.query.filter_by(organization_id=org.id).filter(UipResolution.title.ilike("%Founding%")).first()
             
+        if any(c.interaction_type == "mo_claim" for c in claims) and (not founding_res or founding_res.status != "ADOPTED"):
+            abort(403, description="MO authority requires an adopted applicable Resolution.")
         if founding_res or target == "instant":
             additions = f"\n\n-- Added via Inaugural Roster (Term: {term_start} for {term_duration} months) --\n"
             for claim in claims:
@@ -208,7 +212,7 @@ def finalize_access_resolution(org_slug):
                     org_mem.is_active = True
                     
                 # Grant the appropriate role
-                role_slug = "committee_member" if claim.interaction_type in ["committee_claim", "secretary_claim", "chairman_claim", "treasurer_claim"] else "mo" if "mo" in claim.interaction_type else "owner"
+                role_slug = "committee_member" if claim.interaction_type in ["committee_claim", "secretary_claim", "chairman_claim", "treasurer_claim"] else "municipal_officer" if claim.interaction_type == "mo_claim" else "owner"
                 
                 # Check for custom Duty from Organogram Seat
                 if claim.interaction_type in ["committee_claim", "secretary_claim", "chairman_claim", "treasurer_claim"]:
@@ -235,12 +239,20 @@ def finalize_access_resolution(org_slug):
                         db.session.add(term)
                         db.session.flush()
                         
+                    from app.models.uip_governance import UipOrganogramSeat
+                    from sqlalchemy import func
+                    seat = UipOrganogramSeat.query.filter(
+                        UipOrganogramSeat.organization_id == org.id,
+                        func.lower(UipOrganogramSeat.title) == func.lower(pos)
+                    ).first()
                     mem = UipCommitteeMember(
                         organization_id=org.id,
                         term_id=term.id,
-                        name=claim.creator.name,
+                        user_id=claim.creator.id,
+                          name=claim.creator.name,
                         email=claim.creator.email,
                         position=pos,
+                        seat_id=seat.id if seat else None,
                         status="CURRENT"
                     )
                     db.session.add(mem)
@@ -435,6 +447,21 @@ def secretary_organogram(org_slug):
                 seat.duty = request.form.get("duty", seat.duty)
                 db.session.commit()
                 flash(f"Blueprint seat '{seat.title}' updated.", "success")
+        elif action == "add_subcommittee":
+            from app.program_uip.services import subcommittees as sub_service
+            try:
+                sub_service.create_subcommittee(
+                    org.id, current_user.id,
+                    request.form.get("name"),
+                    request.form.get("resolution_id", type=int),
+                    request.form.get("responsible_seat_id", type=int),
+                    request.form.get("reports_to_seat_id", type=int)
+                )
+                db.session.commit()
+                flash("Subcommittee registered successfully.", "success")
+            except Exception as e:
+                db.session.rollback()
+                flash(str(e.description if hasattr(e, "description") else e), "danger")
         elif action == "upload_photo":
             member_id = request.form.get("member_id")
             photo_file = request.files.get("photo_file")
@@ -466,4 +493,11 @@ def secretary_organogram(org_slug):
                 seat.member = m
                 break
                 
-    return render_template("program_uip/dashboards/secretary_organogram.html", org=org, core_seats=core_seats, second_seats=second_seats, operations_seats=operations_seats, active_members=active_members)
+    from app.models.uip import UipResolution
+    from app.program_uip.services import subcommittees as sub_service
+    adopted_resolutions = UipResolution.query.filter_by(organization_id=org.id, status="ADOPTED").order_by(UipResolution.id.desc()).all()
+    subcommittees = sub_service.get_subcommittees(org.id)
+    for sub in subcommittees:
+        sub.responsible_member = sub_service.resolve_responsible_member(sub)
+                
+    return render_template("program_uip/dashboards/secretary_organogram.html", org=org, core_seats=core_seats, second_seats=second_seats, operations_seats=operations_seats, active_members=active_members, adopted_resolutions=adopted_resolutions, subcommittees=subcommittees)

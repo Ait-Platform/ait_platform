@@ -77,7 +77,7 @@ def execute_resolution_adoption(org, res, db):
                 org_mem.is_active = True
                 
             # Grant the role
-            role_slug = "committee_member" if "committee" in claim.interaction_type or "secretary" in claim.interaction_type else "mo" if "mo" in claim.interaction_type else "ratepayer"
+            role_slug = "committee_member" if "committee" in claim.interaction_type or "secretary" in claim.interaction_type else "municipal_officer" if claim.interaction_type == "mo_claim" else "ratepayer"
             role_obj = CoreRole.query.filter_by(slug=role_slug).first()
             if role_obj:
                 existing_role = CoreRoleAssignment.query.filter_by(organization_id=org.id, user_id=claim.creator.id, role_id=role_obj.id).first()
@@ -96,12 +96,20 @@ def execute_resolution_adoption(org, res, db):
                     db.session.add(term)
                     db.session.flush()
                 
+                from app.models.uip_governance import UipOrganogramSeat
+                from sqlalchemy import func
+                seat = UipOrganogramSeat.query.filter(
+                    UipOrganogramSeat.organization_id == org.id,
+                    func.lower(UipOrganogramSeat.title) == func.lower(port)
+                ).first()
                 mem = UipCommitteeMember(
                     organization_id=org.id,
                     term_id=term.id,
                     name=claim.creator.name,
-                    email=claim.creator.email,
+                    user_id=claim.creator.id,
+                        email=claim.creator.email,
                     position=port,
+                    seat_id=seat.id if seat else None,
                     status="CURRENT"
                 )
                 db.session.add(mem)
@@ -434,7 +442,9 @@ def manage_committee(org_slug):
             if not email or not name:
                 continue
                 
+            existing_user = User.query.filter(func.lower(User.email) == func.lower(email)).first()
             new_member = UipCommitteeMember(
+                user_id=existing_user.id if existing_user else None,
                 term_id=new_term.id,
                 organization_id=org.id,
                 name=name,
@@ -606,7 +616,7 @@ def decide_resolution(org_slug, res_id):
                 org_mem.is_active = True
                 
             # Grant the role
-            role_slug = "committee_member" if "committee" in claim.interaction_type else "mo" if "mo" in claim.interaction_type else "ratepayer"
+            role_slug = "committee_member" if "committee" in claim.interaction_type else "municipal_officer" if claim.interaction_type == "mo_claim" else "ratepayer"
             role_obj = CoreRole.query.filter_by(slug=role_slug).first()
             if role_obj:
                 existing_role = CoreRoleAssignment.query.filter_by(organization_id=org.id, user_id=claim.creator.id, role_id=role_obj.id).first()
@@ -617,12 +627,19 @@ def decide_resolution(org_slug, res_id):
             if 'committee' in claim.interaction_type:
                 requested_pos = claim.title.split(": ")[-1] if ":" in claim.title else (claim.title.split(" - ")[-1] if " - " in claim.title else claim.interaction_type.replace('_claim', '').title())
                 port = portfolio_map.get(str(claim.id)) or portfolio_map.get(claim.id) or requested_pos
+                from app.models.uip_governance import UipOrganogramSeat
+                from sqlalchemy import func
+                seat = UipOrganogramSeat.query.filter(
+                    UipOrganogramSeat.organization_id == org.id,
+                    func.lower(UipOrganogramSeat.title) == func.lower(port)
+                ).first()
                 mem = UipCommitteeMember(
                     organization_id=org.id,
                     user_id=claim.creator.id,
                     name=claim.creator.name,
                     email=claim.creator.email,
                     position=port,
+                    seat_id=seat.id if seat else None,
                     status="CURRENT"
                 )
                 db.session.add(mem)

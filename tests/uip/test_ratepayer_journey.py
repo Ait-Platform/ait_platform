@@ -116,7 +116,7 @@ def test_query_and_own_status(client, data):
     assert b"Pothole" in page.data and b"IN_PROGRESS" in page.data
     assert b"Other person" not in page.data
     assert snapshot() == before
-    assert core.CoreAuditEvent.query.filter_by(action="RP_QUERY_CREATED", user_id=data.users["resident"].id).count() == 1
+    assert uip.UipAuditEvent.query.filter_by(organization_id=data.org.id, action="RP_QUERY_CREATED", actor_user_id=data.users["resident"].id, entity_type="CoreInteraction", entity_id=row.id).count() == 1
 
 
 @pytest.fixture

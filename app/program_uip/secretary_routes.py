@@ -447,6 +447,13 @@ def secretary_organogram(org_slug):
                 seat.duty = request.form.get("duty", seat.duty)
                 db.session.commit()
                 flash(f"Blueprint seat '{seat.title}' updated.", "success")
+        elif action == "record_subcommittee_membership":
+            from .services.subcommittees import record_membership
+            record_membership(org.id, current_user.id,
+                request.form.get("subcommittee_id", type=int), request.form.get("member_id", type=int),
+                request.form.get("resolution_id", type=int), request.form.get("valid_from"), request.form.get("valid_to"))
+            db.session.commit()
+            flash("Resolution-backed Subcommittee appointment recorded.", "success")
         elif action == "add_subcommittee":
             from app.program_uip.services import subcommittees as sub_service
             try:

@@ -32,22 +32,45 @@ def require_official(org, actor):
     return row
 
 
+def _sub_ids(org, actor):
+    from app.models.auth import User
+    from .subcommittees import memberships_for
+    return {m.subcommittee_id for m in memberships_for(org, db.session.get(User, actor))}
+
+
 def listing(org, actor):
-    require_official(org, actor)
-    return UipProposal.query.filter(UipProposal.organization_id == org,
-        or_(UipProposal.originator_id == actor, UipProposal.status != "DRAFT")
-    ).order_by(UipProposal.id.desc()).all()
+    official = appointment(org, actor)
+    ids = _sub_ids(org, actor)
+    if not official and not ids:
+        abort(403)
+    visibility = [UipProposal.originating_subcommittee_id.in_(ids)]
+    if official:
+        visibility += [(UipProposal.originating_subcommittee_id.is_(None) & (UipProposal.originator_id == actor)), UipProposal.status != "DRAFT"]
+    return UipProposal.query.filter(UipProposal.organization_id == org, or_(*visibility)).order_by(UipProposal.id.desc()).all()
 
 
 def get(org, actor, proposal_id, lock=False):
-    require_official(org, actor)
+    official = appointment(org, actor)
+    ids = _sub_ids(org, actor)
+    if not official and not ids:
+        abort(403)
     query = UipProposal.query.filter_by(organization_id=org, id=proposal_id)
     if lock:
         query = query.populate_existing().with_for_update()
     row = query.first_or_404()
-    if row.status == "DRAFT" and row.originator_id != actor:
-        abort(404)
-    return row
+    if row.originating_subcommittee_id in ids:
+        return row
+    if official and (row.status != "DRAFT" or (row.originating_subcommittee_id is None and row.originator_id == actor)):
+        return row
+    abort(404)
+
+
+def can_work_draft(org, actor, row):
+    if row.status != "DRAFT":
+        return False
+    if row.originating_subcommittee_id:
+        return row.originating_subcommittee_id in _sub_ids(org, actor)
+    return bool(appointment(org, actor) and row.originator_id == actor)
 
 
 def available_documents(org, actor):
@@ -56,18 +79,24 @@ def available_documents(org, actor):
 
 
 def save(org, actor, values, document_ids, proposal_id=None):
-    authority = require_official(org, actor)
-    row = get(org, actor, proposal_id, lock=True) if proposal_id else UipProposal(
-        organization_id=org, originator_id=actor, originating_capacity=authority.position, status="DRAFT")
-    if row.status != "DRAFT" or row.originator_id != actor:
-        abort(409, description="Only the originator can edit a working draft.")
-    sub_id = values.get("originating_subcommittee_id")
-    if sub_id:
-        from .subcommittees import require_subcommittee_responsibility
-        sub = require_subcommittee_responsibility(org, actor, sub_id)
-        row.originating_subcommittee_id = sub.id
+    from .subcommittees import require_subcommittee_membership
+    if proposal_id:
+        row = get(org, actor, proposal_id, lock=True)
+        if not can_work_draft(org, actor, row):
+            abort(409)
+        submitted_sub = values.get("originating_subcommittee_id")
+        if submitted_sub and identifier(submitted_sub) != row.originating_subcommittee_id:
+            abort(400, description="A Proposal cannot change its originating Subcommittee.")
     else:
-        row.originating_subcommittee_id = None
+        sub_id = values.get("originating_subcommittee_id")
+        if sub_id:
+            sub = require_subcommittee_membership(org, actor, identifier(sub_id))
+            capacity = "Subcommittee member"
+        else:
+            authority = require_official(org, actor)
+            sub, capacity = None, authority.position
+        row = UipProposal(organization_id=org, originator_id=actor, originating_capacity=capacity,
+            originating_subcommittee_id=sub.id if sub else None, status="DRAFT")
     # Validate everything before mutating the draft or its document links.
     title = text(values.get("title"), 255, True)
     description = text(values.get("description"), 20000, True)
@@ -91,7 +120,7 @@ def save(org, actor, values, document_ids, proposal_id=None):
 
 def submit(org, actor, proposal_id):
     row = get(org, actor, proposal_id, lock=True)
-    if row.originator_id != actor:
+    if row.status == "DRAFT" and not can_work_draft(org, actor, row):
         abort(403)
     if row.status == "DRAFT":
         row.status = "SUBMITTED"
@@ -100,7 +129,8 @@ def submit(org, actor, proposal_id):
 
 
 def convert(org, actor, proposal_id, meeting_id):
-    # Same four elected positions already qualify for formal draft creation.
+    require_official(org, actor)
+    # Conversion remains restricted to the four elected officials.
     row = get(org, actor, proposal_id, lock=True)
     if row.status == "CONVERTED":
         return row

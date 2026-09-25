@@ -259,7 +259,7 @@ def register_import(org_slug):
                 transaction.commit()
                 db.session.commit()
                 flash(f"Import {batch.status}. {summary['created']} created, {summary['updated']} updated, {summary['exceptions']} exceptions.", "success")
-                return redirect(url_for("uip_bp.register_import", org_slug=org_slug))
+                return redirect(url_for("uip_bp.mo_vault_import" if is_mo_vault else "uip_bp.register_import", org_slug=org_slug))
             else:
                 transaction.rollback()
                 token = signer.dumps(identity)

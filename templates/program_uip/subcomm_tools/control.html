@@ -1,0 +1,4 @@
+{% extends "program_uip/proposals/base.html" %}
+{% block heading %}Sub Comm Control{% endblock %}
+{% block proposal_content %}<p>Submitted Subcommittee matters shared with Chair, Vice Chair, Secretary and Treasurer.</p>
+<ul>{% for proposal, sub in matters %}<li><a class="underline" href="{{ url_for('uip_bp.proposal_detail', org_slug=org.slug, proposal_id=proposal.id) }}">{{ sub.name }} ? {{ proposal.reference }} ? {{ proposal.title }}</a></li>{% else %}<li>No submitted Subcommittee matters awaiting governance attention.</li>{% endfor %}</ul>{% endblock %}

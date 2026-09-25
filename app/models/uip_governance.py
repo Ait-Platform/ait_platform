@@ -148,6 +148,7 @@ class UipCommitteeMember(db.Model):
     seat_id = db.Column(db.Integer, db.ForeignKey("uip_organogram_seat.id"), nullable=True)
     photo_url = db.Column(db.String(500), nullable=True)
     __table_args__ = (
+        db.UniqueConstraint("id", "organization_id", name="uq_uip_committee_member_org"),
         db.CheckConstraint("status IN ('CURRENT','FORMER','VACANT')", name="ck_uip_committee_member_status"),
         db.CheckConstraint("position IN ('Chairperson','Vice-Chairperson','Treasurer','Secretary','Committee Member','Advisory Committee Member')", name="ck_uip_committee_member_position"),
     )
@@ -172,3 +173,26 @@ class UipSubcommittee(db.Model):
         db.CheckConstraint("status IN ('ACTIVE','INACTIVE')", name="ck_uip_subcommittee_status"),
     )
 
+
+
+class UipSubcommitteeMembership(db.Model):
+    """Specific elected membership with immutable appointment provenance."""
+    __tablename__ = "uip_subcommittee_membership"
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey("core_organization.id"), nullable=False)
+    subcommittee_id = db.Column(db.Integer, nullable=False)
+    member_id = db.Column(db.Integer, nullable=False)
+    appointing_resolution_id = db.Column(db.Integer, nullable=False)
+    status = db.Column(db.String(20), nullable=False, server_default="CURRENT", default="CURRENT")
+    valid_from = db.Column(db.Date, nullable=False)
+    valid_to = db.Column(db.Date)
+    recorded_by = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, server_default=db.func.now())
+    __table_args__ = (
+        db.ForeignKeyConstraint(["subcommittee_id", "organization_id"], ["uip_subcommittee.id", "uip_subcommittee.organization_id"], name="fk_uip_submembership_sub_org"),
+        db.ForeignKeyConstraint(["member_id", "organization_id"], ["uip_committee_member.id", "uip_committee_member.organization_id"], name="fk_uip_submembership_member_org"),
+        db.ForeignKeyConstraint(["appointing_resolution_id", "organization_id"], ["uip_resolution.id", "uip_resolution.organization_id"], name="fk_uip_submembership_resolution_org"),
+        db.UniqueConstraint("subcommittee_id", "member_id", "appointing_resolution_id", name="uq_uip_submembership_appointment"),
+        db.CheckConstraint("status IN ('CURRENT','FORMER')", name="ck_uip_submembership_status"),
+        db.CheckConstraint("valid_to IS NULL OR valid_to >= valid_from", name="ck_uip_submembership_dates"),
+    )

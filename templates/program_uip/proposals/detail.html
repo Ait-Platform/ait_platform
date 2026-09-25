@@ -1,7 +1,7 @@
 {% extends "program_uip/proposals/base.html" %}
 {% block heading %}{{ proposal.reference }} ? {{ proposal.title }}{% endblock %}
 {% block actions %}
-{% if proposal.status == 'DRAFT' and proposal.originator_id == current_user.id %}
+{% if can_work_draft %}
 <a class="ui-btn" href="{{ url_for('uip_bp.proposal_edit', org_slug=org.slug, proposal_id=proposal.id) }}">Edit draft</a>
 <form method="post" action="{{ url_for('uip_bp.proposal_submit', org_slug=org.slug, proposal_id=proposal.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="ui-btn">Submit Proposal</button></form>
 {% elif proposal.resolution_id %}<a class="ui-btn" href="{{ url_for('uip_bp.view_resolution', org_slug=org.slug, res_id=proposal.resolution_id) }}">Open resulting Resolution</a>{% endif %}
@@ -14,7 +14,7 @@
 <p>Proposed budget: {{ 'R ' ~ proposal.proposed_budget if proposal.proposed_budget is not none else 'Not specified' }}</p>
 {% if documents %}<h2 class="font-bold">Supporting documents</h2><ul>{% for doc in documents %}<li>{% if doc.current_version %}<a class="underline" href="{{ url_for('uip_bp.document_download', org_slug=org.slug, document_id=doc.id, version=doc.current_version) }}">{{ doc.title or doc.filename }}</a>{% else %}{{ doc.title or doc.filename }} (no file version){% endif %}</li>{% endfor %}</ul>{% endif %}
 {% if hidden_documents %}<p>Some supporting documents require additional existing document permissions.</p>{% endif %}
-{% if proposal.status == 'SUBMITTED' %}
+{% if proposal.status == 'SUBMITTED' and can_convert %}
 {% if meetings %}<form method="post" action="{{ url_for('uip_bp.proposal_convert', org_slug=org.slug, proposal_id=proposal.id) }}" class="space-y-3">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 <label class="block">Meeting for the Resolution draft<select required name="meeting_id" class="block border border-slate-300 rounded p-2">{% for meeting in meetings %}<option value="{{ meeting.id }}">{{ meeting.title }}</option>{% endfor %}</select></label>

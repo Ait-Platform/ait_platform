@@ -92,7 +92,7 @@ def lodge_query(org, user, member, values, photo):
             effective_date=date.today(), actor_user_id=user.id, filename=filename, storage_key=key,
             content_type=types[extension], size_bytes=len(content), sha256=sha256(content).hexdigest(),
             replacement_reason="Initial RP query photograph"))
-    db.session.add(UipAuditEvent(organization_id=org, user_id=user.id, action="RP_QUERY_CREATED",
+    db.session.add(UipAuditEvent(organization_id=org, actor_user_id=user.id, action="RP_QUERY_CREATED",
         entity_type="CoreInteraction", entity_id=query.id))
     return query
 

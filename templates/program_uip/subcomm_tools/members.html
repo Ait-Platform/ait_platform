@@ -1,0 +1,5 @@
+{% extends "program_uip/base.html" %}
+{% block content %}<section class="bg-white rounded shadow border-t-4 border-emerald-600 p-6">
+<div class="flex justify-between"><h1>{{ subcommittee.name }} ? Members</h1><a href="{{ url_for('uip_bp.sub_comm_board', org_slug=org.slug, sub_id=subcommittee.id) }}">Back</a></div>
+<ul>{% for appointment, member in members %}<li>{{ member.name }} ? Appointing Resolution {{ appointment.appointing_resolution_id }} ? From {{ appointment.valid_from }}{% if appointment.valid_to %} to {{ appointment.valid_to }}{% endif %}</li>{% endfor %}</ul>
+</section>{% endblock %}

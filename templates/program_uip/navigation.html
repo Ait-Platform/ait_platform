@@ -1,4 +1,5 @@
 ﻿<nav aria-label="UIP Command Centre" class="ui-navigation">
+{% if can_use_proposals %}<a href="{{ url_for('uip_bp.sub_comm_control', org_slug=org.slug) }}" class="ui-btn {% if sub_comm_pending %}bg-red-100 text-red-800 border-red-600{% endif %}" {% if sub_comm_pending %}style="background:#fee2e2;color:#991b1b;border-color:#dc2626"{% endif %}>Sub Comm Control{% if sub_comm_pending %} ? {{ sub_comm_pending }} awaiting governance attention{% endif %}</a>{% endif %}
 {% if can_use_proposals %}<a class="ui-btn" href="{{ url_for('uip_bp.proposal_list', org_slug=org.slug) }}">Proposals</a>{% endif %}
 {% if is_treasurer %}
 <a class="ui-btn" href="{{ url_for('uip_bp.treasurer_workspace', org_slug=org.slug) }}">Treasurer Board</a>

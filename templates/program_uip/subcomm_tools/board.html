@@ -2,8 +2,8 @@
 {% block title %}{{ subcommittee.name }} - Tools{% endblock %}
 
 {% block content %}
-<h2>{{ subcommittee.name }} Tools</h2>
-<p>Responsible Member: {{ resp_mem.name }} ({{ resp_seat.title }})</p>
+<h2>{{ subcommittee.name }} ? Sub Comm Tools</h2>
+<p>Organogram responsibility: {{ resp_mem.name if resp_mem else "Vacant" }} ({{ resp_seat.title }})</p>
 <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;">
     <div style="border: 1px solid #ccc; padding: 1rem;">
         <h3>My Subcommittee</h3>

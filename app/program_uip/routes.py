@@ -121,8 +121,19 @@ def dashboard(org_slug):
     ).first()
     
     if current_appointment:
+        from .services.subcommittees import member_subcommittees
+        if current_appointment.position.strip().lower() not in ("chairperson", "vice-chairperson", "secretary", "treasurer") and member_subcommittees(org.id, current_user):
+            return redirect(url_for("uip_bp.sub_comm_tools_index", org_slug=org.slug))
         # Route them to the committee router, which handles Chair/Vice/Treasurer logic
         return redirect(url_for("uip_bp.committee_dashboard", org_slug=org_slug))
+
+    from .services.ratepayer import vault_identity
+    member, properties, _ = vault_identity(org.id, current_user)
+    if member and properties:
+        return redirect(url_for("uip_bp.ratepayer_workspace", org_slug=org.slug))
+    from .services.subcommittees import member_subcommittees
+    if member_subcommittees(org.id, current_user):
+        return redirect(url_for("uip_bp.sub_comm_tools_index", org_slug=org.slug))
 
     # 2. Quick bypass for owners!
     from app.models.core import CoreRoleAssignment, CoreRole
@@ -289,10 +300,22 @@ def router_page(org_slug):
     ).first()
     if appointment and not force_menu:
         pos = appointment.position.lower()
+        from .services.subcommittees import member_subcommittees
+        if pos not in ("chairperson", "vice-chairperson", "secretary", "treasurer") and member_subcommittees(org.id, current_user):
+            return redirect(url_for("uip_bp.sub_comm_tools_index", org_slug=org.slug))
         if pos in ['chairman', 'chairperson', 'chair', 'vice chair', 'vice chairman', 'treasurer']:
             return redirect(url_for('uip_bp.dashboard', org_slug=org.slug))
         return redirect(url_for("uip_bp.committee_dashboard", org_slug=org.slug))
         
+    if not force_menu:
+        from .services.ratepayer import vault_identity
+        member, properties, _ = vault_identity(org.id, current_user)
+        if member and properties:
+            return redirect(url_for("uip_bp.ratepayer_workspace", org_slug=org.slug))
+        from .services.subcommittees import member_subcommittees
+        if member_subcommittees(org.id, current_user):
+            return redirect(url_for("uip_bp.sub_comm_tools_index", org_slug=org.slug))
+
     # 1b. Auto-route if active Ratepayer
     from app.models.core import CoreOrganizationMember
     membership = CoreOrganizationMember.query.filter_by(
@@ -675,8 +698,8 @@ def mo_ticket_action(org_slug, referral_id):
 @uip_bp.route("/<org_slug>/verify/subcommittee", methods=["GET", "POST"])
 @login_required
 def verify_subcommittee(org_slug):
-    role = _require_role("subcommittee_member", abort_on_fail=False)
-    if role:
+    from .services.subcommittees import member_subcommittees
+    if member_subcommittees(g.organization.id, current_user):
         return redirect(url_for("uip_bp.subcommittee_dashboard", org_slug=org_slug))
     
     from app.models.core import CoreInteraction
@@ -700,8 +723,7 @@ def verify_subcommittee(org_slug):
 @uip_bp.route("/<org_slug>/subcommittee-dashboard")
 @login_required
 def subcommittee_dashboard(org_slug):
-    _require_role("subcommittee_member")
-    return render_template("program_uip/dashboards/subcommittee.html", org=g.organization)
+    return redirect(url_for("uip_bp.sub_comm_tools_index", org_slug=org_slug))
 
 
 @uip_bp.route("/<org_slug>/verify/staff", methods=["GET", "POST"])

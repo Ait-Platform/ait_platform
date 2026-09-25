@@ -32,8 +32,8 @@ def establish_organization_context():
     # Vault maintenance is not a UIP browser workflow. MO ingestion is separate.
     if request.endpoint in {"uip_bp.member_form", "uip_bp.property_form",
             "uip_bp.member_representative", "uip_bp.property_member",
-            "uip_bp.vault_check"}:
-        pass  # Preserved for manager usage.
+            "uip_bp.vault_check", "uip_bp.register_import"}:
+        abort(403)
 
     # Check whether the UIP founding record exists
     from app.models.uip import UipCommitteeMeeting

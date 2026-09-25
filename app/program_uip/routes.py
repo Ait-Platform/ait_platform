@@ -373,7 +373,7 @@ def my_access(org_slug):
         organization_id=org.id, meeting_type="FOUNDING"
     ).first() is not None
 
-    return render_template("program_uip/my_access.html", org=org, user_claims=user_claims, founding_exists=founding_exists)
+    return render_template("program_uip/my_access.html", org=org, user_claims=user_claims, founding_exists=founding_exists, operational_claims=[c for c in open_claims if c.interaction_type == "staff_claim"])
 
 
 @uip_bp.route("/<org_slug>/verify/ratepayer", methods=["GET", "POST"])
@@ -747,7 +747,7 @@ def _operational_claim(org_slug, kind, label):
             category="UIP_PROVIDER_ACCESS" if kind == "provider" else "UIP_STAFF_ACCESS", status="OPEN")
         db.session.add(claim)
         db.session.commit()
-    return redirect(url_for("uip_bp.my_access", org_slug=org_slug, claim="staff"))
+    return redirect(url_for("uip_bp.my_access", org_slug=org_slug, claim=kind))
 
 
 @uip_bp.route("/<org_slug>/verify/provider", methods=["GET", "POST"])
@@ -761,7 +761,7 @@ def verify_provider(org_slug):
     except Forbidden:
         return _operational_claim(org_slug, "provider", "Service Provider")
     flash("Provider authority is verified. An active provider association is still required before work-order access.", "info")
-    return redirect(url_for("uip_bp.my_access", org_slug=org_slug, claim="staff"))
+    return redirect(url_for("uip_bp.my_access", org_slug=org_slug, claim="provider"))
 
 
 @uip_bp.route("/<org_slug>/verify/public", methods=["GET", "POST"])

@@ -5,5 +5,5 @@
 <td><strong>{{ ix.title }}</strong><small>{{ ix.reference }}</small></td>
 <td><span class="ui-badge {% if ix.priority == 'URGENT' %}ui-badge-urgent{% elif ix.priority == 'HIGH' %}ui-badge-high{% endif %}">{{ (ix.priority or 'Not set')|title }}</span></td>
 <td>{{ (ix.status or 'Not recorded').replace('_', ' ')|title }}</td><td>{{ row.assigned }}</td>
-<td><a href="{{ url_for('uip_bp.view_interaction', org_slug=org.slug, reference=ix.reference) }}">Open →</a></td></tr>
+<td><a href="{{ url_for('uip_bp.reception_issue', org_slug=org.slug, issue_id=ix.id) }}">Open →</a></td></tr>
 {% else %}<tr><td colspan="{% if allow_merge %}8{% else %}7{% endif %}" class="ui-empty">No issues to show.</td></tr>{% endfor %}</tbody></table></div>

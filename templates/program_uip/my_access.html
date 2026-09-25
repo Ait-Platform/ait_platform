@@ -124,14 +124,14 @@
                 </tr>
                 {% endif %}
 
-                {% if "staff_claim" in user_claims %}
+                {% for claim in operational_claims %}
                 <tr class="hover:bg-slate-50 transition">
                     <td class="p-4">
                         <div class="flex items-center">
                             <div class="w-10 h-10 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mr-4 shrink-0">
                                 <i class="fas fa-briefcase"></i>
                             </div>
-                            <span class="font-bold text-slate-900">Staff / Service Provider</span>
+                            <span class="font-bold text-slate-900">{{ claim.title }}</span>
                         </div>
                     </td>
                     <td class="p-4 text-center">
@@ -141,7 +141,7 @@
                         <button disabled class="bg-slate-100 text-slate-400 px-4 py-2 rounded-lg text-sm font-medium cursor-not-allowed">Pending</button>
                     </td>
                 </tr>
-                {% endif %}
+                {% endfor %}
             </tbody>
         </table>
         

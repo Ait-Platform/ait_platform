@@ -214,3 +214,43 @@ def test_secretary_cannot_grant_legacy_manager(client,data,secretary,kind):
     before=identities()
     assert client.safe_post(BASE+'/finalize-access-resolution',approval_values(claim,'manager')).status_code==403
     assert identities()==before and claim.status=='OPEN'
+
+
+@pytest.mark.parametrize("membership_state", ["missing", "inactive"])
+def test_provider_pending_without_active_membership(client, data, secretary, membership_state):
+    user = data.users["resident"]
+    member = core.CoreOrganizationMember.query.filter_by(organization_id=data.org.id, user_id=user.id).one()
+    if membership_state == "missing":
+        db.session.delete(member)
+    else:
+        member.is_active = False
+    db.session.commit()
+    claim = request_access(client, data, "provider")
+    response = client.get(BASE + "/verify/provider")
+    assert response.location.endswith("/my-access?claim=provider")
+    page = client.get(response.location)
+    assert page.status_code == 200 and b"Service Provider Access Request" in page.data
+    assert b"Staff / Service Provider" not in page.data
+    client.login("receptionist")
+    assert claim.title.encode() in client.get(BASE + "/secretary-intake").data
+    assert client.safe_post(BASE + "/finalize-access-resolution", approval_values(claim, "provider")).status_code == 302
+    assert core.CoreOrganizationMember.query.filter_by(organization_id=data.org.id, user_id=user.id).one().is_active
+    assert core.CoreRoleAssignment.query.join(core.CoreRole).filter(core.CoreRoleAssignment.user_id == user.id,
+        core.CoreRoleAssignment.organization_id == data.org.id, core.CoreRole.slug == "provider").count() == 1
+    assert uip.UipProviderUser.query.count() == 0
+
+
+def test_staff_legacy_reference_links_and_search(client, data):
+    import re
+    issue = core.CoreInteraction(organization_id=data.org.id, creator_id=data.users["resident"].id,
+        interaction_type="staff_claim", title="Legacy pending request", reference=None, status="OPEN")
+    db.session.add(issue); db.session.commit()
+    client.login("receptionist")
+    for suffix in ("", "?q=Legacy"):
+        response = client.get(BASE + "/operations/reception" + suffix)
+        assert response.status_code == 200
+        assert (BASE + f"/operations/reception/{issue.id}").encode() in response.data
+        links = re.findall(r'href="([^"]+)"', response.data.decode())
+        for link in links:
+            if link.startswith(BASE + "/operations/reception/"):
+                assert client.get(link).status_code == 200

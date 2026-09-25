@@ -107,7 +107,7 @@ def reception_page(org_slug):
     search = request.args.get("q", "").strip()[:120]
     rows = [r for r in issue_rows(org, actor) if status in r["filters"]]
     if search:
-        rows = [r for r in rows if search.casefold() in (r["issue"].reference + " " + r["issue"].title).casefold()]
+        rows = [r for r in rows if search.casefold() in ((r["issue"].reference or "") + " " + r["issue"].title).casefold()]
     return render_template("program_uip/operations/issues.html", org=g.organization, issue_rows=rows, choices=choices, status=status, search=search)
 
 
@@ -174,8 +174,9 @@ def reception_issue(org_slug, issue_id):
     notes += [f"Previous relevant issue: {i.reference} — {i.title} ({i.status})" for i in reception.relevant_issues(org, actor, issue_id)]
     notes += [f"Eligible provider: {r['provider'].name}; active workload {r['active_workload']}. Staff choose the assignment on the issue page."
               for r in routing.recommend(org, actor, issue_id)]
-    notes.append(link("Issue and work orders", "view_interaction", reference=issue.reference))
-    return page("Reception — " + issue.reference, ["Record", "Recorded time", "Method / department", "Outcome", "Next action / reference", "Due"], rows, forms, notes)
+    if issue.reference:
+        notes.append(link("Issue and work orders", "view_interaction", reference=issue.reference))
+    return page("Reception — " + (issue.reference or str(issue.id)), ["Record", "Recorded time", "Method / department", "Outcome", "Next action / reference", "Due"], rows, forms, notes)
 
 
 @uip_bp.route("/<org_slug>/operations/municipal/<int:referral_id>", methods=["GET", "POST"])

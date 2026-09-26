@@ -468,6 +468,15 @@ def verify_claim_via_mandate(org_slug):
                 if old_assignment:
                     db.session.delete(old_assignment)
     
+    from app.models.core import CoreOrganizationMember
+    # 1.5 Ensure active organization membership
+    org_mem = CoreOrganizationMember.query.filter_by(organization_id=org.id, user_id=claim.creator_id).first()
+    if not org_mem:
+        org_mem = CoreOrganizationMember(organization_id=org.id, user_id=claim.creator_id, is_active=True)
+        db.session.add(org_mem)
+    else:
+        org_mem.is_active = True
+
     # 2. Grant the system role
     if claim.interaction_type == "mo_claim":
         role_slug = "municipal_officer"

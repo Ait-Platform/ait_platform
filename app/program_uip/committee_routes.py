@@ -1399,22 +1399,25 @@ def mandate_recording_desk(org_slug):
                 
                 doc_record = UipDocument(
                     organization_id=org.id,
-                    resolution_id=res.id,
+                    uploader_id=current_user.id,
                     title=f"Proof: {res.title}",
                     category="MANDATE",
-                    access_classification="public",
-                    uploaded_by=current_user.id,
-                    effective_date=datetime.utcnow().date(),
+                    access_classification="PUBLIC",
                     filename=filename,
-                    size_bytes=0,
                     current_version=1
                 )
                 db.session.add(doc_record)
                 db.session.flush()
-                
+
                 file_path = os.path.join(upload_dir, f"{doc_record.id}_{filename}")
                 f.save(file_path)
-                doc_record.size_bytes = os.path.getsize(file_path)
+                
+                # Link doc to resolution via JSON
+                basis = res.result_basis
+                basis["ratification"]["proof_document_id"] = doc_record.id
+                from sqlalchemy.orm.attributes import flag_modified
+                res.result_basis = basis
+                flag_modified(res, "result_basis")
                 
         db.session.commit()
         flash(f"Mandate for '{res.title}' successfully recorded and saved to register.", "success")

@@ -41,7 +41,12 @@
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             
             <div class="mb-6">
-                  <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Mandate Content</label>
+                  <label class="flex justify-between items-end mb-2">
+                        <span class="block text-xs font-bold text-slate-400 uppercase tracking-widest">Mandate Content</span>
+                        <button type="button" onclick="document.querySelector('textarea[name=\'description\']').value = 'Please refer to the official attached mandate document for full details.'" class="text-[10px] bg-slate-700 hover:bg-slate-600 text-amber-400 px-2 py-1 rounded font-bold uppercase tracking-wider transition">
+                            <i class="fas fa-file-pdf mr-1"></i> Use "Refer to Attachment"
+                        </button>
+                    </label>
                   <textarea name="description" rows="12" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-amber-500 font-mono text-sm whitespace-pre-wrap">{{ resolution.description }}</textarea>
                   <p class="text-[10px] text-slate-500 mt-2">Review or adjust the final recorded wording before saving.</p>
               </div>

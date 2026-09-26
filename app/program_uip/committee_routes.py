@@ -162,6 +162,8 @@ def committee_dashboard(org_slug):
                 return redirect(url_for("uip_bp.vice_chair_workspace", org_slug=org.slug))
             elif pos == "treasurer":
                 return redirect(url_for("uip_bp.treasurer_workspace", org_slug=org.slug))
+            elif "municipal" in pos:
+                return redirect(url_for("uip_bp.mo_dashboard", org_slug=org.slug))
         
     current_term = None
     try:

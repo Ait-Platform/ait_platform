@@ -42,7 +42,7 @@
             <p class="text-slate-400 text-sm">The digital temperature check is complete. After the live meeting concludes, formally record the final outcome and the live vote tally here.</p>
         </div>
         
-        <form method="POST" action="{{ url_for('uip_bp.decide_resolution', org_slug=org.slug, res_id=resolution.id) }}" class="space-y-6">
+        <form method="POST" action="{{ url_for('uip_bp.decide_resolution', org_slug=org.slug, res_id=resolution.id) }}" class="space-y-6" enctype="multipart/form-data">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -57,19 +57,19 @@
             </div>
             
             <div>
-                <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Live Meeting Vote Tally</label>
+                <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Live Meeting Vote Tally <span class="normal-case text-slate-500 text-[10px] ml-2">(Optional for Foundational Mandates)</span></label>
                 <div class="grid grid-cols-3 gap-4">
                     <div class="bg-slate-800 border border-slate-700 rounded-lg p-4 flex flex-col items-center justify-center">
                         <span class="text-emerald-400 font-bold mb-2">YEA</span>
-                        <input type="number" name="live_yea" min="0" required class="w-20 bg-slate-900 border border-slate-600 rounded px-2 py-2 text-white text-center text-xl font-black">
+                        <input type="number" name="live_yea" min="0" class="w-20 bg-slate-900 border border-slate-600 rounded px-2 py-2 text-white text-center text-xl font-black">
                     </div>
                     <div class="bg-slate-800 border border-slate-700 rounded-lg p-4 flex flex-col items-center justify-center">
                         <span class="text-rose-400 font-bold mb-2">NAY</span>
-                        <input type="number" name="live_nay" min="0" required class="w-20 bg-slate-900 border border-slate-600 rounded px-2 py-2 text-white text-center text-xl font-black">
+                        <input type="number" name="live_nay" min="0" class="w-20 bg-slate-900 border border-slate-600 rounded px-2 py-2 text-white text-center text-xl font-black">
                     </div>
                     <div class="bg-slate-800 border border-slate-700 rounded-lg p-4 flex flex-col items-center justify-center">
                         <span class="text-amber-400 font-bold mb-2">ABSTAIN</span>
-                        <input type="number" name="live_abstain" min="0" required class="w-20 bg-slate-900 border border-slate-600 rounded px-2 py-2 text-white text-center text-xl font-black">
+                        <input type="number" name="live_abstain" min="0" class="w-20 bg-slate-900 border border-slate-600 rounded px-2 py-2 text-white text-center text-xl font-black">
                     </div>
                 </div>
             </div>

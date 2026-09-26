@@ -563,6 +563,66 @@ def decide_resolution(org_slug, res_id):
         
     # Enforce Quorum for Adoption
     if decision == "ADOPTED":
+        # 1. Capture meeting details
+        meeting_date_str = request.form.get("meeting_date")
+        meeting_location = request.form.get("meeting_location")
+        live_yea = request.form.get("live_yea", type=int, default=0)
+        live_nay = request.form.get("live_nay", type=int, default=0)
+        live_abstain = request.form.get("live_abstain", type=int, default=0)
+        
+        if meeting_date_str:
+            from datetime import date
+            try:
+                res.decision_date = date.fromisoformat(meeting_date_str)
+            except ValueError:
+                pass
+                
+        # Store live tallies and location in result_basis
+        basis = res.result_basis or {}
+        basis["ratification"] = {
+            "date": meeting_date_str or str(res.decision_date or db.func.current_date()),
+            "location": meeting_location,
+            "votes_yea": live_yea,
+            "votes_nay": live_nay,
+            "votes_abstain": live_abstain,
+            "recorded_by_name": current_user.name,
+            "recorded_by_email": current_user.email,
+            "endorsements": [] # Setup for the new safeguard feature
+        }
+        res.result_basis = basis
+        
+        # 2. Handle optional Mandate Proof (PDF)
+        if "mandate_file" in request.files:
+            f = request.files["mandate_file"]
+            if f and f.filename:
+                import os
+                from flask import current_app
+                from werkzeug.utils import secure_filename
+                from app.models.uip import UipDocument
+                
+                filename = secure_filename(f.filename)
+                upload_dir = os.path.join(current_app.instance_path, "uip_documents", str(org.id))
+                os.makedirs(upload_dir, exist_ok=True)
+                
+                doc_record = UipDocument(
+                    organization_id=org.id,
+                    resolution_id=res.id,
+                    title=f"Proof: {res.title}",
+                    category="MANDATE",
+                    access_classification="public",
+                    uploaded_by=current_user.id,
+                    effective_date=res.decision_date or db.func.current_date(),
+                    filename=filename,
+                    size_bytes=0,
+                    current_version=1
+                )
+                db.session.add(doc_record)
+                db.session.flush()
+                
+                file_path = os.path.join(upload_dir, f"{doc_record.id}_{filename}")
+                f.save(file_path)
+                doc_record.size_bytes = os.path.getsize(file_path)
+
         votes = res.votes.all() if hasattr(res, 'votes') else []
         scope = getattr(res, 'voting_scope', 'EXCO')
         
@@ -582,12 +642,12 @@ def decide_resolution(org_slug, res_id):
             
             if missing_members:
                 missing_names = ", ".join(missing_members)
-                flash(f"Resolution proceeded. WARNING: The following elected members violated the mandatory voting rule by failing to cast a digital vote: {missing_names}", "warning")
+                flash(f"Resolution proceeded. WARNING: The following elected members did not cast a digital vote before ratification: {missing_names}", "warning")
             else:
-                flash("Resolution proceeded. All elected members successfully cast their mandatory digital votes.", "success")
+                flash("Resolution proceeded. All elected members successfully cast their digital votes prior to ratification.", "success")
                 
         else:
-            # For PUBLIC/Ratepayer scopes, we don't name-shame 400 people
+            # For PUBLIC/Ratepayer scopes
             from app.models.core import CoreOrganizationMember
             total_eligible = CoreOrganizationMember.query.filter_by(organization_id=org.id, is_active=True).count()
             if total_eligible == 0: total_eligible = 1
@@ -1218,75 +1278,57 @@ def ratification_desk(org_slug, res_id):
     return render_template("program_uip/dashboards/ratification_desk.html", org=org, resolution=resolution, current_appointment=current_appointment)
 
 
-@uip_bp.route("/<org_slug>/record-foundational-mandate", methods=["POST"])
+@uip_bp.route("/<org_slug>/resolution/<int:res_id>/endorse", methods=["POST"])
 @login_required
-def record_foundational_mandate(org_slug):
+def endorse_ratification(org_slug):
     from app.models.core import CoreOrganization
-    from app.models.uip import UipResolution, UipDocument
-    from datetime import date
-    import os
-    from flask import current_app
-    from werkzeug.utils import secure_filename
+    from app.models.uip import UipResolution
+    from app.models.uip_governance import UipCommitteeMember
+    from sqlalchemy import func
+    from datetime import datetime
     
     org = CoreOrganization.query.filter_by(slug=org_slug).first_or_404()
-    if not _require_role("secretary", abort_on_fail=False) and not _require_role("manager", abort_on_fail=False):
+    res = UipResolution.query.filter_by(organization_id=org.id, id=res_id).first_or_404()
+    
+    # Verify Lockdown Authority
+    current_appointment = UipCommitteeMember.query.filter(
+        UipCommitteeMember.organization_id == org.id,
+        UipCommitteeMember.status == "CURRENT",
+        func.lower(UipCommitteeMember.email) == func.lower(current_user.email)
+    ).first()
+    
+    if not current_appointment or current_appointment.position.lower() not in ["chairman", "chairperson", "chair", "vice chair", "vice chairman", "secretary", "treasurer"]:
         abort(403)
         
-    title = request.form.get("title")
-    description = request.form.get("description")
-    meeting_date_str = request.form.get("meeting_date")
-    meeting_location = request.form.get("meeting_location")
+    basis = res.result_basis or {}
+    rat = basis.get("ratification")
+    if not rat:
+        flash("No ratification record found to endorse.", "error")
+        return redirect(url_for("uip_bp.view_resolution", org_slug=org.slug, res_id=res.id))
+        
+    if rat.get("recorded_by_email") == current_user.email:
+        flash("You cannot endorse your own recording.", "error")
+        return redirect(url_for("uip_bp.view_resolution", org_slug=org.slug, res_id=res.id))
+        
+    endorsements = rat.get("endorsements", [])
+    if any(e.get("email") == current_user.email for e in endorsements):
+        flash("You have already endorsed this record.", "info")
+        return redirect(url_for("uip_bp.view_resolution", org_slug=org.slug, res_id=res.id))
+        
+    endorsements.append({
+        "name": current_user.name,
+        "email": current_user.email,
+        "timestamp": datetime.utcnow().strftime("%Y-%m-%d %H:%M")
+    })
     
-    meeting_date = date.today()
-    if meeting_date_str:
-        try:
-            meeting_date = date.fromisoformat(meeting_date_str)
-        except ValueError:
-            pass
-            
-    # Create the Mandate (ADOPTED Resolution)
-    mandate = UipResolution(
-        organization_id=org.id,
-        creator_id=current_user.id,
-        title=title,
-        description=description,
-        status="ADOPTED",
-        voting_scope="PUBLIC",
-        decision_date=meeting_date,
-        reference="FOUNDATIONAL MANDATE",
-        yea_tally=0,
-        nay_tally=0
-    )
-    db.session.add(mandate)
-    db.session.flush()
+    rat["endorsements"] = endorsements
+    basis["ratification"] = rat
     
-    # Handle optional file upload
-    if "mandate_file" in request.files:
-        f = request.files["mandate_file"]
-        if f and f.filename:
-            filename = secure_filename(f.filename)
-            upload_dir = os.path.join(current_app.instance_path, "uip_documents", str(org.id))
-            os.makedirs(upload_dir, exist_ok=True)
-            
-            doc_record = UipDocument(
-                organization_id=org.id,
-                resolution_id=mandate.id,
-                title=f"Proof: {title}",
-                category="MANDATE",
-                access_classification="public",
-                uploaded_by=current_user.id,
-                effective_date=meeting_date,
-                filename=filename,
-                size_bytes=0,
-                current_version=1
-            )
-            db.session.add(doc_record)
-            db.session.flush()
-            
-            file_path = os.path.join(upload_dir, f"{doc_record.id}_{filename}")
-            f.save(file_path)
-            doc_record.size_bytes = os.path.getsize(file_path)
-            
+    # SQLAlchemy JSON mutation tracking requires reassignment
+    from sqlalchemy.orm.attributes import flag_modified
+    res.result_basis = basis
+    flag_modified(res, "result_basis")
+    
     db.session.commit()
-    flash(f"Foundational Mandate '{title}' successfully recorded.", "success")
-    return redirect(url_for("uip_bp.committee_dashboard", org_slug=org.slug, view="register"))
+    flash("You have successfully endorsed the ratification record.", "success")
+    return redirect(url_for("uip_bp.view_resolution", org_slug=org.slug, res_id=res.id))

@@ -397,8 +397,7 @@ def verify_claim_via_mandate(org_slug):
     from sqlalchemy import func
     
     org = CoreOrganization.query.filter_by(slug=org_slug).first_or_404()
-    if not _require_role("secretary", abort_on_fail=False) and not _require_role("manager", abort_on_fail=False):
-        abort(403)
+    _require_secretary()
         
     claim_id = request.form.get("claim_id")
     mandate_id = request.form.get("mandate_id")

@@ -435,13 +435,13 @@ def verify_claim_via_mandate(org_slug):
     
     # 2. Grant the system role
     if claim.interaction_type == "mo_claim":
-          role_slug = "municipal_officer"
-      elif claim.interaction_type == "committee_claim":
-          role_slug = "committee_member"
-      elif claim.interaction_type == "ratepayer_claim":
-          role_slug = "ratepayer"
-      else:
-          role_slug = "subcommittee_member"
+        role_slug = "municipal_officer"
+    elif claim.interaction_type == "committee_claim":
+        role_slug = "committee_member"
+    elif claim.interaction_type == "ratepayer_claim":
+        role_slug = "ratepayer"
+    else:
+        role_slug = "subcommittee_member"
     role_record = CoreRole.query.filter_by(slug=role_slug).first()
     if role_record:
         assignment = CoreRoleAssignment(

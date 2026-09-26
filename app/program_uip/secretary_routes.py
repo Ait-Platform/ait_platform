@@ -434,7 +434,14 @@ def verify_claim_via_mandate(org_slug):
                     db.session.delete(old_assignment)
     
     # 2. Grant the system role
-    role_slug = "municipal_officer" if claim.interaction_type == "mo_claim" else "subcommittee_member"
+    if claim.interaction_type == "mo_claim":
+          role_slug = "municipal_officer"
+      elif claim.interaction_type == "committee_claim":
+          role_slug = "committee_member"
+      elif claim.interaction_type == "ratepayer_claim":
+          role_slug = "ratepayer"
+      else:
+          role_slug = "subcommittee_member"
     role_record = CoreRole.query.filter_by(slug=role_slug).first()
     if role_record:
         assignment = CoreRoleAssignment(
@@ -457,7 +464,7 @@ def verify_claim_via_mandate(org_slug):
         name=claim.creator.name,
         user_id=claim.creator_id,
         email=claim.creator.email,
-        position="Municipal Officer" if claim.interaction_type == "mo_claim" else "Verified Member",
+        position="Municipal Officer" if claim.interaction_type == "mo_claim" else ("Committee Member" if claim.interaction_type == "committee_claim" else "Ratepayer"),
         status="CURRENT"
     )
     db.session.add(new_member)

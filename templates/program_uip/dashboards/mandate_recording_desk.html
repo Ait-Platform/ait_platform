@@ -33,7 +33,7 @@
                     
                     <div class="md:col-span-2">
                         <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Mandate Title / Type</label>
-                        <select name="title_selection" required class="block w-full border border-slate-300 rounded-lg shadow-sm py-3 px-4 focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 text-slate-800 font-bold">
+                        <select name="title_selection" required class="block w-full border border-slate-300 rounded-lg shadow-sm py-3 px-4 focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 text-slate-900 font-bold">
                             <option value="" disabled selected>-- Select Mandate Type --</option>
                             <optgroup label="Foundational External Mandates">
                                 <option value="Founding Declaration">Founding Declaration</option>
@@ -52,7 +52,10 @@
                 
                 <div class="mb-6">
                     <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Mandate Content</label>
-                    <textarea name="description" rows="3" readonly class="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 text-slate-500 focus:outline-none font-mono text-sm whitespace-pre-wrap cursor-not-allowed">Please refer to the official attached mandate document for full details.</textarea>
+                    <div class="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 text-slate-800 font-medium text-sm">
+                        Please refer to the official attached mandate document for full details.
+                        <input type="hidden" name="description" value="Please refer to the official attached mandate document for full details.">
+                    </div>
                 </div>
                 
                 <div class="mb-8 pt-4">

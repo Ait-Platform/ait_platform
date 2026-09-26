@@ -28,12 +28,7 @@
     
     {% include "partials/flash_messages.html" %}
 
-    <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden mb-8">
-        <div class="p-8">
-            <h2 class="text-lg font-bold text-slate-500 uppercase tracking-widest mb-4">Mandate Content</h2>
-            <div class="prose prose-slate max-w-none font-medium text-slate-700 whitespace-pre-wrap">{{ resolution.description }}</div>
-        </div>
-    </div>
+    
 
     {% if current_appointment and current_appointment.position.lower() in ["secretary", "chairman", "vice chairman", "chair", "chairperson", "vice chair"] %}
     <div class="bg-slate-900 rounded-xl p-8 shadow-lg border border-slate-800 text-white">
@@ -45,7 +40,13 @@
         <form method="POST" action="{{ url_for('uip_bp.decide_resolution', org_slug=org.slug, res_id=resolution.id) }}" class="space-y-6" enctype="multipart/form-data">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="mb-6">
+                  <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Mandate Content</label>
+                  <textarea name="description" rows="12" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-amber-500 font-mono text-sm whitespace-pre-wrap">{{ resolution.description }}</textarea>
+                  <p class="text-[10px] text-slate-500 mt-2">Review or adjust the final recorded wording before saving.</p>
+              </div>
+              
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                     <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Meeting Date</label>
                     <input type="date" name="meeting_date" required class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-amber-500">

@@ -1,0 +1,74 @@
+﻿{% extends "program_uip/base.html" %}
+{% block title %}Mandate Recording Desk - {{ org.name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-8">
+    
+    <div class="mb-6 flex justify-between items-center">
+        <div>
+            <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight flex items-center">
+                <i class="fas fa-file-signature text-emerald-600 mr-3"></i> Mandate Recording Desk
+            </h1>
+            <p class="text-slate-500 mt-2 font-medium">Continuously record and log official mandates into the public register.</p>
+        </div>
+        <a href="{{ url_for('uip_bp.secretary_workspace', org_slug=org.slug) }}" class="text-sm font-bold text-slate-500 hover:text-emerald-600 transition inline-flex items-center bg-white border border-slate-200 px-4 py-2 rounded-lg shadow-sm">
+            <i class="fas fa-arrow-left mr-2"></i> Back to Workspace
+        </a>
+    </div>
+
+    {% include 'partials/flash_messages.html' %}
+
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="p-8">
+            <form method="POST" action="{{ url_for('uip_bp.mandate_recording_desk', org_slug=org.slug) }}" enctype="multipart/form-data" class="space-y-6">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 pb-8 border-b border-slate-100">
+                    <div class="md:col-span-1">
+                        <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Record Number</label>
+                        <div class="bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 text-slate-700 font-mono font-bold text-lg">
+                            {{ next_mnd }}
+                        </div>
+                    </div>
+                    
+                    <div class="md:col-span-2">
+                        <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Mandate Title / Type</label>
+                        <select name="title_selection" required class="block w-full border border-slate-300 rounded-lg shadow-sm py-3 px-4 focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 text-slate-800 font-bold">
+                            <option value="" disabled selected>-- Select Mandate Type --</option>
+                            <optgroup label="Foundational External Mandates">
+                                <option value="Founding Declaration">Founding Declaration</option>
+                                <option value="Municipal Officer Appointment">Municipal Officer Appointment</option>
+                            </optgroup>
+                            {% if pending_resolutions %}
+                            <optgroup label="Drafted / Tabled Resolutions">
+                                {% for res in pending_resolutions %}
+                                <option value="RES_{{ res.id }}">{{ res.reference }} - {{ res.title }}</option>
+                                {% endfor %}
+                            </optgroup>
+                            {% endif %}
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="mb-6">
+                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Mandate Content</label>
+                    <textarea name="description" rows="3" readonly class="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 text-slate-500 focus:outline-none font-mono text-sm whitespace-pre-wrap cursor-not-allowed">Please refer to the official attached mandate document for full details.</textarea>
+                </div>
+                
+                <div class="mb-8 pt-4">
+                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Upload Proof (PDF)</label>
+                    <input type="file" name="mandate_file" accept=".pdf,.png,.jpg,.jpeg" required class="block w-full text-sm text-slate-500 file:mr-4 file:py-3 file:px-6 file:rounded-md file:border-0 file:text-sm file:font-bold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 bg-white border border-slate-200 rounded-lg cursor-pointer" />
+                    <p class="text-xs text-slate-500 mt-2">Required: Upload the official signed PDF. This document acts as the legal source of truth.</p>
+                </div>
+                
+                <div class="pt-6 border-t border-slate-100 flex justify-end">
+                    <button type="submit" class="px-8 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold shadow-md hover:shadow-lg transition text-lg flex items-center">
+                        <i class="fas fa-save mr-3"></i> Save to Mandate Register
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+</div>
+{% endblock %}

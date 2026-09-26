@@ -6,7 +6,7 @@
     <div class="mb-8">
         <div class="text-lg font-black text-slate-800 uppercase tracking-widest mb-4 border-b border-slate-200 pb-2 flex items-center justify-between">
             <div>
-                <i class="fas fa-gavel text-amber-600 mr-3 text-xl"></i> Live Ratification Desk
+                <i class="fas fa-gavel text-amber-600 mr-3 text-xl"></i> Mandate Recording Desk
             </div>
             <a href="{{ url_for('uip_bp.meeting_list', org_slug=org.slug) }}" class="text-slate-500 hover:text-indigo-600 font-bold text-sm inline-flex items-center transition bg-white border border-slate-200 px-3 py-1.5 rounded-lg shadow-sm">
                 <i class="fas fa-arrow-left mr-2"></i> Back to Meetings
@@ -38,8 +38,8 @@
     {% if current_appointment and current_appointment.position.lower() in ["secretary", "chairman", "vice chairman", "chair", "chairperson", "vice chair"] %}
     <div class="bg-slate-900 rounded-xl p-8 shadow-lg border border-slate-800 text-white">
         <div class="mb-6">
-            <h3 class="font-bold text-xl mb-2 text-amber-500"><i class="fas fa-gavel mr-2"></i> Post-Meeting Ratification</h3>
-            <p class="text-slate-400 text-sm">The digital temperature check is complete. After the live meeting concludes, formally record the final outcome and the live vote tally here.</p>
+            <h3 class="font-bold text-xl mb-2 text-amber-500"><i class="fas fa-gavel mr-2"></i> Mandate Recording</h3>
+            <p class="text-slate-400 text-sm">Formally record the outcome of the meeting or the external mandate to lock it into the register.</p>
         </div>
         
         <form method="POST" action="{{ url_for('uip_bp.decide_resolution', org_slug=org.slug, res_id=resolution.id) }}" class="space-y-6" enctype="multipart/form-data">
@@ -64,7 +64,7 @@
               
               <div class="pt-6 mt-4 border-t border-slate-800 flex justify-end">
                   <button type="submit" name="decision" value="ADOPTED" class="px-8 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold shadow transition text-lg">
-                      <i class="fas fa-save mr-2"></i> Save Ratification Record
+                      <i class="fas fa-save mr-2"></i> Save to Mandate Register
                   </button>
               </div>
           </form>

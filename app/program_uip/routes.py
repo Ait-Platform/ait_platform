@@ -1571,7 +1571,16 @@ def public_mandates(org_slug):
         UipResolution.created_at.desc(), UipResolution.id.desc()
     ).all()
     
-    return render_template("program_uip/dashboards/public_mandates.html", org=org, resolutions=adopted_resolutions)
+    from app.models.uip import UipDocument
+    proof_docs = {}
+    for res in adopted_resolutions:
+        if res.result_basis and res.result_basis.get("ratification") and res.result_basis["ratification"].get("proof_document_id"):
+            doc_id = res.result_basis["ratification"]["proof_document_id"]
+            doc = UipDocument.query.get(doc_id)
+            if doc:
+                proof_docs[res.id] = doc
+                
+    return render_template("program_uip/dashboards/public_mandates.html", org=org, resolutions=adopted_resolutions, proof_docs=proof_docs)
 
 
 @uip_bp.route("/<org_slug>/vault-check")

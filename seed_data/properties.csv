@@ -1,0 +1,16 @@
+﻿reference,address,rates_reference,classification,is_active
+PROP001,10 Acacia Avenue,RATES-1001,Residential,true
+PROP002,22 Baobab Street,RATES-1002,Residential,true
+PROP003,5 Cedar Close,RATES-1003,Residential,true
+PROP004,18 Daisy Drive,RATES-1004,Residential,true
+PROP005,45 Elm Road,RATES-1005,Residential,true
+PROP006,12 Fern Way,RATES-1006,Residential,true
+PROP007,8 Gardenia Lane,RATES-1007,Residential,true
+PROP008,30 Hazel Crescent,RATES-1008,Residential,true
+PROP009,100 Industrial Park,RATES-1009,Commercial,true
+PROP010,200 Business Center,RATES-1010,Commercial,true
+PROP011,14 Jacaranda Street,RATES-1011,Residential,true
+PROP012,3 Kingfisher Road,RATES-1012,Residential,true
+PROP013,11 Lily Lane,RATES-1013,Residential,true
+PROP014,9 Marigold Avenue,RATES-1014,Residential,true
+PROP015,50 North Warehouse,RATES-1015,Commercial,true

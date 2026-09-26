@@ -1,0 +1,16 @@
+﻿reference,name,member_type,email,phone,is_active,eligibility_status
+MOCK001,Thabo Mkhize,person,thabo.mkhize@example.invalid,0825550101,true,eligible
+MOCK002,Naledi Dlamini,person,naledi.dlamini@example.invalid,0825550102,true,eligible
+MOCK003,Ayesha Khan,person,ayesha.khan@example.invalid,0825550103,true,eligible
+MOCK004,Sipho Nkosi,person,sipho.nkosi@example.invalid,0825550104,true,eligible
+MOCK005,Priya Naidoo,person,priya.naidoo@example.invalid,0825550105,true,unverified
+MOCK006,Michael Jacobs,person,michael.jacobs@example.invalid,0825550106,false,eligible
+MOCK007,Zanele Ndlovu,person,zanele.ndlovu@example.invalid,0825550107,true,eligible
+MOCK008,David Peters,person,david.peters@example.invalid,0825550108,true,eligible
+MOCK009,Mock Garden Services,business,garden.services@example.invalid,0825550109,true,eligible
+MOCK010,Mock Precinct Supplies,business,precinct.supplies@example.invalid,0825550110,true,unverified
+MOCK011,Lerato Molefe,person,lerato.molefe@example.invalid,0825550111,true,eligible
+MOCK012,James Carter,person,james.carter@example.invalid,0825550112,true,eligible
+MOCK013,Fatima Patel,person,fatima.patel@example.invalid,0825550113,true,eligible
+MOCK014,John Smith,person,john.smith@example.invalid,0825550114,true,unverified
+MOCK015,Green Leaf Logistics,business,greenleaf@example.invalid,0825550115,true,eligible

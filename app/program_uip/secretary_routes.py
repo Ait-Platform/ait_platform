@@ -373,143 +373,101 @@ def secretary_intake(org_slug):
             "creator_id": creator.id
         })
         
+    from app.models.uip import UipResolution
+    adopted_resolutions = UipResolution.query.filter_by(
+        organization_id=org.id, 
+        status='ADOPTED'
+    ).order_by(UipResolution.decision_date.desc().nullslast(), UipResolution.id.desc()).all()
+
     return render_template(
         "program_uip/dashboards/secretary_intake.html",
         org=org,
         open_claims=enriched_claims,
         existing_mo=existing_mo,
-        mo_conflict=mo_conflict
+        mo_conflict=mo_conflict,
+        adopted_resolutions=adopted_resolutions
     )
 
-@uip_bp.route("/<org_slug>/record-mo-mandate", methods=["POST"])
+@uip_bp.route("/<org_slug>/verify-claim-mandate", methods=["POST"])
 @login_required
-def record_mo_mandate(org_slug):
-    org = g.organization
-    _require_secretary()
+def verify_claim_via_mandate(org_slug):
+    from app.models.core import CoreOrganization, CoreInteraction, CoreRoleAssignment, CoreRole
+    from app.models.uip import UipResolution
+    from app.models.uip_governance import UipCommitteeMember, UipCommitteeTerm
+    from sqlalchemy import func
     
+    org = CoreOrganization.query.filter_by(slug=org_slug).first_or_404()
+    if not _require_role("secretary", abort_on_fail=False) and not _require_role("manager", abort_on_fail=False):
+        abort(403)
+        
     claim_id = request.form.get("claim_id")
+    mandate_id = request.form.get("mandate_id")
     action = request.form.get("action")
     
-    claim = CoreInteraction.query.filter_by(
-        id=claim_id, 
-        organization_id=org.id, 
-        interaction_type="mo_claim", 
-        status="OPEN"
-    ).first_or_404()
+    claim = CoreInteraction.query.filter_by(organization_id=org.id, id=claim_id).first_or_404()
     
     if action == "reject":
         claim.status = "REJECTED"
-        claim.description = (claim.description or "") + "\n\nRejected by Secretary as an invalid mandate."
         db.session.commit()
-        flash("MO claim rejected.", "success")
+        flash("Claim rejected.", "info")
         return redirect(url_for("uip_bp.secretary_intake", org_slug=org.slug))
         
-    # Handling "record" (approve) action
-    # Optional file upload
-    from app.models.uip import UipDocument
-    from datetime import date
-    import os
-    from flask import current_app
-    from werkzeug.utils import secure_filename
+    mandate = UipResolution.query.filter_by(organization_id=org.id, id=mandate_id, status='ADOPTED').first_or_404()
     
-    doc_record = None
-    if "mandate_file" in request.files:
-        f = request.files["mandate_file"]
-        if f and f.filename:
-            filename = secure_filename(f.filename)
-            upload_dir = os.path.join(current_app.instance_path, "uip_documents", str(org.id))
-            os.makedirs(upload_dir, exist_ok=True)
-            
-            # Create DB record first to get ID
-            doc_record = UipDocument(
-                organization_id=org.id,
-                title=f"MO Mandate - {claim.creator.name}",
-                category="MANDATE",
-                access_classification="committee",
-                uploaded_by=current_user.id,
-                effective_date=date.today(),
-                filename=filename,
-                size_bytes=0,
-                current_version=1
-            )
-            db.session.add(doc_record)
-            db.session.flush()
-            
-            # Save file
-            file_path = os.path.join(upload_dir, f"{doc_record.id}_{filename}")
-            f.save(file_path)
-            doc_record.size_bytes = os.path.getsize(file_path)
-            
-    # 1. Check if there's an existing MO to replace
-    from app.models.uip_governance import UipCommitteeMember
-    existing_mo = UipCommitteeMember.query.filter(
-        UipCommitteeMember.organization_id == org.id,
-        UipCommitteeMember.position.ilike('%Municipal%'),
-        UipCommitteeMember.status == 'CURRENT'
-    ).first()
-    
-    from app.models.core import CoreRoleAssignment, CoreRole
-    
-    if existing_mo:
-        existing_mo.status = "FORMER"
-        # Revoke old MO role
-        old_role = CoreRoleAssignment.query.filter(
-            CoreRoleAssignment.organization_id == org.id,
-            CoreRoleAssignment.user_id == existing_mo.user_id,
-            CoreRoleAssignment.role.has(CoreRole.slug == 'municipal_officer')
+    # 1. Check if there's an existing MO to replace if this is an MO claim
+    if claim.interaction_type == "mo_claim":
+        existing_mo = UipCommitteeMember.query.filter(
+            UipCommitteeMember.organization_id == org.id,
+            UipCommitteeMember.position.ilike('%Municipal%'),
+            UipCommitteeMember.status == 'CURRENT'
         ).first()
-        if old_role:
-            db.session.delete(old_role)
-            
-    # 2. Create the Mandate Resolution
-    from app.models.uip import UipResolution
-    from datetime import datetime
-    mandate_res = UipResolution(
-        organization_id=org.id,
-        title=f"Mandate: Municipal Officer - {claim.creator.name}",
-        description="Official Municipal Appointment recorded by Secretary.",
-        status="ADOPTED",
-        voting_scope="EXCO",
-        decision_date=datetime.utcnow().date(),
-        recorded_by=current_user.id
-    )
-    db.session.add(mandate_res)
-    db.session.flush()
+        if existing_mo:
+            existing_mo.status = "FORMER"
+            mo_role = CoreRole.query.filter_by(slug="municipal_officer").first()
+            if mo_role:
+                old_assignment = CoreRoleAssignment.query.filter_by(
+                    organization_id=org.id,
+                    user_id=existing_mo.user_id,
+                    role_id=mo_role.id
+                ).first()
+                if old_assignment:
+                    db.session.delete(old_assignment)
     
-    if doc_record:
-        doc_record.resolution_id = mandate_res.id
-            
-    # 3. Create the new Committee Member record
-    from app.models.uip_governance import UipCommitteeTerm
-    current_term = UipCommitteeTerm.query.filter_by(organization_id=org.id).order_by(UipCommitteeTerm.id.desc()).first()
-    term_id = current_term.id if current_term else 1
-    
-    new_mo = UipCommitteeMember(
-        term_id=term_id,
-        organization_id=org.id,
-        name=claim.creator.name,
-        email=claim.creator.email,
-        user_id=claim.creator.id,
-        position="Municipal Officer",
-        status="CURRENT",
-        created_by=current_user.id
-    )
-    db.session.add(new_mo)
-    
-    # 4. Grant core role assignment
-    mo_role = CoreRole.query.filter_by(slug='municipal_officer').first()
-    if mo_role:
-        new_assignment = CoreRoleAssignment(
+    # 2. Grant the system role
+    role_slug = "municipal_officer" if claim.interaction_type == "mo_claim" else "subcommittee_member"
+    role_record = CoreRole.query.filter_by(slug=role_slug).first()
+    if role_record:
+        assignment = CoreRoleAssignment(
+            user_id=claim.creator_id,
             organization_id=org.id,
-            user_id=claim.creator.id,
-            role_id=mo_role.id
+            role_id=role_record.id
         )
-        db.session.add(new_assignment)
+        db.session.add(assignment)
         
-    claim.status = "VERIFIED"
-    db.session.commit()
+    # 3. Create Committee Member
+    current_term = UipCommitteeTerm.query.filter_by(organization_id=org.id).order_by(UipCommitteeTerm.created_at.desc()).first()
+    if not current_term:
+        current_term = UipCommitteeTerm(organization_id=org.id, start_date=db.func.current_date())
+        db.session.add(current_term)
+        db.session.flush()
+        
+    new_member = UipCommitteeMember(
+        organization_id=org.id,
+        term_id=current_term.id,
+        name=claim.creator.name,
+        user_id=claim.creator_id,
+        email=claim.creator.email,
+        position="Municipal Officer" if claim.interaction_type == "mo_claim" else "Verified Member",
+        status="CURRENT"
+    )
+    db.session.add(new_member)
     
-    flash("Municipal Officer Mandate officially recorded and MO admitted.", "success")
+    # 4. Mark claim verified
+    claim.status = "VERIFIED"
+    claim.resolution_id = mandate.id
+    
+    db.session.commit()
+    flash(f"{claim.creator.name} successfully verified against Mandate: {mandate.title}", "success")
     return redirect(url_for("uip_bp.secretary_intake", org_slug=org.slug))
 
 @uip_bp.route("/<org_slug>/secretary/onboarding-campaign", methods=["GET", "POST"])

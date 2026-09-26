@@ -33,7 +33,7 @@
         <a href="{{ url_for('uip_bp.sub_comm_reports', org_slug=org.slug, sub_id=subcommittee.id) }}">Reports</a>
     </div>
     <div style="border: 1px solid #ccc; padding: 1rem;">
-        <a href="{{ url_for('uip_bp.my_access', org_slug=org.slug) }}">Personal Profile</a>
+        <a href="{{ url_for('uip_bp.router_page', org_slug=org.slug, force=1) }}">Switch Profile</a>
     </div>
 </div>
 {% endblock %}

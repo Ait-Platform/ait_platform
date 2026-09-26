@@ -379,13 +379,34 @@ def secretary_intake(org_slug):
         status='ADOPTED'
     ).order_by(UipResolution.decision_date.desc().nullslast(), UipResolution.id.desc()).all()
 
+    processed_claims = CoreInteraction.query.filter(
+        CoreInteraction.organization_id == org.id,
+        CoreInteraction.status.in_(["VERIFIED", "PENDING_RESOLUTION"]),
+        CoreInteraction.interaction_type.in_([
+            "committee_claim", "ratepayer_claim", "subcommittee_claim", "mo_claim", "staff_claim", "unknown_claim"
+        ])
+    ).order_by(CoreInteraction.id.desc()).limit(15).all()
+    
+    enriched_processed = []
+    for pc in processed_claims:
+        creator = User.query.get(pc.creator_id)
+        enriched_processed.append({
+            "id": pc.id,
+            "type": pc.interaction_type,
+            "title": pc.title,
+            "status": pc.status,
+            "user_name": creator.name or "User",
+            "user_email": creator.email,
+        })
+
     return render_template(
         "program_uip/dashboards/secretary_intake.html",
         org=org,
         open_claims=enriched_claims,
         existing_mo=existing_mo,
         mo_conflict=mo_conflict,
-        adopted_resolutions=adopted_resolutions
+        adopted_resolutions=adopted_resolutions,
+        processed_claims=enriched_processed
     )
 
 @uip_bp.route("/<org_slug>/verify-claim-mandate", methods=["POST"])
@@ -657,3 +678,27 @@ def secretary_organogram(org_slug):
         sub.responsible_member = sub_service.resolve_responsible_member(sub)
                 
     return render_template("program_uip/dashboards/secretary_organogram.html", org=org, core_seats=core_seats, second_seats=second_seats, operations_seats=operations_seats, active_members=active_members, adopted_resolutions=adopted_resolutions, subcommittees=subcommittees)
+
+@uip_bp.route("/<org_slug>/undo-claim/<int:claim_id>", methods=["POST"])
+@login_required
+def undo_claim(org_slug, claim_id):
+    org = g.organization
+    _require_secretary()
+    from app.models.core import CoreInteraction, CoreRoleAssignment, CoreRole
+    from app.models.uip_governance import UipCommitteeMember
+    
+    claim = CoreInteraction.query.filter_by(organization_id=org.id, id=claim_id).first_or_404()
+    
+    if claim.status == "VERIFIED":
+        # Revoke roles and committee membership
+        UipCommitteeMember.query.filter_by(organization_id=org.id, user_id=claim.creator_id, status="CURRENT").delete()
+        CoreRoleAssignment.query.filter_by(organization_id=org.id, user_id=claim.creator_id).delete()
+        claim.resolution_id = None
+        flash("Verification revoked. Applicant returned to waiting room.", "info")
+    elif claim.status == "PENDING_RESOLUTION":
+        flash("Applicant removed from proposed resolution track and returned to waiting room.", "info")
+        
+    claim.status = "OPEN"
+    db.session.commit()
+    
+    return redirect(url_for("uip_bp.secretary_intake", org_slug=org.slug))

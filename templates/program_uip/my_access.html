@@ -8,11 +8,7 @@
         <h1>{{ current_user.name or "Waiting Guest" }}</h1>
         <p class="ui-subtitle">{{ current_user.email }}</p>
     </div>
-    <div class="mt-2">
-        <a href="{{ url_for('uip_bp.router_page', org_slug=org.slug, force=1) }}" class="inline-block px-4 py-2 border border-slate-300 rounded-lg text-sm font-bold text-slate-600 hover:bg-slate-50 transition">
-            &larr; Role Selection
-        </a>
-    </div>
+    
 </header>
 
 <div class="max-w-5xl px-4 mb-16">

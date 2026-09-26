@@ -563,9 +563,15 @@ def decide_resolution(org_slug, res_id):
         
     # Enforce Quorum for Adoption
     if decision == "ADOPTED":
-        # 1. Capture meeting details
+                # 1. Capture meeting details
         meeting_date_str = request.form.get("meeting_date")
         meeting_location = request.form.get("meeting_location")
+        
+        # Update mandate content if provided
+        updated_description = request.form.get("description")
+        if updated_description:
+            res.description = updated_description
+            
         live_yea = request.form.get("live_yea", type=int, default=0)
         live_nay = request.form.get("live_nay", type=int, default=0)
         live_abstain = request.form.get("live_abstain", type=int, default=0)

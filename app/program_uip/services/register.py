@@ -82,15 +82,29 @@ class InvalidRegisterOption(BadRequest):
         self.column, self.value, self.allowed = column, value, tuple(allowed)
 
 
-def choice(data, key, values):
+def choice(data, key, values, default=None):
     value = data.get(key)
+    if not value and default is not None:
+        return default
+    if value and isinstance(value, str):
+        value = value.strip().lower()
     if value not in values:
+        if default is not None:
+            return default
         raise InvalidRegisterOption(key, value, values)
     return value
 
 
-def boolean(data, key):
-    return choice(data, key, ("true", "false")) == "true"
+def boolean(data, key, default=True):
+    val = data.get(key)
+    if not val:
+        return default
+    val = str(val).strip().lower()
+    if val in ('true', 't', 'yes', 'y', '1'):
+        return True
+    if val in ('false', 'f', 'no', 'n', '0'):
+        return False
+    return default
 
 
 def save_member(organization_id, actor_user_id, data, member_id=None, is_import=False, import_id=None, is_authoritative=False):
@@ -100,10 +114,10 @@ def save_member(organization_id, actor_user_id, data, member_id=None, is_import=
         
     values = {
         "reference": text(data, "reference", 50, True), "name": text(data, "name", 255, True),
-        "member_type": choice(data, "member_type", ("person", "business")),
+        "member_type": choice(data, "member_type", ("person", "business"), default="person"),
         "email": text(data, "email", 255), "phone": text(data, "phone", 50),
-        "is_active": boolean(data, "is_active"),
-        "eligibility_status": choice(data, "eligibility_status", ("unverified", "eligible", "ineligible")),
+        "is_active": boolean(data, "is_active", default=True),
+        "eligibility_status": choice(data, "eligibility_status", ("unverified", "eligible", "ineligible"), default="eligible"),
     }
     
     if is_import and member_id is not None:
@@ -166,8 +180,8 @@ def save_property(organization_id, actor_user_id, data, property_id=None, is_imp
     values = {
         "reference": text(data, "reference", 50, True), "address": text(data, "address", 500, True),
         "rates_reference": text(data, "rates_reference", 100),
-        "classification": choice(data, "classification", ("residential", "business", "mixed", "other")),
-        "is_active": boolean(data, "is_active"),
+        "classification": choice(data, "classification", ("residential", "business", "mixed", "other"), default="residential"),
+        "is_active": boolean(data, "is_active", default=True),
     }
     
     if property_id:

@@ -333,7 +333,7 @@ def process_import_batch(organization_id, actor_user_id, kind, rows, metadata, i
     for idx, row in enumerate(rows, 2):
         try:
             if kind == "members":
-                reference = row.get("reference")
+                reference = str(row.get("reference") or "").strip()
                 if not reference:
                     raise Exception("Missing municipal reference column")
                     
@@ -361,7 +361,7 @@ def process_import_batch(organization_id, actor_user_id, kind, rows, metadata, i
                     summary["created"] += 1
                     
             elif kind == "properties":
-                reference = row.get("reference")
+                reference = str(row.get("reference") or "").strip()
                 if not reference:
                     raise Exception("Missing municipal reference column")
                     
@@ -387,8 +387,8 @@ def process_import_batch(organization_id, actor_user_id, kind, rows, metadata, i
                     summary["created"] += 1
                     
             elif kind == "relationships":
-                member_ref = row.get("member_reference")
-                prop_ref = row.get("property_reference")
+                member_ref = str(row.get("member_reference") or "").strip()
+                prop_ref = str(row.get("property_reference") or "").strip()
                 rel_type = row.get("relationship")
                 
                 member = UipMemberProfile.query.filter_by(organization_id=organization_id, reference=member_ref).first()

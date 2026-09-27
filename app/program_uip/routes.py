@@ -654,8 +654,16 @@ def mo_dashboard(org_slug):
             interaction_id=ref.interaction_id,
             category="RP_QUERY_PHOTO"
         ).all()
+        
+    # Check if MO is also a ratepayer
+    from app.models.uip import UipMemberProfile
+    from sqlalchemy import func
+    is_ratepayer = UipMemberProfile.query.filter(
+        UipMemberProfile.organization_id == org.id,
+        func.lower(UipMemberProfile.email) == current_user.email.lower()
+    ).first() is not None
     
-    return render_template("program_uip/dashboards/municipal_officer.html", org=org, escalations=escalations)
+    return render_template("program_uip/dashboards/municipal_officer.html", org=org, escalations=escalations, is_ratepayer=is_ratepayer)
 
 @uip_bp.route("/<org_slug>/mo-action/<int:referral_id>", methods=["POST"])
 @login_required

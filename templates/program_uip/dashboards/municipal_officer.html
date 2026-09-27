@@ -13,9 +13,15 @@
         <!-- Row 1: Title & Back Button -->
         <div class="ui-header-2row-top">
             <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight ui-header-2row-title">Municipal Action Board</h1>
-            <a href="{{ url_for('uip_bp.router_page', org_slug=org.slug) }}" class="inline-flex items-center text-sm font-bold text-slate-500 hover:text-indigo-600 transition" style="white-space: nowrap;">
-                <i class="fas fa-hat-cowboy mr-2"></i> Switch Hat
+            {% if is_ratepayer %}
+            <a href="{{ url_for('uip_bp.verify_ratepayer', org_slug=org.slug) }}" class="inline-flex items-center text-sm font-bold text-emerald-600 hover:text-emerald-700 transition" style="white-space: nowrap;">
+                <i class="fas fa-home mr-2"></i> View My Property
             </a>
+            {% else %}
+            <a href="{{ url_for('uip_bp.router_page', org_slug=org.slug) }}" class="inline-flex items-center text-sm font-bold text-slate-500 hover:text-indigo-600 transition" style="white-space: nowrap;">
+                <i class="fas fa-arrow-left mr-2"></i> Main Menu
+            </a>
+            {% endif %}
         </div>
         <!-- Row 2: Subtitle & Action Buttons -->
         <div class="ui-header-2row-bottom">

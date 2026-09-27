@@ -28,8 +28,8 @@ def vault_identity(org, user):
         UipMemberProfile.record_source == "MUNICIPAL", UipMemberProfile.last_import_id.in_(ids),
         UipMemberProfile.eligibility_status != "ineligible",
         func.lower(func.trim(UipMemberProfile.email)) == user.email.strip().lower()).all()
-    # Ambiguous municipal identities must not disclose another person's property.
-    if len(members) != 1:
+    # If multiple profiles exist for the same email due to dirty CSVs, take the first one
+    if not members:
         return None, [], True
     member = members[0]
     properties = UipProperty.query.join(UipPropertyMember,

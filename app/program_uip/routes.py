@@ -322,6 +322,16 @@ def router_page(org_slug):
         organization_id=org.id, user_id=current_user.id, is_active=True
     ).first()
     
+    # 1c. Vault Auto-Provisioning for Strangers
+    if not membership:
+        from .services.ratepayer import vault_identity
+        member, properties, _ = vault_identity(org.id, current_user)
+        if member:
+            membership = CoreOrganizationMember(organization_id=org.id, user_id=current_user.id, is_active=True)
+            from app.extensions import db
+            db.session.add(membership)
+            db.session.commit()
+    
     if membership and not force_menu:
         # Since they don't have a committee appointment, but they are an active member,
         # they are a Ratepayer (or other standard role).

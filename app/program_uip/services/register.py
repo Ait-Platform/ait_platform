@@ -120,7 +120,7 @@ def save_member(organization_id, actor_user_id, data, member_id=None, is_import=
         "eligibility_status": choice(data, "eligibility_status", ("unverified", "eligible", "ineligible"), default="eligible"),
     }
     
-    if is_import and member_id is not None:
+    if is_import and member_id is not None and not is_authoritative:
         # Protect operational fields from being overwritten by absent municipal fields
         values.pop("email", None)
         values.pop("phone", None)

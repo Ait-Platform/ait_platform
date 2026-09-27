@@ -102,8 +102,15 @@ def reception_page(org_slug):
     try:
         audit.authorize(org, actor, providers.STAFF)
     except Forbidden:
-        from app.program_uip.secretary_routes import _require_secretary
-        _require_secretary()
+        from app.models.uip_governance import UipCommitteeMember
+        from sqlalchemy import func
+        is_committee = UipCommitteeMember.query.filter(
+            UipCommitteeMember.organization_id == org,
+            UipCommitteeMember.status == "CURRENT",
+            func.lower(UipCommitteeMember.email) == func.lower(current_user.email)
+        ).first()
+        if not is_committee:
+            raise Forbidden("Access restricted to Staff and Committee members.")
 
     from app.program_uip.presentation import issue_rows
     status = request.args.get("status", "open")
@@ -126,8 +133,15 @@ def reception_issue(org_slug, issue_id):
     try:
         audit.authorize(org, actor, providers.STAFF)
     except Forbidden:
-        from app.program_uip.secretary_routes import _require_secretary
-        _require_secretary()
+        from app.models.uip_governance import UipCommitteeMember
+        from sqlalchemy import func
+        is_committee = UipCommitteeMember.query.filter(
+            UipCommitteeMember.organization_id == org,
+            UipCommitteeMember.status == "CURRENT",
+            func.lower(UipCommitteeMember.email) == func.lower(current_user.email)
+        ).first()
+        if not is_committee:
+            raise Forbidden("Access restricted to Staff and Committee members.")
 
     issue = operations.issue(org, issue_id)
     if request.method == "POST":

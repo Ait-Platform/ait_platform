@@ -35,12 +35,20 @@ def register_links(org):
 
 def issue_rows(org, actor):
     from werkzeug.exceptions import Forbidden
-    from app.program_uip.secretary_routes import _require_secretary
     try:
         audit.authorize(org, actor, providers.STAFF)
     except Forbidden:
-        _require_secretary()
-        
+        from flask_login import current_user
+        from app.models.uip_governance import UipCommitteeMember
+        from sqlalchemy import func
+        is_committee = UipCommitteeMember.query.filter(
+            UipCommitteeMember.organization_id == org,
+            UipCommitteeMember.status == "CURRENT",
+            func.lower(UipCommitteeMember.email) == func.lower(current_user.email)
+        ).first()
+        if not is_committee:
+            raise
+            
     members, properties, _ = register_links(org)
     provider_names = {p.id: p.name for p in UipProvider.query.filter_by(organization_id=org).all()}
     orders = UipWorkOrder.query.filter_by(organization_id=org).all()

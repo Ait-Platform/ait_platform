@@ -103,11 +103,14 @@ def reception_page(org_slug):
         audit.authorize(org, actor, providers.STAFF)
     except Forbidden:
         from app.models.uip_governance import UipCommitteeMember
-        from sqlalchemy import func
+        from sqlalchemy import func, or_
+        email_check = False
+        if current_user.email and current_user.email.strip():
+            email_check = func.lower(func.trim(UipCommitteeMember.email)) == current_user.email.strip().lower()
         is_committee = UipCommitteeMember.query.filter(
             UipCommitteeMember.organization_id == org,
             UipCommitteeMember.status == "CURRENT",
-            func.lower(UipCommitteeMember.email) == func.lower(current_user.email)
+            or_(UipCommitteeMember.user_id == actor, email_check)
         ).first()
         if not is_committee:
             raise Forbidden("Access restricted to Staff and Committee members.")
@@ -134,11 +137,14 @@ def reception_issue(org_slug, issue_id):
         audit.authorize(org, actor, providers.STAFF)
     except Forbidden:
         from app.models.uip_governance import UipCommitteeMember
-        from sqlalchemy import func
+        from sqlalchemy import func, or_
+        email_check = False
+        if current_user.email and current_user.email.strip():
+            email_check = func.lower(func.trim(UipCommitteeMember.email)) == current_user.email.strip().lower()
         is_committee = UipCommitteeMember.query.filter(
             UipCommitteeMember.organization_id == org,
             UipCommitteeMember.status == "CURRENT",
-            func.lower(UipCommitteeMember.email) == func.lower(current_user.email)
+            or_(UipCommitteeMember.user_id == actor, email_check)
         ).first()
         if not is_committee:
             raise Forbidden("Access restricted to Staff and Committee members.")

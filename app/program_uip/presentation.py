@@ -40,11 +40,14 @@ def issue_rows(org, actor):
     except Forbidden:
         from flask_login import current_user
         from app.models.uip_governance import UipCommitteeMember
-        from sqlalchemy import func
+        from sqlalchemy import func, or_
+        email_check = False
+        if current_user.email and current_user.email.strip():
+            email_check = func.lower(func.trim(UipCommitteeMember.email)) == current_user.email.strip().lower()
         is_committee = UipCommitteeMember.query.filter(
             UipCommitteeMember.organization_id == org,
             UipCommitteeMember.status == "CURRENT",
-            func.lower(UipCommitteeMember.email) == func.lower(current_user.email)
+            or_(UipCommitteeMember.user_id == actor, email_check)
         ).first()
         if not is_committee:
             raise

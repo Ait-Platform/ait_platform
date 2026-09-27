@@ -413,8 +413,14 @@ def process_import_batch(organization_id, actor_user_id, kind, rows, metadata, i
             value = error.value
             shown = ascii(value[:80]) + ("... (truncated)" if len(value) > 80 else "") if isinstance(value, str) else ascii(value)
             allowed = ", ".join(ascii(option) for option in error.allowed)
-            from flask import abort
-            abort(400, description=f"CSV row {idx}: column '{error.column}' has invalid value {shown}. Accepted values: {allowed} (case-sensitive).")
+            db.session.add(UipRegisterImportException(
+                import_id=batch.id,
+                row_number=idx,
+                source_reference=row.get("reference") or row.get("member_reference") or "unknown",
+                reason=f"Column '{error.column}' has invalid value {shown}. Accepted values: {allowed} (case-sensitive).",
+                incoming_data=row
+            ))
+            summary["exceptions"] += 1
         except Exception as e:
             import traceback
             with open("error.log", "a") as errf:

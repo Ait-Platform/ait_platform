@@ -222,7 +222,7 @@ def register_import(org_slug):
         session.pop('vault_batch_ref', None)
         session.pop('vault_source', None)
         session.pop('vault_date', None)
-        return redirect(url_for("uip_bp.mo_vault_import" if is_mo_vault else "uip_bp.register_import", org_slug=org_slug))
+        return redirect(url_for("uip_bp.mo_dashboard" if is_mo_vault else "uip_bp.secretary_workspace", org_slug=org_slug))
 
     rows, token, error, summary = [], None, None, None
     if request.method == "POST" and request.form.get("operation") in ["preview", "commit"]:

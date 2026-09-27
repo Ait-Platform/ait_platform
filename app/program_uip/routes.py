@@ -329,7 +329,14 @@ def router_page(org_slug):
         if member:
             membership = CoreOrganizationMember(organization_id=org.id, user_id=current_user.id, is_active=True)
             from app.extensions import db
+            from app.models.uip import UipCommunicationPreference
             db.session.add(membership)
+            
+            # Also provision communication preference (Email) quietly
+            pref = UipCommunicationPreference.query.filter_by(organization_id=org.id, member_id=member.id, channel="Email").first()
+            if not pref:
+                pref = UipCommunicationPreference(organization_id=org.id, member_id=member.id, channel="Email", preference="allowed")
+                db.session.add(pref)
             db.session.commit()
     
     if membership and not force_menu:

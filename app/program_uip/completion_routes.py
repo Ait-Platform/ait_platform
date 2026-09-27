@@ -179,9 +179,7 @@ def service_standards(org_slug):
 
 
 CSV_COLUMNS = {
-    "members": ("reference", "name", "member_type", "email", "phone", "is_active", "eligibility_status"),
-    "properties": ("reference", "address", "rates_reference", "classification", "is_active"),
-    "relationships": ("member_reference", "property_reference", "relationship", "valid_from", "valid_to", "is_verified"),
+    "master_roll": ("member_reference", "name", "email", "id_number", "property_reference", "address", "classification")
 }
 
 
@@ -208,7 +206,7 @@ def register_import(org_slug):
     else:
         require_register_admin(g.organization.id, current_user.id)
         
-    kind = request.form.get("kind", "members")
+    kind = "master_roll"
     
     # Handle Start Batch Action
     if request.method == "POST" and request.form.get("operation") == "start_batch":

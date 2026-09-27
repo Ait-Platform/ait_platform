@@ -309,141 +309,76 @@ def intake_links(organization_id, actor_user_id, member_id=None, property_id=Non
         abort(400, description="Choose active register records.")
     # Reporting an issue at a property does not assert ownership or voting rights.
     return member, item
+
 def process_import_batch(organization_id, actor_user_id, kind, rows, metadata, is_authoritative=False):
     from app.models.uip import UipRegisterImport, UipRegisterImportException, UipPropertyMember, UipProperty, UipMemberProfile
+    from app.extensions import db
     
-    # 1. Create the Import record
     batch = UipRegisterImport(
         organization_id=organization_id,
         source_type="MUNICIPAL",
-        source_identifier=metadata.get("source_identifier"),
-        batch_reference=metadata.get("batch_reference"),
+        source_identifier=metadata.get("source_identifier") or "MASTER_ROLL",
+        batch_reference=metadata.get("batch_reference") or "MASTER",
         date_received=metadata.get("date_received"),
         effective_date=metadata.get("effective_date"),
         imported_by_user_id=actor_user_id,
         document_id=metadata.get("document_id"),
-        notes=kind,
+        notes="master_roll",
         status="PROCESSING"
     )
     db.session.add(batch)
     db.session.flush()
-
-    summary = {"received": len(rows), "created": 0, "updated": 0, "unchanged": 0, "exceptions": 0}
+    
+    summary = {"created": 0, "updated": 0, "exceptions": 0}
     
     for idx, row in enumerate(rows, 2):
         try:
-            if kind == "members":
-                reference = str(row.get("reference") or "").strip()
-                if not reference:
-                    raise Exception("Missing municipal reference column")
-                    
-                existing = UipMemberProfile.query.filter_by(organization_id=organization_id, reference=reference).first()
-                if existing:
-                    if existing.record_source == "MUNICIPAL" and not is_authoritative:
-                        raise Exception("Cannot overwrite authoritative municipal records.")
-                    if existing.record_source == "MANUAL":
-                        # Upgrade
-                        save_member(organization_id, actor_user_id, row, existing.id, is_import=True, is_authoritative=is_authoritative, import_id=batch.id)
-                        summary["updated"] += 1
-                    else:
-                        # Update
-                        changed = False
-                        for f in ["name", "member_type"]:
-                            if getattr(existing, f) != row.get(f):
-                                changed = True
-                        if changed or existing.is_active != (row.get("is_active") == "true"):
-                            save_member(organization_id, actor_user_id, row, existing.id, is_import=True, is_authoritative=is_authoritative, import_id=batch.id)
-                            summary["updated"] += 1
-                        else:
-                            summary["unchanged"] += 1
-                else:
-                    save_member(organization_id, actor_user_id, row, None, is_import=True, is_authoritative=is_authoritative, import_id=batch.id)
-                    summary["created"] += 1
-                    
-            elif kind == "properties":
-                reference = str(row.get("reference") or "").strip()
-                if not reference:
-                    raise Exception("Missing municipal reference column")
-                    
-                existing = UipProperty.query.filter_by(organization_id=organization_id, reference=reference).first()
-                if existing:
-                    if existing.record_source == "MUNICIPAL" and not is_authoritative:
-                        raise Exception("Cannot overwrite authoritative municipal records.")
-                    if existing.record_source == "MANUAL":
-                        save_property(organization_id, actor_user_id, row, existing.id, is_import=True, is_authoritative=is_authoritative, import_id=batch.id)
-                        summary["updated"] += 1
-                    else:
-                        changed = False
-                        for f in ["address", "rates_reference", "classification"]:
-                            if getattr(existing, f) != row.get(f):
-                                changed = True
-                        if changed or existing.is_active != (row.get("is_active") == "true"):
-                            save_property(organization_id, actor_user_id, row, existing.id, is_import=True, is_authoritative=is_authoritative, import_id=batch.id)
-                            summary["updated"] += 1
-                        else:
-                            summary["unchanged"] += 1
-                else:
-                    save_property(organization_id, actor_user_id, row, None, is_import=True, is_authoritative=is_authoritative, import_id=batch.id)
-                    summary["created"] += 1
-                    
-            elif kind == "relationships":
-                member_ref = str(row.get("member_reference") or "").strip()
-                prop_ref = str(row.get("property_reference") or "").strip()
-                rel_type = row.get("relationship")
+            mem_ref = str(row.get("member_reference") or "").strip()
+            prop_ref = str(row.get("property_reference") or "").strip()
+            
+            if not mem_ref or not prop_ref:
+                raise Exception("Missing mandatory references")
                 
-                member = UipMemberProfile.query.filter_by(organization_id=organization_id, reference=member_ref).first()
-                prop = UipProperty.query.filter_by(organization_id=organization_id, reference=prop_ref).first()
+            # Raw Insert/Update Member
+            member = UipMemberProfile.query.filter_by(organization_id=organization_id, reference=mem_ref).first()
+            if not member:
+                member = UipMemberProfile(organization_id=organization_id, reference=mem_ref)
+                db.session.add(member)
+                summary["created"] += 1
+            else:
+                summary["updated"] += 1
                 
-                if not member or not prop:
-                    raise Exception("Referenced member or property not found in register.")
-                    
-                # Close existing active relationships for this property
-                active_rels = UipPropertyMember.query.filter_by(
-                    organization_id=organization_id, property_id=prop.id
-                ).filter(UipPropertyMember.valid_to.is_(None)).all()
-                
-                already_active = False
-                for active_rel in active_rels:
-                    if active_rel.member_id == member.id and active_rel.relationship == rel_type:
-                        already_active = True
-                        continue
-                    if active_rel.record_source == "MUNICIPAL" and not is_authoritative:
-                        raise Exception("Cannot overwrite authoritative municipal relationships.")
-                    # Close the previous relationship as at the effective_date
-                    active_rel.valid_to = batch.effective_date
-                    audit.record(organization_id, actor_user_id, "ownership.updated", active_rel, {"changed_fields": ["valid_to"], "import_id": batch.id})
-                    
-                if not already_active:
-                    # Create the new active relationship
-                    row["valid_from"] = batch.effective_date.strftime("%Y-%m-%d")
-                    row["valid_to"] = ""
-                    row["member_id"] = member.id
-                    save_relationship(organization_id, actor_user_id, row, property_id=prop.id, member_id=member.id, is_import=True, is_authoritative=is_authoritative, import_id=batch.id)
-                    summary["created"] += 1
-                else:
-                    summary["unchanged"] += 1
-
-        except InvalidRegisterOption as error:
-            value = error.value
-            shown = ascii(value[:80]) + ("... (truncated)" if len(value) > 80 else "") if isinstance(value, str) else ascii(value)
-            allowed = ", ".join(ascii(option) for option in error.allowed)
-            db.session.add(UipRegisterImportException(
-                import_id=batch.id,
-                row_number=idx,
-                source_reference=row.get("reference") or row.get("member_reference") or "unknown",
-                reason=f"Column '{error.column}' has invalid value {shown}. Accepted values: {allowed} (case-sensitive).",
-                incoming_data=row
-            ))
-            summary["exceptions"] += 1
+            member.name = (row.get("name") or "").strip()
+            member.email = (row.get("email") or "").strip()
+            member.record_source = "MUNICIPAL"
+            member.is_active = True
+            
+            # Raw Insert/Update Property
+            prop = UipProperty.query.filter_by(organization_id=organization_id, reference=prop_ref).first()
+            if not prop:
+                prop = UipProperty(organization_id=organization_id, reference=prop_ref)
+                db.session.add(prop)
+            prop.address = (row.get("address") or "").strip()
+            prop.classification = (row.get("classification") or "Residential").strip()
+            prop.is_active = True
+            
+            db.session.flush()
+            
+            # Raw Insert/Update Link
+            link = UipPropertyMember.query.filter_by(organization_id=organization_id, member_id=member.id, property_id=prop.id, valid_to=None).first()
+            if not link:
+                link = UipPropertyMember(organization_id=organization_id, member_id=member.id, property_id=prop.id)
+                db.session.add(link)
+                link.relationship = "owner"
+                link.valid_from = batch.effective_date
+                link.is_verified = True
+            
         except Exception as e:
-            import traceback
-            with open("error.log", "a") as errf:
-                errf.write(traceback.format_exc() + "\n")
             db.session.add(UipRegisterImportException(
                 import_id=batch.id,
                 row_number=idx,
-                source_reference=row.get("reference") or row.get("member_reference"),
-                reason="Import row could not be processed; review the supplied fields.",
+                source_reference=row.get("member_reference") or "unknown",
+                reason=str(e),
                 incoming_data=row
             ))
             summary["exceptions"] += 1

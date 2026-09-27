@@ -1,16 +1,40 @@
 {% extends "program_uip/base_public.html" %}
 {% block title %}RP Board - {{ org.name }}{% endblock %}
 {% block content %}
-<header class="ui-page-head"><h1>RP Board</h1><a class="ui-btn" href="{{ url_for('uip_bp.router_page', org_slug=org.slug, force=1) }}">Role Selection</a></header>
+<header class="ui-page-head flex justify-between items-start">
+    <div>
+        <p class="ui-eyebrow">Municipal Vault</p>
+        <h1>Owner Dashboard</h1>
+        <p class="ui-subtitle text-indigo-700 font-bold text-lg mt-1">{{ member.name }}</p>
+    </div>
+    <div class="text-right flex flex-col items-end">
+        <a class="ui-btn inline-flex items-center mb-4" href="{{ url_for('uip_bp.router_page', org_slug=org.slug) }}">
+            <i class="fas fa-arrow-left mr-2"></i> Back
+        </a>
+        <nav class="flex gap-4 text-sm font-bold text-slate-500">
+            <a href="#my-property" class="hover:text-indigo-600 transition">My Property</a>
+            <a href="{{ url_for('uip_bp.public_mandates', org_slug=org.slug) }}" class="hover:text-indigo-600 transition">Mandates</a>
+            <a href="#lodge-query" class="hover:text-indigo-600 transition">Lodge a Query</a>
+            <a href="#my-queries" class="hover:text-indigo-600 transition">My Queries</a>
+        </nav>
+    </div>
+</header>
 {% include "partials/flash_messages.html" %}
-<nav class="ui-actions"><a href="#my-property">My Property</a><a href="{{ url_for('uip_bp.public_mandates', org_slug=org.slug) }}">Mandates</a><a href="#lodge-query">Lodge a Query</a><a href="#my-queries">My Queries</a></nav>
-<section id="my-property" class="ui-card"><h2>My Property</h2><p>Read-only information from the Municipal Oversight Vault.</p>
-<p>{{ member.name }} ? {{ member.reference }}</p>
+<section id="my-property" class="ui-card"><h2>My Property</h2>
 {% for property in my_properties %}<article><h3>{{ property.address }}</h3><p>Property reference: {{ property.reference }}</p><p>Rates reference: {{ property.rates_reference or 'Not supplied' }}</p><p>{{ property.classification }}</p></article>{% endfor %}</section>
 <section id="lodge-query" class="ui-card"><h2>Lodge a Query</h2>
 <form method="post" enctype="multipart/form-data">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-<label for="title">Title</label><input id="title" name="title" required maxlength="255" class="border border-slate-300 rounded p-2 w-full">
+<label for="title">Title</label><select id="title" name="title" required class="border border-slate-300 rounded p-2 w-full bg-white">
+    <option value="" disabled selected>Select a category...</option>
+    <option value="Water/Pipe Leak">Water/Pipe Leak</option>
+    <option value="Pothole/Road Damage">Pothole/Road Damage</option>
+    <option value="Streetlight Fault">Streetlight Fault</option>
+    <option value="Illegal Dumping">Illegal Dumping</option>
+    <option value="Overgrown Vegetation">Overgrown Vegetation</option>
+    <option value="Security Incident">Security Incident</option>
+    <option value="Other">Other (Please specify in description)</option>
+</select>
 <label for="description">Service-delivery issue and location</label><textarea id="description" name="description" required maxlength="10000" class="border border-slate-300 rounded p-2 w-full"></textarea>
 <label for="photo">Photograph (optional, JPEG or PNG, up to 5 MB)</label><input type="file" id="photo" name="photo" accept="image/jpeg,image/png">
 <button type="submit" class="ui-btn ui-btn-primary">Lodge Query</button></form></section>

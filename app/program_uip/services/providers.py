@@ -11,7 +11,7 @@ from . import audit
 CATEGORIES = {"GENERAL ENQUIRY", "SERVICE ISSUE", "SECURITY", "CLEANING", "MAINTENANCE",
               "MUNICIPAL SERVICE", "COMMUNITY MATTER", "FINANCIAL"}
 TERMINAL = {"CLOSED", "CANCELLED", "REJECTED", "FAILED"}
-STAFF = ("manager", "receptionist")
+STAFF = ("manager", "receptionist", "secretary")
 
 
 def version_matches(entity, expected):

@@ -5,7 +5,22 @@ from . import audit, providers, operations
 
 
 def recommend(org, actor, issue_id):
-    audit.authorize(org, actor, providers.STAFF)
+    try:
+        audit.authorize(org, actor, providers.STAFF)
+    except Exception:
+        from app.models.uip_governance import UipCommitteeMember
+        from sqlalchemy import func, or_
+        email_check = False
+        from flask_login import current_user
+        if current_user.email and current_user.email.strip():
+            email_check = func.lower(func.trim(UipCommitteeMember.email)) == current_user.email.strip().lower()
+        is_committee = UipCommitteeMember.query.filter(
+            UipCommitteeMember.organization_id == org,
+            UipCommitteeMember.status == "CURRENT",
+            or_(UipCommitteeMember.user_id == actor, email_check)
+        ).first()
+        if not is_committee:
+            raise
     issue = operations.issue(org, issue_id)
     workloads = dict(db.session.query(UipWorkOrder.provider_id, db.func.count(UipWorkOrder.id))
         .filter(UipWorkOrder.organization_id == org,

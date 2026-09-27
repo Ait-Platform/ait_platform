@@ -98,7 +98,13 @@ def sla_page(org_slug):
 @login_required
 def reception_page(org_slug):
     org, actor = g.organization.id, current_user.id
-    audit.authorize(org, actor, providers.STAFF)
+    from werkzeug.exceptions import Forbidden
+    try:
+        audit.authorize(org, actor, providers.STAFF)
+    except Forbidden:
+        from app.program_uip.secretary_routes import _require_secretary
+        _require_secretary()
+
     from app.program_uip.presentation import issue_rows
     status = request.args.get("status", "open")
     choices = [("open", "Open"), ("unassigned", "Unassigned"), ("in_progress", "In progress"), ("waiting", "Waiting"), ("resolved", "Resolved"), ("all", "All")]
@@ -116,7 +122,13 @@ def reception_page(org_slug):
 def reception_issue(org_slug, issue_id):
     from app.models.uip import UipWorkOrder
     org, actor = g.organization.id, current_user.id
-    audit.authorize(org, actor, providers.STAFF)
+    from werkzeug.exceptions import Forbidden
+    try:
+        audit.authorize(org, actor, providers.STAFF)
+    except Forbidden:
+        from app.program_uip.secretary_routes import _require_secretary
+        _require_secretary()
+
     issue = operations.issue(org, issue_id)
     if request.method == "POST":
         action = request.form.get("operation")

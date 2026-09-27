@@ -34,7 +34,13 @@ def register_links(org):
 
 
 def issue_rows(org, actor):
-    audit.authorize(org, actor, providers.STAFF)
+    from werkzeug.exceptions import Forbidden
+    from app.program_uip.secretary_routes import _require_secretary
+    try:
+        audit.authorize(org, actor, providers.STAFF)
+    except Forbidden:
+        _require_secretary()
+        
     members, properties, _ = register_links(org)
     provider_names = {p.id: p.name for p in UipProvider.query.filter_by(organization_id=org).all()}
     orders = UipWorkOrder.query.filter_by(organization_id=org).all()

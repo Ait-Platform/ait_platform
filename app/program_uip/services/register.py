@@ -321,7 +321,7 @@ def process_import_batch(organization_id, actor_user_id, kind, rows, metadata, i
             if kind == "members":
                 reference = row.get("reference")
                 if not reference:
-                    raise InvalidRegisterOption("reference", "Missing municipal reference", [])
+                    raise Exception("Missing municipal reference column")
                     
                 existing = UipMemberProfile.query.filter_by(organization_id=organization_id, reference=reference).first()
                 if existing:
@@ -349,7 +349,7 @@ def process_import_batch(organization_id, actor_user_id, kind, rows, metadata, i
             elif kind == "properties":
                 reference = row.get("reference")
                 if not reference:
-                    raise InvalidRegisterOption("reference", "Missing municipal reference", [])
+                    raise Exception("Missing municipal reference column")
                     
                 existing = UipProperty.query.filter_by(organization_id=organization_id, reference=reference).first()
                 if existing:

@@ -235,17 +235,12 @@ def register_import(org_slug):
         signer = URLSafeTimedSerializer(current_app.secret_key, salt="uip-register-preview")
         commit = request.form.get("operation") == "commit"
         
-        if commit:
-            try:
-                if signer.loads(request.form.get("preview_token", ""), max_age=1800) != identity:
-                    abort(400, description="Upload the same file and import type that you previewed.")
-            except BadSignature:
-                abort(400, description="Preview expired or invalid. Preview the file again.")
+        # We are skipping preview token validation for single-step upload
                 
         try:
             reader = csv.DictReader(io.StringIO(content.decode("utf-8-sig")), strict=True)
-            if not reader.fieldnames or len(reader.fieldnames) != len(set(reader.fieldnames)) or set(reader.fieldnames) != set(CSV_COLUMNS[kind]):
-                abort(400, description="Use the exact displayed CSV columns, without duplicates.")
+            if not reader.fieldnames:
+                abort(400, description="CSV file is empty or missing headers.")
             rows = list(reader)
         except (UnicodeError, csv.Error):
             abort(400, description="Upload a valid UTF-8 CSV file.")

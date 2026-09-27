@@ -1,21 +1,20 @@
 {% extends "program_uip/base_public.html" %}
 {% block title %}RP Board - {{ org.name }}{% endblock %}
 {% block content %}
-<header class="ui-page-head flex justify-between items-start">
-    <div>
-        <p class="ui-eyebrow">Municipal Vault</p>
-        <h1>Owner Dashboard</h1>
-        <p class="ui-subtitle text-indigo-700 font-bold text-lg mt-1">{{ member.name }}</p>
-    </div>
-    <div class="text-right flex flex-col items-end">
-        <a class="ui-btn inline-flex items-center mb-4" href="{{ url_for('uip_bp.router_page', org_slug=org.slug) }}">
+<header class="ui-page-head">
+    <div class="flex justify-between items-center mb-2">
+        <h1 class="m-0">Owner Dashboard</h1>
+        <a class="ui-btn" href="{{ url_for('uip_bp.router_page', org_slug=org.slug) }}">
             <i class="fas fa-arrow-left mr-2"></i> Back
         </a>
-        <nav class="flex gap-4 text-sm font-bold text-slate-500">
-            <a href="#my-property" class="hover:text-indigo-600 transition">My Property</a>
-            <a href="{{ url_for('uip_bp.public_mandates', org_slug=org.slug) }}" class="hover:text-indigo-600 transition">Mandates</a>
-            <a href="#lodge-query" class="hover:text-indigo-600 transition">Lodge a Query</a>
-            <a href="#my-queries" class="hover:text-indigo-600 transition">My Queries</a>
+    </div>
+    <div class="flex justify-between items-end">
+        <p class="ui-subtitle text-indigo-700 font-bold text-lg m-0">{{ member.name }}</p>
+        <nav class="flex gap-3">
+            <a href="#my-property" class="px-4 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-sm font-bold shadow-sm transition">My Property</a>
+            <a href="{{ url_for('uip_bp.public_mandates', org_slug=org.slug) }}" class="px-4 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-sm font-bold shadow-sm transition">Mandates</a>
+            <a href="#lodge-query" class="px-4 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-sm font-bold shadow-sm transition">Lodge a Query</a>
+            <a href="#my-queries" class="px-4 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-sm font-bold shadow-sm transition">My Queries</a>
         </nav>
     </div>
 </header>

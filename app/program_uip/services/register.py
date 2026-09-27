@@ -380,6 +380,7 @@ def process_import_batch(organization_id, actor_user_id, kind, rows, metadata, i
                 link = UipPropertyMember(organization_id=organization_id, member_id=member.id, property_id=prop.id)
                 db.session.add(link)
                 link.relationship = "owner"
+                link.record_source = "MUNICIPAL"
                 link.valid_from = batch.effective_date
                 link.is_verified = True
                 link.last_import_id = batch.id

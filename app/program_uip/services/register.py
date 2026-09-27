@@ -308,6 +308,7 @@ def process_import_batch(organization_id, actor_user_id, kind, rows, metadata, i
         effective_date=metadata.get("effective_date"),
         imported_by_user_id=actor_user_id,
         document_id=metadata.get("document_id"),
+        notes=kind,
         status="PROCESSING"
     )
     db.session.add(batch)

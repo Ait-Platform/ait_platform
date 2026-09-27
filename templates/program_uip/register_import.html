@@ -5,7 +5,7 @@
 <style>
     .ui-sidebar { display: none !important; }
     .ui-shell { grid-template-columns: 1fr !important; display: block !important; }
-    .ui-workspace { padding-left: 0 !important; margin-left: 0 !important; max-width: 1200px; margin: 0 auto !important; width: 100%; }
+    .ui-workspace { padding-left: 0 !important; margin-left: 0 !important; max-width: 1000px; margin: 0 auto !important; width: 100%; }
 </style>
 <header class="ui-header-2row">
     <div class="ui-header-2row-top">
@@ -25,203 +25,202 @@
 
 {% include 'partials/flash_messages.html' %}
 
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-    <!-- INSTRUCTIONS COLUMN -->
-    <div class="lg:col-span-1 space-y-6">
-        <div class="ui-card">
-            <div class="ui-card-body p-6">
-                <h3 class="text-lg font-bold text-slate-900 mb-4"><i class="fas fa-info-circle text-indigo-500 mr-2"></i> Upload Sequence</h3>
-                <p class="text-sm text-slate-600 mb-4">Because properties must belong to owners, you must upload the tables in this exact order:</p>
-                
-                <ol class="space-y-4">
-                    <li class="flex">
-                        <span class="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-indigo-100 text-indigo-700 font-bold text-sm mr-3">1</span>
-                        <div>
-                            <strong class="text-slate-900 text-sm block">Ratepayers / Owners</strong>
-                            <span class="text-xs text-slate-500">Columns: <code>reference, name, member_type, email, phone, is_active, eligibility_status</code></span>
-                        </div>
-                    </li>
-                    <li class="flex">
-                        <span class="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-indigo-100 text-indigo-700 font-bold text-sm mr-3">2</span>
-                        <div>
-                            <strong class="text-slate-900 text-sm block">Properties / Valuation Roll</strong>
-                            <span class="text-xs text-slate-500">Columns: <code>reference, address, rates_reference, classification, is_active</code></span>
-                        </div>
-                    </li>
-                    <li class="flex">
-                        <span class="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-indigo-100 text-indigo-700 font-bold text-sm mr-3">3</span>
-                        <div>
-                            <strong class="text-slate-900 text-sm block">Ownership Links</strong>
-                            <span class="text-xs text-slate-500">Columns: <code>member_reference, property_reference, relationship, valid_from, valid_to, is_verified</code></span>
-                        </div>
-                    </li>
-                </ol>
-                
-                <div class="mt-6 p-4 bg-amber-50 rounded-lg border border-amber-100">
-                    <h4 class="text-xs font-bold text-amber-800 uppercase tracking-wider mb-1">Constraints</h4>
-                    <ul class="text-xs text-amber-700 space-y-1 list-disc ml-4">
-                        <li>UTF-8 CSV format only</li>
-                        <li>Max 200 rows or 256 KB per upload</li>
-                        <li>Existing records are never overwritten</li>
-                    </ul>
-                </div>
-            </div>
+{% if not vault_batch_ref %}
+<!-- STEP 1: BATCH CONFIGURATION -->
+<div class="ui-card max-w-2xl mx-auto mt-8">
+    <header class="ui-card-head bg-slate-50 border-b border-slate-200">
+        <h2>Batch Configuration</h2>
+        <p class="text-sm text-slate-500 font-normal mt-1">Define the batch metadata for this import session.</p>
+    </header>
+    <form method="post" class="p-6 space-y-6">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="operation" value="start_batch">
+        
+        <div>
+            <label class="block text-sm font-bold text-slate-900 mb-1">Source Municipality</label>
+            <select name="source_identifier" required class="block w-full border border-slate-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                <option value="eThekwini Metropolitan Municipality">eThekwini Metropolitan Municipality</option>
+                <option value="City of Cape Town">City of Cape Town</option>
+                <option value="City of Johannesburg">City of Johannesburg</option>
+                <option value="City of Tshwane">City of Tshwane</option>
+                <option value="Nelson Mandela Bay">Nelson Mandela Bay</option>
+                <option value="Ekurhuleni">Ekurhuleni</option>
+            </select>
+        </div>
+        
+        <div>
+            <label class="block text-sm font-bold text-slate-900 mb-1">Batch Reference</label>
+            {% set auto_ref = "VAL-ROLL-" + current_user.id|string + "-" + range(1000, 9999)|random|string %}
+            <input type="text" name="batch_reference" value="{{ auto_ref }}" required class="block w-full border border-slate-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+            <p class="text-xs text-slate-500 mt-1">Auto-generated for your convenience, but you can edit this.</p>
+        </div>
+        
+        <div>
+            <label class="block text-sm font-bold text-slate-900 mb-1">Effective "As At" Date</label>
+            <input type="date" name="effective_date" required class="block w-full border border-slate-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+        </div>
+        
+        <div class="pt-2">
+            <button type="submit" class="w-full px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow transition flex items-center justify-center">
+                Start Import Sequence <i class="fas fa-arrow-right ml-2"></i>
+            </button>
+        </div>
+    </form>
+</div>
+{% else %}
+
+<!-- THE CONTROL HUB -->
+<div class="mb-8 p-4 bg-slate-800 rounded-lg text-white flex justify-between items-center shadow-lg">
+    <div>
+        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Current Import Session</h3>
+        <div class="flex items-center space-x-6">
+            <div><span class="text-slate-300 text-sm mr-1">Municipality:</span> <strong class="text-white">{{ vault_source }}</strong></div>
+            <div><span class="text-slate-300 text-sm mr-1">Batch:</span> <strong class="text-white">{{ vault_batch_ref }}</strong></div>
+            <div><span class="text-slate-300 text-sm mr-1">As At:</span> <strong class="text-white">{{ vault_date }}</strong></div>
         </div>
     </div>
+    <form method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="operation" value="reset_batch">
+        <button type="submit" class="px-3 py-1.5 border border-slate-600 text-slate-300 hover:text-white hover:bg-slate-700 rounded text-xs font-bold transition">End Session</button>
+    </form>
+</div>
 
-    <!-- UPLOAD FORM COLUMN -->
-    <div class="lg:col-span-2 space-y-6">
-        
-        {% if error %}
-        <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-lg shadow-sm">
-            <div class="flex">
-                <i class="fas fa-exclamation-circle text-red-500 mt-0.5 mr-3"></i>
-                <div>
-                    <h3 class="text-sm font-bold text-red-800">Upload Failed</h3>
-                    <p class="text-sm text-red-700 mt-1">{{ error }} Nothing was imported.</p>
-                </div>
-            </div>
+{% if error %}
+<div class="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-lg shadow-sm mb-6">
+    <div class="flex">
+        <i class="fas fa-exclamation-circle text-red-500 mt-0.5 mr-3"></i>
+        <div>
+            <h3 class="text-sm font-bold text-red-800">Upload Failed</h3>
+            <p class="text-sm text-red-700 mt-1">{{ error }} Nothing was imported.</p>
         </div>
-        {% endif %}
-
-        <div class="ui-card">
-            <header class="ui-card-head bg-slate-50 border-b border-slate-200">
-                <h2>Upload Data Table</h2>
-            </header>
-            
-            <form method="post" enctype="multipart/form-data" class="p-6 space-y-6">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                
-                {% if preview_token %}
-                    <input type="hidden" name="preview_token" value="{{ preview_token }}">
-                    <input type="hidden" name="kind" value="{{ kind }}">
-                    <input type="hidden" name="source_identifier" value="{{ request.form.source_identifier }}">
-                    <input type="hidden" name="batch_reference" value="{{ request.form.batch_reference }}">
-                    <input type="hidden" name="effective_date" value="{{ request.form.effective_date }}">
-                    
-                    <div class="bg-emerald-50 border border-emerald-200 rounded-lg p-5">
-                        <h3 class="text-lg font-bold text-emerald-800 mb-2"><i class="fas fa-check-circle mr-2"></i> Preview Successful</h3>
-                        <p class="text-sm text-emerald-700 mb-4">The system successfully parsed <strong>{{ summary.received }}</strong> rows from your file.</p>
-                        
-                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                            <div class="bg-white p-3 rounded shadow-sm text-center border border-emerald-100">
-                                <span class="block text-2xl font-bold text-emerald-600">{{ summary.created }}</span>
-                                <span class="text-xs text-slate-500 font-bold uppercase tracking-wider">New</span>
-                            </div>
-                            <div class="bg-white p-3 rounded shadow-sm text-center border border-emerald-100">
-                                <span class="block text-2xl font-bold text-blue-600">{{ summary.updated }}</span>
-                                <span class="text-xs text-slate-500 font-bold uppercase tracking-wider">Updated</span>
-                            </div>
-                            <div class="bg-white p-3 rounded shadow-sm text-center border border-emerald-100">
-                                <span class="block text-2xl font-bold text-slate-600">{{ summary.unchanged }}</span>
-                                <span class="text-xs text-slate-500 font-bold uppercase tracking-wider">Unchanged</span>
-                            </div>
-                            <div class="bg-white p-3 rounded shadow-sm text-center border border-emerald-100">
-                                <span class="block text-2xl font-bold {% if summary.exceptions > 0 %}text-red-600{% else %}text-emerald-600{% endif %}">{{ summary.exceptions }}</span>
-                                <span class="text-xs text-slate-500 font-bold uppercase tracking-wider">Exceptions</span>
-                            </div>
-                        </div>
-                        
-                        <div class="mt-4 p-4 bg-white rounded-lg border border-emerald-100">
-                            <label class="block text-sm font-bold text-slate-900 mb-2">Confirm File for Upload</label>
-                            <p class="text-xs text-slate-500 mb-2">Please select the exact same file again to confirm. The file is completely re-validated before writing to the database.</p>
-                            <input type="file" name="file" accept=".csv,text/csv" required class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
-                        </div>
-                    </div>
-                    
-                    <div class="flex justify-end mt-4">
-                        <a href="{{ request.path }}" class="px-4 py-2 text-slate-600 hover:text-slate-900 font-bold text-sm mr-4 flex items-center">Cancel</a>
-                        <button name="operation" value="commit" class="px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg shadow transition flex items-center">
-                            <i class="fas fa-cloud-upload-alt mr-2"></i> Commit to Database
-                        </button>
-                    </div>
-                    
-                {% else %}
-                
-                    <div>
-                        <label class="block text-sm font-bold text-slate-900 mb-2">Which table are you uploading?</label>
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-                            <label class="relative flex cursor-pointer rounded-lg border bg-white p-4 shadow-sm focus:outline-none">
-                                <input type="radio" name="kind" value="members" class="mt-0.5 h-4 w-4 shrink-0 cursor-pointer border-gray-300 text-indigo-600" checked>
-                                <span class="ml-3 flex flex-col">
-                                    <span class="block text-sm font-bold text-slate-900">Table 1: Owners</span>
-                                </span>
-                            </label>
-                            <label class="relative flex cursor-pointer rounded-lg border bg-white p-4 shadow-sm focus:outline-none">
-                                <input type="radio" name="kind" value="properties" class="mt-0.5 h-4 w-4 shrink-0 cursor-pointer border-gray-300 text-indigo-600">
-                                <span class="ml-3 flex flex-col">
-                                    <span class="block text-sm font-bold text-slate-900">Table 2: Properties</span>
-                                </span>
-                            </label>
-                            <label class="relative flex cursor-pointer rounded-lg border bg-white p-4 shadow-sm focus:outline-none">
-                                <input type="radio" name="kind" value="relationships" class="mt-0.5 h-4 w-4 shrink-0 cursor-pointer border-gray-300 text-indigo-600">
-                                <span class="ml-3 flex flex-col">
-                                    <span class="block text-sm font-bold text-slate-900">Table 3: Links</span>
-                                </span>
-                            </label>
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-bold text-slate-900 mb-1">Source Name / Municipality</label>
-                            <input type="text" name="source_identifier" value="{{ request.form.source_identifier or 'City of Cape Town' }}" required class="block w-full border border-slate-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-bold text-slate-900 mb-1">Batch Reference <span class="text-slate-400 font-normal">(Optional)</span></label>
-                            <input type="text" name="batch_reference" value="{{ request.form.batch_reference or '' }}" class="block w-full border border-slate-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-                        </div>
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-bold text-slate-900 mb-1">Effective "As At" Date</label>
-                        <input type="date" name="effective_date" value="{{ request.form.effective_date or '' }}" required class="block w-full md:w-1/2 border border-slate-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-                    </div>
-
-                    <div class="border-2 border-dashed border-slate-300 rounded-lg p-6 bg-slate-50 text-center">
-                        <i class="fas fa-file-csv text-4xl text-slate-400 mb-3"></i>
-                        <label class="block text-sm font-bold text-slate-900 mb-1">Select CSV File</label>
-                        <p class="text-xs text-slate-500 mb-4">Ensure column headers exactly match the required format.</p>
-                        <input type="file" name="file" accept=".csv,text/csv" required class="mx-auto block w-full max-w-xs text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
-                    </div>
-
-                    <div class="flex justify-end pt-2">
-                        <button name="operation" value="preview" class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow transition flex items-center">
-                            <i class="fas fa-search mr-2"></i> Preview & Validate
-                        </button>
-                    </div>
-                {% endif %}
-            </form>
-        </div>
-        
-        <!-- DATA PREVIEW TABLE -->
-        {% if rows %}
-        <div class="ui-card mt-8">
-            <header class="ui-card-head bg-slate-50 border-b border-slate-200">
-                <h2>Parsed Data Preview (First 50 rows)</h2>
-            </header>
-            <div class="overflow-x-auto max-h-96">
-                <table class="w-full text-left border-collapse text-sm">
-                    <thead class="sticky top-0 bg-slate-100 shadow-sm">
-                        <tr>
-                            {% for name in columns[kind] %}
-                            <th class="p-3 font-semibold text-slate-700 border-b border-slate-200">{{ name }}</th>
-                            {% endfor %}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for row in rows %}
-                        <tr class="border-b border-slate-100 hover:bg-slate-50">
-                            {% for name in columns[kind] %}
-                            <td class="p-3 text-slate-600">{{ row[name] }}</td>
-                            {% endfor %}
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-        {% endif %}
     </div>
 </div>
+{% endif %}
+
+<div class="ui-card mb-12">
+    <header class="ui-card-head bg-slate-50 border-b border-slate-200">
+        <h2>Import Status Hub</h2>
+        <p class="text-sm text-slate-500 font-normal mt-1">Upload the core tables in sequential order. Tables unlock automatically as you progress.</p>
+    </header>
+    
+    <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+            <thead>
+                <tr class="bg-slate-100 border-b border-slate-200 text-xs uppercase tracking-wider text-slate-500">
+                    <th class="p-4 font-bold">Data Table</th>
+                    <th class="p-4 font-bold text-center">Status</th>
+                    <th class="p-4 font-bold text-center">Expected Columns</th>
+                    <th class="p-4 font-bold text-right">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- 1. MEMBERS -->
+                <tr class="border-b border-slate-100 {% if import_status.members %}bg-emerald-50/30{% endif %}">
+                    <td class="p-4">
+                        <div class="flex items-center">
+                            <span class="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full {% if import_status.members %}bg-emerald-100 text-emerald-700{% else %}bg-indigo-100 text-indigo-700{% endif %} font-bold text-sm mr-3">1</span>
+                            <strong class="text-slate-900 font-bold">Owners (Ratepayers)</strong>
+                        </div>
+                    </td>
+                    <td class="p-4 text-center">
+                        {% if import_status.members %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800"><i class="fas fa-check mr-1.5"></i> Success</span>
+                        {% else %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800"><i class="fas fa-clock mr-1.5"></i> Pending</span>
+                        {% endif %}
+                    </td>
+                    <td class="p-4 text-xs text-slate-500 text-center"><code>reference, name, member_type, email...</code></td>
+                    <td class="p-4 text-right">
+                        <button onclick="document.getElementById('uploadMembers').classList.toggle('hidden')" class="px-4 py-1.5 {% if import_status.members %}border border-slate-300 bg-white text-slate-600 hover:bg-slate-50{% else %}bg-indigo-600 hover:bg-indigo-700 text-white shadow{% endif %} font-bold text-xs rounded transition">
+                            {% if import_status.members %}Redo Upload{% else %}<i class="fas fa-upload mr-1.5"></i> Upload CSV{% endif %}
+                        </button>
+                    </td>
+                </tr>
+                <tr id="uploadMembers" class="hidden {% if preview_token and kind == 'members' %}!table-row{% endif %} bg-slate-50 border-b border-slate-200">
+                    <td colspan="4" class="p-6">
+                        <div class="max-w-2xl mx-auto">
+                            {% with current_form_kind = 'members' %}{% include 'partials/hub_upload_form.html' %}{% endwith %}
+                        </div>
+                    </td>
+                </tr>
+
+                <!-- 2. PROPERTIES -->
+                <tr class="border-b border-slate-100 {% if import_status.properties %}bg-emerald-50/30{% elif not import_status.members %}opacity-60 bg-slate-50{% endif %}">
+                    <td class="p-4">
+                        <div class="flex items-center">
+                            <span class="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full {% if import_status.properties %}bg-emerald-100 text-emerald-700{% elif import_status.members %}bg-indigo-100 text-indigo-700{% else %}bg-slate-200 text-slate-400{% endif %} font-bold text-sm mr-3">2</span>
+                            <strong class="text-slate-900 font-bold">Properties (Valuation Roll)</strong>
+                        </div>
+                    </td>
+                    <td class="p-4 text-center">
+                        {% if import_status.properties %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800"><i class="fas fa-check mr-1.5"></i> Success</span>
+                        {% elif import_status.members %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800"><i class="fas fa-clock mr-1.5"></i> Pending</span>
+                        {% else %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-200 text-slate-600"><i class="fas fa-lock mr-1.5"></i> Locked</span>
+                        {% endif %}
+                    </td>
+                    <td class="p-4 text-xs text-slate-500 text-center"><code>reference, address, rates_reference, classification...</code></td>
+                    <td class="p-4 text-right">
+                        {% if import_status.members %}
+                        <button onclick="document.getElementById('uploadProperties').classList.toggle('hidden')" class="px-4 py-1.5 {% if import_status.properties %}border border-slate-300 bg-white text-slate-600 hover:bg-slate-50{% else %}bg-indigo-600 hover:bg-indigo-700 text-white shadow{% endif %} font-bold text-xs rounded transition">
+                            {% if import_status.properties %}Redo Upload{% else %}<i class="fas fa-upload mr-1.5"></i> Upload CSV{% endif %}
+                        </button>
+                        {% else %}
+                        <span class="text-xs font-bold text-slate-400">Requires Owners</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr id="uploadProperties" class="hidden {% if preview_token and kind == 'properties' %}!table-row{% endif %} bg-slate-50 border-b border-slate-200">
+                    <td colspan="4" class="p-6">
+                        <div class="max-w-2xl mx-auto">
+                            {% with current_form_kind = 'properties' %}{% include 'partials/hub_upload_form.html' %}{% endwith %}
+                        </div>
+                    </td>
+                </tr>
+
+                <!-- 3. RELATIONSHIPS -->
+                <tr class="{% if import_status.relationships %}bg-emerald-50/30{% elif not import_status.properties %}opacity-60 bg-slate-50{% endif %}">
+                    <td class="p-4">
+                        <div class="flex items-center">
+                            <span class="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full {% if import_status.relationships %}bg-emerald-100 text-emerald-700{% elif import_status.properties %}bg-indigo-100 text-indigo-700{% else %}bg-slate-200 text-slate-400{% endif %} font-bold text-sm mr-3">3</span>
+                            <strong class="text-slate-900 font-bold">Ownership Links</strong>
+                        </div>
+                    </td>
+                    <td class="p-4 text-center">
+                        {% if import_status.relationships %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800"><i class="fas fa-check mr-1.5"></i> Success</span>
+                        {% elif import_status.properties %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800"><i class="fas fa-clock mr-1.5"></i> Pending</span>
+                        {% else %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-200 text-slate-600"><i class="fas fa-lock mr-1.5"></i> Locked</span>
+                        {% endif %}
+                    </td>
+                    <td class="p-4 text-xs text-slate-500 text-center"><code>member_reference, property_reference, relationship...</code></td>
+                    <td class="p-4 text-right">
+                        {% if import_status.properties %}
+                        <button onclick="document.getElementById('uploadLinks').classList.toggle('hidden')" class="px-4 py-1.5 {% if import_status.relationships %}border border-slate-300 bg-white text-slate-600 hover:bg-slate-50{% else %}bg-indigo-600 hover:bg-indigo-700 text-white shadow{% endif %} font-bold text-xs rounded transition">
+                            {% if import_status.relationships %}Redo Upload{% else %}<i class="fas fa-upload mr-1.5"></i> Upload CSV{% endif %}
+                        </button>
+                        {% else %}
+                        <span class="text-xs font-bold text-slate-400">Requires Properties</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr id="uploadLinks" class="hidden {% if preview_token and kind == 'relationships' %}!table-row{% endif %} bg-slate-50 border-t border-slate-200">
+                    <td colspan="4" class="p-6">
+                        <div class="max-w-2xl mx-auto">
+                            {% with current_form_kind = 'relationships' %}{% include 'partials/hub_upload_form.html' %}{% endwith %}
+                        </div>
+                    </td>
+                </tr>
+
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
 {% endblock %}

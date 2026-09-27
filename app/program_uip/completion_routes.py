@@ -286,7 +286,11 @@ def register_import(org_slug):
     batch_ref = session.get('vault_batch_ref')
     if batch_ref:
         # Check what has been successfully imported in this batch
-        imports = UipRegisterImport.query.filter_by(organization_id=g.organization.id, batch_reference=batch_ref, status="COMPLETED").all()
+        imports = UipRegisterImport.query.filter(
+            UipRegisterImport.organization_id == g.organization.id,
+            UipRegisterImport.batch_reference == batch_ref,
+            UipRegisterImport.status.in_(["COMPLETED", "WITH_EXCEPTIONS"])
+        ).all()
         for imp in imports:
             if imp.notes in import_status:
                 import_status[imp.notes] = imp

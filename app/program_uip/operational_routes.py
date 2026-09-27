@@ -544,6 +544,7 @@ def provider_performance(org_slug):
 @login_required
 def merge_tickets(org_slug):
     org = g.organization
+    from app.program_uip.routes import _require_role
     _require_role("receptionist", "manager", "committee_member")
     
     from app.models.core import CoreInteraction
@@ -583,6 +584,7 @@ def merge_tickets(org_slug):
 @login_required
 def escalate_ticket(org_slug, ticket_id):
     org = g.organization
+    from app.program_uip.routes import _require_role
     _require_role("manager", "committee_member") # Only manager or ExCo can escalate
     
     from app.models.core import CoreInteraction

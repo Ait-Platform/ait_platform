@@ -352,6 +352,7 @@ def process_import_batch(organization_id, actor_user_id, kind, rows, metadata, i
             member.email = (row.get("email") or "").strip()
             member.record_source = "MUNICIPAL"
             member.is_active = True
+            member.last_import_id = batch.id
             
             # Raw Insert/Update Property
             prop = UipProperty.query.filter_by(organization_id=organization_id, reference=prop_ref).first()
@@ -361,6 +362,7 @@ def process_import_batch(organization_id, actor_user_id, kind, rows, metadata, i
             prop.address = (row.get("address") or "").strip()
             prop.classification = (row.get("classification") or "Residential").strip()
             prop.is_active = True
+            prop.last_import_id = batch.id
             
             db.session.flush()
             
@@ -372,6 +374,7 @@ def process_import_batch(organization_id, actor_user_id, kind, rows, metadata, i
                 link.relationship = "owner"
                 link.valid_from = batch.effective_date
                 link.is_verified = True
+                link.last_import_id = batch.id
             
         except Exception as e:
             db.session.add(UipRegisterImportException(

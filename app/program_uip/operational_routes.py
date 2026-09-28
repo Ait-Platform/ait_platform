@@ -177,8 +177,7 @@ def reception_issue(org_slug, issue_id):
                     if resp_mem:
                         task.assignee_id = resp_mem.user_id
                     issue.status = "IN_PROGRESS"
-                    from app.models.uip import UipCommunicationLog
-                    comm = UipCommunicationLog(organization_id=org, interaction_id=issue_id, channel="WEB", party_classification="STAFF", purpose="DISPATCH", status="RECORDED", summary=f"Routed to {sub.name} Subcommittee.")
+                                        comm = UipCommunicationLog(organization_id=org, interaction_id=issue_id, channel="WEB", party_classification="STAFF", purpose="DISPATCH", status="RECORDED", summary=f"Routed to {sub.name} Subcommittee.")
                     db.session.add(comm)
         elif action == "finish_follow_up":
             row = UipFollowUp.query.filter_by(organization_id=org, interaction_id=issue_id,

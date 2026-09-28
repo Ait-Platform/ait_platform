@@ -3,9 +3,9 @@ from flask import abort
 from app.extensions import db
 from app.models.core import CoreOrganizationMember, CoreRoleAssignment, CoreRole
 
-READ_ROLES = ("manager", "receptionist", "committee_member", "owner")
-WRITE_ROLES = ("manager", "committee_member", "owner")
-AUDIT_ROLES = ("manager", "committee_member", "owner")
+READ_ROLES = ("manager", "receptionist", "secretary", "committee_member", "owner")
+WRITE_ROLES = ("manager", "secretary", "committee_member", "owner")
+AUDIT_ROLES = ("manager", "secretary", "committee_member", "owner")
 SAFE_FIELDS = frozenset({
     "reference", "name", "member_type", "email", "phone", "is_active",
     "eligibility_status", "address", "rates_reference", "classification",

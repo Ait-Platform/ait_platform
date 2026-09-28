@@ -900,7 +900,7 @@ def org_settings(org_slug):
 @uip_bp.route("/<org_slug>/interaction/new", methods=["GET", "POST"])
 @login_required
 def new_interaction(org_slug):
-    _require_role("manager", "receptionist", "committee_member")
+    _require_role("manager", "receptionist", "secretary", "committee_member")
     g.intake_title_presets = reception.SHORT_TITLE_PRESETS
     org = g.organization
     residents = _members_with_roles("resident").all()
@@ -1060,7 +1060,7 @@ def assign_provider(org_slug, reference):
 @uip_bp.route("/<org_slug>/interaction/<reference>/municipal", methods=["POST"])
 @login_required
 def escalate_municipality(org_slug, reference):
-    _require_role("manager", "receptionist", "committee_member")
+    _require_role("manager", "receptionist", "secretary", "committee_member")
     ix = _interaction(reference)
     department = (request.form.get("department") or "").strip()
     mun_ref = (request.form.get("municipality_reference") or "").strip()

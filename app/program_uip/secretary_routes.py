@@ -95,7 +95,6 @@ def secretary_workspace(org_slug):
     else:
         switch_res = 'clear'
     
-    from app.models.core import CoreInteraction
     open_queries = CoreInteraction.query.filter(CoreInteraction.organization_id == org.id, CoreInteraction.interaction_type == "fault_report", CoreInteraction.status.notin_(["RESOLVED", "CLOSED", "REJECTED", "DECLINED", "VERIFIED", "MERGED"])).count()
     return render_template(
         "program_uip/dashboards/secretary_workspace.html",

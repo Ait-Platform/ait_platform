@@ -184,22 +184,7 @@ def identifier(value):
 
 
 def follow_up(org, actor, issue_id, values):
-    try:
-        audit.authorize(org, actor, providers.STAFF)
-    except Exception:
-        from app.models.uip_governance import UipCommitteeMember
-        from sqlalchemy import func, or_
-        email_check = False
-        from flask_login import current_user
-        if current_user.email and current_user.email.strip():
-            email_check = func.lower(func.trim(UipCommitteeMember.email)) == current_user.email.strip().lower()
-        is_committee = UipCommitteeMember.query.filter(
-            UipCommitteeMember.organization_id == org,
-            UipCommitteeMember.status == "CURRENT",
-            or_(UipCommitteeMember.user_id == actor, email_check)
-        ).first()
-        if not is_committee:
-            raise
+    audit.authorize(org, actor, ("manager", "receptionist", "secretary", "committee_member"))
     issue = operations.issue(org, issue_id)
     operations.open_issue(issue)
     method, outcome, next_action = (values.get(k) for k in ("method", "outcome", "next_action"))
@@ -217,22 +202,7 @@ def follow_up(org, actor, issue_id, values):
 
 
 def finish_follow_up(org, actor, row_id):
-    try:
-        audit.authorize(org, actor, providers.STAFF)
-    except Exception:
-        from app.models.uip_governance import UipCommitteeMember
-        from sqlalchemy import func, or_
-        email_check = False
-        from flask_login import current_user
-        if current_user.email and current_user.email.strip():
-            email_check = func.lower(func.trim(UipCommitteeMember.email)) == current_user.email.strip().lower()
-        is_committee = UipCommitteeMember.query.filter(
-            UipCommitteeMember.organization_id == org,
-            UipCommitteeMember.status == "CURRENT",
-            or_(UipCommitteeMember.user_id == actor, email_check)
-        ).first()
-        if not is_committee:
-            raise
+    audit.authorize(org, actor, ("manager", "receptionist", "secretary", "committee_member"))
     row = UipFollowUp.query.filter_by(organization_id=org, id=row_id).populate_existing().with_for_update().first_or_404()
     if row.completed_at or row.next_action == "NONE":
         abort(409, description="There is no outstanding follow-up action.")
@@ -285,22 +255,7 @@ def transition_referral(org, actor, row_id, expected, destination, reference=Non
 
 
 def communication(org, actor, values):
-    try:
-        audit.authorize(org, actor, providers.STAFF)
-    except Exception:
-        from app.models.uip_governance import UipCommitteeMember
-        from sqlalchemy import func, or_
-        email_check = False
-        from flask_login import current_user
-        if current_user.email and current_user.email.strip():
-            email_check = func.lower(func.trim(UipCommitteeMember.email)) == current_user.email.strip().lower()
-        is_committee = UipCommitteeMember.query.filter(
-            UipCommitteeMember.organization_id == org,
-            UipCommitteeMember.status == "CURRENT",
-            or_(UipCommitteeMember.user_id == actor, email_check)
-        ).first()
-        if not is_committee:
-            raise
+    audit.authorize(org, actor, ("manager", "receptionist", "secretary", "committee_member"))
     channel, direction, party, purpose = (values.get(k) for k in
         ("channel", "direction", "party_classification", "purpose"))
     if (channel not in METHODS or direction not in {"INBOUND", "OUTBOUND"}
@@ -338,22 +293,7 @@ def communication(org, actor, values):
 
 
 def relevant_issues(org, actor, issue_id):
-    try:
-        audit.authorize(org, actor, providers.STAFF)
-    except Exception:
-        from app.models.uip_governance import UipCommitteeMember
-        from sqlalchemy import func, or_
-        email_check = False
-        from flask_login import current_user
-        if current_user.email and current_user.email.strip():
-            email_check = func.lower(func.trim(UipCommitteeMember.email)) == current_user.email.strip().lower()
-        is_committee = UipCommitteeMember.query.filter(
-            UipCommitteeMember.organization_id == org,
-            UipCommitteeMember.status == "CURRENT",
-            or_(UipCommitteeMember.user_id == actor, email_check)
-        ).first()
-        if not is_committee:
-            raise
+    audit.authorize(org, actor, ("manager", "receptionist", "secretary", "committee_member"))
     issue = operations.issue(org, issue_id)
     filters = []
     if issue.member_id:

@@ -28,7 +28,7 @@ def link(label, endpoint, **kwargs):
     return dict(label=label, href=url_for("uip_bp." + endpoint, org_slug=g.organization.slug, **kwargs))
 
 
-def page(title, columns, rows, forms=(), notes=()):
+def page(title, columns, rows, forms=(), notes=(), subtitle=""): 
     from werkzeug.exceptions import Forbidden
     navigation = []
     for label, endpoint, roles in (
@@ -41,7 +41,7 @@ def page(title, columns, rows, forms=(), notes=()):
         except Forbidden:
             continue
         navigation.append(link(label, endpoint))
-    return render_template("program_uip/operations/page.html", org=g.organization, title=title,
+    return render_template("program_uip/operations/page.html", org=g.organization, title=title, subtitle=subtitle,
         columns=columns, rows=rows, forms=forms, notes=notes, navigation=navigation)
 
 
@@ -100,20 +100,9 @@ def reception_page(org_slug):
     org, actor = g.organization.id, current_user.id
     from werkzeug.exceptions import Forbidden
     try:
-        audit.authorize(org, actor, providers.STAFF)
+        audit.authorize(org, actor, ("manager", "receptionist", "secretary", "committee_member"))
     except Forbidden:
-        from app.models.uip_governance import UipCommitteeMember
-        from sqlalchemy import func, or_
-        email_check = False
-        if current_user.email and current_user.email.strip():
-            email_check = func.lower(func.trim(UipCommitteeMember.email)) == current_user.email.strip().lower()
-        is_committee = UipCommitteeMember.query.filter(
-            UipCommitteeMember.organization_id == org,
-            UipCommitteeMember.status == "CURRENT",
-            or_(UipCommitteeMember.user_id == actor, email_check)
-        ).first()
-        if not is_committee:
-            raise Forbidden("Access restricted to Staff and Committee members.")
+        raise Forbidden("Access restricted to Staff and Committee members.")
 
     from app.program_uip.presentation import issue_rows
     status = request.args.get("status", "open")
@@ -134,20 +123,9 @@ def reception_issue(org_slug, issue_id):
     org, actor = g.organization.id, current_user.id
     from werkzeug.exceptions import Forbidden
     try:
-        audit.authorize(org, actor, providers.STAFF)
+        audit.authorize(org, actor, ("manager", "receptionist", "secretary", "committee_member"))
     except Forbidden:
-        from app.models.uip_governance import UipCommitteeMember
-        from sqlalchemy import func, or_
-        email_check = False
-        if current_user.email and current_user.email.strip():
-            email_check = func.lower(func.trim(UipCommitteeMember.email)) == current_user.email.strip().lower()
-        is_committee = UipCommitteeMember.query.filter(
-            UipCommitteeMember.organization_id == org,
-            UipCommitteeMember.status == "CURRENT",
-            or_(UipCommitteeMember.user_id == actor, email_check)
-        ).first()
-        if not is_committee:
-            raise Forbidden("Access restricted to Staff and Committee members.")
+        raise Forbidden("Access restricted to Staff and Committee members.")
 
     issue = operations.issue(org, issue_id)
     if request.method == "POST":
@@ -227,7 +205,7 @@ def reception_issue(org_slug, issue_id):
     if issue.reference:
         notes.append(link("Issue and work orders", "view_interaction", reference=issue.reference))
     notes.insert(0, link("&larr; Back to Queries Desk", "reception_page"))
-    return page("Query #" + str(issue.id) + (f" ({issue.reference})" if issue.reference else ""), ["Record", "Recorded time", "Method / department", "Outcome", "Next action / reference", "Due"], rows, forms, notes)
+    return page("Query #" + str(issue.id) + (f" ({issue.reference})" if issue.reference else ""), ["Record", "Recorded time", "Method / department", "Outcome", "Next action / reference", "Due"], rows, forms, notes, subtitle=issue.description or issue.title)
 
 
 @uip_bp.route("/<org_slug>/operations/municipal/<int:referral_id>", methods=["GET", "POST"])

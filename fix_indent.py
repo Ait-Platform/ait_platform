@@ -1,53 +1,33 @@
-with open("app/program_uip/secretary_routes.py", "r", encoding="utf-8") as f:
-    text = f.read()
+﻿import re
 
-bad_block = """    if UipOrganogramSeat.query.filter_by(organization_id=org.id).count() == 4:
-        # Hotfix: Add missing 5 subcommittees if they only have the first 4
-        new_seats = [
-            ("Security Sub-Committee Lead", "SECOND_GROUP", "Voluntary", 5),
-            ("Greening & Environment Lead", "SECOND_GROUP", "Voluntary", 6),
-            ("Infrastructure & Maintenance Lead", "SECOND_GROUP", "Voluntary", 7),
-            ("Social & Community Lead", "SECOND_GROUP", "Voluntary", 8),
-            ("Finance & Audit Lead", "SECOND_GROUP", "Voluntary", 9)
-        ]
-        for title, grp, qual, order in new_seats:
-            seat = UipOrganogramSeat(organization_id=org.id, title=title, group_level=grp, qualifier=qual, display_order=order)
-            db.session.add(seat)
-        db.session.commit()
-"""
+filepath = 'app/program_uip/secretary_routes.py'
+with open(filepath, 'r', encoding='utf-8') as f:
+    lines = f.readlines()
 
-# 1. Strip the bad block out
-if bad_block in text:
-    text = text.replace("\n\n" + bad_block, "")
-    print("Stripped bad block")
+new_lines = []
+for i, line in enumerate(lines):
+    if 436 <= i <= 443: # 0-indexed for 437 to 444
+        if "if claim.interaction_type" in line:
+            new_lines.append("    if claim.interaction_type == \"mo_claim\":\n")
+        elif "role_slug = \"municipal_officer\"" in line:
+            new_lines.append("        role_slug = \"municipal_officer\"\n")
+        elif "elif claim.interaction_type == \"committee_claim\":" in line:
+            new_lines.append("    elif claim.interaction_type == \"committee_claim\":\n")
+        elif "role_slug = \"committee_member\"" in line:
+            new_lines.append("        role_slug = \"committee_member\"\n")
+        elif "elif claim.interaction_type == \"ratepayer_claim\":" in line:
+            new_lines.append("    elif claim.interaction_type == \"ratepayer_claim\":\n")
+        elif "role_slug = \"ratepayer\"" in line:
+            new_lines.append("        role_slug = \"ratepayer\"\n")
+        elif "else:" in line:
+            new_lines.append("    else:\n")
+        elif "role_slug = \"subcommittee_member\"" in line:
+            new_lines.append("        role_slug = \"subcommittee_member\"\n")
+        else:
+            new_lines.append(line)
+    else:
+        new_lines.append(line)
 
-# 2. Inject it properly in secretary_organogram
-target = """        db.session.commit()
-    
-    if request.method == "POST":"""
-
-injection = """        db.session.commit()
-        
-    if UipOrganogramSeat.query.filter_by(organization_id=org.id).count() == 4:
-        new_seats = [
-            ("Security Sub-Committee Lead", "SECOND_GROUP", "Voluntary", 5),
-            ("Greening & Environment Lead", "SECOND_GROUP", "Voluntary", 6),
-            ("Infrastructure & Maintenance Lead", "SECOND_GROUP", "Voluntary", 7),
-            ("Social & Community Lead", "SECOND_GROUP", "Voluntary", 8),
-            ("Finance & Audit Lead", "SECOND_GROUP", "Voluntary", 9)
-        ]
-        for title, grp, qual, order in new_seats:
-            seat = UipOrganogramSeat(organization_id=org.id, title=title, group_level=grp, qualifier=qual, display_order=order)
-            db.session.add(seat)
-        db.session.commit()
-    
-    if request.method == "POST":"""
-
-if target in text:
-    text = text.replace(target, injection)
-    print("Injected good block")
-else:
-    print("Could not find target in secretary_organogram")
-
-with open("app/program_uip/secretary_routes.py", "w", encoding="utf-8") as f:
-    f.write(text)
+with open(filepath, 'w', encoding='utf-8') as f:
+    f.writelines(new_lines)
+print("Indentation fixed")

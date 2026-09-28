@@ -1,0 +1,1266 @@
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 329, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=True, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 148, in save_member
+    audit.record(organization_id, actor_user_id, action, member, metadata)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\audit.py", line 114, in record
+    authorize(organization_id, actor_user_id, ("municipal_officer",))
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\audit.py", line 91, in authorize
+    abort(403)
+    ~~~~~^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.Forbidden: 403 Forbidden: You don't have the permission to access the requested resource. It is either read-protected or not readable by the server.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 329, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=True, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 148, in save_member
+    audit.record(organization_id, actor_user_id, action, member, metadata)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\audit.py", line 114, in record
+    authorize(organization_id, actor_user_id, ("municipal_officer",))
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\audit.py", line 91, in authorize
+    abort(403)
+    ~~~~~^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.Forbidden: 403 Forbidden: You don't have the permission to access the requested resource. It is either read-protected or not readable by the server.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 329, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=True, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 113, in save_member
+    ).with_for_update().first_or_404()
+                        ~~~~~~~~~~~~^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask_sqlalchemy\query.py", line 46, in first_or_404
+    abort(404, description=description)
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 329, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=True, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 94, in save_member
+    "member_type": choice(data, "member_type", ("person", "business")),
+                   ~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 79, in choice
+    raise InvalidRegisterOption(key, value, values)
+app.program_uip.services.register.InvalidRegisterOption: 400 Bad Request: Invalid register option.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 329, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=True, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 96, in save_member
+    "is_active": boolean(data, "is_active"),
+                 ~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 84, in boolean
+    return choice(data, key, ("true", "false")) == "true"
+           ~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 79, in choice
+    raise InvalidRegisterOption(key, value, values)
+app.program_uip.services.register.InvalidRegisterOption: 400 Bad Request: Invalid register option.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 329, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=True, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 97, in save_member
+    "eligibility_status": choice(data, "eligibility_status", ("unverified", "eligible", "ineligible")),
+                          ~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 79, in choice
+    raise InvalidRegisterOption(key, value, values)
+app.program_uip.services.register.InvalidRegisterOption: 400 Bad Request: Invalid register option.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 329, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=True, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 94, in save_member
+    "member_type": choice(data, "member_type", ("person", "business")),
+                   ~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 79, in choice
+    raise InvalidRegisterOption(key, value, values)
+app.program_uip.services.register.InvalidRegisterOption: 400 Bad Request: Invalid register option.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 329, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=True, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 94, in save_member
+    "member_type": choice(data, "member_type", ("person", "business")),
+                   ~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 79, in choice
+    raise InvalidRegisterOption(key, value, values)
+app.program_uip.services.register.InvalidRegisterOption: 400 Bad Request: Invalid register option.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 329, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=True, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 113, in save_member
+    ).with_for_update().first_or_404()
+                        ~~~~~~~~~~~~^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask_sqlalchemy\query.py", line 46, in first_or_404
+    abort(404, description=description)
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 329, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=True, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 113, in save_member
+    ).with_for_update().first_or_404()
+                        ~~~~~~~~~~~~^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask_sqlalchemy\query.py", line 46, in first_or_404
+    abort(404, description=description)
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 334, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=True, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 118, in save_member
+    ).with_for_update().first_or_404()
+                        ~~~~~~~~~~~~^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask_sqlalchemy\query.py", line 46, in first_or_404
+    abort(404, description=description)
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 339, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=True, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 118, in save_member
+    ).with_for_update().first_or_404()
+                        ~~~~~~~~~~~~^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask_sqlalchemy\query.py", line 46, in first_or_404
+    abort(404, description=description)
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 396, in process_import_batch
+    save_relationship(organization_id, actor_user_id, row, property_id=prop.id, member_id=member.id, is_import=True, import_id=batch.id)
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 247, in save_relationship
+    item_kwargs["record_source"] = "MUNICIPAL" if is_import else "MANUAL"
+    ^^^^^^^^^^^
+UnboundLocalError: cannot access local variable 'item_kwargs' where it is not associated with a value
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 396, in process_import_batch
+    save_relationship(organization_id, actor_user_id, row, property_id=prop.id, member_id=member.id, is_import=True, import_id=batch.id)
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 247, in save_relationship
+    item_kwargs["record_source"] = "MUNICIPAL" if is_import else "MANUAL"
+    ^^^^^^^^^^^
+UnboundLocalError: cannot access local variable 'item_kwargs' where it is not associated with a value
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 396, in process_import_batch
+    save_relationship(organization_id, actor_user_id, row, property_id=prop.id, member_id=member.id, is_import=True, import_id=batch.id)
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 247, in save_relationship
+    item_kwargs["record_source"] = "MUNICIPAL" if is_import else "MANUAL"
+    ^^^^^^^^^^^
+UnboundLocalError: cannot access local variable 'item_kwargs' where it is not associated with a value
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 396, in process_import_batch
+    save_relationship(organization_id, actor_user_id, row, property_id=prop.id, member_id=member.id, is_import=True, import_id=batch.id)
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 247, in save_relationship
+    item_kwargs["record_source"] = "MUNICIPAL" if is_import else "MANUAL"
+    ^^^^^^^^^^^
+UnboundLocalError: cannot access local variable 'item_kwargs' where it is not associated with a value
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 339, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=True, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 118, in save_member
+    ).with_for_update().first_or_404()
+                        ~~~~~~~~~~~~^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask_sqlalchemy\query.py", line 46, in first_or_404
+    abort(404, description=description)
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 339, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=True, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 118, in save_member
+    ).with_for_update().first_or_404()
+                        ~~~~~~~~~~~~^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask_sqlalchemy\query.py", line 46, in first_or_404
+    abort(404, description=description)
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 339, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=True, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 93, in save_member
+    require_register_admin(organization_id, actor_user_id)
+    ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 47, in require_register_admin
+    audit.authorize(organization_id, actor_user_id, ("manager", "RATEPAYER_ADMIN"))
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\audit.py", line 96, in authorize
+    abort(403)
+    ~~~~~^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.Forbidden: 403 Forbidden: You don't have the permission to access the requested resource. It is either read-protected or not readable by the server.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 339, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=True, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 93, in save_member
+    require_register_admin(organization_id, actor_user_id)
+    ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 47, in require_register_admin
+    audit.authorize(organization_id, actor_user_id, ("manager", "RATEPAYER_ADMIN"))
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\audit.py", line 96, in authorize
+    abort(403)
+    ~~~~~^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.Forbidden: 403 Forbidden: You don't have the permission to access the requested resource. It is either read-protected or not readable by the server.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 343, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=True, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 122, in save_member
+    ).with_for_update().first_or_404()
+                        ~~~~~~~~~~~~^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask_sqlalchemy\query.py", line 46, in first_or_404
+    abort(404, description=description)
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 343, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=True, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 122, in save_member
+    ).with_for_update().first_or_404()
+                        ~~~~~~~~~~~~^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask_sqlalchemy\query.py", line 46, in first_or_404
+    abort(404, description=description)
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 343, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=True, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 122, in save_member
+    ).with_for_update().first_or_404()
+                        ~~~~~~~~~~~~^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask_sqlalchemy\query.py", line 46, in first_or_404
+    abort(404, description=description)
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 343, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=True, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 122, in save_member
+    ).with_for_update().first_or_404()
+                        ~~~~~~~~~~~~^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask_sqlalchemy\query.py", line 46, in first_or_404
+    abort(404, description=description)
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 345, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=is_authoritative, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 99, in save_member
+    abort(403, description="Manual creation of authoritative ratepayers is prohibited.")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.Forbidden: 403 Forbidden: Manual creation of authoritative ratepayers is prohibited.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 345, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=is_authoritative, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 99, in save_member
+    abort(403, description="Manual creation of authoritative ratepayers is prohibited.")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.Forbidden: 403 Forbidden: Manual creation of authoritative ratepayers is prohibited.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 345, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=is_authoritative, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 99, in save_member
+    abort(403, description="Manual creation of authoritative ratepayers is prohibited.")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.Forbidden: 403 Forbidden: Manual creation of authoritative ratepayers is prohibited.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 345, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=is_authoritative, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 99, in save_member
+    abort(403, description="Manual creation of authoritative ratepayers is prohibited.")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.Forbidden: 403 Forbidden: Manual creation of authoritative ratepayers is prohibited.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 345, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=is_authoritative, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 99, in save_member
+    abort(403, description="Manual creation of authoritative ratepayers is prohibited.")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.Forbidden: 403 Forbidden: Manual creation of authoritative ratepayers is prohibited.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 345, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=is_authoritative, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 99, in save_member
+    abort(403, description="Manual creation of authoritative ratepayers is prohibited.")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.Forbidden: 403 Forbidden: Manual creation of authoritative ratepayers is prohibited.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 345, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=is_authoritative, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 99, in save_member
+    abort(403, description="Manual creation of authoritative ratepayers is prohibited.")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.Forbidden: 403 Forbidden: Manual creation of authoritative ratepayers is prohibited.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 345, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=is_authoritative, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 99, in save_member
+    abort(403, description="Manual creation of authoritative ratepayers is prohibited.")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.Forbidden: 403 Forbidden: Manual creation of authoritative ratepayers is prohibited.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 345, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=is_authoritative, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 99, in save_member
+    abort(403, description="Manual creation of authoritative ratepayers is prohibited.")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.Forbidden: 403 Forbidden: Manual creation of authoritative ratepayers is prohibited.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 345, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=is_authoritative, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 99, in save_member
+    abort(403, description="Manual creation of authoritative ratepayers is prohibited.")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.Forbidden: 403 Forbidden: Manual creation of authoritative ratepayers is prohibited.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 345, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=is_authoritative, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 99, in save_member
+    abort(403, description="Manual creation of authoritative ratepayers is prohibited.")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.Forbidden: 403 Forbidden: Manual creation of authoritative ratepayers is prohibited.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 345, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=is_authoritative, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 99, in save_member
+    abort(403, description="Manual creation of authoritative ratepayers is prohibited.")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.Forbidden: 403 Forbidden: Manual creation of authoritative ratepayers is prohibited.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 345, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=is_authoritative, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 99, in save_member
+    abort(403, description="Manual creation of authoritative ratepayers is prohibited.")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.Forbidden: 403 Forbidden: Manual creation of authoritative ratepayers is prohibited.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 345, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=is_authoritative, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 99, in save_member
+    abort(403, description="Manual creation of authoritative ratepayers is prohibited.")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.Forbidden: 403 Forbidden: Manual creation of authoritative ratepayers is prohibited.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 345, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=is_authoritative, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 99, in save_member
+    abort(403, description="Manual creation of authoritative ratepayers is prohibited.")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.Forbidden: 403 Forbidden: Manual creation of authoritative ratepayers is prohibited.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 345, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=is_authoritative, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 99, in save_member
+    abort(403, description="Manual creation of authoritative ratepayers is prohibited.")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.Forbidden: 403 Forbidden: Manual creation of authoritative ratepayers is prohibited.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 345, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=is_authoritative, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 99, in save_member
+    abort(403, description="Manual creation of authoritative ratepayers is prohibited.")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.Forbidden: 403 Forbidden: Manual creation of authoritative ratepayers is prohibited.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 345, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=is_authoritative, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 99, in save_member
+    abort(403, description="Manual creation of authoritative ratepayers is prohibited.")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.Forbidden: 403 Forbidden: Manual creation of authoritative ratepayers is prohibited.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 345, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=is_authoritative, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 99, in save_member
+    abort(403, description="Manual creation of authoritative ratepayers is prohibited.")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.Forbidden: 403 Forbidden: Manual creation of authoritative ratepayers is prohibited.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 345, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=is_authoritative, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 99, in save_member
+    abort(403, description="Manual creation of authoritative ratepayers is prohibited.")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.Forbidden: 403 Forbidden: Manual creation of authoritative ratepayers is prohibited.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 345, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=is_authoritative, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 99, in save_member
+    abort(403, description="Manual creation of authoritative ratepayers is prohibited.")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.Forbidden: 403 Forbidden: Manual creation of authoritative ratepayers is prohibited.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 345, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=is_authoritative, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 99, in save_member
+    abort(403, description="Manual creation of authoritative ratepayers is prohibited.")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.Forbidden: 403 Forbidden: Manual creation of authoritative ratepayers is prohibited.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 345, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=is_authoritative, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 99, in save_member
+    abort(403, description="Manual creation of authoritative ratepayers is prohibited.")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.Forbidden: 403 Forbidden: Manual creation of authoritative ratepayers is prohibited.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 345, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=is_authoritative, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 99, in save_member
+    abort(403, description="Manual creation of authoritative ratepayers is prohibited.")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.Forbidden: 403 Forbidden: Manual creation of authoritative ratepayers is prohibited.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 345, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=is_authoritative, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 99, in save_member
+    abort(403, description="Manual creation of authoritative ratepayers is prohibited.")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.Forbidden: 403 Forbidden: Manual creation of authoritative ratepayers is prohibited.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 345, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=is_authoritative, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 99, in save_member
+    abort(403, description="Manual creation of authoritative ratepayers is prohibited.")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.Forbidden: 403 Forbidden: Manual creation of authoritative ratepayers is prohibited.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 345, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=is_authoritative, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 99, in save_member
+    abort(403, description="Manual creation of authoritative ratepayers is prohibited.")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.Forbidden: 403 Forbidden: Manual creation of authoritative ratepayers is prohibited.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 345, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=is_authoritative, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 99, in save_member
+    abort(403, description="Manual creation of authoritative ratepayers is prohibited.")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.Forbidden: 403 Forbidden: Manual creation of authoritative ratepayers is prohibited.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 345, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=is_authoritative, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 99, in save_member
+    abort(403, description="Manual creation of authoritative ratepayers is prohibited.")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.Forbidden: 403 Forbidden: Manual creation of authoritative ratepayers is prohibited.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 345, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=is_authoritative, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 99, in save_member
+    abort(403, description="Manual creation of authoritative ratepayers is prohibited.")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.Forbidden: 403 Forbidden: Manual creation of authoritative ratepayers is prohibited.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 345, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=is_authoritative, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 99, in save_member
+    abort(403, description="Manual creation of authoritative ratepayers is prohibited.")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.Forbidden: 403 Forbidden: Manual creation of authoritative ratepayers is prohibited.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 345, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=is_authoritative, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 99, in save_member
+    abort(403, description="Manual creation of authoritative ratepayers is prohibited.")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.Forbidden: 403 Forbidden: Manual creation of authoritative ratepayers is prohibited.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 345, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=is_authoritative, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 99, in save_member
+    abort(403, description="Manual creation of authoritative ratepayers is prohibited.")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.Forbidden: 403 Forbidden: Manual creation of authoritative ratepayers is prohibited.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 345, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=is_authoritative, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 99, in save_member
+    abort(403, description="Manual creation of authoritative ratepayers is prohibited.")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.Forbidden: 403 Forbidden: Manual creation of authoritative ratepayers is prohibited.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 345, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=is_authoritative, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 99, in save_member
+    abort(403, description="Manual creation of authoritative ratepayers is prohibited.")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.Forbidden: 403 Forbidden: Manual creation of authoritative ratepayers is prohibited.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 345, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=is_authoritative, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 99, in save_member
+    abort(403, description="Manual creation of authoritative ratepayers is prohibited.")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.Forbidden: 403 Forbidden: Manual creation of authoritative ratepayers is prohibited.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 345, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=is_authoritative, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 99, in save_member
+    abort(403, description="Manual creation of authoritative ratepayers is prohibited.")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.Forbidden: 403 Forbidden: Manual creation of authoritative ratepayers is prohibited.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 345, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=is_authoritative, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 99, in save_member
+    abort(403, description="Manual creation of authoritative ratepayers is prohibited.")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.Forbidden: 403 Forbidden: Manual creation of authoritative ratepayers is prohibited.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 345, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=is_authoritative, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 99, in save_member
+    abort(403, description="Manual creation of authoritative ratepayers is prohibited.")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.Forbidden: 403 Forbidden: Manual creation of authoritative ratepayers is prohibited.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 345, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=is_authoritative, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 99, in save_member
+    abort(403, description="Manual creation of authoritative ratepayers is prohibited.")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.Forbidden: 403 Forbidden: Manual creation of authoritative ratepayers is prohibited.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 345, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=is_authoritative, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 99, in save_member
+    abort(403, description="Manual creation of authoritative ratepayers is prohibited.")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.Forbidden: 403 Forbidden: Manual creation of authoritative ratepayers is prohibited.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 345, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=is_authoritative, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 99, in save_member
+    abort(403, description="Manual creation of authoritative ratepayers is prohibited.")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.Forbidden: 403 Forbidden: Manual creation of authoritative ratepayers is prohibited.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 345, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=is_authoritative, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 99, in save_member
+    abort(403, description="Manual creation of authoritative ratepayers is prohibited.")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.Forbidden: 403 Forbidden: Manual creation of authoritative ratepayers is prohibited.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 345, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=is_authoritative, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 99, in save_member
+    abort(403, description="Manual creation of authoritative ratepayers is prohibited.")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.Forbidden: 403 Forbidden: Manual creation of authoritative ratepayers is prohibited.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 345, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=is_authoritative, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 99, in save_member
+    abort(403, description="Manual creation of authoritative ratepayers is prohibited.")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.Forbidden: 403 Forbidden: Manual creation of authoritative ratepayers is prohibited.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 345, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=is_authoritative, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 99, in save_member
+    abort(403, description="Manual creation of authoritative ratepayers is prohibited.")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.Forbidden: 403 Forbidden: Manual creation of authoritative ratepayers is prohibited.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 345, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=is_authoritative, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 99, in save_member
+    abort(403, description="Manual creation of authoritative ratepayers is prohibited.")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.Forbidden: 403 Forbidden: Manual creation of authoritative ratepayers is prohibited.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 345, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=is_authoritative, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 99, in save_member
+    abort(403, description="Manual creation of authoritative ratepayers is prohibited.")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.Forbidden: 403 Forbidden: Manual creation of authoritative ratepayers is prohibited.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 345, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=is_authoritative, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 99, in save_member
+    abort(403, description="Manual creation of authoritative ratepayers is prohibited.")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.Forbidden: 403 Forbidden: Manual creation of authoritative ratepayers is prohibited.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 345, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=is_authoritative, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 99, in save_member
+    abort(403, description="Manual creation of authoritative ratepayers is prohibited.")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.Forbidden: 403 Forbidden: Manual creation of authoritative ratepayers is prohibited.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 345, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=is_authoritative, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 99, in save_member
+    abort(403, description="Manual creation of authoritative ratepayers is prohibited.")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.Forbidden: 403 Forbidden: Manual creation of authoritative ratepayers is prohibited.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 345, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=is_authoritative, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 99, in save_member
+    abort(403, description="Manual creation of authoritative ratepayers is prohibited.")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.Forbidden: 403 Forbidden: Manual creation of authoritative ratepayers is prohibited.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 345, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=is_authoritative, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 99, in save_member
+    abort(403, description="Manual creation of authoritative ratepayers is prohibited.")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.Forbidden: 403 Forbidden: Manual creation of authoritative ratepayers is prohibited.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 345, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=is_authoritative, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 99, in save_member
+    abort(403, description="Manual creation of authoritative ratepayers is prohibited.")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.Forbidden: 403 Forbidden: Manual creation of authoritative ratepayers is prohibited.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 345, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=True, is_authoritative=is_authoritative, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 122, in save_member
+    ).with_for_update().first_or_404()
+                        ~~~~~~~~~~~~^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask_sqlalchemy\query.py", line 46, in first_or_404
+    abort(404, description=description)
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 345, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=True, is_authoritative=is_authoritative, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 122, in save_member
+    ).with_for_update().first_or_404()
+                        ~~~~~~~~~~~~^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask_sqlalchemy\query.py", line 46, in first_or_404
+    abort(404, description=description)
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 328, in process_import_batch
+    raise Exception("Cannot overwrite authoritative municipal records.")
+Exception: Cannot overwrite authoritative municipal records.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 328, in process_import_batch
+    raise Exception("Cannot overwrite authoritative municipal records.")
+Exception: Cannot overwrite authoritative municipal records.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 328, in process_import_batch
+    raise Exception("Cannot overwrite authoritative municipal records.")
+Exception: Cannot overwrite authoritative municipal records.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 328, in process_import_batch
+    raise Exception("Cannot overwrite authoritative municipal records.")
+Exception: Cannot overwrite authoritative municipal records.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 328, in process_import_batch
+    raise Exception("Cannot overwrite authoritative municipal records.")
+Exception: Cannot overwrite authoritative municipal records.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 328, in process_import_batch
+    raise Exception("Cannot overwrite authoritative municipal records.")
+Exception: Cannot overwrite authoritative municipal records.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 345, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=True, is_authoritative=is_authoritative, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 122, in save_member
+    ).with_for_update().first_or_404()
+                        ~~~~~~~~~~~~^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask_sqlalchemy\query.py", line 46, in first_or_404
+    abort(404, description=description)
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 345, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=True, is_authoritative=is_authoritative, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 122, in save_member
+    ).with_for_update().first_or_404()
+                        ~~~~~~~~~~~~^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask_sqlalchemy\query.py", line 46, in first_or_404
+    abort(404, description=description)
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 345, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=True, is_authoritative=is_authoritative, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 122, in save_member
+    ).with_for_update().first_or_404()
+                        ~~~~~~~~~~~~^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask_sqlalchemy\query.py", line 46, in first_or_404
+    abort(404, description=description)
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 345, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=True, is_authoritative=is_authoritative, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 122, in save_member
+    ).with_for_update().first_or_404()
+                        ~~~~~~~~~~~~^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask_sqlalchemy\query.py", line 46, in first_or_404
+    abort(404, description=description)
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+
+Traceback (most recent call last):
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 345, in process_import_batch
+    save_member(organization_id, actor_user_id, row, None, is_import=True, is_authoritative=is_authoritative, import_id=batch.id)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\app\program_uip\services\register.py", line 122, in save_member
+    ).with_for_update().first_or_404()
+                        ~~~~~~~~~~~~^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask_sqlalchemy\query.py", line 46, in first_or_404
+    abort(404, description=description)
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\flask\helpers.py", line 291, in abort
+    current_app.aborter(code, *args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Users\yeshk\Documents\ait_platform\.venv\Lib\site-packages\werkzeug\exceptions.py", line 876, in __call__
+    raise self.mapping[code](*args, **kwargs)
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+

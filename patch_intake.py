@@ -1,53 +1,76 @@
-widget = """
-<!-- PRECINCT ACTIVATION HEALTH -->
-{% set total_vault = org.member_profiles|length if org.member_profiles else 1 %}
-{% set active_members = org.member_profiles|selectattr("eligibility_status", "equalto", "eligible")|list|length %}
-{% set activation_pct = ((active_members / total_vault) * 100)|int if total_vault > 0 else 0 %}
-{% set quorum_target = 50 %} <!-- Example threshold -->
+﻿import re
 
-<div class="mb-10 bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-    <div class="p-6 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
-        <h2 class="text-lg font-bold text-slate-800"><i class="fas fa-heartbeat text-rose-500 mr-2"></i> Precinct Activation Health</h2>
-        <div class="text-sm font-bold text-slate-500">Target Quorum: {{ quorum_target }}%</div>
-    </div>
-    <div class="p-6">
-        <div class="flex justify-between items-end mb-2">
-            <div>
-                <div class="text-3xl font-black {% if activation_pct < quorum_target %}text-rose-600{% else %}text-emerald-600{% endif %}">
-                    {{ activation_pct }}% Registered
-                </div>
-                <div class="text-sm text-slate-500 font-medium mt-1">
-                    {{ active_members }} out of {{ total_vault }} Vault Properties have claimed their profiles.
-                </div>
-            </div>
-            {% if activation_pct < quorum_target %}
-            <div class="px-4 py-2 bg-rose-50 text-rose-700 rounded-lg border border-rose-200 text-sm font-bold animate-pulse">
-                <i class="fas fa-exclamation-triangle mr-1"></i> Quorum Deficit - AGM Blocked
-            </div>
-            {% else %}
-            <div class="px-4 py-2 bg-emerald-50 text-emerald-700 rounded-lg border border-emerald-200 text-sm font-bold">
-                <i class="fas fa-check-circle mr-1"></i> Quorum Achieved
-            </div>
-            {% endif %}
+filepath = 'templates/program_uip/dashboards/secretary_intake.html'
+with open(filepath, 'r', encoding='utf-8') as f:
+    content = f.read()
+
+# 1. Update the button to say 'Verify via Mandate' and call openVerifyModal
+actions_pattern = re.compile(r'onclick="openMoModal\(\'\{\{ claim\.id \}\}\', \'\{\{ claim\.user_name \}\}\'\)"[^>]*>\s*<i class="fas fa-file-signature mr-1"></i> Record Mandate')
+actions_replacement = """onclick="openVerifyModal('{{ claim.id }}', '{{ claim.user_name }}')">
+                                    <i class="fas fa-link mr-1"></i> Verify via Mandate"""
+content = actions_pattern.sub(actions_replacement, content)
+
+# 2. Replace the modal html and scripts
+modal_pattern = re.compile(r'<!-- MO Mandate Modal -->.*?</script>', re.DOTALL)
+
+new_modal = """<!-- Verify via Mandate Modal -->
+<div id="verifyModal" class="fixed inset-0 z-[100] hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+  <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+    <div class="fixed inset-0 bg-slate-900 bg-opacity-75 transition-opacity" aria-hidden="true" onclick="closeVerifyModal()"></div>
+    <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+    <div class="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
+      <div>
+        <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-emerald-100">
+          <i class="fas fa-link text-emerald-600 text-xl"></i>
         </div>
-        <!-- Progress Bar -->
-        <div class="w-full bg-slate-100 rounded-full h-4 mt-4 border border-slate-200 overflow-hidden relative">
-            <div class="h-4 rounded-full transition-all duration-1000 {% if activation_pct < quorum_target %}bg-gradient-to-r from-rose-400 to-rose-500{% else %}bg-gradient-to-r from-emerald-400 to-emerald-500{% endif %}" style="width: {{ activation_pct }}%"></div>
-            <!-- Quorum Marker -->
-            <div class="absolute top-0 bottom-0 border-l-2 border-slate-800 z-10" style="left: {{ quorum_target }}%;">
-                <div class="absolute -top-6 -translate-x-1/2 text-[10px] font-black text-slate-800 uppercase tracking-widest bg-white px-1">Quorum</div>
-            </div>
+        <div class="mt-3 text-center sm:mt-5">
+          <h3 class="text-lg leading-6 font-bold text-slate-900" id="modal-title">Verify via Existing Mandate</h3>
+          <div class="mt-2 text-sm text-slate-500 text-left">
+            <p>You are linking <strong id="verifyModalName" class="text-slate-800"></strong> to a foundational legal record.</p>
+            <p class="mt-2">Select the pre-existing Adopted Mandate that grants this user authority.</p>
+          </div>
         </div>
+      </div>
+      <form id="verifyMandateForm" action="{{ url_for('uip_bp.verify_claim_via_mandate', org_slug=org.slug) }}" method="POST" class="mt-5">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        <input type="hidden" name="claim_id" id="verifyModalClaimId" value=""/>
+        
+        <div class="mb-5">
+            <label class="block text-sm font-bold text-slate-700 mb-2">Select Mandate</label>
+            <select name="mandate_id" required class="block w-full border border-slate-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                <option value="" disabled selected>-- Select an Adopted Mandate --</option>
+                {% for mandate in adopted_resolutions %}
+                <option value="{{ mandate.id }}">{{ mandate.title }} ({{ mandate.decision_date }})</option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="mt-5 sm:mt-6 sm:flex sm:flex-row-reverse">
+          <button type="submit" name="action" value="record" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-emerald-600 text-base font-bold text-white hover:bg-emerald-700 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm">
+            Admit User
+          </button>
+          <button type="button" onclick="closeVerifyModal()" class="mt-3 w-full inline-flex justify-center rounded-md border border-slate-300 shadow-sm px-4 py-2 bg-white text-base font-bold text-slate-700 hover:bg-slate-50 focus:outline-none sm:mt-0 sm:w-auto sm:text-sm mr-auto">
+            Cancel
+          </button>
+        </div>
+      </form>
     </div>
+  </div>
 </div>
-"""
 
-with open("templates/program_uip/dashboards/secretary_intake.html", "r", encoding="utf-8") as f:
-    text = f.read()
+<script>
+function openVerifyModal(claimId, name) {
+    document.getElementById('verifyModalClaimId').value = claimId;
+    document.getElementById('verifyModalName').textContent = name;
+    document.getElementById('verifyModal').classList.remove('hidden');
+}
+function closeVerifyModal() {
+    document.getElementById('verifyModal').classList.add('hidden');
+}
+</script>"""
+content = modal_pattern.sub(new_modal, content)
 
-target = "{% include 'partials/flash_messages.html' %}\n\n"
-text = text.replace(target, target + widget)
+with open(filepath, 'w', encoding='utf-8') as f:
+    f.write(content)
 
-with open("templates/program_uip/dashboards/secretary_intake.html", "w", encoding="utf-8") as f:
-    f.write(text)
-print("Injected quorum widget into secretary intake")
+print("secretary_intake updated")

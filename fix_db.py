@@ -1,20 +1,16 @@
-from app import create_app, db
-from app.models.uip_governance import UipCommitteeMember
+﻿from app import create_app, db
+from app.models.core import CoreInteraction, CoreOrganizationMember
 
 app = create_app()
 with app.app_context():
-    members = UipCommitteeMember.query.all()
-    for m in members:
-        if m.position in ["Committee", "Unassigned"]:
-            print(f"Fixing {m.name}...")
-            # Let's see if they have a CoreInteraction we can pull from
-            from app.models.core import CoreInteraction
-            claim = CoreInteraction.query.filter_by(creator_id=m.user_id, interaction_type="committee_claim").first()
-            if claim and ":" in claim.title:
-                m.position = claim.title.split(": ")[-1]
-                print(f" -> Set to {m.position}")
-            else:
-                m.position = "Chairperson" # Fallback if we can't find it, since they complained about Chair
-                print(" -> Set to Chairperson (fallback)")
+    claims = CoreInteraction.query.filter_by(interaction_type='mo_claim', status='VERIFIED').all()
+    count = 0
+    for claim in claims:
+        mem = CoreOrganizationMember.query.filter_by(organization_id=claim.organization_id, user_id=claim.creator_id).first()
+        if not mem:
+            mem = CoreOrganizationMember(organization_id=claim.organization_id, user_id=claim.creator_id, is_active=True)
+            db.session.add(mem)
+            count += 1
+            print(f'Fixed user {claim.creator_id}')
     db.session.commit()
-    print("Database fixed.")
+    print(f'Fixed {count} users.')

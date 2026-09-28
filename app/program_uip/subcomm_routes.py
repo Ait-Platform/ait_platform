@@ -33,9 +33,17 @@ def sub_comm_board(org_slug, sub_id):
     report_seat = UipOrganogramSeat.query.get(sub.reports_to_seat_id)
     resp_mem = sub_service.resolve_responsible_member(sub)
     
+    from app.models.core import CoreInteraction
+    open_queries = CoreInteraction.query.filter_by(
+        organization_id=org.id,
+        interaction_type="fault_report",
+        status="OPEN"
+    ).count()
+
     return render_template("program_uip/subcomm_tools/board.html", 
         org=org, subcommittee=sub, resolution=resolution, 
-        resp_seat=resp_seat, report_seat=report_seat, resp_mem=resp_mem)
+        resp_seat=resp_seat, report_seat=report_seat, resp_mem=resp_mem,
+        open_queries=open_queries)
 
 # Tile Shells
 @uip_bp.route("/<org_slug>/subcommittee/<int:sub_id>/members")

@@ -1,20 +1,11 @@
-﻿from app import create_app
-from app.extensions import db
-from app.models.mechanic import MechShop, MechClient
-from app.models.debtors import BusinessBankAccount
-import sys
+﻿import json
+from app import create_app, db
+from app.models.uip import UipMemberProfile, UipRegisterImport
 
 app = create_app()
 with app.app_context():
-    shop = MechShop.query.first()
-    if not shop:
-        print("No shop found")
-        sys.exit(0)
-    print(f"Shop user_id: {shop.user_id}")
-    print(f"Shop bank_details: {shop.bank_details}")
+    imports = [{"id": i.id, "status": i.status, "date": str(i.effective_date), "notes": i.notes} for i in UipRegisterImport.query.all()]
+    members = [{"id": m.id, "email": m.email, "name": m.name, "source": m.record_source, "active": m.is_active, "eligibility": m.eligibility_status, "last_import_id": m.last_import_id} for m in UipMemberProfile.query.all()]
     
-    bank = BusinessBankAccount.query.filter_by(user_id=shop.user_id).first()
-    if bank:
-        print(f"Bank Account Found! Bank Name: {bank.bank_name}, Account Name: {bank.account_name}, raw_details: {bank.raw_details}")
-    else:
-        print("No Bank Account Found in BusinessBankAccount!")
+    with open('db_dump.json', 'w') as f:
+        json.dump({"imports": imports, "members": members}, f, indent=2)

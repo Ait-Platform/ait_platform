@@ -1,45 +1,27 @@
-with open('app/program_billing/routes.py', 'r', encoding='utf-8') as f:
-    content = f.read()
+import sys
+with open("app/models/uip_governance.py", "r", encoding="utf-8") as f:
+    c = f.read()
 
-target = '''        data = json.loads(text_response.strip())
-        
-        return jsonify(data)'''
+c = c.replace(
+    'db.ForeignKeyConstraint(["establishing_resolution_id", "organization_id"]',
+    'db.UniqueConstraint("id", "organization_id", name="uq_uip_subcommittee_org"),\n        db.ForeignKeyConstraint(["establishing_resolution_id", "organization_id"]'
+)
 
-injection = '''        data = json.loads(text_response.strip())
-        
-        try:
-            from app.models.billing import BilExtractionLog
-            from flask_login import current_user
-            
-            if current_user.is_authenticated:
-                def _safe_float(val):
-                    try:
-                        return float(val) if val is not None else 0.0
-                    except (ValueError, TypeError):
-                        return 0.0
-                        
-                log_entry = BilExtractionLog(
-                    manager_id=current_user.id,
-                    property_name=data.get("property_name"),
-                    address=data.get("address"),
-                    metro_account_no=data.get("metro_account_no"),
-                    muni_email=data.get("muni_email"),
-                    has_rates=bool(data.get("has_rates")),
-                    rates_amount=_safe_float(data.get("rates_amount")),
-                    amount_due=_safe_float(data.get("amount_due")),
-                    raw_json=data
-                )
-                from app.extensions import db
-                db.session.add(log_entry)
-                db.session.commit()
-        except Exception as inner_e:
-            import logging
-            logging.error(f"Failed to save BilExtractionLog: {inner_e}")
-        
-        return jsonify(data)'''
+with open("app/models/uip_governance.py", "w", encoding="utf-8") as f:
+    f.write(c)
 
-# We know the first occurrence is in parse_bill_onboarding_api
-content = content.replace(target, injection, 1)
+with open("migrations/versions/uip_p55_sub_tools.py", "r", encoding="utf-8") as f:
+    c2 = f.read()
 
-with open('app/program_billing/routes.py', 'w', encoding='utf-8') as f:
-    f.write(content)
+c2 = c2.replace(
+    "op.add_column('uip_proposal', sa.Column('originating_subcommittee_id', sa.Integer(), nullable=True))",
+    "op.create_unique_constraint('uq_uip_subcommittee_org', 'uip_subcommittee', ['id', 'organization_id'])\n    op.add_column('uip_proposal', sa.Column('originating_subcommittee_id', sa.Integer(), nullable=True))"
+)
+c2 = c2.replace(
+    "op.drop_constraint('fk_uip_proposal_subcommittee_org', 'uip_proposal', type_='foreignkey')",
+    "op.drop_constraint('fk_uip_proposal_subcommittee_org', 'uip_proposal', type_='foreignkey')\n    op.drop_constraint('uq_uip_subcommittee_org', 'uip_subcommittee', type_='unique')"
+)
+
+with open("migrations/versions/uip_p55_sub_tools.py", "w", encoding="utf-8") as f:
+    f.write(c2)
+print("Updated model and migration")

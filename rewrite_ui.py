@@ -1,0 +1,221 @@
+﻿import re
+
+filepath = 'templates/program_uip/dashboards/secretary_intake.html'
+with open(filepath, 'r', encoding='utf-8') as f:
+    content = f.read()
+
+# I will replace the ENTIRE content of secretary_intake.html to ensure it is pristine.
+new_html = '''{% extends "program_uip/base.html" %}
+{% block title %}Secretary Intake Desk - {{ org.name }}{% endblock %}
+
+{% block content %}
+<header class="ui-header-2row">
+    <div class="ui-header-2row-top">
+        <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight ui-header-2row-title">Verification of Members</h1>
+        <a href="{{ url_for('uip_bp.secretary_workspace', org_slug=org.slug) }}" class="inline-flex items-center text-sm font-bold text-slate-500 hover:text-indigo-600 transition" style="white-space: nowrap;">
+            <i class="fas fa-arrow-left mr-2"></i> Back to Secretary Dashboard
+        </a>
+    </div>
+    <div class="ui-header-2row-bottom">
+        <p class="text-slate-500 font-medium ui-header-2row-subtitle">Review access claims and draft digital resolutions for committee approval.</p>
+    </div>
+</header>
+
+{% include 'partials/flash_messages.html' %}
+
+{% if mo_conflict %}
+<div class="bg-red-50 border-l-4 border-red-500 p-4 mb-6 ui-card">
+    <div class="flex">
+        <div class="flex-shrink-0">
+            <i class="fas fa-exclamation-triangle text-red-500"></i>
+        </div>
+        <div class="ml-3">
+            <h3 class="text-sm font-medium text-red-800">Municipal Officer Conflict Detected</h3>
+            <div class="mt-2 text-sm text-red-700">
+                <p>We already have an active Municipal Officer ({{ existing_mo.name }}). Verifying a new MO via mandate will automatically revoke and replace the current MO.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- TOP TABLE: Waiting Room (OPEN Claims) -->
+<h2 class="text-2xl font-bold mt-8 mb-4">Pending Access Claims</h2>
+<div class="ui-card mb-12">
+    {% if open_claims %}
+    <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+            <thead>
+                <tr class="bg-slate-50 border-b border-slate-200 text-sm text-slate-600">
+                    <th class="p-4 font-semibold">Applicant Name</th>
+                    <th class="p-4 font-semibold">Email Address</th>
+                    <th class="p-4 font-semibold">Role Requested</th>
+                    <th class="p-4 font-semibold">Date Submitted</th>
+                    <th class="p-4 font-semibold">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for claim in open_claims %}
+                <tr class="border-b border-slate-100 hover:bg-slate-50 transition">
+                    <td class="p-4 font-medium text-slate-900">{{ claim.user_name }}</td>
+                    <td class="p-4 text-slate-600">{{ claim.user_email }}</td>
+                    <td class="p-4">
+                        <div class="text-sm font-bold text-indigo-700">{{ claim.title }}</div>
+                    </td>
+                    <td class="p-4 text-sm text-slate-500">{{ claim.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                    <td class="p-4">
+                        <button type="button" onclick="openVerifyModal('{{ claim.id }}', '{{ claim.user_name }}')" class="inline-flex items-center px-4 py-2 border border-emerald-500 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 font-bold text-sm rounded transition shadow-sm">
+                            <i class="fas fa-check-circle mr-2"></i> Verify
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="ui-card-body text-center py-12">
+        <div class="text-slate-300 mb-4"><i class="fas fa-inbox fa-3x"></i></div>
+        <h3 class="text-lg font-medium text-slate-900">Waiting Room Empty</h3>
+        <p class="text-slate-500 mt-1">There are no pending applicants at the door.</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- BOTTOM TABLE: Recently Processed / Undo Desk -->
+<h2 class="text-2xl font-bold mt-8 mb-4">Recently Processed</h2>
+<div class="ui-card mb-8">
+    {% if processed_claims %}
+    <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+            <thead>
+                <tr class="bg-slate-50 border-b border-slate-200 text-sm text-slate-600">
+                    <th class="p-4 font-semibold">Applicant Name</th>
+                    <th class="p-4 font-semibold">Email Address</th>
+                    <th class="p-4 font-semibold">Role Requested</th>
+                    <th class="p-4 font-semibold">Processing Status</th>
+                    <th class="p-4 font-semibold">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for claim in processed_claims %}
+                <tr class="border-b border-slate-100 hover:bg-slate-50 transition opacity-80">
+                    <td class="p-4 font-medium text-slate-900">{{ claim.user_name }}</td>
+                    <td class="p-4 text-slate-600">{{ claim.user_email }}</td>
+                    <td class="p-4">
+                        <div class="text-sm font-bold text-slate-700">{{ claim.title }}</div>
+                    </td>
+                    <td class="p-4">
+                        {% if claim.status == 'VERIFIED' %}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">Verified via Mandate</span>
+                        {% else %}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">Pending Resolution Vote</span>
+                        {% endif %}
+                    </td>
+                    <td class="p-4">
+                        <form method="POST" action="{{ url_for('uip_bp.undo_claim', org_slug=org.slug, claim_id=claim.id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                            <button type="submit" class="inline-flex items-center px-3 py-1.5 text-red-600 hover:text-red-800 hover:bg-red-50 font-bold text-xs rounded transition" onclick="return confirm('Remove this applicant from processing and return them to the waiting room?');">
+                                <i class="fas fa-undo-alt mr-1.5"></i> Remove
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="ui-card-body text-center py-12">
+        <p class="text-slate-500 mt-1">No applicants have been processed recently.</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Verify Modal -->
+<div id="verifyModal" class="fixed inset-0 z-[100] hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+  <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+    <div class="fixed inset-0 bg-slate-900 bg-opacity-75 transition-opacity" aria-hidden="true" onclick="closeVerifyModal()"></div>
+    <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+    <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+      
+      <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+        <div class="sm:flex sm:items-start">
+          <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-indigo-100 sm:mx-0 sm:h-10 sm:w-10">
+            <i class="fas fa-user-shield text-indigo-600"></i>
+          </div>
+          <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
+            <h3 class="text-lg leading-6 font-bold text-slate-900" id="modal-title">Verification Gateway</h3>
+            <div class="mt-2 text-sm text-slate-500">
+              <p>You are processing <strong id="verifyModalName" class="text-slate-900"></strong>.</p>
+            </div>
+            
+            <!-- OPTION 1: MANDATE -->
+            <div class="mt-6 border border-slate-200 rounded-lg p-4 bg-slate-50">
+                <h4 class="font-bold text-slate-800 mb-2">Option A: Link to Existing Mandate</h4>
+                <form id="verifyMandateForm" action="{{ url_for('uip_bp.verify_claim_via_mandate', org_slug=org.slug) }}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <input type="hidden" name="claim_id" class="modal-claim-id" value=""/>
+                    <select name="mandate_id" required class="block w-full border border-slate-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm mb-3">
+                        <option value="" disabled selected>-- Select Adopted Mandate --</option>
+                        {% for mandate in adopted_resolutions %}
+                        <option value="{{ mandate.id }}">{{ mandate.title }}</option>
+                        {% endfor %}
+                    </select>
+                    <button type="submit" name="action" value="record" class="w-full inline-flex justify-center items-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-emerald-600 text-sm font-bold text-white hover:bg-emerald-700">
+                        <i class="fas fa-link mr-2"></i> Admit via Mandate
+                    </button>
+                </form>
+            </div>
+
+            <div class="relative mt-6 mb-6">
+                <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                    <div class="w-full border-t border-slate-300"></div>
+                </div>
+                <div class="relative flex justify-center">
+                    <span class="px-2 bg-white text-sm font-bold text-slate-500">OR</span>
+                </div>
+            </div>
+
+            <!-- OPTION 2: DRAFT RESOLUTION -->
+            <div class="border border-slate-200 rounded-lg p-4 bg-slate-50">
+                <h4 class="font-bold text-slate-800 mb-2">Option B: Propose for ExCo Vote</h4>
+                <p class="text-xs text-slate-500 mb-3">No mandate found? Send this applicant to the voting room for committee approval.</p>
+                <form action="{{ url_for('uip_bp.draft_access_resolution', org_slug=org.slug) }}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <!-- We use claim_ids[] array because the endpoint expects bulk selection -->
+                    <input type="hidden" name="claim_ids[]" class="modal-claim-id" value=""/>
+                    <button type="submit" class="w-full inline-flex justify-center items-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-sm font-bold text-white hover:bg-indigo-700">
+                        <i class="fas fa-balance-scale mr-2"></i> Draft Resolution
+                    </button>
+                </form>
+            </div>
+
+          </div>
+        </div>
+      </div>
+      <div class="bg-slate-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+        <button type="button" onclick="closeVerifyModal()" class="mt-3 w-full inline-flex justify-center rounded-md border border-slate-300 shadow-sm px-4 py-2 bg-white text-base font-bold text-slate-700 hover:bg-slate-50 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function openVerifyModal(claimId, name) {
+    document.querySelectorAll('.modal-claim-id').forEach(el => el.value = claimId);
+    document.getElementById('verifyModalName').textContent = name;
+    document.getElementById('verifyModal').classList.remove('hidden');
+}
+function closeVerifyModal() {
+    document.getElementById('verifyModal').classList.add('hidden');
+}
+</script>
+{% endblock %}
+'''
+
+with open(filepath, 'w', encoding='utf-8') as f:
+    f.write(new_html)
+print("Complete rewrite of secretary_intake.html")

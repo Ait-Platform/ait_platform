@@ -1,0 +1,24 @@
+﻿import re
+
+filepath = 'templates/partials/hub_upload_form.html'
+with open(filepath, 'w', encoding='utf-8') as f:
+    f.write('''<div class="bg-white p-5 rounded-lg border border-slate-200 shadow-sm">
+    <h4 class="font-bold text-slate-900 mb-3 text-sm">Upload {{ current_form_kind|title }} CSV</h4>
+    
+    <form method="post" enctype="multipart/form-data" class="space-y-4">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="kind" value="{{ current_form_kind }}">
+        <input type="hidden" name="operation" value="commit">
+        
+        <div>
+            <input type="file" name="file" accept=".csv,text/csv" required class="block w-full text-xs text-slate-500 file:mr-4 file:py-1 file:px-3 file:rounded file:border-0 file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 border border-dashed border-slate-300 p-3">
+        </div>
+        
+        <div class="flex justify-end pt-2">
+            <button type="submit" class="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded shadow flex items-center transition">
+                <i class="fas fa-cloud-upload-alt mr-1.5"></i> Save to Vault
+            </button>
+        </div>
+    </form>
+</div>''')
+print("Updated form template to 1-step save")

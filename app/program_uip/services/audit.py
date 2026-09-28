@@ -125,7 +125,7 @@ def record(organization_id, actor_user_id, action, entity, metadata=None):
         import_id = metadata.get("import_id")
     else:
         import_id = None
-    if import_id and action in {"member.created", "member.updated", "property.created", "property.updated", "ownership.created", "ownership.updated"}:
+    if import_id and action in {"member.created", "member.updated", "property.created", "property.updated", "ownership.created", "ownership.updated", "preference.updated"}:
         from app.models.uip import UipRegisterImport
         batch = UipRegisterImport.query.filter_by(id=import_id, organization_id=organization_id,
             imported_by_user_id=actor_user_id, status="PROCESSING").first()

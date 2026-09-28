@@ -1,0 +1,287 @@
+﻿import re
+
+filepath = 'templates/program_uip/register_import.html'
+with open(filepath, 'r', encoding='utf-8') as f:
+    content = f.read()
+
+new_html = '''{% extends 'program_uip/base.html' %}
+{% block title %}Import Municipal Vault - {{ org.name }}{% endblock %}
+
+{% block content %}
+<style>
+    .ui-sidebar { display: none !important; }
+    .ui-shell { grid-template-columns: 1fr !important; display: block !important; }
+    .ui-workspace { padding-left: 0 !important; margin-left: 0 !important; max-width: 1000px; margin: 0 auto !important; width: 100%; }
+</style>
+<header class="ui-header-2row">
+    <div class="ui-header-2row-top">
+        <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight ui-header-2row-title">
+            {% if 'mo-vault' in request.path %}Municipal Vault Upload{% else %}Register Import{% endif %}
+        </h1>
+        <a href="{{ url_for('uip_bp.mo_dashboard' if 'mo-vault' in request.path else 'uip_bp.secretary_workspace', org_slug=org.slug) }}" class="inline-flex items-center text-sm font-bold text-slate-500 hover:text-indigo-600 transition">
+            <i class="fas fa-arrow-left mr-2"></i> Back to Dashboard
+        </a>
+    </div>
+    <div class="ui-header-2row-bottom">
+        <p class="text-slate-500 font-medium ui-header-2row-subtitle">
+            Securely upload the three core tables (Owners, Properties, and Links) to establish the authoritative register.
+        </p>
+    </div>
+</header>
+
+{% include 'partials/flash_messages.html' %}
+
+{% if not vault_batch_ref %}
+<!-- STEP 1: BATCH CONFIGURATION -->
+<div class="ui-card max-w-2xl mx-auto mt-8">
+    <header class="ui-card-head bg-slate-50 border-b border-slate-200">
+        <h2>Batch Configuration</h2>
+        <p class="text-sm text-slate-500 font-normal mt-1">Define the batch metadata for this import session.</p>
+    </header>
+    <form method="post" class="p-6 space-y-6">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="operation" value="start_batch">
+        
+        <div>
+            <label class="block text-sm font-bold text-slate-900 mb-1">Source Municipality</label>
+            <select name="source_identifier" required class="block w-full border border-slate-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                <option value="eThekwini Metropolitan Municipality">eThekwini Metropolitan Municipality</option>
+                <option value="City of Cape Town">City of Cape Town</option>
+                <option value="City of Johannesburg">City of Johannesburg</option>
+                <option value="City of Tshwane">City of Tshwane</option>
+                <option value="Nelson Mandela Bay">Nelson Mandela Bay</option>
+                <option value="Ekurhuleni">Ekurhuleni</option>
+            </select>
+        </div>
+        
+        <div>
+            <label class="block text-sm font-bold text-slate-900 mb-1">Batch Reference</label>
+            {% set auto_ref = "VAL-ROLL-" + current_user.id|string + "-" + range(1000, 9999)|random|string %}
+            <input type="text" name="batch_reference" value="{{ auto_ref }}" required class="block w-full border border-slate-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+            <p class="text-xs text-slate-500 mt-1">Auto-generated for your convenience, but you can edit this.</p>
+        </div>
+        
+        <div>
+            <label class="block text-sm font-bold text-slate-900 mb-1">Effective "As At" Date</label>
+            <input type="date" name="effective_date" required class="block w-full border border-slate-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+        </div>
+        
+        <div class="pt-2">
+            <button type="submit" class="w-full px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow transition flex items-center justify-center">
+                Start Import Sequence <i class="fas fa-arrow-right ml-2"></i>
+            </button>
+        </div>
+    </form>
+</div>
+{% else %}
+
+<!-- THE CONTROL HUB -->
+<div class="mb-8 p-4 bg-slate-800 rounded-lg text-white flex justify-between items-center shadow-lg">
+    <div>
+        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Current Import Session</h3>
+        <div class="flex items-center space-x-6">
+            <div><span class="text-slate-300 text-sm mr-1">Municipality:</span> <strong class="text-white">{{ vault_source }}</strong></div>
+            <div><span class="text-slate-300 text-sm mr-1">Batch:</span> <strong class="text-white">{{ vault_batch_ref }}</strong></div>
+            <div><span class="text-slate-300 text-sm mr-1">As At:</span> <strong class="text-white">{{ vault_date }}</strong></div>
+        </div>
+    </div>
+    <form method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="operation" value="reset_batch">
+        <button type="submit" class="px-3 py-1.5 border border-slate-600 text-slate-300 hover:text-white hover:bg-slate-700 rounded text-xs font-bold transition">End Session</button>
+    </form>
+</div>
+
+{% if error %}
+<div class="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-lg shadow-sm mb-6">
+    <div class="flex">
+        <i class="fas fa-exclamation-circle text-red-500 mt-0.5 mr-3"></i>
+        <div>
+            <h3 class="text-sm font-bold text-red-800">Upload Failed</h3>
+            <p class="text-sm text-red-700 mt-1">{{ error }} Nothing was imported.</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="ui-card mb-12">
+    <header class="ui-card-head bg-slate-50 border-b border-slate-200">
+        <h2>Import Status Hub</h2>
+        <p class="text-sm text-slate-500 font-normal mt-1">Upload the core tables in sequential order. Tables unlock automatically as you progress.</p>
+    </header>
+    
+    <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+            <thead>
+                <tr class="bg-slate-100 border-b border-slate-200 text-xs uppercase tracking-wider text-slate-500">
+                    <th class="p-4 font-bold">Data Table</th>
+                    <th class="p-4 font-bold text-center">Status</th>
+                    <th class="p-4 font-bold text-center">Expected Columns</th>
+                    <th class="p-4 font-bold text-right">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- 1. MEMBERS -->
+                <tr class="border-b border-slate-100 {% if import_status.members %}bg-emerald-50/30{% endif %}">
+                    <td class="p-4">
+                        <div class="flex items-center">
+                            <span class="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full {% if import_status.members %}bg-emerald-100 text-emerald-700{% else %}bg-indigo-100 text-indigo-700{% endif %} font-bold text-sm mr-3">1</span>
+                            <strong class="text-slate-900 font-bold">Owners (Ratepayers)</strong>
+                        </div>
+                    </td>
+                    <td class="p-4 text-center">
+                        {% if import_status.members %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800"><i class="fas fa-check mr-1.5"></i> Success</span>
+                        {% else %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800"><i class="fas fa-clock mr-1.5"></i> Pending</span>
+                        {% endif %}
+                    </td>
+                    <td class="p-4 text-xs text-slate-500 text-center"><code>reference, name, member_type, email...</code></td>
+                    <td class="p-4 text-right">
+                        <button onclick="document.getElementById('uploadMembers').classList.toggle('hidden')" class="px-4 py-1.5 {% if import_status.members %}border border-slate-300 bg-white text-slate-600 hover:bg-slate-50{% else %}bg-indigo-600 hover:bg-indigo-700 text-white shadow{% endif %} font-bold text-xs rounded transition">
+                            {% if import_status.members %}Redo Upload{% else %}<i class="fas fa-upload mr-1.5"></i> Upload CSV{% endif %}
+                        </button>
+                    </td>
+                </tr>
+                <tr id="uploadMembers" class="hidden {% if preview_token and kind == 'members' %}!table-row{% endif %} bg-slate-50 border-b border-slate-200">
+                    <td colspan="4" class="p-6">
+                        <div class="max-w-2xl mx-auto">
+                            {% include 'partials/hub_upload_form.html' %}
+                        </div>
+                    </td>
+                </tr>
+
+                <!-- 2. PROPERTIES -->
+                <tr class="border-b border-slate-100 {% if import_status.properties %}bg-emerald-50/30{% elif not import_status.members %}opacity-60 bg-slate-50{% endif %}">
+                    <td class="p-4">
+                        <div class="flex items-center">
+                            <span class="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full {% if import_status.properties %}bg-emerald-100 text-emerald-700{% elif import_status.members %}bg-indigo-100 text-indigo-700{% else %}bg-slate-200 text-slate-400{% endif %} font-bold text-sm mr-3">2</span>
+                            <strong class="text-slate-900 font-bold">Properties (Valuation Roll)</strong>
+                        </div>
+                    </td>
+                    <td class="p-4 text-center">
+                        {% if import_status.properties %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800"><i class="fas fa-check mr-1.5"></i> Success</span>
+                        {% elif import_status.members %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800"><i class="fas fa-clock mr-1.5"></i> Pending</span>
+                        {% else %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-200 text-slate-600"><i class="fas fa-lock mr-1.5"></i> Locked</span>
+                        {% endif %}
+                    </td>
+                    <td class="p-4 text-xs text-slate-500 text-center"><code>reference, address, rates_reference, classification...</code></td>
+                    <td class="p-4 text-right">
+                        {% if import_status.members %}
+                        <button onclick="document.getElementById('uploadProperties').classList.toggle('hidden')" class="px-4 py-1.5 {% if import_status.properties %}border border-slate-300 bg-white text-slate-600 hover:bg-slate-50{% else %}bg-indigo-600 hover:bg-indigo-700 text-white shadow{% endif %} font-bold text-xs rounded transition">
+                            {% if import_status.properties %}Redo Upload{% else %}<i class="fas fa-upload mr-1.5"></i> Upload CSV{% endif %}
+                        </button>
+                        {% else %}
+                        <span class="text-xs font-bold text-slate-400">Requires Owners</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr id="uploadProperties" class="hidden {% if preview_token and kind == 'properties' %}!table-row{% endif %} bg-slate-50 border-b border-slate-200">
+                    <td colspan="4" class="p-6">
+                        <div class="max-w-2xl mx-auto">
+                            {% set kind = 'properties' %}
+                            {% include 'partials/hub_upload_form.html' %}
+                        </div>
+                    </td>
+                </tr>
+
+                <!-- 3. RELATIONSHIPS -->
+                <tr class="{% if import_status.relationships %}bg-emerald-50/30{% elif not import_status.properties %}opacity-60 bg-slate-50{% endif %}">
+                    <td class="p-4">
+                        <div class="flex items-center">
+                            <span class="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full {% if import_status.relationships %}bg-emerald-100 text-emerald-700{% elif import_status.properties %}bg-indigo-100 text-indigo-700{% else %}bg-slate-200 text-slate-400{% endif %} font-bold text-sm mr-3">3</span>
+                            <strong class="text-slate-900 font-bold">Ownership Links</strong>
+                        </div>
+                    </td>
+                    <td class="p-4 text-center">
+                        {% if import_status.relationships %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800"><i class="fas fa-check mr-1.5"></i> Success</span>
+                        {% elif import_status.properties %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800"><i class="fas fa-clock mr-1.5"></i> Pending</span>
+                        {% else %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-200 text-slate-600"><i class="fas fa-lock mr-1.5"></i> Locked</span>
+                        {% endif %}
+                    </td>
+                    <td class="p-4 text-xs text-slate-500 text-center"><code>member_reference, property_reference, relationship...</code></td>
+                    <td class="p-4 text-right">
+                        {% if import_status.properties %}
+                        <button onclick="document.getElementById('uploadLinks').classList.toggle('hidden')" class="px-4 py-1.5 {% if import_status.relationships %}border border-slate-300 bg-white text-slate-600 hover:bg-slate-50{% else %}bg-indigo-600 hover:bg-indigo-700 text-white shadow{% endif %} font-bold text-xs rounded transition">
+                            {% if import_status.relationships %}Redo Upload{% else %}<i class="fas fa-upload mr-1.5"></i> Upload CSV{% endif %}
+                        </button>
+                        {% else %}
+                        <span class="text-xs font-bold text-slate-400">Requires Properties</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr id="uploadLinks" class="hidden {% if preview_token and kind == 'relationships' %}!table-row{% endif %} bg-slate-50 border-t border-slate-200">
+                    <td colspan="4" class="p-6">
+                        <div class="max-w-2xl mx-auto">
+                            {% set kind = 'relationships' %}
+                            {% include 'partials/hub_upload_form.html' %}
+                        </div>
+                    </td>
+                </tr>
+
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
+'''
+
+with open(filepath, 'w', encoding='utf-8') as f:
+    f.write(new_html)
+
+hub_form_html = '''<div class="bg-white p-5 rounded-lg border border-slate-200 shadow-sm">
+    <h4 class="font-bold text-slate-900 mb-3 text-sm">Upload {{ kind|title }} CSV</h4>
+    
+    <form method="post" enctype="multipart/form-data" class="space-y-4">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="kind" value="{{ kind }}">
+        
+        {% if preview_token and preview_token_kind == kind %}
+            <input type="hidden" name="preview_token" value="{{ preview_token }}">
+            
+            <div class="bg-emerald-50 border border-emerald-200 rounded p-4">
+                <p class="text-sm font-bold text-emerald-800 mb-2"><i class="fas fa-check-circle mr-1"></i> Preview Validated ({{ summary.received }} rows)</p>
+                <div class="flex space-x-4 text-xs">
+                    <span class="text-emerald-700"><strong>{{ summary.created }}</strong> new</span>
+                    <span class="text-blue-700"><strong>{{ summary.updated }}</strong> updated</span>
+                    <span class="text-slate-600"><strong>{{ summary.unchanged }}</strong> unchanged</span>
+                    <span class="{% if summary.exceptions > 0 %}text-red-700 font-bold{% else %}text-emerald-700{% endif %}"><strong>{{ summary.exceptions }}</strong> exceptions</span>
+                </div>
+            </div>
+            
+            <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Confirm File</label>
+                <input type="file" name="file" accept=".csv,text/csv" required class="block w-full text-xs text-slate-500 file:mr-4 file:py-1 file:px-3 file:rounded file:border-0 file:font-semibold file:bg-indigo-50 file:text-indigo-700">
+            </div>
+            
+            <div class="flex justify-end pt-2">
+                <button name="operation" value="commit" class="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded shadow flex items-center">
+                    <i class="fas fa-check mr-1.5"></i> Confirm Import
+                </button>
+            </div>
+        {% else %}
+            <div>
+                <input type="file" name="file" accept=".csv,text/csv" required class="block w-full text-xs text-slate-500 file:mr-4 file:py-1 file:px-3 file:rounded file:border-0 file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 border border-dashed border-slate-300 p-3">
+            </div>
+            
+            <div class="flex justify-end pt-2">
+                <button name="operation" value="preview" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded shadow flex items-center">
+                    <i class="fas fa-search mr-1.5"></i> Preview
+                </button>
+            </div>
+        {% endif %}
+    </form>
+</div>'''
+
+with open('templates/partials/hub_upload_form.html', 'w', encoding='utf-8') as f:
+    f.write(hub_form_html)
+
+print("Control Hub written to templates")

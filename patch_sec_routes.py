@@ -1,40 +1,60 @@
-﻿import re
+import re
+with open("app/program_uip/secretary_routes.py", "r", encoding="utf-8") as f:
+    content = f.read()
 
-with open("artifacts/rcm-stages123-release/app/program_uip/secretary_routes.py", "r", encoding="utf-8") as f:
-    text = f.read()
+# Add logic for action == "add_subcommittee"
+search_block = """        elif action == "upload_photo":
+            member_id = request.form.get("member_id")"""
+replace_block = """        elif action == "add_subcommittee":
+            from app.program_uip.services import subcommittees as sub_service
+            try:
+                sub_service.create_subcommittee(
+                    org.id, current_user.id,
+                    request.form.get("name"),
+                    request.form.get("resolution_id", type=int),
+                    request.form.get("responsible_seat_id", type=int),
+                    request.form.get("reports_to_seat_id", type=int)
+                )
+                db.session.commit()
+                flash("Subcommittee registered successfully.", "success")
+            except Exception as e:
+                db.session.rollback()
+                flash(str(e.description if hasattr(e, "description") else e), "danger")
+        elif action == "upload_photo":
+            member_id = request.form.get("member_id")"""
 
-# Make sure to query ALL claim types (including committee_claim and unknown_claim)
-old_query = """        CoreInteraction.interaction_type.in_([
-            "ratepayer_claim", "subcommittee_claim", "mo_claim", "staff_claim"
-        ])"""
+content = content.replace(search_block, replace_block)
 
-new_query = """        CoreInteraction.interaction_type.in_([
-            "committee_claim", "ratepayer_claim", "subcommittee_claim", "mo_claim", "staff_claim", "unknown_claim"
-        ])"""
+# Add resolutions and subcommittees to the render context
+context_search = """    # Attach members to seats temporarily for the view
+    for seat in core_seats + second_seats + operations_seats:
+        seat.member = None
+        for m in active_members:
+            if m.position.lower() == seat.title.lower():
+                seat.member = m
+                break
+                
+    return render_template("program_uip/dashboards/secretary_organogram.html", org=org, core_seats=core_seats, second_seats=second_seats, operations_seats=operations_seats, active_members=active_members)"""
 
-text = text.replace(old_query, new_query)
+context_replace = """    # Attach members to seats temporarily for the view
+    for seat in core_seats + second_seats + operations_seats:
+        seat.member = None
+        for m in active_members:
+            if m.position.lower() == seat.title.lower():
+                seat.member = m
+                break
+                
+    from app.models.uip import UipResolution
+    from app.program_uip.services import subcommittees as sub_service
+    adopted_resolutions = UipResolution.query.filter_by(organization_id=org.id, status="ADOPTED").order_by(UipResolution.id.desc()).all()
+    subcommittees = sub_service.get_subcommittees(org.id)
+    for sub in subcommittees:
+        sub.responsible_member = sub_service.resolve_responsible_member(sub)
+                
+    return render_template("program_uip/dashboards/secretary_organogram.html", org=org, core_seats=core_seats, second_seats=second_seats, operations_seats=operations_seats, active_members=active_members, adopted_resolutions=adopted_resolutions, subcommittees=subcommittees)"""
 
-# Add title and description to enriched_claims
-old_enrich = """        enriched_claims.append({
-            "id": claim.id,
-            "type": claim.interaction_type,
-            "created_at": claim.created_at,
-            "user_name": creator.name if creator else "Unknown",
-            "user_email": creator.email if creator else "Unknown",
-        })"""
+content = content.replace(context_search, context_replace)
 
-new_enrich = """        enriched_claims.append({
-            "id": claim.id,
-            "type": claim.interaction_type,
-            "title": claim.title,
-            "description": claim.description,
-            "created_at": claim.created_at,
-            "user_name": creator.name if creator else "Unknown",
-            "user_email": creator.email if creator else "Unknown",
-        })"""
-
-text = text.replace(old_enrich, new_enrich)
-
-with open("artifacts/rcm-stages123-release/app/program_uip/secretary_routes.py", "w", encoding="utf-8") as f:
-    f.write(text)
+with open("app/program_uip/secretary_routes.py", "w", encoding="utf-8") as f:
+    f.write(content)
 print("Updated secretary_routes.py")

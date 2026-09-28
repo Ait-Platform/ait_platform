@@ -1,9 +1,10 @@
-with open("templates/program_uip/dashboards/placeholder_workspace.html", "r", encoding="utf-8") as f:
-    text = f.read()
+﻿import re
 
-text = text.replace('{% extends "program_uip/layout.html" %}', '{% extends "program_uip/base.html" %}')
+filepath = 'templates/program_uip/register_import.html'
+with open(filepath, 'r', encoding='utf-8') as f:
+    content = f.read()
 
-with open("templates/program_uip/dashboards/placeholder_workspace.html", "w", encoding="utf-8") as f:
-    f.write(text)
+content = content.replace("{% extends 'layouts/uip_base.html' %}", "{% extends 'program_uip/base.html' %}")
 
-print("Fixed extends in placeholder_workspace.html")
+with open(filepath, 'w', encoding='utf-8') as f:
+    f.write(content)

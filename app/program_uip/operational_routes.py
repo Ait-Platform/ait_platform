@@ -208,7 +208,8 @@ def reception_issue(org_slug, issue_id):
               for r in routing.recommend(org, actor, issue_id)]
     if issue.reference:
         notes.append(link("Issue and work orders", "view_interaction", reference=issue.reference))
-    return page("Reception — " + (issue.reference or str(issue.id)), ["Record", "Recorded time", "Method / department", "Outcome", "Next action / reference", "Due"], rows, forms, notes)
+    notes.insert(0, link("&larr; Back to Queries Desk", "reception_page"))
+    return page("Query #" + str(issue.id) + (f" ({issue.reference})" if issue.reference else ""), ["Record", "Recorded time", "Method / department", "Outcome", "Next action / reference", "Due"], rows, forms, notes), "Recorded time", "Method / department", "Outcome", "Next action / reference", "Due"], rows, forms, notes)
 
 
 @uip_bp.route("/<org_slug>/operations/municipal/<int:referral_id>", methods=["GET", "POST"])

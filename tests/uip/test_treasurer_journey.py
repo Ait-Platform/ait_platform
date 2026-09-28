@@ -36,7 +36,7 @@ def test_board_sidebar_finance_and_secretary_no_identity_writes(client, data, tr
     before = identity_state()
     response = client.get(BASE + "/treasurer-workspace")
     assert response.status_code == 200
-    for label in (b"Treasurer Dashboard", b"Sec Control", b"Financial Tools", b"Draft Resolution"):
+    for label in (b"Treasurer Dashboard", b"Sec Control", b"Financial Tools", b"Proposals"):
         assert label in response.data
     assert b'/secretary-workspace' in response.data and b'/finance' in response.data
     page = client.get(FIN)

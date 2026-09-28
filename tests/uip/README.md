@@ -13,7 +13,7 @@ entitlement dependencies; it is NOT a deployment migration or evidence that the
 production migration graph can safely be replayed. Concurrent tests use the same
 snapshot. No create_all is used.
 
-The current graph has one head, uip_p52_billing_data, after merge d3f70f6a0794.
+The current graph has one head, uip_p53_proposals, after merge d3f70f6a0794.
 Older two-head statements below are historical. Do NOT run upgrade head or replay
 sync migrations on a real database based on these tests. Consult the safety report
 in docs/uip_safety_review.md for current results and unresolved rollout blockers.

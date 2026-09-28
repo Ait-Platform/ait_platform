@@ -298,7 +298,7 @@ def test_additive_migration_preserves_existing_local_rows(concurrent_db):
         assert set(sa.inspect(conn).get_table_names())-set(names)=={'uip_finance_transaction','uip_finance_commitment','uip_finance_budget_line','uip_finance_budget_revision','uip_finance_commitment_revision'}
     graph=ScriptDirectory.from_config(Config(str(ROOT/'alembic.ini')))
     assert graph.get_revision('uip_p10_finance').down_revision=='uip_p49_operations'
-    assert set(graph.get_heads())=={'uip_p52_billing_data'}
+    assert set(graph.get_heads())=={'uip_p53_proposals'}
 
 
 def test_foreign_provider_and_database_tenant_constraint(client,data):

@@ -1,0 +1,101 @@
+﻿import re
+
+filepath = 'templates/program_uip/subcomm_tools/board.html'
+
+new_board = '''{% extends "program_uip/base.html" %}
+{% block title %}{{ subcommittee.name }} - Command Centre{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    
+    <div class="mb-8">
+        <h1 class="text-3xl font-black text-slate-800 tracking-tight">{{ subcommittee.name }} Dashboard</h1>
+        <p class="text-lg text-slate-500 mt-2">Manage your subcommittee's operations, proposals, and tasks.</p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+        <!-- Tile 1: Members -->
+        <a href="{{ url_for('uip_bp.sub_comm_members', org_slug=org.slug, sub_id=subcommittee.id) }}" class="group block relative overflow-hidden rounded-2xl border bg-cyan-50 border-cyan-100 hover:border-cyan-300 hover:shadow-md transition-all duration-300">
+            <div class="p-6">
+                <div class="flex justify-between items-start mb-6">
+                    <div class="w-12 h-12 rounded-full flex items-center justify-center text-xl bg-cyan-100 text-cyan-500">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-bold bg-white text-cyan-400 border border-cyan-100 uppercase tracking-widest">
+                        Roster
+                    </span>
+                </div>
+                <h2 class="text-xl font-black text-cyan-900 mb-1">Subcommittee Members</h2>
+                <p class="text-sm text-cyan-600/70 font-medium">View the active roster for this subcommittee.</p>
+            </div>
+            <div class="h-1.5 w-full bg-cyan-400 absolute bottom-0 left-0 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+        </a>
+
+        <!-- Tile 2: Meetings & Agendas -->
+        <a href="{{ url_for('uip_bp.sub_comm_meetings', org_slug=org.slug, sub_id=subcommittee.id) }}" class="group block relative overflow-hidden rounded-2xl border bg-blue-50 border-blue-100 hover:border-blue-300 hover:shadow-md transition-all duration-300">
+            <div class="p-6">
+                <div class="flex justify-between items-start mb-6">
+                    <div class="w-12 h-12 rounded-full flex items-center justify-center text-xl bg-blue-100 text-blue-500">
+                        <i class="fas fa-calendar-alt"></i>
+                    </div>
+                </div>
+                <h2 class="text-xl font-black text-blue-900 mb-1">Meetings & Agendas</h2>
+                <p class="text-sm text-blue-600/70 font-medium">Schedule meetings and record minutes.</p>
+            </div>
+            <div class="h-1.5 w-full bg-blue-400 absolute bottom-0 left-0 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+        </a>
+
+        <!-- Tile 3: Proposals -->
+        <a href="{{ url_for('uip_bp.sub_comm_proposals', org_slug=org.slug, sub_id=subcommittee.id) }}" class="group block relative overflow-hidden rounded-2xl border bg-emerald-50 border-emerald-100 hover:border-emerald-300 hover:shadow-md transition-all duration-300">
+            <div class="p-6">
+                <div class="flex justify-between items-start mb-6">
+                    <div class="w-12 h-12 rounded-full flex items-center justify-center text-xl bg-emerald-100 text-emerald-500">
+                        <i class="fas fa-file-signature"></i>
+                    </div>
+                </div>
+                <h2 class="text-xl font-black text-emerald-900 mb-1">Proposals</h2>
+                <p class="text-sm text-emerald-600/70 font-medium">Draft and submit proposals to the ExCo.</p>
+            </div>
+            <div class="h-1.5 w-full bg-emerald-400 absolute bottom-0 left-0 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+        </a>
+        
+        <!-- Tile 4: Queries Desk -->
+        <a href="{{ url_for('uip_bp.reception_page', org_slug=org.slug) }}" class="group block relative overflow-hidden rounded-2xl border bg-rose-50 border-rose-100 hover:border-rose-300 hover:shadow-md transition-all duration-300">
+            <div class="p-6">
+                <div class="flex justify-between items-start mb-6">
+                    <div class="w-12 h-12 rounded-full flex items-center justify-center text-xl bg-rose-100 text-rose-500">
+                        <i class="fas fa-inbox"></i>
+                    </div>
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-bold bg-white text-rose-400 border border-rose-100 uppercase tracking-widest">
+                        Inbox
+                    </span>
+                </div>
+                <h2 class="text-xl font-black text-rose-900 mb-1">Queries Desk</h2>
+                <p class="text-sm text-rose-600/70 font-medium">View and assist with Ratepayer queries.</p>
+            </div>
+            <div class="h-1.5 w-full bg-rose-400 absolute bottom-0 left-0 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+        </a>
+
+        <!-- Tile 5: Property Owner Workspace -->
+        <a href="{{ url_for('uip_bp.verify_ratepayer', org_slug=org.slug) }}" class="group block relative overflow-hidden rounded-2xl border bg-indigo-50 border-indigo-200 hover:border-indigo-300 hover:shadow-md transition-all duration-300">
+            <div class="p-6">
+                <div class="flex justify-between items-start mb-6">
+                    <div class="w-12 h-12 rounded-full flex items-center justify-center text-xl bg-indigo-200 text-indigo-600">
+                        <i class="fas fa-home"></i>
+                    </div>
+                </div>
+                <h2 class="text-xl font-black text-slate-700 mb-1">Property Owner</h2>
+                <p class="text-sm text-slate-500 font-medium">Access your personal property dashboard.</p>
+            </div>
+            <div class="h-1.5 w-full bg-indigo-500 absolute bottom-0 left-0 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+        </a>
+
+    </div>
+</div>
+{% endblock %}'''
+
+with open(filepath, 'w', encoding='utf-8') as f:
+    f.write(new_board)
+
+print("Redesigned subcomm board")

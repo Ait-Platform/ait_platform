@@ -99,7 +99,7 @@ def authorize(organization_id, actor_user_id, roles):
         email_check = False
         try:
             if account and account.email and account.email.strip():
-                email_check = func.lower(func.trim(UipCommitteeMember.email)) == account.email.strip().lower()
+                email_check = func.lower(UipCommitteeMember.email) == func.lower(account.email.strip())
             is_committee = UipCommitteeMember.query.filter(
                 UipCommitteeMember.organization_id == organization_id,
                 UipCommitteeMember.status == "CURRENT",

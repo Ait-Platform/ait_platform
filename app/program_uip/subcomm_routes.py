@@ -34,10 +34,10 @@ def sub_comm_board(org_slug, sub_id):
     resp_mem = sub_service.resolve_responsible_member(sub)
     
     from app.models.core import CoreInteraction
-    open_queries = CoreInteraction.query.filter_by(
-        organization_id=org.id,
-        interaction_type="fault_report",
-        status="OPEN"
+    open_queries = CoreInteraction.query.filter(
+        CoreInteraction.organization_id == org.id,
+        ~CoreInteraction.interaction_type.like('%_claim'),
+        CoreInteraction.status.notin_(["RESOLVED", "CLOSED", "REJECTED", "DECLINED", "VERIFIED", "MERGED"])
     ).count()
 
     return render_template("program_uip/subcomm_tools/board.html", 

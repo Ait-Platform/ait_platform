@@ -75,7 +75,20 @@ def sub_comm_mandates(org_slug, sub_id):
 def sub_comm_tasks(org_slug, sub_id):
     org = g.organization
     sub = sub_service.require_subcommittee_membership(org.id, current_user.id, sub_id)
-    return render_template("program_uip/subcomm_tools/shell.html", org=org, subcommittee=sub, title="Tasks & Actions", message="Existing task architecture lacks subcommittee assignment relationship.")
+    
+    from app.models.core import CoreTask, CoreInteraction
+    from app.program_uip.services.subcommittees import resolve_responsible_member
+    resp_mem = resolve_responsible_member(sub)
+    
+    tasks = []
+    if resp_mem and resp_mem.user_id:
+        tasks = CoreTask.query.join(CoreInteraction).filter(
+            CoreInteraction.organization_id == org.id,
+            CoreTask.assignee_id == resp_mem.user_id,
+            CoreTask.status != "COMPLETED"
+        ).all()
+        
+    return render_template("program_uip/subcomm_tools/tasks.html", org=org, subcommittee=sub, tasks=tasks)
 
 @uip_bp.route("/<org_slug>/subcommittee/<int:sub_id>/documents")
 @login_required

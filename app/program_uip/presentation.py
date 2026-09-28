@@ -58,14 +58,16 @@ def issue_rows(org, actor):
     tasks = CoreTask.query.join(CoreInteraction).filter(CoreInteraction.organization_id == org).all()
     refs = UipMunicipalReferral.query.filter_by(organization_id=org).all()
     result = []
-    for issue in CoreInteraction.query.filter_by(organization_id=org).order_by(
-        CoreInteraction.created_at.desc().nullslast(), CoreInteraction.id.desc()).all():
+    for issue in CoreInteraction.query.filter(
+        CoreInteraction.organization_id == org,
+        ~CoreInteraction.interaction_type.like('%_claim')
+    ).order_by(CoreInteraction.created_at.desc().nullslast(), CoreInteraction.id.desc()).all():
         assigned = [o for o in orders if o.interaction_id == issue.id and o.status not in providers.TERMINAL]
         internal = bool(issue.assigned_to) or any(t.interaction_id == issue.id and operations.actionable(t) and t.assignee_id for t in tasks)
         waiting = any(r.interaction_id == issue.id and r.status in {"SUBMITTED", "ACKNOWLEDGED", "IN_PROGRESS", "ESCALATED"} for r in refs)
         states = {o.status for o in assigned}
         filters = {"all"}
-        if issue.status == "RESOLVED":
+        if issue.status in {"RESOLVED", "VERIFIED", "REJECTED", "DECLINED", "CLOSED"}:
             filters.add("resolved")
         else:
             filters.add("open")

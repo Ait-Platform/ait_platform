@@ -212,7 +212,7 @@ def finish_follow_up(org, actor, row_id):
 
 
 def referral(org, actor, issue_id, department, due=None, reference=None):
-    audit.authorize(org, actor, ("manager", "receptionist", "committee_member"))
+    audit.authorize(org, actor, ("manager", "receptionist", "secretary", "committee_member"))
     issue = operations.issue(org, issue_id)
     operations.open_issue(issue)
     row = UipMunicipalReferral(organization_id=org, interaction_id=issue.id,
@@ -229,7 +229,7 @@ def referral(org, actor, issue_id, department, due=None, reference=None):
 
 
 def transition_referral(org, actor, row_id, expected, destination, reference=None, note=None, occurred_at=None):
-    audit.authorize(org, actor, ("manager", "receptionist", "committee_member"))
+    audit.authorize(org, actor, ("manager", "receptionist", "secretary", "committee_member"))
     row = UipMunicipalReferral.query.filter_by(organization_id=org, id=row_id).populate_existing().with_for_update().first_or_404()
     providers.version_matches(row, expected)
     reference_only = destination == row.status and reference and reference != row.municipality_reference and row.status != "CLOSED"

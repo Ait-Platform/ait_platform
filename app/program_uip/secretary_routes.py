@@ -95,10 +95,13 @@ def secretary_workspace(org_slug):
     else:
         switch_res = 'clear'
     
+    from app.models.core import CoreInteraction
+    open_queries = CoreInteraction.query.filter(CoreInteraction.organization_id == org.id, CoreInteraction.interaction_type == "fault_report", CoreInteraction.status.notin_(["RESOLVED", "CLOSED", "REJECTED", "DECLINED", "VERIFIED", "MERGED"])).count()
     return render_template(
         "program_uip/dashboards/secretary_workspace.html",
         org=org,
         open_claims=enriched_claims,
+        open_queries=open_queries,
         proposed_resolutions=proposed_resolutions,
         pending_resolutions=pending_resolutions,
         switch_gate=switch_gate,
@@ -418,6 +421,7 @@ def secretary_intake(org_slug):
         "program_uip/dashboards/secretary_intake.html",
         org=org,
         open_claims=enriched_claims,
+        open_queries=open_queries,
         existing_mo=existing_mo,
         mo_conflict=mo_conflict,
         adopted_resolutions=adopted_resolutions,

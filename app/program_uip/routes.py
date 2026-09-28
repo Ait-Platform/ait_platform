@@ -972,7 +972,7 @@ def new_interaction(org_slug):
                     raise
             else:
                 flash(f"Interaction {ref} logged successfully.", "success")
-                return redirect(url_for("uip_bp.view_interaction", org_slug=org.slug, reference=ix.reference))
+                return redirect(url_for("uip_bp.reception_issue", org_slug=org.slug, issue_id=ix.id))
         flash("Could not allocate an issue reference. Please try again.", "warning")
         return render_template("program_uip/reception/new_interaction.html", org=org, residents=residents, register_members=register_members, register_properties=register_properties), 409
     return render_template("program_uip/reception/new_interaction.html", org=org, residents=residents, register_members=register_members, register_properties=register_properties)

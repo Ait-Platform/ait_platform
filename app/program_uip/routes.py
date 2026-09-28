@@ -55,10 +55,14 @@ def _require_role(*allowed, abort_on_fail=True):
         from sqlalchemy import func
         from sqlalchemy.exc import ProgrammingError
         try:
+            from sqlalchemy import or_
+            email_check = False
+            if current_user.email and current_user.email.strip():
+                email_check = func.lower(func.trim(UipCommitteeMember.email)) == current_user.email.strip().lower()
             is_committee = UipCommitteeMember.query.filter(
                 UipCommitteeMember.organization_id == g.organization.id,
                 UipCommitteeMember.status == "CURRENT",
-                func.lower(UipCommitteeMember.email) == func.lower(current_user.email)
+                or_(UipCommitteeMember.user_id == current_user.id, email_check)
             ).first()
             if is_committee and "committee_member" not in roles:
                 roles.append("committee_member")

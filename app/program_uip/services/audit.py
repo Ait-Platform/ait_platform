@@ -96,11 +96,10 @@ def authorize(organization_id, actor_user_id, roles):
     if not assignment and "committee_member" in roles:
         from app.models.uip_governance import UipCommitteeMember
         from sqlalchemy import func, or_
-        from flask_login import current_user
         email_check = False
         try:
-            if current_user and hasattr(current_user, 'email') and current_user.email and current_user.email.strip():
-                email_check = func.lower(func.trim(UipCommitteeMember.email)) == current_user.email.strip().lower()
+            if account and account.email and account.email.strip():
+                email_check = func.lower(func.trim(UipCommitteeMember.email)) == account.email.strip().lower()
             is_committee = UipCommitteeMember.query.filter(
                 UipCommitteeMember.organization_id == organization_id,
                 UipCommitteeMember.status == "CURRENT",
@@ -108,8 +107,8 @@ def authorize(organization_id, actor_user_id, roles):
             ).first()
             if is_committee:
                 assignment = True
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"Error in audit fallback: {e}")
 
     if not assignment:
         print(f"ABORT 403: No role assignment for {actor_user_id} in {roles}")

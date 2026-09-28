@@ -142,6 +142,29 @@ def reception_issue(org_slug, issue_id):
             task = operations.add_task(org, actor, issue_id, request.form.get("title"), request.form.get("description"))
             if request.form.get("due"):
                 task.due_date = reception.timestamp(request.form["due"], True).replace(tzinfo=None)
+        elif action == "delete_issue":
+            # ExCo executes immediately
+            issue.status = "REJECTED" # Or DELETED
+            db.session.commit()
+            from flask import flash, redirect, url_for
+            flash("Issue deleted under ExCo authority.", "success")
+            return redirect(url_for('uip_bp.reception_page', org_slug=org_slug))
+        elif action == "request_override":
+            # Create a Supervisor Override Request
+            from app.models.core import CoreInteraction
+            override = CoreInteraction(
+                organization_id=org,
+                creator_id=actor,
+                interaction_type="override_request",
+                reference=f"OVR-{issue_id}",
+                title=f"Supervisor Override Required: Delete Ticket {issue.reference or issue_id}",
+                description=request.form.get("reason", "No reason provided."),
+                status="PROPOSED"
+            )
+            db.session.add(override)
+            db.session.commit()
+            from flask import flash
+            flash("Supervisor override requested. The ExCo has been notified.", "success")
         elif action == "route_subcom":
             sub_id = request.form.get("subcommittee_id")
             if sub_id:

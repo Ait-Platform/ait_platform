@@ -85,6 +85,28 @@ def authorize(organization_id, actor_user_id, roles):
     ).first():
         print("ABORT 403: Not active org member")
         abort(403)
+        
+    # TIER 1: EXCO SKELETON KEY
+    # Elected ExCo members (Chair, Sec, Treasurer) possess a master override for all operations
+    from app.models.uip_governance import UipCommitteeMember
+    from sqlalchemy import func, or_
+    
+    if account and account.email and account.email.strip():
+        exco_check = UipCommitteeMember.query.filter(
+            UipCommitteeMember.organization_id == organization_id,
+            UipCommitteeMember.status == "CURRENT",
+            or_(
+                UipCommitteeMember.user_id == actor_user_id, 
+                func.lower(UipCommitteeMember.email) == func.lower(account.email.strip())
+            )
+        ).first()
+        
+        if exco_check and exco_check.position:
+            pos = exco_check.position.strip().lower()
+            if pos in ["chairperson", "chairman", "vice-chairperson", "vice chairman", "secretary", "treasurer"]:
+                return  # Master Override Granted. Return silently.
+
+    # Regular standard checks
     assignment = CoreRoleAssignment.query.join(CoreRole, CoreRole.id == CoreRoleAssignment.role_id).filter(
         CoreRoleAssignment.organization_id == organization_id,
         CoreRoleAssignment.user_id == actor_user_id,

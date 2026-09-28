@@ -203,7 +203,6 @@ def reception_issue(org_slug, issue_id):
     linked_orders = [(o.id, o.reference) for o in UipWorkOrder.query.filter_by(organization_id=org, interaction_id=issue_id).all()]
     linked_referrals = [(r.id, r.department) for r in UipMunicipalReferral.query.filter_by(organization_id=org, interaction_id=issue_id).all()]
     forms = [
-        form("Resolve & Close Ticket", "resolve_issue", []),
         form("Acknowledge issue", "acknowledge", []),
         form("Record follow-up / contact attempt", "follow_up", [field("method", "Method", reception.METHODS),
             field("outcome", "Outcome", reception.OUTCOMES), field("next_action", "Next action", reception.NEXT_ACTIONS),
@@ -223,7 +222,8 @@ def reception_issue(org_slug, issue_id):
             field("status", "Log status (does not send a message)", {"RECORDED", "RECEIVED", "FAILED", "DELIVERY_UNAVAILABLE"}),
             field("work_order_id", "Related work order", [("", "None")] + linked_orders, required=False),
             field("referral_id", "Related municipal referral", [("", "None")] + linked_referrals, required=False),
-            field("summary", "Summary", kind="textarea", required=False)])]
+            field("summary", "Summary", kind="textarea", required=False)]),
+        form("Resolve & Close Ticket", "resolve_issue", [])]
     rows = []
     for follow in UipFollowUp.query.filter_by(organization_id=org, interaction_id=issue_id).order_by(UipFollowUp.id.desc()).all():
         rows.append(("Follow-up", follow.occurred_at, follow.method, follow.outcome,

@@ -134,6 +134,13 @@ def reception_issue(org_slug, issue_id):
             reception.follow_up(org, actor, issue_id, request.form)
         elif action == "acknowledge":
             sla.acknowledge(org, actor, issue_id)
+            from flask import flash
+            flash("Query acknowledged successfully. The SLA clock has been stopped.", "success")
+        elif action == "resolve_issue":
+            issue.status = "RESOLVED"
+            db.session.commit()
+            from flask import flash
+            flash("Query marked as Resolved and closed.", "success")
         elif action == "communication":
             reception.communication(org, actor, dict(request.form, interaction_id=issue_id))
         elif action == "referral":
@@ -195,7 +202,9 @@ def reception_issue(org_slug, issue_id):
         return save()
     linked_orders = [(o.id, o.reference) for o in UipWorkOrder.query.filter_by(organization_id=org, interaction_id=issue_id).all()]
     linked_referrals = [(r.id, r.department) for r in UipMunicipalReferral.query.filter_by(organization_id=org, interaction_id=issue_id).all()]
-    forms = [form("Acknowledge issue", "acknowledge", []),
+    forms = [
+        form("Resolve & Close Ticket", "resolve_issue", []),
+        form("Acknowledge issue", "acknowledge", []),
         form("Record follow-up / contact attempt", "follow_up", [field("method", "Method", reception.METHODS),
             field("outcome", "Outcome", reception.OUTCOMES), field("next_action", "Next action", reception.NEXT_ACTIONS),
             field("next_action_at", "Next action due (date/time with UTC offset)", required=False),
@@ -233,8 +242,14 @@ def reception_issue(org_slug, issue_id):
               for r in routing.recommend(org, actor, issue_id)]
     if issue.reference:
         notes.append(link("Issue and work orders", "view_interaction", reference=issue.reference))
-    back = link("&larr; Back to Queries Desk", "reception_page")
-    return page("Query #" + str(issue.id) + (f" ({issue.reference})" if issue.reference else ""), ["Record", "Recorded time", "Method / department", "Outcome", "Next action / reference", "Due"], rows, forms, notes, subtitle=issue.description or issue.title, back_link=back)
+    # Kanban Dashboard Split-Screen rendering
+    from flask import render_template
+    return render_template("program_uip/operations/triage_issue.html",
+                           org=g.organization,
+                           issue=issue,
+                           rows=rows,
+                           forms=forms,
+                           notes=notes)
 
 
 @uip_bp.route("/<org_slug>/operations/municipal/<int:referral_id>", methods=["GET", "POST"])

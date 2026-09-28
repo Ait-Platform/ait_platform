@@ -28,7 +28,7 @@ def link(label, endpoint, **kwargs):
     return dict(label=label, href=url_for("uip_bp." + endpoint, org_slug=g.organization.slug, **kwargs))
 
 
-def page(title, columns, rows, forms=(), notes=(), subtitle=""): 
+def page(title, columns, rows, forms=(), notes=(), subtitle="", back_link=None): 
     from werkzeug.exceptions import Forbidden
     navigation = []
     for label, endpoint, roles in (
@@ -42,7 +42,7 @@ def page(title, columns, rows, forms=(), notes=(), subtitle=""):
             continue
         navigation.append(link(label, endpoint))
     return render_template("program_uip/operations/page.html", org=g.organization, title=title, subtitle=subtitle,
-        columns=columns, rows=rows, forms=forms, notes=notes, navigation=navigation)
+        columns=columns, rows=rows, forms=forms, notes=notes, navigation=navigation, back_link=back_link)
 
 
 def is_admin():
@@ -233,8 +233,8 @@ def reception_issue(org_slug, issue_id):
               for r in routing.recommend(org, actor, issue_id)]
     if issue.reference:
         notes.append(link("Issue and work orders", "view_interaction", reference=issue.reference))
-    notes.insert(0, link("&larr; Back to Queries Desk", "reception_page"))
-    return page("Query #" + str(issue.id) + (f" ({issue.reference})" if issue.reference else ""), ["Record", "Recorded time", "Method / department", "Outcome", "Next action / reference", "Due"], rows, forms, notes, subtitle=issue.description or issue.title)
+    back = link("&larr; Back to Queries Desk", "reception_page")
+    return page("Query #" + str(issue.id) + (f" ({issue.reference})" if issue.reference else ""), ["Record", "Recorded time", "Method / department", "Outcome", "Next action / reference", "Due"], rows, forms, notes, subtitle=issue.description or issue.title, back_link=back)
 
 
 @uip_bp.route("/<org_slug>/operations/municipal/<int:referral_id>", methods=["GET", "POST"])

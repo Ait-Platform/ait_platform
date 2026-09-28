@@ -91,6 +91,26 @@ def authorize(organization_id, actor_user_id, roles):
         CoreRole.slug.in_(roles),
         db.or_(CoreRole.organization_id.is_(None), CoreRole.organization_id == organization_id),
     ).first()
+    
+    # Fallback for committee_member due to role mapping issues
+    if not assignment and "committee_member" in roles:
+        from app.models.uip_governance import UipCommitteeMember
+        from sqlalchemy import func, or_
+        from flask_login import current_user
+        email_check = False
+        try:
+            if current_user and hasattr(current_user, 'email') and current_user.email and current_user.email.strip():
+                email_check = func.lower(func.trim(UipCommitteeMember.email)) == current_user.email.strip().lower()
+            is_committee = UipCommitteeMember.query.filter(
+                UipCommitteeMember.organization_id == organization_id,
+                UipCommitteeMember.status == "CURRENT",
+                or_(UipCommitteeMember.user_id == actor_user_id, email_check)
+            ).first()
+            if is_committee:
+                assignment = True
+        except Exception:
+            pass
+
     if not assignment:
         print(f"ABORT 403: No role assignment for {actor_user_id} in {roles}")
         abort(403)

@@ -1,6 +1,24 @@
 {% extends 'program_uip/base.html' %}{% block title %}Log interaction — {{ org.name }}{% endblock %}{% block content %}<header class="ui-page-head"><div><p class="ui-eyebrow">Operations</p><h1>Log interaction</h1><p class="ui-subtitle">Who contacted the UIP, where, and what needs to happen?</p></div></header>{% include 'partials/flash_messages.html' %}
 <form method="post" class="ui-form-column"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-<fieldset class="ui-form-section"><legend>1 · Reporter</legend><p class="ui-help">Choose a ratepayer, or record a general enquiry without one.</p>
+<!-- NEW REPORTER TOGGLE -->
+<div class="ui-form-section" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0.5rem; padding: 1.5rem; margin-bottom: 2rem;">
+    <h3 style="margin-top:0; margin-bottom: 1rem; color: #334155; font-size: 1.1rem; font-weight: 600;">Who is reporting this?</h3>
+    <div style="display: flex; gap: 1rem;">
+        <button type="button" id="btn-ratepayer" style="flex: 1; padding: 1rem; border: 2px solid #6366f1; background: #e0e7ff; color: #4338ca; border-radius: 0.5rem; font-weight: bold; cursor: pointer; transition: all 0.2s;">
+            <i class="fas fa-user-check" style="margin-right: 0.5rem;"></i> Verified Ratepayer
+        </button>
+        <button type="button" id="btn-anonymous" style="flex: 1; padding: 1rem; border: 2px solid #cbd5e1; background: white; color: #64748b; border-radius: 0.5rem; font-weight: bold; cursor: pointer; transition: all 0.2s;">
+            <i class="fas fa-user-secret" style="margin-right: 0.5rem;"></i> Public / Anonymous
+        </button>
+    </div>
+    <p style="margin-top: 0.75rem; margin-bottom: 0; color: #64748b; font-size: 0.9rem;">
+        <strong>Verified Ratepayer:</strong> Select an existing resident and their property.<br>
+        <strong>Public / Anonymous:</strong> Skip property lookups and just record the complaint details.
+    </p>
+</div>
+
+<div id="ratepayer-blocks">
+<fieldset class="ui-form-section"><legend>1 &mdash; Reporter</legend><p class="ui-help">Choose a ratepayer, or record a general enquiry without one.</p>
 {% if not register_members %}<p class="ui-help">No registered ratepayers yet.</p>{% endif %}
 <label>Find ratepayer<input type="search" id="member-search" aria-controls="member_id" placeholder="Name, reference, email, phone, address or rates reference"></label><label>Ratepayer<select id="member_id" name="member_id"><option value="">No registered ratepayer / general enquiry</option>{% for member in register_members %}<option value="{{ member.id }}" {% if g.intake_member_id == member.id %}selected{% endif %}>{{ member.name }} · {{ member.reference }}</option>{% endfor %}</select></label>
 <p id="member-selection" class="ui-help" role="status" aria-live="polite"></p><p id="member-results" class="ui-help" role="status"></p>
@@ -8,6 +26,7 @@
 <fieldset class="ui-form-section"><legend>2 — Property</legend><p class="ui-help">A sole current linked property is selected automatically. Choose explicitly when several exist; other properties remain available for reporting an issue.</p>{% if not register_properties %}<p class="ui-help">No registered properties yet.</p>{% endif %}
 <label>Find property<input type="search" id="property-search" aria-controls="property_id" placeholder="Address, property reference or rates reference"></label><label>Property<select id="property_id" name="property_id"><option value="">No property linked</option>{% for item in register_properties %}<option value="{{ item.id }}" data-members='{{ g.intake_property_members.get(item.id, [])|tojson }}' {% if g.intake_property_id == item.id %}selected{% endif %}>{{ item.address }} — {{ item.reference }} — {{ item.rates_reference or 'No rates reference' }}</option>{% endfor %}</select></label>
 </fieldset>
+</div>
 <fieldset class="ui-form-section"><legend>3 · Interaction</legend>
 <section aria-label="Selected register information"><h2>Register information</h2><dl id="intake-register-summary" class="ui-two" aria-live="polite"></dl><p class="ui-help">These details come from the UIP register. Missing contact details must be updated through the authorised register-edit workflow.</p></section><div class="ui-two"><label>Method / channel<select name="channel" required>{% for v,l in [('Telephone','Telephone'),('Reception','In person'),('Email','Email'),('Web','Web'),('WhatsApp','WhatsApp')] %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select></label><label>Category<select id="interaction-category" name="category" required><option value="">Choose a category</option>{% for value in ['GENERAL ENQUIRY','SERVICE ISSUE','SECURITY','CLEANING','MAINTENANCE','MUNICIPAL SERVICE','COMMUNITY MATTER','FINANCIAL'] %}<option value="{{ value }}">{{ value|title }}</option>{% endfor %}</select></label></div>
 <label id="title-preset-label" style="display:none">Short title<select id="title-preset" disabled></select></label>
@@ -56,5 +75,40 @@
         if (preset.value === '__other__') title.focus();
     });
     updateCategory(true);
+
+    // Toggle logic for Anonymous vs Ratepayer
+    const btnRatepayer = document.getElementById('btn-ratepayer');
+    const btnAnonymous = document.getElementById('btn-anonymous');
+    const ratepayerBlocks = document.getElementById('ratepayer-blocks');
+    const memberSelect = document.getElementById('member_id');
+    const propertySelect = document.getElementById('property_id');
+
+    btnRatepayer.addEventListener('click', () => {
+        ratepayerBlocks.style.display = 'block';
+        btnRatepayer.style.background = '#e0e7ff';
+        btnRatepayer.style.borderColor = '#6366f1';
+        btnRatepayer.style.color = '#4338ca';
+        btnAnonymous.style.background = 'white';
+        btnAnonymous.style.borderColor = '#cbd5e1';
+        btnAnonymous.style.color = '#64748b';
+    });
+
+    btnAnonymous.addEventListener('click', () => {
+        ratepayerBlocks.style.display = 'none';
+        btnAnonymous.style.background = '#f1f5f9';
+        btnAnonymous.style.borderColor = '#94a3b8';
+        btnAnonymous.style.color = '#334155';
+        btnRatepayer.style.background = 'white';
+        btnRatepayer.style.borderColor = '#cbd5e1';
+        btnRatepayer.style.color = '#64748b';
+        
+        // Clear selections so it logs as completely anonymous
+        if (memberSelect) memberSelect.value = '';
+        if (propertySelect) propertySelect.value = '';
+        
+        // Trigger change events if needed by intake.js
+        if (memberSelect) memberSelect.dispatchEvent(new Event('change'));
+    });
+
 })();
 </script>{% endblock %}

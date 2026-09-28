@@ -36,7 +36,7 @@ def sub_comm_board(org_slug, sub_id):
     from app.models.core import CoreInteraction
     open_queries = CoreInteraction.query.filter(
         CoreInteraction.organization_id == org.id,
-        ~CoreInteraction.interaction_type.like('%_claim'),
+        CoreInteraction.interaction_type == "fault_report",
         CoreInteraction.status.notin_(["RESOLVED", "CLOSED", "REJECTED", "DECLINED", "VERIFIED", "MERGED"])
     ).count()
 

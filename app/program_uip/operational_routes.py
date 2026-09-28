@@ -142,6 +142,12 @@ def reception_issue(org_slug, issue_id):
             task = operations.add_task(org, actor, issue_id, request.form.get("title"), request.form.get("description"))
             if request.form.get("due"):
                 task.due_date = reception.timestamp(request.form["due"], True).replace(tzinfo=None)
+        elif action == "edit_issue":
+            issue.title = request.form.get("title", issue.title).strip()
+            issue.description = request.form.get("description", issue.description).strip()
+            db.session.commit()
+            from flask import flash
+            flash("Query details updated.", "success")
         elif action == "delete_issue":
             # ExCo executes immediately
             issue.status = "REJECTED" # Or DELETED

@@ -1657,7 +1657,7 @@ def revert_meeting(org_slug):
 
 @uip_bp.route("/<org_slug>/fix-roles")
 def fix_roles(org_slug):
-    from app.models.core import CoreRole, CoreRoleAssignment
+    from app.models.core import CoreRole, CoreRoleAssignment, CoreRolePermission
     from app.extensions import db
     
     out = []
@@ -1679,14 +1679,18 @@ def fix_roles(org_slug):
         if len(roles) > 1:
             primary = roles[0]
             for dup in roles[1:]:
+                dup_id = dup.id
                 # Move assignments
-                assignments = CoreRoleAssignment.query.filter_by(role_id=dup.id).all()
+                assignments = CoreRoleAssignment.query.filter_by(role_id=dup_id).all()
                 for a in assignments:
                     a.role_id = primary.id
-                db.session.commit()
+                
+                # Delete duplicate role permissions
+                CoreRolePermission.query.filter_by(role_id=dup_id).delete()
+                
                 # Delete duplicate
                 db.session.delete(dup)
-                out.append(f"Deleted duplicate {slug} (ID: {dup.id})")
+                out.append(f"Deleted duplicate {slug} (ID: {dup_id})")
             db.session.commit()
         else:
             out.append(f"No duplicates for {slug}")

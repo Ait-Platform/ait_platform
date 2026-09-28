@@ -94,6 +94,16 @@ def acknowledge(org, actor, issue_id):
     finish(issue, "acknowledgement", datetime.now(timezone.utc))
     audit.record(org, actor, "interaction.acknowledged", issue)
     
+    # Send email notification to Ratepayer (Hardcoded to Sanjith for testing)
+    try:
+        from app.utils.mailer import send_email
+        target_email = "home@mathwithhands.com" # Hardcoded per request
+        subject = f"[{org}] Acknowledgement: Query #{issue.id}"
+        body = f"Hello,\n\nWe have received your interaction: '{issue.title}' (Ref: {issue.reference}).\n\nOur team is currently reviewing it and will process it shortly.\n\nThank you,\nUIP Operations"
+        send_email(subject, [target_email], body)
+    except Exception as e:
+        print(f"Failed to send acknowledgement email: {e}")
+    
     # Auto-Acknowledge Children (Task 7)
     from app.models.core import CoreInteraction
     from app.models.uip import UipCommunicationLog

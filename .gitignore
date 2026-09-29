@@ -35,3 +35,6 @@ render_backup.sql
 
 # Local R2 repair downloads and generated media
 /artifacts/r2-video-repairs/
+
+# Required SACE controlled workshop material
+!/app/static/pdf/F_Guide.pdf

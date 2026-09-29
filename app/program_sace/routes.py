@@ -610,22 +610,10 @@ def provider_documents():
             "is_tracked": "app2" in tracked_ids
         },
         {
-            "id": "tt",
-            "title": "Reading Timetable (T/T)",
-            "description": "Workshop schedule and session breakdown.",
-            "is_tracked": "tt" in tracked_ids
-        },
-        {
             "id": "f_cv",
             "title": "Facilitator CVs & Compliance",
             "description": "Details of Presenters, Certified copies of ID, and comprehensive CV.",
             "is_tracked": "f_cv" in tracked_ids
-        },
-        {
-            "id": "ip_pledge",
-            "title": "AIT IP Pledge",
-            "description": "Blank Intellectual Property Pledge for manual signing.",
-            "is_tracked": "ip_pledge" in tracked_ids
         }
     ]
     
@@ -635,6 +623,9 @@ def provider_documents():
 @sace_bp.route("/sace/provisioning/document/action/<doc_id>", methods=["GET", "POST"])
 @login_required
 def document_action(doc_id):
+    # The R pledge is the existing provisioning modal, not a downloadable PDF.
+    if doc_id == "ip_pledge":
+        return redirect(url_for('sace_bp.provisioning_map', pledge='1'))
     from app.models.sace import SaceWorkshopInteraction
     from app.utils.mailer import send_email
     import json

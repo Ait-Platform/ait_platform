@@ -33,7 +33,7 @@
         <div class="flex flex-wrap justify-end gap-3 mb-6 border-b border-slate-100 pb-6">
             {% if provisioning_complete %}
             <button onclick="openAboutModal()" class="px-4 py-2 bg-sky-50 text-sky-700 hover:bg-sky-100 font-bold rounded-lg transition border border-sky-200 shadow-sm flex items-center">
-                <i class="fas fa-info-circle mr-2"></i> About AIT Submission
+                <i class="fas fa-info-circle mr-2"></i> About AIT Activity for SACE Endorsement
             </button>
             
             <a href="{{ url_for('sace_bp.provisioning_logs') }}" class="px-4 py-2 bg-slate-50 text-slate-700 hover:bg-slate-100 font-bold rounded-lg transition border border-slate-200 shadow-sm flex items-center">
@@ -43,12 +43,12 @@
                 <i class="fas fa-folder-open mr-2"></i> Provider Documents
             </a>
             <button onclick="openPledgeModal()" class="px-4 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-bold rounded-lg transition border border-emerald-200 shadow-sm flex items-center">
-                <i class="fas fa-check-circle mr-2"></i> IP Pledge Signed
+                <i class="fas fa-check-circle mr-2"></i> Intellectual Property Pledge
             </button>
             
             {% else %}
             <button onclick="openAboutModal()" class="px-4 py-2 bg-sky-50 text-sky-700 hover:bg-sky-100 font-bold rounded-lg transition border border-sky-200 shadow-sm flex items-center">
-                <i class="fas fa-info-circle mr-2"></i> About AIT Submission
+                <i class="fas fa-info-circle mr-2"></i> About AIT Activity for SACE Endorsement
             </button>
             <button onclick="openPledgeModal()" class="px-5 py-2.5 bg-red-600 text-white hover:bg-red-700 font-bold rounded-lg transition shadow-md animate-pulse flex items-center">
                 <i class="fas fa-file-signature mr-2"></i> Sign IP Pledge (Required)
@@ -156,7 +156,7 @@
 
 
 <!-- IP Pledge Modal -->
-<div id="pledge-modal" class="fixed inset-0 z-[60] bg-slate-900 bg-opacity-75 hidden flex items-center justify-center p-4 backdrop-blur-sm">
+<div id="pledge-modal" class="fixed inset-0 z-[60] bg-slate-900 bg-opacity-75 {% if request.args.get('pledge') != '1' %}hidden {% endif %}flex items-center justify-center p-4 backdrop-blur-sm">
     <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden border border-slate-200 flex flex-col max-h-[90vh]">
         
         <!-- Header -->
@@ -184,15 +184,8 @@
         
         <!-- Footer -->
         <div class="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
-            <button type="button" onclick="closePledgeModal()" class="px-4 py-2 bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 font-bold rounded-lg transition shadow-sm">
-                {% if has_pledged %}
-            <button onclick="openAboutModal()" class="px-4 py-2 bg-sky-50 text-sky-700 hover:bg-sky-100 font-bold rounded-lg transition border border-sky-200 shadow-sm flex items-center">
-                <i class="fas fa-info-circle mr-2"></i> About AIT Submission
-            </button>
-            Close{% else %}Cancel{% endif %}
-            </button>
-            
             {% if not has_pledged %}
+            <button type="button" onclick="closePledgeModal()" class="px-4 py-2 bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 font-bold rounded-lg transition shadow-sm">Cancel</button>
             <form action="{{ url_for('sace_bp.provisioning_pledge') }}" method="POST" class="inline">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <button type="submit" class="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-md transition flex items-center">
@@ -211,14 +204,14 @@
 <div id="about-modal" class="fixed inset-0 z-[60] bg-slate-900 bg-opacity-75 hidden flex items-center justify-center p-4 backdrop-blur-sm">
     <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden border border-slate-200 flex flex-col max-h-[90vh]">
         <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-            <h3 class="font-bold text-xl text-slate-800"><i class="fas fa-info-circle text-indigo-600 mr-2"></i> About the AIT Submission</h3>
+            <h3 class="font-bold text-xl text-slate-800"><i class="fas fa-info-circle text-indigo-600 mr-2"></i> AIT Activity for SACE Endorsement</h3>
             <button onclick="closeAboutModal()" class="text-slate-400 hover:text-slate-600 transition">
                 <i class="fas fa-times text-xl"></i>
             </button>
         </div>
         <div class="p-6 overflow-y-auto text-slate-900 font-medium text-base leading-relaxed space-y-4">
             <p>
-                The Archoney Institute of Technology (AIT) presents this submission for SACE endorsement of the <strong>I Learn to Read English Using the LITRE Method</strong>.
+                The Archoney Institute of Technology (AIT) presents this activity for SACE endorsement of the <strong>I Learn to Read English Using the LITRE Method</strong>.
             </p>
             <p>
                 AIT has generated this secure portal to allow you to seamlessly assign and monitor SACE Auditors and document flows by:

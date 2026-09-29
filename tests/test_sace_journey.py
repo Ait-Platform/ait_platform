@@ -120,16 +120,16 @@ class JourneyTests(unittest.TestCase):
 
     def test_step35_missing_content_never_records_pass(self):
         self.workshop();self.course()
-        self.fails(409,'step35',method='POST')
+        self.fails(409,'reading_assessment',method='POST')
         self.assertIsNone(self.latest(self.row,'step35'))
 
     def test_supplied_mcq_scores_on_server_and_requires_current_version(self):
         self.workshop();self.course()
         self.app.config['AIT_READING_STEP35']={'version':'v1','pass_percent':100,'questions':[{'id':'q1','prompt':'Test fixture only','options':{'A':'one','B':'two'},'answer':'B'}]}
-        self.call('step35',method='POST',data={'version':'v1','q1':'A','score':'100','passed':'true'})
+        self.call('reading_assessment',method='POST',data={'version':'v1','q1':'A','score':'100','passed':'true'})
         self.assertFalse(self.flow.payload(self.latest(self.row,'step35'))['passed'])
-        self.fails(409,'step35',method='POST',data={'version':'old','q1':'B'})
-        self.call('step35',method='POST',data={'version':'v1','q1':'B'})
+        self.fails(409,'reading_assessment',method='POST',data={'version':'old','q1':'B'})
+        self.call('reading_assessment',method='POST',data={'version':'v1','q1':'B'})
         with self.app.app_context():self.assertTrue(self.flow.step35_passed(self.row))
         self.app.config['AIT_READING_STEP35']['version']='v2'
         with self.app.app_context():self.assertFalse(self.flow.step35_passed(self.row))
@@ -137,21 +137,22 @@ class JourneyTests(unittest.TestCase):
     def test_demo_blocks_skip_replay_and_invalid_payload(self):
         self.call('demo')
         self.fails(409,'demo_advance',method='POST',json_data={'step':4})
-        self.call('demo_advance',method='POST',json_data={'step':0})
+        self.call('demo_advance',method='POST',json_data={'step':1})
         self.fails(409,'demo_advance',method='POST',json_data={'step':0})
         self.fails(409,'demo_advance',method='POST',json_data=['invalid'])
-        self.assertEqual(1,self.flow.payload(self.row)['demo_step'])
+        self.assertEqual(2,self.flow.payload(self.row)['demo_step'])
 
     def test_engagement_requires_actual_responses(self):
-        self.add('map_complete');self.add('ppp_complete');self.state(32)
-        self.fails(400,'demo_advance',method='POST',json_data={'step':32,'engagement':['objective']})
+        self.add('map_complete');self.add('ppp_complete');self.state(33)
+        self.fails(400,'demo_advance',method='POST',json_data={'step':33,'engagement':['objective']})
         self.assertIsNone(self.latest(self.row,'step32'))
 
     def test_failed_workshop_mcq_cannot_unlock_certificate(self):
-        self.state(34)
+        self.state(35)
         for i in (31,32,33):self.add(f'step{i}')
+        self.add('workshop_survey',competencies={key:4 for key in self.r['COMPETENCIES']})
         self.call('mark_workshop',method='POST',data={f'q{i}':'D' for i in range(1,5)})
-        self.assertEqual(34,self.flow.payload(self.row)['demo_step'])
+        self.assertEqual(35,self.flow.payload(self.row)['demo_step'])
         self.assertFalse(self.flow.workshop_passed(self.row))
 
     def test_missing_reading_course_blocks_certificate_and_audits_denial(self):

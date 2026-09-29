@@ -60,6 +60,8 @@ def board():
     flow.refresh_progress(row)
     db.session.commit()
     ticks = {e.activity_slug for e in flow.events(row)}
+    if flow.workshop_passed(row):
+        ticks.add('workshop_evaluation_complete')
     if not all(flow.latest(row, f'ppp_slide_{i}') for i in range(1,32)):
         ticks.discard('ppp_complete')
     return render_template('program_sace/endorsement_board.html', ticks=ticks,
@@ -196,81 +198,118 @@ def ppp_complete():
     return redirect(url_for('sace_bp.reading_hub'))
 
 
-def demo():
-    row = flow.assignment(lock=True)
+# Stable historical competency fields from simulator.html (c0f89c03 / 8868a05b).
+COMPETENCIES = ('comp_objective', 'comp_sequence', 'comp_demo', 'comp_participation',
+                'comp_guidance', 'comp_reading', 'comp_assessment', 'comp_reflection')
+DEMO_SEQUENCE = 'workshop-31-v2'
+
+
+def demo_state(row):
+    """Resume old positions without deleting evidence or replaying completed slides."""
     state = flow.payload(row)
+    if state.get('demo_sequence') != DEMO_SEQUENCE:
+        old_step = state.get('demo_step', 0)
+        # Old 32/33 already had critique/application recorded one number earlier.
+        if old_step == 32 and flow.latest(row, 'step31'):
+            state['demo_step'] = 33
+        elif old_step == 33 and flow.latest(row, 'step32'):
+            state['demo_step'] = 34
+        else:
+            state['demo_step'] = old_step or 1
+        state['demo_sequence'] = DEMO_SEQUENCE
+        flow.save(row, state)
     if state.get('demo_step', 0) == 0:
-        flow.record(row, 'demo_entered', once=True)
         state['demo_step'] = 1
         flow.save(row, state)
-        db.session.commit()
-    return render_template('program_sace/endorsement_demo.html', step=state['demo_step'],
-                           result=flow.payload(flow.latest(row,'step34')) if flow.latest(row,'step34') else {})
+    return state
+
+
+def demo():
+    row = flow.assignment(lock=True)
+    state = demo_state(row)
+    flow.record(row, 'demo_entered', once=True)
+    db.session.commit()
+    if state['demo_step'] == 35:
+        return redirect(url_for('sace_bp.post_test_results' if flow.workshop_passed(row) else 'sace_bp.step35'))
+    return render_template('program_sace/endorsement_demo.html', step=state['demo_step'])
 
 
 @sace_bp.post('/sace/reading/demo/advance')
 def demo_advance():
     row = flow.assignment(lock=True)
-    state = flow.payload(row)
+    state = demo_state(row)
     data = request.get_json(silent=True) or {}
-    step = state.get('demo_step', 0)
-    if not isinstance(data, dict) or type(data.get('step')) is not int or data.get('step') != step or not 0 <= step <= 33:
+    step = state['demo_step']
+    if not isinstance(data, dict) or type(data.get('step')) is not int or data.get('step') != step or not 1 <= step <= 34:
         abort(409, description="This step is no longer current. Reload to resume your saved position.")
-    if step == 0:
-        flow.record(row, 'demo_entered', once=True)
-    elif step <= 30:
+    if step <= 31:
         if not (Path(current_app.static_folder)/'sace_slides'/f'{step}.png').is_file():
             abort(409, description="Slide unavailable; progress was not saved.")
         flow.record(row, f'demo_slide_{step}', once=True)
-    elif step == 31:
-        if not (Path(current_app.static_folder)/'sace_slides'/'31.png').is_file():
-            abort(409, description='Slide 31 unavailable; progress was not saved.')
+    elif step == 32:
         ratings = data.get('ratings', {})
         if not isinstance(ratings, dict) or set(ratings) != {'vocalization','positioning','pacing'} or any(type(v) is not int or v not in range(4) for v in ratings.values()):
             abort(400, description="Complete all three critique ratings (0-3).")
-        flow.record(row,'demo_slide_31',once=True)
-        flow.record(row,'step31',ratings,once=True)
-    elif step == 32:
-        engagement = data.get('engagement', [])
-        if not isinstance(engagement,list) or sorted(engagement) != sorted(flow.ENGAGEMENT):
-            abort(400, description="Complete the four required engagement activities before confirming them.")
-        flow.record(row,'step32',{'engagement':engagement, 'evidence':'required checkbox choices'},once=True)
+        # Keep the established evidence key; its historical number is not a UI step.
+        flow.record(row, 'step31', ratings, once=True)
     elif step == 33:
-        answers = data.get('answers', {})
-        if (not isinstance(answers, dict) or set(answers) != {'efficacy','utility','fidelity'} or answers.get('efficacy') not in ['1','2','3','4','5']
-            or answers.get('utility') not in ['yes','somewhat','no'] or answers.get('fidelity') not in ['strict','modify','loose']):
-            abort(400, description="Complete the existing LITRE study baseline questions.")
-        flow.record(row,'step33',{'instrument':'existing-baseline-v1','purpose':'Auditor test of longitudinal study baseline; not longitudinal outcomes','answers':answers},once=True)
+        engagement = data.get('engagement', [])
+        if not isinstance(engagement, list) or sorted(engagement) != sorted(flow.ENGAGEMENT):
+            abort(400, description="Complete all four classroom application checks.")
+        flow.record(row, 'step32', {'engagement': engagement, 'evidence': 'required checkbox choices'}, once=True)
+    elif step == 34:
+        ratings = data.get('competencies', {})
+        if not isinstance(ratings, dict) or set(ratings) != set(COMPETENCIES) or any(type(v) is not int or v not in range(1,5) for v in ratings.values()):
+            abort(400, description="Rate all eight facilitator competencies (1-4).")
+        survey = {'instrument': 'historical-workshop-survey', 'competencies': ratings}
+        flow.record(row, 'workshop_survey', survey, once=True)
+        # Existing longitudinal baseline events remain intact if already recorded.
+        flow.record(row, 'step33', survey, once=True)
     state['demo_step'] = step + 1
-    flow.save(row,state)
+    flow.save(row, state)
     flow.refresh_progress(row)
     db.session.commit()
-    return jsonify(success=True, next=url_for('sace_bp.simulator'))
+    return jsonify(success=True, next=url_for('sace_bp.step35' if step == 34 else 'sace_bp.simulator'))
 
 
 def post_test():
-    if flow.payload(flow.assignment()).get('demo_step') != 34:
+    return redirect(url_for('sace_bp.step35'))
+
+
+@sace_bp.route('/sace/reading/step35', methods=['GET', 'POST'])
+def step35():
+    """Workshop Step 35 is the historically established four-question post-test."""
+    row = flow.assignment(lock=True)
+    state = demo_state(row)
+    if state.get('demo_step') != 35:
+        db.session.commit()
         return redirect(url_for('sace_bp.simulator'))
-    return render_template('program_sace/endorsement_workshop_mcq.html')
+    if request.method == 'POST':
+        return mark_workshop()
+    db.session.commit()
+    if flow.workshop_passed(row):
+        return redirect(url_for('sace_bp.post_test_results'))
+    return render_template('program_sace/endorsement_workshop_mcq.html',
+        result=flow.payload(flow.latest(row, 'step34')))
 
 
 def mark_workshop():
     row = flow.assignment(lock=True)
-    state = flow.payload(row)
-    if state.get('demo_step') != 34 or not all(flow.latest(row,f'step{i}') for i in (31,32,33)):
-        abort(409, description="Complete the preceding Demo steps first.")
-    answers = {key:request.form.get(key) for key in ('q1','q2','q3','q4')}
+    state = demo_state(row)
+    if state.get('demo_step') != 35 or not all(flow.latest(row, key) for key in ('step31','step32','workshop_survey')):
+        abort(409, description="Complete Critique 32, Classroom Application 33 and Competency Survey 34 first.")
+    if flow.workshop_passed(row):
+        return redirect(url_for('sace_bp.post_test_results'))
+    answers = {key: request.form.get(key) for key in ('q1','q2','q3','q4')}
     if any(value not in ('A','B','C','D') for value in answers.values()):
         abort(400, description="Answer all four workshop questions.")
     score = sum(25 for key,value in dict(q1='B',q2='B',q3='C',q4='A').items() if answers[key] == value)
-    answers.update(score=score,passed=score>=flow.PASS_MARK)
-    flow.record(row,'step34',answers)
+    answers.update(score=score, passed=score >= flow.PASS_MARK)
+    flow.record(row, 'step34', answers)  # Established workshop-result/certificate evidence key.
     if answers['passed']:
-        state['demo_step']=35
-        flow.save(row,state)
-        flow.record(row,'demo_complete',once=True)
+        flow.record(row, 'demo_complete', once=True)
     db.session.commit()
-    return redirect(url_for('sace_bp.post_test_results'))
+    return redirect(url_for('sace_bp.post_test_results' if answers['passed'] else 'sace_bp.step35'))
 
 
 def results():
@@ -418,7 +457,7 @@ def reading_mcq():
     if not content:
         return None
     if not isinstance(content, dict):
-        abort(503, description='Step 35 course configuration is invalid.')
+        abort(503, description='Reading-course assessment configuration is invalid.')
     questions = content.get('questions', [])
     valid = (isinstance(content.get('version'), str) and bool(content['version'])
              and type(content.get('pass_percent')) is int and 0 < content['pass_percent'] <= 100
@@ -426,24 +465,25 @@ def reading_mcq():
     if not valid or any(not isinstance(q, dict) or not isinstance(q.get('id'), str) or not q['id'] or q['id'] in ('csrf_token', 'version') or not isinstance(q.get('prompt'), str) or not q['prompt']
         or not isinstance(q.get('options'), dict) or len(q['options']) < 2
         or q.get('answer') not in q['options'] for q in questions):
-        abort(503, description="Step 35 content configuration is incomplete.")
+        abort(503, description="Reading-course assessment configuration is incomplete.")
     if len({q['id'] for q in questions}) != len(questions):
-        abort(503, description="Step 35 question identifiers must be unique.")
+        abort(503, description="Reading-course question identifiers must be unique.")
     return content
 
 
-@sace_bp.route('/sace/reading/step35', methods=['GET', 'POST'])
-def step35():
+@sace_bp.route('/sace/reading/course/assessment', methods=['GET', 'POST'])
+def reading_assessment():
+    # AIT_READING_STEP35 is a legacy course configuration name, not workshop step numbering.
     row = flow.assignment(lock=True)
     if not flow.workshop_passed(row) or not flow.course_complete(row):
-        abort(409, description="Complete the workshop and all 18 Reading videos before Step 35.")
+        abort(409, description="Complete the workshop and all 18 Reading videos before the Reading-course assessment.")
     flow.record(row, 'reading_complete', once=True)
     content = reading_mcq()
     if request.method == 'POST':
         if content is None:
-            abort(409, description="Step 35 questions have not been supplied. No pass has been recorded.")
+            abort(409, description="Reading-course questions have not been supplied. No pass has been recorded.")
         if request.form.get('version') != content['version']:
-            abort(409, description="Step 35 content changed. Reload before submitting.")
+            abort(409, description="Reading-course content changed. Reload before submitting.")
         answers = {q['id']: request.form.get(q['id']) for q in content['questions']}
         if any(answers[q['id']] not in q['options'] for q in content['questions']):
             abort(400, description="Answer every Reading course question.")
@@ -465,7 +505,7 @@ def reading_certificate():
         if not eligible:
             flow.record(row, 'reading_certificate_blocked', {'reason': 'course_or_step35_incomplete'})
             db.session.commit()
-            abort(409, description="Complete all 18 videos and pass Step 35 before requesting the Reading certificate.")
+            abort(409, description="Complete all 18 videos and pass the Reading-course assessment before requesting the Reading certificate.")
         from app.subject_reading.routes import _generate_certificate_pdf
         from datetime import datetime
         state = flow.payload(row)

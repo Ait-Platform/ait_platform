@@ -3,15 +3,18 @@
 {% block content %}
 <div class="max-w-5xl mx-auto px-4 py-8"><div class="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
 <div class="h-2 bg-indigo-700"></div><div class="p-6 space-y-6">
-<div class="flex items-center justify-between gap-4"><h1 class="text-2xl font-bold text-slate-800">PPP – I Learn to Read English Using the LITRE Method</h1><a class="border border-slate-300 rounded px-4 py-2" href="{{ url_for('sace_bp.reading_hub') }}">Back to Auditor Board</a></div>
+<div class="flex items-center justify-between gap-4"><h1 class="text-2xl font-bold text-slate-800">PPP – I Learn to Read English Using the LITRE Method</h1></div>
 {% with messages = get_flashed_messages(with_categories=true) %}{% for category, message in messages %}<p class="border rounded p-3">{{ message }}</p>{% endfor %}{% endwith %}
 
-<div class="flex justify-end gap-3"><button id="prev" class="border rounded p-2">Previous</button><button id="next" class="border rounded p-2">Next</button><a class="border rounded p-2" href="{{ url_for('sace_bp.reading_hub') }}">Return to Board</a></div>
+<div class="flex justify-end gap-3"><button id="prev" type="button" class="bg-sky-50 text-sky-800 border border-sky-200 rounded-lg px-4 py-2 hover:bg-sky-100 focus:ring-2 focus:ring-sky-300 disabled:opacity-40 disabled:cursor-not-allowed">Previous</button><button id="next" type="button" class="bg-sky-50 text-sky-800 border border-sky-200 rounded-lg px-4 py-2 hover:bg-sky-100 focus:ring-2 focus:ring-sky-300 disabled:opacity-40 disabled:cursor-not-allowed">Next</button></div>
 <p id="status" role="status"></p><img id="slide" class="w-full" alt="PPP slide">
+<form method="get" action="{{ url_for('sace_bp.presentation_complete') }}" class="flex justify-end">
+<button id="understood" type="submit" {% if not examined %}disabled{% endif %} class="bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-lg px-4 py-2 hover:bg-emerald-100 focus:ring-2 focus:ring-emerald-300 disabled:opacity-40 disabled:cursor-not-allowed">Understood</button>
+</form>
 <script>
 let index=1,busy=false;const image=document.getElementById('slide'),status=document.getElementById('status');
 function show(){busy=true;status.textContent=`Slide ${index} of 31`;document.getElementById('prev').disabled=index===1;document.getElementById('next').disabled=index===31;const captured=index;
-image.onload=async()=>{try{const r=await fetch({{ url_for('sace_bp.ppp_viewed',slide=0)|tojson }}.replace('/0','/'+captured),{method:'POST',headers:{'X-CSRFToken':{{ csrf_token()|tojson }}}});if(!r.ok)throw Error();const data=await r.json();if(data.complete)status.textContent='All 31 slides examined. PPP review recorded.';}catch(e){status.textContent='Slide confirmation could not be saved. Reopen this slide to retry.';}finally{busy=false;}};
+image.onload=async()=>{try{const r=await fetch({{ url_for('sace_bp.ppp_viewed',slide=0)|tojson }}.replace('/0','/'+captured),{method:'POST',headers:{'X-CSRFToken':{{ csrf_token()|tojson }}}});if(!r.ok)throw Error();const data=await r.json();if(data.complete){status.textContent='All 31 slides examined. Select Understood to return to the Auditor Board.';document.getElementById('understood').disabled=false;}}catch(e){status.textContent='Slide confirmation could not be saved. Reopen this slide to retry.';}finally{busy=false;}};
 image.onerror=()=>{status.textContent='Slide unavailable; no evidence recorded.';busy=false;};image.src={{ url_for('sace_bp.journey_slide',slide=0)|tojson }}.replace('/0','/'+index);
 }
 document.getElementById('prev').onclick=()=>{if(!busy&&index>1){index--;show();}};document.getElementById('next').onclick=()=>{if(!busy&&index<31){index++;show();}};show();

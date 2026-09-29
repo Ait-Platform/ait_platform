@@ -171,7 +171,8 @@ def ppp():
     row = flow.assignment(lock=True)
     flow.record(row, 'ppp_entered', once=True)
     db.session.commit()
-    return render_template('program_sace/endorsement_ppp.html')
+    return render_template('program_sace/endorsement_ppp.html',
+                           examined=all(flow.latest(row, f'ppp_slide_{i}') for i in range(1, 32)))
 
 
 @sace_bp.post('/sace/reading/presentation/viewed/<int:slide>')
@@ -196,8 +197,14 @@ def ppp_complete():
 
 
 def demo():
-    row = flow.assignment()
-    return render_template('program_sace/endorsement_demo.html', step=flow.payload(row).get('demo_step',0),
+    row = flow.assignment(lock=True)
+    state = flow.payload(row)
+    if state.get('demo_step', 0) == 0:
+        flow.record(row, 'demo_entered', once=True)
+        state['demo_step'] = 1
+        flow.save(row, state)
+        db.session.commit()
+    return render_template('program_sace/endorsement_demo.html', step=state['demo_step'],
                            result=flow.payload(flow.latest(row,'step34')) if flow.latest(row,'step34') else {})
 
 
@@ -324,16 +331,17 @@ def deliver_certificate(row,slug,certificate_id,pdf):
 
 def require_map(row):
     if not flow.latest(row, 'map_complete') or not flow.latest(row, 'ppp_complete'):
-        abort(409, description="Complete the Auditor Map, controlled materials and PPP first.")
+        abort(409, description="Complete the Activity Summary, controlled materials and PPP first.")
 
 
 @sace_bp.route('/sace/reading/auditor-map', methods=['GET', 'POST'])
 def auditor_map():
     row = flow.assignment(lock=True)
-    response = render_template('program_sace/endorsement_map.html')
-    flow.record(row, 'map_reviewed', {'evidence': 'Auditor Map displayed'}, once=True)
-    db.session.commit()
-    return response
+    if request.method == 'POST':
+        flow.record(row, 'map_reviewed', {'evidence': 'Activity Summary understood'}, once=True)
+        db.session.commit()
+        return redirect(url_for('sace_bp.reading_hub'))
+    return render_template('program_sace/endorsement_map.html')
 
 
 @sace_bp.get('/sace/reading/course')

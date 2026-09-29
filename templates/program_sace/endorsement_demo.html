@@ -3,13 +3,12 @@
 {% block content %}
 <div class="max-w-5xl mx-auto px-4 py-8"><div class="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
 <div class="h-2 bg-indigo-700"></div><div class="p-6 space-y-6">
-<div class="flex items-center justify-between gap-4"><h1 class="text-2xl font-bold text-slate-800">Forward-only Demo</h1><a class="border border-slate-300 rounded px-4 py-2" href="{{ url_for('sace_bp.reading_hub') }}">Back to Auditor Board</a></div>
+<div class="flex items-center justify-between gap-4"><h1 class="text-2xl font-bold text-slate-800">Forward-only Demo</h1></div>
 {% with messages = get_flashed_messages(with_categories=true) %}{% for category, message in messages %}<p class="border rounded p-3">{{ message }}</p>{% endfor %}{% endwith %}
 
 {% if step <= 33 %}<div class="flex justify-end"><button id="advance" class="bg-indigo-700 text-white rounded px-4 py-2 disabled:opacity-40">Save and continue</button></div><p id="error" role="alert"></p>{% endif %}
 <p>Your position is saved on the server. Completed steps cannot be skipped or reset.</p>
-{% if step == 0 %}<p>Begin the workshop demonstration for I Learn to Read English Using the LITRE Method.</p>
-{% elif step <= 30 %}<p>Workshop presentation – {{ step }} / 31</p><img id="demo-slide" class="w-full" src="{{ url_for('sace_bp.journey_slide',slide=step) }}" alt="Workshop slide {{ step }}">
+{% if step <= 30 %}<p>Workshop presentation – {{ step }} / 31</p><img id="demo-slide" class="w-full" src="{{ url_for('sace_bp.journey_slide',slide=step) }}" alt="Workshop slide {{ step }}">
 {% elif step == 31 %}<img id="demo-slide" class="w-full" src="{{ url_for('sace_bp.journey_slide',slide=31) }}" alt="Workshop slide 31"><h2 class="text-xl font-bold">31 – Critique/evaluation of F's workshop presentation</h2><p>Record the existing AIT presentation critique ratings, from 0 to 3.</p>
 {% for key,label in [('vocalization','Clear vocalization'),('positioning','Correct hand positioning'),('pacing','Pacing for learners')] %}<label class="block">{{ label }}<select name="{{ key }}" class="border border-slate-300 rounded p-2" required><option value="">Select</option>{% for n in range(4) %}<option value="{{ n }}">{{ n }}</option>{% endfor %}</select></label>{% endfor %}
 {% elif step == 32 %}<h2 class="text-xl font-bold">32 – P workshop engagement/completion evidence</h2><p>Exercise each activity, then select its checkbox as the test participant.</p>

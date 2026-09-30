@@ -12,7 +12,8 @@ from . import sace_bp
 from . import endorsement as flow
 
 R_ENDPOINTS = {"provisioning_map", "generate_auditor_code", "print_access_slip", "provider_documents",
-               "document_action", "provisioning_logs", "audit_report", "controller_feed", "audit_export"}
+               "document_action", "provisioning_logs", "audit_report", "controller_feed", "audit_export",
+               "reading_lifecycle", "reading_handover", "reading_end_appointment", "reading_end_engagement"}
 PUBLIC = {"auditor_join", "auditor_pledge", "claim_code", "provisioning_pledge", "sace_about"}
 OBSOLETE = {"interactive_workshop", "participant_join", "participant_onboarding", "facilitator_dashboard",
             "reading_workshop_docs", "reviewer_guide", "annexure_a", "annexure_b", "annexure_c",
@@ -31,12 +32,14 @@ def protect_endorsement():
     if not current_user.is_authenticated:
         return redirect(url_for('auth_bp.login', next=request.path))
     if endpoint == 'dashboard':
-        if flow.assignments():
+        if flow.assignments(active_only=True):
             return redirect(url_for('sace_bp.reading_hub'))
         abort(403, description="An Auditor assignment or existing controller grant is required.")
     if endpoint in R_ENDPOINTS:
         if not flow.is_controller():
             abort(403)
+        from .lifecycle import require_controller
+        require_controller(lock=request.method == 'POST')
         if endpoint != 'provisioning_map' and not Interaction.query.filter_by(user_id=current_user.id, activity_slug='admin_patent_pledge').first():
             abort(403, description="Accept the controller pledge first.")
         if endpoint == 'print_access_slip' and not any(flow.payload(row).get('code') == request.view_args.get('code') for row in controller_rows()):
@@ -48,7 +51,7 @@ def protect_endorsement():
         abort(410, description="This legacy workshop operation is not part of the endorsement journey.")
     if endpoint in {'participant_join', 'participant_onboarding', 'interactive_workshop', 'facilitator_dashboard'} and not flow.assignments():
         return None
-    g.sace_assignment = flow.assignment(lock=request.method == 'POST', active=endpoint != 'finish_evaluation')
+    g.sace_assignment = flow.assignment(lock=request.method == 'POST', active=True)
     if endpoint in OBSOLETE:
         return redirect(url_for('sace_bp.reading_hub'))
 
@@ -71,12 +74,16 @@ def board():
 
 
 def generate_code():
+    from . import lifecycle
+    appointment = lifecycle.require_controller()
     raw = secrets.token_hex(4).upper()
     row = Interaction(user_id=current_user.id, activity_slug='auditor_provisioned',
         response_data=json.dumps(dict(code=raw[:4]+'-'+raw[4:], status='Unclaimed', first_name='', last_name='', email='')))
     db.session.add(row)
     db.session.flush()
-    flow.record(row, 'assignment_provisioned', {'controller_id': current_user.id})
+    evidence = flow.record(row, 'assignment_provisioned',
+        {'controller_id': current_user.id, 'appointment_id': appointment.id})
+    lifecycle.link_assignment(row, appointment, evidence.id)
     db.session.commit()
     return redirect(url_for('sace_bp.provisioning_map'))
 
@@ -89,6 +96,8 @@ def claim():
         return redirect(url_for('sace_bp.auditor_join'))
     if not (current_user.name or '').strip():
         return redirect(url_for('sace_bp.auditor_pledge'))
+    from .lifecycle import subject_lock
+    subject_lock()
     # Lock before checking status so a code cannot be claimed concurrently.
     rows = Interaction.query.filter_by(activity_slug='auditor_provisioned').order_by(Interaction.id).with_for_update().all()
     row = next((r for r in rows if secrets.compare_digest(str(flow.payload(r).get('code', '')), str(code))), None)
@@ -97,7 +106,7 @@ def claim():
         abort(409, description=error)
     if row.user_id == current_user.id:
         abort(409, description="The access code cannot be claimed.")
-    if any(flow.payload(r).get('status') == 'Claimed' for r in flow.assignments()):
+    if any(flow.payload(r).get('status') == 'Claimed' for r in flow.assignments(active_only=True)):
         abort(409, description="Complete your existing Auditor assignment first.")
     state = flow.payload(row)
     state.update(status='Claimed', claimed_by_user_id=current_user.id, first_name=current_user.name or '',
@@ -525,9 +534,6 @@ def reading_certificate():
 
 @sace_bp.route('/sace/reading/finish-evaluation', methods=['GET', 'POST'])
 def finish_evaluation():
-    row = flow.assignment(lock=True, active=False)
-    if flow.payload(row).get('status') == 'Completed':
-        return render_template('program_sace/evaluation_closed.html')
     row = flow.assignment(lock=True)
     missing = flow.completion_requirements(row)
     if request.method == 'POST':
@@ -539,7 +545,9 @@ def finish_evaluation():
         flow.record(row, 'controller_notification', {'message': flow.FINAL_MESSAGE,
             'controller_id': row.user_id, 'evaluation_event_id': event.id, 'channel': 'R Control Centre'}, once=True)
         flow.record(row, 'assignment_closed', {'reason': 'AIT activity evaluation journey completed'}, once=True)
+        from datetime import datetime, timezone
         state['status'] = 'Completed'
+        state['completed_at'] = datetime.now(timezone.utc).isoformat()
         flow.save(row, state)
         db.session.commit()  # Evidence, durable R notification, then closure: all commit or none do.
         return render_template('program_sace/evaluation_closed.html')
@@ -547,7 +555,11 @@ def finish_evaluation():
 
 
 def controller_rows():
-    return Interaction.query.filter_by(user_id=current_user.id,activity_slug='auditor_provisioned').order_by(Interaction.id.desc()).all()
+    from .lifecycle import require_controller, AssignmentContext
+    appointment = require_controller(lock=False)
+    return (Interaction.query.join(AssignmentContext, AssignmentContext.invitation_event_id == Interaction.id)
+        .filter(AssignmentContext.engagement_id == appointment.engagement_id)
+        .order_by(Interaction.id.desc()).all())
 
 
 def controller_events():
@@ -603,3 +615,38 @@ def journey_slide(slide):
     if not path.is_file():
         abort(404)
     return send_file(path)
+
+
+@sace_bp.get('/sace/provisioning/lifecycle')
+def reading_lifecycle():
+    from . import lifecycle
+    appointment = lifecycle.require_controller(lock=False)
+    engagement = db.session.get(lifecycle.Engagement, appointment.engagement_id)
+    appointments = lifecycle.Appointment.query.filter_by(engagement_id=engagement.id).order_by(lifecycle.Appointment.id).all()
+    return render_template('program_sace/reading_lifecycle.html', engagement=engagement,
+        appointments=appointments, current_appointment=appointment)
+
+
+@sace_bp.post('/sace/provisioning/handover')
+def reading_handover():
+    from . import lifecycle
+    row, token = lifecycle.issue_handover(request.form.get('email'))
+    db.session.commit()
+    return render_template('program_sace/reading_handover.html',
+        handover_url=url_for('sace_bp.provisioning_map', handover=token, _external=True))
+
+
+@sace_bp.post('/sace/provisioning/appointments/<int:appointment_id>/end')
+def reading_end_appointment(appointment_id):
+    from . import lifecycle
+    lifecycle.end_appointment(appointment_id, request.form.get('status'), request.form.get('reason'))
+    db.session.commit()
+    return redirect(url_for('sace_bp.provisioning_map') if flow.is_controller() else url_for('auth_bp.bridge_dashboard'))
+
+
+@sace_bp.post('/sace/provisioning/engagement/end')
+def reading_end_engagement():
+    from . import lifecycle
+    lifecycle.end_engagement(request.form.get('status'), request.form.get('reason'))
+    db.session.commit()
+    return redirect(url_for('auth_bp.bridge_dashboard'))

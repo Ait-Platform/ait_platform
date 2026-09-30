@@ -1,0 +1,8 @@
+{% extends 'layout.html' %}
+{% block content %}<div class="max-w-5xl mx-auto py-8"><div class="bg-white border rounded-xl shadow overflow-hidden"><div class="h-2 bg-teal-600"></div><div class="p-6 space-y-4">
+<div class="flex justify-between"><h1 class="text-2xl font-bold">Reading engagement history</h1><a class="border rounded px-4 py-2" href="{{ url_for('admin_bp.sace_management') }}">Back</a></div>
+<p>{{ engagement.reference }} ? {{ engagement.status }}</p>
+{% for a in appointments %}<p>Appointment {{ a.id }} ? User {{ a.user_id }} ? {{ a.status }} ? {{ a.started_at }} ? {{ a.completed_at or a.revoked_at or 'Active' }} ? Original grant {{ a.grant_id_at_issue }}</p>{% endfor %}
+{% for link in links %}<p>Auditor invitation {{ link.invitation_event_id }} issued by appointment {{ link.issuing_appointment_id }}</p>{% endfor %}
+<table class="w-full text-left"><thead><tr><th>Event</th><th>Actor</th><th>Time</th></tr></thead><tbody>{% for e in events %}<tr class="border-t"><td>{{ e.id }} ? {{ e.activity_slug }}<details><summary>Evidence</summary><pre class="whitespace-pre-wrap break-all">{{ e.response_data }}</pre></details></td><td>{{ e.user_id }}</td><td>{{ e.timestamp }}</td></tr>{% endfor %}</tbody></table>
+</div></div></div>{% endblock %}

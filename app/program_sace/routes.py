@@ -432,6 +432,11 @@ def provisioning_map():
     if not controller:
         token = request.args.get('journey')
         ctx = access.provisioning_context(token) if token else access.start_provisioning()
+        if not token and request.args.get('handover'):
+            from .lifecycle import handover_invitation
+            invitation = handover_invitation(token=request.args['handover'])
+            ctx = dict(ctx, handover_event_id=invitation.id)
+            session[access.PROVISIONING_KEY] = ctx
         if not ctx:
             abort(400, description="Provisioning journey expired or invalid. Start again.")
         if ctx.get('accepted_at') and current_user.is_authenticated:
@@ -442,10 +447,8 @@ def provisioning_map():
     has_pledged = (pledge is not None) if controller else bool(ctx and ctx.get('accepted_at'))
     provisioning_next = url_for('sace_bp.provisioning_map', journey=ctx['nonce']) if ctx else request.path
     provisioning_complete = controller and pledge is not None
-    invites = (SaceWorkshopInteraction.query.filter_by(
-        user_id=current_user.id, activity_slug="auditor_provisioned"
-    ).order_by(SaceWorkshopInteraction.timestamp.desc()).all()
-        if provisioning_complete else [])
+    from .endorsement_routes import controller_rows
+    invites = controller_rows() if provisioning_complete else []
 
     auditors = []
     for inv in invites:

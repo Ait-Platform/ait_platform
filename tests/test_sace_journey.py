@@ -105,7 +105,7 @@ class JourneyTests(unittest.TestCase):
         self.assertEqual(self.flow.FINAL_MESSAGE,self.flow.payload(self.evidence[-2])['message'])
         self.assertEqual(1,self.db.session.commit.call_count)
         before=len(self.evidence)
-        self.call('finish_evaluation',method='POST')
+        self.fails(403,'finish_evaluation',method='POST')
         self.assertEqual(before,len(self.evidence))
         self.fails(403,'board')
 

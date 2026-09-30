@@ -41,6 +41,9 @@ def assignment_expired(state):
 def invitation_error(row):
     if row is None:
         return "Invalid or unrecognized Access Code."
+    from .lifecycle import engagement_for_assignment
+    if not engagement_for_assignment(row):
+        return "This endorsement engagement is not active."
     state = payload(row)
     if state.get("status") != "Unclaimed":
         return "This Access Code is no longer available."
@@ -54,24 +57,32 @@ def is_controller():
     return controller_access()
 
 
-def assignments(user_id=None):
+def assignments(user_id=None, active_only=False):
     uid = user_id or current_user.id
-    return [r for r in Interaction.query.filter_by(activity_slug="auditor_provisioned").order_by(Interaction.id.desc()).all()
+    rows = [r for r in Interaction.query.filter_by(activity_slug="auditor_provisioned").order_by(Interaction.id.desc()).all()
             if payload(r).get("claimed_by_user_id") == uid]
+    if active_only:
+        from .lifecycle import engagement_for_assignment
+        rows = [r for r in rows if payload(r).get('status') == 'Claimed'
+                and not assignment_expired(payload(r)) and engagement_for_assignment(r)]
+    return rows
 
 
 def assignment(lock=False, active=True):
-    rows = assignments()
-    row = next((r for r in rows if payload(r).get("status") == "Claimed"), rows[0] if rows else None)
+    from .lifecycle import subject_lock, engagement_for_assignment
+    if lock:
+        subject_lock()
+    rows = assignments(active_only=active)
+    row = rows[0] if rows else None
     if row is None:
-        abort(403, description="An assigned Auditor access code is required.")
+        abort(403, description="An active Auditor assignment is required.")
     if lock:
         row = Interaction.query.filter_by(id=row.id).populate_existing().with_for_update().one()
     state = payload(row)
-    if active and state.get("status") != "Claimed":
-        abort(403, description="This endorsement assignment has ended. Its evidence remains available to R.")
-    if active and assignment_expired(state):
-        abort(403, description="This endorsement assignment has expired.")
+    if not engagement_for_assignment(row):
+        abort(403, description="This endorsement engagement has ended.")
+    if active and (state.get('status') != 'Claimed' or assignment_expired(state)):
+        abort(403, description="This Auditor assignment has ended.")
     return row
 
 

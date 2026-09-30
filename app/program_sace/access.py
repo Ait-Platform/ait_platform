@@ -2,9 +2,8 @@
 from flask import session, abort, request
 from flask_login import current_user
 from app.extensions import db
-from app.models.auth import AuthSubject, AuthSubjectAdmin, UserEnrollment
+from app.models.auth import AuthSubject, UserEnrollment
 from app.models.sace import SaceWorkshopInteraction
-import json
 import secrets
 import time
 from datetime import datetime, timezone
@@ -73,10 +72,9 @@ SUBJECT = "sace_endorsement"
 def is_controller():
     if not current_user.is_authenticated:
         return False
-    return AuthSubjectAdmin.query.join(AuthSubject).filter(
-        db.func.lower(AuthSubjectAdmin.email) == current_user.email.strip().lower(),
-        AuthSubject.slug == SUBJECT, AuthSubject.is_active == 1,
-    ).first() is not None
+    from .lifecycle import controller
+    return controller() is not None
+
 
 
 def complete_provisioning():
@@ -85,8 +83,7 @@ def complete_provisioning():
     if (not current_user.is_authenticated or not ctx or not ctx.get("accepted_at")
             or ctx.get("user_id") != current_user.id):
         abort(400, description="Start a current administrator provisioning journey and accept its pledge.")
-    email = current_user.email.strip().lower()
-    # Serialize repeated completions without adding a new role/membership table.
+    # Serialize nonce consumption, grant creation and appointment creation.
     subject = AuthSubject.query.filter_by(slug=SUBJECT, is_active=1).with_for_update().first()
     if subject is None:
         abort(503, description="SACE Endorsement is not configured.")
@@ -96,43 +93,28 @@ def complete_provisioning():
         SaceWorkshopInteraction.response_data.contains(ctx["nonce"], autoescape=True),
     ).first():
         abort(400, description="This provisioning journey has already been used.")
-    grant = AuthSubjectAdmin.query.filter(
-        AuthSubjectAdmin.subject_id == subject.id,
-        db.func.lower(AuthSubjectAdmin.email) == email,
-    ).first()
+    from . import lifecycle
+    # Pledge history is evidence, not a substitute for this appointment's pledge.
+    pledge = lifecycle.event(current_user.id, 'admin_patent_pledge',
+        {'journey': ctx['nonce'], 'acceptance': 'Admin accepted IP pledge'},
+        timestamp=datetime.fromtimestamp(ctx['accepted_at'], timezone.utc).replace(tzinfo=None))
+    from app.models.core import CoreAuditEvent
+    db.session.add(CoreAuditEvent(user_id=current_user.id, action='PLEDGE_ACCEPTED',
+        entity_type='SACE_PLEDGE', details='Admin accepted IP pledge',
+        created_at=pledge.timestamp, ip_address=request.headers.get('X-Forwarded-For', request.remote_addr)))
+    lifecycle.provision(ctx, pledge)
     enrollment = UserEnrollment.query.filter_by(user_id=current_user.id, subject_id=subject.id).first()
     if enrollment is None:
-        db.session.add(UserEnrollment(user_id=current_user.id, subject_id=subject.id, status="active", country_code="ZA", local_currency="ZAR", local_amount_cents=0, zar_amount_cents=0))
-    elif enrollment.status == "pending":
-        enrollment.status = "active"
-    pledge = SaceWorkshopInteraction.query.filter_by(
-        user_id=current_user.id, activity_slug="admin_patent_pledge").first()
-    if pledge is None or grant is None:
-        db.session.add(SaceWorkshopInteraction(
-            user_id=current_user.id, activity_slug="admin_patent_pledge",
-            response_data="Admin accepted IP pledge",
-            timestamp=datetime.fromtimestamp(ctx["accepted_at"], timezone.utc).replace(tzinfo=None),
-        ))
-        from app.models.core import CoreAuditEvent
-        db.session.add(CoreAuditEvent(
-            user_id=current_user.id, action="PLEDGE_ACCEPTED", entity_type="SACE_PLEDGE",
-            details="Admin accepted IP pledge",
-            created_at=datetime.fromtimestamp(ctx["accepted_at"], timezone.utc).replace(tzinfo=None),
-            ip_address=request.headers.get("X-Forwarded-For", request.remote_addr),
-        ))
-    if grant is None:
-        db.session.add(AuthSubjectAdmin(subject_id=subject.id, email=email))
-        db.session.add(SaceWorkshopInteraction(
-            user_id=current_user.id, activity_slug="controller_provisioned",
-            response_data=json.dumps({"subject": SUBJECT,
-                "authority": "administrator_provisioning_journey", "journey": ctx["nonce"]}),
-        ))
+        db.session.add(UserEnrollment(user_id=current_user.id, subject_id=subject.id, status='active',
+            country_code='ZA', local_currency='ZAR', local_amount_cents=0, zar_amount_cents=0))
+    elif enrollment.status == 'pending':
+        enrollment.status = 'active'
     db.session.commit()
     clear_provisioning()
     session.pop("pending_sace_code", None)
     session.pop("sace_evaluator_pledged", None)
-    # UI snapshot only: authorization always reads the persistent grant.
-    session["admin_subjects"] = sorted(set(session.get("admin_subjects", [])) | {SUBJECT})
+    # Operational SACE authority is not a platform-admin session role.
+    session["admin_subjects"] = [s for s in session.get("admin_subjects", []) if s != SUBJECT]
 
 
 def authentication_destination(subject=None):
@@ -146,7 +128,7 @@ def authentication_destination(subject=None):
     if session.get("pending_sace_code") and session.get("sace_evaluator_pledged"):
         return "sace_bp.claim_code"
     from . import endorsement
-    if endorsement.assignments():
+    if endorsement.assignments(active_only=True):
         return "sace_bp.reading_hub"
     if subject == SUBJECT:
         return "sace_bp.dashboard"

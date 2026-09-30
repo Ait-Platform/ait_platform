@@ -1110,7 +1110,7 @@ def login():
                 """),
                 {"e": email}
             ).fetchall()
-            admin_subjects = [r.slug for r in rows]
+            admin_subjects = [r.slug for r in rows if r.slug != "sace_endorsement"]
         except (OperationalError, ProgrammingError):
             pass
     session["admin_subjects"] = admin_subjects

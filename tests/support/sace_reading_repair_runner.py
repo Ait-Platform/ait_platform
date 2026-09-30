@@ -59,6 +59,19 @@ class ReadingRepair(unittest.TestCase):
             db.session.add(row)
             db.session.commit()
             self.assignment_id = row.id
+            from app.program_sace import lifecycle as lc
+            grant = h.auth_models.AuthSubjectAdmin(subject_id=900, email='r@example.test')
+            db.session.add(grant)
+            prov = lc.event(controller, 'controller_provisioned', {'fixture': True})
+            pledge = lc.event(controller, 'admin_patent_pledge', {'fixture': True})
+            engagement = lc.Engagement(reference='reading-test', created_by_user_id=controller, provenance_event_id=prov.id)
+            db.session.add(engagement); db.session.flush()
+            appointment = lc.Appointment(engagement_id=engagement.id, user_id=controller,
+                operational_grant_id=grant.id, grant_id_at_issue=grant.id, grant_subject_id=900,
+                grant_email_at_issue='r@example.test', pledge_event_id=pledge.id, provisioning_event_id=prov.id)
+            db.session.add(appointment); db.session.flush()
+            lc.link_assignment(row, appointment, prov.id)
+            db.session.commit()
         self.login(self.client, "a@example.test", "/sace/reading")
 
     def event(self, slug):

@@ -1,0 +1,33 @@
+{% extends 'layout.html' %}
+{% block flashes %}{% endblock %}
+{% block content %}
+<div class="max-w-5xl mx-auto py-8"><div class="bg-white border rounded-xl shadow overflow-hidden">
+<div class="h-2 bg-indigo-700"></div><div class="p-6 space-y-6">
+<div class="flex justify-between gap-4"><h1 class="text-2xl font-bold">Reading engagement</h1><a href="{{ url_for('sace_bp.provisioning_map') }}" class="border rounded px-4 py-2">Back</a></div>
+<p>{{ engagement.reference }} ? {{ engagement.status }}</p>
+<p>I Learn to Read English Using the LITRE Method</p>
+<h2 class="text-xl font-semibold">Controller appointments</h2>
+{% for appointment in appointments %}
+<div class="border rounded p-4 space-y-2"><p>Appointment {{ appointment.id }} ? User {{ appointment.user_id }} ? {{ appointment.status }} ? Started {{ appointment.started_at }}</p>
+{% if appointment.status == 'active' %}
+<form method="post" action="{{ url_for('sace_bp.reading_end_appointment', appointment_id=appointment.id) }}" class="space-y-2">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<label>End appointment <select name="status" class="border rounded p-2"><option value="completed">Completed</option><option value="revoked">Revoked</option></select></label>
+<label>Reason <input name="reason" required class="border border-slate-300 rounded p-2"></label>
+<button class="border border-indigo-300 rounded px-4 py-2">End this appointment</button>
+</form>{% endif %}</div>{% endfor %}
+<h2 class="text-xl font-semibold">Invite another SACE official</h2>
+<p>The official must accept the pledge and authenticate. This invitation does not end your appointment.</p>
+<form method="post" action="{{ url_for('sace_bp.reading_handover') }}" class="flex gap-3">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<label>Email <input name="email" type="email" required autofocus class="border border-slate-300 rounded p-2"></label>
+<button class="border border-indigo-300 rounded px-4 py-2">Create invitation</button></form>
+<h2 class="text-xl font-semibold">End the whole endorsement process</h2>
+<p>This ends all controller and Auditor access for this engagement. Historical evidence remains preserved.</p>
+<form method="post" action="{{ url_for('sace_bp.reading_end_engagement') }}" class="space-y-2">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<label>Outcome <select name="status" class="border rounded p-2"><option value="completed">Completed</option><option value="revoked">Revoked</option></select></label>
+<label>Reason <input name="reason" required class="border border-slate-300 rounded p-2"></label>
+<button class="border border-red-300 rounded px-4 py-2">End engagement and access</button></form>
+</div></div></div>
+{% endblock %}

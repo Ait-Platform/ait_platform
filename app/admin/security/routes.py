@@ -1,4 +1,4 @@
-from flask import current_app, flash, redirect, render_template, request, url_for, session
+from flask import abort, current_app, flash, redirect, render_template, request, url_for, session
 from flask_login import login_required
 from sqlalchemy import text
 
@@ -272,15 +272,35 @@ def sace_management():
                 db.session.commit()
                 flash(f'Successfully uploaded {doc_type} for {slug}.', 'success')
                     
+    from app.program_sace.lifecycle import controller, Engagement, Appointment
     from app.models.auth import AuthSubjectAdmin
-    evaluators = []
-    if sace_subject:
-        emails = [r.email.lower() for r in AuthSubjectAdmin.query.filter_by(subject_id=sace_subject.id).all()]
-        if emails:
-            evaluators = User.query.filter(db.func.lower(User.email).in_(emails)).all()
+    evaluators = [u for u in User.query.join(Appointment, Appointment.user_id == User.id)
+        .filter(Appointment.status == 'active').all() if controller(u)]
+    engagements = Engagement.query.order_by(Engagement.id.desc()).all()
+    linked = {a.operational_grant_id for a in Appointment.query.filter_by(status='active').all()}
+    orphan_grants = [g.id for g in AuthSubjectAdmin.query.filter_by(subject_id=sace_subject.id).all()
+                     if g.id not in linked] if sace_subject else []
 
     documents = SaceDocument.query.all()
     
-    return render_template('admin/security/sace_management.html', evaluators=evaluators, documents=documents)
+    return render_template('admin/security/sace_management.html', evaluators=evaluators, documents=documents, engagements=engagements, orphan_grants=orphan_grants)
 
 
+
+
+@admin_bp.get('/security/sace-engagement/<int:engagement_id>')
+@login_required
+def sace_engagement_history(engagement_id):
+    if not (session.get('is_admin') or session.get('role') == 'admin'):
+        abort(403)
+    from app.program_sace.lifecycle import Engagement, Appointment, AssignmentContext, Interaction
+    engagement = db.session.get(Engagement, engagement_id)
+    if not engagement:
+        abort(404)
+    appointments = Appointment.query.filter_by(engagement_id=engagement_id).all()
+    links = AssignmentContext.query.filter_by(engagement_id=engagement_id).all()
+    rooms = [f'endorsement-{row.invitation_event_id}' for row in links] + [f'reading-engagement-{engagement_id}']
+    ids = [i for a in appointments for i in (a.pledge_event_id, a.provisioning_event_id)]
+    events = Interaction.query.filter(db.or_(Interaction.workshop_session_id.in_(rooms), Interaction.id.in_(ids))).order_by(Interaction.id).all()
+    return render_template('admin/security/sace_engagement_history.html', engagement=engagement,
+        appointments=appointments, links=links, events=events)

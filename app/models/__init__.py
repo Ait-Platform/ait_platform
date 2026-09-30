@@ -61,3 +61,6 @@ __all__.extend(["RetirementOrganisation", "RetirementRole", "RetirementMembershi
 # Independent HOME endorsement metadata (no startup writes).
 from .sace_home import (HomeController, HomeProvisioning, HomeInvitation, HomePledge,
                         HomeAssignment, HomeDocument, HomeDocumentVersion, HomeEvidence)
+
+from .sace_reading_engagement import (ReadingEngagement, ReadingControllerAppointment, ReadingAssignmentContext)
+__all__.extend(["ReadingEngagement", "ReadingControllerAppointment", "ReadingAssignmentContext"])

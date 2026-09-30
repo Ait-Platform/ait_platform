@@ -261,7 +261,7 @@ def refresh_bridge_session(user):
         JOIN auth_subject s ON s.id = sa.subject_id
         WHERE lower(sa.email) = lower(:e)
     """), {"e": user.email}).fetchall()
-    session["admin_subjects"] = [r.slug for r in admin_subject_rows]
+    session["admin_subjects"] = [r.slug for r in admin_subject_rows if r.slug != "sace_endorsement"]
 
     # ✅ use user_enrollment (not auth_enrollment)
     enrolled_rows = db.session.execute(text("""
@@ -278,7 +278,7 @@ def refresh_bridge_session(user):
           s.slug,
           CASE
             WHEN :is_admin_global = 1 THEN 'admin'
-            WHEN EXISTS (
+            WHEN s.slug != 'sace_endorsement' AND EXISTS (
               SELECT 1 FROM auth_subject_admin sa
               WHERE sa.subject_id = s.id AND lower(sa.email) = lower(:e)
             ) THEN 'admin'

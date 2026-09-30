@@ -147,6 +147,8 @@ def start_registration():
 
 @auth_bp.route("/register", methods=["GET", "POST"])
 def register():
+    from app.program_sace.access import prepare_provisioning_auth
+    prepare_provisioning_auth(request.values.get("next"))
     # HOME uses shared user identity, but its own pledge/authority/continuation.
     home_subject = (request.values.get("subject") or "").strip().lower()
     home_next = request.values.get("next", "")
@@ -213,7 +215,9 @@ def register():
         # If already logged in, skip the form!
         if getattr(current_user, "is_authenticated", False):
             if subject == "sace_endorsement":
-                from app.program_sace.access import authentication_destination
+                from app.program_sace.access import authentication_destination, authenticate_provisioning, provisioning_destination
+                if authenticate_provisioning(next_url):
+                    return redirect(provisioning_destination())
                 return redirect(url_for(authentication_destination(subject)))
             return redirect(url_for("auth_bp.dashboard_info", subject=subject))
 
@@ -374,6 +378,11 @@ def register():
 
             if subject == "sace_endorsement":
                 from app.program_sace.access import authentication_destination, ensure_endorsement_enrollment
+                from app.program_sace.access import authenticate_provisioning, provisioning_destination
+                if authenticate_provisioning(next_url):
+                    return redirect(provisioning_destination())
+                if next_url and next_url.split("?", 1)[0] == "/sace/provisioning":
+                    abort(400, description="Provisioning journey expired. Start again.")
                 ensure_endorsement_enrollment(existing_user.id)
                 return redirect(url_for(authentication_destination(subject)))
 
@@ -446,6 +455,12 @@ def register_decision():
 
     if subject == "sace_endorsement":
         from app.program_sace.access import authentication_destination, ensure_endorsement_enrollment
+        from app.program_sace.access import authenticate_provisioning, provisioning_destination
+        if authenticate_provisioning(next_url):
+            session.pop("reg_ctx", None)
+            return redirect(provisioning_destination())
+        if next_url and next_url.split("?", 1)[0] == "/sace/provisioning":
+            abort(400, description="Provisioning journey expired. Start again.")
         ensure_endorsement_enrollment(user_id)
         session.pop("reg_ctx", None)
         session.pop("just_paid_subject_id", None)
@@ -953,6 +968,8 @@ def register_decision():
 
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login():
+    from app.program_sace.access import prepare_provisioning_auth
+    prepare_provisioning_auth(request.args.get("next"))
     form = LoginForm()
 
     # GET: prefill email for convenience (kept same behavior)
@@ -1193,14 +1210,18 @@ def login():
     if not next_url and home_destination:
         return redirect(url_for(home_destination))
 
+    from app.program_sace.access import authenticate_provisioning, provisioning_destination
+    if authenticate_provisioning(next_url):
+        return redirect(provisioning_destination())
+
     # SACE authority and pending journeys are independent of platform roles.
     from app.program_sace.access import authentication_destination
     destination = authentication_destination()
-    if destination and (not next_url or session.get("sace_admin_provisioning")
+    if destination and (not next_url
                         or session.get("pending_sace_code")
                         or (_is_safe_url(next_url) and urlparse(next_url).path.startswith("/sace"))):
         return redirect(url_for(destination))
-    if next_url and _is_safe_url(next_url):
+    if next_url and _is_safe_url(next_url) and urlparse(next_url).path != "/sace/provisioning":
         return redirect(next_url)
     return redirect(url_for("auth_bp.bridge_dashboard"))
 

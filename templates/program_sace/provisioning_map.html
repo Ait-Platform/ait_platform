@@ -187,6 +187,7 @@
             {% if not has_pledged %}
             <button type="button" onclick="closePledgeModal()" class="px-4 py-2 bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 font-bold rounded-lg transition shadow-sm">Cancel</button>
             <form action="{{ url_for('sace_bp.provisioning_pledge') }}" method="POST" class="inline">
+                <input type="hidden" name="journey" value="{{ provisioning_token }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <button type="submit" class="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-md transition flex items-center">
                     <i class="fas fa-check mr-2"></i> I Agree & Unlock
@@ -240,10 +241,10 @@
             </div>
             <h3 class="font-black text-2xl text-slate-800 mb-2">Pledge Accepted!</h3>
             <p class="text-slate-600 mb-6">Thank you for acknowledging the IP Pledge. To generate your secure access links and return to this dashboard in the future, you must register a free account now.<br><br>Going forward, you will access this Control Centre via the standard AIT Sign In page.</p>
-            <a href="{{ url_for('auth_bp.register', subject='sace_endorsement', next=request.path) }}" class="block w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-md transition text-lg mb-3">
+            <a href="{{ url_for('auth_bp.register', subject='sace_endorsement', next=provisioning_next) }}" class="block w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-md transition text-lg mb-3">
                 Register My Account
             </a>
-            <a href="{{ url_for('auth_bp.login', next=request.path) }}" class="block w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg shadow-sm transition text-lg mb-1">
+            <a href="{{ url_for('auth_bp.login', next=provisioning_next) }}" class="block w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg shadow-sm transition text-lg mb-1">
                 Already registered? Sign In
             </a>
         </div>

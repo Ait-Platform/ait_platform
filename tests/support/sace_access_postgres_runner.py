@@ -198,23 +198,162 @@ class AccessJourneys(unittest.TestCase):
         return client.post("/login", query_string={"next": next_url} if next_url else {},
                            data={"email": email, "password": "test-password"})
 
+    def pledge(self, client):
+        with client.session_transaction() as state:
+            token = state[access.PROVISIONING_KEY]['nonce']
+        return client.post("/sace/provisioning/pledge", data={"journey": token}, follow_redirects=True)
+
     def provision(self, client, email, existing=False):
         response = client.get("/sace/provisioning", follow_redirects=True)
         self.assertEqual(response.status_code, 200)
-        response = client.post("/sace/provisioning/pledge", follow_redirects=True)
+        if b"Provisioned Auditors" in response.data:
+            return
+        response = self.pledge(client)
         self.assertEqual(response.status_code, 200)
+        with client.session_transaction() as state:
+            next_url = "/sace/provisioning?journey=" + state[access.PROVISIONING_KEY]['nonce']
         if existing:
-            response = self.login(client, email)
-            self.assertEqual(response.location, "/sace/provisioning")
+            response = self.login(client, email, next_url)
+            self.assertEqual(response.location, next_url)
+            response = client.get(response.location, follow_redirects=True)
         else:
-            client.get("/register?subject=sace_endorsement&next=/sace/provisioning")
+            client.get("/register", query_string={"subject": "sace_endorsement", "next": next_url})
             response = client.post("/register", data={"subject": "sace_endorsement",
-                "next": "/sace/provisioning", "full_name": "Renielwe Test",
+                "next": next_url, "full_name": "Renielwe Test",
                 "email": email, "password": "test-password"}, follow_redirects=True)
-            self.assertEqual(response.status_code, 200)
-        response = client.get("/sace/provisioning", follow_redirects=True)
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"Provisioned Auditors", response.data)
+
+    def pending_r(self, client):
+        client.get("/sace/provisioning")
+        self.pledge(client)
+        with client.session_transaction() as state:
+            context = dict(state[access.PROVISIONING_KEY])
+        return context, "/sace/provisioning?journey=" + context['nonce']
+
+    def assert_no_r(self):
+        with self.app.app_context():
+            self.assertEqual(auth_models.AuthSubjectAdmin.query.count(), 0)
+            self.assertEqual(auth_models.UserEnrollment.query.count(), 0)
+            self.assertEqual(Interaction.query.filter(Interaction.activity_slug.in_(
+                ['controller_provisioned', 'admin_patent_pledge'])).count(), 0)
+
+    def test_security_ordinary_login_discards_pending_and_legacy_state(self):
+        self.user("ordinary@example.test")
+        self.pending_r(self.client)
+        with self.client.session_transaction() as state:
+            state['sace_admin_provisioning'] = True
+            state['sace_admin_pledged'] = True
+        response = self.login(self.client, "ordinary@example.test")
+        self.assertEqual(response.location, "/dashboard")
+        with self.client.session_transaction() as state:
+            self.assertNotIn(access.PROVISIONING_KEY, state)
+            self.assertNotIn('sace_admin_pledged', state)
+        self.assert_no_r()
+        self.client.get('/sace/provisioning')
+        self.assert_no_r()
+
+    def test_security_dashboard_and_bare_auth_next_do_not_start_r(self):
+        self.user("ordinary@example.test")
+        response = self.login(self.client, "ordinary@example.test", '/sace/provisioning')
+        self.assertEqual(response.location, '/dashboard')
+        for path in ['/sace/dashboard', '/program/sace_endorsement/start', '/dashboard/info/sace_endorsement']:
+            self.assertEqual(self.client.get(path, follow_redirects=True).status_code, 403)
+        with self.client.session_transaction() as state:
+            self.assertNotIn(access.PROVISIONING_KEY, state)
+        self.assert_no_r()
+
+    def test_security_expired_and_wrong_nonce_cannot_complete(self):
+        self.user("ordinary@example.test")
+        context, next_url = self.pending_r(self.client)
+        with self.client.session_transaction() as state:
+            state[access.PROVISIONING_KEY] = dict(context, started_at=0)
+        self.assertEqual(self.login(self.client, "ordinary@example.test", next_url).location, '/dashboard')
+        self.assertEqual(self.client.get(next_url).status_code, 400)
+        self.assert_no_r()
+        self.client.get('/sace/provisioning')
+        self.assertEqual(self.client.post('/sace/provisioning/pledge', data={'journey':'wrong'}).status_code, 400)
+        self.assert_no_r()
+
+    def test_security_replay_cannot_provision_another_user(self):
+        self.user('first@example.test')
+        self.user('second@example.test')
+        context, next_url = self.pending_r(self.client)
+        response = self.login(self.client, 'first@example.test', next_url)
+        self.assertEqual(self.client.get(response.location, follow_redirects=True).status_code, 200)
+        with self.client.session_transaction() as state:
+            self.assertNotIn(access.PROVISIONING_KEY, state)
+        other = self.app.test_client()
+        # Replay the pre-consumption signed-session contents, not just the URL.
+        with other.session_transaction() as state:
+            state[access.PROVISIONING_KEY] = context
+        response = self.login(other, 'second@example.test', next_url)
+        self.assertEqual(other.get(response.location).status_code, 400)
+        with self.app.app_context():
+            self.assertEqual(auth_models.AuthSubjectAdmin.query.count(), 1)
+            self.assertEqual(auth_models.UserEnrollment.query.count(), 1)
+            self.assertEqual(Interaction.query.filter_by(activity_slug='controller_provisioned').count(), 1)
+
+    def test_security_context_bound_to_authenticated_identity(self):
+        first = self.user('first@example.test')
+        second = self.user('second@example.test')
+        self.login(self.client, 'first@example.test')
+        self.client.get('/sace/provisioning')
+        with self.client.session_transaction() as state:
+            token = state[access.PROVISIONING_KEY]['nonce']
+            state['_user_id'] = str(second)
+        self.assertEqual(self.client.post('/sace/provisioning/pledge', data={'journey':token}).status_code, 400)
+        self.assert_no_r()
+
+    def test_security_acceptance_time_precedes_grant_atomically(self):
+        self.user('first@example.test')
+        context, next_url = self.pending_r(self.client)
+        self.assert_no_r()
+        response = self.login(self.client, 'first@example.test', next_url)
+        self.client.get(response.location, follow_redirects=True)
+        with self.app.app_context():
+            pledge = Interaction.query.filter_by(activity_slug='admin_patent_pledge').one()
+            grant = Interaction.query.filter_by(activity_slug='controller_provisioned').one()
+            self.assertAlmostEqual(pledge.timestamp.replace(tzinfo=timezone.utc).timestamp(), context['accepted_at'], places=5)
+            self.assertLess(pledge.timestamp, grant.timestamp)
+            self.assertLess(pledge.id, grant.id)
+            from app.models.core import CoreAuditEvent
+            self.assertEqual(CoreAuditEvent.query.one().created_at, pledge.timestamp)
+
+    def test_security_missing_pledge_and_unbound_flags_rejected(self):
+        self.user('first@example.test')
+        self.login(self.client, 'first@example.test')
+        with self.client.session_transaction() as state:
+            state['sace_admin_provisioning'] = True
+            state['sace_admin_pledged'] = True
+        self.assertEqual(self.client.post('/sace/provisioning/pledge').status_code, 400)
+        self.client.get('/sace/provisioning')
+        with self.client.session_transaction() as state:
+            next_url = '/sace/provisioning?journey=' + state[access.PROVISIONING_KEY]['nonce']
+        self.client.get(next_url)
+        self.assert_no_r()
+
+    def test_security_failed_transaction_persists_nothing(self):
+        from unittest.mock import patch
+        self.user('first@example.test')
+        context, next_url = self.pending_r(self.client)
+        response = self.login(self.client, 'first@example.test', next_url)
+        with patch.object(db.session, 'commit', side_effect=RuntimeError('test rollback')):
+            with self.assertRaises(RuntimeError):
+                self.client.get(response.location)
+        self.assert_no_r()
+
+    def test_security_existing_account_registration_continues_current_journey(self):
+        self.user('first@example.test')
+        context, next_url = self.pending_r(self.client)
+        self.client.get('/register', query_string={'subject':'sace_endorsement', 'next':next_url})
+        response = self.client.post('/register', data={'subject':'sace_endorsement',
+            'next':next_url, 'full_name':'Existing R', 'email':'first@example.test',
+            'password':'test-password'}, follow_redirects=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'Provisioned Auditors', response.data)
+        with self.app.app_context():
+            self.assertEqual(auth_models.AuthSubjectAdmin.query.count(), 1)
 
     def code(self, client):
         response = client.post("/sace/provisioning/generate_code")
@@ -275,7 +414,7 @@ class AccessJourneys(unittest.TestCase):
         self.user("ordinary@example.test")
         self.login(self.client, "ordinary@example.test", "/program/sace_endorsement/start")
         response = self.client.get("/program/sace_endorsement/start", follow_redirects=True)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 403)
         self.assertNotIn(b"Provisioned Auditors", response.data)
         with self.app.app_context():
             self.assertEqual(auth_models.AuthSubjectAdmin.query.count(), 0)
@@ -305,11 +444,14 @@ class AccessJourneys(unittest.TestCase):
         self.login(self.client, "r@example.test")
         response = self.client.get("/sace/provisioning", follow_redirects=True)
         self.assertEqual(response.status_code, 200)
+        with self.app.app_context():
+            self.assertEqual(auth_models.AuthSubjectAdmin.query.count(), 0)
+        self.pledge(self.client)
         self.code(self.client)
         with self.app.app_context():
             self.assertEqual(auth_models.AuthSubjectAdmin.query.one().subject_id, 900)
             self.assertEqual(auth_models.UserEnrollment.query.count(), 1)
-            self.assertEqual(Interaction.query.filter_by(activity_slug="admin_patent_pledge").count(), 1)
+            self.assertEqual(Interaction.query.filter_by(activity_slug="admin_patent_pledge").count(), 2)
 
     def test_auditor_new_registration_claim_and_board(self):
         self.user("r@example.test")
@@ -387,13 +529,13 @@ class AccessJourneys(unittest.TestCase):
         self.assertNotIn(b"Generate Access Code", response.data)
         with self.app.app_context():
             self.assertEqual(auth_models.AuthSubjectAdmin.query.count(), 0)
-        response = self.client.post("/sace/provisioning/pledge", follow_redirects=True)
+        response = self.pledge(self.client)
         self.assertIn(b"Generate Access Code", response.data)
         self.assertNotIn(b"I Agree & Unlock", response.data)
 
     def test_anonymous_pledge_has_no_operational_controls(self):
         self.client.get("/sace/provisioning")
-        response = self.client.post("/sace/provisioning/pledge", follow_redirects=True)
+        response = self.pledge(self.client)
         self.assertIn(b"Register My Account", response.data)
         self.assertNotIn(b"Generate Access Code", response.data)
         self.assertNotIn(b"View Audit Logs", response.data)
@@ -428,9 +570,10 @@ class AccessJourneys(unittest.TestCase):
         code, _ = self.code(self.client)
         auditor = self.app.test_client()
         auditor.get("/sace/provisioning")
-        auditor.post("/sace/provisioning/pledge")
+        self.pledge(auditor)
         auditor.post("/sace/join", data={"code": code})
         with auditor.session_transaction() as state:
+            self.assertNotIn(access.PROVISIONING_KEY, state)
             self.assertNotIn("sace_admin_provisioning", state)
             self.assertNotIn("sace_admin_pledged", state)
             self.assertEqual(state["pending_sace_code"], code)

@@ -31,7 +31,9 @@ def protect_endorsement():
     if not current_user.is_authenticated:
         return redirect(url_for('auth_bp.login', next=request.path))
     if endpoint == 'dashboard':
-        return redirect(url_for('sace_bp.reading_hub' if flow.assignments() else 'sace_bp.provisioning_map'))
+        if flow.assignments():
+            return redirect(url_for('sace_bp.reading_hub'))
+        abort(403, description="An Auditor assignment or existing controller grant is required.")
     if endpoint in R_ENDPOINTS:
         if not flow.is_controller():
             abort(403)

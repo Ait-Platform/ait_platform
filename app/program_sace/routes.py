@@ -428,19 +428,19 @@ def provisioning_map():
         pledge = SaceWorkshopInteraction.query.filter_by(
             user_id=current_user.id, activity_slug="admin_patent_pledge").first()
     controller = access.is_controller()
-    if not controller or pledge is None:
-        session['sace_admin_provisioning'] = True
-        if pledge is not None:
-            session['sace_admin_pledged'] = True
-        if current_user.is_authenticated and session.get('sace_admin_pledged'):
+    ctx = None
+    if not controller:
+        token = request.args.get('journey')
+        ctx = access.provisioning_context(token) if token else access.start_provisioning()
+        if not ctx:
+            abort(400, description="Provisioning journey expired or invalid. Start again.")
+        if ctx.get('accepted_at') and current_user.is_authenticated:
             access.complete_provisioning()
-            controller = access.is_controller()
-            pledge = SaceWorkshopInteraction.query.filter_by(
-                user_id=current_user.id, activity_slug="admin_patent_pledge").first()
+            return redirect(url_for('sace_bp.provisioning_map'))
     else:
-        session.pop('sace_admin_provisioning', None)
-        session.pop('sace_admin_pledged', None)
-    has_pledged = pledge is not None or session.get('sace_admin_pledged', False)
+        access.clear_provisioning()
+    has_pledged = (pledge is not None) if controller else bool(ctx and ctx.get('accepted_at'))
+    provisioning_next = url_for('sace_bp.provisioning_map', journey=ctx['nonce']) if ctx else request.path
     provisioning_complete = controller and pledge is not None
     invites = (SaceWorkshopInteraction.query.filter_by(
         user_id=current_user.id, activity_slug="auditor_provisioned"
@@ -461,22 +461,24 @@ def provisioning_map():
         except Exception:
             pass
             
-    return render_template("program_sace/provisioning_map.html", has_pledged=has_pledged, provisioning_complete=provisioning_complete, auditors=auditors)
+    return render_template("program_sace/provisioning_map.html", has_pledged=has_pledged, provisioning_complete=provisioning_complete, auditors=auditors, provisioning_next=provisioning_next, provisioning_token=ctx["nonce"] if ctx else "")
 
 @sace_bp.route("/sace/provisioning/pledge", methods=["POST"])
 def provisioning_pledge():
     from . import access
-    if not session.get('sace_admin_provisioning'):
-        if access.is_controller():
-            return redirect(url_for('sace_bp.provisioning_map'))
-        abort(400, description="Start at SACE Administrator provisioning first.")
-    # Flask's signed session carries this server-set pledge through authentication.
-    session['sace_admin_pledged'] = True
+    if access.is_controller():
+        return redirect(url_for('sace_bp.provisioning_map'))
+    ctx = access.provisioning_context(request.form.get('journey', ''))
+    if not ctx:
+        abort(400, description="Start a current SACE Administrator provisioning journey first.")
+    ctx = dict(ctx, accepted_at=access.time.time())
+    session[access.PROVISIONING_KEY] = ctx
     session.pop('pending_sace_code', None)
     session.pop('sace_evaluator_pledged', None)
     if current_user.is_authenticated:
         access.complete_provisioning()
-    return redirect(url_for('sace_bp.provisioning_map'))
+        return redirect(url_for('sace_bp.provisioning_map'))
+    return redirect(url_for('sace_bp.provisioning_map', journey=ctx['nonce']))
 
 @sace_bp.route("/sace/provisioning/generate_code", methods=["POST"])
 def generate_auditor_code():
@@ -777,8 +779,8 @@ def auditor_join():
         # A newly validated code needs its own pledge acceptance.
         session.pop('sace_evaluator_pledged', None)
         # If valid, put it in session and redirect to pledge
-        session.pop('sace_admin_provisioning', None)
-        session.pop('sace_admin_pledged', None)
+        from .access import clear_provisioning
+        clear_provisioning()
         session['pending_sace_code'] = code
         return redirect(url_for('sace_bp.auditor_pledge'))
         

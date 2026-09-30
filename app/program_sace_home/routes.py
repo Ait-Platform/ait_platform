@@ -1,0 +1,259 @@
+from flask import abort, flash, redirect, render_template, request, session, url_for, send_file
+from flask_login import current_user, login_required
+from app.extensions import db
+from app.models.sace_home import (HomeAssignment, HomeInvitation, HomePledge, HomeDocumentVersion, HomeEvidence, now)
+from . import home_sace_bp
+from . import service as s
+from . import continuation
+
+
+def page(template, title, **values):
+    return render_template("program_sace_home/" + template, title=title,
+        hide_navbar=True, **values)
+
+
+@home_sace_bp.after_request
+def private_response(response):
+    response.headers["Cache-Control"] = "private, no-store"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    return response
+
+
+@home_sace_bp.get("/")
+@login_required
+def entry():
+    if s.controller():
+        continuation.clear()
+        return redirect(url_for("home_sace_bp.control"))
+    rows = HomeAssignment.query.filter_by(auditor_id=current_user.id).filter(
+        HomeAssignment.status != "revoked").order_by(HomeAssignment.id.desc()).all()
+    if len(rows) == 1:
+        return redirect(url_for("home_sace_bp.board", assignment_id=rows[0].id))
+    return page("assignments.html", "HOME endorsement assignments", rows=rows)
+
+
+@home_sace_bp.route("/provisioning", methods=["GET", "POST"])
+def provision():
+    if request.args.get("token"):
+        session.pop("sace_home_pending_code", None)
+        session.pop("sace_home_pledge_auditor", None)
+        session["sace_home_provisioning_token"] = request.args["token"]
+        session.pop("sace_home_pledge_controller", None)
+        s.provisioning()  # Validate the entry before establishing current HOME intent.
+        continuation.begin("provisioning")
+        return redirect(url_for("home_sace_bp.provision"))
+    if s.controller():
+        continuation.clear()
+        return redirect(url_for("home_sace_bp.control"))
+    row = s.provisioning()
+    if request.method == "POST":
+        accept_pledge("controller", row.id)
+        if current_user.is_authenticated:
+            s.complete_provisioning()
+            continuation.clear()
+            return redirect(url_for("home_sace_bp.control"))
+        return redirect(url_for("home_sace_bp.authenticate"))
+    if current_user.is_authenticated and session.get("sace_home_pledge_controller"):
+        s.complete_provisioning()
+        continuation.clear()
+        return redirect(url_for("home_sace_bp.control"))
+    return page("pledge.html", "HOME Controller IP Pledge", terms=s.PLEDGE_TEXT,
+        email=row.email, signed=False, back=url_for("home_sace_bp.entry"))
+
+
+def accept_pledge(role, context_id):
+    signature = request.form.get("signature", "").strip()
+    if request.form.get("accept") != "yes" or not signature or len(signature) > 255:
+        abort(400, description="Enter your full name and accept the HOME pledge.")
+    session["sace_home_pledge_" + role] = dict(context_id=context_id,
+        version=s.PLEDGE_VERSION, signature=signature, accepted_at=now().isoformat())
+
+
+@home_sace_bp.get("/authenticate")
+def authenticate():
+    # Only display authentication continuation after a valid signed HOME entry.
+    if session.get("sace_home_pending_code"):
+        row = s.invitation()
+        s.consent("auditor", row.id)
+    else:
+        row = s.provisioning()
+        s.consent("controller", row.id)
+    if current_user.is_authenticated:
+        return redirect(url_for(s.auth_destination()))
+    return page("authenticate.html", "Continue HOME endorsement", subject=s.SUBJECT,
+        resume=url_for(s.auth_destination()), back=url_for("home_sace_bp.entry"))
+
+
+@home_sace_bp.get("/control")
+@login_required
+def control():
+    owner = s.require_controller()
+    invitations = HomeInvitation.query.filter_by(controller_id=owner.id).order_by(HomeInvitation.id.desc()).all()
+    assignments = (HomeAssignment.query.join(HomeInvitation)
+        .filter(HomeInvitation.controller_id == owner.id).order_by(HomeAssignment.id.desc()).all())
+    return page("control.html", "HOME Control Centre", invitations=invitations,
+        assignments=assignments, back=url_for("home_sace_bp.entry"))
+
+
+@home_sace_bp.post("/control/codes")
+@login_required
+def generate_code():
+    code = s.issue_invitation(s.require_controller())
+    db.session.commit()
+    return page("code.html", "HOME Auditor access code", code=code,
+        back=url_for("home_sace_bp.control"))
+
+
+@home_sace_bp.get("/control/documents")
+@login_required
+def provider_documents():
+    s.require_controller()
+    materials = [(kind, s.ITEMS[kind], s.latest_version(kind)) for kind in s.ITEMS if kind in s.DOCUMENT_ITEMS]
+    return page("provider_documents.html", "HOME provider evidence", materials=materials,
+        back=url_for("home_sace_bp.control"))
+
+
+@home_sace_bp.get("/control/assignments/<int:assignment_id>")
+@login_required
+def controller_evidence(assignment_id):
+    owner = s.require_controller()
+    row = (HomeAssignment.query.join(HomeInvitation)
+        .filter(HomeAssignment.id == assignment_id, HomeInvitation.controller_id == owner.id).first_or_404())
+    events = HomeEvidence.query.filter_by(assignment_id=row.id).order_by(HomeEvidence.id).all()
+    return page("audit.html", "HOME examination evidence", row=row, events=events,
+        back=url_for("home_sace_bp.control"))
+
+
+@home_sace_bp.route("/join", methods=["GET", "POST"])
+def join():
+    if request.method == "POST":
+        code = request.form.get("code", "").strip().upper()
+        s.invitation(code)
+        session.pop("sace_home_provisioning_token", None)
+        session.pop("sace_home_pledge_controller", None)
+        session["sace_home_pending_code"] = code
+        session.pop("sace_home_pledge_auditor", None)
+        continuation.begin("join")
+        return redirect(url_for("home_sace_bp.pledge"))
+    return page("join.html", "HOME Auditor join", back=url_for("home_sace_bp.entry"))
+
+
+@home_sace_bp.route("/pledge", methods=["GET", "POST"])
+def pledge():
+    row = s.invitation()
+    if request.method == "POST":
+        accept_pledge("auditor", row.id)
+        endpoint = "home_sace_bp.claim_assignment" if current_user.is_authenticated else "home_sace_bp.authenticate"
+        return redirect(url_for(endpoint))
+    return page("pledge.html", "HOME Evaluator IP Pledge", terms=s.PLEDGE_TEXT,
+        signed=False, back=url_for("home_sace_bp.join"))
+
+
+@home_sace_bp.get("/claim")
+@login_required
+def claim_assignment():
+    # The pledge POST establishes consent; this also resumes after platform authentication.
+    row = s.claim()
+    continuation.clear()
+    return redirect(url_for("home_sace_bp.board", assignment_id=row.id))
+
+
+@home_sace_bp.get("/ip-pledge")
+@login_required
+def signed_pledge():
+    rows = HomePledge.query.filter_by(user_id=current_user.id).order_by(HomePledge.id.desc()).all()
+    if not rows:
+        abort(403)
+    return page("pledge.html", "HOME Intellectual Property Pledge", terms=s.PLEDGE_TEXT,
+        signed=True, pledges=rows, back=url_for("home_sace_bp.entry"))
+
+
+@home_sace_bp.get("/assignments/<int:assignment_id>/board")
+@login_required
+def board(assignment_id):
+    row = s.assignment(assignment_id)
+    return page("board.html", "HOME Auditor Board", row=row, items=s.board_items(row),
+        back=url_for("home_sace_bp.entry"))
+
+
+@home_sace_bp.route("/assignments/<int:assignment_id>/summary", methods=["GET", "POST"])
+@login_required
+def summary(assignment_id):
+    row = s.assignment(assignment_id, lock=request.method == "POST", writable=request.method == "POST")
+    if request.method == "POST":
+        if not s.examined(row, "summary"):
+            s.record(row, "summary", "examined", {"version": "home-summary-v1"})
+        db.session.commit()
+        return redirect(url_for("home_sace_bp.board", assignment_id=row.id))
+    return page("summary.html", "HOME Activity Summary", row=row,
+        back=url_for("home_sace_bp.board", assignment_id=row.id))
+
+
+@home_sace_bp.get("/assignments/<int:assignment_id>/experience")
+@login_required
+def experience(assignment_id):
+    row = s.assignment(assignment_id)
+    return page("experience.html", "HOME practical / learning experience", row=row,
+        back=url_for("home_sace_bp.board", assignment_id=row.id))
+
+
+@home_sace_bp.route("/assignments/<int:assignment_id>/materials/<kind>", methods=["GET", "POST"])
+@login_required
+def material(assignment_id, kind):
+    row = s.assignment(assignment_id, lock=request.method == "POST", writable=request.method == "POST")
+    if kind not in s.DOCUMENT_ITEMS:
+        abort(404)
+    version = s.latest_version(kind)
+    if request.method == "POST":
+        if version is None or request.form.get("version_id") != str(version.id):
+            abort(409, description="Open the current HOME document version before confirming examination.")
+        s.document_path(version)
+        opened = HomeEvidence.query.filter_by(assignment_id=row.id, item=kind,
+            event="opened", document_version_id=version.id).first()
+        if opened is None:
+            abort(409, description="Open the document before confirming examination.")
+        if not s.examined(row, kind, version.id):
+            s.record(row, kind, "examined", version=version.id)
+        db.session.commit()
+        return redirect(url_for("home_sace_bp.board", assignment_id=row.id))
+    return page("material.html", s.ITEMS[kind], row=row, version=version, kind=kind,
+        back=url_for("home_sace_bp.board", assignment_id=row.id))
+
+
+@home_sace_bp.get("/documents/<int:version_id>/content")
+@login_required
+def document_content(version_id):
+    version = db.session.get(HomeDocumentVersion, version_id)
+    if version is None:
+        abort(404)
+    assignment_id = request.args.get("assignment_id", type=int)
+    if assignment_id is not None:
+        row = s.assignment(assignment_id, lock=True)
+        from app.models.sace_home import HomeDocument
+        doc = db.session.get(HomeDocument, version.document_id)
+        path = s.document_path(version)
+        if row.status == "active":
+            s.record(row, doc.kind, "opened", version=version.id)
+            db.session.commit()
+    else:
+        s.require_controller()
+        path = s.document_path(version)
+    return send_file(path, mimetype="application/pdf", as_attachment=False,
+        download_name="HOME-" + str(version.id) + ".pdf")
+
+
+@home_sace_bp.route("/assignments/<int:assignment_id>/completion", methods=["GET", "POST"])
+@login_required
+def completion(assignment_id):
+    row = s.assignment(assignment_id, lock=request.method == "POST", writable=request.method == "POST")
+    missing = s.missing(row)
+    if request.method == "POST":
+        if missing:
+            abort(409, description="HOME examination is incomplete; unavailable evidence cannot be marked examined.")
+        row.status, row.completed_at = "completed", now()
+        s.record(row, "completion", "completed", {"requirements": row.requirements_version})
+        db.session.commit()
+        return redirect(url_for("home_sace_bp.board", assignment_id=row.id))
+    return page("completion.html", "HOME examination completion", row=row, missing=missing,
+        back=url_for("home_sace_bp.board", assignment_id=row.id))

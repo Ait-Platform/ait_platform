@@ -1,0 +1,7 @@
+{% extends "program_sace_home/frame.html" %}
+{% block home_content %}
+<p class="mb-5">Enter the HOME Auditor access code supplied by the HOME controller.</p>
+<form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><label for="code">HOME access code</label>
+<input class="home-field" id="code" name="code" required autofocus autocomplete="off"><button class="home-button">Continue</button></form>
+<a class="inline-block mt-6 underline" href="{{ url_for('home_sace_bp.entry') }}">Return to an existing HOME assignment</a>
+{% endblock %}

@@ -1,0 +1,9 @@
+{% extends "program_sace_home/frame.html" %}
+{% block home_content %}
+<div class="flex flex-wrap gap-3 mb-6"><a class="home-button" href="{{ url_for('home_sace_bp.provider_documents') }}">HOME provider evidence</a>
+<a class="home-button" href="{{ url_for('home_sace_bp.signed_pledge') }}">Intellectual Property Pledge</a></div>
+<form method="post" action="{{ url_for('home_sace_bp.generate_code') }}" class="mb-7"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="home-button">Generate HOME Auditor access code</button></form>
+<h2 class="text-xl font-bold mb-3">HOME invitations</h2><ul class="space-y-2 mb-6">{% for item in invitations %}<li>Invitation {{ item.id }} &mdash; {{ item.status }} &mdash; expires {{ item.expires_at }}</li>{% else %}<li>No HOME invitations issued.</li>{% endfor %}</ul>
+<h2 class="text-xl font-bold mb-3">HOME examination assignments</h2>
+{% for row in assignments %}<p class="mb-3"><a class="underline" href="{{ url_for('home_sace_bp.controller_evidence', assignment_id=row.id) }}">Assignment {{ row.id }}</a> &mdash; {{ row.status }}</p>{% else %}<p>No HOME assignments claimed.</p>{% endfor %}
+{% endblock %}

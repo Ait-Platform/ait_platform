@@ -1,0 +1,11 @@
+{% extends "program_sace_home/frame.html" %}
+{% block home_content %}
+<div class="space-y-4 leading-relaxed mb-6">
+<p>HOME &mdash; Hands-On Math Education is examined through its existing ten chapter topics across three sections.</p>
+<ol class="list-decimal pl-6 space-y-3"><li><strong>Practical:</strong> examine the activities and participant instructions in chapters 1&ndash;10.</li>
+<li><strong>Application / MCQ:</strong> examine the questions and application tasks in chapters 11&ndash;20.</li>
+<li><strong>Theory:</strong> examine the explanations, Theory Review material and knowledge checks in chapters 21&ndash;30.</li></ol>
+<p>Review/retention and assessment/evaluation follow the existing HOME programme. The HOME Board separately exposes the programme materials, both manuals, assessment and monitoring evidence, and applicable certificate evidence.</p>
+<p>Auditor examination records evidence for HOME endorsement; it does not award a participant qualification.</p></div>
+{% if row.status == 'active' %}<form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="home-button">Understood</button></form>{% endif %}
+{% endblock %}

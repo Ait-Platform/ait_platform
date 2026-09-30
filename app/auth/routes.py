@@ -147,6 +147,13 @@ def start_registration():
 
 @auth_bp.route("/register", methods=["GET", "POST"])
 def register():
+    # HOME uses shared user identity, but its own pledge/authority/continuation.
+    home_subject = (request.values.get("subject") or "").strip().lower()
+    home_next = request.values.get("next", "")
+    if home_subject == "sace_home_endorsement" or home_next.startswith("/sace/home/"):
+        from app.program_sace_home.auth import registration
+        return registration()
+
     # Helper to infer subject from next_url if it defaulted to loss
     def _infer_subject_from_next(subj: str, n_url: str) -> str:
         if subj and subj != "loss":
@@ -1174,6 +1181,17 @@ def login():
         m = regex.search(r'subject=([^&]+)', next_url)
         subj = m.group(1) if m else "cultural_fire"
         next_url = url_for("auth_bp.register_decision", subject=subj)
+
+    # Explicit HOME continuation precedes the legacy /sace redirect. All existing
+    # LITRE branches below are unchanged; HOME does not consume their session keys.
+    if next_url and _is_safe_url(next_url) and urlparse(next_url).path.startswith("/sace/home/"):
+        from app.program_sace_home.continuation import clear
+        clear()
+        return redirect(next_url)
+    from app.program_sace_home.continuation import consume
+    home_destination = consume()
+    if not next_url and home_destination:
+        return redirect(url_for(home_destination))
 
     # SACE authority and pending journeys are independent of platform roles.
     from app.program_sace.access import authentication_destination

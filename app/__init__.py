@@ -673,6 +673,8 @@ def create_app(test_config=None):
     
     from app.program_sace import sace_bp
     app.register_blueprint(sace_bp)
+    from app.program_sace_home import home_sace_bp
+    app.register_blueprint(home_sace_bp)
 
     #csrf.exempt(checkout_bp)  # keeps webhook/start happy
     # Exempt the Paystack webhook route

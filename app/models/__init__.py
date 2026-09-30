@@ -57,3 +57,7 @@ from .retire import (RetirementOrganisation, RetirementRole, RetirementMembershi
                      RetirementWaitingUser, RetirementAssociationReview,
                      RetirementRelationship, RetirementStaffRoleAssignment, RetirementAuthorityEvent)
 __all__.extend(["RetirementOrganisation", "RetirementRole", "RetirementMembership"])
+
+# Independent HOME endorsement metadata (no startup writes).
+from .sace_home import (HomeController, HomeProvisioning, HomeInvitation, HomePledge,
+                        HomeAssignment, HomeDocument, HomeDocumentVersion, HomeEvidence)

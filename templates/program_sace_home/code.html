@@ -1,0 +1,6 @@
+{% extends "program_sace_home/frame.html" %}
+{% block home_content %}
+<p class="mb-4">Give this code to the HOME Auditor. It can be claimed once and expires after 14 days. Save it now; only its hash is stored.</p>
+<p class="text-xl font-mono p-5 bg-blue-50 rounded break-all">{{ code }}</p>
+<p class="mt-4">Join at <strong>{{ url_for('home_sace_bp.join', _external=True) }}</strong>.</p>
+{% endblock %}

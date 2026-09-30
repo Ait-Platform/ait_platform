@@ -1,0 +1,6 @@
+{% extends "program_sace_home/frame.html" %}
+{% block home_content %}
+{% if row.status == 'completed' %}<p>HOME examination completed on {{ row.completed_at }}.</p>
+{% elif missing %}<p class="mb-4">The following HOME evidence remains outstanding:</p><ul class="list-disc pl-6">{% for label in missing %}<li>{{ label }}</li>{% endfor %}</ul>
+{% else %}<form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="home-button">Complete HOME examination</button></form>{% endif %}
+{% endblock %}

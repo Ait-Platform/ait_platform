@@ -1,0 +1,7 @@
+{% extends "program_sace_home/frame.html" %}
+{% block home_content %}
+<p class="mb-5">HOME evidence versions are published separately from all other programmes.</p>
+<ul class="divide-y">{% for kind, label, version in materials %}<li class="py-4"><strong>{{ label }}</strong><br>
+{% if version %}<a class="underline" href="{{ url_for('home_sace_bp.document_content', version_id=version.id) }}">Open version {{ version.version }}</a>
+{% else %}<span class="text-slate-600">Awaiting an approved HOME document version.</span>{% endif %}</li>{% endfor %}</ul>
+{% endblock %}

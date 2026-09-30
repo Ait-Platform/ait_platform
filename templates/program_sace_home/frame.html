@@ -1,0 +1,18 @@
+{% extends "layout.html" %}
+{% block title %}{{ title }} | HOME endorsement{% endblock %}
+{% block flashes %}{% endblock %}
+{% block content %}
+<div class="max-w-5xl mx-auto bg-white rounded-xl shadow mt-6 overflow-hidden">
+  <div class="h-2 bg-blue-600"></div>
+  <div class="p-6 md:p-8">
+    <div class="flex items-center justify-between gap-4 mb-5">
+      <div><h1 class="text-3xl font-bold text-blue-900">{{ title }}</h1><p class="text-slate-600 mt-1">HOME &mdash; Hands-On Math Education</p></div>
+      {% if back %}<a class="home-button" href="{{ back }}">Back</a>{% endif %}
+    </div>
+    <div class="flex justify-end gap-3 mb-6">{% block actions %}{% endblock %}</div>
+    {% for category, message in get_flashed_messages(with_categories=true) %}<p class="p-3 mb-4 bg-blue-50 rounded">{{ message }}</p>{% endfor %}
+    {% block home_content %}{% endblock %}
+  </div>
+</div>
+<style>.home-button{display:inline-block;padding:.65rem 1rem;border:1px solid #bfdbfe;border-radius:.5rem;background:#eff6ff;color:#1e40af;font-weight:600}.home-button:hover{background:#dbeafe}.home-button:disabled{opacity:.5;cursor:not-allowed} .home-field{display:block;border:1px solid #94a3b8;border-radius:.4rem;padding:.6rem;width:100%;margin:.4rem 0 1rem}</style>
+{% endblock %}

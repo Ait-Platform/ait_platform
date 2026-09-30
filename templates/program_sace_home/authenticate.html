@@ -1,0 +1,6 @@
+{% extends "program_sace_home/frame.html" %}
+{% block home_content %}
+<p class="mb-6">Your HOME pledge has been accepted. Register or sign in to continue this HOME endorsement journey.</p>
+<a class="home-button" href="{{ url_for('auth_bp.register', subject=subject, next=resume) }}">Register</a>
+<a class="home-button" href="{{ url_for('auth_bp.login', next=resume) }}">Sign in</a>
+{% endblock %}

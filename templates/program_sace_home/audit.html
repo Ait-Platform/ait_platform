@@ -1,0 +1,5 @@
+{% extends "program_sace_home/frame.html" %}
+{% block home_content %}
+<p class="mb-4">Assignment {{ row.id }} &mdash; {{ row.status }}</p>
+<ul class="divide-y">{% for event in events %}<li class="py-3">{{ event.created_at }} &mdash; {{ event.item }} / {{ event.event }}{% if event.document_version_id %} &mdash; document version {{ event.document_version_id }}{% endif %}</li>{% else %}<li>No examination events recorded.</li>{% endfor %}</ul>
+{% endblock %}

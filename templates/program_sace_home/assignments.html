@@ -1,0 +1,6 @@
+{% extends "program_sace_home/frame.html" %}
+{% block home_content %}
+{% for row in rows %}<p class="mb-4"><a class="home-button" href="{{ url_for('home_sace_bp.board', assignment_id=row.id) }}">HOME assignment {{ row.id }}</a> {{ row.status }}</p>
+{% else %}<p>No HOME endorsement assignment is linked to this account.</p>{% endfor %}
+<a class="home-button mt-5" href="{{ url_for('home_sace_bp.join') }}">Enter a HOME access code</a>
+{% endblock %}

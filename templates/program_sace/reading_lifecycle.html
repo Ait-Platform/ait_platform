@@ -22,12 +22,15 @@
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 <label>Email <input name="email" type="email" required autofocus class="border border-slate-300 rounded p-2"></label>
 <button class="border border-indigo-300 rounded px-4 py-2">Create invitation</button></form>
-<h2 class="text-xl font-semibold">End the whole endorsement process</h2>
-<p>This ends all controller and Auditor access for this engagement. Historical evidence remains preserved.</p>
-<form method="post" action="{{ url_for('sace_bp.reading_end_engagement') }}" class="space-y-2">
+{% if engagement.status == 'completion_pending' %}
+<h2 class="text-xl font-semibold">Completion pending</h2>
+<p>Completion requested at {{ engagement.completion_requested_at }}. Operational access ends at {{ engagement.completion_deadline }} (UTC).</p>
+<p>R and active Auditors retain access until that deadline. You may cancel before then.</p>
+<form method="post" action="{{ url_for('sace_bp.reading_cancel_completion') }}">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-<label>Outcome <select name="status" class="border rounded p-2"><option value="completed">Completed</option><option value="revoked">Revoked</option></select></label>
-<label>Reason <input name="reason" required class="border border-slate-300 rounded p-2"></label>
-<button class="border border-red-300 rounded px-4 py-2">End engagement and access</button></form>
+<button class="border border-indigo-300 rounded px-4 py-2">Cancel Completion</button></form>
+{% else %}
+<a href="{{ url_for('sace_bp.reading_complete_engagement') }}" class="inline-block border border-indigo-300 rounded px-4 py-2">Complete Activity Endorsement</a>
+{% endif %}
 </div></div></div>
 {% endblock %}

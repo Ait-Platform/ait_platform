@@ -13,7 +13,8 @@ from . import endorsement as flow
 
 R_ENDPOINTS = {"provisioning_map", "generate_auditor_code", "print_access_slip", "provider_documents",
                "document_action", "provisioning_logs", "audit_report", "controller_feed", "audit_export",
-               "reading_lifecycle", "reading_handover", "reading_end_appointment", "reading_end_engagement"}
+               "reading_lifecycle", "reading_handover", "reading_end_appointment", "reading_end_engagement",
+               "reading_complete_engagement", "reading_cancel_completion"}
 PUBLIC = {"auditor_join", "auditor_pledge", "claim_code", "provisioning_pledge", "sace_about"}
 OBSOLETE = {"interactive_workshop", "participant_join", "participant_onboarding", "facilitator_dashboard",
             "reading_workshop_docs", "reviewer_guide", "annexure_a", "annexure_b", "annexure_c",
@@ -650,3 +651,26 @@ def reading_end_engagement():
     lifecycle.end_engagement(request.form.get('status'), request.form.get('reason'))
     db.session.commit()
     return redirect(url_for('auth_bp.bridge_dashboard'))
+
+
+@sace_bp.route('/sace/provisioning/engagement/complete', methods=['GET', 'POST'])
+def reading_complete_engagement():
+    from . import lifecycle
+    appointment = lifecycle.require_controller()
+    if request.method == 'POST':
+        if request.form.get('confirm') == 'no':
+            return redirect(url_for('sace_bp.reading_lifecycle'))
+        if request.form.get('confirm') != 'yes':
+            abort(400, description='Choose Yes or No.')
+        lifecycle.request_completion()
+        db.session.commit()
+        return redirect(url_for('sace_bp.reading_lifecycle'))
+    return render_template('program_sace/reading_completion_confirm.html')
+
+
+@sace_bp.post('/sace/provisioning/engagement/cancel-completion')
+def reading_cancel_completion():
+    from . import lifecycle
+    lifecycle.cancel_completion()
+    db.session.commit()
+    return redirect(url_for('sace_bp.reading_lifecycle'))

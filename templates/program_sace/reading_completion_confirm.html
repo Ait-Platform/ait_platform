@@ -1,0 +1,15 @@
+{% extends 'layout.html' %}
+{% block flashes %}{% endblock %}
+{% block content %}
+<div class="max-w-5xl mx-auto py-8"><div class="bg-white border rounded-xl shadow overflow-hidden">
+<div class="h-2 bg-indigo-700"></div><div class="p-6 space-y-6">
+<div class="flex justify-between gap-4"><h1 class="text-2xl font-bold">Complete Activity Endorsement</h1><a href="{{ url_for('sace_bp.reading_lifecycle') }}" class="border rounded px-4 py-2">Back</a></div>
+{% include 'partials/flash_messages.html' %}
+<p>Are you sure the endorsement process for this activity is complete?</p>
+<p>Yes starts a 48-hour cancellation period. R and active Auditors retain access during that period. After the deadline access ends and completion cannot be cancelled.</p>
+<form method="post" class="flex justify-end gap-3">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<button name="confirm" value="no" class="border border-slate-300 rounded px-4 py-2">No</button>
+<button name="confirm" value="yes" class="border border-indigo-300 rounded px-4 py-2">Yes</button>
+</form></div></div></div>
+{% endblock %}

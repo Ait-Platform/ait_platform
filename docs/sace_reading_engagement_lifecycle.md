@@ -59,7 +59,14 @@ never run a generic upgrade of unrelated heads or start this code against a sche
 without these tables. Unlinked legacy grants/assignments fail closed after activation.
 Rollback to grant-only authorization would weaken the security boundary.
 
-## Reviewed cutover service
+## Historical test-only cutover service
+
+**CANCELLED for production:** users 622/623/630 and their listed records are test
+identities. Do not run this utility to establish a real endorsement. The isolated
+service/tests remain for historical regression coverage only. New R/A journeys
+create their own lifecycle records automatically.
+
+### Historical implementation details
 
 `lifecycle.reviewed_cutover(manifest, reviewed_by_user_id)` has NO HTTP endpoint,
 startup invocation or automatic migration call. It does not commit. An explicitly
@@ -114,3 +121,49 @@ Two obsolete Demo tests in the access runner still expect the retired intro/old
 sequence and are intentionally unchanged. HOME source/tests are unchanged; the
 Reading isolation wrapper supplies lifecycle-valid Reading R fixtures for two
 older tests that assumed a bare subject-admin grant was sufficient.
+
+
+## Reading Phase 1: 48-hour R-controlled completion
+
+Revision `reading_sace_002` follows `reading_sace_001`. It widens only the Reading
+engagement status column and adds requesting user, request timestamp and deadline,
+plus consistency checks and a user FK. Existing statuses/data are unchanged; no
+cutover or test-user adoption runs. HOME schema, authority and entry are unchanged.
+
+Only an operational R can open `/sace/provisioning/engagement/complete` and confirm
+Yes. No performs no mutation. Yes records `reading_completion_requested` and
+sets `completion_pending` with exactly 48 hours between request and deadline.
+The operational grant remains. R and active Auditors retain access strictly before
+the deadline. The Control Centre and lifecycle page display pending completion;
+R can POST cancellation, which appends `reading_completion_cancelled` and clears
+only current pending fields. All previous events remain. Repeated requests are
+rejected rather than extending the deadline. The old immediate-completion endpoint
+rejects completed requests; explicit revocation remains separate.
+
+At the deadline authorization denies R/A even while status remains pending and
+the grant still awaits retirement. `finalize_due_completions()` serializes with
+requests/cancellations using the existing subject lock. It persists final closure,
+retires exact appointment grants, closes affected invitations and appends existing
+closure audit events. It does not commit internally. Concurrent/exact-repeat
+finalizers are safe. Completion timestamp records housekeeping time; the saved
+completion deadline records when operational access ended. No scheduler is needed
+to enforce the deadline, but housekeeping must be scheduled to persist closure.
+
+Operator command, not executed in production during development:
+
+```
+python -B scripts/finalize_reading_completions.py --expected-database <verified-db> --expected-role <verified-role> --execute
+```
+
+Use the authoritative environment connection. This command creates a minimal Flask
+context without the application factory or startup maintenance and does not call
+any cutover. Schedule it regularly in a separately reviewed deployment step. A
+failed transaction rolls back; do not restore operational grants manually. Migrate
+this named Reading revision before activating code that reads the new columns.
+No production migration, job installation or deployment is part of this change.
+Downgrade refuses to discard stored request/deadline history; use forward recovery.
+
+Auditor completion does not close an engagement. Completed endorsements have no
+reactivation control. Later re-endorsement uses a fresh secured Reading provisioning
+journey and creates a new engagement. Historical grants without an appointment
+never become an automatic authority fallback. HOME Phase 2 is not implemented here.

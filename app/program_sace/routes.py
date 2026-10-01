@@ -464,7 +464,10 @@ def provisioning_map():
         except Exception:
             pass
             
-    return render_template("program_sace/provisioning_map.html", has_pledged=has_pledged, provisioning_complete=provisioning_complete, auditors=auditors, provisioning_next=provisioning_next, provisioning_token=ctx["nonce"] if ctx else "")
+    from .lifecycle import controller as lifecycle_controller, Engagement
+    appointment = lifecycle_controller() if controller else None
+    engagement = db.session.get(Engagement, appointment.engagement_id) if appointment else None
+    return render_template("program_sace/provisioning_map.html", engagement=engagement, has_pledged=has_pledged, provisioning_complete=provisioning_complete, auditors=auditors, provisioning_next=provisioning_next, provisioning_token=ctx["nonce"] if ctx else "")
 
 @sace_bp.route("/sace/provisioning/pledge", methods=["POST"])
 def provisioning_pledge():

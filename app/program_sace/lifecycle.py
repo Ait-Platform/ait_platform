@@ -34,6 +34,12 @@ def subject_lock():
     return row
 
 
+def operational_engagement():
+    # Deadline enforcement is independent of housekeeping persistence.
+    return db.or_(Engagement.status == 'active', db.and_(
+        Engagement.status == 'completion_pending', Engagement.completion_deadline > utcnow()))
+
+
 def controller(user=None, lock=False):
     user = user or current_user
     if not user.is_authenticated:
@@ -44,7 +50,7 @@ def controller(user=None, lock=False):
         .join(AuthSubjectAdmin, AuthSubjectAdmin.id == Appointment.operational_grant_id)
         .join(AuthSubject, AuthSubject.id == AuthSubjectAdmin.subject_id)
         .filter(Appointment.user_id == user.id, Appointment.status == 'active',
-            Engagement.status == 'active', AuthSubject.slug == SUBJECT, AuthSubject.is_active == 1,
+            operational_engagement(), AuthSubject.slug == SUBJECT, AuthSubject.is_active == 1,
             Appointment.grant_subject_id == AuthSubject.id,
             Appointment.grant_id_at_issue == AuthSubjectAdmin.id,
             db.func.lower(AuthSubjectAdmin.email) == user.email.strip().lower())
@@ -73,7 +79,7 @@ def engagement_for_assignment(row, lock=False):
     if lock:
         subject_lock()
     return (Engagement.query.join(AssignmentContext, AssignmentContext.engagement_id == Engagement.id)
-        .filter(AssignmentContext.invitation_event_id == row.id, Engagement.status == 'active')
+        .filter(AssignmentContext.invitation_event_id == row.id, operational_engagement())
         .populate_existing().first())
 
 
@@ -114,7 +120,7 @@ def handover_invitation(token=None, event_id=None):
     engagement = db.session.get(Engagement, data.get('engagement_id'))
     issuer_user = db.session.get(User, issuer.user_id) if issuer else None
     if (data.get('status') != 'pending' or datetime.fromisoformat(data['expires_at']) <= utcnow()
-            or not issuer or not engagement or engagement.status != 'active'
+            or not issuer or not engagement or not Engagement.query.filter(Engagement.id == engagement.id, operational_engagement()).first()
             or not issuer_user or not controller(issuer_user) or issuer.status != 'active'):
         abort(409, description='Handover invitation is no longer active.')
     return row
@@ -191,38 +197,91 @@ def end_appointment(appointment_id, status, reason, actor=None):
         abort(400, description='Choose completion or revocation and provide a reason.')
     if row.status != 'active':
         abort(409, description='Appointment has already ended.')
+    return _retire_appointment(row, status, reason, current_user.id)
+
+
+def _retire_appointment(row, status, reason, actor_id):
     row.status = status
     setattr(row, 'completed_at' if status == 'completed' else 'revoked_at', utcnow())
-    row.ended_by_user_id = current_user.id
+    row.ended_by_user_id = actor_id
     row.end_reason = reason.strip()
     grant = db.session.get(AuthSubjectAdmin, row.operational_grant_id) if row.operational_grant_id else None
     if grant and (grant.id != row.grant_id_at_issue or grant.subject_id != row.grant_subject_id):
         abort(409, description='Operational grant mismatch requires review.')
     row.operational_grant_id = None
-    event(current_user.id, 'controller_appointment_ended', dict(appointment_id=row.id,
+    event(actor_id, 'controller_appointment_ended', dict(appointment_id=row.id,
         status=status, reason=row.end_reason, retired_grant_id=grant.id if grant else None), row.engagement_id)
     if grant:
         db.session.delete(grant)
-    revoke_invitations(row.engagement_id, current_user.id, reason, issuer_id=row.id)
+    revoke_invitations(row.engagement_id, actor_id, reason, issuer_id=row.id)
     db.session.flush()
     return row
 
 
-def end_engagement(status, reason):
-    actor = require_controller()
-    if status not in ('completed', 'revoked') or not (reason or '').strip():
-        abort(400, description='Choose completion or revocation and provide a reason.')
-    engagement = db.session.get(Engagement, actor.engagement_id, populate_existing=True)
+def _close_engagement(engagement, status, reason, actor_id):
     for row in Appointment.query.filter_by(engagement_id=engagement.id, status='active').order_by(Appointment.id).all():
-        end_appointment(row.id, status, reason, actor=actor)
-    revoke_invitations(engagement.id, current_user.id, reason)
+        _retire_appointment(row, status, reason, actor_id)
+    revoke_invitations(engagement.id, actor_id, reason)
     engagement.status = status
     setattr(engagement, 'completed_at' if status == 'completed' else 'revoked_at', utcnow())
-    engagement.ended_by_user_id = current_user.id
+    engagement.ended_by_user_id = actor_id
     engagement.end_reason = reason.strip()
-    event(current_user.id, 'reading_engagement_ended', dict(status=status, reason=reason), engagement.id)
+    event(actor_id, 'reading_engagement_ended', dict(status=status, reason=reason), engagement.id)
     db.session.flush()
     return engagement
+
+
+def end_engagement(status, reason):
+    actor = require_controller()
+    if status != 'revoked' or not (reason or '').strip():
+        abort(400, description='Completion requires confirmation and the 48-hour safeguard.')
+    engagement = db.session.get(Engagement, actor.engagement_id, populate_existing=True)
+    return _close_engagement(engagement, status, reason, current_user.id)
+
+
+def request_completion():
+    actor = require_controller()  # Same subject lock as cancellation/finalization.
+    engagement = db.session.get(Engagement, actor.engagement_id, populate_existing=True)
+    if engagement.status != 'active':
+        abort(409, description='Completion is already pending or the engagement has ended.')
+    requested = utcnow()
+    engagement.status = 'completion_pending'
+    engagement.completion_requested_by_user_id = current_user.id
+    engagement.completion_requested_at = requested
+    engagement.completion_deadline = requested + timedelta(hours=48)
+    event(current_user.id, 'reading_completion_requested', dict(
+        requested_at=requested.isoformat(), deadline=engagement.completion_deadline.isoformat()),
+        engagement.id, timestamp=requested.replace(tzinfo=None))
+    db.session.flush()
+    return engagement
+
+
+def cancel_completion():
+    actor = require_controller()
+    engagement = db.session.get(Engagement, actor.engagement_id, populate_existing=True)
+    if engagement.status != 'completion_pending' or utcnow() >= engagement.completion_deadline:
+        abort(409, description='There is no cancellable pending completion.')
+    event(current_user.id, 'reading_completion_cancelled', dict(
+        requested_by_user_id=engagement.completion_requested_by_user_id,
+        requested_at=engagement.completion_requested_at.isoformat(),
+        deadline=engagement.completion_deadline.isoformat()), engagement.id)
+    engagement.status = 'active'
+    engagement.completion_requested_by_user_id = None
+    engagement.completion_requested_at = None
+    engagement.completion_deadline = None
+    db.session.flush()
+    return engagement
+
+
+def finalize_due_completions():
+    """Operator housekeeping; caller commits. No login/HTTP authority bypass."""
+    subject_lock()
+    rows = Engagement.query.filter(Engagement.status == 'completion_pending',
+        Engagement.completion_deadline <= utcnow()).order_by(Engagement.id).populate_existing().all()
+    for engagement in rows:
+        _close_engagement(engagement, 'completed', '48-hour completion period elapsed',
+            engagement.completion_requested_by_user_id)
+    return [row.id for row in rows]
 
 
 def reviewed_cutover(manifest, reviewed_by_user_id):

@@ -5,7 +5,7 @@ from pathlib import Path
 import unittest
 from unittest.mock import patch
 from urllib.parse import urlsplit, parse_qs
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 ROOT = Path(__file__).resolve().parents[2]
 spec = importlib.util.spec_from_file_location('reading_lifecycle_support', ROOT / 'tests/support/sace_access_postgres_runner.py')
@@ -34,7 +34,8 @@ class ReadingLifecycle(h.AccessJourneys):
         self.assertEqual(client.get(result.location, follow_redirects=True).status_code, 200)
         return client, invitation
 
-    def finish(self, path, status='completed'):
+    def finish(self, path, status=None):
+        status = status or ('revoked' if path.endswith('/engagement/end') else 'completed')
         return self.client.post(path, data={'status':status, 'reason':'Reviewed local test completion'})
 
     def test_lifecycle_grant_alone_and_global_metadata_denied(self):
@@ -141,6 +142,7 @@ class ReadingLifecycle(h.AccessJourneys):
         with self.app.app_context():
             data=lc.payload(db.session.get(h.Interaction,inv))
             self.assertEqual(data['status'],'Completed');self.assertIn('completed_at',data)
+            self.assertEqual(lc.Engagement.query.one().status,'active')
             self.assertEqual(h.auth_models.AuthSubjectAdmin.query.count(),1)
 
     def test_lifecycle_close_rollback_is_atomic(self):
@@ -150,6 +152,67 @@ class ReadingLifecycle(h.AccessJourneys):
         self.assertEqual(auditor.get('/sace/reading').status_code,200)
         self.assertEqual(self.client.post('/sace/provisioning/generate_code').status_code,302)
         with self.app.app_context():self.assertEqual(db.session.get(lc.Engagement,eid).status,'active')
+
+    def test_lifecycle_completion_confirmation_cancel_and_deadline(self):
+        aid,eid,uid=self.active_r();auditor,inv=self.auditor()
+        path='/sace/provisioning/engagement/complete'
+        cancel='/sace/provisioning/engagement/cancel-completion'
+        self.assertIn(b'Are you sure the endorsement process for this activity is complete?',self.client.get(path).data)
+        self.assertEqual(self.client.post(path,data={'confirm':'no'}).status_code,302)
+        with self.app.app_context():
+            self.assertEqual(db.session.get(lc.Engagement,eid).status,'active')
+            self.assertEqual(h.Interaction.query.filter_by(activity_slug='reading_completion_requested').count(),0)
+        self.assertEqual(auditor.post(path,data={'confirm':'yes'}).status_code,403)
+        self.assertEqual(self.client.post('/sace/provisioning/engagement/end',data={'status':'completed','reason':'bypass'}).status_code,400)
+        requested=datetime(2030,1,1,tzinfo=timezone.utc)
+        with patch.object(lc,'utcnow',return_value=requested):
+            self.assertEqual(self.client.post(path,data={'confirm':'yes'}).status_code,302)
+            self.assertEqual(self.client.post(path,data={'confirm':'yes'}).status_code,409)
+            self.assertEqual(self.client.get('/sace/provisioning').status_code,200)
+            self.assertEqual(auditor.get('/sace/reading').status_code,200)
+            self.assertEqual(auditor.post(cancel).status_code,403)
+            with self.app.app_context():
+                e=db.session.get(lc.Engagement,eid)
+                self.assertEqual(e.status,'completion_pending')
+                self.assertEqual(e.completion_requested_by_user_id,uid)
+                self.assertEqual(e.completion_requested_at,requested)
+                self.assertEqual(e.completion_deadline,requested+timedelta(hours=48))
+                grant_id=db.session.get(lc.Appointment,aid).operational_grant_id
+                self.assertIsNotNone(db.session.get(h.auth_models.AuthSubjectAdmin,grant_id))
+                request_event=h.Interaction.query.filter_by(activity_slug='reading_completion_requested').one()
+                snapshot=(request_event.id,request_event.response_data,request_event.timestamp)
+            self.assertEqual(self.client.post(cancel).status_code,302)
+            with self.app.app_context():
+                e=db.session.get(lc.Engagement,eid);self.assertEqual(e.status,'active');self.assertIsNone(e.completion_deadline)
+                event=db.session.get(h.Interaction,snapshot[0]);self.assertEqual((event.id,event.response_data,event.timestamp),snapshot)
+                self.assertEqual(h.Interaction.query.filter_by(activity_slug='reading_completion_cancelled').count(),1)
+            self.assertEqual(self.client.post(path,data={'confirm':'yes'}).status_code,302)
+        with patch.object(lc,'utcnow',return_value=requested+timedelta(hours=48)-timedelta(microseconds=1)):
+            self.assertEqual(self.client.get('/sace/provisioning/feed').status_code,200)
+            self.assertEqual(auditor.get('/sace/reading').status_code,200)
+        with patch.object(lc,'utcnow',return_value=requested+timedelta(hours=48)):
+            self.assertEqual(self.client.get('/sace/provisioning/feed').status_code,403)
+            self.assertEqual(auditor.get('/sace/reading').status_code,403)
+            self.assertEqual(self.client.post(cancel).status_code,403)
+            with self.app.app_context():
+                self.assertEqual(db.session.get(lc.Engagement,eid).status,'completion_pending')
+                self.assertIsNotNone(db.session.get(h.auth_models.AuthSubjectAdmin,grant_id))
+                before={r.id:(r.response_data,r.timestamp) for r in h.Interaction.query.all() if r.id != inv}
+                self.assertEqual(lc.finalize_due_completions(),[eid]);db.session.rollback()
+                self.assertIsNotNone(db.session.get(h.auth_models.AuthSubjectAdmin,grant_id))
+                self.assertEqual(lc.finalize_due_completions(),[eid]);db.session.commit()
+                count=h.Interaction.query.count()
+                self.assertEqual(lc.finalize_due_completions(),[]);db.session.commit()
+                self.assertEqual(h.Interaction.query.count(),count)
+                self.assertIsNone(db.session.get(h.auth_models.AuthSubjectAdmin,grant_id))
+                self.assertEqual(db.session.get(lc.Engagement,eid).status,'completed')
+                for key,value in before.items():
+                    event=db.session.get(h.Interaction,key);self.assertEqual((event.response_data,event.timestamp),value)
+                self.assertIsNotNone(db.session.get(h.Interaction,inv))
+        self.client.get('/sace/provisioning');self.pledge(self.client)
+        with self.app.app_context():
+            self.assertEqual(lc.Engagement.query.count(),2)
+            self.assertNotEqual(lc.Appointment.query.filter_by(status='active').one().engagement_id,eid)
 
     def seed_cutover(self):
         with self.app.app_context():
@@ -255,22 +318,31 @@ class ReadingLifecycle(h.AccessJourneys):
                     revision.op=Operations(MigrationContext.configure(conn))
                     revision.upgrade()
                     self.assertTrue(set(revision.TABLE_NAMES).issubset(inspect(conn).get_table_names(schema=schema)))
+                    spec2=importlib.util.spec_from_file_location('reading_completion_revision', ROOT/'migrations/versions/reading_sace_002_completion.py')
+                    revision2=importlib.util.module_from_spec(spec2);spec2.loader.exec_module(revision2)
+                    revision2.op=Operations(MigrationContext.configure(conn))
+                    conn.execute(text('SET LOCAL search_path TO pg_temp'))
+                    revision2.upgrade()
                     for model in (lc.Engagement,lc.Appointment,lc.AssignmentContext):
                         table=revision.Base.metadata.tables[model.__tablename__]
-                        self.assertEqual(set(table.columns.keys()),set(model.__table__.columns.keys()))
+                        self.assertEqual({c['name'] for c in inspect(conn).get_columns(model.__tablename__,schema=schema)},set(model.__table__.columns.keys()))
                         self.assertEqual({i.name for i in table.indexes},{i.name for i in model.__table__.indexes})
+                    revision2.downgrade()
                     revision.downgrade()
                     self.assertEqual(set(inspect(conn).get_table_names(schema=schema)),{'user','auth_subject','auth_subject_admin','sace_workshop_interactions'})
                     self.assertEqual(before,set(conn.execute(text("SELECT tablename FROM pg_tables WHERE schemaname='public'")).scalars()))
                 finally:tx.rollback()
         finally:engine.dispose()
 
-    def test_lifecycle_concurrent_close_blocks_late_controller_operation(self):
+    def test_lifecycle_concurrent_close_blocks_late_controller_operation(self, finalizers=False):
         import threading,uuid,time
         from flask import Flask
         from sqlalchemy import create_engine
         from werkzeug.exceptions import HTTPException
         aid,eid,uid=self.active_r()
+        if finalizers:
+            with patch.object(lc,'utcnow',return_value=datetime(2020,1,1,tzinfo=timezone.utc)):
+                self.assertEqual(self.client.post('/sace/provisioning/engagement/complete',data={'confirm':'yes'}).status_code,302)
         schema='rlc_'+uuid.uuid4().hex[:12]+'_'
         assert len(schema) == 17
         with self.app.app_context():
@@ -304,13 +376,21 @@ class ReadingLifecycle(h.AccessJourneys):
                 with app.test_request_context('/'):
                     login_user(db.session.get(h.auth_models.User,uid));lc.subject_lock();locked.set()
                     if not release.wait(5):raise RuntimeError('test release timeout')
-                    lc.end_engagement('completed','Concurrent closure');db.session.commit()
+                    if finalizers:
+                        outcomes.append(lc.finalize_due_completions())
+                    else:
+                        lc.end_engagement('revoked','Concurrent closure')
+                    db.session.commit()
             except Exception as exc:errors.append(exc);locked.set()
         def late():
             try:
                 with app.test_request_context('/'):
                     login_user(db.session.get(h.auth_models.User,uid));attempted.set()
-                    try:lc.require_controller();outcomes.append('unexpected authority')
+                    try:
+                        if finalizers:
+                            outcomes.append(lc.finalize_due_completions());db.session.commit()
+                        else:
+                            lc.require_controller();outcomes.append('unexpected authority')
                     except HTTPException as exc:outcomes.append(exc.code)
                     finally:db.session.rollback()
             except Exception as exc:errors.append(exc)
@@ -321,7 +401,7 @@ class ReadingLifecycle(h.AccessJourneys):
             self.assertFalse(finished.wait(0.2),'Second transaction should wait for the lifecycle lock')
             release.set()
             for thread in threads:thread.join(7)
-            self.assertFalse(any(t.is_alive() for t in threads));self.assertEqual(errors,[]);self.assertEqual(outcomes,[403])
+            self.assertFalse(any(t.is_alive() for t in threads));self.assertEqual(errors,[]);self.assertEqual(outcomes,[[eid],[]] if finalizers else [403])
         finally:
             release.set()
             for thread in threads:
@@ -334,6 +414,9 @@ class ReadingLifecycle(h.AccessJourneys):
                         conn.execute(text('DROP TABLE public."'+schema+table+'"'))
             finally:engine.dispose()
 
+    def test_lifecycle_concurrent_finalizers_are_idempotent(self):
+        self.test_lifecycle_concurrent_close_blocks_late_controller_operation(finalizers=True)
+
     def test_lifecycle_history_requires_explicit_platform_audit_authority(self):
         aid,eid,uid=self.active_r()
         self.assertEqual(self.client.get(f'/admin/security/sace-engagement/{eid}').status_code,302)
@@ -344,7 +427,7 @@ class ReadingLifecycle(h.AccessJourneys):
             db.session.execute(text("INSERT INTO auth_approved_admin (email,active) VALUES ('reviewer@example.test',1)"));db.session.commit()
         reviewer=self.app.test_client();self.login(reviewer,'reviewer@example.test')
         result=reviewer.get(f'/admin/security/sace-engagement/{eid}')
-        self.assertEqual(result.status_code,200);self.assertIn(b'completed',result.data)
+        self.assertEqual(result.status_code,200);self.assertIn(b'revoked',result.data)
 
     def test_lifecycle_invalid_handover_and_cross_engagement_end_denied(self):
         aid,eid,uid=self.active_r()

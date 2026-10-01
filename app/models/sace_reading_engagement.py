@@ -7,15 +7,17 @@ def utcnow():
     return datetime.now(timezone.utc)
 
 
-def lifecycle_constraints(prefix):
+def lifecycle_constraints(prefix, pending=False):
+    open_states = "('active','completion_pending')" if pending else "('active')"
+    statuses = "('active','completion_pending','completed','revoked')" if pending else "('active','completed','revoked')"
     return (
-        db.CheckConstraint("status IN ('active','completed','revoked')", name=prefix + '_status'),
-        db.CheckConstraint("(status = 'active' AND completed_at IS NULL AND revoked_at IS NULL) OR "
+        db.CheckConstraint("status IN " + statuses, name=prefix + '_status'),
+        db.CheckConstraint("(status IN " + open_states + " AND completed_at IS NULL AND revoked_at IS NULL) OR "
             "(status = 'completed' AND completed_at IS NOT NULL AND revoked_at IS NULL) OR "
             "(status = 'revoked' AND revoked_at IS NOT NULL AND completed_at IS NULL)", name=prefix + '_times'),
         db.CheckConstraint("completed_at IS NULL OR completed_at >= started_at", name=prefix + '_completed'),
         db.CheckConstraint("revoked_at IS NULL OR revoked_at >= started_at", name=prefix + '_revoked'),
-        db.CheckConstraint("status = 'active' OR ended_by_user_id IS NOT NULL", name=prefix + '_actor'),
+        db.CheckConstraint("status IN " + open_states + " OR ended_by_user_id IS NOT NULL", name=prefix + '_actor'),
         db.CheckConstraint("status != 'revoked' OR length(trim(end_reason)) > 0 AND end_reason IS NOT NULL", name=prefix + '_reason'),
     )
 
@@ -24,7 +26,10 @@ class ReadingEngagement(db.Model):
     __tablename__ = 'sace_reading_engagement'
     id = db.Column(db.BigInteger, primary_key=True)
     reference = db.Column(db.String(80), nullable=False, unique=True)
-    status = db.Column(db.String(16), nullable=False, default='active', index=True)
+    status = db.Column(db.String(24), nullable=False, default='active', index=True)
+    completion_requested_by_user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='RESTRICT'))
+    completion_requested_at = db.Column(db.DateTime(timezone=True))
+    completion_deadline = db.Column(db.DateTime(timezone=True))
     started_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
     completed_at = db.Column(db.DateTime(timezone=True))
     revoked_at = db.Column(db.DateTime(timezone=True))
@@ -33,7 +38,9 @@ class ReadingEngagement(db.Model):
     end_reason = db.Column(db.Text)
     provenance_event_id = db.Column(db.Integer, db.ForeignKey('sace_workshop_interactions.id', ondelete='RESTRICT'), nullable=False)
     recorded_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
-    __table_args__ = lifecycle_constraints('ck_reading_engagement')
+    __table_args__ = lifecycle_constraints('ck_reading_engagement', pending=True) + (
+        db.CheckConstraint("(completion_requested_by_user_id IS NULL AND completion_requested_at IS NULL AND completion_deadline IS NULL AND status != 'completion_pending') OR (completion_requested_by_user_id IS NOT NULL AND completion_requested_at IS NOT NULL AND completion_deadline IS NOT NULL AND completion_deadline = completion_requested_at + interval '48 hours' AND status IN ('completion_pending','completed','revoked'))", name='ck_reading_engagement_pending'),
+    )
 
 
 class ReadingControllerAppointment(db.Model):

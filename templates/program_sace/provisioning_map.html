@@ -29,7 +29,16 @@
         <!-- Rule 6: Flashes inside tile -->
         {% include "partials/flash_messages.html" %}
 
-                <!-- Rule 5: Row 2 Actions right-aligned -->
+                {% if engagement and engagement.status == 'completion_pending' %}
+        <div class="border border-amber-300 bg-amber-50 rounded p-4 mb-4">
+            <p>Completion pending. Operational access ends at {{ engagement.completion_deadline }} (UTC).</p>
+            <form method="post" action="{{ url_for('sace_bp.reading_cancel_completion') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="border border-indigo-300 rounded px-4 py-2 mt-2">Cancel Completion</button>
+            </form>
+        </div>
+        {% endif %}
+        <!-- Rule 5: Row 2 Actions right-aligned -->
         <div class="flex flex-wrap justify-end gap-3 mb-6 border-b border-slate-100 pb-6">
             {% if provisioning_complete %}
             <button onclick="openAboutModal()" class="px-4 py-2 bg-sky-50 text-sky-700 hover:bg-sky-100 font-bold rounded-lg transition border border-sky-200 shadow-sm flex items-center">

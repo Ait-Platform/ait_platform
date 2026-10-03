@@ -1,0 +1,20 @@
+{% extends "program_sace_home/frame.html" %}
+{% block home_content %}
+<div class="border-2 border-amber-500 p-4 mb-6 font-bold">SPECIMEN — NON-ISSUED ENDORSEMENT EVIDENCE. No participant result, assessment or certificate is created.</div>
+{% if kind == 'assessment' %}
+<p class="mb-4">{{ manifest.assessment_policy }}</p>
+{% for chapter in manifest.assessment %}
+<h2 class="text-xl font-bold mt-6">Chapter {{ chapter.chapter_number }} — source identity {{ chapter.chapter_id }}</h2>
+{% set questions = chapter.questions %}{% include 'program_sace_home/_questions.html' %}
+{% endfor %}
+{% else %}
+<p class="mb-4">Fictitious sample identity only. These layouts show existing HOME reporting machinery, not an Auditor achievement or an academic qualification.</p>
+{% for label, html in manifest.certificate_specimens.items() %}
+<div class="border-2 border-amber-500 p-4 my-6">
+<h2 class="text-xl font-bold mb-4">SPECIMEN — {{ label }} participant layout — NOT ISSUED</h2>
+{{ html | safe }}
+<p class="font-bold mt-4">SPECIMEN / NON-ISSUED / Sample HOME Learner / No academic qualification</p>
+</div>{% endfor %}
+{% endif %}
+{% include 'program_sace_home/_examine.html' %}
+{% endblock %}

@@ -1,0 +1,13 @@
+{% extends "program_sace_home/frame.html" %}
+{% block home_content %}
+<p class="mb-4">Read-only endorsement examination. No participant work or achievement is recorded.</p>
+<p class="text-sm break-all mb-4">Immutable content version: {{ version }}</p>
+{% for stage in stages %}
+<h2 class="text-2xl font-bold mt-6 mb-3">{{ loop.index }}. {{ stage.title }}</h2>
+<ul class="divide-y">{% for chapter in stage.chapters %}<li class="py-3 flex justify-between items-center gap-3">
+<span>Chapter {{ chapter.number }} — {{ chapter.title }}: {{ 'Examined' if chapter.examined else 'Not yet examined' }}</span>
+<a class="home-button" href="{{ url_for('home_sace_bp.examination_chapter', assignment_id=row.id, stage=stage.kind, chapter_number=chapter.number) }}">Examine</a>
+</li>{% endfor %}</ul>{% endfor %}
+<p class="mt-6">All chapters in all four stages must be examined. Then continue to Assessment / Evaluation.</p>
+<a class="home-button mt-3" href="{{ url_for('home_sace_bp.material', assignment_id=row.id, kind='assessment') }}">Assessment / Evaluation</a>
+{% endblock %}

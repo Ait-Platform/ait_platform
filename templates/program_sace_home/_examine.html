@@ -1,0 +1,4 @@
+<p class="text-sm break-all my-4">Immutable content version: {{ version }}</p>
+<form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<input type="hidden" name="version" value="{{ version }}">
+<button class="home-button">Confirm examined — this exact evidence version</button></form>

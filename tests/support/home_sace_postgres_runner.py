@@ -46,6 +46,9 @@ class HomeFoundation(unittest.TestCase):
         cls.tables += [t.name for t in HOME_TABLES]
         cls.documents = tempfile.TemporaryDirectory(prefix="home-sace-documents-")
         cls.app.config["SACE_HOME_DOCUMENT_ROOT"] = cls.documents.name
+        # These frozen foundation/Phase 2A journeys exercise historical requirements.
+        # Phase 2B has its own suite with the new requirements explicitly selected.
+        cls.app.config['SACE_HOME_REQUIREMENTS_VERSION'] = 'home-foundation-v1'
 
     @classmethod
     def tearDownClass(cls):

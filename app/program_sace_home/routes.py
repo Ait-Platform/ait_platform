@@ -6,6 +6,8 @@ from . import home_sace_bp
 from . import service as s
 from . import continuation
 from . import lifecycle as lc
+from . import examination as ex
+from . import content_snapshot as content
 
 
 def page(template, title, **values):
@@ -116,7 +118,8 @@ def generate_code():
 @login_required
 def provider_documents():
     s.require_controller()
-    materials = [(kind, s.ITEMS[kind], s.latest_version(kind)) for kind in s.ITEMS if kind in s.DOCUMENT_ITEMS]
+    materials = [(kind, s.ITEMS.get(kind, ex.ITEMS[kind]), s.latest_version(kind))
+        for kind in ex.ITEMS if kind in s.DOCUMENT_ITEMS]
     return page("provider_documents.html", "HOME provider evidence", materials=materials,
         back=url_for("home_sace_bp.control"))
 
@@ -208,7 +211,15 @@ def summary(assignment_id):
 @home_sace_bp.get("/assignments/<int:assignment_id>/experience")
 @login_required
 def experience(assignment_id):
-    row = s.assignment(assignment_id)
+    row = s.assignment(assignment_id, lock=True)
+    if row.requirements_version == ex.REQUIREMENTS:
+        version, manifest = ex.pinned(row, bind=True)
+        db.session.commit()
+        stages = [dict(kind=kind, title=title, chapters=[dict(number=n,
+            title=manifest['chapters'][n - 1]['title'], examined=bool(ex.evidence(row, f'{kind}:{n}', 'examined', version)))
+            for n in content.STAGES[kind]]) for kind, title in ex.STAGES.items()]
+        return page('journey.html', 'HOME Learning Journey', row=row, version=version, stages=stages,
+            back=url_for('home_sace_bp.board', assignment_id=row.id))
     return page("experience.html", "HOME practical / learning experience", row=row,
         back=url_for("home_sace_bp.board", assignment_id=row.id))
 
@@ -217,6 +228,28 @@ def experience(assignment_id):
 @login_required
 def material(assignment_id, kind):
     row = s.assignment(assignment_id, lock=request.method == "POST", writable=request.method == "POST")
+    if row.requirements_version == ex.REQUIREMENTS:
+        if kind in {'assessment', 'certificate'}:
+            return specimen(row, kind)
+        if kind not in ex.DOCUMENTS:
+            abort(404)
+        # Bind on first opening; later publication cannot change this examination.
+        row = s.assignment(assignment_id, lock=True)
+        version = ex.document(row, kind, bind=True)
+        if request.method == 'POST':
+            if version is None or request.form.get('version_id') != str(version.id):
+                abort(409, description='Approved HOME document version is unavailable or mismatched.')
+            opened = HomeEvidence.query.filter_by(assignment_id=row.id, item=kind,
+                event='opened', document_version_id=version.id).first()
+            if opened is None:
+                abort(409, description='Open this exact HOME document first.')
+            if not s.examined(row, kind, version.id):
+                s.record(row, kind, 'examined', {'sha256': version.sha256}, version.id)
+            db.session.commit()
+            return redirect(url_for('home_sace_bp.board', assignment_id=row.id))
+        db.session.commit()
+        return page('material.html', ex.ITEMS[kind], row=row, version=version, kind=kind,
+            back=url_for('home_sace_bp.board', assignment_id=row.id))
     if kind not in s.DOCUMENT_ITEMS:
         abort(404)
     version = s.latest_version(kind)
@@ -247,6 +280,10 @@ def document_content(version_id):
         row = s.assignment(assignment_id, lock=True)
         from app.models.sace_home import HomeDocument
         doc = db.session.get(HomeDocument, version.document_id)
+        if row.requirements_version == ex.REQUIREMENTS:
+            bound = ex.document(row, doc.kind) if doc.kind in ex.DOCUMENTS else None
+            if bound is None or bound.id != version.id:
+                abort(409, description='This document is not the approved HOME examination version.')
         path = s.document_path(version)
         if row.status == "active":
             s.record(row, doc.kind, "opened", version=version.id)
@@ -256,6 +293,59 @@ def document_content(version_id):
         path = s.document_path(version)
     return send_file(path, mimetype="application/pdf", as_attachment=False,
         download_name="HOME-" + str(version.id) + ".pdf")
+
+
+@home_sace_bp.route('/assignments/<int:assignment_id>/experience/<stage>/<int:chapter_number>', methods=['GET', 'POST'])
+@login_required
+def examination_chapter(assignment_id, stage, chapter_number):
+    row = s.assignment(assignment_id, lock=True, writable=request.method == 'POST')
+    if stage not in content.STAGES or chapter_number not in content.STAGES[stage]:
+        abort(404)
+    version, manifest = ex.pinned(row, bind=True)
+    item = f'{stage}:{chapter_number}'
+    details = ex.chapter_details(manifest, chapter_number, stage)
+    if request.method == 'POST':
+        ex.confirm(row, item, request.form.get('version'), version, details)
+        if ex.journey_complete(row, version) and not ex.evidence(row, 'experience', 'examined', version):
+            s.record(row, 'experience', 'examined', {'version': version, 'coverage': 'all 40 stage/chapter examinations'})
+        db.session.commit()
+        return redirect(url_for('home_sace_bp.experience', assignment_id=row.id))
+    ex.open_item(row, item, version, details)
+    db.session.commit()
+    chapter = manifest['chapters'][chapter_number - 1]
+    html = ex.render_html(row, version, chapter['html'], manifest) if chapter['html'] else ''
+    return page('examination_chapter.html', ex.STAGES[stage] + ' — ' + chapter['title'],
+        row=row, chapter=chapter, stage=stage, version=version, educational_html=html,
+        back=url_for('home_sace_bp.experience', assignment_id=row.id))
+
+
+@home_sace_bp.get('/assignments/<int:assignment_id>/content-assets/<version>/<asset>')
+@login_required
+def examination_asset(assignment_id, version, asset):
+    import base64
+    import io
+    row = s.assignment(assignment_id)
+    pinned_version, manifest = ex.pinned(row)
+    if manifest is None or version != pinned_version or asset not in manifest['assets']:
+        abort(404)
+    image = manifest['assets'][asset]
+    return send_file(io.BytesIO(base64.b64decode(image['data'])), mimetype=image['mime'])
+
+
+def specimen(row, kind):
+    row = s.assignment(row.id, lock=True, writable=request.method == 'POST')
+    version, manifest = ex.pinned(row, bind=True)
+    details = {'content_hash': content.digest(manifest['assessment'] if kind == 'assessment' else manifest['certificate_specimens'])}
+    if kind == 'assessment':
+        details['question_ids'] = [q['id'] for c in manifest['assessment'] for q in c['questions']]
+    if request.method == 'POST':
+        ex.confirm(row, kind, request.form.get('version'), version, details)
+        db.session.commit()
+        return redirect(url_for('home_sace_bp.board', assignment_id=row.id))
+    ex.open_item(row, kind, version, details)
+    db.session.commit()
+    return page('specimen.html', ex.ITEMS[kind], row=row, kind=kind, version=version,
+        manifest=manifest, back=url_for('home_sace_bp.board', assignment_id=row.id))
 
 
 @home_sace_bp.route("/assignments/<int:assignment_id>/completion", methods=["GET", "POST"])

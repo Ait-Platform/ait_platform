@@ -1,0 +1,14 @@
+{% extends "program_sace_home/frame.html" %}
+{% block home_content %}
+<p class="mb-4">Read-only HOME endorsement evidence. Chapter {{ chapter.chapter_number }}; source chapter identity {{ chapter.id }}.</p>
+{% if stage == 'application' %}
+<h2 class="font-bold text-xl mb-3">Objective</h2><p>{{ chapter.objective }}</p>
+<img class="w-full rounded my-4" alt="{{ chapter.title }}" src="{{ url_for('home_sace_bp.examination_asset', assignment_id=row.id, version=version, asset=chapter.image_asset) }}">
+{% set questions = chapter.questions %}{% include 'program_sace_home/_questions.html' %}
+{% else %}
+{% if stage == 'review' %}<p class="mb-4">Review / Retention reuses the existing Theory Review explanations, examples, chapter summaries and knowledge checks below.</p>{% endif %}
+<div class="home-educational-content">{{ educational_html | safe }}</div>
+{% if stage != 'practical' %}{% set questions = chapter.questions %}{% include 'program_sace_home/_questions.html' %}{% endif %}
+{% endif %}
+{% include 'program_sace_home/_examine.html' %}
+{% endblock %}

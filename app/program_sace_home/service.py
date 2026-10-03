@@ -10,6 +10,7 @@ from app.models.sace_home import (HomeController, HomeProvisioning, HomeInvitati
     HomePledge, HomeAssignment, HomeDocument, HomeDocumentVersion, HomeEvidence, now)
 
 from . import lifecycle as lc
+from . import examination as ex
 
 SUBJECT = "sace_home_endorsement"
 PLEDGE_VERSION = "home-ip-v1"
@@ -32,6 +33,7 @@ ITEMS = {
     "certificate": "Applicable HOME certificate evidence",
 }
 DOCUMENT_ITEMS = set(ITEMS) - {"summary", "experience"}
+DOCUMENT_ITEMS |= {"application_form_1", "application_form_2"}
 
 
 def digest(value):
@@ -133,7 +135,8 @@ def claim():
     if owner.user_id == current_user.id:
         abort(403, description="A HOME controller cannot examine their own invitation.")
     persist_pledge("auditor", row)
-    assignment = HomeAssignment(invitation_id=row.id, auditor_id=current_user.id)
+    assignment = HomeAssignment(invitation_id=row.id, auditor_id=current_user.id,
+        requirements_version=current_app.config.get('SACE_HOME_REQUIREMENTS_VERSION', ex.REQUIREMENTS))
     db.session.add(assignment)
     row.status, row.claimed_at = "claimed", now()
     db.session.flush()
@@ -191,6 +194,8 @@ def examined(row, item, version=None):
 
 
 def board_items(row):
+    if row.requirements_version == ex.REQUIREMENTS:
+        return ex.board_items(row)
     values = []
     for kind, title in ITEMS.items():
         version = latest_version(kind) if kind in DOCUMENT_ITEMS else None
@@ -238,6 +243,13 @@ def publish_document(owner, kind, version_label, storage_key, manifest):
     content = path.read_bytes()
     if not content.startswith(b"%PDF-"):
         raise ValueError("The HOME evidence file is not a PDF.")
+    if hashlib.sha256(content).hexdigest() in ex.reading_artifact_hashes():
+        raise ValueError('Frozen Reading documents cannot be published as HOME evidence.')
+    if kind in {'application_form_1', 'application_form_2'}:
+        approval = manifest.get('home_approval', {})
+        if (manifest.get('subject') != SUBJECT or manifest.get('kind') != kind
+                or not approval.get('approved_by') or not approval.get('reference')):
+            raise ValueError('Application forms require explicit HOME provenance and approval.')
     # Serialise publication so simultaneous calls cannot create the same document kind.
     from app.models.auth import User
     actor = lc.appointment(db.session.get(User, owner.user_id), lock=True)
@@ -246,7 +258,7 @@ def publish_document(owner, kind, version_label, storage_key, manifest):
     db.session.execute(db.text("SELECT pg_advisory_xact_lock(74831029)"))
     document = HomeDocument.query.filter_by(kind=kind).first()
     if document is None:
-        document = HomeDocument(kind=kind, title=ITEMS[kind])
+        document = HomeDocument(kind=kind, title=ex.ITEMS.get(kind, ITEMS.get(kind)))
         db.session.add(document)
         db.session.flush()
     if HomeDocumentVersion.query.filter_by(document_id=document.id, version=version_label).first():

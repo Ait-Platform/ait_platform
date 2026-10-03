@@ -1,0 +1,7 @@
+{% for question in questions %}
+<div class="border rounded p-4 my-4">
+<h3 class="text-lg font-bold">{{ loop.index }}. {{ question.question }}</h3>
+<p class="text-sm">Question {{ question.id }} — {{ question.question_type }}</p>
+<ol class="list-decimal pl-6 my-3">{% for option in question.options %}<li>{{ option.option_text }}</li>{% endfor %}</ol>
+<details><summary class="cursor-pointer font-semibold">Existing answer / scoring evidence</summary><p>{{ question.correct_answer }}</p></details>
+</div>{% endfor %}

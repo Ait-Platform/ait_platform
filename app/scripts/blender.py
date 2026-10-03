@@ -15,7 +15,6 @@
 # configured (camera, animation, etc.). It does NOT create geometry
 # from scratch.
 
-import bpy
 import os
 import sys
 import math
@@ -101,6 +100,8 @@ def safe_print(msg):
 
 def update_text_object(name, text):
     """Set the .body of a text object, if it exists and is a FONT object."""
+    import bpy
+
     if not text:
         return
 
@@ -177,6 +178,8 @@ def get_theme_colors(key):
 
 def apply_theme_to_world(scene, key):
     """Apply a simple colour theme to the world background."""
+    import bpy
+
     world = scene.world
     if world is None:
         safe_print("[ad_builder] No world found on scene; creating one.")
@@ -207,6 +210,8 @@ def apply_theme_to_world(scene, key):
 # -------------------------------------------------------------------
 
 def configure_scene():
+    import bpy
+
     scene = bpy.context.scene
 
     # Render settings
@@ -254,6 +259,8 @@ def configure_scene():
 
 
 def render_animation(scene):
+    import bpy
+
     safe_print("[ad_builder] Starting render...")
     bpy.ops.render.render(animation=True)
     safe_print("[ad_builder] Render finished.")

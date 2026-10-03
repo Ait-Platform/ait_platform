@@ -46,6 +46,35 @@ class HomeLifecycle(f.HomeFoundation):
             self.assertEqual(f.h.Interaction.query.count(), 0)
             self.assertEqual(f.h.auth_models.UserEnrollment.query.count(), 0)
 
+    def test_phase2_home_r_a_authority_requires_provisioning_assignment_without_payment(self):
+        # Exercise the repaired policy through registration and protected HTTP access.
+        with self.app.app_context():
+            subject = f.h.auth_models.AuthSubject.query.filter_by(slug=s.SUBJECT).one()
+            subject.enroll_policy = "post_payment"
+            subject.commercial_mode = "free"
+            subject.requires_price = 0
+            subject.allow_country_pricing = 0
+            db.session.commit()
+        uid = self.provision_home()
+        auditor, aid = self.join_home(self.code_home())
+        self.assertEqual(self.client.get("/sace/home/control").status_code, 200)
+        self.assertEqual(auditor.get(f"/sace/home/assignments/{aid}/board").status_code, 200)
+        with self.app.app_context():
+            self.assertEqual(lc.Appointment.query.one().provisioning_id, HomeProvisioning.query.one().id)
+            self.assertEqual(HomeProvisioning.query.one().claimed_by, uid)
+            self.assertEqual(db.session.get(HomeAssignment, aid).invitation_id, HomeInvitation.query.one().id)
+            self.assertEqual(f.h.auth_models.UserEnrollment.query.count(), 0)
+            # No payment tables exist in this harness, so these journeys cannot
+            # rely on payment records or checkout to grant either role authority.
+            db.session.get(HomeAssignment, aid).status = "revoked"
+            db.session.commit()
+        self.assertEqual(auditor.get(f"/sace/home/assignments/{aid}/board").status_code, 403)
+        with self.app.app_context():
+            actor = lc.Appointment.query.one()
+            actor.status, actor.ended_at = "revoked", lc.now()
+            db.session.commit()
+        self.assertEqual(self.client.get("/sace/home/control").status_code, 403)
+
     def test_phase2_returning_r_and_a_ordinary_login_and_access_audit(self):
         self.provision_home()
         auditor, aid = self.join_home(self.code_home())
@@ -397,14 +426,19 @@ class HomeLifecycle(f.HomeFoundation):
                         trial_days FLOAT, commercial_mode TEXT, billing_scope TEXT, enroll_policy TEXT,
                         processor_default TEXT, requires_price INTEGER, allow_country_pricing INTEGER,
                         mor_mode INTEGER, program_type TEXT, is_hidden_on_bridge BOOLEAN,
-                        show_on_welcome BOOLEAN, start_endpoint TEXT, admin_start_endpoint TEXT)"""))
+                        show_on_welcome BOOLEAN, start_endpoint TEXT, admin_start_endpoint TEXT,
+                        CONSTRAINT ck_auth_subject_enroll_policy
+                        CHECK (enroll_policy IN ('auto_enroll', 'post_payment')))"""))
                     conn.execute(text("CREATE TEMP TABLE auth_subject_admin (id INTEGER PRIMARY KEY, subject_id INTEGER REFERENCES auth_subject(id), email TEXT)"))
                     conn.execute(text("INSERT INTO auth_subject (slug,name,is_active) VALUES ('home','Ordinary HOME',1),('sace_endorsement','Reading sentinel',1)"))
                     with Operations.context(MigrationContext.configure(conn)):
                         foundation.upgrade()
                         migration.upgrade()
                         subject = conn.execute(text("SELECT * FROM auth_subject WHERE slug='sace_home_endorsement'")).mappings().one()
-                        self.assertEqual((subject["is_active"], subject["processor_default"], subject["enroll_policy"]), (1, "paystack", "manual"))
+                        self.assertEqual((subject["is_active"], subject["processor_default"], subject["enroll_policy"]), (1, "paystack", "post_payment"))
+                        self.assertEqual(
+                            (subject["commercial_mode"], subject["requires_price"], subject["allow_country_pricing"]),
+                            ("free", 0, 0))
                         self.assertTrue(subject["is_hidden_on_bridge"])
                         names = conn.execute(text("SELECT relname FROM pg_class WHERE relnamespace=pg_my_temp_schema() AND relkind='r'")).scalars().all()
                         self.assertEqual(len([n for n in names if n.startswith("sace_home_")]), 11)

@@ -74,12 +74,15 @@ TABLE_NAMES = ('sace_home_engagement','sace_home_controller_appointment','sace_h
 
 def ensure_subject():
     # Unique slug arbitrates duplicates; existing configuration is never overwritten.
+    # The existing ck_auth_subject_enroll_policy permits only auto_enroll/post_payment.
+    # post_payment prevents automatic enrollment; HOME stays free and R/A authority
+    # comes from provisioning/assignment, without payment or checkout.
     op.get_bind().execute(sa.text("""
         INSERT INTO auth_subject
           (slug,name,is_active,trial_days,commercial_mode,billing_scope,enroll_policy,
            processor_default,requires_price,allow_country_pricing,mor_mode,program_type,
            is_hidden_on_bridge,show_on_welcome,start_endpoint,admin_start_endpoint)
-        VALUES ('sace_home_endorsement','HOME SACE Endorsement',1,0,'free','user','manual',
+        VALUES ('sace_home_endorsement','HOME SACE Endorsement',1,0,'free','user','post_payment',
                 'paystack',0,0,0,'free',true,false,'home_sace_bp.entry','home_sace_bp.entry')
         ON CONFLICT (slug) DO NOTHING
     """))

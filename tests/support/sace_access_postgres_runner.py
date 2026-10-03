@@ -70,6 +70,7 @@ for table in list(db.metadata.tables.values()):
         if target not in db.metadata.tables:
             db.Table(target, db.metadata, db.Column("id", db.Integer, primary_key=True))
 
+from app.models.sace_reading_audit import ReadingAuditEvent
 from app.models.sace_reading_engagement import ReadingEngagement, ReadingControllerAppointment, ReadingAssignmentContext
 from app.program_sace import access, endorsement
 from app.program_sace import lifecycle
@@ -145,12 +146,12 @@ class AccessJourneys(unittest.TestCase):
                     conn.execute(text('CREATE UNIQUE INDEX ON pg_temp."' + table + '" (id)'))
                 conn.execute(text("SET search_path TO pg_temp"))
                 from sqlalchemy.schema import CreateTable, CreateIndex
-                for model in (ReadingEngagement, ReadingControllerAppointment, ReadingAssignmentContext):
+                for model in (ReadingEngagement, ReadingControllerAppointment, ReadingAssignmentContext, ReadingAuditEvent):
                     ddl = str(CreateTable(model.__table__).compile(dialect=conn.dialect))
                     conn.execute(text(ddl.replace('CREATE TABLE', 'CREATE TEMPORARY TABLE', 1)))
                     for index in model.__table__.indexes:
                         conn.execute(CreateIndex(index))
-        cls.tables += ['sace_reading_engagement', 'sace_reading_controller_appointment', 'sace_reading_assignment_context']
+        cls.tables += ['sace_reading_engagement', 'sace_reading_controller_appointment', 'sace_reading_assignment_context', 'sace_reading_audit_event']
         # Login inspects available application tables; expose the real temporary
         # tables to that inspection without substituting any query/ORM behavior.
         import sqlalchemy
@@ -246,6 +247,7 @@ class AccessJourneys(unittest.TestCase):
         with self.app.app_context():
             self.assertEqual(auth_models.AuthSubjectAdmin.query.count(), 0)
             self.assertEqual(auth_models.UserEnrollment.query.count(), 0)
+            self.assertEqual(ReadingAuditEvent.query.count(), 0)
             self.assertEqual(Interaction.query.filter(Interaction.activity_slug.in_(
                 ['controller_provisioned', 'admin_patent_pledge'])).count(), 0)
 
@@ -328,8 +330,7 @@ class AccessJourneys(unittest.TestCase):
             self.assertAlmostEqual(pledge.timestamp.replace(tzinfo=timezone.utc).timestamp(), context['accepted_at'], places=5)
             self.assertLess(pledge.timestamp, grant.timestamp)
             self.assertLess(pledge.id, grant.id)
-            from app.models.core import CoreAuditEvent
-            self.assertEqual(CoreAuditEvent.query.one().created_at, pledge.timestamp)
+            self.assertEqual(ReadingAuditEvent.query.one().created_at, pledge.timestamp)
 
     def test_security_missing_pledge_and_unbound_flags_rejected(self):
         self.user('first@example.test')
@@ -562,8 +563,7 @@ class AccessJourneys(unittest.TestCase):
         with self.app.app_context():
             self.assertEqual(auth_models.AuthSubjectAdmin.query.count(), 2)
             self.assertEqual(auth_models.ApprovedAdmin.query.count(), 0)
-            from app.models.core import CoreAuditEvent
-            audits = CoreAuditEvent.query.filter_by(action="PLEDGE_ACCEPTED").all()
+            audits = ReadingAuditEvent.query.filter_by(action="PLEDGE_ACCEPTED").all()
             self.assertEqual(len(audits), 2)
             self.assertEqual(len({row.user_id for row in audits}), 2)
             for slug in ("admin_patent_pledge", "controller_provisioned", "auditor_provisioned"):

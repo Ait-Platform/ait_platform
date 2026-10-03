@@ -357,9 +357,9 @@ def acknowledge_patent():
         db.session.add(interaction)
         db.session.commit()
         
-        from app.models.core import CoreAuditEvent
+        from app.models.sace_reading_audit import ReadingAuditEvent
         ip_addr = request.headers.get('X-Forwarded-For', request.remote_addr)
-        audit = CoreAuditEvent(
+        audit = ReadingAuditEvent(
             user_id=current_user.id,
             action="PLEDGE_ACCEPTED",
             entity_type="SACE_PLEDGE",
@@ -392,11 +392,10 @@ def simulator():
     from . import endorsement_routes as journey
     return journey.demo()
 
-from app.models.core import CoreAuditEvent
-
 @sace_bp.route("/sace/log_event", methods=["POST"])
 @login_required
 def log_event():
+    from app.models.sace_reading_audit import ReadingAuditEvent
     data = request.get_json()
     action = data.get("action", "UNKNOWN_ACTION")
     details = data.get("details", "")
@@ -404,7 +403,7 @@ def log_event():
     # Get IP Address (handling proxies)
     ip_addr = request.headers.get('X-Forwarded-For', request.remote_addr)
     
-    event = CoreAuditEvent(
+    event = ReadingAuditEvent(
         user_id=current_user.id,
         action=action,
         entity_type="SACE_SIMULATOR",
@@ -654,8 +653,8 @@ def document_action(doc_id):
         db.session.commit()
         
     
-    # Also log to Platform Audit Report
-    from app.models.core import CoreAuditEvent
+    # Also record observational Reading audit history
+    from app.models.sace_reading_audit import ReadingAuditEvent
     ip_addr = request.headers.get('X-Forwarded-For', request.remote_addr)
     doc_titles = {
         "app1": "SACE Application Form 1",
@@ -666,7 +665,7 @@ def document_action(doc_id):
         "ip_pledge": "AIT IP Pledge"
     }
     title = doc_titles.get(str(doc_id), f"Document {doc_id}")
-    audit = CoreAuditEvent(
+    audit = ReadingAuditEvent(
         user_id=sace_user_id,
         action="DOCUMENT_ACCESSED" if action == "view" else "DOCUMENT_EMAILED",
         entity_type="SACE_DOCUMENT",

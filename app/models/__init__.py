@@ -64,3 +64,6 @@ from .sace_home import (HomeController, HomeProvisioning, HomeInvitation, HomePl
 
 from .sace_reading_engagement import (ReadingEngagement, ReadingControllerAppointment, ReadingAssignmentContext)
 __all__.extend(["ReadingEngagement", "ReadingControllerAppointment", "ReadingAssignmentContext"])
+
+from .sace_reading_audit import ReadingAuditEvent
+__all__.append("ReadingAuditEvent")

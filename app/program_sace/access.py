@@ -98,11 +98,14 @@ def complete_provisioning():
     pledge = lifecycle.event(current_user.id, 'admin_patent_pledge',
         {'journey': ctx['nonce'], 'acceptance': 'Admin accepted IP pledge'},
         timestamp=datetime.fromtimestamp(ctx['accepted_at'], timezone.utc).replace(tzinfo=None))
-    from app.models.core import CoreAuditEvent
-    db.session.add(CoreAuditEvent(user_id=current_user.id, action='PLEDGE_ACCEPTED',
+    from app.models.sace_reading_audit import ReadingAuditEvent
+    audit = ReadingAuditEvent(user_id=current_user.id, action='PLEDGE_ACCEPTED',
         entity_type='SACE_PLEDGE', details='Admin accepted IP pledge',
-        created_at=pledge.timestamp, ip_address=request.headers.get('X-Forwarded-For', request.remote_addr)))
-    lifecycle.provision(ctx, pledge)
+        created_at=pledge.timestamp, ip_address=request.headers.get('X-Forwarded-For', request.remote_addr),
+        entity_id=pledge.id, metadata_json={'source_table': 'sace_workshop_interactions', 'pledge_event_id': pledge.id})
+    appointment = lifecycle.provision(ctx, pledge)
+    audit.engagement_id = appointment.engagement_id
+    db.session.add(audit)
     enrollment = UserEnrollment.query.filter_by(user_id=current_user.id, subject_id=subject.id).first()
     if enrollment is None:
         db.session.add(UserEnrollment(user_id=current_user.id, subject_id=subject.id, status='active',

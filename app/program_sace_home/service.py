@@ -3,11 +3,13 @@ import hashlib
 import secrets
 from datetime import timedelta
 from pathlib import Path
-from flask import abort, current_app, session
+from flask import abort, current_app, session, g
 from flask_login import current_user
 from app.extensions import db
 from app.models.sace_home import (HomeController, HomeProvisioning, HomeInvitation,
     HomePledge, HomeAssignment, HomeDocument, HomeDocumentVersion, HomeEvidence, now)
+
+from . import lifecycle as lc
 
 SUBJECT = "sace_home_endorsement"
 PLEDGE_VERSION = "home-ip-v1"
@@ -37,16 +39,13 @@ def digest(value):
 
 
 def controller():
-    if not current_user.is_authenticated:
-        return None
-    return HomeController.query.filter_by(user_id=current_user.id, active=True).first()
+    row = lc.appointment()
+    return db.session.get(HomeController, row.controller_id) if row else None
 
 
 def require_controller():
-    row = controller()
-    if row is None:
-        abort(403, description="HOME controller authority is required.")
-    return row
+    row = lc.require_appointment()
+    return db.session.get(HomeController, row.controller_id)
 
 
 def issue_provisioning(email, issued_by, days=7):
@@ -75,18 +74,21 @@ def invitation(code=None, lock=False):
     row = query.with_for_update().populate_existing().first() if lock else query.first()
     if row is None or row.status != "unclaimed" or row.expires_at <= now():
         abort(400, description="HOME access code is invalid, expired or already claimed.")
-    owner = db.session.get(HomeController, row.controller_id)
-    if owner is None or not owner.active:
-        abort(403, description="This HOME invitation is no longer available.")
+    lc.invitation_appointment(row)
     return row
 
 
 def issue_invitation(owner):
+    actor = lc.require_appointment()
+    if actor.controller_id != owner.id:
+        abort(403)
     code = "HOME-" + secrets.token_hex(12).upper()
-    row = HomeInvitation(controller_id=owner.id, code_hash=digest(code),
+    row = HomeInvitation(controller_id=owner.id, appointment_id=actor.id, code_hash=digest(code),
         expires_at=now() + timedelta(days=14))
     db.session.add(row)
     db.session.flush()
+    lc.audit(current_user.id, "controller", "invitation_issued", actor.engagement_id,
+        details={"invitation_id": row.id})
     return code
 
 
@@ -111,18 +113,13 @@ def persist_pledge(role, row):
 
 
 def complete_provisioning():
+    lc.subject_lock()
     row = provisioning(lock=True)
     if current_user.email.strip().lower() != row.email:
         abort(403, description="Sign in with the email named in the HOME provisioning invitation.")
-    # Serialise repeated grants for the same shared identity without granting any platform role.
-    from app.models.auth import User
-    User.query.filter_by(id=current_user.id).with_for_update().one()
-    grant = HomeController.query.filter_by(user_id=current_user.id).first()
-    if grant is not None and not grant.active:
-        abort(403, description="HOME authority has been revoked.")
-    persist_pledge("controller", row)
-    if grant is None:
-        db.session.add(HomeController(user_id=current_user.id))
+    pledge = persist_pledge("controller", row)
+    db.session.flush()
+    lc.provision(row, pledge)
     row.claimed_by, row.claimed_at = current_user.id, now()
     db.session.commit()
     session.pop("sace_home_provisioning_token", None)
@@ -130,6 +127,7 @@ def complete_provisioning():
 
 
 def claim():
+    lc.subject_lock()
     row = invitation(lock=True)
     owner = db.session.get(HomeController, row.controller_id)
     if owner.user_id == current_user.id:
@@ -141,6 +139,9 @@ def claim():
     db.session.flush()
     record(assignment, "pledge", "accepted", {"version": PLEDGE_VERSION})
     record(assignment, "assignment", "claimed")
+    actor = lc.invitation_appointment(row)
+    lc.audit(current_user.id, "auditor", "assignment_claimed", actor.engagement_id, assignment.id,
+        {"invitation_id": row.id})
     db.session.commit()
     session.pop("sace_home_pending_code", None)
     session.pop("sace_home_pledge_auditor", None)
@@ -148,12 +149,14 @@ def claim():
 
 
 def assignment(assignment_id, lock=False, writable=False):
-    query = HomeAssignment.query.filter_by(id=assignment_id, auditor_id=current_user.id)
-    row = query.with_for_update().populate_existing().first() if lock else query.first()
-    if row is None or row.status == "revoked":
-        abort(403, description="This HOME assignment is not available to you.")
-    if writable and row.status != "active":
-        abort(403, description="This HOME assignment is closed.")
+    if lock:
+        lc.subject_lock()
+    row = next((item for item in lc.assignments() if item.id == assignment_id), None)
+    if row is None:
+        abort(403, description="An active HOME assignment and engagement are required.")
+    invitation = db.session.get(HomeInvitation, row.invitation_id)
+    actor = db.session.get(lc.Appointment, invitation.appointment_id)
+    g.home_access = ("auditor", actor.engagement_id, row.id)
     return row
 
 
@@ -236,7 +239,10 @@ def publish_document(owner, kind, version_label, storage_key, manifest):
     if not content.startswith(b"%PDF-"):
         raise ValueError("The HOME evidence file is not a PDF.")
     # Serialise publication so simultaneous calls cannot create the same document kind.
-    HomeController.query.filter_by(id=owner.id, active=True).with_for_update().one()
+    from app.models.auth import User
+    actor = lc.appointment(db.session.get(User, owner.user_id), lock=True)
+    if actor is None or actor.controller_id != owner.id:
+        raise ValueError("An active HOME controller appointment is required to publish evidence.")
     db.session.execute(db.text("SELECT pg_advisory_xact_lock(74831029)"))
     document = HomeDocument.query.filter_by(kind=kind).first()
     if document is None:

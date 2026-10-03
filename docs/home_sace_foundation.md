@@ -1,5 +1,8 @@
 # Independent HOME SACE endorsement foundation
 
+This document describes the original foundation. Its grant and completion
+descriptions are superseded by [HOME Phase 2A](home_sace_phase2a.md).
+
 HOME - Hands-On Math Education is a separate endorsement entity. This module has
 no dependency on LITRE authority, codes, assignments, evidence or completion helpers.
 Shared platform User identity and layout are reused. Ordinary HOME educational

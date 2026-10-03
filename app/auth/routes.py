@@ -1110,7 +1110,7 @@ def login():
                 """),
                 {"e": email}
             ).fetchall()
-            admin_subjects = [r.slug for r in rows if r.slug != "sace_endorsement"]
+            admin_subjects = [r.slug for r in rows if r.slug not in {"sace_endorsement", "sace_home_endorsement"}]
         except (OperationalError, ProgrammingError):
             pass
     session["admin_subjects"] = admin_subjects
@@ -1203,16 +1203,25 @@ def login():
     # LITRE branches below are unchanged; HOME does not consume their session keys.
     if next_url and _is_safe_url(next_url) and urlparse(next_url).path.startswith("/sace/home/"):
         from app.program_sace_home.continuation import clear
+        from app.program_sace_home.auth import record_signin
         clear()
+        record_signin()
         return redirect(next_url)
     from app.program_sace_home.continuation import consume
     home_destination = consume()
     if not next_url and home_destination:
+        from app.program_sace_home.auth import record_signin
+        record_signin()
         return redirect(url_for(home_destination))
 
     from app.program_sace.access import authenticate_provisioning, provisioning_destination
     if authenticate_provisioning(next_url):
         return redirect(provisioning_destination())
+
+    from app.program_sace_home.auth import returning_login_response
+    home_response = returning_login_response(next_url)
+    if home_response is not None:
+        return home_response
 
     # SACE authority and pending journeys are independent of platform roles.
     from app.program_sace.access import authentication_destination

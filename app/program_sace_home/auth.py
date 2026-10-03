@@ -50,7 +50,48 @@ def registration():
                 session["email"] = user.email
                 session["user_id"] = user.id
                 session["user_name"] = user.name
+                record_signin()
                 continuation.clear()
                 return redirect(url_for(s.auth_destination()))
     return render_template("auth/register.html", subject=s.SUBJECT, role="user",
         next_url=url_for(s.auth_destination()), values=values)
+
+
+def lifecycle_available():
+    # Shared login must still work before HOME's additive migration is installed.
+    return db.session.execute(db.text("SELECT to_regclass('sace_home_engagement')")).scalar() is not None
+
+
+def record_signin():
+    from . import lifecycle as lc
+    if not lifecycle_available():
+        return
+    actor = lc.appointment()
+    if actor:
+        lc.audit(current_user.id, "controller", "authenticated", actor.engagement_id)
+    else:
+        for row in lc.assignments():
+            invitation = db.session.get(lc.HomeInvitation, row.invitation_id)
+            appointment = db.session.get(lc.Appointment, invitation.appointment_id)
+            lc.audit(current_user.id, "auditor", "authenticated", appointment.engagement_id, row.id)
+    db.session.commit()
+
+
+def returning_login_response(next_url):
+    """HOME-only return; explicit destinations and Reading entry intent win."""
+    from flask import session, abort
+    from . import lifecycle as lc
+    if next_url or not lifecycle_available():
+        return None
+    actor, rows = lc.appointment(), lc.assignments()
+    if actor is None and not rows:
+        return None
+    from app.program_sace.access import is_controller
+    from app.program_sace.endorsement import assignments
+    if is_controller() or assignments(current_user.id, active_only=True):
+        abort(409, description="Active Reading and HOME endorsement access exists. Open /sace/dashboard for Reading or /sace/home/ for HOME. An explicit activity destination is required.")
+    if session.get("pending_sace_code"):
+        return None
+    record_signin()
+    endpoint = "home_sace_bp.control" if actor else "home_sace_bp.entry"
+    return redirect(url_for(endpoint))

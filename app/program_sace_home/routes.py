@@ -1,10 +1,11 @@
-from flask import abort, flash, redirect, render_template, request, session, url_for, send_file
+from flask import g, abort, flash, redirect, render_template, request, session, url_for, send_file
 from flask_login import current_user, login_required
 from app.extensions import db
 from app.models.sace_home import (HomeAssignment, HomeInvitation, HomePledge, HomeDocumentVersion, HomeEvidence, now)
 from . import home_sace_bp
 from . import service as s
 from . import continuation
+from . import lifecycle as lc
 
 
 def page(template, title, **values):
@@ -17,6 +18,12 @@ def private_response(response):
     response.headers["Cache-Control"] = "private, no-store"
     response.headers["Referrer-Policy"] = "no-referrer"
     response.headers["X-Content-Type-Options"] = "nosniff"
+    access = getattr(g, "home_access", None)
+    if access and response.status_code < 400 and current_user.is_authenticated:
+        role, engagement_id, assignment_id = access
+        lc.audit(current_user.id, role, "access", engagement_id, assignment_id,
+            {"endpoint": request.endpoint, "method": request.method})
+        db.session.commit()
     return response
 
 
@@ -26,8 +33,7 @@ def entry():
     if s.controller():
         continuation.clear()
         return redirect(url_for("home_sace_bp.control"))
-    rows = HomeAssignment.query.filter_by(auditor_id=current_user.id).filter(
-        HomeAssignment.status != "revoked").order_by(HomeAssignment.id.desc()).all()
+    rows = lc.assignments()
     if len(rows) == 1:
         return redirect(url_for("home_sace_bp.board", assignment_id=rows[0].id))
     return page("assignments.html", "HOME endorsement assignments", rows=rows)
@@ -89,11 +95,12 @@ def authenticate():
 @login_required
 def control():
     owner = s.require_controller()
-    invitations = HomeInvitation.query.filter_by(controller_id=owner.id).order_by(HomeInvitation.id.desc()).all()
+    actor = lc.require_appointment()
+    invitations = HomeInvitation.query.filter_by(appointment_id=actor.id).order_by(HomeInvitation.id.desc()).all()
     assignments = (HomeAssignment.query.join(HomeInvitation)
-        .filter(HomeInvitation.controller_id == owner.id).order_by(HomeAssignment.id.desc()).all())
+        .filter(HomeInvitation.appointment_id == actor.id).order_by(HomeAssignment.id.desc()).all())
     return page("control.html", "HOME Control Centre", invitations=invitations,
-        assignments=assignments, back=url_for("home_sace_bp.entry"))
+        assignments=assignments, engagement=db.session.get(lc.Engagement, actor.engagement_id), back=url_for("home_sace_bp.entry"))
 
 
 @home_sace_bp.post("/control/codes")
@@ -118,8 +125,9 @@ def provider_documents():
 @login_required
 def controller_evidence(assignment_id):
     owner = s.require_controller()
+    actor = lc.require_appointment()
     row = (HomeAssignment.query.join(HomeInvitation)
-        .filter(HomeAssignment.id == assignment_id, HomeInvitation.controller_id == owner.id).first_or_404())
+        .filter(HomeAssignment.id == assignment_id, HomeInvitation.appointment_id == actor.id).first_or_404())
     events = HomeEvidence.query.filter_by(assignment_id=row.id).order_by(HomeEvidence.id).all()
     return page("audit.html", "HOME examination evidence", row=row, events=events,
         back=url_for("home_sace_bp.control"))
@@ -162,6 +170,13 @@ def claim_assignment():
 @home_sace_bp.get("/ip-pledge")
 @login_required
 def signed_pledge():
+    if s.controller():
+        s.require_controller()
+    else:
+        assignments = lc.assignments()
+        if not assignments:
+            abort(403)
+        s.assignment(assignments[0].id)
     rows = HomePledge.query.filter_by(user_id=current_user.id).order_by(HomePledge.id.desc()).all()
     if not rows:
         abort(403)
@@ -253,7 +268,33 @@ def completion(assignment_id):
             abort(409, description="HOME examination is incomplete; unavailable evidence cannot be marked examined.")
         row.status, row.completed_at = "completed", now()
         s.record(row, "completion", "completed", {"requirements": row.requirements_version})
+        lc.audit(current_user.id, "auditor", "examination_completed", g.home_access[1], row.id)
         db.session.commit()
-        return redirect(url_for("home_sace_bp.board", assignment_id=row.id))
+        return page("completion.html", "HOME examination completed", row=row, missing=[],
+            back=url_for("home_sace_bp.entry"))
     return page("completion.html", "HOME examination completion", row=row, missing=missing,
         back=url_for("home_sace_bp.board", assignment_id=row.id))
+
+
+@home_sace_bp.route("/control/completion", methods=["GET", "POST"])
+@login_required
+def request_completion():
+    lc.require_appointment()
+    if request.method == "POST":
+        decision = request.form.get("decision")
+        if decision == "yes":
+            lc.request_completion()
+            db.session.commit()
+        elif decision != "no":
+            abort(400, description="Choose Yes or No.")
+        return redirect(url_for("home_sace_bp.control"))
+    return page("completion_confirm.html", "Complete Activity Endorsement",
+        back=url_for("home_sace_bp.control"))
+
+
+@home_sace_bp.post("/control/cancel-completion")
+@login_required
+def cancel_completion():
+    lc.cancel_completion()
+    db.session.commit()
+    return redirect(url_for("home_sace_bp.control"))

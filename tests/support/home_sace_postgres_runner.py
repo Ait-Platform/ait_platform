@@ -9,7 +9,7 @@ import uuid
 from datetime import timedelta
 from pathlib import Path
 from sqlalchemy import text, create_engine, inspect
-from sqlalchemy.schema import CreateTable, CreateIndex
+from sqlalchemy.schema import CreateTable, CreateIndex, AddConstraint
 from alembic.migration import MigrationContext
 from alembic.operations import Operations
 
@@ -39,6 +39,10 @@ class HomeFoundation(unittest.TestCase):
                     conn.execute(text(ddl.replace("CREATE TABLE", "CREATE TEMPORARY TABLE", 1)))
                     for index in table.indexes:
                         conn.execute(CreateIndex(index))
+                for table in HOME_TABLES:
+                    for constraint in table.foreign_key_constraints:
+                        if constraint.use_alter:
+                            conn.execute(AddConstraint(constraint))
         cls.tables += [t.name for t in HOME_TABLES]
         cls.documents = tempfile.TemporaryDirectory(prefix="home-sace-documents-")
         cls.app.config["SACE_HOME_DOCUMENT_ROOT"] = cls.documents.name
@@ -48,9 +52,19 @@ class HomeFoundation(unittest.TestCase):
         cls.documents.cleanup()
         h.AccessJourneys.tearDownClass.__func__(cls)
 
-    setUp = h.AccessJourneys.setUp
+    def setUp(self):
+        # The invitation/pledge/appointment cycle is intentional; clear only our
+        # connection-local HOME fixtures together before the shared harness reset.
+        with self.app.app_context():
+            db.session.execute(text('TRUNCATE ' + ', '.join('pg_temp.' + t.name for t in HOME_TABLES)))
+            db.session.commit()
+        h.AccessJourneys.setUp(self)
+        with self.app.app_context():
+            db.session.execute(text("INSERT INTO auth_subject (id, slug, name, is_active) VALUES (901, 'sace_home_endorsement', 'HOME SACE Endorsement', 1)"))
+            db.session.commit()
     user = h.AccessJourneys.user
     login = h.AccessJourneys.login
+    pledge = h.AccessJourneys.pledge
 
     def provision_home(self, email="home-r@example.test"):
         with self.app.app_context():
@@ -95,7 +109,7 @@ class HomeFoundation(unittest.TestCase):
         self.assertIn(b"HOME Workshop / Participant Manual", self.client.get("/sace/home/control/documents").data)
         with self.app.app_context():
             self.assertEqual(HomePledge.query.filter_by(role="controller").count(), 1)
-            self.assertEqual(h.auth_models.AuthSubjectAdmin.query.count(), 0)
+            self.assertEqual(h.auth_models.AuthSubjectAdmin.query.filter_by(subject_id=901).count(), 1)
             self.assertEqual(h.Interaction.query.count(), 0)
         self.client.get("/logout")
         self.assertEqual(self.login(self.client, "home-r@example.test", "/sace/home/").location, "/sace/home/")
@@ -166,8 +180,8 @@ class HomeFoundation(unittest.TestCase):
 
     def test_litre_authority_code_and_evidence_do_not_grant_home(self):
         uid = self.user("litre@example.test")
+        h.AccessJourneys.provision(self, self.client, "litre@example.test", existing=True)
         with self.app.app_context():
-            db.session.add(h.auth_models.AuthSubjectAdmin(subject_id=900, email="litre@example.test"))
             row = h.Interaction(user_id=uid, activity_slug="auditor_provisioned",
                 response_data=h.json.dumps({"code": "LITRE-TEST", "status": "Claimed", "claimed_by_user_id": uid}))
             db.session.add(row)

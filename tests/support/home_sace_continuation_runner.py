@@ -72,9 +72,8 @@ class Continuation(f.HomeFoundation):
 
     def test_cont_stale_litre_controller(self):
         self.user("litre-r@example.test")
-        with self.app.app_context():
-            db.session.add(f.h.auth_models.AuthSubjectAdmin(subject_id=900, email="litre-r@example.test"))
-            db.session.commit()
+        f.h.AccessJourneys.provision(self, self.client, "litre-r@example.test", existing=True)
+        self.client.get("/logout")
         self.stale(self.client)
         self.assertEqual(self.login(self.client, "litre-r@example.test").location, "/sace/provisioning")
         self.assertEqual(self.client.get("/sace/provisioning").status_code, 200)

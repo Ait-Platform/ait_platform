@@ -1,0 +1,10 @@
+{% extends "program_sace_home/frame.html" %}
+{% block home_content %}
+<p class="text-lg mb-4">Are you sure the endorsement process for this activity is complete?</p>
+<p class="mb-5">Yes starts a 48-hour completion period. You and active Auditors retain access during this period. You may cancel before the deadline. Access ends at the deadline.</p>
+<form method="post" class="flex justify-end gap-3">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<button class="home-button" name="decision" value="no">No</button>
+<button class="home-button" name="decision" value="yes">Yes</button>
+</form>
+{% endblock %}

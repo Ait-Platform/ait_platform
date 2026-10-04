@@ -3,17 +3,14 @@
 Run directly; does not import Flask, connect to a database or alter source slides.
 """
 from pathlib import Path
-from io import BytesIO
-from PIL import Image
 from xml.sax.saxutils import escape
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.platypus import Paragraph
-from reportlab.lib.utils import ImageReader
 
 ROOT = Path(__file__).resolve().parents[1]
-OUTPUT = ROOT / 'app/static/pdf/F_Guide.pdf'
+OUTPUT = ROOT / 'app/static/pdf/Reading_Facilitator_Manual.pdf'
 # Purpose, facilitator action, participant action. Order matches the source PNGs.
 NOTES = [
 ('Introduce the foundation session.', 'Outline the pre-test, reading problem and introduction to LITRE shown on the agenda.', 'Follow the session outline and prepare to respond to the pre-test.'),
@@ -60,7 +57,7 @@ def build():
     pdf = canvas.Canvas(str(OUTPUT), pagesize=(width, height), pageCompression=1, invariant=1)
     pdf.setTitle('Facilitator Manual - I Learn to Read English Using the LITRE Method')
     pdf.setAuthor('AIT')
-    style = ParagraphStyle('note', fontName='Helvetica', fontSize=10, leading=13, textColor='#1e293b')
+    style = ParagraphStyle('note', fontName='Helvetica', fontSize=14, leading=21, textColor='#1e293b')
     for number, (slide, notes) in enumerate(zip(slides, NOTES), 1):
         pdf.setFillColorRGB(0.19, 0.18, 0.51)
         pdf.rect(0, height - 7, width, 7, fill=1, stroke=0)
@@ -69,22 +66,12 @@ def build():
         pdf.setFont('Helvetica', 9)
         pdf.drawRightString(width - 28, height - 29, f'Workshop slide {number} of 31')
         pdf.drawString(28, height - 46, 'I Learn to Read English Using the LITRE Method')
-        # Embed at original dimensions with print-quality JPEG encoding; no crop or content edits.
-        encoded = BytesIO()
-        with Image.open(slide) as source:
-            source.convert('RGB').save(encoded, format='JPEG', quality=90, optimize=True)
-        encoded.seek(0)
-        image = ImageReader(encoded)
-        iw, ih = image.getSize()
-        scale = min((width - 56) / iw, 390 / ih)
-        dw, dh = iw * scale, ih * scale
-        pdf.drawImage(image, (width - dw) / 2, height - 60 - dh, width=dw, height=dh, mask='auto')
-        y = 126
+        y = height - 90
         for label, note in zip(('Purpose', 'Facilitator', 'Participants'), notes):
             paragraph = Paragraph(f'<b>{label}:</b> {escape(note)}', style)
-            _, ph = paragraph.wrap(width - 56, 100)
+            _, ph = paragraph.wrap(width - 56, height)
             paragraph.drawOn(pdf, 28, y - ph)
-            y -= ph + 5
+            y -= ph + 28
         if y < 28:
             raise ValueError(f'Notes overflow on slide {number}')
         pdf.setFont('Helvetica', 8)

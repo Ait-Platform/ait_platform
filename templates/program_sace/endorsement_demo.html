@@ -3,10 +3,10 @@
 {% block content %}
 <div class="max-w-5xl mx-auto px-4 py-8"><div class="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
 <div class="h-2 bg-indigo-700"></div><div class="p-6 space-y-6">
-<h1 class="text-2xl font-bold text-slate-800">Forward-only Demo</h1>
+<h1 class="text-2xl font-bold text-slate-800">Workshop Online Interaction &amp; Assessment</h1>
 {% with messages = get_flashed_messages(with_categories=true) %}{% for category, message in messages %}<p class="border rounded p-3">{{ message }}</p>{% endfor %}{% endwith %}
 <div class="flex justify-end"><button id="advance" class="bg-indigo-50 text-indigo-800 border border-indigo-200 rounded-lg px-4 py-2 hover:bg-indigo-100 disabled:opacity-40">Save and Continue</button></div><p id="error" role="alert"></p>
-<p>Your position is saved on the server. Continue forwards through the presentation and online workshop activities.</p>
+<p>Your position is saved on the server. Continue through workshop steps 32-35. The Facilitator Manual and Workshop Manual cover slides 1-31.</p>
 {% if step <= 31 %}
 <p>Workshop presentation &mdash; {{ step }} / 31</p><img id="demo-slide" class="w-full" src="{{ url_for('sace_bp.journey_slide',slide=step) }}" alt="Workshop slide {{ step }}">
 {% elif step == 32 %}

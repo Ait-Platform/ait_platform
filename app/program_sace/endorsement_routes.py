@@ -124,8 +124,8 @@ def claim():
 MATERIALS = {'app_form': ('Application Form 1', 'pdf/App_Form_1.pdf'),
              'app_form_2': ('Application Form 2', 'pdf/App_Form_2.pdf'),
              'timetable': ('Reading Timetable (T/T)', 'pdf/Reading Timetable.pdf'),
-             'ip_pledge': ('AIT IP Pledge (reference)', None), 'f_guide': ('Facilitator Manual', 'pdf/F_Guide.pdf'),
-             'p_guide': ('Participant / Workshop Manual', 'pdf/P_Guide.pdf')}
+             'ip_pledge': ('AIT IP Pledge (reference)', None), 'f_guide': ('Facilitator Manual', 'pdf/Reading_Facilitator_Manual.pdf'),
+             'p_guide': ('Workshop Manual', 'pdf/Reading_Workshop_Manual.pdf')}
 
 
 def material_path(kind):
@@ -133,7 +133,9 @@ def material_path(kind):
         abort(404)
     title, fallback = MATERIALS[kind]
     doc = SaceDocument.query.filter_by(slug='reading', document_type=kind).first()
-    relative = doc.file_path if doc else fallback
+    # Serve the canonical Reading timetable and regenerated manuals even when
+    # their catalogue mappings still point to older or missing assets.
+    relative = fallback if kind in ('timetable', 'f_guide', 'p_guide') else (doc.file_path if doc else fallback)
     relative = relative.replace('app/static/', '').removeprefix('static/')
     root = Path(current_app.static_folder).resolve()
     path = (root / relative).resolve()
@@ -219,6 +221,10 @@ DEMO_SEQUENCE = 'workshop-31-v2'
 def demo_state(row):
     """Resume old positions without deleting evidence or replaying completed slides."""
     state = flow.payload(row)
+    # The two examined manuals cover slides 1-31; preserve old slide events.
+    if state.get('demo_step', 0) < 32:
+        state['demo_step'] = 32
+        flow.save(row, state)
     if state.get('demo_sequence') != DEMO_SEQUENCE:
         old_step = state.get('demo_step', 0)
         # Old 32/33 already had critique/application recorded one number earlier.
@@ -381,8 +387,8 @@ def deliver_certificate(row,slug,certificate_id,pdf):
 
 
 def require_map(row):
-    if not flow.latest(row, 'map_complete') or not flow.latest(row, 'ppp_complete'):
-        abort(409, description="Complete the Activity Summary, controlled materials and PPP first.")
+    if not flow.latest(row, 'map_complete'):
+        abort(409, description="Complete the Activity Summary and controlled materials first.")
 
 
 @sace_bp.route('/sace/reading/auditor-map', methods=['GET', 'POST'])

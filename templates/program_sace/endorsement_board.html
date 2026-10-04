@@ -3,7 +3,7 @@
 {% block content %}
 <div class="max-w-5xl mx-auto px-4 py-8"><div class="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
 <div class="h-2 bg-indigo-700"></div><div class="p-6 space-y-6">
-<div class="flex items-center justify-between gap-4"><h1 class="text-2xl font-bold text-slate-800">Auditor Board</h1><a class="border border-slate-300 rounded px-4 py-2" href="{{ url_for('sace_bp.reading_hub') }}">Back to Auditor Board</a></div>
+<div class="flex items-center justify-between gap-4"><h1 class="text-2xl font-bold text-slate-800">Auditor Board</h1></div>
 {% with messages = get_flashed_messages(with_categories=true) %}{% for category, message in messages %}<p class="border rounded p-3">{{ message }}</p>{% endfor %}{% endwith %}
 
 <div class="flex justify-end"><a class="bg-indigo-700 text-white rounded px-4 py-2" href="{{ url_for('sace_bp.finish_evaluation') }}">Review journey completion</a></div>
@@ -15,18 +15,16 @@
 ('app_form','Application Form 1','secure_view','app_form'),
 ('app_form_2','Application Form 2','secure_view','app_form_2'),
 ('f_guide','Facilitator Manual','secure_view','f_guide'),
-('p_guide','Participant / Workshop Manual','secure_view','p_guide'),
+('p_guide','Workshop Manual','secure_view','p_guide'),
 ('ip_pledge','AIT IP Pledge (reference)','secure_view','ip_pledge'),
 ('timetable','Reading Timetable (T/T)','secure_view','timetable'),
-('ppp_complete','PPP: examine all 31 slides','presentation',none),
-('demo_complete','Forward-only Demo: 31 slides and workshop interactions','simulator',none),
-('workshop_evaluation_complete','Evaluation and Assessment','step35',none),
+('demo_complete','Workshop Online Interaction & Assessment - steps 32-35','simulator',none),
 ('workshop_certificate','Workshop Certificate evidence','post_test_results',none),
-('reading_complete','18-video Reading course','reading_course',none),
+('reading_complete','18-video Reading Course','reading_course',none),
 ('reading_certificate','Reading Course Certificate evidence','reading_certificate',none)
 ] %}
 {% for slug,title,endpoint,kind in evidence_items %}
-<tr class="border-t border-slate-200"><td class="p-3"><a class="text-indigo-700 underline" href="{{ url_for('sace_bp.'+endpoint,doc_type=kind) if kind else url_for('sace_bp.'+endpoint) }}">{{ title }}</a></td><td class="p-3">{{ ('Examined' if kind or slug in ('map_reviewed','ppp_complete') else 'Recorded') if slug in ticks else 'Outstanding' }}</td></tr>
+<tr class="border-t border-slate-200"><td class="p-3"><a class="text-indigo-700 underline" href="{{ url_for('sace_bp.'+endpoint,doc_type=kind) if kind else url_for('sace_bp.'+endpoint) }}">{{ title }}</a></td><td class="p-3">{{ ('Examined' if kind or slug == 'map_reviewed' else 'Recorded') if slug in ticks else 'Outstanding' }}</td></tr>
 {% endfor %}
 </tbody></table>
 <p>{{ 'All required evidence is recorded. Review completion to notify R and close this assignment.' if not missing else 'Progress is saved. Complete the outstanding activities before closing the assignment.' }}</p>

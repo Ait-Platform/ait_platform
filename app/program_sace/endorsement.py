@@ -143,11 +143,9 @@ def course_complete(row):
 
 
 def completion_requirements(row):
-    required = MAP_REQUIRED + ('map_complete', 'ppp_complete', 'demo_complete', 'step31', 'step32', 'step33',
+    required = MAP_REQUIRED + ('map_complete', 'demo_complete', 'step31', 'step32', 'step33',
         'workshop_certificate', 'reading_complete', 'reading_certificate', 'board_returned')
     missing = [slug for slug in required if not latest(row, slug)]
-    if not all(latest(row, f'ppp_slide_{i}') for i in range(1, 32)):
-        missing.append('31_ppp_slides')
     if not workshop_passed(row):
         missing.append('step34_pass')
     if not course_complete(row):

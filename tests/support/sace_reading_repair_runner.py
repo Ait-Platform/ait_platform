@@ -87,15 +87,10 @@ class ReadingRepair(unittest.TestCase):
 
     def slides(self):
         response = self.client.get("/sace/reading/simulator")
-        self.assertIn(b"Workshop slide 1", response.data)
-        self.assertNotIn(b"Begin the workshop", response.data)
-        for number in range(1,32):
-            response = self.client.get("/sace/reading/simulator")
-            self.assertIn(f"Workshop slide {number}".encode(), response.data)
-            self.assertNotIn(b"Back to Auditor Board", response.data)
-            self.assertIn(b"Save and Continue", response.data)
-            self.assertNotIn(b"rubric_vocalization", response.data)
-            self.assertEqual(self.step(number), "/sace/reading/simulator")
+        self.assertIn(b"Step 32", response.data)
+        self.assertNotIn(b'id="demo-slide"', response.data)
+        self.assertEqual(self.client.post("/sace/reading/demo/advance", json={"step": 31}).status_code, 409)
+        self.assertIsNone(self.event("demo_slide_1"))
         self.assertIsNone(self.event("step31"))
 
     def workshop(self):
@@ -118,14 +113,12 @@ class ReadingRepair(unittest.TestCase):
             ("Application Form 1", "/sace/secure_view/app_form"),
             ("Application Form 2", "/sace/secure_view/app_form_2"),
             ("Facilitator Manual", "/sace/secure_view/f_guide"),
-            ("Participant / Workshop Manual", "/sace/secure_view/p_guide"),
+            ("Workshop Manual", "/sace/secure_view/p_guide"),
             ("AIT IP Pledge (reference)", "/sace/secure_view/ip_pledge"),
             ("Reading Timetable (T/T)", "/sace/secure_view/timetable"),
-            ("PPP: examine all 31 slides", "/sace/reading/presentation"),
-            ("Forward-only Demo: 31 slides and workshop interactions", "/sace/reading/simulator"),
-            ("Evaluation and Assessment", "/sace/reading/step35"),
+            ("Workshop Online Interaction & Assessment - steps 32-35", "/sace/reading/simulator"),
             ("Workshop Certificate evidence", "/sace/reading/post_test/results"),
-            ("18-video Reading course", "/sace/reading/course"),
+            ("18-video Reading Course", "/sace/reading/course"),
             ("Reading Course Certificate evidence", "/sace/reading/course/certificate")])
         self.assertNotIn(b"Slides 1-31 are the workshop presentation.",response.data)
         for kind in ("f_guide","p_guide","timetable"):
@@ -133,6 +126,52 @@ class ReadingRepair(unittest.TestCase):
             with self.client.get("/sace/material/"+kind+"/content") as pdf:
                 self.assertEqual(pdf.status_code,200)
                 self.assertTrue(pdf.data.startswith(b"%PDF-"))
+
+    def test_manual_content_navigation_and_stale_timetable(self):
+        from pypdf import PdfReader
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('facilitator_source', ROOT / 'scripts/build_sace_facilitator_manual.py')
+        source = importlib.util.module_from_spec(spec); spec.loader.exec_module(source)
+        facilitator = PdfReader(ROOT / 'app/static/pdf/Reading_Facilitator_Manual.pdf')
+        workshop = PdfReader(ROOT / 'app/static/pdf/Reading_Workshop_Manual.pdf')
+        self.assertEqual(len(facilitator.pages), 31)
+        self.assertEqual(len(workshop.pages), 31)
+        for number, (fpage, ppage, notes) in enumerate(zip(facilitator.pages, workshop.pages, source.NOTES), 1):
+            self.assertEqual(len(fpage.images), 0)
+            self.assertEqual(len(ppage.images), 1)
+            text = ' '.join(fpage.extract_text().split())
+            self.assertIn(f'Workshop slide {number} of 31', text)
+            for note in notes: self.assertIn(note, text)
+            self.assertNotIn('Purpose:', ppage.extract_text())
+            self.assertNotIn('Facilitator:', ppage.extract_text())
+        for kind in ('app_form', 'app_form_2', 'f_guide', 'p_guide', 'timetable'):
+            page = self.client.get('/sace/secure_view/' + kind)
+            returns = [a for a in Anchors(page.data).items if a['href'] == '/sace/reading']
+            self.assertEqual([a['text'] for a in returns], ['Return to Auditor Board'])
+        self.assertNotIn(b'Back to Auditor Board', self.client.get('/sace/reading').data)
+        with self.app.app_context():
+            db.session.add(h.SaceDocument(slug='reading', document_type='timetable',
+                file_name='stale.pdf', file_path='pdf/missing-timetable.pdf'))
+            db.session.commit()
+        with self.client.get('/sace/material/timetable/content') as response:
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.data, (ROOT / 'app/static/pdf/Reading Timetable.pdf').read_bytes())
+        self.assertEqual(self.client.post('/sace/material/timetable/viewed').status_code, 200)
+
+    def test_controller_interface_and_assignment_pass(self):
+        controller = self.app.test_client()
+        self.login(controller, 'r@example.test', '/sace/provisioning')
+        page = controller.get('/sace/provisioning')
+        self.assertNotIn(b'/sace/reading/lifecycle', page.data)
+        self.assertNotIn(b'Engagement and appointments', page.data)
+        code, _ = h.AccessJourneys.code(self, controller)
+        from flask import url_for
+        with self.app.test_request_context():
+            url = url_for('sace_bp.print_access_slip', code=code)
+        page = controller.get(url)
+        self.assertEqual(page.status_code, 200)
+        self.assertIn(b'This access pass is issued for this Reading endorsement review', page.data)
+        self.assertIn(b'appointed SACE Evaluator only', page.data)
 
     def test_summary_pledge_and_ppp_remain_separate(self):
         pledge = (ROOT/"templates/program_sace/auditor_pledge.html").read_text(encoding="utf-8")

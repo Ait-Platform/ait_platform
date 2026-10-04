@@ -38,3 +38,8 @@ render_backup.sql
 
 # Required SACE controlled workshop material
 !/app/static/pdf/F_Guide.pdf
+
+# Required Reading SACE manuals generated from the approved source
+!/app/static/pdf/Reading_Facilitator_Manual.pdf
+!/app/static/pdf/Reading_Workshop_Manual.pdf
+!/app/static/pdf/Reading Timetable.pdf

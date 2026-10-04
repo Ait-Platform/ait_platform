@@ -8,6 +8,6 @@
 
 {% if not content %}<p>Reading-course questions have not yet been supplied. No assessment result or pass is recorded. Your progress remains saved.</p><p>This is an AIT course content dependency. SACE's external endorsement rubric is not required.</p>
 {% else %}{% if result %}<p>Score: {{ result.score }}%. {{ 'Passed' if result.passed else 'Not yet passed; retry below.' }}</p>{% endif %}<form method="post" class="space-y-5"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="version" value="{{ content.version }}">{% for q in content.questions %}<fieldset class="border rounded p-3"><legend>{{ q.prompt }}</legend>{% for key,label in q.options.items() %}<label class="block"><input type="radio" name="{{ q.id }}" value="{{ key }}" required> {{ label }}</label>{% endfor %}</fieldset>{% endfor %}<div class="flex justify-end"><button class="bg-indigo-700 text-white rounded px-4 py-2 disabled:opacity-40">Submit Reading MCQ</button></div></form>{% endif %}
-<a class="text-indigo-700 underline" href="{{ url_for('sace_bp.reading_certificate') }}">Test Reading certificate behaviour</a>
+<p>Return to the Auditor Board to examine Reading Course Certificate evidence after passing the assessment.</p>
 </div></div></div>
 {% endblock %}

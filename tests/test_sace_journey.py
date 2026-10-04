@@ -162,8 +162,8 @@ class JourneyTests(unittest.TestCase):
 
     def test_reading_cannot_complete_unserved_or_later_video(self):
         self.workshop()
-        self.fails(409,'reading_lesson',method='POST',json_data={'ended':True},lesson_id=1)
-        self.fails(409,'reading_lesson',method='POST',json_data={'ended':True},lesson_id=2)
+        self.fails(409,'reading_lesson',method='POST',json_data={'examined':True},lesson_id=1)
+        self.fails(409,'reading_lesson',method='POST',json_data={'examined':True},lesson_id=2)
         self.assertIsNone(self.latest(self.row,'reading_lesson_1_complete'))
 
 
@@ -226,28 +226,31 @@ class JourneyTests(unittest.TestCase):
         self.assertEqual("'=1+1",self.r['csv_cell']('=1+1'))
         self.assertEqual('plain',self.r['csv_cell']('plain'))
 
-    def test_certificate_delivery_failure_and_retry(self):
-        import sys
-        from unittest.mock import patch
-        sender=Mock(return_value=False)
-        module=SimpleNamespace(_email_certificate_pdf=sender)
-        with patch.dict(sys.modules, {'app.subject_reading.routes':module}):
-            self.fails(503,'deliver_certificate',method='POST',data={'email':'a@example.test'},row=self.row,slug='workshop_certificate',certificate_id='TEST',pdf=b'pdf')
-            self.assertIsNone(self.latest(self.row,'workshop_certificate'))
-            self.assertIsNotNone(self.latest(self.row,'workshop_certificate_failed'))
-            sender.return_value=True
-            self.call('deliver_certificate',method='POST',data={'email':'a@example.test'},row=self.row,slug='workshop_certificate',certificate_id='TEST',pdf=b'pdf')
-            self.assertIsNotNone(self.latest(self.row,'workshop_certificate'))
-
-    def test_suppressed_certificate_is_never_sent_or_credited(self):
+    def test_auditor_certificate_email_is_rejected_before_generation(self):
         import sys
         from unittest.mock import patch
         sender=Mock(return_value=True)
-        self.app.config['MAIL_SUPPRESS_SEND']=True
-        with patch.dict(sys.modules, {'app.subject_reading.routes':SimpleNamespace(_email_certificate_pdf=sender)}):
-            self.fails(503,'deliver_certificate',method='POST',data={'email':'a@example.test'},row=self.row,slug='reading_certificate',certificate_id='TEST',pdf=b'pdf')
+        generate=Mock(return_value=b'%PDF-specimen')
+        with patch.dict(sys.modules, {'app.subject_reading.routes':SimpleNamespace(_email_certificate_pdf=sender),
+                                     'app.program_sace.routes':SimpleNamespace(_generate_sace_certificate_pdf=generate)}):
+            self.fails(403,'send_workshop_certificate',method='POST',data={'email':'a@example.test'})
         sender.assert_not_called()
-        self.assertIsNone(self.latest(self.row,'reading_certificate'))
+        generate.assert_not_called()
+        self.assertIsNone(self.latest(self.row,'workshop_certificate'))
+        self.assertNotIn('workshop_certificate_id',self.flow.payload(self.row))
+
+    def test_specimen_generation_failure_does_not_issue_or_email(self):
+        import sys
+        from unittest.mock import patch
+        sender=Mock()
+        self.flow.workshop_passed=lambda row:True
+        self.r['__package__']='app.program_sace'
+        self.r['__name__']='app.program_sace.endorsement_routes'
+        with patch.dict(sys.modules, {'app.subject_reading.routes':SimpleNamespace(_email_certificate_pdf=sender),
+                                     'app.program_sace.routes':SimpleNamespace(_generate_sace_certificate_pdf=Mock(return_value=b''))}):
+            self.fails(503,'certificate_specimen',kind='workshop')
+        sender.assert_not_called()
+        self.assertIsNone(self.latest(self.row,'workshop_certificate'))
 
     def test_r_audit_forbidden_to_auditor(self):
         self.app.add_url_rule('/audit',endpoint='sace_bp.audit_export',view_func=lambda:'')

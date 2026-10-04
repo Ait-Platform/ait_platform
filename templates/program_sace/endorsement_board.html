@@ -24,7 +24,7 @@
 ('reading_certificate','Reading Course Certificate evidence','reading_certificate',none)
 ] %}
 {% for slug,title,endpoint,kind in evidence_items %}
-<tr class="border-t border-slate-200"><td class="p-3"><a class="text-indigo-700 underline" href="{{ url_for('sace_bp.'+endpoint,doc_type=kind) if kind else url_for('sace_bp.'+endpoint) }}">{{ title }}</a></td><td class="p-3">{{ ('Examined' if kind or slug == 'map_reviewed' else 'Recorded') if slug in ticks else 'Outstanding' }}</td></tr>
+<tr class="border-t border-slate-200"><td class="p-3"><a class="text-indigo-700 underline" href="{{ url_for('sace_bp.'+endpoint,doc_type=kind) if kind else url_for('sace_bp.'+endpoint, evidence=1) if slug == 'workshop_certificate' else url_for('sace_bp.'+endpoint) }}">{{ title }}</a></td><td class="p-3">{{ ('Examined' if kind or slug == 'map_reviewed' else 'Recorded') if slug in ticks else 'Outstanding' }}</td></tr>
 {% endfor %}
 </tbody></table>
 <p>{{ 'All required evidence is recorded. Review completion to notify R and close this assignment.' if not missing else 'Progress is saved. Complete the outstanding activities before closing the assignment.' }}</p>

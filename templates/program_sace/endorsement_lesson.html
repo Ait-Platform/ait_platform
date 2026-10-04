@@ -8,15 +8,12 @@
 
 <div class="flex justify-end"><a class="underline" href="{{ url_for('sace_bp.reading_course') }}">Return to course</a></div><p>{{ lesson.caption or '' }}</p>
 <video id="video" class="w-full" controls preload="metadata" src="{{ url_for('sace_bp.reading_video',lesson_id=lesson.id) }}"></video>
-<p id="status" role="status">Play the video to completion. Progress saves automatically.</p>
-<button id="retry" class="hidden border border-slate-300 rounded p-2">Retry saving playback</button>
+<p id="status" role="status">Seek forward or backward to examine the material, then mark this video examined.</p>
+<button id="examined" class="border border-slate-300 rounded p-2">Mark video examined</button>
 <script>
-const v=document.getElementById('video'),status=document.getElementById('status'),retry=document.getElementById('retry');let watched=0,saving=false,finished=false;
-v.ontimeupdate=()=>{if(!v.seeking&&v.currentTime<=watched+2)watched=Math.max(watched,v.currentTime);};
-v.onseeking=()=>{if(v.currentTime>watched+1)v.currentTime=watched;};
-async function save(){if(saving||!finished)return;saving=true;try{const r=await fetch(location.pathname,{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':{{ csrf_token()|tojson }}},body:JSON.stringify({ended:true})});if(!r.ok)throw Error();const data=await r.json();status.textContent='Video completion recorded.';location.href=data.next;}catch(e){status.textContent='Playback finished but progress could not be saved. Retry saving.';retry.classList.remove('hidden');}finally{saving=false;}}
-v.onended=()=>{if(Number.isFinite(v.duration)&&watched>=v.duration-2){finished=true;save();}};retry.onclick=save;
-v.onerror=()=>{status.textContent='Video unavailable. Completion has not been recorded.';};
+const v=document.getElementById('video'),status=document.getElementById('status'),button=document.getElementById('examined');
+button.onclick=async()=>{button.disabled=true;try{const r=await fetch(location.pathname,{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':{{ csrf_token()|tojson }}},body:JSON.stringify({examined:true})});if(!r.ok)throw Error();location.href=(await r.json()).next;}catch(e){status.textContent='Examination could not be saved. Open the video and retry.';button.disabled=false;}};
+v.onerror=()=>{status.textContent='Video unavailable. Examination has not been recorded.';button.disabled=true;};
 </script>
 </div></div></div>
 {% endblock %}

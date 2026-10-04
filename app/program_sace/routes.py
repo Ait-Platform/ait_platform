@@ -534,7 +534,7 @@ def submit_post_test():
     from . import endorsement_routes as journey
     return journey.mark_workshop()
 
-@sace_bp.route("/sace/reading/post_test/results")
+@sace_bp.route("/sace/reading/post_test/results", methods=["GET", "POST"])
 @login_required
 def post_test_results():
     from . import endorsement_routes as journey

@@ -117,7 +117,7 @@ class ReadingRepair(unittest.TestCase):
             ("AIT IP Pledge (reference)", "/sace/secure_view/ip_pledge"),
             ("Reading Timetable (T/T)", "/sace/secure_view/timetable"),
             ("Workshop Online Interaction & Assessment - steps 32-35", "/sace/reading/simulator"),
-            ("Workshop Certificate evidence", "/sace/reading/post_test/results"),
+            ("Workshop Certificate evidence", "/sace/reading/post_test/results?evidence=1"),
             ("18-video Reading Course", "/sace/reading/course"),
             ("Reading Course Certificate evidence", "/sace/reading/course/certificate")])
         self.assertNotIn(b"Slides 1-31 are the workshop presentation.",response.data)
@@ -201,7 +201,7 @@ class ReadingRepair(unittest.TestCase):
         self.assertIsNotNone(self.event("demo_complete"))
         self.assertIsNone(self.event("step35"))  # Reading-course MCQ is independent.
         result=self.client.get("/sace/reading/post_test/results")
-        self.assertIn(b"Email workshop certificate",result.data)
+        self.assertNotIn(b"Email workshop certificate",result.data)
         self.assertEqual(self.client.get("/sace/reading/course/certificate").status_code,200)
         self.assertEqual(self.client.post("/sace/reading/course/certificate",data={"email":"a@example.test"}).status_code,409)
 
@@ -231,7 +231,7 @@ class ReadingRepair(unittest.TestCase):
         self.assertEqual(response.location,'/sace/reading/post_test/results')
         self.assertEqual(self.event('step34')['score'],100)
         self.assertIsNotNone(self.event('demo_complete'))
-        self.assertIn(b'Email workshop certificate',self.client.get('/sace/reading/post_test/results').data)
+        self.assertNotIn(b'Email workshop certificate',self.client.get('/sace/reading/post_test/results').data)
 
     def test_empty_optional_comment_and_intention_only(self):
         from app.program_sace import workshop_interactions as instrument
@@ -255,18 +255,103 @@ class ReadingRepair(unittest.TestCase):
         with self.app.app_context():
             self.assertEqual(h.Interaction.query.filter_by(activity_slug='reading_research_followup').count(),0)
 
+    def test_workshop_certificate_evidence_never_issues_or_emails(self):
+        import app.program_sace.routes as routes
+        with patch.object(r, 'send_workshop_certificate', wraps=r.send_workshop_certificate), patch.object(routes, '_generate_sace_certificate_pdf', return_value=b'%PDF-specimen') as generate:
+            self.assertEqual(self.client.get('/sace/reading/post_test/results?evidence=1').status_code,409)
+            self.assertEqual(self.client.get('/sace/reading/certificate-evidence/workshop').status_code,409)
+            self.workshop()
+            result=self.client.get('/sace/reading/post_test/results')
+            self.assertNotIn(b'/sace/reading/course',result.data)
+            self.assertNotIn(b'/sace/reading/certificate/email',result.data)
+            self.assertIsNone(self.event('workshop_certificate'))
+            board=self.client.get('/sace/reading')
+            link=next(a['href'] for a in Anchors(board.data,table_only=True).items if a['text']=='Workshop Certificate evidence')
+            evidence=self.client.get(link)
+            self.assertEqual(evidence.status_code,200)
+            self.assertIn(b'Workshop certificate specimen',evidence.data)
+            self.assertNotIn(b'type="email"',evidence.data)
+            for _ in range(2):
+                self.assertEqual(self.client.post('/sace/reading/certificate/email',data={'email':'a@example.test'}).status_code,403)
+            generate.assert_not_called()
+            specimen=self.client.get('/sace/reading/certificate-evidence/workshop')
+            self.assertEqual(specimen.mimetype,'application/pdf')
+            self.assertEqual(generate.call_args.args[:2],('SPECIMEN - NOT ISSUED','Example participant (SPECIMEN)'))
+            self.assertEqual(self.client.post(link,data={'examined':'yes'}).location,'/sace/reading')
+            self.assertEqual(self.event('workshop_certificate')['evidence'],'participant certificate specimen examined')
+            self.assertIsNone(self.event('workshop_certificate_requested'))
+            with self.app.app_context():
+                self.assertNotIn('workshop_certificate_id',flow.payload(db.session.get(h.Interaction,self.assignment_id)))
+
+    def test_auditor_video_examination_needs_no_elapsed_playback(self):
+        lessons=[dict(id=i,order=i,title=f'Fixture {i}',caption='',video_filename=f'{i}.mp4') for i in range(1,19)]
+        with patch.object(flow,'course_lessons',return_value=lessons):
+            page=self.client.get('/sace/reading/course/1')
+            self.assertIn(b'controls preload="metadata"',page.data)
+            self.assertIn(b'Mark video examined',page.data)
+            for restriction in (b'onseeking',b'ontimeupdate',b'currentTime=',b'watched',b'onended'):
+                self.assertNotIn(restriction,page.data)
+            self.assertEqual(self.client.post('/sace/reading/course/1',json={'examined':True}).status_code,409)
+            with patch('app.utils.reading_media.verify_reading_video'):
+                self.assertEqual(self.client.get('/sace/reading/course/1/video').status_code,302)
+                self.assertEqual(self.client.get('/sace/reading/course/2/video').status_code,302)
+            # Served material can be examined immediately, without elapsed time or an ended event.
+            self.assertEqual(self.client.post('/sace/reading/course/2',json={'examined':True}).status_code,409)
+            self.assertEqual(self.client.post('/sace/reading/course/1',json={'examined':True}).status_code,200)
+            self.assertEqual(self.client.post('/sace/reading/course/2',json={'examined':True}).status_code,200)
+            self.assertEqual(self.event('reading_lesson_1_complete')['evidence'],'Auditor confirmed video examination')
+
+    def test_separate_participant_reading_guard_remains_unaffected(self):
+        import ast
+        from types import SimpleNamespace
+        tree=ast.parse((ROOT/'app/subject_reading/routes.py').read_text(encoding='utf-8-sig'))
+        guard=next(n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name=='_auditor_reading_journey')
+        guard.decorator_list=[]
+        namespace={'current_user':SimpleNamespace(is_authenticated=True),'redirect':h.flask.redirect,'url_for':h.flask.url_for,'request':h.flask.request}
+        exec(compile(ast.Module(body=[guard],type_ignores=[]),'participant-guard','exec'),namespace)
+        with self.app.test_request_context('/reading/certificate'):
+            with patch.object(flow,'assignments',return_value=[]), patch.object(flow,'assignment') as assignment:
+                self.assertIsNone(namespace['_auditor_reading_journey']())
+                assignment.assert_not_called()
+
+    def test_genuine_participant_certificate_still_generates_and_emails(self):
+        import ast
+        from types import SimpleNamespace
+        from unittest.mock import Mock
+        tree=ast.parse((ROOT/'app/subject_reading/routes.py').read_text(encoding='utf-8-sig'))
+        function=next(n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name=='_finalize_and_send_certificate')
+        function.decorator_list=[]
+        enrollment=SimpleNamespace(certificate_id='PARTICIPANT-123',completed_at=h.datetime(2026,1,1))
+        generate=Mock(return_value=b'%PDF-participant')
+        sender=Mock(return_value=True)
+        persistence=SimpleNamespace(session=Mock())
+        namespace={'_get_enrollment':lambda:enrollment,'db':persistence,'sa_text':h.text,
+            'current_user':SimpleNamespace(name='Participant',email='p@example.test'),
+            '_generate_certificate_pdf':generate,'_email_certificate_pdf':sender,'send_file':h.flask.send_file}
+        exec(compile(ast.Module(body=[function],type_ignores=[]),'participant-certificate','exec'),namespace)
+        with self.app.test_request_context('/reading/certificate'):
+            response=namespace['_finalize_and_send_certificate'](77)
+            self.assertEqual(response.mimetype,'application/pdf')
+            response.close()
+        generate.assert_called_once_with(certificate_id='PARTICIPANT-123',learner_name='Participant',completed_at=enrollment.completed_at,user_id=77)
+        sender.assert_called_once_with(to_email='p@example.test',learner_name='Participant',certificate_id='PARTICIPANT-123',pdf_bytes=b'%PDF-participant')
+        persistence.session.commit.assert_called_once()
+
     def test_course_assessment_is_separate_and_unconfigured(self):
         self.workshop()
         lessons=[dict(id=i,order=i,title=f"Fixture {i}",caption="",video_filename=f"{i}.mp4") for i in range(1,19)]
         with patch.object(flow,"course_lessons",return_value=lessons):
             course=self.client.get("/sace/reading/course")
-            self.assertIn(b'/sace/reading/course/assessment',course.data)
-            self.assertEqual(len([a for a in Anchors(course.data).items if a["href"].startswith("/sace/reading/course/")]),19)
+            self.assertNotIn(b'/sace/reading/course/assessment',course.data)
+            self.assertIn(b'<h2 class="text-xl font-semibold">I Learn to Read English Using the LITRE Method</h2>',course.data)
+            self.assertEqual(len([a for a in Anchors(course.data).items if a["href"].startswith("/sace/reading/course/")]),18)
             self.assertEqual(self.client.get("/sace/reading/course/assessment").status_code,409)
             with self.app.app_context():
                 for i in range(1,19):
                     db.session.add(h.Interaction(user_id=2,workshop_session_id=f"endorsement-{self.assignment_id}",activity_slug=f"reading_lesson_{i}_complete",response_data="{}"))
                 db.session.commit()
+            evidence=self.client.get('/sace/reading/course/certificate')
+            self.assertIn(b'/sace/reading/course/assessment',evidence.data)
             result=self.client.get("/sace/reading/course/assessment")
             self.assertEqual(result.status_code,200)
             self.assertIn(b"questions have not yet been supplied",result.data)
@@ -295,7 +380,7 @@ class ReadingRepair(unittest.TestCase):
         self.assertEqual(self.client.get('/sace/reading/simulator').location,'/sace/reading/post_test/results')
         self.assertEqual(self.event('step33')['instrument'],'existing-baseline-v1')
         self.assertEqual(self.event('workshop_certificate')['certificate_id'],'EXISTING')
-        self.assertIn(b'Email workshop certificate',self.client.get('/sace/reading/post_test/results').data)
+        self.assertNotIn(b'Email workshop certificate',self.client.get('/sace/reading/post_test/results').data)
 
     def test_no_skips_replays_or_incomplete_forms(self):
         self.client.get("/sace/reading/simulator")

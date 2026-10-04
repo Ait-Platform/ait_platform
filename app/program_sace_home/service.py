@@ -3,6 +3,7 @@ import hashlib
 import secrets
 from datetime import timedelta
 from pathlib import Path
+from types import SimpleNamespace
 from flask import abort, current_app, session, g
 from flask_login import current_user
 from app.extensions import db
@@ -59,8 +60,39 @@ def issue_provisioning(email, issued_by, days=7):
     return token
 
 
+PROVISIONING_CONTEXT = 'sace_home_provisioning_context'
+
+
+def start_provisioning():
+    """HOME-only session bootstrap; authority is created after pledge and authentication."""
+    if session.get('sace_home_pending_code'):
+        abort(403, description="Continue the HOME Auditor join journey first.")
+    if current_user.is_authenticated and HomeAssignment.query.filter_by(auditor_id=current_user.id).first():
+        abort(403, description="HOME Auditors cannot provision controller authority.")
+    nonce = secrets.token_urlsafe(32)
+    session[PROVISIONING_CONTEXT] = dict(nonce=nonce, expires_at=now().timestamp() + 900,
+        user_id=current_user.id if current_user.is_authenticated else None)
+    session['sace_home_provisioning_token'] = nonce
+    session.pop('sace_home_pledge_controller', None)
+    return nonce
+
+
 def provisioning(lock=False):
     token = session.get("sace_home_provisioning_token", "")
+    context = session.get(PROVISIONING_CONTEXT)
+    if context is not None:
+        if (not isinstance(context, dict) or not token
+                or not secrets.compare_digest(str(context.get('nonce', '')), token)
+                or not isinstance(context.get('expires_at'), (int, float))
+                or context['expires_at'] <= now().timestamp()
+                or (context.get('user_id') is not None and
+                    (not current_user.is_authenticated or context['user_id'] != current_user.id))):
+            abort(403, description="HOME provisioning context expired or invalid. Begin a new HOME journey.")
+        previous = HomeProvisioning.query.filter_by(token_hash=digest(token)).first()
+        if previous and (previous.claimed_at or previous.expires_at <= now()):
+            abort(403, description="This HOME provisioning context has already been used or expired.")
+        return SimpleNamespace(id=token, email=current_user.email if current_user.is_authenticated else '',
+            session_bootstrap=True, expires_at=context['expires_at'])
     query = HomeProvisioning.query.filter_by(token_hash=digest(token))
     row = query.with_for_update().populate_existing().first() if lock else query.first()
     if row is None or row.claimed_at or row.expires_at <= now():
@@ -102,9 +134,9 @@ def consent(role, context_id):
     return value
 
 
-def persist_pledge(role, row):
+def persist_pledge(role, row, context_id=None):
     from datetime import datetime
-    value = consent(role, row.id)
+    value = consent(role, row.id if context_id is None else context_id)
     pledge = HomePledge(user_id=current_user.id, role=role,
         signature=value["signature"], version=PLEDGE_VERSION, text_hash=digest(PLEDGE_TEXT),
         accepted_at=datetime.fromisoformat(value["accepted_at"]),
@@ -116,15 +148,30 @@ def persist_pledge(role, row):
 
 def complete_provisioning():
     lc.subject_lock()
-    row = provisioning(lock=True)
+    entry = provisioning(lock=True)
+    if HomeAssignment.query.filter_by(auditor_id=current_user.id).first():
+        abort(403, description="HOME Auditors cannot provision controller authority.")
+    context_id = entry.id
+    consent('controller', context_id)
+    if getattr(entry, 'session_bootstrap', False):
+        from datetime import datetime, timezone
+        row = HomeProvisioning.query.filter_by(token_hash=digest(entry.id)).with_for_update().first()
+        if row is None:
+            row = HomeProvisioning(token_hash=digest(entry.id), email=current_user.email.strip().lower(),
+                issued_by='HOME session provisioning', expires_at=datetime.fromtimestamp(entry.expires_at, timezone.utc))
+            db.session.add(row)
+            db.session.flush()
+    else:
+        row = entry
     if current_user.email.strip().lower() != row.email:
         abort(403, description="Sign in with the email named in the HOME provisioning invitation.")
-    pledge = persist_pledge("controller", row)
+    pledge = persist_pledge("controller", row, context_id=context_id)
     db.session.flush()
     lc.provision(row, pledge)
     row.claimed_by, row.claimed_at = current_user.id, now()
     db.session.commit()
     session.pop("sace_home_provisioning_token", None)
+    session.pop(PROVISIONING_CONTEXT, None)
     session.pop("sace_home_pledge_controller", None)
 
 

@@ -105,6 +105,94 @@ class HomeFoundation(unittest.TestCase):
             row = HomeAssignment.query.order_by(HomeAssignment.id.desc()).first()
             return client, row.id
 
+    def direct_home_entry(self, client=None):
+        client = client or self.client
+        response = client.get('/sace/home/provisioning')
+        self.assertEqual(response.status_code,302)
+        with client.session_transaction() as session:
+            nonce=session['sace_home_provisioning_context']['nonce']
+        page=client.get(response.location)
+        self.assertIn(b'HOME Controller IP Pledge',page.data)
+        return nonce
+
+    def test_standard_url_new_r_ordinary_login_and_home_auditor(self):
+        nonce=self.direct_home_entry()
+        with self.app.app_context():
+            self.assertEqual(HomeProvisioning.query.count(),0)
+            self.assertEqual(HomeController.query.count(),0)
+            self.assertEqual(h.auth_models.AuthSubjectAdmin.query.count(),0)
+        self.assertEqual(self.client.post('/sace/home/provisioning',data={'signature':'R','accept':'yes'}).status_code,403)
+        self.assertEqual(self.client.post('/sace/home/provisioning',data={'signature':'R','accept':'yes','journey':nonce}).location,'/sace/home/authenticate')
+        result=self.client.post('/register',data={'subject':s.SUBJECT,'full_name':'HOME R','email':'direct-r@example.test','password':'test-password'},follow_redirects=True)
+        self.assertEqual(result.status_code,200,result.data[:500])
+        self.assertIn(b'HOME Control Centre',result.data)
+        with self.app.app_context():
+            row=HomeProvisioning.query.one()
+            self.assertEqual(row.email,'direct-r@example.test')
+            self.assertIsNotNone(row.claimed_at)
+            self.assertEqual(HomePledge.query.one().provisioning_id,row.id)
+            self.assertEqual(h.auth_models.AuthSubjectAdmin.query.filter_by(subject_id=901).count(),1)
+            self.assertEqual(h.auth_models.AuthSubjectAdmin.query.filter_by(subject_id=900).count(),0)
+            self.assertEqual(h.Interaction.query.count(),0)
+        self.client.get('/logout')
+        self.assertEqual(self.login(self.client,'direct-r@example.test').location,'/sace/home/control')
+        self.assertEqual(self.client.get('/sace/home/provisioning').location,'/sace/home/control')
+        auditor,aid=self.join_home(self.code_home())
+        self.assertEqual(auditor.get('/sace/home/provisioning').status_code,403)
+        self.assertEqual(auditor.get('/sace/home/control').status_code,403)
+        with self.app.app_context():
+            user=db.session.get(HomeAssignment,aid).auditor_id
+            self.assertIsNone(HomeController.query.filter_by(user_id=user).first())
+            self.assertEqual(h.auth_models.AuthSubjectAdmin.query.filter_by(email='home-a@example.test').count(),0)
+
+    def test_session_provisioning_rejects_forgery_expiry_replay_and_abandonment(self):
+        nonce=self.direct_home_entry()
+        fresh=self.app.test_client()
+        self.assertEqual(fresh.get('/sace/home/provisioning?journey='+nonce).status_code,403)
+        self.assertEqual(fresh.post('/sace/home/provisioning',data={'signature':'R','accept':'yes','journey':nonce}).status_code,403)
+        self.assertEqual(self.client.post('/sace/home/provisioning',data={'signature':'R','accept':'yes','journey':'wrong'}).status_code,403)
+        self.assertEqual(self.client.get('/register?subject='+s.SUBJECT).status_code,400)
+        with self.client.session_transaction() as session:
+            context=dict(session[s.PROVISIONING_CONTEXT]); context['expires_at']=0
+            session[s.PROVISIONING_CONTEXT]=context
+        self.assertEqual(self.client.post('/sace/home/provisioning',data={'signature':'R','accept':'yes','journey':nonce}).status_code,403)
+        self.client.get('/login?next=/unrelated')
+        with self.client.session_transaction() as session:
+            self.assertNotIn(s.PROVISIONING_CONTEXT,session)
+        nonce=self.direct_home_entry()
+        with self.client.session_transaction() as session:
+            saved_context=dict(session[s.PROVISIONING_CONTEXT])
+        self.client.post('/sace/home/provisioning',data={'signature':'R','accept':'yes','journey':nonce})
+        with self.client.session_transaction() as session:
+            saved_pledge=dict(session['sace_home_pledge_controller'])
+        self.client.post('/register',data={'subject':s.SUBJECT,'full_name':'HOME R','email':'replay-r@example.test','password':'test-password'},follow_redirects=True)
+        self.user('replay-other@example.test')
+        replay=self.app.test_client()
+        self.login(replay,'replay-other@example.test')
+        with replay.session_transaction() as session:
+            session[s.PROVISIONING_CONTEXT]=saved_context
+            session['sace_home_provisioning_token']=nonce
+            session['sace_home_pledge_controller']=saved_pledge
+        self.assertEqual(replay.get('/sace/home/provisioning?journey='+nonce).status_code,403)
+        with self.app.app_context():
+            self.assertEqual(HomeController.query.count(),1)
+            self.assertEqual(HomeProvisioning.query.count(),1)
+            self.assertEqual(h.Interaction.query.count(),0)
+
+    def test_authenticated_nonce_cannot_transfer_between_identities(self):
+        self.user('bound-r@example.test'); self.user('other-r@example.test')
+        self.login(self.client,'bound-r@example.test')
+        nonce=self.direct_home_entry()
+        with self.client.session_transaction() as session:
+            context=dict(session[s.PROVISIONING_CONTEXT])
+        other=self.app.test_client(); self.login(other,'other-r@example.test')
+        with other.session_transaction() as session:
+            session[s.PROVISIONING_CONTEXT]=context
+            session['sace_home_provisioning_token']=nonce
+        self.assertEqual(other.get('/sace/home/provisioning?journey='+nonce).status_code,403)
+        with self.app.app_context():
+            self.assertEqual(HomeController.query.count(),0)
+
     def test_new_and_returning_home_controller(self):
         uid = self.provision_home()
         self.code_home()
@@ -170,7 +258,7 @@ class HomeFoundation(unittest.TestCase):
         self.assertEqual(other.post("/sace/home/join", data={"code": code}).status_code, 400)
 
     def test_pledge_and_provisioning_protection(self):
-        self.assertEqual(self.client.get("/sace/home/provisioning").status_code, 403)
+        self.assertEqual(self.client.get("/sace/home/provisioning").status_code, 302)
         self.provision_home()
         code = self.code_home()
         client = self.app.test_client()

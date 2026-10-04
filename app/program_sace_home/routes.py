@@ -1,3 +1,4 @@
+import secrets
 from flask import g, abort, flash, redirect, render_template, request, session, url_for, send_file
 from flask_login import current_user, login_required
 from app.extensions import db
@@ -44,6 +45,7 @@ def entry():
 @home_sace_bp.route("/provisioning", methods=["GET", "POST"])
 def provision():
     if request.args.get("token"):
+        session.pop(s.PROVISIONING_CONTEXT, None)
         session.pop("sace_home_pending_code", None)
         session.pop("sace_home_pledge_auditor", None)
         session["sace_home_provisioning_token"] = request.args["token"]
@@ -54,7 +56,18 @@ def provision():
     if s.controller():
         continuation.clear()
         return redirect(url_for("home_sace_bp.control"))
+    if request.method == 'GET' and not session.get('sace_home_provisioning_token'):
+        if request.args.get('journey'):
+            abort(403, description="Begin HOME provisioning in this browser first.")
+        nonce = s.start_provisioning()
+        continuation.begin('provisioning')
+        return redirect(url_for('home_sace_bp.provision', journey=nonce))
     row = s.provisioning()
+    if getattr(row, 'session_bootstrap', False):
+        nonce = request.form.get('journey') if request.method == 'POST' else request.args.get('journey')
+        if request.method == 'POST' or nonce:
+            if not nonce or not secrets.compare_digest(str(nonce), row.id):
+                abort(403, description="HOME provisioning nonce is invalid. Reload your current journey.")
     if request.method == "POST":
         accept_pledge("controller", row.id)
         if current_user.is_authenticated:
@@ -67,7 +80,7 @@ def provision():
         continuation.clear()
         return redirect(url_for("home_sace_bp.control"))
     return page("pledge.html", "HOME Controller IP Pledge", terms=s.PLEDGE_TEXT,
-        email=row.email, signed=False, back=url_for("home_sace_bp.entry"))
+        email=row.email, signed=False, journey=row.id if getattr(row, 'session_bootstrap', False) else None, back=url_for("home_sace_bp.entry"))
 
 
 def accept_pledge(role, context_id):
@@ -142,6 +155,7 @@ def join():
         code = request.form.get("code", "").strip().upper()
         s.invitation(code)
         session.pop("sace_home_provisioning_token", None)
+        session.pop(s.PROVISIONING_CONTEXT, None)
         session.pop("sace_home_pledge_controller", None)
         session["sace_home_pending_code"] = code
         session.pop("sace_home_pledge_auditor", None)

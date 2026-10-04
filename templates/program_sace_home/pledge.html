@@ -5,7 +5,7 @@
 {% for pledge in pledges %}<p class="mb-3">Signed by {{ pledge.signature }} as {{ pledge.role }} on {{ pledge.accepted_at }} ({{ pledge.version }}).</p>{% endfor %}
 {% else %}
 {% if email %}<p class="mb-4">This HOME provisioning invitation is for {{ email }}.</p>{% endif %}
-<form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<form method="post">{% if journey %}<input type="hidden" name="journey" value="{{ journey }}">{% endif %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 <label for="signature">Full name / signature</label><input class="home-field" id="signature" name="signature" maxlength="255" required autofocus>
 <label class="block mb-5"><input type="checkbox" name="accept" value="yes" required> I have read and accept this HOME Intellectual Property Pledge.</label>
 <button class="home-button">Accept and continue</button></form>

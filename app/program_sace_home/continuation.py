@@ -43,7 +43,7 @@ def safe_home_next(target):
 
 def discard_abandoned():
     """Navigation away invalidates HOME intent without reading/changing LITRE state."""
-    if KEY not in session or request.endpoint == "static":
+    if (KEY not in session and "sace_home_provisioning_context" not in session) or request.endpoint == "static":
         return
     if request.path in {"/sace/home/provisioning", "/sace/home/join", "/sace/home/pledge",
                         "/sace/home/authenticate", "/sace/home/claim"}:
@@ -54,3 +54,6 @@ def discard_abandoned():
         if (not target or safe_home_next(target)) and (not subject or subject == "sace_home_endorsement"):
             return
     clear()
+    if session.pop("sace_home_provisioning_context", None) is not None:
+        session.pop("sace_home_provisioning_token", None)
+        session.pop("sace_home_pledge_controller", None)

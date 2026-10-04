@@ -211,9 +211,14 @@ class HomeLifecycle(f.HomeFoundation):
             state["is_admin"] = True
             state["admin_subjects"] = [s.SUBJECT]
         self.assertEqual(self.client.get("/sace/home/control").status_code, 403)
-        self.assertEqual(self.client.get("/sace/home/provisioning").status_code, 403)
+        self.assertEqual(self.client.get("/sace/home/provisioning").status_code, 302)
+        with self.client.session_transaction() as state:
+            nonce = state[s.PROVISIONING_CONTEXT]['nonce']
+        self.assertEqual(self.client.post('/sace/home/provisioning', data={
+            'journey': nonce, 'signature': 'Orphan', 'accept': 'yes'}).status_code, 409)
         with self.app.app_context():
             self.assertEqual(lc.Engagement.query.count(), 0)
+            self.assertEqual(lc.Appointment.query.count(), 0)
 
     def test_phase2_exact_grant_and_parent_required(self):
         self.provision_home()
@@ -323,7 +328,8 @@ class HomeLifecycle(f.HomeFoundation):
         self.client.get("/logout")
         self.user("other@example.test")
         self.login(self.client, "other@example.test")
-        self.assertEqual(self.client.get("/sace/home/provisioning").status_code, 403)
+        self.assertEqual(self.client.get("/sace/home/provisioning").status_code, 302)
+        # A fresh GET may start a new journey, but creates no new authority.
         with self.app.app_context():
             self.assertEqual(lc.Appointment.query.count(), 1)
 

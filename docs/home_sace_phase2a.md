@@ -35,8 +35,10 @@ the new tables are empty. It never removes a possibly pre-existing subject.
 
 ## Authority and login
 
-R enters through `/sace/home/provisioning` using the existing email-bound, expiring,
-single-use provisioning invitation. Pledge, exact operational grant, controller
+R enters through `/sace/home/provisioning` using a HOME-only, 15-minute session
+nonce. The HOME pledge and authentication precede its single-use database claim.
+Existing email-bound, expiring provisioning invitations remain supported as optional
+entry links; the standard URL requires no operator issuance. Pledge, exact operational grant, controller
 appointment, engagement and audit event are created atomically. A HOME grant or
 identity alone, platform administrator role, enrollment or session flag is not
 authority. Returning HOME-only R login routes to `/sace/home/control`.

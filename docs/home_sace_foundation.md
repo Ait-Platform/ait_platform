@@ -35,14 +35,17 @@ HOME examination requirements remain to be confirmed when that content is integr
 
 ## Entry and authentication
 
-Operator command (not run during implementation):
-`flask home_sace_bp provision-link --email <R-email> --issued-by <operator>`
+The standard first-R entry is `/sace/home/provisioning`. It starts a HOME-only,
+15-minute session nonce, then requires the HOME IP pledge and authentication.
+No controller authority or database provisioning record is created on entry.
+At successful claim, the nonce becomes a single-use `HomeProvisioning` record
+bound to the authenticated email, retaining the existing pledge/appointment FKs.
+A query nonce alone cannot establish another browser's provisioning context.
 
-This issues a seven-day, single-use `/sace/home/provisioning?token=...` link bound
-to the named email. It is the HOME authority bootstrap; visiting an ordinary page,
-holding LITRE authority or having a platform account cannot grant HOME authority.
-Do not send invitations through email automatically. Deliver the link through the
-approved provisioning process. Existing controller grants survive logout/login.
+Existing operator-issued, seven-day, email-bound links remain supported through
+`flask home_sace_bp provision-link --email <R-email> --issued-by <operator>`.
+They are optional; sending R the standard URL requires no CLI command or admin UI.
+Reading authority and Auditor invitations never substitute for HOME provisioning.
 
 R signs the HOME IP pledge and registers/signs in, then claims HOME controller authority.
 R can inspect provider documents, generate HOME Auditor codes, and inspect HOME

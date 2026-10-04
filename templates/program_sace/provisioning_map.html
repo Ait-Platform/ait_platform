@@ -41,9 +41,9 @@
         <!-- Rule 5: Row 2 Actions right-aligned -->
         <div class="flex flex-wrap justify-end gap-3 mb-6 border-b border-slate-100 pb-6">
             {% if provisioning_complete %}
-            <button onclick="openAboutModal()" class="px-4 py-2 bg-sky-50 text-sky-700 hover:bg-sky-100 font-bold rounded-lg transition border border-sky-200 shadow-sm flex items-center">
+            <a href="{{ url_for('sace_bp.sace_about', reference=1) }}" class="px-4 py-2 bg-sky-50 text-sky-700 hover:bg-sky-100 font-bold rounded-lg transition border border-sky-200 shadow-sm flex items-center">
                 <i class="fas fa-info-circle mr-2"></i> About AIT Activity for SACE Endorsement
-            </button>
+            </a>
             
             <a href="{{ url_for('sace_bp.provisioning_logs') }}" class="px-4 py-2 bg-slate-50 text-slate-700 hover:bg-slate-100 font-bold rounded-lg transition border border-slate-200 shadow-sm flex items-center">
                 <i class="fas fa-list-alt mr-2"></i> View Audit Logs
@@ -51,9 +51,9 @@
             <a href="{{ url_for('sace_bp.provider_documents') }}" class="px-4 py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 font-bold rounded-lg transition border border-indigo-200 shadow-sm flex items-center">
                 <i class="fas fa-folder-open mr-2"></i> Provider Documents
             </a>
-            <button onclick="openPledgeModal()" class="px-4 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-bold rounded-lg transition border border-emerald-200 shadow-sm flex items-center">
+            <a href="{{ url_for('sace_bp.provisioning_pledge', reference=1) }}" class="px-4 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-bold rounded-lg transition border border-emerald-200 shadow-sm flex items-center">
                 <i class="fas fa-check-circle mr-2"></i> Intellectual Property Pledge
-            </button>
+            </a>
             
             {% else %}
             <button onclick="openAboutModal()" class="px-4 py-2 bg-sky-50 text-sky-700 hover:bg-sky-100 font-bold rounded-lg transition border border-sky-200 shadow-sm flex items-center">
@@ -181,17 +181,7 @@
         
         <!-- Body -->
         <div class="p-6 overflow-y-auto text-slate-900 font-bold text-base leading-relaxed space-y-4">
-            <p>
-                By accessing this Control Centre, you acknowledge that the <strong>I Learn to Read English Using the LITRE Method</strong>, including the digital LITRE Simulator, visual framework, and associated teaching methodologies, are the protected Intellectual Property of the Archoney Institute of Technology (AIT).
-            </p>
-            <p>
-                You agree that:
-            </p>
-            <ul class="list-disc list-inside space-y-2 ml-2">
-                <li>Access is provided solely for the purpose of SACE endorsement evaluation.</li>
-                <li>No part of the interactive platform or its proprietary methods may be copied, reproduced, or distributed.</li>
-                <li>Any generated auditor access codes are strictly for official evaluation use.</li>
-            </ul>
+            {% include "program_sace/reading_pledge_content.html" %}
         </div>
         
         <!-- Footer -->
@@ -223,17 +213,7 @@
             </button>
         </div>
         <div class="p-6 overflow-y-auto text-slate-900 font-medium text-base leading-relaxed space-y-4">
-            <p>
-                The Archoney Institute of Technology (AIT) presents this activity for SACE endorsement of the <strong>I Learn to Read English Using the LITRE Method</strong>.
-            </p>
-            <p>
-                AIT has generated this secure portal to allow you to seamlessly assign and monitor SACE Auditors and document flows by:
-            </p>
-            <ul class="list-disc list-inside space-y-2 ml-2">
-                <li>generating secure access links for them to evaluate the digital framework,</li>
-                <li>integrating a document tracker allowing you to monitor all forms and auditors,</li>
-                <li>and maintaining intellectual property compliance.</li>
-            </ul>
+            {% include "program_sace/reading_about_content.html" %}
         </div>
         <div class="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end">
             <button type="button" onclick="closeAboutModal()" class="px-6 py-2 bg-indigo-600 text-white font-bold rounded-lg shadow-sm hover:bg-indigo-700 transition">

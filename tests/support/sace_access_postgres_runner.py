@@ -213,6 +213,9 @@ class AccessJourneys(unittest.TestCase):
     def pledge(self, client):
         with client.session_transaction() as state:
             token = state[access.PROVISIONING_KEY]['nonce']
+        response = client.get("/sace/provisioning/pledge", query_string={"journey": token})
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"I Agree &amp; Unlock", response.data)
         return client.post("/sace/provisioning/pledge", data={"journey": token}, follow_redirects=True)
 
     def provision(self, client, email, existing=False):
@@ -537,13 +540,62 @@ class AccessJourneys(unittest.TestCase):
         self.login(self.client, "ordinary@example.test")
         self.assertEqual(self.client.post("/sace/provisioning/pledge").status_code, 400)
         response = self.client.get("/sace/provisioning")
-        self.assertIn(b"I Agree & Unlock", response.data)
+        self.assertIn(b"About AIT Activity for SACE Endorsement", response.data)
+        self.assertIn(b">Next</a>", response.data)
+        self.assertNotIn(b"I Agree", response.data)
         self.assertNotIn(b"Generate Access Code", response.data)
         with self.app.app_context():
             self.assertEqual(auth_models.AuthSubjectAdmin.query.count(), 0)
         response = self.pledge(self.client)
         self.assertIn(b"Generate Access Code", response.data)
         self.assertNotIn(b"I Agree & Unlock", response.data)
+
+    def test_reading_first_entry_and_read_only_references(self):
+        response = self.client.get('/sace/provisioning')
+        self.assertIn(b'SACE Auditors (Evaluators, Reviewers, etc.)', response.data)
+        with self.client.session_transaction() as state:
+            ctx = dict(state[access.PROVISIONING_KEY])
+        next_url = '/sace/provisioning/pledge?journey=' + ctx['nonce']
+        self.assertIn(next_url.encode(), response.data)
+        response = self.client.get(next_url)
+        self.assertIn(b'I Agree &amp; Unlock', response.data)
+        self.assert_no_r()
+        self.provision(self.client, 'reference-r@example.test')
+        def counts():
+            with self.app.app_context():
+                return tuple(model.query.count() for model in
+                    (Interaction, ReadingAuditEvent, auth_models.AuthSubjectAdmin,
+                     ReadingEngagement, ReadingControllerAppointment, ReadingAssignmentContext))
+        before = counts()
+        self.client.get('/logout')
+        response = self.login(self.client, 'reference-r@example.test')
+        response = self.client.get(response.location, follow_redirects=True)
+        self.assertIn(b'Provisioned Auditors', response.data)
+        self.assertNotIn(b'>Next</a>', response.data)
+        for path in ('/sace/about?reference=1', '/sace/provisioning/pledge?reference=1'):
+            page = self.client.get(path)
+            self.assertEqual(page.status_code, 200)
+            self.assertIn(b'Return to R Dashboard', page.data)
+            self.assertNotIn(b'<form', page.data)
+            self.assertNotIn(b'I Agree', page.data)
+            self.assertIn(b'Provisioned Auditors', self.client.get('/sace/provisioning').data)
+        self.assertEqual(counts(), before)
+        with self.client.session_transaction() as state:
+            self.assertNotIn(access.PROVISIONING_KEY, state)
+
+    def test_reading_references_cannot_provision(self):
+        for authenticated in (False, True):
+            client = self.app.test_client()
+            if authenticated:
+                self.user('reference-ordinary@example.test')
+                self.login(client, 'reference-ordinary@example.test')
+            for path in ('/sace/about?reference=1', '/sace/provisioning/pledge?reference=1'):
+                self.assertEqual(client.get(path).status_code, 403)
+            self.assertEqual(client.get('/sace/provisioning/pledge?journey=invalid').status_code, 400)
+            self.assertEqual(client.post('/sace/provisioning/pledge', data={'reference': '1'}).status_code, 400)
+            with client.session_transaction() as state:
+                self.assertNotIn(access.PROVISIONING_KEY, state)
+            self.assert_no_r()
 
     def test_anonymous_pledge_has_no_operational_controls(self):
         self.client.get("/sace/provisioning")

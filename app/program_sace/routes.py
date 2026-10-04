@@ -92,6 +92,11 @@ def set_slide():
 
 @sace_bp.route("/sace/about")
 def sace_about():
+    from . import access
+    if request.args.get('reference') == '1':
+        if not access.is_controller():
+            abort(403)
+        return render_template("program_sace/about.html", reading_reference=True)
     return render_template("program_sace/about.html")
 
 @sace_bp.route("/sace/dashboard")
@@ -443,6 +448,10 @@ def provisioning_map():
             return redirect(url_for('sace_bp.provisioning_map'))
     else:
         access.clear_provisioning()
+    if ctx and not ctx.get('accepted_at'):
+        return render_template("program_sace/about.html",
+                               provisioning_intro=True,
+                               provisioning_token=ctx['nonce'])
     has_pledged = (pledge is not None) if controller else bool(ctx and ctx.get('accepted_at'))
     provisioning_next = url_for('sace_bp.provisioning_map', journey=ctx['nonce']) if ctx else request.path
     provisioning_complete = controller and pledge is not None
@@ -468,9 +477,20 @@ def provisioning_map():
     engagement = db.session.get(Engagement, appointment.engagement_id) if appointment else None
     return render_template("program_sace/provisioning_map.html", engagement=engagement, has_pledged=has_pledged, provisioning_complete=provisioning_complete, auditors=auditors, provisioning_next=provisioning_next, provisioning_token=ctx["nonce"] if ctx else "")
 
-@sace_bp.route("/sace/provisioning/pledge", methods=["POST"])
+@sace_bp.route("/sace/provisioning/pledge", methods=["GET", "POST"])
 def provisioning_pledge():
     from . import access
+    if request.method == 'GET':
+        if request.args.get('reference') == '1':
+            if not access.is_controller():
+                abort(403)
+            return render_template("program_sace/provisioning_pledge.html", reading_reference=True)
+        ctx = access.provisioning_context(request.args.get('journey', ''))
+        if not request.args.get('journey') or not ctx:
+            abort(400, description="Start a current SACE Administrator provisioning journey first.")
+        if access.is_controller() or ctx.get('accepted_at'):
+            return redirect(url_for('sace_bp.provisioning_map', journey=ctx['nonce']))
+        return render_template("program_sace/provisioning_pledge.html", provisioning_token=ctx['nonce'])
     if access.is_controller():
         return redirect(url_for('sace_bp.provisioning_map'))
     ctx = access.provisioning_context(request.form.get('journey', ''))

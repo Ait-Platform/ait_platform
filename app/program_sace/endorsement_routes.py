@@ -249,7 +249,9 @@ def demo():
     db.session.commit()
     if state['demo_step'] == 35:
         return redirect(url_for('sace_bp.post_test_results' if flow.workshop_passed(row) else 'sace_bp.step35'))
-    return render_template('program_sace/endorsement_demo.html', step=state['demo_step'])
+    from . import workshop_interactions as instrument
+    return render_template('program_sace/endorsement_demo.html', step=state['demo_step'],
+        instrument=instrument)
 
 
 @sace_bp.post('/sace/reading/demo/advance')
@@ -264,24 +266,34 @@ def demo_advance():
         if not (Path(current_app.static_folder)/'sace_slides'/f'{step}.png').is_file():
             abort(409, description="Slide unavailable; progress was not saved.")
         flow.record(row, f'demo_slide_{step}', once=True)
-    elif step == 32:
-        ratings = data.get('ratings', {})
-        if not isinstance(ratings, dict) or set(ratings) != {'vocalization','positioning','pacing'} or any(type(v) is not int or v not in range(4) for v in ratings.values()):
-            abort(400, description="Complete all three critique ratings (0-3).")
-        # Keep the established evidence key; its historical number is not a UI step.
-        flow.record(row, 'step31', ratings, once=True)
-    elif step == 33:
-        engagement = data.get('engagement', [])
-        if not isinstance(engagement, list) or sorted(engagement) != sorted(flow.ENGAGEMENT):
-            abort(400, description="Complete all four classroom application checks.")
-        flow.record(row, 'step32', {'engagement': engagement, 'evidence': 'required checkbox choices'}, once=True)
+    elif step in (32, 33):
+        from . import workshop_interactions as instrument
+        questions = instrument.FACILITATOR_QUESTIONS if step == 32 else instrument.EXPERIENCE_QUESTIONS
+        answers = data.get('answers')
+        if not instrument.answers_valid(answers, questions):
+            abort(400, description="Answer every question using Yes, Unsure or No.")
+        values = {'instrument': 'facilitator-evaluation-v1' if step == 32 else 'participant-experience-v1',
+                  'answers': answers}
+        if step == 32:
+            comment = data.get('comment', '')
+            if not isinstance(comment, str) or len(comment) > 2000:
+                abort(400, description="The optional comment must be text of at most 2000 characters.")
+            values['comment'] = comment.strip()
+        # Retain established evidence keys; their historical numbers are not UI steps.
+        flow.record(row, 'step31' if step == 32 else 'step32', values, once=True)
     elif step == 34:
-        ratings = data.get('competencies', {})
-        if not isinstance(ratings, dict) or set(ratings) != set(COMPETENCIES) or any(type(v) is not int or v not in range(1,5) for v in ratings.values()):
-            abort(400, description="Rate all eight facilitator competencies (1-4).")
-        survey = {'instrument': 'historical-workshop-survey', 'competencies': ratings}
+        from datetime import datetime, timezone
+        intention = data.get('intention_to_use')
+        if not isinstance(intention, str) or intention not in ('Yes', 'No'):
+            abort(400, description="Select Yes or No before continuing.")
+        survey = {'instrument': 'reading-longitudinal-intention-v1',
+                  'intention_to_use': intention,
+                  'recorded_at': datetime.now(timezone.utc).isoformat(),
+                  'responding_user_id': current_user.id,
+                  'context': {'programme': 'reading', 'assignment_id': row.id,
+                              'kind': 'auditor-workshop-examination'}}
+        # Retain the established prerequisite events for the unchanged Step 35.
         flow.record(row, 'workshop_survey', survey, once=True)
-        # Existing longitudinal baseline events remain intact if already recorded.
         flow.record(row, 'step33', survey, once=True)
     state['demo_step'] = step + 1
     flow.save(row, state)

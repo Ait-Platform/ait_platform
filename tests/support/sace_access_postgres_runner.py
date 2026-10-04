@@ -747,7 +747,7 @@ class AccessJourneys(unittest.TestCase):
         demo = auditor.get("/sace/reading/simulator")
         self.assertNotIn(b"<audio", demo.data)
         self.assertNotIn(b".mp3", demo.data)
-        self.assertLess(demo.data.index(b'id="advance"'), demo.data.index(b"Your position"))
+        self.assertLess(demo.data.index(b'name="comment"'), demo.data.index(b'id="advance"'))
         self.assertEqual(auditor.post("/sace/reading/presentation/viewed/32").status_code,404)
 
     def test_existing_documents_and_pledge_reference_are_attributed(self):
@@ -789,10 +789,10 @@ class AccessJourneys(unittest.TestCase):
         try:
             with patch.object(endorsement,'course_lessons',return_value=lessons), patch.dict(sys.modules,{'app.subject_reading.routes':mail}), patch.object(sace_routes,'_generate_sace_certificate_pdf',return_value=b"synthetic-workshop-pdf"):
                 auditor.get('/sace/reading/simulator')
-                self.assertEqual(auditor.post('/sace/reading/demo/advance',json={'step':32,'ratings':dict(vocalization=3,positioning=3,pacing=3)}).status_code,200)
+                self.assertEqual(auditor.post('/sace/reading/demo/advance',json={'step':32,'answers':dict(method_clear='Yes',activities_clear='Yes',helpful_guidance='Yes')}).status_code,200)
                 self.assertEqual(auditor.post('/sace/reading/demo/advance',json={'step':33,'engagement':['objective']}).status_code,400)
-                self.assertEqual(auditor.post('/sace/reading/demo/advance',json={'step':33,'engagement':list(endorsement.ENGAGEMENT)}).status_code,200)
-                self.assertEqual(auditor.post('/sace/reading/demo/advance',json={'step':34,'competencies':{key:4 for key in endorsement_routes.COMPETENCIES}}).status_code,200)
+                self.assertEqual(auditor.post('/sace/reading/demo/advance',json={'step':33,'answers':dict(reading_problem='Yes',practical_activities='Yes',oral_activities='Yes',able_to_use='Yes')}).status_code,200)
+                self.assertEqual(auditor.post('/sace/reading/demo/advance',json={'step':34,'intention_to_use':'Yes'}).status_code,200)
                 result=auditor.post('/sace/reading/step35',data=dict(q1='B',q2='B',q3='C',q4='A'))
                 self.assertEqual(result.status_code,302)
                 self.assertEqual(auditor.post('/sace/reading/certificate/email',data={'email':'a@example.test'}).status_code,302)

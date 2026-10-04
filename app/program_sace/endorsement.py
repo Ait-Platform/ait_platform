@@ -119,11 +119,16 @@ def save(row, state):
 
 
 def workshop_passed(row):
+    from .workshop_interactions import answers_valid, EXPERIENCE_QUESTIONS
     state = payload(row)
+    experience = payload(latest(row, "step32"))
+    experience_complete = (answers_valid(experience.get('answers'), EXPERIENCE_QUESTIONS)
+        if experience.get('instrument') == 'participant-experience-v1'
+        else set(experience.get('engagement', [])) == set(ENGAGEMENT))
     result = latest(row, "step34")
     return (state.get("demo_step", 0) == 35 and latest(row, "step31") is not None
             and latest(row, "step33") is not None
-            and set(payload(latest(row, "step32")).get("engagement", [])) == set(ENGAGEMENT)
+            and experience_complete
             and result is not None and payload(result).get("passed") is True) if latest(row, "step32") else False
 
 

@@ -95,9 +95,9 @@ class ReadingRepair(unittest.TestCase):
 
     def workshop(self):
         self.slides()
-        self.step(32, ratings=dict(vocalization=3, positioning=2, pacing=3))
-        self.step(33, engagement=list(flow.ENGAGEMENT))
-        self.assertEqual(self.step(34, competencies={key:4 for key in r.COMPETENCIES}), "/sace/reading/step35")
+        self.step(32, answers=dict(method_clear='Yes', activities_clear='Unsure', helpful_guidance='No'))
+        self.step(33, answers=dict(reading_problem='Yes',practical_activities='Yes',oral_activities='Yes',able_to_use='Yes'))
+        self.assertEqual(self.step(34, intention_to_use='Yes'), "/sace/reading/step35")
         response = self.client.get("/sace/reading/step35")
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"Workshop Post-Test", response.data)
@@ -196,13 +196,64 @@ class ReadingRepair(unittest.TestCase):
     def test_full_workshop_sequence_and_certificate_boundary(self):
         self.workshop()
         self.assertEqual(self.event("step34")["score"],100)
-        self.assertEqual(len(self.event("workshop_survey")["competencies"]),8)
+        self.assertNotIn("baseline", self.event("workshop_survey"))
+        self.assertEqual(self.event("workshop_survey")["intention_to_use"], "Yes")
         self.assertIsNotNone(self.event("demo_complete"))
         self.assertIsNone(self.event("step35"))  # Reading-course MCQ is independent.
         result=self.client.get("/sace/reading/post_test/results")
         self.assertIn(b"Email workshop certificate",result.data)
         self.assertEqual(self.client.get("/sace/reading/course/certificate").status_code,200)
         self.assertEqual(self.client.post("/sace/reading/course/certificate",data={"email":"a@example.test"}).status_code,409)
+
+    def test_new_instruments_required_answers_optional_comment_and_no_scores(self):
+        from app.program_sace import workshop_interactions as instrument
+        self.slides()
+        answers = {key: 'No' for key, _ in instrument.FACILITATOR_QUESTIONS}
+        for invalid in ({}, dict(answers, method_clear='Maybe'), dict(answers, method_clear=1)):
+            self.assertEqual(self.client.post('/sace/reading/demo/advance', json={'step':32,'answers':invalid}).status_code,400)
+            self.assertIsNone(self.event('step31'))
+        self.step(32, answers=answers, comment='  Clear examples helped.  ')
+        self.assertEqual(self.event('step31')['comment'],'Clear examples helped.')
+        self.assertNotIn('score',self.event('step31'))
+        answers = {key: 'Unsure' for key, _ in instrument.EXPERIENCE_QUESTIONS}
+        incomplete = dict(answers); incomplete.pop('able_to_use')
+        self.assertEqual(self.client.post('/sace/reading/demo/advance',json={'step':33,'answers':incomplete}).status_code,400)
+        self.step(33,answers=answers)
+        self.assertNotIn('score',self.event('step32'))
+        for value in ('Unsure',None,1):
+            self.assertEqual(self.client.post('/sace/reading/demo/advance',json={'step':34,'intention_to_use':value}).status_code,400)
+        self.step(34,intention_to_use='No')
+        self.assertEqual(self.event('step33')['intention_to_use'],'No')
+        self.assertNotIn('score',self.event('step33'))
+        self.assertIsNone(self.event('demo_complete'))
+        self.assertEqual(self.client.post('/sace/reading/demo/advance',json={'step':34}).status_code,409)
+        response=self.client.post('/sace/reading/step35',data=dict(q1='B',q2='B',q3='C',q4='A'))
+        self.assertEqual(response.location,'/sace/reading/post_test/results')
+        self.assertEqual(self.event('step34')['score'],100)
+        self.assertIsNotNone(self.event('demo_complete'))
+        self.assertIn(b'Email workshop certificate',self.client.get('/sace/reading/post_test/results').data)
+
+    def test_empty_optional_comment_and_intention_only(self):
+        from app.program_sace import workshop_interactions as instrument
+        self.slides()
+        self.step(32,answers={key:'Yes' for key,_ in instrument.FACILITATOR_QUESTIONS})
+        self.assertEqual(self.event('step31')['comment'],'')
+        self.step(33,answers={key:'No' for key,_ in instrument.EXPERIENCE_QUESTIONS})
+        page=self.client.get('/sace/reading/simulator')
+        self.assertIn(b'Longitudinal Research',page.data)
+        for field in ('province','school','district','grades','workshop_date','cohort','teaching_experience'):
+            self.assertNotIn(('name="'+field+'"').encode(),page.data)
+        self.assertEqual(page.data.count(b'name="intention_to_use"'),2)
+        self.assertNotIn(b'value="Unsure"',page.data)
+        # Extra client data is never copied into endorsement evidence.
+        self.step(34,intention_to_use='Yes',baseline={'province':'Gauteng'},school='Ignored')
+        for slug in ('step33','workshop_survey'):
+            event=self.event(slug)
+            self.assertEqual(event['instrument'],'reading-longitudinal-intention-v1')
+            self.assertEqual(event['intention_to_use'],'Yes')
+            self.assertEqual(set(event),{'instrument','intention_to_use','recorded_at','responding_user_id','context'})
+        with self.app.app_context():
+            self.assertEqual(h.Interaction.query.filter_by(activity_slug='reading_research_followup').count(),0)
 
     def test_course_assessment_is_separate_and_unconfigured(self):
         self.workshop()
@@ -230,7 +281,7 @@ class ReadingRepair(unittest.TestCase):
             row.response_data=h.json.dumps(state)
             db.session.add(h.Interaction(user_id=2,workshop_session_id=flow.room(row),activity_slug='step31',response_data='{"vocalization":3,"positioning":3,"pacing":3}'))
             db.session.commit()
-        self.assertIn(b"Classroom Application",self.client.get('/sace/reading/simulator').data)
+        self.assertIn(b"Participant Workshop Experience",self.client.get('/sace/reading/simulator').data)
         self.assertEqual(self.event('step31')['vocalization'],3)
         with self.app.app_context():
             row=db.session.get(h.Interaction,self.assignment_id)
@@ -252,11 +303,11 @@ class ReadingRepair(unittest.TestCase):
         self.slides()
         self.assertEqual(self.client.post("/sace/reading/demo/advance",json={"step":31}).status_code,409)
         self.assertEqual(self.client.post("/sace/reading/demo/advance",json={"step":32}).status_code,400)
-        self.step(32,ratings=dict(vocalization=3,positioning=3,pacing=3))
+        self.step(32,answers=dict(method_clear='Yes',activities_clear='Yes',helpful_guidance='Yes'))
         self.assertEqual(self.client.post("/sace/reading/demo/advance",json={"step":33,"engagement":[]}).status_code,400)
-        self.step(33,engagement=list(flow.ENGAGEMENT))
+        self.step(33,answers=dict(reading_problem='Yes',practical_activities='Yes',oral_activities='Yes',able_to_use='Yes'))
         self.assertEqual(self.client.post("/sace/reading/demo/advance",json={"step":34,"competencies":{}}).status_code,400)
-        self.step(34,competencies={key:4 for key in r.COMPETENCIES})
+        self.step(34,intention_to_use='Yes')
         result=self.client.post("/sace/reading/step35",data={f"q{i}":"D" for i in range(1,5)})
         self.assertEqual(result.location,"/sace/reading/step35")
         self.assertFalse(self.event("step34")["passed"])

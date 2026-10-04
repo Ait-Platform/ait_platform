@@ -1,42 +1,65 @@
 {% extends 'layout.html' %}
+{% block title %}Reading Workshop | AIT{% endblock %}
 {% block flashes %}{% endblock %}
 {% block content %}
-<div class="max-w-5xl mx-auto px-4 py-8"><div class="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
-<div class="h-2 bg-indigo-700"></div><div class="p-6 space-y-6">
-<h1 class="text-2xl font-bold text-slate-800">Workshop Online Interaction &amp; Assessment</h1>
-{% with messages = get_flashed_messages(with_categories=true) %}{% for category, message in messages %}<p class="border rounded p-3">{{ message }}</p>{% endfor %}{% endwith %}
-<div class="flex justify-end"><button id="advance" class="bg-indigo-50 text-indigo-800 border border-indigo-200 rounded-lg px-4 py-2 hover:bg-indigo-100 disabled:opacity-40">Save and Continue</button></div><p id="error" role="alert"></p>
-<p>Your position is saved on the server. Continue through workshop steps 32-35. The Facilitator Manual and Workshop Manual cover slides 1-31.</p>
-{% if step <= 31 %}
-<p>Workshop presentation &mdash; {{ step }} / 31</p><img id="demo-slide" class="w-full" src="{{ url_for('sace_bp.journey_slide',slide=step) }}" alt="Workshop slide {{ step }}">
-{% elif step == 32 %}
-<h2 class="text-xl font-bold">Step 32 &mdash; Critique: Evaluation of Facilitator</h2>
-<p>Rate the physical demonstration of the LITRE sequence (0: Not demonstrated, 3: Clear/Strong).</p>
-{% for key,label in [('vocalization','Clear vocalization'),('positioning','Correct hand positioning'),('pacing','Pacing for learners')] %}
-<fieldset class="border border-slate-200 rounded-lg p-4"><legend class="font-semibold">{{ label }}</legend><div class="flex gap-4">
-{% for n in range(4) %}<label class="bg-slate-50 border rounded p-3"><input type="radio" name="rubric_{{ key }}" value="{{ n }}" required> {{ n }}</label>{% endfor %}
-</div></fieldset>{% endfor %}
+<style>
+.reading-workshop{max-width:860px;margin:32px auto;padding:0 16px;color:#1e293b;font-size:18px;line-height:1.6}
+.reading-workshop .workshop-panel{background:#fff;border:1px solid #e2e8f0;border-top:7px solid #4338ca;border-radius:12px;padding:32px;box-shadow:0 8px 24px #0f172a0d}
+.reading-workshop h1{font-size:30px;font-weight:700;line-height:1.25;margin:8px 0 16px}
+.reading-workshop .step-label{font-size:14px;color:#64748b;font-weight:600}
+.reading-workshop .intro{margin:0 0 28px;color:#475569}
+.reading-workshop fieldset{min-width:0;margin:0 0 24px;padding:20px;border:1px solid #cbd5e1;border-radius:10px;background:#f8fafc}
+.reading-workshop legend{font-weight:600;padding:0 8px;max-width:100%}
+.reading-workshop .choices{display:flex;flex-wrap:wrap;gap:12px;margin-top:8px}
+.reading-workshop .choice{display:flex;align-items:center;gap:10px;min-height:48px;padding:10px 20px;background:#fff;border:1px solid #cbd5e1;border-radius:8px;cursor:pointer}
+.reading-workshop input[type=radio],.reading-workshop input[type=checkbox]{width:20px;height:20px;accent-color:#4338ca;flex-shrink:0}
+.reading-workshop .choice:has(input:checked){border-color:#4338ca;background:#eef2ff}
+.reading-workshop input:focus-visible,.reading-workshop select:focus-visible,.reading-workshop textarea:focus-visible,.reading-workshop button:focus-visible{outline:3px solid #818cf8;outline-offset:3px}
+.reading-workshop .field{margin-bottom:24px}.reading-workshop .field>label{display:block;font-weight:600;margin-bottom:8px}
+.reading-workshop .text-control{display:block;box-sizing:border-box;width:100%;min-height:48px;padding:10px 12px;border:1px solid #94a3b8;border-radius:8px;background:#fff;color:#1e293b;font:inherit}
+.reading-workshop .optional{font-size:14px;font-weight:400;color:#64748b}.reading-workshop .navigation{display:flex;justify-content:flex-end;border-top:1px solid #e2e8f0;padding-top:24px;margin-top:28px}
+.reading-workshop button{min-height:48px;padding:12px 24px;background:#4338ca;color:#fff;border:0;border-radius:8px;font:inherit;font-weight:600;cursor:pointer}.reading-workshop button:disabled{opacity:.5}
+.reading-workshop #error{color:#b91c1c;margin:12px 0}.reading-workshop dl{margin:0 0 24px}.reading-workshop dt{font-weight:600}.reading-workshop dd{margin:0 0 12px}
+@media(max-width:600px){.reading-workshop{margin:16px auto;font-size:17px}.reading-workshop .workshop-panel{padding:20px 16px}.reading-workshop h1{font-size:26px}.reading-workshop fieldset{padding:16px 12px}.reading-workshop .choice{padding:10px 14px}.reading-workshop .navigation button{width:100%}}
+</style>
+<div class="reading-workshop"><div class="workshop-panel">
+<p class="step-label">Step {{ step }} &middot; Reading workshop</p>
+{% if step == 32 %}
+<h1>Facilitator Evaluation</h1>
+<p class="intro">Please answer the following questions about your facilitator.</p>
 {% elif step == 33 %}
-<h2 class="text-xl font-bold">Step 33 &mdash; Classroom Application</h2>
-<p>Check all that are successfully included in the participant's practical/oral participation.</p>
-{% for key,label in [('objective','Appropriate objective'),('sequence','Correct sequence'),('demonstration','Practical demo'),('reflection','Reflection')] %}
-<label class="block border border-slate-200 rounded p-3"><input type="checkbox" name="engagement" value="{{ key }}" required> {{ label }}</label>{% endfor %}
+<h1>Participant Workshop Experience</h1>
+<p class="intro">Please tell us about your experience of the workshop.</p>
 {% elif step == 34 %}
-<h2 class="text-xl font-bold">Step 34 &mdash; Workshop Competency Survey</h2>
-<p>Rate the following competencies (4: Excellent, 1: Poor):</p>
-{% for key,label in [('comp_objective','1. Clear objective'),('comp_sequence','2. Logical sequence'),('comp_demo','3. Demonstration'),('comp_participation','4. Participation'),('comp_guidance','5. Guidance'),('comp_reading','6. Reading methodology'),('comp_assessment','7. Assessment'),('comp_reflection','8. Reflection')] %}
-<fieldset class="border border-slate-200 rounded-lg p-4"><legend class="font-semibold">{{ label }}</legend><div class="flex gap-4">
-{% for n in [4,3,2,1] %}<label class="bg-slate-50 border rounded p-3"><input type="radio" name="{{ key }}" value="{{ n }}" required> {{ n }}</label>{% endfor %}
-</div></fieldset>{% endfor %}
+<h1>Longitudinal Research</h1>
+<p class="intro">This research aims to determine whether use of the LITRE method continues after the workshop. Participants may be invited in future years to answer a short follow-up question.</p>
 {% endif %}
+{% with messages = get_flashed_messages(with_categories=true) %}{% for category, message in messages %}<p role="status">{{ message }}</p>{% endfor %}{% endwith %}
+<form id="workshop-form">
+{% if step in (32,33) %}
+{% set questions = instrument.FACILITATOR_QUESTIONS if step == 32 else instrument.EXPERIENCE_QUESTIONS %}
+{% for key,label in questions %}
+<fieldset><legend>{{ loop.index }}. {{ label }}</legend><div class="choices">
+{% for choice in instrument.CHOICES %}<label class="choice"><input type="radio" name="{{ key }}" value="{{ choice }}" required> {{ choice }}</label>{% endfor %}
+</div></fieldset>
+{% endfor %}
+{% if step == 32 %}
+<div class="field"><label for="comment">Is there anything you would like us to know about your facilitator? <span class="optional">Optional</span></label><textarea id="comment" name="comment" class="text-control" rows="3" maxlength="2000"></textarea></div>
+{% endif %}
+{% elif step == 34 %}
+<fieldset><legend>Will you use the LITRE method when you return to school?</legend><div class="choices">{% for choice in ('Yes','No') %}<label class="choice"><input type="radio" name="intention_to_use" value="{{ choice }}" required> {{ choice }}</label>{% endfor %}</div></fieldset>
+{% endif %}
+<p id="error" role="alert"></p>
+<div class="navigation"><button id="advance" type="submit">Save and Continue</button></div>
+</form>
+</div></div>
 <script>
-const button=document.getElementById('advance'),step={{ step }};
-if(step<=31){const image=document.getElementById('demo-slide');button.disabled=!image.complete||image.naturalWidth===0;image.onload=()=>button.disabled=false;image.onerror=()=>button.disabled=true;}
-button.onclick=async()=>{button.disabled=true;const data={step};
-if(step===32){data.ratings={};for(const el of document.querySelectorAll('input[type=radio]:checked'))data.ratings[el.name.replace('rubric_','')]=Number(el.value);}
-if(step===33){data.engagement=Array.from(document.querySelectorAll('input[name=engagement]:checked'),el=>el.value);}
-if(step===34){data.competencies={};for(const el of document.querySelectorAll('input[type=radio]:checked'))data.competencies[el.name]=Number(el.value);}
-try{const r=await fetch({{ url_for('sace_bp.demo_advance')|tojson }},{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':{{ csrf_token()|tojson }}},body:JSON.stringify(data)});if(!r.ok)throw Error('Progress was not saved. Complete every response, then retry; reload if this step is no longer current.');location.href=(await r.json()).next;}catch(e){document.getElementById('error').textContent=e.message;button.disabled=false;}};
+const form=document.getElementById('workshop-form'),button=document.getElementById('advance'),step={{ step }};
+form.onsubmit=async(event)=>{event.preventDefault();if(!form.reportValidity())return;
+const values=new FormData(form),data={step};
+if(step===32||step===33){data.answers={};for(const el of form.querySelectorAll('input[type=radio]:checked'))data.answers[el.name]=el.value;if(step===32)data.comment=values.get('comment')||'';}
+if(step===34){data.intention_to_use=values.get('intention_to_use');}
+button.disabled=true;document.getElementById('error').textContent='';
+try{const r=await fetch({{ url_for('sace_bp.demo_advance')|tojson }},{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':{{ csrf_token()|tojson }}},body:JSON.stringify(data)});if(!r.ok)throw Error('Progress was not saved. Complete every required response, then retry; reload if this step is no longer current.');location.href=(await r.json()).next;}catch(e){document.getElementById('error').textContent=e.message;button.disabled=false;}};
 </script>
-</div></div></div>
 {% endblock %}

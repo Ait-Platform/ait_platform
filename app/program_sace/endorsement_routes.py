@@ -60,12 +60,15 @@ def protect_endorsement():
 def board():
     row = flow.assignment(lock=True)
     flow.record(row, 'map_entered', once=True)
-    if flow.latest(row, 'reading_certificate'):
+    if flow.certificate_delivered(row, 'reading_certificate'):
         flow.record(row, 'board_returned', once=True)
     db.session.commit()
     flow.refresh_progress(row)
     db.session.commit()
     ticks = {e.activity_slug for e in flow.events(row)}
+    for slug in ('workshop_certificate', 'reading_certificate'):
+        if not flow.certificate_delivered(row, slug):
+            ticks.discard(slug)
     if flow.workshop_passed(row):
         ticks.add('workshop_evaluation_complete')
     if not all(flow.latest(row, f'ppp_slide_{i}') for i in range(1,32)):
@@ -350,44 +353,95 @@ def results():
     if evidence and not eligible:
         abort(409, description="Pass the Workshop Post-Test before examining certificate evidence.")
     if request.method == 'POST':
-        if not evidence or not eligible or request.form.get('examined') != 'yes':
-            abort(409, description="Examine the Workshop Certificate evidence first.")
-        flow.record(row, 'workshop_certificate', {'evidence': 'participant certificate specimen examined'}, once=True)
-        db.session.commit()
-        return redirect(url_for('sace_bp.reading_hub'))
+        if not evidence:
+            abort(409, description="Use the Workshop Certificate evidence item on the Auditor Board.")
+        return send_workshop_certificate()
     db.session.commit()
     return render_template('program_sace/endorsement_results.html',
         answers=flow.payload(event) if event else {}, eligible=eligible, evidence=evidence)
 
 
+def certificate_pdf(row, kind):
+    """Generate the eligible Auditor's real certificate using existing AIT generators."""
+    from datetime import datetime, timezone
+    if kind == 'workshop':
+        if not flow.workshop_passed(row):
+            abort(409, description="Complete Steps 32-34 and pass the Workshop Step 35 Post-Test first.")
+        from .routes import _generate_sace_certificate_pdf
+        generate = _generate_sace_certificate_pdf
+        prefix = 'AIT-WS-'
+    elif kind == 'reading':
+        if not flow.course_complete(row) or not flow.step35_passed(row):
+            abort(409, description="Mark all 18 videos examined and pass the separate Reading-course assessment first.")
+        from app.subject_reading.routes import _generate_certificate_pdf
+        generate = _generate_certificate_pdf
+        prefix = 'AIT-RD-'
+    else:
+        abort(404)
+    state = flow.payload(row)
+    cid = state.setdefault(kind + '_certificate_id', prefix + secrets.token_hex(6).upper())
+    completed_at = state.setdefault(kind + '_completed_at', datetime.now(timezone.utc).isoformat())
+    flow.save(row, state)
+    try:
+        args = (cid, current_user.name, completed_at, current_user.id)
+        pdf = generate(*args, flow.payload(flow.latest(row, 'step34'))) if kind == 'workshop' else generate(*args)
+    except Exception:
+        current_app.logger.exception('%s certificate generation failed', kind)
+        pdf = None
+    return cid, pdf
+
+
 def send_workshop_certificate():
-    flow.assignment()
-    abort(403, description="Auditors examine certificate evidence; participant certificate issuance is unavailable in this journey.")
+    row = flow.assignment(lock=True)
+    cid, pdf = certificate_pdf(row, 'workshop')
+    return deliver_certificate(row, 'workshop_certificate', cid, pdf)
 
 
 @sace_bp.get('/sace/reading/certificate-evidence/<kind>')
-def certificate_specimen(kind):
-    row = flow.assignment()
-    if kind == 'workshop':
-        if not flow.workshop_passed(row):
-            abort(409)
-        from .routes import _generate_sace_certificate_pdf
-        pdf = _generate_sace_certificate_pdf('SPECIMEN - NOT ISSUED', 'Example participant (SPECIMEN)',
-            '2000-01-01', answers={'score': 100})
-    elif kind == 'reading':
-        if not flow.course_complete(row) or not flow.step35_passed(row):
-            abort(409)
-        from app.subject_reading.routes import _generate_certificate_pdf
-        pdf = _generate_certificate_pdf('SPECIMEN - NOT ISSUED', 'Example participant (SPECIMEN)', '2000-01-01')
-    else:
-        abort(404)
+def certificate_document(kind):
+    row = flow.assignment(lock=True)
+    cid, pdf = certificate_pdf(row, kind)
     if not pdf:
-        abort(503, description="Certificate specimen is unavailable. No certificate was issued.")
+        flow.record(row, kind + '_certificate_failed', {'certificate_id': cid, 'reason': 'generation'})
+        db.session.commit()
+        abort(503, description="Certificate generation failed. No email was sent.")
+    db.session.commit()
     response = make_response(pdf)
     response.headers['Content-Type'] = 'application/pdf'
-    response.headers['Content-Disposition'] = 'inline; filename="' + kind + '-certificate-specimen.pdf"'
+    response.headers['Content-Disposition'] = 'inline; filename="' + cid + '.pdf"'
     response.headers['Cache-Control'] = 'private, no-store'
     return response
+
+
+def deliver_certificate(row,slug,certificate_id,pdf):
+    from app.subject_reading.routes import _email_certificate_pdf
+    email=(current_user.email or '').strip()
+    if not email or '@' not in email or any(c.isspace() for c in email):
+        abort(400,description="Enter a valid email address.")
+    if not pdf:
+        flow.record(row,slug+'_failed',{'certificate_id':certificate_id,'reason':'generation'})
+        db.session.commit()
+        abort(503,description="Certificate generation failed. No email was sent.")
+    if current_app.config.get('MAIL_SUPPRESS_SEND',False):
+        flow.record(row,slug+'_suppressed',{'certificate_id':certificate_id})
+        db.session.commit()
+        abort(503,description="Email delivery is suppressed. No email was sent.")
+    flow.record(row,slug+'_requested',{'certificate_id':certificate_id})
+    db.session.commit()
+    try:
+        sent=_email_certificate_pdf(email,current_user.name,certificate_id,pdf)
+        if sent is not True:
+            raise RuntimeError('Sender did not confirm acceptance')
+    except Exception:
+        current_app.logger.exception('Certificate email delivery failed')
+        row=flow.assignment(lock=True)
+        flow.record(row,slug+'_failed',{'certificate_id':certificate_id,'reason':'delivery'})
+        db.session.commit()
+        abort(503,description="Email delivery failed. Your progress is saved; retry from the board.")
+    row=flow.assignment(lock=True)
+    flow.record(row,slug,{'certificate_id':certificate_id,'outcome':'accepted_by_mail_sender'})
+    db.session.commit()
+    return redirect(url_for('sace_bp.reading_hub'))
 
 
 def require_map(row):
@@ -524,13 +578,12 @@ def reading_certificate():
     row = flow.assignment(lock=True)
     eligible = flow.course_complete(row) and flow.step35_passed(row)
     if request.method == 'POST':
-        if not eligible or request.form.get('examined') != 'yes':
-            flow.record(row, 'reading_certificate_blocked', {'reason': 'course_or_step35_incomplete' if not eligible else 'auditor_issuance_unavailable'})
+        if not eligible:
+            flow.record(row, 'reading_certificate_blocked', {'reason': 'course_or_step35_incomplete'})
             db.session.commit()
-            abort(409, description="Complete the course examination and Reading-course assessment before confirming certificate evidence.")
-        flow.record(row, 'reading_certificate', {'evidence': 'participant certificate specimen examined'}, once=True)
-        db.session.commit()
-        return redirect(url_for('sace_bp.reading_hub'))
+            abort(409, description="Mark all 18 videos examined and pass the Reading-course assessment first.")
+        cid, pdf = certificate_pdf(row, 'reading')
+        return deliver_certificate(row, 'reading_certificate', cid, pdf)
     return render_template('program_sace/endorsement_reading_certificate.html',
         eligible=eligible, course_complete=flow.course_complete(row))
 

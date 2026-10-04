@@ -255,33 +255,134 @@ class ReadingRepair(unittest.TestCase):
         with self.app.app_context():
             self.assertEqual(h.Interaction.query.filter_by(activity_slug='reading_research_followup').count(),0)
 
-    def test_workshop_certificate_evidence_never_issues_or_emails(self):
+    def test_real_workshop_certificate_requires_all_steps_and_uses_registered_email(self):
+        import sys
+        from types import SimpleNamespace
+        from unittest.mock import Mock
         import app.program_sace.routes as routes
-        with patch.object(r, 'send_workshop_certificate', wraps=r.send_workshop_certificate), patch.object(routes, '_generate_sace_certificate_pdf', return_value=b'%PDF-specimen') as generate:
-            self.assertEqual(self.client.get('/sace/reading/post_test/results?evidence=1').status_code,409)
-            self.assertEqual(self.client.get('/sace/reading/certificate-evidence/workshop').status_code,409)
-            self.workshop()
-            result=self.client.get('/sace/reading/post_test/results')
-            self.assertNotIn(b'/sace/reading/course',result.data)
-            self.assertNotIn(b'/sace/reading/certificate/email',result.data)
-            self.assertIsNone(self.event('workshop_certificate'))
+        sender=Mock(return_value=True)
+        with patch.dict(sys.modules,{'app.subject_reading.routes':SimpleNamespace(_email_certificate_pdf=sender)}), patch.object(routes,'_generate_sace_certificate_pdf',return_value=b'%PDF-real-workshop') as generate:
+            self.slides()
+            values=[(32,dict(answers=dict(method_clear='Yes',activities_clear='Yes',helpful_guidance='Yes'))),
+                (33,dict(answers=dict(reading_problem='Yes',practical_activities='Yes',oral_activities='Yes',able_to_use='Yes'))),
+                (34,dict(intention_to_use='Yes'))]
+            for number,data in values:
+                self.assertEqual(self.client.post('/sace/reading/certificate/email').status_code,409)
+                self.assertEqual(self.client.get('/sace/reading/certificate-evidence/workshop').status_code,409)
+                self.step(number,**data)
+            self.assertEqual(self.client.post('/sace/reading/certificate/email').status_code,409)
+            self.client.post('/sace/reading/step35',data={f'q{i}':'D' for i in range(1,5)})
+            self.assertEqual(self.client.post('/sace/reading/certificate/email').status_code,409)
+            generate.assert_not_called(); sender.assert_not_called()
+            self.client.post('/sace/reading/step35',data=dict(q1='B',q2='B',q3='C',q4='D'))
+            self.assertEqual(self.event('step34')['score'],75)  # Existing 70% pass rule.
             board=self.client.get('/sace/reading')
             link=next(a['href'] for a in Anchors(board.data,table_only=True).items if a['text']=='Workshop Certificate evidence')
-            evidence=self.client.get(link)
-            self.assertEqual(evidence.status_code,200)
-            self.assertIn(b'Workshop certificate specimen',evidence.data)
-            self.assertNotIn(b'type="email"',evidence.data)
-            for _ in range(2):
-                self.assertEqual(self.client.post('/sace/reading/certificate/email',data={'email':'a@example.test'}).status_code,403)
-            generate.assert_not_called()
-            specimen=self.client.get('/sace/reading/certificate-evidence/workshop')
-            self.assertEqual(specimen.mimetype,'application/pdf')
-            self.assertEqual(generate.call_args.args[:2],('SPECIMEN - NOT ISSUED','Example participant (SPECIMEN)'))
-            self.assertEqual(self.client.post(link,data={'examined':'yes'}).location,'/sace/reading')
-            self.assertEqual(self.event('workshop_certificate')['evidence'],'participant certificate specimen examined')
-            self.assertIsNone(self.event('workshop_certificate_requested'))
+            page=self.client.get(link)
+            self.assertIn(b'Email workshop certificate',page.data)
+            self.assertNotIn(b'SPECIMEN',page.data)
+            result=self.client.get('/sace/reading/post_test/results')
+            self.assertNotIn(b'/sace/reading/course',result.data)
+            pdf=self.client.get('/sace/reading/certificate-evidence/workshop')
+            self.assertEqual(pdf.data,b'%PDF-real-workshop')
+            self.assertTrue(generate.call_args.args[0].startswith('AIT-WS-'))
             with self.app.app_context():
-                self.assertNotIn('workshop_certificate_id',flow.payload(db.session.get(h.Interaction,self.assignment_id)))
+                self.assertEqual(db.session.get(h.auth_models.User,generate.call_args.args[3]).email,'a@example.test')
+            cid=generate.call_args.args[0]
+            sender.assert_not_called()
+            self.assertIsNone(self.event('workshop_certificate'))
+            response=self.client.post('/sace/reading/certificate/email',data={'email':'someone-else@example.test'})
+            self.assertEqual(response.location,'/sace/reading')
+            sender.assert_called_once_with('a@example.test',generate.call_args.args[1],cid,b'%PDF-real-workshop')
+            self.assertEqual(self.event('workshop_certificate')['outcome'],'accepted_by_mail_sender')
+            self.assertRegex(self.client.get('/sace/reading').data.decode(),r'Workshop Certificate evidence</a></td><td[^>]*>Recorded</td>')
+            self.assertIsNone(self.event('reading_certificate'))
+            self.assertEqual(self.client.post('/sace/reading/course/certificate').status_code,409)
+
+    def test_real_course_certificate_requires_each_video_and_separate_assessment(self):
+        import sys
+        from types import SimpleNamespace
+        from unittest.mock import Mock
+        self.workshop()
+        lessons=[dict(id=i,order=i,title=f'Fixture {i}',caption='',video_filename=f'{i}.mp4') for i in range(1,19)]
+        sender=Mock(return_value=True); generate=Mock(return_value=b'%PDF-real-reading')
+        content={'version':'certificate-test-v1','pass_percent':100,'questions':[{'id':'q1','prompt':'Fixture','options':{'A':'one','B':'two'},'answer':'B'}]}
+        with patch.dict(self.app.config,{'AIT_READING_STEP35':content}), patch.object(flow,'course_lessons',return_value=lessons), patch.dict(sys.modules,{'app.subject_reading.routes':SimpleNamespace(_email_certificate_pdf=sender,_generate_certificate_pdf=generate)}):
+            for i in range(1,19):
+                self.assertEqual(self.client.post('/sace/reading/course/certificate').status_code,409)
+                self.assertEqual(self.client.get('/sace/reading/certificate-evidence/reading').status_code,409)
+                self.assertEqual(self.client.post(f'/sace/reading/course/{i}',json={'examined':True}).status_code,409)
+                with patch('app.utils.reading_media.verify_reading_video'):
+                    self.client.get(f'/sace/reading/course/{i}/video')
+                self.assertEqual(self.client.post(f'/sace/reading/course/{i}',json={'examined':True}).status_code,200)
+            self.assertEqual(self.client.post('/sace/reading/course/certificate').status_code,409)
+            generate.assert_not_called(); sender.assert_not_called()
+            certificate=self.client.get('/sace/reading/course/certificate')
+            self.assertIn(b'/sace/reading/course/assessment',certificate.data)
+            self.client.post('/sace/reading/course/assessment',data={'version':content['version'],'q1':'A'})
+            self.assertEqual(self.client.post('/sace/reading/course/certificate').status_code,409)
+            self.client.post('/sace/reading/course/assessment',data={'version':content['version'],'q1':'B'})
+            with patch.dict(self.app.config,{'AIT_READING_STEP35':dict(content,version='new-version')}):
+                self.assertEqual(self.client.post('/sace/reading/course/certificate').status_code,409)
+            self.assertIn(b'Email Reading certificate',self.client.get('/sace/reading/course/certificate').data)
+            self.assertEqual(self.client.get('/sace/reading/certificate-evidence/reading').data,b'%PDF-real-reading')
+            cid=generate.call_args.args[0]
+            self.assertTrue(cid.startswith('AIT-RD-'))
+            with self.app.app_context():
+                self.assertEqual(db.session.get(h.auth_models.User,generate.call_args.args[3]).email,'a@example.test')
+            self.assertEqual(self.client.post('/sace/reading/course/certificate').location,'/sace/reading')
+            sender.assert_called_once_with('a@example.test',generate.call_args.args[1],cid,b'%PDF-real-reading')
+            self.assertEqual(self.event('reading_certificate')['outcome'],'accepted_by_mail_sender')
+            self.assertIsNone(self.event('workshop_certificate'))
+            with self.app.app_context():
+                row=db.session.get(h.Interaction,self.assignment_id)
+                self.assertFalse(flow.certificate_delivered(row,'workshop_certificate'))
+                self.assertTrue(flow.certificate_delivered(row,'reading_certificate'))
+
+    def test_failed_delivery_and_specimen_confirmation_do_not_complete_board(self):
+        import sys
+        from types import SimpleNamespace
+        from unittest.mock import Mock
+        import app.program_sace.routes as routes
+        self.workshop()
+        with self.app.app_context():
+            row=db.session.get(h.Interaction,self.assignment_id)
+            db.session.add(h.Interaction(user_id=flow.payload(row)['claimed_by_user_id'],workshop_session_id=flow.room(row),activity_slug='workshop_certificate',response_data=h.json.dumps({'evidence':'participant certificate specimen examined'})))
+            db.session.commit()
+            self.assertIn('workshop_certificate',flow.completion_requirements(row))
+        self.assertRegex(self.client.get('/sace/reading').data.decode(),r'Workshop Certificate evidence</a></td><td[^>]*>Outstanding</td>')
+        sender=Mock(return_value=False)
+        with patch.dict(sys.modules,{'app.subject_reading.routes':SimpleNamespace(_email_certificate_pdf=sender)}), patch.object(routes,'_generate_sace_certificate_pdf',return_value=b'%PDF-real') as generate:
+            self.assertEqual(self.client.post('/sace/reading/certificate/email').status_code,503)
+            self.assertEqual(self.event('workshop_certificate_failed')['reason'],'delivery')
+            with self.app.app_context():
+                self.assertFalse(flow.certificate_delivered(db.session.get(h.Interaction,self.assignment_id),'workshop_certificate'))
+            sender.return_value=True
+            with patch.dict(self.app.config,{'MAIL_SUPPRESS_SEND':True}):
+                self.assertEqual(self.client.post('/sace/reading/certificate/email').status_code,503)
+            self.assertEqual(sender.call_count,1)
+            generate.return_value=b''
+            self.assertEqual(self.client.post('/sace/reading/certificate/email').status_code,503)
+            self.assertEqual(self.event('workshop_certificate_failed')['reason'],'generation')
+            generate.return_value=b'%PDF-real'
+            self.assertEqual(self.client.post('/sace/reading/certificate/email').status_code,302)
+            self.assertEqual(self.event('workshop_certificate')['outcome'],'accepted_by_mail_sender')
+
+    def test_existing_certificate_helper_calls_standard_platform_sender(self):
+        import ast, sys
+        from types import SimpleNamespace
+        from unittest.mock import Mock
+        tree=ast.parse((ROOT/'app/subject_reading/routes.py').read_text(encoding='utf-8-sig'))
+        function=next(n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name=='_email_certificate_pdf')
+        namespace={'current_app':h.flask.current_app}
+        exec(compile(ast.Module(body=[function],type_ignores=[]),'standard-certificate-helper','exec'),namespace)
+        sender=Mock(return_value=True)
+        with self.app.app_context(), patch.dict(sys.modules,{'app.utils.mailer':SimpleNamespace(send_pdf_email=sender)}):
+            self.assertTrue(namespace['_email_certificate_pdf']('a@example.test','Auditor','AIT-WS-test',b'%PDF-real'))
+            self.assertEqual(sender.call_args.kwargs['to_email'],'a@example.test')
+            self.assertEqual(sender.call_args.kwargs['pdf_bytes'],b'%PDF-real')
+            sender.side_effect=RuntimeError('test-only transport failure')
+            self.assertFalse(namespace['_email_certificate_pdf']('a@example.test','Auditor','AIT-WS-test',b'%PDF-real'))
 
     def test_auditor_video_examination_needs_no_elapsed_playback(self):
         lessons=[dict(id=i,order=i,title=f'Fixture {i}',caption='',video_filename=f'{i}.mp4') for i in range(1,19)]

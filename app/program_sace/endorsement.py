@@ -147,10 +147,17 @@ def course_complete(row):
         latest(row, f"reading_lesson_{x['id']}_complete") for x in lessons)
 
 
+def certificate_delivered(row, slug):
+    return payload(latest(row, slug)).get('outcome') == 'accepted_by_mail_sender'
+
+
 def completion_requirements(row):
     required = MAP_REQUIRED + ('map_complete', 'demo_complete', 'step31', 'step32', 'step33',
         'workshop_certificate', 'reading_complete', 'reading_certificate', 'board_returned')
     missing = [slug for slug in required if not latest(row, slug)]
+    for slug in ('workshop_certificate', 'reading_certificate'):
+        if slug not in missing and not certificate_delivered(row, slug):
+            missing.append(slug)
     if not workshop_passed(row):
         missing.append('step34_pass')
     if not course_complete(row):

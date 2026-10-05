@@ -1,7 +1,5 @@
 {% extends "program_sace_home/frame.html" %}
 {% block home_content %}
-<p class="mb-5">HOME assignment {{ row.id }} &mdash; {{ row.status }}. Examination evidence belongs to this HOME assignment only.</p>
-<p class="mb-4">Requirements: {{ row.requirements_version }}. Historical assignments retain their original requirements.</p>
 <ul class="divide-y">{% for item in items %}<li class="py-4 flex justify-between gap-4 items-center">
 <div><strong>{{ loop.index }}. {{ item.title }}</strong><p class="text-sm text-slate-600">{% if item.examined %}&#10003; Examined{% elif not item.available %}Awaiting approved HOME material{% else %}Not yet examined{% endif %}</p></div>
 {% if item.kind == 'summary' %}{% set target = url_for('home_sace_bp.summary', assignment_id=row.id) %}

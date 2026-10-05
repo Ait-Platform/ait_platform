@@ -190,6 +190,51 @@ class HomeFoundation(unittest.TestCase):
             self.app.config['WTF_CSRF_ENABLED'] = False
             self.app.jinja_env.globals['csrf_token'] = original
 
+    def test_https_control_code_generation_referrer_policy(self):
+        from flask_wtf.csrf import generate_csrf
+        self.provision_home()
+        original = self.app.jinja_env.globals['csrf_token']
+        self.app.jinja_env.globals['csrf_token'] = generate_csrf
+        self.app.config['WTF_CSRF_ENABLED'] = True
+        try:
+            origin = 'https://localhost'
+            page = self.client.get('/sace/home/control', base_url=origin)
+            self.assertEqual(page.status_code, 200)
+            self.assertEqual(page.headers['Referrer-Policy'], 'same-origin')
+            token = re.search(rb'name="csrf_token" value="([^"]+)"', page.data).group(1).decode()
+            target = '/sace/home/control/codes'
+            for headers, reason in (({}, b'The referrer header is missing.'),
+                    ({'Referer': 'https://foreign.example/'}, b'The referrer does not match the host.')):
+                rejected = self.client.post(target, base_url=origin,
+                    data={'csrf_token': token}, headers=headers)
+                self.assertEqual(rejected.status_code, 400)
+                self.assertIn(reason, rejected.data)
+            with self.app.app_context():
+                self.assertEqual(HomeInvitation.query.count(), 0)
+            accepted = self.client.post(target, base_url=origin,
+                data={'csrf_token': token}, headers={'Referer': origin + '/sace/home/control'})
+            self.assertEqual(accepted.status_code, 200)
+            self.assertRegex(accepted.data, rb'HOME-[A-F0-9]{24}')
+            with self.app.app_context():
+                self.assertEqual(HomeInvitation.query.count(), 1)
+            for path in ('/sace/home/control/documents', '/sace/home/control/completion',
+                         '/sace/home/ip-pledge'):
+                response = self.client.get(path, base_url=origin)
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.headers['Referrer-Policy'], 'same-origin')
+        finally:
+            self.app.config['WTF_CSRF_ENABLED'] = False
+            self.app.jinja_env.globals['csrf_token'] = original
+        code = re.search(rb'HOME-[A-F0-9]{24}', accepted.data).group().decode()
+        auditor, aid = self.join_home(code)
+        for path in ('/sace/home/join',
+                     f'/sace/home/assignments/{aid}/board',
+                     f'/sace/home/assignments/{aid}/summary',
+                     f'/sace/home/assignments/{aid}/completion'):
+            response = auditor.get(path)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.headers['Referrer-Policy'], 'same-origin')
+
     def test_standard_url_new_r_ordinary_login_and_home_auditor(self):
         nonce=self.direct_home_entry()
         with self.app.app_context():

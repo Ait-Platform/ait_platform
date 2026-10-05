@@ -5,6 +5,7 @@ import importlib.util
 import json
 import re
 import tempfile
+import time
 import unittest
 from datetime import timedelta
 from pathlib import Path
@@ -140,12 +141,14 @@ class HomeExamination(f.HomeFoundation):
 
     def test_phase2b_stable_content_and_document_pinning(self):
         url = self.chapter('application', 11)
-        before = self.auditor.get(url).data
-        changed = copy.deepcopy(self.bundle)
-        changed['manifest']['approval']['reference'] = 'next local version'
-        changed['version'] = c.digest(changed['manifest'])
-        c.write_bundle(changed, self.content_dir.name)
-        self.assertEqual(self.auditor.get(url).data, before)
+        # Compare pinned content with identical CSRF signing seconds across requests.
+        with patch('itsdangerous.timed.TimestampSigner.get_timestamp', return_value=int(time.time())):
+            before = self.auditor.get(url).data
+            changed = copy.deepcopy(self.bundle)
+            changed['manifest']['approval']['reference'] = 'next local version'
+            changed['version'] = c.digest(changed['manifest'])
+            c.write_bundle(changed, self.content_dir.name)
+            self.assertEqual(self.auditor.get(url).data, before)
         self.assertEqual(self.confirm(url, changed['version']).status_code, 409)
         self.assertEqual(self.confirm(url).status_code, 302)
         with self.app.app_context():

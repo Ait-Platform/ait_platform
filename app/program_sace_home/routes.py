@@ -21,8 +21,7 @@ def page(template, title, **values):
 @home_sace_bp.after_request
 def private_response(response):
     response.headers["Cache-Control"] = "private, no-store"
-    response.headers["Referrer-Policy"] = (
-        "same-origin" if request.endpoint == "home_sace_bp.provision" else "no-referrer")
+    response.headers["Referrer-Policy"] = "same-origin"
     response.headers["X-Content-Type-Options"] = "nosniff"
     access = getattr(g, "home_access", None)
     if access and response.status_code < 400 and current_user.is_authenticated:

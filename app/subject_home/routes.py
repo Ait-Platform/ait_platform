@@ -12,8 +12,57 @@ SHUFFLE_HOME_QUESTIONS = False
 
 
 home_bp = Blueprint("home_bp", __name__)
+from app.program_sace_home import participant_context as auditor
+
+
+@home_bp.before_request
+def home_examination_context():
+    row = auditor.resolve()
+    if row is not None:
+        allowed = {'learner_dashboard', 'chapter_page', 'chapter_results', 'final_exam',
+            'final_exam_result', 'report_exit', 'finish_report', 'view_certificate',
+            'view_final_certificate', 'view_failed_certificate', 'auditor_advance'}
+        if (request.endpoint or '').split('.')[-1] not in allowed:
+            abort(403, description='This operation is not part of HOME Auditor examination.')
+
+
+@home_bp.url_defaults
+def carry_home_assignment(endpoint, values):
+    row = auditor.current()
+    if row is not None:
+        values.setdefault(auditor.PARAM, row.id)
+
+
+@home_bp.context_processor
+def home_examination_ui():
+    row = auditor.current()
+    return dict(home_auditor=row, home_progress=auditor.progress(row) if row else session,
+        hide_navbar=bool(row), home_exam_chapter=request.view_args.get('chapter_num') if row else None)
+
+
+@home_bp.after_request
+def home_examination_response(response):
+    if auditor.current() is not None:
+        response.headers['Cache-Control'] = 'private, no-store'
+        if response.status_code < 400:
+            db.session.commit()
+        else:
+            db.session.rollback()
+    return response
+
+
+@home_bp.post('/home/auditor/advance/<int:chapter_num>')
+@login_required
+def auditor_advance(chapter_num):
+    row = auditor.current()
+    if row is None:
+        abort(403)
+    return redirect(auditor.advance(row, chapter_num, request.form.get('action')))
+
 
 def _has_active_home_subscription(user_id):
+    if auditor.current() is not None and user_id == current_user.id:
+        return True
     from datetime import datetime
     now = datetime.utcnow()
     ent = db.session.execute(text("""
@@ -78,7 +127,7 @@ def learner_dashboard():
     if is_completed:
         flash("You have successfully completed the HOME Programme! You can review your Diagnostic Report and Certificate below.", "success")
 
-    progresses = HomeProgress.query.filter_by(user_id=current_user.id).all()
+    progresses = [] if auditor.current() else HomeProgress.query.filter_by(user_id=current_user.id).all()
     for p in progresses:
         session[f'chapter_{p.chapter_number}_done'] = True
 
@@ -96,6 +145,9 @@ def learner_dashboard():
         HomeFinalAssessment.id.desc()
     ).first()
 
+    if auditor.current():
+        assessment = auditor.assessment(auditor.current())
+        is_completed = False
     has_premium = _has_active_home_subscription(current_user.id)
     has_section3 = has_premium
 
@@ -104,7 +156,7 @@ def learner_dashboard():
         student_id=current_user.id,
         status='pending'
     ).all()
-    pending_chapters = [s.chapter_number for s in pending_subs]
+    pending_chapters = [] if auditor.current() else [s.chapter_number for s in pending_subs]
 
     # Fetch teacher link info
     link = HomeTeacherLink.query.filter_by(student_id=current_user.id).first()
@@ -273,7 +325,12 @@ def chapter_page(chapter_num):
         hero_image = fallback_images.get(base_chapter_num)
 
 
-    if chapter_num >= 11:
+    row = auditor.current()
+    if row:
+        auditor.check_order(row, chapter_num)
+        if not auditor.latest(row, f'participant_chapter:{chapter_num}', 'opened'):
+            auditor.record(row, f'participant_chapter:{chapter_num}', 'opened', {'chapter_id': chapter.id})
+    if chapter_num >= 11 and row is None:
         from app.models.home import HomeProgress
         completed_count = db.session.scalar(
             db.text("SELECT COUNT(DISTINCT chapter_number) FROM home_progress WHERE user_id = :uid AND chapter_number <= 10"),
@@ -292,7 +349,8 @@ def chapter_page(chapter_num):
     ).all()
 
     if request.method == 'POST':
-        
+        if row and chapter_num <= 10:
+            return redirect(auditor.advance(row, chapter_num, 'teacher_examined'))
         if chapter_num <= 10:
             from app.models.home import HomePracticalSubmission
             
@@ -384,13 +442,20 @@ def chapter_page(chapter_num):
             score >= chapter.pass_mark
         )
 
-        if passed:
+        if passed and row is None:
             session[
                 f'chapter_{chapter_num}_done'
             ] = True
             _save_home_progress(current_user.id, chapter_num)
 
-        session['chapter_results'] = {
+        result_key = f'home_auditor_{row.id}_chapter_results' if row else 'chapter_results'
+        if row:
+            auditor.record(row, f'participant_chapter:{chapter_num}', 'assessment_attempt',
+                {'score': score, 'passed': passed})
+            if passed and not auditor.latest(row, f'participant_chapter:{chapter_num}', 'examined'):
+                auditor.record(row, f'participant_chapter:{chapter_num}', 'examined', {'action': 'assessment', 'score': score})
+            db.session.commit()
+        session[result_key] = {
             'chapter_num': chapter_num,
             'score': score,
             'passed': passed,
@@ -440,9 +505,8 @@ def chapter_page(chapter_num):
 @login_required
 def chapter_results(chapter_num):
 
-    result_data = session.get(
-        'chapter_results'
-    )
+    row = auditor.current()
+    result_data = session.get(f'home_auditor_{row.id}_chapter_results' if row else 'chapter_results')
 
     if not result_data:
 
@@ -456,6 +520,8 @@ def chapter_results(chapter_num):
     next_url = None
     next_label = None
 
+    if row and result_data['chapter_num'] != chapter_num:
+        abort(409)
     if result_data['passed']:
         if chapter_num in [10, 20, 30]:
             next_url = url_for('home_bp.learner_dashboard')
@@ -576,6 +642,10 @@ def final_exam_result():
         HomeFinalAssessment.id.desc()
     ).first_or_404()
 
+    if auditor.current():
+        assessment = auditor.assessment(auditor.current())
+        if assessment is None:
+            abort(404)
     return render_template(
         'subject_home/final_exam_result.html',
         assessment=assessment
@@ -602,7 +672,10 @@ def send_certificate():
 @login_required
 def report_exit():
     assessment_id = request.args.get('assessment_id')
-    doc_type = request.args.get('type', 'report')
+    result = auditor.assessment(auditor.current(), assessment_id) if auditor.current() else HomeFinalAssessment.query.filter_by(id=assessment_id, user_id=current_user.id).first()
+    if result is None:
+        abort(404)
+    doc_type = 'certificate' if auditor.current() and result.passed else request.args.get('type', 'report')
     default_email = getattr(current_user, "email", "")
     return render_template('subject_home/report_exit.html', default_email=default_email, assessment_id=assessment_id, doc_type=doc_type)
 
@@ -612,7 +685,12 @@ def finish_report():
     email = request.form.get('email')
     assessment_id = request.form.get('assessment_id')
     doc_type = request.form.get('doc_type', 'report')
-    assessment = HomeFinalAssessment.query.get(assessment_id)
+    row = auditor.current()
+    assessment = auditor.assessment(row, assessment_id) if row else HomeFinalAssessment.query.filter_by(id=assessment_id, user_id=current_user.id).first()
+    if assessment is None:
+        abort(404)
+    if row:
+        return _finish_auditor_report(row, assessment, email)
     
     if email and assessment:
         import io
@@ -684,6 +762,9 @@ methods=['GET', 'POST']
 )
 @login_required
 def final_exam():
+    row = auditor.current()
+    if row and not all(auditor.progress(row).values()):
+        abort(409, description='Examine or skip all 30 HOME chapters before the final assessment.')
     has_premium = _has_active_home_subscription(current_user.id)
     
     if not has_premium:
@@ -695,6 +776,21 @@ def final_exam():
         ch_qs = HomeQuestion.query.filter_by(chapter_id=chapter_id).all()
         if ch_qs:
             questions.extend(random.sample(ch_qs, min(5, len(ch_qs))))
+
+    if row:
+        opened = auditor.latest(row, 'participant_assessment', 'opened')
+        if opened:
+            question_ids = opened.details['question_ids']
+            selected = {q.id: q for q in HomeQuestion.query.filter(HomeQuestion.id.in_(question_ids)).all()}
+            if len(selected) != len(question_ids):
+                abort(409, description='The opened HOME assessment questions are unavailable.')
+            questions = [selected[qid] for qid in question_ids]
+        elif request.method == 'POST':
+            abort(409, description='Open the final HOME assessment before submitting.')
+        else:
+            if not questions:
+                abort(409, description='The original HOME assessment questions are unavailable.')
+            auditor.record(row, 'participant_assessment', 'opened', {'question_ids': [q.id for q in questions]})
 
     if request.method == 'POST':
 
@@ -803,6 +899,11 @@ def final_exam():
         )
 
         db.session.add(assessment)
+        db.session.flush()
+        if row:
+            auditor.record(row, 'participant_assessment', 'completed',
+                {'assessment_id': assessment.id, 'passed': passed, 'score': overall_score,
+                 'question_ids': [q.id for q in questions]})
         db.session.commit()
 
         return redirect(url_for('home_bp.report_exit', assessment_id=assessment.id, type='report'))
@@ -835,6 +936,10 @@ def view_certificate():
         HomeFinalAssessment.id.desc()
     ).first_or_404()
 
+    if auditor.current():
+        assessment = auditor.assessment(auditor.current())
+        if assessment is None:
+            abort(404)
     return render_template(
         'subject_home/certificate.html',
         assessment=assessment
@@ -851,6 +956,10 @@ def view_final_certificate():
         HomeFinalAssessment.id.desc()
     ).first_or_404()
 
+    if auditor.current():
+        assessment = auditor.assessment(auditor.current())
+        if assessment is None:
+            abort(404)
     if not assessment.passed:
         flash("You must pass the assessment to view your certificate.", "warning")
         return redirect(url_for('home_bp.learner_dashboard'))
@@ -859,6 +968,10 @@ def view_final_certificate():
     logo_url = url_for('static', filename='branding/ait_logo.png')
     seal_url = url_for('static', filename='branding/ait_seal.png')
     
+    if auditor.current():
+        assessment = auditor.assessment(auditor.current())
+        if assessment is None:
+            abort(404)
     return render_template(
         'subject_home/certificate.html',
         assessment=assessment,
@@ -878,6 +991,10 @@ def view_failed_certificate():
     logo_url = url_for('static', filename='branding/ait_logo.png')
     seal_url = url_for('static', filename='branding/ait_seal.png')
     
+    if auditor.current():
+        assessment = auditor.assessment(auditor.current())
+        if assessment is None:
+            abort(404)
     return render_template(
         'subject_home/certificate.html',
         assessment=assessment,
@@ -957,8 +1074,11 @@ def _generate_home_certificate_pdf(assessment):
     
     report_html = render_template('subject_home/certificate.html', assessment=assessment, logo_path=logo_b64, seal_path=seal_b64)
     out_report = io.BytesIO()
-    pisa.CreatePDF(report_html, dest=out_report, encoding="UTF-8")
-    return out_report.getvalue()
+    result = pisa.CreatePDF(report_html, dest=out_report, encoding="UTF-8")
+    pdf = out_report.getvalue()
+    if result.err or not pdf.startswith(b'%PDF-'):
+        raise RuntimeError('HOME certificate PDF generation failed')
+    return pdf
 
 
 
@@ -1130,3 +1250,47 @@ def teacher_score(submission_id):
         flash(f"Marked Chapter {sub.chapter_number} as Not Yet Competent. The student can retry.", "info")
         
     return redirect(url_for('home_bp.teacher_dashboard'))
+
+
+def _finish_auditor_report(row, assessment, email):
+    """Email the genuine journey artifact; never mutate participant enrollment."""
+    import hashlib
+    from flask import current_app
+    from app.utils.mailer import send_pdf_email
+    if not email or '@' not in email or any(c.isspace() for c in email):
+        abort(400, description='Enter a valid email address.')
+    details = {'assignment_id': row.id, 'assessment_id': assessment.id,
+        'actor_id': current_user.id, 'recipient': email,
+        'kind': 'certificate' if assessment.passed else 'diagnostic_report'}
+    item = 'participant_certificate' if assessment.passed else 'participant_report'
+    if current_app.config.get('MAIL_SUPPRESS_SEND', False):
+        auditor.record(row, item, 'suppressed', details)
+        db.session.commit()
+        abort(503, description='Email sending is suppressed. No certificate evidence was completed.')
+    try:
+        pdf = _generate_home_certificate_pdf(assessment)
+        if not pdf or not pdf.startswith(b'%PDF-'):
+            raise RuntimeError('Invalid generated PDF')
+    except Exception:
+        auditor.record(row, item, 'failed', dict(details, reason='generation'))
+        db.session.commit()
+        abort(503, description='PDF generation failed. No certificate evidence was completed.')
+    details['pdf_sha256'] = hashlib.sha256(pdf).hexdigest()
+    auditor.record(row, item, 'requested', details)
+    db.session.commit()
+    # Revalidate after the generation/request transaction, before sending.
+    row = auditor.resolve()
+    try:
+        sent = send_pdf_email(to_email=email, subject='Your HOME Certificate & Diagnostic Report' if assessment.passed else 'Your HOME Diagnostic Report',
+            body_text='Please find your HOME assessment document attached.', pdf_bytes=pdf,
+            filename='HOME_Certificate_and_Report.pdf' if assessment.passed else 'HOME_Diagnostic_Report.pdf')
+        if sent is not True:
+            raise RuntimeError('Sender did not confirm acceptance')
+    except Exception:
+        auditor.record(row, item, 'failed', dict(details, reason='delivery'))
+        db.session.commit()
+        abort(503, description='Email delivery failed. Your progress is saved; retry sending.')
+    row = auditor.resolve()
+    auditor.record(row, item, 'sent', dict(details, outcome='accepted_by_mail_sender'))
+    db.session.commit()
+    return redirect(url_for('home_sace_bp.board', assignment_id=row.id))

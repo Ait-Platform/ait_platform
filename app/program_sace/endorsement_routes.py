@@ -349,7 +349,7 @@ def results():
     row = flow.assignment(lock=True)
     event = flow.latest(row, 'step34')
     eligible = flow.workshop_passed(row)
-    evidence = request.args.get('evidence') == '1'
+    evidence = eligible or request.args.get('evidence') == '1'
     if evidence and not eligible:
         abort(409, description="Pass the Workshop Post-Test before examining certificate evidence.")
     if request.method == 'POST':
@@ -568,6 +568,8 @@ def reading_assessment():
                                   'pass_percent': content['pass_percent'], 'passed': score >= content['pass_percent']})
     result = flow.payload(flow.latest(row, 'step35'))
     db.session.commit()
+    if flow.step35_passed(row):
+        return redirect(url_for('sace_bp.reading_certificate'))
     public_content = None if content is None else dict(version=content['version'], questions=[
         {k: q[k] for k in ('id', 'prompt', 'options')} for q in content['questions']])
     return render_template('program_sace/step35.html', content=public_content, result=result)

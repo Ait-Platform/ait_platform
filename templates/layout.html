@@ -92,6 +92,7 @@
     <!-- Main content -->
     <main id="app-main"
           class="{% block page_wrap_classes %}mx-auto w-full max-w-3xl px-4 py-8{% endblock %}">
+      {% if home_auditor %}{% include 'subject_home/auditor_controls.html' %}{% endif %}
       {% block content %}{% endblock %}
     </main>
 

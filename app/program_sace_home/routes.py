@@ -308,13 +308,7 @@ def summary(assignment_id):
 def experience(assignment_id):
     row = s.assignment(assignment_id, lock=True)
     if row.requirements_version == ex.REQUIREMENTS:
-        version, manifest = ex.pinned(row, bind=True)
-        db.session.commit()
-        stages = [dict(kind=kind, title=title, chapters=[dict(number=n,
-            title=manifest['chapters'][n - 1]['title'], examined=bool(ex.evidence(row, f'{kind}:{n}', 'examined', version)))
-            for n in content.STAGES[kind]]) for kind, title in ex.STAGES.items()]
-        return page('journey.html', 'HOME Learning Journey', row=row, version=version, stages=stages,
-            back=url_for('home_sace_bp.board', assignment_id=row.id))
+        return redirect(url_for('home_bp.learner_dashboard', home_assignment_id=row.id))
     return page("experience.html", "HOME practical / learning experience", row=row,
         back=url_for("home_sace_bp.board", assignment_id=row.id))
 
@@ -324,8 +318,19 @@ def experience(assignment_id):
 def material(assignment_id, kind):
     row = s.assignment(assignment_id, lock=request.method == "POST", writable=request.method == "POST")
     if row.requirements_version == ex.REQUIREMENTS:
-        if kind in {'assessment', 'certificate'}:
-            return specimen(row, kind)
+        if kind == 'certificate':
+            from . import participant_context as context
+            result = context.assessment(row)
+            if result is None:
+                return redirect(url_for('home_sace_bp.experience', assignment_id=row.id), code=303)
+            if request.method == 'POST':
+                abort(409, description='Email the genuine Item 7 certificate; specimen confirmation cannot complete evidence.')
+            return redirect(url_for('home_bp.report_exit', home_assignment_id=row.id, assessment_id=result.id,
+                type='certificate' if result.passed else 'report'))
+        if kind in {'assessment', 'monitoring'}:
+            abort(410, description='Use the separate HOME workshop evaluation items on the Auditor Board.')
+        if kind in ex.INSTRUMENTS:
+            return redirect(url_for('home_sace_bp.workshop_response', assignment_id=row.id, kind=kind), code=303)
         if kind not in ex.DOCUMENTS:
             abort(404)
         # Bind on first opening; later publication cannot change this examination.
@@ -396,22 +401,7 @@ def examination_chapter(assignment_id, stage, chapter_number):
     row = s.assignment(assignment_id, lock=True, writable=request.method == 'POST')
     if stage not in content.STAGES or chapter_number not in content.STAGES[stage]:
         abort(404)
-    version, manifest = ex.pinned(row, bind=True)
-    item = f'{stage}:{chapter_number}'
-    details = ex.chapter_details(manifest, chapter_number, stage)
-    if request.method == 'POST':
-        ex.confirm(row, item, request.form.get('version'), version, details)
-        if ex.journey_complete(row, version) and not ex.evidence(row, 'experience', 'examined', version):
-            s.record(row, 'experience', 'examined', {'version': version, 'coverage': 'all 40 stage/chapter examinations'})
-        db.session.commit()
-        return redirect(url_for('home_sace_bp.experience', assignment_id=row.id))
-    ex.open_item(row, item, version, details)
-    db.session.commit()
-    chapter = manifest['chapters'][chapter_number - 1]
-    html = ex.render_html(row, version, chapter['html'], manifest) if chapter['html'] else ''
-    return page('examination_chapter.html', ex.STAGES[stage] + ' — ' + chapter['title'],
-        row=row, chapter=chapter, stage=stage, version=version, educational_html=html,
-        back=url_for('home_sace_bp.experience', assignment_id=row.id))
+    abort(410, description='Use Item 7 to examine the original HOME participant journey.')
 
 
 @home_sace_bp.get('/assignments/<int:assignment_id>/content-assets/<version>/<asset>')
@@ -452,7 +442,11 @@ def completion(assignment_id):
         if missing:
             abort(409, description="HOME examination is incomplete; unavailable evidence cannot be marked examined.")
         row.status, row.completed_at = "completed", now()
-        s.record(row, "completion", "completed", {"requirements": row.requirements_version})
+        details = {"requirements": row.requirements_version}
+        if row.requirements_version == ex.REQUIREMENTS:
+            from .participant_context import VERSION
+            details['examination'] = VERSION
+        s.record(row, "completion", "completed", details)
         lc.audit(current_user.id, "auditor", "examination_completed", g.home_access[1], row.id)
         db.session.commit()
         return page("completion.html", "HOME examination completed", row=row, missing=[],
@@ -483,3 +477,39 @@ def cancel_completion():
     lc.cancel_completion()
     db.session.commit()
     return redirect(url_for("home_sace_bp.control"))
+
+
+@home_sace_bp.route('/assignments/<int:assignment_id>/responses/<kind>', methods=['GET', 'POST'])
+@login_required
+def workshop_response(assignment_id, kind):
+    from . import participant_context as context, workshop_interactions as instrument
+    row = s.assignment(assignment_id, lock=True, writable=request.method == 'POST')
+    if row.requirements_version != ex.REQUIREMENTS or kind not in ex.INSTRUMENTS:
+        abort(404)
+    questions = (instrument.FACILITATOR_QUESTIONS if kind == 'facilitator_evaluation'
+        else instrument.PARTICIPANT_QUESTIONS if kind == 'participant_evaluation' else ())
+    saved = context.latest(row, kind, 'submitted')
+    if request.method == 'POST':
+        details = {'instrument': ex.INSTRUMENTS[kind], 'programme': 'home',
+            'assignment_id': row.id, 'responding_user_id': current_user.id}
+        if kind == 'longitudinal_survey':
+            intention = request.form.get('intention_to_use')
+            if intention not in ('Yes', 'No') or len(request.form.getlist('intention_to_use')) != 1:
+                abort(400, description='Select Yes or No before continuing.')
+            details['intention_to_use'] = intention
+        else:
+            answers = {key: request.form.get(key) for key, _ in questions}
+            if not instrument.answers_valid(answers, questions) or any(len(request.form.getlist(key)) != 1 for key, _ in questions):
+                abort(400, description='Answer every question using Yes, Unsure or No.')
+            details['answers'] = answers
+            if kind == 'facilitator_evaluation':
+                comment = request.form.get('comment', '')
+                if len(comment) > 2000:
+                    abort(400, description='The optional comment must be at most 2000 characters.')
+                details['comment'] = comment.strip()
+        context.record(row, kind, 'submitted', details)
+        db.session.commit()
+        return redirect(url_for('home_sace_bp.board', assignment_id=row.id))
+    return page('workshop_response.html', ex.FUNCTIONAL_ITEMS[kind], row=row, kind=kind,
+        questions=questions, choices=instrument.CHOICES, survey_question=instrument.SURVEY_QUESTION,
+        saved=saved.details if saved else {}, back=url_for('home_sace_bp.board', assignment_id=row.id))

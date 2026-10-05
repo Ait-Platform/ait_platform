@@ -1,0 +1,22 @@
+{% if home_auditor %}
+<section class="border rounded bg-blue-50 p-4 mb-4 space-y-3" aria-label="HOME Auditor examination controls">
+<p>HOME Auditor examination - assignment {{ home_auditor.id }}</p>
+<div class="flex flex-wrap gap-3">
+<a class="underline" href="{{ url_for('home_sace_bp.board', assignment_id=home_auditor.id) }}">Return to HOME Auditor Board</a>
+<a class="underline" href="{{ url_for('home_bp.learner_dashboard') }}">HOME journey progress</a>
+</div>
+{% if home_exam_chapter %}
+<form method="post" action="{{ url_for('home_bp.auditor_advance', chapter_num=home_exam_chapter) }}" class="flex flex-wrap gap-3">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+{% if home_exam_chapter <= 10 %}<button class="border rounded bg-white p-2" name="action" value="teacher_examined">Teacher Approved / Examined - Next</button>{% endif %}
+<button class="border rounded bg-white p-2" name="action" value="skip">Skip / Next</button>
+</form>
+{% elif home_progress.values()|select('equalto', false)|list|length == 0 %}
+<a class="underline" href="{{ url_for('home_bp.final_exam') }}">Open / retry genuine HOME final assessment</a>
+{% endif %}
+{% if request.endpoint == 'home_bp.final_exam' %}
+<p>A passing final assessment is required for the genuine HOME certificate.</p>
+<a class="underline" href="{{ url_for('home_sace_bp.board', assignment_id=home_auditor.id) }}">Skip / Next - return to Board</a>
+{% endif %}
+</section>
+{% endif %}

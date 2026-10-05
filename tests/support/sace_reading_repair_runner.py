@@ -201,7 +201,7 @@ class ReadingRepair(unittest.TestCase):
         self.assertIsNotNone(self.event("demo_complete"))
         self.assertIsNone(self.event("step35"))  # Reading-course MCQ is independent.
         result=self.client.get("/sace/reading/post_test/results")
-        self.assertNotIn(b"Email workshop certificate",result.data)
+        self.assertIn(b"Email workshop certificate",result.data)
         self.assertEqual(self.client.get("/sace/reading/course/certificate").status_code,200)
         self.assertEqual(self.client.post("/sace/reading/course/certificate",data={"email":"a@example.test"}).status_code,409)
 
@@ -231,7 +231,7 @@ class ReadingRepair(unittest.TestCase):
         self.assertEqual(response.location,'/sace/reading/post_test/results')
         self.assertEqual(self.event('step34')['score'],100)
         self.assertIsNotNone(self.event('demo_complete'))
-        self.assertNotIn(b'Email workshop certificate',self.client.get('/sace/reading/post_test/results').data)
+        self.assertIn(b'Email workshop certificate',self.client.get('/sace/reading/post_test/results').data)
 
     def test_empty_optional_comment_and_intention_only(self):
         from app.program_sace import workshop_interactions as instrument
@@ -321,7 +321,8 @@ class ReadingRepair(unittest.TestCase):
             self.assertIn(b'/sace/reading/course/assessment',certificate.data)
             self.client.post('/sace/reading/course/assessment',data={'version':content['version'],'q1':'A'})
             self.assertEqual(self.client.post('/sace/reading/course/certificate').status_code,409)
-            self.client.post('/sace/reading/course/assessment',data={'version':content['version'],'q1':'B'})
+            continuation=self.client.post('/sace/reading/course/assessment',data={'version':content['version'],'q1':'B'})
+            self.assertEqual(continuation.location,'/sace/reading/course/certificate')
             with patch.dict(self.app.config,{'AIT_READING_STEP35':dict(content,version='new-version')}):
                 self.assertEqual(self.client.post('/sace/reading/course/certificate').status_code,409)
             self.assertIn(b'Email Reading certificate',self.client.get('/sace/reading/course/certificate').data)
@@ -481,7 +482,7 @@ class ReadingRepair(unittest.TestCase):
         self.assertEqual(self.client.get('/sace/reading/simulator').location,'/sace/reading/post_test/results')
         self.assertEqual(self.event('step33')['instrument'],'existing-baseline-v1')
         self.assertEqual(self.event('workshop_certificate')['certificate_id'],'EXISTING')
-        self.assertNotIn(b'Email workshop certificate',self.client.get('/sace/reading/post_test/results').data)
+        self.assertIn(b'Email workshop certificate',self.client.get('/sace/reading/post_test/results').data)
 
     def test_no_skips_replays_or_incomplete_forms(self):
         self.client.get("/sace/reading/simulator")
@@ -498,6 +499,19 @@ class ReadingRepair(unittest.TestCase):
         self.assertEqual(result.location,"/sace/reading/step35")
         self.assertFalse(self.event("step34")["passed"])
         self.assertIsNone(self.event("demo_complete"))
+
+
+    def test_workshop_certificate_has_actual_ait_semantics(self):
+        from flask import render_template
+        with self.app.test_request_context('/'):
+            html=render_template('program_sace/post_test/certificate_pdf.html',
+                learner_name='Actual Auditor',completed_date='5 October 2026',certificate_id='AIT-WS-REAL',
+                logo_path='',seal_path='',answers={'score':100})
+        self.assertIn('Reading Workshop Certificate',html)
+        self.assertIn('passed the required workshop post-test',html)
+        self.assertNotIn('Workshop Simulation',html)
+        self.assertNotIn('Sandton Convention Centre',html)
+        self.assertNotIn('Sace activity',html)
 
 
 if __name__ == "__main__":unittest.main(verbosity=2)

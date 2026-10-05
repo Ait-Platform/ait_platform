@@ -1,0 +1,15 @@
+{% extends "program_sace_home/frame.html" %}
+{% block home_content %}
+<form method="post" class="space-y-5">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+{% if kind == 'longitudinal_survey' %}
+<fieldset><legend>{{ survey_question }}</legend>
+{% for choice in ('Yes', 'No') %}<label class="block"><input type="radio" name="intention_to_use" value="{{ choice }}" required {% if saved.intention_to_use == choice %}checked{% endif %}> {{ choice }}</label>{% endfor %}</fieldset>
+{% else %}
+{% for key, prompt in questions %}<fieldset><legend>{{ prompt }}</legend>
+{% for choice in choices %}<label class="block"><input type="radio" name="{{ key }}" value="{{ choice }}" required {% if saved.get('answers', {}).get(key) == choice %}checked{% endif %}> {{ choice }}</label>{% endfor %}</fieldset>{% endfor %}
+{% if kind == 'facilitator_evaluation' %}<label class="block">Optional comment<textarea name="comment" maxlength="2000" class="block border w-full">{{ saved.get('comment', '') }}</textarea></label>{% endif %}
+{% endif %}
+<button class="home-button">Save response and return to Auditor Board</button>
+</form>
+{% endblock %}

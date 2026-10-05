@@ -168,7 +168,7 @@ def document(row, kind, bind=False):
     return version
 
 
-def board_items(row):
+def historical_board_items(row):
     from . import service as s
     version, manifest = pinned(row)
     values = []
@@ -183,5 +183,52 @@ def board_items(row):
             done = bool(version) and evidence(row, kind, 'examined', version) is not None
         else:
             done = s.examined(row, kind)
+        values.append(dict(kind=kind, title=title, version=doc, available=available, examined=available and done))
+    return values
+
+
+FUNCTIONAL_ITEMS = {
+    'experience': 'HOME Learning Journey',
+    'facilitator_evaluation': 'Facilitator Evaluation',
+    'participant_evaluation': 'Participant Workshop Evaluation',
+    'certificate': 'Certificate / Diagnostic Report Evidence',
+    'longitudinal_survey': 'HOME Longitudinal Survey',
+}
+INSTRUMENTS = {'facilitator_evaluation': 'home-facilitator-evaluation-v1',
+    'participant_evaluation': 'home-participant-evaluation-v1',
+    'longitudinal_survey': 'home-longitudinal-intention-v1'}
+
+
+def response_complete(row, kind):
+    from . import participant_context as context, workshop_interactions as instrument
+    event = context.latest(row, kind, 'submitted')
+    if not event or event.details.get('instrument') != INSTRUMENTS[kind]:
+        return False
+    if kind == 'longitudinal_survey':
+        return event.details.get('intention_to_use') in ('Yes', 'No')
+    questions = instrument.FACILITATOR_QUESTIONS if kind == 'facilitator_evaluation' else instrument.PARTICIPANT_QUESTIONS
+    return instrument.answers_valid(event.details.get('answers'), questions)
+
+
+def board_items(row):
+    from . import service as s, participant_context as context
+    if row.status != 'active' and not context.latest(row, 'completion', 'completed'):
+        return historical_board_items(row)
+    values = []
+    titles = {k: v for k, v in ITEMS.items() if k not in {'experience', 'assessment', 'monitoring', 'certificate'}}
+    titles.update(FUNCTIONAL_ITEMS)
+    for kind, title in titles.items():
+        doc = document(row, kind) if kind in DOCUMENTS else None
+        if kind in FUNCTIONAL_ITEMS:
+            available = True
+            if kind == 'experience':
+                done = context.journey_complete(row)
+            elif kind == 'certificate':
+                done = context.certificate_delivered(row)
+            else:
+                done = response_complete(row, kind)
+        else:
+            available = kind == 'summary' or bool(doc)
+            done = s.examined(row, kind, doc.id if doc else None)
         values.append(dict(kind=kind, title=title, version=doc, available=available, examined=available and done))
     return values

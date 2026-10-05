@@ -18,6 +18,8 @@ from werkzeug.exceptions import HTTPException
 ROOT = Path(__file__).resolve().parents[1]
 
 def functions(path, env):
+    env.setdefault('__name__', path.removesuffix('.py').replace('/', '.'))
+    env.setdefault('__package__', env['__name__'].rpartition('.')[0])
     tree = ast.parse((ROOT/path).read_text(encoding='utf-8'))
     nodes = []
     for node in tree.body:
@@ -30,6 +32,19 @@ def functions(path, env):
 
 class JourneyTests(unittest.TestCase):
     def setUp(self):
+        import importlib.util, sys, types
+        from unittest.mock import patch
+        package = types.ModuleType('app.program_sace')
+        package.__path__ = [str(ROOT/'app/program_sace')]
+        app_package = types.ModuleType('app')
+        app_package.__path__ = [str(ROOT/'app')]
+        spec = importlib.util.spec_from_file_location('app.program_sace.workshop_interactions', ROOT/'app/program_sace/workshop_interactions.py')
+        self.instrument = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(self.instrument)
+        modules = patch.dict(sys.modules, {'app': app_package, 'app.program_sace': package,
+            'app.program_sace.workshop_interactions': self.instrument})
+        modules.start()
+        self.addCleanup(modules.stop)
         self.app = Flask(__name__)
         self.app.secret_key = 'test'
         self.app.static_folder = str(ROOT/'app/static')
@@ -111,7 +126,7 @@ class JourneyTests(unittest.TestCase):
 
     def test_each_required_activity_blocks_completion(self):
         self.ready()
-        for slug in self.flow.MAP_REQUIRED+('map_complete','ppp_complete','demo_complete','step31','step32','step33','step34','workshop_certificate','reading_complete','reading_certificate','board_returned','step35','reading_lesson_18_complete'):
+        for slug in self.flow.MAP_REQUIRED+('map_complete','demo_complete','step31','step32','step33','step34','workshop_certificate','reading_complete','reading_certificate','board_returned','step35','reading_lesson_18_complete'):
             with self.subTest(slug=slug):
                 saved=self.evidence[:]
                 self.evidence[:]=[e for e in saved if e.activity_slug!=slug]
@@ -137,10 +152,10 @@ class JourneyTests(unittest.TestCase):
     def test_demo_blocks_skip_replay_and_invalid_payload(self):
         self.call('demo')
         self.fails(409,'demo_advance',method='POST',json_data={'step':4})
-        self.call('demo_advance',method='POST',json_data={'step':1})
+        self.call('demo_advance',method='POST',json_data={'step':32,'answers':{key:'Yes' for key,_ in self.instrument.FACILITATOR_QUESTIONS}})
         self.fails(409,'demo_advance',method='POST',json_data={'step':0})
         self.fails(409,'demo_advance',method='POST',json_data=['invalid'])
-        self.assertEqual(2,self.flow.payload(self.row)['demo_step'])
+        self.assertEqual(33,self.flow.payload(self.row)['demo_step'])
 
     def test_engagement_requires_actual_responses(self):
         self.add('map_complete');self.add('ppp_complete');self.state(33)
@@ -276,13 +291,13 @@ class JourneyTests(unittest.TestCase):
                 if not path.name.startswith(('endorsement_','evaluation_','step35')):continue
                 for endpoint in re.findall(r"url_for\('([^']+)'",path.read_text(encoding='utf-8')):
                     if endpoint.endswith('.'):continue
-                    flask.url_for(endpoint,slide=1,lesson_id=1,doc_type='p_guide',filename='test.png')
+                    flask.url_for(endpoint,slide=1,lesson_id=1,doc_type='p_guide',filename='test.png',kind='workshop')
 
     def test_all_journey_templates_parse_and_render(self):
         from jinja2 import Environment
         env=Environment(loader=ChoiceLoader([DictLoader({'layout.html':'{% block content %}{% endblock %}'}),FileSystemLoader(str(ROOT/'templates'))]))
         env.globals.update(url_for=lambda name,**kw:'/'+name,csrf_token=lambda:'test',get_flashed_messages=lambda **kw:[],current_user=SimpleNamespace(email='auditor@example.test'))
-        values=dict(ticks=set(),materials=self.r['MATERIALS'],missing=['step35_pass'],answers={},eligible=False,lessons=[],completed=set(),events=[],ready=False,content=None,result={},lesson={'id':1,'order':1,'title':'Test','caption':''},doc_title='Material',doc_url='/material',viewed_url='/viewed')
+        values=dict(instrument=self.instrument,ticks=set(),materials=self.r['MATERIALS'],missing=['step35_pass'],answers={},eligible=False,lessons=[],completed=set(),events=[],ready=False,content=None,result={},lesson={'id':1,'order':1,'title':'Test','caption':''},doc_title='Material',doc_url='/material',viewed_url='/viewed')
         for path in (ROOT/'templates/program_sace').glob('*.html'):
             if path.name.startswith(('endorsement_','evaluation_')) or path.name=='step35.html':
                 for step in (0,1,31,32,33,34,35):

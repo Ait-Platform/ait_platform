@@ -53,6 +53,10 @@ def create_app(test_config=None):
         static_folder="static",
     )
 
+    from app.logging_security import RequestSecretFilter
+    if not any(isinstance(item, RequestSecretFilter) for item in app.logger.filters):
+        app.logger.addFilter(RequestSecretFilter())
+
     Path(app.instance_path).mkdir(parents=True, exist_ok=True)
 
     # 1) Base config object (config.py at project root)

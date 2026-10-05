@@ -146,6 +146,50 @@ class HomeFoundation(unittest.TestCase):
             self.app.config['WTF_CSRF_ENABLED'] = False
             self.app.jinja_env.globals['csrf_token'] = original
 
+    def test_https_provisioning_missing_referrer_diagnostic(self):
+        from flask_wtf.csrf import generate_csrf
+        original = self.app.jinja_env.globals['csrf_token']
+        self.app.jinja_env.globals['csrf_token'] = generate_csrf
+        self.app.config['WTF_CSRF_ENABLED'] = True
+        try:
+            origin = 'https://localhost'
+            response = self.client.get('/sace/home/provisioning', base_url=origin)
+            response = self.client.get(response.location, base_url=origin)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.headers['Referrer-Policy'], 'same-origin')
+            fields = dict((a.decode(), b.decode()) for a, b in re.findall(
+                rb'<input type="hidden" name="([^"]+)" value="([^"]*)">', response.data))
+            url = '/sace/home/provisioning?journey=' + fields['journey']
+            with self.assertLogs(self.app.logger, level='INFO') as logs:
+                rejected = self.client.post(url, data=fields, base_url=origin)
+            self.assertEqual(rejected.status_code, 400)
+            self.assertEqual(len(rejected.data), 122)
+            self.assertIn(b'The referrer header is missing.', rejected.data)
+            messages = '\n'.join(logs.output)
+            self.assertIn('HOME provisioning rejected: CSRF (referrer missing)', messages)
+            self.assertNotIn('HOME provisioning POST entered', messages)
+            for value in fields.values():
+                self.assertNotIn(value, messages)
+            with self.assertLogs(self.app.logger, level='INFO') as logs:
+                rejected = self.client.post(url, data=fields, base_url=origin,
+                    headers={'Referer': 'https://other.example/'})
+            self.assertEqual(rejected.status_code, 400)
+            self.assertIn(b'The referrer does not match the host.', rejected.data)
+            messages = '\n'.join(logs.output)
+            self.assertIn('HOME provisioning rejected: CSRF (referrer/host mismatch)', messages)
+            self.assertNotIn('HOME provisioning POST entered', messages)
+            for value in fields.values():
+                self.assertNotIn(value, messages)
+            with self.assertLogs(self.app.logger, level='INFO') as logs:
+                accepted = self.client.post(url, data=fields, base_url=origin,
+                    headers={'Referer': origin + url})
+            self.assertEqual(accepted.status_code, 302)
+            self.assertEqual(accepted.location, '/sace/home/authenticate')
+            self.assertIn('HOME provisioning POST entered', '\n'.join(logs.output))
+        finally:
+            self.app.config['WTF_CSRF_ENABLED'] = False
+            self.app.jinja_env.globals['csrf_token'] = original
+
     def test_standard_url_new_r_ordinary_login_and_home_auditor(self):
         nonce=self.direct_home_entry()
         with self.app.app_context():

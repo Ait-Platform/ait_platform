@@ -1,5 +1,7 @@
 import secrets
-from flask import g, abort, flash, redirect, render_template, request, session, url_for, send_file
+from flask_wtf.csrf import CSRFError
+from werkzeug.exceptions import BadRequest
+from flask import current_app, g, abort, flash, redirect, render_template, request, session, url_for, send_file
 from flask_login import current_user, login_required
 from app.extensions import db
 from app.models.sace_home import (HomeAssignment, HomeInvitation, HomePledge, HomeDocumentVersion, HomeEvidence, now)
@@ -19,7 +21,8 @@ def page(template, title, **values):
 @home_sace_bp.after_request
 def private_response(response):
     response.headers["Cache-Control"] = "private, no-store"
-    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["Referrer-Policy"] = (
+        "same-origin" if request.endpoint == "home_sace_bp.provision" else "no-referrer")
     response.headers["X-Content-Type-Options"] = "nosniff"
     access = getattr(g, "home_access", None)
     if access and response.status_code < 400 and current_user.is_authenticated:
@@ -42,8 +45,35 @@ def entry():
     return page("assignments.html", "HOME endorsement assignments", rows=rows)
 
 
+@home_sace_bp.errorhandler(BadRequest)
+def provisioning_bad_request(error):
+    # Preserve Flask/Werkzeug's existing response; never include request values.
+    if request.endpoint == "home_sace_bp.provision" and request.method == "POST":
+        if isinstance(error, CSRFError):
+            reasons = {
+                "The CSRF token is missing.": "token missing",
+                "The CSRF session token is missing.": "session token missing",
+                "The CSRF token has expired.": "token expired",
+                "The CSRF token is invalid.": "token invalid",
+                "The CSRF tokens do not match.": "token/session mismatch",
+                "The referrer header is missing.": "referrer missing",
+                "The referrer does not match the host.": "referrer/host mismatch",
+            }
+            current_app.logger.warning("HOME provisioning rejected: CSRF (%s)",
+                reasons.get(error.description, "validation failed"))
+        elif error.description == "Review and sign the HOME IP pledge first.":
+            current_app.logger.warning("HOME provisioning rejected: pledge validation")
+        else:
+            current_app.logger.warning("HOME provisioning rejected: bad request (route_entered=%s)",
+                bool(getattr(g, "home_provisioning_post_entered", False)))
+    return error
+
+
 @home_sace_bp.route("/provisioning", methods=["GET", "POST"])
 def provision():
+    if request.method == "POST":
+        g.home_provisioning_post_entered = True
+        current_app.logger.info("HOME provisioning POST entered")
     if request.args.get("token"):
         session.pop(s.PROVISIONING_CONTEXT, None)
         session.pop("sace_home_pending_code", None)
@@ -67,6 +97,8 @@ def provision():
         nonce = request.form.get('journey') if request.method == 'POST' else request.args.get('journey')
         if request.method == 'POST' or nonce:
             if not nonce or not secrets.compare_digest(str(nonce), row.id):
+                if request.method == "POST":
+                    current_app.logger.warning("HOME provisioning rejected: journey/session mismatch")
                 abort(403, description="HOME provisioning nonce is invalid. Reload your current journey.")
     if request.method == "POST":
         accept_pledge("controller", row.id)
@@ -74,6 +106,7 @@ def provision():
             s.complete_provisioning()
             continuation.clear()
             return redirect(url_for("home_sace_bp.control"))
+        current_app.logger.info("HOME provisioning POST accepted: authentication redirect")
         return redirect(url_for("home_sace_bp.authenticate"))
     if current_user.is_authenticated and session.get("sace_home_pledge_controller"):
         s.complete_provisioning()

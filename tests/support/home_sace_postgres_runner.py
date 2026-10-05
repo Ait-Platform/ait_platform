@@ -74,7 +74,7 @@ class HomeFoundation(unittest.TestCase):
             token = s.issue_provisioning(email, "local-test")
             db.session.commit()
         self.assertEqual(self.client.get("/sace/home/provisioning?token=" + token, follow_redirects=True).status_code, 200)
-        self.assertEqual(self.client.post("/sace/home/provisioning", data={"signature": "HOME R", "accept": "yes"}).status_code, 302)
+        self.assertEqual(self.client.post("/sace/home/provisioning", data={}).status_code, 302)
         result = self.client.post("/register", data={"subject": s.SUBJECT, "full_name": "HOME R",
             "email": email, "password": "test-password"}, follow_redirects=True)
         self.assertEqual(result.status_code, 200, result.data[:500])
@@ -115,6 +115,37 @@ class HomeFoundation(unittest.TestCase):
         self.assertIn(b'HOME Controller IP Pledge',page.data)
         return nonce
 
+    def test_simplified_controller_form_with_real_csrf(self):
+        from flask_wtf.csrf import generate_csrf
+        original = self.app.jinja_env.globals['csrf_token']
+        self.app.jinja_env.globals['csrf_token'] = generate_csrf
+        self.app.config['WTF_CSRF_ENABLED'] = True
+        try:
+            nonce = self.direct_home_entry()
+            url = '/sace/home/provisioning?journey=' + nonce
+            response = self.client.get(url)
+            self.assertNotIn(b'name="signature"', response.data)
+            self.assertNotIn(b'name="accept"', response.data)
+            self.assertNotIn(b'This HOME provisioning invitation is for', response.data)
+            self.assertIn(b'Accept and Continue', response.data)
+            fields = dict((a.decode(), b.decode()) for a, b in re.findall(
+                rb'<input type="hidden" name="([^"]+)" value="([^"]*)">', response.data))
+            self.assertEqual(fields['journey'], nonce)
+            self.assertEqual(self.client.post(url, data={'journey': nonce}).status_code, 400)
+            forged = dict(fields, journey='forged')
+            self.assertEqual(self.client.post(url, data=forged).status_code, 403)
+            response = self.client.post(url, data=fields)
+            self.assertEqual(response.location, '/sace/home/authenticate')
+            with self.client.session_transaction() as state:
+                consent = state['sace_home_pledge_controller']
+                self.assertEqual(consent['context_id'], nonce)
+                self.assertEqual(consent['acceptance_method'], 'accept_and_continue')
+                self.assertEqual(consent['version'], s.PLEDGE_VERSION)
+                self.assertTrue(consent['accepted_at'])
+        finally:
+            self.app.config['WTF_CSRF_ENABLED'] = False
+            self.app.jinja_env.globals['csrf_token'] = original
+
     def test_standard_url_new_r_ordinary_login_and_home_auditor(self):
         nonce=self.direct_home_entry()
         with self.app.app_context():
@@ -122,7 +153,7 @@ class HomeFoundation(unittest.TestCase):
             self.assertEqual(HomeController.query.count(),0)
             self.assertEqual(h.auth_models.AuthSubjectAdmin.query.count(),0)
         self.assertEqual(self.client.post('/sace/home/provisioning',data={'signature':'R','accept':'yes'}).status_code,403)
-        self.assertEqual(self.client.post('/sace/home/provisioning',data={'signature':'R','accept':'yes','journey':nonce}).location,'/sace/home/authenticate')
+        self.assertEqual(self.client.post('/sace/home/provisioning?journey='+nonce,data={'journey':nonce}).location,'/sace/home/authenticate')
         result=self.client.post('/register',data={'subject':s.SUBJECT,'full_name':'HOME R','email':'direct-r@example.test','password':'test-password'},follow_redirects=True)
         self.assertEqual(result.status_code,200,result.data[:500])
         self.assertIn(b'HOME Control Centre',result.data)
@@ -131,6 +162,7 @@ class HomeFoundation(unittest.TestCase):
             self.assertEqual(row.email,'direct-r@example.test')
             self.assertIsNotNone(row.claimed_at)
             self.assertEqual(HomePledge.query.one().provisioning_id,row.id)
+            self.assertEqual(HomePledge.query.one().signature, 'HOME R')
             self.assertEqual(h.auth_models.AuthSubjectAdmin.query.filter_by(subject_id=901).count(),1)
             self.assertEqual(h.auth_models.AuthSubjectAdmin.query.filter_by(subject_id=900).count(),0)
             self.assertEqual(h.Interaction.query.count(),0)
@@ -149,20 +181,20 @@ class HomeFoundation(unittest.TestCase):
         nonce=self.direct_home_entry()
         fresh=self.app.test_client()
         self.assertEqual(fresh.get('/sace/home/provisioning?journey='+nonce).status_code,403)
-        self.assertEqual(fresh.post('/sace/home/provisioning',data={'signature':'R','accept':'yes','journey':nonce}).status_code,403)
-        self.assertEqual(self.client.post('/sace/home/provisioning',data={'signature':'R','accept':'yes','journey':'wrong'}).status_code,403)
+        self.assertEqual(fresh.post('/sace/home/provisioning',data={'journey':nonce}).status_code,403)
+        self.assertEqual(self.client.post('/sace/home/provisioning',data={'journey':'wrong'}).status_code,403)
         self.assertEqual(self.client.get('/register?subject='+s.SUBJECT).status_code,400)
         with self.client.session_transaction() as session:
             context=dict(session[s.PROVISIONING_CONTEXT]); context['expires_at']=0
             session[s.PROVISIONING_CONTEXT]=context
-        self.assertEqual(self.client.post('/sace/home/provisioning',data={'signature':'R','accept':'yes','journey':nonce}).status_code,403)
+        self.assertEqual(self.client.post('/sace/home/provisioning',data={'journey':nonce}).status_code,403)
         self.client.get('/login?next=/unrelated')
         with self.client.session_transaction() as session:
             self.assertNotIn(s.PROVISIONING_CONTEXT,session)
         nonce=self.direct_home_entry()
         with self.client.session_transaction() as session:
             saved_context=dict(session[s.PROVISIONING_CONTEXT])
-        self.client.post('/sace/home/provisioning',data={'signature':'R','accept':'yes','journey':nonce})
+        self.client.post('/sace/home/provisioning',data={'journey':nonce})
         with self.client.session_transaction() as session:
             saved_pledge=dict(session['sace_home_pledge_controller'])
         self.client.post('/register',data={'subject':s.SUBJECT,'full_name':'HOME R','email':'replay-r@example.test','password':'test-password'},follow_redirects=True)

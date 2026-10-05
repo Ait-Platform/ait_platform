@@ -80,10 +80,17 @@ def provision():
         continuation.clear()
         return redirect(url_for("home_sace_bp.control"))
     return page("pledge.html", "HOME Controller IP Pledge", terms=s.PLEDGE_TEXT,
-        email=row.email, signed=False, journey=row.id if getattr(row, 'session_bootstrap', False) else None, back=url_for("home_sace_bp.entry"))
+        controller_pledge=True, signed=False, journey=row.id if getattr(row, 'session_bootstrap', False) else None, back=url_for("home_sace_bp.entry"))
 
 
 def accept_pledge(role, context_id):
+    if role == "controller":
+        # The validated, CSRF-protected pledge POST is affirmative consent.
+        # Bind the durable record to the authenticated identity at claim time.
+        session["sace_home_pledge_controller"] = dict(context_id=context_id,
+            version=s.PLEDGE_VERSION, signature="Accepted by controller",
+            acceptance_method="accept_and_continue", accepted_at=now().isoformat())
+        return
     signature = request.form.get("signature", "").strip()
     if request.form.get("accept") != "yes" or not signature or len(signature) > 255:
         abort(400, description="Enter your full name and accept the HOME pledge.")

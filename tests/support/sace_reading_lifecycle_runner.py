@@ -38,6 +38,20 @@ class ReadingLifecycle(h.AccessJourneys):
         status = status or ('revoked' if path.endswith('/engagement/end') else 'completed')
         return self.client.post(path, data={'status':status, 'reason':'Reviewed local test completion'})
 
+    def test_lifecycle_r_control_completion_after_two_codes(self):
+        self.active_r()
+        first, _ = self.code(self.client)
+        second, _ = self.code(self.client)
+        self.assertNotEqual(first, second)
+        html = self.client.get('/sace/provisioning').data.decode()
+        self.assertGreater(html.index('Complete Activity Endorsement'), html.index('Generate Access Code'))
+        self.assertGreater(html.index('Complete Activity Endorsement'), html.index('</table>'))
+        self.assertIn('/sace/provisioning/engagement/complete', html)
+        self.assertEqual(self.client.get('/sace/provisioning/engagement/complete').status_code, 200)
+        self.client.post('/sace/provisioning/engagement/complete', data={'confirm': 'yes'})
+        html = self.client.get('/sace/provisioning').data.decode()
+        self.assertGreater(html.index('Cancel Completion'), html.index('</table>'))
+
     def test_lifecycle_grant_alone_and_global_metadata_denied(self):
         uid = self.user('orphan@example.test')
         with self.app.app_context():

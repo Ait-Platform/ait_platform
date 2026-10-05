@@ -269,11 +269,66 @@ class HomeFoundation(unittest.TestCase):
         with self.app.app_context():
             self.assertEqual(HomeController.query.count(),0)
 
+    def test_r_control_final_completion_and_provider_documents(self):
+        from unittest.mock import patch
+        self.provision_home()
+        first = self.code_home()
+        second = self.code_home()
+        self.assertNotEqual(first, second)
+        response = self.client.get('/sace/home/control')
+        html = response.data.decode()
+        self.assertGreater(html.index('Complete Activity Endorsement'), html.index('HOME examination assignments'))
+        response = self.client.get('/sace/home/control/documents')
+        html = response.data.decode()
+        for title in ('Application Form 1', 'Application Form 2', 'Facilitator CVs &amp; Compliance'):
+            self.assertIn(title, html)
+        self.assertIn('The primary SACE application form.', html)
+        self.assertIn('The secondary SACE application form.', html)
+        self.assertEqual(html.count('Awaiting an approved HOME document version.'), 3)
+        for title in ('HOME programme / timetable', 'HOME Workshop / Participant Manual',
+                      'HOME Facilitator Manual', 'Assessment tools / evidence',
+                      'Monitoring / evaluation evidence', 'Applicable HOME certificate evidence'):
+            self.assertNotIn(title, html)
+        with self.app.app_context():
+            path = Path(self.documents.name) / 'application.pdf'
+            path.write_bytes(b'%PDF-1.4\nHOME provider test fixture only')
+            version = s.publish_document(HomeController.query.one(), 'application_form_1',
+                'provider-test', path.name, {'subject': s.SUBJECT, 'kind': 'application_form_1',
+                'home_approval': {'approved_by': 'local test', 'reference': 'fixture'}})
+            db.session.commit()
+            vid = version.id
+        response = self.client.get('/sace/home/control/documents')
+        self.assertIn(('/sace/home/documents/' + str(vid) + '/content').encode(), response.data)
+        target = f'/sace/home/control/documents/{vid}/email'
+        with patch('app.utils.mailer.send_pdf_email') as send:
+            self.assertEqual(self.client.post(target, data={'recipient_email': 'r@example.com'}).status_code, 302)
+            send.assert_called_once()
+            self.assertEqual(send.call_args.args[3], path.read_bytes())
+        self.app.config['WTF_CSRF_ENABLED'] = True
+        try:
+            with patch('app.utils.mailer.send_pdf_email') as send:
+                self.assertEqual(self.client.post(target,
+                    data={'recipient_email': 'r@example.com'}).status_code, 400)
+                send.assert_not_called()
+        finally:
+            self.app.config['WTF_CSRF_ENABLED'] = False
+        auditor, aid = self.join_home(first)
+        with self.app.app_context():
+            kinds = {item['kind'] for item in s.board_items(db.session.get(HomeAssignment, aid))}
+            self.assertTrue({'timetable', 'participant_manual', 'facilitator_manual',
+                'assessment', 'monitoring', 'certificate'} <= kinds)
+        self.assertEqual(auditor.post(target, data={'recipient_email': 'r@example.com'}).status_code, 403)
+        self.assertEqual(self.app.test_client().post(target).status_code, 302)
+        self.assertEqual(self.client.get('/sace/home/control/completion').status_code, 200)
+        self.assertEqual(self.client.post('/sace/home/control/completion', data={'decision': 'yes'}).status_code, 302)
+        html = self.client.get('/sace/home/control').data.decode()
+        self.assertGreater(html.index('Cancel Completion'), html.index('HOME examination assignments'))
+
     def test_new_and_returning_home_controller(self):
         uid = self.provision_home()
         self.code_home()
         self.assertEqual(self.client.get("/sace/home/control/documents").status_code, 200)
-        self.assertIn(b"HOME Workshop / Participant Manual", self.client.get("/sace/home/control/documents").data)
+        self.assertIn(b"Application Form 1", self.client.get("/sace/home/control/documents").data)
         with self.app.app_context():
             self.assertEqual(HomePledge.query.filter_by(role="controller").count(), 1)
             self.assertEqual(h.auth_models.AuthSubjectAdmin.query.filter_by(subject_id=901).count(), 1)

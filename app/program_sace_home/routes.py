@@ -167,14 +167,56 @@ def generate_code():
         back=url_for("home_sace_bp.control"))
 
 
+PROVIDER_DOCUMENTS = (
+    ('application_form_1', 'Application Form 1', 'The primary SACE application form.'),
+    ('application_form_2', 'Application Form 2', 'The secondary SACE application form.'),
+    ('facilitator_compliance', 'Facilitator CVs & Compliance',
+     'This is the facilitator compliance portfolio/evidence supplied for the endorsement, '
+     'including the applicable facilitator CVs and compliance documentation.'),
+)
+
+
 @home_sace_bp.get("/control/documents")
 @login_required
 def provider_documents():
     s.require_controller()
-    materials = [(kind, s.ITEMS.get(kind, ex.ITEMS[kind]), s.latest_version(kind))
-        for kind in ex.ITEMS if kind in s.DOCUMENT_ITEMS]
+    materials = [dict(kind=kind, title=title, description=description,
+        version=s.latest_version(kind)) for kind, title, description in PROVIDER_DOCUMENTS]
+    from werkzeug.exceptions import NotFound, Conflict
+    for document in materials:
+        if document['version'] is not None:
+            try:
+                s.document_path(document['version'])
+            except (NotFound, Conflict):
+                document['version'] = None
     return page("provider_documents.html", "HOME provider evidence", materials=materials,
         back=url_for("home_sace_bp.control"))
+
+
+@home_sace_bp.post('/control/documents/<int:version_id>/email')
+@login_required
+def email_provider_document(version_id):
+    from app.models.sace_home import HomeDocument
+    from app.utils.mailer import send_pdf_email
+    from email_validator import validate_email, EmailNotValidError
+    s.require_controller()
+    version = db.session.get(HomeDocumentVersion, version_id)
+    document = db.session.get(HomeDocument, version.document_id) if version else None
+    if document is None or document.kind not in {item[0] for item in PROVIDER_DOCUMENTS}:
+        abort(404)
+    path = s.document_path(version)
+    try:
+        recipient = validate_email(request.form.get('recipient_email', ''),
+            check_deliverability=False).normalized
+    except EmailNotValidError:
+        flash('Enter a valid recipient email address.', 'warning')
+        return redirect(url_for('home_sace_bp.provider_documents'))
+    title = next(item[1] for item in PROVIDER_DOCUMENTS if item[0] == document.kind)
+    send_pdf_email(recipient, 'HOME Provider Document: ' + title,
+        'Please find the requested HOME provider document attached.', path.read_bytes(),
+        'HOME-' + document.kind + '.pdf')
+    flash('HOME provider document emailed.', 'success')
+    return redirect(url_for('home_sace_bp.provider_documents'))
 
 
 @home_sace_bp.get("/control/assignments/<int:assignment_id>")

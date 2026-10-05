@@ -29,15 +29,6 @@
         <!-- Rule 6: Flashes inside tile -->
         {% include "partials/flash_messages.html" %}
 
-                {% if engagement and engagement.status == 'completion_pending' %}
-        <div class="border border-amber-300 bg-amber-50 rounded p-4 mb-4">
-            <p>Completion pending. Operational access ends at {{ engagement.completion_deadline }} (UTC).</p>
-            <form method="post" action="{{ url_for('sace_bp.reading_cancel_completion') }}">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button class="border border-indigo-300 rounded px-4 py-2 mt-2">Cancel Completion</button>
-            </form>
-        </div>
-        {% endif %}
         <!-- Rule 5: Row 2 Actions right-aligned -->
         <div class="flex flex-wrap justify-end gap-3 mb-6 border-b border-slate-100 pb-6">
             {% if provisioning_complete %}
@@ -159,6 +150,21 @@
             </table>
         </div>
 
+        {% if engagement %}
+        <section class="mt-6 border-t border-slate-200 pt-6">
+            {% if engagement.status == 'completion_pending' %}
+            <div class="border border-amber-300 bg-amber-50 rounded p-4">
+                <p>Completion pending. Operational access ends at {{ engagement.completion_deadline }} (UTC).</p>
+                <form method="post" action="{{ url_for('sace_bp.reading_cancel_completion') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="border border-indigo-300 rounded px-4 py-2 mt-2">Cancel Completion</button>
+                </form>
+            </div>
+            {% else %}
+            <a href="{{ url_for('sace_bp.reading_complete_engagement') }}" class="inline-block border border-indigo-300 rounded px-4 py-2">Complete Activity Endorsement</a>
+            {% endif %}
+        </section>
+        {% endif %}
         {% endif %}
     </div>
 </div>

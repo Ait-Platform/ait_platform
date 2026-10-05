@@ -1,7 +1,33 @@
 {% extends "program_sace_home/frame.html" %}
 {% block home_content %}
-<p class="mb-5">HOME evidence versions are published separately from all other programmes.</p>
-<ul class="divide-y">{% for kind, label, version in materials %}<li class="py-4"><strong>{{ label }}</strong><br>
-{% if version %}<a class="underline" href="{{ url_for('home_sace_bp.document_content', version_id=version.id) }}">Open version {{ version.version }}</a>
-{% else %}<span class="text-slate-600">Awaiting an approved HOME document version.</span>{% endif %}</li>{% endfor %}</ul>
+<div class="space-y-4">
+{% for doc in materials %}
+<div class="flex flex-wrap items-center justify-between gap-4 p-5 bg-white border border-slate-200 rounded-xl shadow-sm hover:shadow-md transition">
+    <div>
+        <h4 class="font-bold text-slate-800 text-lg">{{ doc.title }}</h4>
+        <p class="text-sm text-slate-500">{{ doc.description }}</p>
+        {% if not doc.version %}<p class="text-sm text-slate-600 mt-2">Awaiting an approved HOME document version.</p>{% endif %}
+    </div>
+    <div class="flex items-start space-x-3">
+        {% if doc.version %}
+        <a href="{{ url_for('home_sace_bp.document_content', version_id=doc.version.id) }}" target="_blank" class="px-4 py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 font-bold rounded-lg transition border border-indigo-200 shadow-sm flex items-center">
+            <i class="fas fa-eye mr-2"></i> View / Download
+        </a>
+        <details>
+            <summary class="cursor-pointer px-4 py-2 bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-800 font-bold rounded-lg transition border border-slate-200 shadow-sm flex items-center"><i class="fas fa-envelope mr-2"></i> Email</summary>
+            <form method="post" action="{{ url_for('home_sace_bp.email_provider_document', version_id=doc.version.id) }}" class="mt-3 space-y-3">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <label for="recipient-{{ doc.version.id }}" class="block text-xs font-bold text-slate-500 uppercase">Recipient Email Address</label>
+                <input id="recipient-{{ doc.version.id }}" type="email" name="recipient_email" required autofocus class="w-full p-3 bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:bg-white transition">
+                <button class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-md transition">Send Email</button>
+            </form>
+        </details>
+        {% else %}
+        <button disabled class="px-4 py-2 bg-indigo-50 text-indigo-700 font-bold rounded-lg border border-indigo-200 shadow-sm flex items-center opacity-50 cursor-not-allowed"><i class="fas fa-eye mr-2"></i> View / Download</button>
+        <button disabled class="px-4 py-2 bg-slate-50 text-slate-600 font-bold rounded-lg border border-slate-200 shadow-sm flex items-center opacity-50 cursor-not-allowed"><i class="fas fa-envelope mr-2"></i> Email</button>
+        {% endif %}
+    </div>
+</div>
+{% endfor %}
+</div>
 {% endblock %}

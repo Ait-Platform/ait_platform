@@ -123,11 +123,11 @@ def accept_pledge(role, context_id):
             version=s.PLEDGE_VERSION, signature="Accepted by controller",
             acceptance_method="accept_and_continue", accepted_at=now().isoformat())
         return
-    signature = request.form.get("signature", "").strip()
-    if request.form.get("accept") != "yes" or not signature or len(signature) > 255:
-        abort(400, description="Enter your full name and accept the HOME pledge.")
+    if request.form.get("accept") != "yes":
+        abort(400, description="Accept the HOME pledge to continue.")
     session["sace_home_pledge_" + role] = dict(context_id=context_id,
-        version=s.PLEDGE_VERSION, signature=signature, accepted_at=now().isoformat())
+        version=s.PLEDGE_VERSION, signature="Accepted by evaluator",
+        acceptance_method="accept_and_continue", accepted_at=now().isoformat())
 
 
 @home_sace_bp.get("/authenticate")

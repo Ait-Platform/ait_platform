@@ -5,10 +5,6 @@
 {% for pledge in pledges %}<p class="mb-3">Signed by {{ pledge.signature }} as {{ pledge.role }} on {{ pledge.accepted_at }} ({{ pledge.version }}).</p>{% endfor %}
 {% else %}
 <form method="post">{% if journey %}<input type="hidden" name="journey" value="{{ journey }}">{% endif %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-{% if not controller_pledge %}
-<label for="signature">Full name / signature</label><input class="home-field" id="signature" name="signature" maxlength="255" required autofocus>
-<label class="block mb-5"><input type="checkbox" name="accept" value="yes" required> I have read and accept this HOME Intellectual Property Pledge.</label>
-{% endif %}
-<button type="submit" class="home-button">Accept and Continue</button></form>
+<button type="submit" class="home-button"{% if not controller_pledge %} name="accept" value="yes"{% endif %}>Accept and Continue</button></form>
 {% endif %}
 {% endblock %}

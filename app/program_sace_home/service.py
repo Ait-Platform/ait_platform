@@ -139,7 +139,7 @@ def persist_pledge(role, row, context_id=None):
     value = consent(role, row.id if context_id is None else context_id)
     pledge = HomePledge(user_id=current_user.id, role=role,
         signature=(current_user.name or current_user.email)[:255]
-            if role == "controller" and value.get("acceptance_method") == "accept_and_continue"
+            if value.get("acceptance_method") == "accept_and_continue"
             else value["signature"], version=PLEDGE_VERSION, text_hash=digest(PLEDGE_TEXT),
         accepted_at=datetime.fromisoformat(value["accepted_at"]),
         provisioning_id=row.id if role == "controller" else None,

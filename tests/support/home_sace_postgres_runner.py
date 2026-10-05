@@ -91,7 +91,7 @@ class HomeFoundation(unittest.TestCase):
         client = self.app.test_client()
         self.assertEqual(client.post("/sace/home/join", data={"code": code}).location, "/sace/home/pledge")
         self.assertEqual(client.get("/sace/home/pledge").status_code, 200)
-        self.assertEqual(client.post("/sace/home/pledge", data={"signature": "HOME Auditor", "accept": "yes"}).status_code, 302)
+        self.assertEqual(client.post("/sace/home/pledge", data={"accept": "yes"}).status_code, 302)
         if existing:
             result = self.login(client, email, "/sace/home/claim")
             self.assertEqual(result.location, "/sace/home/claim")
@@ -432,6 +432,65 @@ class HomeFoundation(unittest.TestCase):
         code = self.code_home()
         self.join_home(code)
         self.assertEqual(other.post("/sace/home/join", data={"code": code}).status_code, 400)
+
+    def test_evaluator_accept_without_signature_with_real_csrf(self):
+        from datetime import datetime
+        from flask_wtf.csrf import generate_csrf
+        self.provision_home()
+        code = self.code_home()
+        client = self.app.test_client()
+        client.post('/sace/home/join', data={'code': code})
+        original = self.app.jinja_env.globals['csrf_token']
+        self.app.jinja_env.globals['csrf_token'] = generate_csrf
+        self.app.config['WTF_CSRF_ENABLED'] = True
+        try:
+            origin = 'https://localhost'
+            page = client.get('/sace/home/pledge', base_url=origin)
+            self.assertEqual(page.status_code, 200)
+            self.assertEqual(page.headers['Referrer-Policy'], 'same-origin')
+            self.assertNotIn(b'Full name / signature', page.data)
+            self.assertNotIn(b'name="signature"', page.data)
+            self.assertNotIn(b'type="checkbox"', page.data)
+            self.assertIn(b'name="accept" value="yes">Accept and Continue', page.data)
+            token = re.search(rb'name="csrf_token" value="([^"]+)"', page.data).group(1).decode()
+            target = origin + '/sace/home/pledge'
+            for data, headers in (({'accept': 'yes'}, {'Referer': target}),
+                    ({'accept': 'yes', 'csrf_token': token}, {}),
+                    ({'accept': 'yes', 'csrf_token': token}, {'Referer': 'https://foreign.example/'}),
+                    ({'csrf_token': token}, {'Referer': target})):
+                self.assertEqual(client.post('/sace/home/pledge', base_url=origin,
+                    data=data, headers=headers).status_code, 400)
+            response = client.post('/sace/home/pledge', base_url=origin,
+                data={'accept': 'yes', 'csrf_token': token, 'signature': 'Forged Name'},
+                headers={'Referer': target})
+            self.assertEqual(response.status_code, 302)
+            with client.session_transaction() as state:
+                accepted_at = datetime.fromisoformat(state['sace_home_pledge_auditor']['accepted_at'])
+            with self.app.app_context():
+                self.assertEqual(HomePledge.query.filter_by(role='auditor').count(), 0)
+        finally:
+            self.app.config['WTF_CSRF_ENABLED'] = False
+            self.app.jinja_env.globals['csrf_token'] = original
+        # Anonymous consent becomes durable only against the authenticated claimant.
+        response = client.post('/register', data={'subject': s.SUBJECT,
+            'full_name': 'Actual Evaluator', 'email': 'evaluator@example.test',
+            'password': 'test-password'}, follow_redirects=True)
+        self.assertEqual(response.status_code, 200)
+        with self.app.app_context():
+            assignment = HomeAssignment.query.one()
+            pledge = HomePledge.query.filter_by(role='auditor').one()
+            self.assertEqual(pledge.user_id, assignment.auditor_id)
+            self.assertEqual(pledge.signature, 'Actual Evaluator')
+            self.assertEqual(pledge.invitation_id, assignment.invitation_id)
+            self.assertIsNone(pledge.provisioning_id)
+            self.assertEqual(pledge.version, s.PLEDGE_VERSION)
+            self.assertEqual(pledge.text_hash, s.digest(s.PLEDGE_TEXT))
+            self.assertEqual(pledge.accepted_at, accepted_at)
+            self.assertIsNotNone(pledge.recorded_at)
+            evidence = HomeEvidence.query.filter_by(assignment_id=assignment.id,
+                item='pledge', event='accepted').one()
+            self.assertEqual(evidence.actor_id, assignment.auditor_id)
+            self.assertEqual(evidence.details['version'], s.PLEDGE_VERSION)
 
     def test_pledge_and_provisioning_protection(self):
         self.assertEqual(self.client.get("/sace/home/provisioning").status_code, 302)

@@ -40,3 +40,25 @@ def publish_document_command(controller_user_id, kind, version, storage_key, man
         db.session.rollback()
         raise click.ClickException(str(exc)) from exc
     click.echo("Published HOME document version " + str(row.id))
+
+
+@home_sace_bp.cli.command('publish-endorsement-documents')
+@click.option('--controller-user-id', type=int, required=True)
+@click.option('--source-directory', type=click.Path(exists=True, file_okay=False), required=True)
+@click.option('--approved-by', required=True)
+@click.option('--approval-reference', required=True)
+def publish_endorsement_documents(controller_user_id, source_directory, approved_by, approval_reference):
+    """Copy and register the three approved HOME PDFs; reuse matching versions."""
+    from app.models.sace_home import HomeController
+    from .endorsement_documents import publish
+    owner = HomeController.query.filter_by(user_id=controller_user_id, active=True).first()
+    if owner is None:
+        raise click.ClickException('An active HOME controller is required.')
+    try:
+        rows = publish(owner, source_directory, approved_by, approval_reference)
+        db.session.commit()
+    except (ValueError, OSError) as exc:
+        db.session.rollback()
+        raise click.ClickException(str(exc)) from exc
+    for kind, row in rows.items():
+        click.echo(kind + ': HOME document version ' + str(row.id))

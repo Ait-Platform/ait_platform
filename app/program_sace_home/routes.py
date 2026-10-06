@@ -391,7 +391,9 @@ def document_content(version_id):
     else:
         s.require_controller()
         path = s.document_path(version)
-    return send_file(path, mimetype="application/pdf", as_attachment=False,
+    download = (version.source_manifest.get('kind') in {'application_form_1', 'application_form_2', 'timetable'}
+        and request.args.get('download') == '1')
+    return send_file(path, mimetype="application/pdf", as_attachment=download,
         download_name="HOME-" + str(version.id) + ".pdf")
 
 

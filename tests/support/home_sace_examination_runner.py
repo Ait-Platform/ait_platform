@@ -95,6 +95,24 @@ class HomeExamination(unittest.TestCase):
         with self.app.app_context():
             return {x['kind']: x for x in f.s.board_items(db.session.get(HomeAssignment,self.aid))}
 
+    def test_summary_notice_requires_authorized_home_auditor(self):
+        notice = b'SACE Auditor Examination'
+        response = self.auditor.get(self.base + '/summary')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(notice, response.data)
+        self.assertIn(b'Completing these tests is optional', response.data)
+        self.assertNotIn(notice, self.auditor.get(self.url('/dashboard/learner')).data)
+        ordinary = self.app.test_client()
+        self.user('ordinary-notice@example.test')
+        self.login(ordinary, 'ordinary-notice@example.test')
+        self.assertEqual(ordinary.get(self.base + '/summary').status_code, 403)
+        self.assertNotIn(notice, ordinary.get('/dashboard/learner').data)
+        self.assertEqual(self.client.get(self.base + '/summary').status_code, 403)
+        with self.app.app_context():
+            db.session.get(HomeAssignment, self.aid).status = 'revoked'
+            db.session.commit()
+        self.assertEqual(self.auditor.get(self.base + '/summary').status_code, 403)
+
     def test_original_journey_without_bundle_and_order(self):
         result = self.auditor.get(self.base+'/experience')
         self.assertEqual(result.location, self.url('/dashboard/learner'))

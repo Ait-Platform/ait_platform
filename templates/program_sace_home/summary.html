@@ -1,5 +1,11 @@
 {% extends "program_sace_home/frame.html" %}
 {% block home_content %}
+{% if home_auditor_examination %}
+<section class="space-y-2 mb-6" aria-labelledby="sace-auditor-examination">
+<h2 id="sace-auditor-examination" class="text-xl font-semibold">SACE Auditor Examination</h2>
+<p>As the SACE Auditor, you may examine any or all of the tests in this HOME journey, or you may skip them. Completing these tests is optional for your examination of the programme. This option applies only to the SACE Auditor during the endorsement examination and will not apply to participants when the activity goes live.</p>
+</section>
+{% endif %}
 <div class="space-y-4 leading-relaxed mb-6">
 <p>HOME &mdash; Hands-On Math Education is examined through its existing ten chapter topics across three sections.</p>
 <ol class="list-decimal pl-6 space-y-3"><li><strong>Practical:</strong> examine the activities and participant instructions in chapters 1&ndash;10.</li>

@@ -299,7 +299,7 @@ def summary(assignment_id):
             s.record(row, "summary", "examined", {"version": "home-summary-v1"})
         db.session.commit()
         return redirect(url_for("home_sace_bp.board", assignment_id=row.id))
-    return page("summary.html", "HOME Activity Summary", row=row,
+    return page("summary.html", "HOME Activity Summary", row=row, home_auditor_examination=True,
         back=url_for("home_sace_bp.board", assignment_id=row.id))
 
 

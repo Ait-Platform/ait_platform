@@ -185,7 +185,7 @@ def provider_documents():
     for document in materials:
         if document['version'] is not None:
             try:
-                s.document_path(document['version'])
+                s.document_content(document['version'])
             except (NotFound, Conflict):
                 document['version'] = None
     return page("provider_documents.html", "HOME provider evidence", materials=materials,
@@ -203,7 +203,7 @@ def email_provider_document(version_id):
     document = db.session.get(HomeDocument, version.document_id) if version else None
     if document is None or document.kind not in {item[0] for item in PROVIDER_DOCUMENTS}:
         abort(404)
-    path = s.document_path(version)
+    pdf_bytes = s.document_content(version)
     try:
         recipient = validate_email(request.form.get('recipient_email', ''),
             check_deliverability=False).normalized
@@ -212,7 +212,7 @@ def email_provider_document(version_id):
         return redirect(url_for('home_sace_bp.provider_documents'))
     title = next(item[1] for item in PROVIDER_DOCUMENTS if item[0] == document.kind)
     send_pdf_email(recipient, 'HOME Provider Document: ' + title,
-        'Please find the requested HOME provider document attached.', path.read_bytes(),
+        'Please find the requested HOME provider document attached.', pdf_bytes,
         'HOME-' + document.kind + '.pdf')
     flash('HOME provider document emailed.', 'success')
     return redirect(url_for('home_sace_bp.provider_documents'))
@@ -356,7 +356,7 @@ def material(assignment_id, kind):
     if request.method == "POST":
         if version is None or request.form.get("version_id") != str(version.id):
             abort(409, description="Open the current HOME document version before confirming examination.")
-        s.document_path(version)
+        s.document_content(version)
         opened = HomeEvidence.query.filter_by(assignment_id=row.id, item=kind,
             event="opened", document_version_id=version.id).first()
         if opened is None:
@@ -384,17 +384,21 @@ def document_content(version_id):
             bound = ex.document(row, doc.kind) if doc.kind in ex.DOCUMENTS else None
             if bound is None or bound.id != version.id:
                 abort(409, description='This document is not the approved HOME examination version.')
-        path = s.document_path(version)
+        pdf_bytes = s.document_content(version)
         if row.status == "active":
             s.record(row, doc.kind, "opened", version=version.id)
             db.session.commit()
     else:
         s.require_controller()
-        path = s.document_path(version)
+        pdf_bytes = s.document_content(version)
     download = (version.source_manifest.get('kind') in {'application_form_1', 'application_form_2', 'timetable', 'participant_manual', 'facilitator_manual'}
         and request.args.get('download') == '1')
-    return send_file(path, mimetype="application/pdf", as_attachment=download,
-        download_name="HOME-" + str(version.id) + ".pdf")
+    from io import BytesIO
+    response = send_file(BytesIO(pdf_bytes), mimetype="application/pdf", as_attachment=download,
+        download_name="HOME-" + str(version.id) + ".pdf", conditional=False, etag=False)
+    response.headers["Cache-Control"] = "private, no-store"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    return response
 
 
 @home_sace_bp.route('/assignments/<int:assignment_id>/experience/<stage>/<int:chapter_number>', methods=['GET', 'POST'])

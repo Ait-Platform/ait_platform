@@ -126,7 +126,7 @@ def valid_document(version):
     if version.sha256 in reading_artifact_hashes():
         return False
     try:
-        s.document_path(version)
+        s.document_content(version)
     except Exception as exc:
         from werkzeug.exceptions import HTTPException
         if not isinstance(exc, HTTPException):

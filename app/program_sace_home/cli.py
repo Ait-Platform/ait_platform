@@ -22,8 +22,10 @@ def provision_link(email, issued_by):
 @click.option("--kind", required=True)
 @click.option("--version", required=True)
 @click.option("--storage-key", required=True)
+@click.option("--source-file", type=click.Path(exists=True, dir_okay=False), default=None,
+              help="Approved PDF to stage privately and store using its exact key.")
 @click.option("--manifest", type=click.Path(exists=True, dir_okay=False), required=True)
-def publish_document_command(controller_user_id, kind, version, storage_key, manifest):
+def publish_document_command(controller_user_id, kind, version, storage_key, manifest, source_file):
     """Register an already-approved PDF in the private HOME document root."""
     import json
     from pathlib import Path
@@ -34,7 +36,8 @@ def publish_document_command(controller_user_id, kind, version, storage_key, man
         raise click.ClickException("An active HOME controller is required.")
     try:
         row = publish_document(owner, kind, version, storage_key,
-            json.loads(Path(manifest).read_text(encoding="utf-8")))
+            json.loads(Path(manifest).read_text(encoding="utf-8")),
+            content=Path(source_file).read_bytes() if source_file else None)
         db.session.commit()
     except (ValueError, OSError) as exc:
         db.session.rollback()

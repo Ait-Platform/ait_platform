@@ -44,7 +44,7 @@ BASE_DIR = Path(__file__).resolve().parent
 TEMPLATES_DIR = BASE_DIR / "templates"
 STATIC_DIR = BASE_DIR / "static"
 
-def create_app(test_config=None):
+def create_app(test_config=None, *, operator_mode=False):
     app = Flask(__name__, instance_relative_config=True, 
         #template_folder=str(TEMPLATES_DIR),
         ##static_folder="../static",)
@@ -72,6 +72,9 @@ def create_app(test_config=None):
         app.config.update(test_config)
 
                
+    # Factory-only switch cannot be enabled accidentally through environment config.
+    app.config["AIT_OPERATOR_MODE"] = bool(operator_mode)
+
     # 3) Init extensions AFTER config
     db.init_app(app)
     csrf.init_app(app)
@@ -87,189 +90,190 @@ def create_app(test_config=None):
 
     migrate.init_app(app, db)
 
-    #  add this near the end of create_app, before `return app`
-    with app.app_context():
-        # Auto-migrate database on boot (especially for Render)
-        if os.getenv("SKIP_AUTO_MIGRATE", "0") != "1":
+    # Operator commands initialize extensions but never run boot-time DB repairs.
+    if not operator_mode:
+        with app.app_context():
+            # Auto-migrate database on boot (especially for Render)
+            if os.getenv("SKIP_AUTO_MIGRATE", "0") != "1":
+                try:
+                    import flask_migrate
+                    flask_migrate.upgrade()
+                    app.logger.info("Database auto-migrated successfully.")
+                except Exception as e:
+                    app.logger.error(f"Auto-migration skipped or failed: {e}")
+
+
+
             try:
-                import flask_migrate
-                flask_migrate.upgrade()
-                app.logger.info("Database auto-migrated successfully.")
-            except Exception as e:
-                app.logger.error(f"Auto-migration skipped or failed: {e}")
+                db.session.execute(text("ALTER TABLE mech_shops ADD COLUMN shadow_spent_cents INTEGER DEFAULT 0;"))
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+
+
+            try:
+                db.session.execute(text("ALTER TABLE crm_practice ADD COLUMN clearing_house_provider VARCHAR(50);"))
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+            try:
+                db.session.execute(text("ALTER TABLE soa_profile ADD COLUMN letterhead_url VARCHAR(255);"))
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+
+            try:
+                db.session.execute(text("ALTER TABLE soa_profile ADD COLUMN use_custom_letterhead BOOLEAN DEFAULT FALSE;"))
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+
+            try:
+                db.session.execute(text("ALTER TABLE mech_shops ADD COLUMN bank_details TEXT;"))
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+
+            try:
+                db.session.execute(text("ALTER TABLE mech_vehicles DROP CONSTRAINT IF EXISTS mech_vehicles_vin_key;"))
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+
+            try:
+                db.session.execute(text("ALTER TABLE mech_vehicles ADD COLUMN mileage INTEGER;"))
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+
+            try:
+                db.session.execute(text("ALTER TABLE mech_vehicles ADD COLUMN engine_no VARCHAR(100);"))
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+
+            try:
+                db.session.execute(text("ALTER TABLE mech_vehicles ADD COLUMN gvm VARCHAR(50);"))
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+
+            try:
+                db.session.execute(text("ALTER TABLE mech_vehicles ADD COLUMN tare VARCHAR(50);"))
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+
+            try:
+                db.session.execute(text("ALTER TABLE mech_vehicles ADD COLUMN disk_license_no VARCHAR(100);"))
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+
+            try:
+                db.session.execute(text("ALTER TABLE sender_profile ADD COLUMN letterhead_url VARCHAR(255);"))
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+
+            try:
+                db.session.execute(text("ALTER TABLE sender_profile ADD COLUMN use_custom_letterhead BOOLEAN DEFAULT FALSE;"))
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+
+
+            try:
+                db.session.execute(text("ALTER TABLE crm_practice ADD COLUMN clearing_house_api_key VARCHAR(255);"))
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+
+            try:
+                db.session.execute(text("ALTER TABLE mech_shops ADD COLUMN letterhead_url VARCHAR(255);"))
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+
+            try:
+                # For SQLite it might be BOOLEAN or INTEGER, for Postgres it's BOOLEAN
+                db.session.execute(text("ALTER TABLE mech_shops ADD COLUMN use_custom_letterhead BOOLEAN DEFAULT FALSE;"))
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
             
+            try:
+                db.session.execute(text("UPDATE auth_subject SET paid_days = NULL WHERE slug = 'reading'"))
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
 
 
-        try:
-            db.session.execute(text("ALTER TABLE mech_shops ADD COLUMN shadow_spent_cents INTEGER DEFAULT 0;"))
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
+            try:
+                db.session.execute(text("ALTER TABLE spv_participations ADD COLUMN pseudonym VARCHAR(100)"))
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
 
-        
-        try:
-            db.session.execute(text("ALTER TABLE crm_practice ADD COLUMN clearing_house_provider VARCHAR(50);"))
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
-        try:
-            db.session.execute(text("ALTER TABLE soa_profile ADD COLUMN letterhead_url VARCHAR(255);"))
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
+            try:
+                db.session.execute(text("ALTER TABLE spv_investors ADD COLUMN pseudonym VARCHAR(100)"))
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
 
-        try:
-            db.session.execute(text("ALTER TABLE soa_profile ADD COLUMN use_custom_letterhead BOOLEAN DEFAULT FALSE;"))
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
+            try:
+                db.session.execute(text("UPDATE spv SET name = 'Dale SPV', description = 'Integrated healthcare, wellness, retirement and housing redevelopment precinct.' WHERE name LIKE '%Almond Dale%'"))
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
 
-        try:
-            db.session.execute(text("ALTER TABLE mech_shops ADD COLUMN bank_details TEXT;"))
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
+            try:
+                db.session.execute(text("ALTER TABLE adv_math_question ADD COLUMN concepts_tested VARCHAR(255)"))
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
 
-        try:
-            db.session.execute(text("ALTER TABLE mech_vehicles DROP CONSTRAINT IF EXISTS mech_vehicles_vin_key;"))
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
+            try:
+                db.session.execute(text("ALTER TABLE debtor_charge_map ADD COLUMN day_of_month INTEGER DEFAULT 1"))
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
 
-        try:
-            db.session.execute(text("ALTER TABLE mech_vehicles ADD COLUMN mileage INTEGER;"))
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
+            try:
+                db.session.execute(text("ALTER TABLE mech_labor_lines ADD COLUMN time_in VARCHAR(10)"))
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
 
-        try:
-            db.session.execute(text("ALTER TABLE mech_vehicles ADD COLUMN engine_no VARCHAR(100);"))
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
+            try:
+                db.session.execute(text("ALTER TABLE mech_labor_lines ADD COLUMN time_out VARCHAR(10)"))
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
 
-        try:
-            db.session.execute(text("ALTER TABLE mech_vehicles ADD COLUMN gvm VARCHAR(50);"))
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
+            try:
+                db.session.execute(text("ALTER TABLE mech_shops ADD COLUMN vat_rate FLOAT DEFAULT 0.0"))
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
 
-        try:
-            db.session.execute(text("ALTER TABLE mech_vehicles ADD COLUMN tare VARCHAR(50);"))
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
+            try:
+                db.session.execute(text("ALTER TABLE mech_job_cards ADD COLUMN vat_rate FLOAT DEFAULT 0.0"))
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
 
-        try:
-            db.session.execute(text("ALTER TABLE mech_vehicles ADD COLUMN disk_license_no VARCHAR(100);"))
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
+            try:
+                db.session.execute(text("ALTER TABLE mech_job_cards ADD COLUMN deposit_amount FLOAT DEFAULT 0.0"))
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
 
-        try:
-            db.session.execute(text("ALTER TABLE sender_profile ADD COLUMN letterhead_url VARCHAR(255);"))
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
-
-        try:
-            db.session.execute(text("ALTER TABLE sender_profile ADD COLUMN use_custom_letterhead BOOLEAN DEFAULT FALSE;"))
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
-
-            
-        try:
-            db.session.execute(text("ALTER TABLE crm_practice ADD COLUMN clearing_house_api_key VARCHAR(255);"))
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
-
-        try:
-            db.session.execute(text("ALTER TABLE mech_shops ADD COLUMN letterhead_url VARCHAR(255);"))
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
-
-        try:
-            # For SQLite it might be BOOLEAN or INTEGER, for Postgres it's BOOLEAN
-            db.session.execute(text("ALTER TABLE mech_shops ADD COLUMN use_custom_letterhead BOOLEAN DEFAULT FALSE;"))
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
-        
-        try:
-            db.session.execute(text("UPDATE auth_subject SET paid_days = NULL WHERE slug = 'reading'"))
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
-            
-            
-        try:
-            db.session.execute(text("ALTER TABLE spv_participations ADD COLUMN pseudonym VARCHAR(100)"))
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
-
-        try:
-            db.session.execute(text("ALTER TABLE spv_investors ADD COLUMN pseudonym VARCHAR(100)"))
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
-
-        try:
-            db.session.execute(text("UPDATE spv SET name = 'Dale SPV', description = 'Integrated healthcare, wellness, retirement and housing redevelopment precinct.' WHERE name LIKE '%Almond Dale%'"))
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
-
-        try:
-            db.session.execute(text("ALTER TABLE adv_math_question ADD COLUMN concepts_tested VARCHAR(255)"))
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
-
-        try:
-            db.session.execute(text("ALTER TABLE debtor_charge_map ADD COLUMN day_of_month INTEGER DEFAULT 1"))
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
-
-        try:
-            db.session.execute(text("ALTER TABLE mech_labor_lines ADD COLUMN time_in VARCHAR(10)"))
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
-
-        try:
-            db.session.execute(text("ALTER TABLE mech_labor_lines ADD COLUMN time_out VARCHAR(10)"))
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
-
-        try:
-            db.session.execute(text("ALTER TABLE mech_shops ADD COLUMN vat_rate FLOAT DEFAULT 0.0"))
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
-
-        try:
-            db.session.execute(text("ALTER TABLE mech_job_cards ADD COLUMN vat_rate FLOAT DEFAULT 0.0"))
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
-
-        try:
-            db.session.execute(text("ALTER TABLE mech_job_cards ADD COLUMN deposit_amount FLOAT DEFAULT 0.0"))
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
-
-        try:
-            db.session.execute(text("ALTER TABLE mech_vehicles ADD COLUMN license_disk_url VARCHAR(500)"))
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
+            try:
+                db.session.execute(text("ALTER TABLE mech_vehicles ADD COLUMN license_disk_url VARCHAR(500)"))
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
 
     # 4) Template helpers
     app.jinja_env.globals.update(csrf_token=generate_csrf)
@@ -717,21 +721,22 @@ def create_app(test_config=None):
 
     # 7) Create tables + helper view
     with app.app_context():
-        # Auto-sync bridge visibility for production (one-time fix)
-        try:
-            from app.models.auth import AuthSubject
-            
-            # Deactivate obsolete HOME sub-subjects (deletion fails due to enrollment FKs)
-            obsolete_slugs = ['home2', 'home_premium', 'home_section3']
-            AuthSubject.query.filter(AuthSubject.slug.in_(obsolete_slugs)).update({"is_active": 0}, synchronize_session=False)
+        if not operator_mode:
+            # Auto-sync bridge visibility for production (one-time fix)
+            try:
+                from app.models.auth import AuthSubject
 
-            subjects_to_hide = ['sms', 'cfi_judge', 'admin', 'admin_general', 'spv', 'debtors']
-            AuthSubject.query.filter(AuthSubject.slug.in_(subjects_to_hide)).update({"is_hidden_on_bridge": True}, synchronize_session=False)
-            AuthSubject.query.filter(AuthSubject.slug.in_(['admin', 'admin_general'])).update({"program_type": "admin"}, synchronize_session=False)
-            db.session.commit()
-        except Exception as e:
-            db.session.rollback()
-            app.logger.error(f"Auto-sync failed: {e}")
+                # Deactivate obsolete HOME sub-subjects (deletion fails due to enrollment FKs)
+                obsolete_slugs = ['home2', 'home_premium', 'home_section3']
+                AuthSubject.query.filter(AuthSubject.slug.in_(obsolete_slugs)).update({"is_active": 0}, synchronize_session=False)
+
+                subjects_to_hide = ['sms', 'cfi_judge', 'admin', 'admin_general', 'spv', 'debtors']
+                AuthSubject.query.filter(AuthSubject.slug.in_(subjects_to_hide)).update({"is_hidden_on_bridge": True}, synchronize_session=False)
+                AuthSubject.query.filter(AuthSubject.slug.in_(['admin', 'admin_general'])).update({"program_type": "admin"}, synchronize_session=False)
+                db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                app.logger.error(f"Auto-sync failed: {e}")
 
         # Setup globals
         app.jinja_env.globals['current_year'] = datetime.now().year
@@ -746,38 +751,39 @@ def create_app(test_config=None):
         # ensure_core_subjects()
 
         # Create Postgres-safe view (no missing columns)
-        engine_name = db.engine.name  # 'sqlite', 'postgresql', etc.
+        if not operator_mode:
+            engine_name = db.engine.name  # 'sqlite', 'postgresql', etc.
 
-        if engine_name == "postgresql":
-            sql = """
-                CREATE OR REPLACE VIEW approved_admins AS
-                SELECT
-                    email,
-                    ''::text   AS subject,
-                    1::integer AS active
-                FROM auth_approved_admin;
-            """
-        elif engine_name == "sqlite":
-            sql = """
-                CREATE VIEW IF NOT EXISTS approved_admins AS
-                SELECT
-                    email,
-                    '' AS subject,
-                    1  AS active
-                FROM auth_approved_admin;
-            """
-        else:
-            sql = """
-                CREATE VIEW approved_admins AS
-                SELECT
-                    email,
-                    '' AS subject,
-                    1  AS active
-                FROM auth_approved_admin;
-            """
+            if engine_name == "postgresql":
+                sql = """
+                    CREATE OR REPLACE VIEW approved_admins AS
+                    SELECT
+                        email,
+                        ''::text   AS subject,
+                        1::integer AS active
+                    FROM auth_approved_admin;
+                """
+            elif engine_name == "sqlite":
+                sql = """
+                    CREATE VIEW IF NOT EXISTS approved_admins AS
+                    SELECT
+                        email,
+                        '' AS subject,
+                        1  AS active
+                    FROM auth_approved_admin;
+                """
+            else:
+                sql = """
+                    CREATE VIEW approved_admins AS
+                    SELECT
+                        email,
+                        '' AS subject,
+                        1  AS active
+                    FROM auth_approved_admin;
+                """
 
-        db.session.execute(sa_text(sql))
-        db.session.commit()
+            db.session.execute(sa_text(sql))
+            db.session.commit()
 
     @app.route("/__routes")
     def __routes():

@@ -3,6 +3,8 @@
 sace_bp = Blueprint("sace_bp", __name__, template_folder="../../templates")
 
 def auto_patch_sace(app):
+    if app.config.get("AIT_OPERATOR_MODE"):
+        return
     with app.app_context():
         from app.extensions import db
         from sqlalchemy import text

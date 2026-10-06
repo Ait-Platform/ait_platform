@@ -226,14 +226,26 @@ def latest_version(kind):
         .order_by(HomeDocumentVersion.published_at.desc(), HomeDocumentVersion.id.desc()).first())
 
 
-def document_path(version):
-    root = Path(current_app.config.get("SACE_HOME_DOCUMENT_ROOT",
-        Path(current_app.instance_path) / "sace_home_documents")).resolve()
-    path = (root / version.storage_key).resolve()
-    if not path.is_relative_to(root) or path == root or not path.is_file():
+def document_content(version):
+    from . import document_storage as storage
+    try:
+        return storage.read(version.storage_key, version.sha256)
+    except storage.StorageUnavailable:
         abort(404, description="HOME evidence file is not available.")
-    if hashlib.sha256(path.read_bytes()).hexdigest() != version.sha256:
+    except ValueError:
         abort(409, description="HOME evidence file does not match its published version.")
+
+
+def document_path(version):
+    """Compatibility for disk-only internal callers; verifies the disk itself."""
+    from . import document_storage as storage
+    path = storage.disk_path(version.storage_key)
+    try:
+        storage.verify(path.read_bytes(), version.sha256)
+    except OSError:
+        abort(404)
+    except ValueError:
+        abort(409)
     return path
 
 
@@ -268,7 +280,7 @@ def auth_destination():
     return "home_sace_bp.entry"
 
 
-def publish_document(owner, kind, version_label, storage_key, manifest):
+def publish_document(owner, kind, version_label, storage_key, manifest, *, content=None):
     """Append a controlled version; existing versions/evidence are never rewritten."""
     if kind not in DOCUMENT_ITEMS or not version_label.strip() or not isinstance(manifest, dict):
         raise ValueError("Provide a supported HOME document kind, version and source manifest.")
@@ -284,14 +296,13 @@ def publish_document(owner, kind, version_label, storage_key, manifest):
         from .manual_sources import canonical
         if digest(canonical(source)) != manifest["source_sha256"]:
             raise ValueError("The HOME source snapshot does not match its approved digest.")
-    root = Path(current_app.config.get("SACE_HOME_DOCUMENT_ROOT",
-        Path(current_app.instance_path) / "sace_home_documents")).resolve()
-    path = (root / storage_key).resolve()
-    if not path.is_relative_to(root) or not path.is_file() or path.suffix.lower() != ".pdf":
-        raise ValueError("Place the PDF inside the private HOME document root first.")
-    content = path.read_bytes()
-    if not content.startswith(b"%PDF-"):
-        raise ValueError("The HOME evidence file is not a PDF.")
+    from . import document_storage as storage
+    storage.validate_key(storage_key)
+    expected = manifest.get("pdf_sha256")
+    if content is None:
+        content = storage.staged(storage_key, expected)
+    content_hash = hashlib.sha256(content).hexdigest()
+    storage.verify(content, expected or content_hash)
     if hashlib.sha256(content).hexdigest() in ex.reading_artifact_hashes():
         raise ValueError('Frozen Reading documents cannot be published as HOME evidence.')
     if kind in {'application_form_1', 'application_form_2'}:
@@ -312,8 +323,9 @@ def publish_document(owner, kind, version_label, storage_key, manifest):
         db.session.flush()
     if HomeDocumentVersion.query.filter_by(document_id=document.id, version=version_label).first():
         raise ValueError("That HOME document version already exists; publish a new version instead.")
+    storage.store(storage_key, content, expected or content_hash)
     row = HomeDocumentVersion(document_id=document.id, version=version_label,
-        storage_key=str(path.relative_to(root)), sha256=hashlib.sha256(content).hexdigest(),
+        storage_key=storage_key, sha256=content_hash,
         source_manifest=manifest, approved_by=owner.id)
     db.session.add(row)
     db.session.flush()

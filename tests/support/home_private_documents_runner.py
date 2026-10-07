@@ -61,7 +61,7 @@ class HomePrivateDocuments(f.HomeFoundation):
             disk = storage.disk_path(key)
             self.assertEqual(disk.read_bytes(), data)
             disk.unlink()
-        for suffix in ("", "&download=1"):
+        for suffix in ("", "&download=1", "&download=attachment&as_attachment=1"):
             self.read_mock.reset_mock()
             with patch.object(storage, 'disk_path', side_effect=ValueError('invalid disk root')):
                 response = self.auditor.get(target + suffix)
@@ -70,6 +70,7 @@ class HomePrivateDocuments(f.HomeFoundation):
             self.assertEqual(response.data, data)
             self.assertEqual(response.headers["Cache-Control"], "private, no-store")
             self.assertEqual(response.headers["X-Content-Type-Options"], "nosniff")
+            self.assertTrue(response.headers['Content-Disposition'].startswith('inline;'))
             self.assertNotIn("Location", response.headers)
             self.assertNotIn(b"r2.dev", response.data)
             self.assertNotIn(b"https://", response.data)
@@ -78,6 +79,12 @@ class HomePrivateDocuments(f.HomeFoundation):
         self.assertEqual(board.status_code, 200)
         self.assertNotIn(b"private-home-test", board.data)
         self.assertNotIn(b"r2.dev", board.data)
+        material = self.auditor.get(f"/sace/home/assignments/{self.aid}/materials/application_form_1")
+        self.assertIn(target.encode(), material.data)
+        self.assertIn(b'pdfjsLib.getDocument(', material.data)
+        self.assertNotIn(key.encode(), material.data)
+        self.assertNotIn(b'private-home-test', material.data)
+        self.assertNotIn(b'r2.dev', material.data)
         self.read_mock.reset_mock()
         for client, url in ((self.foreign, target), (self.auditor, self.target(vid, self.fid)),
                             (self.auditor, f"/sace/home/documents/{vid}/content")):

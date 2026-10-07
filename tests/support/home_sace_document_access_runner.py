@@ -31,7 +31,7 @@ class HomeDocumentAccess(HomeExamination):
             db.session.commit()
             return version.id, path, data
 
-    def test_board_document_view_download_and_authorization(self):
+    def test_board_document_examine_inline_and_authorization(self):
         empty = self.auditor.get(self.base + '/board').data
         self.assertNotIn(b'>View</a>', empty)
         self.assertNotIn(b'>Download</a>', empty)
@@ -45,16 +45,26 @@ class HomeDocumentAccess(HomeExamination):
                 vid, path, data = self.fixture_document(kind)
                 target = f'/sace/home/documents/{vid}/content?assignment_id={self.aid}'
                 board = self.auditor.get(self.base + '/board').data
-                self.assertIn(target.replace('&', '&amp;').encode(), board)
-                self.assertIn((target + '&amp;download=1').encode(), board)
+                self.assertIn((self.base + '/materials/' + kind).encode(), board)
+                self.assertNotIn(b'>View</a>', board)
+                self.assertNotIn(b'>Download</a>', board)
+                self.assertNotIn(b'>Email</a>', board)
+                material = self.auditor.get(self.base + '/materials/' + kind).data
+                self.assertIn(target.encode(), material)
+                self.assertIn(b'pdfjsLib.getDocument(', material)
+                self.assertIn(b'<canvas id="document"', material)
+                self.assertNotIn(b'Open document</a>', material)
+                self.assertIn(b'name="csrf_token"', material)
+                self.assertEqual(self.auditor.post(self.base + '/materials/' + kind,
+                    data={'version_id': vid}).status_code, 409)
                 self.assertNotIn(str(path).encode(), board)
                 self.assertNotIn(b'/static/', board)
-                for download in ('', '&download=1'):
+                for download in ('', '&download=1', '&download=true', '&download=attachment',
+                                 '&download=0&download=1', '&Download=1&attachment=1&as_attachment=true'):
                     with self.auditor.get(target + download) as response:
                         self.assertEqual(response.status_code, 200)
                         self.assertEqual(response.data, data)
-                        disposition = 'attachment;' if download else 'inline;'
-                        self.assertTrue(response.headers['Content-Disposition'].startswith(disposition))
+                        self.assertTrue(response.headers['Content-Disposition'].startswith('inline;'))
                         self.assertIn('no-store', response.headers['Cache-Control'])
                     for client in (ordinary, foreign):
                         self.assertEqual(client.get(target + download).status_code, 403)
@@ -78,10 +88,34 @@ class HomeDocumentAccess(HomeExamination):
                     self.auditor.get(self.base + '/board').data)
                 path.write_bytes(data)
         board = self.auditor.get(self.base + '/board').data
-        self.assertEqual(board.count(b'>View</a>'), 5)
-        self.assertEqual(board.count(b'>Download</a>'), 5)
+        self.assertNotIn(b'>View</a>', board)
+        self.assertNotIn(b'>Download</a>', board)
+        self.assertGreaterEqual(board.count(b'>Examine</a>'), 5)
         summary = self.auditor.get(self.base + '/summary').data
         self.assertIn(b'<p>Auditor examination records evidence for HOME endorsement.</p>', summary)
+
+    def test_assignment_and_version_forgeries_and_csrf(self):
+        vid, _, _ = self.fixture_document('application_form_1')
+        target = f'/sace/home/documents/{vid}/content?assignment_id={self.aid}'
+        self.assertEqual(self.auditor.get(self.base + '/materials/application_form_1').status_code, 200)
+        for value in ('forged', '0', '-1', str(self.aid + 10000)):
+            self.assertEqual(self.auditor.get(f'/sace/home/documents/{vid}/content?assignment_id={value}&download=1').status_code, 403)
+        self.assertEqual(self.auditor.get(f'/sace/home/documents/{vid}/content?download=1').status_code, 403)
+        self.assertEqual(self.auditor.post(self.base + '/materials/application_form_1',
+            data={'version_id': vid + 10000}).status_code, 409)
+        self.assertEqual(self.auditor.get(target).status_code, 200)
+        self.app.config['WTF_CSRF_ENABLED'] = True
+        try:
+            self.assertEqual(self.auditor.post(self.base + '/materials/application_form_1',
+                data={'version_id': vid}).status_code, 400)
+        finally:
+            self.app.config['WTF_CSRF_ENABLED'] = False
+        with self.app.app_context():
+            self.assertEqual(HomeEvidence.query.filter_by(assignment_id=self.aid,
+                event='examined').count(), 0)
+            db.session.get(HomeAssignment, self.aid).status = 'revoked'
+            db.session.commit()
+        self.assertEqual(self.auditor.get(target + '&download=1').status_code, 403)
 
     def test_unapproved_manuals_stay_unavailable(self):
         for kind in ('participant_manual', 'facilitator_manual'):

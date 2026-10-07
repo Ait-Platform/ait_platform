@@ -390,7 +390,8 @@ def document_content(version_id):
     else:
         s.require_controller()
         pdf_bytes = s.document_content(version)
-    download = (version.source_manifest.get('kind') in {'application_form_1', 'application_form_2', 'timetable', 'participant_manual', 'facilitator_manual'}
+    download = (assignment_id is None
+        and version.source_manifest.get('kind') in {'application_form_1', 'application_form_2', 'timetable', 'participant_manual', 'facilitator_manual'}
         and request.args.get('download') == '1')
     from io import BytesIO
     response = send_file(BytesIO(pdf_bytes), mimetype="application/pdf", as_attachment=download,

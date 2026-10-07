@@ -45,7 +45,9 @@ class EndorsementDocuments(f.HomeFoundation):
         for kind, version_id in identifiers.items():
             base = f'/sace/home/documents/{version_id}/content'
             url = base + f'?assignment_id={assignment_id}'
-            self.assertIn(url.replace('&', '&amp;').encode(), page.data)
+            self.assertIn(f'/sace/home/assignments/{assignment_id}/materials/{kind}'.encode(), page.data)
+            self.assertNotIn(b'>View</a>', page.data)
+            self.assertNotIn(b'>Download</a>', page.data)
             source = (ROOT / 'output/pdf' / SOURCES[kind]).read_bytes()
             response = auditor.get(url)
             self.assertEqual(response.status_code, 200)
@@ -53,7 +55,7 @@ class EndorsementDocuments(f.HomeFoundation):
             response.close()
             download = auditor.get(url + '&download=1')
             self.assertEqual(download.status_code, 200)
-            self.assertTrue(download.headers['Content-Disposition'].startswith('attachment;'))
+            self.assertTrue(download.headers['Content-Disposition'].startswith('inline;'))
             self.assertEqual(download.data, source)
             download.close()
             self.assertEqual(other.get(url).status_code, 403)

@@ -305,7 +305,7 @@ class AdminDocuments(f.HomeFoundation):
             self.assertEqual(s.document_content(previous), self.objects[previous.storage_key])
 
 
-    def test_admin_all_slots_auditor_view_download_with_unusable_disk(self):
+    def test_admin_all_slots_auditor_inline_with_unusable_disk(self):
         original = self.app.config['SACE_HOME_REQUIREMENTS_VERSION']
         self.addCleanup(self.app.config.__setitem__, 'SACE_HOME_REQUIREMENTS_VERSION', original)
         self.app.config['SACE_HOME_REQUIREMENTS_VERSION'] = ex.REQUIREMENTS
@@ -327,7 +327,7 @@ class AdminDocuments(f.HomeFoundation):
                     self.assertEqual(response.data, self.objects[key])
                     self.assertEqual(response.headers['Cache-Control'], 'private, no-store')
                     self.assertEqual(response.headers['X-Content-Type-Options'], 'nosniff')
-                    self.assertIn('attachment' if suffix else 'inline', response.headers['Content-Disposition'])
+                    self.assertTrue(response.headers['Content-Disposition'].startswith('inline;'))
                     self.read_mock.assert_called_once_with(key, bucket='test-home-private')
                     response.close()
 

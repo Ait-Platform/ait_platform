@@ -200,6 +200,49 @@ class PrivateStorage(unittest.TestCase):
         self.assertEqual(storage.read(self.key, SHA), PDF)
         self.assertEqual(self.fake.calls, [])
 
+    def test_admin_verified_r2_ignores_disk_path_and_write_failures(self):
+        for failure in (ValueError('public root'), PermissionError('denied'), OSError('unavailable')):
+            with self.subTest(failure=type(failure).__name__), patch.object(storage, 'disk_path', side_effect=failure):
+                self.assertEqual(storage.store(self.key, PDF, SHA, require_r2=True), self.key)
+                self.assertEqual(storage.read(self.key, SHA), PDF)
+        with patch.object(Path, 'open', side_effect=PermissionError('write denied')):
+            self.assertEqual(storage.store(self.key, PDF, SHA, require_r2=True), self.key)
+        self.assertEqual(self.fake.objects[('private-home-test', self.key)], PDF)
+
+    def test_admin_requires_authenticated_readback_without_disk_fallback(self):
+        for failure in (OSError('read denied'), b'%PDF-corrupt'):
+            with self.subTest(failure=failure), patch.object(r2, 'upload_bytes_to_r2', return_value=self.key), \
+                    patch.object(storage, '_store_disk') as backup:
+                if isinstance(failure, Exception):
+                    reader = patch.object(r2, 'read_file_from_r2', side_effect=failure)
+                    error = storage.StorageUnavailable
+                else:
+                    reader = patch.object(r2, 'read_file_from_r2', return_value=failure)
+                    error = storage.StorageIntegrityError
+                with reader, self.assertRaises(error):
+                    storage.store(self.key, PDF, SHA, require_r2=True)
+                backup.assert_not_called()
+
+    def test_verified_r2_read_does_not_evaluate_public_disk_root(self):
+        self.fake.objects[('private-home-test', self.key)] = PDF
+        self.app.config['SACE_HOME_DOCUMENT_ROOT'] = str(ROOT / 'app/static')
+        with patch.object(storage, 'disk_path', wraps=storage.disk_path) as fallback:
+            self.assertEqual(storage.read(self.key, SHA), PDF)
+            fallback.assert_not_called()
+            self.fake.objects.clear()
+            with self.assertRaises(ValueError):
+                storage.read(self.key, SHA)
+            fallback.assert_called_once_with(self.key)
+
+
+    def test_controller_still_requires_disk_before_attempting_r2(self):
+        with patch.object(storage, 'disk_path', side_effect=PermissionError('disk unavailable')), \
+                patch.object(r2, 'upload_bytes_to_r2') as upload:
+            with self.assertRaises(PermissionError):
+                storage.store(self.key, PDF, SHA)
+            upload.assert_not_called()
+
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

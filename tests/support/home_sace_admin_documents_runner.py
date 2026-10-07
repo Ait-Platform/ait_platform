@@ -50,7 +50,7 @@ class AdminDocuments(f.HomeFoundation):
         self.upload_patch = patch.object(storage.r2, 'upload_bytes_to_r2', side_effect=upload)
         self.read_patch = patch.object(storage.r2, 'read_file_from_r2', side_effect=read)
         self.upload_mock = self.upload_patch.start()
-        self.read_patch.start()
+        self.read_mock = self.read_patch.start()
         self.addCleanup(self.upload_patch.stop)
         self.addCleanup(self.read_patch.stop)
         self.uid = self.user('platform-admin@example.test')
@@ -251,6 +251,86 @@ class AdminDocuments(f.HomeFoundation):
                     trans.rollback()
         finally:
             engine.dispose()
+
+    def test_admin_all_slots_publish_and_replace_without_disk(self):
+        with patch.object(storage, 'disk_path', side_effect=ValueError('invalid fallback path')):
+            for kind in pub.KINDS:
+                self.assertEqual(self.post_pdf(kind).status_code, 302)
+                self.assertEqual(self.post_pdf(kind, pdf_bytes(200)).status_code, 302)
+            with self.app.app_context():
+                self.assertEqual(HomeDocumentVersion.query.count(), 10)
+                for version in HomeDocumentVersion.query.all():
+                    self.assertTrue(ex.valid_document(version))
+                    self.assertEqual(s.document_content(version), self.objects[version.storage_key])
+        self.assertEqual(self.upload_mock.call_count, 10)
+        # Explicit storage-level authenticated readback precedes version insertion.
+        self.assertGreaterEqual(self.read_mock.call_count, 10)
+
+    def test_admin_failed_r2_replacements_preserve_current_and_history(self):
+        self.assertEqual(self.post_pdf().status_code, 302)
+        with self.app.app_context():
+            original = s.latest_version('timetable')
+            original_id, original_key = original.id, original.storage_key
+        failures = (
+            ('upload', 'upload_bytes_to_r2', OSError('upload failed'), 503),
+            ('readback', 'read_file_from_r2', OSError('readback failed'), 503),
+            ('hash', 'read_file_from_r2', b'%PDF-corrupt', 400),
+        )
+        for name, method, failure, status in failures:
+            kwargs = {'side_effect': failure} if isinstance(failure, Exception) else {'return_value': failure}
+            with self.subTest(failure=name), patch.object(storage.r2, method, **kwargs):
+                self.assertEqual(self.post_pdf(content=pdf_bytes(300)).status_code, status)
+            with self.app.app_context():
+                self.assertEqual(HomeDocumentVersion.query.count(), 1)
+                self.assertEqual(s.latest_version('timetable').id, original_id)
+                self.assertEqual(s.document_content(db.session.get(HomeDocumentVersion, original_id)),
+                                 self.objects[original_key])
+        self.assertEqual(self.post_pdf(content=pdf_bytes(400)).status_code, 302)
+        with self.app.app_context():
+            self.assertEqual(HomeDocumentVersion.query.count(), 2)
+            self.assertNotEqual(s.latest_version('timetable').id, original_id)
+
+    def test_admin_db_failure_keeps_previous_version_and_uploaded_object(self):
+        self.assertEqual(self.post_pdf().status_code, 302)
+        with self.app.app_context():
+            original_id = s.latest_version('timetable').id
+        old_keys = set(self.objects)
+        with patch.object(db.session, 'commit', side_effect=RuntimeError('database commit failed')):
+            self.assertEqual(self.post_pdf(content=pdf_bytes(350)).status_code, 503)
+        self.assertEqual(len(set(self.objects) - old_keys), 1)
+        with self.app.app_context():
+            self.assertEqual(HomeDocumentVersion.query.count(), 1)
+            self.assertEqual(s.latest_version('timetable').id, original_id)
+            previous = db.session.get(HomeDocumentVersion, original_id)
+            self.assertEqual(s.document_content(previous), self.objects[previous.storage_key])
+
+
+    def test_admin_all_slots_auditor_view_download_with_unusable_disk(self):
+        original = self.app.config['SACE_HOME_REQUIREMENTS_VERSION']
+        self.addCleanup(self.app.config.__setitem__, 'SACE_HOME_REQUIREMENTS_VERSION', original)
+        self.app.config['SACE_HOME_REQUIREMENTS_VERSION'] = ex.REQUIREMENTS
+        self.client.get('/logout')
+        self.provision_home()
+        auditor, aid = self.join_home(self.code_home())
+        self.signin(self.uid)
+        with patch.object(storage, 'disk_path', side_effect=PermissionError('disk unavailable')):
+            for kind in pub.KINDS:
+                self.assertEqual(self.post_pdf(kind).status_code, 302)
+                with self.app.app_context():
+                    version = s.latest_version(kind)
+                    vid, key = version.id, version.storage_key
+                target = f'/sace/home/documents/{vid}/content?assignment_id={aid}'
+                for suffix in ('', '&download=1'):
+                    self.read_mock.reset_mock()
+                    response = auditor.get(target + suffix)
+                    self.assertEqual(response.status_code, 200)
+                    self.assertEqual(response.data, self.objects[key])
+                    self.assertEqual(response.headers['Cache-Control'], 'private, no-store')
+                    self.assertEqual(response.headers['X-Content-Type-Options'], 'nosniff')
+                    self.assertIn('attachment' if suffix else 'inline', response.headers['Content-Disposition'])
+                    self.read_mock.assert_called_once_with(key, bucket='test-home-private')
+                    response.close()
+
 
 
 if __name__ == '__main__':

@@ -62,7 +62,10 @@ class HomePrivateDocuments(f.HomeFoundation):
             self.assertEqual(disk.read_bytes(), data)
             disk.unlink()
         for suffix in ("", "&download=1"):
-            response = self.auditor.get(target + suffix)
+            self.read_mock.reset_mock()
+            with patch.object(storage, 'disk_path', side_effect=ValueError('invalid disk root')):
+                response = self.auditor.get(target + suffix)
+            self.read_mock.assert_called_once_with(key, bucket='private-home-test')
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.data, data)
             self.assertEqual(response.headers["Cache-Control"], "private, no-store")

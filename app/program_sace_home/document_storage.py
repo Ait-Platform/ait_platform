@@ -75,8 +75,7 @@ def verify(content, expected_sha256):
 
 
 def read(key, expected_sha256):
-    # Validate the fallback root even when R2 is healthy.
-    path = disk_path(key)
+    validate_key(key)
     bucket = private_bucket()
     if bucket:
         try:
@@ -86,6 +85,7 @@ def read(key, expected_sha256):
         else:
             # Corruption fails closed, rather than hiding it behind fallback.
             return verify(content, expected_sha256)
+    path = disk_path(key)
     try:
         content = path.read_bytes()
     except OSError as exc:
@@ -93,13 +93,8 @@ def read(key, expected_sha256):
     return verify(content, expected_sha256)
 
 
-def store(key, content, expected_sha256, *, require_r2=False):
-    """Retain verified private bytes; admin publication requires successful R2 storage."""
+def _store_disk(key, content, expected_sha256):
     path = disk_path(key)
-    verify(content, expected_sha256)
-    bucket = private_bucket()
-    if require_r2 and not bucket:
-        raise StorageUnavailable("Configure the private HOME R2 bucket before publishing.")
     path.parent.mkdir(parents=True, exist_ok=True)
     try:
         with path.open("xb") as stream:
@@ -109,14 +104,39 @@ def store(key, content, expected_sha256, *, require_r2=False):
     except FileExistsError:
         verify(path.read_bytes(), expected_sha256)
     verify(path.read_bytes(), expected_sha256)
+
+
+def store(key, content, expected_sha256, *, require_r2=False):
+    """Admin: verified R2 first, optional disk. Controllers retain required disk."""
+    validate_key(key)
+    verify(content, expected_sha256)
+    bucket = private_bucket()
+    if require_r2:
+        if not bucket:
+            raise StorageUnavailable("Configure the private HOME R2 bucket before publishing.")
+        try:
+            r2.upload_bytes_to_r2(key, content, bucket=bucket)
+            stored = r2.read_file_from_r2(key, bucket=bucket)
+        except r2.R2KeyCollision as exc:
+            raise StorageIntegrityError(str(exc)) from exc
+        except Exception as exc:
+            raise StorageUnavailable("HOME private R2 publication could not be verified; document was not published.") from exc
+        verify(stored, expected_sha256)
+        if stored != content:
+            raise StorageIntegrityError("HOME R2 content does not match the uploaded bytes.")
+        try:
+            _store_disk(key, content, expected_sha256)
+        except Exception:
+            current_app.logger.warning("HOME optional private disk backup unavailable; verified R2 retained.")
+        return key
+    # Existing controller contract: a verified private disk copy is required.
+    _store_disk(key, content, expected_sha256)
     if bucket:
         try:
             r2.upload_bytes_to_r2(key, content, bucket=bucket)
         except r2.R2KeyCollision as exc:
             raise StorageIntegrityError(str(exc)) from exc
-        except Exception as exc:
-            if require_r2:
-                raise StorageUnavailable("HOME private R2 upload failed; document was not published.") from exc
+        except Exception:
             current_app.logger.warning("HOME R2 upload unavailable; verified private disk retained.")
     return key
 

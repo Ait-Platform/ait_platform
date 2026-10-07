@@ -4,7 +4,7 @@ import secrets
 from datetime import timedelta
 from pathlib import Path
 from types import SimpleNamespace
-from flask import abort, current_app, session, g
+from flask import abort, current_app, session, g, has_request_context, request
 from flask_login import current_user
 from app.extensions import db
 from app.models.sace_home import (HomeController, HomeProvisioning, HomeInvitation,
@@ -228,12 +228,23 @@ def latest_version(kind):
 
 def document_content(version):
     from . import document_storage as storage
+    # Validation and delivery can share these verified immutable bytes within
+    # this request only. Authority and assignment checks remain at each caller.
+    cache = None
+    key = (version.id, version.storage_key, version.sha256)
+    if has_request_context():
+        cache = request.environ.setdefault('ait.home_verified_document_bytes', {})
+        if key in cache:
+            return cache[key]
     try:
-        return storage.read(version.storage_key, version.sha256)
+        content = storage.read(version.storage_key, version.sha256)
     except storage.StorageUnavailable:
         abort(404, description="HOME evidence file is not available.")
     except ValueError:
         abort(409, description="HOME evidence file does not match its published version.")
+    if cache is not None:
+        cache[key] = content
+    return content
 
 
 def document_path(version):

@@ -147,12 +147,19 @@ def start_registration():
 
 @auth_bp.route("/register", methods=["GET", "POST"])
 def register():
+    from flask_login import current_user
     from app.program_sace.access import prepare_provisioning_auth
     prepare_provisioning_auth(request.values.get("next"))
     # HOME uses shared user identity, but its own pledge/authority/continuation.
-    home_subject = (request.values.get("subject") or "").strip().lower()
-    home_next = request.values.get("next", "")
-    if home_subject == "sace_home_endorsement" or home_next.startswith("/sace/home/"):
+    from app.sace_activity import explicit_activity, resolve_response
+    origin = explicit_activity(request.values.get('next'), request.values.get('subject'))
+    if current_user.is_authenticated:
+        activity_response = resolve_response(request.values.get('next'), request.values.get('subject'))
+        if activity_response is not None:
+            return activity_response
+        if origin:
+            return redirect(url_for('auth_bp.bridge_dashboard'))
+    if origin and origin.identifier == 'home':
         from app.program_sace_home.auth import registration
         return registration()
 
@@ -215,10 +222,10 @@ def register():
         # If already logged in, skip the form!
         if getattr(current_user, "is_authenticated", False):
             if subject == "sace_endorsement":
-                from app.program_sace.access import authentication_destination, authenticate_provisioning, provisioning_destination
+                from app.program_sace.access import authenticate_provisioning, provisioning_destination
                 if authenticate_provisioning(next_url):
                     return redirect(provisioning_destination())
-                return redirect(url_for(authentication_destination(subject)))
+                return resolve_response(next_url, subject) or redirect(url_for("auth_bp.bridge_dashboard"))
             return redirect(url_for("auth_bp.dashboard_info", subject=subject))
 
         return render_template(
@@ -377,14 +384,14 @@ def register():
             session.pop("just_paid_subject_id", None)
 
             if subject == "sace_endorsement":
-                from app.program_sace.access import authentication_destination, ensure_endorsement_enrollment
+                from app.program_sace.access import ensure_endorsement_enrollment
                 from app.program_sace.access import authenticate_provisioning, provisioning_destination
                 if authenticate_provisioning(next_url):
                     return redirect(provisioning_destination())
                 if next_url and next_url.split("?", 1)[0] == "/sace/provisioning":
                     abort(400, description="Provisioning journey expired. Start again.")
                 ensure_endorsement_enrollment(existing_user.id)
-                return redirect(url_for(authentication_destination(subject)))
+                return resolve_response(next_url, subject) or redirect(url_for("auth_bp.bridge_dashboard"))
 
             # Respect next_url if it exists, otherwise fallback to dashboard_info
             if next_url and next_url != "/" and next_url.startswith("/") and not next_url.startswith("//"):
@@ -454,7 +461,8 @@ def register_decision():
     user_email = ctx.get("email") or getattr(current_user, "email", "")
 
     if subject == "sace_endorsement":
-        from app.program_sace.access import authentication_destination, ensure_endorsement_enrollment
+        from app.sace_activity import resolve_response
+        from app.program_sace.access import ensure_endorsement_enrollment
         from app.program_sace.access import authenticate_provisioning, provisioning_destination
         if authenticate_provisioning(next_url):
             session.pop("reg_ctx", None)
@@ -464,7 +472,7 @@ def register_decision():
         ensure_endorsement_enrollment(user_id)
         session.pop("reg_ctx", None)
         session.pop("just_paid_subject_id", None)
-        return redirect(url_for(authentication_destination(subject)))
+        return resolve_response(next_url, subject) or redirect(url_for("auth_bp.bridge_dashboard"))
 
 
     # ---------- SPECIAL CASE: SPV PORTFOLIO REGISTRATION FEE ----------
@@ -1110,7 +1118,8 @@ def login():
                 """),
                 {"e": email}
             ).fetchall()
-            admin_subjects = [r.slug for r in rows if r.slug not in {"sace_endorsement", "sace_home_endorsement"}]
+            from app.sace_activity import subject_slugs
+            admin_subjects = [r.slug for r in rows if r.slug not in subject_slugs()]
         except (OperationalError, ProgrammingError):
             pass
     session["admin_subjects"] = admin_subjects
@@ -1199,46 +1208,10 @@ def login():
         subj = m.group(1) if m else "cultural_fire"
         next_url = url_for("auth_bp.register_decision", subject=subj)
 
-    # Explicit HOME continuation precedes the legacy /sace redirect. All existing
-    # LITRE branches below are unchanged; HOME does not consume their session keys.
-    if next_url and _is_safe_url(next_url) and urlparse(next_url).path.startswith("/sace/home/"):
-        from app.program_sace_home.continuation import clear
-        from app.program_sace_home.auth import record_signin
-        clear()
-        record_signin()
-        if urlparse(next_url).path == "/sace/home/":
-            from app.program_sace_home.service import controller
-            if controller():
-                return redirect(url_for("home_sace_bp.control"))
-        return redirect(next_url)
-    from app.program_sace_home.continuation import consume
-    home_destination = consume()
-    if not next_url and home_destination:
-        from app.program_sace_home.auth import record_signin
-        record_signin()
-        return redirect(url_for(home_destination))
-
-    from app.program_sace_home.auth import reading_session_response
-    reading_response = reading_session_response(next_url)
-    if reading_response is not None:
-        return reading_response
-
-    from app.program_sace.access import authenticate_provisioning, provisioning_destination
-    if authenticate_provisioning(next_url):
-        return redirect(provisioning_destination())
-
-    from app.program_sace_home.auth import returning_login_response
-    home_response = returning_login_response(next_url)
-    if home_response is not None:
-        return home_response
-
-    # SACE authority and pending journeys are independent of platform roles.
-    from app.program_sace.access import authentication_destination
-    destination = authentication_destination()
-    if destination and (not next_url
-                        or session.get("pending_sace_code")
-                        or (_is_safe_url(next_url) and urlparse(next_url).path.startswith("/sace"))):
-        return redirect(url_for(destination))
+    from app.sace_activity import resolve_response
+    activity_response = resolve_response(next_url, request.values.get('subject'))
+    if activity_response is not None:
+        return activity_response
     if next_url and _is_safe_url(next_url) and urlparse(next_url).path != "/sace/provisioning":
         return redirect(next_url)
     return redirect(url_for("auth_bp.bridge_dashboard"))
@@ -1308,14 +1281,10 @@ def admin_login_shortcut():
 
 @auth_bp.route("/dashboard")
 def bridge_dashboard():
-    from app.program_sace_home.auth import returning_login_response
-    activity_response = returning_login_response(None)
+    from app.sace_activity import resolve_response
+    activity_response = resolve_response()
     if activity_response is not None:
         return activity_response
-    # Subject-scoped SACE authority is independent of Bridge commerce metadata.
-    from app.program_sace.access import is_controller
-    if is_controller():
-        return redirect(url_for("sace_bp.provisioning_map"))
     current_app.logger.info(
         "BRIDGE entry: host=%s auth=%s uid=%s",
         request.host,
@@ -1566,13 +1535,12 @@ def learner_subject_dashboard(subject):
 
 @auth_bp.route("/dashboard/info/<subject>", methods=["GET"])
 def dashboard_info(subject: str):
-    if subject.strip().lower() == "sace_home_endorsement":
-        return redirect(url_for("home_sace_bp.entry"))
-    if subject.strip().lower() == "sace_endorsement":
+    from app.sace_activity import explicit_activity, resolve_response
+    activity = explicit_activity(subject=subject.strip().lower())
+    if activity:
         if not current_user.is_authenticated:
-            return redirect(url_for("auth_bp.login", next=url_for("sace_bp.dashboard")))
-        from app.program_sace.access import authentication_destination
-        return redirect(url_for(authentication_destination("sace_endorsement")))
+            return redirect(url_for('auth_bp.login', next=activity.entry()))
+        return resolve_response(subject=subject.strip().lower())
     # Endorsement authority is checked by SACE, independently of commerce.
     if subject.strip().lower() in {"sace", "sace_hub", "sace_endorsement"}:
         endpoint = ("sace_bp.claim_code" if session.get("pending_sace_code")

@@ -20,13 +20,10 @@ BRIDGE_EP = "bridge_bp.bridge"
 @bridge_bp.route("/bridge", endpoint="bridge")
 @login_required
 def bridge_dashboard():
-    from app.program_sace_home.auth import returning_login_response
-    activity_response = returning_login_response(None)
+    from app.sace_activity import resolve_response
+    activity_response = resolve_response()
     if activity_response is not None:
         return activity_response
-    from app.program_sace.access import is_controller
-    if is_controller():
-        return redirect(url_for("sace_bp.provisioning_map"))
     user = current_user
     print(f"[DEBUG] Bridge route entered for user={getattr(user, 'id', None)}")
 

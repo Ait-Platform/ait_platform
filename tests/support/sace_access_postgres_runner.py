@@ -410,7 +410,7 @@ class AccessJourneys(unittest.TestCase):
         for target in ("/dashboard", "/bridge"):
             self.client.get("/logout")
             response = self.login(self.client, "r@example.test", target)
-            self.assertEqual(response.location, target)
+            self.assertEqual(response.location, "/sace/provisioning")
             response = self.client.get(target)
             self.assertEqual(response.location, "/sace/provisioning")
             self.assertEqual(self.client.get(response.location).status_code, 200)

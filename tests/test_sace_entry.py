@@ -38,22 +38,23 @@ class EndorsementEntryTests(unittest.TestCase):
         lookup.assert_not_called()
 
 
-    def test_dashboard_reentry_uses_sace_authority_destination(self):
+    def test_dashboard_reentry_uses_shared_activity_resolver(self):
         import sys
         from types import SimpleNamespace
         from unittest.mock import patch
         tree = ast.parse((ROOT / "app/auth/routes.py").read_text(encoding="utf-8"))
         fn = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "dashboard_info")
         fn.decorator_list = []
-        destination = Mock(return_value="sace_bp.provisioning_map")
-        env = dict(current_user=SimpleNamespace(is_authenticated=True),
-                   redirect=redirect, url_for=lambda endpoint: "/" + endpoint)
+        response = redirect('/sace/provisioning')
+        resolver = Mock(return_value=response)
+        env = dict(current_user=SimpleNamespace(is_authenticated=True))
         exec(compile(ast.Module(body=[fn], type_ignores=[]), "<dashboard>", "exec"), env)
-        with patch.dict(sys.modules, {"app.program_sace.access": SimpleNamespace(authentication_destination=destination)}):
-            self.assertEqual(env["dashboard_info"]("sace_endorsement").location, "/sace_bp.provisioning_map")
-            destination.assert_called_once_with("sace_endorsement")
+        with patch.dict(sys.modules, {'app.sace_activity': SimpleNamespace(
+                explicit_activity=lambda **kwargs: object(), resolve_response=resolver)}):
+            self.assertIs(env['dashboard_info']('sace_endorsement'), response)
+            resolver.assert_called_once_with(subject='sace_endorsement')
 
-    def test_login_resume_precedes_generic_next_redirect(self):
+    def test_login_resolver_precedes_generic_next_redirect(self):
         import sys
         from types import SimpleNamespace
         from unittest.mock import patch
@@ -61,28 +62,24 @@ class EndorsementEntryTests(unittest.TestCase):
         tree = ast.parse((ROOT / "app/auth/routes.py").read_text(encoding="utf-8"))
         fn = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "login")
         start = next(i for i, n in enumerate(fn.body) if isinstance(n, ast.ImportFrom)
-                     and n.module == "app.program_sace_home.continuation")
+                     and n.module == "app.sace_activity")
         tail = ast.FunctionDef(name="after_authentication", args=ast.arguments(
             posonlyargs=[], args=[], kwonlyargs=[], kw_defaults=[], defaults=[]),
             body=fn.body[start:], decorator_list=[])
         module = ast.fix_missing_locations(ast.Module(body=[tail], type_ignores=[]))
-        env = dict(session={}, next_url="/sace/claim_code", redirect=redirect,
-                   url_for=lambda endpoint: "/" + endpoint, _is_safe_url=lambda value: True,
+        env = dict(next_url='/sace/claim_code', redirect=redirect, request=request,
+                   url_for=lambda endpoint: '/' + endpoint, _is_safe_url=lambda value: True,
                    urlparse=urlparse)
-        exec(compile(module, "<login>", "exec"), env)
-        destination = Mock(return_value="sace_bp.provisioning_map")
-        with patch.dict(sys.modules, {
-                "app.program_sace.access": SimpleNamespace(authentication_destination=destination,
-                    authenticate_provisioning=lambda target: False, provisioning_destination=lambda: None),
-                "app.program_sace_home.continuation": SimpleNamespace(consume=lambda: None),
-                "app.program_sace_home.auth": SimpleNamespace(reading_session_response=lambda target: None,
-                    returning_login_response=lambda target: None)}):
-            self.assertEqual(env["after_authentication"]().location, "/sace_bp.provisioning_map")
-            destination.return_value = "sace_bp.claim_code"
-            self.assertEqual(env["after_authentication"]().location, "/sace_bp.claim_code")
-            destination.return_value = None
-            env["next_url"] = None
-            self.assertEqual(env["after_authentication"]().location, "/auth_bp.bridge_dashboard")
+        exec(compile(module, '<login>', 'exec'), env)
+        resolver = Mock(return_value=redirect('/sace/provisioning'))
+        with Flask(__name__).test_request_context('/login'), patch.dict(sys.modules,
+                {'app.sace_activity': SimpleNamespace(resolve_response=resolver)}):
+            self.assertEqual(env['after_authentication']().location, '/sace/provisioning')
+            resolver.return_value = None
+            env['next_url'] = '/ordinary'
+            self.assertEqual(env['after_authentication']().location, '/ordinary')
+            env['next_url'] = None
+            self.assertEqual(env['after_authentication']().location, '/auth_bp.bridge_dashboard')
 
 
 if __name__ == "__main__":

@@ -5,7 +5,7 @@ from flask import (
 )
 
 from app.extensions import db
-from sqlalchemy import select, text
+from sqlalchemy import select, text, bindparam
 
 try:
     from app.security import verify_provider_signature
@@ -261,7 +261,9 @@ def refresh_bridge_session(user):
         JOIN auth_subject s ON s.id = sa.subject_id
         WHERE lower(sa.email) = lower(:e)
     """), {"e": user.email}).fetchall()
-    session["admin_subjects"] = [r.slug for r in admin_subject_rows if r.slug not in {"sace_endorsement", "sace_home_endorsement"}]
+    from app.sace_activity import subject_slugs
+    sace_subjects = tuple(subject_slugs())
+    session["admin_subjects"] = [r.slug for r in admin_subject_rows if r.slug not in sace_subjects]
 
     # ✅ use user_enrollment (not auth_enrollment)
     enrolled_rows = db.session.execute(text("""
@@ -278,7 +280,7 @@ def refresh_bridge_session(user):
           s.slug,
           CASE
             WHEN :is_admin_global = 1 THEN 'admin'
-            WHEN s.slug NOT IN ('sace_endorsement', 'sace_home_endorsement') AND EXISTS (
+            WHEN s.slug NOT IN :sace_subjects AND EXISTS (
               SELECT 1 FROM auth_subject_admin sa
               WHERE sa.subject_id = s.id AND lower(sa.email) = lower(:e)
             ) THEN 'admin'
@@ -294,7 +296,11 @@ def refresh_bridge_session(user):
         FROM auth_subject s
         WHERE s.is_active = 1
         ORDER BY s.sort_order, s.name
-    """), {"e": user.email, "uid": user.id, "is_admin_global": 1 if is_admin_global else 0}).fetchall()
+    """).bindparams(bindparam("sace_subjects", expanding=True)), {
+        "e": user.email, "uid": user.id,
+        "is_admin_global": 1 if is_admin_global else 0,
+        "sace_subjects": sace_subjects,
+    }).fetchall()
     session["subjects_access"] = {r.slug: r.access_level for r in access_rows}
 
 @public_bp.route("/tutor/register", methods=["GET", "POST"])

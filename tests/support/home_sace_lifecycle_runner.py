@@ -298,8 +298,8 @@ class HomeLifecycle(f.HomeFoundation):
         from urllib.parse import urlsplit, parse_qs
         self.dual_controller()
         activity = self.client.get("/dashboard/info/sace_home_endorsement")
-        self.assertEqual(activity.location, "/sace/home/")
-        signin = self.client.get(activity.location)
+        self.assertEqual(activity.location, "/login?next=/sace/home/")
+        signin = activity
         target = parse_qs(urlsplit(signin.location).query)["next"][0]
         self.assertEqual(urlsplit(target).path, "/sace/home/")
         self.assertEqual(self.login(self.client, "home-r@example.test", target).location, "/sace/home/control")

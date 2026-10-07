@@ -20,15 +20,25 @@ def begin(kind):
 
 
 def consume():
-    context = session.pop(KEY, None)
+    destination = resolve()
+    clear()
+    return destination
+
+
+def resolve():
+    """Validate without consuming intent while shared routing compares activities."""
+    context = session.get(KEY)
     if not isinstance(context, dict):
+        clear()
         return None
     kind = context.get("kind")
     expiry = context.get("expires_at")
     if kind not in PENDING or not isinstance(expiry, (int, float)) or not time.time() < expiry:
+        clear()
         return None
     value = session.get(PENDING[kind], "")
     if not isinstance(value, str) or not value or hashlib.sha256(value.encode()).hexdigest() != context.get("pending_hash"):
+        clear()
         return None
     from werkzeug.exceptions import HTTPException
     from . import service as s
@@ -36,6 +46,7 @@ def consume():
         row = s.invitation() if kind == 'join' else s.provisioning()
         s.consent('auditor' if kind == 'join' else 'controller', row.id)
     except HTTPException:
+        clear()
         return None
     return DESTINATIONS[kind]
 

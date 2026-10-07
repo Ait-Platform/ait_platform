@@ -258,6 +258,7 @@ class AccessJourneys(unittest.TestCase):
         self.user("ordinary@example.test")
         self.pending_r(self.client)
         with self.client.session_transaction() as state:
+            state[access.PROVISIONING_KEY] = dict(state[access.PROVISIONING_KEY], started_at=0)
             state['sace_admin_provisioning'] = True
             state['sace_admin_pledged'] = True
         response = self.login(self.client, "ordinary@example.test")
@@ -522,7 +523,7 @@ class AccessJourneys(unittest.TestCase):
             state["expires_at"] = (datetime.now(timezone.utc) - timedelta(seconds=1)).isoformat()
             row.response_data = json.dumps(state)
             db.session.commit()
-        response = self.login(auditor, "a@example.test")
+        response = self.login(auditor, "a@example.test", next_url="/sace/claim_code")
         self.assertEqual(auditor.get(response.location).status_code, 409)
         fresh = self.app.test_client()
         response = fresh.post("/sace/join", data={"code": code}, follow_redirects=True)

@@ -1218,6 +1218,11 @@ def login():
         record_signin()
         return redirect(url_for(home_destination))
 
+    from app.program_sace_home.auth import reading_session_response
+    reading_response = reading_session_response(next_url)
+    if reading_response is not None:
+        return reading_response
+
     from app.program_sace.access import authenticate_provisioning, provisioning_destination
     if authenticate_provisioning(next_url):
         return redirect(provisioning_destination())
@@ -1303,6 +1308,10 @@ def admin_login_shortcut():
 
 @auth_bp.route("/dashboard")
 def bridge_dashboard():
+    from app.program_sace_home.auth import returning_login_response
+    activity_response = returning_login_response(None)
+    if activity_response is not None:
+        return activity_response
     # Subject-scoped SACE authority is independent of Bridge commerce metadata.
     from app.program_sace.access import is_controller
     if is_controller():

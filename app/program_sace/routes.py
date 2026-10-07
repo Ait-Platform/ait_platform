@@ -807,6 +807,10 @@ def auditor_join():
         from .access import clear_provisioning
         clear_provisioning()
         session['pending_sace_code'] = code
+        import hashlib, time
+        session['sace_reading_auditor_journey'] = {
+            'code_hash': hashlib.sha256(code.encode()).hexdigest(), 'expires_at': time.time() + 900,
+            'user_id': current_user.id if current_user.is_authenticated else None}
         return redirect(url_for('sace_bp.auditor_pledge'))
         
     return render_template("program_sace/auditor_join.html")

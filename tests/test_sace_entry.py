@@ -61,7 +61,7 @@ class EndorsementEntryTests(unittest.TestCase):
         tree = ast.parse((ROOT / "app/auth/routes.py").read_text(encoding="utf-8"))
         fn = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "login")
         start = next(i for i, n in enumerate(fn.body) if isinstance(n, ast.ImportFrom)
-                     and n.module == "app.program_sace.access")
+                     and n.module == "app.program_sace_home.continuation")
         tail = ast.FunctionDef(name="after_authentication", args=ast.arguments(
             posonlyargs=[], args=[], kwonlyargs=[], kw_defaults=[], defaults=[]),
             body=fn.body[start:], decorator_list=[])
@@ -71,7 +71,12 @@ class EndorsementEntryTests(unittest.TestCase):
                    urlparse=urlparse)
         exec(compile(module, "<login>", "exec"), env)
         destination = Mock(return_value="sace_bp.provisioning_map")
-        with patch.dict(sys.modules, {"app.program_sace.access": SimpleNamespace(authentication_destination=destination)}):
+        with patch.dict(sys.modules, {
+                "app.program_sace.access": SimpleNamespace(authentication_destination=destination,
+                    authenticate_provisioning=lambda target: False, provisioning_destination=lambda: None),
+                "app.program_sace_home.continuation": SimpleNamespace(consume=lambda: None),
+                "app.program_sace_home.auth": SimpleNamespace(reading_session_response=lambda target: None,
+                    returning_login_response=lambda target: None)}):
             self.assertEqual(env["after_authentication"]().location, "/sace_bp.provisioning_map")
             destination.return_value = "sace_bp.claim_code"
             self.assertEqual(env["after_authentication"]().location, "/sace_bp.claim_code")

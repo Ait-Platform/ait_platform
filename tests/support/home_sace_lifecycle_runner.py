@@ -280,7 +280,7 @@ class HomeLifecycle(f.HomeFoundation):
         self.client.get("/logout")
         f.h.AccessJourneys.provision(self, self.client, "home-r@example.test", existing=True)
         self.client.get("/logout")
-        self.assertEqual(self.login(self.client, "home-r@example.test").status_code, 409)
+        self.assertIn(b"Choose SACE Activity", self.login(self.client, "home-r@example.test").data)
         self.client.get("/logout")
         self.assertEqual(self.login(self.client, "home-r@example.test", "/sace/home/control").location, "/sace/home/control")
         self.client.get("/logout")
@@ -315,7 +315,7 @@ class HomeLifecycle(f.HomeFoundation):
 
     def test_phase2_context_free_dual_authority_login(self):
         self.dual_controller()
-        self.assertEqual(self.login(self.client, "home-r@example.test").status_code, 409)
+        self.assertIn(b"Choose SACE Activity", self.login(self.client, "home-r@example.test").data)
 
     def test_phase2_auditor_board_has_no_back_button(self):
         self.provision_home()
@@ -333,7 +333,7 @@ class HomeLifecycle(f.HomeFoundation):
         with self.client.session_transaction() as state:
             state["pending_sace_code"] = "STALE-READING-CODE"
             state["sace_evaluator_pledged"] = True
-        self.assertEqual(self.login(self.client, "home-r@example.test").status_code, 409)
+        self.assertIn(b"Choose SACE Activity", self.login(self.client, "home-r@example.test").data)
 
     def test_phase2_auditor_requires_exact_grant_and_active_appointment(self):
         self.provision_home()

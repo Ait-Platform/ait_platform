@@ -25,10 +25,17 @@ def consume():
         return None
     kind = context.get("kind")
     expiry = context.get("expires_at")
-    if kind not in PENDING or not isinstance(expiry, (int, float)) or expiry <= time.time():
+    if kind not in PENDING or not isinstance(expiry, (int, float)) or not time.time() < expiry:
         return None
     value = session.get(PENDING[kind], "")
-    if not value or hashlib.sha256(value.encode()).hexdigest() != context.get("pending_hash"):
+    if not isinstance(value, str) or not value or hashlib.sha256(value.encode()).hexdigest() != context.get("pending_hash"):
+        return None
+    from werkzeug.exceptions import HTTPException
+    from . import service as s
+    try:
+        row = s.invitation() if kind == 'join' else s.provisioning()
+        s.consent('auditor' if kind == 'join' else 'controller', row.id)
+    except HTTPException:
         return None
     return DESTINATIONS[kind]
 

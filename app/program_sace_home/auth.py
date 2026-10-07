@@ -1,5 +1,5 @@
 """Platform identity registration with HOME-only continuation; grants no authority."""
-from flask import render_template, request, redirect, url_for, flash
+from flask import render_template, request, redirect, url_for, flash, current_app
 from flask_login import current_user, login_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from sqlalchemy.exc import IntegrityError
@@ -79,9 +79,9 @@ def record_signin():
 
 def returning_login_response(next_url):
     """HOME-only return; explicit destinations and Reading entry intent win."""
-    from flask import session, abort
     from . import lifecycle as lc
-    if next_url or not lifecycle_available():
+    from urllib.parse import urlsplit
+    if (next_url and urlsplit(next_url).path not in {'/dashboard', '/bridge'}) or not lifecycle_available():
         return None
     actor, rows = lc.appointment(), lc.assignments()
     if actor is None and not rows:
@@ -89,9 +89,48 @@ def returning_login_response(next_url):
     from app.program_sace.access import is_controller
     from app.program_sace.endorsement import assignments
     if is_controller() or assignments(current_user.id, active_only=True):
-        abort(409, description="Active Reading and HOME endorsement access exists. Open /sace/dashboard for Reading or /sace/home/ for HOME. An explicit activity destination is required.")
-    if session.get("pending_sace_code"):
-        return None
+        response = current_app.make_response(render_template('program_sace_home/choose_activity.html'))
+        response.headers['Cache-Control'] = 'private, no-store'
+        return response
     record_signin()
     endpoint = "home_sace_bp.control" if actor else "home_sace_bp.entry"
     return redirect(url_for(endpoint))
+
+
+def reading_session_response(next_url):
+    """Resume only current, validated Reading intent; stale flags grant no routing."""
+    if next_url:
+        return None
+    import hashlib
+    import time
+    from flask import session
+    from app.program_sace import access, endorsement as flow
+    context = access.provisioning_context()
+    if context and context.get('accepted_at'):
+        from app.models.sace import SaceWorkshopInteraction
+        used = SaceWorkshopInteraction.query.filter(
+            SaceWorkshopInteraction.activity_slug == 'controller_provisioned',
+            SaceWorkshopInteraction.response_data.contains(context['nonce'], autoescape=True),
+        ).first()
+        if used:
+            access.clear_provisioning()
+            context = None
+    if context and context.get('accepted_at'):
+        target = url_for('sace_bp.provisioning_map', journey=context['nonce'])
+        if access.authenticate_provisioning(target):
+            return redirect(access.provisioning_destination())
+    context = session.pop('sace_reading_auditor_journey', None)
+    code = session.get('pending_sace_code', '')
+    if (isinstance(code, str) and isinstance(context, dict) and isinstance(context.get('expires_at'), (int, float))
+            and context['expires_at'] > time.time()
+            and context.get('user_id') in (None, current_user.id)
+            and context.get('code_hash') == hashlib.sha256(code.encode()).hexdigest()
+            and session.get('sace_evaluator_pledged')):
+        from app.models.sace import SaceWorkshopInteraction
+        rows = SaceWorkshopInteraction.query.filter_by(activity_slug='auditor_provisioned').all()
+        invitation = next((row for row in rows if flow.payload(row).get('code') == code), None)
+        if flow.invitation_error(invitation) is None:
+            return redirect(url_for(access.authentication_destination()))
+    session.pop('pending_sace_code', None)
+    session.pop('sace_evaluator_pledged', None)
+    return None

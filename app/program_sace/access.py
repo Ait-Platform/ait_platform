@@ -20,7 +20,10 @@ def provisioning_context(token=None):
     ctx = session.get(PROVISIONING_KEY)
     if not isinstance(ctx, dict):
         return None
-    age = time.time() - ctx.get("started_at", 0)
+    if not isinstance(ctx.get("started_at"), (int, float)) or not isinstance(ctx.get("nonce"), str) or not ctx["nonce"]:
+        clear_provisioning()
+        return None
+    age = time.time() - ctx["started_at"]
     if not 0 <= age < PROVISIONING_TTL:
         clear_provisioning()
         return None
@@ -48,6 +51,9 @@ def provisioning_auth_context(next_url):
 
 def prepare_provisioning_auth(next_url):
     # Ordinary authentication abandons R continuation, never inherits its flags.
+    context = provisioning_context() if not next_url else None
+    if context and context.get('accepted_at'):
+        return
     if not provisioning_auth_context(next_url):
         clear_provisioning()
 

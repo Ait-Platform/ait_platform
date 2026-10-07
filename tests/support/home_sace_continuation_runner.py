@@ -84,7 +84,7 @@ class Continuation(f.HomeFoundation):
         with self.client.session_transaction() as state:
             state["pending_sace_code"] = "LITRE-CODE"
             state["sace_evaluator_pledged"] = True
-        self.assertEqual(self.login(self.client, "litre-a@example.test").location, "/sace/claim_code")
+        self.assertEqual(self.login(self.client, "litre-a@example.test").location, "/dashboard")
 
     def test_cont_litre_entry_abandons_home(self):
         for target in ("/sace/provisioning", "/sace/join"):

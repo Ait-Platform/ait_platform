@@ -89,7 +89,7 @@ class AdminDocuments(f.HomeFoundation):
                 self.assertEqual(s.document_content(row), self.objects[row.storage_key])
         manage = self.client.get('/admin/home/')
         self.assertEqual(manage.status_code, 200)
-        self.assertIn(URL.encode(), manage.data)
+        self.assertNotIn(URL.encode(), manage.data)
         page = self.client.get(URL)
         self.assertEqual(page.status_code, 200)
         self.assertEqual(page.headers['Cache-Control'], 'private, no-store')

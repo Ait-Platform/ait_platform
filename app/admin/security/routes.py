@@ -221,57 +221,83 @@ def global_settings():
 @admin_bp.route('/security/sace-management', methods=['GET', 'POST'], endpoint='sace_management')
 @login_required
 def sace_management():
-    if not (session.get('is_admin') or session.get('role') == 'admin'):
-        return redirect(url_for('public_bp.welcome'))
-        
+    from app.program_sace_home import admin_documents as publication
+    from app.program_sace_home.document_storage import StorageUnavailable
+    from app.models.sace_home import HomeDocument, HomeDocumentVersion
+    publication.require_platform_admin()
+    program = request.form.get('slug', request.args.get('program', 'reading'))
+    status = 200
+
     from app.models.auth import User, UserEnrollment
     try:
         from app.models.subject import AuthSubject
     except ImportError:
         from app.models.auth import AuthSubject
-        
+
     from app.models.sace import SaceDocument
     from werkzeug.security import generate_password_hash
     from werkzeug.utils import secure_filename
     import os
-    
+
     sace_subject = AuthSubject.query.filter_by(slug='sace_endorsement').first()
     upload_folder = os.path.join(current_app.static_folder, 'uploads', 'sace')
-    os.makedirs(upload_folder, exist_ok=True)
-    
+
     if request.method == 'POST':
         action = request.form.get('action')
-        
+
         if action == 'upload_document':
             slug = request.form.get('slug')
             doc_type = request.form.get('document_type')
             file = request.files.get('file')
-            
-            if not file or file.filename == '':
-                flash('No file selected.', 'error')
-            else:
-                filename = secure_filename(file.filename)
-                save_path = os.path.join(upload_folder, f"{slug}_{doc_type}_{filename}")
-                file.save(save_path)
-                
-                # Update or create document record
-                existing_doc = SaceDocument.query.filter_by(slug=slug, document_type=doc_type).first()
-                if existing_doc:
-                    existing_doc.file_name = filename
-                    existing_doc.file_path = f"uploads/sace/{slug}_{doc_type}_{filename}"
-                    from datetime import datetime
-                    existing_doc.uploaded_at = datetime.utcnow()
+
+            if slug == 'home':
+                try:
+                    publication.publish_uploaded_pdf(doc_type, file)
+                    db.session.commit()
+                except (ValueError, StorageUnavailable) as exc:
+                    db.session.rollback()
+                    flash(str(exc), 'error')
+                    status = 503 if isinstance(exc, StorageUnavailable) else 400
+                except Exception:
+                    db.session.rollback()
+                    current_app.logger.exception('HOME admin document publication failed')
+                    flash('Publication failed. Please try again.', 'error')
+                    status = 503
                 else:
-                    new_doc = SaceDocument(
-                        slug=slug,
-                        document_type=doc_type,
-                        file_name=filename,
-                        file_path=f"uploads/sace/{slug}_{doc_type}_{filename}"
-                    )
-                    db.session.add(new_doc)
-                db.session.commit()
-                flash(f'Successfully uploaded {doc_type} for {slug}.', 'success')
-                    
+                    flash('HOME endorsement document published.', 'success')
+                    return redirect(url_for('admin_bp.sace_management', program='home'))
+            else:
+                if slug not in ('reading', 'cultural_fire', 'loss') or doc_type not in (
+                    'application_form', 'annexure_a', 'annexure_b',
+                    'annexure_c', 'annexure_d', 'annexure_e',
+                ):
+                    abort(400)
+                os.makedirs(upload_folder, exist_ok=True)
+                if not file or file.filename == '':
+                    flash('No file selected.', 'error')
+                else:
+                    filename = secure_filename(file.filename)
+                    save_path = os.path.join(upload_folder, f"{slug}_{doc_type}_{filename}")
+                    file.save(save_path)
+
+                    # Update or create document record
+                    existing_doc = SaceDocument.query.filter_by(slug=slug, document_type=doc_type).first()
+                    if existing_doc:
+                        existing_doc.file_name = filename
+                        existing_doc.file_path = f"uploads/sace/{slug}_{doc_type}_{filename}"
+                        from datetime import datetime
+                        existing_doc.uploaded_at = datetime.utcnow()
+                    else:
+                        new_doc = SaceDocument(
+                            slug=slug,
+                            document_type=doc_type,
+                            file_name=filename,
+                            file_path=f"uploads/sace/{slug}_{doc_type}_{filename}"
+                        )
+                        db.session.add(new_doc)
+                    db.session.commit()
+                    flash(f'Successfully uploaded {doc_type} for {slug}.', 'success')
+
     from app.program_sace.lifecycle import controller, Engagement, Appointment
     from app.models.auth import AuthSubjectAdmin
     evaluators = [u for u in User.query.join(Appointment, Appointment.user_id == User.id)
@@ -281,9 +307,18 @@ def sace_management():
     orphan_grants = [g.id for g in AuthSubjectAdmin.query.filter_by(subject_id=sace_subject.id).all()
                      if g.id not in linked] if sace_subject else []
 
-    documents = SaceDocument.query.all()
-    
-    return render_template('admin/security/sace_management.html', evaluators=evaluators, documents=documents, engagements=engagements, orphan_grants=orphan_grants)
+    documents = SaceDocument.query.filter(SaceDocument.slug != 'home').all()
+    history = {kind: HomeDocumentVersion.query.join(HomeDocument)
+        .filter(HomeDocument.kind == kind)
+        .order_by(HomeDocumentVersion.published_at.desc(), HomeDocumentVersion.id.desc()).all()
+        for kind in publication.KINDS} if program == 'home' else {}
+
+    response = current_app.make_response((render_template('admin/security/sace_management.html',
+        evaluators=evaluators, documents=documents, engagements=engagements,
+        orphan_grants=orphan_grants, program=program, home_kinds=publication.KINDS,
+        home_history=history), status))
+    response.headers['Cache-Control'] = 'private, no-store'
+    return response
 
 
 

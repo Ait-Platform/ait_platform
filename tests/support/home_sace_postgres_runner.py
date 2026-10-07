@@ -379,7 +379,7 @@ class HomeFoundation(unittest.TestCase):
             self.assertEqual(h.auth_models.AuthSubjectAdmin.query.filter_by(subject_id=901).count(), 1)
             self.assertEqual(h.Interaction.query.count(), 0)
         self.client.get("/logout")
-        self.assertEqual(self.login(self.client, "home-r@example.test", "/sace/home/").location, "/sace/home/")
+        self.assertEqual(self.login(self.client, "home-r@example.test", "/sace/home/").location, "/sace/home/control")
         self.assertEqual(self.client.get("/sace/home/", follow_redirects=True).status_code, 200)
         self.assertEqual(self.client.get("/sace/reading").status_code, 403)
 

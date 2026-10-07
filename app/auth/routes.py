@@ -1206,6 +1206,10 @@ def login():
         from app.program_sace_home.auth import record_signin
         clear()
         record_signin()
+        if urlparse(next_url).path == "/sace/home/":
+            from app.program_sace_home.service import controller
+            if controller():
+                return redirect(url_for("home_sace_bp.control"))
         return redirect(next_url)
     from app.program_sace_home.continuation import consume
     home_destination = consume()
@@ -1553,6 +1557,8 @@ def learner_subject_dashboard(subject):
 
 @auth_bp.route("/dashboard/info/<subject>", methods=["GET"])
 def dashboard_info(subject: str):
+    if subject.strip().lower() == "sace_home_endorsement":
+        return redirect(url_for("home_sace_bp.entry"))
     if subject.strip().lower() == "sace_endorsement":
         if not current_user.is_authenticated:
             return redirect(url_for("auth_bp.login", next=url_for("sace_bp.dashboard")))

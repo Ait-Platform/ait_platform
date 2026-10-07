@@ -288,6 +288,43 @@ class HomeLifecycle(f.HomeFoundation):
 
     pledge = f.h.AccessJourneys.pledge
 
+    def dual_controller(self):
+        self.provision_home()
+        self.client.get("/logout")
+        f.h.AccessJourneys.provision(self, self.client, "home-r@example.test", existing=True)
+        self.client.get("/logout")
+
+    def test_phase2_home_origin_returning_login(self):
+        from urllib.parse import urlsplit, parse_qs
+        self.dual_controller()
+        activity = self.client.get("/dashboard/info/sace_home_endorsement")
+        self.assertEqual(activity.location, "/sace/home/")
+        signin = self.client.get(activity.location)
+        target = parse_qs(urlsplit(signin.location).query)["next"][0]
+        self.assertEqual(urlsplit(target).path, "/sace/home/")
+        self.assertEqual(self.login(self.client, "home-r@example.test", target).location, "/sace/home/control")
+        self.assertEqual(self.client.get("/sace/home/control").status_code, 200)
+
+    def test_phase2_reading_origin_returning_login(self):
+        from urllib.parse import urlsplit, parse_qs
+        self.dual_controller()
+        signin = self.client.get("/dashboard/info/sace_endorsement")
+        target = parse_qs(urlsplit(signin.location).query)["next"][0]
+        self.assertEqual(target, "/sace/dashboard")
+        self.assertEqual(self.login(self.client, "home-r@example.test", target).location, "/sace/provisioning")
+
+    def test_phase2_context_free_dual_authority_login(self):
+        self.dual_controller()
+        self.assertEqual(self.login(self.client, "home-r@example.test").status_code, 409)
+
+    def test_phase2_auditor_board_has_no_back_button(self):
+        self.provision_home()
+        auditor, aid = self.join_home(self.code_home())
+        response = auditor.get(f"/sace/home/assignments/{aid}/board")
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn(b">Back</a>", response.data)
+        self.assertIn(b"Review examination completion", response.data)
+
     def test_phase2_dual_authority_stale_reading_code_cannot_choose_activity(self):
         self.provision_home()
         self.client.get("/logout")

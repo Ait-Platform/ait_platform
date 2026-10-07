@@ -123,3 +123,37 @@ def home_preview_certificate(user_id):
         as_attachment=False, # Show in browser
         download_name=f"HOME_certificate_{user_id}.pdf"
     )
+
+
+@admin_bp.route('/home/endorsement-documents', methods=['GET', 'POST'])
+def home_endorsement_documents():
+    from app.program_sace_home import admin_documents as publication
+    from app.program_sace_home.document_storage import StorageUnavailable
+    from app.models.sace_home import HomeDocument, HomeDocumentVersion
+    publication.require_platform_admin()
+    if request.method == 'POST':
+        try:
+            publication.publish_uploaded_pdf(request.form.get('kind'), request.files.get('pdf'))
+            db.session.commit()
+        except (ValueError, StorageUnavailable) as exc:
+            db.session.rollback()
+            flash(str(exc), 'danger')
+            status = 503 if isinstance(exc, StorageUnavailable) else 400
+        except Exception:
+            db.session.rollback()
+            current_app.logger.exception('HOME admin document publication failed')
+            flash('Publication failed. Please try again.', 'danger')
+            status = 503
+        else:
+            flash('HOME endorsement document published.', 'success')
+            return redirect(url_for('admin_bp.home_endorsement_documents'))
+    else:
+        status = 200
+    history = {kind: HomeDocumentVersion.query.join(HomeDocument)
+        .filter(HomeDocument.kind == kind)
+        .order_by(HomeDocumentVersion.published_at.desc(), HomeDocumentVersion.id.desc()).all()
+        for kind in publication.KINDS}
+    response = current_app.make_response((render_template('admin/programs/home/endorsement_documents.html',
+        kinds=publication.KINDS, history=history), status))
+    response.headers['Cache-Control'] = 'private, no-store'
+    return response

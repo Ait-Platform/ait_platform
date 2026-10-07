@@ -1,0 +1,26 @@
+{% extends "admin/admin_layout.html" %}
+{% block admin_title %}HOME SACE Endorsement Documents{% endblock %}
+{% block admin_back_url %}{{ url_for('admin_bp.subject_dashboard', subject='home') }}{% endblock %}
+{% block admin_back_text %}Back to HOME Manage{% endblock %}
+{% block admin_content %}
+{% for category, message in get_flashed_messages(with_categories=true) %}
+<p role="status" class="mb-4 rounded border p-3">{{ message }}</p>
+{% endfor %}
+<p class="mb-6">Upload an approved PDF (up to 20 MB). Existing assignment documents and publication history are preserved.</p>
+{% for kind, title in kinds.items() %}
+<section class="border rounded-lg p-5 mb-5">
+<h2 class="text-lg font-semibold mb-3">{{ title }}</h2>
+<form method="post" enctype="multipart/form-data" class="flex gap-4 items-center">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<input type="hidden" name="kind" value="{{ kind }}">
+<label>Approved PDF <input type="file" name="pdf" accept="application/pdf,.pdf" required></label>
+<button class="rounded bg-indigo-600 text-white px-4 py-2">{{ 'Replace' if history[kind] else 'Upload' }}</button>
+</form>
+<details class="mt-3"><summary>Publication history ({{ history[kind]|length }})</summary>
+<ul>{% for version in history[kind] %}
+<li>{{ version.published_at.strftime('%Y-%m-%d %H:%M') }} UTC ? {{ version.source_manifest.get('source_filename', 'PDF') }}
+{% if loop.first %} ? Current{% endif %}</li>
+{% endfor %}</ul></details>
+</section>
+{% endfor %}
+{% endblock %}

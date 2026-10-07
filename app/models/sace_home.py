@@ -87,9 +87,13 @@ class HomeDocumentVersion(db.Model):
     storage_key = db.Column(db.String(255), nullable=False)
     sha256 = db.Column(db.String(64), nullable=False)
     source_manifest = db.Column(db.JSON, nullable=False)
-    approved_by = db.Column(db.Integer, db.ForeignKey("sace_home_controller.id"), nullable=False)
+    approved_by = db.Column(db.Integer, db.ForeignKey("sace_home_controller.id"), nullable=True)
+    approved_by_admin_user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="RESTRICT", name="fk_home_document_admin_user"))
     published_at = db.Column(db.DateTime(timezone=True), nullable=False, default=now)
-    __table_args__ = (db.UniqueConstraint("document_id", "version", name="uq_sace_home_document_version"),)
+    __table_args__ = (db.UniqueConstraint("document_id", "version", name="uq_sace_home_document_version"),
+        db.CheckConstraint("(approved_by IS NOT NULL AND approved_by_admin_user_id IS NULL) OR "
+            "(approved_by IS NULL AND approved_by_admin_user_id IS NOT NULL)",
+            name="ck_home_document_approver"))
 
 
 class HomeEvidence(db.Model):

@@ -20,6 +20,9 @@
         The admin controls for <strong>{{ subject_name }}</strong> are currently being built and integrated into the new Admin Hub layout.
     </p>
 
+    {% if subject == 'home' %}
+    <a href="{{ url_for('admin_bp.home_endorsement_documents') }}" class="inline-block rounded-lg px-6 py-3 mb-6 bg-indigo-600 text-white">SACE Endorsement Documents</a>
+    {% endif %}
     <div class="flex justify-center space-x-4">
         <a href="{{ url_for('admin_bp.programs_index') }}" class="inline-flex items-center rounded-lg px-6 py-2.5 text-sm font-semibold border border-transparent bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm transition-colors">
             Return to Programs

@@ -93,11 +93,13 @@ def read(key, expected_sha256):
     return verify(content, expected_sha256)
 
 
-def store(key, content, expected_sha256):
-    """Retain a verified disk copy, then attempt immutable private R2 storage."""
+def store(key, content, expected_sha256, *, require_r2=False):
+    """Retain verified private bytes; admin publication requires successful R2 storage."""
     path = disk_path(key)
     verify(content, expected_sha256)
     bucket = private_bucket()
+    if require_r2 and not bucket:
+        raise StorageUnavailable("Configure the private HOME R2 bucket before publishing.")
     path.parent.mkdir(parents=True, exist_ok=True)
     try:
         with path.open("xb") as stream:
@@ -112,7 +114,9 @@ def store(key, content, expected_sha256):
             r2.upload_bytes_to_r2(key, content, bucket=bucket)
         except r2.R2KeyCollision as exc:
             raise StorageIntegrityError(str(exc)) from exc
-        except Exception:
+        except Exception as exc:
+            if require_r2:
+                raise StorageUnavailable("HOME private R2 upload failed; document was not published.") from exc
             current_app.logger.warning("HOME R2 upload unavailable; verified private disk retained.")
     return key
 

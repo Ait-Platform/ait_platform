@@ -47,6 +47,7 @@
     {% endif %}
   </div>
 
+  {% if not platform_admin_bridge %}
   <div class="{% if subjects|length == 1 %}max-w-2xl mx-auto grid grid-cols-1{% else %}grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3{% endif %} gap-6">
     {% for s in subjects %}
       {% if s.slug not in ['admin_general', 'staff'] %}
@@ -212,6 +213,7 @@
     {% endif %}
     {% endfor %}
   </div>
+  {% endif %}
 </div>
 
 {% endblock %}

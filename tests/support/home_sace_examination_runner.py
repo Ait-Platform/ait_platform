@@ -1,6 +1,7 @@
 """Original HOME participant handlers in isolated connection-local PostgreSQL fixtures."""
 import importlib.util
 import unittest
+import re
 from datetime import timedelta
 from pathlib import Path
 from unittest.mock import patch
@@ -90,6 +91,13 @@ class HomeExamination(unittest.TestCase):
             assessment = context.assessment(db.session.get(HomeAssignment, self.aid))
             self.assertEqual(assessment.passed, passed)
             return assessment.id
+
+    def examine_status(self, kind):
+        path = self.base + '/materials/' + kind
+        opened = self.auditor.get(path)
+        self.assertEqual(opened.status_code, 200)
+        identity = re.search(rb'name="evidence_sha256" value="([a-f0-9]{64})"', opened.data).group(1).decode()
+        return self.auditor.post(path, data={'evidence_sha256': identity})
 
     def board(self):
         with self.app.app_context():
@@ -201,7 +209,7 @@ class HomeExamination(unittest.TestCase):
         self.assertEqual(client.post('/home/auditor/advance/1',data={'action':'skip'}).status_code,403)
 
     def test_evaluations_survey_independent_and_old_evidence_ignored(self):
-        kinds=['experience','facilitator_evaluation','participant_evaluation','certificate','longitudinal_survey']
+        kinds=['experience','facilitator_evaluation','participant_evaluation','final_assessment','certificate']
         self.assertEqual(list(self.board())[-5:],kinds)
         with self.app.app_context():
             row=db.session.get(HomeAssignment,self.aid)
@@ -223,10 +231,11 @@ class HomeExamination(unittest.TestCase):
             self.assertEqual(self.auditor.post(path,data={'intention_to_use':answer}).status_code,400)
         for answer in ('Yes','No'):
             self.assertEqual(self.auditor.post(path,data={'intention_to_use':answer}).status_code,302)
-            self.assertTrue(self.board()['longitudinal_survey']['examined'])
+            with self.app.app_context():
+                self.assertTrue(ex.response_complete(db.session.get(HomeAssignment,self.aid), 'longitudinal_survey'))
         with self.app.app_context():self.assertEqual(f.h.Interaction.query.count(),0)
 
-    def test_certificate_failure_suppression_retry_and_automatic_board_credit(self):
+    def test_certificate_failure_suppression_retry_and_separate_examination_credit(self):
         aid=self.journey();target=self.url('/home/report/finish');data={'assessment_id':aid,'email':'home-a@example.test','doc_type':'certificate'}
         self.assertEqual(self.auditor.post(self.base+'/materials/certificate',data={'version':'old'}).status_code,409)
         self.assertFalse(self.board()['certificate']['examined'])
@@ -241,8 +250,10 @@ class HomeExamination(unittest.TestCase):
             self.assertFalse(self.board()['certificate']['examined'])
             send.return_value=True
             self.assertEqual(self.auditor.post(target,data=data).location,self.base+'/board')
-            self.assertTrue(self.board()['certificate']['examined'])
+            self.assertFalse(self.board()['certificate']['examined'])
             self.assertEqual(self.auditor.post(target,data=data).status_code,302)
+        self.assertFalse(self.board()['certificate']['available'])
+        self.assertFalse(self.board()['certificate']['examined'])
         with self.app.app_context():
             event=context.latest(db.session.get(HomeAssignment,self.aid),'participant_certificate','sent')
             self.assertEqual(event.details['assessment_id'],aid)
@@ -315,7 +326,8 @@ class HomeExamination(unittest.TestCase):
         assessment_id=self.journey()
         with patch.object(participant,'_generate_home_certificate_pdf',return_value=b'%PDF-genuine'),patch('app.utils.mailer.send_pdf_email',return_value=True):
             self.assertEqual(self.auditor.post(self.url('/home/report/finish'),data={'assessment_id':assessment_id,'email':'a@example.test'}).status_code,302)
-        self.assertTrue(self.board()['certificate']['examined'])
+        self.assertFalse(self.board()['certificate']['examined'])
+        self.assertFalse(self.board()['certificate']['available'])
         with self.app.app_context():
             self.assertEqual(f.h.Interaction.query.count(),count)
             row=db.session.get(f.h.Interaction,rid)
@@ -343,16 +355,9 @@ class HomeExamination(unittest.TestCase):
             state['home_assignment_id']=self.aid
         self.assertEqual(other.post('/home/auditor/advance/1',data={'action':'skip'}).status_code,403)
 
-    def test_new_completion_history_retains_new_evidence_requirements(self):
+    def submitted_documents(self):
         import hashlib
-        from app.models.sace_home import HomeDocument,HomeDocumentVersion
-        aid=self.journey()
-        with patch.object(participant,'_generate_home_certificate_pdf',return_value=b'%PDF-genuine'),patch('app.utils.mailer.send_pdf_email',return_value=True):
-            self.auditor.post(self.url('/home/report/finish'),data={'assessment_id':aid,'email':'a@example.test'})
-        self.auditor.post(self.base+'/summary')
-        for kind,qs in [('facilitator_evaluation',instrument.FACILITATOR_QUESTIONS),('participant_evaluation',instrument.PARTICIPANT_QUESTIONS)]:
-            self.auditor.post(self.base+'/responses/'+kind,data={k:'Yes' for k,_ in qs})
-        self.auditor.post(self.base+'/responses/longitudinal_survey',data={'intention_to_use':'Yes'})
+        from app.models.sace_home import HomeDocument, HomeDocumentVersion
         for kind in ('application_form_1','application_form_2','timetable','participant_manual','facilitator_manual'):
             with self.app.app_context():
                 doc=HomeDocument(kind=kind,title=kind);db.session.add(doc);db.session.flush()
@@ -365,6 +370,163 @@ class HomeExamination(unittest.TestCase):
             with self.auditor.get(f'/sace/home/documents/{vid}/content?assignment_id={self.aid}') as response:
                 self.assertEqual(response.status_code,200)
             self.assertEqual(self.auditor.post(self.base+'/materials/'+kind,data={'version_id':vid}).status_code,302)
+
+    def examine_ten(self, include_final=True):
+        self.assertEqual(self.auditor.post(self.base+'/summary').status_code,302)
+        self.submitted_documents()
+        for kind in ('experience','facilitator_evaluation','participant_evaluation'):
+            self.assertEqual(self.examine_status(kind).status_code,302)
+        if include_final:
+            self.assertEqual(self.examine_status('final_assessment').status_code,302)
+
+    def test_certification_locked_until_all_ten_examined_without_study_or_result(self):
+        expected=['summary','application_form_1','application_form_2','timetable',
+            'participant_manual','facilitator_manual','experience','facilitator_evaluation',
+            'participant_evaluation','final_assessment','certificate']
+        self.assertEqual(list(self.board()),expected)
+        target=self.base+'/certification'
+        self.assertFalse(self.board()['certificate']['available'])
+        self.assertEqual(self.auditor.get(target).status_code,409)
+        self.assertEqual(self.auditor.post(target,data={'action':'email'}).status_code,409)
+        self.examine_ten(include_final=False)
+        self.assertTrue(all(self.board()[k]['examined'] for k in expected[:9]))
+        self.assertFalse(self.board()['certificate']['available'])
+        self.assertEqual(self.auditor.get(target).status_code,409)
+        self.assertEqual(self.examine_status('final_assessment').status_code,302)
+        self.assertTrue(self.board()['certificate']['available'])
+        with patch.object(participant,'_generate_home_certificate_pdf') as generate, patch('app.utils.mailer.send_pdf_email') as course_mail, patch.object(context,'assessment',side_effect=AssertionError('Endorsement must not consult course results')):
+            page=self.auditor.get(target)
+            self.assertEqual(page.status_code,200)
+            self.assertIn(b'has examined all ten items',page.data)
+            self.assertIn(b'Email certification to myself',page.data)
+            self.assertIn(b'Exit endorsement examination',page.data)
+            generate.assert_not_called();course_mail.assert_not_called()
+        for _ in range(2):
+            page=self.auditor.get(self.base+'/board')
+            self.assertEqual(page.status_code,200)
+            self.assertEqual(page.data.count(b'>Examined</span>'),10)
+            self.assertIn(b'10. Final Assessment',page.data)
+            self.assertIn(b'11. Certification',page.data)
+            self.assertIn(b'Open Certification',page.data)
+        with self.app.app_context():
+            self.assertEqual(HomeFinalAssessment.query.count(),0)
+            self.assertEqual(HomeProgress.query.count(),0)
+            self.assertEqual(HomeTeacherLink.query.count(),0)
+            self.assertEqual(f.h.auth_models.UserEnrollment.query.count(),0)
+            row=db.session.get(HomeAssignment,self.aid)
+            from app.program_sace_home import certification as cert
+            evidence=cert.saved(row);snapshot=evidence.details['snapshot']
+            self.assertEqual(snapshot['assignment_id'],self.aid)
+            self.assertEqual(snapshot['auditor']['id'],row.auditor_id)
+            self.assertEqual(snapshot['provider']['id'],HomeController.query.one().user_id)
+            self.assertEqual([i['kind'] for i in snapshot['items']],expected[:10])
+            for item in snapshot['items']:
+                self.assertTrue(item['evidence_ids'])
+            self.assertNotIn('assessment_id',snapshot)
+
+    def test_each_submitted_item_independently_keeps_certification_locked(self):
+        self.examine_ten()
+        for kind in list(self.board())[:10]:
+            with self.app.app_context():
+                records=HomeEvidence.query.filter_by(assignment_id=self.aid,item=kind,event='examined').all()
+                ids=[e.id for e in records];self.assertTrue(ids)
+                for e in records:e.event='pending'
+                db.session.commit()
+            self.assertFalse(self.board()['certificate']['available'],kind)
+            self.assertEqual(self.auditor.get(self.base+'/certification').status_code,409,kind)
+            with self.app.app_context():
+                for eid in ids:db.session.get(HomeEvidence,eid).event='examined'
+                db.session.commit()
+        self.assertTrue(self.board()['certificate']['available'])
+
+    def test_certification_email_self_only_retry_idempotence_and_static_snapshot(self):
+        from app.program_sace_home import certification as cert
+        self.examine_ten();target=self.base+'/certification'
+        self.assertEqual(self.auditor.post(target,data={'action':'email'}).status_code,409)
+        page=self.auditor.get(target);self.assertEqual(page.status_code,200)
+        with self.app.app_context():
+            evidence=cert.saved(db.session.get(HomeAssignment,self.aid));eid=evidence.id
+            details=dict(evidence.details)
+        with patch('app.utils.mailer.send_email',return_value=False) as send:
+            self.app.config['MAIL_SUPPRESS_SEND']=True
+            self.assertEqual(self.auditor.post(target,data={'action':'email'}).status_code,503)
+            send.assert_not_called();self.app.config['MAIL_SUPPRESS_SEND']=False
+            self.assertEqual(self.auditor.post(target,data={'action':'email'}).status_code,503)
+            with self.app.app_context():
+                self.assertEqual(HomeEvidence.query.filter_by(item='endorsement_certification',event='sent').count(),0)
+            send.side_effect=RuntimeError('transport failure')
+            self.assertEqual(self.auditor.post(target,data={'action':'email'}).status_code,503)
+            send.side_effect=None;send.return_value=True
+            self.assertEqual(self.auditor.post(target,data={'action':'email','email':'other@example.test'}).status_code,302)
+            args,kwargs=send.call_args
+            self.assertEqual(args[1],['home-a@example.test'])
+            self.assertEqual(kwargs['html'],details['html'])
+            self.assertIn(details['snapshot_sha256'],args[2])
+            calls=send.call_count
+            self.assertEqual(self.auditor.post(target,data={'action':'email'}).status_code,302)
+            self.assertEqual(send.call_count,calls)
+        with self.app.app_context():
+            self.assertEqual(cert.saved(db.session.get(HomeAssignment,self.aid)).details,details)
+            sent=HomeEvidence.query.filter_by(item='endorsement_certification',event='sent').one()
+            self.assertEqual(sent.details['certification_evidence_id'],eid)
+            self.assertEqual(sent.details['recipient'],'home-a@example.test')
+            # Later source edits cannot rewrite the already-recorded certification.
+            HomeQuestion.query.first().question='Later amended question'
+            db.session.commit()
+        self.assertIn(details['snapshot_sha256'].encode(),self.auditor.get(target).data)
+        self.assertEqual(self.auditor.post(self.base+'/completion').status_code,200)
+        with self.app.app_context():
+            row=db.session.get(HomeAssignment,self.aid)
+            self.assertEqual(row.status,'completed')
+            self.assertEqual(cert.saved(row).details,details)
+            self.assertEqual(HomeEngagement.query.one().status,'active')
+            self.assertEqual(HomeFinalAssessment.query.count(),0)
+            self.assertEqual(HomeProgress.query.count(),0)
+
+    def test_material_examination_independent_of_assessment_and_snapshot_scoped(self):
+        aid=self.journey(False)
+        self.assertEqual(self.examine_status('final_assessment').status_code,302)
+        with self.app.app_context():
+            result=db.session.get(HomeFinalAssessment,aid);self.assertFalse(result.passed)
+            result.overall_score=12;db.session.commit()
+        self.assertTrue(self.board()['final_assessment']['examined'])
+        with self.app.app_context():
+            HomeQuestion.query.filter_by(chapter_id=21).one().question='Revised submitted question'
+            db.session.commit()
+        self.assertFalse(self.board()['final_assessment']['examined'])
+        self.assertEqual(self.auditor.post(self.base+'/materials/final_assessment',
+            data={'evidence_sha256':'0'*64}).status_code,409)
+
+    def test_status_examination_and_certification_ownership_csrf_and_terminal_guards(self):
+        self.examine_ten();target=self.base+'/certification'
+        for path in (self.base+'/materials/final_assessment',target):
+            self.assertEqual(self.client.get(path).status_code,403)
+            self.assertEqual(self.client.post(path,data={'action':'email'}).status_code,403)
+        other,other_id=self.join_home(self.code_home(),email='other-home-a@example.test')
+        self.assertEqual(other.get(target).status_code,403)
+        self.assertEqual(other.post(target,data={'action':'email'}).status_code,403)
+        self.assertEqual(self.auditor.get(f'/sace/home/assignments/{other_id}/certification').status_code,403)
+        self.assertEqual(self.auditor.get(target).status_code,200)
+        self.app.config['WTF_CSRF_ENABLED']=True
+        try:
+            self.assertEqual(self.auditor.post(target,data={'action':'email'}).status_code,400)
+        finally:self.app.config['WTF_CSRF_ENABLED']=False
+        with self.app.app_context():
+            db.session.get(HomeAssignment,self.aid).status='revoked';db.session.commit()
+        self.assertEqual(self.auditor.get(target).status_code,403)
+        self.assertEqual(self.auditor.post(target,data={'action':'email'}).status_code,403)
+        with self.app.app_context():
+            db.session.get(HomeAssignment,self.aid).status='active'
+            db.session.execute(text("UPDATE auth_subject_admin SET email='revoked@example.test' WHERE subject_id=901"))
+            db.session.commit()
+        with patch('app.utils.mailer.send_email') as send:
+            self.assertEqual(self.auditor.get(target).status_code,403)
+            self.assertEqual(self.auditor.post(target,data={'action':'email'}).status_code,403)
+            send.assert_not_called()
+
+    def test_new_completion_history_retains_new_evidence_requirements(self):
+        self.examine_ten()
+        self.assertEqual(self.auditor.get(self.base+'/certification').status_code,200)
         self.assertTrue(all(x['examined'] for x in self.board().values()))
         self.assertEqual(self.auditor.post(self.base+'/completion').status_code,200)
         with self.app.app_context():

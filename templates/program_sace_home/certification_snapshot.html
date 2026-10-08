@@ -1,0 +1,11 @@
+<section aria-label="HOME endorsement examination certification">
+<h2>HOME endorsement examination certification</h2>
+<p>{{ snapshot.statement }}</p>
+<p>Auditor: {{ snapshot.auditor.name }} ({{ snapshot.auditor.email }})</p>
+<p>Provider: {{ snapshot.provider.name }} ({{ snapshot.provider.email }})</p>
+<p>Engagement: {{ snapshot.engagement_reference }}; assignment {{ snapshot.assignment_id }}</p>
+<p>Certified on {{ snapshot.certified_at }}</p>
+<ol>{% for item in snapshot['items'] %}<li>{{ item.title }} &mdash; Examined on {{ item.examined_at }}{% if item.material.version %}; submitted version {{ item.material.version }}{% endif %}</li>{% endfor %}</ol>
+<p>This certification records examination of the provider's submitted endorsement material.</p>
+<p>Snapshot reference: {{ digest }}</p>
+</section>

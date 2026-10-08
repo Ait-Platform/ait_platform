@@ -195,7 +195,7 @@ class ActivityRouting(f.HomeFoundation):
         for tile in context['subjects']:
             self.assertEqual(tile['access_level'], 'admin')
             if tile['slug'] not in ('admin_general', 'staff'):
-                self.assertIn(tile['name'].encode(), page.data)
+                self.assertNotIn(b'href="' + tile['href'].encode() + b'"', page.data)
         return page
 
     def test_routing_retire_san_only_preserves_platform_and_r_a(self):
@@ -351,8 +351,8 @@ class ActivityRouting(f.HomeFoundation):
                         subject.is_hidden_on_bridge = visibility
                         db.session.commit()
                 page = self.assert_platform_bridge()
-                self.assertEqual(page.data.count(b'Special Purpose Vehicle'), 1)
-                self.assertIn(b'href="/admin/spv/"', page.data)
+                self.assertEqual(page.data.count(b'Special Purpose Vehicle'), 0)
+                self.assertNotIn(b'href="/admin/spv/"', page.data)
                 # The real handler must not inspect the generic subject/start endpoint.
                 def reject_subject_query(conn, cursor, statement, parameters, context, executemany):
                     if 'auth_subject' in statement.lower():

@@ -1,0 +1,17 @@
+{% extends "program_sace_home/frame.html" %}
+{% block home_content %}
+<p class="mb-4">Examine this material submitted by the provider for HOME endorsement. Taking tests, answering workshop questions and completing study activities are not required.</p>
+{% if kind == 'experience' %}
+<p class="mb-4"><a class="home-button" href="{{ url_for('home_sace_bp.experience', assignment_id=row.id) }}">Look at the HOME learning journey</a></p>
+<ul>{% for chapter in snapshot.chapters %}<li class="mb-3"><strong>{{ chapter.number }}. {{ chapter.title }}</strong><p>{{ chapter.objective or '' }}</p></li>{% endfor %}</ul>
+{% elif kind == 'final_assessment' %}
+<p class="mb-4">{{ snapshot.policy }}</p>
+<ul>{% for question in snapshot.questions %}<li class="mb-4">Chapter {{ question.chapter }}: {{ question.question }}<ul>{% for option in question.options %}<li>{{ option.text }}</li>{% endfor %}</ul></li>{% else %}<li>Final-assessment questions are not available.</li>{% endfor %}</ul>
+{% else %}
+<p class="mb-4">Response choices in the submitted instrument: {{ snapshot.choices|join(', ') }}.</p>
+<ul>{% for key, question in snapshot.questions %}<li class="mb-3">{{ question }}</li>{% endfor %}</ul>
+{% endif %}
+<form method="post" class="mt-6"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<input type="hidden" name="evidence_sha256" value="{{ identity }}">
+<button class="home-button">Examined &mdash; return to Auditor Board</button></form>
+{% endblock %}

@@ -1,12 +1,12 @@
 {% extends "program_sace_home/frame.html" %}
 {% block home_content %}
 <ul class="divide-y">{% for item in items %}<li class="py-4 flex justify-between gap-4 items-center">
-<div><strong>{{ loop.index }}. {{ item.title }}</strong><p class="text-sm text-slate-600">{% if item.examined %}&#10003; Examined{% elif not item.available %}Awaiting approved HOME material{% else %}Not yet examined{% endif %}</p></div>
+<div><strong>{{ loop.index }}. {{ item.title }}</strong><p class="text-sm text-slate-600">{% if item.kind == 'certificate' and row.requirements_version == 'home-auditor-v2' %}{% if item.examined %}Certification recorded{% elif item.available %}Certification available{% else %}Locked until items 1-10 are Examined{% endif %}{% elif item.examined %}&#10003; Examined{% elif not item.available %}Awaiting approved HOME material{% else %}Not yet examined{% endif %}</p></div>
 {% if item.kind == 'summary' %}{% set target = url_for('home_sace_bp.summary', assignment_id=row.id) %}
-{% elif item.kind == 'experience' %}{% set target = url_for('home_sace_bp.experience', assignment_id=row.id) %}
-{% elif item.kind in ('facilitator_evaluation', 'participant_evaluation', 'longitudinal_survey') %}{% set target = url_for('home_sace_bp.workshop_response', assignment_id=row.id, kind=item.kind) %}
+{% elif item.kind == 'certificate' and row.requirements_version == 'home-auditor-v2' %}{% set target = url_for('home_sace_bp.certification', assignment_id=row.id) %}
+{% elif item.kind == 'experience' and row.requirements_version != 'home-auditor-v2' %}{% set target = url_for('home_sace_bp.experience', assignment_id=row.id) %}
 {% else %}{% set target = url_for('home_sace_bp.material', assignment_id=row.id, kind=item.kind) %}{% endif %}
-{% if item.kind in ('application_form_1', 'application_form_2', 'timetable', 'participant_manual', 'facilitator_manual') %}<div class="flex flex-wrap gap-3">{% endif %}
-{% if item.kind in ('application_form_1', 'application_form_2', 'timetable', 'participant_manual', 'facilitator_manual') and item.examined %}<span class="home-button">Examined</span>{% else %}<a class="home-button" href="{{ target }}">{% if not item.available %}Details{% elif item.kind in ('application_form_1', 'application_form_2', 'timetable', 'participant_manual', 'facilitator_manual') %}View{% else %}Examine{% endif %}</a>{% endif %}{% if item.kind in ('application_form_1', 'application_form_2', 'timetable', 'participant_manual', 'facilitator_manual') %}</div>{% endif %}</li>{% endfor %}</ul>
+{% if item.kind == 'certificate' and row.requirements_version == 'home-auditor-v2' %}{% if item.available %}<a class="home-button" href="{{ target }}">Open Certification</a>{% else %}<button class="home-button" disabled>Locked</button>{% endif %}
+{% elif item.examined %}<span class="home-button">Examined</span>{% else %}<a class="home-button" href="{{ target }}">{% if not item.available %}Details{% elif item.kind in ('application_form_1', 'application_form_2', 'timetable', 'participant_manual', 'facilitator_manual') %}View{% else %}Examine{% endif %}</a>{% endif %}</li>{% endfor %}</ul>
 <div class="mt-6 flex flex-wrap gap-3"><a class="home-button" href="{{ url_for('home_sace_bp.completion', assignment_id=row.id) }}">Review examination completion</a><a class="home-button" href="{{ url_for('home_sace_bp.signed_pledge') }}">Intellectual Property Pledge</a></div>
 {% endblock %}

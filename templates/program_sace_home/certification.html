@@ -1,0 +1,8 @@
+{% extends "program_sace_home/frame.html" %}
+{% block home_content %}
+{{ evidence.details.html|safe }}
+<form method="post" class="mt-6"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<button class="home-button" name="action" value="email">Email certification to myself</button></form>
+<form method="post" action="{{ url_for('home_sace_bp.completion', assignment_id=row.id) }}" class="mt-4">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="home-button">Exit endorsement examination</button></form>
+{% endblock %}

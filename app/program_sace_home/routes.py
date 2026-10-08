@@ -318,14 +318,26 @@ def material(assignment_id, kind):
     row = s.assignment(assignment_id, lock=request.method == "POST", writable=request.method == "POST")
     if row.requirements_version == ex.REQUIREMENTS:
         if kind == 'certificate':
+            return certification(assignment_id)
+        if kind in {'experience', 'facilitator_evaluation', 'participant_evaluation', 'final_assessment'}:
             from . import participant_context as context
-            result = context.assessment(row)
-            if result is None:
-                return redirect(url_for('home_sace_bp.experience', assignment_id=row.id), code=303)
+            snapshot = ex.evidence_status(row, kind)
+            identity = content.digest(snapshot)
             if request.method == 'POST':
-                abort(409, description='Email the genuine Item 7 certificate; specimen confirmation cannot complete evidence.')
-            return redirect(url_for('home_bp.report_exit', home_assignment_id=row.id, assessment_id=result.id,
-                type='certificate' if result.passed else 'report'))
+                opened = context.latest(row, kind, 'opened')
+                if (not opened or opened.details.get('evidence_sha256') != identity
+                        or request.form.get('evidence_sha256') != identity):
+                    abort(409, description='Open the current HOME evidence/status before confirming examination.')
+                examined = context.latest(row, kind, 'examined')
+                if not examined or examined.details.get('evidence_sha256') != identity:
+                    context.record(row, kind, 'examined', {'evidence_sha256': identity, 'snapshot': snapshot})
+                db.session.commit()
+                return redirect(url_for('home_sace_bp.board', assignment_id=row.id))
+            context.record(row, kind, 'opened', {'evidence_sha256': identity})
+            db.session.commit()
+            return page('evidence_status.html', ex.FUNCTIONAL_ITEMS[kind], row=row, kind=kind,
+                snapshot=snapshot, identity=identity,
+                back=url_for('home_sace_bp.board', assignment_id=row.id))
         if kind in {'assessment', 'monitoring'}:
             abort(410, description='Use the separate HOME workshop evaluation items on the Auditor Board.')
         if kind in ex.INSTRUMENTS:
@@ -516,6 +528,56 @@ def workshop_response(assignment_id, kind):
         context.record(row, kind, 'submitted', details)
         db.session.commit()
         return redirect(url_for('home_sace_bp.board', assignment_id=row.id))
-    return page('workshop_response.html', ex.FUNCTIONAL_ITEMS[kind], row=row, kind=kind,
+    return page('workshop_response.html', ex.FUNCTIONAL_ITEMS.get(kind, 'HOME Longitudinal Survey'), row=row, kind=kind,
         questions=questions, choices=instrument.CHOICES, survey_question=instrument.SURVEY_QUESTION,
         saved=saved.details if saved else {}, back=url_for('home_sace_bp.board', assignment_id=row.id))
+
+
+@home_sace_bp.route('/assignments/<int:assignment_id>/certification', methods=['GET', 'POST'])
+@login_required
+def certification(assignment_id):
+    from . import certification as cert
+    from app.utils.mailer import send_email
+    row = s.assignment(assignment_id, lock=True, writable=request.method == 'POST')
+    if row.requirements_version != ex.REQUIREMENTS:
+        abort(404)
+    evidence = cert.saved(row)
+    if evidence is None:
+        if not all(item['examined'] for item in ex.board_items(row)[:10]):
+            abort(409, description='Examine all ten submitted HOME items before opening Certification.')
+        if request.method == 'POST':
+            abort(409, description='Open your endorsement certification before emailing it.')
+        evidence = cert.create(row)
+        lc.audit(current_user.id, 'auditor', 'certification_recorded', g.home_access[1], row.id,
+            {'certification_evidence_id': evidence.id, 'snapshot_sha256': evidence.details['snapshot_sha256']})
+        db.session.commit()
+    if request.method == 'POST':
+        if request.form.get('action') != 'email':
+            abort(400)
+        recipient = current_user.email.strip().lower()
+        sent = HomeEvidence.query.filter_by(assignment_id=row.id, actor_id=row.auditor_id,
+            item='endorsement_certification', event='sent').all()
+        already_sent = any(e.details.get('certification_evidence_id') == evidence.id
+            and e.details.get('recipient') == recipient and e.details.get('outcome') == 'accepted_by_mail_sender'
+            for e in sent)
+        if not already_sent:
+            if current_app.config.get('MAIL_SUPPRESS_SEND'):
+                abort(503, description='Email sending is suppressed; certification email was not sent.')
+            try:
+                accepted = send_email('HOME endorsement examination certification', [recipient],
+                    cert.email_text(evidence), html=evidence.details['html'])
+            except Exception:
+                current_app.logger.exception('HOME endorsement certification email failed')
+                accepted = False
+            if not accepted:
+                abort(503, description='Certification email could not be sent. You can retry.')
+            s.record(row, 'endorsement_certification', 'sent', {
+                'certification_evidence_id': evidence.id, 'snapshot_sha256': evidence.details['snapshot_sha256'],
+                'recipient': recipient, 'outcome': 'accepted_by_mail_sender'})
+            lc.audit(current_user.id, 'auditor', 'certification_emailed', g.home_access[1], row.id,
+                {'certification_evidence_id': evidence.id, 'recipient': recipient})
+            db.session.commit()
+        flash('Your endorsement examination certification has been emailed to you.', 'success')
+        return redirect(url_for('home_sace_bp.certification', assignment_id=row.id))
+    return page('certification.html', 'HOME endorsement examination certification', row=row,
+        evidence=evidence, back=url_for('home_sace_bp.board', assignment_id=row.id))

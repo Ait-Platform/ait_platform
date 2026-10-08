@@ -1,4 +1,5 @@
 """Version-pinned HOME Auditor evidence, separate from frozen authority/lifecycle."""
+import hashlib
 import json
 import re
 from pathlib import Path
@@ -191,8 +192,8 @@ FUNCTIONAL_ITEMS = {
     'experience': 'HOME Learning Journey',
     'facilitator_evaluation': 'Facilitator Evaluation',
     'participant_evaluation': 'Participant Workshop Evaluation',
-    'certificate': 'Certificate / Diagnostic Report Evidence',
-    'longitudinal_survey': 'HOME Longitudinal Survey',
+    'final_assessment': 'Final Assessment',
+    'certificate': 'Certification',
 }
 INSTRUMENTS = {'facilitator_evaluation': 'home-facilitator-evaluation-v1',
     'participant_evaluation': 'home-participant-evaluation-v1',
@@ -211,24 +212,64 @@ def response_complete(row, kind):
 
 
 def board_items(row):
-    from . import service as s, participant_context as context
+    from . import service as s, participant_context as context, certification
     if row.status != 'active' and not context.latest(row, 'completion', 'completed'):
         return historical_board_items(row)
+    frozen = certification.saved(row)
+    if frozen:
+        return [dict(kind=item['kind'], title=item['title'], version=None,
+            available=True, examined=True) for item in frozen.details['snapshot']['items']] + [
+            dict(kind='certificate', title='Certification', version=None, available=True, examined=True)]
     values = []
     titles = {k: v for k, v in ITEMS.items() if k not in {'experience', 'assessment', 'monitoring', 'certificate'}}
     titles.update(FUNCTIONAL_ITEMS)
     for kind, title in titles.items():
         doc = document(row, kind) if kind in DOCUMENTS else None
-        if kind in FUNCTIONAL_ITEMS:
+        if kind == 'certificate':
+            available, done = all(item['examined'] for item in values), False
+        elif kind in FUNCTIONAL_ITEMS:
             available = True
+            snapshot = evidence_status(row, kind)
+            event = context.latest(row, kind, 'examined')
+            done = bool(event and event.details.get('evidence_sha256') == content.digest(snapshot))
+            # Preserve legitimate earlier material-examination evidence.
             if kind == 'experience':
-                done = context.journey_complete(row)
-            elif kind == 'certificate':
-                done = context.certificate_delivered(row)
-            else:
-                done = response_complete(row, kind)
+                done = done or all(context.progress(row).values())
+            elif kind in INSTRUMENTS:
+                done = done or response_complete(row, kind)
         else:
             available = kind == 'summary' or bool(doc)
             done = s.examined(row, kind, doc.id if doc else None)
         values.append(dict(kind=kind, title=title, version=doc, available=available, examined=available and done))
     return values
+
+
+def evidence_status(row, kind):
+    """Provider-submitted examination material, independent of course results."""
+    from app.models.home import HomeChapter, HomeQuestion
+    from . import workshop_interactions as instrument
+    status = {'assignment_id': row.id, 'kind': kind}
+    if kind == 'experience':
+        source = Path(__file__).resolve().parents[2] / 'templates/subject_home'
+        status['source_sha256'] = {p.name: hashlib.sha256(p.read_bytes()).hexdigest()
+            for p in sorted(source.glob('chapter*.html'))}
+        status['chapters'] = [{'id': c.id, 'number': c.chapter_number,
+            'title': c.title, 'objective': c.objective, 'image': c.image_filename}
+            for c in HomeChapter.query.order_by(HomeChapter.chapter_number).all()]
+    elif kind in {'facilitator_evaluation', 'participant_evaluation'}:
+        questions = instrument.FACILITATOR_QUESTIONS if kind == 'facilitator_evaluation' else instrument.PARTICIPANT_QUESTIONS
+        status.update(instrument=INSTRUMENTS[kind], questions=list(questions), choices=list(instrument.CHOICES))
+    elif kind == 'final_assessment':
+        questions = (HomeQuestion.query.join(HomeChapter)
+            .filter(HomeChapter.chapter_number.between(21, 30))
+            .order_by(HomeChapter.chapter_number, HomeQuestion.id).all())
+        status['questions'] = [{'id': q.id, 'chapter': q.chapter.chapter_number,
+            'question': q.question, 'type': q.question_type,
+            'options': [{'id': o.id, 'text': o.option_text} for o in q.options]}
+            for q in questions]
+        source = Path(__file__).resolve().parents[2] / 'templates/subject_home/final_exam.html'
+        status['source_sha256'] = hashlib.sha256(source.read_bytes()).hexdigest()
+        status['policy'] = 'The HOME final assessment draws up to five questions per chapter 21-30. For endorsement, examine this assessment material; taking or passing it is not required.'
+    else:
+        abort(404)
+    return status

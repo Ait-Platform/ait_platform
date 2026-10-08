@@ -443,6 +443,12 @@ class HomeExamination(unittest.TestCase):
             self.assertIn(b'has examined all ten items',page.data)
             self.assertIn(b'Email certification to myself',page.data)
             self.assertIn(b'Exit endorsement examination',page.data)
+            self.assertEqual(page.data.count(b'Email certification to myself'),1)
+            self.assertEqual(page.data.count(b'Exit endorsement examination'),1)
+            self.assertLess(page.data.index(b'Email certification to myself'),page.data.index(b'Exit endorsement examination'))
+            self.assertLess(page.data.index(b'Exit endorsement examination'),page.data.index(b'<iframe'))
+            self.assertIn(b'Archoney Institute of Technology',page.data)
+            self.assertIn(b'comp-table',page.data)
             generate.assert_not_called();course_mail.assert_not_called()
         for _ in range(2):
             page=self.auditor.get(self.base+'/board')
@@ -451,6 +457,9 @@ class HomeExamination(unittest.TestCase):
             self.assertIn(b'10. Final Assessment',page.data)
             self.assertIn(b'11. Certification',page.data)
             self.assertIn(b'Open Certification',page.data)
+            self.assertEqual(page.data.count(b'Review examination completion'),1)
+            self.assertEqual(page.data.count(b'Intellectual Property Pledge'),1)
+            self.assertLess(page.data.index(b'Review examination completion'),page.data.index(b'1. Activity Summary'))
         with self.app.app_context():
             self.assertEqual(HomeFinalAssessment.query.count(),0)
             self.assertEqual(HomeProgress.query.count(),0)

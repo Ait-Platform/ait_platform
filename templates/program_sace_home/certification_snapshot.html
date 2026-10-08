@@ -1,11 +1,21 @@
-<section aria-label="HOME endorsement examination certification">
-<h2>HOME endorsement examination certification</h2>
-<p>{{ snapshot.statement }}</p>
-<p>Auditor: {{ snapshot.auditor.name }} ({{ snapshot.auditor.email }})</p>
-<p>Provider: {{ snapshot.provider.name }} ({{ snapshot.provider.email }})</p>
-<p>Engagement: {{ snapshot.engagement_reference }}; assignment {{ snapshot.assignment_id }}</p>
-<p>Certified on {{ snapshot.certified_at }}</p>
-<ol>{% for item in snapshot['items'] %}<li>{{ item.title }} &mdash; Examined on {{ item.examined_at }}{% if item.material.version %}; submitted version {{ item.material.version }}{% endif %}</li>{% endfor %}</ol>
-<p>This certification records examination of the provider's submitted endorsement material.</p>
-<p>Snapshot reference: {{ digest }}</p>
-</section>
+{% extends "shared/ait_certificate_layout.html" %}
+{% block document_title_meta %}HOME endorsement examination certification{% endblock %}
+{% block document_title %}Endorsement examination certification{% endblock %}
+{% block programme_name %}HOME ? Hands-On Math Education{% endblock %}
+{% block extra_css %}<style>body { height: auto; } .footer { position: relative; margin-top: 30px; }</style>{% endblock %}
+{% block learner_name %}{{ snapshot.auditor.name }} ({{ snapshot.auditor.email }}){% endblock %}
+{% block issue_date %}{{ snapshot.certified_at }}{% endblock %}
+{% block certificate_number %}{{ digest }}{% endblock %}
+{% block extra_details %}
+<tr><th>Provider</th><td colspan="3">{{ snapshot.provider.name }} ({{ snapshot.provider.email }})</td></tr>
+<tr><th>Engagement</th><td colspan="3">{{ snapshot.engagement_reference }}; assignment {{ snapshot.assignment_id }}</td></tr>
+{% endblock %}
+{% block achievement %}{{ snapshot.statement }}{% endblock %}
+{% block competencies %}
+<table class="comp-table"><thead><tr><th>Submitted material</th><th>Examination recorded</th></tr></thead><tbody>
+{% for item in snapshot['items'] %}<tr><td>{{ loop.index }}. {{ item.title }}{% if item.material.version %}; submitted version {{ item.material.version }}{% endif %}</td><td>Examined on {{ item.examined_at }}</td></tr>{% endfor %}
+</tbody></table>
+{% endblock %}
+{% block overall_result %}Submitted endorsement material examined{% endblock %}
+{% block comments %}Snapshot reference: {{ digest }}{% endblock %}
+{% block disclaimer %}This certification records examination of the provider's submitted endorsement material. It is not a participant course-completion certificate.{% endblock %}

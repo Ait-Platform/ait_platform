@@ -1,8 +1,12 @@
 {% extends "program_sace_home/frame.html" %}
-{% block home_content %}
-{{ evidence.details.html|safe }}
-<form method="post" class="mt-6"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+{% block actions %}
+<div class="flex flex-col items-end gap-3">
+<form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 <button class="home-button" name="action" value="email">Email certification to myself</button></form>
-<form method="post" action="{{ url_for('home_sace_bp.completion', assignment_id=row.id) }}" class="mt-4">
+<form method="post" action="{{ url_for('home_sace_bp.completion', assignment_id=row.id) }}">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="home-button">Exit endorsement examination</button></form>
+</div>
+{% endblock %}
+{% block home_content %}
+<iframe title="HOME endorsement examination certification" class="w-full border border-slate-200 rounded" style="height: 1100px" sandbox srcdoc="{{ evidence.details.html|e }}"></iframe>
 {% endblock %}

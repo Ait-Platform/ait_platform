@@ -628,6 +628,67 @@ class ActivityRouting(f.HomeFoundation):
                     'code_hash': home.digest('STALE-READING'), 'user_id': None}
             self.assertIn(b'Choose SACE Activity', self.login(self.client, EMAIL).data)
 
+    def test_routing_production_632_auditor_ignores_stale_controller_context(self):
+        import json
+        from app.program_sace import lifecycle as lc
+        models = f.h.auth_models
+        with self.app.app_context():
+            db.session.execute(text('DELETE FROM auth_subject WHERE id=900'))
+            db.session.execute(text("UPDATE auth_subject SET slug='sace_endorsement' WHERE id=44"))
+            for uid, email in ((631, 'ren@gmail.com'), (632, 'nan@gmail.com')):
+                user = models.User(id=uid, email=email, name='R' if uid==631 else 'A', is_active=1)
+                user.set_password('test-password'); db.session.add(user)
+            db.session.commit()
+        with self.app.app_context():
+            for table, value in (('auth_subject_admin',4), ('sace_reading_engagement',1), ('sace_reading_controller_appointment',1)):
+                db.session.execute(text("SELECT setval(pg_get_serial_sequence(:table,'id'),:value,false)"),
+                    {'table':'pg_temp.'+table,'value':value})
+            db.session.commit()
+        provider=self.app.test_client()
+        f.h.AccessJourneys.provision(self,provider,'ren@gmail.com',existing=True)
+        with self.app.app_context():
+            db.session.get(lc.Engagement,1).reference='LITRE-AA6A3C3EA79027FF'
+            db.session.commit()
+        with self.app.app_context():
+            db.session.execute(text("SELECT setval(pg_get_serial_sequence('pg_temp.sace_workshop_interactions','id'),311,false)"))
+            db.session.commit()
+        code, aid=f.h.AccessJourneys.code(self,provider)
+        self.assertEqual(aid,311)
+        self.client.post('/sace/join',data={'code':code}); self.client.post('/sace/auditor_pledge')
+        result=self.login(self.client,'nan@gmail.com','/sace/claim_code')
+        self.client.get(result.location,follow_redirects=True)
+        with self.app.app_context():
+            enrollment=models.UserEnrollment(id=1031,user_id=632,subject_id=44,status='active',country_code='ZA',local_currency='ZAR',local_amount_cents=0,zar_amount_cents=0)
+            db.session.add(enrollment)
+            db.session.commit()
+            self.assertEqual(enrollment.status,'active')
+            self.assertIsNone(lc.controller(db.session.get(models.User,632)))
+            self.assertEqual(models.AuthSubjectAdmin.query.filter_by(email='nan@gmail.com').count(),0)
+            self.assertEqual(lc.Appointment.query.filter_by(user_id=632).count(),0)
+            self.assertEqual(reading.payload(db.session.get(f.h.Interaction,311))['claimed_by_user_id'],632)
+        self.client.get('/logout')
+        with self.client.session_transaction() as state:
+            state[access.PROVISIONING_KEY]={'nonce':'stale-provider-context','started_at':time.time(),'accepted_at':time.time(),'user_id':None}
+            state['sace_admin_provisioning']=True; state['sace_admin_pledged']=True
+            state['admin_subjects']=['sace_endorsement']; state['role']='admin'
+        self.assertEqual(self.login(self.client,'nan@gmail.com').location,'/sace/reading')
+        for path in ('/dashboard','/bridge','/sace/dashboard'):
+            self.assertEqual(self.client.get(path).location,'/sace/reading')
+        selector=self.client.get('/sace/activities')
+        self.assertNotIn(b'SACE controller:',selector.data)
+        self.assertNotIn(b'/sace/provisioning',selector.data)
+        self.assertIn(b'Auditor Board',self.client.get('/sace/reading').data)
+        self.assertEqual(self.client.get('/sace/provisioning').location,'/sace/reading')
+        self.assertEqual(self.client.post('/sace/provisioning/generate_code').status_code,403)
+        with self.app.app_context():
+            self.assertEqual(lc.Appointment.query.filter_by(user_id=632).count(),0)
+            self.assertEqual(models.AuthSubjectAdmin.query.filter_by(email='nan@gmail.com').count(),0)
+        with self.client.session_transaction() as state:
+            self.assertNotIn(access.PROVISIONING_KEY,state)
+        self.client.get('/logout')
+        self.assertEqual(self.login(self.client,'ren@gmail.com').location,'/sace/provisioning')
+        self.assertIn(b'SACE Control Centre',self.client.get('/sace/provisioning').data)
+
     def test_routing_single_auditor_authority(self):
         self.officials('A', None)
         self.assertEqual(self.login(self.client, EMAIL).location, '/sace/reading')

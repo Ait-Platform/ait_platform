@@ -432,6 +432,10 @@ def provisioning_map():
         pledge = SaceWorkshopInteraction.query.filter_by(
             user_id=current_user.id, activity_slug="admin_patent_pledge").first()
     controller = access.is_controller()
+    from . import endorsement
+    if not controller and current_user.is_authenticated and endorsement.assignments(active_only=True):
+        access.clear_provisioning()
+        return redirect(url_for('sace_bp.reading_hub'))
     ctx = None
     if not controller:
         token = request.args.get('journey')

@@ -43,6 +43,11 @@ class ReadingActivity:
 
     def continuation(self, target=None, *, selected=False):
         from app.sace_activity import local_path
+        # An existing auditor assignment wins over residual onboarding state.
+        # Session continuations must never turn an auditor into a controller.
+        if not access.is_controller() and flow.assignments(current_user.id, active_only=True):
+            access.clear_provisioning()
+            return None
         if target and local_path(target) == '/sace/provisioning':
             if access.provisioning_auth_context(target):
                 if not selected or access.authenticate_provisioning(target):

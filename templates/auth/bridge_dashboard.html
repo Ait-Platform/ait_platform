@@ -17,10 +17,23 @@
     {% include "partials/flash_messages.html" %}
     <div class="flex items-center justify-between mb-2">
       <div>
-        <h1 class="text-2xl font-semibold text-slate-800">Welcome back, {{ user.name }}!</h1>
-        <div class="text-sm text-slate-500">Choose a subject/program to continue.</div>
+        <h1 class="text-2xl font-semibold text-slate-800">{% if platform_admin_bridge %}Admin Hub{% else %}Welcome back, {{ user.name }}!{% endif %}</h1>
+        <div class="text-sm text-slate-500">{% if platform_admin_bridge %}Manage the AIT platform.{% else %}Choose a subject/program to continue.{% endif %}</div>
       </div>
     </div>
+
+    {% if platform_admin_bridge %}
+      <nav aria-label="AIT administration" class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+        {% for label, href in [
+          ('General', url_for('admin_bp.global_settings')),
+          ('Programs', url_for('admin_bp.programs_index')),
+          ('Security', url_for('admin_bp.security_dashboard')),
+          ('API', '/admin/api/')
+        ] %}
+          <a href="{{ href }}" class="rounded-xl border border-slate-200 p-6 text-xl font-semibold text-slate-800 hover:shadow-md">{{ label }}</a>
+        {% endfor %}
+      </nav>
+    {% endif %}
 
     {% if banner %}
       <div class="mt-4 rounded-lg border border-emerald-300 bg-emerald-50 p-3 text-emerald-800">

@@ -119,12 +119,12 @@ program_bp = Blueprint("program_bp", __name__)
 view_module("isolated_program_routes", "app/program.py", dict(env, program_bp=program_bp), {"program_entry"})
 from jinja2.exceptions import TemplateNotFound
 view_module("isolated_subject_dashboard", "app/admin/programs/routes.py",
-            dict(env, admin_bp=admin_bp, TemplateNotFound=TemplateNotFound), {"subject_dashboard"})
+            dict(env, admin_bp=admin_bp, TemplateNotFound=TemplateNotFound), {"subject_dashboard", "programs_index"})
 from app.utils.roles import is_admin
 view_module("isolated_admin_guard", "app/admin/__init__.py",
             dict(env, admin_bp=admin_bp, is_admin=is_admin), {"_guard"})
 view_module("isolated_sace_management", "app/admin/security/routes.py",
-            dict(env, admin_bp=admin_bp), {"sace_management", "sace_engagement_history"})
+            dict(env, admin_bp=admin_bp), {"sace_management", "sace_engagement_history", "global_settings"})
 
 
 class AccessJourneys(unittest.TestCase):

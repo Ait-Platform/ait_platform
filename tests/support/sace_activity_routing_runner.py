@@ -175,6 +175,14 @@ class ActivityRouting(f.HomeFoundation):
         name, context = rendered[-1]
         self.assertEqual(name, 'auth/bridge_dashboard.html')
         self.assertTrue(context['platform_admin_bridge'])
+        self.assertIn(b'Admin Hub', page.data)
+        for label, href in ((b'General', b'/admin/settings'),
+                (b'Programs', b'/admin/programs/'), (b'Security', b'/admin/security'),
+                (b'API', b'/admin/api/')):
+            self.assertIn(label, page.data)
+            self.assertIn(b'href="' + href + b'"', page.data)
+        self.assertNotIn(b'SACE Control Centre', page.data)
+        self.assertNotIn(b'Auditor Board', page.data)
         with self.app.app_context():
             expected = {s.slug for s in f.h.auth_models.AuthSubject.query.filter_by(is_active=1)
                         if not s.is_hidden_on_bridge}
@@ -189,6 +197,135 @@ class ActivityRouting(f.HomeFoundation):
             if tile['slug'] not in ('admin_general', 'staff'):
                 self.assertIn(tile['name'].encode(), page.data)
         return page
+
+    def test_routing_retire_san_only_preserves_platform_and_r_a(self):
+        import json
+        import re
+        from unittest.mock import patch
+        from flask_wtf.csrf import generate_csrf
+        from app.program_sace import lifecycle as lc
+        models = f.h.auth_models
+        with self.app.app_context():
+            # Match the reviewed production identities using temporary tables only.
+            db.session.execute(text('DELETE FROM auth_subject WHERE id = 900'))
+            db.session.execute(text("UPDATE auth_subject SET slug='sace_endorsement' WHERE id=44"))
+            db.session.execute(text('UPDATE auth_subject SET id=48 WHERE id=901'))
+            for uid, email, name in ((1, 'san@gmail.com', 'San'),
+                    (631, 'ren@gmail.com', 'R'), (632, 'nan@gmail.com', 'A')):
+                user = models.User(id=uid, email=email, name=name, is_active=1)
+                user.set_password('test-password')
+                db.session.add(user)
+            db.session.execute(text("INSERT INTO auth_approved_admin (id, email, active) VALUES (1, 'san@gmail.com', 1)"))
+            db.session.commit()
+
+        def next_id(table, value):
+            with self.app.app_context():
+                # Never reset public sequences: all fixtures are connection-local.
+                db.session.execute(text("SELECT setval(pg_get_serial_sequence(:table, 'id'), :value, false)"),
+                                   {'table': 'pg_temp.' + table, 'value': value})
+                db.session.commit()
+
+        r_client = self.client
+        next_id('auth_subject_admin', 5)
+        self.provision_home('ren@gmail.com')
+        r_client.get('/logout')
+        next_id('auth_subject_admin', 4)
+        next_id('sace_reading_engagement', 1)
+        next_id('sace_reading_controller_appointment', 1)
+        next_id('sace_workshop_interactions', 306)
+        f.h.AccessJourneys.provision(self, r_client, 'ren@gmail.com', existing=True)
+        next_id('sace_workshop_interactions', 311)
+        code, invitation_id = f.h.AccessJourneys.code(self, r_client)
+        self.assertEqual(invitation_id, 311)
+        auditor = self.app.test_client()
+        auditor.post('/sace/join', data={'code': code})
+        auditor.post('/sace/auditor_pledge')
+        login = self.login(auditor, 'nan@gmail.com', '/sace/claim_code')
+        self.assertEqual(auditor.get(login.location, follow_redirects=True).status_code, 200)
+
+        san = self.app.test_client()
+        next_id('auth_subject_admin', 6)
+        next_id('sace_reading_engagement', 2)
+        next_id('sace_reading_controller_appointment', 2)
+        next_id('sace_workshop_interactions', 432)
+        f.h.AccessJourneys.provision(self, san, 'san@gmail.com', existing=True)
+        self.client = san
+        self.assert_platform_bridge('/dashboard')
+        with self.app.app_context():
+            self.assertEqual(lc.controller(db.session.get(models.User, 1)).id, 2)
+            self.assertEqual(db.session.get(lc.Appointment, 2).operational_grant_id, 6)
+            self.assertEqual(db.session.get(lc.Appointment, 1).operational_grant_id, 4)
+            last_event = db.session.execute(text('SELECT max(id) FROM sace_workshop_interactions')).scalar_one()
+
+        def protected_snapshot():
+            filters = {
+                'auth_subject_admin': ' WHERE id <> 6',
+                'sace_reading_controller_appointment': ' WHERE id <> 2',
+                'sace_reading_engagement': ' WHERE id <> 2',
+                'sace_workshop_interactions': ' WHERE id <= :last_event',
+            }
+            with self.app.app_context():
+                return {table: tuple(db.session.execute(text(
+                    'SELECT row_to_json(t)::text FROM pg_temp."' + table + '" t' +
+                    filters.get(table, '') + ' ORDER BY 1'), {'last_event': last_event}).scalars())
+                    for table in self.tables}
+
+        before = protected_snapshot()
+        reason = 'Correct mistaken platform-admin Reading provisioning; San is not a SACE official.'
+        # Exercise the existing HTTP revocation with real CSRF protection.
+        self.app.config['WTF_CSRF_ENABLED'] = True
+        try:
+            with patch.dict(self.app.jinja_env.globals, csrf_token=generate_csrf):
+                page = san.get('/sace/provisioning/lifecycle')
+                self.assertEqual(page.status_code, 200)
+                token = re.search(rb'name="csrf_token" value="([^"]+)"', page.data).group(1).decode()
+                self.assertEqual(san.post('/sace/provisioning/engagement/end',
+                    data={'status': 'revoked', 'reason': reason}).status_code, 400)
+                self.assertEqual(before, protected_snapshot())
+                response = san.post('/sace/provisioning/engagement/end',
+                    data={'csrf_token': token, 'status': 'revoked', 'reason': reason})
+        finally:
+            self.app.config['WTF_CSRF_ENABLED'] = False
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.location, '/dashboard')
+        self.assertEqual(before, protected_snapshot())
+        with self.app.app_context():
+            appointment = db.session.get(lc.Appointment, 2)
+            engagement = db.session.get(lc.Engagement, 2)
+            for row in (appointment, engagement):
+                self.assertEqual(row.status, 'revoked')
+                self.assertEqual(row.ended_by_user_id, 1)
+                self.assertEqual(row.end_reason, reason)
+                self.assertIsNotNone(row.revoked_at)
+            self.assertIsNone(appointment.operational_grant_id)
+            self.assertEqual(appointment.grant_id_at_issue, 6)
+            self.assertIsNone(db.session.get(models.AuthSubjectAdmin, 6))
+            self.assertEqual(db.session.get(models.AuthSubjectAdmin, 4).email, 'ren@gmail.com')
+            self.assertEqual(db.session.get(models.AuthSubjectAdmin, 5).email, 'ren@gmail.com')
+            self.assertEqual(db.session.get(models.ApprovedAdmin, 1).active, 1)
+            user = db.session.get(models.User, 1)
+            self.assertIsNone(lc.controller(user))
+            self.assertEqual(reading.assignments(user.id, active_only=True), [])
+            audits = f.h.Interaction.query.filter(f.h.Interaction.id > last_event).all()
+            self.assertEqual({r.activity_slug for r in audits},
+                             {'controller_appointment_ended', 'reading_engagement_ended'})
+            self.assertTrue(all(r.user_id == 1 and r.workshop_session_id == 'reading-engagement-2' for r in audits))
+            retired = next(r for r in audits if r.activity_slug == 'controller_appointment_ended')
+            self.assertEqual(json.loads(retired.response_data)['retired_grant_id'], 6)
+
+        self.assert_platform_bridge(response.location)
+        san.get('/logout')
+        self.assert_platform_bridge(self.login(san, 'san@gmail.com').location)
+        self.assertEqual(san.get('/sace/reading').status_code, 403)
+        self.assertEqual(san.post('/sace/provisioning/generate_code').status_code, 403)
+        self.assertEqual(san.post('/sace/provisioning/engagement/end',
+                                 data={'status': 'revoked', 'reason': reason}).status_code, 403)
+        self.assertIn(b'SACE Control Centre', r_client.get('/sace/provisioning').data)
+        self.assertIn(b'Auditor Board', auditor.get('/sace/reading').data)
+        self.assertEqual(auditor.get('/sace/provisioning/lifecycle').status_code, 403)
+        self.assertEqual(r_client.post('/sace/provisioning/appointments/2/end',
+            data={'status': 'revoked', 'reason': 'Wrong engagement'}).status_code, 404)
+        self.assertEqual(before, protected_snapshot())
 
     def test_routing_spv_uses_real_subject_placeholder(self):
         from flask import url_for

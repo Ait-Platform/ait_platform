@@ -1,8 +1,8 @@
 {% extends "shared/ait_certificate_layout.html" %}
 {% block document_title_meta %}HOME endorsement examination certification{% endblock %}
 {% block document_title %}Endorsement examination certification{% endblock %}
-{% block programme_name %}HOME ? Hands-On Math Education{% endblock %}
-{% block extra_css %}<style>body { height: auto; } .footer { position: relative; margin-top: 30px; }</style>{% endblock %}
+{% block programme_name %}HOME &mdash; Hands-On Math Education{% endblock %}
+{% block extra_css %}<style>body { height: auto; } .footer { position: relative; margin-top: 30px; } @media screen { body { max-width: 800px; margin: 20px auto; padding: 30px; border: 4px solid #0033a1; background: white; box-sizing: border-box; } }</style>{% endblock %}
 {% block learner_name %}{{ snapshot.auditor.name }} ({{ snapshot.auditor.email }}){% endblock %}
 {% block issue_date %}{{ snapshot.certified_at }}{% endblock %}
 {% block certificate_number %}{{ digest }}{% endblock %}

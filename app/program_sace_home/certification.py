@@ -77,7 +77,9 @@ def create(row):
         'provider': {'id': provider.id, 'name': provider.name, 'email': provider.email},
         'certified_at': now().isoformat(), 'items': examined}
     digest = content.digest(snapshot)
-    html = render_template('program_sace_home/certification_snapshot.html', snapshot=snapshot, digest=digest)
+    from app.utils.branding import get_logo_data_uri, get_seal_data_uri
+    html = render_template('program_sace_home/certification_snapshot.html', snapshot=snapshot, digest=digest,
+        logo_path=get_logo_data_uri(), seal_path=get_seal_data_uri())
     return s.record(row, 'endorsement_certification', 'certified', {'schema': SCHEMA,
         'snapshot': snapshot, 'snapshot_sha256': digest, 'html': html,
         'html_sha256': hashlib.sha256(html.encode('utf-8')).hexdigest()})

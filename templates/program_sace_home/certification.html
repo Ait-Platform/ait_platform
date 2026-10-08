@@ -1,6 +1,6 @@
 {% extends "program_sace_home/frame.html" %}
 {% block actions %}
-<div class="flex flex-col items-end gap-3">
+<div class="flex flex-wrap justify-end items-center gap-3">
 <form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 <button class="home-button" name="action" value="email">Email certification to myself</button></form>
 <form method="post" action="{{ url_for('home_sace_bp.completion', assignment_id=row.id) }}">

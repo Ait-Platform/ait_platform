@@ -476,6 +476,29 @@ class HomeExamination(unittest.TestCase):
                 self.assertTrue(item['evidence_ids'])
             self.assertNotIn('assessment_id',snapshot)
 
+    def test_standard_endorsement_certificate_branding_and_controls(self):
+        import base64
+        from app.program_sace_home import certification as cert
+        logo='data:image/png;base64,'+base64.b64encode(b'fixture-logo').decode()
+        seal='data:image/png;base64,'+base64.b64encode(b'fixture-seal').decode()
+        self.examine_ten()
+        with patch('app.utils.branding.get_logo_data_uri',return_value=logo), patch('app.utils.branding.get_seal_data_uri',return_value=seal):
+            page=self.auditor.get(self.base+'/certification')
+        self.assertEqual(page.status_code,200)
+        self.assertIn(b'flex flex-wrap justify-end items-center gap-3',page.data)
+        with self.app.app_context():
+            evidence=cert.saved(db.session.get(HomeAssignment,self.aid))
+            html=evidence.details['html']
+            self.assertIn('src="'+logo+'"',html)
+            self.assertIn('src="'+seal+'"',html)
+            for marker in ('Archoney Institute of Technology','document-title','details-table','comp-table','auth-signature','Endorsement examination certification','Provider','border: 4px solid #0033a1'):
+                self.assertIn(marker,html)
+            frozen=dict(evidence.details)
+        with patch('app.utils.branding.get_logo_data_uri',side_effect=AssertionError('Frozen certificate must not rerender')):
+            self.assertEqual(self.auditor.get(self.base+'/certification').status_code,200)
+        with self.app.app_context():
+            self.assertEqual(cert.saved(db.session.get(HomeAssignment,self.aid)).details,frozen)
+
     def test_each_submitted_item_independently_keeps_certification_locked(self):
         self.examine_ten()
         for kind in list(self.board())[:10]:

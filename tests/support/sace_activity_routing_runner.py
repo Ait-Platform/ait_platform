@@ -678,6 +678,7 @@ class ActivityRouting(f.HomeFoundation):
         self.assertNotIn(b'SACE controller:',selector.data)
         self.assertNotIn(b'/sace/provisioning',selector.data)
         self.assertIn(b'Auditor Board',self.client.get('/sace/reading').data)
+        self.assertIn(b'href="/sace/activities">Back</a>',self.client.get('/sace/reading').data)
         self.assertEqual(self.client.get('/sace/provisioning').location,'/sace/reading')
         self.assertEqual(self.client.post('/sace/provisioning/generate_code').status_code,403)
         with self.app.app_context():

@@ -51,6 +51,14 @@ class ActivityRouting(f.HomeFoundation):
     def setUpClass(cls):
         super().setUpClass()
 
+        # URL-building targets for the real platform Bridge admin branch.
+        for path, endpoint in (('/admin/', 'admin_bp.index'),
+                ('/admin/subject/<subject>', 'admin_bp.subject_dashboard'),
+                ('/general/', 'general_bp.index'),
+                ('/spv/admin/', 'spv_admin_bp.spv_dashboard')):
+            if endpoint not in cls.app.view_functions:
+                cls.app.add_url_rule(path, endpoint=endpoint, view_func=lambda **kwargs: 'Admin destination')
+
         @cls.app.get('/sace/test-third')
         @login_required
         def test_third_entry():
@@ -139,6 +147,187 @@ class ActivityRouting(f.HomeFoundation):
         self.assertNotIn(b'HOME Control Centre', response.data)
         self.assertNotIn(b'HOME Auditor Board', response.data)
         self.assertEqual(self.client.get('/sace/dashboard', follow_redirects=True).status_code, 200)
+
+    def approve_platform_admin(self):
+        with self.app.app_context():
+            db.session.execute(text("INSERT INTO auth_approved_admin (email, active) VALUES (:email, 1)"),
+                               {'email': EMAIL})
+            db.session.commit()
+
+    def authority_snapshot(self):
+        with self.app.app_context():
+            return tuple(tuple(db.session.execute(text(
+                'SELECT row_to_json(t)::text FROM ' + name + ' t ORDER BY 1')).scalars())
+                for name in ('auth_subject_admin', 'sace_reading_engagement',
+                    'sace_reading_controller_appointment', 'sace_reading_assignment_context',
+                    'sace_workshop_interactions', 'sace_home_controller_appointment',
+                    'sace_home_assignment', 'sace_home_evidence'))
+
+    def assert_platform_bridge(self, path='/bridge'):
+        from flask import template_rendered
+        rendered = []
+        def capture(sender, template, context, **kwargs):
+            rendered.append((template.name, context))
+        with template_rendered.connected_to(capture, self.app):
+            page = self.client.get(path, follow_redirects=True)
+        self.assertEqual(page.status_code, 200)
+        self.assertEqual(page.request.path, '/bridge')
+        self.assertLessEqual(len(page.history), 1)
+        self.assertNotIn(b'Choose SACE Activity', page.data)
+        name, context = rendered[-1]
+        self.assertEqual(name, 'auth/bridge_dashboard.html')
+        self.assertTrue(context['platform_admin_bridge'])
+        with self.app.app_context():
+            expected = {s.slug for s in f.h.auth_models.AuthSubject.query.filter_by(is_active=1)
+                        if not s.is_hidden_on_bridge}
+        self.assertEqual({s['slug'] for s in context['subjects']}, expected | {'spv'})
+        for tile in context['subjects']:
+            self.assertEqual(tile['access_level'], 'admin')
+            if tile['slug'] not in ('admin_general', 'staff'):
+                self.assertIn(tile['name'].encode(), page.data)
+        return page
+
+    def test_routing_platform_reading_r_login_exit_and_reentry(self):
+        import re
+        from app.program_sace.lifecycle import controller
+        self.officials('R', None)
+        self.approve_platform_admin()
+        with self.app.app_context():
+            models = f.h.auth_models
+            db.session.add(models.AuthSubject(id=903, slug='budget', name='Budget', is_active=1))
+            db.session.add(models.AuthSubject(id=904, slug='hidden-test', name='Hidden test',
+                                             is_active=1, is_hidden_on_bridge=True))
+            db.session.add(models.AuthSubject(id=905, slug='inactive-test', name='Inactive test', is_active=0))
+            db.session.commit()
+            appointment_id = controller(models.User.query.filter_by(email=EMAIL).one()).id
+        before = self.authority_snapshot()
+        counts = self.counts()
+        login = self.login(self.client, EMAIL)
+        self.assertEqual(login.location, '/dashboard')
+        self.assert_platform_bridge(login.location)
+        self.assert_platform_bridge('/dashboard')
+        self.assert_platform_bridge()
+        self.assertEqual(counts, self.counts())
+        result = self.client.get('/sace/dashboard', follow_redirects=True)
+        self.assertEqual(result.request.path, '/sace/provisioning')
+        self.assertIn(b'SACE Control Centre', result.data)
+        exit_link = re.search(rb'<a href="([^"]+)"[^>]*>\s*<i[^>]*></i> Exit', result.data)
+        self.assertIsNotNone(exit_link)
+        self.assertEqual(exit_link.group(1), b'/bridge')
+        self.assert_platform_bridge(exit_link.group(1).decode())
+        result = self.client.get('/sace/dashboard', follow_redirects=True)
+        self.assertIn(b'SACE Control Centre', result.data)
+        with self.app.app_context():
+            appointment = controller(models.User.query.filter_by(email=EMAIL).one())
+            self.assertEqual(appointment.id, appointment_id)
+            self.assertEqual(appointment.status, 'active')
+        self.assertEqual(before, self.authority_snapshot())
+        self.assertEqual(counts, self.counts())
+        self.client.get('/logout')
+        self.assertEqual(self.login(self.client, EMAIL, '/sace/dashboard').location, '/sace/provisioning')
+
+    def test_routing_platform_residual_continuations_do_not_capture(self):
+        self.officials('R', 'R')
+        self.approve_platform_admin()
+        self.third()
+        with self.app.app_context():
+            uid = f.h.auth_models.User.query.filter_by(email=EMAIL).one().id
+        before = self.authority_snapshot()
+        for target in (None, '/dashboard', '/bridge'):
+            self.client.get('/logout')
+            # A genuine accepted Reading provisioning continuation, plus a
+            # validated third activity continuation and residual HOME state.
+            f.h.AccessJourneys.pending_r(self, self.client)
+            with self.client.session_transaction() as state:
+                state['test_third_continuation'] = {'user_id': uid, 'expires_at': time.time()+900}
+                state[home_intent.KEY] = {'kind': 'join', 'expires_at': time.time()+900,
+                                         'pending_hash': home.digest('residual')}
+                state['sace_home_pending_code'] = 'residual'
+            response = self.login(self.client, EMAIL, target)
+            self.assertEqual(response.location, target or '/dashboard')
+            self.assert_platform_bridge(response.location)
+            self.assert_platform_bridge('/dashboard')
+            self.assert_platform_bridge()
+        self.assertEqual(before, self.authority_snapshot())
+        self.assertEqual(self.client.get('/sace/home/', follow_redirects=True).request.path, '/sace/home/control')
+
+    def test_routing_platform_valid_home_continuation_does_not_capture(self):
+        self.officials('R', None)
+        self.approve_platform_admin()
+        saved = self.client
+        self.client = self.app.test_client()
+        try:
+            self.provision_home('home-provider@example.test')
+            code = self.code_home()
+        finally:
+            self.client = saved
+        for target in (None, '/dashboard', '/bridge'):
+            self.client.get('/logout')
+            self.assertEqual(self.client.post('/sace/home/join', data={'code': code}).location,
+                             '/sace/home/pledge')
+            self.client.post('/sace/home/pledge', data={'accept': 'yes'})
+            # Genuine, current consent-backed HOME intent. Explicit platform
+            # next URLs may discard it under HOME's existing abandonment rule.
+            with self.client.session_transaction() as state:
+                self.assertIn(home_intent.KEY, state)
+                self.assertIn('sace_home_pledge_auditor', state)
+            before = self.authority_snapshot()
+            response = self.login(self.client, EMAIL, target)
+            self.assertEqual(response.location, target or '/dashboard')
+            if target is None:
+                with self.client.session_transaction() as state:
+                    self.assertIn(home_intent.KEY, state)
+            self.assert_platform_bridge(response.location)
+            self.assertEqual(before, self.authority_snapshot())
+
+    def test_routing_platform_reading_a_keeps_operational_authority(self):
+        self.officials('A', 'R')
+        self.approve_platform_admin()
+        before = self.authority_snapshot()
+        self.assert_platform_bridge(self.login(self.client, EMAIL).location)
+        self.assertEqual(self.client.get('/sace/dashboard', follow_redirects=True).request.path, '/sace/reading')
+        self.assertEqual(self.client.get('/sace/home/', follow_redirects=True).request.path, '/sace/home/control')
+        self.assertEqual(before, self.authority_snapshot())
+
+    def test_routing_subject_admin_and_session_flags_are_not_platform_identity(self):
+        self.officials('R', None)
+        with self.app.app_context():
+            db.session.add(f.h.auth_models.AuthSubjectAdmin(subject_id=44, email=EMAIL))
+            db.session.commit()
+        self.assertEqual(self.login(self.client, EMAIL).location, '/sace/provisioning')
+        with self.client.session_transaction() as state:
+            state['is_admin'] = True
+            state['role'] = 'admin'
+        for path in ('/dashboard', '/bridge'):
+            self.assertEqual(self.client.get(path).location, '/sace/provisioning')
+        import re
+        result = self.client.get('/sace/provisioning')
+        self.assertRegex(result.data, rb'<a href="/"[^>]*>\s*<i[^>]*></i> Exit')
+
+    def test_routing_central_management_does_not_begin_operational_onboarding(self):
+        self.officials(None, None)
+        self.approve_platform_admin()
+        self.login(self.client, EMAIL)
+        before = self.authority_snapshot()
+        counts = self.counts()
+        for path in ('/admin/security/sace-management', '/admin/security/sace-management?program=home'):
+            result = self.client.get(path)
+            self.assertEqual(result.status_code, 200)
+            self.assertNotIn(b'Open SACE Provisioning', result.data)
+            self.assertNotIn(b'href="/sace/provisioning', result.data)
+            with self.client.session_transaction() as state:
+                self.assertNotIn(access.PROVISIONING_KEY, state)
+                self.assertNotIn(home_intent.KEY, state)
+            self.assertEqual(before, self.authority_snapshot())
+            self.assertEqual(counts, self.counts())
+        self.assertEqual(self.client.get('/sace/provisioning').status_code, 200)
+        with self.client.session_transaction() as state:
+            self.assertIn(access.PROVISIONING_KEY, state)
+        # Database-approved platform identity does not prohibit deliberate
+        # legitimate operational provisioning through its dedicated entry.
+        self.client.get('/logout')
+        f.h.AccessJourneys.provision(self, self.client, EMAIL, existing=True)
+        self.assertIn(b'SACE Control Centre', self.client.get('/sace/provisioning').data)
 
     def test_routing_reading_r_home_r(self):
         self.matrix('R', 'R')

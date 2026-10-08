@@ -1281,6 +1281,8 @@ def admin_login_shortcut():
 
 @auth_bp.route("/dashboard")
 def bridge_dashboard():
+    if current_user.is_authenticated and check_admin(current_user.email):
+        return redirect(url_for('bridge_bp.bridge'))
     from app.sace_activity import resolve_response
     activity_response = resolve_response()
     if activity_response is not None:

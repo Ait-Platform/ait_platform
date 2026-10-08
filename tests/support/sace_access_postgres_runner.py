@@ -106,12 +106,15 @@ from app.auth.forms import LoginForm
 from app.services.users import _ensure_or_create_user_from_session
 auth_views = view_module("app.auth.routes", "app/auth/routes.py",
     dict(env, auth_bp=auth_bp, User=auth_models.User, AuthSubject=auth_models.AuthSubject,
+         ApprovedAdmin=auth_models.ApprovedAdmin,
          LoginForm=LoginForm, generate_password_hash=generate_password_hash,
          check_password_hash=check_password_hash,
          _ensure_or_create_user_from_session=_ensure_or_create_user_from_session),
-    {"register", "register_decision", "login", "logout", "_save_reg_ctx", "dashboard_info", "bridge_dashboard"})
+    {"register", "register_decision", "login", "logout", "_save_reg_ctx", "dashboard_info", "bridge_dashboard", "check_admin", "get_all_subjects"})
 bridge_bp = Blueprint("bridge_bp", __name__)
-view_module("isolated_bridge_routes", "app/bridge/routes.py", dict(env, bridge_bp=bridge_bp), {"bridge_dashboard"})
+view_module("isolated_bridge_routes", "app/bridge/routes.py",
+            dict(env, bridge_bp=bridge_bp, check_admin=auth_views.check_admin,
+                 get_all_subjects=auth_views.get_all_subjects), {"bridge_dashboard"})
 program_bp = Blueprint("program_bp", __name__)
 view_module("isolated_program_routes", "app/program.py", dict(env, program_bp=program_bp), {"program_entry"})
 from app.utils.roles import is_admin

@@ -33,7 +33,8 @@ def bridge_dashboard():
     # … continue with admin/learner path logic unchanged
 
     # --- Admin path ---
-    if check_admin(user.email):
+    platform_admin = check_admin(user.email)
+    if platform_admin:
         for subj in get_all_subjects():
             if getattr(subj, 'is_hidden_on_bridge', False):
                 continue
@@ -197,7 +198,8 @@ def bridge_dashboard():
                         "href": url_for("modes_bp.modes_checkpoint_route", subject_slug=crm_subj.slug)
                     })
 
-    return render_template("auth/bridge_dashboard.html", user=user, subjects=tiles)
+    return render_template("auth/bridge_dashboard.html", user=user, subjects=tiles,
+                           platform_admin_bridge=platform_admin)
 
 def handle_lifelong_paid_enrollment(user, subj):
     enrollment = UserEnrollment.query.filter_by(user_id=user.id, subject_id=subj.id).first()

@@ -38,7 +38,7 @@
     {% for s in subjects %}
       {% if s.slug not in ['admin_general', 'staff'] %}
       {% set is_admin    = (s.access_level == 'admin') %}
-      {% if not (is_admin and s.slug != 'admin') %}
+      {% if platform_admin_bridge or not (is_admin and s.slug != 'admin') %}
       {% set is_enrolled = (s.access_level == 'enrolled') %}
       {% set is_locked   = (s.access_level == 'locked') %}
       {% set color_bar   = subject_colors.get(s.slug, 'bg-slate-600') %}

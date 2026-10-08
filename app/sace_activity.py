@@ -78,6 +78,11 @@ def resolve_response(target=None, subject=None):
     conflicting_context = any(a.recognizes(local_path(target), subject) for a in adapters)
     if not conflicting_context and target and local_path(target) not in ('/dashboard', '/bridge'):
         return None
+    # Platform identity wins only at a context-free platform entry. Explicit
+    # activity entry above retains its own authority and continuation guards.
+    from app.auth.routes import check_admin
+    if not conflicting_context and check_admin(current_user.email):
+        return None
     continuations = [] if conflicting_context else [(a, a.continuation(None)) for a in adapters]
     valid = [(a, destination) for a, destination in continuations if destination]
     if len(valid) == 1:

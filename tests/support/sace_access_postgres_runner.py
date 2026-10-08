@@ -110,7 +110,7 @@ auth_views = view_module("app.auth.routes", "app/auth/routes.py",
          LoginForm=LoginForm, generate_password_hash=generate_password_hash,
          check_password_hash=check_password_hash,
          _ensure_or_create_user_from_session=_ensure_or_create_user_from_session),
-    {"register", "register_decision", "login", "logout", "_save_reg_ctx", "dashboard_info", "bridge_dashboard", "check_admin", "get_all_subjects"})
+    {"register", "register_decision", "login", "logout", "_save_reg_ctx", "dashboard_info", "bridge_dashboard", "choose_sace_activity", "check_admin", "get_all_subjects"})
 bridge_bp = Blueprint("bridge_bp", __name__)
 view_module("isolated_bridge_routes", "app/bridge/routes.py",
             dict(env, bridge_bp=bridge_bp, check_admin=auth_views.check_admin,

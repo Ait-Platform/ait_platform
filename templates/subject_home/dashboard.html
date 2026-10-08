@@ -313,9 +313,7 @@
               </tr>
           {% endfor %}
 
-          {% if home_auditor %}
-          <tr><td colspan="3" class="px-6 py-4"><a class="home-button" href="{{ url_for('home_sace_bp.material', assignment_id=home_auditor.id, kind='final_assessment') }}">Examine submitted Final Assessment material</a></td></tr>
-          {% else %}
+          {% if not home_auditor %}
           <!-- Final Exam Section -->
           <tr class="hover:bg-slate-50 transition-colors border-t-2 border-gray-200">
               <td class="px-6 py-4">

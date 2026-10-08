@@ -21,6 +21,7 @@
                     <span class="text-lg text-slate-600">Provider Activity: I Learn to Read English Using the LITRE Method</span>
                 </h1>
             </div>
+            {% if provisioning_complete %}<a href="{{ url_for('auth_bp.choose_sace_activity') }}" class="px-5 py-2.5 bg-slate-100 text-slate-700 hover:bg-slate-200 font-bold rounded-lg border border-slate-200 ml-4">Back to Choose SACE Activity</a>{% endif %}
             <a href="{{ exit_url }}" class="px-5 py-2.5 bg-slate-100 text-slate-700 hover:bg-slate-200 font-bold rounded-lg transition border border-slate-200 shadow-sm flex items-center ml-4">
                 <i class="fas fa-sign-out-alt mr-2"></i> Exit
             </a>

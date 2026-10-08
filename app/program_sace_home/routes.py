@@ -154,7 +154,7 @@ def control():
     assignments = (HomeAssignment.query.join(HomeInvitation)
         .filter(HomeInvitation.appointment_id == actor.id).order_by(HomeAssignment.id.desc()).all())
     return page("control.html", "HOME Control Centre", invitations=invitations,
-        assignments=assignments, engagement=db.session.get(lc.Engagement, actor.engagement_id), back=url_for("home_sace_bp.entry"))
+        assignments=assignments, engagement=db.session.get(lc.Engagement, actor.engagement_id), back=url_for("auth_bp.choose_sace_activity"))
 
 
 @home_sace_bp.post("/control/codes")
@@ -335,8 +335,11 @@ def material(assignment_id, kind):
                 return redirect(url_for('home_sace_bp.board', assignment_id=row.id))
             context.record(row, kind, 'opened', {'evidence_sha256': identity})
             db.session.commit()
+            from app.models.home import HomeChapter
+            assessment_images = ({c.chapter_number: c.image_filename for c in HomeChapter.query
+                .filter(HomeChapter.chapter_number.between(21, 30)).all()} if kind == 'final_assessment' else {})
             return page('evidence_status.html', ex.FUNCTIONAL_ITEMS[kind], row=row, kind=kind,
-                snapshot=snapshot, identity=identity,
+                snapshot=snapshot, identity=identity, assessment_images=assessment_images,
                 back=url_for('home_sace_bp.board', assignment_id=row.id))
         if kind in {'assessment', 'monitoring'}:
             abort(410, description='Use the separate HOME workshop evaluation items on the Auditor Board.')

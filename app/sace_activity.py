@@ -53,8 +53,13 @@ def explicit_activity(target=None, subject=None):
 
 
 def choose(authorised):
+    from app.program_sace import access as reading_access
+    from app.program_sace_home import service as home_service
+    identifiers = {a.identifier for a in authorised}
+    controller = (('reading' in identifiers and reading_access.is_controller())
+        or ('home' in identifiers and bool(home_service.controller())))
     response = current_app.make_response(render_template('sace/choose_activity.html',
-        activities=[dict(identifier=a.identifier, name=a.display_name, destination=a.entry())
+        controller=controller, activities=[dict(identifier=a.identifier, name=a.display_name, destination=a.entry())
                     for a in authorised]))
     response.headers['Cache-Control'] = 'private, no-store'
     return response

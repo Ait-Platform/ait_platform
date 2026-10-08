@@ -20,6 +20,5 @@
     {% if home_exam_chapter <= 10 %}<button class="mt-3 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-700" name="action" value="teacher_examined">Teacher Approved / Examined - Next</button>{% endif %}
   </form>
   {% endif %}
-  <a class="mt-3 inline-block text-blue-800 underline" href="{{ url_for('home_sace_bp.material', assignment_id=home_auditor.id, kind='final_assessment') }}">Examine submitted Final Assessment material</a>
 </section>
 {% endif %}

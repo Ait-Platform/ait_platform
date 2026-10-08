@@ -1,4 +1,9 @@
 {% extends "program_sace_home/frame.html" %}
+{% block actions %}
+{% if kind == 'final_assessment' %}<form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<input type="hidden" name="evidence_sha256" value="{{ identity }}">
+<button class="home-button">Examined &mdash; return to Auditor Board</button></form>{% endif %}
+{% endblock %}
 {% block home_content %}
 <p class="mb-4">Examine this material submitted by the provider for HOME endorsement. Taking tests, answering workshop questions and completing study activities are not required.</p>
 {% if kind == 'experience' %}
@@ -6,12 +11,21 @@
 <ul>{% for chapter in snapshot.chapters %}<li class="mb-3"><strong>{{ chapter.number }}. {{ chapter.title }}</strong><p>{{ chapter.objective or '' }}</p></li>{% endfor %}</ul>
 {% elif kind == 'final_assessment' %}
 <p class="mb-4">{{ snapshot.policy }}</p>
-<ul>{% for question in snapshot.questions %}<li class="mb-4">Chapter {{ question.chapter }}: {{ question.question }}<ul>{% for option in question.options %}<li>{{ option.text }}</li>{% endfor %}</ul></li>{% else %}<li>Final-assessment questions are not available.</li>{% endfor %}</ul>
+<div aria-label="Submitted HOME Final Assessment">
+{% for question in snapshot.questions %}
+<section class="bg-gray-50 border border-gray-200 rounded-xl p-6 md:p-8 mb-8 shadow-sm" aria-labelledby="assessment-question-{{ question.id }}">
+{% if assessment_images.get(question.chapter) %}<div class="mb-6 bg-white p-4 rounded-lg shadow-sm border border-gray-100"><img src="{{ url_for('static', filename='images/' + assessment_images[question.chapter]) }}" class="max-w-md w-full h-auto mx-auto rounded" alt="Chapter {{ question.chapter }} reference image"></div>{% endif %}
+<p class="text-sm text-slate-500 mb-2">Chapter {{ question.chapter }}</p>
+<h3 id="assessment-question-{{ question.id }}" class="text-xl font-semibold text-gray-800 mb-6"><span class="text-purple-600 mr-2">{{ loop.index }}.</span> {{ question.question }}</h3>
+<ul class="space-y-3" aria-label="Answer options">{% for option in question.options %}<li class="flex items-center p-3 rounded-lg border border-gray-200 bg-white"><span aria-hidden="true" class="w-5 h-5 shrink-0 border border-gray-300 mr-4 {{ 'rounded' if question.type == 'multi_select' else 'rounded-full' }}"></span><span class="text-gray-700 font-medium">{{ option.text }}</span></li>{% else %}<li class="text-slate-600">No answer options are recorded for this question.</li>{% endfor %}</ul>
+</section>
+{% else %}<p>Final-assessment questions are not available.</p>{% endfor %}
+</div>
 {% else %}
 <p class="mb-4">Response choices in the submitted instrument: {{ snapshot.choices|join(', ') }}.</p>
 <ul>{% for key, question in snapshot.questions %}<li class="mb-3">{{ question }}</li>{% endfor %}</ul>
 {% endif %}
-<form method="post" class="mt-6"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+{% if kind != 'final_assessment' %}<form method="post" class="mt-6"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 <input type="hidden" name="evidence_sha256" value="{{ identity }}">
-<button class="home-button">Examined &mdash; return to Auditor Board</button></form>
+<button class="home-button">Examined &mdash; return to Auditor Board</button></form>{% endif %}
 {% endblock %}

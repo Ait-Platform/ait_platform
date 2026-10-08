@@ -2459,3 +2459,13 @@ def franchise_register_students():
     db.session.commit()
     flash(f"Successfully registered and granted access to {registered_count} students!", "success")
     return redirect(url_for("auth_bp.franchise_dashboard"))
+
+
+@auth_bp.get('/sace/activities')
+@login_required
+def choose_sace_activity():
+    from app.sace_activity import activities, choose
+    authorised = [activity for activity in activities() if activity.has_authority()]
+    if not authorised:
+        abort(403)
+    return choose(authorised)

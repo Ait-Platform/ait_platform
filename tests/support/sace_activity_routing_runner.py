@@ -115,6 +115,10 @@ class ActivityRouting(f.HomeFoundation):
 
     def matrix(self, reading_role, home_role):
         self.officials(reading_role, home_role)
+        with self.app.app_context():
+            identity = f.h.auth_models.User.query.filter_by(email=EMAIL).one()
+            identity.name = 'Appointed Controller Example'
+            db.session.commit()
         before = self.counts()
         page = self.login(self.client, EMAIL)
         self.assertEqual(page.status_code, 200)
@@ -126,6 +130,23 @@ class ActivityRouting(f.HomeFoundation):
         for path in ('/dashboard', '/bridge'):
             self.assertIn(b'Choose SACE Activity', self.client.get(path).data)
         self.assertEqual(before, self.counts())
+        self.assertIn(b'Appointed Controller Example', page.data)
+        if reading_role == home_role == 'R':
+            self.assertIn(b'SACE controller: Appointed Controller Example', page.data)
+            authority = self.authority_snapshot()
+            for control in ('/sace/provisioning', '/sace/home/control'):
+                centre = self.client.get(control)
+                self.assertEqual(centre.status_code, 200)
+                self.assertIn(b'href="/sace/activities"', centre.data)
+                self.assertIn(b'Back to Choose SACE Activity', centre.data)
+                chooser = self.client.get('/sace/activities')
+                self.assertEqual(chooser.status_code, 200)
+                self.assertIn(b'SACE controller: Appointed Controller Example', chooser.data)
+                self.assertIn(b'href="/sace/provisioning"', chooser.data)
+                self.assertIn(b'href="/sace/home/control"', chooser.data)
+            self.assertEqual(authority, self.authority_snapshot())
+        elif reading_role == home_role == 'A':
+            self.assertNotIn(b'SACE controller:', page.data)
         for target, expected in (('/sace/home/', '/sace/home/control' if home_role == 'R' else '/sace/home/'),
                 ('/sace/dashboard', '/sace/provisioning' if reading_role == 'R' else '/sace/reading')):
             self.client.get('/logout')
@@ -515,6 +536,14 @@ class ActivityRouting(f.HomeFoundation):
         self.client.get('/logout')
         f.h.AccessJourneys.provision(self, self.client, EMAIL, existing=True)
         self.assertIn(b'SACE Control Centre', self.client.get('/sace/provisioning').data)
+
+    def test_routing_explicit_activity_bridge_requires_existing_authority(self):
+        self.assertEqual(self.client.get('/sace/activities').status_code,302)
+        self.user(EMAIL)
+        self.login(self.client,EMAIL)
+        before=self.counts()
+        self.assertEqual(self.client.get('/sace/activities').status_code,403)
+        self.assertEqual(before,self.counts())
 
     def test_routing_reading_r_home_r(self):
         self.matrix('R', 'R')

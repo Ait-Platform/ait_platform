@@ -1,12 +1,17 @@
 {% extends "layout.html" %}
 {% block title %}Choose SACE Activity{% endblock %}
+{% block flashes %}{% endblock %}
 {% block content %}
-<main class="max-w-xl mx-auto p-8">
-<h1 class="text-2xl font-bold mb-6">Choose SACE Activity</h1>
-<div class="flex flex-wrap gap-4">
-{% for activity in activities %}
-<a class="rounded bg-indigo-600 text-white px-5 py-3" data-activity="{{ activity.identifier }}" href="{{ activity.destination }}">{{ activity.name }}</a>
-{% endfor %}
+<main class="max-w-3xl mx-auto bg-white rounded-xl border border-slate-200 shadow mt-6 overflow-hidden">
+<div class="h-2 bg-indigo-600"></div>
+<div class="p-6 md:p-8">
+{% include "partials/flash_messages.html" %}
+<h1 class="text-2xl font-bold text-slate-800 mb-3">Choose SACE Activity</h1>
+<p class="text-lg font-semibold text-indigo-900 mb-2">{{ 'SACE controller' if controller else 'Signed in' }}: {{ current_user.name }}</p>
+<p class="text-slate-600 mb-6">Choose the activity you are appointed to access. Each activity has its own Control Centre or Auditor Board.</p>
+<div class="grid gap-4 md:grid-cols-2">
+{% for activity in activities %}<a class="rounded-xl border border-indigo-200 bg-indigo-50 text-indigo-900 p-5 font-semibold hover:bg-indigo-100" data-activity="{{ activity.identifier }}" href="{{ activity.destination }}">{{ activity.name }}</a>{% endfor %}
+</div>
 </div>
 </main>
 {% endblock %}

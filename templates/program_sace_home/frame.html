@@ -7,7 +7,7 @@
   <div class="p-6 md:p-8">
     <div class="flex items-center justify-between gap-4 mb-5">
       <div><h1 class="text-3xl font-bold text-blue-900">{{ title }}</h1><p class="text-slate-600 mt-1">HOME &mdash; Hands-On Math Education</p></div>
-      {% if back %}<a class="home-button" href="{{ back }}">Back</a>{% endif %}
+      {% if back %}<a class="home-button" href="{{ back }}">{% block back_label %}Back{% endblock %}</a>{% endif %}
     </div>
     <div class="flex justify-end gap-3 mb-6">{% block actions %}{% endblock %}</div>
     {% for category, message in get_flashed_messages(with_categories=true) %}<p class="p-3 mb-4 bg-blue-50 rounded">{{ message }}</p>{% endfor %}

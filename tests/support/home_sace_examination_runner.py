@@ -379,6 +379,49 @@ class HomeExamination(unittest.TestCase):
         if include_final:
             self.assertEqual(self.examine_status('final_assessment').status_code,302)
 
+    def test_final_assessment_material_layout_and_top_confirmation(self):
+        with self.app.app_context():
+            chapter=db.session.get(HomeChapter,21);chapter.image_filename='home-reference-fixture.png'
+            db.session.get(HomeQuestion,22).question_type='multi_select'
+            db.session.commit()
+            snapshot=ex.evidence_status(db.session.get(HomeAssignment,self.aid),'final_assessment')
+            identity=ex.content.digest(snapshot)
+        page=self.auditor.get(self.base+'/materials/final_assessment')
+        self.assertEqual(page.status_code,200)
+        self.assertEqual(page.data.count(b'Examined &mdash; return to Auditor Board'),1)
+        back=page.data.index(b'>Back</a>')
+        confirm=page.data.index(b'Examined &mdash; return to Auditor Board')
+        questions=page.data.index(b'aria-label="Submitted HOME Final Assessment"')
+        self.assertLess(back,confirm);self.assertLess(confirm,questions)
+        self.assertIn(b'flex justify-end',page.data[back:confirm])
+        self.assertIn(b'/static/images/home-reference-fixture.png',page.data)
+        self.assertIn(b'bg-gray-50 border border-gray-200 rounded-xl p-6',page.data)
+        self.assertIn(b'aria-label="Answer options"',page.data)
+        for question in snapshot['questions']:
+            self.assertIn(question['question'].encode(),page.data)
+            for option in question['options']:self.assertIn(option['text'].encode(),page.data)
+        self.assertNotRegex(page.data,rb'type="(?:radio|checkbox)"|name="q[0-9]+"|Submit Final Assessment')
+        self.assertIn(identity.encode(),page.data)
+        self.assertEqual(self.auditor.post(self.base+'/materials/final_assessment',
+            data={'evidence_sha256':identity}).status_code,302)
+        self.assertTrue(self.board()['final_assessment']['examined'])
+        with self.app.app_context():self.assertEqual(HomeFinalAssessment.query.count(),0)
+
+    def test_learning_journey_ends_at_board_without_duplicate_final_assessment(self):
+        dashboard=self.auditor.get(self.url('/dashboard/learner'))
+        self.assertEqual(dashboard.status_code,200)
+        self.assertNotIn(b'/materials/final_assessment',dashboard.data)
+        self.assertNotIn(b'/final_exam',dashboard.data)
+        for number in range(1,31):
+            destination=self.advance(number)
+        self.assertEqual(destination.location,self.base+'/board')
+        material=self.auditor.get(self.base+'/materials/final_assessment')
+        self.assertIn(b'Original question 21',material.data)
+        self.assertIn(b'Correct',material.data);self.assertIn(b'Wrong',material.data)
+        with self.app.app_context():
+            self.assertEqual(HomeFinalAssessment.query.count(),0)
+            self.assertEqual(HomeQuestion.query.count(),20)
+
     def test_certification_locked_until_all_ten_examined_without_study_or_result(self):
         expected=['summary','application_form_1','application_form_2','timetable',
             'participant_manual','facilitator_manual','experience','facilitator_evaluation',

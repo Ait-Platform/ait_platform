@@ -63,7 +63,7 @@ def advance(row, number, action):
         record(row, f'participant_chapter:{number}', 'examined',
             {'chapter_number': number, 'action': action})
     db.session.commit()
-    return url_for('home_bp.chapter_page', chapter_num=number + 1) if number < 30 else url_for('home_sace_bp.material', assignment_id=row.id, kind='final_assessment')
+    return url_for('home_bp.chapter_page', chapter_num=number + 1) if number < 30 else url_for('home_sace_bp.board', assignment_id=row.id)
 
 
 def assessment(row, assessment_id=None):

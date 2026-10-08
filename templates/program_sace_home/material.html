@@ -1,4 +1,7 @@
 {% extends "program_sace_home/frame.html" %}
+{% block actions %}
+{% if version and row.status == 'active' %}<form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="version_id" value="{{ version.id }}"><button class="home-button">Examined</button></form>{% endif %}
+{% endblock %}
 {% block home_content %}
 {% if version %}<p class="mb-4">HOME document version {{ version.version }}</p>
 <p id="document-status" role="status">Loading controlled HOME material.</p>
@@ -14,6 +17,5 @@ async function show(){if(busy)return;busy=true;try{const p=await pdf.getPage(ind
 document.getElementById('previous').onclick=()=>{if(!busy&&index>1){index--;show();}};document.getElementById('next').onclick=()=>{if(!busy&&index<pdf.numPages){index++;show();}};await show();
 }catch(e){status.textContent='Material could not be loaded. No examination has been recorded.';}})();
 </script>
-{% if row.status == 'active' %}<form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="version_id" value="{{ version.id }}"><button class="home-button">Examined</button></form>{% endif %}
 {% else %}<p>This item is awaiting an approved HOME document version. It cannot be marked examined until the material is available.</p>{% endif %}
 {% endblock %}

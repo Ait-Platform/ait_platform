@@ -1,0 +1,21 @@
+{% extends "layout.html" %}
+{% block title %}SPV - AIT{% endblock %}
+{% block flashes %}{% endblock %}
+{% block content %}
+<div class="max-w-3xl mx-auto rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+  <div class="h-2 bg-slate-600"></div>
+  <div class="p-6">
+    <div class="flex items-center justify-between gap-4">
+      <h1 class="text-2xl font-bold text-slate-800">SPV</h1>
+      <a href="{{ url_for('bridge_bp.bridge') }}" class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Back to Bridge</a>
+    </div>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for category, message in messages %}
+        <p class="mt-4 rounded-lg border border-slate-200 p-3 text-slate-700">{{ message }}</p>
+      {% endfor %}
+    {% endwith %}
+    <h2 class="mt-4 text-lg font-medium text-slate-700">Special Purpose Vehicle</h2>
+    <p class="mt-3 text-slate-600">This programme is being prepared for reintroduction.</p>
+  </div>
+</div>
+{% endblock %}

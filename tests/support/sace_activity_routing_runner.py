@@ -53,9 +53,7 @@ class ActivityRouting(f.HomeFoundation):
 
         # URL-building targets for the real platform Bridge admin branch.
         for path, endpoint in (('/admin/', 'admin_bp.index'),
-                ('/admin/subject/<subject>', 'admin_bp.subject_dashboard'),
-                ('/general/', 'general_bp.index'),
-                ('/spv/admin/', 'spv_admin_bp.spv_dashboard')):
+                ('/general/', 'general_bp.index')):
             if endpoint not in cls.app.view_functions:
                 cls.app.add_url_rule(path, endpoint=endpoint, view_func=lambda **kwargs: 'Admin destination')
 
@@ -181,11 +179,63 @@ class ActivityRouting(f.HomeFoundation):
             expected = {s.slug for s in f.h.auth_models.AuthSubject.query.filter_by(is_active=1)
                         if not s.is_hidden_on_bridge}
         self.assertEqual({s['slug'] for s in context['subjects']}, expected | {'spv'})
+        spv_tiles = [s for s in context['subjects'] if s['slug'] == 'spv']
+        self.assertEqual(len(spv_tiles), 1)
+        self.assertEqual(spv_tiles[0]['name'], 'SPV')
+        self.assertEqual(spv_tiles[0]['subject']['description'], 'Special Purpose Vehicle')
+        self.assertEqual(spv_tiles[0]['href'], '/admin/spv/')
         for tile in context['subjects']:
             self.assertEqual(tile['access_level'], 'admin')
             if tile['slug'] not in ('admin_general', 'staff'):
                 self.assertIn(tile['name'].encode(), page.data)
         return page
+
+    def test_routing_spv_uses_real_subject_placeholder(self):
+        from flask import url_for
+        from sqlalchemy import event
+        self.officials('R', None)
+        self.approve_platform_admin()
+        self.assert_platform_bridge(self.login(self.client, EMAIL).location)
+        before = self.authority_snapshot()
+        counts = self.counts()
+        self.assertNotIn('spv_admin_bp.spv_dashboard', self.app.view_functions)
+        with self.app.test_request_context():
+            self.assertEqual(url_for('admin_bp.subject_dashboard', subject='spv'), '/admin/spv/')
+        # Legacy SPV metadata must neither duplicate the tile nor choose its destination.
+        for visibility in (None, False, True):
+            with self.subTest(hidden=visibility):
+                with self.app.app_context():
+                    if visibility is not None:
+                        subject = f.h.auth_models.AuthSubject.query.filter_by(slug='spv').first()
+                        if subject is None:
+                            subject = f.h.auth_models.AuthSubject(id=906, slug='spv', name='Legacy SPV',
+                                is_active=1, start_endpoint='spv_bp.about')
+                            db.session.add(subject)
+                        subject.is_hidden_on_bridge = visibility
+                        db.session.commit()
+                page = self.assert_platform_bridge()
+                self.assertEqual(page.data.count(b'Special Purpose Vehicle'), 1)
+                self.assertIn(b'href="/admin/spv/"', page.data)
+                # The real handler must not inspect the generic subject/start endpoint.
+                def reject_subject_query(conn, cursor, statement, parameters, context, executemany):
+                    if 'auth_subject' in statement.lower():
+                        raise AssertionError('SPV placeholder queried generic subject metadata')
+                with self.app.app_context():
+                    engine = db.engine
+                event.listen(engine, 'before_cursor_execute', reject_subject_query)
+                try:
+                    result = self.client.get('/admin/spv/')
+                finally:
+                    event.remove(engine, 'before_cursor_execute', reject_subject_query)
+                self.assertEqual(result.status_code, 200)
+                for text in (b'SPV', b'Special Purpose Vehicle',
+                        b'This programme is being prepared for reintroduction.', b'Back to Bridge'):
+                    self.assertIn(text, result.data)
+                self.assertIn(b'href="/bridge"', result.data)
+                self.assertNotIn(b'<form', result.data)
+                self.assertNotRegex(result.data.lower(), rb'investment|checkout|paystack|payment|pledge|spv_bp|spv_admin_bp')
+                self.assertEqual(before, self.authority_snapshot())
+                self.assertEqual(counts, self.counts())
 
     def test_routing_platform_reading_r_login_exit_and_reentry(self):
         import re

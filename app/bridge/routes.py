@@ -36,7 +36,7 @@ def bridge_dashboard():
     platform_admin = check_admin(user.email)
     if platform_admin:
         for subj in get_all_subjects():
-            if getattr(subj, 'is_hidden_on_bridge', False):
+            if subj.slug == 'spv' or getattr(subj, 'is_hidden_on_bridge', False):
                 continue
 
             if subj.slug == "admin_general":
@@ -54,17 +54,18 @@ def bridge_dashboard():
                 "href": href
             })
             
-        # Append synthetic tile for SPV (since it's not in the AuthSubject table)
+        # Keep one SPV placeholder tile, independent of legacy subject metadata.
         tiles.append({
             "subject": {
-                "name": "SPV Precinct Investments",
-                "description": "Almond Dale redevelopment and shareholder participation platform.",
+                "name": "SPV",
+                "description": "Special Purpose Vehicle",
                 "slug": "spv"
             },
             "slug": "spv",
-            "name": "SPV Precinct Investments",
+            "name": "SPV",
             "access_level": "admin",
-            "href": url_for("spv_admin_bp.spv_dashboard")
+            "message": "Special Purpose Vehicle",
+            "href": url_for("admin_bp.subject_dashboard", subject="spv")
         })
 
         session.update({

@@ -117,6 +117,9 @@ view_module("isolated_bridge_routes", "app/bridge/routes.py",
                  get_all_subjects=auth_views.get_all_subjects), {"bridge_dashboard"})
 program_bp = Blueprint("program_bp", __name__)
 view_module("isolated_program_routes", "app/program.py", dict(env, program_bp=program_bp), {"program_entry"})
+from jinja2.exceptions import TemplateNotFound
+view_module("isolated_subject_dashboard", "app/admin/programs/routes.py",
+            dict(env, admin_bp=admin_bp, TemplateNotFound=TemplateNotFound), {"subject_dashboard"})
 from app.utils.roles import is_admin
 view_module("isolated_admin_guard", "app/admin/__init__.py",
             dict(env, admin_bp=admin_bp, is_admin=is_admin), {"_guard"})

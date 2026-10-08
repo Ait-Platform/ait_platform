@@ -14,8 +14,10 @@ def programs_index():
 
 @admin_bp.route("/<subject>/", endpoint="subject_dashboard")
 def subject_dashboard(subject: str):
-    from app.models.auth import AuthSubject
     subject = (subject or "").lower().strip()
+    if subject == "spv":
+        return render_template("admin/programs/spv/dashboard.html")
+    from app.models.auth import AuthSubject
     
     subj_obj = AuthSubject.query.filter_by(slug=subject, is_active=1).first()
     if not subj_obj:

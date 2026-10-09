@@ -122,13 +122,25 @@ def reading_certification():
         certificate_view=True, sace_admin=sace_admin,
         logo_path=get_logo_data_uri(), seal_path=get_seal_data_uri())
     if request.method == 'POST':
-        from app.utils.mailer import send_email
-        snapshot = details['snapshot']
-        body = '\n'.join([snapshot['statement'], 'Auditor: ' + snapshot['auditor']['name'],
-            'Engagement: ' + snapshot['engagement_reference'], 'Certified: ' + snapshot['certified_at'],
-            *[str(n) + '. ' + item['title'] for n, item in enumerate(snapshot['items'], 1)],
-            'Snapshot SHA-256: ' + details['snapshot_sha256']])
-        if not send_email('Reading endorsement examination certification', [recipient], body, html=certificate_html):
+        from app.utils.pdf_render import html_to_pdf_bytes
+        from app.utils.mailer import send_standard_report_email
+        try:
+            pdf_bytes = html_to_pdf_bytes(certificate_html, base_url=request.host_url, orientation='Portrait')
+            if not pdf_bytes or not pdf_bytes.startswith(b'%PDF-'):
+                raise RuntimeError('Certificate PDF generation returned no valid PDF.')
+        except Exception:
+            current_app.logger.exception('Reading certification PDF generation failed')
+            abort(503, description='Certificate PDF generation failed. No email was sent.')
+        try:
+            accepted = send_standard_report_email(to_email=recipient,
+                subject='Reading endorsement examination certification',
+                pdf_url=url_for('sace_bp.reading_certification', _external=True), pdf_bytes=pdf_bytes,
+                filename='Reading_Endorsement_Examination_Certification.pdf',
+                user_name=details['snapshot']['auditor']['name'])
+        except Exception:
+            current_app.logger.exception('Reading certification email delivery failed')
+            accepted = False
+        if not accepted:
             abort(503, description='Certification email could not be sent. You can retry.')
         flash('Your endorsement examination certification has been emailed successfully.', 'success')
         return redirect(url_for('sace_bp.reading_certification'))

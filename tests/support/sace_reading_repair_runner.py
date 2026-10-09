@@ -275,7 +275,8 @@ class ReadingRepair(unittest.TestCase):
         with ExitStack() as stack:
             smtp=stack.enter_context(patch('smtplib.SMTP',side_effect=AssertionError('SMTP forbidden')))
             ssl=stack.enter_context(patch('smtplib.SMTP_SSL',side_effect=AssertionError('SMTP forbidden')))
-            sender=stack.enter_context(patch('app.utils.mailer.send_email',return_value=True))
+            sender=stack.enter_context(patch('app.utils.mailer.send_standard_report_email',return_value=True))
+            renderer=stack.enter_context(patch('app.utils.pdf_render.html_to_pdf_bytes',return_value=b'%PDF-mocked'))
             stack.enter_context(patch.object(self.app,'root_path',str(ROOT/'app')))
             self.assertEqual(self.client.post(target,data={'action':'email'}).status_code,409)
             with self.app.app_context():
@@ -287,7 +288,15 @@ class ReadingRepair(unittest.TestCase):
                 self.assertEqual(self.client.post(target,data={'action':'email'}).status_code,400)
             self.assertIn(b'name="action" value="email">Email</button>',page.data)
             self.assertIn(b'>Auditor Flow</h1>',page.data)
-            self.assertIn(b'bg-white border border-slate-200 rounded-xl',page.data)
+            self.assertIn(b'bg-white rounded-xl shadow-lg border border-slate-200',page.data)
+            self.assertIn(b'h-2 bg-indigo-700',page.data)
+            header=re.search(rb'<div class="flex items-center justify-between gap-4">(.*?)</div>',page.data).group(1)
+            self.assertIn(b'>Auditor Flow</h1>',header)
+            self.assertIn(b'href="/sace/reading">Back to Auditor Board',header)
+            form=re.search(rb'<form.*?</form>',page.data,re.S).group(0)
+            self.assertNotIn(b'Back to Auditor Board',form)
+            self.assertIn(b'justify-end',form)
+            self.assertIn(b'required autofocus',form)
             self.assertLess(page.data.index(b'name="action" value="email"'),page.data.index(b'<iframe'))
             self.assertEqual(page.data.count(b'name="action" value="email"'),1)
             self.assertIn(b'type="email" id="certification-email" name="email" value="a@example.test" required',page.data)
@@ -306,10 +315,23 @@ class ReadingRepair(unittest.TestCase):
             self.assertEqual(response.status_code,302)
             self.assertEqual(response.location,target)
             args,kwargs=sender.call_args
-            self.assertEqual(args[0],'Reading endorsement examination certification')
-            self.assertEqual(args[1],['Delivery@example.com'])
-            self.assertIn('Snapshot SHA-256:',args[2])
-            self.assertEqual(kwargs,{'html':displayed})
+            self.assertEqual(args,())
+            self.assertEqual(kwargs['subject'],'Reading endorsement examination certification')
+            self.assertEqual(kwargs['to_email'],'Delivery@example.com')
+            self.assertEqual(kwargs['filename'],'Reading_Endorsement_Examination_Certification.pdf')
+            self.assertEqual(kwargs['pdf_bytes'],b'%PDF-mocked')
+            self.assertTrue(kwargs['pdf_url'].endswith(target))
+            self.assertNotIn('html',kwargs)
+            renderer.assert_called_once_with(displayed,base_url='http://localhost/',orientation='Portrait')
+            sender.reset_mock()
+            for result in (None,b'',b'not a PDF'):
+                renderer.return_value=result
+                self.assertEqual(self.client.post(target,data={'action':'email','email':'delivery@example.com'}).status_code,503)
+                sender.assert_not_called()
+            renderer.side_effect=RuntimeError('Test-only PDF failure')
+            self.assertEqual(self.client.post(target,data={'action':'email','email':'delivery@example.com'}).status_code,503)
+            sender.assert_not_called()
+            renderer.side_effect=None;renderer.return_value=b'%PDF-mocked'
             sender.return_value=False
             self.assertEqual(self.client.post(target,data={'action':'email','email':'delivery@example.com'}).status_code,503)
             sender.reset_mock()
@@ -327,6 +349,107 @@ class ReadingRepair(unittest.TestCase):
                 self.assertEqual(after,before)
                 self.assertEqual(db.session.execute(text('SELECT row_to_json(u)::text FROM "user" u ORDER BY id')).all(),users_before)
             smtp.assert_not_called();ssl.assert_not_called()
+
+    def test_reading_certification_actual_pdf_attachment_is_one_a4_page(self):
+        import fitz
+        import os
+        from email.parser import BytesParser
+        from email.policy import default
+        from PIL import Image
+        from contextlib import ExitStack
+        from sqlalchemy import text
+        from app.extensions import mail
+        from app.utils.pdf_render import html_to_pdf_bytes
+        from app.program_sace import certification as cert
+        self.recorded_board_statuses()
+        target='/sace/reading/certification'
+        with ExitStack() as stack:
+            smtp=stack.enter_context(patch('smtplib.SMTP',side_effect=AssertionError('SMTP forbidden')))
+            ssl=stack.enter_context(patch('smtplib.SMTP_SSL',side_effect=AssertionError('SMTP forbidden')))
+            sent=stack.enter_context(patch.object(mail,'send'))
+            renderer=stack.enter_context(patch('app.utils.pdf_render.html_to_pdf_bytes',wraps=html_to_pdf_bytes))
+            stack.enter_context(patch.object(self.app,'root_path',str(ROOT/'app')))
+            stack.enter_context(patch.dict(self.app.config,{'MAIL_DEFAULT_SENDER':('AIT Support','ait@example.com')}))
+            mail.init_app(self.app)
+            page=self.client.get(target)
+            self.assertEqual(page.status_code,200)
+            displayed=unescape(re.search(rb'srcdoc="([^"]+)"',page.data).group(1).decode())
+            with self.app.app_context():
+                evidence=cert.saved(db.session.get(h.Interaction,self.assignment_id))
+                frozen=flow.payload(evidence)
+                assignment=db.session.get(h.Interaction,self.assignment_id)
+                admin=db.session.get(h.auth_models.User,assignment.user_id)
+                admin_name=admin.name
+                before=db.session.execute(text('SELECT id,row_to_json(e)::text FROM sace_workshop_interactions e ORDER BY id')).all()
+                users_before=db.session.execute(text('SELECT row_to_json(u)::text FROM "user" u ORDER BY id')).all()
+            response=self.client.post(target,data={'action':'email','email':' Delivery@EXAMPLE.COM '})
+            self.assertEqual(response.status_code,302)
+            renderer.assert_called_once_with(displayed,base_url='http://localhost/',orientation='Portrait')
+            sent.assert_called_once()
+            message=sent.call_args.args[0]
+            self.assertEqual(message.recipients,['Delivery@example.com'])
+            self.assertEqual(message.sender,'AIT Support <ait@example.com>')
+            self.assertIsNone(message.html)
+            self.assertIn('Your assessment report is ready.',message.body)
+            self.assertIn("We've also attached the PDF",message.body)
+            self.assertEqual(len(message.attachments),1)
+            attachment=message.attachments[0]
+            self.assertEqual(attachment.filename,'Reading_Endorsement_Examination_Certification.pdf')
+            self.assertEqual(attachment.content_type,'application/pdf')
+            self.assertTrue(attachment.data.startswith(b'%PDF-'))
+            with self.app.app_context():
+                mime=BytesParser(policy=default).parsebytes(message.as_bytes())
+            parts=list(mime.iter_attachments())
+            self.assertEqual(len(parts),1)
+            self.assertEqual(parts[0].get_content_type(),'application/pdf')
+            self.assertEqual(parts[0].get_filename(),'Reading_Endorsement_Examination_Certification.pdf')
+            self.assertEqual(parts[0].get_payload(decode=True),attachment.data)
+            with fitz.open(stream=attachment.data,filetype='pdf') as pdf:
+                self.assertEqual(len(pdf),1)
+                page=pdf[0]
+                self.assertAlmostEqual(page.rect.width,595.28,delta=1)
+                self.assertAlmostEqual(page.rect.height,841.89,delta=1)
+                text_content=' '.join(page.get_text().split())
+                for expected in ('Endorsement examination certification','Reading endorsement material examined',
+                                 'SACE ADMIN','r@example.test','a@example.test','reading-test'):
+                    self.assertIn(expected.lower(),text_content.lower())
+                self.assertIn(frozen['snapshot_sha256'],re.sub(r'\s+','',page.get_text()))
+                self.assertIn(frozen['snapshot']['certified_at'],re.sub(r'\s+','',page.get_text()))
+                self.assertIn(frozen['snapshot']['auditor']['name'],text_content)
+                self.assertIn(admin_name,text_content)
+                self.assertIn('assignment '+str(self.assignment_id),text_content)
+                for item in frozen['snapshot']['items']:
+                    title='Workshop Online Interaction & Assessment' if item['kind']=='demo_complete' else item['title']
+                    self.assertIn(title,text_content)
+                    self.assertIn(item['examined_at'][:10],text_content)
+                self.assertNotIn('Steps 32',text_content)
+                self.assertNotIn('Completion Certificate',text_content)
+                images={(image[2],image[3]) for image in page.get_images(full=True)}
+                for filename in ('ait_logo.png','ait_seal.png'):
+                    with Image.open(ROOT/'static/branding'/filename) as approved:
+                        self.assertIn(approved.size,images)
+                if os.environ.get('AIT_CERTIFICATE_VISUAL_DIR'):
+                    directory=Path(os.environ['AIT_CERTIFICATE_VISUAL_DIR']);directory.mkdir(parents=True,exist_ok=True)
+                    page.get_pixmap(matrix=fitz.Matrix(1.5,1.5)).save(str(directory/'reading-email-certificate.png'))
+            with self.app.app_context():
+                self.assertEqual(db.session.execute(text('SELECT id,row_to_json(e)::text FROM sace_workshop_interactions e ORDER BY id')).all(),before)
+                self.assertEqual(db.session.execute(text('SELECT row_to_json(u)::text FROM "user" u ORDER BY id')).all(),users_before)
+            smtp.assert_not_called();ssl.assert_not_called()
+
+    def test_reading_certification_production_pdf_engine_is_one_a4_page(self):
+        import os
+        from contextlib import ExitStack
+        from types import SimpleNamespace
+        from app.utils import pdf_render
+        with ExitStack() as stack:
+            # Exercise the production WeasyPrint branch without permitting a fallback.
+            gtk=Path('C:/Program Files/GTK3-Runtime Win64/bin')
+            if os.name=='nt' and gtk.is_dir():
+                stack.enter_context(os.add_dll_directory(str(gtk)))
+                stack.enter_context(patch.dict(os.environ,{'PATH':str(gtk)+os.pathsep+os.environ['PATH']}))
+            stack.enter_context(patch.object(pdf_render,'sys',SimpleNamespace(platform='linux')))
+            stack.enter_context(patch.object(pdf_render,'_find_wkhtml',side_effect=AssertionError('WeasyPrint must render')))
+            self.test_reading_certification_actual_pdf_attachment_is_one_a4_page()
 
     def test_reading_presentation_statuses_and_completion_guard(self):
         from flask import render_template
@@ -393,7 +516,7 @@ class ReadingRepair(unittest.TestCase):
                 db.session.get(h.Interaction,eid).response_data=h.json.dumps(changed);db.session.commit()
             with patch('app.utils.branding.get_logo_data_uri',side_effect=AssertionError('Reject before presentation')):
                 self.assertEqual(self.client.get(target).status_code,409,field)
-                with patch('app.utils.mailer.send_email') as sender:
+                with patch('app.utils.mailer.send_standard_report_email') as sender:
                     self.assertEqual(self.client.post(target,data={'action':'email'}).status_code,409,field)
                     sender.assert_not_called()
             self.assertEqual(self.client.get('/sace/reading').status_code,409,field)

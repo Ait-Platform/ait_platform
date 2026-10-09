@@ -91,8 +91,17 @@ def reading_certification():
         evidence = cert.create(row, current_user)
         db.session.commit()
     details = flow.payload(evidence)
+    from app.models.auth import User
+    from .lifecycle import AssignmentContext, Appointment
+    sace_admin = (db.session.query(User.name, User.email)
+        .join(Appointment, Appointment.user_id == User.id)
+        .join(AssignmentContext, AssignmentContext.issuing_appointment_id == Appointment.id)
+        .filter(AssignmentContext.invitation_event_id == row.id,
+            AssignmentContext.engagement_id == details['snapshot']['engagement_id'],
+            Appointment.engagement_id == AssignmentContext.engagement_id).one())
     certificate_html = render_template('program_sace/certification_snapshot.html',
         snapshot=details['snapshot'], digest=details['snapshot_sha256'],
+        certificate_view=True, sace_admin=sace_admin,
         logo_path=get_logo_data_uri(), seal_path=get_seal_data_uri())
     return render_template('program_sace/endorsement_certification.html', certificate_html=certificate_html)
 

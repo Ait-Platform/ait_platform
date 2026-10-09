@@ -192,7 +192,21 @@ class ReadingRepair(unittest.TestCase):
         from app.utils.branding import get_logo_data_uri,get_seal_data_uri
         ids=self.recorded_board_statuses()
         target='/sace/reading/certification'
+        other_id=self.user('other-reading-admin@example.test')
         with self.app.app_context():
+            from app.program_sace import lifecycle as lc
+            issuer=db.session.get(h.auth_models.User,db.session.get(h.Interaction,self.assignment_id).user_id)
+            issuer.name='Reading Issuing Admin'
+            admin_display=issuer.name+' ('+issuer.email+')'
+            issuing=lc.Appointment.query.one()
+            grant=h.auth_models.AuthSubjectAdmin(subject_id=900,email='other-reading-admin@example.test')
+            db.session.add(grant);db.session.flush()
+            provision=lc.event(other_id,'controller_provisioned',{'fixture':True})
+            pledge=lc.event(other_id,'admin_patent_pledge',{'fixture':True})
+            db.session.add(lc.Appointment(user_id=other_id,engagement_id=issuing.engagement_id,
+                operational_grant_id=grant.id,grant_id_at_issue=grant.id,grant_subject_id=900,
+                grant_email_at_issue=grant.email,provisioning_event_id=provision.id,pledge_event_id=pledge.id))
+            db.session.commit()
             before=db.session.execute(text('SELECT id,row_to_json(e)::text FROM sace_workshop_interactions e ORDER BY id')).all()
             state_before=db.session.get(h.Interaction,self.assignment_id).response_data
         with ExitStack() as stack:
@@ -203,7 +217,12 @@ class ReadingRepair(unittest.TestCase):
         self.assertEqual(response.status_code,200)
         displayed=unescape(re.search(rb'srcdoc="([^"]+)"',response.data).group(1).decode())
         self.assertEqual(displayed.count('<div class="document-title">'),1)
-        self.assertIn('<th>Provider</th><td colspan="3">SACE</td>',displayed)
+        admin_row=re.search(r'<th>SACE ADMIN</th><td colspan="3">(.*?)</td>',displayed).group(1)
+        self.assertEqual(unescape(admin_row),admin_display)
+        self.assertNotIn('other-reading-admin@example.test',admin_row)
+        self.assertIn('<th>Examined on</th>',displayed)
+        dates=re.findall(r'<tr><td>.*?</td><td>(.*?)</td></tr>',displayed,re.S)
+        self.assertEqual(len(dates),9)
         with self.app.app_context(),patch.object(self.app,'root_path',str(ROOT/'app')):
             evidence=cert.saved(db.session.get(h.Interaction,self.assignment_id))
             eid=evidence.id;frozen=copy.deepcopy(flow.payload(evidence));raw=evidence.response_data
@@ -211,10 +230,17 @@ class ReadingRepair(unittest.TestCase):
             self.assertEqual(frozen['html_sha256'],hashlib.sha256(frozen['html'].encode()).hexdigest())
             self.assertEqual([item['evidence_ids'][0] for item in frozen['snapshot']['items']],ids)
             self.assertEqual([item['kind'] for item in frozen['snapshot']['items']],[item[0] for item in cert.BOARD_ITEMS])
-            for item in frozen['snapshot']['items']:
-                self.assertTrue(item['title'] in unescape(displayed),item['title'])
-                self.assertTrue(item['examined_at'] in displayed,item['examined_at'])
-                self.assertIn(item['status'],displayed)
+            self.assertIn('<th>Provider</th><td colspan="3">SACE</td>',frozen['html'])
+            self.assertIn('<th>Recorded examination state</th>',frozen['html'])
+            self.assertIn('Steps 32–35',unescape(frozen['html']))
+            self.assertNotIn('Steps 32–35',unescape(displayed))
+            self.assertIn(frozen['snapshot_sha256'],displayed)
+            for item,date in zip(frozen['snapshot']['items'],dates):
+                title='Workshop Online Interaction & Assessment' if item['kind']=='demo_complete' else item['title']
+                self.assertTrue(title in unescape(displayed),title)
+                self.assertEqual(date,item['examined_at'][:10])
+                self.assertRegex(date,r'^\d{4}-\d{2}-\d{2}$')
+                self.assertTrue(item['examined_at'] in frozen['html'],item['examined_at'])
                 self.assertEqual(item['recorded_facts'],{'evidence':'existing Board status fixture'})
             for helper in (get_logo_data_uri,get_seal_data_uri):self.assertIn('src="'+helper()+'"',displayed)
             after=db.session.execute(text('SELECT id,row_to_json(e)::text FROM sace_workshop_interactions e ORDER BY id')).all()
@@ -231,11 +257,13 @@ class ReadingRepair(unittest.TestCase):
         self.assertEqual(anchors[-1],{'href':target,'text':'Certification'})
         self.assertNotIn(b'Workshop Certificate evidence',board.data)
         self.assertNotIn(b'Reading Course Certificate evidence',board.data)
+        self.assertIn('Workshop Online Interaction &amp; Assessment — Steps 32–35',board.data.decode())
         self.assertEqual(self.client.post(target).status_code,405)
         import os
         if os.environ.get('AIT_CERTIFICATE_VISUAL_DIR'):
             directory=Path(os.environ['AIT_CERTIFICATE_VISUAL_DIR']);directory.mkdir(parents=True,exist_ok=True)
             (directory/'reading-certification.html').write_text(displayed,encoding='utf-8')
+            (directory/'reading-evidence.json').write_text(h.json.dumps(frozen),encoding='utf-8')
             (directory/'reading-board.html').write_bytes(board.data)
 
     def test_reading_certification_rejects_tampering_and_conflicting_snapshots(self):

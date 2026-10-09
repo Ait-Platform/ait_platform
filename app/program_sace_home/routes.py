@@ -584,10 +584,22 @@ def certification(assignment_id):
         flash('Your endorsement examination certification has been emailed to you.', 'success')
         return redirect(url_for('home_sace_bp.certification', assignment_id=row.id))
     from app.utils.branding import get_logo_data_uri, get_seal_data_uri
+    from app.models.auth import User
+    from app.models.sace_home import HomeController
+    snapshot = evidence.details['snapshot']
+    sace_admin = (db.session.query(User.name, User.email)
+        .join(HomeController, HomeController.user_id == User.id)
+        .join(lc.Appointment, lc.Appointment.controller_id == HomeController.id)
+        .join(HomeInvitation, HomeInvitation.appointment_id == lc.Appointment.id)
+        .filter(HomeInvitation.id == row.invitation_id,
+            HomeInvitation.controller_id == HomeController.id,
+            lc.Appointment.id == snapshot['issuing_appointment_id'],
+            lc.Appointment.engagement_id == snapshot['engagement_id']).one())
     certificate_html = render_template(
         'program_sace_home/certification_snapshot.html',
         snapshot=evidence.details['snapshot'],
         digest=evidence.details['snapshot_sha256'],
+        certificate_view=True, sace_admin=sace_admin,
         logo_path=get_logo_data_uri(), seal_path=get_seal_data_uri())
     return page('certification.html', 'HOME endorsement examination certification', row=row,
         evidence=evidence, certificate_html=certificate_html,

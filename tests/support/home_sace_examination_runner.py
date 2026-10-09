@@ -522,6 +522,27 @@ class HomeExamination(unittest.TestCase):
             db.session.commit()
             eid=evidence.id
             frozen=copy.deepcopy(evidence.details)
+            from app.program_sace_home import lifecycle as lc
+            from app.models.auth import User
+            owner=db.session.get(HomeController,db.session.get(lc.Appointment,frozen['snapshot']['issuing_appointment_id']).controller_id)
+            admin=db.session.get(User,owner.user_id)
+            admin.name='HOME Issuing Admin'
+            admin_display=admin.name+' ('+admin.email+')'
+            other_id=self.user('other-home-admin@example.test')
+            from app.models.sace_home import HomeProvisioning,HomePledge
+            other_owner=HomeController(user_id=other_id)
+            grant=f.h.auth_models.AuthSubjectAdmin(subject_id=901,email='other-home-admin@example.test')
+            provision=HomeProvisioning(token_hash='c'*64,email=grant.email,issued_by='fixture',
+                expires_at=f.s.now()+timedelta(days=1))
+            db.session.add_all([other_owner,grant,provision]);db.session.flush()
+            pledge=HomePledge(user_id=other_id,role='controller',signature='Other HOME Admin',
+                version='fixture',text_hash='c'*64,provisioning_id=provision.id,accepted_at=f.s.now())
+            db.session.add(pledge);db.session.flush()
+            db.session.add(lc.Appointment(controller_id=other_owner.id,
+                engagement_id=frozen['snapshot']['engagement_id'],operational_grant_id=grant.id,
+                grant_id_at_issue=grant.id,grant_subject_id=901,grant_email_at_issue=grant.email,
+                provisioning_id=provision.id,pledge_id=pledge.id))
+            db.session.commit()
             def evidence_bytes():
                 return db.session.execute(text('SELECT row_to_json(e)::text FROM sace_home_evidence e ORDER BY id')).scalars().all()
             before=evidence_bytes()
@@ -535,18 +556,25 @@ class HomeExamination(unittest.TestCase):
             visual_dir=Path(os.environ['AIT_CERTIFICATE_VISUAL_DIR'])
             visual_dir.mkdir(parents=True,exist_ok=True)
             (visual_dir/'home.html').write_text(displayed,encoding='utf-8')
+            import json
+            (visual_dir/'home-evidence.json').write_text(json.dumps(frozen),encoding='utf-8')
         with self.app.app_context(), patch.object(self.app,'root_path',str(ROOT/'app')):
             self.assertIn('src="'+get_logo_data_uri()+'"',displayed)
             self.assertIn('src="'+get_seal_data_uri()+'"',displayed)
             for marker in ('Archoney Institute of Technology','auth-signature','Endorsement examination certification','border: 4px solid #0033a1',frozen['snapshot_sha256']):
                 self.assertIn(marker,displayed)
-            self.assertIn('<th>Provider</th><td colspan="3">SACE</td>',displayed)
-            self.assertNotIn(frozen['snapshot']['provider']['email'],displayed)
+            admin_row=re.search(r'<th>SACE ADMIN</th><td colspan="3">(.*?)</td>',displayed).group(1)
+            self.assertEqual(unescape(admin_row),admin_display)
+            self.assertNotIn('other-home-admin@example.test',admin_row)
+            self.assertIn('<th>Examined on</th>',displayed)
+            dates=re.findall(r'<tr><td>.*?</td><td>(.*?)</td></tr>',displayed,re.S)
+            self.assertEqual(len(dates),10)
             for value in (frozen['snapshot']['auditor']['name'],frozen['snapshot']['certified_at']):
                 self.assertIn(value,displayed)
-            for item in frozen['snapshot']['items']:
+            for item,date in zip(frozen['snapshot']['items'],dates):
                 self.assertIn(item['title'],displayed)
-                self.assertIn(item['examined_at'],displayed)
+                self.assertEqual(date,item['examined_at'][:10])
+                self.assertRegex(date,r'^\d{4}-\d{2}-\d{2}$')
             self.assertEqual(cert.saved(db.session.get(HomeAssignment,self.aid)).details,frozen)
             self.assertEqual(evidence_bytes(),before)
         for field in ('html','snapshot'):

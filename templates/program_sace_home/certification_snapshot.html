@@ -23,13 +23,13 @@ body { height: auto; }
 {% block issue_date %}{{ snapshot.certified_at }}{% endblock %}
 {% block certificate_number %}{{ digest }}{% endblock %}
 {% block extra_details %}
-<tr><th>Provider</th><td colspan="3">SACE</td></tr>
+<tr><th>{% if certificate_view|default(false) %}SACE ADMIN{% else %}Provider{% endif %}</th><td colspan="3">{% if certificate_view|default(false) %}{{ sace_admin.name }} ({{ sace_admin.email }}){% else %}SACE{% endif %}</td></tr>
 <tr><th>Engagement</th><td colspan="3">{{ snapshot.engagement_reference }}; assignment {{ snapshot.assignment_id }}</td></tr>
 {% endblock %}
 {% block achievement %}{{ snapshot.statement }}{% endblock %}
 {% block competencies %}
-<table class="comp-table"><thead><tr><th>Submitted material</th><th>Examination recorded</th></tr></thead><tbody>
-{% for item in snapshot['items'] %}<tr><td>{{ loop.index }}. {{ item.title }}{% if item.material.version %}; submitted version {{ item.material.version }}{% endif %}</td><td>Examined on {{ item.examined_at }}</td></tr>{% endfor %}
+<table class="comp-table"><thead><tr><th>Submitted material</th><th>{% if certificate_view|default(false) %}Examined on{% else %}Examination recorded{% endif %}</th></tr></thead><tbody>
+{% for item in snapshot['items'] %}<tr><td>{{ loop.index }}. {{ item.title }}{% if item.material.version %}; submitted version {{ item.material.version }}{% endif %}</td><td>{% if certificate_view|default(false) %}{{ item.examined_at[:10] }}{% else %}Examined on {{ item.examined_at }}{% endif %}</td></tr>{% endfor %}
 </tbody></table>
 {% endblock %}
 {% block overall_result %}Submitted endorsement material examined{% endblock %}

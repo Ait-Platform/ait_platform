@@ -8,7 +8,7 @@
 
 {% if eligible %}
 <p>You have completed the course examination and passed its separate assessment. View your actual certificate and send it to your registered email: {{ current_user.email }}.</p>
-<iframe title="Reading Course Certificate" class="w-full" style="height:650px" src="{{ url_for('sace_bp.certificate_document',kind='reading') }}"></iframe>
+<iframe title="Reading Course Certificate" class="w-full" style="height:1100px" sandbox srcdoc="{{ certificate_html|e }}"></iframe>
 <form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="bg-indigo-700 text-white rounded px-4 py-2">Email Reading certificate and return to Auditor Board</button></form>
 {% elif course_complete %}<p>Complete the separate Reading-course assessment before examining certificate evidence.</p><a class="underline text-indigo-700" href="{{ url_for('sace_bp.reading_assessment') }}">Examine Reading-course assessment</a>
 {% else %}<p>Examine all 18 course videos before the Reading-course assessment and certificate evidence.</p>{% endif %}

@@ -356,9 +356,43 @@ def results():
         if not evidence:
             abort(409, description="Use the Workshop Certificate evidence item on the Auditor Board.")
         return send_workshop_certificate()
+    certificate_html = certificate_presentation(row, 'workshop') if evidence else None
     db.session.commit()
     return render_template('program_sace/endorsement_results.html',
-        answers=flow.payload(event) if event else {}, eligible=eligible, evidence=evidence)
+        answers=flow.payload(event) if event else {}, eligible=eligible, evidence=evidence,
+        certificate_html=certificate_html)
+
+
+def certificate_presentation(row, kind):
+    """Present the existing eligible certificate without invoking a PDF viewer."""
+    from datetime import datetime, timezone
+    from app.utils.branding import get_logo_data_uri, get_seal_data_uri
+    if kind == 'workshop':
+        if not flow.workshop_passed(row):
+            abort(409, description="Complete Steps 32-34 and pass the Workshop Step 35 Post-Test first.")
+        template, prefix = 'program_sace/post_test/certificate_pdf.html', 'AIT-WS-'
+    elif kind == 'reading':
+        if not flow.course_complete(row) or not flow.step35_passed(row):
+            abort(409, description="Mark all 18 videos examined and pass the separate Reading-course assessment first.")
+        template, prefix = 'subject_reading/certificate.html', 'AIT-RD-'
+    else:
+        abort(404)
+    state = flow.payload(row)
+    cid = state.setdefault(kind + '_certificate_id', prefix + secrets.token_hex(6).upper())
+    completed_at = state.setdefault(kind + '_completed_at', datetime.now(timezone.utc).isoformat())
+    flow.save(row, state)
+    if isinstance(completed_at, str):
+        try:
+            completed_at = datetime.fromisoformat(completed_at)
+        except Exception:
+            completed_at = datetime.utcnow()
+    elif completed_at is None:
+        completed_at = datetime.utcnow()
+    completed_date = completed_at.strftime("%d %B %Y")
+    return render_template(template, learner_name=current_user.name,
+        completed_date=completed_date, certificate_id=cid, user_id=current_user.id,
+        answers=flow.payload(flow.latest(row, 'step34')) if kind == 'workshop' else None,
+        logo_path=get_logo_data_uri(), seal_path=get_seal_data_uri())
 
 
 def certificate_pdf(row, kind):
@@ -586,8 +620,10 @@ def reading_certificate():
             abort(409, description="Mark all 18 videos examined and pass the Reading-course assessment first.")
         cid, pdf = certificate_pdf(row, 'reading')
         return deliver_certificate(row, 'reading_certificate', cid, pdf)
+    certificate_html = certificate_presentation(row, 'reading') if eligible else None
+    db.session.commit()
     return render_template('program_sace/endorsement_reading_certificate.html',
-        eligible=eligible, course_complete=flow.course_complete(row))
+        eligible=eligible, course_complete=flow.course_complete(row), certificate_html=certificate_html)
 
 
 @sace_bp.route('/sace/reading/finish-evaluation', methods=['GET', 'POST'])

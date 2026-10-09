@@ -530,12 +530,19 @@ class HomeExamination(unittest.TestCase):
         self.assertEqual(response.status_code,200)
         displayed=unescape(re.search(rb'srcdoc="([^"]+)"',response.data).group(1).decode())
         self.assertNotIn(historical_html,displayed)
+        import os
+        if os.environ.get('AIT_CERTIFICATE_VISUAL_DIR'):
+            visual_dir=Path(os.environ['AIT_CERTIFICATE_VISUAL_DIR'])
+            visual_dir.mkdir(parents=True,exist_ok=True)
+            (visual_dir/'home.html').write_text(displayed,encoding='utf-8')
         with self.app.app_context(), patch.object(self.app,'root_path',str(ROOT/'app')):
             self.assertIn('src="'+get_logo_data_uri()+'"',displayed)
             self.assertIn('src="'+get_seal_data_uri()+'"',displayed)
             for marker in ('Archoney Institute of Technology','auth-signature','Endorsement examination certification','border: 4px solid #0033a1',frozen['snapshot_sha256']):
                 self.assertIn(marker,displayed)
-            for value in (frozen['snapshot']['auditor']['name'],frozen['snapshot']['provider']['name'],frozen['snapshot']['certified_at']):
+            self.assertIn('<th>Provider</th><td colspan="3">SACE</td>',displayed)
+            self.assertNotIn(frozen['snapshot']['provider']['email'],displayed)
+            for value in (frozen['snapshot']['auditor']['name'],frozen['snapshot']['certified_at']):
                 self.assertIn(value,displayed)
             for item in frozen['snapshot']['items']:
                 self.assertIn(item['title'],displayed)

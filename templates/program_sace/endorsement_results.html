@@ -10,7 +10,7 @@
 {% if evidence %}
 <h2 class="text-xl font-bold">Your Workshop Certificate</h2>
 <p>You have completed the workshop requirements. View your actual certificate and send it to your registered email: {{ current_user.email }}.</p>
-<iframe title="Workshop Certificate" class="w-full" style="height:650px" src="{{ url_for('sace_bp.certificate_document',kind='workshop') }}"></iframe>
+<iframe title="Workshop Certificate" class="w-full" style="height:1100px" sandbox srcdoc="{{ certificate_html|e }}"></iframe>
 <form method="post" action="{{ url_for('sace_bp.email_certificate') }}" class="space-y-4"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="bg-indigo-700 text-white rounded px-4 py-2">Email workshop certificate and return to Auditor Board</button></form>
 {% elif eligible %}<p>The Workshop Post-Test is complete. Return to the Auditor Board to examine Workshop Certificate evidence.</p>
 {% else %}<p>The Workshop Post-Test has not yet been passed. Return to the Auditor Board to resume the workshop.</p>{% endif %}

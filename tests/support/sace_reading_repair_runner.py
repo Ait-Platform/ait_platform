@@ -2,6 +2,8 @@
 import importlib.util
 from pathlib import Path
 import unittest
+import re
+from html import unescape
 from unittest.mock import patch
 from html.parser import HTMLParser
 
@@ -79,6 +81,27 @@ class ReadingRepair(unittest.TestCase):
             row = db.session.get(h.Interaction, self.assignment_id)
             event = flow.latest(row, slug)
             return flow.payload(event) if event else None
+
+    def certificate_html(self, page, kind):
+        from app.utils.branding import get_logo_data_uri, get_seal_data_uri
+        self.assertEqual(page.status_code,200)
+        self.assertIn(b' sandbox srcdoc=',page.data)
+        self.assertNotIn(b'src="/sace/reading/certificate-evidence/',page.data)
+        html=unescape(re.search(rb'srcdoc="([^"]+)"',page.data).group(1).decode())
+        with self.app.app_context(), patch.object(self.app,'root_path',str(ROOT/'app')):
+            self.assertIn('src="'+get_logo_data_uri()+'"',html)
+            self.assertIn('src="'+get_seal_data_uri()+'"',html)
+            state=flow.payload(db.session.get(h.Interaction,self.assignment_id))
+        self.assertIn(state[kind+'_certificate_id'],html)
+        self.assertIn(h.datetime.fromisoformat(state[kind+'_completed_at']).strftime('%d %B %Y'),html)
+        for marker in ('Archoney Institute of Technology','auth-signature','AIT Official Seal'):
+            self.assertIn(marker,html)
+        import os
+        if os.environ.get('AIT_CERTIFICATE_VISUAL_DIR'):
+            target=Path(os.environ['AIT_CERTIFICATE_VISUAL_DIR'])
+            target.mkdir(parents=True,exist_ok=True)
+            (target/(kind+'.html')).write_text(html,encoding='utf-8')
+        return html
 
     def step(self, number, **values):
         response = self.client.post("/sace/reading/demo/advance", json=dict(step=number, **values))
@@ -278,7 +301,12 @@ class ReadingRepair(unittest.TestCase):
             self.assertEqual(self.event('step34')['score'],75)  # Existing 70% pass rule.
             board=self.client.get('/sace/reading')
             link=next(a['href'] for a in Anchors(board.data,table_only=True).items if a['text']=='Workshop Certificate evidence')
-            page=self.client.get(link)
+            with patch.object(self.app,'root_path',str(ROOT/'app')):
+                page=self.client.get(link)
+            html=self.certificate_html(page,'workshop')
+            self.assertIn('Reading Workshop Certificate',html)
+            self.assertIn('Overall Result: 75%',html)
+            generate.assert_not_called()
             self.assertIn(b'Email workshop certificate',page.data)
             self.assertNotIn(b'SPECIMEN',page.data)
             result=self.client.get('/sace/reading/post_test/results')
@@ -289,6 +317,7 @@ class ReadingRepair(unittest.TestCase):
             with self.app.app_context():
                 self.assertEqual(db.session.get(h.auth_models.User,generate.call_args.args[3]).email,'a@example.test')
             cid=generate.call_args.args[0]
+            self.assertIn(cid,html)
             sender.assert_not_called()
             self.assertIsNone(self.event('workshop_certificate'))
             response=self.client.post('/sace/reading/certificate/email',data={'email':'someone-else@example.test'})
@@ -325,9 +354,16 @@ class ReadingRepair(unittest.TestCase):
             self.assertEqual(continuation.location,'/sace/reading/course/certificate')
             with patch.dict(self.app.config,{'AIT_READING_STEP35':dict(content,version='new-version')}):
                 self.assertEqual(self.client.post('/sace/reading/course/certificate').status_code,409)
-            self.assertIn(b'Email Reading certificate',self.client.get('/sace/reading/course/certificate').data)
+            with patch.object(self.app,'root_path',str(ROOT/'app')):
+                page=self.client.get('/sace/reading/course/certificate')
+            html=self.certificate_html(page,'reading')
+            self.assertIn('Completion Certificate',html)
+            self.assertIn('Lessons 1 to 18',html)
+            self.assertIn(b'Email Reading certificate',page.data)
+            generate.assert_not_called()
             self.assertEqual(self.client.get('/sace/reading/certificate-evidence/reading').data,b'%PDF-real-reading')
             cid=generate.call_args.args[0]
+            self.assertIn(cid,html)
             self.assertTrue(cid.startswith('AIT-RD-'))
             with self.app.app_context():
                 self.assertEqual(db.session.get(h.auth_models.User,generate.call_args.args[3]).email,'a@example.test')

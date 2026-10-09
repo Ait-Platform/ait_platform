@@ -11,7 +11,8 @@ from types import ModuleType
 import unittest
 from unittest.mock import Mock, patch
 
-from flask import Flask, current_app, render_template
+from flask import Flask, current_app, render_template, request
+from datetime import datetime
 from flask_mail import Mail
 import fitz
 
@@ -52,6 +53,21 @@ class SubmissionRepair(unittest.TestCase):
         self.assertTrue(pdf.startswith(b'%PDF-'))
         with fitz.open(stream=pdf, filetype='pdf') as document:
             self.assertIn('READING WORKSHOP CERTIFICATE', ''.join(p.get_text() for p in document))
+            self.assertGreaterEqual(len({i[0] for p in document for i in p.get_images(full=True)}), 2)
+
+    def test_actual_reading_course_pdf_generator_retains_original_images(self):
+        branding = load_source('course_branding', 'app/utils/branding.py')
+        renderer = load_source('course_renderer', 'app/utils/pdf_render.py')
+        tree = ast.parse((ROOT / 'app/subject_reading/routes.py').read_text(encoding='utf-8-sig'))
+        function = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == '_generate_certificate_pdf')
+        namespace = dict(datetime=datetime, render_template=render_template, current_app=current_app, request=request)
+        exec(compile(ast.Module(body=[function], type_ignores=[]), 'course-certificate', 'exec'), namespace)
+        app = Flask('course_pdf', root_path=str(ROOT / 'app'), template_folder=str(ROOT / 'templates'))
+        with patch.dict(sys.modules, {'app.utils.branding': branding, 'app.utils.pdf_render': renderer}), app.test_request_context('/certificate'), patch('smtplib.SMTP', side_effect=AssertionError('SMTP forbidden')), patch('smtplib.SMTP_SSL', side_effect=AssertionError('SMTP forbidden')):
+            pdf = namespace['_generate_certificate_pdf']('AIT-RD-LOCAL', 'Local Auditor', '2026-10-09T00:00:00')
+        self.assertTrue(pdf.startswith(b'%PDF-'))
+        with fitz.open(stream=pdf, filetype='pdf') as document:
+            self.assertIn('COMPLETION CERTIFICATE', ''.join(p.get_text() for p in document))
             self.assertGreaterEqual(len({i[0] for p in document for i in p.get_images(full=True)}), 2)
 
     def test_real_configuration_and_factory_mail_initialization_capture_dummy_password(self):

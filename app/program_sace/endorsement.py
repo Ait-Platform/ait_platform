@@ -152,18 +152,10 @@ def certificate_delivered(row, slug):
 
 
 def completion_requirements(row):
-    required = MAP_REQUIRED + ('map_complete', 'demo_complete', 'step31', 'step32', 'step33',
-        'workshop_certificate', 'reading_complete', 'reading_certificate', 'board_returned')
-    missing = [slug for slug in required if not latest(row, slug)]
-    for slug in ('workshop_certificate', 'reading_certificate'):
-        if slug not in missing and not certificate_delivered(row, slug):
-            missing.append(slug)
-    if not workshop_passed(row):
-        missing.append('step34_pass')
-    if not course_complete(row):
-        missing.append('18_reading_videos')
-    if not step35_passed(row):
-        missing.append('step35_pass')
+    from . import certification as cert
+    missing = [slug for slug, *_ in cert.BOARD_ITEMS if latest(row, slug) is None]
+    if cert.saved(row) is None:
+        missing.append(cert.SLUG)
     return missing
 
 

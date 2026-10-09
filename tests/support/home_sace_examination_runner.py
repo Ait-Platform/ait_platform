@@ -389,7 +389,7 @@ class HomeExamination(unittest.TestCase):
         page=self.auditor.get(self.base+'/materials/final_assessment')
         self.assertEqual(page.status_code,200)
         self.assertEqual(page.data.count(b'Examined &mdash; return to Auditor Board'),1)
-        back=page.data.index(b'>Back</a>')
+        back=page.data.index(b'>Back to Auditor Board</a>')
         confirm=page.data.index(b'Examined &mdash; return to Auditor Board')
         questions=page.data.index(b'aria-label="Submitted HOME Final Assessment"')
         self.assertLess(back,confirm);self.assertLess(confirm,questions)
@@ -604,6 +604,8 @@ class HomeExamination(unittest.TestCase):
                 db.session.commit()
             self.assertFalse(self.board()['certificate']['available'],kind)
             self.assertEqual(self.auditor.get(self.base+'/certification').status_code,409,kind)
+            self.assertEqual(self.auditor.get(self.base+'/completion').status_code,200,kind)
+            self.assertEqual(self.auditor.post(self.base+'/completion').status_code,409,kind)
             with self.app.app_context():
                 for eid in ids:db.session.get(HomeEvidence,eid).event='examined'
                 db.session.commit()
@@ -694,9 +696,39 @@ class HomeExamination(unittest.TestCase):
             self.assertEqual(self.auditor.post(target,data={'action':'email'}).status_code,403)
             send.assert_not_called()
 
+    def test_board_return_styling_preserves_other_home_navigation(self):
+        import re
+        from flask import render_template
+        from types import SimpleNamespace
+        with self.app.test_request_context('/'):
+            row=db.session.get(HomeAssignment,self.aid)
+            target=self.base+'/board'
+            page=render_template('program_sace_home/frame.html',row=row,back=target,title='Fixture')
+            self.assertIn('href="'+target+'"',page)
+            self.assertIn('Back to Auditor Board',page)
+            self.assertIn('bg-blue-50 text-blue-900 border-blue-200 hover:bg-blue-100',page)
+            other=render_template('program_sace_home/frame.html',row=row,back='/sace/activities',title='Fixture')
+            self.assertIn('class="home-button" href="/sace/activities"',other)
+            controls=render_template('subject_home/auditor_controls.html',home_auditor=row,
+                home_exam_chapter=None,request=SimpleNamespace(endpoint='home_bp.final_exam'))
+            links=re.findall(r'<a class="([^"]*)" href="'+re.escape(target)+r'">',controls)
+            self.assertEqual(len(links),2)
+            for classes in links:
+                for colour in ('bg-blue-50','text-blue-900','border-blue-200','hover:bg-blue-100'):
+                    self.assertIn(colour,classes)
+            self.assertIn('border-slate-200 bg-slate-50',controls)
+
     def test_new_completion_history_retains_new_evidence_requirements(self):
         self.examine_ten()
+        page=self.auditor.get(self.base+'/completion')
+        self.assertIn(b'Certification',page.data)
+        self.assertEqual(self.auditor.post(self.base+'/completion').status_code,409)
         self.assertEqual(self.auditor.get(self.base+'/certification').status_code,200)
+        page=self.auditor.get(self.base+'/certification').get_data(as_text=True)
+        self.assertIn('bg-blue-50 text-blue-900 border-blue-200 hover:bg-blue-100',page)
+        self.assertIn('bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100',page)
+        self.assertIn('href="'+self.base+'/board"',page)
+        self.assertNotIn('name="email"',page)
         self.assertTrue(all(x['examined'] for x in self.board().values()))
         self.assertEqual(self.auditor.post(self.base+'/completion').status_code,200)
         with self.app.app_context():

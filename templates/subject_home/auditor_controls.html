@@ -13,7 +13,7 @@
       {% if home_exam_chapter %}
       <button class="rounded-lg border border-teal-200 bg-teal-50 px-4 py-2 text-sm font-medium text-teal-900 hover:bg-teal-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700" name="action" value="skip">Skip / Next</button>
       {% elif request.endpoint == 'home_bp.final_exam' %}
-      <a class="inline-flex items-center rounded-lg border border-teal-200 bg-teal-50 px-4 py-2 text-sm font-medium text-teal-900 hover:bg-teal-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700" href="{{ url_for('home_sace_bp.board', assignment_id=home_auditor.id) }}">Skip / Next - return to Board</a>
+      <a class="inline-flex items-center rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-900 hover:bg-blue-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700" href="{{ url_for('home_sace_bp.board', assignment_id=home_auditor.id) }}">Skip / Next - return to Board</a>
       {% endif %}
     </div>
   {% if home_exam_chapter %}

@@ -716,7 +716,11 @@ def finish_evaluation():
         flow.save(row, state)
         db.session.commit()  # Evidence, durable R notification, then closure: all commit or none do.
         return render_template('program_sace/evaluation_closed.html')
-    return render_template('program_sace/evaluation_finish.html', ready=not missing, missing=missing)
+    from . import certification as cert
+    titles = {slug: title for slug, title, *_ in cert.BOARD_ITEMS}
+    titles[cert.SLUG] = 'Certification'
+    return render_template('program_sace/evaluation_finish.html',
+        ready=not missing, missing=[titles[slug] for slug in missing])
 
 
 def controller_rows():

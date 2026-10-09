@@ -285,7 +285,11 @@ class ReadingRepair(unittest.TestCase):
             self.assertTrue(token)
             with patch.dict(self.app.config,{'WTF_CSRF_ENABLED':True}):
                 self.assertEqual(self.client.post(target,data={'action':'email'}).status_code,400)
-            self.assertIn(b'Email certification to myself',page.data)
+            self.assertIn(b'name="action" value="email">Email</button>',page.data)
+            self.assertIn(b'>Auditor Flow</h1>',page.data)
+            self.assertIn(b'bg-white border border-slate-200 rounded-xl',page.data)
+            self.assertLess(page.data.index(b'name="action" value="email"'),page.data.index(b'<iframe'))
+            self.assertEqual(page.data.count(b'name="action" value="email"'),1)
             displayed=unescape(re.search(rb'srcdoc="([^"]+)"',page.data).group(1).decode())
             with self.app.app_context():
                 before=db.session.execute(text('SELECT id,row_to_json(e)::text FROM sace_workshop_interactions e ORDER BY id')).all()
@@ -321,6 +325,50 @@ class ReadingRepair(unittest.TestCase):
                 after=db.session.execute(text('SELECT id,row_to_json(e)::text FROM sace_workshop_interactions e ORDER BY id')).all()
                 self.assertEqual(after,before)
             smtp.assert_not_called();ssl.assert_not_called()
+
+    def test_reading_presentation_statuses_and_completion_guard(self):
+        from flask import render_template
+        from sqlalchemy import text
+        from app.program_sace import certification as cert
+        with self.app.test_request_context('/'):
+            board=render_template('program_sace/endorsement_board.html',
+                evidence_items=cert.BOARD_ITEMS,ticks={item[0] for item in cert.BOARD_ITEMS},
+                certification_available=True,certification_recorded=True,missing=[])
+            rows=re.findall(r'<tr class="border-t[^>]*>(.*?)</tr>',board,re.S)
+            self.assertEqual(len(rows),10)
+            for row in rows[:9]:
+                self.assertEqual(re.findall(r'<td[^>]*>(.*?)</td>',row,re.S)[1],'Examined')
+            self.assertIn('Certification',rows[9]);self.assertIn('Recorded',rows[9])
+            self.assertIn('notify SACE Admin',board)
+            ready=render_template('program_sace/evaluation_finish.html',ready=True,missing=[])
+            self.assertIn('Complete journey and notify SACE Admin',ready)
+            self.assertIn('name="csrf_token"',ready)
+            self.assertNotIn(' disabled>',ready)
+            closed=render_template('program_sace/evaluation_closed.html')
+            for html in (ready,closed):
+                visible=unescape(re.sub(r'<[^>]+>',' ',html))
+                self.assertNotRegex(visible,r'\b[RA]\b')
+                self.assertIn('Auditor',visible);self.assertIn('SACE Admin',visible)
+        self.recorded_board_statuses()
+        with patch.object(self.app,'root_path',str(ROOT/'app')):
+            self.assertEqual(self.client.get('/sace/reading/certification').status_code,200)
+        with self.app.app_context():
+            row=db.session.get(h.Interaction,self.assignment_id)
+            missing=flow.completion_requirements(row)
+            self.assertIn('workshop_certificate',missing);self.assertIn('reading_certificate',missing)
+            before=db.session.execute(text('SELECT id,row_to_json(e)::text FROM sace_workshop_interactions e ORDER BY id')).all()
+        response=self.client.get('/sace/reading/finish-evaluation')
+        self.assertEqual(response.status_code,200)
+        self.assertIn(b'Required activity evidence remains outstanding.',response.data)
+        self.assertIn(b'disabled>Complete journey and notify SACE Admin',response.data)
+        self.assertNotIn(b'<form',response.data)
+        self.assertNotIn(b'workshop certificate',response.data.lower())
+        self.assertNotIn(b'reading certificate',response.data.lower())
+        self.assertNotIn(b'<li>',response.data)
+        self.assertEqual(self.client.post('/sace/reading/finish-evaluation').status_code,409)
+        with self.app.app_context():
+            after=db.session.execute(text('SELECT id,row_to_json(e)::text FROM sace_workshop_interactions e ORDER BY id')).all()
+            self.assertEqual(after,before)
 
     def test_reading_certification_rejects_tampering_and_conflicting_snapshots(self):
         import copy

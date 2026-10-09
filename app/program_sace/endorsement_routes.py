@@ -73,8 +73,28 @@ def board():
         ticks.add('workshop_evaluation_complete')
     if not all(flow.latest(row, f'ppp_slide_{i}') for i in range(1,32)):
         ticks.discard('ppp_complete')
+    from . import certification as cert
+    certification = cert.saved(row)
     return render_template('program_sace/endorsement_board.html', ticks=ticks,
+                           evidence_items=cert.BOARD_ITEMS, certification_recorded=certification is not None,
+                           certification_available=certification is not None or cert.available(row),
                            workshop_passed=flow.workshop_passed(row), state=flow.payload(row), materials=MATERIALS, missing=flow.completion_requirements(row))
+
+
+@sace_bp.get('/sace/reading/certification')
+def reading_certification():
+    from . import certification as cert
+    from app.utils.branding import get_logo_data_uri, get_seal_data_uri
+    row = flow.assignment(lock=True)
+    evidence = cert.saved(row)
+    if evidence is None:
+        evidence = cert.create(row, current_user)
+        db.session.commit()
+    details = flow.payload(evidence)
+    certificate_html = render_template('program_sace/certification_snapshot.html',
+        snapshot=details['snapshot'], digest=details['snapshot_sha256'],
+        logo_path=get_logo_data_uri(), seal_path=get_seal_data_uri())
+    return render_template('program_sace/endorsement_certification.html', certificate_html=certificate_html)
 
 
 def generate_code():

@@ -1,0 +1,37 @@
+{% extends "shared/ait_certificate_layout.html" %}
+{% block document_title_meta %}Reading endorsement examination certification{% endblock %}
+{% block document_title %}Endorsement examination certification{% endblock %}
+{% block programme_name %}Reading — I Learn to Read English Using the LITRE Method{% endblock %}
+{% block extra_css %}
+<style>
+body { height: auto; }
+.footer { position: relative; margin-top: 30px; }
+@media screen { body { max-width: 800px; margin: 20px auto; padding: 30px; border: 4px solid #0033a1; background: white; box-sizing: border-box; } }
+@media print {
+  @page { padding: 0; }
+  body > table, .footer > table { margin-bottom: 10px !important; }
+  .footer > table { padding-top: 10px !important; }
+  .document-title, .details-table, .achievement-block, .competency-block,
+  .overall-result, .comments-block { margin-bottom: 10px; }
+  .details-table th, .details-table td, .comp-table th, .comp-table td { padding: 3px 6px; }
+  .achievement-block { padding: 8px; }
+  .footer { margin-top: 10px; }
+}
+</style>
+{% endblock %}
+{% block learner_name %}{{ snapshot.auditor.name }} ({{ snapshot.auditor.email }}){% endblock %}
+{% block issue_date %}{{ snapshot.certified_at }}{% endblock %}
+{% block certificate_number %}{{ digest }}{% endblock %}
+{% block extra_details %}
+<tr><th>Provider</th><td colspan="3">SACE</td></tr>
+<tr><th>Engagement</th><td colspan="3">{{ snapshot.engagement_reference }}; assignment {{ snapshot.assignment_id }}</td></tr>
+{% endblock %}
+{% block achievement %}{{ snapshot.statement }}{% endblock %}
+{% block competencies %}
+<table class="comp-table"><thead><tr><th>Reading Board item</th><th>Recorded examination state</th></tr></thead><tbody>
+{% for item in snapshot['items'] %}<tr><td>{{ loop.index }}. {{ item.title }}</td><td>{{ item.status }} on {{ item.examined_at }}</td></tr>{% endfor %}
+</tbody></table>
+{% endblock %}
+{% block overall_result %}Reading endorsement material examined{% endblock %}
+{% block comments %}Snapshot reference: {{ digest }}{% endblock %}
+{% block disclaimer %}This certification records examination of the Reading endorsement material. It is not a participant course-completion certificate and does not confirm SACE endorsement.{% endblock %}

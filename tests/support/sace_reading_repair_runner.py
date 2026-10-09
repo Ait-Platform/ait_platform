@@ -139,16 +139,134 @@ class ReadingRepair(unittest.TestCase):
             ("Workshop Manual", "/sace/secure_view/p_guide"),
             ("AIT IP Pledge (reference)", "/sace/secure_view/ip_pledge"),
             ("Reading Timetable (T/T)", "/sace/secure_view/timetable"),
-            ("Workshop Online Interaction & Assessment - steps 32-35", "/sace/reading/simulator"),
-            ("Workshop Certificate evidence", "/sace/reading/post_test/results?evidence=1"),
-            ("18-video Reading Course", "/sace/reading/course"),
-            ("Reading Course Certificate evidence", "/sace/reading/course/certificate")])
+            ("Workshop Online Interaction & Assessment — Steps 32–35", "/sace/reading/simulator"),
+            ("18-video Reading Course", "/sace/reading/course")])
+        from app.program_sace import certification as cert
+        rows=re.findall(r'<tr class="border-t[^>]*>(.*?)</tr>',response.data.decode(),re.S)
+        self.assertEqual(len(rows),10)
+        for number, row in enumerate(rows,1):
+            text=unescape(re.sub(r'<[^>]+>','',row))
+            self.assertTrue(text.startswith(str(number)+'. '),text)
+            self.assertIn(cert.BOARD_ITEMS[number-1][1] if number<10 else 'Certification',text)
+        self.assertIn(b'aria-disabled="true">Certification',response.data)
         self.assertNotIn(b"Slides 1-31 are the workshop presentation.",response.data)
         for kind in ("f_guide","p_guide","timetable"):
             self.assertEqual(self.client.get("/sace/secure_view/"+kind).status_code,200)
             with self.client.get("/sace/material/"+kind+"/content") as pdf:
                 self.assertEqual(pdf.status_code,200)
                 self.assertTrue(pdf.data.startswith(b"%PDF-"))
+
+    def recorded_board_statuses(self):
+        from app.program_sace import certification as cert
+        ids=[]
+        with self.app.app_context():
+            row=db.session.get(h.Interaction,self.assignment_id)
+            for slug, *_ in cert.BOARD_ITEMS:
+                event=h.Interaction(user_id=flow.payload(row)['claimed_by_user_id'],
+                    workshop_session_id=flow.room(row),activity_slug=slug,
+                    response_data=h.json.dumps({'evidence':'existing Board status fixture'}))
+                db.session.add(event);db.session.flush();ids.append(event.id)
+            db.session.commit()
+        return ids
+
+    def test_reading_certification_requires_each_existing_board_status(self):
+        from app.program_sace import certification as cert
+        ids=self.recorded_board_statuses()
+        for eid,(slug,*_) in zip(ids,cert.BOARD_ITEMS):
+            with self.app.app_context():
+                db.session.get(h.Interaction,eid).activity_slug='pending_'+slug
+                db.session.commit()
+            self.assertEqual(self.client.get('/sace/reading/certification').status_code,409,slug)
+            self.assertIn(b'aria-disabled="true">Certification',self.client.get('/sace/reading').data)
+            with self.app.app_context():
+                self.assertIsNone(cert.saved(db.session.get(h.Interaction,self.assignment_id)))
+                db.session.get(h.Interaction,eid).activity_slug=slug
+                db.session.commit()
+
+    def test_reading_certification_freezes_board_facts_without_changing_journey(self):
+        import copy
+        import hashlib
+        from contextlib import ExitStack
+        from sqlalchemy import text
+        from app.program_sace import certification as cert
+        from app.utils.branding import get_logo_data_uri,get_seal_data_uri
+        ids=self.recorded_board_statuses()
+        target='/sace/reading/certification'
+        with self.app.app_context():
+            before=db.session.execute(text('SELECT id,row_to_json(e)::text FROM sace_workshop_interactions e ORDER BY id')).all()
+            state_before=db.session.get(h.Interaction,self.assignment_id).response_data
+        with ExitStack() as stack:
+            for name in ('workshop_passed','course_complete','step35_passed','completion_requirements','refresh_progress','record'):
+                stack.enter_context(patch.object(flow,name,side_effect=AssertionError('Existing flow must not be invoked')))
+            stack.enter_context(patch.object(self.app,'root_path',str(ROOT/'app')))
+            response=self.client.get(target)
+        self.assertEqual(response.status_code,200)
+        displayed=unescape(re.search(rb'srcdoc="([^"]+)"',response.data).group(1).decode())
+        self.assertEqual(displayed.count('<div class="document-title">'),1)
+        self.assertIn('<th>Provider</th><td colspan="3">SACE</td>',displayed)
+        with self.app.app_context(),patch.object(self.app,'root_path',str(ROOT/'app')):
+            evidence=cert.saved(db.session.get(h.Interaction,self.assignment_id))
+            eid=evidence.id;frozen=copy.deepcopy(flow.payload(evidence));raw=evidence.response_data
+            self.assertEqual(frozen['snapshot_sha256'],cert.digest(frozen['snapshot']))
+            self.assertEqual(frozen['html_sha256'],hashlib.sha256(frozen['html'].encode()).hexdigest())
+            self.assertEqual([item['evidence_ids'][0] for item in frozen['snapshot']['items']],ids)
+            self.assertEqual([item['kind'] for item in frozen['snapshot']['items']],[item[0] for item in cert.BOARD_ITEMS])
+            for item in frozen['snapshot']['items']:
+                self.assertTrue(item['title'] in unescape(displayed),item['title'])
+                self.assertTrue(item['examined_at'] in displayed,item['examined_at'])
+                self.assertIn(item['status'],displayed)
+                self.assertEqual(item['recorded_facts'],{'evidence':'existing Board status fixture'})
+            for helper in (get_logo_data_uri,get_seal_data_uri):self.assertIn('src="'+helper()+'"',displayed)
+            after=db.session.execute(text('SELECT id,row_to_json(e)::text FROM sace_workshop_interactions e ORDER BY id')).all()
+            self.assertEqual([record for record in after if record[0]!=eid],before)
+            self.assertEqual(db.session.get(h.Interaction,self.assignment_id).response_data,state_before)
+        with patch.object(self.app,'root_path',str(ROOT/'app')):
+            self.assertEqual(self.client.get(target).data,response.data)
+        with self.app.app_context():
+            self.assertEqual(db.session.get(h.Interaction,eid).response_data,raw)
+            self.assertEqual(h.Interaction.query.filter_by(activity_slug=cert.SLUG).count(),1)
+        board=self.client.get('/sace/reading')
+        anchors=Anchors(board.data,table_only=True).items
+        self.assertEqual(len(anchors),10)
+        self.assertEqual(anchors[-1],{'href':target,'text':'Certification'})
+        self.assertNotIn(b'Workshop Certificate evidence',board.data)
+        self.assertNotIn(b'Reading Course Certificate evidence',board.data)
+        self.assertEqual(self.client.post(target).status_code,405)
+        import os
+        if os.environ.get('AIT_CERTIFICATE_VISUAL_DIR'):
+            directory=Path(os.environ['AIT_CERTIFICATE_VISUAL_DIR']);directory.mkdir(parents=True,exist_ok=True)
+            (directory/'reading-certification.html').write_text(displayed,encoding='utf-8')
+            (directory/'reading-board.html').write_bytes(board.data)
+
+    def test_reading_certification_rejects_tampering_and_conflicting_snapshots(self):
+        import copy
+        from app.program_sace import certification as cert
+        self.recorded_board_statuses();target='/sace/reading/certification'
+        with patch.object(self.app,'root_path',str(ROOT/'app')):
+            self.assertEqual(self.client.get(target).status_code,200)
+        with self.app.app_context():
+            evidence=cert.saved(db.session.get(h.Interaction,self.assignment_id))
+            eid=evidence.id;raw=evidence.response_data;frozen=flow.payload(evidence)
+        for field in ('html','snapshot','assignment_id','auditor_id'):
+            changed=copy.deepcopy(frozen)
+            if field=='html':changed['html']+='tampered'
+            elif field=='snapshot':changed['snapshot']['certified_at']='tampered'
+            else:
+                if field=='assignment_id':changed['snapshot']['assignment_id']+=1
+                else:changed['snapshot']['auditor']['id']+=1
+                changed['snapshot_sha256']=cert.digest(changed['snapshot'])
+            with self.app.app_context():
+                db.session.get(h.Interaction,eid).response_data=h.json.dumps(changed);db.session.commit()
+            with patch('app.utils.branding.get_logo_data_uri',side_effect=AssertionError('Reject before presentation')):
+                self.assertEqual(self.client.get(target).status_code,409,field)
+            self.assertEqual(self.client.get('/sace/reading').status_code,409,field)
+            with self.app.app_context():
+                db.session.get(h.Interaction,eid).response_data=raw;db.session.commit()
+        with self.app.app_context():
+            source=db.session.get(h.Interaction,eid)
+            db.session.add(h.Interaction(user_id=source.user_id,workshop_session_id=source.workshop_session_id,
+                activity_slug=source.activity_slug,response_data=source.response_data));db.session.commit()
+        self.assertEqual(self.client.get(target).status_code,409)
 
     def test_manual_content_navigation_and_stale_timetable(self):
         from pypdf import PdfReader
@@ -300,7 +418,8 @@ class ReadingRepair(unittest.TestCase):
             self.client.post('/sace/reading/step35',data=dict(q1='B',q2='B',q3='C',q4='D'))
             self.assertEqual(self.event('step34')['score'],75)  # Existing 70% pass rule.
             board=self.client.get('/sace/reading')
-            link=next(a['href'] for a in Anchors(board.data,table_only=True).items if a['text']=='Workshop Certificate evidence')
+            self.assertNotIn(b'Workshop Certificate evidence',board.data)
+            link='/sace/reading/post_test/results?evidence=1'  # Historical functionality remains available.
             with patch.object(self.app,'root_path',str(ROOT/'app')):
                 page=self.client.get(link)
             html=self.certificate_html(page,'workshop')
@@ -324,7 +443,7 @@ class ReadingRepair(unittest.TestCase):
             self.assertEqual(response.location,'/sace/reading')
             sender.assert_called_once_with('a@example.test',generate.call_args.args[1],cid,b'%PDF-real-workshop')
             self.assertEqual(self.event('workshop_certificate')['outcome'],'accepted_by_mail_sender')
-            self.assertRegex(self.client.get('/sace/reading').data.decode(),r'Workshop Certificate evidence</a></td><td[^>]*>Recorded</td>')
+            self.assertNotIn(b'Workshop Certificate evidence',self.client.get('/sace/reading').data)
             self.assertIsNone(self.event('reading_certificate'))
             self.assertEqual(self.client.post('/sace/reading/course/certificate').status_code,409)
 
@@ -387,7 +506,9 @@ class ReadingRepair(unittest.TestCase):
             db.session.add(h.Interaction(user_id=flow.payload(row)['claimed_by_user_id'],workshop_session_id=flow.room(row),activity_slug='workshop_certificate',response_data=h.json.dumps({'evidence':'participant certificate specimen examined'})))
             db.session.commit()
             self.assertIn('workshop_certificate',flow.completion_requirements(row))
-        self.assertRegex(self.client.get('/sace/reading').data.decode(),r'Workshop Certificate evidence</a></td><td[^>]*>Outstanding</td>')
+        board=self.client.get('/sace/reading')
+        self.assertNotIn(b'Workshop Certificate evidence',board.data)
+        self.assertIn(b'aria-disabled="true">Certification',board.data)
         sender=Mock(return_value=False)
         with patch.dict(sys.modules,{'app.subject_reading.routes':SimpleNamespace(_email_certificate_pdf=sender)}), patch.object(routes,'_generate_sace_certificate_pdf',return_value=b'%PDF-real') as generate:
             self.assertEqual(self.client.post('/sace/reading/certificate/email').status_code,503)

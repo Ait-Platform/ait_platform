@@ -290,32 +290,33 @@ class ReadingRepair(unittest.TestCase):
             self.assertIn(b'bg-white border border-slate-200 rounded-xl',page.data)
             self.assertLess(page.data.index(b'name="action" value="email"'),page.data.index(b'<iframe'))
             self.assertEqual(page.data.count(b'name="action" value="email"'),1)
+            self.assertIn(b'type="email" id="certification-email" name="email" value="a@example.test" required',page.data)
             displayed=unescape(re.search(rb'srcdoc="([^"]+)"',page.data).group(1).decode())
             with self.app.app_context():
                 before=db.session.execute(text('SELECT id,row_to_json(e)::text FROM sace_workshop_interactions e ORDER BY id')).all()
+                users_before=db.session.execute(text('SELECT row_to_json(u)::text FROM "user" u ORDER BY id')).all()
             for name in ('record','refresh_progress','workshop_passed','course_complete','step35_passed'):
                 stack.enter_context(patch.object(flow,name,side_effect=AssertionError('Existing flow must not be invoked')))
             self.assertEqual(self.client.post(target,data={'action':'other'}).status_code,400)
             with patch.dict(self.app.config,{'MAIL_SUPPRESS_SEND':True}):
-                self.assertEqual(self.client.post(target,data={'action':'email'}).status_code,503)
+                self.assertEqual(self.client.post(target,data={'action':'email','email':'delivery@example.com'}).status_code,503)
             sender.assert_not_called()
             with patch.dict(self.app.config,{'WTF_CSRF_ENABLED':True}):
-                response=self.client.post(target,data={'action':'email','recipient':'r@example.test','csrf_token':token})
+                response=self.client.post(target,data={'action':'email','email':' Delivery@EXAMPLE.COM ','csrf_token':token})
             self.assertEqual(response.status_code,302)
             self.assertEqual(response.location,target)
             args,kwargs=sender.call_args
             self.assertEqual(args[0],'Reading endorsement examination certification')
-            self.assertEqual(args[1],['a@example.test'])
+            self.assertEqual(args[1],['Delivery@example.com'])
             self.assertIn('Snapshot SHA-256:',args[2])
             self.assertEqual(kwargs,{'html':displayed})
             sender.return_value=False
-            self.assertEqual(self.client.post(target,data={'action':'email'}).status_code,503)
-            with self.app.app_context():
-                row=db.session.get(h.Interaction,self.assignment_id)
-                auditor=db.session.get(h.auth_models.User,flow.payload(row)['claimed_by_user_id'])
-                auditor.email='';db.session.commit()
+            self.assertEqual(self.client.post(target,data={'action':'email','email':'delivery@example.com'}).status_code,503)
             sender.reset_mock()
             self.assertEqual(self.client.post(target,data={'action':'email'}).status_code,400)
+            for email in ('', '   ', 'invalid', 'bad@@example.com', 'one@example.com,two@example.com',
+                          'one@example.com\r\nBcc: two@example.com'):
+                self.assertEqual(self.client.post(target,data={'action':'email','email':email}).status_code,400,email)
             sender.assert_not_called()
             with patch.object(r,'current_user',type('OtherAuditor',(),{'id':-1,'is_authenticated':True})()), \
                     patch.object(flow,'is_controller',return_value=False), \
@@ -324,6 +325,7 @@ class ReadingRepair(unittest.TestCase):
             with self.app.app_context():
                 after=db.session.execute(text('SELECT id,row_to_json(e)::text FROM sace_workshop_interactions e ORDER BY id')).all()
                 self.assertEqual(after,before)
+                self.assertEqual(db.session.execute(text('SELECT row_to_json(u)::text FROM "user" u ORDER BY id')).all(),users_before)
             smtp.assert_not_called();ssl.assert_not_called()
 
     def test_reading_presentation_statuses_and_completion_guard(self):

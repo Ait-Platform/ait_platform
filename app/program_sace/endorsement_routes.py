@@ -94,16 +94,20 @@ def reading_certification():
         db.session.commit()
     details = flow.payload(evidence)
     from app.models.auth import User
+    auditor = db.session.get(User, details['snapshot']['auditor']['id'])
+    default_email = (auditor.email or '').strip() if auditor is not None else ''
     if request.method == 'POST':
         if request.form.get('action') != 'email':
             abort(400)
         auditor_id = details['snapshot']['auditor']['id']
         if auditor_id != flow.payload(row).get('claimed_by_user_id') or auditor_id != current_user.id:
             abort(403)
-        auditor = db.session.get(User, auditor_id)
-        recipient = (auditor.email or '').strip() if auditor is not None else ''
-        if not recipient or '@' not in recipient or any(c.isspace() for c in recipient):
-            abort(400, description='The certification auditor must have a valid email address.')
+        from email_validator import validate_email, EmailNotValidError
+        try:
+            recipient = validate_email(request.form.get('email', '').strip(),
+                check_deliverability=False).normalized
+        except EmailNotValidError:
+            abort(400, description='Enter a valid recipient email address.')
         if current_app.config.get('MAIL_SUPPRESS_SEND'):
             abort(503, description='Email sending is suppressed; certification email was not sent.')
     from .lifecycle import AssignmentContext, Appointment
@@ -126,9 +130,10 @@ def reading_certification():
             'Snapshot SHA-256: ' + details['snapshot_sha256']])
         if not send_email('Reading endorsement examination certification', [recipient], body, html=certificate_html):
             abort(503, description='Certification email could not be sent. You can retry.')
-        flash('Your endorsement examination certification has been emailed to you.', 'success')
+        flash('Your endorsement examination certification has been emailed successfully.', 'success')
         return redirect(url_for('sace_bp.reading_certification'))
-    return render_template('program_sace/endorsement_certification.html', certificate_html=certificate_html)
+    return render_template('program_sace/endorsement_certification.html',
+        certificate_html=certificate_html, default_email=default_email)
 
 
 def generate_code():

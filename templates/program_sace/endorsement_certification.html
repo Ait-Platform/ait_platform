@@ -5,7 +5,7 @@
 <div class="bg-white border border-slate-200 rounded-xl p-4 mb-6 flex flex-wrap items-center justify-between gap-4">
 <h1 class="text-2xl font-bold text-slate-800">Auditor Flow</h1>
 <div class="flex flex-wrap items-center justify-end gap-3"><a class="border border-slate-300 rounded px-4 py-2" href="{{ url_for('sace_bp.reading_hub') }}">Back to Auditor Board</a>
-<form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="border border-slate-300 rounded px-4 py-2" name="action" value="email">Email</button></form></div>
+<form method="post" class="flex flex-wrap items-center justify-end gap-3"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><label for="certification-email" class="text-sm text-slate-700">Email address</label><input type="email" id="certification-email" name="email" value="{{ default_email }}" required class="border border-slate-300 rounded px-3 py-2"><button class="border border-slate-300 rounded px-4 py-2" name="action" value="email">Email</button></form></div>
 </div>
 <iframe title="Reading endorsement examination certification" class="w-full border border-slate-200 rounded" style="height:1100px" sandbox srcdoc="{{ certificate_html|e }}"></iframe>
 </div>

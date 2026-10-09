@@ -4,5 +4,6 @@
 <div class="max-w-5xl mx-auto px-4 py-8">
 <div class="flex items-center justify-between gap-4 mb-6"><h1 class="text-2xl font-bold text-slate-800">Reading endorsement examination certification</h1><a class="border border-slate-300 rounded px-4 py-2" href="{{ url_for('sace_bp.reading_hub') }}">Back to Auditor Board</a></div>
 <iframe title="Reading endorsement examination certification" class="w-full border border-slate-200 rounded" style="height:1100px" sandbox srcdoc="{{ certificate_html|e }}"></iframe>
+<form method="post" class="mt-4"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="border border-slate-300 rounded px-4 py-2" name="action" value="email">Email certification to myself</button></form>
 </div>
 {% endblock %}

@@ -258,13 +258,69 @@ class ReadingRepair(unittest.TestCase):
         self.assertNotIn(b'Workshop Certificate evidence',board.data)
         self.assertNotIn(b'Reading Course Certificate evidence',board.data)
         self.assertIn('Workshop Online Interaction &amp; Assessment — Steps 32–35',board.data.decode())
-        self.assertEqual(self.client.post(target).status_code,405)
+        self.assertEqual(self.client.post(target).status_code,400)
         import os
         if os.environ.get('AIT_CERTIFICATE_VISUAL_DIR'):
             directory=Path(os.environ['AIT_CERTIFICATE_VISUAL_DIR']);directory.mkdir(parents=True,exist_ok=True)
             (directory/'reading-certification.html').write_text(displayed,encoding='utf-8')
             (directory/'reading-evidence.json').write_text(h.json.dumps(frozen),encoding='utf-8')
             (directory/'reading-board.html').write_bytes(board.data)
+
+    def test_reading_certification_email_uses_viewer_html_without_evidence_changes(self):
+        from contextlib import ExitStack
+        from sqlalchemy import text
+        from app.program_sace import certification as cert
+        target='/sace/reading/certification'
+        self.recorded_board_statuses()
+        with ExitStack() as stack:
+            smtp=stack.enter_context(patch('smtplib.SMTP',side_effect=AssertionError('SMTP forbidden')))
+            ssl=stack.enter_context(patch('smtplib.SMTP_SSL',side_effect=AssertionError('SMTP forbidden')))
+            sender=stack.enter_context(patch('app.utils.mailer.send_email',return_value=True))
+            stack.enter_context(patch.object(self.app,'root_path',str(ROOT/'app')))
+            self.assertEqual(self.client.post(target,data={'action':'email'}).status_code,409)
+            with self.app.app_context():
+                self.assertIsNone(cert.saved(db.session.get(h.Interaction,self.assignment_id)))
+            page=self.client.get(target)
+            token=re.search(rb'name="csrf_token" value="([^"]+)"',page.data).group(1).decode()
+            self.assertTrue(token)
+            with patch.dict(self.app.config,{'WTF_CSRF_ENABLED':True}):
+                self.assertEqual(self.client.post(target,data={'action':'email'}).status_code,400)
+            self.assertIn(b'Email certification to myself',page.data)
+            displayed=unescape(re.search(rb'srcdoc="([^"]+)"',page.data).group(1).decode())
+            with self.app.app_context():
+                before=db.session.execute(text('SELECT id,row_to_json(e)::text FROM sace_workshop_interactions e ORDER BY id')).all()
+            for name in ('record','refresh_progress','workshop_passed','course_complete','step35_passed'):
+                stack.enter_context(patch.object(flow,name,side_effect=AssertionError('Existing flow must not be invoked')))
+            self.assertEqual(self.client.post(target,data={'action':'other'}).status_code,400)
+            with patch.dict(self.app.config,{'MAIL_SUPPRESS_SEND':True}):
+                self.assertEqual(self.client.post(target,data={'action':'email'}).status_code,503)
+            sender.assert_not_called()
+            with patch.dict(self.app.config,{'WTF_CSRF_ENABLED':True}):
+                response=self.client.post(target,data={'action':'email','recipient':'r@example.test','csrf_token':token})
+            self.assertEqual(response.status_code,302)
+            self.assertEqual(response.location,target)
+            args,kwargs=sender.call_args
+            self.assertEqual(args[0],'Reading endorsement examination certification')
+            self.assertEqual(args[1],['a@example.test'])
+            self.assertIn('Snapshot SHA-256:',args[2])
+            self.assertEqual(kwargs,{'html':displayed})
+            sender.return_value=False
+            self.assertEqual(self.client.post(target,data={'action':'email'}).status_code,503)
+            with self.app.app_context():
+                row=db.session.get(h.Interaction,self.assignment_id)
+                auditor=db.session.get(h.auth_models.User,flow.payload(row)['claimed_by_user_id'])
+                auditor.email='';db.session.commit()
+            sender.reset_mock()
+            self.assertEqual(self.client.post(target,data={'action':'email'}).status_code,400)
+            sender.assert_not_called()
+            with patch.object(r,'current_user',type('OtherAuditor',(),{'id':-1,'is_authenticated':True})()), \
+                    patch.object(flow,'is_controller',return_value=False), \
+                    patch.object(flow,'assignment',side_effect=lambda **kw: db.session.get(h.Interaction,self.assignment_id)):
+                self.assertEqual(self.client.post(target,data={'action':'email'}).status_code,403)
+            with self.app.app_context():
+                after=db.session.execute(text('SELECT id,row_to_json(e)::text FROM sace_workshop_interactions e ORDER BY id')).all()
+                self.assertEqual(after,before)
+            smtp.assert_not_called();ssl.assert_not_called()
 
     def test_reading_certification_rejects_tampering_and_conflicting_snapshots(self):
         import copy
@@ -287,6 +343,9 @@ class ReadingRepair(unittest.TestCase):
                 db.session.get(h.Interaction,eid).response_data=h.json.dumps(changed);db.session.commit()
             with patch('app.utils.branding.get_logo_data_uri',side_effect=AssertionError('Reject before presentation')):
                 self.assertEqual(self.client.get(target).status_code,409,field)
+                with patch('app.utils.mailer.send_email') as sender:
+                    self.assertEqual(self.client.post(target,data={'action':'email'}).status_code,409,field)
+                    sender.assert_not_called()
             self.assertEqual(self.client.get('/sace/reading').status_code,409,field)
             with self.app.app_context():
                 db.session.get(h.Interaction,eid).response_data=raw;db.session.commit()

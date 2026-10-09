@@ -4,7 +4,7 @@ import io
 import json
 import secrets
 from pathlib import Path
-from flask import abort, current_app, g, jsonify, redirect, render_template, request, session, url_for, make_response
+from flask import abort, current_app, flash, g, jsonify, redirect, render_template, request, session, url_for, make_response
 from flask_login import current_user
 from app.extensions import db
 from app.models.sace import SaceDocument, SaceWorkshopInteraction as Interaction
@@ -81,17 +81,31 @@ def board():
                            workshop_passed=flow.workshop_passed(row), state=flow.payload(row), materials=MATERIALS, missing=flow.completion_requirements(row))
 
 
-@sace_bp.get('/sace/reading/certification')
+@sace_bp.route('/sace/reading/certification', methods=['GET', 'POST'])
 def reading_certification():
     from . import certification as cert
     from app.utils.branding import get_logo_data_uri, get_seal_data_uri
     row = flow.assignment(lock=True)
     evidence = cert.saved(row)
     if evidence is None:
+        if request.method == 'POST':
+            abort(409, description='Open your endorsement certification before emailing it.')
         evidence = cert.create(row, current_user)
         db.session.commit()
     details = flow.payload(evidence)
     from app.models.auth import User
+    if request.method == 'POST':
+        if request.form.get('action') != 'email':
+            abort(400)
+        auditor_id = details['snapshot']['auditor']['id']
+        if auditor_id != flow.payload(row).get('claimed_by_user_id') or auditor_id != current_user.id:
+            abort(403)
+        auditor = db.session.get(User, auditor_id)
+        recipient = (auditor.email or '').strip() if auditor is not None else ''
+        if not recipient or '@' not in recipient or any(c.isspace() for c in recipient):
+            abort(400, description='The certification auditor must have a valid email address.')
+        if current_app.config.get('MAIL_SUPPRESS_SEND'):
+            abort(503, description='Email sending is suppressed; certification email was not sent.')
     from .lifecycle import AssignmentContext, Appointment
     sace_admin = (db.session.query(User.name, User.email)
         .join(Appointment, Appointment.user_id == User.id)
@@ -103,6 +117,17 @@ def reading_certification():
         snapshot=details['snapshot'], digest=details['snapshot_sha256'],
         certificate_view=True, sace_admin=sace_admin,
         logo_path=get_logo_data_uri(), seal_path=get_seal_data_uri())
+    if request.method == 'POST':
+        from app.utils.mailer import send_email
+        snapshot = details['snapshot']
+        body = '\n'.join([snapshot['statement'], 'Auditor: ' + snapshot['auditor']['name'],
+            'Engagement: ' + snapshot['engagement_reference'], 'Certified: ' + snapshot['certified_at'],
+            *[str(n) + '. ' + item['title'] for n, item in enumerate(snapshot['items'], 1)],
+            'Snapshot SHA-256: ' + details['snapshot_sha256']])
+        if not send_email('Reading endorsement examination certification', [recipient], body, html=certificate_html):
+            abort(503, description='Certification email could not be sent. You can retry.')
+        flash('Your endorsement examination certification has been emailed to you.', 'success')
+        return redirect(url_for('sace_bp.reading_certification'))
     return render_template('program_sace/endorsement_certification.html', certificate_html=certificate_html)
 
 

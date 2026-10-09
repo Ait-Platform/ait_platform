@@ -286,7 +286,8 @@ def signed_pledge():
 @login_required
 def board(assignment_id):
     row = s.assignment(assignment_id)
-    return page("board.html", "HOME Auditor Board", row=row, items=s.board_items(row))
+    return page("board.html", "HOME Auditor Board", row=row, items=s.board_items(row),
+        back=url_for("auth_bp.choose_sace_activity"))
 
 
 @home_sace_bp.route("/assignments/<int:assignment_id>/summary", methods=["GET", "POST"])

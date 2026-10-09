@@ -457,6 +457,7 @@ class HomeExamination(unittest.TestCase):
             self.assertIn(b'10. Final Assessment',page.data)
             self.assertIn(b'11. Certification',page.data)
             self.assertIn(b'Open Certification',page.data)
+            self.assertIn(b'href="/sace/activities">Back</a>',page.data)
             self.assertEqual(page.data.count(b'Review examination completion'),1)
             self.assertEqual(page.data.count(b'Intellectual Property Pledge'),1)
             self.assertLess(page.data.index(b'Review examination completion'),page.data.index(b'1. Activity Summary'))

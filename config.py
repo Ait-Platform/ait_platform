@@ -163,7 +163,7 @@ class Config:
     SMTP_HOST = "smtppro.zoho.com"
     SMTP_PORT = 465
     SMTP_USERNAME = "ait@mathwithhands.com"
-    SMTP_PASSWORD = None  # Supplied through FLASK_MAIL_PASSWORD at startup.
+    SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
 
     MAIL_SERVER = SMTP_HOST
     MAIL_PORT = SMTP_PORT

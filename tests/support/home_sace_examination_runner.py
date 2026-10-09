@@ -495,10 +495,69 @@ class HomeExamination(unittest.TestCase):
             for marker in ('Archoney Institute of Technology','document-title','details-table','comp-table','auth-signature','Endorsement examination certification','Provider','border: 4px solid #0033a1'):
                 self.assertIn(marker,html)
             frozen=dict(evidence.details)
-        with patch('app.utils.branding.get_logo_data_uri',side_effect=AssertionError('Frozen certificate must not rerender')):
-            self.assertEqual(self.auditor.get(self.base+'/certification').status_code,200)
+        with patch('app.utils.branding.get_logo_data_uri',return_value=logo), patch('app.utils.branding.get_seal_data_uri',return_value=seal):
+            refreshed=self.auditor.get(self.base+'/certification')
+            self.assertEqual(refreshed.status_code,200)
+            from html import unescape
+            displayed=unescape(re.search(rb'srcdoc="([^"]+)"',refreshed.data).group(1).decode())
+            self.assertIn('src="'+logo+'"',displayed)
+            self.assertIn('src="'+seal+'"',displayed)
         with self.app.app_context():
             self.assertEqual(cert.saved(db.session.get(HomeAssignment,self.aid)).details,frozen)
+
+    def test_historical_plain_certification_view_preserves_evidence_and_rejects_tampering(self):
+        import copy
+        from html import unescape
+        from app.program_sace_home import certification as cert
+        from app.utils.branding import get_logo_data_uri, get_seal_data_uri
+        self.examine_ten()
+        target=self.base+'/certification'
+        historical_html='<section>Historical plain HOME examination certification</section>'
+        with patch.object(cert,'render_template',return_value=historical_html):
+            self.assertEqual(self.auditor.get(target).status_code,200)
+        with self.app.app_context():
+            evidence=cert.saved(db.session.get(HomeAssignment,self.aid))
+            self.assertIsNone(db.session.get(HomeEvidence,97))
+            evidence.id=97
+            db.session.commit()
+            eid=evidence.id
+            frozen=copy.deepcopy(evidence.details)
+            def evidence_bytes():
+                return db.session.execute(text('SELECT row_to_json(e)::text FROM sace_home_evidence e ORDER BY id')).scalars().all()
+            before=evidence_bytes()
+        with patch.object(self.app,'root_path',str(ROOT/'app')):
+            response=self.auditor.get(target)
+        self.assertEqual(response.status_code,200)
+        displayed=unescape(re.search(rb'srcdoc="([^"]+)"',response.data).group(1).decode())
+        self.assertNotIn(historical_html,displayed)
+        with self.app.app_context(), patch.object(self.app,'root_path',str(ROOT/'app')):
+            self.assertIn('src="'+get_logo_data_uri()+'"',displayed)
+            self.assertIn('src="'+get_seal_data_uri()+'"',displayed)
+            for marker in ('Archoney Institute of Technology','auth-signature','Endorsement examination certification','border: 4px solid #0033a1',frozen['snapshot_sha256']):
+                self.assertIn(marker,displayed)
+            for value in (frozen['snapshot']['auditor']['name'],frozen['snapshot']['provider']['name'],frozen['snapshot']['certified_at']):
+                self.assertIn(value,displayed)
+            for item in frozen['snapshot']['items']:
+                self.assertIn(item['title'],displayed)
+                self.assertIn(item['examined_at'],displayed)
+            self.assertEqual(cert.saved(db.session.get(HomeAssignment,self.aid)).details,frozen)
+            self.assertEqual(evidence_bytes(),before)
+        for field in ('html','snapshot'):
+            with self.app.app_context():
+                changed=copy.deepcopy(frozen)
+                if field=='html':
+                    changed['html']+='tampered'
+                else:
+                    changed['snapshot']['certified_at']='tampered'
+                db.session.get(HomeEvidence,eid).details=changed
+                db.session.commit()
+            with patch('app.utils.branding.get_logo_data_uri',side_effect=AssertionError('Must reject before rendering')):
+                self.assertEqual(self.auditor.get(target).status_code,409)
+            with self.app.app_context():
+                db.session.get(HomeEvidence,eid).details=copy.deepcopy(frozen)
+                db.session.commit()
+        with self.app.app_context():
+            self.assertEqual(evidence_bytes(),before)
 
     def test_each_submitted_item_independently_keeps_certification_locked(self):
         self.examine_ten()

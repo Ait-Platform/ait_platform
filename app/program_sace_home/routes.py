@@ -583,5 +583,12 @@ def certification(assignment_id):
             db.session.commit()
         flash('Your endorsement examination certification has been emailed to you.', 'success')
         return redirect(url_for('home_sace_bp.certification', assignment_id=row.id))
+    from app.utils.branding import get_logo_data_uri, get_seal_data_uri
+    certificate_html = render_template(
+        'program_sace_home/certification_snapshot.html',
+        snapshot=evidence.details['snapshot'],
+        digest=evidence.details['snapshot_sha256'],
+        logo_path=get_logo_data_uri(), seal_path=get_seal_data_uri())
     return page('certification.html', 'HOME endorsement examination certification', row=row,
-        evidence=evidence, back=url_for('home_sace_bp.board', assignment_id=row.id))
+        evidence=evidence, certificate_html=certificate_html,
+        back=url_for('home_sace_bp.board', assignment_id=row.id))

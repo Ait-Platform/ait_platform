@@ -589,8 +589,6 @@ def course_lesson(row, lesson_id):
     lesson = next((x for x in lessons if x['id'] == lesson_id), None)
     if not lesson:
         abort(404)
-    if request.method == 'POST' and any(not flow.latest(row, f"reading_lesson_{x['id']}_complete") for x in lessons if x['order'] < lesson['order']):
-        abort(409, description="Complete the preceding Reading videos first.")
     return lesson
 
 
@@ -602,8 +600,12 @@ def reading_lesson(lesson_id):
         if not flow.latest(row, f'reading_lesson_{lesson_id}_served') or (request.get_json(silent=True) or {}).get('examined') is not True:
             abort(409, description="Open the video before marking it examined.")
         flow.record(row, f'reading_lesson_{lesson_id}_complete', {'lesson_order': lesson['order'], 'evidence': 'Auditor confirmed video examination'}, once=True)
-        if flow.course_complete(row):
-            flow.record(row, 'reading_complete', once=True)
+        lessons = flow.course_lessons()
+        if len(lessons) == 18 and len({x['order'] for x in lessons}) == 18:
+            # Auditor endorsement examination is selective, not participant completion.
+            flow.record(row, 'reading_complete', {'evidence': 'Auditor confirmed examination of selected Reading course material',
+                'lesson_id': lesson_id, 'lesson_order': lesson['order']}, once=True)
+            flow.refresh_progress(row)
         db.session.commit()
         return jsonify(success=True, next=url_for('sace_bp.reading_course'))
     flow.record(row, f'reading_lesson_{lesson_id}_opened', {'lesson_order': lesson['order']}, once=True)

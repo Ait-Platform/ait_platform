@@ -3,12 +3,12 @@
 {% block content %}
 <div class="max-w-5xl mx-auto px-4 py-8"><div class="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
 <div class="h-2 bg-indigo-700"></div><div class="p-6 space-y-6">
-<div class="flex items-center justify-between gap-4"><h1 class="text-2xl font-bold text-slate-800">18-video Reading course</h1><a class="border bg-blue-50 text-blue-900 border-blue-200 hover:bg-blue-100 rounded px-4 py-2" href="{{ url_for('sace_bp.reading_hub') }}">Back to Auditor Board</a></div>
+<div class="flex items-center justify-between gap-4"><h1 class="text-2xl font-bold text-slate-800">18-video Reading course</h1><a class="border bg-indigo-700 text-white border-indigo-700 hover:bg-indigo-800 rounded px-4 py-2" href="{{ url_for('sace_bp.reading_hub') }}">Back to Auditor Board</a></div>
 {% with messages = get_flashed_messages(with_categories=true) %}{% for category, message in messages %}<p class="border rounded p-3">{{ message }}</p>{% endfor %}{% endwith %}
 
 <h2 class="text-xl font-semibold">I Learn to Read English Using the LITRE Method</h2><p>{{ completed|length }} of 18 videos examined for this assignment.</p>
-<p>Examine the videos in course order, then return to the Auditor Board.</p>
+<p>Examine the videos as required to understand the Reading course. You may skip videos or examine them in any order.</p>
 {% if lessons|length != 18 %}<p role="alert">The course must contain exactly 18 videos. Course completion is unavailable until the content is ready.</p>{% endif %}
-<ol class="space-y-3">{% for lesson in lessons %}<li class="border rounded p-3">{{ lesson['order'] }}. {{ lesson.title }} – {% if lesson.id in completed %}<a class="underline" href="{{ url_for('sace_bp.reading_lesson',lesson_id=lesson.id) }}">Completed; review</a>{% else %}<a class="underline text-indigo-700" href="{{ url_for('sace_bp.reading_lesson',lesson_id=lesson.id) }}">Play video</a>{% endif %}</li>{% endfor %}</ol>
+<ol class="space-y-3">{% for lesson in lessons %}<li class="border rounded p-3 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4"><div>{{ lesson['order'] }}. {{ lesson.title }}{% if lesson.id in completed %}<span class="text-sm text-slate-600"> &ndash; Examined</span>{% endif %}</div><a class="underline text-indigo-700 whitespace-nowrap" href="{{ url_for('sace_bp.reading_lesson',lesson_id=lesson.id) }}">Play video</a></li>{% endfor %}</ol>
 </div></div></div>
 {% endblock %}

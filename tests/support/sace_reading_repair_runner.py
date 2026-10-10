@@ -768,7 +768,7 @@ class ReadingRepair(unittest.TestCase):
 
     def test_board_navigation_colours_preserve_destinations(self):
         from flask import render_template
-        names=('endorsement_certification','endorsement_course','endorsement_lesson','endorsement_material',
+        names=('endorsement_certification','endorsement_material',
                'endorsement_pledge_reference','endorsement_reading_certificate','endorsement_results',
                'evaluation_finish','step35')
         with self.app.test_request_context('/'):
@@ -1103,6 +1103,66 @@ class ReadingRepair(unittest.TestCase):
             sender.side_effect=RuntimeError('test-only transport failure')
             self.assertFalse(namespace['_email_certificate_pdf']('a@example.test','Auditor','AIT-WS-test',b'%PDF-real'))
 
+    def test_auditor_course_index_rows_and_lesson_header(self):
+        lessons = [dict(id=i, order=i, title=f'Video {i} with a title', caption='Fixture caption', video_filename=f'{i}.mp4') for i in range(1, 19)]
+        with patch.object(flow, 'course_lessons', return_value=lessons):
+            index = self.client.get('/sace/reading/course').data.decode()
+            self.assertIn('Examine the videos as required to understand the Reading course. You may skip videos or examine them in any order.', index)
+            self.assertNotIn('Examine the videos in course order', index)
+            self.assertIn('bg-indigo-700 text-white border-indigo-700', index)
+            rows = re.findall(r'<li class="([^"]*)">(.*?)</li>', index, re.S)
+            self.assertEqual(len(rows), 18)
+            for i, (classes, content) in enumerate(rows, 1):
+                self.assertIn('grid-cols-[minmax(0,1fr)_auto]', classes)
+                self.assertIn(f'{i}. Video {i} with a title', content)
+                self.assertIn(f'href="/sace/reading/course/{i}">Play video</a>', content)
+            lesson = self.client.get('/sace/reading/course/12').data.decode()
+            header = re.search(r'<div class="flex items-center justify-between gap-4">(.*?)</div>', lesson, re.S).group(1)
+            self.assertIn('12. Video 12 with a title', header)
+            self.assertIn('id="examined"', header)
+            self.assertIn('bg-indigo-700 text-white', header)
+            instruction = 'Seek forward or backward to examine the material, then mark this video examined.'
+            self.assertLess(lesson.index(header), lesson.index(instruction))
+            self.assertLess(lesson.index(instruction), lesson.index('<video'))
+            self.assertNotIn('Back to Auditor Board', lesson)
+            self.assertNotIn('Return to course', lesson)
+            self.assertIn("'X-CSRFToken':", lesson)
+
+    def test_selective_course_examination_is_idempotent_and_does_not_mark_skipped_videos(self):
+        lessons = [dict(id=i, order=i, title=f'Fixture {i}', caption='', video_filename=f'{i}.mp4') for i in range(1, 19)]
+        with patch.object(flow, 'course_lessons', return_value=lessons):
+            self.assertEqual(self.client.get('/sace/reading/course').status_code, 200)
+            self.assertIsNone(self.event('reading_complete'))
+            self.assertEqual(self.client.get('/sace/reading/course/12').status_code, 200)
+            self.assertEqual(self.client.post('/sace/reading/course/12', json={'examined': True}).status_code, 409)
+            with patch('app.utils.reading_media.verify_reading_video'):
+                self.assertEqual(self.client.get('/sace/reading/course/12/video').status_code, 302)
+            response = self.client.post('/sace/reading/course/12', json={'examined': True})
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.json['next'], '/sace/reading/course')
+            with self.app.app_context():
+                row = db.session.get(h.Interaction, self.assignment_id)
+                before = [(e.id, e.activity_slug, e.response_data, e.timestamp) for e in flow.events(row)
+                          if e.activity_slug in ('reading_complete', 'reading_lesson_12_complete')]
+                self.assertFalse(flow.course_complete(row))
+                self.assertFalse(flow.step35_passed(row))
+            self.assertEqual(self.client.post('/sace/reading/course/12', json={'examined': True}).status_code, 200)
+            self.assertEqual(self.event('reading_complete')['lesson_id'], 12)
+            for i in range(1, 19):
+                if i != 12:
+                    self.assertIsNone(self.event(f'reading_lesson_{i}_complete'))
+            with self.app.app_context():
+                row = db.session.get(h.Interaction, self.assignment_id)
+                self.assertEqual(before, [(e.id, e.activity_slug, e.response_data, e.timestamp) for e in flow.events(row)
+                    if e.activity_slug in ('reading_complete', 'reading_lesson_12_complete')])
+            board = self.client.get('/sace/reading').data.decode()
+            item = next(x for x in re.findall(r'<tr[^>]*>(.*?)</tr>', board, re.S) if '18-video Reading Course' in x)
+            self.assertIn('Examined', item)
+            self.assertEqual(self.client.get('/sace/reading/course/assessment').status_code, 409)
+            certificate = self.client.get('/sace/reading/course/certificate')
+            self.assertIn(b'Examine all 18 course videos before the Reading-course assessment and certificate evidence.', certificate.data)
+            self.assertNotIn(b'<iframe title="Reading Course Certificate"', certificate.data)
+
     def test_auditor_video_examination_needs_no_elapsed_playback(self):
         lessons=[dict(id=i,order=i,title=f'Fixture {i}',caption='',video_filename=f'{i}.mp4') for i in range(1,19)]
         with patch.object(flow,'course_lessons',return_value=lessons):
@@ -1116,7 +1176,7 @@ class ReadingRepair(unittest.TestCase):
                 self.assertEqual(self.client.get('/sace/reading/course/1/video').status_code,302)
                 self.assertEqual(self.client.get('/sace/reading/course/2/video').status_code,302)
             # Served material can be examined immediately, without elapsed time or an ended event.
-            self.assertEqual(self.client.post('/sace/reading/course/2',json={'examined':True}).status_code,409)
+            self.assertEqual(self.client.post('/sace/reading/course/2',json={'examined':True}).status_code,200)
             self.assertEqual(self.client.post('/sace/reading/course/1',json={'examined':True}).status_code,200)
             self.assertEqual(self.client.post('/sace/reading/course/2',json={'examined':True}).status_code,200)
             self.assertEqual(self.event('reading_lesson_1_complete')['evidence'],'Auditor confirmed video examination')

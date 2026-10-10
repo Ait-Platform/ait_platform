@@ -1,9 +1,4 @@
 {% extends "program_sace_home/frame.html" %}
-{% block actions %}
-{% if kind == 'final_assessment' %}<form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-<input type="hidden" name="evidence_sha256" value="{{ identity }}">
-<button class="home-button">Examined &mdash; return to Auditor Board</button></form>{% endif %}
-{% endblock %}
 {% block home_content %}
 <p class="mb-4">Examine this material submitted by the provider for HOME endorsement. Taking tests, answering workshop questions and completing study activities are not required.</p>
 {% if kind == 'experience' %}
@@ -25,7 +20,4 @@
 <p class="mb-4">Response choices in the submitted instrument: {{ snapshot.choices|join(', ') }}.</p>
 <ul>{% for key, question in snapshot.questions %}<li class="mb-3">{{ question }}</li>{% endfor %}</ul>
 {% endif %}
-{% if kind != 'final_assessment' %}<form method="post" class="mt-6"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-<input type="hidden" name="evidence_sha256" value="{{ identity }}">
-<button class="home-button">Examined &mdash; return to Auditor Board</button></form>{% endif %}
 {% endblock %}

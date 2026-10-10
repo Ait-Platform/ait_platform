@@ -376,7 +376,7 @@ def experience(assignment_id):
 @home_sace_bp.route("/assignments/<int:assignment_id>/materials/<kind>", methods=["GET", "POST"])
 @login_required
 def material(assignment_id, kind):
-    row = s.assignment(assignment_id, lock=request.method == "POST", writable=request.method == "POST")
+    row = s.assignment(assignment_id, lock=True, writable=request.method == "POST")
     if row.requirements_version == ex.REQUIREMENTS:
         if kind == 'certificate':
             return certification(assignment_id)
@@ -394,14 +394,22 @@ def material(assignment_id, kind):
                     context.record(row, kind, 'examined', {'evidence_sha256': identity, 'snapshot': snapshot})
                 db.session.commit()
                 return redirect(url_for('home_sace_bp.board', assignment_id=row.id))
-            context.record(row, kind, 'opened', {'evidence_sha256': identity})
-            db.session.commit()
             from app.models.home import HomeChapter
             assessment_images = ({c.chapter_number: c.image_filename for c in HomeChapter.query
                 .filter(HomeChapter.chapter_number.between(21, 30)).all()} if kind == 'final_assessment' else {})
-            return page('evidence_status.html', ex.FUNCTIONAL_ITEMS[kind], row=row, kind=kind,
+            response = page('evidence_status.html', ex.FUNCTIONAL_ITEMS[kind], row=row, kind=kind,
                 snapshot=snapshot, identity=identity, assessment_images=assessment_images,
                 back=url_for('home_sace_bp.board', assignment_id=row.id))
+            if row.status == 'active' and not s.submission(row):
+                for event in ('opened', 'examined'):
+                    existing = context.latest(row, kind, event)
+                    if not existing or existing.details.get('evidence_sha256') != identity:
+                        details = {'evidence_sha256': identity}
+                        if event == 'examined':
+                            details['snapshot'] = snapshot
+                        context.record(row, kind, event, details)
+                db.session.commit()
+            return response
         if kind in {'assessment', 'monitoring'}:
             abort(410, description='Use the separate HOME workshop evaluation items on the Auditor Board.')
         if kind in ex.INSTRUMENTS:
@@ -422,9 +430,7 @@ def material(assignment_id, kind):
                 s.record(row, kind, 'examined', {'sha256': version.sha256}, version.id)
             db.session.commit()
             return redirect(url_for('home_sace_bp.board', assignment_id=row.id))
-        db.session.commit()
-        return page('material.html', ex.ITEMS[kind], row=row, version=version, kind=kind,
-            back=url_for('home_sace_bp.board', assignment_id=row.id))
+        return opened_material(row, kind, version, ex.ITEMS[kind])
     if kind not in s.DOCUMENT_ITEMS:
         abort(404)
     version = s.latest_version(kind)
@@ -440,8 +446,21 @@ def material(assignment_id, kind):
             s.record(row, kind, "examined", version=version.id)
         db.session.commit()
         return redirect(url_for("home_sace_bp.board", assignment_id=row.id))
-    return page("material.html", s.ITEMS[kind], row=row, version=version, kind=kind,
-        back=url_for("home_sace_bp.board", assignment_id=row.id))
+    return opened_material(row, kind, version, s.ITEMS[kind])
+
+
+def opened_material(row, kind, version, title):
+    if version is not None:
+        s.document_content(version)
+    response = page('material.html', title, row=row, version=version, kind=kind,
+        back=url_for('home_sace_bp.board', assignment_id=row.id))
+    if version is not None and row.status == 'active' and not s.submission(row):
+        for event in ('opened', 'examined'):
+            if not HomeEvidence.query.filter_by(assignment_id=row.id, actor_id=row.auditor_id,
+                    item=kind, event=event, document_version_id=version.id).first():
+                s.record(row, kind, event, {'sha256': version.sha256}, version.id)
+        db.session.commit()
+    return response
 
 
 @home_sace_bp.get("/documents/<int:version_id>/content")
@@ -460,7 +479,9 @@ def document_content(version_id):
             if bound is None or bound.id != version.id:
                 abort(409, description='This document is not the approved HOME examination version.')
         pdf_bytes = s.document_content(version)
-        if row.status == "active":
+        if row.status == "active" and not HomeEvidence.query.filter_by(
+                assignment_id=row.id, actor_id=row.auditor_id, item=doc.kind,
+                event='opened', document_version_id=version.id).first():
             s.record(row, doc.kind, "opened", version=version.id)
             db.session.commit()
     else:

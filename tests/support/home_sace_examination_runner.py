@@ -96,7 +96,8 @@ class HomeExamination(unittest.TestCase):
         path = self.base + '/materials/' + kind
         opened = self.auditor.get(path)
         self.assertEqual(opened.status_code, 200)
-        identity = re.search(rb'name="evidence_sha256" value="([a-f0-9]{64})"', opened.data).group(1).decode()
+        with self.app.app_context():
+            identity = ex.content.digest(ex.evidence_status(db.session.get(HomeAssignment, self.aid), kind))
         return self.auditor.post(path, data={'evidence_sha256': identity})
 
     def board(self):
@@ -355,7 +356,7 @@ class HomeExamination(unittest.TestCase):
             state['home_assignment_id']=self.aid
         self.assertEqual(other.post('/home/auditor/advance/1',data={'action':'skip'}).status_code,403)
 
-    def submitted_documents(self):
+    def submitted_documents(self, open_materials=True):
         import hashlib
         from app.models.sace_home import HomeDocument, HomeDocumentVersion
         for kind in ('application_form_1','application_form_2','timetable','participant_manual','facilitator_manual'):
@@ -366,6 +367,8 @@ class HomeExamination(unittest.TestCase):
                     sha256=hashlib.sha256(path.read_bytes()).hexdigest(),approved_by=HomeController.query.one().id,
                     source_manifest={'subject':f.s.SUBJECT,'kind':kind,'home_approval':{'approved_by':'reviewer','reference':'fixture'}})
                 db.session.add(version);db.session.commit();vid=version.id
+            if not open_materials:
+                continue
             self.assertEqual(self.auditor.get(self.base+'/materials/'+kind).status_code,200)
             with self.auditor.get(f'/sace/home/documents/{vid}/content?assignment_id={self.aid}') as response:
                 self.assertEqual(response.status_code,200)
@@ -379,6 +382,92 @@ class HomeExamination(unittest.TestCase):
         if include_final:
             self.assertEqual(self.examine_status('final_assessment').status_code,302)
 
+    def test_material_open_is_automatic_idempotent_and_assignment_scoped(self):
+        self.submitted_documents(open_materials=False)
+        kinds = ('application_form_1', 'application_form_2', 'timetable', 'participant_manual',
+            'facilitator_manual', 'experience', 'facilitator_evaluation', 'participant_evaluation', 'final_assessment')
+        self.assertEqual(self.auditor.get(self.base+'/board').status_code, 200)
+        with self.app.app_context():
+            self.assertEqual(HomeEvidence.query.filter(HomeEvidence.item.in_(kinds), HomeEvidence.event=='examined').count(), 0)
+        for kind in kinds:
+            target = self.base+'/materials/'+kind
+            self.assertEqual(self.client.get(target).status_code, 403)
+            with self.app.app_context():
+                self.assertEqual(HomeEvidence.query.filter_by(assignment_id=self.aid,item=kind,event='examined').count(), 0)
+            for _ in range(2):
+                page = self.auditor.get(target)
+                self.assertEqual(page.status_code, 200)
+                self.assertNotRegex(page.data, rb'<button[^>]*>Examined')
+                if kind in ex.DOCUMENTS:
+                    with self.app.app_context():
+                        version_id = HomeEvidence.query.filter_by(assignment_id=self.aid,
+                            item=kind, event='examined').one().document_version_id
+                    self.assertEqual(self.auditor.get(f'/sace/home/documents/{version_id}/content?assignment_id={self.aid}').status_code, 200)
+            self.assertTrue(self.board()[kind]['examined'])
+            with self.app.app_context():
+                self.assertEqual(HomeEvidence.query.filter_by(assignment_id=self.aid,item=kind,event='examined').count(), 1)
+                self.assertEqual(HomeEvidence.query.filter_by(assignment_id=self.aid,item=kind,event='opened').count(), 1)
+        board = self.auditor.get(self.base+'/board')
+        self.assertIn((self.base+'/materials/facilitator_manual').encode(), board.data)
+        other, other_id = self.join_home(self.code_home(), email='isolated-material-auditor@example.test')
+        self.assertEqual(other.get(f'/sace/home/assignments/{other_id}/board').status_code, 200)
+        with self.app.app_context():
+            self.assertEqual(HomeEvidence.query.filter_by(assignment_id=other_id,event='examined').count(), 0)
+        bad = Path(self.documents.name)/'application_form_1.pdf'
+        original = bad.read_bytes(); bad.write_bytes(b'corrupt document')
+        try:
+            failed = other.get(f'/sace/home/assignments/{other_id}/materials/application_form_1')
+            self.assertIn(b'awaiting an approved HOME document version', failed.data)
+            with self.app.app_context():
+                self.assertEqual(HomeEvidence.query.filter_by(assignment_id=other_id,item='application_form_1',event='examined').count(), 0)
+        finally:
+            bad.write_bytes(original)
+        self.assertEqual(other.get(f'/sace/home/assignments/{other_id}/materials/application_form_1').status_code, 200)
+        with self.app.app_context():
+            self.assertEqual(HomeEvidence.query.filter_by(assignment_id=other_id,item='application_form_1',event='examined').count(), 1)
+            self.assertEqual(HomeFinalAssessment.query.count(), 0)
+
+    def test_shared_material_viewer_actual_pagination_boundaries(self):
+        import json, shutil, subprocess, importlib.util
+        node = shutil.which('node')
+        if not node:
+            spec = importlib.util.find_spec('playwright')
+            node = str(Path(spec.origin).parent/'driver'/'node.exe')
+        self.submitted_documents(open_materials=False)
+        for kind in ('application_form_1', 'application_form_2', 'participant_manual', 'facilitator_manual', 'timetable'):
+            html = self.auditor.get(self.base+'/materials/'+kind).data.decode()
+            self.assertNotIn('>Examined</button>', html)
+            script = re.search(r'<script>\s*(.*?)\s*</script>', html, re.S).group(1)
+            if kind == 'timetable':
+                self.assertNotIn('document-pagination', html)
+                self.assertNotIn('Previous', html)
+                self.assertNotIn('Next', html)
+            for total in (1, 3):
+                harness = r"""
+const assert=require('node:assert/strict');
+const total=TOTAL,timetable=TIMETABLE;
+const controls={children:[],replaceChildren(){this.children=[];},appendChild(x){this.children.push(x);}};
+const status={}; const canvas={getContext:()=>({})};
+global.document={getElementById:id=>id==='document'?canvas:status,
+ querySelector:()=>{assert.equal(timetable,false);return controls;},createElement:tag=>({tag,textContent:''})};
+global.pdfjsLib={GlobalWorkerOptions:{},getDocument:()=>({promise:Promise.resolve({numPages:total,
+ getPage:async()=>({getViewport:()=>({width:600,height:800}),render:()=>({promise:Promise.resolve()})})})})};
+const tick=()=>new Promise(resolve=>setImmediate(resolve));
+function check(page){
+ if(timetable){assert.equal(controls.children.length,0);return;}
+ const texts=controls.children.map(x=>x.textContent);
+ assert.equal(texts.includes('Previous'),page>1);
+ assert.equal(texts.includes('Next'),page<total);
+ assert.ok(texts.includes(`Page ${page} of ${total}`));
+}
+(async()=>{await eval(SCRIPT);check(1);
+ if(!timetable){for(let page=2;page<=total;page++){controls.children.find(x=>x.textContent==='Next').onclick();await tick();check(page);}
+ for(let page=total-1;page>=1;page--){controls.children.find(x=>x.textContent==='Previous').onclick();await tick();check(page);}}
+})().catch(e=>{console.error(e);process.exitCode=1;});
+""".replace('TOTAL',str(total)).replace('TIMETABLE','true' if kind=='timetable' else 'false').replace('SCRIPT',json.dumps(script))
+                result = subprocess.run([node,'-'],input=harness,text=True,capture_output=True,timeout=20)
+                self.assertEqual(result.returncode,0,result.stdout+result.stderr)
+
     def test_final_assessment_material_layout_and_top_confirmation(self):
         with self.app.app_context():
             chapter=db.session.get(HomeChapter,21);chapter.image_filename='home-reference-fixture.png'
@@ -388,12 +477,10 @@ class HomeExamination(unittest.TestCase):
             identity=ex.content.digest(snapshot)
         page=self.auditor.get(self.base+'/materials/final_assessment')
         self.assertEqual(page.status_code,200)
-        self.assertEqual(page.data.count(b'Examined &mdash; return to Auditor Board'),1)
+        self.assertNotIn(b'Examined &mdash; return to Auditor Board', page.data)
         back=page.data.index(b'>Back to Auditor Board</a>')
-        confirm=page.data.index(b'Examined &mdash; return to Auditor Board')
         questions=page.data.index(b'aria-label="Submitted HOME Final Assessment"')
-        self.assertLess(back,confirm);self.assertLess(confirm,questions)
-        self.assertIn(b'flex justify-end',page.data[back:confirm])
+        self.assertLess(back, questions)
         self.assertIn(b'/static/images/home-reference-fixture.png',page.data)
         self.assertIn(b'bg-gray-50 border border-gray-200 rounded-xl p-6',page.data)
         self.assertIn(b'aria-label="Answer options"',page.data)
@@ -401,7 +488,6 @@ class HomeExamination(unittest.TestCase):
             self.assertIn(question['question'].encode(),page.data)
             for option in question['options']:self.assertIn(option['text'].encode(),page.data)
         self.assertNotRegex(page.data,rb'type="(?:radio|checkbox)"|name="q[0-9]+"|Submit Final Assessment')
-        self.assertIn(identity.encode(),page.data)
         self.assertEqual(self.auditor.post(self.base+'/materials/final_assessment',
             data={'evidence_sha256':identity}).status_code,302)
         self.assertTrue(self.board()['final_assessment']['examined'])
@@ -453,7 +539,8 @@ class HomeExamination(unittest.TestCase):
         for _ in range(2):
             page=self.auditor.get(self.base+'/board')
             self.assertEqual(page.status_code,200)
-            self.assertEqual(page.data.count(b'>Examined</span>'),10)
+            self.assertEqual(page.data.count(b'&#10003; Examined'),10)
+            self.assertIn((self.base+'/materials/facilitator_manual').encode(), page.data)
             self.assertIn(b'10. Final Assessment',page.data)
             self.assertIn(b'11. Certification',page.data)
             self.assertIn(b'Open Certification',page.data)

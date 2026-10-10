@@ -1,21 +1,18 @@
 {% extends "program_sace_home/frame.html" %}
-{% block actions %}
-{% if version and row.status == 'active' %}<form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="version_id" value="{{ version.id }}"><button class="home-button">Examined</button></form>{% endif %}
-{% endblock %}
 {% block home_content %}
 {% if version %}<p class="mb-4">HOME document version {{ version.version }}</p>
 <p id="document-status" role="status">Loading controlled HOME material.</p>
-<div class="flex justify-center gap-4 my-4"><button type="button" id="previous" class="home-button">Previous</button><span id="page"></span><button type="button" id="next" class="home-button">Next</button></div>
+{% if kind != 'timetable' %}<div class="document-pagination flex justify-center gap-4 my-4"></div>{% endif %}
 <canvas id="document" class="max-w-full mx-auto border mb-6"></canvas>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
 <script>
 (async()=>{const status=document.getElementById('document-status');
 try {pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 const pdf=await pdfjsLib.getDocument({{ url_for('home_sace_bp.document_content', version_id=version.id, assignment_id=row.id)|tojson }}).promise;let index=1,busy=false;
-async function show(){if(busy)return;busy=true;try{const p=await pdf.getPage(index),viewport=p.getViewport({scale:1.3}),canvas=document.getElementById('document');canvas.width=viewport.width;canvas.height=viewport.height;await p.render({canvasContext:canvas.getContext('2d'),viewport}).promise;document.getElementById('page').textContent=`Page ${index} of ${pdf.numPages}`;status.textContent='Review the document, then confirm examination using Examined.';
+async function show(){if(busy)return;busy=true;try{const p=await pdf.getPage(index),viewport=p.getViewport({scale:1.3}),canvas=document.getElementById('document');canvas.width=viewport.width;canvas.height=viewport.height;await p.render({canvasContext:canvas.getContext('2d'),viewport}).promise;{% if kind != 'timetable' %}const controls=document.querySelector('.document-pagination');controls.replaceChildren();if(index>1){const previous=document.createElement('button');previous.type='button';previous.className='home-button';previous.textContent='Previous';previous.onclick=()=>{if(!busy){index--;show();}};controls.appendChild(previous);}const indicator=document.createElement('span');indicator.textContent=`Page ${index} of ${pdf.numPages}`;controls.appendChild(indicator);if(index<pdf.numPages){const next=document.createElement('button');next.type='button';next.className='home-button';next.textContent='Next';next.onclick=()=>{if(!busy){index++;show();}};controls.appendChild(next);}{% endif %}status.textContent='Controlled HOME material.';
 }catch(e){status.textContent='This page could not be displayed. Retry using the page controls.';}finally{busy=false;}}
-document.getElementById('previous').onclick=()=>{if(!busy&&index>1){index--;show();}};document.getElementById('next').onclick=()=>{if(!busy&&index<pdf.numPages){index++;show();}};await show();
-}catch(e){status.textContent='Material could not be loaded. No examination has been recorded.';}})();
+await show();
+}catch(e){status.textContent='Material could not be loaded. Please reload to retry.';}})();
 </script>
 {% else %}<p>This item is awaiting an approved HOME document version. It cannot be marked examined until the material is available.</p>{% endif %}
 {% endblock %}

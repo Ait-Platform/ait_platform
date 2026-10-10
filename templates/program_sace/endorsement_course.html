@@ -9,6 +9,7 @@
 <h2 class="text-xl font-semibold">I Learn to Read English Using the LITRE Method</h2><p>{{ completed|length }} of 18 videos examined for this assignment.</p>
 <p>Examine the videos as required to understand the Reading course. You may skip videos or examine them in any order.</p>
 {% if lessons|length != 18 %}<p role="alert">The course must contain exactly 18 videos. Course completion is unavailable until the content is ready.</p>{% endif %}
-<ol class="space-y-3">{% for lesson in lessons %}<li class="border rounded p-3 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4"><div>{{ lesson['order'] }}. {{ lesson.title }}{% if lesson.id in completed %}<span class="text-sm text-slate-600"> &ndash; Examined</span>{% endif %}</div><a class="underline text-indigo-700 whitespace-nowrap" href="{{ url_for('sace_bp.reading_lesson',lesson_id=lesson.id) }}">Play video</a></li>{% endfor %}</ol>
+<div class="grid grid-cols-[minmax(0,1fr)_8rem_auto] gap-4 px-3 font-semibold"><span>Video title</span><span>Status</span><span>Play video</span></div>
+<ol class="space-y-3">{% for lesson in lessons %}<li class="border rounded p-3 grid grid-cols-[minmax(0,1fr)_8rem_auto] items-center gap-4"><div>{{ lesson['order'] }}. {{ lesson.title }}</div><span class="text-sm text-slate-600">{{ 'Examined' if lesson.id in completed else 'Not examined' }}</span><a class="underline text-indigo-700 whitespace-nowrap" href="{{ url_for('sace_bp.reading_lesson',lesson_id=lesson.id) }}">Play video</a></li>{% endfor %}</ol>
 </div></div></div>
 {% endblock %}

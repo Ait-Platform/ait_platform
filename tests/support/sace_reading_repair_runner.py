@@ -1113,7 +1113,7 @@ class ReadingRepair(unittest.TestCase):
             rows = re.findall(r'<li class="([^"]*)">(.*?)</li>', index, re.S)
             self.assertEqual(len(rows), 18)
             for i, (classes, content) in enumerate(rows, 1):
-                self.assertIn('grid-cols-[minmax(0,1fr)_auto]', classes)
+                self.assertIn('grid-cols-[minmax(0,1fr)_8rem_auto]', classes)
                 self.assertIn(f'{i}. Video {i} with a title', content)
                 self.assertIn(f'href="/sace/reading/course/{i}">Play video</a>', content)
             lesson = self.client.get('/sace/reading/course/12').data.decode()
@@ -1127,6 +1127,59 @@ class ReadingRepair(unittest.TestCase):
             self.assertNotIn('Back to Auditor Board', lesson)
             self.assertNotIn('Return to course', lesson)
             self.assertIn("'X-CSRFToken':", lesson)
+
+    def test_course_status_column_uses_only_assignment_video_evidence(self):
+        lessons = [dict(id=i, order=i, title=f'Fixture {i}', caption='', video_filename=f'{i}.mp4') for i in range(1, 19)]
+        def statuses(client):
+            html = client.get('/sace/reading/course').data.decode()
+            self.assertIn('<span>Video title</span><span>Status</span><span>Play video</span>', html)
+            rows = re.findall(r'<li class="([^"]*)">(.*?)</li>', html, re.S)
+            self.assertEqual(len(rows), 18)
+            result = []
+            for i, (classes, content) in enumerate(rows, 1):
+                self.assertIn('grid-cols-[minmax(0,1fr)_8rem_auto]', classes)
+                columns = re.findall(r'<(div|span|a)\b[^>]*>(.*?)</\1>', content, re.S)
+                self.assertEqual([tag for tag, _ in columns], ['div', 'span', 'a'])
+                self.assertEqual(columns[0][1], f'{i}. Fixture {i}')
+                self.assertEqual(columns[2][1], 'Play video')
+                self.assertIn(f'href="/sace/reading/course/{i}"', content)
+                result.append(columns[1][1])
+            return result
+        with patch.object(flow, 'course_lessons', return_value=lessons):
+            self.assertEqual(statuses(self.client), ['Not examined'] * 18)
+            self.assertEqual(self.client.get('/sace/reading/course/12').status_code, 200)
+            with patch('app.utils.reading_media.verify_reading_video'):
+                self.assertEqual(self.client.get('/sace/reading/course/12/video').status_code, 302)
+            self.assertEqual(self.client.post('/sace/reading/course/12', json={'examined': True}).status_code, 200)
+            with self.app.app_context():
+                row = db.session.get(h.Interaction, self.assignment_id)
+                before = [(e.id, e.activity_slug, e.response_data, e.timestamp) for e in flow.events(row)]
+            expected = ['Not examined'] * 18
+            expected[11] = 'Examined'
+            self.assertEqual(statuses(self.client), expected)
+            self.assertEqual(self.client.get('/sace/reading/course/12').status_code, 200)
+            self.assertEqual(statuses(self.client), expected)
+            with self.app.app_context():
+                row = db.session.get(h.Interaction, self.assignment_id)
+                self.assertEqual(before, [(e.id, e.activity_slug, e.response_data, e.timestamp) for e in flow.events(row)])
+            another = self.user('another-course-status-auditor@example.test')
+            with self.app.app_context():
+                from app.program_sace import lifecycle as lc
+                row = db.session.get(h.Interaction, self.assignment_id)
+                link = db.session.get(lc.AssignmentContext, row.id)
+                appointment = db.session.get(lc.Appointment, link.issuing_appointment_id)
+                other = h.Interaction(user_id=row.user_id, activity_slug='auditor_provisioned',
+                    response_data=h.json.dumps({'status': 'Claimed', 'claimed_by_user_id': another, 'demo_step': 0}))
+                db.session.add(other); db.session.flush()
+                lc.link_assignment(other, appointment, appointment.provisioning_event_id)
+                db.session.commit()
+                other_id = other.id
+            client = self.app.test_client()
+            self.login(client, 'another-course-status-auditor@example.test', '/sace/reading')
+            self.assertEqual(statuses(client), ['Not examined'] * 18)
+            with self.app.app_context():
+                other = db.session.get(h.Interaction, other_id)
+                self.assertFalse(any(e.activity_slug.startswith('reading_lesson_') for e in flow.events(other)))
 
     def test_selective_course_examination_is_idempotent_and_does_not_mark_skipped_videos(self):
         lessons = [dict(id=i, order=i, title=f'Fixture {i}', caption='', video_filename=f'{i}.mp4') for i in range(1, 19)]

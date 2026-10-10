@@ -153,7 +153,15 @@ def control():
     invitations = HomeInvitation.query.filter_by(appointment_id=actor.id).order_by(HomeInvitation.id.desc()).all()
     assignments = (HomeAssignment.query.join(HomeInvitation)
         .filter(HomeInvitation.appointment_id == actor.id).order_by(HomeAssignment.id.desc()).all())
-    return page("control.html", "HOME Control Centre", invitations=invitations,
+    from app.models.auth import User
+    from app.auth.routes import check_admin
+    exit_url = url_for('bridge_bp.bridge') if check_admin(current_user.email) else url_for('public_bp.welcome')
+    auditors = {user.id: user for user in User.query.filter(
+        User.id.in_([row.auditor_id for row in assignments])).all()}
+    audit_events = (lc.HomeAuditEvent.query.filter_by(engagement_id=actor.engagement_id)
+        .order_by(lc.HomeAuditEvent.id.desc()).all()) if request.args.get('view') == 'audit' else []
+    return page("control.html", "SACE Control Centre", auditors=auditors, audit_events=audit_events, exit_url=exit_url,
+        invitations=invitations,
         assignments=assignments, submitted_ids={row.id for row in assignments if s.submission(row)},
         engagement=db.session.get(lc.Engagement, actor.engagement_id), back=url_for("auth_bp.choose_sace_activity"))
 

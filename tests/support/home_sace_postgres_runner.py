@@ -78,7 +78,7 @@ class HomeFoundation(unittest.TestCase):
         result = self.client.post("/register", data={"subject": s.SUBJECT, "full_name": "HOME R",
             "email": email, "password": "test-password"}, follow_redirects=True)
         self.assertEqual(result.status_code, 200, result.data[:500])
-        self.assertIn(b"HOME Control Centre", result.data)
+        self.assertIn(b"SACE Control Centre", result.data)
         with self.app.app_context():
             return HomeController.query.one().user_id
 

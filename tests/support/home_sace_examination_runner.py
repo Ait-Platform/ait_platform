@@ -699,6 +699,30 @@ class HomeExamination(unittest.TestCase):
             self.assertEqual(self.auditor.post(target,data={'action':'email'}).status_code,403)
             send.assert_not_called()
 
+    def test_control_centre_alignment_preserves_home_state(self):
+        from app.program_sace_home import lifecycle as lc
+        self.code_home()  # An unclaimed invitation alongside the claimed Auditor.
+        with self.app.app_context():
+            before = [(row.id, row.status, row.completed_at) for row in HomeAssignment.query.all()]
+            events = HomeEvidence.query.count()
+        page = self.client.get('/sace/home/control')
+        self.assertEqual(page.status_code, 200)
+        for text in (b'SACE Control Centre', b'Provider Activity: Hands-On Math Education',
+                b'Back to Choose SACE Activity', b'Exit', b'About AIT Activity for SACE Endorsement',
+                b'View Audit Logs', b'Provider Documents', b'Intellectual Property Pledge',
+                b'Provisioned Auditors', b'Generate Access Code', b'AIT activity evaluation notifications',
+                b'Access Code', b'Auditor Name', b'Status', b'Actions', b'Pending Claim', b'Unclaimed', b'HOME A'):
+            self.assertIn(text, page.data)
+        self.assertNotIn(b'Finalize Auditor', page.data)
+        self.assertIn(b'action="/sace/home/control/codes"', page.data)
+        for view in ('about', 'audit'):
+            self.assertEqual(self.client.get('/sace/home/control?view='+view).status_code, 200)
+            self.assertEqual(self.auditor.get('/sace/home/control?view='+view).status_code, 403)
+        with self.app.app_context():
+            self.assertEqual([(row.id, row.status, row.completed_at) for row in HomeAssignment.query.all()], before)
+            self.assertEqual(HomeEvidence.query.count(), events)
+            self.assertEqual(lc.Engagement.query.one().status, 'active')
+
     def test_submission_retains_review_and_admin_finalization_is_scoped(self):
         from app.program_sace_home import lifecycle as lc, certification as cert
         from app.program_sace_home.activity import HomeActivity

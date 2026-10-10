@@ -712,6 +712,9 @@ class HomeExamination(unittest.TestCase):
         self.assertLess(page.data.index(b'>Back</a>'), page.data.index(b'generating secure access links'))
         self.assertNotIn(b'Return to R Dashboard', page.data)
         response = self.client.post('/sace/home/control/codes')
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.location, '/sace/home/control')
+        response = self.client.get(response.location)
         code = re.search(rb'HOME-[A-F0-9]{24}', response.data).group().decode()
         self.assertIn(b'Print Slip', response.data)
         self.assertIn(b'Pending Claim', response.data)
@@ -720,23 +723,49 @@ class HomeExamination(unittest.TestCase):
             serialized = json.dumps({col.name: str(getattr(invitation, col.name)) for col in invitation.__table__.columns})
             self.assertNotIn(code, serialized)
         with self.client.session_transaction() as state:
-            self.assertNotIn(code, json.dumps(dict(state), default=str))
-        slip = self.client.post('/sace/home/control/print-slip', data={'code': code})
+            handoff = dict(state['sace_home_code_handoff'])
+            self.assertEqual(handoff['invitation_id'], invitation.id)
+        target = f"/sace/home/control/invitations/{invitation.id}/print-slip"
+        for _ in range(2):
+            reloaded = self.client.get('/sace/home/control')
+            self.assertIn(code.encode(), reloaded.data)
+            self.assertIn(target.encode(), reloaded.data)
+        slip = self.client.get(target)
         self.assertEqual(slip.status_code, 200)
         self.assertIn(code.encode(), slip.data)
         self.assertIn(b'http://localhost/sace/home/join', slip.data)
         self.assertNotIn(b'/sace/join', slip.data)
-        self.assertEqual(self.auditor.post('/sace/home/control/print-slip', data={'code': code}).status_code, 403)
-        self.app.config['WTF_CSRF_ENABLED'] = True
+        self.assertEqual(self.auditor.get(target).status_code, 403)
+        # A fresh session for the same controller has no handoff.
+        other = self.app.test_client()
+        self.login(other, 'home-r@example.test')
+        self.assertEqual(other.get(target).status_code, 404)
+        self.assertNotIn(code.encode(), other.get('/sace/home/control').data)
+        # Copying the handoff cannot give a different controller access.
+        original_client = self.client
+        self.client = self.app.test_client()
         try:
-            self.assertEqual(self.client.post('/sace/home/control/print-slip', data={'code': code}).status_code, 400)
+            self.provision_home(email='different-home-controller@example.test')
+            with self.client.session_transaction() as state:
+                state['sace_home_code_handoff'] = handoff
+            self.assertEqual(self.client.get(target).status_code, 404)
+            self.assertNotIn(code.encode(), self.client.get('/sace/home/control').data)
         finally:
-            self.app.config['WTF_CSRF_ENABLED'] = False
+            self.client = original_client
+        with self.client.session_transaction() as state:
+            state['sace_home_code_handoff'] = dict(handoff, expires_at=0)
+        self.assertEqual(self.client.get(target).status_code, 404)
         old = self.client.get('/sace/home/control')
         self.assertNotIn(code.encode(), old.data)
         self.assertNotIn(b'Print Slip', old.data)
+        with self.client.session_transaction() as state:
+            self.assertNotIn('sace_home_code_handoff', state)
+            state['sace_home_code_handoff'] = handoff
         self.join_home(code, email='fresh-slip-auditor@example.test')
-        self.assertEqual(self.client.post('/sace/home/control/print-slip', data={'code': code}).status_code, 400)
+        self.assertEqual(self.client.get(target).status_code, 404)
+        with self.app.app_context():
+            self.assertEqual(HomeInvitation.query.filter_by(code_hash=service.digest(code)).one().status, 'claimed')
+
 
     def test_control_centre_alignment_preserves_home_state(self):
         from app.program_sace_home import lifecycle as lc

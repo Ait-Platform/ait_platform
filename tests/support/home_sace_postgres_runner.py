@@ -80,10 +80,11 @@ class HomeFoundation(unittest.TestCase):
         self.assertEqual(result.status_code, 200, result.data[:500])
         self.assertIn(b"SACE Control Centre", result.data)
         with self.app.app_context():
-            return HomeController.query.one().user_id
+            return (HomeController.query.join(h.auth_models.User, h.auth_models.User.id == HomeController.user_id)
+                .filter(h.auth_models.User.email == email).one().user_id)
 
     def code_home(self):
-        result = self.client.post("/sace/home/control/codes")
+        result = self.client.post("/sace/home/control/codes", follow_redirects=True)
         self.assertEqual(result.status_code, 200)
         return re.search(rb"HOME-[A-F0-9]{24}", result.data).group().decode()
 

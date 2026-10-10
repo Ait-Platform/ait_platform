@@ -1,4 +1,5 @@
 import secrets
+import time
 from flask_wtf.csrf import CSRFError
 from werkzeug.exceptions import BadRequest
 from flask import current_app, g, abort, flash, redirect, render_template, request, session, url_for, send_file
@@ -147,13 +148,15 @@ def authenticate():
 
 @home_sace_bp.get("/control")
 @login_required
-def control(fresh_code=None):
+def control():
     owner = s.require_controller()
     actor = lc.require_appointment()
     from .activity import HomeActivity
     if request.args.get('view') == 'about':
         return page('about.html', 'About AIT Activity for SACE Endorsement',
             activity_title=HomeActivity.display_name, back=url_for('home_sace_bp.control'))
+    handoff = fresh_code_handoff(actor)
+    fresh_code = handoff['code'] if handoff else None
     invitations = HomeInvitation.query.filter_by(appointment_id=actor.id).order_by(HomeInvitation.id.desc()).all()
     assignments = (HomeAssignment.query.join(HomeInvitation)
         .filter(HomeInvitation.appointment_id == actor.id).order_by(HomeAssignment.id.desc()).all())
@@ -171,25 +174,46 @@ def control(fresh_code=None):
         engagement=db.session.get(lc.Engagement, actor.engagement_id), back=url_for("auth_bp.choose_sace_activity"))
 
 
+def fresh_code_handoff(actor):
+    handoff = session.get('sace_home_code_handoff')
+    if not isinstance(handoff, dict):
+        return None
+    invitation = db.session.get(HomeInvitation, handoff.get('invitation_id'))
+    if (handoff.get('user_id') != current_user.id
+            or handoff.get('appointment_id') != actor.id
+            or not isinstance(handoff.get('expires_at'), (int, float))
+            or handoff['expires_at'] <= time.time()
+            or invitation is None or invitation.appointment_id != actor.id
+            or invitation.status != 'unclaimed' or invitation.expires_at <= now()
+            or not isinstance(handoff.get('code'), str)
+            or not secrets.compare_digest(invitation.code_hash, s.digest(handoff['code']))):
+        session.pop('sace_home_code_handoff', None)
+        return None
+    return handoff
+
+
 @home_sace_bp.post("/control/codes")
 @login_required
 def generate_code():
     code = s.issue_invitation(s.require_controller())
+    actor = lc.require_appointment()
+    invitation = HomeInvitation.query.filter_by(code_hash=s.digest(code), appointment_id=actor.id).one()
     db.session.commit()
-    return control(fresh_code=code)
+    session['sace_home_code_handoff'] = dict(code=code, user_id=current_user.id,
+        appointment_id=actor.id, invitation_id=invitation.id, expires_at=time.time() + 900)
+    return redirect(url_for('home_sace_bp.control'))
 
 
-@home_sace_bp.post('/control/print-slip')
+@home_sace_bp.get('/control/invitations/<int:invitation_id>/print-slip')
 @login_required
-def print_access_slip():
+def print_access_slip(invitation_id):
     s.require_controller()
     actor = lc.require_appointment()
-    code = request.form.get('code', '').strip().upper()
-    invitation = s.invitation(code)
-    if invitation.appointment_id != actor.id:
-        abort(403)
+    handoff = fresh_code_handoff(actor)
+    if handoff is None or handoff['invitation_id'] != invitation_id:
+        abort(404)
     from .activity import HomeActivity
-    return page('print_slip.html', 'SACE Auditor Access Pass', code=code,
+    return page('print_slip.html', 'SACE Auditor Access Pass', code=handoff['code'],
         activity_title=HomeActivity.display_name, back=url_for('home_sace_bp.control'))
 
 

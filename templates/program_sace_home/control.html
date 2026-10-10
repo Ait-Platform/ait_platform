@@ -31,7 +31,7 @@
 <td class="p-4 text-right">{% if row %}<a class="home-button" href="{{ url_for('home_sace_bp.controller_evidence', assignment_id=row.id) }}">View examination evidence</a>
 {% if row.id in submitted_ids and row.status == 'active' %}<form method="post" class="mt-2" action="{{ url_for('home_sace_bp.finalize_auditor', assignment_id=row.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="home-button">Finalize Auditor</button></form>{% endif %}
 {% elif fresh_code and item.code_hash == fresh_code_hash and item.status == 'unclaimed' %}
-<form method="post" action="{{ url_for('home_sace_bp.print_access_slip') }}" target="_blank"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="code" value="{{ fresh_code }}"><button class="home-button">Print Slip</button></form>
+<a class="home-button" href="{{ url_for('home_sace_bp.print_access_slip', invitation_id=item.id) }}" target="_blank">Print Slip</a>
 {% else %}<span class="text-xs text-slate-400">No actions</span>{% endif %}</td></tr>
 {% else %}<tr><td colspan="4" class="p-8 text-center text-slate-500">No auditors have been provisioned yet.</td></tr>{% endfor %}
 </tbody></table></div>

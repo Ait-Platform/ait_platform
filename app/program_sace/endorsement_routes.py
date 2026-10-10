@@ -232,9 +232,14 @@ def material(kind):
         db.session.commit()
         return response
     title, path = material_path(kind)
-    return render_template('program_sace/endorsement_material.html', doc_title=title,
+    row = flow.assignment(lock=True) if kind in ('f_guide', 'p_guide') else None
+    response = render_template('program_sace/endorsement_material.html', doc_title=title,
         doc_url=url_for('sace_bp.material_content', kind=kind),
         viewed_url=url_for('sace_bp.material_viewed', kind=kind))
+    if row is not None:
+        flow.record(row, kind, {'evidence': 'manual opened in controlled viewer for endorsement examination'}, once=True)
+        db.session.commit()
+    return response
 
 
 @sace_bp.get('/sace/material/<kind>/content')

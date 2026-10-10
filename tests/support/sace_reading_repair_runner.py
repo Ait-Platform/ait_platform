@@ -189,6 +189,84 @@ class ReadingRepair(unittest.TestCase):
             self.assertNotEqual(ordinary.get('/sace/secure_view/' + kind).status_code, 200)
             self.assertNotEqual(ordinary.get('/sace/material/' + kind + '/content').status_code, 200)
 
+    def test_manual_open_marks_examined_once_without_page_traversal(self):
+        for kind, title in (('f_guide', 'Facilitator Manual'), ('p_guide', 'Workshop Manual')):
+            with self.subTest(kind=kind):
+                self.assertIsNone(self.event(kind))
+                self.assertEqual(self.client.get('/sace/secure_view/' + kind).status_code, 200)
+                with self.app.app_context():
+                    row = db.session.get(h.Interaction, self.assignment_id)
+                    event = flow.latest(row, kind)
+                    before = (event.id, event.response_data, event.timestamp)
+                    self.assertIsNone(flow.latest(row, kind + '_opened'))
+                board = self.client.get('/sace/reading')
+                item = next(x for x in re.findall(r'<tr[^>]*>(.*?)</tr>', board.data.decode(), re.S) if title in x)
+                self.assertIn('Examined', item)
+                self.assertEqual(self.client.get('/sace/secure_view/' + kind).status_code, 200)
+                with self.client.get('/sace/material/' + kind + '/content') as response:
+                    self.assertEqual(response.status_code, 200)
+                self.assertEqual(self.client.post('/sace/material/' + kind + '/viewed').status_code, 200)
+                with self.app.app_context():
+                    row = db.session.get(h.Interaction, self.assignment_id)
+                    records = [x for x in flow.events(row) if x.activity_slug == kind]
+                    self.assertEqual(len(records), 1)
+                    self.assertEqual(before, (records[0].id, records[0].response_data, records[0].timestamp))
+        for kind in ('app_form', 'app_form_2', 'timetable'):
+            self.assertEqual(self.client.get('/sace/secure_view/' + kind).status_code, 200)
+            self.assertIsNone(self.event(kind))
+
+    def test_manual_examination_does_not_transfer_to_another_assignment(self):
+        for kind in ('f_guide', 'p_guide'):
+            self.assertEqual(self.client.get('/sace/secure_view/' + kind).status_code, 200)
+        another = self.user('another-manual-auditor@example.test')
+        with self.app.app_context():
+            from app.program_sace import lifecycle as lc
+            original = db.session.get(h.Interaction, self.assignment_id)
+            link = db.session.get(lc.AssignmentContext, original.id)
+            appointment = db.session.get(lc.Appointment, link.issuing_appointment_id)
+            other = h.Interaction(user_id=original.user_id, activity_slug='auditor_provisioned',
+                response_data=h.json.dumps({'status': 'Claimed', 'claimed_by_user_id': another, 'demo_step': 0}))
+            db.session.add(other); db.session.flush()
+            lc.link_assignment(other, appointment, appointment.provisioning_event_id)
+            db.session.commit()
+            other_id = other.id
+            for kind in ('f_guide', 'p_guide'):
+                self.assertIsNone(flow.latest(other, kind))
+        client = self.app.test_client()
+        self.login(client, 'another-manual-auditor@example.test', '/sace/reading')
+        board = client.get('/sace/reading')
+        for title in ('Facilitator Manual', 'Workshop Manual'):
+            item = next(x for x in re.findall(r'<tr[^>]*>(.*?)</tr>', board.data.decode(), re.S) if title in x)
+            self.assertIn('Outstanding', item)
+        with self.app.app_context():
+            for kind in ('f_guide', 'p_guide'):
+                self.assertIsNone(flow.latest(db.session.get(h.Interaction, other_id), kind))
+
+    def test_workshop_certificate_screen_border_and_top_right_actions(self):
+        from flask import render_template
+        with self.app.test_request_context('/'):
+            certificate = render_template('program_sace/post_test/certificate_pdf.html',
+                learner_name='Workshop Auditor', completed_date='10 October 2026',
+                certificate_id='UNCHANGED-WORKSHOP-ID', answers={'score': 100}, logo_path='', seal_path='')
+            html = render_template('program_sace/endorsement_results.html', evidence=True,
+                answers={'score': 100}, eligible=True, certificate_html=certificate)
+            target = __import__('flask').url_for('sace_bp.email_certificate')
+        self.assertIn('@media screen', certificate)
+        self.assertIn('border: 4px solid #0033a1', certificate)
+        self.assertIn('UNCHANGED-WORKSHOP-ID', certificate)
+        header = html.index('Back to Auditor Board')
+        actions = html.index('class="flex flex-wrap justify-end gap-3"')
+        viewer = html.index('<iframe')
+        self.assertLess(header, actions)
+        self.assertLess(actions, viewer)
+        action_html = html[actions:viewer]
+        self.assertIn('action="' + target + '"', action_html)
+        self.assertIn('method="post"', action_html)
+        self.assertIn('name="csrf_token"', action_html)
+        self.assertIn('Email workshop certificate</button>', action_html)
+        self.assertIn('href="/sace/reading">Return to Auditor Board</a>', action_html)
+        self.assertEqual(action_html.count('bg-indigo-700 text-white'), 2)
+
     def test_exact_board_order_and_controlled_materials(self):
         response = self.client.get("/sace/reading")
         items = [(a["text"],a["href"]) for a in Anchors(response.data, table_only=True).items]

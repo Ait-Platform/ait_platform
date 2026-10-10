@@ -1,5 +1,14 @@
 {% extends "shared/ait_certificate_layout.html" %}
 
+{% block extra_css %}
+<style>
+@media screen {
+  body { border: 4px solid #0033a1; padding: 1cm; box-sizing: border-box; height: 26cm; }
+  .footer { width: calc(100% - 2cm - 8px); bottom: 1cm; }
+}
+</style>
+{% endblock %}
+
 {% block document_title_meta %}AIT Reading Workshop Certificate{% endblock %}
 {% block document_title %}Reading Workshop Certificate{% endblock %}
 

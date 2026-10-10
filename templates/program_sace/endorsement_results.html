@@ -4,6 +4,10 @@
 <div class="max-w-5xl mx-auto px-4 py-8"><div class="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
 <div class="h-2 bg-indigo-700"></div><div class="p-6 space-y-6">
 <div class="flex items-center justify-between gap-4"><h1 class="text-2xl font-bold text-slate-800">{{ 'Workshop Certificate evidence' if evidence else 'Workshop Post-Test results' }}</h1><a class="border bg-blue-50 text-blue-900 border-blue-200 hover:bg-blue-100 rounded px-4 py-2" href="{{ url_for('sace_bp.reading_hub') }}">Back to Auditor Board</a></div>
+{% if evidence %}<div class="flex flex-wrap justify-end gap-3">
+<form method="post" action="{{ url_for('sace_bp.email_certificate') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="bg-indigo-700 text-white rounded px-4 py-2 hover:bg-indigo-800">Email workshop certificate</button></form>
+<a class="bg-indigo-700 text-white rounded px-4 py-2 hover:bg-indigo-800" href="{{ url_for('sace_bp.reading_hub') }}">Return to Auditor Board</a>
+</div>{% endif %}
 {% with messages = get_flashed_messages(with_categories=true) %}{% for category, message in messages %}<p class="border rounded p-3">{{ message }}</p>{% endfor %}{% endwith %}
 
 {% if answers %}<p>Score: {{ answers.score }}%. {{ 'Passed' if eligible else 'Not yet passed' }}.</p>{% endif %}
@@ -11,7 +15,6 @@
 <h2 class="text-xl font-bold">Your Workshop Certificate</h2>
 <p>You have completed the workshop requirements. View your actual certificate and send it to your registered email: {{ current_user.email }}.</p>
 <iframe title="Workshop Certificate" class="w-full" style="height:1100px" sandbox srcdoc="{{ certificate_html|e }}"></iframe>
-<form method="post" action="{{ url_for('sace_bp.email_certificate') }}" class="space-y-4"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="bg-indigo-700 text-white rounded px-4 py-2">Email workshop certificate and return to Auditor Board</button></form>
 {% elif eligible %}<p>The Workshop Post-Test is complete. Return to the Auditor Board to examine Workshop Certificate evidence.</p>
 {% else %}<p>The Workshop Post-Test has not yet been passed. Return to the Auditor Board to resume the workshop.</p>{% endif %}
 </div></div></div>

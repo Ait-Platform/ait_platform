@@ -1,6 +1,8 @@
 """HOME-only authority and examination services."""
 import hashlib
 import secrets
+import re
+from sqlalchemy.exc import IntegrityError
 from datetime import timedelta
 from pathlib import Path
 from types import SimpleNamespace
@@ -102,7 +104,7 @@ def provisioning(lock=False):
 
 def invitation(code=None, lock=False):
     code = (code if code is not None else session.get("sace_home_pending_code", "")).strip().upper()
-    if not code.startswith("HOME-"):
+    if not code.startswith("HOME-") and not re.fullmatch(r"[A-F0-9]{4}-[A-F0-9]{4}", code):
         abort(400, description="Invalid HOME access code.")
     query = HomeInvitation.query.filter_by(code_hash=digest(code))
     row = query.with_for_update().populate_existing().first() if lock else query.first()
@@ -116,11 +118,21 @@ def issue_invitation(owner):
     actor = lc.require_appointment()
     if actor.controller_id != owner.id:
         abort(403)
-    code = "HOME-" + secrets.token_hex(12).upper()
-    row = HomeInvitation(controller_id=owner.id, appointment_id=actor.id, code_hash=digest(code),
-        expires_at=now() + timedelta(days=14))
-    db.session.add(row)
-    db.session.flush()
+    for _ in range(10):
+        raw = secrets.token_hex(4).upper()
+        code = raw[:4] + '-' + raw[4:]
+        row = HomeInvitation(controller_id=owner.id, appointment_id=actor.id, code_hash=digest(code),
+            expires_at=now() + timedelta(days=14))
+        try:
+            with db.session.begin_nested():
+                db.session.add(row)
+                db.session.flush()
+            break
+        except IntegrityError as error:
+            if getattr(getattr(error.orig, 'diag', None), 'constraint_name', '') != 'sace_home_invitation_code_hash_key':
+                raise
+    else:
+        abort(503, description='Unable to generate a unique HOME access code. Please retry.')
     lc.audit(current_user.id, "controller", "invitation_issued", actor.engagement_id,
         details={"invitation_id": row.id})
     return code

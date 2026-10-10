@@ -715,7 +715,7 @@ class HomeExamination(unittest.TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.location, '/sace/home/control')
         response = self.client.get(response.location)
-        code = re.search(rb'HOME-[A-F0-9]{24}', response.data).group().decode()
+        code = re.search(rb'[A-F0-9]{4}-[A-F0-9]{4}', response.data).group().decode()
         self.assertIn(b'Print Slip', response.data)
         self.assertIn(b'Pending Claim', response.data)
         with self.app.app_context():
@@ -766,6 +766,40 @@ class HomeExamination(unittest.TestCase):
         with self.app.app_context():
             self.assertEqual(HomeInvitation.query.filter_by(code_hash=service.digest(code)).one().status, 'claimed')
 
+
+    def test_short_home_code_retries_collision_and_claims_hash(self):
+        from app.models.sace_home import HomeInvitation
+        from app.program_sace_home import service as service
+        first = self.code_home()
+        self.assertRegex(first, r'^[A-F0-9]{4}-[A-F0-9]{4}$')
+        with self.app.app_context():
+            before = HomeInvitation.query.count()
+        with patch('app.program_sace_home.service.secrets.token_hex',
+                side_effect=[first.replace('-', ''), 'ABCD1234']) as generator:
+            code = self.code_home()
+            self.assertEqual(generator.call_count, 2)
+        self.assertEqual(code, 'ABCD-1234')
+        # Previously issued HOME-prefixed hash-only codes still use the same validation.
+        with self.app.app_context():
+            from app.program_sace_home import lifecycle as lifecycle
+            from app.models.sace_home import now
+            legacy = HomeInvitation(controller_id=HomeController.query.one().id,
+                appointment_id=lifecycle.Appointment.query.one().id,
+                code_hash=service.digest('HOME-' + 'A' * 24), expires_at=now()+timedelta(days=14))
+            db.session.add(legacy)
+            db.session.commit()
+        self.join_home('HOME-' + 'A' * 24, email='legacy-code-auditor@example.test')
+
+        with self.app.app_context():
+            self.assertEqual(HomeInvitation.query.count(), before + 2)
+            row = HomeInvitation.query.filter_by(code_hash=service.digest(code)).one()
+            invitation_id = row.id
+            self.assertEqual(row.status, 'unclaimed')
+        _, assignment_id = self.join_home(code, email='short-code-auditor@example.test')
+        with self.app.app_context():
+            self.assertEqual(db.session.get(HomeAssignment, assignment_id).invitation_id, invitation_id)
+            self.assertEqual(db.session.get(HomeInvitation, invitation_id).code_hash, service.digest(code))
+            self.assertEqual(db.session.get(HomeInvitation, invitation_id).status, 'claimed')
 
     def test_control_centre_alignment_preserves_home_state(self):
         from app.program_sace_home import lifecycle as lc

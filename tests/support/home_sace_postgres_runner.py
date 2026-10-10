@@ -86,7 +86,7 @@ class HomeFoundation(unittest.TestCase):
     def code_home(self):
         result = self.client.post("/sace/home/control/codes", follow_redirects=True)
         self.assertEqual(result.status_code, 200)
-        return re.search(rb"HOME-[A-F0-9]{24}", result.data).group().decode()
+        return re.search(rb"[A-F0-9]{4}-[A-F0-9]{4}", result.data).group().decode()
 
     def join_home(self, code, email="home-a@example.test", existing=False):
         client = self.app.test_client()
@@ -217,9 +217,9 @@ class HomeFoundation(unittest.TestCase):
             with self.app.app_context():
                 self.assertEqual(HomeInvitation.query.count(), 0)
             accepted = self.client.post(target, base_url=origin,
-                data={'csrf_token': token}, headers={'Referer': origin + '/sace/home/control'})
+                data={'csrf_token': token}, headers={'Referer': origin + '/sace/home/control'}, follow_redirects=True)
             self.assertEqual(accepted.status_code, 200)
-            self.assertRegex(accepted.data, rb'HOME-[A-F0-9]{24}')
+            self.assertRegex(accepted.data, rb'[A-F0-9]{4}-[A-F0-9]{4}')
             with self.app.app_context():
                 self.assertEqual(HomeInvitation.query.count(), 1)
             for path in ('/sace/home/control/documents', '/sace/home/control/completion',
@@ -230,7 +230,7 @@ class HomeFoundation(unittest.TestCase):
         finally:
             self.app.config['WTF_CSRF_ENABLED'] = False
             self.app.jinja_env.globals['csrf_token'] = original
-        code = re.search(rb'HOME-[A-F0-9]{24}', accepted.data).group().decode()
+        code = re.search(rb'[A-F0-9]{4}-[A-F0-9]{4}', accepted.data).group().decode()
         auditor, aid = self.join_home(code)
         for path in ('/sace/home/join',
                      f'/sace/home/assignments/{aid}/board',

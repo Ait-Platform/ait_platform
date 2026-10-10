@@ -7,7 +7,7 @@
 <form method="post" action="{{ url_for('home_sace_bp.generate_code') }}" class="mb-7"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="home-button">Generate HOME Auditor access code</button></form>
 <h2 class="text-xl font-bold mb-3">HOME invitations</h2><ul class="space-y-2 mb-6">{% for item in invitations %}<li>Invitation {{ item.id }} &mdash; {{ item.status }} &mdash; expires {{ item.expires_at }}</li>{% else %}<li>No HOME invitations issued.</li>{% endfor %}</ul>
 <h2 class="text-xl font-bold mb-3">HOME examination assignments</h2>
-{% for row in assignments %}<p class="mb-3"><a class="underline" href="{{ url_for('home_sace_bp.controller_evidence', assignment_id=row.id) }}">Assignment {{ row.id }}</a> &mdash; {{ row.status }}</p>{% else %}<p>No HOME assignments claimed.</p>{% endfor %}
+{% for row in assignments %}<div class="mb-3"><p><a class="underline" href="{{ url_for('home_sace_bp.controller_evidence', assignment_id=row.id) }}">Assignment {{ row.id }}</a> &mdash; {{ row.status }}</p>{% if row.id in submitted_ids %}<p>Auditor examination completed</p>{% if row.status == 'active' %}<form method="post" action="{{ url_for('home_sace_bp.finalize_auditor', assignment_id=row.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="home-button">Finalize Auditor</button></form>{% endif %}{% endif %}</div>{% else %}<p>No HOME assignments claimed.</p>{% endfor %}
 <section class="mt-6 border-t border-slate-200 pt-6">
 {% if engagement.status == 'completion_pending' %}
 <div class="p-4 mb-6 bg-blue-50 rounded">

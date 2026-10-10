@@ -154,7 +154,8 @@ def control():
     assignments = (HomeAssignment.query.join(HomeInvitation)
         .filter(HomeInvitation.appointment_id == actor.id).order_by(HomeAssignment.id.desc()).all())
     return page("control.html", "HOME Control Centre", invitations=invitations,
-        assignments=assignments, engagement=db.session.get(lc.Engagement, actor.engagement_id), back=url_for("auth_bp.choose_sace_activity"))
+        assignments=assignments, submitted_ids={row.id for row in assignments if s.submission(row)},
+        engagement=db.session.get(lc.Engagement, actor.engagement_id), back=url_for("auth_bp.choose_sace_activity"))
 
 
 @home_sace_bp.post("/control/codes")
@@ -216,6 +217,15 @@ def email_provider_document(version_id):
         'HOME-' + document.kind + '.pdf')
     flash('HOME provider document emailed.', 'success')
     return redirect(url_for('home_sace_bp.provider_documents'))
+
+
+@home_sace_bp.post('/control/assignments/<int:assignment_id>/finalize')
+@login_required
+def finalize_auditor(assignment_id):
+    lc.finalize_assignment(assignment_id)
+    db.session.commit()
+    flash('Auditor assignment finalized.', 'success')
+    return redirect(url_for('home_sace_bp.control'))
 
 
 @home_sace_bp.get("/control/assignments/<int:assignment_id>")
@@ -286,7 +296,7 @@ def signed_pledge():
 @login_required
 def board(assignment_id):
     row = s.assignment(assignment_id)
-    return page("board.html", "HOME Auditor Board", row=row, items=s.board_items(row),
+    return page("board.html", "HOME Auditor Board", row=row, items=s.board_items(row), submitted=s.submission(row),
         back=url_for("auth_bp.choose_sace_activity"))
 
 
@@ -460,20 +470,22 @@ def specimen(row, kind):
 def completion(assignment_id):
     row = s.assignment(assignment_id, lock=request.method == "POST", writable=request.method == "POST")
     missing = s.missing(row)
+    submitted = s.submission(row)
     if request.method == "POST":
         if missing:
             abort(409, description="HOME examination is incomplete; unavailable evidence cannot be marked examined.")
-        row.status, row.completed_at = "completed", now()
         details = {"requirements": row.requirements_version}
         if row.requirements_version == ex.REQUIREMENTS:
             from .participant_context import VERSION
             details['examination'] = VERSION
-        s.record(row, "completion", "completed", details)
-        lc.audit(current_user.id, "auditor", "examination_completed", g.home_access[1], row.id)
+        if submitted is None:
+            submitted = s.record(row, "completion", "completed", details)
+            lc.audit(current_user.id, "auditor", "examination_completed", g.home_access[1], row.id)
         db.session.commit()
-        return page("completion.html", "HOME examination completed", row=row, missing=[],
-            back=url_for("home_sace_bp.entry"))
+        return page("completion.html", "Examination submitted to SACE Admin", row=row, missing=[],
+            submitted=submitted, back=url_for("home_sace_bp.board", assignment_id=row.id))
     return page("completion.html", "HOME examination completion", row=row, missing=missing,
+        submitted=submitted,
         back=url_for("home_sace_bp.board", assignment_id=row.id))
 
 

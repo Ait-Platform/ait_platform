@@ -83,6 +83,25 @@ def engagement_for_assignment(row, lock=False):
         .populate_existing().first())
 
 
+def finalize_assignment(assignment_id):
+    actor = require_controller()
+    row = (Interaction.query.join(AssignmentContext, AssignmentContext.invitation_event_id == Interaction.id)
+        .filter(Interaction.id == assignment_id, Interaction.activity_slug == 'auditor_provisioned',
+            AssignmentContext.engagement_id == actor.engagement_id)
+        .populate_existing().with_for_update().first_or_404())
+    from . import endorsement as flow
+    state = flow.payload(row)
+    if state.get('status') == 'Completed':
+        return row  # Includes historical closures: never rewrite or reopen them.
+    if state.get('status') != 'Claimed' or flow.latest(row, 'evaluation_complete') is None:
+        abort(409, description='The Auditor must submit the examination before finalization.')
+    flow.record(row, 'assignment_closed', {'reason': 'Finalized by SACE Admin',
+        'controller_id': current_user.id}, once=True)
+    state.update(status='Completed', completed_at=utcnow().isoformat())
+    flow.save(row, state)
+    return row
+
+
 def link_assignment(row, appointment, provenance_event_id):
     if row.activity_slug != 'auditor_provisioned' or row.user_id != appointment.user_id:
         abort(409, description='Invitation issuer does not match the controller appointment.')

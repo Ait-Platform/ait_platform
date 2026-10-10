@@ -74,6 +74,21 @@ def assignments(user=None):
         .order_by(HomeAssignment.id.desc()).populate_existing().all())
 
 
+def finalize_assignment(assignment_id):
+    actor = require_appointment()
+    row = (HomeAssignment.query.join(HomeInvitation, HomeInvitation.id == HomeAssignment.invitation_id)
+        .filter(HomeAssignment.id == assignment_id, HomeInvitation.appointment_id == actor.id)
+        .populate_existing().with_for_update().first_or_404())
+    if row.status == 'completed':
+        return row  # Historical closures and retries remain unchanged.
+    from . import service
+    if row.status != 'active' or service.submission(row) is None:
+        abort(409, description='The Auditor must submit the examination before finalization.')
+    row.status, row.completed_at = 'completed', now()
+    audit(current_user.id, 'controller', 'assignment_finalized', actor.engagement_id, row.id)
+    return row
+
+
 def invitation_appointment(invitation):
     row = db.session.get(Appointment, invitation.appointment_id) if invitation.appointment_id else None
     if row is None or row.controller_id != invitation.controller_id:

@@ -212,6 +212,11 @@ def assignment(assignment_id, lock=False, writable=False):
     return row
 
 
+def submission(row):
+    return HomeEvidence.query.filter_by(assignment_id=row.id, actor_id=row.auditor_id,
+        item='completion', event='completed').order_by(HomeEvidence.id).first()
+
+
 def record(row, item, event, details=None, version=None):
     evidence = HomeEvidence(assignment_id=row.id, actor_id=current_user.id,
         item=item, event=event, details=details or {}, document_version_id=version)

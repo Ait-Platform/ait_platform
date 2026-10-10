@@ -14,7 +14,7 @@ from . import endorsement as flow
 R_ENDPOINTS = {"provisioning_map", "generate_auditor_code", "print_access_slip", "provider_documents",
                "document_action", "provisioning_logs", "audit_report", "controller_feed", "audit_export",
                "reading_lifecycle", "reading_handover", "reading_end_appointment", "reading_end_engagement",
-               "reading_complete_engagement", "reading_cancel_completion"}
+               "reading_complete_engagement", "reading_cancel_completion", "finalize_auditor"}
 PUBLIC = {"auditor_join", "auditor_pledge", "claim_code", "provisioning_pledge", "sace_about"}
 OBSOLETE = {"interactive_workshop", "participant_join", "participant_onboarding", "facilitator_dashboard",
             "reading_workshop_docs", "reviewer_guide", "annexure_a", "annexure_b", "annexure_c",
@@ -78,7 +78,8 @@ def board():
     return render_template('program_sace/endorsement_board.html', ticks=ticks,
                            evidence_items=cert.BOARD_ITEMS, certification_recorded=certification is not None,
                            certification_available=certification is not None or cert.available(row),
-                           workshop_passed=flow.workshop_passed(row), state=flow.payload(row), materials=MATERIALS, missing=flow.completion_requirements(row))
+                           workshop_passed=flow.workshop_passed(row), state=flow.payload(row), materials=MATERIALS,
+                           submitted=flow.latest(row, 'evaluation_complete') is not None, missing=flow.completion_requirements(row))
 
 
 @sace_bp.route('/sace/reading/certification', methods=['GET', 'POST'])
@@ -704,23 +705,28 @@ def finish_evaluation():
     if request.method == 'POST':
         if missing:
             abort(409, description="Complete the outstanding AIT activities on the Auditor Board first.")
-        state = flow.payload(row)
         event = flow.record(row, 'evaluation_complete', {'message': flow.FINAL_MESSAGE,
             'controller_id': row.user_id, 'sace_decision': 'external'}, once=True)
         flow.record(row, 'controller_notification', {'message': flow.FINAL_MESSAGE,
-            'controller_id': row.user_id, 'evaluation_event_id': event.id, 'channel': 'R Control Centre'}, once=True)
-        flow.record(row, 'assignment_closed', {'reason': 'AIT activity evaluation journey completed'}, once=True)
-        from datetime import datetime, timezone
-        state['status'] = 'Completed'
-        state['completed_at'] = datetime.now(timezone.utc).isoformat()
-        flow.save(row, state)
-        db.session.commit()  # Evidence, durable R notification, then closure: all commit or none do.
+            'controller_id': row.user_id, 'evaluation_event_id': event.id, 'channel': 'SACE Admin Control Centre'}, once=True)
+        db.session.commit()  # Submission and its durable notification commit together.
+        return render_template('program_sace/evaluation_closed.html')
+    if flow.latest(row, 'evaluation_complete'):
         return render_template('program_sace/evaluation_closed.html')
     from . import certification as cert
     titles = {slug: title for slug, title, *_ in cert.BOARD_ITEMS}
     titles[cert.SLUG] = 'Certification'
     return render_template('program_sace/evaluation_finish.html',
         ready=not missing, missing=[titles[slug] for slug in missing])
+
+
+@sace_bp.post('/sace/provisioning/assignments/<int:assignment_id>/finalize')
+def finalize_auditor(assignment_id):
+    from . import lifecycle
+    lifecycle.finalize_assignment(assignment_id)
+    db.session.commit()
+    flash('Auditor assignment finalized.', 'success')
+    return redirect(url_for('sace_bp.provisioning_map'))
 
 
 def controller_rows():

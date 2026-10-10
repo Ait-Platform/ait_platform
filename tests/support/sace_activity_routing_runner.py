@@ -167,6 +167,26 @@ class ActivityRouting(f.HomeFoundation):
         self.assertNotIn(b'HOME Auditor Board', response.data)
         self.assertEqual(self.client.get('/sace/dashboard', follow_redirects=True).status_code, 200)
 
+    def test_routing_submitted_auditors_remain_until_finalized(self):
+        from unittest.mock import patch
+        self.officials('A','A')
+        self.login(self.client,EMAIL)
+        with patch.object(reading,'completion_requirements',return_value=[]), patch.object(home,'missing',return_value=[]):
+            self.assertEqual(self.client.post('/sace/reading/finish-evaluation').status_code,200)
+            self.assertEqual(self.client.post(f'/sace/home/assignments/{self.home_assignment}/completion').status_code,200)
+        for entry in ('/dashboard','/bridge','/sace/activities'):
+            response=self.client.get(entry,follow_redirects=True)
+            self.assertEqual(response.status_code,200)
+            self.assertIn(b'Choose SACE Activity',response.data)
+            self.assertIn(b'href="/sace/reading"',response.data)
+            self.assertIn(b'href="/sace/home/"',response.data)
+        self.client.get('/logout')
+        self.assertIn(b'Choose SACE Activity',self.login(self.client,EMAIL).data)
+        self.assertEqual(self.reading_provider.post(f'/sace/provisioning/assignments/{self.reading_assignment}/finalize').status_code,302)
+        page=self.client.get('/sace/activities')
+        self.assertNotIn(b'href="/sace/reading"',page.data)
+        self.assertIn(b'href="/sace/home/"',page.data)
+
     def approve_platform_admin(self):
         with self.app.app_context():
             db.session.execute(text("INSERT INTO auth_approved_admin (email, active) VALUES (:email, 1)"),

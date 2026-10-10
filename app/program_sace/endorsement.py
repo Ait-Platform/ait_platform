@@ -134,7 +134,7 @@ def workshop_passed(row):
 
 MAP_MATERIALS = ('app_form', 'app_form_2', 'f_guide', 'p_guide', 'timetable', 'ip_pledge')
 MAP_REQUIRED = ('pledge', 'map_reviewed') + MAP_MATERIALS
-FINAL_MESSAGE = 'A has completed the AIT activity evaluation journey.'
+FINAL_MESSAGE = 'The Auditor has completed the AIT examination journey and has notified SACE Admin.'
 
 
 def course_lessons():

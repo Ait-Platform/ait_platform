@@ -193,10 +193,35 @@ class HomeLifecycle(f.HomeFoundation):
             self.assertEqual(auditor.post(f"/sace/home/assignments/{aid}/completion").status_code, 200)
         with self.app.app_context():
             self.assertEqual(lc.Engagement.query.one().status, "active")
-            self.assertEqual(HomeAssignment.query.one().status, "completed")
+            self.assertEqual(HomeAssignment.query.one().status, "active")
             self.assertEqual(f.h.auth_models.AuthSubjectAdmin.query.count(), 1)
-        self.assertEqual(auditor.get(f"/sace/home/assignments/{aid}/board").status_code, 403)
+        self.assertEqual(auditor.get(f"/sace/home/assignments/{aid}/board").status_code, 200)
+        self.assertEqual(self.client.post(f'/sace/home/control/assignments/{aid}/finalize').status_code,302)
+        self.assertEqual(auditor.get(f"/sace/home/assignments/{aid}/board").status_code,403)
         self.assertEqual(self.client.get("/sace/home/control").status_code, 200)
+
+    def test_phase2_assignment_finalization_rejects_other_controller_and_preserves_history(self):
+        self.provision_home();auditor,aid=self.join_home(self.code_home())
+        with self.app.app_context():
+            token=s.issue_provisioning('other-home-controller@example.test','local-test');db.session.commit()
+        other=self.app.test_client()
+        other.get('/sace/home/provisioning?token='+token)
+        other.post('/sace/home/provisioning')
+        result=other.post('/register',data={'subject':s.SUBJECT,'full_name':'Other SACE Admin',
+            'email':'other-home-controller@example.test','password':'test-password'},follow_redirects=True)
+        self.assertEqual(result.status_code,200)
+        self.assertIn(b'HOME Control Centre',result.data)
+        final=f'/sace/home/control/assignments/{aid}/finalize'
+        self.assertEqual(other.post(final).status_code,404)
+        self.assertEqual(self.client.post(final).status_code,409)
+        with self.app.app_context():
+            row=db.session.get(HomeAssignment,aid);row.status='completed';row.completed_at=lc.now()
+            db.session.commit();stamp=row.completed_at
+        self.assertEqual(self.client.post(final).status_code,302)
+        self.assertEqual(auditor.get(f'/sace/home/assignments/{aid}/board').status_code,403)
+        with self.app.app_context():
+            self.assertEqual(db.session.get(HomeAssignment,aid).completed_at,stamp)
+            self.assertEqual(lc.HomeAuditEvent.query.filter_by(assignment_id=aid,event='assignment_finalized').count(),0)
 
     def test_phase2_no_identity_grant_enrollment_session_or_platform_fallback(self):
         uid = self.user("orphan@example.test")
@@ -317,12 +342,12 @@ class HomeLifecycle(f.HomeFoundation):
         self.dual_controller()
         self.assertIn(b"Choose SACE Activity", self.login(self.client, "home-r@example.test").data)
 
-    def test_phase2_auditor_board_has_no_back_button(self):
+    def test_phase2_auditor_board_preserves_activity_return(self):
         self.provision_home()
         auditor, aid = self.join_home(self.code_home())
         response = auditor.get(f"/sace/home/assignments/{aid}/board")
         self.assertEqual(response.status_code, 200)
-        self.assertNotIn(b">Back</a>", response.data)
+        self.assertIn(b'href="/sace/activities"', response.data)
         self.assertIn(b"Review examination completion", response.data)
 
     def test_phase2_dual_authority_stale_reading_code_cannot_choose_activity(self):

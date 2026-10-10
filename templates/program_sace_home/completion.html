@@ -1,6 +1,6 @@
 {% extends "program_sace_home/frame.html" %}
 {% block home_content %}
-{% if row.status == 'completed' %}<p>HOME examination completed on {{ row.completed_at }}.</p>
+{% if submitted %}<p>Examination submitted to SACE Admin.</p><p>Your assignment remains open for examination and review until SACE Admin finalizes it.</p><p>The separate SACE rubric and endorsement evaluation remain outside this AIT submission.</p>
 {% elif missing %}<p class="mb-4">The following HOME evidence remains outstanding:</p><ul class="list-disc pl-6">{% for label in missing %}<li>{{ label }}</li>{% endfor %}</ul>
-{% else %}<form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="home-button">Complete HOME examination</button></form>{% endif %}
+{% else %}<p>Submit your completed AIT examination journey to SACE Admin. Your assignment remains open for examination and review. The separate SACE rubric and endorsement evaluation remain outside this AIT submission.</p><form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="home-button">Submit examination as complete</button></form>{% endif %}
 {% endblock %}

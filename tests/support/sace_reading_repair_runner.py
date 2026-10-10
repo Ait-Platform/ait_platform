@@ -57,7 +57,8 @@ class ReadingRepair(unittest.TestCase):
         auditor = self.user("a@example.test")
         with self.app.app_context():
             row = h.Interaction(user_id=controller, activity_slug="auditor_provisioned",
-                response_data=h.json.dumps(dict(status="Claimed", claimed_by_user_id=auditor, demo_step=0)))
+                response_data=h.json.dumps(dict(status="Claimed", claimed_by_user_id=auditor, demo_step=0,
+                    code='READING-TEST-CODE')))
             db.session.add(row)
             db.session.commit()
             self.assignment_id = row.id
@@ -471,7 +472,7 @@ class ReadingRepair(unittest.TestCase):
             self.assertIn('Certification',rows[9]);self.assertIn('Recorded',rows[9])
             self.assertIn('notify SACE Admin',board)
             ready=render_template('program_sace/evaluation_finish.html',ready=True,missing=[])
-            self.assertIn('Complete journey and notify SACE Admin',ready)
+            self.assertIn('Submit examination as complete',ready)
             self.assertIn('name="csrf_token"',ready)
             self.assertNotIn(' disabled>',ready)
             closed=render_template('program_sace/evaluation_closed.html')
@@ -489,8 +490,8 @@ class ReadingRepair(unittest.TestCase):
             before=db.session.execute(text('SELECT id,row_to_json(e)::text FROM sace_workshop_interactions e ORDER BY id')).all()
         response=self.client.get('/sace/reading/finish-evaluation')
         self.assertEqual(response.status_code,200)
-        self.assertIn(b'>Complete journey and notify SACE Admin',response.data)
-        self.assertNotIn(b'disabled>Complete journey and notify SACE Admin',response.data)
+        self.assertIn(b'>Submit examination as complete',response.data)
+        self.assertNotIn(b'disabled>Submit examination as complete',response.data)
         self.assertIn(b'<form',response.data)
         self.assertNotIn(b'workshop certificate',response.data.lower())
         self.assertNotIn(b'reading certificate',response.data.lower())
@@ -513,7 +514,7 @@ class ReadingRepair(unittest.TestCase):
             self.assertEqual(page.status_code,200)
             listed=[unescape(label) for label in re.findall(r'<li>(.*?)</li>',page.data.decode())]
             self.assertEqual(listed,[title])
-            self.assertIn(b'disabled>Complete journey and notify SACE Admin',page.data)
+            self.assertIn(b'disabled>Submit examination as complete',page.data)
             self.assertEqual(self.client.post(target).status_code,409)
             with self.app.app_context():
                 self.assertEqual(flow.payload(db.session.get(h.Interaction,self.assignment_id))['status'],'Claimed')
@@ -523,14 +524,14 @@ class ReadingRepair(unittest.TestCase):
         self.recorded_board_statuses();target='/sace/reading/finish-evaluation'
         page=self.client.get(target)
         self.assertEqual(re.findall(rb'<li>(.*?)</li>',page.data),[b'Certification'])
-        self.assertIn(b'disabled>Complete journey and notify SACE Admin',page.data)
+        self.assertIn(b'disabled>Submit examination as complete',page.data)
         self.assertEqual(self.client.post(target).status_code,409)
         with patch.object(flow,'completion_requirements',return_value=['map_reviewed']) as readiness:
             self.assertIn(b'<li>Activity Summary</li>',self.client.get(target).data)
             self.assertEqual(self.client.post(target).status_code,409)
             self.assertEqual(readiness.call_count,2)
 
-    def test_completion_closes_only_claimed_assignment_without_old_certificate_delivery(self):
+    def test_submission_and_admin_finalization_without_old_certificate_delivery(self):
         from sqlalchemy import text
         from app.program_sace import certification as cert, lifecycle as lc
         self.recorded_board_statuses();target='/sace/reading/finish-evaluation'
@@ -552,22 +553,80 @@ class ReadingRepair(unittest.TestCase):
             self.assertIsNone(flow.latest(row,'reading_certificate'))
             self.assertEqual(flow.completion_requirements(row),[])
         page=self.client.get(target)
-        self.assertNotIn(b'disabled>Complete journey and notify SACE Admin',page.data)
+        self.assertIn(b'Submit examination as complete',page.data)
+        self.assertEqual(self.client.post(target).status_code,200)
         self.assertEqual(self.client.post(target).status_code,200)
         with self.app.app_context():
             row=db.session.get(h.Interaction,self.assignment_id)
-            self.assertEqual(flow.payload(row)['status'],'Completed')
-            self.assertIsNotNone(flow.payload(row)['completed_at'])
+            self.assertEqual(flow.payload(row)['status'],'Claimed')
+            self.assertNotIn('completed_at',flow.payload(row))
             self.assertEqual(flow.payload(db.session.get(h.Interaction,other_id))['status'],'Claimed')
             notification=flow.latest(row,'controller_notification')
             self.assertEqual(flow.payload(notification)['controller_id'],controller_id)
             self.assertEqual(flow.payload(notification)['message'],flow.FINAL_MESSAGE)
             self.assertEqual(flow.payload(notification)['evaluation_event_id'],flow.latest(row,'evaluation_complete').id)
-            self.assertIsNotNone(flow.latest(row,'assignment_closed'))
+            self.assertIsNone(flow.latest(row,'assignment_closed'))
+            for slug in ('evaluation_complete','controller_notification'):
+                self.assertEqual(len([e for e in flow.events(row) if e.activity_slug==slug]),1)
             self.assertEqual(cert.saved(row).response_data,frozen)
             after=dict(db.session.execute(text('SELECT id,row_to_json(e)::text FROM sace_workshop_interactions e ORDER BY id')).all())
             for eid,raw in before:
                 if eid!=self.assignment_id:self.assertEqual(after[eid],raw)
+        self.assertEqual(self.client.get('/sace/reading').status_code,200)
+        self.assertEqual(self.client.get('/sace/reading/certification').status_code,200)
+        self.assertEqual(self.client.post('/sace/reading/auditor-map',data={'understood':'yes'}).status_code,302)
+        with self.app.test_request_context('/'):
+            from flask_login import login_user
+            from app.program_sace.activity import ReadingActivity
+            login_user(db.session.get(h.auth_models.User,flow.payload(db.session.get(h.Interaction,self.assignment_id))['claimed_by_user_id']))
+            self.assertTrue(ReadingActivity().has_authority())
+        finalize=f'/sace/provisioning/assignments/{self.assignment_id}/finalize'
+        self.assertEqual(self.client.post(finalize).status_code,403)
+        admin=self.app.test_client();self.login(admin,'r@example.test','/sace/provisioning')
+        self.assertIn(b'Auditor examination completed',admin.get('/sace/provisioning').data)
+        self.assertIn(b'Finalize Auditor',admin.get('/sace/provisioning').data)
+        self.assertEqual(admin.post(f'/sace/provisioning/assignments/{other_id}/finalize').status_code,409)
+        self.app.config['WTF_CSRF_ENABLED']=True
+        try:self.assertEqual(admin.post(finalize).status_code,400)
+        finally:self.app.config['WTF_CSRF_ENABLED']=False
+        self.assertEqual(admin.post(finalize).status_code,302)
+        with self.app.app_context():
+            row=db.session.get(h.Interaction,self.assignment_id)
+            closed_bytes=row.response_data
+            closed_event=flow.latest(row,'assignment_closed').id
+            self.assertEqual(flow.payload(row)['status'],'Completed')
+            self.assertIsNotNone(flow.payload(row)['completed_at'])
+            self.assertEqual(flow.payload(db.session.get(h.Interaction,other_id))['status'],'Claimed')
+            self.assertEqual(cert.saved(row).response_data,frozen)
+            self.assertEqual(lc.Engagement.query.one().status,'active')
+            self.assertEqual(lc.Appointment.query.one().status,'active')
+        self.assertEqual(admin.post(finalize).status_code,302)
+        self.assertEqual(self.client.get('/sace/reading').status_code,403)
+        with self.app.app_context():
+            row=db.session.get(h.Interaction,self.assignment_id)
+            self.assertEqual(row.response_data,closed_bytes)
+            self.assertEqual(flow.latest(row,'assignment_closed').id,closed_event)
+
+    def test_email_after_submission_is_repeatable_and_does_not_finalize(self):
+        from app.program_sace import certification as cert
+        self.recorded_board_statuses();target='/sace/reading/certification'
+        self.assertEqual(self.client.get(target).status_code,200)
+        self.assertEqual(self.client.post('/sace/reading/finish-evaluation').status_code,200)
+        with self.app.app_context():
+            frozen=cert.saved(db.session.get(h.Interaction,self.assignment_id)).response_data
+        with patch('app.utils.pdf_render.html_to_pdf_bytes',return_value=b'%PDF-mocked'), \
+                patch('app.utils.mailer.send_standard_report_email',return_value=False) as send:
+            self.assertEqual(self.client.post(target,data={'action':'email','email':'delivery@example.com'}).status_code,503)
+            self.assertEqual(self.client.post('/sace/reading/finish-evaluation').status_code,200)
+            send.return_value=True
+            for _ in range(2):
+                self.assertEqual(self.client.post(target,data={'action':'email','email':'delivery@example.com'}).status_code,302)
+            self.assertEqual(send.call_count,3)
+        with self.app.app_context():
+            row=db.session.get(h.Interaction,self.assignment_id)
+            self.assertEqual(flow.payload(row)['status'],'Claimed')
+            self.assertIsNone(flow.latest(row,'assignment_closed'))
+            self.assertEqual(cert.saved(row).response_data,frozen)
 
     def test_board_navigation_colours_preserve_destinations(self):
         from flask import render_template

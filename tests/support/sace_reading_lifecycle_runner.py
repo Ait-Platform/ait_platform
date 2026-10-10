@@ -144,20 +144,39 @@ class ReadingLifecycle(h.AccessJourneys):
         self.assertEqual(successor.get(urlsplit(url).path+'?'+urlsplit(url).query).status_code,200) # existing R; no new appointment
         with self.app.app_context():self.assertEqual(lc.Appointment.query.count(),2)
 
-    def test_lifecycle_auditor_completion_no_login_restoration(self):
+    def test_lifecycle_submission_retains_access_until_admin_finalizes(self):
         self.active_r();auditor,inv=self.auditor()
         # Eligibility is tested in the existing Reading suite; isolate the closure operation.
         with patch.object(flow,'completion_requirements',return_value=[]):
             result=auditor.post('/sace/reading/finish-evaluation')
         self.assertEqual(result.status_code,200)
-        self.assertEqual(auditor.get('/sace/reading').status_code,403)
+        self.assertEqual(auditor.get('/sace/reading').status_code,200)
         auditor.get('/logout')
-        self.assertNotEqual(self.login(auditor,'a@example.test').location,'/sace/reading')
+        self.assertEqual(self.login(auditor,'a@example.test').location,'/sace/reading')
+        self.assertEqual(self.client.post(f'/sace/provisioning/assignments/{inv}/finalize').status_code,302)
+        self.assertEqual(auditor.get('/sace/reading').status_code,403)
         with self.app.app_context():
             data=lc.payload(db.session.get(h.Interaction,inv))
             self.assertEqual(data['status'],'Completed');self.assertIn('completed_at',data)
             self.assertEqual(lc.Engagement.query.one().status,'active')
             self.assertEqual(h.auth_models.AuthSubjectAdmin.query.count(),1)
+
+    def test_lifecycle_assignment_finalization_rejects_other_controller_and_preserves_history(self):
+        self.active_r();auditor,inv=self.auditor()
+        other=self.app.test_client();self.provision(other,'other-controller@example.test')
+        final=f'/sace/provisioning/assignments/{inv}/finalize'
+        self.assertEqual(other.post(final).status_code,404)
+        self.assertEqual(self.client.post(final).status_code,409)
+        with self.app.app_context():
+            row=db.session.get(h.Interaction,inv)
+            data=lc.payload(row);data.update(status='Completed',completed_at=lc.utcnow().isoformat())
+            row.response_data=json.dumps(data);db.session.commit();original=row.response_data
+        self.assertEqual(self.client.post(final).status_code,302)
+        self.assertEqual(auditor.get('/sace/reading').status_code,403)
+        with self.app.app_context():
+            row=db.session.get(h.Interaction,inv)
+            self.assertEqual(row.response_data,original)
+            self.assertIsNone(flow.latest(row,'assignment_closed'))
 
     def test_lifecycle_close_rollback_is_atomic(self):
         aid,eid,uid=self.active_r();auditor,inv=self.auditor()

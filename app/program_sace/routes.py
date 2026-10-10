@@ -472,6 +472,7 @@ def provisioning_map():
                 
             data['date'] = inv.timestamp.strftime("%Y-%m-%d")
             data['id'] = inv.id
+            data['examination_submitted'] = endorsement.latest(inv, 'evaluation_complete') is not None
             auditors.append(data)
         except Exception:
             pass

@@ -628,6 +628,9 @@ class HomeExamination(unittest.TestCase):
                 self.assertEqual(HomeEvidence.query.filter_by(item='endorsement_certification',event='sent').count(),0)
             send.side_effect=RuntimeError('transport failure')
             self.assertEqual(self.auditor.post(target,data={'action':'email'}).status_code,503)
+            self.assertEqual(self.auditor.post(self.base+'/completion').status_code,200)
+            self.assertEqual(self.auditor.get(self.base+'/board').status_code,200)
+            self.assertEqual(self.auditor.get(target).status_code,200)
             send.side_effect=None;send.return_value=True
             self.assertEqual(self.auditor.post(target,data={'action':'email','email':'other@example.test'}).status_code,302)
             args,kwargs=send.call_args
@@ -649,7 +652,7 @@ class HomeExamination(unittest.TestCase):
         self.assertEqual(self.auditor.post(self.base+'/completion').status_code,200)
         with self.app.app_context():
             row=db.session.get(HomeAssignment,self.aid)
-            self.assertEqual(row.status,'completed')
+            self.assertEqual(row.status,'active')
             self.assertEqual(cert.saved(row).details,details)
             self.assertEqual(HomeEngagement.query.one().status,'active')
             self.assertEqual(HomeFinalAssessment.query.count(),0)
@@ -696,6 +699,58 @@ class HomeExamination(unittest.TestCase):
             self.assertEqual(self.auditor.post(target,data={'action':'email'}).status_code,403)
             send.assert_not_called()
 
+    def test_submission_retains_review_and_admin_finalization_is_scoped(self):
+        from app.program_sace_home import lifecycle as lc, certification as cert
+        from app.program_sace_home.activity import HomeActivity
+        from flask_login import login_user
+        final=f'/sace/home/control/assignments/{self.aid}/finalize'
+        self.assertEqual(self.client.post(final).status_code,409)
+        self.assertEqual(self.auditor.post(final).status_code,403)
+        self.examine_ten()
+        self.assertEqual(self.auditor.get(self.base+'/certification').status_code,200)
+        with self.app.app_context():
+            row=db.session.get(HomeAssignment,self.aid)
+            frozen=cert.saved(row).details.copy()
+        for _ in range(2):
+            response=self.auditor.post(self.base+'/completion')
+            self.assertEqual(response.status_code,200)
+            self.assertIn(b'Examination submitted to SACE Admin',response.data)
+            self.assertIn(('href="'+self.base+'/board"').encode(),response.data)
+        self.assertEqual(self.auditor.get(self.base+'/board').status_code,200)
+        self.assertEqual(self.auditor.get(self.base+'/certification').status_code,200)
+        self.assertEqual(self.auditor.post(self.base+'/summary').status_code,302)
+        self.assertEqual(self.auditor.get(self.chapter(1)).status_code,200)
+        self.assertEqual(self.auditor.post(self.url('/home/auditor/advance/1'),data={'action':'skip'}).status_code,302)
+        with self.app.test_request_context('/'):
+            row=db.session.get(HomeAssignment,self.aid)
+            login_user(db.session.get(f.h.auth_models.User,row.auditor_id))
+            self.assertTrue(HomeActivity().has_authority())
+            self.assertEqual(row.status,'active');self.assertIsNone(row.completed_at)
+            self.assertEqual(HomeEvidence.query.filter_by(assignment_id=self.aid,item='completion',event='completed').count(),1)
+            self.assertEqual(lc.HomeAuditEvent.query.filter_by(assignment_id=self.aid,event='examination_completed').count(),1)
+            self.assertEqual(cert.saved(row).details,frozen)
+        _,other_id=self.join_home(self.code_home(),email='other-finalization-auditor@example.test')
+        page=self.client.get('/sace/home/control')
+        self.assertIn(b'Auditor examination completed',page.data)
+        self.assertIn(final.encode(),page.data)
+        self.assertEqual(self.client.post(f'/sace/home/control/assignments/{other_id}/finalize').status_code,409)
+        self.app.config['WTF_CSRF_ENABLED']=True
+        try:self.assertEqual(self.client.post(final).status_code,400)
+        finally:self.app.config['WTF_CSRF_ENABLED']=False
+        self.assertEqual(self.client.post(final).status_code,302)
+        with self.app.app_context():
+            row=db.session.get(HomeAssignment,self.aid);completed_at=row.completed_at
+            self.assertEqual(row.status,'completed')
+            self.assertEqual(db.session.get(HomeAssignment,other_id).status,'active')
+            self.assertEqual(lc.Engagement.query.one().status,'active')
+            self.assertEqual(lc.Appointment.query.one().status,'active')
+            self.assertEqual(cert.saved(row).details,frozen)
+        self.assertEqual(self.client.post(final).status_code,302)
+        self.assertEqual(self.auditor.get(self.base+'/board').status_code,403)
+        with self.app.app_context():
+            self.assertEqual(db.session.get(HomeAssignment,self.aid).completed_at,completed_at)
+            self.assertEqual(lc.HomeAuditEvent.query.filter_by(assignment_id=self.aid,event='assignment_finalized').count(),1)
+
     def test_board_return_styling_preserves_other_home_navigation(self):
         import re
         from flask import render_template
@@ -733,9 +788,10 @@ class HomeExamination(unittest.TestCase):
         self.assertEqual(self.auditor.post(self.base+'/completion').status_code,200)
         with self.app.app_context():
             row=db.session.get(HomeAssignment,self.aid)
-            self.assertEqual(row.status,'completed')
+            self.assertEqual(row.status,'active')
             self.assertTrue(all(x['examined'] for x in f.s.board_items(row)))
-        self.assertEqual(self.auditor.post(self.url('/home/auditor/advance/1'),data={'action':'skip'}).status_code,403)
+        self.assertEqual(self.auditor.get(self.chapter(1)).status_code,200)
+        self.assertEqual(self.auditor.post(self.url('/home/auditor/advance/1'),data={'action':'skip'}).status_code,302)
 
 
 if __name__=='__main__':unittest.main(verbosity=2)

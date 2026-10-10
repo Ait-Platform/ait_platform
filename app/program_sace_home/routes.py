@@ -147,9 +147,13 @@ def authenticate():
 
 @home_sace_bp.get("/control")
 @login_required
-def control():
+def control(fresh_code=None):
     owner = s.require_controller()
     actor = lc.require_appointment()
+    from .activity import HomeActivity
+    if request.args.get('view') == 'about':
+        return page('about.html', 'About AIT Activity for SACE Endorsement',
+            activity_title=HomeActivity.display_name, back=url_for('home_sace_bp.control'))
     invitations = HomeInvitation.query.filter_by(appointment_id=actor.id).order_by(HomeInvitation.id.desc()).all()
     assignments = (HomeAssignment.query.join(HomeInvitation)
         .filter(HomeInvitation.appointment_id == actor.id).order_by(HomeAssignment.id.desc()).all())
@@ -161,7 +165,8 @@ def control():
     audit_events = (lc.HomeAuditEvent.query.filter_by(engagement_id=actor.engagement_id)
         .order_by(lc.HomeAuditEvent.id.desc()).all()) if request.args.get('view') == 'audit' else []
     return page("control.html", "SACE Control Centre", auditors=auditors, audit_events=audit_events, exit_url=exit_url,
-        invitations=invitations,
+        invitations=invitations, fresh_code=fresh_code,
+        fresh_code_hash=s.digest(fresh_code) if fresh_code else None,
         assignments=assignments, submitted_ids={row.id for row in assignments if s.submission(row)},
         engagement=db.session.get(lc.Engagement, actor.engagement_id), back=url_for("auth_bp.choose_sace_activity"))
 
@@ -171,8 +176,21 @@ def control():
 def generate_code():
     code = s.issue_invitation(s.require_controller())
     db.session.commit()
-    return page("code.html", "HOME Auditor access code", code=code,
-        back=url_for("home_sace_bp.control"))
+    return control(fresh_code=code)
+
+
+@home_sace_bp.post('/control/print-slip')
+@login_required
+def print_access_slip():
+    s.require_controller()
+    actor = lc.require_appointment()
+    code = request.form.get('code', '').strip().upper()
+    invitation = s.invitation(code)
+    if invitation.appointment_id != actor.id:
+        abort(403)
+    from .activity import HomeActivity
+    return page('print_slip.html', 'SACE Auditor Access Pass', code=code,
+        activity_title=HomeActivity.display_name, back=url_for('home_sace_bp.control'))
 
 
 PROVIDER_DOCUMENTS = (

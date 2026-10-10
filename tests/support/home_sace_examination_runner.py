@@ -699,6 +699,45 @@ class HomeExamination(unittest.TestCase):
             self.assertEqual(self.auditor.post(target,data={'action':'email'}).status_code,403)
             send.assert_not_called()
 
+    def test_about_and_fresh_code_handoff_without_plaintext_storage(self):
+        from app.models.sace_home import HomeInvitation
+        from app.program_sace_home import service as service
+        import json
+        page = self.client.get('/sace/home/control?view=about')
+        for value in (b'Archoney Institute of Technology', b'Hands-On Math Education',
+                b'generating secure access links', b'integrating a document tracker',
+                b'maintaining intellectual property compliance', b'SACE Auditors (Evaluators, Reviewers, etc.)'):
+            self.assertIn(value, page.data)
+        self.assertIn(b'href="/sace/home/control">Back</a>', page.data)
+        self.assertLess(page.data.index(b'>Back</a>'), page.data.index(b'generating secure access links'))
+        self.assertNotIn(b'Return to R Dashboard', page.data)
+        response = self.client.post('/sace/home/control/codes')
+        code = re.search(rb'HOME-[A-F0-9]{24}', response.data).group().decode()
+        self.assertIn(b'Print Slip', response.data)
+        self.assertIn(b'Pending Claim', response.data)
+        with self.app.app_context():
+            invitation = HomeInvitation.query.filter_by(code_hash=service.digest(code)).one()
+            serialized = json.dumps({col.name: str(getattr(invitation, col.name)) for col in invitation.__table__.columns})
+            self.assertNotIn(code, serialized)
+        with self.client.session_transaction() as state:
+            self.assertNotIn(code, json.dumps(dict(state), default=str))
+        slip = self.client.post('/sace/home/control/print-slip', data={'code': code})
+        self.assertEqual(slip.status_code, 200)
+        self.assertIn(code.encode(), slip.data)
+        self.assertIn(b'http://localhost/sace/home/join', slip.data)
+        self.assertNotIn(b'/sace/join', slip.data)
+        self.assertEqual(self.auditor.post('/sace/home/control/print-slip', data={'code': code}).status_code, 403)
+        self.app.config['WTF_CSRF_ENABLED'] = True
+        try:
+            self.assertEqual(self.client.post('/sace/home/control/print-slip', data={'code': code}).status_code, 400)
+        finally:
+            self.app.config['WTF_CSRF_ENABLED'] = False
+        old = self.client.get('/sace/home/control')
+        self.assertNotIn(code.encode(), old.data)
+        self.assertNotIn(b'Print Slip', old.data)
+        self.join_home(code, email='fresh-slip-auditor@example.test')
+        self.assertEqual(self.client.post('/sace/home/control/print-slip', data={'code': code}).status_code, 400)
+
     def test_control_centre_alignment_preserves_home_state(self):
         from app.program_sace_home import lifecycle as lc
         self.code_home()  # An unclaimed invitation alongside the claimed Auditor.

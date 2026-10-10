@@ -10,10 +10,7 @@
 <a class="home-button" href="{{ url_for('home_sace_bp.control', view='audit') }}">View Audit Logs</a>
 <a class="home-button" href="{{ url_for('home_sace_bp.provider_documents') }}">Provider Documents</a>
 <a class="home-button" href="{{ url_for('home_sace_bp.signed_pledge') }}">Intellectual Property Pledge</a></div>
-{% if request.args.get('view') == 'about' %}
-<section class="border border-blue-200 rounded-lg p-4 mb-6"><h2 class="text-xl font-bold mb-3">About AIT Activity for SACE Endorsement</h2>
-<p>HOME &mdash; Hands-On Math Education is examined through its existing ten chapter topics across Practical, Application / MCQ and Theory sections.</p></section>
-{% elif request.args.get('view') == 'audit' %}
+{% if request.args.get('view') == 'audit' %}
 <section class="border border-blue-200 rounded-lg p-4 mb-6"><h2 class="text-xl font-bold mb-3">View Audit Logs</h2>
 <ul class="divide-y">{% for event in audit_events %}<li class="py-3">{{ event.created_at }} &mdash; {{ event.event.replace('_', ' ') }}</li>{% else %}<li>No audit events recorded.</li>{% endfor %}</ul></section>
 {% endif %}
@@ -28,11 +25,13 @@
 <tbody class="divide-y divide-slate-100">
 {% for item in invitations %}
 {% set matches = assignments|selectattr('invitation_id', 'equalto', item.id)|list %}{% set row = matches[0] if matches else none %}
-<tr class="hover:bg-slate-50"><td class="p-4">Invitation {{ item.id }}<p class="text-xs text-slate-500">Expires {{ item.expires_at }}</p></td>
+<tr class="hover:bg-slate-50"><td class="p-4">{% if fresh_code and item.code_hash == fresh_code_hash and item.status == 'unclaimed' %}{{ fresh_code }}{% else %}Invitation {{ item.id }}{% endif %}<p class="text-xs text-slate-500">Expires {{ item.expires_at }}</p></td>
 <td class="p-4">{{ auditors[row.auditor_id].name if row else 'Pending Claim' }}</td>
 <td class="p-4"><span class="px-2 py-1 rounded border border-slate-200 bg-slate-50">{{ row.status if row else ('Unclaimed' if item.status == 'unclaimed' else item.status) }}</span>{% if row and row.id in submitted_ids %}<p class="mt-2">Auditor examination completed</p>{% endif %}</td>
 <td class="p-4 text-right">{% if row %}<a class="home-button" href="{{ url_for('home_sace_bp.controller_evidence', assignment_id=row.id) }}">View examination evidence</a>
 {% if row.id in submitted_ids and row.status == 'active' %}<form method="post" class="mt-2" action="{{ url_for('home_sace_bp.finalize_auditor', assignment_id=row.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="home-button">Finalize Auditor</button></form>{% endif %}
+{% elif fresh_code and item.code_hash == fresh_code_hash and item.status == 'unclaimed' %}
+<form method="post" action="{{ url_for('home_sace_bp.print_access_slip') }}" target="_blank"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="code" value="{{ fresh_code }}"><button class="home-button">Print Slip</button></form>
 {% else %}<span class="text-xs text-slate-400">No actions</span>{% endif %}</td></tr>
 {% else %}<tr><td colspan="4" class="p-8 text-center text-slate-500">No auditors have been provisioned yet.</td></tr>{% endfor %}
 </tbody></table></div>

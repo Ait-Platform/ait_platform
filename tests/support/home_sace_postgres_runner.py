@@ -326,7 +326,7 @@ class HomeFoundation(unittest.TestCase):
         self.assertNotEqual(first, second)
         response = self.client.get('/sace/home/control')
         html = response.data.decode()
-        self.assertGreater(html.index('Complete Activity Endorsement'), html.index('HOME examination assignments'))
+        self.assertGreater(html.index('Complete Activity Endorsement'), html.index('Provisioned Auditors'))
         response = self.client.get('/sace/home/control/documents')
         html = response.data.decode()
         for title in ('Application Form 1', 'Application Form 2', 'Facilitator CVs &amp; Compliance'):
@@ -371,7 +371,7 @@ class HomeFoundation(unittest.TestCase):
         self.assertEqual(self.client.get('/sace/home/control/completion').status_code, 200)
         self.assertEqual(self.client.post('/sace/home/control/completion', data={'decision': 'yes'}).status_code, 302)
         html = self.client.get('/sace/home/control').data.decode()
-        self.assertGreater(html.index('Cancel Completion'), html.index('HOME examination assignments'))
+        self.assertGreater(html.index('Cancel Completion'), html.index('Provisioned Auditors'))
 
     def test_new_and_returning_home_controller(self):
         uid = self.provision_home()

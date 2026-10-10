@@ -1,0 +1,15 @@
+{% extends "program_sace_home/frame.html" %}
+{% block back_label %}Back to Control Centre{% endblock %}
+{% block actions %}<button type="button" class="home-button" onclick="window.print()">Print Slip</button>{% endblock %}
+{% block home_content %}
+<style>@media print {body * {visibility:hidden} #printable-ticket, #printable-ticket * {visibility:visible} #printable-ticket {position:absolute;left:0;top:0;width:100%;box-sizing:border-box;margin:0;padding:40px;border:2px dashed #000}}</style>
+<div id="printable-ticket" class="border-2 border-dashed border-slate-300 rounded-xl p-8 text-center space-y-6">
+<h2 class="text-2xl font-bold">ARCHONEY INSTITUTE OF TECHNOLOGY (AIT)</h2>
+<p>Provider Activity: <strong>{{ activity_title }}</strong></p>
+<h3 class="text-xl font-bold">SACE Auditor Access Pass</h3>
+<p>For the appointed HOME SACE Auditor: go to the secure portal and enter your access code.</p>
+<p class="font-bold">{{ url_for('home_sace_bp.join', _external=True) }}</p>
+<p class="text-3xl font-mono font-bold">{{ code }}</p>
+<p>This code is single-use and expires after 14 days. Keep this slip secure.</p>
+</div>
+{% endblock %}

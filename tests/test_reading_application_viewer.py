@@ -11,6 +11,7 @@ from jinja2 import DictLoader, Environment
 
 
 ROOT = Path(__file__).resolve().parents[1]
+VIEWER_TITLES = ('Application Form 1', 'Application Form 2', 'Facilitator Manual', 'Workshop Manual')
 
 
 def render(title):
@@ -27,8 +28,8 @@ def render(title):
 
 
 class ReadingApplicationViewer(unittest.TestCase):
-    def test_both_forms_render_shared_presentation(self):
-        for title in ('Application Form 1', 'Application Form 2'):
+    def test_forms_and_manuals_render_shared_presentation(self):
+        for title in VIEWER_TITLES:
             with self.subTest(title=title):
                 html = render(title)
                 self.assertIn(title + ' may take a few seconds to load.', html)
@@ -41,7 +42,7 @@ class ReadingApplicationViewer(unittest.TestCase):
                 self.assertIn('id="document" class="max-w-full mx-auto border border-blue-400"', html)
 
     def test_other_material_keeps_existing_controls(self):
-        html = render('Facilitator Manual')
+        html = render('Reading Timetable (T/T)')
         self.assertNotIn('may take a few seconds to load.', html)
         self.assertIn('<button id="previous" class="border rounded p-2">', html)
         self.assertIn('<button id="next" class="border rounded p-2">', html)
@@ -57,8 +58,8 @@ class ReadingApplicationViewer(unittest.TestCase):
                 if candidate.is_file():
                     node = str(candidate)
         self.assertIsNotNone(node, 'Node or the existing Playwright bundled Node is required')
-        for title in ('Application Form 1', 'Application Form 2'):
-            for total in (7, 1):
+        for title in VIEWER_TITLES:
+            for total in ((31, 1) if title in ('Facilitator Manual', 'Workshop Manual') else (7, 1)):
                 with self.subTest(title=title, total=total):
                     script = re.search(r'<script>\s*(.*?)\s*</script>', render(title), re.S).group(1)
                     harness = r'''

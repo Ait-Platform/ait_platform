@@ -66,6 +66,8 @@ def board():
     flow.refresh_progress(row)
     db.session.commit()
     ticks = {e.activity_slug for e in flow.events(row)}
+    if flow.latest(row, 'ip_pledge') is not None:
+        ticks.add('ip_pledge')
     for slug in ('workshop_certificate', 'reading_certificate'):
         if not flow.certificate_delivered(row, slug):
             ticks.discard(slug)

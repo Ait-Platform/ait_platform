@@ -95,7 +95,16 @@ def events(row):
 
 
 def latest(row, slug):
-    return Interaction.query.filter_by(workshop_session_id=room(row), activity_slug=slug).order_by(Interaction.id.desc()).first()
+    event = Interaction.query.filter_by(workshop_session_id=room(row), activity_slug=slug).order_by(Interaction.id.desc()).first()
+    if event is None and slug == 'ip_pledge':
+        # The assignment's original entry acceptance also examines this reference.
+        auditor_id = payload(row).get('claimed_by_user_id')
+        if auditor_id is not None:
+            pledge = Interaction.query.filter_by(workshop_session_id=room(row),
+                activity_slug='pledge', user_id=auditor_id).order_by(Interaction.id.desc()).first()
+            if pledge is not None and payload(pledge).get('accepted') is True:
+                return pledge
+    return event
 
 
 def record(row, slug, values=None, once=False):

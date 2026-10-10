@@ -129,6 +129,66 @@ class ReadingRepair(unittest.TestCase):
         response = self.client.post("/sace/reading/step35", data=dict(q1="B",q2="B",q3="C",q4="A"))
         self.assertEqual(response.location, "/sace/reading/post_test/results")
 
+    def test_entry_pledge_marks_reference_examined_without_duplicate_evidence(self):
+        with self.app.app_context():
+            row = db.session.get(h.Interaction, self.assignment_id)
+            pledge = h.Interaction(user_id=flow.payload(row)['claimed_by_user_id'], workshop_session_id=flow.room(row),
+                activity_slug='pledge', response_data=h.json.dumps({'accepted': True}))
+            db.session.add(pledge)
+            db.session.commit()
+            before = [(e.id, e.activity_slug, e.response_data, e.timestamp) for e in flow.events(row) if e.activity_slug in ('pledge', 'ip_pledge')]
+            pledge_id = pledge.id
+        page = self.client.get('/sace/reading')
+        pledge_row = next(x for x in re.findall(r'<tr[^>]*>(.*?)</tr>', page.data.decode(), re.S)
+                          if 'AIT IP Pledge (reference)' in x)
+        self.assertIn('Examined', pledge_row)
+        with self.app.app_context():
+            row = db.session.get(h.Interaction, self.assignment_id)
+            self.assertEqual(flow.latest(row, 'ip_pledge').id, pledge_id)
+            self.assertEqual(before, [(e.id, e.activity_slug, e.response_data, e.timestamp) for e in flow.events(row) if e.activity_slug in ('pledge', 'ip_pledge')])
+        self.assertEqual(self.client.get('/sace/secure_view/ip_pledge').status_code, 200)
+        with self.app.app_context():
+            row = db.session.get(h.Interaction, self.assignment_id)
+            self.assertEqual(before, [(e.id, e.activity_slug, e.response_data, e.timestamp) for e in flow.events(row) if e.activity_slug in ('pledge', 'ip_pledge')])
+            from app.program_sace import certification as cert
+            for slug, *_ in cert.BOARD_ITEMS:
+                if slug != 'ip_pledge':
+                    db.session.add(h.Interaction(user_id=flow.payload(row)['claimed_by_user_id'],
+                        workshop_session_id=flow.room(row), activity_slug=slug, response_data='{}'))
+            db.session.flush()
+            self.assertTrue(cert.available(row))
+            self.assertEqual(flow.completion_requirements(row), [cert.SLUG])
+            self.assertEqual(flow.latest(row, 'ip_pledge').id, pledge_id)
+
+    def test_missing_invalid_or_other_actor_entry_pledge_is_not_examined(self):
+        for values, other_actor in ((None, False), ({'accepted': False}, False), ({'accepted': True}, True)):
+            with self.subTest(values=values, other_actor=other_actor):
+                with self.app.app_context():
+                    row = db.session.get(h.Interaction, self.assignment_id)
+                    h.Interaction.query.filter_by(workshop_session_id=flow.room(row), activity_slug='pledge').delete()
+                    if values is not None:
+                        db.session.add(h.Interaction(user_id=row.user_id if other_actor else flow.payload(row)['claimed_by_user_id'],
+                            workshop_session_id=flow.room(row), activity_slug='pledge', response_data=h.json.dumps(values)))
+                    db.session.commit()
+                    self.assertIsNone(flow.latest(row, 'ip_pledge'))
+                page = self.client.get('/sace/reading')
+                pledge_row = next(x for x in re.findall(r'<tr[^>]*>(.*?)</tr>', page.data.decode(), re.S)
+                                  if 'AIT IP Pledge (reference)' in x)
+                self.assertIn('Outstanding', pledge_row)
+
+    def test_manual_viewers_keep_controlled_routes_and_no_download_controls(self):
+        for kind in ('f_guide', 'p_guide'):
+            page = self.client.get('/sace/secure_view/' + kind)
+            self.assertEqual(page.status_code, 200)
+            self.assertIn(b'max-w-none', page.data)
+            self.assertIn(b'overflow-x-auto', page.data)
+            self.assertIn(b'getViewport({scale:2})', page.data)
+            self.assertNotRegex(page.data.decode(), r'<(?:a|button)[^>]*(?:download|print|export)')
+            self.assertIn(b"headers:{'X-CSRFToken':", page.data)
+            ordinary = self.app.test_client()
+            self.assertNotEqual(ordinary.get('/sace/secure_view/' + kind).status_code, 200)
+            self.assertNotEqual(ordinary.get('/sace/material/' + kind + '/content').status_code, 200)
+
     def test_exact_board_order_and_controlled_materials(self):
         response = self.client.get("/sace/reading")
         items = [(a["text"],a["href"]) for a in Anchors(response.data, table_only=True).items]

@@ -3,7 +3,12 @@
 {% block content %}
 <div class="max-w-5xl mx-auto px-4 py-8"><div class="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
 <div class="h-2 bg-indigo-700"></div><div class="p-6 space-y-6">
-<div class="flex items-center justify-between gap-4"><h1 class="text-2xl font-bold text-slate-800">Activity Summary</h1></div>
+<div class="flex items-center justify-between gap-4"><h1 class="text-2xl font-bold text-slate-800">Activity Summary</h1>
+<form method="post" action="{{ url_for('sace_bp.auditor_map') }}" class="flex justify-end">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<button type="submit" class="bg-indigo-700 text-white border border-indigo-700 rounded-lg px-4 py-2 hover:bg-indigo-800 focus:ring-2 focus:ring-indigo-300">Understood</button>
+</form>
+</div>
 {% with messages = get_flashed_messages(with_categories=true) %}{% for category, message in messages %}<p class="border rounded p-3">{{ message }}</p>{% endfor %}{% endwith %}
 
 <p>I Learn to Read English Using the LITRE Method</p>
@@ -19,9 +24,5 @@
 <p>The intellectual property pledge accepted when claiming your code continues to apply to these controlled materials.</p>
 <p>SACE supplies and controls its own endorsement rubric outside AIT. No SACE endorsement criteria are created or assessed here.</p>
 <p>Examination and activity evidence are recorded as you work. You may open controlled materials in any order.</p>
-<form method="post" action="{{ url_for('sace_bp.auditor_map') }}" class="flex justify-end">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-<button type="submit" class="bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg px-4 py-2 hover:bg-indigo-100 focus:ring-2 focus:ring-indigo-300">Understood</button>
-</form>
 </div></div></div>
 {% endblock %}

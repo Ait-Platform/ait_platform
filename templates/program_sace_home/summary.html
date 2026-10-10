@@ -1,4 +1,7 @@
 {% extends "program_sace_home/frame.html" %}
+{% block actions %}
+{% if row.status == 'active' %}<form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="inline-block px-4 py-2 rounded-lg border border-blue-700 bg-blue-700 text-white font-semibold hover:bg-blue-800 focus:ring-2 focus:ring-blue-300">Understood</button></form>{% endif %}
+{% endblock %}
 {% block home_content %}
 {% if home_auditor_examination %}
 <section class="space-y-2 mb-6" aria-labelledby="sace-auditor-examination">
@@ -13,5 +16,4 @@
 <li><strong>Theory:</strong> examine the explanations, Theory Review material and knowledge checks in chapters 21&ndash;30.</li></ol>
 <p>Review/retention and assessment/evaluation follow the existing HOME programme. The HOME Board separately exposes the programme materials, both manuals, assessment and monitoring evidence, and applicable certificate evidence.</p>
 <p>Auditor examination records evidence for HOME endorsement.</p></div>
-{% if row.status == 'active' %}<form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="home-button">Understood</button></form>{% endif %}
 {% endblock %}

@@ -4,12 +4,15 @@
 {% endblock %}
 {% block home_content %}
 {% if submitted %}<p class="p-3 mb-4 bg-blue-50 rounded">Examination submitted to SACE Admin. Your assignment remains open for examination and review.</p>{% endif %}
-<ul class="divide-y">{% for item in items %}<li class="py-4 flex justify-between gap-4 items-center">
-<div><strong>{{ loop.index }}. {{ item.title }}</strong><p class="text-sm text-slate-600">{% if item.kind == 'certificate' and row.requirements_version == 'home-auditor-v2' %}{% if item.examined %}Certification recorded{% elif item.available %}Certification available{% else %}Locked until items 1-10 are Examined{% endif %}{% elif item.examined %}&#10003; Examined{% elif not item.available %}Awaiting approved HOME material{% else %}Not yet examined{% endif %}</p></div>
+<div class="overflow-x-auto rounded-lg border border-slate-200">
+<table class="w-full text-left"><thead><tr class="bg-slate-50 border-b border-slate-200"><th class="p-4">Item</th><th class="p-4">Status</th><th class="p-4 text-right">View</th></tr></thead>
+<tbody class="divide-y">{% for item in items %}<tr>
+<td class="p-4 font-semibold">{{ loop.index }}. {{ item.title }}</td>
+<td class="p-4">{% if item.kind == 'certificate' and row.requirements_version == 'home-auditor-v2' %}{% if item.examined %}Certification recorded{% elif item.available %}Certification available{% else %}Locked until items 1-10 are Examined{% endif %}{% else %}{{ 'Examined' if item.examined else 'Outstanding' }}{% endif %}</td>
 {% if item.kind == 'summary' %}{% set target = url_for('home_sace_bp.summary', assignment_id=row.id) %}
 {% elif item.kind == 'certificate' and row.requirements_version == 'home-auditor-v2' %}{% set target = url_for('home_sace_bp.certification', assignment_id=row.id) %}
 {% elif item.kind == 'experience' and row.requirements_version != 'home-auditor-v2' %}{% set target = url_for('home_sace_bp.experience', assignment_id=row.id) %}
 {% else %}{% set target = url_for('home_sace_bp.material', assignment_id=row.id, kind=item.kind) %}{% endif %}
-{% if item.kind == 'certificate' and row.requirements_version == 'home-auditor-v2' %}{% if item.available %}<a class="home-button" href="{{ target }}">Open Certification</a>{% else %}<button class="home-button" disabled>Locked</button>{% endif %}
-{% elif item.examined and item.kind in ('application_form_1', 'application_form_2', 'timetable', 'participant_manual', 'facilitator_manual', 'experience', 'facilitator_evaluation', 'participant_evaluation', 'final_assessment') %}<a class="home-button" href="{{ target }}">View</a>{% elif item.examined %}<span class="home-button">Examined</span>{% else %}<a class="home-button" href="{{ target }}">{% if not item.available %}Details{% elif item.kind in ('application_form_1', 'application_form_2', 'timetable', 'participant_manual', 'facilitator_manual') %}View{% else %}Examine{% endif %}</a>{% endif %}</li>{% endfor %}</ul>
+<td class="p-4 text-right">{% if item.kind == 'certificate' and row.requirements_version == 'home-auditor-v2' %}{% if item.available %}<a class="home-button" href="{{ target }}">Open Certification</a>{% else %}<button class="home-button" disabled>Locked</button>{% endif %}{% else %}<a class="home-button" href="{{ target }}">View</a>{% endif %}</td>
+</tr>{% endfor %}</tbody></table></div>
 {% endblock %}

@@ -427,6 +427,55 @@ class HomeExamination(unittest.TestCase):
             self.assertEqual(HomeEvidence.query.filter_by(assignment_id=other_id,item='application_form_1',event='examined').count(), 1)
             self.assertEqual(HomeFinalAssessment.query.count(), 0)
 
+    def test_board_table_view_and_exact_document_mapping(self):
+        from app.models.sace_home import HomeDocument, HomeDocumentVersion
+        import hashlib
+        self.submitted_documents(open_materials=False)
+        kinds = ('application_form_1', 'application_form_2', 'timetable', 'participant_manual', 'facilitator_manual')
+        # Distinct bytes ensure a swapped document cannot pass as the correct viewer.
+        expected = {}
+        with self.app.app_context():
+            for kind in kinds:
+                version = HomeDocumentVersion.query.join(HomeDocument).filter(HomeDocument.kind==kind).one()
+                pdf = b'%PDF-1.4\n' + kind.encode()
+                (Path(self.documents.name)/version.storage_key).write_bytes(pdf)
+                version.sha256 = hashlib.sha256(pdf).hexdigest()
+                expected[kind] = (version.id, pdf)
+            db.session.commit()
+        page = self.auditor.get(self.base+'/board')
+        for heading in (b'>Item</th>', b'>Status</th>', b'>View</th>'):
+            self.assertIn(heading, page.data)
+        for kind in kinds:
+            target = self.base+'/materials/'+kind
+            item = next(x for x in re.findall(rb'<tr>(.*?)</tr>',page.data,re.S) if target.encode() in x)
+            self.assertIn(b'>Outstanding</td>', item)
+            self.assertIn(b'>View</a>', item)
+            for _ in range(2):
+                viewer = self.auditor.get(target)
+                self.assertEqual(viewer.status_code,200)
+                self.assertIn(ex.ITEMS[kind].encode(),viewer.data)
+                version_id, pdf = expected[kind]
+                url=f'/sace/home/documents/{version_id}/content?assignment_id={self.aid}'
+                self.assertIn(url.encode(),viewer.data)
+                self.assertEqual(self.auditor.get(url).data,pdf)
+            if kind=='application_form_1':
+                self.assertNotIn(b'HOME Programme / Timetable',viewer.data)
+                self.assertNotIn(f'/documents/{expected["timetable"][0]}/content'.encode(),viewer.data)
+            with self.app.app_context():
+                self.assertEqual(HomeEvidence.query.filter_by(assignment_id=self.aid,item=kind,event='examined').count(),1)
+        page=self.auditor.get(self.base+'/board')
+        for kind in kinds:
+            target=self.base+'/materials/'+kind
+            item=next(x for x in re.findall(rb'<tr>(.*?)</tr>',page.data,re.S) if target.encode() in x)
+            self.assertIn(b'>Examined</td>',item);self.assertIn(b'>View</a>',item)
+        self.auditor.post(self.base+'/summary')
+        page=self.auditor.get(self.base+'/board')
+        summary=next(x for x in re.findall(rb'<tr>(.*?)</tr>',page.data,re.S) if b'Activity Summary' in x)
+        self.assertIn(b'>Examined</td>',summary);self.assertIn(b'>View</a>',summary)
+        self.assertEqual(self.auditor.get(self.base+'/summary').status_code,200)
+        with self.app.app_context():
+            self.assertEqual(HomeEvidence.query.filter_by(assignment_id=self.aid,item='summary',event='examined').count(),1)
+
     def test_shared_material_viewer_actual_pagination_boundaries(self):
         import json, shutil, subprocess, importlib.util
         node = shutil.which('node')
@@ -539,7 +588,7 @@ function check(page){
         for _ in range(2):
             page=self.auditor.get(self.base+'/board')
             self.assertEqual(page.status_code,200)
-            self.assertEqual(page.data.count(b'&#10003; Examined'),10)
+            self.assertEqual(page.data.count(b'>Examined</td>'),10)
             self.assertIn((self.base+'/materials/facilitator_manual').encode(), page.data)
             self.assertIn(b'10. Final Assessment',page.data)
             self.assertIn(b'11. Certification',page.data)

@@ -128,6 +128,10 @@ class HomeFoundation(unittest.TestCase):
             self.assertNotIn(b'name="accept"', response.data)
             self.assertNotIn(b'This HOME provisioning invitation is for', response.data)
             self.assertIn(b'Accept and Continue', response.data)
+            self.assertNotIn(b'href="/sace/home/"', response.data)
+            self.assertEqual(response.data.count(b'Accept and Continue'), 1)
+            self.assertLess(response.data.index(b'Accept and Continue'),
+                response.data.index(s.PLEDGE_TEXT.encode()))
             fields = dict((a.decode(), b.decode()) for a, b in re.findall(
                 rb'<input type="hidden" name="([^"]+)" value="([^"]*)">', response.data))
             self.assertEqual(fields['journey'], nonce)

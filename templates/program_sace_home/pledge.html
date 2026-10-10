@@ -1,10 +1,16 @@
 {% extends "program_sace_home/frame.html" %}
+{% macro acceptance_form() %}
+<form method="post">{% if journey %}<input type="hidden" name="journey" value="{{ journey }}">{% endif %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<button type="submit" class="home-button"{% if not controller_pledge %} name="accept" value="yes"{% endif %}>Accept and Continue</button></form>
+{% endmacro %}
+{% block header_action %}
+{% if controller_pledge and not signed %}{{ acceptance_form() }}{% else %}{{ super() }}{% endif %}
+{% endblock %}
 {% block home_content %}
 <div class="p-5 bg-blue-50 rounded mb-6 leading-relaxed">{{ terms }}</div>
 {% if signed %}
 {% for pledge in pledges %}<p class="mb-3">Signed by {{ pledge.signature }} as {{ pledge.role }} on {{ pledge.accepted_at }} ({{ pledge.version }}).</p>{% endfor %}
 {% else %}
-<form method="post">{% if journey %}<input type="hidden" name="journey" value="{{ journey }}">{% endif %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-<button type="submit" class="home-button"{% if not controller_pledge %} name="accept" value="yes"{% endif %}>Accept and Continue</button></form>
+{% if not controller_pledge %}{{ acceptance_form() }}{% endif %}
 {% endif %}
 {% endblock %}

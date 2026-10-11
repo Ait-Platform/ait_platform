@@ -1200,6 +1200,82 @@ function check(page){
             self.assertEqual(self.auditor.post(target,data={'action':'email'}).status_code,403)
             send.assert_not_called()
 
+    def test_submitted_board_exit_uses_existing_activity_destination_without_state_changes(self):
+        self.examine_ten()
+        self.assertEqual(self.auditor.get(self.base+'/certification').status_code,200)
+        self.assertEqual(self.auditor.post(self.base+'/completion').status_code,200)
+        with self.app.app_context():
+            evidence=db.session.execute(text('SELECT row_to_json(e)::text FROM sace_home_evidence e ORDER BY id')).scalars().all()
+            assignment=db.session.execute(text('SELECT row_to_json(a)::text FROM sace_home_assignment a WHERE id=:id'),{'id':self.aid}).scalar()
+        response=self.auditor.get(self.base+'/board')
+        self.assertIn(b'Examination submitted to SACE Admin',response.data)
+        self.assertEqual(response.data.count(b'Exit endorsement examination'),1)
+        self.assertIn(b'href="/sace/activities">Exit endorsement examination</a>',response.data)
+        self.assertNotIn(('action="'+self.base+'/completion"').encode(),response.data)
+        self.assertEqual(self.auditor.get('/sace/activities').status_code,200)
+        self.assertEqual(self.auditor.get(self.base+'/board').status_code,200)
+        with self.app.app_context():
+            self.assertEqual(db.session.execute(text('SELECT row_to_json(e)::text FROM sace_home_evidence e ORDER BY id')).scalars().all(),evidence)
+            self.assertEqual(db.session.execute(text('SELECT row_to_json(a)::text FROM sace_home_assignment a WHERE id=:id'),{'id':self.aid}).scalar(),assignment)
+
+    def test_email_access_slip_preserves_print_handoff_identity_and_security(self):
+        from app.extensions import mail
+        code=self.code_home()
+        with self.client.session_transaction() as state:
+            handoff=dict(state['sace_home_code_handoff'])
+        target=f"/sace/home/control/invitations/{handoff['invitation_id']}/email-slip"
+        print_target=target.replace('email-slip','print-slip')
+        page=self.client.get('/sace/home/control')
+        self.assertIn(target.encode(),page.data)
+        self.assertIn(print_target.encode(),page.data)
+        self.assertIn(b'value="home-r@example.test"',page.data)
+        printed=self.client.get(print_target)
+        self.assertEqual(printed.status_code,200)
+        with self.app.app_context():
+            before={table:db.session.execute(text('SELECT row_to_json(t)::text FROM "'+table+'" t ORDER BY id')).scalars().all()
+                for table in ('user','sace_home_assignment','sace_home_invitation','sace_home_evidence')}
+        with patch.object(mail,'send') as send, \
+                patch.dict(self.app.config,{'MAIL_DEFAULT_SENDER':('AIT Support','ait@example.com')}), \
+                patch('smtplib.SMTP',side_effect=AssertionError('SMTP forbidden')) as smtp, \
+                patch('smtplib.SMTP_SSL',side_effect=AssertionError('SMTP forbidden')) as ssl:
+            mail.init_app(self.app)
+            sent=self.client.post(target,data={'recipient_email':'alternate@EXAMPLE.COM'})
+            self.assertEqual(sent.status_code,302)
+            self.assertEqual(sent.location,'/sace/home/control')
+            send.assert_called_once()
+            message=send.call_args.args[0]
+            self.assertEqual(message.recipients,['alternate@example.com'])
+            self.assertEqual(message.sender,('AIT Support','ait@example.com'))
+            self.assertEqual(message.subject,'HOME SACE Auditor Access Pass')
+            for value in ('ARCHONEY INSTITUTE OF TECHNOLOGY (AIT)','Hands-On Math Education',
+                    'SACE Auditor Access Pass','http://localhost/sace/home/join',code,
+                    'This code is single-use and expires after 14 days. Keep this slip secure.'):
+                self.assertIn(value,message.body)
+                self.assertIn(value.encode(),printed.data)
+            self.assertNotIn('/sace/join',message.body)
+            send.reset_mock()
+            for address in ('','not-an-email'):
+                self.assertEqual(self.client.post(target,data={'recipient_email':address}).status_code,400)
+            self.assertEqual(self.auditor.post(target,data={'recipient_email':'alternate@example.com'}).status_code,403)
+            other=self.app.test_client()
+            self.login(other,'home-r@example.test')
+            self.assertEqual(other.post(target,data={'recipient_email':'alternate@example.com'}).status_code,404)
+            self.app.config['WTF_CSRF_ENABLED']=True
+            try:
+                self.assertEqual(self.client.post(target,data={'recipient_email':'alternate@example.com'}).status_code,400)
+            finally:
+                self.app.config['WTF_CSRF_ENABLED']=False
+            with patch('app.utils.mailer.send_email',return_value=False):
+                self.assertEqual(self.client.post(target,data={'recipient_email':'alternate@example.com'}).status_code,503)
+            with self.client.session_transaction() as state:
+                state['sace_home_code_handoff']=dict(handoff,expires_at=0)
+            self.assertEqual(self.client.post(target,data={'recipient_email':'alternate@example.com'}).status_code,404)
+            send.assert_not_called()
+            smtp.assert_not_called();ssl.assert_not_called()
+        with self.app.app_context():
+            for table,rows in before.items():
+                self.assertEqual(db.session.execute(text('SELECT row_to_json(t)::text FROM "'+table+'" t ORDER BY id')).scalars().all(),rows)
+
     def test_about_and_fresh_code_handoff_without_plaintext_storage(self):
         from app.models.sace_home import HomeInvitation
         from app.program_sace_home import service as service

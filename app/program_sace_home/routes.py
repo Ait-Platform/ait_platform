@@ -217,6 +217,37 @@ def print_access_slip(invitation_id):
         activity_title=HomeActivity.display_name, back=url_for('home_sace_bp.control'))
 
 
+@home_sace_bp.post('/control/invitations/<int:invitation_id>/email-slip')
+@login_required
+def email_access_slip(invitation_id):
+    s.require_controller()
+    actor = lc.require_appointment()
+    handoff = fresh_code_handoff(actor)
+    if handoff is None or handoff['invitation_id'] != invitation_id:
+        abort(404)
+    from email_validator import validate_email, EmailNotValidError
+    try:
+        recipient = validate_email(request.form.get('recipient_email', '').strip(),
+            check_deliverability=False).normalized
+    except EmailNotValidError:
+        abort(400, description='Enter a valid recipient email address.')
+    from .activity import HomeActivity
+    from app.utils.mailer import send_email
+    body = '\n'.join([
+        'ARCHONEY INSTITUTE OF TECHNOLOGY (AIT)',
+        'Provider Activity: ' + HomeActivity.display_name,
+        'SACE Auditor Access Pass',
+        'For the appointed HOME SACE Auditor: go to the secure portal and enter your access code.',
+        url_for('home_sace_bp.join', _external=True),
+        handoff['code'],
+        'This code is single-use and expires after 14 days. Keep this slip secure.',
+    ])
+    if not send_email(subject='HOME SACE Auditor Access Pass', recipients=[recipient], body=body):
+        abort(503, description='Access pass email delivery failed. You can retry.')
+    flash('Auditor access pass emailed.', 'success')
+    return redirect(url_for('home_sace_bp.control'))
+
+
 PROVIDER_DOCUMENTS = (
     ('application_form_1', 'Application Form 1', 'The primary SACE application form.'),
     ('application_form_2', 'Application Form 2', 'The secondary SACE application form.'),

@@ -859,6 +859,50 @@ class ReadingRepair(unittest.TestCase):
             self.assertEqual(response.data, (ROOT / 'app/static/pdf/Reading Timetable.pdf').read_bytes())
         self.assertEqual(self.client.post('/sace/material/timetable/viewed').status_code, 200)
 
+    def test_provider_document_email_defaults_to_controller_and_remains_editable(self):
+        controller=self.app.test_client()
+        self.login(controller,'r@example.test','/sace/provisioning')
+        with self.app.app_context():
+            user=h.auth_models.User.query.filter_by(email='r@example.test').one()
+            user_id=user.id
+            original_email=user.email
+        page=controller.get('/sace/provisioning/documents')
+        self.assertEqual(page.status_code,200)
+        field=re.search(rb'<input[^>]*name="recipient_email"[^>]*>',page.data).group()
+        self.assertIn(b'value="r@example.test"',field)
+        self.assertNotIn(b'readonly',field)
+        self.assertNotIn(b'disabled',field)
+        self.assertIn(b'name="csrf_token"',page.data)
+        mappings={'app1':'App_Form_1.pdf','app2':'App_Form_2.pdf','f_cv':'Facilitator_CVs.pdf'}
+        with patch('app.utils.mailer.send_email',return_value=True) as send, \
+                patch('smtplib.SMTP',side_effect=AssertionError('SMTP forbidden')) as smtp, \
+                patch('smtplib.SMTP_SSL',side_effect=AssertionError('SMTP forbidden')) as ssl:
+            for doc_id,filename in mappings.items():
+                target='/sace/provisioning/document/action/'+doc_id
+                viewed=controller.get(target+'?action=view')
+                self.assertEqual(viewed.status_code,302)
+                self.assertTrue(viewed.location.endswith('/static/pdf/'+filename))
+                send.reset_mock()
+                sent=controller.post(target,data={'action':'email','recipient_email':'alternate@example.com'})
+                self.assertEqual(sent.status_code,302)
+                send.assert_called_once()
+                self.assertEqual(send.call_args.kwargs['recipients'],['alternate@example.com'])
+                self.assertIn('/static/pdf/'+filename,send.call_args.kwargs['body'])
+                self.assertIn('/static/pdf/'+filename,send.call_args.kwargs['html'])
+            self.app.config['WTF_CSRF_ENABLED']=True
+            try:
+                send.reset_mock()
+                self.assertEqual(controller.post('/sace/provisioning/document/action/f_cv',
+                    data={'action':'email','recipient_email':'alternate@example.com'}).status_code,400)
+                send.assert_not_called()
+            finally:
+                self.app.config['WTF_CSRF_ENABLED']=False
+            self.assertEqual(self.client.get('/sace/provisioning/documents').status_code,403)
+            smtp.assert_not_called()
+            ssl.assert_not_called()
+        with self.app.app_context():
+            self.assertEqual(db.session.get(h.auth_models.User,user_id).email,original_email)
+
     def test_controller_interface_and_assignment_pass(self):
         controller = self.app.test_client()
         self.login(controller, 'r@example.test', '/sace/provisioning')

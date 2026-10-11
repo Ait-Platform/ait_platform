@@ -700,27 +700,27 @@ def certification(assignment_id):
         already_sent = any(e.details.get('certification_evidence_id') == evidence.id
             and e.details.get('recipient') == recipient and e.details.get('outcome') == 'accepted_by_mail_sender'
             for e in sent)
+        if current_app.config.get('MAIL_SUPPRESS_SEND'):
+            abort(503, description='Email sending is suppressed; certification email was not sent.')
+        try:
+            pdf_bytes = html_to_pdf_bytes(certificate_html, base_url=request.host_url, orientation='Portrait')
+            if not pdf_bytes or not pdf_bytes.startswith(b'%PDF-'):
+                raise ValueError('Certificate PDF generation returned invalid bytes')
+        except Exception:
+            current_app.logger.exception('HOME endorsement certification PDF generation failed')
+            abort(503, description='Certification PDF could not be generated. You can retry.')
+        try:
+            accepted = send_standard_report_email(to_email=recipient,
+                subject='HOME endorsement examination certification',
+                pdf_url=url_for('home_sace_bp.certification', assignment_id=row.id, _external=True),
+                pdf_bytes=pdf_bytes, filename='HOME_Endorsement_Examination_Certification.pdf',
+                user_name=snapshot['auditor']['name'])
+        except Exception:
+            current_app.logger.exception('HOME endorsement certification email failed')
+            accepted = False
+        if not accepted:
+            abort(503, description='Certification email could not be sent. You can retry.')
         if not already_sent:
-            if current_app.config.get('MAIL_SUPPRESS_SEND'):
-                abort(503, description='Email sending is suppressed; certification email was not sent.')
-            try:
-                pdf_bytes = html_to_pdf_bytes(certificate_html, base_url=request.host_url, orientation='Portrait')
-                if not pdf_bytes or not pdf_bytes.startswith(b'%PDF-'):
-                    raise ValueError('Certificate PDF generation returned invalid bytes')
-            except Exception:
-                current_app.logger.exception('HOME endorsement certification PDF generation failed')
-                abort(503, description='Certification PDF could not be generated. You can retry.')
-            try:
-                accepted = send_standard_report_email(to_email=recipient,
-                    subject='HOME endorsement examination certification',
-                    pdf_url=url_for('home_sace_bp.certification', assignment_id=row.id, _external=True),
-                    pdf_bytes=pdf_bytes, filename='HOME_Endorsement_Examination_Certification.pdf',
-                    user_name=snapshot['auditor']['name'])
-            except Exception:
-                current_app.logger.exception('HOME endorsement certification email failed')
-                accepted = False
-            if not accepted:
-                abort(503, description='Certification email could not be sent. You can retry.')
             s.record(row, 'endorsement_certification', 'sent', {
                 'certification_evidence_id': evidence.id, 'snapshot_sha256': evidence.details['snapshot_sha256'],
                 'recipient': recipient, 'outcome': 'accepted_by_mail_sender'})

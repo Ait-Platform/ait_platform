@@ -106,7 +106,7 @@
                                 <strong>{{ title }}</strong>
                                 <details><summary>Publication history ({{ home_history[kind]|length }})</summary>
                                 <ul>{% for version in home_history[kind] %}
-                                    <li>{{ version.published_at.strftime('%Y-%m-%d %H:%M') }} UTC &mdash; {{ version.source_manifest.get('source_filename', 'PDF') }}{% if loop.first %} &mdash; Current{% endif %}</li>
+                                    <li>{{ version.published_at.strftime('%Y-%m-%d %H:%M') }} UTC &mdash; {{ version.source_manifest.get('source_filename', 'PDF') }}{% if loop.first %} &mdash; Current{% endif %} <a class="inline-block rounded border border-slate-300 px-2 py-1 text-blue-900 hover:bg-blue-50" href="{{ url_for('admin_bp.sace_home_document_preview', version_id=version.id) }}">Preview</a></li>
                                 {% endfor %}</ul></details>
                             </li>
                             {% endfor %}

@@ -323,6 +323,39 @@ def sace_management():
 
 
 
+@admin_bp.get('/security/sace-home/documents/<int:version_id>', endpoint='sace_home_document_preview')
+@admin_bp.get('/security/sace-home/documents/<int:version_id>/content', endpoint='sace_home_document_preview_content')
+@login_required
+def sace_home_document_preview(version_id):
+    from io import BytesIO
+    from flask import send_file
+    from app.program_sace_home import admin_documents as publication, service as home
+    from app.models.sace_home import HomeDocument, HomeDocumentVersion
+    publication.require_platform_admin()
+    version = db.session.get(HomeDocumentVersion, version_id)
+    if version is None:
+        abort(404)
+    document = db.session.get(HomeDocument, version.document_id)
+    if document is None or document.kind not in publication.KINDS:
+        abort(404)
+    if (version.source_manifest.get('subject') != home.SUBJECT
+            or version.source_manifest.get('kind') != document.kind):
+        abort(409, description='The HOME publication provenance does not match this document.')
+    pdf_bytes = home.document_content(version)
+    if request.endpoint == 'admin_bp.sace_home_document_preview_content':
+        response = send_file(BytesIO(pdf_bytes), mimetype='application/pdf', as_attachment=False,
+            download_name='HOME-' + str(version.id) + '.pdf', conditional=False, etag=False)
+    else:
+        response = current_app.make_response(render_template('program_sace_home/material.html',
+            title=document.title, version=version, kind=document.kind, hide_navbar=True,
+            content_url=url_for('admin_bp.sace_home_document_preview_content', version_id=version.id),
+            back=url_for('admin_bp.sace_management', program='home')))
+    response.headers['Cache-Control'] = 'private, no-store'
+    response.headers['Referrer-Policy'] = 'same-origin'
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    return response
+
+
 @admin_bp.get('/security/sace-engagement/<int:engagement_id>')
 @login_required
 def sace_engagement_history(engagement_id):

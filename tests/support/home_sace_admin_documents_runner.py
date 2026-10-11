@@ -21,8 +21,10 @@ from app.program_sace_home import admin_documents as pub, service as s, examinat
 from app.program_sace_home import document_storage as storage
 from app.models.sace_home import HomeDocumentVersion, HomeDocument, HomeEvidence, HomeAssignment, HomeController, HomeInvitation, now
 from app.admin.programs.home import routes
-from app.admin.programs import routes as program_routes
 from flask_wtf.csrf import generate_csrf
+
+f.h.view_module('isolated_home_admin_preview', 'app/admin/security/routes.py',
+    dict(f.h.env, admin_bp=f.h.admin_bp), {'sace_home_document_preview'})
 
 URL = '/admin/home/endorsement-documents'
 
@@ -36,6 +38,19 @@ def pdf_bytes(width=100):
 
 
 class AdminDocuments(f.HomeFoundation):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        from app.models import home as home_models
+        from sqlalchemy.schema import CreateTable, CreateIndex
+        tables=[t for t in db.metadata.sorted_tables if t.name.startswith('home_')]
+        with cls.app.app_context(), db.engine.begin() as conn:
+            for table in tables:
+                conn.execute(text(str(CreateTable(table).compile(dialect=conn.dialect)).replace('CREATE TABLE','CREATE TEMPORARY TABLE',1)))
+                for index in table.indexes:
+                    conn.execute(CreateIndex(index))
+        cls.tables += [t.name for t in tables]
+
     def setUp(self):
         super().setUp()
         self.app.config['SACE_HOME_R2_BUCKET'] = 'test-home-private'
@@ -95,6 +110,72 @@ class AdminDocuments(f.HomeFoundation):
         self.assertEqual(page.headers['Cache-Control'], 'private, no-store')
         self.assertEqual(page.data.count(b'>Replace</button>'), 5)
         self.assertNotIn(b'endorsement/admin/', page.data)
+
+    def test_admin_preview_exact_versions_without_lifecycle_or_evidence(self):
+        self.assertEqual(self.post_pdf('participant_manual',pdf_bytes(100)).status_code,302)
+        self.assertEqual(self.post_pdf('participant_manual',pdf_bytes(200)).status_code,302)
+        with self.app.app_context():
+            versions=HomeDocumentVersion.query.order_by(HomeDocumentVersion.id).all()
+            expected=[(v.id,v.version,self.objects[v.storage_key]) for v in versions]
+            from app.program_sace_home import lifecycle as lc
+            protected=['sace_home_evidence','sace_home_assignment','sace_home_invitation',
+                'sace_home_engagement','sace_home_controller_appointment','sace_home_audit_event']
+            def state():
+                return {table:db.session.execute(text('SELECT row_to_json(t)::text FROM '+table+' t ORDER BY id')).scalars().all() for table in protected}
+            before=state()
+            self.assertEqual(HomeController.query.count(),0)
+            self.assertEqual(lc.Engagement.query.count(),0)
+            self.assertEqual(lc.Appointment.query.count(),0)
+            self.assertEqual(HomeAssignment.query.count(),0)
+            self.assertEqual(f.h.auth_models.AuthSubjectAdmin.query.count(),0)
+            publication_before=db.session.execute(text('SELECT row_to_json(v)::text FROM sace_home_document_version v ORDER BY id')).scalars().all()
+        management=self.client.get('/admin/security/sace-management?program=home')
+        self.assertEqual(management.status_code,200)
+        for vid,label,content in expected:
+            target=f'/admin/security/sace-home/documents/{vid}'
+            self.assertIn(('href="'+target+'">Preview</a>').encode(),management.data)
+            preview=self.client.get(target)
+            self.assertEqual(preview.status_code,200)
+            self.assertIn(label.encode(),preview.data)
+            self.assertIn((target+'/content').encode(),preview.data)
+            self.assertNotIn(b'assignment_id=',preview.data)
+            self.assertIn(b'/admin/security/sace-management?program=home',preview.data)
+            self.assertEqual(preview.headers['Cache-Control'],'private, no-store')
+            result=self.client.get(target+'/content')
+            self.assertEqual(result.status_code,200)
+            self.assertEqual(result.mimetype,'application/pdf')
+            self.assertEqual(result.data,content)
+            self.assertEqual(result.headers['Cache-Control'],'private, no-store')
+            self.assertIn('inline',result.headers['Content-Disposition'])
+        self.assertEqual(self.client.get('/sace/home/assignments/2/materials/participant_manual').status_code,403)
+        with self.app.app_context():
+            self.assertEqual(state(),before)
+            self.assertEqual(db.session.execute(text('SELECT row_to_json(v)::text FROM sace_home_document_version v ORDER BY id')).scalars().all(),publication_before)
+
+    def test_admin_preview_guard_missing_and_corrupt_versions(self):
+        self.assertEqual(self.post_pdf('participant_manual').status_code,302)
+        with self.app.app_context():
+            version=HomeDocumentVersion.query.one();vid=version.id;key=version.storage_key
+        target=f'/admin/security/sace-home/documents/{vid}'
+        other=self.user('not-platform-admin@example.test')
+        self.signin(other)  # Session admin flags alone must not grant preview.
+        with patch.object(s,'document_content',side_effect=AssertionError('No content before authority')):
+            for path in (target,target+'/content'):
+                self.assertEqual(self.client.get(path).status_code,403)
+        self.signin(self.uid)
+        with self.app.app_context():
+            db.session.execute(text('UPDATE auth_approved_admin SET active=0'));db.session.commit()
+        self.assertEqual(self.client.get(target).status_code,403)
+        self.assertEqual(self.client.get(target+'/content').status_code,403)
+        with self.app.app_context():
+            db.session.execute(text('UPDATE auth_approved_admin SET active=1'));db.session.commit()
+        self.assertEqual(self.client.get('/admin/security/sace-home/documents/99999').status_code,404)
+        original=self.objects[key]
+        self.objects[key]=pdf_bytes(250)
+        for path in (target,target+'/content'):
+            self.assertEqual(self.client.get(path).status_code,409)
+        self.objects[key]=original
+        self.assertEqual(self.client.get(target+'/content').data,original)
 
     def test_admin_authority_rejects_flags_subject_grants_inactive_and_revoked(self):
         other = self.user('subject-admin@example.test')
@@ -188,6 +269,14 @@ class AdminDocuments(f.HomeFoundation):
             db.session.flush()
             self.assertEqual(ex.document(fresh, 'timetable').id, s.latest_version('timetable').id)
             db.session.commit()
+            before_evidence=db.session.execute(text('SELECT row_to_json(e)::text FROM sace_home_evidence e ORDER BY id')).scalars().all()
+            before_assignments=db.session.execute(text('SELECT row_to_json(a)::text FROM sace_home_assignment a ORDER BY id')).scalars().all()
+        target=f'/admin/security/sace-home/documents/{first_id}'
+        self.assertEqual(self.client.get(target).status_code,200)
+        self.assertEqual(self.client.get(target+'/content').data,pdf_bytes())
+        with self.app.app_context():
+            self.assertEqual(db.session.execute(text('SELECT row_to_json(e)::text FROM sace_home_evidence e ORDER BY id')).scalars().all(),before_evidence)
+            self.assertEqual(db.session.execute(text('SELECT row_to_json(a)::text FROM sace_home_assignment a ORDER BY id')).scalars().all(),before_assignments)
 
     def test_admin_controller_publication_contract_and_manual_gate_unchanged(self):
         with self.app.app_context():

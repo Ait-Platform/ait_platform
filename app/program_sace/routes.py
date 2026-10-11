@@ -662,7 +662,7 @@ def document_action(doc_id):
     if doc_id == "ip_pledge":
         return redirect(url_for('sace_bp.provisioning_map', pledge='1'))
     from app.models.sace import SaceWorkshopInteraction
-    from app.utils.mailer import send_email
+    from app.utils.mailer import send_pdf_email
     import json
     
     sace_user_id = current_user.id if current_user.is_authenticated else 1
@@ -730,24 +730,25 @@ def document_action(doc_id):
             }
             doc_name = doc_names.get(doc_id, "Document")
             
-            html_body = f"""
-            <div style="font-family: sans-serif; padding: 20px;">
-                <h2 style="color: #4f46e5;">AIT Provider Document</h2>
-                <p>Hello,</p>
-                <p>Please find the requested AIT SACE Document: <strong>{doc_name}</strong>.</p>
-                <p>You can securely access and download this document using the link below:</p>
-                <div style="margin: 20px 0;">
-                    <a href="{url_for('static', filename=filename, _external=True)}" style="background-color: #4f46e5; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">View Document</a>
-                </div>
-                <p>Regards,<br>AIT Administrator</p>
-            </div>
-            """
-            send_email(
-                subject=f"AIT Document: {doc_name}",
-                recipients=[recipient],
-                body=f"Please view the document here: {url_for('static', filename=filename, _external=True)}",
-                html=html_body
-            )
+            from pathlib import Path
+            pdf_path = Path(current_app.static_folder) / filename
+            try:
+                pdf_bytes = pdf_path.read_bytes()
+            except OSError:
+                abort(404, description='The requested provider PDF is unavailable. No email was sent.')
+            if not pdf_bytes.startswith(b'%PDF-'):
+                abort(409, description='The requested provider file is not a PDF. No email was sent.')
+            try:
+                send_pdf_email(
+                    to_email=recipient,
+                    subject=f"AIT Document: {doc_name}",
+                    body_text=f"Please find the requested AIT SACE document attached: {doc_name}.\n\nAIT Administrator",
+                    pdf_bytes=pdf_bytes,
+                    filename=pdf_path.name,
+                )
+            except Exception:
+                current_app.logger.exception('Reading provider document email delivery failed')
+                abort(503, description='Provider document email delivery failed. You can retry.')
             flash(f"Document securely emailed to {recipient}.", "success")
             
         return redirect(url_for('sace_bp.provider_documents'))

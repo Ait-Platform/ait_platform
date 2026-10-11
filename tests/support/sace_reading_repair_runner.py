@@ -873,22 +873,55 @@ class ReadingRepair(unittest.TestCase):
         self.assertNotIn(b'readonly',field)
         self.assertNotIn(b'disabled',field)
         self.assertIn(b'name="csrf_token"',page.data)
-        mappings={'app1':'App_Form_1.pdf','app2':'App_Form_2.pdf','f_cv':'Facilitator_CVs.pdf'}
-        with patch('app.utils.mailer.send_email',return_value=True) as send, \
+        from app.extensions import mail
+        from email import message_from_bytes
+        from email.policy import default
+        from urllib.parse import unquote, urlsplit
+        mappings={'app1':'App_Form_1.pdf','app2':'App_Form_2.pdf','f_cv':'Facilitator_CVs.pdf',
+            'tt':'Reading Timetable.pdf','f_guide':'F_Guide.pdf'}
+        with patch.object(mail,'send') as send, \
+                patch.dict(self.app.config,{'MAIL_DEFAULT_SENDER':('AIT Support','ait@example.com')}), \
                 patch('smtplib.SMTP',side_effect=AssertionError('SMTP forbidden')) as smtp, \
                 patch('smtplib.SMTP_SSL',side_effect=AssertionError('SMTP forbidden')) as ssl:
+            mail.init_app(self.app)
             for doc_id,filename in mappings.items():
                 target='/sace/provisioning/document/action/'+doc_id
                 viewed=controller.get(target+'?action=view')
                 self.assertEqual(viewed.status_code,302)
-                self.assertTrue(viewed.location.endswith('/static/pdf/'+filename))
+                self.assertEqual(unquote(urlsplit(viewed.location).path),'/static/pdf/'+filename)
+                content=controller.get(viewed.location)
+                self.assertEqual(content.status_code,200)
+                expected=(ROOT/'app/static/pdf'/filename).read_bytes()
+                self.assertEqual(content.data,expected)
                 send.reset_mock()
                 sent=controller.post(target,data={'action':'email','recipient_email':'alternate@example.com'})
                 self.assertEqual(sent.status_code,302)
                 send.assert_called_once()
-                self.assertEqual(send.call_args.kwargs['recipients'],['alternate@example.com'])
-                self.assertIn('/static/pdf/'+filename,send.call_args.kwargs['body'])
-                self.assertIn('/static/pdf/'+filename,send.call_args.kwargs['html'])
+                message=send.call_args.args[0]
+                self.assertEqual(message.recipients,['alternate@example.com'])
+                self.assertIsNone(message.html)
+                self.assertNotIn('http',message.body)
+                self.assertNotIn('View Document',message.body)
+                self.assertEqual(len(message.attachments),1)
+                attachment=message.attachments[0]
+                self.assertEqual(attachment.filename,filename)
+                self.assertEqual(attachment.content_type,'application/pdf')
+                self.assertEqual(attachment.data,expected)
+                with self.app.app_context():
+                    mime=message_from_bytes(message.as_bytes(),policy=default)
+                attachments=list(mime.iter_attachments())
+                self.assertEqual(len(attachments),1)
+                self.assertEqual(attachments[0].get_filename(),filename)
+                self.assertEqual(attachments[0].get_content_type(),'application/pdf')
+                self.assertEqual(attachments[0].get_payload(decode=True),content.data)
+                content.close()
+            for error,expected_status in ((OSError('missing PDF'),404),(b'not a PDF',409),(b'',409)):
+                send.reset_mock()
+                mocked_read=patch.object(Path,'read_bytes',side_effect=error) if isinstance(error,Exception) else patch.object(Path,'read_bytes',return_value=error)
+                with mocked_read:
+                    self.assertEqual(controller.post('/sace/provisioning/document/action/f_cv',
+                        data={'action':'email','recipient_email':'alternate@example.com'}).status_code,expected_status)
+                send.assert_not_called()
             self.app.config['WTF_CSRF_ENABLED']=True
             try:
                 send.reset_mock()

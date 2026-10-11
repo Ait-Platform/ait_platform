@@ -877,8 +877,9 @@ class ReadingRepair(unittest.TestCase):
         from email import message_from_bytes
         from email.policy import default
         from urllib.parse import unquote, urlsplit
-        mappings={'app1':'App_Form_1.pdf','app2':'App_Form_2.pdf','f_cv':'Facilitator_CVs.pdf',
-            'tt':'Reading Timetable.pdf','f_guide':'F_Guide.pdf'}
+        from app.models.sace import SaceWorkshopInteraction
+        mappings={'app1':'App_Form_1.pdf','app2':'App_Form_2.pdf','f_cv':'Facilitator_CVs.pdf'}
+        self.assertEqual(set(re.findall(rb'/sace/provisioning/document/action/([^?\"]+)\?action=view',page.data)),{key.encode() for key in mappings})
         with patch.object(mail,'send') as send, \
                 patch.dict(self.app.config,{'MAIL_DEFAULT_SENDER':('AIT Support','ait@example.com')}), \
                 patch('smtplib.SMTP',side_effect=AssertionError('SMTP forbidden')) as smtp, \
@@ -915,6 +916,15 @@ class ReadingRepair(unittest.TestCase):
                 self.assertEqual(attachments[0].get_content_type(),'application/pdf')
                 self.assertEqual(attachments[0].get_payload(decode=True),content.data)
                 content.close()
+            for removed in ('tt', 'f_guide'):
+                self.assertNotIn(('/sace/provisioning/document/action/'+removed).encode(),page.data)
+                send.reset_mock()
+                target='/sace/provisioning/document/action/'+removed
+                self.assertEqual(controller.get(target+'?action=view').status_code,404)
+                self.assertEqual(controller.post(target,data={'action':'email','recipient_email':'alternate@example.com'}).status_code,404)
+                send.assert_not_called()
+                with self.app.app_context():
+                    self.assertIsNone(SaceWorkshopInteraction.query.filter_by(user_id=user_id,activity_slug='doc_tracked_'+removed).first())
             for error,expected_status in ((OSError('missing PDF'),404),(b'not a PDF',409),(b'',409)):
                 send.reset_mock()
                 mocked_read=patch.object(Path,'read_bytes',side_effect=error) if isinstance(error,Exception) else patch.object(Path,'read_bytes',return_value=error)

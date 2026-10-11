@@ -661,6 +661,8 @@ def document_action(doc_id):
     # The R pledge is the existing provisioning modal, not a downloadable PDF.
     if doc_id == "ip_pledge":
         return redirect(url_for('sace_bp.provisioning_map', pledge='1'))
+    if doc_id not in {'app1', 'app2', 'f_cv'}:
+        abort(404)
     from app.models.sace import SaceWorkshopInteraction
     from app.utils.mailer import send_pdf_email
     import json
@@ -687,10 +689,7 @@ def document_action(doc_id):
     doc_titles = {
         "app1": "SACE Application Form 1",
         "app2": "SACE Application Form 2",
-        "tt": "Reading Timetable (T/T)",
         "f_cv": "Facilitator CVs & Compliance",
-        "f_guide": "Facilitator Manual",
-        "ip_pledge": "AIT IP Pledge"
     }
     title = doc_titles.get(str(doc_id), f"Document {doc_id}")
     audit = ReadingAuditEvent(
@@ -706,13 +705,10 @@ def document_action(doc_id):
     doc_file_map = {
         "app1": "pdf/App_Form_1.pdf",
         "app2": "pdf/App_Form_2.pdf",
-        "tt": "pdf/Reading Timetable.pdf",
         "f_cv": "pdf/Facilitator_CVs.pdf",
-        "f_guide": "pdf/F_Guide.pdf",
-        "ip_pledge": "pdf/IP_Pledge.pdf"
     }
     
-    filename = doc_file_map.get(doc_id, "pdf/App_Form_1.pdf")
+    filename = doc_file_map[doc_id]
     
     if action == "view":
         return redirect(url_for('static', filename=filename))
@@ -723,10 +719,7 @@ def document_action(doc_id):
             doc_names = {
                 "app1": "SACE Application Form 1",
                 "app2": "SACE Application Form 2",
-                "tt": "Reading Timetable (T/T)",
                 "f_cv": "Facilitator CVs & Compliance",
-                "f_guide": "Facilitator Manual",
-                "ip_pledge": "AIT IP Pledge"
             }
             doc_name = doc_names.get(doc_id, "Document")
             

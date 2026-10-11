@@ -7,7 +7,13 @@
 <div class="p-6 md:p-8">
 {% include "partials/flash_messages.html" %}
 <h1 class="text-2xl font-bold text-slate-800 mb-3">Choose SACE Activity</h1>
-<p class="text-lg font-semibold text-indigo-900 mb-2">{{ 'SACE controller' if controller else 'Signed in' }}: {{ current_user.name }}</p>
+<div class="flex items-center justify-between gap-4 mb-2">
+<p class="text-lg font-semibold text-indigo-900">{{ 'SACE controller' if controller else 'Signed in' }}: {{ current_user.name }}</p>
+<form method="POST" action="{{ url_for('auth_bp.logout') }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<button type="submit" class="rounded-lg border border-indigo-700 bg-indigo-700 px-4 py-2 font-semibold text-white hover:bg-indigo-800">Sign out</button>
+</form>
+</div>
 <p class="text-slate-600 mb-6">Choose the activity you are appointed to access. Each activity has its own Control Centre or Auditor Board.</p>
 <div class="grid gap-4 md:grid-cols-2">
 {% for activity in activities %}<a class="rounded-xl border border-indigo-200 bg-indigo-50 text-indigo-900 p-5 font-semibold hover:bg-indigo-100" data-activity="{{ activity.identifier }}" href="{{ activity.destination }}">{{ activity.name }}</a>{% endfor %}

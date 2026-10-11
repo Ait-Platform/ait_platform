@@ -167,6 +167,24 @@ class ActivityRouting(f.HomeFoundation):
         self.assertNotIn(b'HOME Auditor Board', response.data)
         self.assertEqual(self.client.get('/sace/dashboard', follow_redirects=True).status_code, 200)
 
+    def test_routing_activity_chooser_offers_existing_logout(self):
+        self.officials('A', 'A')
+        self.login(self.client, EMAIL)
+        before = self.counts()
+        page = self.client.get('/sace/activities')
+        self.assertEqual(page.status_code, 200)
+        self.assertIn(b'Signed in:', page.data)
+        self.assertIn(b'data-activity="reading"', page.data)
+        self.assertIn(b'data-activity="home"', page.data)
+        self.assertIn(b'<form method="POST" action="/logout">', page.data)
+        self.assertIn(b'name="csrf_token"', page.data)
+        self.assertIn(b'>Sign out</button>', page.data)
+        self.assertEqual(self.counts(), before)
+        response = self.client.post('/logout')
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(self.client.get('/sace/activities').status_code, 302)
+        self.assertEqual(self.counts(), before)
+
     def test_routing_submitted_auditors_remain_until_finalized(self):
         from unittest.mock import patch
         self.officials('A','A')

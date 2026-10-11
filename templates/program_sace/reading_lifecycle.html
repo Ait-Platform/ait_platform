@@ -25,7 +25,7 @@
 {% if engagement.status == 'completion_pending' %}
 <h2 class="text-xl font-semibold">Completion pending</h2>
 <p>Completion requested at {{ engagement.completion_requested_at }}. Operational access ends at {{ engagement.completion_deadline }} (UTC).</p>
-<p>R and active Auditors retain access until that deadline. You may cancel before then.</p>
+<p>The SACE Administrator and active Auditors/Evaluators retain access until that deadline. You may cancel before then.</p>
 <form method="post" action="{{ url_for('sace_bp.reading_cancel_completion') }}">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 <button class="border border-indigo-300 rounded px-4 py-2">Cancel Completion</button></form>

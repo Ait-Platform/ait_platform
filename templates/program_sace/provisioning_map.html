@@ -157,9 +157,8 @@
             </table>
         </div>
 
-        {% if engagement %}
+        {% if engagement and engagement.status == 'completion_pending' %}
         <section class="mt-6 border-t border-slate-200 pt-6">
-            {% if engagement.status == 'completion_pending' %}
             <div class="border border-amber-300 bg-amber-50 rounded p-4">
                 <p>Completion pending. Operational access ends at {{ engagement.completion_deadline }} (UTC).</p>
                 <form method="post" action="{{ url_for('sace_bp.reading_cancel_completion') }}">
@@ -167,9 +166,6 @@
                     <button class="border border-indigo-300 rounded px-4 py-2 mt-2">Cancel Completion</button>
                 </form>
             </div>
-            {% else %}
-            <a href="{{ url_for('sace_bp.reading_complete_engagement') }}" class="inline-block border border-indigo-300 rounded px-4 py-2">Complete Activity Endorsement</a>
-            {% endif %}
         </section>
         {% endif %}
         {% endif %}

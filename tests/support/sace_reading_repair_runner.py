@@ -952,6 +952,14 @@ class ReadingRepair(unittest.TestCase):
         page = controller.get('/sace/provisioning')
         self.assertNotIn(b'/sace/reading/lifecycle', page.data)
         self.assertNotIn(b'Engagement and appointments', page.data)
+        self.assertNotIn(b'Complete Activity Endorsement', page.data)
+        with self.app.test_request_context():
+            from flask import url_for
+            completion_url = url_for('sace_bp.reading_complete_engagement')
+            exit_url = url_for('public_bp.welcome')
+        self.assertNotIn(completion_url.encode(), page.data)
+        self.assertTrue(any(link['text'] == 'Exit' and link['href'] == exit_url
+            for link in Anchors(page.data).items))
         code, _ = h.AccessJourneys.code(self, controller)
         from flask import url_for
         with self.app.test_request_context():
@@ -960,6 +968,31 @@ class ReadingRepair(unittest.TestCase):
         self.assertEqual(page.status_code, 200)
         self.assertIn(b'This access pass is issued for this Reading endorsement review', page.data)
         self.assertIn(b'appointed SACE Evaluator only', page.data)
+
+    def test_sace_visible_role_terminology(self):
+        expected={
+            'about.html': 'Return to SACE Administrator Dashboard',
+            'provisioning_pledge.html': 'Return to SACE Administrator Dashboard',
+            'reading_completion_confirm.html': 'The SACE Administrator and active Auditors/Evaluators retain access',
+            'reading_lifecycle.html': 'The SACE Administrator and active Auditors/Evaluators retain access',
+            'reviewer_guide.html': 'the Auditor/Evaluator tab',
+            'simulator.html': 'Auditor/Evaluator',
+        }
+        for name,wording in expected.items():
+            source=(ROOT/'templates/program_sace'/name).read_text(encoding='utf-8')
+            self.assertIn(wording,source)
+            for obsolete in ('Return to R Dashboard', 'R and active Auditors', 'Guide (A)', 'Provider Auditor (A)'):
+                self.assertNotIn(obsolete,source)
+            self.app.jinja_env.parse(source)
+        controller=self.app.test_client()
+        self.login(controller,'r@example.test','/sace/provisioning')
+        for path in ('/sace/about?reference=1','/sace/provisioning/pledge?reference=1'):
+            response=controller.get(path)
+            self.assertEqual(response.status_code,200)
+            self.assertIn(b'Return to SACE Administrator Dashboard',response.data)
+        response=controller.get('/sace/provisioning/engagement/complete')
+        self.assertEqual(response.status_code,200)
+        self.assertIn(b'The SACE Administrator and active Auditors/Evaluators retain access',response.data)
 
     def test_summary_pledge_and_ppp_remain_separate(self):
         pledge = (ROOT/"templates/program_sace/auditor_pledge.html").read_text(encoding="utf-8")

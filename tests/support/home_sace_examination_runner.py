@@ -511,6 +511,42 @@ class HomeExamination(unittest.TestCase):
         with self.app.app_context():
             self.assertEqual(db.session.execute(text('SELECT row_to_json(e)::text FROM sace_home_evidence e WHERE id=:id'),{'id':eid}).scalar(),before)
 
+    def test_submitted_active_assignment_can_examine_replacement_current_document(self):
+        self.examine_ten()
+        self.assertEqual(self.auditor.get(self.base+'/certification').status_code,200)
+        self.assertEqual(self.auditor.post(self.base+'/completion').status_code,200)
+        with self.app.app_context():
+            before = db.session.execute(text('SELECT id, row_to_json(e)::text FROM sace_home_evidence e ORDER BY id')).all()
+            assignment_before = db.session.execute(text('SELECT row_to_json(a)::text FROM sace_home_assignment a WHERE id=:id'),{'id':self.aid}).scalar()
+            self.assertIsNotNone(f.s.submission(db.session.get(HomeAssignment,self.aid)))
+        old_id,new_id,data=self.replace_publication('participant_manual')
+        target=f'/sace/home/documents/{new_id}/content?assignment_id={self.aid}'
+        self.assertEqual(self.auditor.get(target).data,data)
+        self.assertFalse(self.board()['participant_manual']['examined'])
+        with self.app.app_context():
+            self.assertEqual(f.s.missing(db.session.get(HomeAssignment,self.aid)),['HOME Participant Manual'])
+            self.assertEqual(HomeEvidence.query.filter_by(assignment_id=self.aid,item='participant_manual',event='opened',document_version_id=new_id).count(),1)
+            self.assertEqual(HomeEvidence.query.filter_by(assignment_id=self.aid,item='participant_manual',event='examined',document_version_id=new_id).count(),0)
+        self.assertEqual(self.auditor.post(self.base+'/completion').status_code,409)
+        self.assertEqual(self.client.get(self.base+'/materials/participant_manual').status_code,403)
+        for _ in range(2):
+            viewer=self.auditor.get(self.base+'/materials/participant_manual')
+            self.assertEqual(viewer.status_code,200)
+            self.assertIn(b'fixture-current',viewer.data)
+            self.assertTrue(self.board()['participant_manual']['examined'])
+        with self.app.app_context():
+            row=db.session.get(HomeAssignment,self.aid)
+            self.assertEqual(f.s.missing(row),[])
+            for event in ('opened','examined'):
+                self.assertEqual(HomeEvidence.query.filter_by(assignment_id=self.aid,actor_id=row.auditor_id,item='participant_manual',event=event,document_version_id=new_id).count(),1)
+        self.assertEqual(self.auditor.post(self.base+'/completion').status_code,200)
+        with self.app.app_context():
+            self.assertEqual(db.session.execute(text('SELECT row_to_json(a)::text FROM sace_home_assignment a WHERE id=:id'),{'id':self.aid}).scalar(),assignment_before)
+            for eid,original in before:
+                self.assertEqual(db.session.execute(text('SELECT row_to_json(e)::text FROM sace_home_evidence e WHERE id=:id'),{'id':eid}).scalar(),original)
+            self.assertEqual(HomeEvidence.query.filter_by(assignment_id=self.aid,item='completion',event='completed').count(),1)
+            self.assertEqual(HomeEvidence.query.filter_by(assignment_id=self.aid,item='participant_manual',event='document_bound').one().document_version_id,old_id)
+
     def test_board_table_view_and_exact_document_mapping(self):
         from app.models.sace_home import HomeDocument, HomeDocumentVersion
         import hashlib

@@ -454,7 +454,7 @@ def opened_material(row, kind, version, title):
         s.document_content(version)
     response = page('material.html', title, row=row, version=version, kind=kind,
         back=url_for('home_sace_bp.board', assignment_id=row.id))
-    if version is not None and row.status == 'active' and not s.submission(row):
+    if version is not None and row.status == 'active':
         for event in ('opened', 'examined'):
             if not HomeEvidence.query.filter_by(assignment_id=row.id, actor_id=row.auditor_id,
                     item=kind, event=event, document_version_id=version.id).first():

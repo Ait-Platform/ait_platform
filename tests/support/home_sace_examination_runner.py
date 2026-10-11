@@ -1234,6 +1234,12 @@ function check(page){
                 b'Provisioned Auditors', b'Generate Access Code', b'AIT activity evaluation notifications',
                 b'Access Code', b'Auditor Name', b'Status', b'Actions', b'Pending Claim', b'Unclaimed', b'HOME A'):
             self.assertIn(text, page.data)
+        self.assertNotIn(b'Complete Activity Endorsement', page.data)
+        self.assertNotIn(b'/sace/home/control/completion', page.data)
+        from flask import url_for
+        with self.app.test_request_context():
+            exit_url=url_for('public_bp.welcome')
+        self.assertIn(('href="'+exit_url+'">Exit</a>').encode(),page.data)
         self.assertNotIn(b'Finalize Auditor', page.data)
         self.assertIn(b'action="/sace/home/control/codes"', page.data)
         for view in ('about', 'audit'):

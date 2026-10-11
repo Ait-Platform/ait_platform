@@ -35,15 +35,13 @@
 {% else %}<span class="text-xs text-slate-400">No actions</span>{% endif %}</td></tr>
 {% else %}<tr><td colspan="4" class="p-8 text-center text-slate-500">No auditors have been provisioned yet.</td></tr>{% endfor %}
 </tbody></table></div>
-<section class="mt-6 border-t border-slate-200 pt-6">
 {% if engagement.status == 'completion_pending' %}
+<section class="mt-6 border-t border-slate-200 pt-6">
 <div class="p-4 mb-6 bg-blue-50 rounded">
 <p>Completion pending. Operational access ends at {{ engagement.completion_deadline.strftime('%Y-%m-%d %H:%M:%S UTC') }}.</p>
 <form method="post" action="{{ url_for('home_sace_bp.cancel_completion') }}" class="mt-3">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 <button class="home-button">Cancel Completion</button></form></div>
-{% else %}
-<p class="mb-6"><a class="home-button" href="{{ url_for('home_sace_bp.request_completion') }}">Complete Activity Endorsement</a></p>
-{% endif %}
 </section>
+{% endif %}
 {% endblock %}

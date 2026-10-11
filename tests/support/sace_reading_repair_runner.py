@@ -946,6 +946,23 @@ class ReadingRepair(unittest.TestCase):
         with self.app.app_context():
             self.assertEqual(db.session.get(h.auth_models.User,user_id).email,original_email)
 
+    def test_connection_notice_reuses_existing_bug_modal_on_both_boards(self):
+        controller=self.app.test_client()
+        self.login(controller,'r@example.test','/sace/provisioning')
+        for client,path in ((controller,'/sace/provisioning'),(self.client,'/sace/reading')):
+            response=client.get(path)
+            self.assertEqual(response.status_code,200)
+            notice=re.search(rb'<aside[^>]*aria-label="Connection notice"[^>]*>(.*?)</aside>',response.data,re.S).group(1)
+            plain=re.sub(rb'<[^>]+>',b'',notice).strip()
+            self.assertEqual(plain,b'Connection notice: If a page or document does not open, wait a moment and try again. If you have been signed out, sign in again and continue. Your completed steps are saved. If the problem continues, use Report a Bug or email the provider at ait@mathwithhands.com. We are on standby to assist with any technical hiccup during the endorsement process.')
+            self.assertIn(b'href="mailto:ait@mathwithhands.com"',notice)
+            self.assertIn(b"document.getElementById('bug-modal').classList.remove('hidden')",notice)
+            self.assertIn(b'<button type="button"',notice)
+            self.assertEqual(response.data.count(b'aria-label="Connection notice"'),1)
+        layout=(ROOT/'templates/layout.html').read_text(encoding='utf-8')
+        self.assertIn('id="bug-modal"',layout)
+        self.assertIn("document.getElementById('bug-modal').classList.remove('hidden')",layout)
+
     def test_controller_interface_and_assignment_pass(self):
         controller = self.app.test_client()
         self.login(controller, 'r@example.test', '/sace/provisioning')

@@ -6,6 +6,7 @@
 <div class="flex items-center justify-between gap-4"><h1 class="text-2xl font-bold text-slate-800">Auditor Board</h1><a class="bg-indigo-700 text-white rounded px-4 py-2" href="{{ url_for('auth_bp.choose_sace_activity') }}">Back</a></div>
 {% with messages = get_flashed_messages(with_categories=true) %}{% for category, message in messages %}<p class="border rounded p-3">{{ message }}</p>{% endfor %}{% endwith %}
 
+{% include 'partials/sace_connection_notice.html' %}
 <div class="flex justify-end"><a class="bg-indigo-700 text-white rounded px-4 py-2" href="{{ url_for('sace_bp.finish_evaluation') }}">Review journey completion</a></div>
 {% if submitted %}<p class="border border-indigo-200 rounded p-3">Examination submitted to SACE Admin. Your assignment remains open for examination and review.</p>{% endif %}
 <p>I Learn to Read English Using the LITRE Method</p>

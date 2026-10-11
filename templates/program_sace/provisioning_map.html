@@ -30,6 +30,8 @@
         <!-- Rule 6: Flashes inside tile -->
         {% include "partials/flash_messages.html" %}
 
+        {% if provisioning_complete %}{% include 'partials/sace_connection_notice.html' %}
+        {% endif %}
         <!-- Rule 5: Row 2 Actions right-aligned -->
         <div class="flex flex-wrap justify-end gap-3 mb-6 border-b border-slate-100 pb-6">
             {% if provisioning_complete %}

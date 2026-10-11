@@ -5,6 +5,7 @@
 <div class="flex gap-3"><a class="home-button" href="{{ back }}">Back to Choose SACE Activity</a><a class="home-button" href="{{ exit_url }}">Exit</a></div>
 {% endblock %}
 {% block home_content %}
+{% include 'partials/sace_connection_notice.html' %}
 <div class="flex flex-wrap justify-end gap-3 mb-6 border-b border-slate-100 pb-6">
 <a class="home-button" href="{{ url_for('home_sace_bp.control', view='about') }}">About AIT Activity for SACE Endorsement</a>
 <a class="home-button" href="{{ url_for('home_sace_bp.control', view='audit') }}">View Audit Logs</a>

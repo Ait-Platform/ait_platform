@@ -427,53 +427,89 @@ class HomeExamination(unittest.TestCase):
             self.assertEqual(HomeEvidence.query.filter_by(assignment_id=other_id,item='application_form_1',event='examined').count(), 1)
             self.assertEqual(HomeFinalAssessment.query.count(), 0)
 
-    def test_misclassified_form_1_uses_verified_private_file_without_evidence_changes(self):
+    def replace_publication(self, kind, version_id=None):
+        import hashlib
         from app.models.sace_home import HomeDocument, HomeDocumentVersion
-        from app.program_sace_home import service, document_storage
+        with self.app.app_context():
+            old = HomeDocumentVersion.query.join(HomeDocument).filter(HomeDocument.kind==kind).order_by(HomeDocumentVersion.id.desc()).first()
+            data = b'%PDF-current-' + kind.encode()
+            path = Path(self.documents.name)/(kind+'-current.pdf')
+            path.write_bytes(data)
+            new = HomeDocumentVersion(id=version_id, document_id=old.document_id,
+                version='fixture-current', storage_key=path.name,
+                sha256=hashlib.sha256(data).hexdigest(), approved_by=old.approved_by,
+                source_manifest=dict(old.source_manifest), published_at=f.now()+timedelta(seconds=1))
+            db.session.add(new)
+            db.session.commit()
+            return old.id, new.id, data
+
+    def test_current_publications_replace_old_bindings_for_all_document_kinds(self):
+        self.submitted_documents()
+        with self.app.app_context():
+            before = db.session.execute(text('SELECT id, row_to_json(e)::text FROM sace_home_evidence e ORDER BY id')).all()
+        for kind in ('application_form_1','application_form_2','timetable','participant_manual','facilitator_manual'):
+            old_id, new_id, data = self.replace_publication(kind)
+            item = self.board()[kind]
+            self.assertEqual(item['version'].id,new_id)
+            self.assertFalse(item['examined'])
+            old_url=f'/sace/home/documents/{old_id}/content?assignment_id={self.aid}'
+            new_url=f'/sace/home/documents/{new_id}/content?assignment_id={self.aid}'
+            self.assertEqual(self.auditor.get(old_url).status_code,409)
+            self.assertEqual(self.client.get(new_url).status_code,403)
+            for _ in range(2):
+                viewer=self.auditor.get(self.base+'/materials/'+kind)
+                self.assertEqual(viewer.status_code,200)
+                self.assertIn(b'fixture-current',viewer.data)
+                self.assertEqual(self.auditor.get(new_url).data,data)
+            self.assertTrue(self.board()[kind]['examined'])
+            with self.app.app_context():
+                for event in ('opened','examined'):
+                    self.assertEqual(HomeEvidence.query.filter_by(assignment_id=self.aid,item=kind,event=event,document_version_id=new_id).count(),1)
+                self.assertEqual(HomeEvidence.query.filter_by(assignment_id=self.aid,item=kind,event='document_bound').one().document_version_id,old_id)
+        target=self.base+'/materials/application_form_1/content'
+        self.assertEqual(self.auditor.get(target,follow_redirects=True).data,b'%PDF-current-application_form_1')
+        with self.app.app_context():
+            for eid, original in before:
+                self.assertEqual(db.session.execute(text('SELECT row_to_json(e)::text FROM sace_home_evidence e WHERE id=:id'),{'id':eid}).scalar(),original)
+
+    def test_participant_manual_current_version_9_and_hash_protection(self):
+        from app.models.sace_home import HomeDocument, HomeDocumentVersion
         self.submitted_documents(open_materials=False)
         with self.app.app_context():
-            version = HomeDocumentVersion.query.join(HomeDocument).filter(HomeDocument.kind=='application_form_1').one()
-            version.version = 'admin-40450ec7eccb47e292b25240186a770c'
+            old=HomeDocumentVersion.query.join(HomeDocument).filter(HomeDocument.kind=='participant_manual').one()
+            old.id=8
+            old.version='V8'
             db.session.commit()
-            row = db.session.get(HomeAssignment,self.aid)
-            # Preserve a real original binding and its examination history.
-            from flask_login import login_user
-            with self.app.test_request_context('/'):
-                login_user(db.session.get(f.h.auth_models.User,row.auditor_id))
-                ex.document(row,'application_form_1',bind=True)
-                service.record(row,'application_form_1','opened',version=version.id)
-                service.record(row,'application_form_1','examined',version=version.id)
-                db.session.commit()
-            before = [(e.id,e.item,e.event,e.document_version_id,dict(e.details),e.created_at)
-                for e in HomeEvidence.query.filter_by(assignment_id=self.aid).order_by(HomeEvidence.id)]
-            old_version = (version.version,version.storage_key,version.sha256,dict(version.source_manifest))
-        target=self.base+'/materials/application_form_1/content'
-        viewer=self.auditor.get(self.base+'/materials/application_form_1')
-        self.assertEqual(viewer.status_code,200)
-        self.assertIn(b'Application Form 1',viewer.data)
-        self.assertIn(b'admin-9d4d9c56aadc4e47a97f65b2def44dda',viewer.data)
-        self.assertIn(target.encode(),viewer.data)
-        self.assertNotIn(b'HOME Programme / Timetable',viewer.data)
-        with patch.object(document_storage,'read',return_value=b'%PDF-verified-Form-1') as read:
-            for _ in range(2):
-                result=self.auditor.get(target)
-                self.assertEqual(result.status_code,200)
-                self.assertEqual(result.data,b'%PDF-verified-Form-1')
-                self.assertEqual(result.mimetype,'application/pdf')
-                self.assertNotIn('attachment',result.headers.get('Content-Disposition',''))
-            read.assert_called_with('endorsement/admin/admin-9d4d9c56aadc4e47a97f65b2def44dda.pdf',
-                '878954db0455ae4485af7afa612f539470985bbb365d1b8bd751900b8c131bce')
-            read.reset_mock()
-            self.assertEqual(self.client.get(target).status_code,403)
-            read.assert_not_called()
-        with patch.object(document_storage,'read',side_effect=ValueError('mismatch')):
-            self.assertEqual(self.auditor.get(target).status_code,409)
-        with patch.object(document_storage,'read',side_effect=document_storage.StorageUnavailable('missing')):
-            self.assertEqual(self.auditor.get(target).status_code,404)
+        self.assertEqual(self.auditor.get(self.base+'/materials/participant_manual').status_code,200)
+        old_id,new_id,data=self.replace_publication('participant_manual',version_id=9)
+        self.assertEqual((old_id,new_id),(8,9))
+        self.assertFalse(self.board()['participant_manual']['examined'])
+        target=f'/sace/home/documents/9/content?assignment_id={self.aid}'
+        path=Path(self.documents.name)/'participant_manual-current.pdf'
+        path.write_bytes(b'corrupted')
+        self.assertEqual(self.auditor.get(target).status_code,409)
         with self.app.app_context():
-            self.assertEqual([(e.id,e.item,e.event,e.document_version_id,dict(e.details),e.created_at)
-                for e in HomeEvidence.query.filter_by(assignment_id=self.aid).order_by(HomeEvidence.id)],before)
-            self.assertEqual((version.version,version.storage_key,version.sha256,dict(version.source_manifest)),old_version)
+            self.assertEqual(HomeEvidence.query.filter_by(assignment_id=self.aid,event='examined',document_version_id=9).count(),0)
+        path.write_bytes(data)
+        self.assertEqual(self.auditor.get(self.base+'/materials/participant_manual').status_code,200)
+        self.assertEqual(self.auditor.get(target).data,data)
+        self.assertTrue(self.board()['participant_manual']['examined'])
+
+    def test_current_document_replacement_does_not_mutate_saved_certification(self):
+        self.examine_ten()
+        self.assertEqual(self.auditor.get(self.base+'/certification').status_code,200)
+        with self.app.app_context():
+            from app.program_sace_home import certification
+            saved=certification.saved(db.session.get(HomeAssignment,self.aid))
+            eid=saved.id
+            before=db.session.execute(text('SELECT row_to_json(e)::text FROM sace_home_evidence e WHERE id=:id'),{'id':eid}).scalar()
+        self.replace_publication('participant_manual')
+        self.assertFalse(self.board()['participant_manual']['examined'])
+        self.assertEqual(self.auditor.get(self.base+'/materials/participant_manual').status_code,200)
+        self.assertTrue(self.board()['participant_manual']['examined'])
+        self.assertEqual(self.auditor.get(self.base+'/certification').status_code,200)
+        with self.app.app_context():
+            self.assertEqual(db.session.execute(text('SELECT row_to_json(e)::text FROM sace_home_evidence e WHERE id=:id'),{'id':eid}).scalar(),before)
 
     def test_board_table_view_and_exact_document_mapping(self):
         from app.models.sace_home import HomeDocument, HomeDocumentVersion

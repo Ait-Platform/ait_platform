@@ -35,7 +35,7 @@ class HomeDocumentAccess(HomeExamination):
     def document_row(self, board, kind):
         target = (self.base + '/materials/' + kind).encode()
         title = self.board()[kind]['title'].encode()
-        return next(row for row in re.findall(rb'<li\b[^>]*>.*?</li>', board, re.S)
+        return next(row for row in re.findall(rb'<tr>.*?</tr>', board, re.S)
                     if target in row or title in row)
 
     def evidence_counts(self, kind):
@@ -46,7 +46,12 @@ class HomeDocumentAccess(HomeExamination):
 
     def test_board_document_view_inline_and_authorization(self):
         empty = self.auditor.get(self.base + '/board').data
-        self.assertNotIn(b'>View</a>', empty)
+        for kind in self.kinds:
+            row = self.document_row(empty, kind)
+            self.assertIn(b'>Outstanding</td>', row)
+            self.assertIn(b'>View</a>', row)
+        with self.app.app_context():
+            self.assertEqual(HomeEvidence.query.filter_by(assignment_id=self.aid, event='examined').count(), 0)
         self.assertNotIn(b'>Download</a>', empty)
         ordinary = self.app.test_client()
         self.user('document-outsider@example.test')
@@ -67,22 +72,19 @@ class HomeDocumentAccess(HomeExamination):
                 self.assertIn(b'pdfjsLib.getDocument(', material)
                 self.assertIn(b'<canvas id="document"', material)
                 self.assertNotIn(b'Open document</a>', material)
-                self.assertIn(b'name="csrf_token"', material)
-                self.assertIn(f'name="version_id" value="{vid}"'.encode(), material)
-                self.assertEqual(material.count(b'<form method="post">'), 1)
-                self.assertEqual(material.count(b'>Examined</button>'), 1)
-                self.assertLess(material.index(b'>Back</a>'), material.index(b'<form method="post">'))
-                self.assertLess(material.index(b'</form>'), material.index(b'<canvas id="document"'))
-                self.assertFalse(self.board()[kind]['examined'])
+                self.assertNotIn(b'<form method="post">', material)
+                self.assertNotIn(b'>Examined</button>', material)
+                self.assertTrue(self.board()[kind]['examined'])
+                self.assertLess(material.index(b'>Back to Auditor Board</a>'), material.index(b'<canvas id="document"'))
                 before_back = self.evidence_counts(kind)
-                back = re.search(rb'href="([^"]+)">Back</a>', material).group(1).decode()
+                back = re.search(rb'href="([^"]+)">Back to Auditor Board</a>', material).group(1).decode()
                 self.assertEqual(back, self.base + '/board')
                 self.assertEqual(self.auditor.get(back).status_code, 200)
                 self.assertEqual(self.evidence_counts(kind), before_back)
                 self.assertNotIn(b'>Download</a>', material)
                 self.assertNotIn(b'>Email</a>', material)
                 self.assertEqual(self.auditor.post(self.base + '/materials/' + kind,
-                    data={'version_id': vid}).status_code, 409)
+                    data={'version_id': vid}).status_code, 302)
                 self.assertNotIn(str(path).encode(), board)
                 self.assertNotIn(b'/static/', board)
                 for download in ('', '&download=1', '&download=true', '&download=attachment',
@@ -99,7 +101,7 @@ class HomeDocumentAccess(HomeExamination):
                     self.assertIn(anonymous.get(target + download).status_code, (302, 401, 403))
                     foreign_target = f'/sace/home/documents/{vid}/content?assignment_id={foreign_id}'
                     self.assertEqual(self.auditor.get(foreign_target + download).status_code, 403)
-                self.assertFalse(self.board()[kind]['examined'])
+                self.assertTrue(self.board()[kind]['examined'])
                 self.assertEqual(self.auditor.get(self.base + '/materials/' + kind).status_code, 200)
                 confirmation = self.auditor.post(self.base + '/materials/' + kind,
                     data={'version_id': vid})
@@ -108,9 +110,9 @@ class HomeDocumentAccess(HomeExamination):
                 returned = self.auditor.get(confirmation.location)
                 self.assertEqual(returned.status_code, 200)
                 examined_row = self.document_row(returned.data, kind)
-                self.assertIn(b'<span class="home-button">Examined</span>', examined_row)
-                self.assertNotIn(b'>View</a>', examined_row)
-                self.assertNotIn((self.base + '/materials/' + kind).encode(), examined_row)
+                self.assertIn(b'>Examined</td>', examined_row)
+                self.assertIn(b'>View</a>', examined_row)
+                self.assertIn((self.base + '/materials/' + kind).encode(), examined_row)
                 self.assertNotIn(b'>Download</a>', returned.data)
                 self.assertNotIn(b'>Email</a>', returned.data)
                 before_back = self.evidence_counts(kind)
@@ -127,9 +129,12 @@ class HomeDocumentAccess(HomeExamination):
                     self.auditor.get(self.base + '/board').data)
                 path.write_bytes(data)
         board = self.auditor.get(self.base + '/board').data
-        self.assertNotIn(b'>View</a>', board)
+        for kind in self.kinds:
+            row = self.document_row(board, kind)
+            self.assertIn(b'>Examined</td>', row)
+            self.assertIn(b'>View</a>', row)
         self.assertNotIn(b'>Download</a>', board)
-        self.assertEqual(board.count(b'<span class="home-button">Examined</span>'), 5)
+        self.assertEqual(board.count(b'>Examined</td>'), 5)
         summary = self.auditor.get(self.base + '/summary').data
         self.assertIn(b'<p>Auditor examination records evidence for HOME endorsement.</p>', summary)
 
@@ -151,7 +156,7 @@ class HomeDocumentAccess(HomeExamination):
             self.app.config['WTF_CSRF_ENABLED'] = False
         with self.app.app_context():
             self.assertEqual(HomeEvidence.query.filter_by(assignment_id=self.aid,
-                event='examined').count(), 0)
+                item='application_form_1', event='examined', document_version_id=vid).count(), 1)
             db.session.get(HomeAssignment, self.aid).status = 'revoked'
             db.session.commit()
         self.assertEqual(self.auditor.get(target + '&download=1').status_code, 403)

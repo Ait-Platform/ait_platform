@@ -149,23 +149,17 @@ def reading_artifact_hashes():
 
 def document(row, kind, bind=False):
     from . import service as s
-    events = HomeEvidence.query.filter_by(assignment_id=row.id, item=kind, event='document_bound').all()
-    if len(events) > 1:
-        abort(409, description='Conflicting HOME document versions require review.')
-    version = db.session.get(HomeDocumentVersion, events[0].document_version_id) if events else s.latest_version(kind)
+    version = s.latest_version(kind)
     if not valid_document(version):
         return None
-    if events and db.session.get(HomeDocument, version.document_id).kind != kind:
-        abort(409)
-    identity = {'id': version.id, 'document_id': version.document_id, 'version': version.version,
-                'sha256': version.sha256, 'storage_key': version.storage_key,
-                'source_manifest': version.source_manifest}
-    manifest_hash = content.digest(identity)
-    if events and events[0].details.get('manifest_hash') != manifest_hash:
-        abort(409, description='The bound HOME document manifest has changed.')
-    if bind and not events:
+    # Initial bindings remain historical evidence; Current governs examination.
+    if bind and not HomeEvidence.query.filter_by(
+            assignment_id=row.id, item=kind, event='document_bound').first():
+        identity = {'id': version.id, 'document_id': version.document_id, 'version': version.version,
+                    'sha256': version.sha256, 'storage_key': version.storage_key,
+                    'source_manifest': version.source_manifest}
         s.record(row, kind, 'document_bound', {'sha256': version.sha256,
-            'manifest_hash': manifest_hash, 'requirements': REQUIREMENTS}, version.id)
+            'manifest_hash': content.digest(identity), 'requirements': REQUIREMENTS}, version.id)
     return version
 
 
@@ -217,9 +211,16 @@ def board_items(row):
         return historical_board_items(row)
     frozen = certification.saved(row)
     if frozen:
-        return [dict(kind=item['kind'], title=item['title'], version=None,
-            available=True, examined=True) for item in frozen.details['snapshot']['items']] + [
-            dict(kind='certificate', title='Certification', version=None, available=True, examined=True)]
+        values = []
+        for item in frozen.details['snapshot']['items']:
+            kind = item['kind']
+            doc = document(row, kind) if kind in DOCUMENTS else None
+            available = bool(doc) if kind in DOCUMENTS else True
+            examined = bool(doc) and s.examined(row, kind, doc.id) if kind in DOCUMENTS else True
+            values.append(dict(kind=kind, title=item['title'], version=doc,
+                available=available, examined=examined))
+        return values + [dict(kind='certificate', title='Certification', version=None,
+            available=True, examined=True)]
     values = []
     titles = {k: v for k, v in ITEMS.items() if k not in {'experience', 'assessment', 'monitoring', 'certificate'}}
     titles.update(FUNCTIONAL_ITEMS)

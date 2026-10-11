@@ -416,16 +416,8 @@ def material(assignment_id, kind):
             return redirect(url_for('home_sace_bp.workshop_response', assignment_id=row.id, kind=kind), code=303)
         if kind not in ex.DOCUMENTS:
             abort(404)
-        # Bind on first opening; later publication cannot change this examination.
+        # Current governs examination; initial bindings remain historical evidence.
         row = s.assignment(assignment_id, lock=True)
-        version = ex.document(row, kind)
-        if (request.method == 'GET' and kind == 'application_form_1' and version
-                and version.version == 'admin-40450ec7eccb47e292b25240186a770c'):
-            from types import SimpleNamespace
-            return page('material.html', ex.ITEMS[kind], row=row, kind=kind,
-                version=SimpleNamespace(version='admin-9d4d9c56aadc4e47a97f65b2def44dda'),
-                content_url=url_for('home_sace_bp.form_1_reference_content', assignment_id=row.id),
-                back=url_for('home_sace_bp.board', assignment_id=row.id))
         version = ex.document(row, kind, bind=True)
         if request.method == 'POST':
             if version is None or request.form.get('version_id') != str(version.id):
@@ -474,19 +466,12 @@ def opened_material(row, kind, version, title):
 @home_sace_bp.get('/assignments/<int:assignment_id>/materials/application_form_1/content')
 @login_required
 def form_1_reference_content(assignment_id):
-    s.assignment(assignment_id)
-    from . import document_storage as storage
-    from io import BytesIO
-    try:
-        pdf_bytes = storage.read(
-            'endorsement/admin/admin-9d4d9c56aadc4e47a97f65b2def44dda.pdf',
-            '878954db0455ae4485af7afa612f539470985bbb365d1b8bd751900b8c131bce')
-    except storage.StorageUnavailable:
-        abort(404, description='The verified HOME Application Form 1 is unavailable.')
-    except ValueError:
-        abort(409, description='The HOME Application Form 1 does not match its verified hash.')
-    return send_file(BytesIO(pdf_bytes), mimetype='application/pdf', as_attachment=False,
-        download_name='HOME_Application_Form_1.pdf', conditional=False, etag=False)
+    row = s.assignment(assignment_id)
+    version = ex.document(row, 'application_form_1')
+    if version is None:
+        abort(404, description='The current HOME Application Form 1 is unavailable.')
+    return redirect(url_for('home_sace_bp.document_content',
+        version_id=version.id, assignment_id=row.id))
 
 
 @home_sace_bp.get("/documents/<int:version_id>/content")
@@ -500,10 +485,9 @@ def document_content(version_id):
         row = s.assignment(assignment_id, lock=True)
         from app.models.sace_home import HomeDocument
         doc = db.session.get(HomeDocument, version.document_id)
-        if row.requirements_version == ex.REQUIREMENTS:
-            bound = ex.document(row, doc.kind) if doc.kind in ex.DOCUMENTS else None
-            if bound is None or bound.id != version.id:
-                abort(409, description='This document is not the approved HOME examination version.')
+        current = ex.document(row, doc.kind) if doc.kind in ex.DOCUMENTS else None
+        if current is None or current.id != version.id:
+            abort(409, description='This document is not the current approved HOME examination version.')
         pdf_bytes = s.document_content(version)
         if row.status == "active" and not HomeEvidence.query.filter_by(
                 assignment_id=row.id, actor_id=row.auditor_id, item=doc.kind,

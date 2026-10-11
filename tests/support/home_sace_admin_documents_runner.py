@@ -233,7 +233,7 @@ class AdminDocuments(f.HomeFoundation):
             self.app.config['WTF_CSRF_ENABLED'] = False
             self.app.jinja_env.globals['csrf_token'] = original
 
-    def test_admin_replacement_preserves_existing_assignment_binding(self):
+    def test_admin_replacement_preserves_history_and_selects_current(self):
         self.assertEqual(self.post_pdf().status_code, 302)
         with self.app.app_context():
             first_id = s.latest_version('timetable').id
@@ -258,7 +258,8 @@ class AdminDocuments(f.HomeFoundation):
         self.assertEqual(self.post_pdf(content=pdf_bytes(250)).status_code, 302)
         with self.app.app_context():
             self.assertNotEqual(s.latest_version('timetable').id, first_id)
-            self.assertEqual(ex.document(db.session.get(HomeAssignment, aid), 'timetable').id, first_id)
+            self.assertEqual(ex.document(db.session.get(HomeAssignment, aid), 'timetable').id, s.latest_version('timetable').id)
+            self.assertEqual(HomeEvidence.query.filter_by(assignment_id=aid, item='timetable', event='document_bound').one().document_version_id, first_id)
             self.assertEqual(HomeEvidence.query.filter_by(assignment_id=aid, item='timetable', event='document_bound').count(), 1)
             invitation = HomeInvitation(controller_id=HomeController.query.one().id,
                 code_hash='b' * 64, expires_at=now())

@@ -343,7 +343,7 @@ def signed_pledge():
 @login_required
 def board(assignment_id):
     row = s.assignment(assignment_id)
-    return page("board.html", "HOME Auditor Board", row=row, items=s.board_items(row), submitted=s.submission(row),
+    return page("board.html", "HOME Auditor Board", row=row, items=s.board_items(row, metadata_only=True), submitted=s.submission(row),
         back=url_for("auth_bp.choose_sace_activity"))
 
 

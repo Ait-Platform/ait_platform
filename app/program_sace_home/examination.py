@@ -113,7 +113,7 @@ def render_html(row, version, html, manifest):
     return html
 
 
-def valid_document(version):
+def valid_document(version, *, verify_content=True):
     from . import service as s
     if version is None:
         return False
@@ -126,6 +126,8 @@ def valid_document(version):
     # Reject the known frozen Reading artifacts even if relabelled in a manifest.
     if version.sha256 in reading_artifact_hashes():
         return False
+    if not verify_content:
+        return True
     try:
         s.document_content(version)
     except Exception as exc:
@@ -147,10 +149,10 @@ def reading_artifact_hashes():
     }
 
 
-def document(row, kind, bind=False):
+def document(row, kind, bind=False, *, verify_content=True):
     from . import service as s
     version = s.latest_version(kind)
-    if not valid_document(version):
+    if not valid_document(version, verify_content=verify_content):
         return None
     # Initial bindings remain historical evidence; Current governs examination.
     if bind and not HomeEvidence.query.filter_by(
@@ -163,12 +165,12 @@ def document(row, kind, bind=False):
     return version
 
 
-def historical_board_items(row):
+def historical_board_items(row, *, metadata_only=False):
     from . import service as s
     version, manifest = pinned(row)
     values = []
     for kind, title in ITEMS.items():
-        doc = document(row, kind) if kind in DOCUMENTS else None
+        doc = document(row, kind, verify_content=not (metadata_only and kind != 'monitoring')) if kind in DOCUMENTS else None
         available = (kind == 'summary' or bool(doc)) if kind in DOCUMENTS or kind == 'summary' else bool(manifest)
         if kind in DOCUMENTS:
             done = bool(doc) and s.examined(row, kind, doc.id)
@@ -205,16 +207,16 @@ def response_complete(row, kind):
     return instrument.answers_valid(event.details.get('answers'), questions)
 
 
-def board_items(row):
+def board_items(row, *, metadata_only=False):
     from . import service as s, participant_context as context, certification
     if row.status != 'active' and not context.latest(row, 'completion', 'completed'):
-        return historical_board_items(row)
+        return historical_board_items(row, metadata_only=metadata_only)
     frozen = certification.saved(row)
     if frozen:
         values = []
         for item in frozen.details['snapshot']['items']:
             kind = item['kind']
-            doc = document(row, kind) if kind in DOCUMENTS else None
+            doc = document(row, kind, verify_content=not (metadata_only and kind != 'monitoring')) if kind in DOCUMENTS else None
             available = bool(doc) if kind in DOCUMENTS else True
             examined = bool(doc) and s.examined(row, kind, doc.id) if kind in DOCUMENTS else True
             values.append(dict(kind=kind, title=item['title'], version=doc,
@@ -225,7 +227,7 @@ def board_items(row):
     titles = {k: v for k, v in ITEMS.items() if k not in {'experience', 'assessment', 'monitoring', 'certificate'}}
     titles.update(FUNCTIONAL_ITEMS)
     for kind, title in titles.items():
-        doc = document(row, kind) if kind in DOCUMENTS else None
+        doc = document(row, kind, verify_content=not (metadata_only and kind != 'monitoring')) if kind in DOCUMENTS else None
         if kind == 'certificate':
             available, done = all(item['examined'] for item in values), False
         elif kind in FUNCTIONAL_ITEMS:

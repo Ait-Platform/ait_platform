@@ -282,9 +282,9 @@ def examined(row, item, version=None):
         event="examined", document_version_id=version).first() is not None
 
 
-def board_items(row):
+def board_items(row, *, metadata_only=False):
     if row.requirements_version == ex.REQUIREMENTS:
-        return ex.board_items(row)
+        return ex.board_items(row, metadata_only=metadata_only)
     values = []
     for kind, title in ITEMS.items():
         version = latest_version(kind) if kind in DOCUMENT_ITEMS else None

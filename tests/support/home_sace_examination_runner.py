@@ -443,6 +443,88 @@ class HomeExamination(unittest.TestCase):
             db.session.commit()
             return old.id, new.id, data
 
+    def test_board_documents_use_metadata_without_private_reads_or_pdf_hashes(self):
+        from app.program_sace_home import document_storage as storage
+        self.submitted_documents(open_materials=False)
+        kinds=('application_form_1','application_form_2','timetable','participant_manual','facilitator_manual')
+        with self.app.app_context():
+            before=db.session.execute(text('SELECT row_to_json(e)::text FROM sace_home_evidence e ORDER BY id')).scalars().all()
+        with patch.object(f.s,'document_content',side_effect=AssertionError('Board must not retrieve PDF bytes')) as content_read, \
+                patch.object(storage,'read',side_effect=AssertionError('Board must not read private storage')) as storage_read, \
+                patch.object(storage,'verify',side_effect=AssertionError('Board must not hash PDF bytes')) as verify:
+            response=self.auditor.get(self.base+'/board')
+            self.assertEqual(response.status_code,200)
+            for kind in kinds:
+                self.assertIn((self.base+'/materials/'+kind).encode(),response.data)
+            with self.app.app_context():
+                items={item['kind']:item for item in f.s.board_items(db.session.get(HomeAssignment,self.aid),metadata_only=True)}
+                for kind in kinds:
+                    self.assertTrue(items[kind]['available'])
+                    self.assertFalse(items[kind]['examined'])
+                self.assertEqual(db.session.execute(text('SELECT row_to_json(e)::text FROM sace_home_evidence e ORDER BY id')).scalars().all(),before)
+            content_read.assert_not_called()
+            storage_read.assert_not_called()
+            verify.assert_not_called()
+        self.assertEqual(self.auditor.post(self.base+'/summary').status_code,302)
+        for kind in ('application_form_1','application_form_2','timetable','participant_manual','facilitator_manual'):
+            self.assertEqual(self.auditor.get(self.base+'/materials/'+kind).status_code,200)
+        for kind in ('experience','facilitator_evaluation','participant_evaluation','final_assessment'):
+            self.assertEqual(self.examine_status(kind).status_code,302)
+        self.assertEqual(self.auditor.get(self.base+'/certification').status_code,200)
+        with self.app.app_context():
+            before=db.session.execute(text('SELECT row_to_json(e)::text FROM sace_home_evidence e ORDER BY id')).scalars().all()
+        with patch.object(f.s,'document_content',side_effect=AssertionError('Saved certification Board must not retrieve PDFs')):
+            self.assertEqual(self.auditor.get(self.base+'/board').status_code,200)
+            with self.app.app_context():
+                items={item['kind']:item for item in f.s.board_items(db.session.get(HomeAssignment,self.aid),metadata_only=True)}
+                self.assertTrue(all(items[kind]['examined'] for kind in kinds))
+                self.assertTrue(items['certificate']['examined'])
+                self.assertEqual(db.session.execute(text('SELECT row_to_json(e)::text FROM sace_home_evidence e ORDER BY id')).scalars().all(),before)
+
+    def test_metadata_board_missing_current_publication_stays_unavailable(self):
+        self.submitted_documents(open_materials=False)
+        latest=f.s.latest_version
+        with patch.object(f.s,'latest_version',side_effect=lambda kind: None if kind=='participant_manual' else latest(kind)), \
+                patch.object(f.s,'document_content',side_effect=AssertionError('Board must not retrieve PDFs')):
+            self.assertEqual(self.auditor.get(self.base+'/board').status_code,200)
+            with self.app.app_context():
+                item=next(x for x in f.s.board_items(db.session.get(HomeAssignment,self.aid),metadata_only=True) if x['kind']=='participant_manual')
+                self.assertIsNone(item['version'])
+                self.assertFalse(item['available'])
+                self.assertFalse(item['examined'])
+
+    def test_metadata_board_preserves_verified_view_and_certification_readiness(self):
+        from app.program_sace_home import document_storage as storage
+        self.submitted_documents(open_materials=False)
+        with self.app.app_context():
+            version=f.s.latest_version('participant_manual')
+            vid,sha,key=version.id,version.sha256,version.storage_key
+        expected=(Path(self.documents.name)/key).read_bytes()
+        with patch.object(storage,'verify',wraps=storage.verify) as verify:
+            response=self.auditor.get(self.base+'/materials/participant_manual')
+            self.assertEqual(response.status_code,200)
+            verify.assert_called_once_with(expected,sha)
+            verify.reset_mock()
+            with self.auditor.get(f'/sace/home/documents/{vid}/content?assignment_id={self.aid}') as response:
+                self.assertEqual(response.status_code,200)
+                self.assertEqual(response.data,expected)
+            verify.assert_called_once_with(expected,sha)
+        self.assertEqual(self.auditor.post(self.base+'/summary').status_code,302)
+        for kind in ('application_form_1','application_form_2','timetable','participant_manual','facilitator_manual'):
+            self.assertEqual(self.auditor.get(self.base+'/materials/'+kind).status_code,200)
+        for kind in ('experience','facilitator_evaluation','participant_evaluation','final_assessment'):
+            self.assertEqual(self.examine_status(kind).status_code,302)
+        path=Path(self.documents.name)/key
+        path.write_bytes(b'%PDF-different-valid-header')
+        self.assertEqual(self.auditor.get(self.base+'/board').status_code,200)
+        self.assertEqual(self.auditor.get(f'/sace/home/documents/{vid}/content?assignment_id={self.aid}').status_code,409)
+        self.assertEqual(self.auditor.get(self.base+'/certification').status_code,409)
+        self.assertEqual(self.auditor.post(self.base+'/completion').status_code,409)
+        self.assertEqual(self.client.get(self.base+'/materials/participant_manual').status_code,403)
+        path.write_bytes(expected)
+        self.assertEqual(self.auditor.get(self.base+'/certification').status_code,200)
+        self.assertEqual(self.auditor.post(self.base+'/completion').status_code,200)
+
     def test_current_publications_replace_old_bindings_for_all_document_kinds(self):
         self.submitted_documents()
         with self.app.app_context():

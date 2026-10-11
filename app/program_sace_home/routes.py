@@ -418,6 +418,14 @@ def material(assignment_id, kind):
             abort(404)
         # Bind on first opening; later publication cannot change this examination.
         row = s.assignment(assignment_id, lock=True)
+        version = ex.document(row, kind)
+        if (request.method == 'GET' and kind == 'application_form_1' and version
+                and version.version == 'admin-40450ec7eccb47e292b25240186a770c'):
+            from types import SimpleNamespace
+            return page('material.html', ex.ITEMS[kind], row=row, kind=kind,
+                version=SimpleNamespace(version='admin-9d4d9c56aadc4e47a97f65b2def44dda'),
+                content_url=url_for('home_sace_bp.form_1_reference_content', assignment_id=row.id),
+                back=url_for('home_sace_bp.board', assignment_id=row.id))
         version = ex.document(row, kind, bind=True)
         if request.method == 'POST':
             if version is None or request.form.get('version_id') != str(version.id):
@@ -461,6 +469,24 @@ def opened_material(row, kind, version, title):
                 s.record(row, kind, event, {'sha256': version.sha256}, version.id)
         db.session.commit()
     return response
+
+
+@home_sace_bp.get('/assignments/<int:assignment_id>/materials/application_form_1/content')
+@login_required
+def form_1_reference_content(assignment_id):
+    s.assignment(assignment_id)
+    from . import document_storage as storage
+    from io import BytesIO
+    try:
+        pdf_bytes = storage.read(
+            'endorsement/admin/admin-9d4d9c56aadc4e47a97f65b2def44dda.pdf',
+            '878954db0455ae4485af7afa612f539470985bbb365d1b8bd751900b8c131bce')
+    except storage.StorageUnavailable:
+        abort(404, description='The verified HOME Application Form 1 is unavailable.')
+    except ValueError:
+        abort(409, description='The HOME Application Form 1 does not match its verified hash.')
+    return send_file(BytesIO(pdf_bytes), mimetype='application/pdf', as_attachment=False,
+        download_name='HOME_Application_Form_1.pdf', conditional=False, etag=False)
 
 
 @home_sace_bp.get("/documents/<int:version_id>/content")

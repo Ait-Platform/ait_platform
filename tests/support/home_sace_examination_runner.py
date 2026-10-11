@@ -427,6 +427,54 @@ class HomeExamination(unittest.TestCase):
             self.assertEqual(HomeEvidence.query.filter_by(assignment_id=other_id,item='application_form_1',event='examined').count(), 1)
             self.assertEqual(HomeFinalAssessment.query.count(), 0)
 
+    def test_misclassified_form_1_uses_verified_private_file_without_evidence_changes(self):
+        from app.models.sace_home import HomeDocument, HomeDocumentVersion
+        from app.program_sace_home import service, document_storage
+        self.submitted_documents(open_materials=False)
+        with self.app.app_context():
+            version = HomeDocumentVersion.query.join(HomeDocument).filter(HomeDocument.kind=='application_form_1').one()
+            version.version = 'admin-40450ec7eccb47e292b25240186a770c'
+            db.session.commit()
+            row = db.session.get(HomeAssignment,self.aid)
+            # Preserve a real original binding and its examination history.
+            from flask_login import login_user
+            with self.app.test_request_context('/'):
+                login_user(db.session.get(f.h.auth_models.User,row.auditor_id))
+                ex.document(row,'application_form_1',bind=True)
+                service.record(row,'application_form_1','opened',version=version.id)
+                service.record(row,'application_form_1','examined',version=version.id)
+                db.session.commit()
+            before = [(e.id,e.item,e.event,e.document_version_id,dict(e.details),e.created_at)
+                for e in HomeEvidence.query.filter_by(assignment_id=self.aid).order_by(HomeEvidence.id)]
+            old_version = (version.version,version.storage_key,version.sha256,dict(version.source_manifest))
+        target=self.base+'/materials/application_form_1/content'
+        viewer=self.auditor.get(self.base+'/materials/application_form_1')
+        self.assertEqual(viewer.status_code,200)
+        self.assertIn(b'Application Form 1',viewer.data)
+        self.assertIn(b'admin-9d4d9c56aadc4e47a97f65b2def44dda',viewer.data)
+        self.assertIn(target.encode(),viewer.data)
+        self.assertNotIn(b'HOME Programme / Timetable',viewer.data)
+        with patch.object(document_storage,'read',return_value=b'%PDF-verified-Form-1') as read:
+            for _ in range(2):
+                result=self.auditor.get(target)
+                self.assertEqual(result.status_code,200)
+                self.assertEqual(result.data,b'%PDF-verified-Form-1')
+                self.assertEqual(result.mimetype,'application/pdf')
+                self.assertNotIn('attachment',result.headers.get('Content-Disposition',''))
+            read.assert_called_with('endorsement/admin/admin-9d4d9c56aadc4e47a97f65b2def44dda.pdf',
+                '878954db0455ae4485af7afa612f539470985bbb365d1b8bd751900b8c131bce')
+            read.reset_mock()
+            self.assertEqual(self.client.get(target).status_code,403)
+            read.assert_not_called()
+        with patch.object(document_storage,'read',side_effect=ValueError('mismatch')):
+            self.assertEqual(self.auditor.get(target).status_code,409)
+        with patch.object(document_storage,'read',side_effect=document_storage.StorageUnavailable('missing')):
+            self.assertEqual(self.auditor.get(target).status_code,404)
+        with self.app.app_context():
+            self.assertEqual([(e.id,e.item,e.event,e.document_version_id,dict(e.details),e.created_at)
+                for e in HomeEvidence.query.filter_by(assignment_id=self.aid).order_by(HomeEvidence.id)],before)
+            self.assertEqual((version.version,version.storage_key,version.sha256,dict(version.source_manifest)),old_version)
+
     def test_board_table_view_and_exact_document_mapping(self):
         from app.models.sace_home import HomeDocument, HomeDocumentVersion
         import hashlib

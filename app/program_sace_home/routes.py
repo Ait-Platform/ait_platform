@@ -220,9 +220,6 @@ def print_access_slip(invitation_id):
 PROVIDER_DOCUMENTS = (
     ('application_form_1', 'Application Form 1', 'The primary SACE application form.'),
     ('application_form_2', 'Application Form 2', 'The secondary SACE application form.'),
-    ('facilitator_compliance', 'Facilitator CVs & Compliance',
-     'This is the facilitator compliance portfolio/evidence supplied for the endorsement, '
-     'including the applicable facilitator CVs and compliance documentation.'),
 )
 
 

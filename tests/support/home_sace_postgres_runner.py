@@ -330,11 +330,13 @@ class HomeFoundation(unittest.TestCase):
         self.assertGreater(html.index('Complete Activity Endorsement'), html.index('Provisioned Auditors'))
         response = self.client.get('/sace/home/control/documents')
         html = response.data.decode()
-        for title in ('Application Form 1', 'Application Form 2', 'Facilitator CVs &amp; Compliance'):
+        for title in ('Application Form 1', 'Application Form 2'):
             self.assertIn(title, html)
         self.assertIn('The primary SACE application form.', html)
         self.assertIn('The secondary SACE application form.', html)
-        self.assertEqual(html.count('Awaiting an approved HOME document version.'), 3)
+        self.assertEqual(html.count('Awaiting an approved HOME document version.'), 2)
+        self.assertNotIn('Facilitator CVs', html)
+        self.assertNotIn('facilitator compliance portfolio', html)
         for title in ('HOME programme / timetable', 'HOME Workshop / Participant Manual',
                       'HOME Facilitator Manual', 'Assessment tools / evidence',
                       'Monitoring / evaluation evidence', 'Applicable HOME certificate evidence'):
@@ -349,11 +351,21 @@ class HomeFoundation(unittest.TestCase):
             vid = version.id
         response = self.client.get('/sace/home/control/documents')
         self.assertIn(('/sace/home/documents/' + str(vid) + '/content').encode(), response.data)
+        recipient_input = re.search(rb'<input[^>]*name="recipient_email"[^>]*>', response.data).group()
+        self.assertIn(b'value="home-r@example.test"', recipient_input)
+        self.assertIn(b'required autofocus', recipient_input)
+        self.assertNotIn(b'readonly', recipient_input)
+        self.assertNotIn(b'disabled', recipient_input)
+        self.assertNotIn(b'Facilitator CVs', response.data)
         target = f'/sace/home/control/documents/{vid}/email'
         with patch('app.utils.mailer.send_pdf_email') as send:
             self.assertEqual(self.client.post(target, data={'recipient_email': 'r@example.com'}).status_code, 302)
             send.assert_called_once()
+            self.assertEqual(send.call_args.args[0], 'r@example.com')
             self.assertEqual(send.call_args.args[3], path.read_bytes())
+        with self.app.app_context():
+            owner = HomeController.query.one()
+            self.assertEqual(db.session.get(h.auth_models.User, owner.user_id).email, 'home-r@example.test')
         self.app.config['WTF_CSRF_ENABLED'] = True
         try:
             with patch('app.utils.mailer.send_pdf_email') as send:

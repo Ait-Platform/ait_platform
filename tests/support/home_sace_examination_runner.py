@@ -624,11 +624,11 @@ function check(page){
             page=self.auditor.get(target)
             self.assertEqual(page.status_code,200)
             self.assertIn(b'has examined all ten items',page.data)
-            self.assertIn(b'Email certification to myself',page.data)
+            self.assertIn(b'>Email</button>',page.data)
             self.assertIn(b'Exit endorsement examination',page.data)
-            self.assertEqual(page.data.count(b'Email certification to myself'),1)
+            self.assertEqual(page.data.count(b'>Email</button>'),1)
             self.assertEqual(page.data.count(b'Exit endorsement examination'),1)
-            self.assertLess(page.data.index(b'Email certification to myself'),page.data.index(b'Exit endorsement examination'))
+            self.assertLess(page.data.index(b'>Email</button>'),page.data.index(b'Exit endorsement examination'))
             self.assertLess(page.data.index(b'Exit endorsement examination'),page.data.index(b'<iframe'))
             self.assertIn(b'Archoney Institute of Technology',page.data)
             self.assertIn(b'comp-table',page.data)
@@ -795,52 +795,135 @@ function check(page){
                 db.session.commit()
         self.assertTrue(self.board()['certificate']['available'])
 
-    def test_certification_email_self_only_retry_idempotence_and_static_snapshot(self):
+    def test_certification_email_editable_recipient_pdf_retry_and_static_snapshot(self):
+        import copy
+        from html import unescape
         from app.program_sace_home import certification as cert
+        from app.utils.pdf_render import html_to_pdf_bytes
+        from app.models.auth import User
         self.examine_ten();target=self.base+'/certification'
-        self.assertEqual(self.auditor.post(target,data={'action':'email'}).status_code,409)
-        page=self.auditor.get(target);self.assertEqual(page.status_code,200)
+        delivery={'action':'email','email':'other@EXAMPLE.COM'}
+        self.assertEqual(self.auditor.post(target,data=delivery).status_code,409)
+        with patch.object(self.app,'root_path',str(ROOT/'app')):
+            page=self.auditor.get(target)
+        self.assertEqual(page.status_code,200)
+        self.assertIn(b'value="home-a@example.test"',page.data)
+        self.assertIn(b'required autofocus',page.data)
+        displayed=unescape(re.search(rb'srcdoc="([^"]+)"',page.data).group(1).decode())
         with self.app.app_context():
             evidence=cert.saved(db.session.get(HomeAssignment,self.aid));eid=evidence.id
-            details=dict(evidence.details)
-        with patch('app.utils.mailer.send_email',return_value=False) as send:
+            details=copy.deepcopy(evidence.details)
+            evidence_ids=[e.id for e in HomeEvidence.query.order_by(HomeEvidence.id).all()]
+            before_evidence=db.session.execute(text('SELECT row_to_json(e)::text FROM sace_home_evidence e WHERE id = ANY(:ids) ORDER BY id'),{'ids':evidence_ids}).scalars().all()
+            before_account=db.session.execute(text('SELECT row_to_json(u)::text FROM "user" u ORDER BY id')).scalars().all()
+            before_assignment=db.session.execute(text('SELECT row_to_json(a)::text FROM sace_home_assignment a ORDER BY id')).scalars().all()
+            pdf=html_to_pdf_bytes(displayed,base_url='http://localhost/',orientation='Portrait')
+        import fitz
+        with fitz.open(stream=pdf,filetype='pdf') as document:
+            self.assertEqual(len(document),1)
+            self.assertAlmostEqual(document[0].rect.width,595.28,delta=2)
+            self.assertAlmostEqual(document[0].rect.height,841.89,delta=2)
+            self.assertGreaterEqual(len(document[0].get_images()),2)
+            self.assertIn('SACE ADMIN',document[0].get_text())
+            self.assertIn(details['snapshot']['auditor']['name'],document[0].get_text())
+            text_content=document[0].get_text()
+            self.assertIn(details['snapshot_sha256'],re.sub(r'\s','',text_content))
+            for item in details['snapshot']['items']:
+                self.assertIn(item['examined_at'][:10],text_content)
+        with patch('app.extensions.mail.send',side_effect=AssertionError('Real SMTP blocked')), patch('app.utils.mailer.send_standard_report_email',return_value=False) as send, patch('app.utils.pdf_render.html_to_pdf_bytes',return_value=pdf) as generate, patch.object(self.app,'root_path',str(ROOT/'app')):
+            for email in ('','not-an-address'):
+                self.assertEqual(self.auditor.post(target,data={'action':'email','email':email}).status_code,400)
+            send.assert_not_called();generate.assert_not_called()
             self.app.config['MAIL_SUPPRESS_SEND']=True
-            self.assertEqual(self.auditor.post(target,data={'action':'email'}).status_code,503)
+            self.assertEqual(self.auditor.post(target,data=delivery).status_code,503)
             send.assert_not_called();self.app.config['MAIL_SUPPRESS_SEND']=False
-            self.assertEqual(self.auditor.post(target,data={'action':'email'}).status_code,503)
+            generate.side_effect=RuntimeError('PDF failed')
+            self.assertEqual(self.auditor.post(target,data=delivery).status_code,503)
+            send.assert_not_called();generate.side_effect=None
+            generate.return_value=b'not a PDF'
+            self.assertEqual(self.auditor.post(target,data=delivery).status_code,503)
+            send.assert_not_called();generate.return_value=pdf
+            self.assertEqual(self.auditor.post(target,data=delivery).status_code,503)
+            send.side_effect=RuntimeError('transport failure')
+            self.assertEqual(self.auditor.post(target,data=delivery).status_code,503)
             with self.app.app_context():
                 self.assertEqual(HomeEvidence.query.filter_by(item='endorsement_certification',event='sent').count(),0)
-            send.side_effect=RuntimeError('transport failure')
-            self.assertEqual(self.auditor.post(target,data={'action':'email'}).status_code,503)
-            self.assertEqual(self.auditor.post(self.base+'/completion').status_code,200)
-            self.assertEqual(self.auditor.get(self.base+'/board').status_code,200)
-            self.assertEqual(self.auditor.get(target).status_code,200)
             send.side_effect=None;send.return_value=True
-            self.assertEqual(self.auditor.post(target,data={'action':'email','email':'other@example.test'}).status_code,302)
-            args,kwargs=send.call_args
-            self.assertEqual(args[1],['home-a@example.test'])
-            self.assertEqual(kwargs['html'],details['html'])
-            self.assertIn(details['snapshot_sha256'],args[2])
+            self.assertEqual(self.auditor.post(target,data=delivery).status_code,302)
+            generate.assert_called_with(displayed,base_url='http://localhost/',orientation='Portrait')
+            kwargs=send.call_args.kwargs
+            self.assertEqual(kwargs['to_email'],'other@example.com')
+            self.assertEqual(kwargs['pdf_bytes'],pdf)
+            self.assertEqual(kwargs['filename'],'HOME_Endorsement_Examination_Certification.pdf')
+            self.assertEqual(kwargs['pdf_url'],'http://localhost'+target)
+            self.assertNotIn('html',kwargs)
             calls=send.call_count
-            self.assertEqual(self.auditor.post(target,data={'action':'email'}).status_code,302)
+            self.assertEqual(self.auditor.post(target,data=delivery).status_code,302)
             self.assertEqual(send.call_count,calls)
         with self.app.app_context():
             self.assertEqual(cert.saved(db.session.get(HomeAssignment,self.aid)).details,details)
+            self.assertEqual(db.session.execute(text('SELECT row_to_json(e)::text FROM sace_home_evidence e WHERE id = ANY(:ids) ORDER BY id'),{'ids':evidence_ids}).scalars().all(),before_evidence)
+            self.assertEqual(db.session.execute(text('SELECT row_to_json(u)::text FROM "user" u ORDER BY id')).scalars().all(),before_account)
+            self.assertEqual(db.session.execute(text('SELECT row_to_json(a)::text FROM sace_home_assignment a ORDER BY id')).scalars().all(),before_assignment)
             sent=HomeEvidence.query.filter_by(item='endorsement_certification',event='sent').one()
             self.assertEqual(sent.details['certification_evidence_id'],eid)
-            self.assertEqual(sent.details['recipient'],'home-a@example.test')
-            # Later source edits cannot rewrite the already-recorded certification.
-            HomeQuestion.query.first().question='Later amended question'
-            db.session.commit()
-        self.assertIn(details['snapshot_sha256'].encode(),self.auditor.get(target).data)
-        self.assertEqual(self.auditor.post(self.base+'/completion').status_code,200)
+            self.assertEqual(sent.details['recipient'],'other@example.com')
+        from app.extensions import mail
+        from app.utils.mailer import send_standard_report_email
         with self.app.app_context():
-            row=db.session.get(HomeAssignment,self.aid)
-            self.assertEqual(row.status,'active')
-            self.assertEqual(cert.saved(row).details,details)
-            self.assertEqual(HomeEngagement.query.one().status,'active')
-            self.assertEqual(HomeFinalAssessment.query.count(),0)
-            self.assertEqual(HomeProgress.query.count(),0)
+            with patch.dict(self.app.config,MAIL_DEFAULT_SENDER=('AIT','ait@example.com')):
+                mail.init_app(self.app)
+                with patch.object(mail,'send') as transport:
+                    send_standard_report_email(**kwargs)
+                    message=transport.call_args.args[0]
+                    self.assertEqual(message.sender,'AIT <ait@example.com>')
+                    self.assertEqual(message.recipients,['other@example.com'])
+                    self.assertIsNone(message.html)
+                    self.assertIn('AIT Platform',message.body)
+                    self.assertEqual(len(message.attachments),1)
+                    attachment=message.attachments[0]
+                    self.assertEqual(attachment.content_type,'application/pdf')
+                    self.assertEqual(attachment.filename,'HOME_Endorsement_Examination_Certification.pdf')
+                    self.assertEqual(attachment.data,pdf)
+        self.assertEqual(self.auditor.post(self.base+'/completion').status_code,200)
+        self.assertEqual(self.auditor.get(self.base+'/board').status_code,200)
+        with self.app.app_context():
+            self.assertEqual(db.session.get(HomeAssignment,self.aid).status,'active')
+            self.assertEqual(cert.saved(db.session.get(HomeAssignment,self.aid)).details,details)
+
+    def test_learning_journey_controls_and_facilitator_back_path(self):
+        page=self.auditor.get(self.base+'/materials/experience')
+        self.assertEqual(page.status_code,200)
+        html=page.get_data(as_text=True)
+        self.assertIn('href="'+self.base+'/experience">Look at the HOME learning journey</a>',html)
+        self.assertIn('flex justify-end gap-3 mb-6',html)
+        self.assertLess(html.index('Back to Auditor Board'),html.index('Look at the HOME learning journey'))
+        self.assertLess(html.index('Look at the HOME learning journey'),html.index('Examine this material'))
+        response=self.auditor.get(self.base+'/experience')
+        dashboard=self.auditor.get(response.location)
+        html=dashboard.get_data(as_text=True)
+        for label in ('Refresh Status','Back'):
+            buttons=re.findall(r'<button([^>]*)>(.*?)</button>',html,re.S)
+            attrs=next(attrs for attrs,body in buttons if re.sub(r'<[^>]+>','',body).strip()==label)
+            self.assertIn('disabled',attrs)
+            self.assertNotIn('onclick',attrs)
+        for n in range(1,31):
+            chapter=self.auditor.get(self.chapter(n))
+            self.assertEqual(chapter.status_code,200)
+            controls=re.search(r'<section[^>]*aria-label="HOME journey navigation"[^>]*>(.*?)</section>',chapter.get_data(as_text=True),re.S).group(1)
+            self.assertNotIn('Skip / Next',controls)
+            buttons=re.findall(r'<button([^>]*)>(.*?)</button>',controls,re.S)
+            self.assertEqual(len(buttons),1)
+            self.assertEqual(buttons[0][1].strip(),'Teacher Approved / Examined - Next')
+            action=re.search(r'value="([^"]+)"',buttons[0][0]).group(1)
+            self.assertEqual(self.auditor.post(self.url(f'/home/auditor/advance/{n}'),data={'action':action}).status_code,302)
+        page=self.auditor.get(self.base+'/materials/facilitator_evaluation')
+        self.assertEqual(page.status_code,200)
+        back=re.search(r'href="([^"]+)">Back to Auditor Board</a>',page.get_data(as_text=True)).group(1)
+        self.assertEqual(back,self.base+'/board')
+        self.assertEqual(self.auditor.get(back).status_code,200)
+        self.assertEqual(self.auditor.get(self.base+'/materials/facilitator_evaluation').status_code,200)
+        self.assertEqual(self.auditor.get(back).status_code,200)
 
     def test_material_examination_independent_of_assessment_and_snapshot_scoped(self):
         aid=self.journey(False)
@@ -1093,7 +1176,7 @@ function check(page){
         self.assertIn('bg-blue-50 text-blue-900 border-blue-200 hover:bg-blue-100',page)
         self.assertIn('bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100',page)
         self.assertIn('href="'+self.base+'/board"',page)
-        self.assertNotIn('name="email"',page)
+        self.assertIn('name="email"',page)
         self.assertTrue(all(x['examined'] for x in self.board().values()))
         self.assertEqual(self.auditor.post(self.base+'/completion').status_code,200)
         with self.app.app_context():

@@ -650,7 +650,8 @@ def workshop_response(assignment_id, kind):
 @login_required
 def certification(assignment_id):
     from . import certification as cert
-    from app.utils.mailer import send_email
+    from app.utils.mailer import send_standard_report_email
+    from app.utils.pdf_render import html_to_pdf_bytes
     row = s.assignment(assignment_id, lock=True, writable=request.method == 'POST')
     if row.requirements_version != ex.REQUIREMENTS:
         abort(404)
@@ -664,34 +665,6 @@ def certification(assignment_id):
         lc.audit(current_user.id, 'auditor', 'certification_recorded', g.home_access[1], row.id,
             {'certification_evidence_id': evidence.id, 'snapshot_sha256': evidence.details['snapshot_sha256']})
         db.session.commit()
-    if request.method == 'POST':
-        if request.form.get('action') != 'email':
-            abort(400)
-        recipient = current_user.email.strip().lower()
-        sent = HomeEvidence.query.filter_by(assignment_id=row.id, actor_id=row.auditor_id,
-            item='endorsement_certification', event='sent').all()
-        already_sent = any(e.details.get('certification_evidence_id') == evidence.id
-            and e.details.get('recipient') == recipient and e.details.get('outcome') == 'accepted_by_mail_sender'
-            for e in sent)
-        if not already_sent:
-            if current_app.config.get('MAIL_SUPPRESS_SEND'):
-                abort(503, description='Email sending is suppressed; certification email was not sent.')
-            try:
-                accepted = send_email('HOME endorsement examination certification', [recipient],
-                    cert.email_text(evidence), html=evidence.details['html'])
-            except Exception:
-                current_app.logger.exception('HOME endorsement certification email failed')
-                accepted = False
-            if not accepted:
-                abort(503, description='Certification email could not be sent. You can retry.')
-            s.record(row, 'endorsement_certification', 'sent', {
-                'certification_evidence_id': evidence.id, 'snapshot_sha256': evidence.details['snapshot_sha256'],
-                'recipient': recipient, 'outcome': 'accepted_by_mail_sender'})
-            lc.audit(current_user.id, 'auditor', 'certification_emailed', g.home_access[1], row.id,
-                {'certification_evidence_id': evidence.id, 'recipient': recipient})
-            db.session.commit()
-        flash('Your endorsement examination certification has been emailed to you.', 'success')
-        return redirect(url_for('home_sace_bp.certification', assignment_id=row.id))
     from app.utils.branding import get_logo_data_uri, get_seal_data_uri
     from app.models.auth import User
     from app.models.sace_home import HomeController
@@ -710,6 +683,52 @@ def certification(assignment_id):
         digest=evidence.details['snapshot_sha256'],
         certificate_view=True, sace_admin=sace_admin,
         logo_path=get_logo_data_uri(), seal_path=get_seal_data_uri())
+    default_email = (current_user.email or '').strip()
+    if request.method == 'POST':
+        if request.form.get('action') != 'email':
+            abort(400)
+        if snapshot['auditor']['id'] != row.auditor_id or row.auditor_id != current_user.id:
+            abort(403)
+        from email_validator import validate_email, EmailNotValidError
+        try:
+            recipient = validate_email(request.form.get('email', '').strip(),
+                check_deliverability=False).normalized
+        except EmailNotValidError:
+            abort(400, description='Enter a valid recipient email address.')
+        sent = HomeEvidence.query.filter_by(assignment_id=row.id, actor_id=row.auditor_id,
+            item='endorsement_certification', event='sent').all()
+        already_sent = any(e.details.get('certification_evidence_id') == evidence.id
+            and e.details.get('recipient') == recipient and e.details.get('outcome') == 'accepted_by_mail_sender'
+            for e in sent)
+        if not already_sent:
+            if current_app.config.get('MAIL_SUPPRESS_SEND'):
+                abort(503, description='Email sending is suppressed; certification email was not sent.')
+            try:
+                pdf_bytes = html_to_pdf_bytes(certificate_html, base_url=request.host_url, orientation='Portrait')
+                if not pdf_bytes or not pdf_bytes.startswith(b'%PDF-'):
+                    raise ValueError('Certificate PDF generation returned invalid bytes')
+            except Exception:
+                current_app.logger.exception('HOME endorsement certification PDF generation failed')
+                abort(503, description='Certification PDF could not be generated. You can retry.')
+            try:
+                accepted = send_standard_report_email(to_email=recipient,
+                    subject='HOME endorsement examination certification',
+                    pdf_url=url_for('home_sace_bp.certification', assignment_id=row.id, _external=True),
+                    pdf_bytes=pdf_bytes, filename='HOME_Endorsement_Examination_Certification.pdf',
+                    user_name=snapshot['auditor']['name'])
+            except Exception:
+                current_app.logger.exception('HOME endorsement certification email failed')
+                accepted = False
+            if not accepted:
+                abort(503, description='Certification email could not be sent. You can retry.')
+            s.record(row, 'endorsement_certification', 'sent', {
+                'certification_evidence_id': evidence.id, 'snapshot_sha256': evidence.details['snapshot_sha256'],
+                'recipient': recipient, 'outcome': 'accepted_by_mail_sender'})
+            lc.audit(current_user.id, 'auditor', 'certification_emailed', g.home_access[1], row.id,
+                {'certification_evidence_id': evidence.id, 'recipient': recipient})
+            db.session.commit()
+        flash('Your endorsement examination certification has been emailed.', 'success')
+        return redirect(url_for('home_sace_bp.certification', assignment_id=row.id))
     return page('certification.html', 'HOME endorsement examination certification', row=row,
-        evidence=evidence, certificate_html=certificate_html,
+        evidence=evidence, certificate_html=certificate_html, default_email=default_email,
         back=url_for('home_sace_bp.board', assignment_id=row.id))

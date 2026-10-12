@@ -181,13 +181,36 @@ class ReadingRepair(unittest.TestCase):
             page = self.client.get('/sace/secure_view/' + kind)
             self.assertEqual(page.status_code, 200)
             self.assertIn(b'max-w-none', page.data)
-            self.assertIn(b'overflow-x-auto', page.data)
-            self.assertIn(b'getViewport({scale:2})', page.data)
+            self.assertIn(b'id="document-viewer" class="h-[70vh] overflow-auto"', page.data)
+            self.assertIn(b'getViewport({scale:fitScale*zoom})', page.data)
             self.assertNotRegex(page.data.decode(), r'<(?:a|button)[^>]*(?:download|print|export)')
             self.assertIn(b"headers:{'X-CSRFToken':", page.data)
             ordinary = self.app.test_client()
             self.assertNotEqual(ordinary.get('/sace/secure_view/' + kind).status_code, 200)
             self.assertNotEqual(ordinary.get('/sace/material/' + kind + '/content').status_code, 200)
+
+    def test_shared_document_viewer_defaults_to_fit_and_offers_zoom(self):
+        for kind in ('app_form', 'app_form_2', 'f_guide', 'p_guide', 'timetable'):
+            with self.subTest(kind=kind):
+                response = self.client.get('/sace/secure_view/' + kind)
+                self.assertEqual(response.status_code, 200)
+                html = response.data.decode()
+                self.assertIn('id="document-viewer" class="h-[70vh] overflow-auto"', html)
+                self.assertIn('saved=false,zoom=1', html)
+                self.assertIn('Math.min((viewer.clientWidth-4)/base.width,(viewer.clientHeight-4)/base.height)', html)
+                self.assertIn('getViewport({scale:fitScale*zoom})', html)
+                for control in ('zoom-out', 'zoom-fit', 'zoom-in'):
+                    self.assertIn('id="' + control + '"', html)
+                self.assertIn('aria-label="Zoom Out"', html)
+                self.assertIn('&minus;</button>', html)
+                self.assertIn('aria-label="Zoom In"', html)
+                self.assertIn('zoom=Math.max(0.5,zoom-0.25)', html)
+                self.assertIn('zoom=Math.min(3,zoom+0.25)', html)
+                self.assertIn('zoomFit.onclick=()=>{if(!busy){zoom=1;show();}}', html)
+                self.assertNotIn('getViewport({scale:2})', html)
+                self.assertNotIn('getViewport({scale:1.3})', html)
+                self.assertIn('href="/sace/reading">Return to Auditor Board', html)
+                self.assertNotRegex(html, r'<(?:a|button)[^>]*(?:download|print|export)')
 
     def test_manual_open_marks_examined_once_without_page_traversal(self):
         for kind, title in (('f_guide', 'Facilitator Manual'), ('p_guide', 'Workshop Manual')):

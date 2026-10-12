@@ -891,7 +891,14 @@ class ReadingRepair(unittest.TestCase):
         self.assertEqual(self.client.post(finalize).status_code,403)
         admin=self.app.test_client();self.login(admin,'r@example.test','/sace/provisioning')
         self.assertIn(b'Auditor examination completed',admin.get('/sace/provisioning').data)
-        self.assertIn(b'Finalize Auditor',admin.get('/sace/provisioning').data)
+        control=admin.get('/sace/provisioning').data.decode()
+        finalization_form=re.search(r'<form method="post" action="'+re.escape(finalize)+r'"[^>]*>.*?</form>',control,re.S).group()
+        for style in ('bg-indigo-50','border-indigo-200','rounded-lg','p-3'):
+            self.assertIn(style,finalization_form.split('>',1)[0])
+        button=re.search(r'<button[^>]*>Finalize Auditor</button>',finalization_form).group()
+        for style in ('bg-indigo-700','text-white','hover:bg-indigo-800','font-semibold'):
+            self.assertIn(style,button)
+        self.assertIn('name="csrf_token"',finalization_form)
         self.assertEqual(admin.post(f'/sace/provisioning/assignments/{other_id}/finalize').status_code,409)
         self.app.config['WTF_CSRF_ENABLED']=True
         try:self.assertEqual(admin.post(finalize).status_code,400)

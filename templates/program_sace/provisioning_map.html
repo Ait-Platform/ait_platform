@@ -133,9 +133,9 @@
                             </td>
                             <td class="p-4 text-right">
                                 {% if aud.examination_submitted and aud.status == 'Claimed' %}
-                                <form method="post" action="{{ url_for('sace_bp.finalize_auditor', assignment_id=aud.id) }}">
+                                <form method="post" action="{{ url_for('sace_bp.finalize_auditor', assignment_id=aud.id) }}" class="inline-block rounded-lg border border-indigo-200 bg-indigo-50 p-3">
                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                    <button class="border border-indigo-300 rounded px-4 py-2">Finalize Auditor</button>
+                                    <button class="border border-indigo-700 bg-indigo-700 text-white hover:bg-indigo-800 font-semibold rounded px-4 py-2 focus:ring-2 focus:ring-indigo-300">Finalize Auditor</button>
                                 </form>
                                 {% elif aud.code and 'Unclaimed' in aud.status %}
                                 <a href="{{ url_for('sace_bp.print_access_slip', code=aud.code) }}" target="_blank" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded shadow-sm text-xs transition inline-flex items-center">

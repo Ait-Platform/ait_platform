@@ -1,6 +1,7 @@
 {% extends "program_sace_home/frame.html" %}
 {% block home_content %}
-{% if submitted %}<p>Examination submitted to SACE Admin.</p><p>Your assignment remains open for examination and review until SACE Admin finalizes it.</p><p>The separate SACE rubric and endorsement evaluation remain outside this AIT submission.</p>
-{% elif missing %}<p class="mb-4">The following HOME evidence remains outstanding:</p><ul class="list-disc pl-6">{% for label in missing %}<li>{{ label }}</li>{% endfor %}</ul>
-{% else %}<p>Submit your completed AIT examination journey to SACE Admin. Your assignment remains open for examination and review. The separate SACE rubric and endorsement evaluation remain outside this AIT submission.</p><form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="home-button">Submit examination as complete</button></form>{% endif %}
+<p class="mb-4">The official SACE rubric is provided separately to the SACE Administrator. No submission through AIT is required.</p>
+{% if missing %}<p class="mb-4">The following HOME evidence remains outstanding:</p><ul class="list-disc pl-6">{% for label in missing %}<li>{{ label }}</li>{% endfor %}</ul>
+{% else %}<p>All required HOME examination evidence and Certification are recorded. You may return to the Auditor Board or sign out.</p>
+<div class="flex justify-end mt-4"><form method="POST" action="{{ url_for('auth_bp.logout') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="home-button">Sign out</button></form></div>{% endif %}
 {% endblock %}

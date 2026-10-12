@@ -1364,6 +1364,7 @@ function check(page){
         old = self.client.get('/sace/home/control')
         self.assertNotIn(code.encode(), old.data)
         self.assertNotIn(b'Print Slip', old.data)
+        self.assertNotIn(b'Email Slip',old.data)
         with self.client.session_transaction() as state:
             self.assertNotIn('sace_home_code_handoff', state)
             state['sace_home_code_handoff'] = handoff
@@ -1422,6 +1423,44 @@ function check(page){
         self.assertIn('id="bug-modal"',layout)
         self.assertIn("document.getElementById('bug-modal').classList.remove('hidden')",layout)
 
+    def test_normal_completion_review_requires_no_submission_and_preserves_state(self):
+        from app.program_sace_home import certification as cert
+        target=self.base+'/completion'
+        page=self.auditor.get(target)
+        self.assertIn(b'The following HOME evidence remains outstanding',page.data)
+        self.assertIn(b'<li>Activity Summary</li>',page.data)
+        self.assertNotIn(b'Submit examination as complete',page.data)
+        self.assertNotIn(b'action="/logout"',page.data)
+        self.assertIn(('href="'+self.base+'/board"').encode(),page.data)
+        self.examine_ten()
+        self.assertIn(b'<li>Certification</li>',self.auditor.get(target).data)
+        self.assertEqual(self.auditor.get(self.base+'/certification').status_code,200)
+        with self.app.app_context():
+            row=db.session.get(HomeAssignment,self.aid)
+            frozen=cert.saved(row).details.copy()
+            evidence=db.session.execute(text('SELECT row_to_json(e)::text FROM sace_home_evidence e ORDER BY id')).scalars().all()
+            assignment=db.session.execute(text('SELECT row_to_json(a)::text FROM sace_home_assignment a WHERE id=:id'),{'id':self.aid}).scalar()
+        page=self.auditor.get(target)
+        self.assertNotIn(b'<li>',page.data)
+        self.assertNotIn(b'Submit examination as complete',page.data)
+        self.assertNotIn(b'finalizes',page.data)
+        self.assertIn(b'No submission through AIT is required.',page.data)
+        self.assertIn(('href="'+self.base+'/board"').encode(),page.data)
+        self.assertIn(b'Back to Auditor Board',page.data)
+        form=re.search(rb'<form method="POST" action="/logout">.*?</form>',page.data,re.S).group()
+        self.assertIn(b'name="csrf_token"',form)
+        self.assertIn(b'>Sign out</button>',form)
+        with patch.dict(self.app.config,{'WTF_CSRF_ENABLED':True}):
+            self.assertEqual(self.auditor.post('/logout').status_code,400)
+        self.assertEqual(self.auditor.post('/logout').status_code,302)
+        with self.app.app_context():
+            row=db.session.get(HomeAssignment,self.aid)
+            self.assertIsNone(f.s.submission(row))
+            self.assertEqual(row.status,'active')
+            self.assertEqual(cert.saved(row).details,frozen)
+            self.assertEqual(db.session.execute(text('SELECT row_to_json(e)::text FROM sace_home_evidence e ORDER BY id')).scalars().all(),evidence)
+            self.assertEqual(db.session.execute(text('SELECT row_to_json(a)::text FROM sace_home_assignment a WHERE id=:id'),{'id':self.aid}).scalar(),assignment)
+
     def test_control_centre_alignment_preserves_home_state(self):
         from app.program_sace_home import lifecycle as lc
         self.code_home()  # An unclaimed invitation alongside the claimed Auditor.
@@ -1443,6 +1482,10 @@ function check(page){
             exit_url=url_for('public_bp.welcome')
         self.assertIn(('href="'+exit_url+'">Exit</a>').encode(),page.data)
         self.assertNotIn(b'Finalize Auditor', page.data)
+        self.assertNotIn(b'View examination evidence',page.data)
+        self.assertIn(b'>Claimed</span>',page.data)
+        self.assertIn(b'Print Slip',page.data)
+        self.assertIn(b'Email Slip',page.data)
         self.assertIn(b'action="/sace/home/control/codes"', page.data)
         for view in ('about', 'audit'):
             self.assertEqual(self.client.get('/sace/home/control?view='+view).status_code, 200)
@@ -1485,7 +1528,9 @@ function check(page){
         _,other_id=self.join_home(self.code_home(),email='other-finalization-auditor@example.test')
         page=self.client.get('/sace/home/control')
         self.assertIn(b'Auditor examination completed',page.data)
-        self.assertIn(final.encode(),page.data)
+        self.assertNotIn(final.encode(),page.data)
+        self.assertNotIn(b'Finalize Auditor',page.data)
+        self.assertNotIn(b'View examination evidence',page.data)
         self.assertEqual(self.client.post(f'/sace/home/control/assignments/{other_id}/finalize').status_code,409)
         self.app.config['WTF_CSRF_ENABLED']=True
         try:self.assertEqual(self.client.post(final).status_code,400)

@@ -28,10 +28,8 @@
 {% set matches = assignments|selectattr('invitation_id', 'equalto', item.id)|list %}{% set row = matches[0] if matches else none %}
 <tr class="hover:bg-slate-50"><td class="p-4">{% if fresh_code and item.code_hash == fresh_code_hash and item.status == 'unclaimed' %}{{ fresh_code }}{% else %}Invitation {{ item.id }}{% endif %}<p class="text-xs text-slate-500">Expires {{ item.expires_at }}</p></td>
 <td class="p-4">{{ auditors[row.auditor_id].name if row else 'Pending Claim' }}</td>
-<td class="p-4"><span class="px-2 py-1 rounded border border-slate-200 bg-slate-50">{{ row.status if row else ('Unclaimed' if item.status == 'unclaimed' else item.status) }}</span>{% if row and row.id in submitted_ids %}<p class="mt-2">Auditor examination completed</p>{% endif %}</td>
-<td class="p-4 text-right">{% if row %}<a class="home-button" href="{{ url_for('home_sace_bp.controller_evidence', assignment_id=row.id) }}">View examination evidence</a>
-{% if row.id in submitted_ids and row.status == 'active' %}<form method="post" class="mt-2" action="{{ url_for('home_sace_bp.finalize_auditor', assignment_id=row.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="home-button">Finalize Auditor</button></form>{% endif %}
-{% elif fresh_code and item.code_hash == fresh_code_hash and item.status == 'unclaimed' %}
+<td class="p-4"><span class="px-2 py-1 rounded border border-slate-200 bg-slate-50">{{ ('Claimed' if row.status == 'active' else row.status) if row else ('Unclaimed' if item.status == 'unclaimed' else item.status) }}</span>{% if row and row.id in submitted_ids %}<p class="mt-2">Auditor examination completed</p>{% endif %}</td>
+<td class="p-4 text-right">{% if not row and fresh_code and item.code_hash == fresh_code_hash and item.status == 'unclaimed' %}
 <div class="inline-flex items-center gap-2">
 <a class="home-button" href="{{ url_for('home_sace_bp.print_access_slip', invitation_id=item.id) }}" target="_blank">Print Slip</a>
 <a class="home-button" href="{{ url_for('home_sace_bp.print_access_slip', invitation_id=item.id, _anchor='email-slip') }}">Email Slip</a>

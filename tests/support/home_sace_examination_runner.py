@@ -969,7 +969,7 @@ function check(page){
                 db.session.commit()
         self.assertTrue(self.board()['certificate']['available'])
 
-    def test_certification_email_editable_recipient_pdf_retry_and_static_snapshot(self):
+    def test_certification_html_email_editable_recipient_retry_and_static_snapshot(self):
         import copy
         from html import unescape
         from app.program_sace_home import certification as cert
@@ -1004,19 +1004,14 @@ function check(page){
             self.assertIn(details['snapshot_sha256'],re.sub(r'\s','',text_content))
             for item in details['snapshot']['items']:
                 self.assertIn(item['examined_at'][:10],text_content)
-        with patch('app.extensions.mail.send',side_effect=AssertionError('Real SMTP blocked')), patch('app.utils.mailer.send_standard_report_email',return_value=False) as send, patch('app.utils.pdf_render.html_to_pdf_bytes',return_value=pdf) as generate, patch.object(self.app,'root_path',str(ROOT/'app')):
+        with patch('app.extensions.mail.send',side_effect=AssertionError('Real SMTP blocked')), patch('app.utils.mailer.send_email',return_value=False) as send, patch('app.utils.pdf_render.html_to_pdf_bytes',side_effect=AssertionError('Email must not generate PDF')) as generate, patch.object(self.app,'root_path',str(ROOT/'app')):
             for email in ('','not-an-address'):
                 self.assertEqual(self.auditor.post(target,data={'action':'email','email':email}).status_code,400)
             send.assert_not_called();generate.assert_not_called()
+            self.assertEqual(self.client.post(target,data=delivery).status_code,403)
             self.app.config['MAIL_SUPPRESS_SEND']=True
             self.assertEqual(self.auditor.post(target,data=delivery).status_code,503)
             send.assert_not_called();self.app.config['MAIL_SUPPRESS_SEND']=False
-            generate.side_effect=RuntimeError('PDF failed')
-            self.assertEqual(self.auditor.post(target,data=delivery).status_code,503)
-            send.assert_not_called();generate.side_effect=None
-            generate.return_value=b'not a PDF'
-            self.assertEqual(self.auditor.post(target,data=delivery).status_code,503)
-            send.assert_not_called();generate.return_value=pdf
             self.assertEqual(self.auditor.post(target,data=delivery).status_code,503)
             send.side_effect=RuntimeError('transport failure')
             self.assertEqual(self.auditor.post(target,data=delivery).status_code,503)
@@ -1024,13 +1019,14 @@ function check(page){
                 self.assertEqual(HomeEvidence.query.filter_by(item='endorsement_certification',event='sent').count(),0)
             send.side_effect=None;send.return_value=True
             self.assertEqual(self.auditor.post(target,data=delivery).status_code,302)
-            generate.assert_called_with(displayed,base_url='http://localhost/',orientation='Portrait')
+            generate.assert_not_called()
             kwargs=send.call_args.kwargs
-            self.assertEqual(kwargs['to_email'],'other@example.com')
-            self.assertEqual(kwargs['pdf_bytes'],pdf)
-            self.assertEqual(kwargs['filename'],'HOME_Endorsement_Examination_Certification.pdf')
-            self.assertEqual(kwargs['pdf_url'],'http://localhost'+target)
-            self.assertNotIn('html',kwargs)
+            self.assertEqual(kwargs['recipients'],['other@example.com'])
+            self.assertEqual(kwargs['html'],displayed)
+            self.assertNotIn(target,kwargs['html'])
+            self.assertNotIn(target,kwargs['body'])
+            self.assertNotIn('Open it here',kwargs['body'])
+            self.assertNotIn('attached',kwargs['body'])
             calls=send.call_count
             self.assertEqual(self.auditor.post(target,data=delivery).status_code,302)
             self.assertEqual(send.call_count,calls+1)
@@ -1043,29 +1039,25 @@ function check(page){
             self.assertEqual(sent.details['certification_evidence_id'],eid)
             self.assertEqual(sent.details['recipient'],'other@example.com')
         from app.extensions import mail
-        from app.utils.mailer import send_standard_report_email
+        from app.utils.mailer import send_email
         with self.app.app_context():
             with patch.dict(self.app.config,MAIL_DEFAULT_SENDER=('AIT','ait@example.com')):
                 mail.init_app(self.app)
-                with patch.object(mail,'send') as transport:
-                    send_standard_report_email(**kwargs)
+                with patch.object(mail,'send') as transport, patch('smtplib.SMTP',side_effect=AssertionError('SMTP blocked')), patch('smtplib.SMTP_SSL',side_effect=AssertionError('SMTP blocked')):
+                    send_email(**kwargs)
                     message=transport.call_args.args[0]
-                    self.assertEqual(message.sender,'AIT <ait@example.com>')
+                    self.assertEqual(message.sender,('AIT','ait@example.com'))
                     self.assertEqual(message.recipients,['other@example.com'])
-                    self.assertIsNone(message.html)
-                    self.assertIn('AIT Platform',message.body)
-                    self.assertEqual(len(message.attachments),1)
-                    attachment=message.attachments[0]
-                    self.assertEqual(attachment.content_type,'application/pdf')
-                    self.assertEqual(attachment.filename,'HOME_Endorsement_Examination_Certification.pdf')
-                    self.assertEqual(attachment.data,pdf)
+                    self.assertEqual(message.html,displayed)
+                    self.assertIn('ARCHONEY INSTITUTE OF TECHNOLOGY (AIT)',message.body)
+                    self.assertEqual(len(message.attachments),0)
         self.assertEqual(self.auditor.post(self.base+'/completion').status_code,200)
         self.assertEqual(self.auditor.get(self.base+'/board').status_code,200)
         with self.app.app_context():
             self.assertEqual(db.session.get(HomeAssignment,self.aid).status,'active')
             self.assertEqual(cert.saved(db.session.get(HomeAssignment,self.aid)).details,details)
 
-    def test_historical_html_delivery_does_not_block_real_route_pdf_resend(self):
+    def test_historical_delivery_does_not_block_real_route_html_resend(self):
         import copy
         from html import unescape
         from email import policy
@@ -1091,48 +1083,31 @@ function check(page){
             before=db.session.execute(text('SELECT row_to_json(e)::text FROM sace_home_evidence e ORDER BY id')).scalars().all()
             with patch.dict(self.app.config,MAIL_DEFAULT_SENDER=('AIT','ait@example.com')):
                 mail.init_app(self.app)
-        with patch.object(self.app,'root_path',str(ROOT/'app')), patch('app.utils.pdf_render.html_to_pdf_bytes',wraps=html_to_pdf_bytes) as render_pdf, patch.object(mail,'send') as transport:
-            # Exercise production route -> real PDF helper -> real shared sender -> mocked SMTP.
+        with patch.object(self.app,'root_path',str(ROOT/'app')), patch.dict(self.app.config,MAIL_DEFAULT_SENDER=('AIT','ait@example.com')), patch('app.utils.pdf_render.html_to_pdf_bytes',side_effect=AssertionError('Email must not generate PDF')) as render_pdf, patch.object(mail,'send') as transport, patch('smtplib.SMTP',side_effect=AssertionError('SMTP blocked')), patch('smtplib.SMTP_SSL',side_effect=AssertionError('SMTP blocked')):
+            # Exercise production route -> real shared HTML sender -> mocked transport.
             response=self.auditor.post(target,data={'action':'email','email':'delivery@EXAMPLE.COM'})
             self.assertEqual(response.status_code,302)
-            render_pdf.assert_called_once_with(certificate_html,base_url='http://localhost/',orientation='Portrait')
+            render_pdf.assert_not_called()
             transport.assert_called_once()
             message=transport.call_args.args[0]
             self.assertEqual(message.subject,'HOME endorsement examination certification')
-            self.assertEqual(message.sender,'AIT <ait@example.com>')
+            self.assertEqual(message.sender,('AIT','ait@example.com'))
             self.assertEqual(message.recipients,['delivery@example.com'])
-            self.assertIsNone(message.html)
-            self.assertIn('AIT Platform',message.body)
-            self.assertIn('http://localhost'+target,message.body)
+            self.assertEqual(message.html,certificate_html)
+            self.assertNotIn(target,message.body)
+            self.assertNotIn(target,message.html)
+            for marker in ('Open it here','attached the PDF','assessment report is ready'):
+                self.assertNotIn(marker,message.body)
+            self.assertEqual(len(message.attachments),0)
             with self.app.app_context():
                 mime=BytesParser(policy=policy.default).parsebytes(message.as_bytes())
-            attachments=list(mime.iter_attachments())
-            self.assertEqual(len(attachments),1)
-            attachment=attachments[0]
-            self.assertEqual(attachment.get_filename(),'HOME_Endorsement_Examination_Certification.pdf')
-            self.assertEqual(attachment.get_content_type(),'application/pdf')
-            pdf=attachment.get_payload(decode=True)
-            self.assertTrue(pdf.startswith(b'%PDF-'))
-            import fitz
-            with fitz.open(stream=pdf,filetype='pdf') as document:
-                self.assertEqual(len(document),1)
-                self.assertAlmostEqual(document[0].rect.width,595.28,delta=2)
-                self.assertAlmostEqual(document[0].rect.height,841.89,delta=2)
-                self.assertGreaterEqual(len(document[0].get_images()),2)
-                content=document[0].get_text()
-                self.assertIn('HOME',content)
-                self.assertIn('SACE ADMIN',content)
-                self.assertIn(frozen['snapshot']['auditor']['name'],content)
-                self.assertIn(frozen['snapshot_sha256'],re.sub(r'\s','',content))
-            # Reading semantics: another deliberate Email POST sends again.
-            self.assertEqual(self.auditor.post(target,data={'action':'email','email':'delivery@example.com'}).status_code,302)
-            self.assertEqual(transport.call_count,2)
-            self.app.config['MAIL_SUPPRESS_SEND']=True
-            try:
-                self.assertEqual(self.auditor.post(target,data={'action':'email','email':'delivery@example.com'}).status_code,503)
-                self.assertEqual(transport.call_count,2)
-            finally:
-                self.app.config['MAIL_SUPPRESS_SEND']=False
+            self.assertEqual(list(mime.iter_attachments()),[])
+            self.assertEqual(mime.get_body(preferencelist=('html',)).get_content().replace('\r\n','\n').rstrip(),certificate_html.rstrip())
+            for marker in ('Hands-On Math Education','SACE ADMIN',frozen['snapshot']['auditor']['name'],frozen['snapshot_sha256']):
+                self.assertIn(marker,message.html)
+            for item in frozen['snapshot']['items']:
+                self.assertIn(item['title'],message.html)
+                self.assertIn(item['examined_at'][:10],message.html)
         with self.app.app_context():
             self.assertEqual(cert.saved(db.session.get(HomeAssignment,self.aid)).details,frozen)
             self.assertEqual(db.session.execute(text('SELECT row_to_json(e)::text FROM sace_home_evidence e ORDER BY id')).scalars().all(),before)

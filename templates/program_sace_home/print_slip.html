@@ -1,6 +1,13 @@
 {% extends "program_sace_home/frame.html" %}
 {% block back_label %}Back to Control Centre{% endblock %}
-{% block actions %}<button type="button" class="home-button" onclick="window.print()">Print Slip</button>{% endblock %}
+{% block actions %}
+<form id="email-slip" method="post" action="{{ url_for('home_sace_bp.email_access_slip', invitation_id=request.view_args['invitation_id']) }}" class="flex flex-wrap items-center gap-3">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<label for="slip-email">Recipient Email Address</label>
+<input id="slip-email" type="email" name="recipient_email" value="{{ current_user.email }}" required autofocus class="home-field">
+<button class="home-button">Email Slip</button></form>
+<button type="button" class="home-button" onclick="window.print()">Print Slip</button>
+{% endblock %}
 {% block home_content %}
 <style>@media print {body * {visibility:hidden} #printable-ticket, #printable-ticket * {visibility:visible} #printable-ticket {position:absolute;left:0;top:0;width:100%;box-sizing:border-box;margin:0;padding:40px;border:2px dashed #000}}</style>
 <div id="printable-ticket" class="border-2 border-dashed border-slate-300 rounded-xl p-8 text-center space-y-6">

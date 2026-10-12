@@ -781,8 +781,13 @@ class ReadingRepair(unittest.TestCase):
                 self.assertTrue(links,name)
                 for classes,href,label in links:
                     self.assertEqual(href,'/sace/reading')
-                    for colour in ('bg-blue-50','text-blue-900','border-blue-200','hover:bg-blue-100'):
+                    colours = (('bg-indigo-700','text-white','border-indigo-700','hover:bg-indigo-800')
+                        if name == 'evaluation_finish' else
+                        ('bg-blue-50','text-blue-900','border-blue-200','hover:bg-blue-100'))
+                    for colour in colours:
                         self.assertIn(colour,classes,name)
+                    if name == 'evaluation_finish':
+                        self.assertEqual(label, 'Back to Auditor Board')
             summary=render_template('program_sace/endorsement_map.html')
             visible=unescape(re.sub(r'<[^>]+>',' ',summary))
             self.assertNotRegex(visible,r'\b[RA]\b')

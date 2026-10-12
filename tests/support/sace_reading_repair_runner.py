@@ -851,6 +851,51 @@ class ReadingRepair(unittest.TestCase):
             self.assertEqual(self.client.post(target).status_code,409)
             self.assertEqual(readiness.call_count,2)
 
+    def test_completed_unsubmitted_board_exposes_existing_submission_and_admin_finalization(self):
+        from app.program_sace import certification as cert
+        target = '/sace/reading/finish-evaluation'
+        action = ('action="' + target + '"').encode()
+        self.assertNotIn(action, self.client.get('/sace/reading').data)
+        self.recorded_board_statuses()
+        self.assertNotIn(action, self.client.get('/sace/reading').data)
+        with patch.object(self.app, 'root_path', str(ROOT/'app')):
+            self.assertEqual(self.client.get('/sace/reading/certification').status_code, 200)
+        page = self.client.get('/sace/reading')
+        form = re.search(rb'<form method="post" action="' + target.encode() + rb'">.*?</form>', page.data, re.S).group()
+        self.assertIn(b'name="csrf_token"', form)
+        self.assertIn(b'>Submit examination as complete</button>', form)
+        admin = self.app.test_client()
+        self.login(admin, 'r@example.test', '/sace/provisioning')
+        finalize = '/sace/provisioning/assignments/' + str(self.assignment_id) + '/finalize'
+        self.assertNotIn(('action="' + finalize + '"').encode(), admin.get('/sace/provisioning').data)
+        with self.app.app_context():
+            row = db.session.get(h.Interaction, self.assignment_id)
+            self.assertEqual(flow.completion_requirements(row), [])
+            self.assertIsNone(flow.latest(row, 'evaluation_complete'))
+            frozen = cert.saved(row).response_data
+            history = [(e.id, e.response_data, e.timestamp) for e in flow.events(row)]
+        with patch.dict(self.app.config, {'WTF_CSRF_ENABLED': True}):
+            self.assertEqual(self.client.post(target).status_code, 400)
+        with patch('smtplib.SMTP', side_effect=AssertionError('SMTP blocked')), patch('smtplib.SMTP_SSL', side_effect=AssertionError('SMTP blocked')):
+            self.assertEqual(self.client.post(target).status_code, 200)
+            self.assertEqual(self.client.post(target).status_code, 200)
+        with self.app.app_context():
+            row = db.session.get(h.Interaction, self.assignment_id)
+            self.assertIsNotNone(flow.latest(row, 'evaluation_complete'))
+            self.assertIsNotNone(flow.latest(row, 'controller_notification'))
+            self.assertIsNone(flow.latest(row, 'assignment_closed'))
+            self.assertEqual(flow.payload(row)['status'], 'Claimed')
+            self.assertEqual(cert.saved(row).response_data, frozen)
+            events = {e.id: e for e in flow.events(row)}
+            for eid, data, timestamp in history:
+                self.assertEqual((events[eid].response_data, events[eid].timestamp), (data, timestamp))
+            self.assertEqual(sum(e.activity_slug == 'evaluation_complete' for e in events.values()), 1)
+        self.assertNotIn(action, self.client.get('/sace/reading').data)
+        self.assertIn(b'Examination submitted to SACE Admin', self.client.get('/sace/reading').data)
+        control = admin.get('/sace/provisioning')
+        self.assertIn(('action="' + finalize + '"').encode(), control.data)
+        self.assertIn(b'Finalize Auditor', control.data)
+
     def test_submission_and_admin_finalization_without_old_certificate_delivery(self):
         from sqlalchemy import text
         from app.program_sace import certification as cert, lifecycle as lc

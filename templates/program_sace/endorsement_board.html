@@ -7,7 +7,7 @@
 {% with messages = get_flashed_messages(with_categories=true) %}{% for category, message in messages %}<p class="border rounded p-3">{{ message }}</p>{% endfor %}{% endwith %}
 
 {% include 'partials/sace_connection_notice.html' %}
-<div class="flex justify-end"><a class="bg-indigo-700 text-white rounded px-4 py-2" href="{{ url_for('sace_bp.finish_evaluation') }}">Review journey completion</a></div>
+<div class="flex justify-end">{% if not missing and not submitted %}<form method="post" action="{{ url_for('sace_bp.finish_evaluation') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="bg-indigo-700 text-white rounded px-4 py-2 hover:bg-indigo-800">Submit examination as complete</button></form>{% else %}<a class="bg-indigo-700 text-white rounded px-4 py-2" href="{{ url_for('sace_bp.finish_evaluation') }}">Review journey completion</a>{% endif %}</div>
 {% if submitted %}<p class="border border-indigo-200 rounded p-3">Examination submitted to SACE Admin. Your assignment remains open for examination and review.</p>{% endif %}
 <p>I Learn to Read English Using the LITRE Method</p>
 <p>Complete the AIT activity evaluation journey below. SACE controls its own external endorsement rubric and makes its subsequent endorsement decision.</p>

@@ -68,6 +68,54 @@ class HomeExamination(unittest.TestCase):
                 db.session.add(HomeQuestionOption(question_id=n, option_text='Wrong', sort_order=2))
             db.session.commit()
 
+    def test_provider_facilitator_cv_shared_static_attachment_and_security(self):
+        from app.extensions import mail
+        source = ROOT / 'app/static/pdf/Facilitator_CVs.pdf'
+        expected = source.read_bytes()
+        target = '/sace/home/control/documents/facilitator-cv/email'
+        with self.app.app_context():
+            before = [(row.id, row.details) for row in HomeEvidence.query.order_by(HomeEvidence.id)]
+            with patch.dict(self.app.config, MAIL_DEFAULT_SENDER='ait@example.com'):
+                mail.init_app(self.app)
+        with patch.object(self.app, '_static_folder', str(ROOT / 'app/static')):
+            response = self.client.get('/sace/home/control/documents')
+            self.assertEqual(response.status_code, 200)
+            html = response.data.decode()
+            self.assertLess(html.index('Application Form 2'), html.index('Facilitator CV'))
+            self.assertIn('Curriculum vitae of the facilitator for the HOME professional development activity.', html)
+            self.assertIn('/static/pdf/Facilitator_CVs.pdf', html)
+            self.assertIn(target, html)
+            self.assertIn('value="home-r@example.test"', html)
+            self.assertEqual(html.count('Awaiting an approved HOME document version.'), 2)
+            viewed = self.client.get('/static/pdf/Facilitator_CVs.pdf')
+            self.assertEqual(viewed.status_code, 200)
+            self.assertEqual(viewed.data, expected)
+            with patch.object(mail, 'send') as send, patch('smtplib.SMTP', side_effect=AssertionError('SMTP blocked')), patch('smtplib.SMTP_SSL', side_effect=AssertionError('SMTP blocked')):
+                self.assertEqual(self.client.post(target, data={'recipient_email': 'Other@EXAMPLE.COM'}).status_code, 302)
+                message = send.call_args.args[0]
+                self.assertEqual(message.recipients, ['Other@example.com'])
+                self.assertEqual(len(message.attachments), 1)
+                attachment = message.attachments[0]
+                self.assertEqual(attachment.filename, 'Facilitator_CVs.pdf')
+                self.assertEqual(attachment.content_type, 'application/pdf')
+                self.assertEqual(attachment.data, expected)
+                send.reset_mock()
+                for address in ('', 'not-email'):
+                    self.assertEqual(self.client.post(target, data={'recipient_email': address}).status_code, 302)
+                self.assertEqual(self.auditor.post(target, data={'recipient_email': 'other@example.com'}).status_code, 403)
+                send.assert_not_called()
+            with patch('pathlib.Path.read_bytes', side_effect=FileNotFoundError), patch.object(mail, 'send') as send:
+                self.assertEqual(self.client.post(target, data={'recipient_email': 'other@example.com'}).status_code, 404)
+                send.assert_not_called()
+        self.app.config['WTF_CSRF_ENABLED'] = True
+        try:
+            self.assertEqual(self.client.post(target, data={'recipient_email': 'other@example.com'}).status_code, 400)
+        finally:
+            self.app.config['WTF_CSRF_ENABLED'] = False
+        with self.app.app_context():
+            self.assertEqual([(row.id, row.details) for row in HomeEvidence.query.order_by(HomeEvidence.id)], before)
+            self.assertEqual(db.session.get(f.h.auth_models.User, HomeController.query.one().user_id).email, 'home-r@example.test')
+
     def url(self, path, assignment=None):
         return path + ('&' if '?' in path else '?') + f'home_assignment_id={self.aid if assignment is None else assignment}'
 

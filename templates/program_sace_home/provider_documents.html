@@ -6,19 +6,19 @@
     <div>
         <h4 class="font-bold text-slate-800 text-lg">{{ doc.title }}</h4>
         <p class="text-sm text-slate-500">{{ doc.description }}</p>
-        {% if not doc.version %}<p class="text-sm text-slate-600 mt-2">Awaiting an approved HOME document version.</p>{% endif %}
+        {% if not doc.version and not doc.view_url %}<p class="text-sm text-slate-600 mt-2">Awaiting an approved HOME document version.</p>{% endif %}
     </div>
     <div class="flex items-start space-x-3">
-        {% if doc.version %}
-        <a href="{{ url_for('home_sace_bp.document_content', version_id=doc.version.id) }}" target="_blank" class="px-4 py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 font-bold rounded-lg transition border border-indigo-200 shadow-sm flex items-center">
+        {% if doc.version or doc.view_url %}
+        <a href="{{ doc.view_url or url_for('home_sace_bp.document_content', version_id=doc.version.id) }}" target="_blank" class="px-4 py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 font-bold rounded-lg transition border border-indigo-200 shadow-sm flex items-center">
             <i class="fas fa-eye mr-2"></i> View / Download
         </a>
         <details>
             <summary class="cursor-pointer px-4 py-2 bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-800 font-bold rounded-lg transition border border-slate-200 shadow-sm flex items-center"><i class="fas fa-envelope mr-2"></i> Email</summary>
-            <form method="post" action="{{ url_for('home_sace_bp.email_provider_document', version_id=doc.version.id) }}" class="mt-3 space-y-3">
+            <form method="post" action="{{ doc.email_url or url_for('home_sace_bp.email_provider_document', version_id=doc.version.id) }}" class="mt-3 space-y-3">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <label for="recipient-{{ doc.version.id }}" class="block text-xs font-bold text-slate-500 uppercase">Recipient Email Address</label>
-                <input id="recipient-{{ doc.version.id }}" type="email" name="recipient_email" value="{{ current_user.email }}" required autofocus class="w-full p-3 bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:bg-white transition">
+                <label for="recipient-{{ doc.kind }}" class="block text-xs font-bold text-slate-500 uppercase">Recipient Email Address</label>
+                <input id="recipient-{{ doc.kind }}" type="email" name="recipient_email" value="{{ current_user.email }}" required autofocus class="w-full p-3 bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:bg-white transition">
                 <button class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-md transition">Send Email</button>
             </form>
         </details>

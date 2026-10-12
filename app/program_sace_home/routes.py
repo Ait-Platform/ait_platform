@@ -267,6 +267,10 @@ def provider_documents():
                 s.document_content(document['version'])
             except (NotFound, Conflict):
                 document['version'] = None
+    materials.append(dict(kind='f_cv', title='Facilitator CV',
+        description='Curriculum vitae of the facilitator for the HOME professional development activity.',
+        view_url=url_for('static', filename='pdf/Facilitator_CVs.pdf'),
+        email_url=url_for('home_sace_bp.email_facilitator_cv')))
     return page("provider_documents.html", "HOME provider evidence", materials=materials,
         back=url_for("home_sace_bp.control"))
 
@@ -293,6 +297,33 @@ def email_provider_document(version_id):
     send_pdf_email(recipient, 'HOME Provider Document: ' + title,
         'Please find the requested HOME provider document attached.', pdf_bytes,
         'HOME-' + document.kind + '.pdf')
+    flash('HOME provider document emailed.', 'success')
+    return redirect(url_for('home_sace_bp.provider_documents'))
+
+
+@home_sace_bp.post('/control/documents/facilitator-cv/email')
+@login_required
+def email_facilitator_cv():
+    from pathlib import Path
+    from app.utils.mailer import send_pdf_email
+    from email_validator import validate_email, EmailNotValidError
+    s.require_controller()
+    try:
+        recipient = validate_email(request.form.get('recipient_email', ''),
+            check_deliverability=False).normalized
+    except EmailNotValidError:
+        flash('Enter a valid recipient email address.', 'warning')
+        return redirect(url_for('home_sace_bp.provider_documents'))
+    pdf_path = Path(current_app.static_folder) / 'pdf/Facilitator_CVs.pdf'
+    try:
+        pdf_bytes = pdf_path.read_bytes()
+    except OSError:
+        abort(404, description='The requested provider PDF is unavailable. No email was sent.')
+    if not pdf_bytes.startswith(b'%PDF-'):
+        abort(409, description='The requested provider file is not a PDF. No email was sent.')
+    send_pdf_email(recipient, 'AIT Document: Facilitator CV',
+        'Please find the requested AIT SACE document attached: Facilitator CV.',
+        pdf_bytes, pdf_path.name)
     flash('HOME provider document emailed.', 'success')
     return redirect(url_for('home_sace_bp.provider_documents'))
 

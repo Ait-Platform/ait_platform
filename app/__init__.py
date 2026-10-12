@@ -23,6 +23,7 @@ from sqlalchemy import event
 from jinja2 import select_autoescape
 from flask_mail import Message  # only Message here
 from app.extensions import mail, db, login_manager, csrf
+from app.utils.request_logging import redacted_fields
 from app.models.loss import LcaRun, LcaResult
 from app.models.auth import User
 from app.models.thunee import ThuneeGame, ThuneePlayer, ThuneeTrick, ThuneeScore
@@ -566,7 +567,7 @@ def create_app(test_config=None, *, operator_mode=False):
         app.logger.info(
             "[%s] → %s %s ep=%s args=%s form=%s user_id=%s",
             g.reqid, request.method, request.path, request.endpoint,
-            dict(request.args), dict(request.form), user_id
+            redacted_fields(request.args), redacted_fields(request.form), user_id
         )
 
     @app.after_request

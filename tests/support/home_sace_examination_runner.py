@@ -796,13 +796,8 @@ function check(page){
             self.assertIn(b'href="/sace/activities">Back</a>',page.data)
             self.assertEqual(page.data.count(b'Review examination completion'),1)
             self.assertEqual(page.data.count(b'Intellectual Property Pledge'),1)
-            self.assertEqual(page.data.count(b'Exit endorsement examination'),1)
-            self.assertIn(b'flex flex-col items-end gap-3',page.data)
-            self.assertLess(page.data.index(b'Intellectual Property Pledge'),page.data.index(b'Exit endorsement examination'))
-            self.assertLess(page.data.index(b'Exit endorsement examination'),page.data.index(b'1. Activity Summary'))
-            exit_form=re.search(rb'<form method="post" action="([^"]+)">(.*?)</form>',page.data,re.S)
-            self.assertEqual(exit_form.group(1),(self.base+'/completion').encode())
-            self.assertIn(b'name="csrf_token"',exit_form.group(2))
+            self.assertNotIn(b'Exit endorsement examination',page.data)
+            self.assertNotIn(('action="'+self.base+'/completion"').encode(),page.data)
             self.assertLess(page.data.index(b'Review examination completion'),page.data.index(b'1. Activity Summary'))
         with self.app.app_context():
             self.assertEqual(HomeFinalAssessment.query.count(),0)
@@ -1200,7 +1195,7 @@ function check(page){
             self.assertEqual(self.auditor.post(target,data={'action':'email'}).status_code,403)
             send.assert_not_called()
 
-    def test_submitted_board_exit_uses_existing_activity_destination_without_state_changes(self):
+    def test_submitted_board_has_no_exit_completion_action_without_state_changes(self):
         self.examine_ten()
         self.assertEqual(self.auditor.get(self.base+'/certification').status_code,200)
         self.assertEqual(self.auditor.post(self.base+'/completion').status_code,200)
@@ -1209,8 +1204,7 @@ function check(page){
             assignment=db.session.execute(text('SELECT row_to_json(a)::text FROM sace_home_assignment a WHERE id=:id'),{'id':self.aid}).scalar()
         response=self.auditor.get(self.base+'/board')
         self.assertIn(b'Examination submitted to SACE Admin',response.data)
-        self.assertEqual(response.data.count(b'Exit endorsement examination'),1)
-        self.assertIn(b'href="/sace/activities">Exit endorsement examination</a>',response.data)
+        self.assertNotIn(b'Exit endorsement examination',response.data)
         self.assertNotIn(('action="'+self.base+'/completion"').encode(),response.data)
         self.assertEqual(self.auditor.get('/sace/activities').status_code,200)
         self.assertEqual(self.auditor.get(self.base+'/board').status_code,200)

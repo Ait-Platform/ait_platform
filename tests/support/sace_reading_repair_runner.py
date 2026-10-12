@@ -1010,6 +1010,30 @@ class ReadingRepair(unittest.TestCase):
         self.login(auditor, 'a@example.test', '/sace/reading')
         self.assertEqual(auditor.post(url, data={'email': 'evaluator@example.com'}).status_code, 403)
 
+    def test_evaluator_pledge_understood_preserves_continue_action(self):
+        client = self.app.test_client()
+        with client.session_transaction() as session:
+            session['pending_sace_code'] = 'READING-TEST-CODE'
+        page = client.get('/sace/auditor_pledge')
+        self.assertEqual(page.status_code, 200)
+        self.assertNotIn(b'Decline', page.data)
+        self.assertNotIn(b'I Agree', page.data)
+        self.assertIn(b'Understood', page.data)
+        self.assertIn(b'method="POST"', page.data)
+        self.assertIn(b'name="csrf_token"', page.data)
+        with self.app.test_request_context():
+            from flask import url_for
+            action = url_for('sace_bp.auditor_pledge')
+        self.assertIn(('action="' + action + '"').encode(), page.data)
+        with patch.dict(self.app.config, {'WTF_CSRF_ENABLED': True}):
+            self.assertEqual(client.post(action).status_code, 400)
+        response = client.post(action)
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/register', response.location)
+        with client.session_transaction() as session:
+            self.assertTrue(session['sace_evaluator_pledged'])
+            self.assertEqual(session['pending_sace_code'], 'READING-TEST-CODE')
+
     def test_controller_interface_and_assignment_pass(self):
         controller = self.app.test_client()
         self.login(controller, 'r@example.test', '/sace/provisioning')

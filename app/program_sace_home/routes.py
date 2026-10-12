@@ -693,7 +693,8 @@ def workshop_response(assignment_id, kind):
 @login_required
 def certification(assignment_id):
     from . import certification as cert
-    from app.utils.mailer import send_email
+    from app.utils.mailer import send_pdf_email
+    from app.utils.pdf_render import html_to_pdf_bytes
     row = s.assignment(assignment_id, lock=True, writable=request.method == 'POST')
     if row.requirements_version != ex.REQUIREMENTS:
         abort(404)
@@ -744,21 +745,18 @@ def certification(assignment_id):
             for e in sent)
         if current_app.config.get('MAIL_SUPPRESS_SEND'):
             abort(503, description='Email sending is suppressed; certification email was not sent.')
-        body = '\n'.join([
-            'ARCHONEY INSTITUTE OF TECHNOLOGY (AIT)',
-            'HOME - Hands-On Math Education',
-            'Endorsement examination certification',
-            'Auditor: ' + snapshot['auditor']['name'] + ' (' + snapshot['auditor']['email'] + ')',
-            'SACE ADMIN: ' + sace_admin.name + ' (' + sace_admin.email + ')',
-            'Certificate Number: ' + evidence.details['snapshot_sha256'],
-            'Engagement: ' + snapshot['engagement_reference'] + '; assignment ' + str(snapshot['assignment_id']),
-            'Issued: ' + snapshot['certified_at'],
-            snapshot['statement'],
-        ] + [str(index) + '. ' + item['title'] + ' - Examined on ' + item['examined_at'][:10]
-             for index, item in enumerate(snapshot['items'], 1)])
         try:
-            accepted = send_email(subject='HOME endorsement examination certification',
-                recipients=[recipient], body=body, html=certificate_html)
+            pdf_bytes = html_to_pdf_bytes(certificate_html, base_url=request.host_url, orientation='Portrait')
+            if not pdf_bytes or not pdf_bytes.startswith(b'%PDF-'):
+                raise RuntimeError('Certificate PDF generation returned no valid PDF.')
+        except Exception:
+            current_app.logger.exception('HOME certification PDF generation failed')
+            abort(503, description='Certificate PDF generation failed. No email was sent.')
+        try:
+            accepted = send_pdf_email(to_email=recipient,
+                subject='HOME endorsement examination certification',
+                body_text='Please find your HOME endorsement examination certification attached.',
+                pdf_bytes=pdf_bytes, filename='HOME_Endorsement_Examination_Certification.pdf')
         except Exception:
             current_app.logger.exception('HOME endorsement certification email failed')
             accepted = False

@@ -729,8 +729,6 @@ def finish_evaluation():
             'controller_id': row.user_id, 'evaluation_event_id': event.id, 'channel': 'SACE Admin Control Centre'}, once=True)
         db.session.commit()  # Submission and its durable notification commit together.
         return render_template('program_sace/evaluation_closed.html')
-    if flow.latest(row, 'evaluation_complete'):
-        return render_template('program_sace/evaluation_closed.html')
     from . import certification as cert
     titles = {slug: title for slug, title, *_ in cert.BOARD_ITEMS}
     titles[cert.SLUG] = 'Certification'

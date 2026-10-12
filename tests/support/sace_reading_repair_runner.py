@@ -568,7 +568,11 @@ class ReadingRepair(unittest.TestCase):
             self.assertEqual([record for record in after if record[0]!=eid],before)
             self.assertEqual(db.session.get(h.Interaction,self.assignment_id).response_data,state_before)
         with patch.object(self.app,'root_path',str(ROOT/'app')):
-            self.assertEqual(self.client.get(target).data,response.data)
+            repeated=self.client.get(target)
+            # CSRF signatures contain a timestamp; certificate/evidence must still match.
+            token_value=rb'(<input[^>]*name="csrf_token"[^>]*value=")[^"]*(")'
+            self.assertEqual(re.sub(token_value,rb'\1TOKEN\2',repeated.data),
+                             re.sub(token_value,rb'\1TOKEN\2',response.data))
         with self.app.app_context():
             self.assertEqual(db.session.get(h.Interaction,eid).response_data,raw)
             self.assertEqual(h.Interaction.query.filter_by(activity_slug=cert.SLUG).count(),1)
@@ -790,9 +794,11 @@ class ReadingRepair(unittest.TestCase):
             for row in rows[:9]:
                 self.assertEqual(re.findall(r'<td[^>]*>(.*?)</td>',row,re.S)[1],'Examined')
             self.assertIn('Certification',rows[9]);self.assertIn('Recorded',rows[9])
-            self.assertIn('notify SACE Admin',board)
+            self.assertIn('Review examination completion',board)
             ready=render_template('program_sace/evaluation_finish.html',ready=True,missing=[])
-            self.assertIn('Submit examination as complete',ready)
+            self.assertNotIn('Submit examination as complete',ready)
+            self.assertIn('Sign out',ready)
+            self.assertIn('action="/logout"',ready)
             self.assertIn('name="csrf_token"',ready)
             self.assertNotIn(' disabled>',ready)
             closed=render_template('program_sace/evaluation_closed.html')
@@ -810,7 +816,7 @@ class ReadingRepair(unittest.TestCase):
             before=db.session.execute(text('SELECT id,row_to_json(e)::text FROM sace_workshop_interactions e ORDER BY id')).all()
         response=self.client.get('/sace/reading/finish-evaluation')
         self.assertEqual(response.status_code,200)
-        self.assertIn(b'>Submit examination as complete',response.data)
+        self.assertIn(b'>Sign out</button>',response.data)
         self.assertNotIn(b'disabled>Submit examination as complete',response.data)
         self.assertIn(b'<form',response.data)
         self.assertNotIn(b'workshop certificate',response.data.lower())
@@ -834,7 +840,7 @@ class ReadingRepair(unittest.TestCase):
             self.assertEqual(page.status_code,200)
             listed=[unescape(label) for label in re.findall(r'<li>(.*?)</li>',page.data.decode())]
             self.assertEqual(listed,[title])
-            self.assertIn(b'disabled>Submit examination as complete',page.data)
+            self.assertNotIn(b'Submit examination as complete',page.data)
             self.assertEqual(self.client.post(target).status_code,409)
             with self.app.app_context():
                 self.assertEqual(flow.payload(db.session.get(h.Interaction,self.assignment_id))['status'],'Claimed')
@@ -844,57 +850,76 @@ class ReadingRepair(unittest.TestCase):
         self.recorded_board_statuses();target='/sace/reading/finish-evaluation'
         page=self.client.get(target)
         self.assertEqual(re.findall(rb'<li>(.*?)</li>',page.data),[b'Certification'])
-        self.assertIn(b'disabled>Submit examination as complete',page.data)
+        self.assertNotIn(b'Submit examination as complete',page.data)
         self.assertEqual(self.client.post(target).status_code,409)
         with patch.object(flow,'completion_requirements',return_value=['map_reviewed']) as readiness:
             self.assertIn(b'<li>Activity Summary</li>',self.client.get(target).data)
             self.assertEqual(self.client.post(target).status_code,409)
             self.assertEqual(readiness.call_count,2)
 
-    def test_completed_unsubmitted_board_exposes_existing_submission_and_admin_finalization(self):
+    def test_complete_review_offers_back_and_logout_without_submission_or_finalization(self):
         from app.program_sace import certification as cert
         target = '/sace/reading/finish-evaluation'
-        action = ('action="' + target + '"').encode()
-        self.assertNotIn(action, self.client.get('/sace/reading').data)
         self.recorded_board_statuses()
-        self.assertNotIn(action, self.client.get('/sace/reading').data)
+        incomplete = self.client.get(target)
+        self.assertEqual(re.findall(rb'<li>(.*?)</li>', incomplete.data), [b'Certification'])
+        self.assertNotIn(b'Submit examination as complete', incomplete.data)
         with patch.object(self.app, 'root_path', str(ROOT/'app')):
             self.assertEqual(self.client.get('/sace/reading/certification').status_code, 200)
-        page = self.client.get('/sace/reading')
-        form = re.search(rb'<form method="post" action="' + target.encode() + rb'">.*?</form>', page.data, re.S).group()
-        self.assertIn(b'name="csrf_token"', form)
-        self.assertIn(b'>Submit examination as complete</button>', form)
-        admin = self.app.test_client()
-        self.login(admin, 'r@example.test', '/sace/provisioning')
-        finalize = '/sace/provisioning/assignments/' + str(self.assignment_id) + '/finalize'
-        self.assertNotIn(('action="' + finalize + '"').encode(), admin.get('/sace/provisioning').data)
         with self.app.app_context():
             row = db.session.get(h.Interaction, self.assignment_id)
             self.assertEqual(flow.completion_requirements(row), [])
-            self.assertIsNone(flow.latest(row, 'evaluation_complete'))
             frozen = cert.saved(row).response_data
             history = [(e.id, e.response_data, e.timestamp) for e in flow.events(row)]
+        board = self.client.get('/sace/reading')
+        self.assertIn(b'Review examination completion', board.data)
+        self.assertNotIn(b'Submit examination as complete', board.data)
+        with self.app.app_context():
+            history = [(e.id, e.response_data, e.timestamp) for e in flow.events(db.session.get(h.Interaction, self.assignment_id))]
+        page = self.client.get(target)
+        self.assertEqual(page.status_code, 200)
+        self.assertIn(b'href="/sace/reading">Back to Auditor Board', page.data)
+        self.assertIn(b'No submission through AIT is required.', page.data)
+        self.assertNotIn(b'Submit examination as complete', page.data)
+        self.assertNotIn(b'<li>', page.data)
+        form = re.search(rb'<form method="POST" action="/logout">.*?</form>', page.data, re.S).group()
+        self.assertIn(b'name="csrf_token"', form)
+        self.assertIn(b'>Sign out</button>', form)
+        admin = self.app.test_client()
+        self.login(admin, 'r@example.test', '/sace/provisioning')
+        finalize = '/sace/provisioning/assignments/' + str(self.assignment_id) + '/finalize'
+        control = admin.get('/sace/provisioning')
+        self.assertIn(b'Claimed', control.data)
+        self.assertNotIn(b'Finalize Auditor', control.data)
+        self.assertNotIn(('action="' + finalize + '"').encode(), control.data)
         with patch.dict(self.app.config, {'WTF_CSRF_ENABLED': True}):
-            self.assertEqual(self.client.post(target).status_code, 400)
-        with patch('smtplib.SMTP', side_effect=AssertionError('SMTP blocked')), patch('smtplib.SMTP_SSL', side_effect=AssertionError('SMTP blocked')):
-            self.assertEqual(self.client.post(target).status_code, 200)
-            self.assertEqual(self.client.post(target).status_code, 200)
+            self.assertEqual(self.client.post('/logout').status_code, 400)
+        self.assertEqual(self.client.post('/logout').status_code, 302)
         with self.app.app_context():
             row = db.session.get(h.Interaction, self.assignment_id)
-            self.assertIsNotNone(flow.latest(row, 'evaluation_complete'))
-            self.assertIsNotNone(flow.latest(row, 'controller_notification'))
+            self.assertIsNone(flow.latest(row, 'evaluation_complete'))
             self.assertIsNone(flow.latest(row, 'assignment_closed'))
             self.assertEqual(flow.payload(row)['status'], 'Claimed')
             self.assertEqual(cert.saved(row).response_data, frozen)
-            events = {e.id: e for e in flow.events(row)}
-            for eid, data, timestamp in history:
-                self.assertEqual((events[eid].response_data, events[eid].timestamp), (data, timestamp))
-            self.assertEqual(sum(e.activity_slug == 'evaluation_complete' for e in events.values()), 1)
-        self.assertNotIn(action, self.client.get('/sace/reading').data)
-        self.assertIn(b'Examination submitted to SACE Admin', self.client.get('/sace/reading').data)
-        control = admin.get('/sace/provisioning')
-        self.assertIn(('action="' + finalize + '"').encode(), control.data)
-        self.assertIn(b'Finalize Auditor', control.data)
+            self.assertEqual(history, [(e.id, e.response_data, e.timestamp) for e in flow.events(row)])
+
+    def test_review_shows_outstanding_items_despite_historical_submission(self):
+        with self.app.app_context():
+            row = db.session.get(h.Interaction, self.assignment_id)
+            db.session.add(h.Interaction(user_id=flow.payload(row)['claimed_by_user_id'],
+                workshop_session_id=flow.room(row), activity_slug='evaluation_complete',
+                response_data=h.json.dumps({'historical': True})))
+            db.session.commit()
+            before = [(e.id, e.response_data, e.timestamp) for e in flow.events(row)]
+        page = self.client.get('/sace/reading/finish-evaluation')
+        self.assertEqual(page.status_code, 200)
+        self.assertIn(b'<li>Activity Summary</li>', page.data)
+        self.assertIn(b'<li>Certification</li>', page.data)
+        self.assertNotIn(b'Submit examination as complete', page.data)
+        self.assertIn(b'href="/sace/reading">Back to Auditor Board', page.data)
+        with self.app.app_context():
+            row = db.session.get(h.Interaction, self.assignment_id)
+            self.assertEqual(before, [(e.id, e.response_data, e.timestamp) for e in flow.events(row)])
 
     def test_submission_and_admin_finalization_without_old_certificate_delivery(self):
         from sqlalchemy import text
@@ -918,7 +943,7 @@ class ReadingRepair(unittest.TestCase):
             self.assertIsNone(flow.latest(row,'reading_certificate'))
             self.assertEqual(flow.completion_requirements(row),[])
         page=self.client.get(target)
-        self.assertIn(b'Submit examination as complete',page.data)
+        self.assertIn(b'Sign out',page.data)
         self.assertEqual(self.client.post(target).status_code,200)
         self.assertEqual(self.client.post(target).status_code,200)
         with self.app.app_context():
@@ -950,13 +975,8 @@ class ReadingRepair(unittest.TestCase):
         admin=self.app.test_client();self.login(admin,'r@example.test','/sace/provisioning')
         self.assertIn(b'Auditor examination completed',admin.get('/sace/provisioning').data)
         control=admin.get('/sace/provisioning').data.decode()
-        finalization_form=re.search(r'<form method="post" action="'+re.escape(finalize)+r'"[^>]*>.*?</form>',control,re.S).group()
-        for style in ('bg-indigo-50','border-indigo-200','rounded-lg','p-3'):
-            self.assertIn(style,finalization_form.split('>',1)[0])
-        button=re.search(r'<button[^>]*>Finalize Auditor</button>',finalization_form).group()
-        for style in ('bg-indigo-700','text-white','hover:bg-indigo-800','font-semibold'):
-            self.assertIn(style,button)
-        self.assertIn('name="csrf_token"',finalization_form)
+        self.assertNotIn('Finalize Auditor',control)
+        self.assertNotIn('action="'+finalize+'"',control)
         self.assertEqual(admin.post(f'/sace/provisioning/assignments/{other_id}/finalize').status_code,409)
         self.app.config['WTF_CSRF_ENABLED']=True
         try:self.assertEqual(admin.post(finalize).status_code,400)

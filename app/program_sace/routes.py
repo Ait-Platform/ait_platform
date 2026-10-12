@@ -847,7 +847,29 @@ def claim_code():
     from . import endorsement_routes as journey
     return journey.claim()
 
-@sace_bp.route("/sace/provisioning/print_slip/<code>")
+@sace_bp.route("/sace/provisioning/print_slip/<code>", methods=["GET", "POST"])
 @login_required
 def print_access_slip(code):
+    if request.method == "POST":
+        from email_validator import validate_email, EmailNotValidError
+        from app.utils.mailer import send_email
+        try:
+            recipient = validate_email(request.form.get("email", "").strip(),
+                check_deliverability=False).normalized
+        except EmailNotValidError:
+            abort(400, description="Enter a valid recipient email address.")
+        body = (
+            "ARCHONEY INSTITUTE OF TECHNOLOGY (AIT)\n"
+            "Provider Activity: I Learn to Read English Using the LITRE Method\n"
+            "SACE EVALUATOR ACCESS PASS\n\n"
+            "This access pass is issued for this Reading endorsement review and is for the appointed SACE Evaluator only.\n"
+            "For the appointed SACE Evaluator: use the secure portal and access code below.\n\n"
+            "1. Go to the Secure Portal: https://ait.mathwithhands.com/sace/join\n"
+            f"2. Enter Your Unique Access Code: SACE-{code}\n\n"
+            "Security Note: This code is single-use. Once entered, your email address will be permanently bound to this evaluation slot. Please do not share this slip."
+        )
+        if not send_email("AIT Reading - SACE Evaluator Access Pass", [recipient], body):
+            abort(503, description="The access pass could not be emailed. Please try again.")
+        flash("Access pass emailed.", "success")
+        return redirect(url_for("sace_bp.print_access_slip", code=code))
     return render_template("program_sace/print_slip.html", code=code)

@@ -47,8 +47,16 @@
             </a>
         </div>
         
+        {% include "partials/flash_messages.html" %}
+
         <!-- Rule 5: Row 2 Actions -->
-        <div class="flex justify-end mb-8">
+        <div class="flex flex-wrap items-center justify-end gap-3 mb-8">
+            <form method="POST" action="{{ url_for('sace_bp.print_access_slip', code=code) }}" class="flex flex-wrap items-center gap-3">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <label for="access-pass-email" class="font-semibold text-slate-700">Email address</label>
+                <input id="access-pass-email" name="email" type="email" value="{{ current_user.email }}" required autofocus class="border border-slate-300 rounded-lg px-3 py-2 focus:border-blue-500 focus:ring-blue-500">
+                <button type="submit" class="px-6 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 font-bold rounded-lg shadow-sm">Email</button>
+            </form>
             <button onclick="window.print()" class="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-md transition flex items-center">
                 <i class="fas fa-print mr-2"></i> Print Access Pass
             </button>

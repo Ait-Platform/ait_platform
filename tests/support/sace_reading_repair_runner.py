@@ -963,6 +963,53 @@ class ReadingRepair(unittest.TestCase):
         self.assertIn('id="bug-modal"',layout)
         self.assertIn("document.getElementById('bug-modal').classList.remove('hidden')",layout)
 
+    def test_reading_access_pass_email_uses_existing_code_and_sender(self):
+        from app.extensions import mail
+        controller = self.app.test_client()
+        self.login(controller, 'r@example.test', '/sace/provisioning')
+        code, _ = h.AccessJourneys.code(self, controller)
+        url = '/sace/provisioning/print_slip/' + code
+        page = controller.get(url)
+        self.assertEqual(page.status_code, 200)
+        self.assertIn(b'value="r@example.test"', page.data)
+        self.assertIn(b'name="email" type="email"', page.data)
+        self.assertIn(b'name="csrf_token"', page.data)
+        self.assertLess(page.data.index(b'>Email</button>'), page.data.index(b'Print Access Pass', page.data.index(b'onclick="window.print()"')))
+        self.assertIn(b'onclick="window.print()"', page.data)
+        with self.app.app_context():
+            before = [(row.id, row.response_data) for row in h.Interaction.query.order_by(h.Interaction.id).all()]
+            account_email = h.auth_models.User.query.filter_by(email='r@example.test').one().email
+        with patch.object(mail, 'send') as sender, patch.dict(self.app.config, {'MAIL_DEFAULT_SENDER': ('AIT', 'ait@example.com')}), patch('smtplib.SMTP', side_effect=AssertionError('SMTP forbidden')), patch('smtplib.SMTP_SSL', side_effect=AssertionError('SMTP forbidden')):
+            mail.init_app(self.app)
+            response = controller.post(url, data={'email': ' evaluator@EXAMPLE.COM '})
+            self.assertEqual(response.status_code, 302)
+            self.assertEqual(response.location, url)
+            sender.assert_called_once()
+            message = sender.call_args.args[0]
+            self.assertEqual(message.recipients, ['evaluator@example.com'])
+            self.assertEqual(message.sender, ('AIT', 'ait@example.com'))
+            for text in ('ARCHONEY INSTITUTE OF TECHNOLOGY (AIT)',
+                    'I Learn to Read English Using the LITRE Method',
+                    'SACE EVALUATOR ACCESS PASS', 'https://ait.mathwithhands.com/sace/join',
+                    'SACE-' + code, 'single-use', 'permanently bound', 'Please do not share this slip.'):
+                self.assertIn(text, message.body)
+            for invalid in ('', 'not-an-email'):
+                self.assertEqual(controller.post(url, data={'email': invalid}).status_code, 400)
+            self.assertEqual(controller.post('/sace/provisioning/print_slip/OTHER-CODE', data={'email': 'evaluator@example.com'}).status_code, 404)
+            with patch.dict(self.app.config, {'WTF_CSRF_ENABLED': True}):
+                self.assertEqual(controller.post(url, data={'email': 'evaluator@example.com'}).status_code, 400)
+            sender.assert_called_once()
+        with patch('app.utils.mailer.send_email', return_value=False):
+            self.assertEqual(controller.post(url, data={'email': 'evaluator@example.com'}).status_code, 503)
+        with self.app.app_context():
+            self.assertEqual(before, [(row.id, row.response_data) for row in h.Interaction.query.order_by(h.Interaction.id).all()])
+            self.assertEqual(h.auth_models.User.query.filter_by(email=account_email).one().email, account_email)
+        self.assertEqual(controller.get(url).status_code, 200)
+        self.assertIn(('SACE-' + code).encode(), controller.get(url).data)
+        auditor = self.app.test_client()
+        self.login(auditor, 'a@example.test', '/sace/reading')
+        self.assertEqual(auditor.post(url, data={'email': 'evaluator@example.com'}).status_code, 403)
+
     def test_controller_interface_and_assignment_pass(self):
         controller = self.app.test_client()
         self.login(controller, 'r@example.test', '/sace/provisioning')

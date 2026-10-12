@@ -314,6 +314,19 @@ class ReadingRepair(unittest.TestCase):
                 self.assertEqual(response.status_code, 200)
                 html = response.data.decode()
                 self.assertIn('id="document-viewer" class="h-[70vh] overflow-auto"', html)
+                self.assertIn('id="document-controls" class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4"', html)
+                columns = re.search(r'id="document-controls"[^>]*>\s*<div>(.*?)</div>\s*<div class="flex justify-end gap-2" role="group" aria-label="Document zoom">(.*?)</div>\s*</div>', html, re.S)
+                self.assertIsNotNone(columns)
+                navigation, zoom_controls = columns.groups()
+                if kind == 'timetable':
+                    self.assertNotIn('id="previous"', navigation)
+                    self.assertNotIn('id="next"', navigation)
+                else:
+                    self.assertIn('flex justify-start gap-4', navigation)
+                    for control in ('previous', 'page', 'next'):
+                        self.assertIn('id="' + control + '"', navigation)
+                for control in ('zoom-out', 'zoom-fit', 'zoom-in'):
+                    self.assertIn('id="' + control + '"', zoom_controls)
                 self.assertIn('saved=false,zoom=1', html)
                 self.assertIn('Math.min((viewer.clientWidth-4)/base.width,(viewer.clientHeight-4)/base.height)', html)
                 self.assertIn('getViewport({scale:fitScale*zoom})', html)

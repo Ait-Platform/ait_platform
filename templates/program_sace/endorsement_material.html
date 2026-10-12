@@ -11,11 +11,15 @@
 
 {% if styled_material %}<p class="text-sm text-slate-700">{{ doc_title }} may take a few seconds to load.</p>{% endif %}
 <p id="status" role="status">Loading controlled material. Examination is recorded on entry; browse any pages as required.</p>
-{% if not timetable %}<div class="flex justify-center gap-4"><button id="previous"{% if styled_material %} hidden{% endif %} class="border rounded p-2{% if styled_material %} bg-blue-50 text-blue-900 border-blue-200 hover:bg-blue-100 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-blue-50{% endif %}">Previous</button><span id="page"{% if styled_material %} class="border rounded p-2 bg-slate-50 text-slate-700 border-slate-200"{% endif %}></span><button id="next"{% if styled_material %} hidden{% endif %} class="border rounded p-2{% if styled_material %} bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-emerald-50{% endif %}">Next</button></div>{% endif %}
+<div id="document-controls" class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4">
+<div>
+{% if not timetable %}<div class="flex justify-start gap-4"><button id="previous"{% if styled_material %} hidden{% endif %} class="border rounded p-2{% if styled_material %} bg-blue-50 text-blue-900 border-blue-200 hover:bg-blue-100 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-blue-50{% endif %}">Previous</button><span id="page"{% if styled_material %} class="border rounded p-2 bg-slate-50 text-slate-700 border-slate-200"{% endif %}></span><button id="next"{% if styled_material %} hidden{% endif %} class="border rounded p-2{% if styled_material %} bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-emerald-50{% endif %}">Next</button></div>{% endif %}
+</div>
 <div class="flex justify-end gap-2" role="group" aria-label="Document zoom">
 <button type="button" id="zoom-out" disabled aria-label="Zoom Out" class="border border-slate-300 bg-slate-50 rounded px-3 py-2 disabled:opacity-40">&minus;</button>
 <button type="button" id="zoom-fit" disabled class="border border-slate-300 bg-slate-50 rounded px-3 py-2 disabled:opacity-40">Fit</button>
 <button type="button" id="zoom-in" disabled aria-label="Zoom In" class="border border-slate-300 bg-slate-50 rounded px-3 py-2 disabled:opacity-40">+</button>
+</div>
 </div>
 <div id="document-viewer" class="h-[70vh] overflow-auto">
 <canvas id="document" class="max-w-none mx-auto border{% if styled_material %} border-blue-400{% endif %}"></canvas>

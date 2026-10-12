@@ -260,8 +260,13 @@ def material_viewed(kind):
     row = flow.assignment(lock=True)
     if not flow.latest(row, kind + '_opened'):
         abort(409, description='Open and examine this material before confirming.')
-    flow.record(row, kind, {'evidence': 'all PDF pages displayed by controlled viewer'}, once=True)
+    application_form = kind in ('app_form', 'app_form_2')
+    evidence = ('Auditor acknowledged document examination on return to Board'
+        if application_form else 'all PDF pages displayed by controlled viewer')
+    flow.record(row, kind, {'evidence': evidence}, once=True)
     db.session.commit()
+    if application_form and request.form.get('action') == 'return_to_board':
+        return redirect(url_for('sace_bp.reading_hub'))
     return jsonify(success=True)
 
 

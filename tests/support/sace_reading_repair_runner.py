@@ -209,8 +209,49 @@ class ReadingRepair(unittest.TestCase):
                 self.assertIn('zoomFit.onclick=()=>{if(!busy){zoom=1;show();}}', html)
                 self.assertNotIn('getViewport({scale:2})', html)
                 self.assertNotIn('getViewport({scale:1.3})', html)
-                self.assertIn('href="/sace/reading">Return to Auditor Board', html)
+                if kind in ('app_form', 'app_form_2'):
+                    self.assertIn('name="action" value="return_to_board"', html)
+                    self.assertNotIn('seen.size===pdf.numPages', html)
+                else:
+                    self.assertIn('href="/sace/reading">Return to Auditor Board', html)
                 self.assertNotRegex(html, r'<(?:a|button)[^>]*(?:download|print|export)')
+
+    def test_application_forms_return_acknowledges_once_without_page_traversal(self):
+        for kind, title in (('app_form', 'Application Form 1'), ('app_form_2', 'Application Form 2')):
+            with self.subTest(kind=kind):
+                target = '/sace/material/' + kind + '/viewed'
+                page = self.client.get('/sace/secure_view/' + kind)
+                self.assertEqual(page.status_code, 200)
+                self.assertIsNone(self.event(kind))
+                self.assertNotIn(b'seen.size===pdf.numPages', page.data)
+                self.assertIn(('action="' + target + '"').encode(), page.data)
+                self.assertIn(b'name="csrf_token"', page.data)
+                self.assertEqual(self.client.post(target, data={'action': 'return_to_board'}).status_code, 409)
+                with self.client.get('/sace/material/' + kind + '/content') as content:
+                    self.assertEqual(content.status_code, 200)
+                self.assertIsNone(self.event(kind))
+                with patch.dict(self.app.config, {'WTF_CSRF_ENABLED': True}):
+                    self.assertEqual(self.client.post(target, data={'action': 'return_to_board'}).status_code, 400)
+                response = self.client.post(target, data={'action': 'return_to_board'})
+                self.assertEqual(response.status_code, 302)
+                self.assertEqual(response.location, '/sace/reading')
+                board = self.client.get(response.location).data.decode()
+                row_html = next(row for row in re.findall(r'<tr[^>]*>(.*?)</tr>', board, re.S) if title in row)
+                self.assertIn('Examined', row_html)
+                with self.app.app_context():
+                    row = db.session.get(h.Interaction, self.assignment_id)
+                    event = flow.latest(row, kind)
+                    original = (event.id, event.timestamp, event.response_data)
+                self.assertEqual(self.client.get('/sace/secure_view/' + kind).status_code, 200)
+                self.assertEqual(self.client.post(target, data={'action': 'return_to_board'}).status_code, 302)
+                with self.app.app_context():
+                    events = [event for event in flow.events(db.session.get(h.Interaction, self.assignment_id)) if event.activity_slug == kind]
+                    self.assertEqual(len(events), 1)
+                    self.assertEqual((events[0].id, events[0].timestamp, events[0].response_data), original)
+        for kind in ('f_guide', 'p_guide', 'timetable', 'demo_complete', 'reading_complete'):
+            self.assertIsNone(self.event(kind))
+        ordinary = self.app.test_client()
+        self.assertNotEqual(ordinary.post('/sace/material/app_form/viewed', data={'action': 'return_to_board'}).status_code, 200)
 
     def test_manual_open_marks_examined_once_without_page_traversal(self):
         for kind, title in (('f_guide', 'Facilitator Manual'), ('p_guide', 'Workshop Manual')):
@@ -876,7 +917,11 @@ class ReadingRepair(unittest.TestCase):
         for kind in ('app_form', 'app_form_2', 'f_guide', 'p_guide', 'timetable'):
             page = self.client.get('/sace/secure_view/' + kind)
             returns = [a for a in Anchors(page.data).items if a['href'] == '/sace/reading']
-            self.assertEqual([a['text'] for a in returns], ['Return to Auditor Board'])
+            if kind in ('app_form', 'app_form_2'):
+                self.assertIn(('action="/sace/material/' + kind + '/viewed"').encode(), page.data)
+                self.assertIn(b'>Return to Auditor Board</button>', page.data)
+            else:
+                self.assertEqual([a['text'] for a in returns], ['Return to Auditor Board'])
         self.assertNotIn(b'Back to Auditor Board', self.client.get('/sace/reading').data)
         with self.app.app_context():
             db.session.add(h.SaceDocument(slug='reading', document_type='timetable',

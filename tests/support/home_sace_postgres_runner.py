@@ -469,7 +469,8 @@ class HomeFoundation(unittest.TestCase):
             self.assertNotIn(b'Full name / signature', page.data)
             self.assertNotIn(b'name="signature"', page.data)
             self.assertNotIn(b'type="checkbox"', page.data)
-            self.assertIn(b'name="accept" value="yes">Accept and Continue', page.data)
+            self.assertIn(b'name="accept" value="yes">I Understand', page.data)
+            self.assertNotIn(b'Accept and Continue', page.data)
             token = re.search(rb'name="csrf_token" value="([^"]+)"', page.data).group(1).decode()
             target = origin + '/sace/home/pledge'
             for data, headers in (({'accept': 'yes'}, {'Referer': target}),

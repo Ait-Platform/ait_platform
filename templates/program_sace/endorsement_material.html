@@ -4,14 +4,13 @@
 {% set styled_material = doc_title in ('Application Form 1', 'Application Form 2', 'Facilitator Manual', 'Workshop Manual', 'Reading Timetable (T/T)') %}
 {% set manual = doc_title in ('Facilitator Manual', 'Workshop Manual') %}
 {% set timetable = doc_title == 'Reading Timetable (T/T)' %}
-{% set application_form = doc_title in ('Application Form 1', 'Application Form 2') %}
 <div class="max-w-5xl mx-auto px-4 py-8"><div class="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
 <div class="h-2 bg-indigo-700"></div><div class="p-6 space-y-6">
-<div class="flex items-center justify-between gap-4"><h1 class="text-2xl font-bold text-slate-800">{{ doc_title }}</h1>{% if application_form %}<form method="post" action="{{ viewed_url }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="return_to_board"><button type="submit" class="border bg-indigo-700 text-white border-indigo-700 hover:bg-indigo-800 rounded px-4 py-2">Return to Auditor Board</button></form>{% else %}<a class="border {% if styled_material %}bg-indigo-700 text-white border-indigo-700 hover:bg-indigo-800{% else %}bg-blue-50 text-blue-900 border-blue-200 hover:bg-blue-100{% endif %} rounded px-4 py-2" href="{{ url_for('sace_bp.reading_hub') }}">Return to Auditor Board</a>{% endif %}</div>
+<div class="flex items-center justify-between gap-4"><h1 class="text-2xl font-bold text-slate-800">{{ doc_title }}</h1><a class="border {% if styled_material %}bg-indigo-700 text-white border-indigo-700 hover:bg-indigo-800{% else %}bg-blue-50 text-blue-900 border-blue-200 hover:bg-blue-100{% endif %} rounded px-4 py-2" href="{{ url_for('sace_bp.reading_hub') }}">Return to Auditor Board</a></div>
 {% with messages = get_flashed_messages(with_categories=true) %}{% for category, message in messages %}<p class="border rounded p-3">{{ message }}</p>{% endfor %}{% endwith %}
 
 {% if styled_material %}<p class="text-sm text-slate-700">{{ doc_title }} may take a few seconds to load.</p>{% endif %}
-<p id="status" role="status">Loading controlled material. {% if application_form %}Select Return to Auditor Board when you have examined this document.{% elif manual %}Opening this manual records examination.{% else %}Examination is recorded after all pages display.{% endif %}</p>
+<p id="status" role="status">Loading controlled material. Examination is recorded on entry; browse any pages as required.</p>
 {% if not timetable %}<div class="flex justify-center gap-4"><button id="previous"{% if styled_material %} hidden{% endif %} class="border rounded p-2{% if styled_material %} bg-blue-50 text-blue-900 border-blue-200 hover:bg-blue-100 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-blue-50{% endif %}">Previous</button><span id="page"{% if styled_material %} class="border rounded p-2 bg-slate-50 text-slate-700 border-slate-200"{% endif %}></span><button id="next"{% if styled_material %} hidden{% endif %} class="border rounded p-2{% if styled_material %} bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-emerald-50{% endif %}">Next</button></div>{% endif %}
 <div class="flex justify-end gap-2" role="group" aria-label="Document zoom">
 <button type="button" id="zoom-out" disabled aria-label="Zoom Out" class="border border-slate-300 bg-slate-50 rounded px-3 py-2 disabled:opacity-40">&minus;</button>
@@ -33,15 +32,13 @@ const p=await pdf.getPage(index),base=p.getViewport({scale:1});
 const fitScale=Math.min((viewer.clientWidth-4)/base.width,(viewer.clientHeight-4)/base.height);
 const viewport=p.getViewport({scale:fitScale*zoom});
 canvas.width=viewport.width;canvas.height=viewport.height;
-viewer.scrollTop=viewer.scrollLeft=0;await p.render({canvasContext:canvas.getContext('2d'),viewport}).promise;seen.add(index);{% if not timetable %}document.getElementById('page').textContent=`Page ${index} of ${pdf.numPages}`;{% if styled_material %}document.getElementById('previous').hidden=index===1;document.getElementById('next').hidden=index===pdf.numPages;{% endif %}{% endif %}status.textContent={% if application_form %}'Browse any pages as required. Select Return to Auditor Board to acknowledge examination.'{% elif manual %}'Manual examination recorded. Review any pages to understand the activity.'{% else %}'Review each page. Examination is recorded when all pages have displayed.'{% endif %};
-{% if not application_form %}if(seen.size===pdf.numPages&&!saved){const r=await fetch({{ viewed_url|tojson }},{method:'POST',headers:{'X-CSRFToken':{{ csrf_token()|tojson }}}});if(!r.ok)throw Error();saved=true;}
-if(saved)status.textContent={% if manual %}'Manual examination recorded. Review any pages to understand the activity.'{% else %}'All pages displayed. Examination recorded.'{% endif %};{% endif %}
-}catch(e){status.textContent='Unable to save examination. Reopen this page to retry.';}finally{busy=false;zoomOut.disabled=zoom<=0.5;zoomIn.disabled=zoom>=3;zoomFit.disabled=false;}}
+viewer.scrollTop=viewer.scrollLeft=0;await p.render({canvasContext:canvas.getContext('2d'),viewport}).promise;seen.add(index);{% if not timetable %}document.getElementById('page').textContent=`Page ${index} of ${pdf.numPages}`;{% if styled_material %}document.getElementById('previous').hidden=index===1;document.getElementById('next').hidden=index===pdf.numPages;{% endif %}{% endif %}status.textContent='Material examined. Browse any pages as required.';
+}catch(e){status.textContent='Material could not be displayed. Reopen this page to retry.';}finally{busy=false;zoomOut.disabled=zoom<=0.5;zoomIn.disabled=zoom>=3;zoomFit.disabled=false;}}
 zoomOut.onclick=()=>{if(!busy){zoom=Math.max(0.5,zoom-0.25);show();}};
 zoomIn.onclick=()=>{if(!busy){zoom=Math.min(3,zoom+0.25);show();}};
 zoomFit.onclick=()=>{if(!busy){zoom=1;show();}};
 {% if not timetable %}document.getElementById('previous').onclick=()=>{if(!busy&&index>1){index--;show();}};document.getElementById('next').onclick=()=>{if(!busy&&index<pdf.numPages){index++;show();}};{% endif %}await show();
-}catch(e){status.textContent={% if manual %}'Manual could not be displayed. Reopen this page to retry.'{% else %}'Material could not be loaded. No examination has been recorded.'{% endif %};}})();
+}catch(e){status.textContent={% if manual %}'Manual could not be displayed. Reopen this page to retry.'{% else %}'Material could not be loaded. Reopen this page to retry.'{% endif %};}})();
 </script>
 </div></div></div>
 {% endblock %}

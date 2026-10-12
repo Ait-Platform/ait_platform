@@ -4,10 +4,7 @@
 <div class="max-w-5xl mx-auto px-4 py-8"><div class="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
 <div class="h-2 bg-indigo-700"></div><div class="p-6 space-y-6">
 <div class="flex items-center justify-between gap-4"><h1 class="text-2xl font-bold text-slate-800">Activity Summary</h1>
-<form method="post" action="{{ url_for('sace_bp.auditor_map') }}" class="flex justify-end">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-<button type="submit" class="bg-indigo-700 text-white border border-indigo-700 rounded-lg px-4 py-2 hover:bg-indigo-800 focus:ring-2 focus:ring-indigo-300">Understood</button>
-</form>
+<a href="{{ url_for('sace_bp.reading_hub') }}" class="bg-indigo-700 text-white border border-indigo-700 rounded-lg px-4 py-2 hover:bg-indigo-800 focus:ring-2 focus:ring-indigo-300">Back to Auditor Board</a>
 </div>
 {% with messages = get_flashed_messages(with_categories=true) %}{% for category, message in messages %}<p class="border rounded p-3">{{ message }}</p>{% endfor %}{% endwith %}
 
@@ -15,7 +12,7 @@
 <p><strong>35-step journey: slides 1-31 are the workshop presentation; steps 32-35 are the online interactive components.</strong></p>
 <ol class="list-decimal list-inside space-y-3">
 <li><strong>Workshop slides 1-31:</strong> examine the Workshop Manual for the content participants receive and the Facilitator Manual for delivery notes. The PPP remains available for workshop delivery or fallback use; it is not a separate Auditor examination requirement.</li>
-<li><strong>Online workshop steps 32-35:</strong> examine the Workshop Online Interaction &amp; Assessment through the existing workshop journey.</li>
+<li><strong>Online workshop steps 32-35:</strong> examine the Workshop Online Interaction &amp; Assessment as fixed examination material, without completing participant responses or a post-test.</li>
 <li><strong>Reading course:</strong> examine the 18-video Reading Course through its existing journey.</li>
 <li><strong>Certification:</strong> after examining items 1-9 on the Auditor Board, open the single final Certification recording the Auditor's examination of the Reading endorsement material.</li>
 <li><strong>Controlled materials:</strong> examine the Workshop Manual, Facilitator Manual, both application forms, timetable and IP pledge reference linked on the Auditor Board. The manuals document the workshop presentation; steps 32-35 are online interactions.</li>

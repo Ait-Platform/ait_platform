@@ -1,0 +1,23 @@
+{% extends 'layout.html' %}
+{% block flashes %}{% endblock %}
+{% block content %}
+<div class="max-w-5xl mx-auto px-4 py-8"><div class="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
+<div class="h-2 bg-indigo-700"></div><div class="p-6 space-y-6">
+<div class="flex items-center justify-between gap-4"><h1 class="text-2xl font-bold text-slate-800">Workshop Online Interaction &amp; Assessment</h1><a class="border bg-indigo-700 text-white border-indigo-700 hover:bg-indigo-800 rounded px-4 py-2" href="{{ url_for('sace_bp.reading_hub') }}">Back to Auditor Board</a></div>
+{% include 'partials/flash_messages.html' %}
+<p>Examine the workshop instruments below. No participant answers or pass mark are required for this endorsement examination.</p>
+<div data-workshop-evidence="fixed" class="space-y-6">
+{% for number,title,questions in ((32,'Facilitator Evaluation',instrument.FACILITATOR_QUESTIONS),(33,'Participant Workshop Experience',instrument.EXPERIENCE_QUESTIONS)) %}
+<section class="border border-slate-200 rounded-lg p-5"><h2 class="text-xl font-semibold">Step {{ number }} &mdash; {{ title }}</h2>
+<ol class="list-decimal list-inside space-y-3">{% for key,label in questions %}<li>{{ label }}</li>{% endfor %}</ol>
+<p class="mt-3">Response choices: {{ instrument.CHOICES|join(', ') }}.</p>
+{% if number == 32 %}<p class="mt-3">Optional comment: Is there anything you would like us to know about your facilitator?</p>{% endif %}
+</section>{% endfor %}
+<section class="border border-slate-200 rounded-lg p-5"><h2 class="text-xl font-semibold">Step 34 &mdash; Longitudinal Research</h2>
+<p>This research aims to determine whether use of the LITRE method continues after the workshop. Participants may be invited in future years to answer a short follow-up question.</p>
+<p>Will you use the LITRE method when you return to school?</p><p>Response choices: Yes, No.</p></section>
+<section class="border border-slate-200 rounded-lg p-5"><h2 class="text-xl font-semibold">Step 35 &mdash; Workshop Post-Test</h2>
+{% with examination_only=true %}{% include 'program_sace/_workshop_post_test_questions.html' %}{% endwith %}
+</section></div>
+</div></div></div>
+{% endblock %}

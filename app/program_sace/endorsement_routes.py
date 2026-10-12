@@ -232,12 +232,12 @@ def material(kind):
         db.session.commit()
         return response
     title, path = material_path(kind)
-    row = flow.assignment(lock=True) if kind in ('f_guide', 'p_guide') else None
+    row = flow.assignment(lock=True)
     response = render_template('program_sace/endorsement_material.html', doc_title=title,
         doc_url=url_for('sace_bp.material_content', kind=kind),
         viewed_url=url_for('sace_bp.material_viewed', kind=kind))
     if row is not None:
-        flow.record(row, kind, {'evidence': 'manual opened in controlled viewer for endorsement examination'}, once=True)
+        flow.record(row, kind, {'evidence': 'controlled material opened for endorsement examination'}, once=True)
         db.session.commit()
     return response
 
@@ -331,14 +331,12 @@ def demo_state(row):
 
 def demo():
     row = flow.assignment(lock=True)
-    state = demo_state(row)
-    flow.record(row, 'demo_entered', once=True)
-    db.session.commit()
-    if state['demo_step'] == 35:
-        return redirect(url_for('sace_bp.post_test_results' if flow.workshop_passed(row) else 'sace_bp.step35'))
     from . import workshop_interactions as instrument
-    return render_template('program_sace/endorsement_demo.html', step=state['demo_step'],
-        instrument=instrument)
+    response = render_template('program_sace/endorsement_workshop_evidence.html', instrument=instrument)
+    flow.record(row, 'demo_entered', once=True)
+    flow.record(row, 'demo_complete', {'evidence': 'Workshop Steps 32-35 instruments examined'}, once=True)
+    db.session.commit()
+    return response
 
 
 @sace_bp.post('/sace/reading/demo/advance')
@@ -574,7 +572,10 @@ def auditor_map():
         flow.record(row, 'map_reviewed', {'evidence': 'Activity Summary understood'}, once=True)
         db.session.commit()
         return redirect(url_for('sace_bp.reading_hub'))
-    return render_template('program_sace/endorsement_map.html')
+    response = render_template('program_sace/endorsement_map.html')
+    flow.record(row, 'map_reviewed', {'evidence': 'Activity Summary examined'}, once=True)
+    db.session.commit()
+    return response
 
 
 @sace_bp.get('/sace/reading/course')
@@ -584,9 +585,12 @@ def reading_course():
     lessons = flow.course_lessons()
     completed = {x['id'] for x in lessons if flow.latest(row, f"reading_lesson_{x['id']}_complete")}
     next_lesson = next((x['id'] for x in lessons if x['id'] not in completed), None)
-    db.session.commit()
-    return render_template('program_sace/endorsement_course.html', lessons=lessons,
+    response = render_template('program_sace/endorsement_course.html', lessons=lessons,
                            completed=completed, next_lesson=next_lesson)
+    if len(lessons) == 18 and len({x['order'] for x in lessons}) == 18:
+        flow.record(row, 'reading_complete', {'evidence': 'Reading course evidence catalogue examined'}, once=True)
+    db.session.commit()
+    return response
 
 
 def course_lesson(row, lesson_id):

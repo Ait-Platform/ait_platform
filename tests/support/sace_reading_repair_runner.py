@@ -117,6 +117,13 @@ class ReadingRepair(unittest.TestCase):
         self.assertIsNone(self.event("demo_slide_1"))
         self.assertIsNone(self.event("step31"))
 
+    def legacy_workshop_page(self, step):
+        from flask import render_template
+        from app.program_sace import workshop_interactions as instrument
+        with self.app.test_request_context('/sace/reading/simulator'):
+            return self.app.make_response(render_template('program_sace/endorsement_demo.html',
+                step=step, instrument=instrument))
+
     def workshop(self):
         self.slides()
         self.step(32, answers=dict(method_clear='Yes', activities_clear='Unsure', helpful_guidance='No'))
@@ -128,6 +135,117 @@ class ReadingRepair(unittest.TestCase):
         self.assertNotIn(b"Back to Auditor Board", response.data)
         response = self.client.post("/sace/reading/step35", data=dict(q1="B",q2="B",q3="C",q4="A"))
         self.assertEqual(response.location, "/sace/reading/post_test/results")
+
+    def test_fixed_package_all_nine_milestones_on_authorized_entry(self):
+        from app.program_sace import certification as cert
+        lessons = [dict(id=i, order=i, title=f'Video {i}', caption='', video_filename=f'{i}.mp4') for i in range(1, 19)]
+        paths = ('/sace/reading/auditor-map', '/sace/secure_view/app_form',
+            '/sace/secure_view/app_form_2', '/sace/secure_view/f_guide',
+            '/sace/secure_view/p_guide', '/sace/secure_view/ip_pledge',
+            '/sace/secure_view/timetable', '/sace/reading/simulator', '/sace/reading/course')
+        ordinary = self.app.test_client()
+        with patch.object(flow, 'course_lessons', return_value=lessons):
+            self.assertEqual(self.client.get('/sace/reading').status_code, 200)
+            for (slug, title, _, _), path in zip(cert.BOARD_ITEMS, paths):
+                with self.subTest(item=slug):
+                    self.assertIsNone(self.event(slug))
+                    self.assertEqual(ordinary.get(path).status_code, 302)
+                    self.assertIsNone(self.event(slug))
+                    page = self.client.get(path)
+                    self.assertEqual(page.status_code, 200)
+                    self.assertIsNotNone(self.event(slug))
+                    self.assertEqual(self.client.get(path).status_code, 200)
+                    with self.app.app_context():
+                        events = flow.events(db.session.get(h.Interaction, self.assignment_id))
+                        self.assertEqual(sum(event.activity_slug == slug for event in events), 1)
+                    board = self.client.get('/sace/reading').data.decode()
+                    row_html = next(row for row in re.findall(r'<tr[^>]*>(.*?)</tr>', board, re.S) if title in unescape(row))
+                    self.assertIn('Examined', row_html)
+            with self.app.app_context():
+                row = db.session.get(h.Interaction, self.assignment_id)
+                self.assertTrue(cert.available(row))
+                self.assertEqual(flow.completion_requirements(row), [cert.SLUG])
+                self.assertFalse(flow.workshop_passed(row))
+                self.assertFalse(flow.course_complete(row))
+                self.assertFalse(flow.step35_passed(row))
+                self.assertNotIn('workshop_certificate_id', flow.payload(row))
+                self.assertNotIn('reading_certificate_id', flow.payload(row))
+            for slug in ('step31', 'step32', 'step33', 'step34', 'step35', 'workshop_survey', 'workshop_certificate', 'reading_certificate'):
+                self.assertIsNone(self.event(slug))
+            for i in range(1, 19):
+                for suffix in ('opened', 'served', 'complete'):
+                    self.assertIsNone(self.event(f'reading_lesson_{i}_{suffix}'))
+
+    def test_fixed_package_missing_material_and_incomplete_catalogue_are_not_examined(self):
+        from werkzeug.exceptions import NotFound
+        for kind in ('app_form', 'app_form_2', 'f_guide', 'p_guide', 'timetable'):
+            with patch.object(r, 'material_path', side_effect=NotFound()):
+                self.assertEqual(self.client.get('/sace/secure_view/' + kind).status_code, 404)
+            self.assertIsNone(self.event(kind))
+        lessons = [dict(id=i, order=i, title=f'Video {i}', caption='', video_filename=f'{i}.mp4') for i in range(1, 18)]
+        with patch.object(flow, 'course_lessons', return_value=lessons):
+            self.assertEqual(self.client.get('/sace/reading/course').status_code, 200)
+            self.assertIsNone(self.event('reading_complete'))
+
+    def test_fixed_package_examination_is_assignment_scoped(self):
+        from app.program_sace import certification as cert, lifecycle as lc
+        self.client.get('/sace/reading/auditor-map')
+        self.client.get('/sace/secure_view/app_form')
+        self.client.get('/sace/reading/simulator')
+        lessons = [dict(id=i, order=i, title=f'Video {i}', caption='', video_filename=f'{i}.mp4') for i in range(1, 19)]
+        with patch.object(flow, 'course_lessons', return_value=lessons):
+            self.client.get('/sace/reading/course')
+        other_uid = self.user('other-fixed-auditor@example.test')
+        with self.app.app_context():
+            original = db.session.get(h.Interaction, self.assignment_id)
+            link = db.session.get(lc.AssignmentContext, original.id)
+            appointment = db.session.get(lc.Appointment, link.issuing_appointment_id)
+            other = h.Interaction(user_id=original.user_id, activity_slug='auditor_provisioned',
+                response_data=h.json.dumps({'status': 'Claimed', 'claimed_by_user_id': other_uid, 'demo_step': 0}))
+            db.session.add(other); db.session.flush()
+            lc.link_assignment(other, appointment, appointment.provisioning_event_id)
+            db.session.commit()
+            for slug, *_ in cert.BOARD_ITEMS:
+                self.assertIsNone(flow.latest(other, slug))
+        client = self.app.test_client()
+        self.login(client, 'other-fixed-auditor@example.test', '/sace/reading')
+        page = client.get('/sace/reading')
+        self.assertEqual(page.status_code, 200)
+        self.assertEqual(page.data.count(b'>Outstanding</td>'), 10)
+
+    def test_fixed_workshop_instruments_preserve_history_and_do_not_award_achievements(self):
+        from app.program_sace import workshop_interactions as instrument
+        with self.app.app_context():
+            row = db.session.get(h.Interaction, self.assignment_id)
+            for slug, values in (('step34', {'score': 25, 'passed': False}),
+                    ('workshop_certificate', {'certificate_id': 'HISTORICAL'})):
+                db.session.add(h.Interaction(user_id=flow.payload(row)['claimed_by_user_id'],
+                    workshop_session_id=flow.room(row), activity_slug=slug, response_data=h.json.dumps(values)))
+            db.session.commit()
+            history = [(e.id, e.activity_slug, e.response_data, e.timestamp) for e in flow.events(row)]
+            original_state = flow.payload(row)
+        with patch.object(r, 'certificate_presentation', side_effect=AssertionError('No personal certificate')),                 patch.object(r, 'certificate_pdf', side_effect=AssertionError('No personal certificate')):
+            page = self.client.get('/sace/reading/simulator')
+            self.assertEqual(page.status_code, 200)
+            html = page.data.decode()
+            for _, label in instrument.FACILITATOR_QUESTIONS + instrument.EXPERIENCE_QUESTIONS:
+                self.assertIn(label, html)
+            for text in ('Will you use the LITRE method when you return to school?',
+                    'What is the purpose of the LITRE blending-machine concept?',
+                    "What is the teacher's role during guided practice?", 'Why is repetition important in catch-up reading?'):
+                self.assertIn(text, html)
+            fixed = html.split('data-workshop-evidence="fixed"', 1)[1].split('</section></div>', 1)[0]
+            self.assertNotRegex(fixed, r'<(?:form|input|textarea|button)\b')
+            self.assertNotIn('Submit workshop MCQ', html)
+            self.assertNotIn('Email workshop certificate', html)
+            self.assertNotIn('Your Workshop Certificate', html)
+            self.assertEqual(self.client.get('/sace/reading/simulator').status_code, 200)
+        with self.app.app_context():
+            row = db.session.get(h.Interaction, self.assignment_id)
+            old_ids = {entry[0] for entry in history}
+            self.assertEqual(history, [(e.id, e.activity_slug, e.response_data, e.timestamp) for e in flow.events(row) if e.id in old_ids])
+            self.assertEqual(flow.payload(row).get('demo_step'), original_state.get('demo_step'))
+            self.assertFalse(flow.workshop_passed(row))
 
     def test_entry_pledge_marks_reference_examined_without_duplicate_evidence(self):
         with self.app.app_context():
@@ -184,7 +302,7 @@ class ReadingRepair(unittest.TestCase):
             self.assertIn(b'id="document-viewer" class="h-[70vh] overflow-auto"', page.data)
             self.assertIn(b'getViewport({scale:fitScale*zoom})', page.data)
             self.assertNotRegex(page.data.decode(), r'<(?:a|button)[^>]*(?:download|print|export)')
-            self.assertIn(b"headers:{'X-CSRFToken':", page.data)
+            self.assertNotIn(b'fetch(', page.data)
             ordinary = self.app.test_client()
             self.assertNotEqual(ordinary.get('/sace/secure_view/' + kind).status_code, 200)
             self.assertNotEqual(ordinary.get('/sace/material/' + kind + '/content').status_code, 200)
@@ -209,41 +327,28 @@ class ReadingRepair(unittest.TestCase):
                 self.assertIn('zoomFit.onclick=()=>{if(!busy){zoom=1;show();}}', html)
                 self.assertNotIn('getViewport({scale:2})', html)
                 self.assertNotIn('getViewport({scale:1.3})', html)
-                if kind in ('app_form', 'app_form_2'):
-                    self.assertIn('name="action" value="return_to_board"', html)
-                    self.assertNotIn('seen.size===pdf.numPages', html)
-                else:
-                    self.assertIn('href="/sace/reading">Return to Auditor Board', html)
+                self.assertNotIn('seen.size===pdf.numPages', html)
+                self.assertNotIn('name="action" value="return_to_board"', html)
+                self.assertIn('href="/sace/reading">Return to Auditor Board', html)
                 self.assertNotRegex(html, r'<(?:a|button)[^>]*(?:download|print|export)')
 
-    def test_application_forms_return_acknowledges_once_without_page_traversal(self):
+    def test_application_forms_entry_records_once_without_acknowledgement(self):
         for kind, title in (('app_form', 'Application Form 1'), ('app_form_2', 'Application Form 2')):
             with self.subTest(kind=kind):
-                target = '/sace/material/' + kind + '/viewed'
+                self.assertIsNone(self.event(kind))
                 page = self.client.get('/sace/secure_view/' + kind)
                 self.assertEqual(page.status_code, 200)
-                self.assertIsNone(self.event(kind))
+                self.assertIsNotNone(self.event(kind))
                 self.assertNotIn(b'seen.size===pdf.numPages', page.data)
-                self.assertIn(('action="' + target + '"').encode(), page.data)
-                self.assertIn(b'name="csrf_token"', page.data)
-                self.assertEqual(self.client.post(target, data={'action': 'return_to_board'}).status_code, 409)
-                with self.client.get('/sace/material/' + kind + '/content') as content:
-                    self.assertEqual(content.status_code, 200)
-                self.assertIsNone(self.event(kind))
-                with patch.dict(self.app.config, {'WTF_CSRF_ENABLED': True}):
-                    self.assertEqual(self.client.post(target, data={'action': 'return_to_board'}).status_code, 400)
-                response = self.client.post(target, data={'action': 'return_to_board'})
-                self.assertEqual(response.status_code, 302)
-                self.assertEqual(response.location, '/sace/reading')
-                board = self.client.get(response.location).data.decode()
+                self.assertNotIn(b'form method="post"', page.data)
+                self.assertIn(b'href="/sace/reading">Return to Auditor Board', page.data)
+                with self.app.app_context():
+                    event = flow.latest(db.session.get(h.Interaction, self.assignment_id), kind)
+                    original = (event.id, event.timestamp, event.response_data)
+                board = self.client.get('/sace/reading').data.decode()
                 row_html = next(row for row in re.findall(r'<tr[^>]*>(.*?)</tr>', board, re.S) if title in row)
                 self.assertIn('Examined', row_html)
-                with self.app.app_context():
-                    row = db.session.get(h.Interaction, self.assignment_id)
-                    event = flow.latest(row, kind)
-                    original = (event.id, event.timestamp, event.response_data)
                 self.assertEqual(self.client.get('/sace/secure_view/' + kind).status_code, 200)
-                self.assertEqual(self.client.post(target, data={'action': 'return_to_board'}).status_code, 302)
                 with self.app.app_context():
                     events = [event for event in flow.events(db.session.get(h.Interaction, self.assignment_id)) if event.activity_slug == kind]
                     self.assertEqual(len(events), 1)
@@ -251,7 +356,7 @@ class ReadingRepair(unittest.TestCase):
         for kind in ('f_guide', 'p_guide', 'timetable', 'demo_complete', 'reading_complete'):
             self.assertIsNone(self.event(kind))
         ordinary = self.app.test_client()
-        self.assertNotEqual(ordinary.post('/sace/material/app_form/viewed', data={'action': 'return_to_board'}).status_code, 200)
+        self.assertEqual(ordinary.get('/sace/secure_view/app_form').status_code, 302)
 
     def test_manual_open_marks_examined_once_without_page_traversal(self):
         for kind, title in (('f_guide', 'Facilitator Manual'), ('p_guide', 'Workshop Manual')):
@@ -277,7 +382,7 @@ class ReadingRepair(unittest.TestCase):
                     self.assertEqual(before, (records[0].id, records[0].response_data, records[0].timestamp))
         for kind in ('app_form', 'app_form_2', 'timetable'):
             self.assertEqual(self.client.get('/sace/secure_view/' + kind).status_code, 200)
-            self.assertIsNone(self.event(kind))
+            self.assertIsNotNone(self.event(kind))
 
     def test_manual_examination_does_not_transfer_to_another_assignment(self):
         for kind in ('f_guide', 'p_guide'):
@@ -917,11 +1022,7 @@ class ReadingRepair(unittest.TestCase):
         for kind in ('app_form', 'app_form_2', 'f_guide', 'p_guide', 'timetable'):
             page = self.client.get('/sace/secure_view/' + kind)
             returns = [a for a in Anchors(page.data).items if a['href'] == '/sace/reading']
-            if kind in ('app_form', 'app_form_2'):
-                self.assertIn(('action="/sace/material/' + kind + '/viewed"').encode(), page.data)
-                self.assertIn(b'>Return to Auditor Board</button>', page.data)
-            else:
-                self.assertEqual([a['text'] for a in returns], ['Return to Auditor Board'])
+            self.assertEqual([a['text'] for a in returns], ['Return to Auditor Board'])
         self.assertNotIn(b'Back to Auditor Board', self.client.get('/sace/reading').data)
         with self.app.app_context():
             db.session.add(h.SaceDocument(slug='reading', document_type='timetable',
@@ -1159,8 +1260,8 @@ class ReadingRepair(unittest.TestCase):
         pledge = (ROOT/"templates/program_sace/auditor_pledge.html").read_text(encoding="utf-8")
         self.assertNotIn("About AIT Submission",pledge)
         response=self.client.get("/sace/reading/auditor-map")
-        self.assertEqual(Anchors(response.data).items,[])
-        self.assertIsNone(self.event("map_reviewed"))
+        self.assertEqual(Anchors(response.data).items,[dict(href="/sace/reading", text="Back to Auditor Board")])
+        self.assertIsNotNone(self.event("map_reviewed"))
         self.assertEqual(self.client.post("/sace/reading/auditor-map").location,"/sace/reading")
         self.assertIsNotNone(self.event("map_reviewed"))
         self.assertIn(b"Examined",self.client.get("/sace/reading").data)
@@ -1207,7 +1308,7 @@ class ReadingRepair(unittest.TestCase):
         self.step(34,intention_to_use='No')
         self.assertEqual(self.event('step33')['intention_to_use'],'No')
         self.assertNotIn('score',self.event('step33'))
-        self.assertIsNone(self.event('demo_complete'))
+        self.assertIsNotNone(self.event('demo_complete'))
         self.assertEqual(self.client.post('/sace/reading/demo/advance',json={'step':34}).status_code,409)
         response=self.client.post('/sace/reading/step35',data=dict(q1='B',q2='B',q3='C',q4='A'))
         self.assertEqual(response.location,'/sace/reading/post_test/results')
@@ -1221,7 +1322,7 @@ class ReadingRepair(unittest.TestCase):
         self.step(32,answers={key:'Yes' for key,_ in instrument.FACILITATOR_QUESTIONS})
         self.assertEqual(self.event('step31')['comment'],'')
         self.step(33,answers={key:'No' for key,_ in instrument.EXPERIENCE_QUESTIONS})
-        page=self.client.get('/sace/reading/simulator')
+        page=self.legacy_workshop_page(34)
         self.assertIn(b'Longitudinal Research',page.data)
         for field in ('province','school','district','grades','workshop_date','cohort','teaching_experience'):
             self.assertNotIn(('name="'+field+'"').encode(),page.data)
@@ -1466,7 +1567,7 @@ class ReadingRepair(unittest.TestCase):
         lessons = [dict(id=i, order=i, title=f'Fixture {i}', caption='', video_filename=f'{i}.mp4') for i in range(1, 19)]
         with patch.object(flow, 'course_lessons', return_value=lessons):
             self.assertEqual(self.client.get('/sace/reading/course').status_code, 200)
-            self.assertIsNone(self.event('reading_complete'))
+            self.assertIsNotNone(self.event('reading_complete'))
             self.assertEqual(self.client.get('/sace/reading/course/12').status_code, 200)
             self.assertEqual(self.client.post('/sace/reading/course/12', json={'examined': True}).status_code, 409)
             with patch('app.utils.reading_media.verify_reading_video'):
@@ -1481,7 +1582,7 @@ class ReadingRepair(unittest.TestCase):
                 self.assertFalse(flow.course_complete(row))
                 self.assertFalse(flow.step35_passed(row))
             self.assertEqual(self.client.post('/sace/reading/course/12', json={'examined': True}).status_code, 200)
-            self.assertEqual(self.event('reading_complete')['lesson_id'], 12)
+            self.assertEqual(self.event('reading_complete')['evidence'], 'Reading course evidence catalogue examined')
             for i in range(1, 19):
                 if i != 12:
                     self.assertIsNone(self.event(f'reading_lesson_{i}_complete'))
@@ -1591,7 +1692,7 @@ class ReadingRepair(unittest.TestCase):
             for slug,values in [('step32',{'engagement':list(flow.ENGAGEMENT)}),('step33',{'instrument':'existing-baseline-v1'}),('step34',{'score':100,'passed':True}),('workshop_certificate',{'certificate_id':'EXISTING'})]:
                 db.session.add(h.Interaction(user_id=2,workshop_session_id=flow.room(row),activity_slug=slug,response_data=h.json.dumps(values)))
             db.session.commit()
-        self.assertEqual(self.client.get('/sace/reading/simulator').location,'/sace/reading/post_test/results')
+        self.assertEqual(self.client.get('/sace/reading/simulator').status_code,200)
         self.assertEqual(self.event('step33')['instrument'],'existing-baseline-v1')
         self.assertEqual(self.event('workshop_certificate')['certificate_id'],'EXISTING')
         self.assertIn(b'Email workshop certificate',self.client.get('/sace/reading/post_test/results').data)
@@ -1610,7 +1711,7 @@ class ReadingRepair(unittest.TestCase):
         result=self.client.post("/sace/reading/step35",data={f"q{i}":"D" for i in range(1,5)})
         self.assertEqual(result.location,"/sace/reading/step35")
         self.assertFalse(self.event("step34")["passed"])
-        self.assertIsNone(self.event("demo_complete"))
+        self.assertIsNotNone(self.event("demo_complete"))
 
 
     def test_workshop_certificate_has_actual_ait_semantics(self):

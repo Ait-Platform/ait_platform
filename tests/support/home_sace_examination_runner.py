@@ -688,6 +688,13 @@ class HomeExamination(unittest.TestCase):
         for kind in ('application_form_1', 'application_form_2', 'participant_manual', 'facilitator_manual', 'timetable'):
             html = self.auditor.get(self.base+'/materials/'+kind).data.decode()
             self.assertNotIn('>Examined</button>', html)
+            self.assertIn('id="document-controls" class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 my-4"',html)
+            self.assertIn('aria-label="Document zoom"',html)
+            self.assertIn('&minus;</button>',html)
+            for control in ('zoom-out','zoom-fit','zoom-in'):
+                self.assertIn('id="'+control+'"',html)
+            if kind!='timetable':
+                self.assertLess(html.index('document-pagination'),html.index('aria-label="Document zoom"'))
             script = re.search(r'<script>\s*(.*?)\s*</script>', html, re.S).group(1)
             if kind == 'timetable':
                 self.assertNotIn('document-pagination', html)
@@ -699,10 +706,13 @@ const assert=require('node:assert/strict');
 const total=TOTAL,timetable=TIMETABLE;
 const controls={children:[],replaceChildren(){this.children=[];},appendChild(x){this.children.push(x);}};
 const status={}; const canvas={getContext:()=>({})};
-global.document={getElementById:id=>id==='document'?canvas:status,
+const viewer={clientWidth:900,clientHeight:600,scrollTop:10,scrollLeft:10};
+const out={},fit={},plus={};
+const elements={'document':canvas,'document-viewer':viewer,'document-status':status,'zoom-out':out,'zoom-fit':fit,'zoom-in':plus};
+global.document={getElementById:id=>elements[id],
  querySelector:()=>{assert.equal(timetable,false);return controls;},createElement:tag=>({tag,textContent:''})};
 global.pdfjsLib={GlobalWorkerOptions:{},getDocument:()=>({promise:Promise.resolve({numPages:total,
- getPage:async()=>({getViewport:()=>({width:600,height:800}),render:()=>({promise:Promise.resolve()})})})})};
+ getPage:async()=>({getViewport:({scale})=>({width:600*scale,height:800*scale}),render:()=>({promise:Promise.resolve()})})})})};
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
 function check(page){
  if(timetable){assert.equal(controls.children.length,0);return;}
@@ -712,6 +722,16 @@ function check(page){
  assert.ok(texts.includes(`Page ${page} of ${total}`));
 }
 (async()=>{await eval(SCRIPT);check(1);
+ const fittedWidth=canvas.width,fittedHeight=canvas.height;
+ assert.ok(fittedWidth<=viewer.clientWidth-4);assert.ok(fittedHeight<=viewer.clientHeight-4);
+ assert.equal(viewer.scrollTop,0);assert.equal(viewer.scrollLeft,0);
+ assert.equal(out.disabled,false);assert.equal(plus.disabled,false);assert.equal(fit.disabled,false);
+ plus.onclick();await tick();check(1);assert.ok(canvas.width>fittedWidth);
+ fit.onclick();await tick();check(1);assert.equal(canvas.width,fittedWidth);assert.equal(canvas.height,fittedHeight);
+ out.onclick();await tick();check(1);assert.ok(canvas.width<fittedWidth);
+ for(let i=0;i<10;i++){out.onclick();await tick();}assert.equal(out.disabled,true);assert.equal(canvas.width,fittedWidth*0.5);
+ for(let i=0;i<20;i++){plus.onclick();await tick();}assert.equal(plus.disabled,true);assert.equal(canvas.width,fittedWidth*3);
+ fit.onclick();await tick();check(1);assert.equal(canvas.width,fittedWidth);
  if(!timetable){for(let page=2;page<=total;page++){controls.children.find(x=>x.textContent==='Next').onclick();await tick();check(page);}
  for(let page=total-1;page>=1;page--){controls.children.find(x=>x.textContent==='Previous').onclick();await tick();check(page);}}
 })().catch(e=>{console.error(e);process.exitCode=1;});

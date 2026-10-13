@@ -16,4 +16,5 @@ sys.path.insert(0, str(ROOT))
 
 # now import the real app
 from app import create_app
-app = create_app()
+# Web workers must not perform migrations or boot-time database repairs.
+app = create_app(operator_mode=True)

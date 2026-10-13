@@ -974,6 +974,17 @@ def register_decision():
     # Route directly to the payment gateway.
     return redirect(url_for("paystack_bp.paystack_start", email=user_email, subject=subject, debug=0))
 
+@auth_bp.after_request
+def protect_login_response(response):
+    if request.endpoint == "auth_bp.login":
+        # A form token belongs to one session; never cache/reuse login responses.
+        response.headers["Cache-Control"] = "private, no-store, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+        response.vary.add("Cookie")
+    return response
+
+
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login():
     from app.program_sace.access import prepare_provisioning_auth

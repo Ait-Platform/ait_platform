@@ -1,37 +1,48 @@
-"""Administrator-only, read-only access to the existing PM lease review."""
+"""Property Management lease workspace with property-scoped private review access."""
 from io import BytesIO
 from pathlib import Path
 
 from flask import abort, current_app, render_template, request, send_file
 from flask_login import current_user
 from jinja2 import ChoiceLoader, FileSystemLoader
-from sqlalchemy import String, cast, func, select
+from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.admin import admin_bp
+from app.program_billing.routes import billing_bp
 from app.extensions import db
-from app.models.auth import ApprovedAdmin, User
+from app.models.auth import User
+from app.models.billing import BilProperty
 from app.program_billing.lease_documents import (
     PDF_NAME, WORD_NAME, ReviewDocumentUnavailable, read_review_pair,
 )
 
 STATUS = "DRAFT — NOT FOR SIGNATURE OR ISSUANCE"
-ENDPOINTS = {"admin_bp.pm_lease_management", "admin_bp.pm_lease_preview", "admin_bp.pm_lease_word"}
+ENDPOINTS = {"billing_bp.pm_lease_management", "billing_bp.pm_lease_preview", "billing_bp.pm_lease_word"}
 
 
-def require_lease_admin():
-    # Fresh scalar query: neither cached roles nor session admin flags grant access.
+def require_pm_user():
     if not current_user.is_authenticated:
         abort(403)
-    statement = (select(User.id)
-        .join(ApprovedAdmin, func.lower(ApprovedAdmin.email) == func.lower(User.email))
-        .where(User.id == current_user.id, User.is_active == 1, cast(ApprovedAdmin.active, String).in_(("true", "1"))))
+    statement = select(User.id).where(User.id == current_user.id, User.is_active == 1)
     try:
         allowed = db.session.execute(statement.execution_options(autoflush=False)).scalar_one_or_none()
     except SQLAlchemyError:
-        abort(503, description="Administrative access could not be verified.")
+        abort(503, description="Property Management access could not be verified.")
     if allowed is None:
         abort(403)
+
+
+def authorised_review_property():
+    # Explicit R01 association only; never infer a property from a user's identity.
+    configured = str(current_app.config.get("PM_LEASE_REVIEW_PROPERTY_ID", "")).strip()
+    if not configured.isdecimal() or int(configured) <= 0:
+        return None
+    statement = select(BilProperty.id).where(BilProperty.id == int(configured),
+        BilProperty.manager_id == current_user.id, BilProperty.is_archived == False)
+    try:
+        return db.session.execute(statement.execution_options(autoflush=False)).scalar_one_or_none()
+    except SQLAlchemyError:
+        abort(503, description="Property access could not be verified.")
 
 
 def render_pm_template(name, **context):
@@ -44,7 +55,7 @@ def render_pm_template(name, **context):
     return render_template(environment.get_template(name), **context)
 
 
-@admin_bp.after_request
+@billing_bp.after_request
 def protect_lease_responses(response):
     if request.endpoint in ENDPOINTS:
         response.headers["Cache-Control"] = "private, no-store"
@@ -53,20 +64,27 @@ def protect_lease_responses(response):
     return response
 
 
-@admin_bp.get("/billing/leases", endpoint="pm_lease_management")
+@billing_bp.get("/billing/leases", endpoint="pm_lease_management")
 def lease_management():
-    require_lease_admin()
-    available = True
-    try:
-        read_review_pair()
-    except ReviewDocumentUnavailable:
-        available = False
+    require_pm_user()
+    associated = authorised_review_property() is not None
+    available = associated
+    missing = False
+    if associated:
+        try:
+            read_review_pair()
+        except ReviewDocumentUnavailable:
+            available = False
+            missing = True
     return render_pm_template("program_billing/lease_management.html",
-        document_name=WORD_NAME, status=STATUS, available=available), 200 if available else 503
+        document_name=WORD_NAME if associated else None, status=STATUS,
+        available=available, associated=associated), 503 if missing else 200
 
 
 def deliver_review(filename, mimetype, *, attachment):
-    require_lease_admin()
+    require_pm_user()
+    if authorised_review_property() is None:
+        abort(404)
     try:
         content = read_review_pair()[filename]
     except ReviewDocumentUnavailable:
@@ -75,12 +93,12 @@ def deliver_review(filename, mimetype, *, attachment):
         download_name=filename, conditional=False, etag=False, max_age=0)
 
 
-@admin_bp.get("/billing/leases/preview", endpoint="pm_lease_preview")
+@billing_bp.get("/billing/leases/preview", endpoint="pm_lease_preview")
 def lease_preview():
     return deliver_review(PDF_NAME, "application/pdf", attachment=False)
 
 
-@admin_bp.get("/billing/leases/word", endpoint="pm_lease_word")
+@billing_bp.get("/billing/leases/word", endpoint="pm_lease_word")
 def lease_word():
     return deliver_review(WORD_NAME,
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document", attachment=True)

@@ -1,6 +1,7 @@
 """Isolated PM endpoint tests: no AIT factory, database, network or conversion."""
 import hashlib
 import importlib.util
+import ast
 from html.parser import HTMLParser
 from pathlib import Path
 import shutil
@@ -29,6 +30,13 @@ class User(Base):
     id = Column(Integer, primary_key=True)
     email = Column(String)
     is_active = Column(Integer)
+
+
+class BilProperty(Base):
+    __tablename__ = "bil_property"
+    id = Column(Integer, primary_key=True)
+    manager_id = Column(Integer)
+    is_archived = Column(Boolean)
 
 
 class ApprovedAdmin(Base):
@@ -65,18 +73,24 @@ class LeaseViewerTests(unittest.TestCase):
             self.original[name] = source.read_bytes()
             shutil.copyfile(source, self.private / "R01" / name)
         self.user_active = {1: True, 2: True, 3: True, 4: False}
-        self.grants = {1: True, 2: False, 3: False, 4: True}
+        self.properties = {11: {"manager_id": 1, "archived": False}, 12: {"manager_id": 1, "archived": False}, 22: {"manager_id": 2, "archived": False}}
+        self.sql_history = []
         self.database = types.SimpleNamespace(session=types.SimpleNamespace(execute=Mock(side_effect=self.authorize)))
         blueprint = Blueprint("admin_bp", __name__, url_prefix="/admin")
+        workspace = Blueprint("billing_bp", __name__)
+        for endpoint in ("utilities_hub", "bank_accounts", "property_portfolio"):
+            workspace.add_url_rule("/fixture/" + endpoint, endpoint=endpoint, view_func=lambda: "fixture")
         for endpoint in ("readings_enter", "readings_view", "readings_consumption", "muni_accounts", "billing_tariffs"):
             blueprint.add_url_rule("/fixture/" + endpoint, endpoint=endpoint, view_func=lambda: "fixture")
         modules = {}
-        for name in ("app", "app.admin", "app.extensions", "app.models", "app.models.auth", "app.program_billing", "app.admin.programs", "app.admin.programs.billing"):
+        for name in ("app", "app.admin", "app.extensions", "app.models", "app.models.auth", "app.models.billing", "app.program_billing", "app.admin.programs", "app.admin.programs.billing", "app.program_billing.routes"):
             modules[name] = types.ModuleType(name)
             modules[name].__path__ = []
         modules["app.admin"].admin_bp = blueprint
+        modules["app.program_billing.routes"].billing_bp = workspace
         modules["app.extensions"].db = self.database
         modules["app.models.auth"].User = User
+        modules["app.models.billing"].BilProperty = BilProperty
         modules["app.models.auth"].ApprovedAdmin = ApprovedAdmin
         metadata = Mock()
         metadata.name = "Property Management"
@@ -88,11 +102,13 @@ class LeaseViewerTests(unittest.TestCase):
         module_patch.start()
         self.addCleanup(module_patch.stop)
         self.storage = load("app.program_billing.lease_documents", ROOT / "app/program_billing/lease_documents.py")
-        self.routes = load("app.admin.programs.billing.lease_management", ROOT / "app/admin/programs/billing/lease_management.py")
+        self.routes = load("app.program_billing.lease_management", ROOT / "app/program_billing/lease_management.py")
         self.programs = load("pm_program_routes_isolated", ROOT / "app/admin/programs/routes.py")
         self.app = Flask("pm_lease_test", root_path=str(ROOT / "app"),
             instance_path=str(Path(self.temp.name) / "instance"), static_folder="static")
-        self.app.config.update(TESTING=True, SECRET_KEY="isolated-test", PM_LEASE_DOCUMENT_ROOT=str(self.private))
+        self.app.config.update(PM_LEASE_REVIEW_PROPERTY_ID=11, TESTING=True, SECRET_KEY="isolated-test", PM_LEASE_DOCUMENT_ROOT=str(self.private))
+        self.app.jinja_env.globals["csrf_token"] = lambda: "synthetic-token"
+        self.app.add_url_rule("/fixture/bridge", endpoint="auth_bp.bridge_dashboard", view_func=lambda: "fixture")
         self.app.jinja_loader = DictLoader({
             "layout.html": "{% block content %}{% endblock %}",
             "partials/flash_messages.html": "",
@@ -102,13 +118,28 @@ class LeaseViewerTests(unittest.TestCase):
         def identity(identifier):
             return Identity(int(identifier))
         self.app.register_blueprint(blueprint)
+        # Execute only the real learner_dashboard function, never the large route module.
+        tree = ast.parse((ROOT / "app/program_billing/routes.py").read_text(encoding="utf-8"))
+        dashboard = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "learner_dashboard")
+        dashboard.decorator_list = []
+        namespace = {"get_dashboard_data": Mock(return_value=[])}
+        exec(compile(ast.Module(body=[dashboard], type_ignores=[]), "isolated-pm-dashboard", "exec"), namespace)
+        workspace.add_url_rule("/billing/dashboard", endpoint="learner_dashboard", view_func=namespace["learner_dashboard"])
+        self.app.register_blueprint(workspace)
         self.client = self.app.test_client()
 
     def authorize(self, statement):
         self.last_statement = str(statement.compile(compile_kwargs={"literal_binds": True}))
         identifier = current_user.id
-        allowed = self.user_active.get(identifier, False) and self.grants.get(identifier, False)
-        return types.SimpleNamespace(scalar_one_or_none=lambda: identifier if allowed else None)
+        self.sql_history.append(self.last_statement)
+        if "FROM bil_property" in self.last_statement:
+            property_id = int(self.app.config["PM_LEASE_REVIEW_PROPERTY_ID"])
+            prop = self.properties.get(property_id)
+            allowed = prop and prop["manager_id"] == identifier and not prop["archived"]
+            result = property_id if allowed else None
+        else:
+            result = identifier if self.user_active.get(identifier, False) else None
+        return types.SimpleNamespace(scalar_one_or_none=lambda: result)
 
     def sign_in(self, identifier, **flags):
         with self.client.session_transaction() as session:
@@ -117,7 +148,7 @@ class LeaseViewerTests(unittest.TestCase):
             session.update(flags)
 
     def paths(self):
-        return ["/admin/billing/leases", "/admin/billing/leases/preview", "/admin/billing/leases/word"]
+        return ["/billing/leases", "/billing/leases/preview", "/billing/leases/word"]
 
     def test_anonymous_denied_before_storage_or_database(self):
         with patch.object(self.routes, "read_review_pair", side_effect=AssertionError("must not read")):
@@ -132,29 +163,30 @@ class LeaseViewerTests(unittest.TestCase):
             self.sign_in(identifier, is_admin=True, role="admin", access_level="admin")
             with patch.object(self.routes, "read_review_pair", side_effect=AssertionError("must not read")):
                 for path in self.paths():
-                    self.assertEqual(self.client.get(path).status_code, 403)
+                    self.assertEqual(self.client.get(path).status_code, 200 if path == self.paths()[0] else 404)
 
-    def test_inactive_user_denied_even_with_active_admin_grant(self):
+    def test_inactive_user_denied(self):
         self.sign_in(4)
         for path in self.paths():
             self.assertEqual(self.client.get(path).status_code, 403)
 
-    def test_revoked_admin_denied_on_every_endpoint(self):
+    def test_unassociated_sample_hidden_on_every_endpoint(self):
         self.sign_in(1)
         self.assertEqual(self.client.get(self.paths()[0]).status_code, 200)
-        self.grants[1] = False
+        self.app.config.pop("PM_LEASE_REVIEW_PROPERTY_ID", None)
         for path in self.paths():
-            self.assertEqual(self.client.get(path).status_code, 403)
+            self.assertEqual(self.client.get(path).status_code, 200 if path == self.paths()[0] else 404)
 
-    def test_authorization_query_checks_current_database_identity_and_active_grant(self):
+    def test_authorization_query_checks_active_identity_without_admin_grant(self):
         self.sign_in(1)
         self.client.get(self.paths()[0])
-        sql = self.last_statement
-        self.assertIn('JOIN auth_approved_admin', sql)
-        self.assertIn('lower(auth_approved_admin.email) = lower("user".email)', sql)
+        sql = self.sql_history[0]
+        self.assertNotIn('auth_approved_admin', sql)
         self.assertIn('"user".id = 1', sql)
         self.assertIn('"user".is_active = 1', sql)
-        self.assertIn("CAST(auth_approved_admin.active AS VARCHAR) IN ('true', '1')", sql)
+        self.assertIn("bil_property.id = 11", self.sql_history[1])
+        self.assertIn("bil_property.manager_id = 1", self.sql_history[1])
+        self.assertIn("bil_property.is_archived = false", self.sql_history[1])
 
     def test_database_failure_fails_closed(self):
         self.sign_in(1)
@@ -172,9 +204,9 @@ class LeaseViewerTests(unittest.TestCase):
         self.assertIn("Lease_Review_Draft_R01.docx", html)
         self.assertIn("View Lease", html)
         self.assertIn("Download Word", html)
-        self.assertIn('href="/admin/billing/"', html)
-        self.assertIn('href="/admin/billing/leases/preview"', html)
-        self.assertIn('href="/admin/billing/leases/word"', html)
+        self.assertIn('href="/billing/dashboard"', html)
+        self.assertIn('href="/billing/leases/preview"', html)
+        self.assertIn('href="/billing/leases/word"', html)
 
     def test_pdf_is_exact_verified_word_preview_not_historical_lease(self):
         self.sign_in(1)
@@ -240,31 +272,69 @@ class LeaseViewerTests(unittest.TestCase):
         self.sign_in(1)
         for path in ["/static/pm_lease_documents/R01/Lease_Review_Draft_R01.docx",
                      "/static/pdf/pm/Lease_Review_Draft_R01.pdf",
-                     "/admin/billing/leases/word/other.docx", "/admin/billing/leases/preview/../word"]:
+                     "/billing/leases/word/other.docx", "/billing/leases/preview/../word"]:
             self.assertEqual(self.client.get(path).status_code, 404)
         for path in self.paths():
             self.assertEqual(self.client.post(path).status_code, 405)
 
     def test_real_pm_dashboard_links_to_viewer_and_back_without_startup(self):
         self.sign_in(1)
-        response = self.client.get("/admin/billing/")
+        response = self.client.get("/billing/dashboard")
         self.assertEqual(response.status_code, 200)
         html = response.get_data(as_text=True)
-        self.assertIn('href="/admin/billing/leases"', html)
+        self.assertIn('href="/billing/leases"', html)
         self.assertIn('Open Lease Management', html)
         self.assertEqual(html.count('Under Development'), 2)
-        page = self.client.get('/admin/billing/leases').get_data(as_text=True)
-        self.assertIn('href="/admin/billing/"', page)
+        page = self.client.get('/billing/leases').get_data(as_text=True)
+        self.assertIn('href="/billing/dashboard"', page)
 
-    def test_admin_tile_only_and_other_modules_remain_inactive(self):
+    def test_workspace_tile_and_other_modules_remain_inactive(self):
         env = Environment(loader=DictLoader({"tiles": (ROOT / "templates/program_billing/dashboard_tiles.html").read_text(encoding="utf-8")}))
         env.globals['url_for'] = lambda endpoint, **kwargs: '/fixture/' + endpoint
         for admin in (True, False):
-            html = env.get_template("tiles").render(pm_admin_dashboard=admin)
+            html = env.get_template("tiles").render(pm_admin_dashboard=admin, lease_workspace=admin)
             self.assertEqual('Open Lease Management' in html, admin)
             self.assertEqual(html.count('Under Development'), 2)
             self.assertNotIn('muni_recon_statement', html)
             self.assertNotIn('tenant_accounts', html)
+
+
+    def test_all_active_users_can_open_workspace_but_not_other_properties_review(self):
+        self.sign_in(2)
+        page = self.client.get(self.paths()[0])
+        self.assertEqual(page.status_code, 200)
+        html = page.get_data(as_text=True)
+        self.assertNotIn(self.storage.WORD_NAME, html)
+        self.assertNotIn("Download Word", html)
+        self.assertNotIn("View Lease", html)
+        for path in self.paths()[1:]:
+            self.assertEqual(self.client.get(path + "?property_id=22&user_id=1").status_code, 404)
+
+    def test_each_associated_property_requires_current_manager_and_unarchived_record(self):
+        self.sign_in(1)
+        for property_id in (11, 12):
+            self.app.config["PM_LEASE_REVIEW_PROPERTY_ID"] = property_id
+            self.assertEqual(self.client.get(self.paths()[1]).status_code, 200)
+        for property_id in (22, 999):
+            self.app.config["PM_LEASE_REVIEW_PROPERTY_ID"] = property_id
+            self.assertEqual(self.client.get(self.paths()[1]).status_code, 404)
+        self.app.config["PM_LEASE_REVIEW_PROPERTY_ID"] = 11
+        self.properties[11]["archived"] = True
+        self.assertEqual(self.client.get(self.paths()[1]).status_code, 404)
+
+    def test_sample_without_valid_property_association_never_reads_files(self):
+        self.sign_in(1)
+        for value in (None, "", "invalid", 0, -1):
+            self.app.config["PM_LEASE_REVIEW_PROPERTY_ID"] = value
+            with patch.object(self.routes, "read_review_pair", side_effect=AssertionError("must not read")):
+                self.assertEqual(self.client.get(self.paths()[0]).status_code, 200)
+                for path in self.paths()[1:]:
+                    self.assertEqual(self.client.get(path).status_code, 404)
+
+    def test_old_admin_document_routes_are_removed(self):
+        self.sign_in(1)
+        for path in self.paths():
+            self.assertEqual(self.client.get("/admin" + path).status_code, 404)
 
 
 class PageLinks(HTMLParser):
@@ -361,7 +431,7 @@ class RealTemplateLeaseViewerTests(LeaseViewerTests):
 
     def test_follow_dashboard_lease_preview_word_and_back_links(self):
         self.sign_in(1)
-        dashboard = self.client.get('/admin/billing/')
+        dashboard = self.client.get('/billing/dashboard')
         self.assertEqual(dashboard.status_code, 200)
         links = PageLinks(dashboard.get_data(as_text=True)).links
         page = self.client.get(links['Open Lease Management'])
@@ -384,7 +454,7 @@ class RealTemplateLeaseViewerTests(LeaseViewerTests):
             self.assertIsNone(package.testzip())
         back = self.client.get(lease_links['Back to Property Management'])
         self.assertEqual(back.status_code, 200)
-        self.assertIn('<title>Property Management</title>', back.get_data(as_text=True))
+        self.assertIn('<title>Property Management Dashboard</title>', back.get_data(as_text=True))
 
     def test_real_dashboard_metsoa_links_and_disabled_modules(self):
         self.sign_in(1)
@@ -401,10 +471,10 @@ class RealTemplateLeaseViewerTests(LeaseViewerTests):
         self.sign_in(1)
         html = self.client.get(self.paths()[0]).get_data(as_text=True)
         links = PageLinks(html).links
-        self.grants[1] = False
+        self.properties[11]["manager_id"] = 2
         for label in ('View Lease', 'Download Word'):
-            self.assertEqual(self.client.get(links[label]).status_code, 403)
-        self.assertEqual(self.client.get(self.paths()[0]).status_code, 403)
+            self.assertEqual(self.client.get(links[label]).status_code, 404)
+        self.assertEqual(self.client.get(self.paths()[0]).status_code, 200)
 
 
 if __name__ == "__main__":

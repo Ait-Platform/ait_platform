@@ -24,7 +24,7 @@ def subject_dashboard(subject: str):
         abort(404)
         
     if subject == "billing":
-        from app.admin.programs.billing.lease_management import render_pm_template
+        from app.program_billing.lease_management import render_pm_template
         return render_pm_template("admin/programs/billing/dashboard.html", subject=subject,
             subject_name=subj_obj.name, subj_obj=subj_obj)
 

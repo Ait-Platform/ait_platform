@@ -200,7 +200,9 @@ def learner_dashboard():
     # Normal GET show dashboard data
     data = get_dashboard_data()
 
-    return render_template("program_billing/manager_dashboard.html", data=data)
+    from app.program_billing.lease_management import render_pm_template
+    return render_pm_template("program_billing/manager_dashboard.html", data=data,
+        lease_workspace=True)
 
 from app.models.billing import BilLease, BilPayment
 
@@ -4117,3 +4119,6 @@ def delete_bank_account(account_id):
         flash("Failed to delete account.", "error")
         
     return redirect(url_for('billing_bp.bank_accounts'))
+
+# Register the private sample viewer in the Property Management user workspace.
+from . import lease_management as _lease_management

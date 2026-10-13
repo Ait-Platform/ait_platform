@@ -25,10 +25,10 @@
   <section class="rounded-xl border border-slate-200 bg-slate-50 p-6">
     <h2 class="text-xl font-semibold text-slate-800">Lease Management</h2>
     <p class="mt-2 text-sm text-slate-600">Lease agreements, special conditions and document control.</p>
-    {% if pm_admin_dashboard | default(false) %}
-    <a href="{{ url_for('admin_bp.pm_lease_management') }}" class="mt-4 inline-block rounded-lg border border-orange-300 bg-white px-4 py-2 text-sm font-semibold text-orange-900 hover:bg-orange-100">Open Lease Management</a>
+    {% if lease_workspace | default(false) %}
+    <a href="{{ url_for('billing_bp.pm_lease_management') }}" class="mt-4 inline-block rounded-lg border border-orange-300 bg-white px-4 py-2 text-sm font-semibold text-orange-900 hover:bg-orange-100">Open Lease Management</a>
     {% else %}
-    <span class="mt-4 inline-block rounded-full bg-slate-200 px-3 py-1 text-sm font-medium text-slate-700">Administrator access only</span>
+    <span class="mt-4 inline-block rounded-full bg-slate-200 px-3 py-1 text-sm font-medium text-slate-700">Open from Property Management</span>
     {% endif %}
   </section>
 </div>

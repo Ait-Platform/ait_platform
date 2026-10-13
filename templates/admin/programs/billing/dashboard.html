@@ -1,0 +1,17 @@
+{% extends "layout.html" %}
+{% block title %}Property Management{% endblock %}
+{% block flashes %}{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-5xl rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+  <div class="h-2 bg-orange-500"></div>
+  <div class="p-6">
+    <div class="flex items-center justify-between gap-4 mb-6">
+      <h1 class="text-2xl font-bold text-slate-900">Property Management</h1>
+      <a href="{{ url_for('admin_bp.programs_index') }}" class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Back to Programs</a>
+    </div>
+    {% include "partials/flash_messages.html" %}
+    {% set pm_admin_dashboard = true %}
+    {% include "program_billing/dashboard_tiles.html" %}
+  </div>
+</div>
+{% endblock %}

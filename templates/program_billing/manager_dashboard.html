@@ -1,20 +1,21 @@
 {% extends "layout.html" %}
 {% block title %}Property Management Dashboard{% endblock %}
 
+{% block flashes %}{% endblock %}
 {% block content %}
 <div class="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 lg:px-8 font-sans">
   <div class="max-w-7xl mx-auto space-y-8">
     
-    {% include "partials/flash_messages.html" %}
 
     <!-- The Tile -->
     <div class="bg-white rounded-xl shadow overflow-hidden border border-slate-200">
       <div class="h-2 bg-orange-500"></div>
       
       <div class="p-6">
+        {% include "partials/flash_messages.html" %}
         <!-- Row 1: Title on left, Back button on right -->
         <div class="flex items-center justify-between mb-2">
-          <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">Billing Dashboard</h1>
+          <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">Property Management</h1>
           <a href="{{ url_for('auth_bp.bridge_dashboard', force=1) }}" class="inline-flex items-center px-4 py-2 bg-slate-100 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-200 transition">
             <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
             Back
@@ -27,15 +28,6 @@
           <a href="{{ url_for('billing_bp.bank_accounts') }}" class="px-6 py-3 text-sm font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border-b-2 border-blue-600 rounded-t-md transition-colors">
             <i class="fas fa-university mr-1"></i> Bank Accounts
           </a>
-          <a href="{{ url_for('billing_bp.tenant_accounts') }}" class="px-6 py-3 text-sm font-semibold text-purple-700 bg-purple-50 hover:bg-purple-100 border-b-2 border-purple-600 rounded-t-md transition-colors">
-            Tenant Accounts (Ledgers)
-          </a>
-          <a href="{{ url_for('billing_bp.utilities_hub') }}" class="px-6 py-3 text-sm font-semibold text-green-700 bg-green-50 hover:bg-green-100 border-b-2 border-green-600 rounded-t-md transition-colors">
-            Utilities Hub &rarr;
-          </a>
-          <a href="{{ url_for('billing_bp.muni_recon_statement') }}" class="px-6 py-3 text-sm font-semibold text-teal-700 bg-teal-50 hover:bg-teal-100 border-b-2 border-teal-600 rounded-t-md transition-colors">
-            Metro Recon &rarr;
-          </a>
           <a href="{{ url_for('billing_bp.property_portfolio') }}" class="px-6 py-3 text-sm font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border-b-2 border-blue-600 rounded-t-md transition-colors">
             Property Portfolio &rarr;
           </a>
@@ -43,6 +35,8 @@
 
         
         <p class="text-sm text-slate-500 mb-8">Manage monthly billing, capture readings, and generate statements.</p>
+
+        {% include "program_billing/dashboard_tiles.html" %}
 
         <!-- Property Data Table -->
         <div class="overflow-x-auto rounded-lg border border-slate-200">

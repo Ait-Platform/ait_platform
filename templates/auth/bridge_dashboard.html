@@ -102,7 +102,7 @@
               {% if s.slug == 'admin' %}
                 Admin Hub
               {% else %}
-                {{ s.name }}
+                {{ 'Property Management' if s.slug == 'billing' else s.name }}
               {% endif %}
             </h2>
 

@@ -25,7 +25,7 @@ mx-auto max-w-7xl px-6 py-10
 "home":{"color":"blue","desc":"Master math through hands-on learning and visual tools."},
 "tutor":{"color":"teal","desc":"Join as a tutor and help students learn math."},
 "budget":{"color":"rose","desc":"Manage your finances effectively and plan your budget."},
-"billing":{"color":"indigo","desc":"Automate patient statements and track clinic revenue."},
+"billing":{"color":"indigo","desc":"Manage property statements, municipal accounts and lease documents."},
 "debtors":{"color":"blue","desc":"Manage debtors and generate professional statements."},
 "cultural_fire":{"color":"orange","desc":"Ignite your talent and compete globally."},
 "practice_crm":{"color":"teal","desc":"Manage your practice and reduce patient leakage."},
@@ -89,7 +89,7 @@ mx-auto max-w-7xl px-6 py-10
         }) %}
 
         {{ welcome_card(
-            title=subj.name,
+            title='Property Management' if slug == 'billing' else subj.name,
             badge=subj.program_type,
             description=info.desc,
             color=info.color,

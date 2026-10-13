@@ -18,8 +18,8 @@
       {% for s in subjects %}
       <tr class="hover:bg-slate-50 transition-colors group">
         <td class="px-6 py-4">
-          <div class="font-medium text-slate-800 text-base">{{ s.name }}</div>
-          <div class="text-slate-500 text-xs mt-0.5 truncate max-w-[300px]">{{ s.description or "Manage resources for this program" }}</div>
+          <div class="font-medium text-slate-800 text-base">{{ 'Property Management' if s.slug == 'billing' else s.name }}</div>
+          <div class="text-slate-500 text-xs mt-0.5 truncate max-w-[300px]">{{ 'Municipal and tenant statements, reconciliation and lease management.' if s.slug == 'billing' else (s.description or 'Manage resources for this program') }}</div>
         </td>
         <td class="px-6 py-4 text-right">
           <div class="flex justify-end gap-3 items-center">

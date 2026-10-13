@@ -1,0 +1,30 @@
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8" aria-label="Property Management modules">
+  <section class="rounded-xl border border-orange-200 bg-orange-50 p-6">
+    <h2 class="text-xl font-semibold text-orange-900">METSOA</h2>
+    <p class="mt-2 text-sm text-slate-700">Municipal Statements of Account (owner's responsibility).</p>
+    <div class="mt-4 flex flex-wrap gap-3">
+      {% if pm_admin_dashboard | default(false) %}
+      {% for label, endpoint in [('Enter Readings', 'admin_bp.readings_enter'), ('View Readings', 'admin_bp.readings_view'), ('Compute Consumption', 'admin_bp.readings_consumption'), ('Export / Print', 'admin_bp.muni_accounts'), ('Tariffs & Rates', 'admin_bp.billing_tariffs')] %}
+      <a href="{{ url_for(endpoint) }}" class="rounded-lg border border-orange-300 bg-white px-4 py-2 text-sm font-semibold text-orange-900 hover:bg-orange-100">{{ label }}</a>
+      {% endfor %}
+      {% else %}
+      <a href="{{ url_for('billing_bp.utilities_hub') }}" class="rounded-lg border border-orange-300 bg-white px-4 py-2 text-sm font-semibold text-orange-900 hover:bg-orange-100">Open METSOA</a>
+      {% endif %}
+    </div>
+  </section>
+  <section class="rounded-xl border border-slate-200 bg-slate-50 p-6">
+    <h2 class="text-xl font-semibold text-slate-800">Tenant SOA</h2>
+    <p class="mt-2 text-sm text-slate-600">Tenant Statements of Account.</p>
+    <span class="mt-4 inline-block rounded-full bg-slate-200 px-3 py-1 text-sm font-medium text-slate-700">Under Development</span>
+  </section>
+  <section class="rounded-xl border border-slate-200 bg-slate-50 p-6">
+    <h2 class="text-xl font-semibold text-slate-800">Metro Reconciliation</h2>
+    <p class="mt-2 text-sm text-slate-600">Municipal account reconciliation.</p>
+    <span class="mt-4 inline-block rounded-full bg-slate-200 px-3 py-1 text-sm font-medium text-slate-700">Under Development</span>
+  </section>
+  <section class="rounded-xl border border-slate-200 bg-slate-50 p-6">
+    <h2 class="text-xl font-semibold text-slate-800">Lease Management</h2>
+    <p class="mt-2 text-sm text-slate-600">Lease agreements, special conditions and document control.</p>
+    <span class="mt-4 inline-block rounded-full bg-slate-200 px-3 py-1 text-sm font-medium text-slate-700">Coming Soon</span>
+  </section>
+</div>

@@ -1071,7 +1071,10 @@ def login():
     elif hasattr(form, "remember_me"):
         remember_flag = bool(getattr(form.remember_me, "data", False))
 
-    login_user(user, remember=remember_flag, fresh=True)
+    if not login_user(user, remember=remember_flag, fresh=True):
+        logout_user()
+        flash("This account cannot sign in. Please contact support.", "danger")
+        return render_template("auth/login.html", form=form), 200
 
     # ── Identity scaffold (we'll set admin AFTER we compute it) ──
     session["is_authenticated"] = True
@@ -1280,193 +1283,11 @@ def admin_login_shortcut():
     return redirect(url_for("auth_bp.login", email=admin_email))
 
 @auth_bp.route("/dashboard")
+@login_required
 def bridge_dashboard():
-    if current_user.is_authenticated and check_admin(current_user.email):
-        return redirect(url_for('bridge_bp.bridge'))
-    from app.sace_activity import resolve_response
-    activity_response = resolve_response()
-    if activity_response is not None:
-        return activity_response
-    current_app.logger.info(
-        "BRIDGE entry: host=%s auth=%s uid=%s",
-        request.host,
-        getattr(current_user, "is_authenticated", False),
-        getattr(current_user, "id", None),
-    )
-
-    # Resolve email once
-    email = (session.get("email") or "").lower()
-    user_obj = None
-
-    if not email and getattr(current_user, "is_authenticated", False):
-        try:
-            u = User.query.get(int(getattr(current_user, "id", 0)))
-            if u and u.email:
-                email = u.email.lower()
-                session["email"] = email
-            user_obj = u
-        except Exception:
-            pass
-    if not email:
-        qemail = (request.args.get("email") or "").strip().lower()
-        if qemail:
-            email = qemail
-            session["email"] = email
-    if not email:
-        return redirect(url_for("auth_bp.login"))
-    
-    # If we didn't get user_obj above, resolve it by email
-    if user_obj is None:
-        user_obj = User.query.filter_by(email=email).first()
-
-    # 🔹 NEW: build enrollment map for this user from user_enrollment
-    enroll_map = {}
-    if user_obj:
-        # Removed auto-enrollment in cultural_fire
-
-        rows_en = db.session.execute(
-            text("""
-                SELECT subject_id, status
-                  FROM user_enrollment
-                 WHERE user_id = :uid
-            """),
-            {"uid": user_obj.id},
-        ).mappings().all()
-        enroll_map = {r["subject_id"]: r["status"] for r in rows_en}
-
-    # One-time focus from Stripe success
-    open_sid = session.pop("just_paid_subject_id", None)
-    if open_sid:
-        try:
-            paid_subj = db.session.scalar(text("SELECT parent_subject_id FROM auth_subject WHERE id = :sid"), {"sid": open_sid})
-            if paid_subj:
-                open_sid = paid_subj
-        except Exception as e:
-            current_app.logger.error(f"Failed to map parent sid: {e}")
-
-    base_sql = BRIDGE_QUERY.strip()
-    # drop a trailing semicolon so we can reuse / modify the text safely
-    if base_sql.endswith(";"):
-        base_sql = base_sql[:-1]
-
-    params = {"email": email}
-
-    if open_sid is not None:
-        # check if base_sql already has a WHERE clause
-        if "WHERE" in base_sql.upper():
-            filtered_sql = base_sql.replace(
-                "ORDER BY s.name",
-                "AND s.id = :open_sid ORDER BY s.name"
-            )
-        else:
-            filtered_sql = base_sql.replace(
-                "ORDER BY s.name",
-                "WHERE s.id = :open_sid ORDER BY s.name"
-            )
-
-        sql = sa_text(filtered_sql)
-        params["open_sid"] = int(open_sid)
-        rows = db.session.execute(sql, params).fetchall()
-
-        # Fallback to full list if the filter returns nothing
-        if not rows:
-            rows = db.session.execute(sa_text(base_sql), {"email": email}).fetchall()
-    else:
-        rows = db.session.execute(sa_text(base_sql), params).fetchall()
-
-    # The user requested that locked subjects are never shown on the bridge
-    # We also strictly hide sub-programs like hds and practice_crm from the learner bridge
-    rows = [
-        r for r in rows 
-        if getattr(r, 'access_level', '') != 'locked'
-        and not (getattr(r, 'slug', '') in ('home_premium',) and getattr(r, 'access_level', '') != 'admin')
-    ]
-
-    banner = session.pop("payment_banner", None)
-    
-    # Inject CRM Receptionist Access
-    if user_obj:
-        try:
-            from app.models.practice_crm import CrmPracticeUser
-            is_crm_staff = CrmPracticeUser.query.filter_by(user_id=user_obj.id, status='active').first()
-            if is_crm_staff and not any(getattr(r, 'slug', '') == 'practice_crm' for r in rows):
-                from types import SimpleNamespace
-                rows.append(SimpleNamespace(id=999, slug='practice_crm', name='Practice CRM', access_level='enrolled'))
-        except Exception:
-            pass
-
-    
-    # Bypass bridge dashboard if they only have 1 enrollment
-    force_bridge = request.args.get('force') == '1'
-    is_admin = any(getattr(r, 'access_level', '') == 'admin' for r in rows)
-    enrolled_tiles = [r for r in rows if getattr(r, 'access_level', '') == 'enrolled']
-    
-    if is_admin and len(enrolled_tiles) == 0 and not force_bridge:
-        return redirect(url_for('admin_bp.index'))
-
-    if len(enrolled_tiles) == 1 and not is_admin and not force_bridge:
-        s = enrolled_tiles[0]
-        slug = getattr(s, 'slug', '').lower()
-        if slug == 'staff':
-            return redirect(url_for('home_bp.teacher_dashboard'))
-        elif slug == 'cultural_fire':
-            return redirect(url_for('cultural_bp.cultural_fire_router'))
-        elif slug == 'practice_crm':
-            return redirect(url_for('practice_crm_bp.pipeline'))
-        elif slug == 'home':
-            return redirect(url_for('home_bp.learner_dashboard'))
-        elif slug == 'billing':
-            return redirect(url_for('billing_bp.learner_dashboard'))
-        elif slug == 'cptd':
-            return redirect(url_for('sace_bp.catalog'))
-        elif slug == 'sace_endorsement':
-            return redirect(url_for('sace_bp.dashboard'))
-        elif slug.startswith('sace_'):
-            activity = slug.replace('sace_', '')
-            return redirect(url_for('sace_bp.selection_hub', activity_slug=activity))
-        elif slug == 'mechanic':
-            return redirect(url_for('mechanic_bp.mechanic_dashboard'))
-        elif slug == 'hds':
-            return redirect(url_for('hds_bp.dashboard'))
-        elif slug == 'debtors':
-            return redirect(url_for('debtors_bp.debtors_router'))
-        elif slug == 'spv':
-            return redirect(url_for('spv_bp.investor_dashboard'))
-        elif slug == 'healthcore':
-            return redirect(url_for('healthcore_bp.healthcore_dashboard'))
-        elif slug == 'uip':
-            return redirect(url_for('uip_bp.uip_start'))
-        else:
-            return redirect(url_for('auth_bp.dashboard_info', subject=slug))
-            
-    # NEW FALLBACK: If user has no active subjects, redirect to checkout for their latest incomplete enrollment
-    if len(rows) == 0 and not is_admin:
-        incomplete_slug = db.session.execute(
-            text("""
-                SELECT s.slug 
-                FROM user_enrollment ue
-                JOIN auth_subject s ON s.id = ue.subject_id
-                WHERE ue.user_id = :uid 
-                ORDER BY ue.id DESC LIMIT 1
-            """),
-            {"uid": user_obj.id}
-        ).scalar()
-        
-        if incomplete_slug:
-            # Seed the session so register_decision knows what subject we're paying for
-            ctx = session.setdefault("reg_ctx", {})
-            ctx["subject"] = incomplete_slug
-            session.modified = True
-            flash("Please complete your payment to access this course.", "info")
-            return redirect(url_for("auth_bp.register_decision", subject=incomplete_slug))
-    
-    return render_template(
-        "auth/bridge_dashboard.html",
-        user=user_obj,
-        subjects=rows,
-        banner=banner,
-        enroll_map=enroll_map,   # 🔹 pass enrollment info into template
-    )
+    # One authenticated Bridge entry for ordinary users and platform admins.
+    # Activity-specific routing remains enforced by the canonical Bridge.
+    return redirect(url_for("bridge_bp.bridge"))
 
 @login_required
 @auth_bp.route("/dashboard/learn/<subject>", methods=["GET"])

@@ -7,6 +7,7 @@ from sqlalchemy import (
     Boolean, ForeignKey, CheckConstraint, Index, func)
 
 from datetime import date, datetime
+from builtins import property as python_property
 from flask_wtf import FlaskForm
 from wtforms import StringField, SelectField, SubmitField
 from wtforms.validators import DataRequired
@@ -233,6 +234,14 @@ class BilBankDetail(db.Model):
     def __repr__(self):
         return f"<BilBankDetail {self.bank_name} - {self.account_number}>"
 
+class BilSectionalUnit(db.Model):
+    """Legacy unit table retained for mandatory tenant-to-unit relationships."""
+    __tablename__ = "bil_sectional_unit"
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(120), nullable=False)
+    property_id = db.Column(db.Integer, db.ForeignKey('bil_property.id'), nullable=True)
+
+
 class BilTenant(db.Model):
     __tablename__ = "bil_tenant"
 
@@ -240,8 +249,9 @@ class BilTenant(db.Model):
     name = db.Column(db.String(200), nullable=False)
 
     property_id = db.Column(
-        db.Integer, db.ForeignKey('bil_property.id'), nullable=False, index=True
+        db.Integer, db.ForeignKey('bil_property.id'), nullable=True, index=True
     )
+    sectional_unit_id = db.Column(db.Integer, db.ForeignKey('bil_sectional_unit.id'), nullable=False)
     property = db.relationship("BilProperty", back_populates="tenants")
 
     metro_account_no     = db.Column(db.String(64), index=True)
@@ -255,7 +265,17 @@ class BilTenant(db.Model):
     address              = db.Column(db.String(500))
     date_started         = db.Column(db.Date)
     date_terminated      = db.Column(db.Date, nullable=True)
-    is_active            = db.Column(db.Boolean, default=True, nullable=False)
+    is_active            = db.Column(db.Boolean, nullable=True)
+
+    @python_property
+    def activity_status(self):
+        if self.is_active is None:
+            return "Unknown"
+        return "Active" if self.is_active is True else "Inactive"
+
+    @python_property
+    def is_confirmed_active(self):
+        return self.is_active is True
 
     notes                = db.Column(db.Text)
 
@@ -384,7 +404,7 @@ class RefMuniOwner(db.Model):
 class BilMuniAccount(db.Model):
     __tablename__ = "bil_muni_account"
     id = db.Column(db.Integer, primary_key=True)
-    property_id = db.Column(db.Integer, db.ForeignKey('bil_property.id', ondelete='CASCADE'), nullable=True) # Added for wizard workflow
+    property_id = db.Column(db.Integer, db.ForeignKey('bil_property.id', ondelete='RESTRICT'), nullable=True) # Added for wizard workflow
     account_number = db.Column(db.String(50), nullable=True)
     is_bulk_account = db.Column(db.Boolean, default=False) # Changed to True since it can be partially saved
     owner_id = db.Column(db.Integer, db.ForeignKey('ref_muni_owner.id', ondelete='RESTRICT'), nullable=True) # Changed to True

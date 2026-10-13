@@ -9,7 +9,7 @@ from flask import current_app
 from datetime import datetime, timedelta
 # Models (clean and complete)
 from app.models.billing import (
-    BilProperty, BilTenant, BilMeter, BilMeterReading,
+    BilProperty, BilTenant, BilSectionalUnit, BilMeter, BilMeterReading,
     BilConsumption, BilTariff, BilProperty, 
     BilMeterFixedCharge, PropertyForm
     )
@@ -22,6 +22,7 @@ from flask import jsonify
 import time
 from app.auth.forms import RegisterForm, ManagerPropertyForm, TenancyForm
 from app.program_billing.helpers import get_dashboard_data
+from app.program_billing.tenant_creation import tenant_for_unit
 
 def _get_billing_enrollment_id(user_id):
     from app.models.auth import UserEnrollment, AuthSubject
@@ -2514,7 +2515,7 @@ def setup_submit():
         db.session.flush()
         
         # 2. Create Default Unit (Fix duplicate key crash)
-        unit = BilProperty(
+        unit = BilSectionalUnit(
             property_id=prop.id,
             name=f"{prop_name} - Main Unit (Prop {prop.id})"
         )
@@ -2524,11 +2525,10 @@ def setup_submit():
         # 3. Conditionally Create Tenant & Lease
         tenant_name = data.get("tenant_name", "").strip()
         if tenant_name:
-            tenant = BilTenant(
+            tenant = tenant_for_unit(prop, unit,
                 name=tenant_name,
                 email=data.get("tenant_email"),
                 email_statements=bool(data.get("email_statements")),
-                property_id=prop.id
             )
             db.session.add(tenant)
             db.session.flush()
@@ -3059,16 +3059,16 @@ def ai_onboarding_process():
         tenant_map = {}
         
         # 2a. Owner Account (Default)
-        owner_unit = BilProperty(property_id=prop.id, name=f"{prop.name} - Owner/Common")
+        owner_unit = BilSectionalUnit(property_id=prop.id, name=f"{prop.name} - Owner/Common")
         db.session.add(owner_unit)
         db.session.flush()
-        unit_map["owner"] = owner_property.id
+        unit_map["owner"] = prop.id
         
-        owner_tenant = BilTenant(name="Owner Account", property_id=owner_property.id)
+        owner_tenant = tenant_for_unit(prop, owner_unit, name="Owner Account")
         db.session.add(owner_tenant)
         db.session.flush()
         tenant_map["owner"] = owner_tenant.id
-        db.session.add(BilLease(tenant_id=owner_tenant.id, property_id=owner_property.id, rent_amount=0))
+        db.session.add(BilLease(tenant_id=owner_tenant.id, property_id=prop.id, rent_amount=0))
         
         # 2b. Dynamic Tenants
         for t_data in data.get("tenants", []):
@@ -3077,16 +3077,16 @@ def ai_onboarding_process():
             tname = t_data.get("name", "").strip() or f"Statement {tid}"
             rent = float(t_data.get("rent") or 0.0)
             
-            t_unit = BilProperty(property_id=prop.id, name=f"Unit {tid.upper()}")
+            t_unit = BilSectionalUnit(property_id=prop.id, name=f"Unit {str(tid).upper()} (Prop {prop.id})")
             db.session.add(t_unit)
             db.session.flush()
-            unit_map[tid] = t_property.id
+            unit_map[tid] = prop.id
             
-            t_tenant = BilTenant(name=tname, property_id=t_property.id)
+            t_tenant = tenant_for_unit(prop, t_unit, name=tname)
             db.session.add(t_tenant)
             db.session.flush()
             tenant_map[tid] = t_tenant.id
-            db.session.add(BilLease(tenant_id=t_tenant.id, property_id=t_property.id, rent_amount=rent))
+            db.session.add(BilLease(tenant_id=t_tenant.id, property_id=prop.id, rent_amount=rent))
             
         # 3. Create Meters and initial readings (baselines)
         month = data.get("month")
@@ -3135,7 +3135,7 @@ def ai_onboarding_process():
         for m_data in data.get("readings", []):
             if m_data.get("is_bulk"):
                 assign_to = m_data.get("assign_to", "owner")
-                u_id = unit_map.get(assign_to, owner_property.id)
+                u_id = unit_map.get(assign_to, prop.id)
                 u_type = (m_data.get("utility_type") or "water").lower()
                 
                 meter = BilMeter(
@@ -3154,7 +3154,7 @@ def ai_onboarding_process():
         for m_data in data.get("readings", []):
             if not m_data.get("is_bulk"):
                 assign_to = m_data.get("assign_to", "owner")
-                u_id = unit_map.get(assign_to, owner_property.id)
+                u_id = unit_map.get(assign_to, prop.id)
                 u_type = (m_data.get("utility_type") or "water").lower()
                 
                 parent_id = None

@@ -165,10 +165,6 @@ def billing_price():
 @login_required
 def property_portfolio():
 
-    tenant_id = None
-    if units and units[0].tenants:
-        tenant_id = units[0].tenants[0].id
-
     if request.method == "POST":
         from app.models.billing import BilProperty
         # Create property + unit in one go

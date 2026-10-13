@@ -2470,14 +2470,14 @@ def setup_wizard():
     import json
     
     # Check if accounts exist for this property (meaning it was already saved/finalised)
-    accounts_exist = BilMuniAccount.query.filter_by(property_id=prop.id).first()
+    accounts_exist = BilMuniAccount.query.filter_by(property_id=property.id).first()
     
     if accounts_exist:
         # Rehydrate dynamically from SQL tables
         draft_json = build_wizard_data_from_db(property.id)
     else:
         # Unfinalised property, fall back to draft JSON
-        draft_record = BilArchitectureDraft.query.filter_by(property_id=prop.id).first()
+        draft_record = BilArchitectureDraft.query.filter_by(property_id=property.id).first()
         draft_json = draft_record.draft_json if draft_record else None
     
     return render_template("program_billing/setup_wizard.html", 

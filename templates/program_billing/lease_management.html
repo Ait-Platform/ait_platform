@@ -24,9 +24,9 @@
     {% if available %}
     <p class="mt-3 text-sm text-slate-600">View the PDF preview or download the editable Word review draft.</p>
     {% elif associated %}
-    <p role="alert" class="mt-3 text-sm text-red-700">The current lease review is temporarily unavailable.</p>
+    <p role="alert" class="mt-3 text-sm text-red-700">The current lease review is temporarily unavailable. Preview and download are disabled until the document is restored. Please contact support.</p>
     {% else %}
-    <p class="mt-3 text-sm text-slate-600">No lease review is associated with a property you are authorised to manage.</p>
+    <p class="mt-3 text-sm text-slate-600">No lease document is available for your managed properties. A review must be linked to a property you manage before View Lease and Download Word are enabled.</p>
     {% endif %}
   </div>
 </div>

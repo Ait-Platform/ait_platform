@@ -36,6 +36,7 @@ def authorised_review_property():
     # Explicit R01 association only; never infer a property from a user's identity.
     configured = str(current_app.config.get("PM_LEASE_REVIEW_PROPERTY_ID", "")).strip()
     if not configured.isdecimal() or int(configured) <= 0:
+        current_app.logger.warning("R01 lease association unavailable: PM_LEASE_REVIEW_PROPERTY_ID is missing or invalid.")
         return None
     statement = select(BilProperty.id).where(BilProperty.id == int(configured),
         BilProperty.manager_id == current_user.id, BilProperty.is_archived == False)

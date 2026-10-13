@@ -240,7 +240,7 @@ class LeaseViewerTests(unittest.TestCase):
         (self.private / "R01" / self.storage.PDF_NAME).unlink()
         response = self.client.get(self.paths()[0])
         self.assertEqual(response.status_code, 503)
-        self.assertNotIn("View Lease", response.get_data(as_text=True))
+        self.assertNotIn('href="/billing/leases/preview"', response.get_data(as_text=True))
         self.assertIn("temporarily unavailable", response.get_data(as_text=True))
         for path in self.paths()[1:]:
             self.assertEqual(self.client.get(path).status_code, 503)
@@ -305,8 +305,8 @@ class LeaseViewerTests(unittest.TestCase):
         self.assertEqual(page.status_code, 200)
         html = page.get_data(as_text=True)
         self.assertNotIn(self.storage.WORD_NAME, html)
-        self.assertNotIn("Download Word", html)
-        self.assertNotIn("View Lease", html)
+        self.assertNotIn('href="/billing/leases/word"', html)
+        self.assertNotIn('href="/billing/leases/preview"', html)
         for path in self.paths()[1:]:
             self.assertEqual(self.client.get(path + "?property_id=22&user_id=1").status_code, 404)
 
@@ -335,6 +335,35 @@ class LeaseViewerTests(unittest.TestCase):
         self.sign_in(1)
         for path in self.paths():
             self.assertEqual(self.client.get("/admin" + path).status_code, 404)
+
+
+    def test_tile_colours_are_distinct_and_links_preserved(self):
+        env = Environment(loader=DictLoader({"tiles": (ROOT / "templates/program_billing/dashboard_tiles.html").read_text(encoding="utf-8")}))
+        env.globals["url_for"] = lambda endpoint, **kwargs: "/fixture/" + endpoint
+        html = env.get_template("tiles").render(lease_workspace=True)
+        sections = html.split("<section")[1:]
+        self.assertEqual(len(sections), 4)
+        for section, colour, name in zip(sections, ("orange", "blue", "emerald", "violet"),
+                ("METSOA", "Tenant SOA", "Metro Reconciliation", "Lease Management")):
+            self.assertIn("bg-" + colour + "-50", section)
+            self.assertIn(name, section)
+        self.assertIn("/fixture/billing_bp.utilities_hub", html)
+        self.assertIn("/fixture/billing_bp.pm_lease_management", html)
+        self.assertEqual(html.count("Under Development"), 2)
+
+    def test_missing_association_explained_and_logged_without_exposing_review(self):
+        self.sign_in(1)
+        self.app.config.pop("PM_LEASE_REVIEW_PROPERTY_ID", None)
+        with self.assertLogs(self.app.logger, level="WARNING") as captured:
+            response = self.client.get(self.paths()[0])
+        self.assertEqual(response.status_code, 200)
+        html = response.get_data(as_text=True)
+        self.assertIn("A review must be linked to a property you manage", html)
+        self.assertIn("Back to Property Management", html)
+        self.assertNotIn('href="/billing/leases/preview"', html)
+        self.assertNotIn('href="/billing/leases/word"', html)
+        self.assertNotIn(self.storage.WORD_NAME, html)
+        self.assertIn("PM_LEASE_REVIEW_PROPERTY_ID is missing or invalid", " ".join(captured.output))
 
 
 class PageLinks(HTMLParser):

@@ -37,6 +37,17 @@ class BilProperty(Base):
     id = Column(Integer, primary_key=True)
     manager_id = Column(Integer)
     is_archived = Column(Boolean)
+    name = Column(String)
+    address = Column(String)
+
+
+class BilLease(Base):
+    __tablename__ = "bil_lease"
+    id = Column(Integer, primary_key=True)
+    property_id = Column(Integer)
+    start_date = Column(String)
+    end_date = Column(String)
+    rent_amount = Column(Integer)
 
 
 class ApprovedAdmin(Base):
@@ -74,6 +85,10 @@ class LeaseViewerTests(unittest.TestCase):
             shutil.copyfile(source, self.private / "R01" / name)
         self.user_active = {1: True, 2: True, 3: True, 4: False}
         self.properties = {11: {"manager_id": 1, "archived": False}, 12: {"manager_id": 1, "archived": False}, 22: {"manager_id": 2, "archived": False}}
+        for property_id, prop in self.properties.items():
+            prop.update(id=property_id, name="Synthetic property " + str(property_id), address="Synthetic address")
+        self.leases = [{"id": 71, "property_id": 11, "start_date": "2026-01-01", "end_date": "2026-12-31", "rent_amount": 100},
+            {"id": 82, "property_id": 22, "start_date": "2026-02-01", "end_date": "2027-01-31", "rent_amount": 200}]
         self.sql_history = []
         self.database = types.SimpleNamespace(session=types.SimpleNamespace(execute=Mock(side_effect=self.authorize)))
         blueprint = Blueprint("admin_bp", __name__, url_prefix="/admin")
@@ -91,6 +106,7 @@ class LeaseViewerTests(unittest.TestCase):
         modules["app.extensions"].db = self.database
         modules["app.models.auth"].User = User
         modules["app.models.billing"].BilProperty = BilProperty
+        modules["app.models.billing"].BilLease = BilLease
         modules["app.models.auth"].ApprovedAdmin = ApprovedAdmin
         metadata = Mock()
         metadata.name = "Property Management"
@@ -132,6 +148,16 @@ class LeaseViewerTests(unittest.TestCase):
         self.last_statement = str(statement.compile(compile_kwargs={"literal_binds": True}))
         identifier = current_user.id
         self.sql_history.append(self.last_statement)
+        if "FROM bil_lease" in self.last_statement:
+            params = statement.compile().params
+            property_id = params["property_id_1"]
+            prop = self.properties.get(property_id)
+            rows = [lease for lease in self.leases if lease["property_id"] == property_id and
+                prop and prop["manager_id"] == identifier and not prop["archived"]]
+            return types.SimpleNamespace(mappings=lambda: types.SimpleNamespace(all=lambda: rows))
+        if "bil_property.name" in self.last_statement:
+            rows = [prop for prop in self.properties.values() if prop["manager_id"] == identifier and not prop["archived"]]
+            return types.SimpleNamespace(mappings=lambda: types.SimpleNamespace(all=lambda: rows))
         if "FROM bil_property" in self.last_statement:
             property_id = int(self.app.config["PM_LEASE_REVIEW_PROPERTY_ID"])
             prop = self.properties.get(property_id)
@@ -184,7 +210,7 @@ class LeaseViewerTests(unittest.TestCase):
         self.assertNotIn('auth_approved_admin', sql)
         self.assertIn('"user".id = 1', sql)
         self.assertIn('"user".is_active = 1', sql)
-        self.assertIn("bil_property.id = 11", self.sql_history[1])
+        self.assertIn("bil_property.id = 11", self.sql_history[2])
         self.assertIn("bil_property.manager_id = 1", self.sql_history[1])
         self.assertIn("bil_property.is_archived = false", self.sql_history[1])
 
@@ -364,6 +390,49 @@ class LeaseViewerTests(unittest.TestCase):
         self.assertNotIn('href="/billing/leases/word"', html)
         self.assertNotIn(self.storage.WORD_NAME, html)
         self.assertIn("PM_LEASE_REVIEW_PROPERTY_ID is missing or invalid", " ".join(captured.output))
+
+
+    def test_page_one_lists_only_managed_properties_and_reuses_add_property(self):
+        self.sign_in(1)
+        html = self.client.get(self.paths()[0]).get_data(as_text=True)
+        self.assertIn("Synthetic property 11", html)
+        self.assertIn("Synthetic property 12", html)
+        self.assertNotIn("Synthetic property 22", html)
+        self.assertIn('name="property_id"', html)
+        self.assertIn('href="/fixture/property_portfolio"', html)
+        self.assertIn("Add Property", html)
+        self.assertIn("New Lease — Coming Soon", html)
+        self.assertIn("Renew Lease — Coming Soon", html)
+        self.assertIn("2026-12-31", html)
+        self.assertNotIn("2027-01-31", html)
+        lease_sql = next(sql for sql in self.sql_history if "FROM bil_lease" in sql)
+        self.assertIn("bil_lease.property_id = 11", lease_sql)
+        self.assertIn("bil_property.manager_id = 1", lease_sql)
+
+    def test_property_selection_scopes_leases_and_reference_buttons(self):
+        self.sign_in(1)
+        page = self.client.get(self.paths()[0] + "?property_id=12")
+        self.assertEqual(page.status_code, 200)
+        html = page.get_data(as_text=True)
+        self.assertIn('value="12" selected', html)
+        self.assertIn("No existing lease records", html)
+        self.assertNotIn("Renew Lease — Coming Soon", html)
+        self.assertNotIn('href="/billing/leases/preview"', html)
+        for value in ("22", "999", "-1", "invalid", ""):
+            self.assertEqual(self.client.get(self.paths()[0] + "?property_id=" + value).status_code, 404)
+        self.properties[12]["archived"] = True
+        self.assertEqual(self.client.get(self.paths()[0] + "?property_id=12").status_code, 404)
+        for path in self.paths()[1:]:
+            self.assertEqual(self.client.get(path + "?property_id=12").status_code, 404)
+            self.assertEqual(self.client.get(path + "?property_id=11").status_code, 200)
+
+    def test_empty_property_list_has_setup_option_without_lease_actions(self):
+        self.sign_in(3)
+        html = self.client.get(self.paths()[0]).get_data(as_text=True)
+        self.assertIn("You have no active properties", html)
+        self.assertIn("Add Property", html)
+        self.assertNotIn("New Lease — Coming Soon", html)
+        self.assertNotIn("Renew Lease — Coming Soon", html)
 
 
 class PageLinks(HTMLParser):

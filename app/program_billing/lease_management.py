@@ -11,7 +11,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from app.program_billing.routes import billing_bp
 from app.extensions import db
 from app.models.auth import User
-from app.models.billing import BilProperty
+from app.models.billing import BilProperty, BilLease
 from app.program_billing.lease_documents import (
     PDF_NAME, WORD_NAME, ReviewDocumentUnavailable, read_review_pair,
 )
@@ -68,7 +68,37 @@ def protect_lease_responses(response):
 @billing_bp.get("/billing/leases", endpoint="pm_lease_management")
 def lease_management():
     require_pm_user()
-    associated = authorised_review_property() is not None
+    # Select only Page 1 fields, always scoped to the signed-in manager.
+    statement = select(BilProperty.id, BilProperty.name, BilProperty.address).where(
+        BilProperty.manager_id == current_user.id, BilProperty.is_archived == False
+    ).order_by(BilProperty.name, BilProperty.id)
+    try:
+        properties = db.session.execute(statement.execution_options(autoflush=False)).mappings().all()
+    except SQLAlchemyError:
+        abort(503, description="Properties could not be loaded.")
+    review_property_id = authorised_review_property()
+    requested = request.args.get("property_id")
+    selected = None
+    if requested is not None:
+        if not requested.isdecimal() or int(requested) <= 0:
+            abort(404)
+        selected = next((prop for prop in properties if prop["id"] == int(requested)), None)
+        if selected is None:
+            abort(404)
+    elif review_property_id is not None:
+        selected = next((prop for prop in properties if prop["id"] == review_property_id), None)
+    leases = []
+    if selected is not None:
+        # Recheck ownership in the lease query; do not load another property's leases.
+        statement = select(BilLease.id, BilLease.start_date, BilLease.end_date, BilLease.rent_amount).join(
+            BilProperty, BilProperty.id == BilLease.property_id
+        ).where(BilLease.property_id == selected["id"], BilProperty.manager_id == current_user.id,
+            BilProperty.is_archived == False).order_by(BilLease.id)
+        try:
+            leases = db.session.execute(statement.execution_options(autoflush=False)).mappings().all()
+        except SQLAlchemyError:
+            abort(503, description="Existing leases could not be loaded.")
+    associated = selected is not None and selected["id"] == review_property_id
     available = associated
     missing = False
     if associated:
@@ -78,13 +108,17 @@ def lease_management():
             available = False
             missing = True
     return render_pm_template("program_billing/lease_management.html",
+        properties=properties, selected_property=selected, leases=leases,
         document_name=WORD_NAME if associated else None, status=STATUS,
         available=available, associated=associated), 503 if missing else 200
 
 
 def deliver_review(filename, mimetype, *, attachment):
     require_pm_user()
-    if authorised_review_property() is None:
+    review_property_id = authorised_review_property()
+    requested = request.args.get("property_id")
+    if (review_property_id is None or (requested is not None and
+            (not requested.isdecimal() or int(requested) != review_property_id))):
         abort(404)
     try:
         content = read_review_pair()[filename]

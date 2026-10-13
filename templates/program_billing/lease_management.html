@@ -11,11 +11,47 @@
     </div>
     {% include "partials/flash_messages.html" %}
     <div class="flex justify-end flex-wrap gap-3 mb-6">
+      <a href="{{ url_for('billing_bp.property_portfolio') }}" class="rounded-lg border border-orange-300 bg-orange-50 px-4 py-2 text-sm font-semibold text-orange-900 hover:bg-orange-100">Add Property</a>
       {% if available %}
       <a href="{{ url_for('billing_bp.pm_lease_preview') }}" target="_blank" rel="noopener" class="rounded-lg border border-orange-700 bg-orange-600 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-700">View Lease</a>
       <a href="{{ url_for('billing_bp.pm_lease_word') }}" class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Download Word</a>
       {% endif %}
     </div>
+    <form method="GET" action="{{ url_for('billing_bp.pm_lease_management') }}" class="mb-6">
+      <label for="lease-property" class="block mb-2 text-sm font-semibold text-slate-800">Select an existing property</label>
+      <div class="flex flex-wrap gap-3">
+        <select id="lease-property" name="property_id" required autofocus class="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-800">
+          <option value="" disabled {% if not selected_property %}selected{% endif %}>Choose a property</option>
+          {% for property in properties %}
+          <option value="{{ property.id }}" {% if selected_property and selected_property.id == property.id %}selected{% endif %}>{{ property.name }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit" {% if not properties %}disabled{% endif %} class="rounded-lg bg-orange-600 px-4 py-2 font-semibold text-white hover:bg-orange-700 disabled:opacity-50">Select Property</button>
+      </div>
+    </form>
+    {% if not properties %}
+    <p class="mb-6 text-sm text-slate-600">You have no active properties to manage. Use Add Property to begin the existing property setup workflow.</p>
+    {% elif selected_property %}
+    <h2 class="text-lg font-semibold text-slate-800">{{ selected_property.name }}</h2>
+    {% if selected_property.address %}<p class="mt-1 text-sm text-slate-600">{{ selected_property.address }}</p>{% endif %}
+    <div class="mt-4 mb-6 flex flex-wrap justify-end gap-3">
+      <button type="button" disabled class="rounded-lg border border-slate-300 bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-500">New Lease — Coming Soon</button>
+      <a href="#existing-leases" class="rounded-lg border border-orange-300 bg-white px-4 py-2 text-sm font-semibold text-orange-900 hover:bg-orange-50">Existing Leases</a>
+      {% if leases %}<button type="button" disabled class="rounded-lg border border-slate-300 bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-500">Renew Lease — Coming Soon</button>{% endif %}
+    </div>
+    <p class="mb-6 text-sm text-slate-600">Lease particulars and quick renewal will be introduced in later pages.</p>
+    <section id="existing-leases" class="mb-6 rounded-lg border border-slate-200 p-4">
+      <h3 class="font-semibold text-slate-800">Existing Leases</h3>
+      {% if leases %}
+      <div class="mt-3 overflow-x-auto">
+        <table class="w-full text-left text-sm">
+          <thead><tr class="border-b border-slate-200"><th class="p-2">Lease</th><th class="p-2">Start</th><th class="p-2">End</th><th class="p-2">Rent</th></tr></thead>
+          <tbody>{% for lease in leases %}<tr class="border-b border-slate-100"><td class="p-2">{{ lease.id }}</td><td class="p-2">{{ lease.start_date or 'Not recorded' }}</td><td class="p-2">{{ lease.end_date or 'Not recorded' }}</td><td class="p-2">{{ lease.rent_amount if lease.rent_amount is not none else 'Not recorded' }}</td></tr>{% endfor %}</tbody>
+        </table>
+      </div>
+      {% else %}<p class="mt-3 text-sm text-slate-600">No existing lease records for this property.</p>{% endif %}
+    </section>
+    {% endif %}
     <p class="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm font-bold text-amber-900">{{ status }}</p>
     {% if associated %}
     <h2 class="text-lg font-semibold text-slate-800">Current review document</h2>

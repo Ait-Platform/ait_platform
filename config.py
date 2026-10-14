@@ -128,6 +128,10 @@ class Config:
 
     # ------------ Core / Security ------------
     SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret")
+    # Explicit administrator approval; absent/invalid values keep owner writes off.
+    PM_OWNER_WRITES_APPROVED = _to_bool(
+        os.getenv("PM_OWNER_WRITES_APPROVED"), default=False
+    )
     MAINTENANCE_MODE = int(os.getenv("MAINTENANCE_MODE", "0"))
     MAX_CONTENT_LENGTH = 50 * 1024 * 1024  # 50 MB limit for all uploads
 

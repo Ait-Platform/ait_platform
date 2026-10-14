@@ -6,8 +6,10 @@ preflight, verified backup, restored-database rehearsal and explicit approval.
 
 ## Default-off behavior
 
-PM_OWNER_WRITES_APPROVED must be the boolean True, not a string. It is absent/false by
-default and no configuration enabling it is included in this commit. When false,
+Config parses the PM_OWNER_WRITES_APPROVED environment setting into a Boolean.
+It is absent/false by default. Set PM_OWNER_WRITES_APPROVED=true only after explicit
+administrator activation approval and verified schema/backup/rehearsal. Invalid
+values remain false. This integration does not set any production environment variable. When false,
 owner APIs return unavailable without touching owner tables; property registration,
 address editing and the dashboard retain their existing behavior. The interface remains
 a clearly labelled browser-only preview with Save Owner and existing-owner search disabled.
@@ -66,3 +68,16 @@ Local integration tests use the separate prepared migration worktree, applying b
 revisions only to session-temporary PostgreSQL fixtures. Missing fixtures cause a stated
 skip rather than inventing database results. Run with that worktree present:
 python -m unittest discover -s tests -p test_pm_owner_operations.py
+
+## Environment activation procedure
+
+After explicit activation approval, set PM_OWNER_WRITES_APPROVED=true on the
+verified running Render service and restart/redeploy so Flask reloads configuration.
+Leave it unset or false until then. Remove it or set false and restart to disable.
+Review instance configuration and FLASK_PM_OWNER_WRITES_APPROVED overrides, which
+load after Config; the final Flask value must be Boolean True to enable.
+A true approval value does not bypass the schema/revision/trigger checks.
+Verify the service database identity and pm_owner_002 revision through its actual
+runtime connection, without invoking application startup maintenance for diagnostics.
+The administrator report of installed tables is not evidence of Alembic revision
+state or of the service connecting to that database.

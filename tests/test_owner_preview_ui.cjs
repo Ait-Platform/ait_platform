@@ -7,8 +7,9 @@ const source = fs.readFileSync(path.join(__dirname, '../templates/program_billin
 const script = source.split('<script>')[1].split('</script>')[0];
 class Element {
   constructor(dataset = {}) { this.dataset = dataset; this.listeners = {}; this.value = ''; this.checked = false; this.readOnly = false; this.children = []; this.textContent = ''; }
-  addEventListener(name, callback) { this.listeners[name] = callback; }
-  fire(name) { this.listeners[name](); }
+  addEventListener(name, callback) { (this.listeners[name] ||= []).push(callback); }
+  fire(name) { let result; for (const callback of this.listeners[name] || []) result = callback(); return result; }
+  closest() { return this; }
   focus() {}
   showModal() { this.open = true; }
   close() { this.open = false; }
@@ -21,12 +22,12 @@ const keys = ['type', 'name', 'identity_number', 'email', 'phone', 'percentage',
 const fields = keys.map(key => new Element({ownerField: key}));
 const ids = {};
 for (const [i, key] of keys.entries()) ids['owner-' + (key === 'type' ? 'kind' : key)] = fields[i];
-for (const id of ['owner-assignment-preview','owner-postal-same','owner-property-name','owner-preview-list','owner-preview-message','owner-preview-close','owner-add-preview']) ids[id] = new Element();
+for (const id of ['owner-assignment-preview','owner-postal-same','owner-property-name','owner-preview-list','owner-preview-message','owner-preview-close','owner-add-preview','owner-save-disabled','owner-existing-selection','owner-existing-percentage','owner-search']) ids[id] = new Element();
 const opener = new Element({propertyId: '26', propertyName: 'Almond'});
 const tabs = [new Element({ownerTab: 'new'}), new Element({ownerTab: 'existing'})];
 const panels = [new Element({ownerPanel: 'new'}), new Element({ownerPanel: 'existing'})];
 ids['owner-assignment-preview'].querySelectorAll = selector => selector === '[data-owner-field]' ? fields : selector === '[data-owner-panel]' ? panels : tabs;
-const document = {getElementById: id => ids[id], querySelectorAll: () => [opener], createElement: () => new Element()};
+const document = {getElementById: id => ids[id], querySelectorAll: selector => selector === '[data-open-owner]' ? [opener] : [], createElement: () => new Element()};
 vm.runInNewContext(script, {document, Map, Array, Object, String});
 opener.fire('click');
 const same = ids['owner-postal-same'], residential = ids['owner-residential_address'], postal = ids['owner-postal_address'];
@@ -41,6 +42,8 @@ fields[0].value = 'trust'; fields[1].value = 'Owner Two'; ids['owner-add-preview
 assert.match(ids['owner-preview-message'].textContent, /Nothing has been saved/);
 tabs[1].fire('click'); assert.equal(panels[0].hidden, true); assert.equal(panels[1].hidden, false);
 ids['owner-preview-close'].fire('click'); opener.fire('click'); assert.equal(same.checked, false); assert.equal(postal.readOnly, false);
-assert.match(source, /disabled id="owner-save-disabled"/); assert.match(source, />Save Owner<\/button>/);
-assert.ok(!script.includes('fetch(') && !script.includes('XMLHttpRequest'));
+assert.ok(source.includes('{% if not owners_enabled %}disabled{% endif %} id="owner-save-disabled"')); assert.match(source, />Save Owner<\/button>/);
+ids['owner-save-disabled'].fire('click'); assert.equal(ids['owner-assignment-preview'].open, true); // gate blocks saving in preview
 console.log('Owner modal checks passed: postal copy/sync, separate address, resets, multiple preview owners, tabs and disabled saving.');
+
+module.exports = {Element, script};

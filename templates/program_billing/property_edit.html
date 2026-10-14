@@ -22,7 +22,9 @@
       </form>
       <section class="mt-8 rounded-lg border border-slate-200 p-4">
         <h2 class="text-lg font-semibold">Owners</h2>
-        <p class="mt-2 text-sm text-slate-600">Assigned owners cannot be loaded or saved until the ownership schema is approved and available. This is not an indication that the property has no owners.</p>
+        {% if not owners_enabled %}<p class="mt-2 text-sm text-slate-600">Assigned owners cannot be loaded or saved until the ownership schema is approved and available. This is not an indication that the property has no owners.</p>{% else %}
+        {% include "program_billing/assigned_owners.html" %}
+        {% endif %}
         <button type="button" data-open-owner data-property-id="{{ property.id }}" data-property-name="{{ property.name }}" class="mt-4 rounded-lg border border-orange-300 bg-orange-50 px-4 py-2 font-semibold text-orange-900">Assign Owner / Add Another Owner &mdash; Preview</button>
       </section>
       {% include "program_billing/owner_assignment_preview.html" %}

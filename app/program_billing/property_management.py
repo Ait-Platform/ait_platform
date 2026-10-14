@@ -46,7 +46,11 @@ def property_owner_page():
         properties = db.session.execute(statement.execution_options(autoflush=False)).mappings().all()
     except SQLAlchemyError:
         abort(503, description="Your properties could not be loaded.")
+    from app.program_billing.owner_management import owners_enabled, owner_rows
+    enabled=owners_enabled()
+    owners_by_property={p['id']:owner_rows(p['id']) for p in properties} if enabled else {}
     return render_pm_template("program_billing/property_owner.html", properties=properties,
+        owners_enabled=enabled, owners_by_property=owners_by_property,
         error=error, property_name=name), status
 
 
@@ -117,4 +121,7 @@ def property_edit(property_id):
                 current_app.logger.error("PM property edit failed error=%s", type(exc).__name__)
                 error = "Property changes could not be saved. Please try again or contact support."
                 status = 503
-    return render_pm_template("program_billing/property_edit.html", property=values, error=error), status
+    from app.program_billing.owner_management import owners_enabled, owner_rows
+    enabled=owners_enabled()
+    return render_pm_template("program_billing/property_edit.html", property=values, error=error,
+        owners_enabled=enabled, assigned_owners=owner_rows(property_id) if enabled else []), status

@@ -4133,3 +4133,6 @@ from . import lease_property as _lease_property
 
 # Property-only management; owner persistence awaits an approved schema.
 from . import property_management as _property_management
+
+# Owner endpoints are inert unless explicitly approved and the schema is verified.
+from . import owner_management as _owner_management

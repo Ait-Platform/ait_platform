@@ -61,6 +61,9 @@ class PropertyManagementTests(unittest.TestCase):
         spec = importlib.util.spec_from_file_location('app.program_billing.property_management',ROOT/'app/program_billing/property_management.py')
         mod = importlib.util.module_from_spec(spec);sys.modules[spec.name]=mod;spec.loader.exec_module(mod)
         self.module = mod
+        owner_spec=importlib.util.spec_from_file_location('app.program_billing.owner_management',ROOT/'app/program_billing/owner_management.py')
+        owner_mod=importlib.util.module_from_spec(owner_spec);sys.modules[owner_spec.name]=owner_mod;owner_spec.loader.exec_module(owner_mod)
+        self.owner_module=owner_mod
         # Include the real main route, without starting the AIT application factory.
         tree = ast.parse((ROOT/'app/program_billing/routes.py').read_text(encoding='utf-8'))
         for function in ('property_owner', 'learner_dashboard'):
@@ -146,7 +149,7 @@ class PropertyManagementTests(unittest.TestCase):
         html=self.client.get('/billing/property-owner').get_data(as_text=True)
         self.assertIn('data-open-owner',html)
         self.assertIn('/billing/property-owner/26/edit',html)
-        self.assertIn('disabled id="owner-save-disabled"',html)
+        self.assertRegex(html,r'disabled\s+id="owner-save-disabled"')
         self.assertIn('<dialog',html)
 
     def test_edit_prepopulates_and_persists_available_property_fields(self):
@@ -185,7 +188,7 @@ class PropertyManagementTests(unittest.TestCase):
             html=self.client.get(path).get_data(as_text=True)
             for label in ('Register New Owner','Select Existing Owner','ID / registration number','Residential / registered address','Postal address','Ownership percentage','Company','Trust'):
                 self.assertIn(label,html)
-            self.assertIn('disabled id="owner-save-disabled"',html)
+            self.assertRegex(html,r'disabled\s+id="owner-save-disabled"')
             self.assertIn('>Save Owner</button>',html)
             self.assertIn('Owner registration is not yet available.',html)
             self.assertIn('Postal address same as residential / registered address',html)
@@ -194,5 +197,13 @@ class PropertyManagementTests(unittest.TestCase):
             self.assertNotIn('action="/billing/owner',html)
         self.assertEqual(self.count(),2)
         self.assertEqual(set(sa.inspect(self.conn).get_temp_table_names()),{'bil_property'})
+
+    def test_approval_flag_alone_cannot_enable_missing_owner_schema(self):
+        self.app.config['PM_OWNER_WRITES_APPROVED']=True
+        response=self.client.post('/billing/property-owner/26/owners',json={'type':'individual','name':'Blocked','identity_number':'ID1'})
+        self.assertEqual(response.status_code,503)
+        html=self.client.get('/billing/property-owner').get_data(as_text=True)
+        self.assertRegex(html,r'disabled\s+id="owner-save-disabled"')
+        self.assertEqual(self.count(),2)
 
 if __name__=='__main__': unittest.main()

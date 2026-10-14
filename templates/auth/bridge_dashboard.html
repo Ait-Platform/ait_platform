@@ -115,7 +115,7 @@
             {% endif %}
           </div>
 
-          {% if s is mapping and 'message' in s and s.message %}
+          {% if s.slug != 'billing' and s is mapping and 'message' in s and s.message %}
             <div class="mt-3 text-sm font-medium text-blue-800 bg-blue-50 border border-blue-200 rounded px-3 py-2">
               {{ s.message }}
             </div>
@@ -124,16 +124,7 @@
           <div class="mt-3 text-sm text-slate-500">
             {% if is_admin or is_enrolled %}
               {% if s.slug == 'billing' %}
-                <div class="bg-indigo-50 border border-indigo-100 rounded-lg p-3 text-slate-700">
-                  <p class="font-bold text-indigo-700 mb-1 flex items-center">
-                    <svg class="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                    Quick Start Guide
-                  </p>
-                  <ul class="space-y-1 text-xs list-disc list-inside">
-                    <li>Manage as many properties as you want</li>
-                    <li>Generate statements for meters as well as utilities.</li>
-                  </ul>
-                </div>
+                <p>Manage your properties, statements and leases.</p>
               {% elif s.slug == 'home' %}
                 <div class="bg-blue-50 border border-blue-100 rounded-lg p-3 text-slate-700">
                   <p class="font-bold text-blue-700 mb-1 flex items-center">

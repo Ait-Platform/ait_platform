@@ -1304,6 +1304,8 @@ def bridge_dashboard():
 @auth_bp.route("/dashboard/learn/<subject>", methods=["GET"])
 def learner_subject_dashboard(subject):
     subj_key = (subject or "").strip().lower()
+    if subj_key == "billing":
+        return redirect(url_for("billing_bp.learner_dashboard"))
     if subj_key in {"sace", "sace_hub", "sace_endorsement"}:
         return redirect(url_for("auth_bp.dashboard_info", subject=subj_key))
 

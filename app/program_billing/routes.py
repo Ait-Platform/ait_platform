@@ -192,7 +192,8 @@ def property_portfolio():
     # Normal GET show dashboard data
     data = get_dashboard_data()
 
-    return render_template("program_billing/property_portfolio.html", data=data)
+    from app.program_billing.lease_management import render_pm_template
+    return render_pm_template("program_billing/property_portfolio.html", data=data)
 
 @billing_bp.route("/billing/dashboard", methods=["GET"])
 @billing_bp.route("/billing/home", endpoint="subject_home", methods=["GET"])

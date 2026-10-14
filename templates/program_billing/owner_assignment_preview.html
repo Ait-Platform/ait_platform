@@ -1,0 +1,74 @@
+<dialog id="owner-assignment-preview" class="w-full max-w-3xl rounded-xl border border-slate-200 p-6 shadow-xl">
+  <div class="flex items-center justify-between gap-4"><h2 class="text-xl font-semibold">Assign Owner: <span id="owner-property-name"></span></h2><button type="button" id="owner-preview-close" class="rounded-lg bg-slate-100 px-3 py-2">Close</button></div>
+  <p role="status" class="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Interface preview only. Owner records and assignments cannot be saved until the ownership schema is approved and available. Preview entries disappear when this page is reloaded.</p>
+  <div class="mt-4 flex flex-wrap gap-3">
+    <button type="button" data-owner-tab="new" aria-pressed="true" class="rounded-lg border border-slate-300 bg-orange-50 px-4 py-2 font-semibold">Register New Owner</button>
+    <button type="button" data-owner-tab="existing" aria-pressed="false" class="rounded-lg border border-slate-300 px-4 py-2 font-semibold">Select Existing Owner</button>
+  </div>
+  <section data-owner-panel="new" class="mt-5">
+    <div class="grid gap-4 md:grid-cols-2">
+      <div><label for="owner-kind" class="mb-2 block text-sm font-semibold">Owner type</label><select id="owner-kind" data-owner-field="type" required class="w-full rounded-lg border border-slate-300 px-3 py-2"><option value="">Choose a type</option>{% for kind in ['Individual', 'Company', 'Trust'] %}<option value="{{ kind|lower }}">{{ kind }}</option>{% endfor %}</select></div>
+      <div><label for="owner-name" class="mb-2 block text-sm font-semibold">Full name or registered name</label><input id="owner-name" data-owner-field="name" required maxlength="200" class="w-full rounded-lg border border-slate-300 px-3 py-2"></div>
+      {% for key, label, limit, kind in [('identity_number', 'ID / registration number', 80, 'text'), ('email', 'Email', 255, 'email'), ('phone', 'Telephone', 50, 'tel')] %}
+      <div><label for="owner-{{ key }}" class="mb-2 block text-sm font-semibold">{{ label }}</label><input id="owner-{{ key }}" data-owner-field="{{ key }}" type="{{ kind }}" maxlength="{{ limit }}" class="w-full rounded-lg border border-slate-300 px-3 py-2"></div>
+      {% endfor %}
+      <div><label for="owner-percentage" class="mb-2 block text-sm font-semibold">Ownership percentage (optional)</label><input id="owner-percentage" data-owner-field="percentage" type="number" min="0" max="100" step="0.0001" class="w-full rounded-lg border border-slate-300 px-3 py-2"></div>
+      {% for key, label in [('residential_address', 'Residential / registered address'), ('postal_address', 'Postal address')] %}
+      <div><label for="owner-{{ key }}" class="mb-2 block text-sm font-semibold">{{ label }}</label><textarea id="owner-{{ key }}" data-owner-field="{{ key }}" rows="3" maxlength="500" class="w-full rounded-lg border border-slate-300 px-3 py-2"></textarea></div>
+      {% endfor %}
+    </div>
+    <div class="mt-4 flex justify-end"><button type="button" id="owner-add-preview" class="rounded-lg border border-orange-300 bg-orange-50 px-4 py-2 font-semibold text-orange-900">Add to Preview / Add Another Owner</button></div>
+  </section>
+  <section data-owner-panel="existing" hidden class="mt-5">
+    <label for="owner-search" class="mb-2 block text-sm font-semibold">Search accessible existing owners</label>
+    <input id="owner-search" type="search" disabled placeholder="Owner search unavailable until the schema is ready" class="w-full rounded-lg border border-slate-300 bg-slate-100 px-3 py-2">
+    <p class="mt-3 text-sm text-slate-600">Existing identities will be reused. No owner records are queried in this preview.</p>
+    <button type="button" disabled class="mt-4 rounded-lg border border-slate-200 bg-slate-100 px-4 py-2 text-slate-500">Select Owner &mdash; Schema Required</button>
+  </section>
+  <section class="mt-5 rounded-lg border border-slate-200 p-4"><h3 class="font-semibold">Preview only &mdash; not assigned owners</h3><ul id="owner-preview-list" class="mt-2 space-y-2 text-sm"></ul><p id="owner-preview-message" role="status" class="mt-3 text-sm text-slate-600"></p></section>
+  <div class="mt-5 flex justify-end"><button type="button" disabled id="owner-save-disabled" class="rounded-lg border border-slate-200 bg-slate-100 px-4 py-2 font-semibold text-slate-500">Save Owner &amp; Assignment &mdash; Schema Required</button></div>
+</dialog>
+<script>
+(() => {
+  const dialog = document.getElementById('owner-assignment-preview');
+  const entriesByProperty = new Map();
+  let propertyId = null;
+  const fields = Array.from(dialog.querySelectorAll('[data-owner-field]'));
+  function renderPreview() {
+    const list = document.getElementById('owner-preview-list');
+    list.replaceChildren();
+    for (const entry of entriesByProperty.get(propertyId) || []) {
+      const item = document.createElement('li');
+      item.textContent = entry.name + ' (' + entry.type + ')' + (entry.percentage ? ' ? ' + entry.percentage + '%' : '');
+      list.appendChild(item);
+    }
+  }
+  function selectPanel(key) {
+    for (const panel of dialog.querySelectorAll('[data-owner-panel]')) panel.hidden = panel.dataset.ownerPanel !== key;
+    for (const button of dialog.querySelectorAll('[data-owner-tab]')) button.setAttribute('aria-pressed', String(button.dataset.ownerTab === key));
+  }
+  for (const button of document.querySelectorAll('[data-open-owner]')) {
+    button.addEventListener('click', () => {
+      propertyId = button.dataset.propertyId;
+      document.getElementById('owner-property-name').textContent = button.dataset.propertyName;
+      for (const field of fields) field.value = '';
+      document.getElementById('owner-preview-message').textContent = '';
+      selectPanel('new'); renderPreview(); dialog.showModal(); document.getElementById('owner-kind').focus();
+    });
+  }
+  for (const button of dialog.querySelectorAll('[data-owner-tab]')) button.addEventListener('click', () => selectPanel(button.dataset.ownerTab));
+  document.getElementById('owner-preview-close').addEventListener('click', () => dialog.close());
+  document.getElementById('owner-add-preview').addEventListener('click', () => {
+    if (!fields.every(field => field.reportValidity())) return;
+    const entry = Object.fromEntries(fields.map(field => [field.dataset.ownerField, field.value.trim()]));
+    if (!entry.name) { document.getElementById('owner-preview-message').textContent = 'Enter an owner name.'; return; }
+    const entries = entriesByProperty.get(propertyId) || [];
+    if (entry.identity_number && entries.some(other => other.type === entry.type && other.identity_number.toLowerCase() === entry.identity_number.toLowerCase())) {
+      document.getElementById('owner-preview-message').textContent = 'This identifier is already in this property preview.'; return;
+    }
+    entries.push(entry); entriesByProperty.set(propertyId, entries); renderPreview();
+    for (const field of fields) field.value = '';
+    document.getElementById('owner-preview-message').textContent = 'Preview updated only. Nothing has been saved or assigned.';
+  });
+})();
+</script>

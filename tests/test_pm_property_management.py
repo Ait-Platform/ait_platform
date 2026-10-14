@@ -144,9 +144,9 @@ class PropertyManagementTests(unittest.TestCase):
 
     def test_owner_controls_are_disabled_without_loading_owner_tables(self):
         html=self.client.get('/billing/property-owner').get_data(as_text=True)
-        self.assertIn('Assign Owner &mdash; Coming Soon',html)
+        self.assertIn('data-open-owner',html)
         self.assertIn('/billing/property-owner/26/edit',html)
-        self.assertNotIn('Save Owner',html)
+        self.assertIn('disabled id="owner-save-disabled"',html)
         self.assertIn('<dialog',html)
 
     def test_edit_prepopulates_and_persists_available_property_fields(self):
@@ -179,5 +179,16 @@ class PropertyManagementTests(unittest.TestCase):
         self.assertEqual(response.status_code,503)
         self.assertEqual(self.session.execute(sa.text('SELECT name,address FROM bil_property WHERE id=26')).one(),('Almond','Original address'))
         with self.client.session_transaction() as session:self.assertFalse(any(category=='success' for category,message in session.get('_flashes',[])))
+
+    def test_owner_preview_fields_and_save_gate_without_owner_tables(self):
+        for path in ('/billing/property-owner','/billing/property-owner/26/edit'):
+            html=self.client.get(path).get_data(as_text=True)
+            for label in ('Register New Owner','Select Existing Owner','ID / registration number','Residential / registered address','Postal address','Ownership percentage','Company','Trust'):
+                self.assertIn(label,html)
+            self.assertIn('disabled id="owner-save-disabled"',html)
+            self.assertIn('Nothing has been saved or assigned.',html)
+            self.assertNotIn('action="/billing/owner',html)
+        self.assertEqual(self.count(),2)
+        self.assertEqual(set(sa.inspect(self.conn).get_temp_table_names()),{'bil_property'})
 
 if __name__=='__main__': unittest.main()

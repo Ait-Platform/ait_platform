@@ -35,19 +35,59 @@ class PropertyNavigationTests(unittest.TestCase):
         self.assertNotIn('subscription', html)
         self.assertIn('Property Management', html)
 
-    def test_property_list_is_scoped_to_current_manager(self):
+    def dashboard_data(self, properties, show_hidden=False):
         import types
         tree = ast.parse((ROOT / 'app/program_billing/helpers.py').read_text(encoding='utf-8'))
         node = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == 'get_dashboard_data')
-        prop = types.SimpleNamespace(id=11, name='Authorized property', address='', tenants=[], meters=[], is_archived=False)
         query = Mock()
-        query.filter_by.return_value.all.return_value = [prop]
+        def filtered(**criteria):
+            rows = [p for p in properties if all(getattr(p, key) == value for key, value in criteria.items())]
+            return types.SimpleNamespace(all=lambda: rows)
+        query.filter_by.side_effect = filtered
         scope = dict(current_user=types.SimpleNamespace(id=7), BilProperty=types.SimpleNamespace(query=query))
         exec(compile(ast.Module(body=[node], type_ignores=[]), 'property-list', 'exec'), scope)
-        rows = scope['get_dashboard_data']()
+        return scope['get_dashboard_data'](show_hidden=show_hidden), query
+
+    def test_properties_without_tenants_units_or_leases(self):
+        import types
+        prop = types.SimpleNamespace(id=11, manager_id=7, name='Empty property', address='', meters=[], is_archived=False)
+        rows, query = self.dashboard_data([prop])
         query.filter_by.assert_called_once_with(manager_id=7, is_archived=False)
         self.assertEqual([row['property_id'] for row in rows], [11])
-        self.assertNotIn('admin', scope)
+        self.assertNotIn('tenant_id', rows[0])
+        self.assertNotIn('tenant_name', rows[0])
+
+    def test_existing_properties_never_load_tenant_relationship(self):
+        class ExistingProperty:
+            id = 12
+            manager_id = 7
+            name = 'Existing property'
+            address = 'Existing address'
+            is_archived = False
+            meters = [Mock(utility_type='water')]
+            @property
+            def tenants(self):
+                raise AssertionError('Tenant relationship must not be loaded')
+            @property
+            def leases(self):
+                raise AssertionError('Lease relationship must not be loaded')
+            @property
+            def sectional_units(self):
+                raise AssertionError('Unit relationship must not be loaded')
+        rows, _ = self.dashboard_data([ExistingProperty()])
+        self.assertEqual(rows[0]['property_name'], 'Existing property')
+        self.assertEqual(rows[0]['meter_number'], '1 Meters Linked')
+        self.assertEqual(rows[0]['utility_type'], 'water')
+
+    def test_other_managers_excluded_even_when_showing_archived_properties(self):
+        import types
+        props = [types.SimpleNamespace(id=i, manager_id=manager, name=str(i), address='', meters=[], is_archived=archived)
+                 for i, manager, archived in [(11, 7, False), (12, 7, True), (22, 8, False)]]
+        rows, _ = self.dashboard_data(props)
+        self.assertEqual([r['property_id'] for r in rows], [11])
+        rows, query = self.dashboard_data(props, show_hidden=True)
+        self.assertEqual([r['property_id'] for r in rows], [11, 12])
+        query.filter_by.assert_called_once_with(manager_id=7)
 
     def test_locked_entry_preserves_unlock_control(self):
         env = Environment(loader=FileSystemLoader(ROOT / 'templates'))

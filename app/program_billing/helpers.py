@@ -5,7 +5,7 @@ from app.models.billing import BilProperty
 def get_dashboard_data(show_hidden=False):
     """
     Fetches property data for the logged-in owner/manager.
-    Returns 1 row per property to avoid dashboard duplication.
+    Returns 1 row per property without loading tenants, units or leases.
     """
     if show_hidden:
         props = BilProperty.query.filter_by(manager_id=current_user.id).all()
@@ -14,14 +14,9 @@ def get_dashboard_data(show_hidden=False):
     data = []
     
     for p in props:
-        tenant_name = None
-        tenant_id = None
         meter_summary = None
         utility_summary = None
         
-        if p.tenants:
-            tenant_name = p.tenants[0].name
-            tenant_id = p.tenants[0].id
         if p.meters:
             meter_summary = f"{len(p.meters)} Meters Linked"
             types = list(set([m.utility_type for m in p.meters if m.utility_type]))
@@ -31,8 +26,6 @@ def get_dashboard_data(show_hidden=False):
             "property_id": p.id,
             "property_name": p.name,
             "address": p.address if p.address and p.address != "None" else "",
-            "tenant_id": tenant_id,
-            "tenant_name": tenant_name,
             "meter_number": meter_summary,
             "utility_type": utility_summary,
             "is_archived": p.is_archived

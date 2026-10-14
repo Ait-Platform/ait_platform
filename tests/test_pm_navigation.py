@@ -115,7 +115,7 @@ class PropertyNavigationTests(unittest.TestCase):
         env.globals['url_for'] = lambda endpoint, **kw: '/fixture/' + endpoint
         env.globals['csrf_token'] = lambda: 'test-token'
         data = [dict(property_id=12, property_name='Existing property', address='', is_archived=False)]
-        html = env.get_template('program_billing/manager_dashboard.html').render(data=data, lease_workspace=True)
+        html = env.get_template('program_billing/property_owner.html').render(properties=[dict(id=12, name='Existing property', address='', is_archived=False)], property_name='', error=None)
         for label in ('Property &amp; Owner', 'Lease Management', 'METSOA', 'Occupier SOA', 'Property Portfolio'):
             self.assertIn(label, html)
         self.assertIn('/fixture/billing_bp.property_portfolio', html)
@@ -136,6 +136,28 @@ class PropertyNavigationTests(unittest.TestCase):
         rows, query = self.dashboard_data(props, show_hidden=True)
         self.assertEqual([r['property_id'] for r in rows], [11, 12])
         query.filter_by.assert_called_once_with(manager_id=7)
+
+    def test_shared_menu_highlights_each_workspace_and_lease_page(self):
+        from jinja2 import ChoiceLoader, DictLoader
+        from html.parser import HTMLParser
+        from html import unescape
+        class ActiveLinks(HTMLParser):
+            def __init__(self): super().__init__(); self.links=[]
+            def handle_starttag(self,tag,attrs):
+                attrs=dict(attrs)
+                if tag=='a' and attrs.get('aria-current')=='page':self.links.append(attrs['href'])
+        env=Environment(loader=ChoiceLoader([DictLoader({'layout.html':'{% block content %}{% endblock %}','partials/flash_messages.html':''}),FileSystemLoader(ROOT/'templates')]))
+        env.globals['url_for']=lambda endpoint,**kwargs:'/fixture/'+endpoint
+        env.globals['csrf_token']=lambda:'synthetic'
+        context=dict(properties=[],selected_property=None,parties={},duration={},duration_days=None,error=None,leases=[],available=False,associated=False,property_name='',debtors=[],total_owed=0,start_date='',end_date='',current_month='2026-10')
+        for page,endpoint in [('property_owner','learner_dashboard'),('lease_management','pm_lease_management'),('lease_property','pm_lease_management'),('lease_parties','pm_lease_management'),('lease_duration','pm_lease_management'),('utilities_hub','utilities_hub'),('tenant_accounts','tenant_accounts')]:
+            with self.subTest(page=page):
+                html=env.get_template('program_billing/'+page+'.html').render(**context)
+                parser=ActiveLinks();parser.feed(html)
+                self.assertEqual(parser.links,['/fixture/billing_bp.'+endpoint])
+                self.assertNotIn('<iframe',html)
+                self.assertIn('Property & Owner',unescape(html))
+                self.assertIn('Occupier SOA',html)
 
     def test_locked_entry_preserves_unlock_control(self):
         env = Environment(loader=FileSystemLoader(ROOT / 'templates'))

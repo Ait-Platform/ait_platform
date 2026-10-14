@@ -63,9 +63,10 @@ class PropertyManagementTests(unittest.TestCase):
         self.module = mod
         # Include the real main route, without starting the AIT application factory.
         tree = ast.parse((ROOT/'app/program_billing/routes.py').read_text(encoding='utf-8'))
-        node = next(n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name=='property_owner')
-        exec(compile(ast.Module(body=[node],type_ignores=[]),'property-owner-route','exec'),dict(billing_bp=blueprint,login_required=login_required))
-        for endpoint in ('learner_dashboard','property_portfolio'):
+        for function in ('property_owner', 'learner_dashboard'):
+            node = next(n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name==function)
+            exec(compile(ast.Module(body=[node],type_ignores=[]),'property-owner-route','exec'),dict(billing_bp=blueprint,login_required=login_required))
+        for endpoint in ('property_portfolio','pm_lease_management','utilities_hub','tenant_accounts'):
             blueprint.add_url_rule('/fixture/'+endpoint,endpoint=endpoint,view_func=lambda:'fixture')
         self.app.register_blueprint(blueprint)
         self.client = self.app.test_client()
@@ -77,6 +78,24 @@ class PropertyManagementTests(unittest.TestCase):
 
     def count(self):
         return self.session.execute(sa.text('SELECT count(*) FROM bil_property')).scalar()
+
+    def test_default_dashboard_reuses_property_owner_working_area(self):
+        response=self.client.get('/billing/dashboard')
+        self.assertEqual(response.status_code,200)
+        html=response.get_data(as_text=True)
+        for content in ('Save Property','My Properties','Almond','Original address','<dialog','Assign Owner'):
+            self.assertIn(content,html)
+        self.assertNotIn('Other manager',html)
+        self.assertNotIn('Property Management modules',html)
+        self.assertIn('aria-current="page"',html)
+        for endpoint in ('pm_lease_management','utilities_hub','tenant_accounts'):
+            self.assertIn('/fixture/'+endpoint,html)
+        self.assertEqual(self.count(),2)
+
+    def test_dashboard_and_home_require_authentication(self):
+        with self.client.session_transaction() as session:session.clear()
+        self.assertEqual(self.client.get('/billing/dashboard').status_code,401)
+        self.assertEqual(self.client.get('/billing/home').status_code,401)
 
     def test_existing_properties_appear_without_reregistration(self):
         html=self.client.get('/billing/property-owner').get_data(as_text=True)

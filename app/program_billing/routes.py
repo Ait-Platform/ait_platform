@@ -206,12 +206,9 @@ def property_owner():
 @billing_bp.route("/billing/home", endpoint="subject_home", methods=["GET"])
 @login_required
 def learner_dashboard():
-    # Normal GET show dashboard data
-    data = get_dashboard_data()
-
-    from app.program_billing.lease_management import render_pm_template
-    return render_pm_template("program_billing/manager_dashboard.html", data=data,
-        lease_workspace=True)
+    # Reuse the working Property & Owner page; no relationship loading for navigation.
+    from app.program_billing.property_management import property_owner_page
+    return property_owner_page()
 
 from app.models.billing import BilLease, BilPayment
 

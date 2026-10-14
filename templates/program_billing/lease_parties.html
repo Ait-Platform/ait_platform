@@ -13,6 +13,7 @@
           <h1 class="text-2xl font-bold text-slate-900">Page 2 &mdash; Parties</h1>
           <button type="submit" name="action" value="previous" formnovalidate class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700">Previous</button>
         </div>
+        {% set pm_menu_active = 'leases' %}{% include 'program_billing/menu.html' %}
         <div class="mt-4 flex justify-end"><button type="submit" name="action" value="retain" class="rounded-lg bg-orange-600 px-4 py-2 font-semibold text-white">Retain for this session</button></div>
         <p class="mt-6 text-sm text-slate-700">Property: <strong>{{ selected_property.name }}</strong></p>
         <p class="mt-2 text-sm text-slate-600">Enter the contracting parties separately. Neither party is inferred from property ownership. Information is retained only in this session; no saved draft or lease is created.</p>

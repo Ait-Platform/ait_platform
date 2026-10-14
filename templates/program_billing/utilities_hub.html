@@ -22,6 +22,7 @@
           </a>
         </div>
 
+        {% set pm_menu_active = 'metsoa' %}{% include 'program_billing/menu.html' %}
         <form method="POST" action="{{ url_for('billing_bp.utilities_hub') }}" class="space-y-8">
           {{ form.hidden_tag() if form else '' }}
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>

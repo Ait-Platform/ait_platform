@@ -17,6 +17,7 @@
       <div><label for="owner-{{ key }}" class="mb-2 block text-sm font-semibold">{{ label }}</label><textarea id="owner-{{ key }}" data-owner-field="{{ key }}" rows="3" maxlength="500" class="w-full rounded-lg border border-slate-300 px-3 py-2"></textarea></div>
       {% endfor %}
     </div>
+    <label class="mt-4 flex items-center gap-2 text-sm font-medium"><input id="owner-postal-same" type="checkbox" class="rounded border-slate-300">Postal address same as residential / registered address</label>
     <div class="mt-4 flex justify-end"><button type="button" id="owner-add-preview" class="rounded-lg border border-orange-300 bg-orange-50 px-4 py-2 font-semibold text-orange-900">Add to Preview / Add Another Owner</button></div>
   </section>
   <section data-owner-panel="existing" hidden class="mt-5">
@@ -26,7 +27,8 @@
     <button type="button" disabled class="mt-4 rounded-lg border border-slate-200 bg-slate-100 px-4 py-2 text-slate-500">Select Owner &mdash; Schema Required</button>
   </section>
   <section class="mt-5 rounded-lg border border-slate-200 p-4"><h3 class="font-semibold">Preview only &mdash; not assigned owners</h3><ul id="owner-preview-list" class="mt-2 space-y-2 text-sm"></ul><p id="owner-preview-message" role="status" class="mt-3 text-sm text-slate-600"></p></section>
-  <div class="mt-5 flex justify-end"><button type="button" disabled id="owner-save-disabled" class="rounded-lg border border-slate-200 bg-slate-100 px-4 py-2 font-semibold text-slate-500">Save Owner &amp; Assignment &mdash; Schema Required</button></div>
+  <div class="mt-5 flex justify-end"><button type="button" disabled id="owner-save-disabled" aria-describedby="owner-save-explanation" class="rounded-lg border border-slate-200 bg-slate-100 px-4 py-2 font-semibold text-slate-500">Save Owner</button></div>
+  <p id="owner-save-explanation" class="mt-2 text-sm text-slate-600">Owner registration is not yet available.</p>
 </dialog>
 <script>
 (() => {
@@ -34,6 +36,20 @@
   const entriesByProperty = new Map();
   let propertyId = null;
   const fields = Array.from(dialog.querySelectorAll('[data-owner-field]'));
+  const samePostal = document.getElementById('owner-postal-same');
+  const residential = document.getElementById('owner-residential_address');
+  const postal = document.getElementById('owner-postal_address');
+  function syncPostal() {
+    postal.readOnly = samePostal.checked;
+    if (samePostal.checked) postal.value = residential.value;
+  }
+  samePostal.addEventListener('change', syncPostal);
+  residential.addEventListener('input', syncPostal);
+  function resetFields() {
+    for (const field of fields) field.value = '';
+    samePostal.checked = false;
+    syncPostal();
+  }
   function renderPreview() {
     const list = document.getElementById('owner-preview-list');
     list.replaceChildren();
@@ -51,7 +67,7 @@
     button.addEventListener('click', () => {
       propertyId = button.dataset.propertyId;
       document.getElementById('owner-property-name').textContent = button.dataset.propertyName;
-      for (const field of fields) field.value = '';
+      resetFields();
       document.getElementById('owner-preview-message').textContent = '';
       selectPanel('new'); renderPreview(); dialog.showModal(); document.getElementById('owner-kind').focus();
     });
@@ -67,7 +83,7 @@
       document.getElementById('owner-preview-message').textContent = 'This identifier is already in this property preview.'; return;
     }
     entries.push(entry); entriesByProperty.set(propertyId, entries); renderPreview();
-    for (const field of fields) field.value = '';
+    resetFields();
     document.getElementById('owner-preview-message').textContent = 'Preview updated only. Nothing has been saved or assigned.';
   });
 })();

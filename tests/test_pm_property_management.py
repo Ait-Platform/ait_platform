@@ -186,6 +186,10 @@ class PropertyManagementTests(unittest.TestCase):
             for label in ('Register New Owner','Select Existing Owner','ID / registration number','Residential / registered address','Postal address','Ownership percentage','Company','Trust'):
                 self.assertIn(label,html)
             self.assertIn('disabled id="owner-save-disabled"',html)
+            self.assertIn('>Save Owner</button>',html)
+            self.assertIn('Owner registration is not yet available.',html)
+            self.assertIn('Postal address same as residential / registered address',html)
+            self.assertNotIn('Save Owner &amp; Assignment',html)
             self.assertIn('Nothing has been saved or assigned.',html)
             self.assertNotIn('action="/billing/owner',html)
         self.assertEqual(self.count(),2)

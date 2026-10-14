@@ -1,0 +1,46 @@
+// Execute the actual modal script with a minimal DOM; no database or network.
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const vm = require('node:vm');
+const source = fs.readFileSync(path.join(__dirname, '../templates/program_billing/owner_assignment_preview.html'), 'utf8');
+const script = source.split('<script>')[1].split('</script>')[0];
+class Element {
+  constructor(dataset = {}) { this.dataset = dataset; this.listeners = {}; this.value = ''; this.checked = false; this.readOnly = false; this.children = []; this.textContent = ''; }
+  addEventListener(name, callback) { this.listeners[name] = callback; }
+  fire(name) { this.listeners[name](); }
+  focus() {}
+  showModal() { this.open = true; }
+  close() { this.open = false; }
+  reportValidity() { return !['name','type'].includes(this.dataset.ownerField) || Boolean(this.value.trim()); }
+  replaceChildren() { this.children = []; }
+  appendChild(child) { this.children.push(child); }
+  setAttribute(name, value) { this[name] = value; }
+}
+const keys = ['type', 'name', 'identity_number', 'email', 'phone', 'percentage', 'residential_address', 'postal_address'];
+const fields = keys.map(key => new Element({ownerField: key}));
+const ids = {};
+for (const [i, key] of keys.entries()) ids['owner-' + (key === 'type' ? 'kind' : key)] = fields[i];
+for (const id of ['owner-assignment-preview','owner-postal-same','owner-property-name','owner-preview-list','owner-preview-message','owner-preview-close','owner-add-preview']) ids[id] = new Element();
+const opener = new Element({propertyId: '26', propertyName: 'Almond'});
+const tabs = [new Element({ownerTab: 'new'}), new Element({ownerTab: 'existing'})];
+const panels = [new Element({ownerPanel: 'new'}), new Element({ownerPanel: 'existing'})];
+ids['owner-assignment-preview'].querySelectorAll = selector => selector === '[data-owner-field]' ? fields : selector === '[data-owner-panel]' ? panels : tabs;
+const document = {getElementById: id => ids[id], querySelectorAll: () => [opener], createElement: () => new Element()};
+vm.runInNewContext(script, {document, Map, Array, Object, String});
+opener.fire('click');
+const same = ids['owner-postal-same'], residential = ids['owner-residential_address'], postal = ids['owner-postal_address'];
+residential.value = 'Residential address'; postal.value = 'Separate postal'; same.checked = true; same.fire('change');
+assert.equal(postal.value, 'Residential address'); assert.equal(postal.readOnly, true);
+residential.value = 'Updated residential'; residential.fire('input'); assert.equal(postal.value, 'Updated residential');
+same.checked = false; same.fire('change'); assert.equal(postal.readOnly, false);
+postal.value = 'PO Box 1'; residential.value = 'Different residential'; residential.fire('input'); assert.equal(postal.value, 'PO Box 1');
+same.checked = true; same.fire('change'); fields[0].value = 'individual'; fields[1].value = 'Owner One'; ids['owner-add-preview'].fire('click');
+assert.equal(ids['owner-preview-list'].children.length, 1); assert.equal(same.checked, false); assert.equal(postal.readOnly, false);
+fields[0].value = 'trust'; fields[1].value = 'Owner Two'; ids['owner-add-preview'].fire('click'); assert.equal(ids['owner-preview-list'].children.length, 2);
+assert.match(ids['owner-preview-message'].textContent, /Nothing has been saved/);
+tabs[1].fire('click'); assert.equal(panels[0].hidden, true); assert.equal(panels[1].hidden, false);
+ids['owner-preview-close'].fire('click'); opener.fire('click'); assert.equal(same.checked, false); assert.equal(postal.readOnly, false);
+assert.match(source, /disabled id="owner-save-disabled"/); assert.match(source, />Save Owner<\/button>/);
+assert.ok(!script.includes('fetch(') && !script.includes('XMLHttpRequest'));
+console.log('Owner modal checks passed: postal copy/sync, separate address, resets, multiple preview owners, tabs and disabled saving.');

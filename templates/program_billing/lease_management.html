@@ -11,7 +11,7 @@
     </div>
     {% include "partials/flash_messages.html" %}
     <div class="flex justify-end flex-wrap gap-3 mb-6">
-      <a href="{{ url_for('billing_bp.property_portfolio') }}" class="rounded-lg border border-orange-300 bg-orange-50 px-4 py-2 text-sm font-semibold text-orange-900 hover:bg-orange-100">Add Property</a>
+      <a href="{{ url_for('billing_bp.property_owner') }}" class="rounded-lg border border-orange-300 bg-orange-50 px-4 py-2 text-sm font-semibold text-orange-900 hover:bg-orange-100">Property &amp; Owner</a>
       {% if available %}
       <a href="{{ url_for('billing_bp.pm_lease_preview') }}" target="_blank" rel="noopener" class="rounded-lg border border-orange-700 bg-orange-600 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-700">View Lease</a>
       <a href="{{ url_for('billing_bp.pm_lease_word') }}" class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Download Word</a>
@@ -30,7 +30,7 @@
       </div>
     </form>
     {% if not properties %}
-    <p class="mb-6 text-sm text-slate-600">You have no active properties to manage. Use Add Property to begin the existing property setup workflow.</p>
+    <p class="mb-6 text-sm text-slate-600">You have no active properties to manage. Visit Property &amp; Owner for registration updates.</p>
     {% elif selected_property %}
     <h2 class="text-lg font-semibold text-slate-800">{{ selected_property.name }}</h2>
     {% if selected_property.address %}<p class="mt-1 text-sm text-slate-600">{{ selected_property.address }}</p>{% endif %}

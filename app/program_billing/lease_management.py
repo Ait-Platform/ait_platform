@@ -16,8 +16,15 @@ from app.program_billing.lease_documents import (
     PDF_NAME, WORD_NAME, ReviewDocumentUnavailable, read_review_pair,
 )
 
-STATUS = "DRAFT — NOT FOR SIGNATURE OR ISSUANCE"
+STATUS = "DRAFT â€” NOT FOR SIGNATURE OR ISSUANCE"
 ENDPOINTS = {"billing_bp.pm_lease_management", "billing_bp.pm_lease_preview", "billing_bp.pm_lease_word"}
+
+
+def log_lease_database_error(stage, error):
+    original = getattr(error, "orig", None)
+    sqlstate = getattr(original, "pgcode", None) or getattr(original, "sqlstate", None)
+    current_app.logger.error("PM lease database failure stage=%s error=%s sqlstate=%s",
+        stage, type(error).__name__, sqlstate or "unavailable")
 
 
 def require_pm_user():
@@ -26,7 +33,8 @@ def require_pm_user():
     statement = select(User.id).where(User.id == current_user.id, User.is_active == 1)
     try:
         allowed = db.session.execute(statement.execution_options(autoflush=False)).scalar_one_or_none()
-    except SQLAlchemyError:
+    except SQLAlchemyError as error:
+        log_lease_database_error("active_user", error)
         abort(503, description="Property Management access could not be verified.")
     if allowed is None:
         abort(403)
@@ -42,7 +50,8 @@ def authorised_review_property():
         BilProperty.manager_id == current_user.id, BilProperty.is_archived == False)
     try:
         return db.session.execute(statement.execution_options(autoflush=False)).scalar_one_or_none()
-    except SQLAlchemyError:
+    except SQLAlchemyError as error:
+        log_lease_database_error("review_association", error)
         abort(503, description="Property access could not be verified.")
 
 
@@ -74,7 +83,8 @@ def lease_management():
     ).order_by(BilProperty.name, BilProperty.id)
     try:
         properties = db.session.execute(statement.execution_options(autoflush=False)).mappings().all()
-    except SQLAlchemyError:
+    except SQLAlchemyError as error:
+        log_lease_database_error("property_list", error)
         abort(503, description="Properties could not be loaded.")
     review_property_id = authorised_review_property()
     requested = request.args.get("property_id")
@@ -96,21 +106,21 @@ def lease_management():
             BilProperty.is_archived == False).order_by(BilLease.id)
         try:
             leases = db.session.execute(statement.execution_options(autoflush=False)).mappings().all()
-        except SQLAlchemyError:
+        except SQLAlchemyError as error:
+            log_lease_database_error("existing_leases", error)
             abort(503, description="Existing leases could not be loaded.")
     associated = selected is not None and selected["id"] == review_property_id
     available = associated
-    missing = False
     if associated:
         try:
             read_review_pair()
         except ReviewDocumentUnavailable:
             available = False
-            missing = True
+            current_app.logger.warning("PM lease review unavailable; property selection remains available.")
     return render_pm_template("program_billing/lease_management.html",
         properties=properties, selected_property=selected, leases=leases,
         document_name=WORD_NAME if associated else None, status=STATUS,
-        available=available, associated=associated), 503 if missing else 200
+        available=available, associated=associated)
 
 
 def deliver_review(filename, mimetype, *, attachment):

@@ -61,10 +61,7 @@
                 </a>
               </td>
               <td class="px-6 py-4">
-                <a href="{{ url_for('billing_bp.property_owner') }}" class="inline-flex items-center px-3 py-1.5 bg-slate-100 text-slate-700 text-xs font-bold rounded-lg hover:bg-slate-200 transition border border-slate-200">
-                  <svg class="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
-                  Edit &mdash; Coming Soon
-                </a>
+                <button type="button" disabled class="inline-flex items-center px-3 py-1.5 bg-slate-100 text-slate-500 text-xs font-bold rounded-lg border border-slate-200">Edit &mdash; Coming Soon</button>
               </td>
               <td class="px-6 py-4 text-right">
                 <form action="{{ url_for('billing_bp.delete_property', property_id=row.property_id) }}" method="POST" class="inline" data-name="{{ row.property_name }}" onsubmit="return confirmDelete(event, this.getAttribute('data-name'))">

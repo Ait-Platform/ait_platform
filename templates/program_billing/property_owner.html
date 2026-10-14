@@ -2,41 +2,63 @@
 {% block title %}Property & Owner{% endblock %}
 {% block flashes %}{% endblock %}
 {% block content %}
-<div class="mx-auto max-w-5xl px-4 py-10">
+<div class="mx-auto max-w-6xl px-4 py-10">
   <div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow">
     <div class="h-2 bg-orange-500"></div>
     <div class="p-6">
       {% include "partials/flash_messages.html" %}
       <div class="flex items-center justify-between gap-4">
         <h1 class="text-2xl font-semibold text-slate-900">Property &amp; Owner</h1>
-        <a href="{{ url_for('billing_bp.learner_dashboard') }}" class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200">Back</a>
+        <a href="{{ url_for('billing_bp.learner_dashboard') }}" class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700">Back</a>
       </div>
-      <div class="mt-4 flex flex-wrap justify-end gap-3">
-        <a href="{{ url_for('billing_bp.property_portfolio') }}" class="rounded-lg bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100">Property Portfolio</a>
-        <button type="button" disabled class="rounded-lg border border-slate-200 bg-slate-100 px-4 py-2 text-sm text-slate-500">+ Register Property &amp; Owner &mdash; Coming Soon</button>
+      <div class="mt-4 flex justify-end"><a href="{{ url_for('billing_bp.property_portfolio') }}" class="rounded-lg bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700">Property Portfolio</a></div>
+      <form method="POST" action="{{ url_for('billing_bp.property_owner') }}" class="mt-6 flex flex-wrap items-end gap-3">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="min-w-0 flex-1"><label for="property-name" class="mb-2 block text-sm font-semibold">Property Name</label><input id="property-name" name="property_name" value="{{ property_name }}" maxlength="100" required autofocus class="w-full rounded-lg border border-slate-300 px-3 py-2"></div>
+        <button type="submit" class="rounded-lg bg-orange-600 px-4 py-2 font-semibold text-white hover:bg-orange-700">Save Property</button>
+      </form>
+      {% if error %}<p role="alert" class="mt-3 text-sm text-red-700">{{ error }}</p>{% endif %}
+      <h2 class="mt-8 text-lg font-semibold text-slate-800">My Properties</h2>
+      <p class="mt-2 text-sm text-slate-600">Existing properties are listed automatically. Owner assignment and the complete property-and-owner Edit view are Coming Soon.</p>
+      <div class="mt-4 overflow-x-auto rounded-lg border border-slate-200">
+        <table class="w-full text-left text-sm">
+          <thead class="bg-slate-50"><tr><th class="p-3">Property</th><th class="p-3">Address</th><th class="p-3">Owners</th><th class="p-3">Actions</th></tr></thead>
+          <tbody>
+            {% for property in properties %}
+            <tr class="border-t border-slate-200">
+              <td class="p-3 font-semibold">{{ property.name }}{% if property.is_archived %}<span class="ml-2 text-xs text-slate-500">Archived</span>{% endif %}</td>
+              <td class="p-3"><button type="button" data-address-dialog="address-{{ property.id }}" class="text-blue-700 underline">{{ property.address or 'Assign Address' }}</button></td>
+              <td class="p-3"><button type="button" disabled class="text-slate-500">Assign Owner &mdash; Coming Soon</button></td>
+              <td class="p-3"><button type="button" disabled class="rounded-lg border border-slate-200 bg-slate-100 px-3 py-2 text-slate-500">Edit &mdash; Coming Soon</button></td>
+            </tr>
+            {% else %}<tr><td colspan="4" class="p-6 text-slate-600">No properties registered yet. Enter a property name above to begin.</td></tr>{% endfor %}
+          </tbody>
+        </table>
       </div>
-      <p class="mt-6 text-sm text-slate-600">Registration and editing are not available yet. Disabled controls are placeholders, not entry fields.</p>
-      <p class="mt-3 text-sm text-slate-600">Properties and owners are separate records. Owner registration will support multiple properties per owner and multiple owners per property.</p>
-      <div class="mt-6 grid gap-6 md:grid-cols-2">
-        <section class="rounded-xl border border-emerald-200 bg-emerald-50 p-6">
-          <h2 class="text-xl font-semibold text-slate-800">Property</h2>
-          <div class="mt-4 flex flex-wrap gap-3">
-            <button type="button" disabled class="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm text-slate-500">Register &mdash; Coming Soon</button>
-            <a href="{{ url_for('billing_bp.property_portfolio') }}" class="rounded-lg border border-emerald-300 bg-white px-4 py-2 text-sm font-semibold text-emerald-900 hover:bg-emerald-100">View</a>
-            <button type="button" disabled class="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm text-slate-500">Edit &mdash; Coming Soon</button>
-          </div>
-          <p class="mt-3 text-sm text-slate-600">View your existing properties in the Property Portfolio. Property editing is temporarily unavailable.</p>
-        </section>
-        <section class="rounded-xl border border-blue-200 bg-blue-50 p-6">
-          <h2 class="text-xl font-semibold text-slate-800">Owner</h2>
-          <div class="mt-4 flex flex-wrap gap-3">
-            {% for action in ['Register', 'View', 'Edit'] %}
-            <button type="button" disabled class="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm text-slate-500">{{ action }} &mdash; Coming Soon</button>
-            {% endfor %}
-          </div>
-        </section>
-      </div>
+      {% for property in properties %}
+      <dialog id="address-{{ property.id }}" class="w-full max-w-lg rounded-xl border border-slate-200 p-6 shadow-xl">
+        <form method="POST" action="{{ url_for('billing_bp.property_address', property_id=property.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="flex items-center justify-between gap-3"><h2 class="text-lg font-semibold">Property address: {{ property.name }}</h2><button type="button" data-close-dialog class="rounded-lg bg-slate-100 px-3 py-2">Close</button></div>
+          <label for="address-text-{{ property.id }}" class="mt-4 mb-2 block text-sm font-semibold">Complete property address</label>
+          <textarea id="address-text-{{ property.id }}" name="address" rows="4" maxlength="200" class="w-full rounded-lg border border-slate-300 px-3 py-2">{{ property.address or '' }}</textarea>
+          <p class="mt-2 text-xs text-slate-500">Up to 200 characters.</p>
+          <div class="mt-4 flex justify-end"><button type="submit" class="rounded-lg bg-orange-600 px-4 py-2 font-semibold text-white">Save Address</button></div>
+        </form>
+      </dialog>
+      {% endfor %}
     </div>
   </div>
 </div>
+<script>
+for (const button of document.querySelectorAll('[data-address-dialog]')) {
+  button.addEventListener('click', () => {
+    const dialog = document.getElementById(button.dataset.addressDialog);
+    dialog.showModal(); dialog.querySelector('textarea').focus();
+  });
+}
+for (const button of document.querySelectorAll('[data-close-dialog]')) {
+  button.addEventListener('click', () => button.closest('dialog').close());
+}
+</script>
 {% endblock %}

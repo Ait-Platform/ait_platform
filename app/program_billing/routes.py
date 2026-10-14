@@ -195,12 +195,11 @@ def property_portfolio():
     from app.program_billing.lease_management import render_pm_template
     return render_pm_template("program_billing/property_portfolio.html", data=data)
 
-@billing_bp.route("/billing/property-owner", methods=["GET"])
+@billing_bp.route("/billing/property-owner", methods=["GET", "POST"])
 @login_required
 def property_owner():
-    # Navigation only: ownership features await the explicitly applied migration.
-    from app.program_billing.lease_management import render_pm_template
-    return render_pm_template("program_billing/property_owner.html")
+    from app.program_billing.property_management import property_owner_page
+    return property_owner_page()
 
 
 @billing_bp.route("/billing/dashboard", methods=["GET"])
@@ -4134,3 +4133,6 @@ from . import lease_management as _lease_management
 
 # Page 1 uses existing properties only; no persistent draft or lease writes.
 from . import lease_property as _lease_property
+
+# Property-only management; owner persistence awaits an approved schema.
+from . import property_management as _property_management

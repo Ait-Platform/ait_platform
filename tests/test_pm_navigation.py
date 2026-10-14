@@ -116,14 +116,16 @@ class PropertyNavigationTests(unittest.TestCase):
         env.globals['csrf_token'] = lambda: 'test-token'
         data = [dict(property_id=12, property_name='Existing property', address='', is_archived=False)]
         html = env.get_template('program_billing/manager_dashboard.html').render(data=data, lease_workspace=True)
-        for label in ('METSOA', 'Tenant SOA', 'Metro Reconciliation', 'Lease Management', 'Property Portfolio'):
+        for label in ('Property &amp; Owner', 'Lease Management', 'METSOA', 'Occupier SOA', 'Property Portfolio'):
             self.assertIn(label, html)
         self.assertIn('/fixture/billing_bp.property_portfolio', html)
         self.assertIn('Existing property', html)
         portfolio = env.get_template('program_billing/property_portfolio.html').render(data=data)
-        for endpoint in ('architecture_summary', 'setup_wizard', 'delete_property'):
+        for endpoint in ('architecture_summary', 'delete_property'):
             self.assertIn('/fixture/billing_bp.' + endpoint, portfolio)
         self.assertIn('Existing property', portfolio)
+        self.assertIn('Edit &mdash; Coming Soon', portfolio)
+        self.assertNotIn('billing_bp.setup_wizard', portfolio)
 
     def test_other_managers_excluded_even_when_showing_archived_properties(self):
         import types

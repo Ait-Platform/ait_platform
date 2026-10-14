@@ -76,8 +76,54 @@ class PropertyNavigationTests(unittest.TestCase):
                 raise AssertionError('Unit relationship must not be loaded')
         rows, _ = self.dashboard_data([ExistingProperty()])
         self.assertEqual(rows[0]['property_name'], 'Existing property')
-        self.assertEqual(rows[0]['meter_number'], '1 Meters Linked')
-        self.assertEqual(rows[0]['utility_type'], 'water')
+        self.assertNotIn('meter_number', rows[0])
+        self.assertNotIn('utility_type', rows[0])
+
+    def test_properties_with_or_without_meters_never_load_relationships(self):
+        class PropertyRecord:
+            id = 12
+            manager_id = 7
+            name = 'Property'
+            address = ''
+            is_archived = False
+            def __init__(self, has_meters):
+                self.has_meters = has_meters
+            @property
+            def meters(self):
+                raise AssertionError('ORM meter query must not run, regardless of meter existence')
+            @property
+            def tenants(self):
+                raise AssertionError('Tenant relationship must not load')
+            @property
+            def leases(self):
+                raise AssertionError('Lease relationship must not load')
+            @property
+            def muni_accounts(self):
+                raise AssertionError('Municipal accounts must not load')
+        for has_meters in (False, True):
+            with self.subTest(has_meters=has_meters):
+                rows, query = self.dashboard_data([PropertyRecord(has_meters)])
+                self.assertEqual(rows, [dict(property_id=12, property_name='Property', address='', is_archived=False)])
+                query.filter_by.assert_called_once_with(manager_id=7, is_archived=False)
+
+    def test_dashboard_and_portfolio_render_property_only_rows(self):
+        from jinja2 import ChoiceLoader, DictLoader
+        env = Environment(loader=ChoiceLoader([DictLoader({
+            'layout.html': '{% block content %}{% endblock %}',
+            'partials/flash_messages.html': '',
+        }), FileSystemLoader(ROOT / 'templates')]))
+        env.globals['url_for'] = lambda endpoint, **kw: '/fixture/' + endpoint
+        env.globals['csrf_token'] = lambda: 'test-token'
+        data = [dict(property_id=12, property_name='Existing property', address='', is_archived=False)]
+        html = env.get_template('program_billing/manager_dashboard.html').render(data=data, lease_workspace=True)
+        for label in ('METSOA', 'Tenant SOA', 'Metro Reconciliation', 'Lease Management', 'Property Portfolio'):
+            self.assertIn(label, html)
+        self.assertIn('/fixture/billing_bp.property_portfolio', html)
+        self.assertIn('Existing property', html)
+        portfolio = env.get_template('program_billing/property_portfolio.html').render(data=data)
+        for endpoint in ('architecture_summary', 'setup_wizard', 'delete_property'):
+            self.assertIn('/fixture/billing_bp.' + endpoint, portfolio)
+        self.assertIn('Existing property', portfolio)
 
     def test_other_managers_excluded_even_when_showing_archived_properties(self):
         import types

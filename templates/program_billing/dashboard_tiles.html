@@ -1,4 +1,18 @@
 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8" aria-label="Property Management modules">
+  <section class="rounded-xl border border-emerald-200 bg-emerald-50 p-6">
+    <h2 class="text-xl font-semibold text-slate-800">Property &amp; Owner</h2>
+    <p class="mt-2 text-sm text-slate-600">Property records and owner details.</p>
+    <a href="{{ url_for('billing_bp.property_owner') }}" class="mt-4 inline-block rounded-lg border border-emerald-300 bg-white px-4 py-2 text-sm font-semibold text-emerald-900 hover:bg-emerald-100">Open Property &amp; Owner</a>
+  </section>
+  <section class="rounded-xl border border-violet-200 bg-violet-50 p-6">
+    <h2 class="text-xl font-semibold text-slate-800">Lease Management</h2>
+    <p class="mt-2 text-sm text-slate-600">Lease agreements, special conditions and document control.</p>
+    {% if lease_workspace | default(false) %}
+    <a href="{{ url_for('billing_bp.pm_lease_management') }}" class="mt-4 inline-block rounded-lg border border-orange-300 bg-white px-4 py-2 text-sm font-semibold text-orange-900 hover:bg-orange-100">Open Lease Management</a>
+    {% else %}
+    <span class="mt-4 inline-block rounded-full bg-slate-200 px-3 py-1 text-sm font-medium text-slate-700">Open from Property Management</span>
+    {% endif %}
+  </section>
   <section class="rounded-xl border border-orange-200 bg-orange-50 p-6">
     <h2 class="text-xl font-semibold text-orange-900">METSOA</h2>
     <p class="mt-2 text-sm text-slate-700">Municipal Statements of Account (owner's responsibility).</p>
@@ -13,22 +27,8 @@
     </div>
   </section>
   <section class="rounded-xl border border-blue-200 bg-blue-50 p-6">
-    <h2 class="text-xl font-semibold text-slate-800">Tenant SOA</h2>
-    <p class="mt-2 text-sm text-slate-600">Tenant Statements of Account.</p>
-    <span class="mt-4 inline-block rounded-full bg-slate-200 px-3 py-1 text-sm font-medium text-slate-700">Under Development</span>
-  </section>
-  <section class="rounded-xl border border-emerald-200 bg-emerald-50 p-6">
-    <h2 class="text-xl font-semibold text-slate-800">Metro Reconciliation</h2>
-    <p class="mt-2 text-sm text-slate-600">Municipal account reconciliation.</p>
-    <span class="mt-4 inline-block rounded-full bg-slate-200 px-3 py-1 text-sm font-medium text-slate-700">Under Development</span>
-  </section>
-  <section class="rounded-xl border border-violet-200 bg-violet-50 p-6">
-    <h2 class="text-xl font-semibold text-slate-800">Lease Management</h2>
-    <p class="mt-2 text-sm text-slate-600">Lease agreements, special conditions and document control.</p>
-    {% if lease_workspace | default(false) %}
-    <a href="{{ url_for('billing_bp.pm_lease_management') }}" class="mt-4 inline-block rounded-lg border border-orange-300 bg-white px-4 py-2 text-sm font-semibold text-orange-900 hover:bg-orange-100">Open Lease Management</a>
-    {% else %}
-    <span class="mt-4 inline-block rounded-full bg-slate-200 px-3 py-1 text-sm font-medium text-slate-700">Open from Property Management</span>
-    {% endif %}
+    <h2 class="text-xl font-semibold text-slate-800">Occupier SOA</h2>
+    <p class="mt-2 text-sm text-slate-600">Occupier Statements of Account.</p>
+    <span class="mt-4 inline-block rounded-full bg-slate-200 px-3 py-1 text-sm font-medium text-slate-700">Coming Soon</span>
   </section>
 </div>

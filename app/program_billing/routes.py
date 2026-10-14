@@ -195,6 +195,14 @@ def property_portfolio():
     from app.program_billing.lease_management import render_pm_template
     return render_pm_template("program_billing/property_portfolio.html", data=data)
 
+@billing_bp.route("/billing/property-owner", methods=["GET"])
+@login_required
+def property_owner():
+    # Navigation only: ownership features await the explicitly applied migration.
+    from app.program_billing.lease_management import render_pm_template
+    return render_pm_template("program_billing/property_owner.html")
+
+
 @billing_bp.route("/billing/dashboard", methods=["GET"])
 @billing_bp.route("/billing/home", endpoint="subject_home", methods=["GET"])
 @login_required

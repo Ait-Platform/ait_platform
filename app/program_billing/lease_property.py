@@ -38,8 +38,55 @@ def lease_property():
         selected_property=selected)
 
 
+@billing_bp.route("/billing/leases/new/parties", methods=["GET", "POST"], endpoint="lease_parties")
+def lease_parties():
+    require_pm_user()
+    selection = session.get("lease_page1_property") or {}
+    if not isinstance(selection, dict) or selection.get("user_id") != current_user.id:
+        return redirect(url_for("billing_bp.lease_property"))
+    statement = select(BilProperty.id, BilProperty.name, BilProperty.address).where(
+        BilProperty.id == selection.get("property_id"),
+        BilProperty.manager_id == current_user.id, BilProperty.is_archived == False
+    )
+    try:
+        selected = db.session.execute(statement.execution_options(autoflush=False)).mappings().first()
+    except SQLAlchemyError:
+        abort(503, description="Property access could not be verified.")
+    if selected is None:
+        session.pop("lease_page1_property", None)
+        session.pop("lease_page2_parties", None)
+        return redirect(url_for("billing_bp.lease_property"))
+    saved = session.get("lease_page2_parties") or {}
+    if not isinstance(saved, dict) or saved.get("user_id") != current_user.id or saved.get("property_id") != selected["id"]:
+        saved = {}
+    parties = saved.get("parties", {})
+    error = None
+    if request.method == "POST":
+        parties = {}
+        for role in ("lessor", "lessee"):
+            fields = {}
+            for key, limit in (("party_type", 16), ("name", 120), ("email", 160), ("phone", 40)):
+                value = request.form.get(role + "_" + key, "").strip()
+                if len(value) > limit:
+                    abort(400, description="Party field exceeds its maximum length.")
+                fields[key] = value
+            if fields["party_type"] not in ("", "individual", "company", "trust"):
+                abort(400, description="Invalid party type.")
+            parties[role] = fields
+        session["lease_page2_parties"] = {"user_id": current_user.id,
+            "property_id": selected["id"], "parties": parties}
+        if request.form.get("action") == "previous":
+            return redirect(url_for("billing_bp.lease_property"))
+        if any(not p["party_type"] or not p["name"] for p in parties.values()):
+            error = "Enter a party type and name for both Lessor and Lessee."
+        else:
+            return redirect(url_for("billing_bp.lease_parties"))
+    return render_pm_template("program_billing/lease_parties.html", selected_property=selected,
+        parties=parties, error=error)
+
+
 @billing_bp.after_request
 def protect_lease_property(response):
-    if request.endpoint == "billing_bp.lease_property":
+    if request.endpoint in {"billing_bp.lease_property", "billing_bp.lease_parties"}:
         response.headers["Cache-Control"] = "private, no-store"
     return response

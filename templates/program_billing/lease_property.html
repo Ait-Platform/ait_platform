@@ -33,9 +33,10 @@
       </section>
       {% endif %}
       <div class="mt-6 flex flex-wrap justify-end gap-3">
-        {% for label in ['Save Draft', 'Resume Draft', 'Page 2'] %}<button type="button" disabled class="rounded-lg border border-slate-200 bg-slate-100 px-4 py-2 text-sm text-slate-500">{{ label }} &mdash; Coming Soon</button>{% endfor %}
+        {% if selected_property %}<a href="{{ url_for('billing_bp.lease_parties') }}" class="rounded-lg bg-orange-600 px-4 py-2 font-semibold text-white hover:bg-orange-700">Next: Parties</a>{% endif %}
+        {% for label in ['Save Draft', 'Resume Draft'] %}<button type="button" disabled class="rounded-lg border border-slate-200 bg-slate-100 px-4 py-2 text-sm text-slate-500">{{ label }} &mdash; Coming Soon</button>{% endfor %}
       </div>
-      <p class="mt-3 text-sm text-slate-500">Pages 2&ndash;9 are not available yet.</p>
+      <p class="mt-3 text-sm text-slate-500">Pages 3&ndash;9 are not available yet.</p>
     </div>
   </div>
 </div>

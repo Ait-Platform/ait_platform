@@ -1,0 +1,42 @@
+{% extends "layout.html" %}
+{% block title %}Lease Management | Page 2 Parties{% endblock %}
+{% block flashes %}{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-5xl px-4 py-10">
+  <div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+    <div class="h-2 bg-orange-500"></div>
+    <div class="p-6">
+      {% include "partials/flash_messages.html" %}
+      <form method="POST" action="{{ url_for('billing_bp.lease_parties') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="flex items-center justify-between gap-4">
+          <h1 class="text-2xl font-bold text-slate-900">Page 2 &mdash; Parties</h1>
+          <button type="submit" name="action" value="previous" formnovalidate class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700">Previous</button>
+        </div>
+        <div class="mt-4 flex justify-end"><button type="submit" name="action" value="retain" class="rounded-lg bg-orange-600 px-4 py-2 font-semibold text-white">Retain for this session</button></div>
+        <p class="mt-6 text-sm text-slate-700">Property: <strong>{{ selected_property.name }}</strong></p>
+        <p class="mt-2 text-sm text-slate-600">Enter the contracting parties separately. Neither party is inferred from property ownership. Information is retained only in this session; no saved draft or lease is created.</p>
+        {% if error %}<p role="alert" class="mt-4 text-sm text-red-700">{{ error }}</p>{% endif %}
+        <div class="mt-6 grid gap-6 md:grid-cols-2">
+          {% for role, label in [('lessor', 'Lessor'), ('lessee', 'Lessee')] %}
+          {% set party = parties.get(role, {}) %}
+          <fieldset class="rounded-xl border border-slate-200 p-5">
+            <legend class="px-2 text-lg font-semibold text-slate-800">{{ label }}</legend>
+            <label for="{{ role }}-type" class="mb-2 block text-sm font-semibold">Party type</label>
+            <select id="{{ role }}-type" name="{{ role }}_party_type" required {% if loop.first %}autofocus{% endif %} class="mb-4 w-full rounded-lg border border-slate-300 px-3 py-2">
+              <option value="">Choose a type</option>
+              {% for kind in ['individual', 'company', 'trust'] %}<option value="{{ kind }}" {% if party.get('party_type') == kind %}selected{% endif %}>{{ kind|capitalize }}</option>{% endfor %}
+            </select>
+            {% for key, field_label, limit in [('name', 'Full name / company or trust name', 120), ('email', 'Email (optional)', 160), ('phone', 'Phone (optional)', 40)] %}
+            <label for="{{ role }}-{{ key }}" class="mb-2 block text-sm font-semibold">{{ field_label }}</label>
+            <input id="{{ role }}-{{ key }}" name="{{ role }}_{{ key }}" type="{{ 'email' if key == 'email' else 'tel' if key == 'phone' else 'text' }}" maxlength="{{ limit }}" {% if key == 'name' %}required{% endif %} value="{{ party.get(key, '') }}" class="mb-4 w-full rounded-lg border border-slate-300 px-3 py-2">
+            {% endfor %}
+          </fieldset>
+          {% endfor %}
+        </div>
+      </form>
+      <div class="mt-6 flex justify-end"><button type="button" disabled class="rounded-lg border border-slate-200 bg-slate-100 px-4 py-2 text-sm text-slate-500">Page 3 &mdash; Coming Soon</button></div>
+    </div>
+  </div>
+</div>
+{% endblock %}

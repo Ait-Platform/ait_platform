@@ -145,8 +145,39 @@ class PropertyManagementTests(unittest.TestCase):
     def test_owner_controls_are_disabled_without_loading_owner_tables(self):
         html=self.client.get('/billing/property-owner').get_data(as_text=True)
         self.assertIn('Assign Owner &mdash; Coming Soon',html)
-        self.assertIn('Edit &mdash; Coming Soon',html)
+        self.assertIn('/billing/property-owner/26/edit',html)
         self.assertNotIn('Save Owner',html)
         self.assertIn('<dialog',html)
+
+    def test_edit_prepopulates_and_persists_available_property_fields(self):
+        response=self.client.get('/billing/property-owner/26/edit')
+        self.assertEqual(response.status_code,200)
+        html=response.get_data(as_text=True)
+        self.assertIn('value="Almond"',html);self.assertIn('Original address',html)
+        response=self.client.post('/billing/property-owner/26/edit',data={'property_name':'Almond House','address':'New complete address'})
+        self.assertEqual(response.status_code,302)
+        self.assertEqual(self.session.execute(sa.text('SELECT name,address FROM bil_property WHERE id=26')).one(),('Almond House','New complete address'))
+        self.assertEqual(self.count(),2)
+
+    def test_edit_cross_manager_and_anonymous_are_denied(self):
+        self.assertEqual(self.client.get('/billing/property-owner/27/edit').status_code,404)
+        self.assertEqual(self.client.post('/billing/property-owner/27/edit',data={'property_name':'Forged','address':'Forged'}).status_code,404)
+        with self.client.session_transaction() as session:session.clear()
+        self.assertEqual(self.client.get('/billing/property-owner/26/edit').status_code,401)
+
+    def test_edit_validation_and_duplicate_name_do_not_modify_records(self):
+        for payload in ({'property_name':'','address':''},{'property_name':'X'*101},{'property_name':'Almond','address':'X'*201}):
+            self.assertEqual(self.client.post('/billing/property-owner/26/edit',data=payload).status_code,400)
+        self.client.post('/billing/property-owner',data={'property_name':'Second'})
+        self.assertEqual(self.client.post('/billing/property-owner/26/edit',data={'property_name':'Second','address':'Different'}).status_code,409)
+        self.assertEqual(self.session.execute(sa.text('SELECT address FROM bil_property WHERE id=26')).scalar(),'Original address')
+
+    def test_edit_failed_commit_rolls_back_and_never_reports_success(self):
+        from sqlalchemy.exc import SQLAlchemyError
+        with patch.object(self.session,'commit',side_effect=SQLAlchemyError('synthetic failure')):
+            response=self.client.post('/billing/property-owner/26/edit',data={'property_name':'Changed','address':'Changed'})
+        self.assertEqual(response.status_code,503)
+        self.assertEqual(self.session.execute(sa.text('SELECT name,address FROM bil_property WHERE id=26')).one(),('Almond','Original address'))
+        with self.client.session_transaction() as session:self.assertFalse(any(category=='success' for category,message in session.get('_flashes',[])))
 
 if __name__=='__main__': unittest.main()

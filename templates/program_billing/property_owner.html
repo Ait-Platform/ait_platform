@@ -13,6 +13,10 @@
       </div>
       {% set pm_menu_active = 'property_owner' %}{% include 'program_billing/menu.html' %}
       <div class="mt-4 flex justify-end"><a href="{{ url_for('billing_bp.property_portfolio') }}" class="rounded-lg bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700">Property Portfolio</a></div>
+      <style>
+        #property-name { border: 1px solid #b8cbd7; }
+        #property-name:focus { border-color: #5289b0; outline: none; box-shadow: 0 0 0 3px #e4eff7; }
+      </style>
       <form method="POST" action="{{ url_for('billing_bp.property_owner') }}" class="mt-6 flex flex-wrap items-end gap-3">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="min-w-0 flex-1"><label for="property-name" class="mb-2 block text-sm font-semibold">Property Name</label><input id="property-name" name="property_name" value="{{ property_name }}" maxlength="100" required autofocus class="w-full rounded-lg border border-slate-300 px-3 py-2"></div>
@@ -20,7 +24,7 @@
       </form>
       {% if error %}<p role="alert" class="mt-3 text-sm text-red-700">{{ error }}</p>{% endif %}
       <h2 class="mt-8 text-lg font-semibold text-slate-800">My Properties</h2>
-      <p class="mt-2 text-sm text-slate-600">Existing properties are listed automatically. Owner assignment and the complete property-and-owner Edit view are Coming Soon.</p>
+      <p class="mt-2 text-sm text-slate-600">Existing properties are listed automatically. Edit property names and addresses below. Owner assignment remains unavailable until the ownership schema is ready.</p>
       <div class="mt-4 overflow-x-auto rounded-lg border border-slate-200">
         <table class="w-full text-left text-sm">
           <thead class="bg-slate-50"><tr><th class="p-3">Property</th><th class="p-3">Address</th><th class="p-3">Owners</th><th class="p-3">Actions</th></tr></thead>
@@ -30,7 +34,7 @@
               <td class="p-3 font-semibold">{{ property.name }}{% if property.is_archived %}<span class="ml-2 text-xs text-slate-500">Archived</span>{% endif %}</td>
               <td class="p-3"><button type="button" data-address-dialog="address-{{ property.id }}" class="text-blue-700 underline">{{ property.address or 'Assign Address' }}</button></td>
               <td class="p-3"><button type="button" disabled class="text-slate-500">Assign Owner &mdash; Coming Soon</button></td>
-              <td class="p-3"><button type="button" disabled class="rounded-lg border border-slate-200 bg-slate-100 px-3 py-2 text-slate-500">Edit &mdash; Coming Soon</button></td>
+              <td class="p-3"><a href="{{ url_for('billing_bp.property_edit', property_id=property.id) }}" class="rounded-lg border border-slate-200 bg-slate-100 px-3 py-2 font-semibold text-slate-700 hover:bg-slate-200">Edit</a></td>
             </tr>
             {% else %}<tr><td colspan="4" class="p-6 text-slate-600">No properties registered yet. Enter a property name above to begin.</td></tr>{% endfor %}
           </tbody>

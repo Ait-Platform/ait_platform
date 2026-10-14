@@ -70,3 +70,51 @@ def property_address(property_id):
         abort(503, description="Address could not be saved.")
     flash("Property address saved.", "success")
     return redirect(url_for("billing_bp.property_owner"))
+
+
+@billing_bp.route("/billing/property-owner/<int:property_id>/edit", methods=["GET", "POST"], endpoint="property_edit")
+@login_required
+def property_edit(property_id):
+    statement = select(BilProperty.id, BilProperty.name, BilProperty.address).where(
+        BilProperty.id == property_id, BilProperty.manager_id == current_user.id)
+    try:
+        property_record = db.session.execute(statement.execution_options(autoflush=False)).mappings().first()
+    except SQLAlchemyError:
+        abort(503, description="Property could not be loaded.")
+    if property_record is None:
+        abort(404)
+    values = dict(property_record)
+    error = None
+    status = 200
+    if request.method == "POST":
+        name = request.form.get("property_name", "").strip()
+        address = request.form.get("address", "").strip()
+        values.update(name=name, address=address)
+        if not name or len(name) > 100 or len(address) > 200:
+            error = "Enter a name of 1 to 100 characters and an address of no more than 200 characters."
+            status = 400
+        else:
+            try:
+                db.session.execute(text("SELECT pg_advisory_xact_lock(hashtext(:scope), hashtext(lower(:name)))"),
+                    {"scope": "pm_property_create:" + str(current_user.id), "name": name})
+                duplicate = db.session.execute(text("SELECT id FROM bil_property WHERE manager_id=:manager AND id<>:property AND lower(name)=lower(:name) LIMIT 1"),
+                    {"manager": current_user.id, "property": property_id, "name": name}).scalar_one_or_none()
+                if duplicate is not None:
+                    db.session.rollback()
+                    error = "Another property in your register already has this name."
+                    status = 409
+                else:
+                    updated = db.session.execute(text("UPDATE bil_property SET name=:name,address=:address WHERE id=:property AND manager_id=:manager RETURNING id"),
+                        {"name": name, "address": address, "property": property_id, "manager": current_user.id}).scalar_one_or_none()
+                    if updated is None:
+                        db.session.rollback()
+                        abort(404)
+                    db.session.commit()
+                    flash("Property changes saved.", "success")
+                    return redirect(url_for("billing_bp.property_edit", property_id=property_id))
+            except SQLAlchemyError as exc:
+                db.session.rollback()
+                current_app.logger.error("PM property edit failed error=%s", type(exc).__name__)
+                error = "Property changes could not be saved. Please try again or contact support."
+                status = 503
+    return render_pm_template("program_billing/property_edit.html", property=values, error=error), status

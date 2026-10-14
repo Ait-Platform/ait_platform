@@ -27,15 +27,22 @@
               <option value="">Choose a type</option>
               {% for kind in ['individual', 'company', 'trust'] %}<option value="{{ kind }}" {% if party.get('party_type') == kind %}selected{% endif %}>{{ kind|capitalize }}</option>{% endfor %}
             </select>
-            {% for key, field_label, limit in [('name', 'Full name / company or trust name', 120), ('email', 'Email (optional)', 160), ('phone', 'Phone (optional)', 40)] %}
+            {% for key, field_label, limit in [('name', 'Full name / company or trust name', 120), ('email', 'Email (optional)', 160), ('phone', 'Phone (optional)', 40), ('identity_number', 'Identity / registration number', 80), ('physical_address', 'Physical address', 240)] %}
             <label for="{{ role }}-{{ key }}" class="mb-2 block text-sm font-semibold">{{ field_label }}</label>
             <input id="{{ role }}-{{ key }}" name="{{ role }}_{{ key }}" type="{{ 'email' if key == 'email' else 'tel' if key == 'phone' else 'text' }}" maxlength="{{ limit }}" {% if key == 'name' %}required{% endif %} value="{{ party.get(key, '') }}" class="mb-4 w-full rounded-lg border border-slate-300 px-3 py-2">
             {% endfor %}
+            {% if role == 'lessor' %}
+            <label for="lessor-capacity" class="mb-2 block text-sm font-semibold">Lessor capacity</label>
+            <select id="lessor-capacity" name="lessor_capacity" class="w-full rounded-lg border border-slate-300 px-3 py-2">
+              <option value="">Choose capacity</option>
+              {% for value, text in [('owner', 'Owner'), ('authorised_agent', 'Authorised Agent'), ('other', 'Other')] %}<option value="{{ value }}" {% if party.get('capacity') == value %}selected{% endif %}>{{ text }}</option>{% endfor %}
+            </select>
+            {% endif %}
           </fieldset>
           {% endfor %}
         </div>
+        <div class="mt-6 flex justify-end"><button type="submit" name="action" value="next" class="rounded-lg bg-orange-600 px-4 py-2 font-semibold text-white">Next: Lease Duration</button></div>
       </form>
-      <div class="mt-6 flex justify-end"><button type="button" disabled class="rounded-lg border border-slate-200 bg-slate-100 px-4 py-2 text-sm text-slate-500">Page 3 &mdash; Coming Soon</button></div>
     </div>
   </div>
 </div>

@@ -1,0 +1,47 @@
+{% extends "layout.html" %}
+{% block title %}Lease Management | Page 3 Lease Duration{% endblock %}
+{% block flashes %}{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-5xl px-4 py-10">
+  <div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+    <div class="h-2 bg-orange-500"></div>
+    <div class="p-6">
+      {% include "partials/flash_messages.html" %}
+      <form method="POST" action="{{ url_for('billing_bp.lease_duration') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="flex items-center justify-between gap-4">
+          <h1 class="text-2xl font-bold text-slate-900">Page 3 &mdash; Lease Duration</h1>
+          <button type="submit" name="action" value="previous" formnovalidate class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700">Previous</button>
+        </div>
+        <div class="mt-4 flex justify-end"><button type="submit" name="action" value="retain" class="rounded-lg bg-orange-600 px-4 py-2 font-semibold text-white">Retain for this session</button></div>
+        <p class="mt-6 text-sm text-slate-700">Property: <strong>{{ selected_property.name }}</strong></p>
+        <p class="mt-2 text-sm text-slate-600">Information is retained only in this session. No saved draft or lease is created.</p>
+        {% if error %}<p role="alert" class="mt-4 text-sm text-red-700">{{ error }}</p>{% endif %}
+        <div class="mt-6 grid gap-6 md:grid-cols-2">
+          {% for key, label in [('commencement_date', 'Commencement date'), ('expiry_date', 'Expiry date')] %}
+          <div><label for="{{ key }}" class="mb-2 block text-sm font-semibold">{{ label }}</label><input id="{{ key }}" name="{{ key }}" type="date" required {% if loop.first %}autofocus{% endif %} value="{{ duration.get(key, '') }}" class="w-full rounded-lg border border-slate-300 px-3 py-2"></div>
+          {% endfor %}
+          <div><label class="mb-2 block text-sm font-semibold" for="duration-days">Calculated duration</label><output id="duration-days" class="block rounded-lg border border-slate-300 px-3 py-2">{{ (duration_days|string + ' days') if duration_days is not none else 'Select dates' }}</output><p class="mt-2 text-xs text-slate-500">Calendar days, including commencement and expiry dates.</p></div>
+          <div><label for="renewal-option" class="mb-2 block text-sm font-semibold">Renewal option</label><select id="renewal-option" name="renewal_option" required class="w-full rounded-lg border border-slate-300 px-3 py-2"><option value="">Choose Yes or No</option>{% for value in ['yes', 'no'] %}<option value="{{ value }}" {% if duration.get('renewal_option') == value %}selected{% endif %}>{{ value|capitalize }}</option>{% endfor %}</select></div>
+          <div><label for="notice-days" class="mb-2 block text-sm font-semibold">Renewal notice period (days)</label><input id="notice-days" name="renewal_notice_days" type="number" min="0" max="3650" value="{{ duration.get('renewal_notice_days', '') }}" class="w-full rounded-lg border border-slate-300 px-3 py-2"></div>
+          <div><label for="conditions" class="mb-2 block text-sm font-semibold">Renewal conditions</label><textarea id="conditions" name="renewal_conditions" maxlength="500" rows="4" class="w-full rounded-lg border border-slate-300 px-3 py-2">{{ duration.get('renewal_conditions', '') }}</textarea></div>
+        </div>
+      </form>
+      <div class="mt-6 flex justify-end"><button type="button" disabled class="rounded-lg border border-slate-200 bg-slate-100 px-4 py-2 text-sm text-slate-500">Page 4 &mdash; Coming Soon</button></div>
+    </div>
+  </div>
+</div>
+<script>
+(() => {
+  const start = document.getElementById('commencement_date');
+  const end = document.getElementById('expiry_date');
+  const output = document.getElementById('duration-days');
+  function update() {
+    if (!start.value || !end.value) { output.textContent = 'Select dates'; return; }
+    const difference = Date.parse(end.value + 'T00:00:00Z') - Date.parse(start.value + 'T00:00:00Z');
+    output.textContent = difference < 0 ? 'Expiry must follow commencement' : (Math.round(difference / 86400000) + 1) + ' days';
+  }
+  start.addEventListener('input', update); end.addEventListener('input', update);
+})();
+</script>
+{% endblock %}

@@ -4131,3 +4131,6 @@ def delete_bank_account(account_id):
 
 # Register the private sample viewer in the Property Management user workspace.
 from . import lease_management as _lease_management
+
+# Page 1 uses existing properties only; no persistent draft or lease writes.
+from . import lease_property as _lease_property

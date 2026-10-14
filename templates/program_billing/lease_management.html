@@ -35,7 +35,7 @@
     <h2 class="text-lg font-semibold text-slate-800">{{ selected_property.name }}</h2>
     {% if selected_property.address %}<p class="mt-1 text-sm text-slate-600">{{ selected_property.address }}</p>{% endif %}
     <div class="mt-4 mb-6 flex flex-wrap justify-end gap-3">
-      <button type="button" disabled class="rounded-lg border border-slate-300 bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-500">New Lease — Coming Soon</button>
+      <a href="{{ url_for('billing_bp.lease_property') }}" class="rounded-lg border border-orange-300 bg-orange-50 px-4 py-2 text-sm font-semibold text-orange-900 hover:bg-orange-100">New Lease &mdash; Select Property</a>
       <a href="#existing-leases" class="rounded-lg border border-orange-300 bg-white px-4 py-2 text-sm font-semibold text-orange-900 hover:bg-orange-50">Existing Leases</a>
       {% if leases %}<button type="button" disabled class="rounded-lg border border-slate-300 bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-500">Renew Lease — Coming Soon</button>{% endif %}
     </div>

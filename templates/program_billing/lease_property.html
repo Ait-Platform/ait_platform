@@ -1,0 +1,42 @@
+{% extends "layout.html" %}
+{% block title %}Lease Management | Page 1 ? Property{% endblock %}
+{% block flashes %}{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-5xl px-4 py-10">
+  <div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+    <div class="h-2 bg-orange-500"></div>
+    <div class="p-6">
+      {% include "partials/flash_messages.html" %}
+      <div class="flex items-center justify-between gap-4">
+        <h1 class="text-2xl font-bold text-slate-900">Page 1 &mdash; Property</h1>
+        <a href="{{ url_for('billing_bp.pm_lease_management') }}" class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-200">Back to Lease Management</a>
+      </div>
+      <div class="mt-4 flex justify-end">
+        <a href="{{ url_for('billing_bp.property_owner') }}" class="rounded-lg border border-orange-300 bg-orange-50 px-4 py-2 text-sm font-semibold text-orange-900">Property &amp; Owner</a>
+      </div>
+      <p class="mt-6 text-sm text-slate-600">Choose an existing property you manage. This selection is retained only for this session. No lease or saved draft is created.</p>
+      {% if properties %}
+      <form method="POST" action="{{ url_for('billing_bp.lease_property') }}" class="mt-6">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label for="lease-property" class="mb-2 block text-sm font-semibold text-slate-800">Property</label>
+        <select id="lease-property" name="property_id" required autofocus class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2">
+          <option value="" disabled {% if not selected_property %}selected{% endif %}>Choose a property</option>
+          {% for property in properties %}<option value="{{ property.id }}" {% if selected_property and selected_property.id == property.id %}selected{% endif %}>{{ property.name }}</option>{% endfor %}
+        </select>
+        <div class="mt-4 flex justify-end"><button type="submit" class="rounded-lg bg-orange-600 px-4 py-2 font-semibold text-white hover:bg-orange-700">Select Property</button></div>
+      </form>
+      {% else %}<p class="mt-6 text-sm text-slate-600">No active properties are available. Visit Property &amp; Owner for registration updates.</p>{% endif %}
+      {% if selected_property %}
+      <section class="mt-6 rounded-lg border border-slate-200 p-4">
+        <h2 class="font-semibold text-slate-800">{{ selected_property.name }}</h2>
+        {% if selected_property.address %}<p class="mt-2 text-sm text-slate-600">{{ selected_property.address }}</p>{% endif %}
+      </section>
+      {% endif %}
+      <div class="mt-6 flex flex-wrap justify-end gap-3">
+        {% for label in ['Save Draft', 'Resume Draft', 'Page 2'] %}<button type="button" disabled class="rounded-lg border border-slate-200 bg-slate-100 px-4 py-2 text-sm text-slate-500">{{ label }} &mdash; Coming Soon</button>{% endfor %}
+      </div>
+      <p class="mt-3 text-sm text-slate-500">Pages 2&ndash;9 are not available yet.</p>
+    </div>
+  </div>
+</div>
+{% endblock %}

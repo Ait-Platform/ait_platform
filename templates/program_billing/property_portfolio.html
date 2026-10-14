@@ -32,33 +32,9 @@
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-8">
           <p class="text-sm text-slate-500 mt-1">Manage your properties, meters, and billing configurations.</p>
           <div class="mt-4 sm:mt-0">
-            <button onclick="document.getElementById('setupModal').classList.remove('hidden'); setTimeout(() => document.getElementById('property_name_input').focus(), 100);" class="inline-flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-xl transition shadow-md hover:shadow-lg">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-              <span>Add Property</span>
-            </button>
+            <a href="{{ url_for('billing_bp.property_owner') }}" class="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-xl transition shadow-md">Property &amp; Owner</a>
           </div>
         </div>
-
-    <!-- Setup Modal -->
-    <div id="setupModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900 bg-opacity-50 p-4 sm:p-6 backdrop-blur-sm transition-opacity">
-      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden transform transition-all">
-        <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-          <h3 class="font-bold text-slate-800 text-lg">Add New Property</h3>
-          <button onclick="document.getElementById('setupModal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 text-2xl leading-none">&times;</button>
-        </div>
-        <form action="{{ url_for('billing_bp.onboarding_start_setup') }}" method="POST" class="p-6">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <div class="mb-6">
-            <label class="block text-sm font-bold text-slate-700 mb-2">Property Name</label>
-            <input type="text" id="property_name_input" name="property_name" required autofocus placeholder="e.g. Dale View Complex" class="w-full border-2 border-slate-400 rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition text-slate-700 font-medium placeholder-slate-400">
-          </div>
-          <div class="flex justify-end space-x-3">
-            <button type="button" onclick="document.getElementById('setupModal').classList.add('hidden')" class="px-5 py-2.5 text-slate-600 font-medium hover:bg-slate-100 rounded-xl transition">Cancel</button>
-            <button type="submit" class="px-6 py-2.5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 shadow-md hover:shadow-lg transition">Continue to Wizard</button>
-          </div>
-        </form>
-      </div>
-    </div>
 
         <!-- Property Data Table -->
         <div class="overflow-x-auto rounded-lg border border-slate-200">
@@ -85,9 +61,9 @@
                 </a>
               </td>
               <td class="px-6 py-4">
-                <a href="{{ url_for('billing_bp.setup_wizard', property_id=row.property_id) }}" class="inline-flex items-center px-3 py-1.5 bg-slate-100 text-slate-700 text-xs font-bold rounded-lg hover:bg-slate-200 transition border border-slate-200">
+                <a href="{{ url_for('billing_bp.property_owner') }}" class="inline-flex items-center px-3 py-1.5 bg-slate-100 text-slate-700 text-xs font-bold rounded-lg hover:bg-slate-200 transition border border-slate-200">
                   <svg class="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
-                  Edit
+                  Edit &mdash; Coming Soon
                 </a>
               </td>
               <td class="px-6 py-4 text-right">
@@ -105,7 +81,7 @@
                 <div class="flex flex-col items-center justify-center">
                   <svg class="w-12 h-12 text-slate-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
                   <p class="text-slate-500 font-medium">No properties found in your portfolio.</p>
-                  <p class="text-sm text-slate-400 mt-1">Click 'Add Property' to get started.</p>
+                  <p class="text-sm text-slate-400 mt-1">Visit Property &amp; Owner for registration updates.</p>
                 </div>
               </td>
             </tr>

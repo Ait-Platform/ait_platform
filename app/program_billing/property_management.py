@@ -141,15 +141,19 @@ def portfolio_page():
 @login_required
 def portfolio_email():
     from email_validator import validate_email, EmailNotValidError
-    try:
-        # Sensitive identities are sent only to the authenticated manager's own address.
-        recipient=validate_email(getattr(current_user,'email','') or '',check_deliverability=False).normalized
-    except EmailNotValidError:
-        abort(400,description="Your account needs a valid email address before this report can be emailed.")
+    if request.form.get('intent')!='send':
+        abort(400,description="Use Send Email to submit the report.")
+    entered=request.form.get('recipient_email','').strip()
     context=portfolio_context()
+    def failed(message,status=503):
+        return render_pm_template("program_billing/property_portfolio.html",
+            **context,email_open=True,recipient_email=entered,email_error=message),status
+    try:
+        recipient=validate_email(entered,check_deliverability=False).normalized
+    except EmailNotValidError:
+        return failed("Enter a valid recipient email address.",400)
     if current_app.config.get('MAIL_SUPPRESS_SEND'):
-        flash("Email sending is unavailable. No report was sent.","error")
-        return redirect(url_for('billing_bp.property_portfolio'))
+        return failed("Email sending is unavailable. No report was sent.")
     from app.utils.mailer import send_standard_report_email
     from app.utils.pdf_render import html_to_pdf_bytes
     try:
@@ -162,9 +166,8 @@ def portfolio_email():
         if accepted is not True:raise RuntimeError("Sender did not confirm submission")
     except Exception as error:
         current_app.logger.error("Portfolio email failed error=%s",type(error).__name__)
-        flash("The report could not be submitted for email. Please retry or contact support.","error")
-    else:
-        flash("Property Portfolio submitted successfully for email.","success")
+        return failed("The report could not be submitted for email. Please retry or contact support.")
+    flash(f"Property Portfolio submitted successfully for email to {recipient}.","success")
     return redirect(url_for('billing_bp.property_portfolio'))
 
 

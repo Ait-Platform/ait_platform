@@ -1,4 +1,4 @@
-﻿# Property Portfolio and owner editing verification
+# Property Portfolio and owner editing verification
 
 The Portfolio, clean Print document and emailed PDF use the same escaped report
 partial. Reports query manager-authorized, non-archived properties only, preserving
@@ -9,8 +9,11 @@ recording timestamps. Superseded versions are explicitly labelled historical.
 
 Email reuses app.utils.mailer.send_standard_report_email and
 app.utils.pdf_render.html_to_pdf_bytes. It uses the configured platform sender and
-sends only to the authenticated manager's validated account email. Request-supplied
-recipient overrides are ignored. Suppressed sending, PDF errors, exceptions and a
+opens an editable recipient modal. Only explicit Send Email submits the report
+to the validated entered address. Opening or cancelling does not invoke the sender.
+The report content remains scoped to the authenticated manager, independently of
+the entered destination. Success identifies the normalized destination; failures
+retain it and reopen the modal. Suppressed sending, PDF errors, exceptions and a
 non-True sender result never produce a success flash. Confirmation means submitted
 to the configured sender, not proof of mailbox delivery.
 
@@ -45,3 +48,13 @@ Save Changes request/response, approval/schema readiness, PDF renderer availabil
 the clean Print output and real sender submission/mailbox receipt. If the live edit
 failure persists, capture its request status, JSON error and matching server error
 class without including owner identity/contact values.
+
+## Recipient correction investigation
+
+In commit 5f0e2c40 the Email button immediately posted without a recipient form.
+The endpoint always selected current_user.email and ignored request recipient data.
+It called send_standard_report_email only after PDF generation succeeded and mail
+was not suppressed. No production logs were available to prove whether an
+administrator's particular live click reached that sender. Local tests confirm
+the standard sender is invoked with the entered destination after explicit submit.
+All local mail and PDF calls are mocked: no real email is sent during tests.

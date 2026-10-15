@@ -205,11 +205,11 @@ class OwnerOperationsTests(unittest.TestCase):
         modules={'app.utils.mailer':types.SimpleNamespace(send_standard_report_email=sender),
             'app.utils.pdf_render':types.SimpleNamespace(html_to_pdf_bytes=renderer)}
         with patch.dict(sys.modules,modules):
-            response=self.client.post('/billing/portfolio/email',data={'email':'attacker@example.com'})
+            response=self.client.post('/billing/portfolio/email',data={'recipient_email':'chosen@example.com','intent':'send'})
             self.assertEqual(response.status_code,302)
             sender.assert_called_once()
             kwargs=sender.call_args.kwargs
-            self.assertEqual(kwargs['to_email'],'manager7@example.com')
+            self.assertEqual(kwargs['to_email'],'chosen@example.com')
             self.assertEqual(kwargs['pdf_bytes'],b'%PDF-test')
             rendered=renderer.call_args.args[0]
             for value in ('Sensitive Owner','SECRET-ID','Owner home','PO Box','Original address'):
@@ -220,24 +220,60 @@ class OwnerOperationsTests(unittest.TestCase):
             with self.client.session_transaction() as session:
                 self.assertTrue(any(category=='success' for category,message in session.pop('_flashes',[])))
             sender.return_value=False
-            self.client.post('/billing/portfolio/email')
+            self.client.post('/billing/portfolio/email',data={'recipient_email':'chosen@example.com','intent':'send'})
             with self.client.session_transaction() as session:
                 self.assertFalse(any(category=='success' for category,message in session.pop('_flashes',[])))
             sender.side_effect=RuntimeError('Delivery failed')
-            self.client.post('/billing/portfolio/email')
+            self.client.post('/billing/portfolio/email',data={'recipient_email':'chosen@example.com','intent':'send'})
             with self.client.session_transaction() as session:
                 self.assertFalse(any(category=='success' for category,message in session.pop('_flashes',[])))
             sender.reset_mock();sender.side_effect=None;renderer.side_effect=RuntimeError('PDF unavailable')
-            self.client.post('/billing/portfolio/email');sender.assert_not_called()
+            self.client.post('/billing/portfolio/email',data={'recipient_email':'chosen@example.com','intent':'send'});sender.assert_not_called()
             with self.client.session_transaction() as session:
                 self.assertFalse(any(category=='success' for category,message in session.pop('_flashes',[])))
             renderer.side_effect=None
             sender.reset_mock();self.app.config['MAIL_SUPPRESS_SEND']=True
-            self.client.post('/billing/portfolio/email');sender.assert_not_called()
+            self.client.post('/billing/portfolio/email',data={'recipient_email':'chosen@example.com','intent':'send'});sender.assert_not_called()
             self.app.config['MAIL_SUPPRESS_SEND']=False
             self.sign_in(8)
-            self.client.post('/billing/portfolio/email')
+            self.client.post('/billing/portfolio/email',data={'recipient_email':'chosen@example.com','intent':'send'})
             self.assertNotIn('SECRET-ID',renderer.call_args.args[0])
+
+    def test_portfolio_email_recipient_entry_and_explicit_submission(self):
+        import sys,types
+        from unittest.mock import Mock,patch
+        sender=Mock(return_value=True);renderer=Mock(return_value=b'%PDF-test')
+        modules={'app.utils.mailer':types.SimpleNamespace(send_standard_report_email=sender),
+            'app.utils.pdf_render':types.SimpleNamespace(html_to_pdf_bytes=renderer)}
+        with patch.dict(sys.modules,modules):
+            html=self.client.get('/billing/portfolio').get_data(as_text=True)
+            for text in ('Email Property Portfolio','Recipient Email Address','name="recipient_email"','>Cancel</button>','>Send Email</button>'):
+                self.assertIn(text,html)
+            self.assertIn('id="portfolio-email-open"',html)
+            sender.assert_not_called()
+            self.assertEqual(self.client.get('/billing/portfolio/email').status_code,405)
+            self.assertEqual(self.client.post('/billing/portfolio/email',data={'recipient_email':'person@example.com'}).status_code,400)
+            for email in ('','bad-address','one@example.com,two@example.com','one@example.com\r\nBcc:other@example.com'):
+                response=self.client.post('/billing/portfolio/email',data={'recipient_email':email,'intent':'send'})
+                self.assertEqual(response.status_code,400)
+                self.assertIn('Enter a valid recipient',response.get_data(as_text=True))
+            sender.assert_not_called();renderer.assert_not_called()
+            response=self.client.post('/billing/portfolio/email',data={'recipient_email':' recipient@example.com ','intent':'send'})
+            self.assertEqual(response.status_code,302)
+            self.assertEqual(sender.call_args.kwargs['to_email'],'recipient@example.com')
+            with self.client.session_transaction() as session:
+                self.assertTrue(any(category=='success' and 'recipient@example.com' in message for category,message in session.pop('_flashes',[])))
+            sender.return_value=False
+            response=self.client.post('/billing/portfolio/email',data={'recipient_email':'retry@example.com','intent':'send'})
+            self.assertEqual(response.status_code,503)
+            html=response.get_data(as_text=True)
+            self.assertIn('value="retry@example.com"',html)
+            self.assertIn('data-open="true"',html)
+            self.assertIn('could not be submitted',html)
+            with self.client.session_transaction() as session:session.clear()
+            sender.reset_mock()
+            self.assertEqual(self.client.post('/billing/portfolio/email',data={'recipient_email':'recipient@example.com','intent':'send'}).status_code,401)
+            sender.assert_not_called()
 
     def test_identity_and_assignment_edit_for_all_types(self):
         owners=[]
@@ -277,7 +313,7 @@ class OwnerOperationsTests(unittest.TestCase):
         self.sign_in(8)
         self.assertNotIn('PRINT-ID',self.client.get('/billing/portfolio/print').get_data(as_text=True))
         with self.client.session_transaction() as session:session.clear()
-        self.assertEqual(self.client.post('/billing/portfolio/email').status_code,401)
+        self.assertEqual(self.client.post('/billing/portfolio/email',data={'recipient_email':'chosen@example.com','intent':'send'}).status_code,401)
         self.assertEqual(self.client.get('/billing/portfolio/print').status_code,401)
 
     def test_disabled_flag_denies_all_owner_operations(self):
